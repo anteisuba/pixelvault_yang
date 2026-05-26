@@ -50,6 +50,7 @@ import {
 } from '@/constants/video-model-capabilities'
 import {
   getNodeMediaUrl,
+  getUpstreamNodes,
   isKeyframeNode,
   isShotTextNode,
   isVideoSourceNode,
@@ -234,6 +235,55 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     return allNodes.filter((candidate) => sourceIds.has(candidate.id))
   }, [allNodes, edges, node.id])
 
+  // The voice group has to mirror what the backend actually harvests
+  // (see harvestUpstreamAudioBindings in node-workflow-graph). The
+  // backend accepts voices through two paths: directly wired into
+  // the seedance node, or one hop through a character node. The
+  // Inspector previously only looked at the direct edges, so the
+  // common "voice → character → seedance" pattern showed an empty
+  // voice group even though the audio reference was actually included
+  // in the generation request. We now collect both paths here and tag
+  // each voice with the routing character (if any) for the chip label.
+  const voiceUpstream = useMemo<
+    Array<{ voiceNode: NodeWorkflowNode; routedThrough?: string }>
+  >(() => {
+    const seen = new Map<
+      string,
+      { voiceNode: NodeWorkflowNode; routedThrough?: string }
+    >()
+
+    // Pass 1: voice → character → seedance (named binding, priority)
+    for (const characterNode of incomingNodes) {
+      if (!isVisualReferenceNode(characterNode)) continue
+      const characterName =
+        characterNode.data.characterName ??
+        characterNode.data.character?.name ??
+        undefined
+      const characterUpstream = getUpstreamNodes(
+        characterNode.id,
+        edges,
+        allNodes,
+      )
+      for (const candidate of characterUpstream) {
+        if (!isVoiceProfileNode(candidate)) continue
+        if (seen.has(candidate.id)) continue
+        seen.set(candidate.id, {
+          voiceNode: candidate,
+          routedThrough: characterName,
+        })
+      }
+    }
+
+    // Pass 2: voice → seedance (direct)
+    for (const candidate of incomingNodes) {
+      if (!isVoiceProfileNode(candidate)) continue
+      if (seen.has(candidate.id)) continue
+      seen.set(candidate.id, { voiceNode: candidate })
+    }
+
+    return Array.from(seen.values())
+  }, [allNodes, edges, incomingNodes])
+
   const upstreamGroups = useMemo<UpstreamGroup[]>(
     () => [
       {
@@ -259,11 +309,21 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       {
         key: 'voice',
         icon: <Mic2 className="size-3.5 text-node-amber" />,
-        nodes: incomingNodes.filter(isVoiceProfileNode),
+        nodes: voiceUpstream.map((entry) => entry.voiceNode),
       },
     ],
-    [incomingNodes],
+    [incomingNodes, voiceUpstream],
   )
+
+  // Lookup table so we can render "via {character}" on chips for
+  // character-routed voices.
+  const voiceRoutingByNodeId = useMemo(() => {
+    const map = new Map<string, string | undefined>()
+    for (const entry of voiceUpstream) {
+      map.set(entry.voiceNode.id, entry.routedThrough)
+    }
+    return map
+  }, [voiceUpstream])
 
   const selectedModelId = node.data.model?.modelId
   const videoCapabilities = selectedModelId
@@ -613,24 +673,44 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
               </div>
               {group.nodes.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {group.nodes.map((upstreamNode) => (
-                    <span
-                      key={upstreamNode.id}
-                      className={cn(
-                        'max-w-full truncate rounded-full border px-2 py-1 text-2xs font-semibold',
-                        getNodeMediaUrl(upstreamNode.data) ||
-                          upstreamNode.data.voiceId ||
-                          upstreamNode.data.voiceReferenceAudioUrl
-                          ? videoAccent.chip
-                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted',
-                      )}
-                    >
-                      {getNodeLabel(
-                        upstreamNode,
-                        tNodeTypes(upstreamNode.type),
-                      )}
-                    </span>
-                  ))}
+                  {group.nodes.map((upstreamNode) => {
+                    const routedThrough =
+                      group.key === 'voice'
+                        ? voiceRoutingByNodeId.get(upstreamNode.id)
+                        : undefined
+                    const baseLabel = getNodeLabel(
+                      upstreamNode,
+                      tNodeTypes(upstreamNode.type),
+                    )
+                    return (
+                      <span
+                        key={upstreamNode.id}
+                        title={
+                          routedThrough
+                            ? t('voiceRoutedTooltip', {
+                                voice: baseLabel,
+                                character: routedThrough,
+                              })
+                            : undefined
+                        }
+                        className={cn(
+                          'max-w-full truncate rounded-full border px-2 py-1 text-2xs font-semibold',
+                          getNodeMediaUrl(upstreamNode.data) ||
+                            upstreamNode.data.voiceId ||
+                            upstreamNode.data.voiceReferenceAudioUrl
+                            ? videoAccent.chip
+                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted',
+                        )}
+                      >
+                        {routedThrough
+                          ? t('voiceRoutedChip', {
+                              voice: baseLabel,
+                              character: routedThrough,
+                            })
+                          : baseLabel}
+                      </span>
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="mt-2 text-xs leading-5 text-node-subtle">

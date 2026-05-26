@@ -2935,6 +2935,8 @@
         "voice": "音色"
       },
       "upstreamGroupsEffective": "已生效：会进入生成请求",
+      "voiceRoutedChip": "{voice} · 经 {character}",
+      "voiceRoutedTooltip": "{voice} 通过角色「{character}」接入，生成时会带上角色名标记",
       "upstreamEmpty": {
         "visual": "还没有连接图像节点。",
         "keyframe": "还没有连接关键帧。",

@@ -2935,6 +2935,8 @@
         "voice": "音色"
       },
       "upstreamGroupsEffective": "有効：生成リクエストに含まれます",
+      "voiceRoutedChip": "{voice} · {character} 経由",
+      "voiceRoutedTooltip": "{voice} はキャラクター「{character}」経由で接続されています。生成時にそのキャラクター名でラベル付けされます。",
       "upstreamEmpty": {
         "visual": "画像ノードはまだ接続されていません。",
         "keyframe": "キーフレームはまだ接続されていません。",

@@ -2935,6 +2935,8 @@
         "voice": "Voices"
       },
       "upstreamGroupsEffective": "Active: included in the generation request",
+      "voiceRoutedChip": "{voice} · via {character}",
+      "voiceRoutedTooltip": "{voice} is routed through character \"{character}\"; the generation request labels it with that name.",
       "upstreamEmpty": {
         "visual": "No image nodes connected.",
         "keyframe": "No keyframes connected.",

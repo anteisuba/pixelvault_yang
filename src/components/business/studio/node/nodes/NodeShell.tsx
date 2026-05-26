@@ -25,6 +25,14 @@ interface NodeShellRootProps {
 interface NodeShellHeaderProps {
   type: NodeTokenType
   status: NodeWorkflowStatus
+  /**
+   * Optional override for the header's display name. Defaults to the
+   * localized node-type label (e.g. "角色图"). Used by nodes that carry
+   * a user-editable identity — for example a Character Image node shows
+   * its characterName here so the canvas card title tracks renames done
+   * in the Inspector.
+   */
+  title?: string
 }
 
 interface NodeShellSlotProps {
@@ -75,9 +83,12 @@ function NodeShellRoot({
   )
 }
 
-function NodeShellHeader({ type, status }: NodeShellHeaderProps) {
+function NodeShellHeader({ type, status, title }: NodeShellHeaderProps) {
   const t = useTranslations('StudioNode.nodeTypes')
   const accent = NODE_ACCENTS[type]
+  const trimmedTitle = title?.trim()
+  const displayTitle =
+    trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : t(type)
 
   return (
     <header className="flex items-center justify-between gap-3 border-b border-node-panel-inner/80 px-4 py-3">
@@ -92,8 +103,11 @@ function NodeShellHeader({ type, status }: NodeShellHeaderProps) {
         >
           {NODE_TOKEN_BADGE_LABELS[type]}
         </span>
-        <span className="truncate text-sm font-semibold text-node-foreground">
-          {t(type)}
+        <span
+          className="truncate text-sm font-semibold text-node-foreground"
+          title={displayTitle}
+        >
+          {displayTitle}
         </span>
       </div>
       <NodeStatusBadge status={status} />

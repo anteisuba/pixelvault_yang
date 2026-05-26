@@ -27,10 +27,25 @@ export function CharacterImageNode({
   const isExistingImage =
     Boolean(imageUrl) &&
     imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
+  // Trim before falling back so a whitespace-only name shows the default
+  // node label instead of an empty header.
+  const characterNameRaw =
+    typeof data.characterName === 'string' ? data.characterName.trim() : ''
+  const fallbackName = data.character?.name?.trim() ?? ''
   const characterName =
-    typeof data.characterName === 'string'
-      ? data.characterName
-      : (data.character?.name ?? t('namePrefix'))
+    characterNameRaw.length > 0
+      ? characterNameRaw
+      : fallbackName.length > 0
+        ? fallbackName
+        : t('namePrefix')
+  // The header shows the user's character name when set; if not, NodeShell
+  // falls back to the localized "角色图" label.
+  const headerTitle =
+    characterNameRaw.length > 0
+      ? characterNameRaw
+      : fallbackName.length > 0
+        ? fallbackName
+        : undefined
   const generationStatus =
     data.generationStatus ??
     (imageUrl
@@ -48,6 +63,7 @@ export function CharacterImageNode({
       <NodeShell.Header
         type={NODE_TYPE_IDS.characterImage}
         status={data.status}
+        title={headerTitle}
       />
       <NodeShell.Body className="space-y-3">
         <div className="relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">

@@ -776,6 +776,8 @@
     "rodinQualityOverrideHint": "特定のポリゴン目標値を設定。空白の場合はティアのデフォルト値を使用。",
     "rodinAdditionalImagesLabel": "追加参照画像",
     "rodinAdditionalImagesHint": "最大4枚の追加ビュー（ソース画像と合わせて最大5枚）。多くのビューを使用すると幾何学的な曖昧さが減少します。",
+    "rodinTextModeLabel": "テキストから 3D モード",
+    "rodinTextModeHint": "ソース画像なし、プロンプトだけで生成します。「詳細設定」のプロンプト欄を入力すれば、画像ピッカーはスキップされます。",
     "rodinMeshFirstLabel": "メッシュ先行プレビュー",
     "rodinMeshFirstHint": "まずテクスチャなしのメッシュを生成（高速・低コスト）。結果を見てからテクスチャ生成に追加コストをかけるか決められます。注意：テクスチャ段階でモデルを再実行するため、最終メッシュが若干異なる場合があります。",
     "rodinContinueToTextureLabel": "テクスチャを生成",

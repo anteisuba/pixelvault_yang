@@ -776,6 +776,8 @@
     "rodinQualityOverrideHint": "设置具体的多边形目标数。留空则使用档位默认值。",
     "rodinAdditionalImagesLabel": "额外参考图",
     "rodinAdditionalImagesHint": "最多 4 张额外视角图（加上主图合计最多 5 张）。更多视角可减少几何歧义。",
+    "rodinTextModeLabel": "纯文本模式",
+    "rodinTextModeHint": "仅凭文字描述生成 3D 模型，无需源图。在「高级」段填写 Prompt 字段，系统会跳过图片选择器。",
     "rodinMeshFirstLabel": "先生成 Mesh",
     "rodinMeshFirstHint": "先生成无贴图的几何（更快、更便宜）。完成后再决定是否花第二次费用生成贴图。注意：贴图阶段会重新跑一次模型，最终 mesh 可能略有差异。",
     "rodinContinueToTextureLabel": "继续生成贴图",

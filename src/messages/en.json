@@ -776,6 +776,8 @@
     "rodinQualityOverrideHint": "Set a specific polygon target. Leave empty to use the tier default.",
     "rodinAdditionalImagesLabel": "Additional Reference Images",
     "rodinAdditionalImagesHint": "Up to 4 additional views (combined with the source image = 5 total). More views reduce geometric ambiguity.",
+    "rodinTextModeLabel": "Text-to-3D mode",
+    "rodinTextModeHint": "Generate from a prompt alone, no source image. Fill in the Prompt field under Advanced and we'll skip the image picker.",
     "rodinMeshFirstLabel": "Mesh-first preview",
     "rodinMeshFirstHint": "Generate an untextured mesh first (faster, cheaper). After it lands you can decide whether to spend a second job on textures. Note: textured pass re-runs the model, so the final mesh may differ slightly.",
     "rodinContinueToTextureLabel": "Continue with textures",

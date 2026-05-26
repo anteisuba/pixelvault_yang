@@ -1504,8 +1504,38 @@ export function Studio3DWorkspace({
             </div>
           )}
 
+          {/* Rodin text-to-3D toggle — when ON the source image picker
+              collapses into a hint and Generate runs against the prompt
+              alone. Only shown for the Rodin model; the toggle has no
+              effect on Hunyuan / TripoSR / Trellis. */}
+          {isRodin && (
+            <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3">
+              <Switch
+                id="rodin-text-mode"
+                checked={rodinTextMode}
+                onCheckedChange={setRodinTextMode}
+              />
+              <div className="flex-1">
+                <Label
+                  htmlFor="rodin-text-mode"
+                  className="cursor-pointer text-xs font-medium"
+                >
+                  {t('rodinTextModeLabel')}
+                </Label>
+                <p className="mt-0.5 font-serif text-[11px] italic leading-snug text-muted-foreground">
+                  {t('rodinTextModeHint')}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Compact image picker — mirrors Image Studio bottom-toolbar chip pattern */}
-          <div className="flex flex-col gap-2">
+          <div
+            className={cn(
+              'flex flex-col gap-2',
+              rodinTextMode && isRodin && 'pointer-events-none opacity-50',
+            )}
+          >
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               {t('sourceImageLabel')}
             </Label>

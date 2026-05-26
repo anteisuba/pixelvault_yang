@@ -532,6 +532,7 @@
     "pauseAfterSentence2": "After sentence 2",
     "pauseAfterSentence3": "After sentence 3",
     "pauseMarkersHint": "Adds a short break after the selected sentence in multi-sentence narration.",
+    "pauseMarkersNone": "None",
     "pronunciation": "Pronunciation dictionary",
     "addWord": "Add word",
     "word": "Word",

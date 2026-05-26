@@ -532,6 +532,7 @@
     "pauseAfterSentence2": "2文目の後",
     "pauseAfterSentence3": "3文目の後",
     "pauseMarkersHint": "複数文のナレーションで、選んだ文の後に短い間を入れます。",
+    "pauseMarkersNone": "なし",
     "pronunciation": "発音辞書",
     "addWord": "単語を追加",
     "word": "単語",

@@ -61,6 +61,7 @@ import {
 } from '@/constants/voice-cards'
 import { toast } from 'sonner'
 
+import { useIsMobile } from '@/hooks/use-mobile'
 import { uploadReferenceAudioAPI } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -582,10 +583,37 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   onChangeAudioReferenceText,
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
+  const isMobile = useIsMobile()
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedTab, setAdvancedTab] = useState<AudioAdvancedTabId>(
     AUDIO_ADVANCED_TAB_IDS.OUTPUT,
   )
+  // Collapse style/pace/pause sections on phone-portrait so the voice list
+  // above keeps usable height. Each section's chevron toggles its own panel,
+  // and the trigger row shows the currently-selected value so the user can
+  // read state at a glance without expanding.
+  const [styleOpen, setStyleOpen] = useState(!isMobile)
+  const [paceOpen, setPaceOpen] = useState(!isMobile)
+  const [pauseOpen, setPauseOpen] = useState(!isMobile)
+
+  const selectedStyleLabel = (() => {
+    const option = STYLE_OPTIONS.find((o) => o.value === advanced.style)
+    return option ? t(option.labelKey) : ''
+  })()
+  const selectedPaceLabel = (() => {
+    const option = PACE_OPTIONS.find((o) => o.value === pace)
+    return option ? t(option.labelKey) : ''
+  })()
+  const selectedPauseLabel =
+    pauseMarkers.length === 0
+      ? t('pauseMarkersNone')
+      : pauseMarkers
+          .map((value) => {
+            const option = PAUSE_OPTIONS.find((o) => o.value === value)
+            return option ? t(option.labelKey) : ''
+          })
+          .filter(Boolean)
+          .join(' · ')
   const stylePreviewAudioRef = useRef<HTMLAudioElement | null>(null)
   const stylePreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -626,95 +654,180 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   return (
     <div className="space-y-5" data-voice-card-id={voiceCardId ?? undefined}>
       <section className="space-y-2">
-        <div className="space-y-1">
-          <label className="block text-2xs font-medium text-muted-foreground/70">
-            {t('style')}
-          </label>
-          <p className="text-2xs text-muted-foreground">{t('styleHint')}</p>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={advanced.style}
-          onValueChange={(value) => {
-            if (value) onChangeAdvanced({ style: value })
-          }}
-          aria-label={t('style')}
-          className="!grid w-full grid-cols-2"
+        <button
+          type="button"
+          onClick={() => setStyleOpen((o) => !o)}
+          aria-expanded={styleOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
         >
-          {STYLE_OPTIONS.map((option) => {
-            const Icon = option.icon
-            return (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                onMouseEnter={() => startStylePreview(option.value)}
-                onMouseLeave={stopStylePreview}
-                onFocus={() => startStylePreview(option.value)}
-                onBlur={stopStylePreview}
-                className="flex items-center justify-center gap-1.5 px-2 text-center"
-              >
-                <Icon className="size-3 shrink-0 opacity-70" />
-                <span className="truncate">{t(option.labelKey)}</span>
-              </ToggleGroupItem>
-            )
-          })}
-        </ToggleGroup>
+          <span className="min-w-0 space-y-0.5">
+            <span className="block text-2xs font-medium text-muted-foreground/70">
+              {t('style')}
+            </span>
+            {styleOpen ? null : (
+              <span className="block truncate text-2xs text-foreground">
+                {selectedStyleLabel}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-muted-foreground transition-transform',
+              styleOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows] duration-200 ease-out',
+            styleOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          )}
+        >
+          <div className="overflow-hidden">
+            <p className="pb-2 text-2xs text-muted-foreground">
+              {t('styleHint')}
+            </p>
+            <ToggleGroup
+              type="single"
+              value={advanced.style}
+              onValueChange={(value) => {
+                if (value) onChangeAdvanced({ style: value })
+              }}
+              aria-label={t('style')}
+              className="!grid w-full grid-cols-2"
+            >
+              {STYLE_OPTIONS.map((option) => {
+                const Icon = option.icon
+                return (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    onMouseEnter={() => startStylePreview(option.value)}
+                    onMouseLeave={stopStylePreview}
+                    onFocus={() => startStylePreview(option.value)}
+                    onBlur={stopStylePreview}
+                    className="flex items-center justify-center gap-1.5 px-2 text-center"
+                  >
+                    <Icon className="size-3 shrink-0 opacity-70" />
+                    <span className="truncate">{t(option.labelKey)}</span>
+                  </ToggleGroupItem>
+                )
+              })}
+            </ToggleGroup>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-2">
-        <div className="space-y-1">
-          <label className="block text-2xs font-medium text-muted-foreground/70">
-            {t('pace')}
-          </label>
-          <p className="text-2xs text-muted-foreground">{t('paceHint')}</p>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={pace}
-          onValueChange={(value) => {
-            if (value) onChangePace(value)
-          }}
-          aria-label={t('pace')}
-          className="!grid w-full grid-cols-3"
+        <button
+          type="button"
+          onClick={() => setPaceOpen((o) => !o)}
+          aria-expanded={paceOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
         >
-          {PACE_OPTIONS.map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="px-2 text-center"
+          <span className="min-w-0 space-y-0.5">
+            <span className="block text-2xs font-medium text-muted-foreground/70">
+              {t('pace')}
+            </span>
+            {paceOpen ? null : (
+              <span className="block truncate text-2xs text-foreground">
+                {selectedPaceLabel}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-muted-foreground transition-transform',
+              paceOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows] duration-200 ease-out',
+            paceOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          )}
+        >
+          <div className="overflow-hidden">
+            <p className="pb-2 text-2xs text-muted-foreground">
+              {t('paceHint')}
+            </p>
+            <ToggleGroup
+              type="single"
+              value={pace}
+              onValueChange={(value) => {
+                if (value) onChangePace(value)
+              }}
+              aria-label={t('pace')}
+              className="!grid w-full grid-cols-3"
             >
-              {t(option.labelKey)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+              {PACE_OPTIONS.map((option) => (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className="px-2 text-center"
+                >
+                  {t(option.labelKey)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-2">
-        <div className="space-y-1">
-          <label className="block text-2xs font-medium text-muted-foreground/70">
-            {t('pauseMarkers')}
-          </label>
-          <p className="text-2xs text-muted-foreground">
-            {t('pauseMarkersHint')}
-          </p>
-        </div>
-        <ToggleGroup
-          type="multiple"
-          value={pauseMarkers}
-          onValueChange={onChangePauseMarkers}
-          aria-label={t('pauseMarkers')}
-          className="!grid w-full grid-cols-3"
+        <button
+          type="button"
+          onClick={() => setPauseOpen((o) => !o)}
+          aria-expanded={pauseOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
         >
-          {PAUSE_OPTIONS.map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="px-2 text-center"
+          <span className="min-w-0 space-y-0.5">
+            <span className="block text-2xs font-medium text-muted-foreground/70">
+              {t('pauseMarkers')}
+            </span>
+            {pauseOpen ? null : (
+              <span className="block truncate text-2xs text-foreground">
+                {selectedPauseLabel}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-muted-foreground transition-transform',
+              pauseOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows] duration-200 ease-out',
+            pauseOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          )}
+        >
+          <div className="overflow-hidden">
+            <p className="pb-2 text-2xs text-muted-foreground">
+              {t('pauseMarkersHint')}
+            </p>
+            <ToggleGroup
+              type="multiple"
+              value={pauseMarkers}
+              onValueChange={onChangePauseMarkers}
+              aria-label={t('pauseMarkers')}
+              className="!grid w-full grid-cols-3"
             >
-              {t(option.labelKey)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+              {PAUSE_OPTIONS.map((option) => (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className="px-2 text-center"
+                >
+                  {t(option.labelKey)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
       </section>
 
       <section className="border-t border-border/60 pt-4">

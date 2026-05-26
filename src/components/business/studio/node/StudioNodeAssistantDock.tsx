@@ -610,12 +610,18 @@ export function StudioNodeAssistantDock({
     )
   }
 
+  // On mobile the dock spans left-4 → right-4 — setting `left` forces the
+  // flex-box to ignore the inline `width: 448px` style and stretch to viewport
+  // edges (minus margin). The resize handle is hidden + the user's persisted
+  // width is preserved for when they're back on desktop.
   return (
     <aside
       style={dockStyle}
-      className="pointer-events-auto absolute bottom-4 right-4 top-20 flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl"
+      className="pointer-events-auto absolute bottom-4 right-4 top-20 flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl max-md:left-4"
     >
-      {/* Left-edge handle: drag horizontally to resize the whole dock. */}
+      {/* Left-edge handle: drag horizontally to resize the whole dock.
+          Hidden on mobile — the dock is full-width and resizing makes
+          no sense at that breakpoint. */}
       <div
         role="separator"
         aria-orientation="vertical"
@@ -626,7 +632,7 @@ export function StudioNodeAssistantDock({
         tabIndex={0}
         {...widthHandlers}
         title={t('resize.widthLabel')}
-        className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
+        className="group absolute inset-y-0 left-0 z-10 hidden w-2.5 cursor-col-resize items-center justify-center focus:outline-none md:flex"
       >
         <span className="flex h-14 w-1.5 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
           <GripVertical className="size-3" />

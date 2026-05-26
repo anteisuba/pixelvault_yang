@@ -481,10 +481,13 @@ export const VoiceSelector = memo(function VoiceSelector({
           'grid gap-2',
           isLocalCardsTab
             ? 'grid-cols-1'
-            : 'sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]',
+            : // Phone-portrait: 3-col grid where search spans all 3 (full
+              // width) and the three filters sit side-by-side on the second
+              // row — saves ~100px vs the old stacked layout.
+              'grid-cols-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]',
         )}
       >
-        <div className="relative min-w-0">
+        <div className="relative col-span-3 min-w-0 sm:col-span-1">
           <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}

@@ -61,7 +61,6 @@ import {
 } from '@/constants/voice-cards'
 import { toast } from 'sonner'
 
-import { useIsMobile } from '@/hooks/use-mobile'
 import { uploadReferenceAudioAPI } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -583,18 +582,20 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   onChangeAudioReferenceText,
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
-  const isMobile = useIsMobile()
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedTab, setAdvancedTab] = useState<AudioAdvancedTabId>(
     AUDIO_ADVANCED_TAB_IDS.OUTPUT,
   )
   // Collapse style/pace/pause sections on phone-portrait so the voice list
-  // above keeps usable height. Each section's chevron toggles its own panel,
-  // and the trigger row shows the currently-selected value so the user can
-  // read state at a glance without expanding.
-  const [styleOpen, setStyleOpen] = useState(!isMobile)
-  const [paceOpen, setPaceOpen] = useState(!isMobile)
-  const [pauseOpen, setPauseOpen] = useState(!isMobile)
+  // above keeps usable height. `useIsMobile()` would return `false` on first
+  // render (its useEffect hasn't run yet), so useState would lock in the
+  // desktop default. Instead, read window.innerWidth synchronously — this
+  // component only mounts inside a portal'd dialog, so SSR isn't a concern.
+  const getInitialSectionOpen = () =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 768
+  const [styleOpen, setStyleOpen] = useState(getInitialSectionOpen)
+  const [paceOpen, setPaceOpen] = useState(getInitialSectionOpen)
+  const [pauseOpen, setPauseOpen] = useState(getInitialSectionOpen)
 
   const selectedStyleLabel = (() => {
     const option = STYLE_OPTIONS.find((o) => o.value === advanced.style)

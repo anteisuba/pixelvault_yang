@@ -37,9 +37,9 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         closeLabel={t('voiceLibraryClose')}
-        className="flex h-[85vh] min-h-0 flex-col !max-w-5xl p-0"
+        className="flex h-[100dvh] min-h-0 flex-col !max-w-5xl p-0 sm:h-[85vh]"
       >
-        <DialogHeader className="border-b border-border/60 px-5 py-4">
+        <DialogHeader className="border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
           <DialogTitle className="font-display text-base">
             {t('voiceMarket')}
           </DialogTitle>
@@ -48,10 +48,17 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Mobile (default): explicit `grid-cols-1` + `grid-rows-[minmax(0,1fr)_auto]`
+            so the voice list (row 1) grows while the sidePanel (row 2) is
+            capped at 45dvh and scrolls internally. Without this, the implicit
+            grid track sized both sections to min-content and squashed the
+            voice list to ~one row. lg+ restores the side-by-side layout. */}
         <div
           className={cn(
-            'grid min-h-0 flex-1 gap-4 overflow-hidden px-5 pb-5 pt-1',
-            sidePanel ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : 'grid-cols-1',
+            'grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-4 pb-4 pt-1 sm:gap-4 sm:px-5 sm:pb-5',
+            sidePanel
+              ? 'grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1'
+              : null,
           )}
         >
           <section className="flex min-h-0 flex-col overflow-hidden">
@@ -63,7 +70,7 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
             />
           </section>
           {sidePanel ? (
-            <aside className="min-h-0 overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-4">
+            <aside className="min-h-0 max-h-[45dvh] overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3 sm:p-4 lg:max-h-none">
               {sidePanel}
             </aside>
           ) : null}

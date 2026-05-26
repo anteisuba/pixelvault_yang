@@ -23,7 +23,7 @@ import { useTranslations } from 'next-intl'
 
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import { AI_MODELS } from '@/constants/models'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -443,21 +443,17 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
             )}
           </select>
         ) : isLongField ? (
-          <Textarea
+          <IMEAwareTextarea
             value={value}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-              handleFieldChange(fieldId, event.target.value)
-            }
+            onValueChange={(next) => handleFieldChange(fieldId, next)}
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
-            className="min-h-20 resize-none rounded-xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+            className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
           />
         ) : (
-          <input
+          <IMEAwareInput
             value={value}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              handleFieldChange(fieldId, event.target.value)
-            }
+            onValueChange={(next) => handleFieldChange(fieldId, next)}
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
             className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"

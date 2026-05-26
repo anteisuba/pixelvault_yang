@@ -1,13 +1,12 @@
 'use client'
 
-import { useCallback, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useCallback, type KeyboardEvent } from 'react'
 import { Loader2, SendHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { SCRIPT_PLANNER_PROVIDER_IDS } from '@/constants/script-breakdown'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -16,6 +15,7 @@ import {
   type NodePlannerRouteSelection,
 } from '../CanvasPlannerRouteSelector'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { IMEAwareTextarea } from './IMEAwareField'
 import { InspectorField } from './InspectorField'
 
 interface ComposerInspectorProps {
@@ -42,8 +42,8 @@ export function ComposerInspector({ node }: ComposerInspectorProps) {
       : null
 
   const handlePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      updateNodeData(node.id, { prompt: event.target.value })
+    (next: string) => {
+      updateNodeData(node.id, { prompt: next })
     },
     [node.id, updateNodeData],
   )
@@ -76,14 +76,14 @@ export function ComposerInspector({ node }: ComposerInspectorProps) {
         label={t('promptLabel')}
         statusDotClassName="bg-node-amber"
       >
-        <Textarea
+        <IMEAwareTextarea
           value={node.data.prompt}
-          onChange={handlePromptChange}
+          onValueChange={handlePromptChange}
           onKeyDownCapture={stopCanvasKeyboardEvent}
           onKeyUpCapture={stopCanvasKeyboardEvent}
           aria-label={t('promptLabel')}
           placeholder={t('placeholder')}
-          className="min-h-36 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+          className="min-h-36 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
         />
       </InspectorField>
 

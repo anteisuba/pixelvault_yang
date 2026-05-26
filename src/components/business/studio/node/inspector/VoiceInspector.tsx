@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 
 import { FishVoiceLibraryDialog } from '@/components/business/studio/FishVoiceLibraryDialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import { AI_MODELS } from '@/constants/models'
 import {
   NODE_STUDIO_AUDIO_INPUT,
@@ -300,15 +300,13 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
               label={tFields(`${fieldId}.label`)}
               statusDotClassName="bg-node-amber"
             >
-              <input
+              <IMEAwareInput
                 value={
                   typeof node.data[fieldId] === 'string'
                     ? node.data[fieldId]
                     : ''
                 }
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  handleFieldChange(fieldId, event.target.value)
-                }
+                onValueChange={(next) => handleFieldChange(fieldId, next)}
                 aria-label={tFields(`${fieldId}.label`)}
                 placeholder={tFields(`${fieldId}.placeholder`)}
                 className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
@@ -439,18 +437,16 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
               label={tFields(`${fieldId}.label`)}
               statusDotClassName="bg-node-amber"
             >
-              <Textarea
+              <IMEAwareTextarea
                 value={
                   typeof node.data[fieldId] === 'string'
                     ? node.data[fieldId]
                     : ''
                 }
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                  handleFieldChange(fieldId, event.target.value)
-                }
+                onValueChange={(next) => handleFieldChange(fieldId, next)}
                 aria-label={tFields(`${fieldId}.label`)}
                 placeholder={tFields(`${fieldId}.placeholder`)}
-                className="min-h-20 resize-none rounded-xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+                className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
               />
             </InspectorField>
           ))}

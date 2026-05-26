@@ -17,6 +17,8 @@ import {
 } from '@/constants/script-breakdown'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+
+import { IMEAwareTextarea } from './IMEAwareField'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -114,7 +116,7 @@ export function AgentInspector({ node }: AgentInspectorProps) {
   }, [applySeedancePromptPlanToSeedance, node.id, tToasts])
 
   const handleLoglineChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
+    (next: string) => {
       if (!breakdown) {
         return
       }
@@ -122,7 +124,7 @@ export function AgentInspector({ node }: AgentInspectorProps) {
       updateNodeData(node.id, {
         breakdown: {
           ...breakdown,
-          logline: event.target.value,
+          logline: next,
         },
       })
     },
@@ -237,10 +239,10 @@ export function AgentInspector({ node }: AgentInspectorProps) {
       {agentMode === NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown && breakdown ? (
         <>
           <InspectorField label={t('logline')} statusDotClassName="bg-lime-300">
-            <Textarea
+            <IMEAwareTextarea
               value={breakdown.logline}
-              onChange={handleLoglineChange}
-              className="min-h-24 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+              onValueChange={handleLoglineChange}
+              className="min-h-24 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
             />
           </InspectorField>
 

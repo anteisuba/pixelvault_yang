@@ -43,7 +43,7 @@ import {
   type NodeWorkflowGenerationStatus,
 } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import {
   Popover,
   PopoverContent,
@@ -312,15 +312,15 @@ export function CharacterImageInspector({
   ])
 
   const handleCharacterNameChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      updateNodeData(node.id, { characterName: event.target.value })
+    (next: string) => {
+      updateNodeData(node.id, { characterName: next })
     },
     [node.id, updateNodeData],
   )
 
   const handlePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      updateNodeData(node.id, { prompt: event.target.value })
+    (next: string) => {
+      updateNodeData(node.id, { prompt: next })
     },
     [node.id, updateNodeData],
   )
@@ -601,21 +601,21 @@ export function CharacterImageInspector({
               label={t('nameLabel')}
               statusDotClassName="bg-rose-200"
             >
-              <input
+              <IMEAwareInput
                 value={characterName}
-                onChange={handleCharacterNameChange}
+                onValueChange={handleCharacterNameChange}
                 aria-label={t('nameLabel')}
                 className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
               />
             </InspectorField>
 
             <InspectorField label={t('promptLabel')}>
-              <Textarea
+              <IMEAwareTextarea
                 value={node.data.prompt}
-                onChange={handlePromptChange}
+                onValueChange={handlePromptChange}
                 aria-label={t('promptLabel')}
                 placeholder={t('promptPlaceholder')}
-                className="min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+                className="min-h-28 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
               />
             </InspectorField>
 

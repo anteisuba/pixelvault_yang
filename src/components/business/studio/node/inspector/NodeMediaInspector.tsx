@@ -57,7 +57,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Textarea } from '@/components/ui/textarea'
+import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import {
   Tooltip,
   TooltipContent,
@@ -424,21 +424,17 @@ export function NodeMediaInspector({
         statusDotClassName="bg-node-amber"
       >
         {isLongField ? (
-          <Textarea
+          <IMEAwareTextarea
             value={value}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-              handleFieldChange(fieldId, event.target.value)
-            }
+            onValueChange={(next) => handleFieldChange(fieldId, next)}
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
-            className="min-h-24 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+            className="min-h-24 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
           />
         ) : (
-          <input
+          <IMEAwareInput
             value={value}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              handleFieldChange(fieldId, event.target.value)
-            }
+            onValueChange={(next) => handleFieldChange(fieldId, next)}
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
             className={`${commonClassName} h-10`}

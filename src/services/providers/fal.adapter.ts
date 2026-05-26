@@ -511,12 +511,28 @@ export const falAdapter: ProviderAdapter = {
     // Kontext models: native reference image handling (no strength/denoising)
     const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
     const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
-    const TEXT_TO_IMAGE_ONLY_MODELS = new Set(['fal-ai/flux-lora'])
+    // Ideogram v3 takes up to 3 style refs via image_urls, no strength field
+    const IDEOGRAM_MULTI_MODELS = new Set(['fal-ai/ideogram/v3'])
+    // Pure text-to-image endpoints — ignore any reference image input
+    const TEXT_TO_IMAGE_ONLY_MODELS = new Set([
+      'fal-ai/flux-lora',
+      'fal-ai/flux-2-pro',
+      'fal-ai/flux-2',
+      'fal-ai/flux-2-max',
+      'fal-ai/flux/schnell',
+      'fal-ai/bytedance/seedream/v4.5/text-to-image',
+      'fal-ai/recraft/v4/pro/text-to-image',
+    ])
 
     if (KONTEXT_MULTI_MODELS.has(externalModelId)) {
       // Kontext Max: multiple reference images
       if (referenceImages?.length) {
         body.image_urls = referenceImages
+      }
+    } else if (IDEOGRAM_MULTI_MODELS.has(externalModelId)) {
+      // Ideogram v3: cap at 3 style refs, no strength
+      if (referenceImages?.length) {
+        body.image_urls = referenceImages.slice(0, 3)
       }
     } else if (KONTEXT_SINGLE_MODELS.has(externalModelId)) {
       // Kontext Pro: single reference image

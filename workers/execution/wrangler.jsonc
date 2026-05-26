@@ -13,7 +13,7 @@
   "r2_buckets": [
     {
       "binding": "GENERATION_BUCKET",
-      "bucket_name": "pixelvault-generations",
+      "bucket_name": "personal-ai-gallery",
     },
   ],
   "workflows": [

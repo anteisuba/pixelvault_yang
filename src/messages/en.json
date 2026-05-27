@@ -3636,6 +3636,8 @@
     "toolDownload": "Download",
     "toolViewOriginal": "View original",
     "toolShare": "Share",
+    "toolLockSeed": "Lock seed",
+    "seedLockedToast": "Seed {seed} locked — tweak the prompt and hit Generate to keep the composition.",
     "toolSuperRes": "Super resolution",
     "toolRemoveBg": "Remove background",
     "toolSaveSuperRes": "Save super-res",

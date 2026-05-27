@@ -3636,6 +3636,8 @@
     "toolDownload": "ダウンロード",
     "toolViewOriginal": "原画を表示",
     "toolShare": "共有",
+    "toolLockSeed": "Seedを固定",
+    "seedLockedToast": "Seed {seed} を固定 — promptを編集して再生成すれば、構図はそのままで細部だけ変化させられます。",
     "toolSuperRes": "超解像",
     "toolRemoveBg": "背景除去",
     "toolSaveSuperRes": "超解像を保存",

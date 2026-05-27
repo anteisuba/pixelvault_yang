@@ -3636,6 +3636,8 @@
     "toolDownload": "下载",
     "toolViewOriginal": "查看原图",
     "toolShare": "分享",
+    "toolLockSeed": "固定 Seed",
+    "seedLockedToast": "Seed {seed} 已固定 — 改 prompt 再点生成，可保留构图微调细节。",
     "toolSuperRes": "超分辨率",
     "toolRemoveBg": "去背景",
     "toolSaveSuperRes": "保存超分结果",

@@ -7,11 +7,13 @@ import {
   ImagePlus,
   Maximize2,
   PenTool,
+  Pin,
   RotateCcw,
   Share2,
   Sparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
@@ -49,6 +51,42 @@ function getGeneratingStageKey(elapsedSeconds: number): GeneratingStageKey {
   if (elapsedSeconds < 8) return 'connecting'
   if (elapsedSeconds < 45) return 'rendering'
   return 'waiting'
+}
+
+/**
+ * Pull a usable, non-negative seed off a GenerationRecord. The top-level
+ * `seed` field is a union (bigint from DB, string after JSON round-trip,
+ * number from the in-memory layer) so we coerce defensively; snapshot
+ * is the fallback. Returns null when no valid seed is present —
+ * old generations / random-seeded runs.
+ */
+function extractSeedFromGeneration(gen: GenerationRecord): number | null {
+  const raw = gen.seed
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) {
+    const n = Number(raw)
+    if (Number.isFinite(n) && n >= 0) return n
+  }
+  // BigInt literal `0n` requires ES2020+; project target is older, so
+  // use the constructor form which works on every target.
+  if (
+    typeof raw === 'bigint' &&
+    raw >= BigInt(0) &&
+    raw <= BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    return Number(raw)
+  }
+  if (typeof gen.snapshot === 'object' && gen.snapshot !== null) {
+    const snapSeed = (gen.snapshot as { seed?: unknown }).seed
+    if (
+      typeof snapSeed === 'number' &&
+      Number.isFinite(snapSeed) &&
+      snapSeed >= 0
+    ) {
+      return snapSeed
+    }
+  }
+  return null
 }
 
 export const GenerationPreview = memo(function GenerationPreview({
@@ -227,6 +265,27 @@ export const GenerationPreview = memo(function GenerationPreview({
     }
   }
 
+  // Phase 1B: "Lock seed" — copies the current generation's seed into
+  // FormContext.advancedParams.seed. Once locked, the next Generate
+  // tap reuses this seed even if the user tweaks the prompt, which is
+  // the canonical "stable composition, tweak one tag" workflow. We
+  // intentionally do NOT auto-trigger generate — the value of locking
+  // shows up the moment the user changes a token and clicks Generate
+  // themselves; surprise-generating wastes credits.
+  const lockableSeed = generation ? extractSeedFromGeneration(generation) : null
+  // Plain handler (not useCallback) because we're already past the
+  // component's null-early-return; the React Hooks rule forbids hooks
+  // beyond that point. renderTools is recreated each render anyway so
+  // memoisation here would be a no-op.
+  const handleLockSeed = () => {
+    if (lockableSeed === null) return
+    dispatch({
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { ...state.advancedParams, seed: lockableSeed },
+    })
+    toast.success(t('seedLockedToast', { seed: lockableSeed }))
+  }
+
   // ── Shared image container ────────────────────────────────────────
   const imageContainer = (
     <TransformWrapper
@@ -385,6 +444,20 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       )}
+      {/* Phase 1B: Lock-seed surfaces only on image generations that
+          actually have a non-random seed to copy. Hidden on
+          video/audio (those modes don't share AdvancedParams.seed
+          semantics) and on legacy generations missing the seed. */}
+      {generation &&
+      generation.outputType === 'IMAGE' &&
+      lockableSeed !== null ? (
+        <CanvasToolButton
+          icon={Pin}
+          label={t('toolLockSeed')}
+          onClick={handleLockSeed}
+          variant={variant}
+        />
+      ) : null}
     </>
   )
 

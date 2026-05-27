@@ -65,7 +65,12 @@ export function MobileTrainingSheet({
           className="fixed inset-x-0 bottom-0 z-50 flex h-[95vh] flex-col rounded-t-2xl border-t border-border bg-card focus:outline-none"
         >
           <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
-          <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
+          <div
+            className="flex-1 overflow-y-auto px-4 pt-4"
+            style={{
+              paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)',
+            }}
+          >
             {children}
           </div>
         </DrawerPrimitive.Content>

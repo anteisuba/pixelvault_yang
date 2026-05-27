@@ -39,7 +39,7 @@ export function AuthPageShell({
   children,
 }: AuthPageShellProps) {
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="w-full border-b border-border px-4 py-4">
         <div className="mx-auto flex max-w-content items-center justify-between">
           <Link

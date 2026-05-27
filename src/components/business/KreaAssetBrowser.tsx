@@ -1633,7 +1633,12 @@ export function KreaAssetBrowser({
       )}
       {/* ─── Picker confirmation bar (multi-select picker mode) ── */}
       {pickerMultiSelect && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-4 md:pb-6">
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 md:pb-6"
+          style={{
+            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+          }}
+        >
           <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
             <span className="px-2 text-xs font-medium tabular-nums">
               {pickerMaxSelection != null
@@ -1679,7 +1684,12 @@ export function KreaAssetBrowser({
 
       {/* ─── Bulk selection action bar ─────────────────────────── */}
       {!isPickerMode && selectionMode && selectedIds.size > 0 && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-4 md:pb-6">
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 md:pb-6"
+          style={{
+            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+          }}
+        >
           <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
             <span className="px-2 text-xs font-medium tabular-nums">
               {t('selectedCount', { count: selectedIds.size })}

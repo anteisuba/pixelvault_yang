@@ -3347,7 +3347,32 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'official' = trigger 来自 Civitai 作者；'inferred' = 我们从模型名推断的，
   // UI 应展示「推断」徽章提示用户可能不准确。
   triggerSource: z.enum(['official', 'inferred']),
+  // 主 LoRA 权重文件的 Civitai AutoV3 hash（lower-case，无前缀）。客户端
+  // 用它调 `/api/lora-assets/civitai/mined-prompts` 端点，从作者/社区生成
+  // 图的 prompt 里反推真实激活段。null 表示该版本没有 primary file 或上
+  // 游没返回 AutoV3 hash — enrichment 端点会跳过。
+  fileHashAutoV3: z.string().nullable(),
 })
+
+// 用户生成图反推的「实测激活 prompt」单条记录。多张图汇总去重后产生。
+export const CivitaiMinedPromptSchema = z.object({
+  // outfit / variant label。多个高频段时按 `'Outfit 1'` / `'Outfit 2'` 给序号。
+  label: z.string(),
+  // 完整激活段（comma-separated tokens），可直接复制到 prompt。
+  prompt: z.string(),
+  // 该 prompt 段在采样图里出现的次数 — 用于 UI 「N 张图用了这个」hint。
+  sampleCount: z.number().int().positive(),
+})
+export type CivitaiMinedPrompt = z.infer<typeof CivitaiMinedPromptSchema>
+
+export const CivitaiMinedPromptsResultSchema = z.object({
+  outfits: z.array(CivitaiMinedPromptSchema),
+  // 实际采样的图片数（用于 UI footer「采样自 N 张作者实测图」）。
+  totalSampled: z.number().int().nonnegative(),
+})
+export type CivitaiMinedPromptsResult = z.infer<
+  typeof CivitaiMinedPromptsResultSchema
+>
 
 export type CivitaiLoraLibraryItem = z.infer<
   typeof CivitaiLoraLibraryItemSchema

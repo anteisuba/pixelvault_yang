@@ -34,6 +34,7 @@ function makeItem(
     recommendedPrompt: null,
     recommendedPromptAlternates: [],
     triggerSource: 'official',
+    fileHashAutoV3: null,
     loraUrl: `https://example.com/lora/${id}.safetensors`,
     coverImageUrl: null,
     coverImageUrlOriginal: null,

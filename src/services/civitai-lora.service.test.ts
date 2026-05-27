@@ -18,6 +18,7 @@ vi.mock('@/lib/with-retry', () => ({
 
 import {
   listCivitaiLoras,
+  mineCivitaiUserPrompts,
   prewarmCivitaiLoraLibrary,
 } from '@/services/civitai-lora.service'
 
@@ -779,5 +780,141 @@ describe('listCivitaiLoras', () => {
     // schedule across multiple retry attempts.
     await vi.runAllTimersAsync()
     await promise
+  })
+})
+
+describe('mineCivitaiUserPrompts', () => {
+  it('clusters real activation segments from /api/v1/images by hash', async () => {
+    // Two c1-outfit generations + one c2-outfit, mirroring the actual
+    // wuthering-waves Denia shape. Hash comparison is case-insensitive
+    // (Civitai uppercases AutoV3 in `version.files` but lowercases it
+    // in image `meta.resources`).
+    const FILE_HASH = '7353e384259c'
+    const LORA_NAME = 'DeniaV1-Nuclear1811-IL'
+    const c1Prompt = `intro tokens,\n<lora:${LORA_NAME}:0.9>,purple eyes,pink hair,c1,white dress,2d style,\nfull body,pose`
+    const c2Prompt = `intro tokens,\n<lora:${LORA_NAME}:0.9>,black halo,purple eyes,c2,black dress,2d style,\nfull body,pose`
+
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            meta: {
+              meta: {
+                prompt: c1Prompt,
+                resources: [
+                  {
+                    hash: FILE_HASH.toUpperCase(),
+                    name: LORA_NAME,
+                    type: 'lora',
+                  },
+                ],
+              },
+            },
+          },
+          {
+            id: 2,
+            meta: {
+              meta: {
+                prompt: c1Prompt,
+                resources: [{ hash: FILE_HASH, name: LORA_NAME, type: 'lora' }],
+              },
+            },
+          },
+          {
+            id: 3,
+            meta: {
+              meta: {
+                prompt: c2Prompt,
+                resources: [{ hash: FILE_HASH, name: LORA_NAME, type: 'lora' }],
+              },
+            },
+          },
+          // Noise: a generation that doesn't reference our LoRA — must
+          // be ignored without crashing.
+          { id: 4, meta: { meta: { prompt: 'no lora here', resources: [] } } },
+          // Noise: missing meta entirely.
+          { id: 5, meta: null },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2649729,
+      modelVersionId: 2975273,
+      fileHashAutoV3: FILE_HASH,
+    })
+
+    // Two outfit clusters surfaced (c1 = 2 samples, c2 = 1)
+    expect(result.outfits).toHaveLength(2)
+    expect(result.outfits[0]?.label).toBe('Outfit 1')
+    expect(result.outfits[0]?.sampleCount).toBe(2)
+    expect(result.outfits[0]?.prompt).toContain('c1')
+    expect(result.outfits[1]?.sampleCount).toBe(1)
+    expect(result.outfits[1]?.prompt).toContain('c2')
+    // totalSampled counts every image with usable meta.prompt — the
+    // 4-with-no-resources is still "considered", the 5-with-null-meta
+    // is not.
+    expect(result.totalSampled).toBe(4)
+
+    // Verify the API was called with the right query params.
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('modelId')).toBe('2649729')
+    expect(requestUrl.searchParams.get('modelVersionId')).toBe('2975273')
+    expect(requestUrl.searchParams.get('sort')).toBe('Most Reactions')
+  })
+
+  it('handles the single-layer meta variant Civitai returns when modelVersionId+sort are set', async () => {
+    // /api/v1/images with `modelId&modelVersionId&sort=Most Reactions`
+    // returns `meta.{prompt,resources}` flat — not nested under
+    // `meta.meta`. Service must accept both shapes.
+    const FILE_HASH = 'abc123def456'
+    const LORA_NAME = 'TestLoRA'
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            meta: {
+              prompt: `<lora:${LORA_NAME}:1>,trigger_word,1girl`,
+              resources: [{ hash: FILE_HASH, name: LORA_NAME, type: 'lora' }],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 1,
+      fileHashAutoV3: FILE_HASH,
+    })
+    expect(result.outfits).toHaveLength(1)
+    expect(result.outfits[0]?.prompt).toBe('trigger_word, 1girl')
+    expect(result.totalSampled).toBe(1)
+  })
+
+  it('returns empty outfits without crashing when no generation references the LoRA', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            meta: {
+              meta: {
+                prompt: 'just a generic prompt, 1girl',
+                resources: [],
+              },
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 999,
+      fileHashAutoV3: 'deadbeef',
+    })
+    expect(result.outfits).toEqual([])
+    expect(result.totalSampled).toBe(1)
   })
 })

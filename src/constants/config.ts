@@ -253,6 +253,8 @@ export const API_ENDPOINTS = {
   LORA_ASSETS: '/api/lora-assets',
   /** Public Civitai LoRA browser */
   LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
+  /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */
+  LORA_ASSETS_CIVITAI_MINED_PROMPTS: '/api/lora-assets/civitai/mined-prompts',
   /** Resolve a style-code share-link → LoraAsset */
   LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
   /** Import an external (Civitai) LoRA into the viewer's favorites */

@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Users,
   Wand2,
   X,
 } from 'lucide-react'
@@ -51,6 +52,7 @@ import { usePathname, useRouter } from '@/i18n/navigation'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
+import { useCivitaiMinedPrompts } from '@/hooks/use-civitai-mined-prompts'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import {
   LoraTrainingForm,
@@ -703,6 +705,11 @@ function CivitaiCommunityBranch({
   const router = useRouter()
   const stack = useActiveLoraStack()
   const library = useCivitaiLoraLibrary()
+  // Phase-2 enrichment: mine the activation prompt from user generations
+  // for the currently-selected LoRA. Lazy + cached per (model, version,
+  // hash); covers the ~34% of LoRAs that ship neither trainedWords nor
+  // description code blocks.
+  const minedPrompts = useCivitaiMinedPrompts(library.selectedItem)
   const isMobile = useIsMobile()
   const [coverPreview, setCoverPreview] = useState<{
     url: string
@@ -1040,6 +1047,9 @@ function CivitaiCommunityBranch({
             onFavorite={handleFavoriteToggle}
             onCopyTryPrompt={handleCopyTryPrompt}
             onCopyTrigger={handleCopyTrigger}
+            minedOutfits={minedPrompts.outfits}
+            minedTotalSampled={minedPrompts.totalSampled}
+            minedIsLoading={minedPrompts.isLoading}
             onPreviewCover={(item) => {
               // 放大对话框需要原图：inspector 的 coverImageUrl 已经被 service
               // 层 rewrite 成 640px，放大到 max-w-4xl (≥896px) 会糊。回退到
@@ -1091,6 +1101,9 @@ function CivitaiCommunityBranch({
                   setCoverPreview({ url: fullUrl, name: item.name })
                 }
               }}
+              minedOutfits={minedPrompts.outfits}
+              minedTotalSampled={minedPrompts.totalSampled}
+              minedIsLoading={minedPrompts.isLoading}
             />
           </div>
         </DrawerContent>
@@ -1352,6 +1365,14 @@ interface CivitaiLoraInspectorProps {
   ) => Promise<void>
   onCopyTrigger: (trigger: string) => Promise<void>
   onPreviewCover: (item: CivitaiLoraLibraryItem) => void
+  /**
+   * Mined activation prompts from /api/v1/images (Phase 2 enrichment).
+   * Surfaced as extra chips in the outfit picker, badged so users know
+   * they came from community generations rather than the author.
+   */
+  minedOutfits: { label: string; prompt: string; sampleCount: number }[]
+  minedTotalSampled: number
+  minedIsLoading: boolean
 }
 
 function CivitaiLoraInspector({
@@ -1362,6 +1383,9 @@ function CivitaiLoraInspector({
   onCopyTryPrompt,
   onCopyTrigger,
   onPreviewCover,
+  minedOutfits,
+  minedTotalSampled,
+  minedIsLoading,
 }: CivitaiLoraInspectorProps) {
   const t = useTranslations('LoraWorkbench')
   const isGeneratable = item
@@ -1376,23 +1400,71 @@ function CivitaiLoraInspector({
   // than tracking prevId in render or running a setState effect.
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0)
 
-  // outfits[0] is the primary; alternates [1..] only exist for
-  // multi-outfit character LoRAs. Single-outfit LoRAs keep the
-  // original flat (no chips) layout.
-  const outfits = useMemo(() => {
+  // outfits[0] is the primary; alternates [1..] include author-written
+  // variants first, then community-mined variants. Source tag drives
+  // which badge to show on each chip. Single-outfit (no alts at all)
+  // LoRAs keep the original flat (no chips) layout.
+  type Outfit = {
+    label: string
+    prompt: string
+    source: 'author' | 'mined'
+    sampleCount?: number
+  }
+  const outfits = useMemo<Outfit[]>(() => {
     if (!item) return []
-    const alts = item.recommendedPromptAlternates
-    if (!item.recommendedPrompt && alts.length === 0) return []
-    const first = {
-      label: alts.length > 0 ? t('outfitDefaultLabel', { n: 1 }) : '',
-      prompt: item.recommendedPrompt ?? buildLoraPromptTemplate(item),
+    const authorAlts = item.recommendedPromptAlternates
+    const hasAuthorPrompt = Boolean(item.recommendedPrompt)
+    if (
+      !hasAuthorPrompt &&
+      authorAlts.length === 0 &&
+      minedOutfits.length === 0
+    )
+      return []
+
+    const seen = new Set<string>()
+    const result: Outfit[] = []
+
+    if (hasAuthorPrompt) {
+      const first: Outfit = {
+        label:
+          authorAlts.length + minedOutfits.length > 0
+            ? t('outfitDefaultLabel', { n: 1 })
+            : '',
+        prompt: item.recommendedPrompt ?? buildLoraPromptTemplate(item),
+        source: 'author',
+      }
+      result.push(first)
+      seen.add(first.prompt.trim().toLowerCase())
     }
-    const rest = alts.map((alt, idx) => ({
-      label: alt.label || t('outfitDefaultLabel', { n: idx + 2 }),
-      prompt: alt.prompt,
-    }))
-    return [first, ...rest]
-  }, [item, t])
+
+    authorAlts.forEach((alt) => {
+      const key = alt.prompt.trim().toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      result.push({
+        label: alt.label || t('outfitDefaultLabel', { n: result.length + 1 }),
+        prompt: alt.prompt,
+        source: 'author',
+      })
+    })
+
+    minedOutfits.forEach((mined) => {
+      const key = mined.prompt.trim().toLowerCase()
+      if (seen.has(key)) return // skip if identical to an author prompt
+      seen.add(key)
+      result.push({
+        label: mined.label || t('outfitDefaultLabel', { n: result.length + 1 }),
+        prompt: mined.prompt,
+        source: 'mined',
+        sampleCount: mined.sampleCount,
+      })
+    })
+
+    // If we ended up with mined-only outfits (no author prompt) and just
+    // one of them, the chip selector is unnecessary — flatten to a
+    // single-outfit display.
+    return result
+  }, [item, t, minedOutfits])
 
   const hasOutfitTabs = outfits.length > 1
   const displayedPrompt = item
@@ -1560,16 +1632,33 @@ function CivitaiLoraInspector({
             <span className="inline-flex items-center gap-1.5">
               <Wand2 className="size-3" aria-hidden />
               {t('tryPromptLabel')}
-              {/* When the template comes from the author's trainedWords or
-                  description code blocks rather than our generic scaffold,
-                  badge it so users know this is the maker's tuned starter
-                  prompt — much more reliable than our "portrait, dynamic
-                  pose, …" template. */}
-              {item.recommendedPrompt ? (
+              {/* Badge reflects the *currently selected* outfit's source.
+                  Author-supplied (trainedWords / description) wins primary
+                  styling; community-mined gets a softer secondary badge so
+                  users know which Civitai user prompts came from. */}
+              {outfits[selectedOutfitIndex]?.source === 'author' ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
                   <Sparkles className="size-2.5" aria-hidden />
                   {t('tryPromptOfficialBadge')}
                 </span>
+              ) : outfits[selectedOutfitIndex]?.source === 'mined' ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-2xs font-medium text-sky-700 dark:text-sky-300"
+                  title={t('tryPromptMinedHint', {
+                    sampled: minedTotalSampled,
+                  })}
+                >
+                  <Users className="size-2.5" aria-hidden />
+                  {t('tryPromptMinedBadge', {
+                    count: outfits[selectedOutfitIndex]?.sampleCount ?? 0,
+                  })}
+                </span>
+              ) : null}
+              {minedIsLoading && outfits.length <= 1 ? (
+                <Loader2
+                  className="size-3 animate-spin text-muted-foreground"
+                  aria-label={t('tryPromptMinedLoading')}
+                />
               ) : null}
             </span>
             <button
@@ -1583,23 +1672,30 @@ function CivitaiLoraInspector({
           {/* Multi-outfit chip selector: lets the user flip between e.g.
               costume1 / costume2 of a character LoRA before copying. Only
               renders when alternates exist — single-outfit LoRAs keep the
-              flat layout. */}
+              flat layout. Mined outfits get a subtle color shift so users
+              can tell author chips from community-mined ones at a glance. */}
           {hasOutfitTabs ? (
             <div className="mt-2 flex flex-wrap gap-1">
               {outfits.map((outfit, idx) => {
                 const isActive = idx === selectedOutfitIndex
+                const isMined = outfit.source === 'mined'
                 return (
                   <button
                     key={`${outfit.label}-${idx}`}
                     type="button"
                     onClick={() => setSelectedOutfitIndex(idx)}
                     className={cn(
-                      'rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
                       isActive
-                        ? 'bg-primary/20 text-primary'
+                        ? isMined
+                          ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                          : 'bg-primary/20 text-primary'
                         : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                     )}
                   >
+                    {isMined ? (
+                      <Users className="size-2.5" aria-hidden />
+                    ) : null}
                     {outfit.label}
                   </button>
                 )

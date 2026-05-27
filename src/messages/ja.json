@@ -351,8 +351,8 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "登録",
-      "signedOutUtility": "サインイン",
+      "signedOutPrimary": "無料登録",
+      "signedOutUtility": "ログイン",
       "sharedSecondary": "モデルを見る",
       "gallerySecondary": "ギャラリーを見る",
       "signInPrimary": "アカウントを作成",
@@ -1083,6 +1083,9 @@
     "triggerCopied": "トリガーをコピーしました",
     "tryPromptOfficialBadge": "作者推奨",
     "outfitDefaultLabel": "衣装 {n}",
+    "tryPromptMinedBadge": "コミュニティ · {count}回",
+    "tryPromptMinedHint": "Civitai上の {sampled} 件のコミュニティ生成から逆解析しました。",
+    "tryPromptMinedLoading": "コミュニティ生成から実際の起動プロンプトを抽出中…",
     "communityTags": "タグ",
     "communityUseInStudio": "Studioで使う",
     "communityOpenSource": "ソースを開く",

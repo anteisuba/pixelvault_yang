@@ -351,8 +351,8 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "Sign up",
-      "signedOutUtility": "Sign in",
+      "signedOutPrimary": "Sign up free",
+      "signedOutUtility": "Log in",
       "sharedSecondary": "See models",
       "gallerySecondary": "Browse gallery",
       "signInPrimary": "Create an account",
@@ -1083,6 +1083,9 @@
     "triggerCopied": "Trigger copied",
     "tryPromptOfficialBadge": "Author's recommended",
     "outfitDefaultLabel": "Outfit {n}",
+    "tryPromptMinedBadge": "Community · {count}",
+    "tryPromptMinedHint": "Reverse-engineered from {sampled} community generations on Civitai.",
+    "tryPromptMinedLoading": "Mining real activation prompts from community generations…",
     "communityTags": "Tags",
     "communityUseInStudio": "Use in Studio",
     "communityOpenSource": "Open source",

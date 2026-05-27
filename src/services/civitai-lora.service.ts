@@ -10,6 +10,10 @@ import {
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
 } from '@/constants/lora'
+import {
+  extractActivationSegment,
+  summariseActivationSegments,
+} from '@/lib/civitai-image-prompt-mine'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
@@ -17,6 +21,7 @@ import { withRetry } from '@/lib/with-retry'
 import type {
   CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
+  CivitaiMinedPromptsResult,
   LoraAssetType,
 } from '@/types'
 
@@ -35,6 +40,11 @@ const CivitaiFileSchema = z
     type: z.string().optional(),
     primary: z.boolean().optional(),
     downloadUrl: z.string().url().optional(),
+    // Civitai returns multiple hash algorithms per file; AutoV3 is the one
+    // that matches the `<lora:NAME:weight>` resources entry in user
+    // generation metadata. Kept passthrough so future hash types come
+    // through without schema churn.
+    hashes: z.record(z.string(), z.string()).optional(),
   })
   .passthrough()
 
@@ -233,6 +243,17 @@ function toLibraryItem(
     descriptionHtml: model.description ?? null,
   })
 
+  // AutoV3 is the Civitai hash variant referenced by the `resources` array
+  // in user generation metadata. Other hash types (AutoV1, SHA256, BLAKE3,
+  // CRC32) won't match, so we surface AutoV3 specifically. Normalise to
+  // lower-case because the prompt-side resource entries are lower-case.
+  const primaryFile =
+    version.files?.find((f) => f.primary && f.type === 'Model') ??
+    version.files?.find((f) => f.type === 'Model')
+  const fileHashAutoV3 = primaryFile?.hashes?.AutoV3
+    ? primaryFile.hashes.AutoV3.toLowerCase()
+    : null
+
   return {
     id: `civitai:${model.id}:${version.id}`,
     styleCode: `civitai-${version.id}`,
@@ -242,6 +263,7 @@ function toLibraryItem(
     baseModelFamily,
     provider: 'civitai',
     triggerWord: triggerInfo.trigger,
+    fileHashAutoV3,
     triggerAlternates: triggerInfo.alternates,
     recommendedPrompt: triggerInfo.recommendedPrompt,
     recommendedPromptAlternates: triggerInfo.recommendedPromptAlternates,
@@ -620,5 +642,151 @@ export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmRes
     successCount,
     failureCount,
     entries: completedEntries,
+  }
+}
+
+// ─── Phase 2: mine real activation prompts from /api/v1/images ─────────
+//
+// Covers the ~34 % of LoRAs that ship neither trainedWords nor description
+// code blocks. The Civitai images API returns every public generation,
+// each with the full SD prompt + a `resources` array mapping LoRA hashes
+// to the names used in that prompt's `<lora:NAME:weight>` tags. We:
+//   1. Fetch up to N recent generations for the modelId
+//   2. For each, find the resource whose AutoV3 hash matches our LoRA
+//   3. Slice the prompt segment immediately after that <lora:NAME:..> tag
+//      up to the next <lora:> or \n (authors group character vs scene
+//      tokens with newlines)
+//   4. Cluster + dedupe segments into outfit-level prompts
+
+const CIVITAI_IMAGES_API = 'https://civitai.com/api/v1/images'
+const CIVITAI_IMAGES_SAMPLE_LIMIT = 30
+const CIVITAI_IMAGES_OUTFIT_CAP = 6
+
+const CivitaiImageResourceSchema = z
+  .object({
+    hash: z.string().optional(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    weight: z.number().optional(),
+  })
+  .passthrough()
+
+const CivitaiImageMetaInnerSchema = z
+  .object({
+    prompt: z.string().optional(),
+    resources: z.array(CivitaiImageResourceSchema).optional(),
+  })
+  .passthrough()
+
+// Civitai's /images endpoint returns two different `meta` shapes depending
+// on which query params you pass (verified live):
+//   - Single layer (when modelVersionId + sort are set):
+//       img.meta = { prompt, resources, ... }
+//   - Double-nested (when only modelId is set):
+//       img.meta = { id, meta: { prompt, resources, ... } }
+// We pass through both layers so the consumer can try inner-then-outer.
+const CivitaiImageItemSchema = z
+  .object({
+    id: z.union([z.number(), z.string()]).optional(),
+    meta: z
+      .object({
+        prompt: z.string().optional(),
+        resources: z.array(CivitaiImageResourceSchema).optional(),
+        meta: CivitaiImageMetaInnerSchema.optional(),
+      })
+      .passthrough()
+      .nullable()
+      .optional(),
+  })
+  .passthrough()
+
+const CivitaiImagesResponseSchema = z
+  .object({
+    items: z.array(CivitaiImageItemSchema),
+  })
+  .passthrough()
+
+export interface MineCivitaiUserPromptsInput {
+  modelId: number
+  modelVersionId?: number
+  /** Lower-case AutoV3 hash of the primary LoRA file. */
+  fileHashAutoV3: string
+}
+
+export async function mineCivitaiUserPrompts({
+  modelId,
+  modelVersionId,
+  fileHashAutoV3,
+}: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
+  const url = new URL(CIVITAI_IMAGES_API)
+  url.searchParams.set('modelId', String(modelId))
+  if (modelVersionId !== undefined) {
+    url.searchParams.set('modelVersionId', String(modelVersionId))
+  }
+  url.searchParams.set('limit', String(CIVITAI_IMAGES_SAMPLE_LIMIT))
+  url.searchParams.set('nsfw', 'false')
+  // 'Most Reactions' biases toward generations the community judged good,
+  // which tend to carry well-formed activation prompts. Civitai's default
+  // sort is Newest, which surfaces lots of partial / broken prompts.
+  url.searchParams.set('sort', 'Most Reactions')
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 3,
+      baseDelayMs: 400,
+      maxDelayMs: 2000,
+      label: 'civitai.mineUserPrompts',
+    })
+  } catch (error) {
+    logger.warn('Civitai images fetch failed', {
+      modelId,
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    throw error
+  }
+
+  const parsed = CivitaiImagesResponseSchema.parse(payload)
+  const targetHash = fileHashAutoV3.toLowerCase()
+
+  const segments: string[] = []
+  let consideredCount = 0
+  for (const item of parsed.items) {
+    // Civitai serves both `meta.{prompt,resources}` (single layer) and
+    // `meta.meta.{prompt,resources}` (double-nested) depending on query
+    // params. Try inner first, then outer — whichever has a non-empty
+    // prompt wins.
+    const inner = item.meta?.meta
+    const outer = item.meta
+    const sdMeta =
+      inner?.prompt && inner.prompt.trim().length > 0
+        ? inner
+        : outer?.prompt && outer.prompt.trim().length > 0
+          ? outer
+          : null
+    if (!sdMeta) continue
+    const prompt = sdMeta.prompt?.trim()
+    if (!prompt) continue
+    consideredCount += 1
+    const matched = sdMeta.resources?.find(
+      (r) => r.hash && r.hash.toLowerCase() === targetHash,
+    )
+    if (!matched?.name) continue
+    const seg = extractActivationSegment(prompt, matched.name)
+    if (seg) segments.push(seg)
+  }
+
+  const summarised = summariseActivationSegments(segments)
+    .slice(0, CIVITAI_IMAGES_OUTFIT_CAP)
+    .map((s, idx) => ({
+      label: `Outfit ${idx + 1}`,
+      prompt: s.prompt,
+      sampleCount: s.sampleCount,
+    }))
+
+  return {
+    outfits: summarised,
+    totalSampled: consideredCount,
   }
 }

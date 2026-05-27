@@ -28,6 +28,7 @@ function createItem(id: string, name: string): CivitaiLoraLibraryItem {
     recommendedPrompt: null,
     recommendedPromptAlternates: [],
     triggerSource: 'official',
+    fileHashAutoV3: null,
     loraUrl: `https://civitai.com/api/download/models/${id}`,
     coverImageUrl: null,
     coverImageUrlOriginal: null,

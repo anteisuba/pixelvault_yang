@@ -351,7 +351,7 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "注册",
+      "signedOutPrimary": "免费注册",
       "signedOutUtility": "登录",
       "sharedSecondary": "查看模型",
       "gallerySecondary": "浏览画廊",
@@ -1083,6 +1083,9 @@
     "triggerCopied": "触发词已复制",
     "tryPromptOfficialBadge": "作者推荐",
     "outfitDefaultLabel": "装束 {n}",
+    "tryPromptMinedBadge": "社区 · {count} 次",
+    "tryPromptMinedHint": "从 Civitai 上 {sampled} 张社区生成图反推得到。",
+    "tryPromptMinedLoading": "正在从社区生成中提取真实激活 prompt…",
     "communityTags": "标签",
     "communityUseInStudio": "在 Studio 使用",
     "communityOpenSource": "打开来源",

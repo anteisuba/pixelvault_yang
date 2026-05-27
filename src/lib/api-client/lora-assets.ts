@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
 import type {
   CivitaiLoraLibraryResult,
+  CivitaiMinedPromptsResult,
   FavoriteLoraRequest,
   LoraAssetRecord,
 } from '@/types'
@@ -99,6 +100,46 @@ export async function listCivitaiLoraAssetsAPI(params: {
       }
     }
     return (await response.json()) as CivitaiListResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+interface CivitaiMinedPromptsResponse {
+  success: boolean
+  data?: CivitaiMinedPromptsResult
+  error?: string
+}
+
+export async function mineCivitaiLoraPromptsAPI(params: {
+  modelId: number
+  modelVersionId?: number
+  fileHash: string
+}): Promise<CivitaiMinedPromptsResponse> {
+  try {
+    const query = new URLSearchParams()
+    query.set('modelId', String(params.modelId))
+    if (params.modelVersionId !== undefined) {
+      query.set('modelVersionId', String(params.modelVersionId))
+    }
+    query.set('fileHash', params.fileHash)
+
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_MINED_PROMPTS}?${query.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as CivitaiMinedPromptsResponse
   } catch (error) {
     return {
       success: false,

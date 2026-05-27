@@ -127,6 +127,60 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBe('cursor-3')
   })
 
+  it('rewrites Civitai cover URLs to sized transforms and keeps the original for the lightbox', async () => {
+    const ORIGINAL_URL =
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/original=true/1917130.jpeg'
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Some LoRA',
+            type: 'LORA',
+            tags: [],
+            modelVersions: [
+              {
+                id: 100,
+                name: 'v1',
+                baseModel: 'SDXL 1.0',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/100',
+                  },
+                ],
+                images: [{ url: ORIGINAL_URL, nsfwLevel: 1 }],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+    const item = result.items[0]
+    expect(item).toBeDefined()
+    // List thumbnail: 96px, drives a 40×40 DOM slot — never the original.
+    expect(item?.thumbImageUrl).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=96,optimized=true/1917130.jpeg',
+    )
+    // Inspector cover: 640px, fits the aspect-video panel.
+    expect(item?.coverImageUrl).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=640,optimized=true/1917130.jpeg',
+    )
+    // Lightbox "view original" only — preserved untouched.
+    expect(item?.coverImageUrlOriginal).toBe(ORIGINAL_URL)
+    // Preview gallery (reserved for future): 768px.
+    expect(item?.previewImageUrls[0]).toContain('width=768,optimized=true')
+    // Defense: never leak `anim=false` (Civitai CDN has a fallback bug
+    // for some `(anim=false, width=N, optimized=true)` cache entries).
+    expect(item?.coverImageUrl).not.toContain('anim=false')
+    expect(item?.thumbImageUrl).not.toContain('anim=false')
+  })
+
   it('passes cursor for non-search library pagination', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({

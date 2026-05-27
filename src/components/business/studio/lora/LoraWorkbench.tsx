@@ -871,8 +871,18 @@ function CivitaiCommunityBranch({
                 onChange={(event) => library.setSearch(event.target.value)}
                 onFocus={() => setHistoryOpen(true)}
                 placeholder={t('communitySearch')}
-                className="h-9 pl-9 text-xs"
+                className="h-9 pl-9 pr-8 text-xs"
               />
+              {/* Inline revalidation indicator — replaces the old "blank the
+                  whole list and show a center loader" behaviour. Stale items
+                  stay visible underneath while this spins, so the user keeps
+                  context instead of seeing a 300–900 ms white flash. */}
+              {library.isRevalidating && library.items.length > 0 ? (
+                <Loader2
+                  className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground"
+                  aria-hidden
+                />
+              ) : null}
               {historyOpen && history.length > 0 ? (
                 <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
                   <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">
@@ -932,14 +942,23 @@ function CivitaiCommunityBranch({
           </div>
 
           <div
-            className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1"
-            aria-busy={library.isLoading}
+            className={cn(
+              'min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 transition-opacity',
+              // Dim stale items slightly while a background fetch is running
+              // so the spinner in the search input has a visual partner. Keep
+              // them rendered (no `display: none`) — the whole point is that
+              // the user keeps reading the previous result.
+              library.isRevalidating && library.items.length > 0
+                ? 'opacity-60'
+                : 'opacity-100',
+            )}
+            aria-busy={library.isRevalidating}
           >
             {library.isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               </div>
-            ) : library.error ? (
+            ) : library.error && library.items.length === 0 ? (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
                 <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                 <span>{t('communityLoadFailed')}</span>
@@ -990,14 +1009,15 @@ function CivitaiCommunityBranch({
             onUse={handleUse}
             onFavorite={handleFavoriteToggle}
             onCopyTryPrompt={handleCopyTryPrompt}
-            onPreviewCover={(item) =>
-              item.coverImageUrl
-                ? setCoverPreview({
-                    url: item.coverImageUrl,
-                    name: item.name,
-                  })
-                : undefined
-            }
+            onPreviewCover={(item) => {
+              // 放大对话框需要原图：inspector 的 coverImageUrl 已经被 service
+              // 层 rewrite 成 640px，放大到 max-w-4xl (≥896px) 会糊。回退到
+              // rewrite 后的 cover 是兜底。
+              const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
+              if (fullUrl) {
+                setCoverPreview({ url: fullUrl, name: item.name })
+              }
+            }}
           />
         </div>
       </div>
@@ -1031,14 +1051,12 @@ function CivitaiCommunityBranch({
               }}
               onFavorite={handleFavoriteToggle}
               onCopyTryPrompt={handleCopyTryPrompt}
-              onPreviewCover={(item) =>
-                item.coverImageUrl
-                  ? setCoverPreview({
-                      url: item.coverImageUrl,
-                      name: item.name,
-                    })
-                  : undefined
-              }
+              onPreviewCover={(item) => {
+                const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
+                if (fullUrl) {
+                  setCoverPreview({ url: fullUrl, name: item.name })
+                }
+              }}
             />
           </div>
         </DrawerContent>
@@ -1248,15 +1266,23 @@ interface LoraThumbProps {
 }
 
 function LoraThumb({ item }: LoraThumbProps) {
+  // Prefer the 96px-wide CDN transform; fall back to the 640px cover if for
+  // any reason the thumb URL is missing (e.g. Civitai returned a non-standard
+  // URL the rewriter couldn't recognise). Both come from the service layer
+  // already sized — never load the 1–5 MB original here.
+  const src = item.thumbImageUrl ?? item.coverImageUrl
   return (
     <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-      {item.coverImageUrl ? (
+      {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={item.coverImageUrl}
+          src={src}
           alt=""
+          width={40}
+          height={40}
           className="size-full object-cover"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <Sparkles className="size-4" aria-hidden />
@@ -1318,7 +1344,11 @@ function CivitaiLoraInspector({
             <img
               src={item.coverImageUrl}
               alt={item.name}
+              width={640}
+              height={360}
               className="aspect-video w-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="flex aspect-video items-center justify-center text-muted-foreground">

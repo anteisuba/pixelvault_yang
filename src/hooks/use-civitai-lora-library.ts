@@ -18,7 +18,18 @@ export interface UseCivitaiLoraLibraryReturn {
   page: number
   pageSize: number
   hasNextPage: boolean
+  /**
+   * True only when there is nothing to show AND we are fetching. UI uses this
+   * to render the full-section loader on first paint. After we have any items
+   * (including stale ones from a previous query), this is false and
+   * `isRevalidating` carries the "fetching in background" signal instead.
+   */
   isLoading: boolean
+  /**
+   * True whenever a fetch is in flight, regardless of whether we already have
+   * stale items rendered. Drives the small inline spinner on the search input.
+   */
+  isRevalidating: boolean
   error: string | null
   search: string
   sort: CivitaiLoraSort
@@ -32,13 +43,87 @@ export interface UseCivitaiLoraLibraryReturn {
   refresh: () => Promise<void>
 }
 
+const SEARCH_DEBOUNCE_MS = 300
+
+// ─── Module-level cache ──────────────────────────────────────────────────
+//
+// Stale-while-revalidate friend. Keeps last-N (baseModel, sort, search, page)
+// → result pages in memory so flicking sort/baseModel/page back and forth
+// returns instantly without the network or a `setItems([])` flash.
+//
+// Module-scoped (not per-hook-instance) so navigating away and back to /lora
+// still hits the cache. TTL guards against truly stale data — the Next.js
+// CDN already caches for 5–15 min, so 5 min here is roughly aligned.
+
+const CACHE_MAX_ENTRIES = 30
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+interface CacheEntry {
+  expiresAt: number
+  result: CivitaiLoraLibraryResult
+}
+
+// Insertion-ordered Map gives us LRU: re-insert on hit, evict from front when
+// over capacity.
+const libraryCache = new Map<string, CacheEntry>()
+
+function buildCacheKey(params: {
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  search: string
+  page: number
+  cursor: string | null
+}): string {
+  return [
+    params.baseModel,
+    params.sort,
+    params.search,
+    params.page,
+    params.cursor ?? '',
+  ].join('|')
+}
+
+function readCache(key: string): CivitaiLoraLibraryResult | null {
+  const hit = libraryCache.get(key)
+  if (!hit) return null
+  if (hit.expiresAt < Date.now()) {
+    libraryCache.delete(key)
+    return null
+  }
+  // LRU bump: re-insert to move to the most-recent end of insertion order.
+  libraryCache.delete(key)
+  libraryCache.set(key, hit)
+  return hit.result
+}
+
+function writeCache(key: string, result: CivitaiLoraLibraryResult): void {
+  libraryCache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS })
+  while (libraryCache.size > CACHE_MAX_ENTRIES) {
+    const oldest = libraryCache.keys().next().value
+    if (oldest === undefined) break
+    libraryCache.delete(oldest)
+  }
+}
+
+/**
+ * Test-only escape hatch. Call from `beforeEach` so the module-level cache
+ * does not leak between specs.
+ */
+export function __resetCivitaiLibraryCacheForTests(): void {
+  libraryCache.clear()
+}
+
 export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
+  // running, possibly while stale items remain visible". Splitting them lets
+  // the section render normal content + a small spinner instead of a white
+  // flash every time the search debounce kicks in.
+  const [isRevalidating, setIsRevalidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearchValue] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -48,18 +133,6 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
   )
-
-  const resetLibraryForFilterChange = useCallback(() => {
-    requestIdRef.current += 1
-    cursorByPageRef.current = new Map([[1, null]])
-    setItems([])
-    setTotal(null)
-    setHasNextPage(false)
-    setSelectedItemId(null)
-    setError(null)
-    setIsLoading(true)
-    setPage(1)
-  }, [])
 
   const applyResult = useCallback((result: CivitaiLoraLibraryResult) => {
     setItems(result.items)
@@ -76,12 +149,38 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const refresh = useCallback(async () => {
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
-    setIsLoading(true)
-    setError(null)
+
     const normalizedSearch = search.trim()
+    // If the user is still typing (debounce in flight), let the debounce
+    // schedule the actual fetch — refresh is also called on every search
+    // keystroke via the effect chain, but we only act on the stabilised value.
     if (normalizedSearch !== debouncedSearch) return
-    const activeSearch = debouncedSearch.trim()
+
+    const activeSearch = debouncedSearch
     const cursor = cursorByPageRef.current.get(page) ?? null
+    const cacheKey = buildCacheKey({
+      baseModel,
+      sort,
+      search: activeSearch,
+      page,
+      cursor,
+    })
+
+    const cached = readCache(cacheKey)
+    if (cached) {
+      applyResult(cached)
+      if (cached.nextCursor) {
+        cursorByPageRef.current.set(page + 1, cached.nextCursor)
+      } else {
+        cursorByPageRef.current.delete(page + 1)
+      }
+      setError(null)
+      setIsRevalidating(false)
+      return
+    }
+
+    setIsRevalidating(true)
+    setError(null)
 
     const response = await listCivitaiLoraAssetsAPI({
       page,
@@ -99,25 +198,29 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       } else {
         cursorByPageRef.current.delete(page + 1)
       }
+      writeCache(cacheKey, response.data)
       applyResult(response.data)
     } else {
-      setItems([])
-      setTotal(null)
-      setHasNextPage(false)
-      setSelectedItemId(null)
+      // Stale-tolerant error mode: keep whatever items we had on screen so the
+      // user is not punished with a blank wall when Civitai blips. Just
+      // surface the error so the caller can render a toast/banner.
       setError(response.error ?? 'Failed to load Civitai LoRAs')
     }
-    setIsLoading(false)
+    setIsRevalidating(false)
   }, [applyResult, baseModel, debouncedSearch, page, search, sort])
 
+  // Debounce search input → committed `debouncedSearch`. Pagination resets to
+  // page 1 whenever the active search term actually changes.
   useEffect(() => {
+    const trimmed = search.trim()
+    if (trimmed === debouncedSearch) return
     const id = setTimeout(() => {
       cursorByPageRef.current = new Map([[1, null]])
-      setDebouncedSearch(search.trim())
+      setDebouncedSearch(trimmed)
       setPage(1)
-    }, 300)
+    }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(id)
-  }, [search])
+  }, [search, debouncedSearch])
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -125,32 +228,34 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     })
   }, [refresh])
 
-  const setSearch = useCallback(
-    (value: string) => {
-      setSearchValue(value)
-      if (value.trim() !== debouncedSearch) {
-        resetLibraryForFilterChange()
-      }
-    },
-    [debouncedSearch, resetLibraryForFilterChange],
-  )
+  const setSearch = useCallback((value: string) => {
+    setSearchValue(value)
+    // Intentionally NOT clearing items or flipping isLoading here. The old
+    // behaviour blanked the list on every keystroke, producing a white flash
+    // for ~300 ms (debounce) + 600 ms (Civitai) before any pixels came back.
+    // Now: stale items stay rendered; the input gets a small spinner via
+    // `isRevalidating` until the debounced fetch resolves.
+    setIsRevalidating(true)
+  }, [])
 
   const setSort = useCallback(
     (value: CivitaiLoraSort) => {
       if (value === sort) return
-      resetLibraryForFilterChange()
+      cursorByPageRef.current = new Map([[1, null]])
+      setPage(1)
       setSortValue(value)
     },
-    [resetLibraryForFilterChange, sort],
+    [sort],
   )
 
   const setBaseModel = useCallback(
     (value: CivitaiLoraBaseModel) => {
       if (value === baseModel) return
-      resetLibraryForFilterChange()
+      cursorByPageRef.current = new Map([[1, null]])
+      setPage(1)
       setBaseModelValue(value)
     },
-    [baseModel, resetLibraryForFilterChange],
+    [baseModel],
   )
 
   const selectItem = useCallback((item: CivitaiLoraLibraryItem) => {
@@ -168,6 +273,11 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? items[0] ?? null
 
+  // First-paint loader: only when we have literally nothing to render AND a
+  // fetch is in progress. As soon as any items exist (incl. stale), the UI
+  // should keep rendering them and only show the small revalidation spinner.
+  const isLoading = items.length === 0 && isRevalidating
+
   return {
     items,
     selectedItem,
@@ -176,6 +286,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     pageSize: CIVITAI_LORA_PAGE_SIZE,
     hasNextPage,
     isLoading,
+    isRevalidating,
     error,
     search,
     sort,

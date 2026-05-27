@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
 
-import { useCivitaiLoraLibrary } from './use-civitai-lora-library'
+import {
+  __resetCivitaiLibraryCacheForTests,
+  useCivitaiLoraLibrary,
+} from './use-civitai-lora-library'
 
 vi.mock('@/lib/api-client/lora-assets', () => ({
   listCivitaiLoraAssetsAPI: vi.fn(),
@@ -29,6 +32,8 @@ function makeItem(
     triggerWord: `trigger-${id}`,
     loraUrl: `https://example.com/lora/${id}.safetensors`,
     coverImageUrl: null,
+    coverImageUrlOriginal: null,
+    thumbImageUrl: null,
     previewImageUrls: [],
     defaultScale: 1,
     isPublic: true,
@@ -66,6 +71,7 @@ function makeResult(
 describe('useCivitaiLoraLibrary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetCivitaiLibraryCacheForTests()
   })
 
   it('uses Civitai cursors when paginating a selected base model', async () => {

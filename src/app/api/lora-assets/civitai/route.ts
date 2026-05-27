@@ -12,7 +12,10 @@ import { logger } from '@/lib/logger'
 import { listCivitaiLoras } from '@/services/civitai-lora.service'
 import type { CivitaiLoraLibraryResult } from '@/types'
 
-const CACHE_CONTROL = 'public, s-maxage=300, stale-while-revalidate=900'
+// LoRA 排行榜与搜索结果在分钟尺度上稳定，把 CDN edge cache 拉长到 15min
+// 命中 + 1h stale-while-revalidate。配合 prewarm cron (6h) 让默认列表几乎
+// 始终命中边缘，搜索结果在第一次冷启动 (~600 ms) 后也能复用 15min。
+const CACHE_CONTROL = 'public, s-maxage=900, stale-while-revalidate=3600'
 
 const ListCivitaiLoraQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

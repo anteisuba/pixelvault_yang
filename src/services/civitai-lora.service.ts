@@ -10,6 +10,7 @@ import {
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
 } from '@/constants/lora'
+import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import type {
@@ -159,6 +160,13 @@ function pickDownloadUrl(
   )
 }
 
+// 各场景下的目标渲染宽度（CSS px），用于把 Civitai 默认 `original=true` 的
+// 大图（1–5 MB）改写成对应尺寸的 transform。Retina 屏 ×2 在大多数列表场景
+// 已经够清；超出的 LCP/带宽成本远大于细节收益。
+const CIVITAI_THUMB_WIDTH = 96 // 列表 row 40×40 缩略
+const CIVITAI_COVER_WIDTH = 640 // Inspector aspect-video / AssetCard square
+const CIVITAI_PREVIEW_WIDTH = 768 // 预留：未来的预览画廊 / 大图轮播
+
 function pickImages(
   version: z.infer<typeof CivitaiModelVersionSchema>,
 ): string[] {
@@ -196,7 +204,17 @@ function toLibraryItem(
   if (!loraUrl) return null
 
   const tags = model.tags ?? []
-  const previewImageUrls = pickImages(version)
+  const originalImageUrls = pickImages(version)
+  const coverOriginal = originalImageUrls[0] ?? null
+  const previewImageUrls = originalImageUrls.map((url) =>
+    rewriteCivitaiImageUrl(url, { width: CIVITAI_PREVIEW_WIDTH }),
+  )
+  const coverImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })
+    : null
+  const thumbImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_THUMB_WIDTH })
+    : null
   const baseModelFamily = version.baseModel?.trim() || 'unknown'
   const triggerWord =
     version.trainedWords?.find((word) => word.trim().length > 0)?.trim() ??
@@ -213,7 +231,9 @@ function toLibraryItem(
     provider: 'civitai',
     triggerWord,
     loraUrl,
-    coverImageUrl: previewImageUrls[0] ?? null,
+    coverImageUrl,
+    coverImageUrlOriginal: coverOriginal,
+    thumbImageUrl,
     previewImageUrls,
     defaultScale: 1,
     isPublic: true,

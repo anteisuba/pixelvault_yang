@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/internal/civitai-lora/prewarm",
-      "schedule": "0 0 * * *"
+      "schedule": "0 */6 * * *"
     }
   ]
 }

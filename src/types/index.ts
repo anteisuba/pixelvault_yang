@@ -3311,6 +3311,12 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'Sell'（出售模型本身）。我们在 UI 上用这个字段做 license 徽章 + 过滤。
   allowCommercialUse: z.array(z.string()),
   allowDerivatives: z.boolean(),
+  // 列表 row 用的 96px 缩略图（base `coverImageUrl` 已经在 service 层 rewrite
+  // 成 640px inspector 尺寸，再缩到 40×40 仍是巨大浪费）。
+  thumbImageUrl: z.string().url().nullable(),
+  // 「点击放大查看」对话框用的全分辨率原图。base `coverImageUrl` rewrite 后
+  // 已经是 640px，放大时需要回退到原图。
+  coverImageUrlOriginal: z.string().url().nullable(),
 })
 
 export type CivitaiLoraLibraryItem = z.infer<

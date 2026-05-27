@@ -10,14 +10,26 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 
 import { getLoraAssetByCodeAPI } from '@/lib/api-client/lora-assets'
 import { logger } from '@/lib/logger'
 import type { ActiveLora, LoraAssetRecord } from '@/types'
 
-const STORAGE_KEY = 'pv.active-lora-stack.v1'
+// Storage layout is now per-user:
+//   pv.active-lora-stack.v2.<clerkId>  →  { ownerClerkId, items }
+// The pre-v2 key `pv.active-lora-stack.v1` was a single global slot — A's
+// LoRA picks would render under B on the same browser. We wipe that
+// legacy key once on mount and ignore any snapshot whose ownerClerkId
+// doesn't match the active session.
+const STORAGE_KEY_PREFIX = 'pv.active-lora-stack.v2'
+const LEGACY_GLOBAL_STORAGE_KEY = 'pv.active-lora-stack.v1'
 const MAX_STACK = 3 // FAL flux-lora supports up to 5; cap UI at 3 for clarity
+
+function getStorageKey(clerkId: string): string {
+  return `${STORAGE_KEY_PREFIX}.${clerkId}`
+}
 
 const STYLE_PARAM = 'style'
 
@@ -91,6 +103,17 @@ interface StoredEntry {
   scale?: number
 }
 
+/**
+ * On-disk envelope. The ownerClerkId is required so a snapshot that
+ * ends up under the wrong key (browser sync, manual import, dev tools
+ * tinkering) is rejected on read instead of being rendered as the
+ * current user's stack.
+ */
+interface StoredEnvelope {
+  ownerClerkId: string
+  items: StoredEntry[]
+}
+
 interface ActiveLoraStackValue {
   items: StoredEntry[]
   /** Plain shape for snapshots / URL persistence */
@@ -112,34 +135,68 @@ interface ActiveLoraStackValue {
 
 const ActiveLoraStackContext = createContext<ActiveLoraStackValue | null>(null)
 
-function readFromStorage(): StoredEntry[] {
+function isValidEntry(entry: unknown): entry is StoredEntry {
+  return (
+    !!entry &&
+    typeof entry === 'object' &&
+    'asset' in entry &&
+    !!(entry as { asset: unknown }).asset
+  )
+}
+
+function readFromStorage(clerkId: string): StoredEntry[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(getStorageKey(clerkId))
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter(
-        (entry): entry is StoredEntry =>
-          !!entry &&
-          typeof entry === 'object' &&
-          'asset' in entry &&
-          !!(entry as { asset: unknown }).asset,
-      )
-      .slice(0, MAX_STACK)
+    // v2 envelope is the new format — only honor it when ownerClerkId
+    // matches. Mismatch means storage was written by a different
+    // account (or tampered with).
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'ownerClerkId' in parsed &&
+      'items' in parsed &&
+      Array.isArray((parsed as { items: unknown }).items)
+    ) {
+      const envelope = parsed as { ownerClerkId: unknown; items: unknown[] }
+      if (envelope.ownerClerkId !== clerkId) return []
+      return envelope.items.filter(isValidEntry).slice(0, MAX_STACK)
+    }
+    // Legacy v1 raw arrays. They lived under a global key so we never
+    // know who wrote them — discard on first read. The legacy global
+    // key gets wiped separately on mount.
+    return []
   } catch {
     return []
   }
 }
 
-function writeToStorage(items: StoredEntry[]): void {
+function writeToStorage(items: StoredEntry[], clerkId: string): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    const envelope: StoredEnvelope = { ownerClerkId: clerkId, items }
+    window.localStorage.setItem(
+      getStorageKey(clerkId),
+      JSON.stringify(envelope),
+    )
   } catch {
     // Quota or disabled storage — silently no-op; the stack still
     // works in-memory for the rest of the session.
+  }
+}
+
+/**
+ * One-shot wipe of the pre-v2 global key. Safe to call repeatedly;
+ * removeItem on a missing key is a no-op.
+ */
+function purgeLegacyGlobalStorage(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(LEGACY_GLOBAL_STORAGE_KEY)
+  } catch {
+    // ignore
   }
 }
 
@@ -148,14 +205,35 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   const [isResolvingFromUrl, setIsResolvingFromUrl] = useState(false)
   const hasHydrated = useRef(false)
   const searchParams = useSearchParams()
+  // Clerk scopes every read and write. Until isLoaded === true we treat
+  // the user as unknown — same parked-state contract as the Node
+  // Workflow hook. activeClerkId is null while parked.
+  const { isLoaded, userId } = useAuth()
+  const activeClerkId: string | null = isLoaded ? userId : null
+  const loadedForClerkId = useRef<string | null>(null)
 
-  // SSR-safe localStorage hydration — lazy useState init returns [] on the
-  // server, so we have to read storage from a mount effect on the client.
+  // One-shot legacy wipe — independent of whoever is signed in.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setItems(readFromStorage())
-    hasHydrated.current = true
+    purgeLegacyGlobalStorage()
   }, [])
+
+  // Hydrate from the per-user slot whenever clerkId changes. When
+  // parked (null), clear in-memory state so the previous user's stack
+  // doesn't render against the new session.
+  useEffect(() => {
+    hasHydrated.current = false
+    if (activeClerkId === null) {
+      loadedForClerkId.current = null
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setItems([])
+      return
+    }
+
+    loadedForClerkId.current = activeClerkId
+     
+    setItems(readFromStorage(activeClerkId))
+    hasHydrated.current = true
+  }, [activeClerkId])
 
   // Resolve `?style=` tokens → fetch + push. Accepts the legacy
   // single-code form, comma-separated multi, and `code:scale` per-token
@@ -205,11 +283,15 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     }
   }, [searchParams])
 
-  // Persist after hydration
+  // Persist after hydration — only when we know who owns the snapshot.
+  // While parked, mutations stay in memory (won't survive reload, but
+  // that's intentional: don't leak unsigned-in edits into anyone's slot).
   useEffect(() => {
     if (!hasHydrated.current) return
-    writeToStorage(items)
-  }, [items])
+    if (activeClerkId === null) return
+    if (loadedForClerkId.current !== activeClerkId) return
+    writeToStorage(items, activeClerkId)
+  }, [activeClerkId, items])
 
   const push = useCallback((asset: LoraAssetRecord, scale?: number) => {
     setItems((prev) => {

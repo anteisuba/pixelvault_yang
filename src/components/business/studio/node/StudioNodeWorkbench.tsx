@@ -21,6 +21,7 @@ import {
   type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
+import { useAuth } from '@clerk/nextjs'
 import { PanelTopOpen } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -154,8 +155,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const t = useTranslations('StudioNode')
   const tErrors = useTranslations('Errors')
   const locale = useLocale()
+  // Clerk userId scopes every localStorage slot and server call the hook
+  // makes — passing null until Clerk loads parks the hook in an empty
+  // state instead of leaking the previous account's snapshot.
+  const { isLoaded, userId } = useAuth()
   const workflow = useNodeWorkflow({
     defaultProjectName: t('projectUntitled'),
+    clerkId: isLoaded ? userId : null,
   })
   const scriptBreakdown = useScriptBreakdown()
   const seedancePromptPlan = useSeedancePromptPlan()

@@ -22,6 +22,30 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }))
 
+// Default mock returns user A signed-in. Individual tests can re-mock
+// per case (e.g. parked / cross-account) via mockClerkAuth.
+const TEST_CLERK_ID = 'user_test_clerk_1'
+const OTHER_CLERK_ID = 'user_test_clerk_2'
+const STORAGE_KEY_PREFIX = 'pv.active-lora-stack.v2'
+const LEGACY_GLOBAL_STORAGE_KEY = 'pv.active-lora-stack.v1'
+
+function getStorageKey(clerkId: string): string {
+  return `${STORAGE_KEY_PREFIX}.${clerkId}`
+}
+
+let mockAuthState: { isLoaded: boolean; userId: string | null } = {
+  isLoaded: true,
+  userId: TEST_CLERK_ID,
+}
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => mockAuthState,
+}))
+
+function mockClerkAuth(state: { isLoaded: boolean; userId: string | null }) {
+  mockAuthState = state
+}
+
 import { getLoraAssetByCodeAPI } from '@/lib/api-client/lora-assets'
 const mockGet = vi.mocked(getLoraAssetByCodeAPI)
 
@@ -46,8 +70,6 @@ function makeAsset(overrides: Partial<LoraAssetRecord> = {}): LoraAssetRecord {
   }
 }
 
-const STORAGE_KEY = 'pv.active-lora-stack.v1'
-
 function wrapper({ children }: { children: React.ReactNode }) {
   return <LoraStackProvider>{children}</LoraStackProvider>
 }
@@ -55,8 +77,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks()
   window.localStorage.clear()
-  // reset URL search params between tests
   mockSearchParams.forEach((_, key) => mockSearchParams.delete(key))
+  // Reset to "User A signed in" before every test.
+  mockClerkAuth({ isLoaded: true, userId: TEST_CLERK_ID })
 })
 
 afterEach(() => {
@@ -73,8 +96,11 @@ describe('useActiveLoraStack', () => {
   it('hydrates from localStorage on mount', async () => {
     const asset = makeAsset()
     window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([{ asset, scale: 0.8 }]),
+      getStorageKey(TEST_CLERK_ID),
+      JSON.stringify({
+        ownerClerkId: TEST_CLERK_ID,
+        items: [{ asset, scale: 0.8 }],
+      }),
     )
 
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
@@ -98,9 +124,11 @@ describe('useActiveLoraStack', () => {
 
     expect(result.current.items).toHaveLength(1)
     await waitFor(() => {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
+      const raw = window.localStorage.getItem(getStorageKey(TEST_CLERK_ID))
       expect(raw).toBeTruthy()
-      expect(JSON.parse(raw!)[0].asset.id).toBe('a1')
+      const parsed = JSON.parse(raw!)
+      expect(parsed.ownerClerkId).toBe(TEST_CLERK_ID)
+      expect(parsed.items[0].asset.id).toBe('a1')
     })
   })
 
@@ -220,6 +248,72 @@ describe('useActiveLoraStack', () => {
     })
     expect(result.current.items[0]?.scale).toBe(0.6)
     expect(result.current.items[1]?.scale).toBeUndefined()
+  })
+
+  it('refuses to hydrate a snapshot whose ownerClerkId does not match', async () => {
+    // Plant a snapshot under user A's key but with B's ownerClerkId.
+    window.localStorage.setItem(
+      getStorageKey(TEST_CLERK_ID),
+      JSON.stringify({
+        ownerClerkId: OTHER_CLERK_ID,
+        items: [{ asset: makeAsset(), scale: 0.5 }],
+      }),
+    )
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.items).toEqual([])
+    })
+  })
+
+  it('scopes storage per clerkId so two accounts cannot see each other', async () => {
+    // User A writes a stack.
+    const { result: aResult, unmount: unmountA } = renderHook(
+      () => useActiveLoraStack(),
+      { wrapper },
+    )
+    act(() => {
+      aResult.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
+    })
+    await waitFor(() => {
+      expect(
+        window.localStorage.getItem(getStorageKey(TEST_CLERK_ID)),
+      ).toBeTruthy()
+    })
+    expect(
+      window.localStorage.getItem(getStorageKey(OTHER_CLERK_ID)),
+    ).toBeNull()
+    unmountA()
+
+    // User B mounts and sees nothing.
+    mockClerkAuth({ isLoaded: true, userId: OTHER_CLERK_ID })
+    const { result: bResult } = renderHook(() => useActiveLoraStack(), {
+      wrapper,
+    })
+    await waitFor(() => {
+      expect(bResult.current.items).toEqual([])
+    })
+  })
+
+  it('parks itself while Clerk is still loading', () => {
+    mockClerkAuth({ isLoaded: false, userId: null })
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    act(() => {
+      result.current.push(makeAsset())
+    })
+    // The push lands in memory, but never writes localStorage while
+    // parked. Reload would discard the entry — exactly what we want for
+    // a signed-out / pre-auth state.
+    expect(window.localStorage.length).toBe(0)
+  })
+
+  it('purges the pre-v2 global localStorage key on mount', () => {
+    window.localStorage.setItem(
+      LEGACY_GLOBAL_STORAGE_KEY,
+      JSON.stringify([{ asset: makeAsset() }]),
+    )
+    renderHook(() => useActiveLoraStack(), { wrapper })
+    expect(window.localStorage.getItem(LEGACY_GLOBAL_STORAGE_KEY)).toBeNull()
   })
 })
 

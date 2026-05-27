@@ -235,6 +235,32 @@ export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({
   version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.legacyVersion),
 })
 
+export const NodeWorkflowLegacyV2StorageSchema = z.object({
+  version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.legacyVersionV2),
+  currentProjectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.idMaxLength),
+  projects: z.array(
+    z.object({
+      id: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.idMaxLength),
+      name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+      createdAt: z
+        .string()
+        .trim()
+        .min(1)
+        .max(NODE_STUDIO_PROJECTS.timestampMaxLength),
+      updatedAt: z
+        .string()
+        .trim()
+        .min(1)
+        .max(NODE_STUDIO_PROJECTS.timestampMaxLength),
+      state: NodeWorkflowStateDataSchema,
+    }),
+  ),
+})
+
 export const NodeWorkflowProjectSchema = z.object({
   id: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.idMaxLength),
   name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
@@ -254,6 +280,12 @@ export const NodeWorkflowProjectSchema = z.object({
 export const NodeWorkflowStorageSchema = z
   .object({
     version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.version),
+    // Clerk user id of whoever wrote this snapshot. Required so a stale
+    // localStorage row from a previous account on the same browser is
+    // rejected on read instead of being silently rendered (and worse,
+    // migrated up to the new account's server rows). Treat any snapshot
+    // whose ownerClerkId doesn't match the current session as untrusted.
+    ownerClerkId: z.string().trim().min(1).max(160),
     currentProjectId: z
       .string()
       .trim()

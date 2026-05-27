@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
@@ -723,15 +724,19 @@ function CivitaiCommunityBranch({
   // details / hit the "Use in Studio" button.
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false)
   const searchWrapperRef = useRef<HTMLDivElement>(null)
+  // Clerk scopes the history slot so A's searches never surface in B's
+  // dropdown after a sign-out / sign-in on the same browser.
+  const { isLoaded, userId } = useAuth()
+  const activeClerkId: string | null = isLoaded ? userId : null
 
   useEffect(() => {
     // Defer the hydrate so React doesn't see a synchronous setState in
     // the effect body — same pattern useCivitaiLoraLibrary uses for its
     // initial refresh.
     return deferEffectTask(() => {
-      setHistory(readSearchHistory())
+      setHistory(readSearchHistory(activeClerkId))
     })
-  }, [])
+  }, [activeClerkId])
 
   // Commit a search term to history on debounce-completion (i.e. when
   // the active search the API is actually using stabilises). We hook
@@ -740,10 +745,10 @@ function CivitaiCommunityBranch({
     const trimmed = library.search.trim()
     if (trimmed.length < 2) return
     const id = setTimeout(() => {
-      setHistory(recordSearchTerm(trimmed))
+      setHistory(recordSearchTerm(trimmed, activeClerkId))
     }, 800)
     return () => clearTimeout(id)
-  }, [library.search])
+  }, [activeClerkId, library.search])
 
   // Close history dropdown on outside click.
   useEffect(() => {
@@ -824,9 +829,9 @@ function CivitaiCommunityBranch({
   )
 
   const handleHistoryClear = useCallback(() => {
-    setHistory(clearSearchHistory())
+    setHistory(clearSearchHistory(activeClerkId))
     setHistoryOpen(false)
-  }, [])
+  }, [activeClerkId])
 
   const handleCopyTryPrompt = useCallback(
     // overridePrompt lets the inspector pass the currently-selected outfit

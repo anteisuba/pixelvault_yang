@@ -39,11 +39,20 @@ export const NODE_STUDIO_TOOL_MODES = [
 export type NodeStudioToolMode = (typeof NODE_STUDIO_TOOL_MODES)[number]
 
 export const NODE_STUDIO_WORKFLOW_STORAGE = {
-  key: 'pixelvault.nodeStudio.v3',
+  keyPrefix: 'pixelvault.nodeStudio.v3',
+  // Old key with no per-user scoping. Wiped once on hook mount so a
+  // previous account's local state can't leak into a new sign-in on the
+  // same browser. See [[fix-node-workflow-account-isolation]] in commit msg.
+  legacyGlobalKey: 'pixelvault.nodeStudio.v3',
   debounceMs: 400,
-  version: 2,
+  version: 3,
   legacyVersion: 1,
+  legacyVersionV2: 2,
 } as const
+
+export function getNodeStudioWorkflowStorageKey(clerkId: string): string {
+  return `${NODE_STUDIO_WORKFLOW_STORAGE.keyPrefix}.${clerkId}`
+}
 
 export const NODE_STUDIO_PROJECTS = {
   idMaxLength: 160,

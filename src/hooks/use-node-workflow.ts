@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react'
 
 import {
+  getNodeStudioWorkflowStorageKey,
   NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
@@ -31,6 +32,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import {
+  NodeWorkflowLegacyV2StorageSchema,
   NodeWorkflowStateSchema,
   NodeWorkflowStorageSchema,
   type NodeWorkflowEdge,
@@ -66,6 +68,16 @@ export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
 
 export interface UseNodeWorkflowOptions {
   defaultProjectName: string
+  /**
+   * Clerk user id of the currently signed-in user. Passing `null` (e.g.
+   * before Clerk finishes loading, or while signed out) puts the hook into
+   * a "parked" state: it serves an empty default project but skips all
+   * localStorage reads/writes and all server API calls. The moment a real
+   * clerkId arrives, the hook hydrates from that user's scoped slot. This
+   * is what stops a previous account's workflow data from leaking into a
+   * different sign-in on the same browser.
+   */
+  clerkId: string | null
 }
 
 export interface NodeWorkflowActions {
@@ -185,16 +197,27 @@ function createWorkflowProject(
 
 function createWorkflowStorageFromProject(
   project: NodeWorkflowProject,
+  ownerClerkId: string,
 ): NodeWorkflowStorageSnapshot {
   return {
     version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+    ownerClerkId,
     currentProjectId: project.id,
     projects: [project],
   }
 }
 
+/**
+ * Sentinel owner id used by the "parked" snapshot served before Clerk
+ * resolves the real user. Writers must never persist a snapshot carrying
+ * this id — the write helpers refuse to touch localStorage / the server
+ * until a real clerkId is available.
+ */
+const PARKED_OWNER_CLERK_ID = '__parked__'
+
 function createDefaultWorkflowStorage(
   defaultProjectName: string,
+  ownerClerkId: string,
 ): NodeWorkflowStorageSnapshot {
   const normalizedName = normalizeProjectName(
     defaultProjectName,
@@ -203,12 +226,14 @@ function createDefaultWorkflowStorage(
 
   return createWorkflowStorageFromProject(
     createWorkflowProject(normalizedName, createEmptyWorkflowState()),
+    ownerClerkId,
   )
 }
 
 function createWorkflowStorageFromLegacyState(
   defaultProjectName: string,
   state: NodeWorkflowState,
+  ownerClerkId: string,
 ): NodeWorkflowStorageSnapshot {
   const normalizedName = normalizeProjectName(
     defaultProjectName,
@@ -217,6 +242,7 @@ function createWorkflowStorageFromLegacyState(
 
   return createWorkflowStorageFromProject(
     createWorkflowProject(normalizedName, state),
+    ownerClerkId,
   )
 }
 
@@ -282,7 +308,10 @@ function patchCurrentProjectState(
     updatedAt,
   )
 
-  return createWorkflowStorageFromProject(replacementProject)
+  return createWorkflowStorageFromProject(
+    replacementProject,
+    storage.ownerClerkId,
+  )
 }
 
 function createDefaultNodeData(
@@ -403,34 +432,63 @@ function createDefaultNodeData(
 
 function readWorkflowStorageFromStorage(
   defaultProjectName: string,
+  clerkId: string,
 ): NodeWorkflowStorageSnapshot {
   if (typeof window === 'undefined') {
-    return createDefaultWorkflowStorage(defaultProjectName)
+    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
   }
 
   try {
-    const raw = window.localStorage.getItem(NODE_STUDIO_WORKFLOW_STORAGE.key)
+    const raw = window.localStorage.getItem(
+      getNodeStudioWorkflowStorageKey(clerkId),
+    )
     if (!raw) {
-      return createDefaultWorkflowStorage(defaultProjectName)
+      return createDefaultWorkflowStorage(defaultProjectName, clerkId)
     }
 
     const parsedJson = JSON.parse(raw) as unknown
     const parsedStorage = NodeWorkflowStorageSchema.safeParse(parsedJson)
     if (parsedStorage.success) {
+      // Belt-and-suspenders: the per-user storage key already isolates
+      // slots, but if a snapshot somehow lands in the wrong key (e.g.
+      // browser sync, manual import, dev tools tinkering) we still
+      // refuse to hydrate it. The empty default forces a fresh start
+      // for this account rather than rendering another account's work.
+      if (parsedStorage.data.ownerClerkId !== clerkId) {
+        return createDefaultWorkflowStorage(defaultProjectName, clerkId)
+      }
       return parsedStorage.data
+    }
+
+    // v2 snapshots (no ownerClerkId) are accepted only because they live
+    // in the per-user key — there's no cross-account ambiguity. Stamp
+    // the current clerkId on so subsequent writes use the v3 contract.
+    const parsedLegacyV2Storage =
+      NodeWorkflowLegacyV2StorageSchema.safeParse(parsedJson)
+    if (parsedLegacyV2Storage.success) {
+      return {
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: clerkId,
+        currentProjectId: parsedLegacyV2Storage.data.currentProjectId,
+        projects: parsedLegacyV2Storage.data.projects,
+      }
     }
 
     const parsedLegacyState = NodeWorkflowStateSchema.safeParse(parsedJson)
     if (parsedLegacyState.success) {
-      return createWorkflowStorageFromLegacyState(defaultProjectName, {
-        nodes: parsedLegacyState.data.nodes,
-        edges: parsedLegacyState.data.edges,
-      })
+      return createWorkflowStorageFromLegacyState(
+        defaultProjectName,
+        {
+          nodes: parsedLegacyState.data.nodes,
+          edges: parsedLegacyState.data.edges,
+        },
+        clerkId,
+      )
     }
 
-    return createDefaultWorkflowStorage(defaultProjectName)
+    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
   } catch {
-    return createDefaultWorkflowStorage(defaultProjectName)
+    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
   }
 }
 
@@ -455,14 +513,23 @@ function projectFromServerRecord(
 
 function writeWorkflowStorageToStorage(
   storage: NodeWorkflowStorageSnapshot,
+  clerkId: string,
 ): void {
   if (typeof window === 'undefined') {
     return
   }
 
+  // Refuse to persist a snapshot whose owner doesn't match the active
+  // session — that means we're mid-account-switch and the in-memory
+  // state is still the previous user's. Better to drop the write than
+  // to stamp another account's data into this user's slot.
+  if (storage.ownerClerkId !== clerkId) {
+    return
+  }
+
   try {
     window.localStorage.setItem(
-      NODE_STUDIO_WORKFLOW_STORAGE.key,
+      getNodeStudioWorkflowStorageKey(clerkId),
       JSON.stringify(storage),
     )
   } catch {
@@ -470,18 +537,50 @@ function writeWorkflowStorageToStorage(
   }
 }
 
+/**
+ * One-shot cleanup of the pre-v3 global key. v2 and earlier stored every
+ * account's workflows under the same un-scoped localStorage slot, so
+ * leaving the legacy row in place would keep leaking data into the v3
+ * read path if any downstream code ever falls back to it. Run on hook
+ * mount, swallow errors — this is purely best-effort.
+ */
+function purgeLegacyGlobalStorage(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(NODE_STUDIO_WORKFLOW_STORAGE.legacyGlobalKey)
+  } catch {
+    // ignore
+  }
+}
+
 export function useNodeWorkflow({
   defaultProjectName,
+  clerkId,
 }: UseNodeWorkflowOptions): UseNodeWorkflowValue {
-  const defaultStorage = useMemo(
-    () => createDefaultWorkflowStorage(defaultProjectName),
+  const parkedStorage = useMemo(
+    () =>
+      createDefaultWorkflowStorage(defaultProjectName, PARKED_OWNER_CLERK_ID),
     [defaultProjectName],
   )
   const [storageState, setStorageState] =
-    useState<NodeWorkflowStorageSnapshot>(defaultStorage)
-  const storageRef = useRef<NodeWorkflowStorageSnapshot>(defaultStorage)
+    useState<NodeWorkflowStorageSnapshot>(parkedStorage)
+  const storageRef = useRef<NodeWorkflowStorageSnapshot>(parkedStorage)
+  // Tracks whether we've finished the localStorage hydrate for the
+  // *currently active* clerkId. Cleared whenever clerkId changes so an
+  // account switch reruns the whole hydrate pipeline instead of leaving
+  // the previous user's snapshot on screen.
   const hasHydrated = useRef(false)
   const hasPreHydrationMutation = useRef(false)
+  // Which clerkId the in-memory snapshot belongs to. Distinct from
+  // `clerkId` (the prop), which is what Clerk says is current. They
+  // disagree briefly during account switches — we use `loadedForClerkId`
+  // to gate writes so we don't write user A's data into user B's slot.
+  const loadedForClerkId = useRef<string | null>(null)
+  // ── Server hydration (Phase 2 of 7g) ────────────────────────────────
+  // Refs declared up here (instead of next to their effect) so the
+  // clerkId-change effect below can reset them on account switch.
+  const hasServerHydrated = useRef(false)
+  const hasServerMigrationAttempted = useRef(false)
 
   const setWorkflowStorage = useCallback(
     (
@@ -500,7 +599,31 @@ export function useNodeWorkflow({
     [],
   )
 
+  // One-shot legacy wipe — runs once per browser session regardless of
+  // who's signed in. Safe to call repeatedly; removeItem on a missing
+  // key is a no-op.
   useEffect(() => {
+    purgeLegacyGlobalStorage()
+  }, [])
+
+  // Hydrate from the per-user localStorage slot whenever clerkId
+  // changes. When clerkId is null (parked / signed out), drop back to
+  // the empty default and clear all hydration flags so a later sign-in
+  // re-runs the full pipeline cleanly. All state writes happen in a
+  // microtask so React batches a single re-render per clerkId change
+  // instead of a cascading effect → setState → effect loop.
+  useEffect(() => {
+    // Synchronous ref resets are fine — they're not React state, so
+    // they don't trigger renders. We always want subsequent effects in
+    // the same tick to see the cleared values.
+    hasHydrated.current = false
+    hasPreHydrationMutation.current = false
+    hasServerHydrated.current = false
+    hasServerMigrationAttempted.current = false
+    if (clerkId === null) {
+      loadedForClerkId.current = null
+    }
+
     let cancelled = false
     let preHydrationSaveTimeout: number | undefined
 
@@ -509,16 +632,30 @@ export function useNodeWorkflow({
         return
       }
 
+      if (clerkId === null) {
+        const reset = createDefaultWorkflowStorage(
+          defaultProjectName,
+          PARKED_OWNER_CLERK_ID,
+        )
+        storageRef.current = reset
+        setStorageState(reset)
+        return
+      }
+
       hasHydrated.current = true
+      loadedForClerkId.current = clerkId
 
       if (hasPreHydrationMutation.current) {
         preHydrationSaveTimeout = window.setTimeout(() => {
-          writeWorkflowStorageToStorage(storageRef.current)
+          writeWorkflowStorageToStorage(storageRef.current, clerkId)
         }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
         return
       }
 
-      const hydratedStorage = readWorkflowStorageFromStorage(defaultProjectName)
+      const hydratedStorage = readWorkflowStorageFromStorage(
+        defaultProjectName,
+        clerkId,
+      )
       storageRef.current = hydratedStorage
       setStorageState(hydratedStorage)
     })
@@ -529,32 +666,36 @@ export function useNodeWorkflow({
         window.clearTimeout(preHydrationSaveTimeout)
       }
     }
-  }, [defaultProjectName])
+  }, [clerkId, defaultProjectName])
 
   useEffect(() => {
     if (!hasHydrated.current) {
       return
     }
+    if (clerkId === null) return
+    if (loadedForClerkId.current !== clerkId) return
 
     const timeoutId = window.setTimeout(() => {
-      writeWorkflowStorageToStorage(storageState)
+      writeWorkflowStorageToStorage(storageState, clerkId)
     }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
 
     return () => window.clearTimeout(timeoutId)
-  }, [storageState])
+  }, [clerkId, storageState])
 
-  // ── Server hydration (Phase 2 of 7g) ────────────────────────────────
-  // Once localStorage has settled, pull the server-side project list. The
-  // server is the source of truth — if it has projects, they replace local
-  // state. If the server is empty but localStorage has data, treat it as
-  // a one-time migration: upload everything we have, then re-fetch to pick
-  // up the server-assigned ids. If the server is empty AND local is empty,
-  // do nothing — the user's first edit will trigger a create-on-write.
-  const hasServerHydrated = useRef(false)
-  const hasServerMigrationAttempted = useRef(false)
+  // Server hydration: once localStorage has settled AND we know who's
+  // signed in, pull the server-side project list. The server is the
+  // source of truth — if it has projects, they replace local state. If
+  // the server is empty but localStorage has data **belonging to this
+  // user**, treat it as a one-time migration. Critically, we re-verify
+  // `storageRef.current.ownerClerkId === clerkId` right before the
+  // migration POSTs run — that's the seatbelt that stops a previous
+  // account's leftover local state from being uploaded as the new
+  // user's projects.
   useEffect(() => {
+    if (clerkId === null) return
     if (hasServerHydrated.current) return
     if (!hasHydrated.current) return
+    if (loadedForClerkId.current !== clerkId) return
 
     let cancelled = false
     void (async () => {
@@ -570,11 +711,12 @@ export function useNodeWorkflow({
       }
 
       const serverProjects = response.data
-      const localProjects = storageRef.current.projects
+      const localSnapshot = storageRef.current
 
       if (serverProjects.length > 0) {
         const nextStorage: NodeWorkflowStorageSnapshot = {
           version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+          ownerClerkId: clerkId,
           currentProjectId: serverProjects[0].id,
           projects: serverProjects.map(projectFromServerRecord),
         }
@@ -584,16 +726,23 @@ export function useNodeWorkflow({
         return
       }
 
-      // Server is empty. If we have local projects with actual nodes/edges,
-      // ship them up so the next device sees them. Empty local projects
-      // (just the bootstrap default) aren't worth migrating.
-      const localHasContent = localProjects.some(
+      // Server is empty. Migration is only safe when the local snapshot
+      // is provably owned by the user currently signed in — otherwise
+      // we'd be POSTing a previous account's projects into this account.
+      if (localSnapshot.ownerClerkId !== clerkId) {
+        hasServerHydrated.current = true
+        return
+      }
+
+      // Empty local projects (just the bootstrap default) aren't worth
+      // migrating.
+      const localHasContent = localSnapshot.projects.some(
         (project) =>
           project.state.nodes.length > 0 || project.state.edges.length > 0,
       )
       if (localHasContent && !hasServerMigrationAttempted.current) {
         hasServerMigrationAttempted.current = true
-        for (const project of localProjects) {
+        for (const project of localSnapshot.projects) {
           await createNodeWorkflowProjectAPI({
             name: project.name,
             state: project.state,
@@ -606,6 +755,7 @@ export function useNodeWorkflow({
         if (refetch.success && refetch.data && refetch.data.length > 0) {
           const nextStorage: NodeWorkflowStorageSnapshot = {
             version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+            ownerClerkId: clerkId,
             currentProjectId: refetch.data[0].id,
             projects: refetch.data.map(projectFromServerRecord),
           }
@@ -622,7 +772,7 @@ export function useNodeWorkflow({
     }
     // Re-checked on every state tick so the "wait until localStorage
     // hydrated" gate eventually opens the server hydrate.
-  }, [storageState])
+  }, [clerkId, storageState])
 
   // Debounced server write — pushes the CURRENT project's state up every
   // ~5s of inactivity. We don't push the full snapshot (other projects)
@@ -630,7 +780,9 @@ export function useNodeWorkflow({
   // projects only change when the user explicitly switches/renames/deletes
   // them, and those operations go through their own server calls below.
   useEffect(() => {
+    if (clerkId === null) return
     if (!hasServerHydrated.current) return
+    if (storageState.ownerClerkId !== clerkId) return
 
     const currentId = storageState.currentProjectId
     const current = storageState.projects.find((p) => p.id === currentId)
@@ -643,7 +795,7 @@ export function useNodeWorkflow({
     }, SERVER_WRITE_DEBOUNCE_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [storageState])
+  }, [clerkId, storageState])
 
   const currentProject = useMemo(
     () => getCurrentProject(storageState, defaultProjectName),
@@ -681,6 +833,17 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  // Gate every server-side effect on (a) Clerk having loaded a user
+  // and (b) the in-memory storage already belonging to that user.
+  // The second condition is what stops mid-account-switch writes from
+  // hitting the new user's row before hydrate finishes.
+  const canCallServerNow = useCallback(() => {
+    if (clerkId === null) return false
+    if (!hasServerHydrated.current) return false
+    if (storageRef.current.ownerClerkId !== clerkId) return false
+    return true
+  }, [clerkId])
+
   const createProject = useCallback(
     (name: string) => {
       const timestamp = createWorkflowTimestamp()
@@ -702,7 +865,7 @@ export function useNodeWorkflow({
       // subsequent writes / activate calls hit the right row. If it fails,
       // the project lives only in localStorage until the user reloads (at
       // which point the server hydrate will reconcile).
-      if (hasServerHydrated.current) {
+      if (canCallServerNow()) {
         void createNodeWorkflowProjectAPI({
           name: normalizedName,
           state: project.state,
@@ -729,7 +892,7 @@ export function useNodeWorkflow({
 
       return project.id
     },
-    [defaultProjectName, setWorkflowStorage],
+    [canCallServerNow, defaultProjectName, setWorkflowStorage],
   )
 
   const switchProject = useCallback(
@@ -751,11 +914,11 @@ export function useNodeWorkflow({
 
       // Bump server lastActiveAt so reopening this account on another
       // device lands on the just-switched-to project.
-      if (hasServerHydrated.current) {
+      if (canCallServerNow()) {
         void activateNodeWorkflowProjectAPI(id)
       }
     },
-    [setWorkflowStorage],
+    [canCallServerNow, setWorkflowStorage],
   )
 
   const renameCurrentProject = useCallback(
@@ -784,11 +947,11 @@ export function useNodeWorkflow({
         }
       })
 
-      if (hasServerHydrated.current && renamedId && renamedName) {
+      if (canCallServerNow() && renamedId && renamedName) {
         void updateNodeWorkflowProjectAPI(renamedId, { name: renamedName })
       }
     },
-    [defaultProjectName, setWorkflowStorage],
+    [canCallServerNow, defaultProjectName, setWorkflowStorage],
   )
 
   const deleteProject = useCallback(
@@ -812,7 +975,10 @@ export function useNodeWorkflow({
 
         const nextProject = remainingProjects[0]
         if (!nextProject) {
-          return createDefaultWorkflowStorage(defaultProjectName)
+          return createDefaultWorkflowStorage(
+            defaultProjectName,
+            currentStorage.ownerClerkId,
+          )
         }
 
         return {
@@ -825,13 +991,13 @@ export function useNodeWorkflow({
         }
       })
 
-      if (hasServerHydrated.current) {
+      if (canCallServerNow()) {
         void deleteNodeWorkflowProjectAPI(id)
       }
 
       return getProjectSummaries([targetProject])[0] ?? null
     },
-    [defaultProjectName, setWorkflowStorage],
+    [canCallServerNow, defaultProjectName, setWorkflowStorage],
   )
 
   const updateNodeData = useCallback(
@@ -1413,7 +1579,7 @@ export function useNodeWorkflow({
   )
 
   const saveNow = useCallback(async (): Promise<boolean> => {
-    if (!hasServerHydrated.current) return false
+    if (!canCallServerNow()) return false
     const snapshot = storageRef.current
     const currentId = snapshot.currentProjectId
     const current = snapshot.projects.find((p) => p.id === currentId)
@@ -1422,7 +1588,7 @@ export function useNodeWorkflow({
       state: current.state,
     })
     return response.success
-  }, [])
+  }, [canCallServerNow])
 
   const tidyLayout = useCallback(() => {
     setWorkflowStorage((currentStorage) =>

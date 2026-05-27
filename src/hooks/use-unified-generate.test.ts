@@ -40,6 +40,13 @@ vi.mock('@/lib/api-error-message', () => ({
   ),
 }))
 
+// LoraStackProvider now calls useAuth() to scope its localStorage slot
+// per signed-in user. The test wrapper doesn't mount ClerkProvider, so
+// stub useAuth into a stable signed-in state for these tests.
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, userId: 'user_test_unified_generate' }),
+}))
+
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
 import {

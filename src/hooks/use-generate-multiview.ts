@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -49,18 +50,26 @@ function stableHash(value: string): string {
   return (hash >>> 0).toString(36)
 }
 
-function getCacheKey(params: MultiViewGenerateRequest): string {
+// Cache key includes the Clerk userId so two accounts on the same
+// browser never collide on `imageUrl`-keyed entries. Pre-isolation
+// behaviour: A uploads an image, generates multi-view; B uploads the
+// same image, hits A's cache and ends up rendering A's R2 URLs.
+function getCacheKey(
+  params: MultiViewGenerateRequest,
+  clerkId: string,
+): string {
   const sourceKey = params.sourceGenerationId ?? params.imageUrl
   const modelKey = params.modelId ?? MODEL_3D_MULTIVIEW_CACHE.DEFAULT_MODEL_KEY
-  return `${MODEL_3D_MULTIVIEW_CACHE.STORAGE_KEY_PREFIX}:${modelKey}:${stableHash(sourceKey)}`
+  return `${MODEL_3D_MULTIVIEW_CACHE.STORAGE_KEY_PREFIX}:${clerkId}:${modelKey}:${stableHash(sourceKey)}`
 }
 
 function readCachedViews(
   params: MultiViewGenerateRequest,
+  clerkId: string,
 ): MultiViewImageRecord[] | null {
   if (typeof window === 'undefined') return null
 
-  const cacheKey = getCacheKey(params)
+  const cacheKey = getCacheKey(params, clerkId)
   try {
     const raw = window.localStorage.getItem(cacheKey)
     if (!raw) return null
@@ -86,12 +95,13 @@ function readCachedViews(
 function writeCachedViews(
   params: MultiViewGenerateRequest,
   views: MultiViewImageRecord[],
+  clerkId: string,
 ) {
   if (typeof window === 'undefined' || views.length === 0) return
 
   try {
     window.localStorage.setItem(
-      getCacheKey(params),
+      getCacheKey(params, clerkId),
       JSON.stringify({
         createdAt: Date.now(),
         views,
@@ -102,11 +112,11 @@ function writeCachedViews(
   }
 }
 
-function removeCachedViews(params: MultiViewGenerateRequest) {
+function removeCachedViews(params: MultiViewGenerateRequest, clerkId: string) {
   if (typeof window === 'undefined') return
 
   try {
-    window.localStorage.removeItem(getCacheKey(params))
+    window.localStorage.removeItem(getCacheKey(params, clerkId))
   } catch {
     // Cache is an optimization only; generation still works without it.
   }
@@ -122,13 +132,23 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
   const [isGenerating, setIsGenerating] = useState(false)
   const [views, setViews] = useState<MultiViewImageRecord[]>([])
   const t = useTranslations('MultiViewGenerate')
+  // Clerk scopes every cache slot. While Clerk is still loading or the
+  // user is signed out, restore() returns false and generate() skips
+  // cache reads/writes — better to round-trip the API than to leak
+  // another account's R2 URLs through a shared imageUrl key.
+  const { isLoaded, userId } = useAuth()
+  const activeClerkId: string | null = isLoaded ? userId : null
 
-  const restore = useCallback((params: MultiViewGenerateRequest) => {
-    const cachedViews = readCachedViews(params)
-    if (!cachedViews) return false
-    setViews(cachedViews)
-    return true
-  }, [])
+  const restore = useCallback(
+    (params: MultiViewGenerateRequest) => {
+      if (activeClerkId === null) return false
+      const cachedViews = readCachedViews(params, activeClerkId)
+      if (!cachedViews) return false
+      setViews(cachedViews)
+      return true
+    },
+    [activeClerkId],
+  )
 
   const generate = useCallback(
     async (
@@ -136,10 +156,10 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
       options?: GenerateMultiViewOptions,
     ): Promise<MultiViewImageRecord[]> => {
       if (options?.force) {
-        removeCachedViews(params)
+        if (activeClerkId !== null) removeCachedViews(params, activeClerkId)
         setViews([])
-      } else {
-        const cachedViews = readCachedViews(params)
+      } else if (activeClerkId !== null) {
+        const cachedViews = readCachedViews(params, activeClerkId)
         if (cachedViews) {
           setViews(cachedViews)
           return cachedViews
@@ -151,7 +171,9 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
         const response = await generateMultiViewAPI(params)
         if (response.success && response.data) {
           setViews(response.data.views)
-          writeCachedViews(params, response.data.views)
+          if (activeClerkId !== null) {
+            writeCachedViews(params, response.data.views, activeClerkId)
+          }
           if (response.data.views.length < 3) {
             toast.warning(
               t('partialSuccess', { count: response.data.views.length }),
@@ -167,7 +189,7 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
         setIsGenerating(false)
       }
     },
-    [t],
+    [activeClerkId, t],
   )
 
   const reset = useCallback(() => {

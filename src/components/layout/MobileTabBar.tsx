@@ -1,6 +1,22 @@
 'use client'
 
-import { LayoutGrid, LogIn, PanelLeft, Sparkles } from 'lucide-react'
+import {
+  Box,
+  FileText,
+  Image as ImageIcon,
+  Layers,
+  LayoutGrid,
+  Library,
+  LogIn,
+  Mic,
+  Palette,
+  PanelLeft,
+  Sparkles,
+  Swords,
+  Video,
+  Wand2,
+  Workflow,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
@@ -12,6 +28,9 @@ import { useSidebar } from '@/components/ui/sidebar'
 
 const MOBILE_TAB_ITEM_CLASS_NAME =
   'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm'
+
+const MOBILE_RAIL_ITEM_CLASS_NAME =
+  'flex h-11 w-11 shrink-0 items-center justify-center text-sidebar-foreground/58 transition-colors duration-[180ms] ease-out [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2'
 
 interface TabItem {
   href: string
@@ -25,6 +44,18 @@ interface TabItem {
   activePrefix?: string
 }
 
+interface RailActiveRule {
+  path: string
+  exact?: boolean
+}
+
+interface RailItem {
+  href: string
+  label: string
+  icon: React.ElementType
+  activeRules: RailActiveRule[]
+}
+
 interface TabListProps {
   tabs: TabItem[]
   pathname: string
@@ -32,6 +63,12 @@ interface TabListProps {
 
 function isTabActive(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
+function isRailItemActive(pathname: string, rules: RailActiveRule[]): boolean {
+  return rules.some(({ path, exact }) =>
+    exact ? pathname === path : isTabActive(pathname, path),
+  )
 }
 
 function TabList({ tabs, pathname }: TabListProps) {
@@ -56,11 +93,165 @@ function TabList({ tabs, pathname }: TabListProps) {
   )
 }
 
+function MobileRailLink({ href, label, icon: Icon, activeRules }: RailItem) {
+  const pathname = usePathname()
+  const isActive = isRailItemActive(pathname, activeRules)
+
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        MOBILE_RAIL_ITEM_CLASS_NAME,
+        'hover:bg-sidebar-accent/70 hover:text-sidebar-foreground active:bg-sidebar-accent active:text-sidebar-foreground',
+        isActive && 'text-sidebar-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'flex size-8 items-center justify-center rounded-lg transition-colors duration-[180ms]',
+          isActive && 'bg-sidebar-accent text-sidebar-foreground',
+        )}
+      >
+        <Icon className="size-4" />
+      </span>
+    </Link>
+  )
+}
+
+export function MobileCollapsedRail() {
+  const t = useTranslations('Navbar')
+  const tTools = useTranslations('StudioTools')
+  const { openMobile, toggleSidebar } = useSidebar()
+
+  if (openMobile) return null
+
+  const primaryLinks: RailItem[] = [
+    {
+      href: ROUTES.GALLERY,
+      label: t('links.gallery'),
+      icon: LayoutGrid,
+      activeRules: [{ path: ROUTES.GALLERY }],
+    },
+    {
+      href: ROUTES.PROMPTS,
+      label: t('links.prompts'),
+      icon: FileText,
+      activeRules: [{ path: ROUTES.PROMPTS }],
+    },
+    {
+      href: ROUTES.ASSETS,
+      label: t('links.assets'),
+      icon: Library,
+      activeRules: [{ path: ROUTES.ASSETS }],
+    },
+    {
+      href: ROUTES.CARDS,
+      label: t('links.cards'),
+      icon: Layers,
+      activeRules: [{ path: ROUTES.CARDS }],
+    },
+  ]
+
+  const toolLinks: RailItem[] = [
+    {
+      href: ROUTES.STUDIO_IMAGE,
+      label: tTools('tools.image.label'),
+      icon: ImageIcon,
+      activeRules: [
+        { path: ROUTES.STUDIO, exact: true },
+        { path: ROUTES.STUDIO_IMAGE },
+      ],
+    },
+    {
+      href: ROUTES.STUDIO_VIDEO,
+      label: tTools('tools.video.label'),
+      icon: Video,
+      activeRules: [{ path: ROUTES.STUDIO_VIDEO }],
+    },
+    {
+      href: ROUTES.STUDIO_AUDIO,
+      label: tTools('tools.audio.label'),
+      icon: Mic,
+      activeRules: [{ path: ROUTES.STUDIO_AUDIO }],
+    },
+    {
+      href: ROUTES.STUDIO_3D,
+      label: tTools('tools.model3d.label'),
+      icon: Box,
+      activeRules: [{ path: ROUTES.STUDIO_3D }],
+    },
+    {
+      href: ROUTES.STUDIO_EDIT,
+      label: tTools('tools.edit.label'),
+      icon: Wand2,
+      activeRules: [{ path: ROUTES.STUDIO_EDIT }],
+    },
+    {
+      href: ROUTES.STUDIO_LORA,
+      label: tTools('tools.lora.label'),
+      icon: Palette,
+      activeRules: [{ path: ROUTES.STUDIO_LORA }],
+    },
+    {
+      href: ROUTES.STUDIO_NODE,
+      label: tTools('tools.node.label'),
+      icon: Workflow,
+      activeRules: [{ path: ROUTES.STUDIO_NODE }],
+    },
+    {
+      href: ROUTES.ARENA,
+      label: t('links.arena'),
+      icon: Swords,
+      activeRules: [
+        { path: ROUTES.ARENA },
+        { path: ROUTES.ARENA_HISTORY },
+        { path: ROUTES.ARENA_LEADERBOARD },
+      ],
+    },
+  ]
+
+  return (
+    <aside
+      aria-label={t('mobileNavigation')}
+      className="dark fixed inset-y-0 left-0 z-50 flex w-11 flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground md:hidden"
+    >
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        aria-label={t('openMenu')}
+        aria-expanded={openMobile}
+        className={cn(
+          MOBILE_RAIL_ITEM_CLASS_NAME,
+          'border-b border-sidebar-border/40 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground active:bg-sidebar-accent',
+        )}
+      >
+        <PanelLeft className="size-4" />
+      </button>
+
+      <nav className="min-h-0 flex-1 overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-col">
+          {primaryLinks.map((item) => (
+            <MobileRailLink key={item.href} {...item} />
+          ))}
+        </div>
+        <div className="my-1 border-t border-sidebar-border/40" />
+        <div className="flex flex-col">
+          {toolLinks.map((item) => (
+            <MobileRailLink key={item.href} {...item} />
+          ))}
+        </div>
+      </nav>
+    </aside>
+  )
+}
+
 export function MobileHeader() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
   const tCommon = useTranslations('Common')
-  const { openMobile, toggleSidebar } = useSidebar()
   const title = (() => {
     if (isTabActive(pathname, ROUTES.STUDIO)) return t('links.studio')
     if (isTabActive(pathname, ROUTES.GALLERY)) return t('links.gallery')
@@ -73,34 +264,12 @@ export function MobileHeader() {
   })()
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
-      <button
-        type="button"
-        onClick={toggleSidebar}
-        aria-label={t('openMenu')}
-        aria-expanded={openMobile}
-        className={cn(
-          'flex h-full w-11 shrink-0 items-center justify-center transition-colors duration-[180ms] ease-out',
-          '[-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-8 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-sm transition-colors duration-[180ms] ease-out',
-            'hover:bg-secondary hover:text-foreground active:scale-95 active:opacity-80',
-            openMobile && 'border-primary/40 bg-primary/10 text-primary',
-          )}
-          aria-hidden="true"
-        >
-          <PanelLeft className="size-4" />
-        </span>
-      </button>
+    <header className="fixed left-11 right-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
       <div className="min-w-0 flex-1 px-1">
         <div className="truncate text-center font-display text-sm font-semibold text-foreground">
           {title}
         </div>
       </div>
-      <div className="w-11 shrink-0" aria-hidden />
     </header>
   )
 }
@@ -130,7 +299,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t('mobileNavigation')}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      className="fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-12">

@@ -4,7 +4,11 @@ import { getMessages, getTranslations } from 'next-intl/server'
 
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
-import { MobileHeader, MobileTabBar } from '@/components/layout/MobileTabBar'
+import {
+  MobileCollapsedRail,
+  MobileHeader,
+  MobileTabBar,
+} from '@/components/layout/MobileTabBar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
@@ -45,10 +49,11 @@ export default async function MainLayout({
         <MainProviders>
           <SidebarProvider defaultOpen={defaultSidebarOpen}>
             <AppSidebar />
+            <MobileCollapsedRail />
             <MobileHeader />
             <SidebarInset
               id="main-content"
-              className="pt-11 pb-12 md:pt-0 md:pb-0"
+              className="pt-11 pb-12 pl-11 md:pt-0 md:pb-0 md:pl-0"
             >
               {children}
             </SidebarInset>

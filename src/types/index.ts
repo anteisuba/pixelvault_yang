@@ -3264,6 +3264,15 @@ export const LoraAssetRecordSchema = z.object({
   isPublic: z.boolean(),
   isOwn: z.boolean(),
   createdAt: z.string(),
+  // Optional fields populated by the Civitai listing extractor — see
+  // `CivitaiLoraLibraryItemSchema` for the strict shape. Kept optional on
+  // the base record so trained / favorited / own LoRAs (which don't carry
+  // these fields) still validate. Downstream consumers should treat
+  // `undefined` and `null` as "no author-supplied prompt available".
+  recommendedPrompt: z.string().nullable().optional(),
+  recommendedPromptAlternates: z
+    .array(z.object({ label: z.string(), prompt: z.string() }))
+    .optional(),
 })
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>

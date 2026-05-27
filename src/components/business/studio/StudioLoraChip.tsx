@@ -176,6 +176,12 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
       triggerWord: string
       type: 'subject' | 'style'
       name: string
+      // Author-recommended prompt from Civitai trainedWords / description
+      // code blocks. When present buildLoraPromptTemplate prefers it over
+      // our generic "portrait, dynamic pose, …" scaffold — passing this
+      // through is the difference between LoRAs actually activating (the
+      // wuthering-waves Denia case) and the user copying a useless template.
+      recommendedPrompt?: string | null
     }) => {
       const template = buildLoraPromptTemplate(asset)
       dispatch({ type: 'SET_PROMPT', payload: template })
@@ -505,6 +511,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                           triggerWord: entry.asset.triggerWord,
                           type: entry.asset.type,
                           name: entry.asset.name,
+                          recommendedPrompt: entry.asset.recommendedPrompt,
                         })
                       }
                       className="mt-1.5 inline-flex w-full items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs transition-colors hover:bg-muted"

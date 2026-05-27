@@ -167,6 +167,7 @@
     }
   },
   "Navbar": {
+    "brand": "ANTEI",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "apiKeys": "API Keys",
@@ -930,9 +931,9 @@
       },
       "signInToFavorite": "Sign in to view your favorites"
     },
-    "feedEyebrow": "Archive",
-    "feedTitle": "Recent public works",
-    "feedDescription": "",
+    "feedEyebrow": "Public gallery",
+    "feedTitle": "Recent public work",
+    "feedDescription": "Browse public images, videos, and voice pieces from the community, then reuse what sparks an idea.",
     "feedLabel": "Public gallery feed",
     "itemFallbackLabel": "Gallery item",
     "feedCount": "Showing {shown} of {total}",

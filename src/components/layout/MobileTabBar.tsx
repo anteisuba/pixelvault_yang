@@ -73,7 +73,7 @@ export function MobileHeader() {
   })()
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
       <button
         type="button"
         onClick={toggleSidebar}
@@ -121,7 +121,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t('mobileNavigation')}
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-12">

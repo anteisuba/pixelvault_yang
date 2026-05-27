@@ -77,4 +77,29 @@ describe('LocaleSwitcher', () => {
       '/ja/studio?view=compact',
     )
   })
+
+  it('can render as a vertical switcher for collapsed navigation', () => {
+    render(<LocaleSwitcher orientation="vertical" />)
+
+    expect(
+      screen.getByRole('navigation', { name: 'Language' }),
+    ).toHaveAttribute('data-orientation', 'vertical')
+  })
+
+  it('can render compact options for sidebar footer use', () => {
+    render(<LocaleSwitcher size="compact" />)
+
+    expect(screen.getByRole('link', { name: 'English' })).toHaveClass('h-7')
+  })
+
+  it('can render a quieter sidebar tone', () => {
+    render(<LocaleSwitcher tone="sidebar" size="compact" />)
+
+    expect(
+      screen.getByRole('navigation', { name: 'Language' }),
+    ).toHaveAttribute('data-tone', 'sidebar')
+    expect(screen.getByRole('link', { name: 'Chinese' })).toHaveClass(
+      'text-sidebar-foreground',
+    )
+  })
 })

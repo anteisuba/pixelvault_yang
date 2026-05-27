@@ -167,6 +167,7 @@
     }
   },
   "Navbar": {
+    "brand": "ANTEI",
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
     "apiKeys": "APIキー",
@@ -930,9 +931,9 @@
       },
       "signInToFavorite": "お気に入りを表示するにはログインしてください"
     },
-    "feedEyebrow": "アーカイブ",
+    "feedEyebrow": "公開ギャラリー",
     "feedTitle": "最近の公開作品",
-    "feedDescription": "",
+    "feedDescription": "コミュニティの画像、動画、音声作品を眺め、次の制作につながる参考を見つけられます。",
     "feedLabel": "公開ギャラリーフィード",
     "itemFallbackLabel": "ギャラリー項目",
     "feedCount": "{shown} / {total} 件を表示中",

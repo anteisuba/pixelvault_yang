@@ -27,8 +27,8 @@ import {
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '16rem'
-const SIDEBAR_WIDTH_MOBILE = '15rem'
+const SIDEBAR_WIDTH = '12rem'
+const SIDEBAR_WIDTH_MOBILE = 'min(13rem, calc(100vw - 8rem))'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
@@ -187,9 +187,10 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-(--sidebar-width) border-sidebar-border/70 bg-sidebar p-0 text-sidebar-foreground shadow-2xl [&>button]:hidden"
           style={
             {
+              width: SIDEBAR_WIDTH_MOBILE,
               '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
             } as React.CSSProperties
           }
@@ -374,7 +375,7 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        'flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
+        'flex min-h-0 flex-1 flex-col gap-2 overflow-auto [scrollbar-width:none] group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto [&::-webkit-scrollbar]:hidden',
         className,
       )}
       {...props}
@@ -387,7 +388,10 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
-      className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+      className={cn(
+        'relative flex w-full min-w-0 flex-col p-2 group-data-[collapsible=icon]:p-1',
+        className,
+      )}
       {...props}
     />
   )
@@ -517,7 +521,11 @@ function SidebarMenuButton({
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      className={cn(
+        sidebarMenuButtonVariants({ variant, size }),
+        isMobile && size === 'default' && 'h-11 rounded-lg px-2.5 text-sm',
+        className,
+      )}
       {...props}
     />
   )

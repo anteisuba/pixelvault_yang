@@ -31,7 +31,7 @@ export function ImageCardActions({
         type="button"
         onClick={onLike}
         disabled={isLikePending}
-        className="flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
+        className="flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-full bg-black/50 px-2.5 py-1.5 text-xs text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
         <Heart
@@ -46,7 +46,7 @@ export function ImageCardActions({
         type="button"
         onClick={onDownload}
         disabled={isDownloading}
-        className="flex items-center rounded-full bg-black/50 p-1.5 text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
+        className="flex size-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
         aria-label={downloadLabel}
       >
         <Download

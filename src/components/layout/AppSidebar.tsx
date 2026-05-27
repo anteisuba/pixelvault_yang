@@ -108,9 +108,9 @@ export function AppSidebar() {
 // ──────────────────────────────────────────────────────────────────────
 
 function AppSidebarHeader() {
-  const tCommon = useTranslations('Common')
-  const { state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
+  const t = useTranslations('Navbar')
+  const { state, isMobile } = useSidebar()
+  const isCollapsed = !isMobile && state === 'collapsed'
 
   // Brand link is rendered unconditionally (no SignedIn / SignedOut wrapper)
   // — Clerk's auth status is unknown at SSR time, so wrapping it caused a
@@ -119,12 +119,17 @@ function AppSidebarHeader() {
   // brand at /studio works for both states: signed-in users land in their
   // workspace; signed-out users hit the protected-route redirect to sign-in.
   return (
-    <SidebarHeader className="border-b border-sidebar-border/40">
-      <div className="flex items-center justify-between gap-1 px-1">
+    <SidebarHeader className="border-b border-sidebar-border/40 p-2 md:p-2">
+      <div
+        className={cn(
+          'flex min-h-11 items-center justify-between gap-2 px-1',
+          isCollapsed && 'justify-center px-0',
+        )}
+      >
         <Link
           href={ROUTES.STUDIO}
           className={cn(
-            'flex shrink-0 items-center px-1 py-1.5',
+            'flex min-w-0 shrink-0 items-center px-1 py-1.5',
             isCollapsed && 'hidden',
           )}
         >
@@ -133,12 +138,12 @@ function AppSidebarHeader() {
             duration={600}
             animateOnHover
             animateOnMount={false}
-            className="font-display text-brand font-bold leading-none tracking-brand text-sidebar-foreground !py-0"
+            className="font-display text-lg font-bold leading-none tracking-brand text-sidebar-foreground !py-0 md:text-brand"
           >
-            {tCommon('brand')}
+            {t('brand')}
           </HyperText>
         </Link>
-        <SidebarTrigger className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
+        <SidebarTrigger className="size-11 rounded-full border border-sidebar-border/60 bg-sidebar-accent/35 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground md:size-8 md:border-0 md:bg-transparent" />
       </div>
     </SidebarHeader>
   )
@@ -152,7 +157,11 @@ function AppSidebarContent() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
   const tTools = useTranslations('StudioTools')
+  const { isMobile, setOpenMobile } = useSidebar()
   const [showComingSoon, setShowComingSoon] = useState(false)
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [isMobile, setOpenMobile])
   // The nav links don't depend on auth state — they render identically for
   // signed-in and signed-out visitors. Anything protected (Prompts / Assets /
   // Studio / Cards) is gated by Clerk middleware on click, so we can render
@@ -292,8 +301,8 @@ function AppSidebarContent() {
   // Assets / Cards + Tools). Clicking a protected link triggers the standard
   // Clerk middleware sign-in redirect — no special handling needed here.
   return (
-    <SidebarContent>
-      <SidebarGroup>
+    <SidebarContent className="gap-1 py-2 md:gap-2 md:py-0">
+      <SidebarGroup className="px-2 py-1.5 md:p-2">
         <SidebarGroupContent>
           <SidebarMenu>
             {signedInLinks.map((link) => {
@@ -306,7 +315,7 @@ function AppSidebarContent() {
                     isActive={isActive}
                     tooltip={link.label}
                   >
-                    <Link href={link.href}>
+                    <Link href={link.href} onClick={closeMobileSidebar}>
                       <Icon className="size-4 shrink-0" />
                       <span>{link.label}</span>
                     </Link>
@@ -318,8 +327,8 @@ function AppSidebarContent() {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarGroup>
-        <SidebarGroupLabel className="text-sidebar-foreground/60">
+      <SidebarGroup className="px-2 py-1.5 md:p-2">
+        <SidebarGroupLabel className="h-7 px-2.5 text-sidebar-foreground/55 md:h-8 md:px-2 md:text-sidebar-foreground/60">
           {tTools('groupLabel')}
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -336,7 +345,7 @@ function AppSidebarContent() {
                       isActive={isActive}
                       tooltip={tool.label}
                     >
-                      <Link href={tool.href}>
+                      <Link href={tool.href} onClick={closeMobileSidebar}>
                         <Icon className="size-4 shrink-0" />
                         <span>{tool.label}</span>
                       </Link>
@@ -357,7 +366,7 @@ function AppSidebarContent() {
                     isActive={isActive}
                     tooltip={tool.label}
                   >
-                    <Link href={tool.href}>
+                    <Link href={tool.href} onClick={closeMobileSidebar}>
                       <Icon className="size-4 shrink-0" />
                       <span>{tool.label}</span>
                     </Link>
@@ -401,7 +410,7 @@ function AppSidebarContent() {
                       isActive={isActive}
                       tooltip={tool.label}
                     >
-                      <Link href={tool.href}>
+                      <Link href={tool.href} onClick={closeMobileSidebar}>
                         <Icon className="size-4 shrink-0" />
                         <span>{tool.label}</span>
                       </Link>
@@ -426,20 +435,43 @@ function AppSidebarContent() {
 function AppSidebarFooter() {
   const t = useTranslations('Navbar')
   const { isLoaded } = useUser()
+  const { isMobile } = useSidebar()
 
   if (!isLoaded) {
     return <SidebarFooter className="border-t border-sidebar-border/40 gap-2" />
   }
 
   return (
-    <SidebarFooter className="border-t border-sidebar-border/40 gap-2">
+    <SidebarFooter className="gap-2 border-t border-sidebar-border/40 p-3 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1 md:p-2">
       <SignedIn>
-        <SidebarFooterCreditBadge />
-        <SidebarFooterFreeQuotaBar />
-        <SidebarFooterUserMenu />
-        <div className="group-data-[collapsible=icon]:hidden">
-          <LocaleSwitcher className="w-full justify-center !border-sidebar-border/50 !bg-sidebar-accent" />
-        </div>
+        {isMobile ? (
+          <>
+            <div className="flex items-center gap-2">
+              <SidebarFooterCreditBadge />
+              <div className="min-w-0 flex-1">
+                <SidebarFooterFreeQuotaBar />
+              </div>
+              <SidebarFooterUserMenu />
+            </div>
+            <LocaleSwitcher tone="sidebar" size="compact" className="w-full" />
+          </>
+        ) : (
+          <>
+            <div className="sidebar-collapsed-locale hidden justify-center group-data-[collapsible=icon]:flex">
+              <LocaleSwitcher tone="sidebar" orientation="vertical" />
+            </div>
+            <SidebarFooterCreditBadge />
+            <SidebarFooterFreeQuotaBar />
+            <SidebarFooterUserMenu />
+            <div className="flex px-1 group-data-[collapsible=icon]:hidden">
+              <LocaleSwitcher
+                tone="sidebar"
+                size="compact"
+                className="w-full"
+              />
+            </div>
+          </>
+        )}
       </SignedIn>
 
       <SignedOut>
@@ -561,7 +593,7 @@ function SidebarFooterCreditBadge() {
           <div
             className={cn(
               'flex items-center gap-2 rounded-md border border-sidebar-border/50 bg-sidebar-accent/40 px-2 py-1.5 text-xs',
-              isCollapsed && 'justify-center px-0',
+              isCollapsed && 'size-8 justify-center p-0',
             )}
           >
             <Coins className="size-3.5 shrink-0 text-sidebar-primary" />
@@ -597,8 +629,9 @@ function SidebarFooterUserMenu() {
   const pathname = usePathname()
   const { signOut } = useClerk()
   const router = useRouter()
-  const { state } = useSidebar()
+  const { isMobile, state } = useSidebar()
   const isCollapsed = state === 'collapsed'
+  const isCompact = isCollapsed || isMobile
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPathname, setMenuPathname] = useState<string | null>(null)
@@ -657,7 +690,7 @@ function SidebarFooterUserMenu() {
         }}
         className={cn(
           'flex w-full items-center gap-2 rounded-md p-1.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent',
-          isCollapsed && 'justify-center',
+          isCompact && 'mx-auto size-8 shrink-0 justify-center p-0',
         )}
         aria-label={t('viewProfile')}
         aria-expanded={isMenuOpen}
@@ -680,7 +713,7 @@ function SidebarFooterUserMenu() {
         <span
           className={cn(
             'min-w-0 flex-1 truncate text-xs font-medium',
-            isCollapsed && 'hidden',
+            isCompact && 'hidden',
           )}
         >
           {myProfile?.displayName ?? t('viewProfile')}
@@ -696,7 +729,7 @@ function SidebarFooterUserMenu() {
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className={cn(
               'absolute z-50 rounded-xl border border-sidebar-border/60 bg-sidebar/95 py-1 shadow-lg backdrop-blur-xl',
-              isCollapsed
+              isCompact
                 ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
                 : 'bottom-full left-0 right-0 mb-2 origin-bottom',
             )}

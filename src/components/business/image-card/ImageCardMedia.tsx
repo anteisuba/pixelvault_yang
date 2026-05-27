@@ -72,7 +72,8 @@ export function ImageCardMedia({
             height={generation.height}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-            priority={priority}
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
             unoptimized
           />
         )}

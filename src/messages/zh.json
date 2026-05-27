@@ -167,6 +167,7 @@
     }
   },
   "Navbar": {
+    "brand": "ANTEI",
     "signIn": "登录",
     "viewProfile": "查看主页",
     "apiKeys": "API 密钥",
@@ -930,9 +931,9 @@
       },
       "signInToFavorite": "登录后查看收藏"
     },
-    "feedEyebrow": "档案",
+    "feedEyebrow": "公开画廊",
     "feedTitle": "最近公开作品",
-    "feedDescription": "",
+    "feedDescription": "浏览社区公开的图像、视频和声音，找到可以继续创作的参考。",
     "feedLabel": "公共画廊信息流",
     "itemFallbackLabel": "画廊项目",
     "feedCount": "已显示 {shown} / {total}",

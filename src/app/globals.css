@@ -37,6 +37,7 @@
   --tracking-hero: -0.04em;
   --h-hero-btn: 2.85rem;
   --max-width-content: 75rem;
+  --max-width-gallery: 80rem;
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;
   --width-studio-sidebar: 13rem;
@@ -164,6 +165,12 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+}
+
+@media (max-height: 560px) and (min-width: 768px) {
+  .group[data-collapsible='icon'] .sidebar-collapsed-locale {
+    display: none;
   }
 }
 

@@ -66,28 +66,32 @@ export function GalleryFeed({
   const displayTotal = currentTotal ?? total
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <p className="hidden font-display text-xs font-semibold tracking-wide text-muted-foreground uppercase sm:block">
+            {t('feedEyebrow')}
+          </p>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            {t('feedTitle')}
+          </h1>
+          <p className="hidden font-serif text-sm leading-7 text-muted-foreground md:block">
+            {t('feedDescription')}
+          </p>
+        </div>
+        <span className="editorial-count-pill self-start sm:self-auto">
+          {t('feedCount', {
+            shown: generations.length,
+            total: displayTotal,
+          })}
+        </span>
+      </div>
+
       <GalleryHeader
         filters={filters}
         onFiltersChange={handleFiltersChange}
         isLoading={isLoading}
       />
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <p className="font-serif text-sm leading-7 text-muted-foreground">
-            {t('feedDescription')}
-          </p>
-        </div>
-        {generations.length !== displayTotal && (
-          <span className="editorial-count-pill">
-            {t('feedCount', {
-              shown: generations.length,
-              total: displayTotal,
-            })}
-          </span>
-        )}
-      </div>
 
       <GalleryGrid
         generations={generations}

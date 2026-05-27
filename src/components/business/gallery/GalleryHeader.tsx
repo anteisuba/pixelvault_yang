@@ -52,7 +52,7 @@ function PillGroup<T extends string>({
           key={opt.value}
           type="button"
           className={cn(
-            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+            'min-h-8 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
             value === opt.value
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground',
@@ -192,7 +192,7 @@ export const GalleryHeader = memo(function GalleryHeader({
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* Search toggle */}
           {searchOpen ? (
-            <div className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1">
+            <div className="flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1">
               <Search className="size-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -203,7 +203,11 @@ export const GalleryHeader = memo(function GalleryHeader({
                 autoFocus
               />
               {searchInput && (
-                <button type="button" onClick={clearSearch}>
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="inline-flex size-6 items-center justify-center rounded-full"
+                >
                   <X className="size-3 text-muted-foreground hover:text-foreground" />
                 </button>
               )}
@@ -213,7 +217,7 @@ export const GalleryHeader = memo(function GalleryHeader({
               type="button"
               onClick={() => setSearchOpen(true)}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors',
+                'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground',
                 filters.search && 'border-primary/40 text-primary',
               )}
             >
@@ -227,7 +231,7 @@ export const GalleryHeader = memo(function GalleryHeader({
             type="button"
             onClick={() => setAdvancedOpen(!advancedOpen)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors',
+              'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground',
               (advancedOpen || hasAdvancedFilters) &&
                 'border-primary/40 text-primary',
             )}
@@ -244,7 +248,7 @@ export const GalleryHeader = memo(function GalleryHeader({
               variant="ghost"
               size="sm"
               onClick={clearAll}
-              className="h-7 gap-1 text-xs text-muted-foreground"
+              className="h-8 gap-1 text-xs text-muted-foreground"
               disabled={isLoading}
             >
               <X className="size-3" />

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
@@ -23,6 +24,9 @@ export default async function MainLayout({
   // client components see every namespace. use-intl 4.x replaces
   // (not merges) on nesting.
   const fullMessages = await getMessages({ locale })
+  const sidebarState = (await cookies()).get('sidebar_state')?.value
+  const defaultSidebarOpen =
+    sidebarState === undefined ? true : sidebarState === 'true'
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
@@ -34,7 +38,7 @@ export default async function MainLayout({
       </a>
       <NextIntlClientProvider locale={locale} messages={fullMessages}>
         <MainProviders>
-          <SidebarProvider defaultOpen={true}>
+          <SidebarProvider defaultOpen={defaultSidebarOpen}>
             <AppSidebar />
             <MobileHeader />
             <SidebarInset

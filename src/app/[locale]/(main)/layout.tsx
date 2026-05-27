@@ -48,7 +48,7 @@ export default async function MainLayout({
             <MobileHeader />
             <SidebarInset
               id="main-content"
-              className="pt-12 pb-12 md:pt-0 md:pb-0"
+              className="pt-11 pb-12 md:pt-0 md:pb-0"
             >
               {children}
             </SidebarInset>

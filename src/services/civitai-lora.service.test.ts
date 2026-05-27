@@ -127,6 +127,91 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBe('cursor-3')
   })
 
+  it('extracts a clean primary trigger + alternates + author-recommended prompt from Civitai trainedWords', async () => {
+    // The exact wuthering-waves case that surfaced the original bug: author
+    // left trainedWords empty so the trigger has to be inferred from the
+    // model name. tags=['character', ...] used to pollute it.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: '鸣潮 (Wuthering Waves) || 达妮娅 (Denia)',
+            type: 'LORA',
+            tags: ['character', 'woman', 'denia', '达妮娅'],
+            modelVersions: [
+              {
+                id: 100,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/100',
+                  },
+                ],
+                trainedWords: [],
+                images: [],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+    const empty = await listCivitaiLoras()
+    expect(empty.items[0]?.triggerWord).not.toBe('character')
+    expect(empty.items[0]?.triggerSource).toBe('inferred')
+    expect(empty.items[0]?.recommendedPrompt).toBeNull()
+
+    // A character LoRA with a long comma-separated trainedWord + a second
+    // outfit variant. The first comma-segment becomes the primary trigger;
+    // the full string becomes the author-recommended prompt; the second
+    // entry becomes an alternate trigger.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 2,
+            name: 'Cure Mystique',
+            type: 'LORA',
+            tags: ['character'],
+            modelVersions: [
+              {
+                id: 200,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/200',
+                  },
+                ],
+                trainedWords: [
+                  'cure mystique, pink hair, magical girl',
+                  'kobayashi mikuru, school uniform',
+                ],
+                images: [],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+    const rich = await listCivitaiLoras()
+    expect(rich.items[0]?.triggerWord).toBe('cure mystique')
+    expect(rich.items[0]?.triggerAlternates).toEqual(['kobayashi mikuru'])
+    expect(rich.items[0]?.recommendedPrompt).toBe(
+      'cure mystique, pink hair, magical girl',
+    )
+    expect(rich.items[0]?.triggerSource).toBe('official')
+  })
+
   it('rewrites Civitai cover URLs to sized transforms and keeps the original for the lightbox', async () => {
     const ORIGINAL_URL =
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/original=true/1917130.jpeg'

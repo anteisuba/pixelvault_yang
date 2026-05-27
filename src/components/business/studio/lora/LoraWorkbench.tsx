@@ -15,11 +15,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
+  Copy,
   Download,
   ExternalLink,
   GraduationCap,
   Heart,
   History,
+  Info,
   Library,
   Loader2,
   RefreshCw,
@@ -827,6 +829,22 @@ function CivitaiCommunityBranch({
     [t],
   )
 
+  const handleCopyTrigger = useCallback(
+    async (trigger: string) => {
+      // Just the trigger token — the common case when the user already has a
+      // prompt and only needs to glue the activation word in. Splitting this
+      // out avoids the "copy template" pattern dumping 100+ chars on top of
+      // an existing prompt.
+      try {
+        await navigator.clipboard.writeText(trigger)
+        toast.success(t('triggerCopied'))
+      } catch {
+        toast.error(t('tryPromptCopyFailed'))
+      }
+    },
+    [t],
+  )
+
   return (
     <section className="rounded-2xl border border-border bg-card p-3 sm:p-5">
       {/* Mobile: title + refresh on the same row so the section header doesn't
@@ -1009,6 +1027,7 @@ function CivitaiCommunityBranch({
             onUse={handleUse}
             onFavorite={handleFavoriteToggle}
             onCopyTryPrompt={handleCopyTryPrompt}
+            onCopyTrigger={handleCopyTrigger}
             onPreviewCover={(item) => {
               // 放大对话框需要原图：inspector 的 coverImageUrl 已经被 service
               // 层 rewrite 成 640px，放大到 max-w-4xl (≥896px) 会糊。回退到
@@ -1051,6 +1070,7 @@ function CivitaiCommunityBranch({
               }}
               onFavorite={handleFavoriteToggle}
               onCopyTryPrompt={handleCopyTryPrompt}
+              onCopyTrigger={handleCopyTrigger}
               onPreviewCover={(item) => {
                 const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
                 if (fullUrl) {
@@ -1210,7 +1230,10 @@ function CivitaiLoraRow({
           <span className="block truncate text-2xs text-muted-foreground">
             {item.creatorName ?? t('communityUnknownCreator')}
           </span>
-          <span className="block truncate font-mono text-2xs text-muted-foreground/70">
+          <span
+            className="block truncate font-mono text-2xs text-muted-foreground/70"
+            title={item.triggerWord}
+          >
             {item.triggerWord}
           </span>
         </div>
@@ -1297,6 +1320,7 @@ interface CivitaiLoraInspectorProps {
   onUse: (item: CivitaiLoraLibraryItem) => void
   onFavorite: (item: CivitaiLoraLibraryItem) => void
   onCopyTryPrompt: (item: CivitaiLoraLibraryItem) => Promise<void>
+  onCopyTrigger: (trigger: string) => Promise<void>
   onPreviewCover: (item: CivitaiLoraLibraryItem) => void
 }
 
@@ -1306,6 +1330,7 @@ function CivitaiLoraInspector({
   onUse,
   onFavorite,
   onCopyTryPrompt,
+  onCopyTrigger,
   onPreviewCover,
 }: CivitaiLoraInspectorProps) {
   const t = useTranslations('LoraWorkbench')
@@ -1388,12 +1413,69 @@ function CivitaiLoraInspector({
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">
+            <dt className="flex items-center gap-1.5 text-muted-foreground">
               {t('communityTriggerWord')}
+              {/* When trigger had to be inferred from model name (no Civitai
+                  trainedWords), warn the user that activation may not work
+                  perfectly — better to surface uncertainty than ship a
+                  silently-wrong "character" / "anime" trigger. */}
+              {item.triggerSource === 'inferred' ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300"
+                  title={t('triggerSourceInferredHint')}
+                >
+                  <Info className="size-2.5" aria-hidden />
+                  {t('triggerSourceInferredBadge')}
+                </span>
+              ) : null}
             </dt>
-            <dd className="mt-1 rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-foreground">
-              {item.triggerWord}
+            <dd className="mt-1 flex items-center gap-1.5">
+              {/* break-all so long trainedWords[0] tokens (e.g.
+                  "sigrika (wuthering waves)") don't overflow the inspector
+                  on narrow viewports. font-mono keeps SD-style _ tokens
+                  legible. title= exposes full text on hover for truncated
+                  views. */}
+              <code
+                className="flex-1 break-all rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-foreground"
+                title={item.triggerWord}
+              >
+                {item.triggerWord}
+              </code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void onCopyTrigger(item.triggerWord)}
+                aria-label={t('copyTrigger')}
+                title={t('copyTrigger')}
+              >
+                <Copy className="size-3.5" aria-hidden />
+              </Button>
             </dd>
+            {item.triggerAlternates.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                <div className="text-2xs text-muted-foreground">
+                  {t('triggerAlternatesLabel')}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {item.triggerAlternates.map((alt) => (
+                    <button
+                      key={alt}
+                      type="button"
+                      onClick={() => void onCopyTrigger(alt)}
+                      title={t('copyTrigger')}
+                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2 py-0.5 font-mono text-2xs text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
+                    >
+                      <span className="break-all">{alt}</span>
+                      <Copy
+                        className="size-2.5 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
           {item.tags.length > 0 ? (
             <div>
@@ -1417,6 +1499,16 @@ function CivitaiLoraInspector({
             <span className="inline-flex items-center gap-1.5">
               <Wand2 className="size-3" aria-hidden />
               {t('tryPromptLabel')}
+              {/* When the template comes from the author's trainedWords[0]
+                  rather than our generic scaffold, badge it so users know
+                  this is the maker's tuned starter prompt — much more
+                  reliable than our "portrait, dynamic pose, …" template. */}
+              {item.recommendedPrompt ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
+                  <Sparkles className="size-2.5" aria-hidden />
+                  {t('tryPromptOfficialBadge')}
+                </span>
+              ) : null}
             </span>
             <button
               type="button"

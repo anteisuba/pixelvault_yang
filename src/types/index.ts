@@ -3317,6 +3317,16 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 「点击放大查看」对话框用的全分辨率原图。base `coverImageUrl` rewrite 后
   // 已经是 640px，放大时需要回退到原图。
   coverImageUrlOriginal: z.string().url().nullable(),
+  // 同一个 LoRA 可能有多个 outfit/variant 触发词（例如 Cure Mystique 10 个
+  // 造型）。`triggerWord` 是主推荐，`triggerAlternates` 是其他候选 — 空数组
+  // 意味着只有一个触发词。
+  triggerAlternates: z.array(z.string()),
+  // Civitai 作者声明的「整段推荐 prompt」（trainedWords[0] 清洗后）。null
+  // 意味着作者未提供，UI 应回退到内部模板。
+  recommendedPrompt: z.string().nullable(),
+  // 'official' = trigger 来自 Civitai 作者；'inferred' = 我们从模型名推断的，
+  // UI 应展示「推断」徽章提示用户可能不准确。
+  triggerSource: z.enum(['official', 'inferred']),
 })
 
 export type CivitaiLoraLibraryItem = z.infer<

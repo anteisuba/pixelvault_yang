@@ -11,6 +11,7 @@ import {
   type CivitaiLoraSort,
 } from '@/constants/lora'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import type {
@@ -216,10 +217,15 @@ function toLibraryItem(
     ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_THUMB_WIDTH })
     : null
   const baseModelFamily = version.baseModel?.trim() || 'unknown'
-  const triggerWord =
-    version.trainedWords?.find((word) => word.trim().length > 0)?.trim() ??
-    tags.find((tag) => tag.trim().length > 0)?.trim() ??
-    'lora'
+  // 触发词抽取的复杂度（拆 comma / 去 SD 语法 / 多 outfit / 从模型名兜底）
+  // 全部封装在 `extractCivitaiTrigger`。旧实现取 trainedWords[0] 整段、然后
+  // fallback 到 tags[0]（基本上是 'character'/'style' 分类标签），导致用户
+  // 看到的触发词大概率是错的或污染的 — 见 lora-trigger-clean / -extract 的
+  // 测试用例覆盖的 5 种真实模式。
+  const triggerInfo = extractCivitaiTrigger({
+    trainedWords: version.trainedWords,
+    modelName: model.name,
+  })
 
   return {
     id: `civitai:${model.id}:${version.id}`,
@@ -229,7 +235,10 @@ function toLibraryItem(
     type: inferLoraType(tags, model.name),
     baseModelFamily,
     provider: 'civitai',
-    triggerWord,
+    triggerWord: triggerInfo.trigger,
+    triggerAlternates: triggerInfo.alternates,
+    recommendedPrompt: triggerInfo.recommendedPrompt,
+    triggerSource: triggerInfo.source,
     loraUrl,
     coverImageUrl,
     coverImageUrlOriginal: coverOriginal,

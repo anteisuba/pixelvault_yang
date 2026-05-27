@@ -69,15 +69,36 @@ export function UseLoraButton({
           toast.error(result.error ?? t('failed'))
           return
         }
-        const { styleCodes, hasHiddenLoras } = result.data
-        if (styleCodes.length === 0) {
+        const {
+          styleCodes,
+          hasHiddenLoras,
+          prompt,
+          seed,
+          negativePrompt,
+          aspectRatio,
+        } = result.data
+
+        // Phase 1C: a snapshot is "nothing to replay" only when it has
+        // neither LoRAs nor a prompt — older generations might be missing
+        // both; everything since the prompt-area refactor carries at
+        // least freePrompt.
+        if (styleCodes.length === 0 && !prompt) {
           toast.message(hasHiddenLoras ? t('allHidden') : t('noneAvailable'))
           return
         }
-        const qs = styleCodes
-          .map((c) => `style=${encodeURIComponent(c)}`)
-          .join('&')
-        router.push(`${studioRouteForOutputType(outputType)}?${qs}`)
+
+        const params = new URLSearchParams()
+        for (const code of styleCodes) {
+          params.append('style', code)
+        }
+        if (prompt) params.set('prompt', prompt)
+        if (seed !== null) params.set('seed', String(seed))
+        if (negativePrompt) params.set('negativePrompt', negativePrompt)
+        if (aspectRatio) params.set('aspectRatio', aspectRatio)
+
+        router.push(
+          `${studioRouteForOutputType(outputType)}?${params.toString()}`,
+        )
         if (hasHiddenLoras) {
           toast.message(t('someHidden'))
         }

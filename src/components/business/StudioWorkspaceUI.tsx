@@ -12,6 +12,7 @@ import {
 } from '@/components/business/studio'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
+import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
 
@@ -28,6 +29,12 @@ const STUDIO_MODE_KEY = 'studio-workflow-mode'
 export function StudioWorkspaceUI() {
   const { state, dispatch } = useStudioForm()
   const { onboarding } = useStudioData()
+
+  // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
+  // the URL on mount when the user arrived via "Use this image" replay.
+  // LoRA `?style=` URL params are handled separately inside
+  // `useActiveLoraStack`; together the two cover the full replay path.
+  useStudioReplayFromUrl()
 
   // Restore workflow mode from localStorage on mount.
   // Also close any panels left open from the previous session — the

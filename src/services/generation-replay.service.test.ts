@@ -83,8 +83,79 @@ describe('getReplayPayload', () => {
       generationId: 'gen_1',
       styleCodes: [],
       hasHiddenLoras: false,
+      prompt: null,
+      seed: null,
+      negativePrompt: null,
+      aspectRatio: null,
     })
     expect(mockFindLoraAssetsByUrls).not.toHaveBeenCalled()
+  })
+
+  it('extracts prompt + seed + negative + aspect ratio from a full snapshot', async () => {
+    mockFindUnique.mockResolvedValue(
+      buildGeneration({
+        snapshot: {
+          freePrompt: 'denia, c1, white dress',
+          compiledPrompt: 'denia, c1, white dress, masterpiece',
+          seed: 12345,
+          aspectRatio: '9:16',
+          advancedParams: {
+            loras: [{ url: URL_A, scale: 0.9 }],
+            seed: 12345,
+            negativePrompt: 'worst quality, lowres',
+          },
+        },
+      }),
+    )
+    mockFindLoraAssetsByUrls.mockResolvedValue([{ styleCode: 'pv-c-x-aaaa' }])
+    const result = await getReplayPayload('gen_1', null)
+    // Prefers freePrompt over compiledPrompt — what the user typed is
+    // what they want to keep editing.
+    expect(result?.prompt).toBe('denia, c1, white dress')
+    expect(result?.seed).toBe(12345)
+    expect(result?.negativePrompt).toBe('worst quality, lowres')
+    expect(result?.aspectRatio).toBe('9:16')
+  })
+
+  it('treats seed=-1 (random) as null so the client lets the provider re-pick', async () => {
+    mockFindUnique.mockResolvedValue(
+      buildGeneration({
+        snapshot: {
+          freePrompt: 'a prompt',
+          seed: -1,
+          advancedParams: { loras: [{ url: URL_A, scale: 0.9 }] },
+        },
+      }),
+    )
+    mockFindLoraAssetsByUrls.mockResolvedValue([{ styleCode: 'x' }])
+    const result = await getReplayPayload('gen_1', null)
+    expect(result?.seed).toBeNull()
+  })
+
+  it('falls back to compiledPrompt when freePrompt is missing (older snapshots)', async () => {
+    mockFindUnique.mockResolvedValue(
+      buildGeneration({
+        snapshot: {
+          compiledPrompt: 'only-the-compiled-one',
+          advancedParams: { loras: [] },
+        },
+      }),
+    )
+    const result = await getReplayPayload('gen_1', null)
+    expect(result?.prompt).toBe('only-the-compiled-one')
+  })
+
+  it('rejects an unknown aspectRatio value rather than passing it through', async () => {
+    mockFindUnique.mockResolvedValue(
+      buildGeneration({
+        snapshot: {
+          aspectRatio: '21:9', // not in the allowed set
+          advancedParams: { loras: [] },
+        },
+      }),
+    )
+    const result = await getReplayPayload('gen_1', null)
+    expect(result?.aspectRatio).toBeNull()
   })
 
   it('flags hasHiddenLoras when some URLs do not resolve to visible assets', async () => {

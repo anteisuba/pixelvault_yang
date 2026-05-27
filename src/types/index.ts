@@ -3419,6 +3419,15 @@ export const ReplayPayloadSchema = z.object({
   generationId: z.string(),
   styleCodes: z.array(z.string()),
   hasHiddenLoras: z.boolean(),
+  // Phase 1C: full reproducibility — return the prompt + seed + negative
+  // prompt + aspect ratio so the viewer can click "Use this image" and
+  // land in Studio with the exact same setup that produced the image,
+  // not just the LoRAs. `null` means the snapshot didn't carry that
+  // field (older generations / unusual code paths).
+  prompt: z.string().nullable(),
+  seed: z.number().int().nullable(),
+  negativePrompt: z.string().nullable(),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).nullable(),
 })
 
 export type ReplayPayload = z.infer<typeof ReplayPayloadSchema>

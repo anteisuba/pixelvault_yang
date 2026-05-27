@@ -10,12 +10,12 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioFormOptional } from '@/contexts/studio-context'
 import { getDefaultProviderConfig } from '@/constants/providers'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from '@/components/ui/responsive-dialog'
 import { cn } from '@/lib/utils'
 
 interface QuickSetupDialogProps {
@@ -221,14 +221,16 @@ export function QuickSetupDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display">
+    <ResponsiveDialog open={open} onOpenChange={handleClose}>
+      <ResponsiveDialogContent className="sm:max-w-md">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle className="font-display">
             {t('title', { model: modelLabel })}
-          </DialogTitle>
-          <DialogDescription>{t('description')}</DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
+            {t('description')}
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         <div className="space-y-4 pt-2">
           {/* Step 1: Guide */}
@@ -339,7 +341,7 @@ export function QuickSetupDialog({
             )}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

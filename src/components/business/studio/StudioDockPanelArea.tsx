@@ -18,11 +18,11 @@ import {
   getReferenceCapabilityMax,
 } from '@/constants/reference-image-capabilities'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
@@ -95,7 +95,7 @@ const StudioScriptPanel = dynamic(
 // doesn't feel oversized for short controls (civitai = one input) or
 // cramped for longer flows (voice selector + audio params).
 const DIALOG_BASE =
-  '!gap-0 !p-0 max-h-[85vh] overflow-hidden border-border/40 bg-background shadow-2xl'
+  '!gap-0 !p-0 max-h-[85dvh] overflow-hidden border-border/40 bg-background shadow-2xl'
 const DIALOG_BODY = 'overflow-y-auto px-5 pb-5 pt-1'
 const DIALOG_HEADER =
   'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'
@@ -220,14 +220,14 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   return (
     <>
       {/* ── Civitai Token ────────────────────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.civitai}
         onOpenChange={(open) => {
           if (!open) closePanel('civitai')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-md`}>
-          <DialogTitle className={DIALOG_HEADER}>
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             <Key className="size-3.5 text-primary" />
             {tPanels('civitai')}
             {civitai.hasToken && (
@@ -235,10 +235,10 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 {t('tokenSaved')}
               </span>
             )}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
             {tPanels('civitai')}
-          </DialogDescription>
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <div className="flex flex-col gap-2">
               <input
@@ -274,28 +274,28 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
               </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Layer Decompose ───────────────────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.layerDecompose}
         onOpenChange={(open) => {
           if (!open) closePanel('layerDecompose')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             {tPanels('layers')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
             {tPanels('layers')}
-          </DialogDescription>
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
       <FishVoiceLibraryDialog
@@ -457,84 +457,86 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       />
 
       {/* ── Voice Trainer (audio mode) ────────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.voiceTrainer}
         onOpenChange={(open) => {
           if (!open) closePanel('voiceTrainer')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <DialogTitle className={DIALOG_HEADER}>{tBar('clone')}</DialogTitle>
-          <DialogDescription className="sr-only">
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             {tBar('clone')}
-          </DialogDescription>
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
+            {tBar('clone')}
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <VoiceTrainer />
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Audio Transcribe (audio mode) ─────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.audioTranscribe}
         onOpenChange={(open) => {
           if (!open) closePanel('audioTranscribe')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             {tBar('transcribe')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
             {tBar('transcribe')}
-          </DialogDescription>
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <AudioTranscribeDialog
               onComplete={() => closePanel('audioTranscribe')}
             />
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Video Params (video mode) ─────────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.videoParams}
         onOpenChange={(open) => {
           if (!open) closePanel('videoParams')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             {tPanels('videoSettings')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
             {tPanels('videoSettings')}
-          </DialogDescription>
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <StudioVideoParams />
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Video Script (video mode) ─────────────────────────── */}
-      <Dialog
+      <ResponsiveDialog
         open={state.panels.script}
         onOpenChange={(open) => {
           if (!open) closePanel('script')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
             {tPanels('script')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
             {tPanels('script')}
-          </DialogDescription>
+          </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <StudioScriptPanel />
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </>
   )
 })

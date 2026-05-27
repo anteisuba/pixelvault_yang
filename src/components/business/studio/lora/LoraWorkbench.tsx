@@ -1026,6 +1026,10 @@ function CivitaiCommunityBranch({
             a full list to see a selected LoRA's details. */}
         <div className="hidden lg:block">
           <CivitaiLoraInspector
+            // key forces a remount when the selected LoRA changes, which
+            // resets the inspector's outfit-picker state to index 0 without
+            // any setState-in-render or effect dance.
+            key={library.selectedItem?.id ?? 'empty'}
             item={library.selectedItem}
             isFavorited={
               library.selectedItem
@@ -1066,6 +1070,8 @@ function CivitaiCommunityBranch({
           </DrawerTitle>
           <div className="overflow-y-auto px-4 pb-6 pt-2">
             <CivitaiLoraInspector
+              // Same remount-on-id-change pattern as the desktop instance.
+              key={library.selectedItem?.id ?? 'empty'}
               item={library.selectedItem}
               isFavorited={
                 library.selectedItem
@@ -1364,16 +1370,11 @@ function CivitaiLoraInspector({
 
   // Multi-outfit LoRAs: Civitai authors stash per-costume activation
   // prompts in description <pre><code> blocks; we surface them as a chip
-  // selector inside the Try-Prompt panel. Reset on item change so we
-  // don't show outfit 3 of LoRA A when switching to LoRA B — using the
-  // React 19 "reset state on prop change in render" pattern instead of
-  // useEffect to avoid the set-state-in-effect lint and the extra render.
+  // selector inside the Try-Prompt panel. Caller passes `key={item.id}`
+  // on this component so a new LoRA fully remounts and this state resets
+  // to 0 — React's official "reset state with a key" pattern, simpler
+  // than tracking prevId in render or running a setState effect.
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0)
-  const [trackedItemId, setTrackedItemId] = useState(item?.id ?? null)
-  if (item?.id !== trackedItemId) {
-    setTrackedItemId(item?.id ?? null)
-    setSelectedOutfitIndex(0)
-  }
 
   // outfits[0] is the primary; alternates [1..] only exist for
   // multi-outfit character LoRAs. Single-outfit LoRAs keep the

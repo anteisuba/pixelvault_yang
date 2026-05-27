@@ -73,25 +73,34 @@ export function MobileHeader() {
   })()
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-12 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
       <button
         type="button"
         onClick={toggleSidebar}
         aria-label={t('openMenu')}
         aria-expanded={openMobile}
         className={cn(
-          'flex h-full w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors duration-[180ms] ease-out',
-          '[&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
+          'flex h-full w-12 shrink-0 items-center justify-center transition-colors duration-[180ms] ease-out',
+          '[-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
         )}
       >
-        <PanelLeft className="size-4" />
+        <span
+          className={cn(
+            'flex size-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-sm transition-colors duration-[180ms] ease-out',
+            'hover:bg-secondary hover:text-foreground active:scale-95 active:opacity-80',
+            openMobile && 'border-primary/40 bg-primary/10 text-primary',
+          )}
+          aria-hidden="true"
+        >
+          <PanelLeft className="size-5" />
+        </span>
       </button>
       <div className="min-w-0 flex-1 px-1">
         <div className="truncate text-center font-display text-sm font-semibold text-foreground">
           {title}
         </div>
       </div>
-      <div className="w-11 shrink-0" aria-hidden />
+      <div className="w-12 shrink-0" aria-hidden />
     </header>
   )
 }

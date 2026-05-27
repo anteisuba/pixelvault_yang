@@ -1172,7 +1172,7 @@ export function Studio3DWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] w-full flex-col bg-background md:h-dvh">
+    <div className="flex h-[calc(100dvh-5.75rem)] w-full flex-col bg-background md:h-dvh">
       <header className="flex flex-col gap-1 border-b border-border/40 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2">
           <Box className="size-4 text-primary" />
@@ -1450,7 +1450,7 @@ export function Studio3DWorkspace({
             real estate. On mobile this becomes a full-width section stacked
             below the canvas and flows naturally (parent scrolls); on md+
             it scrolls independently inside its fixed column width. */}
-        <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 p-4 sm:p-5 md:min-h-0 md:w-80 md:overflow-y-auto md:border-l md:border-t-0 lg:w-96 2xl:w-[28rem]">
+        <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5 md:min-h-0 md:w-80 md:overflow-y-auto md:border-l md:border-t-0 md:p-5 lg:w-96 2xl:w-[28rem]">
           {/* Model Hero Card — shows active model + "Change" switcher */}
           <div className="rounded-lg border border-border/60 bg-card p-3">
             <div className="flex items-center gap-3">
@@ -2751,14 +2751,22 @@ export function Studio3DWorkspace({
               Inspector with a backdrop so it stays in view as the user
               scrolls long parameter lists. On md+ it just sits at the
               bottom of the scrollable aside. */}
-          <div className="sticky bottom-0 -mx-4 mt-auto border-t border-border/40 bg-muted/95 px-4 py-3 backdrop-blur-sm sm:-mx-5 sm:px-5 md:static md:mx-0 md:border-t-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+          <div
+            className="sticky mt-auto pt-1 md:static md:pt-0"
+            style={{ bottom: 'env(safe-area-inset-bottom)' }}
+          >
             <Button
               type="button"
               disabled={!canGenerate}
               onClick={handleGenerate}
+              size="lg"
               className={cn(
-                'w-full rounded-full',
-                !canGenerate && 'opacity-60',
+                'h-11 w-full rounded-full text-sm font-semibold shadow-none disabled:opacity-100',
+                isGenerating
+                  ? 'bg-primary text-primary-foreground'
+                  : canGenerate
+                    ? 'bg-foreground text-background hover:bg-foreground/90'
+                    : 'border border-border/60 bg-muted/60 text-muted-foreground hover:bg-muted/60',
               )}
             >
               <Sparkles className="mr-1.5 size-4" />

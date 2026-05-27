@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import {
   Box,
   FileText,
@@ -13,6 +14,7 @@ import {
   PanelLeft,
   Sparkles,
   Swords,
+  UserCircle,
   Video,
   Wand2,
   Workflow,
@@ -23,6 +25,7 @@ import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
 
@@ -116,6 +119,59 @@ function MobileRailLink({ href, label, icon: Icon, activeRules }: RailItem) {
         )}
       >
         <Icon className="size-4" />
+      </span>
+    </Link>
+  )
+}
+
+function MobileRailAccountButton() {
+  const t = useTranslations('Navbar')
+  const { user } = useUser()
+  const { setOpenMobile } = useSidebar()
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpenMobile(true)}
+      aria-label={t('viewProfile')}
+      className={cn(
+        MOBILE_RAIL_ITEM_CLASS_NAME,
+        'hover:bg-sidebar-accent/70 hover:text-sidebar-foreground active:bg-sidebar-accent active:text-sidebar-foreground',
+      )}
+    >
+      <span className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-sidebar-border/70 bg-sidebar-accent text-sidebar-foreground/70">
+        {user?.imageUrl ? (
+          <Image
+            src={user.imageUrl}
+            alt=""
+            width={32}
+            height={32}
+            unoptimized
+            className="size-full object-cover"
+          />
+        ) : (
+          <UserCircle className="size-5" aria-hidden />
+        )}
+      </span>
+    </button>
+  )
+}
+
+function MobileRailSignedOutLink() {
+  const t = useTranslations('Navbar')
+
+  return (
+    <Link
+      href={ROUTES.SIGN_IN}
+      aria-label={t('signIn')}
+      title={t('signIn')}
+      className={cn(
+        MOBILE_RAIL_ITEM_CLASS_NAME,
+        'hover:bg-sidebar-accent/70 hover:text-sidebar-foreground active:bg-sidebar-accent active:text-sidebar-foreground',
+      )}
+    >
+      <span className="flex size-8 items-center justify-center rounded-full border border-sidebar-border/70 bg-sidebar-accent text-sidebar-foreground/70">
+        <UserCircle className="size-5" aria-hidden />
       </span>
     </Link>
   )
@@ -244,6 +300,16 @@ export function MobileCollapsedRail() {
           ))}
         </div>
       </nav>
+
+      <div className="flex shrink-0 flex-col items-center gap-1 border-t border-sidebar-border/40 py-1">
+        <LocaleSwitcher tone="sidebar" orientation="vertical" />
+        <SignedIn>
+          <MobileRailAccountButton />
+        </SignedIn>
+        <SignedOut>
+          <MobileRailSignedOutLink />
+        </SignedOut>
+      </div>
     </aside>
   )
 }

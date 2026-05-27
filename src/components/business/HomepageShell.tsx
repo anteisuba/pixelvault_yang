@@ -30,10 +30,10 @@ export function HomepageShell() {
         {t('skipToContent')}
       </a>
       <header className="homepage-header sticky top-0 z-20">
-        <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="homepage-header-inner mx-auto flex min-h-14 max-w-content items-center justify-between gap-3 px-3 py-2 sm:h-16 sm:px-6 sm:py-0 lg:px-8">
           <Link
             href={HOMEPAGE_ROUTES.home}
-            className="flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-w-0"
+            className="homepage-brand-link flex min-h-10 min-w-10 items-center justify-center gap-2 sm:min-h-11 sm:min-w-0"
             aria-label={tCommon('brand')}
           >
             <span className="homepage-brand-mark" aria-hidden="true">
@@ -47,13 +47,10 @@ export function HomepageShell() {
             </span>
           </Link>
 
-          <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+          <div className="homepage-header-actions flex min-w-0 shrink items-center justify-end gap-1.5 sm:shrink-0 sm:gap-2">
             <LocaleSwitcher className="homepage-locale-switcher" />
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <HomepageAuthCta variant="nav-utility" />
-              <HomepageAuthCta variant="nav-register" />
-            </div>
+            <HomepageAuthCta />
           </div>
         </div>
       </header>

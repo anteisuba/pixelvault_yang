@@ -263,10 +263,55 @@
   }
 }
 
+@media (max-width: 480px) {
+  .homepage-header {
+    background: color-mix(in oklab, var(--background) 94%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .homepage-header-inner {
+    gap: 0.5rem;
+  }
+
+  .homepage-brand-link {
+    min-width: 2rem;
+  }
+
+  .homepage-brand-mark {
+    width: 1.18rem;
+    height: 1.48rem;
+    gap: 0.12rem;
+  }
+
+  .homepage-brand-mark span:nth-child(1) {
+    transform: translateY(0.12rem) rotate(-12deg);
+  }
+
+  .homepage-brand-mark span:nth-child(2) {
+    transform: translateY(0.28rem) rotate(12deg);
+  }
+
+  .homepage-brand-mark span:nth-child(3) {
+    transform: translateY(-0.06rem) rotate(12deg);
+  }
+
+  .homepage-brand-mark span:nth-child(4) {
+    transform: translateY(-0.2rem) rotate(-12deg);
+  }
+
+  .homepage-header-actions {
+    gap: 0.4rem;
+  }
+
+  .homepage-auth-actions {
+    gap: 0.25rem;
+  }
+}
+
 .homepage-nav-login {
-  background: transparent;
-  color: var(--foreground);
-  border: 1px solid color-mix(in oklab, var(--foreground) 38%, transparent);
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  color: var(--home-muted);
+  border: 1px solid color-mix(in oklab, var(--foreground) 22%, transparent);
   transition:
     background 180ms ease,
     border-color 180ms ease,
@@ -274,9 +319,9 @@
 }
 
 .homepage-nav-login:hover {
-  background: var(--foreground);
-  color: var(--background);
-  border-color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 42%, transparent);
 }
 
 .homepage-nav-login:focus-visible {
@@ -288,21 +333,66 @@
   border: 1px solid var(--foreground);
   background: var(--foreground);
   color: var(--background);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 18%, transparent),
+    0 10px 24px color-mix(in oklab, var(--foreground) 10%, transparent);
   transition:
     background 180ms ease,
     border-color 180ms ease,
-    color 180ms ease;
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .homepage-nav-register:hover {
   border-color: color-mix(in oklab, var(--foreground) 86%, var(--background));
   background: color-mix(in oklab, var(--foreground) 88%, var(--background));
   color: var(--background);
+  box-shadow:
+    0 2px 5px color-mix(in oklab, var(--foreground) 22%, transparent),
+    0 14px 32px color-mix(in oklab, var(--foreground) 14%, transparent);
+  transform: translateY(-1px);
+}
+
+.homepage-nav-workspace {
+  border: 1px solid var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 18%, transparent),
+    0 10px 24px color-mix(in oklab, var(--foreground) 10%, transparent);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.homepage-nav-workspace:hover {
+  border-color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  color: var(--background);
+  box-shadow:
+    0 2px 5px color-mix(in oklab, var(--foreground) 22%, transparent),
+    0 14px 32px color-mix(in oklab, var(--foreground) 14%, transparent);
+  transform: translateY(-1px);
 }
 
 .homepage-nav-register:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
   outline-offset: 2px;
+}
+
+.homepage-nav-workspace:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.homepage-auth-placeholder {
+  display: block;
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
 
 .homepage-locale-switcher {
@@ -336,12 +426,31 @@
 }
 
 @media (max-width: 480px) {
+  .homepage-nav-login {
+    border-color: transparent;
+    background: transparent;
+    color: color-mix(in oklab, var(--foreground) 72%, var(--background));
+  }
+
+  .homepage-nav-login:hover {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--foreground) 7%, transparent);
+    color: var(--foreground);
+  }
+
+  .homepage-nav-register,
+  .homepage-nav-workspace {
+    box-shadow:
+      0 1px 2px color-mix(in oklab, var(--foreground) 16%, transparent),
+      0 6px 16px color-mix(in oklab, var(--foreground) 10%, transparent);
+  }
+
   .homepage-locale-switcher .locale-switcher-option {
-    min-width: 1.75rem;
-    min-height: 2.25rem;
-    padding: 0 0.35rem;
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
+    min-width: 1.6rem;
+    min-height: 2rem;
+    padding: 0 0.28rem;
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
   }
 }
 

@@ -98,18 +98,18 @@ export const GenerationPreview = memo(function GenerationPreview({
           ? 'emptyStateHintVideo'
           : 'emptyStateHint'
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl px-6 py-16">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-5 text-primary/60" />
+      <div className="flex flex-col items-center justify-center rounded-2xl px-3 py-7 sm:px-6 sm:py-16">
+        <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 sm:size-10">
+          <Sparkles className="size-4 text-primary/60 sm:size-5" />
         </div>
-        <p className="mt-4 text-sm font-medium text-foreground">
+        <p className="mt-3 text-sm font-medium text-foreground sm:mt-4">
           {t('emptyStateTitle')}
         </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <p className="mt-1 text-center text-sm leading-6 text-muted-foreground">
           {t(hintKey)}
         </p>
         {showSuggestions && (
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <div className="mt-4 flex w-full max-w-full justify-start gap-2 overflow-x-auto px-1 [scrollbar-width:none] sm:mt-6 sm:flex-wrap sm:justify-center sm:overflow-visible [&::-webkit-scrollbar]:hidden">
             {SUGGESTION_KEYS.map((key) => (
               <button
                 key={key}
@@ -120,7 +120,7 @@ export const GenerationPreview = memo(function GenerationPreview({
                     payload: t(`suggestion.${key}`),
                   })
                 }
-                className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                className="shrink-0 rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               >
                 {t(`suggestion.${key}`)}
               </button>

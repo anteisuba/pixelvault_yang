@@ -1,16 +1,25 @@
 import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HomepageAuthCta } from './HomepageAuthCta'
 
+const { useAuthMock } = vi.hoisted(() => ({
+  useAuthMock: vi.fn(),
+}))
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: useAuthMock,
+}))
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: (namespace: string) => (key: string) => {
     const map: Record<string, string> = {
-      'actions.signedOutPrimary': 'Sign up',
-      'actions.signedOutUtility': 'Sign In',
+      'Homepage.actions.signedOutPrimary': 'Sign up free',
+      'Homepage.actions.signedOutUtility': 'Log in',
+      'Navbar.links.studio': 'Studio',
     }
-    return map[key] ?? key
+    return map[`${namespace}.${key}`] ?? key
   },
 }))
 
@@ -22,34 +31,42 @@ vi.mock('@/i18n/navigation', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false })
 })
 
 describe('HomepageAuthCta', () => {
-  it('renders sign-in href on nav-utility variant when signed out', () => {
-    render(<HomepageAuthCta variant="nav-utility" />)
+  it('renders distinct sign-in and sign-up links when signed out', () => {
+    render(<HomepageAuthCta />)
 
-    const link = screen.getByRole('link', { name: 'Sign In' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('sign-in'))
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('sign-in'),
+    )
+    expect(screen.getByRole('link', { name: 'Sign up free' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('sign-up'),
+    )
   })
 
-  it('keeps sign-in href on nav-utility variant without auth-state swapping', () => {
-    render(<HomepageAuthCta variant="nav-utility" />)
+  it('renders a studio link instead of auth links when signed in', () => {
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true })
 
-    const link = screen.getByRole('link', { name: 'Sign In' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('sign-in'))
+    render(<HomepageAuthCta />)
+
+    expect(screen.getByRole('link', { name: 'Studio' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('studio'),
+    )
+    expect(
+      screen.queryByRole('link', { name: 'Sign up free' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('renders sign-up href on nav-register variant when signed out', () => {
-    render(<HomepageAuthCta variant="nav-register" />)
+  it('keeps auth links unavailable until Clerk state is loaded', () => {
+    useAuthMock.mockReturnValue({ isLoaded: false, isSignedIn: false })
 
-    const link = screen.getByRole('link', { name: 'Sign up' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('sign-up'))
-  })
+    render(<HomepageAuthCta />)
 
-  it('keeps sign-up href on nav-register variant without auth-state swapping', () => {
-    render(<HomepageAuthCta variant="nav-register" />)
-
-    const link = screen.getByRole('link', { name: 'Sign up' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('sign-up'))
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })

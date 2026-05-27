@@ -1116,7 +1116,7 @@ function CivitaiCommunityBranch({
         }}
       >
         <DialogContent
-          className="left-0 top-0 h-dvh max-h-dvh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-auto sm:max-w-[min(90vw,72rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-0"
+          className="left-0 top-0 h-svh max-h-svh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-auto sm:max-w-[min(90vw,72rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-0"
           showCloseButton={false}
         >
           <DialogTitle className="sr-only">
@@ -1137,7 +1137,7 @@ function CivitaiCommunityBranch({
             <img
               src={coverPreview.url}
               alt={coverPreview.name}
-              className="block max-h-full max-w-full rounded-xl object-contain sm:max-h-[90dvh] sm:max-w-[90vw]"
+              className="block max-h-full max-w-full rounded-xl object-contain sm:max-h-[90svh] sm:max-w-[90vw]"
             />
           ) : null}
         </DialogContent>
@@ -1800,7 +1800,7 @@ function PresetRailPanel({
       className={cn(
         'rounded-2xl border border-border bg-card p-4',
         variant === 'rail' &&
-          'xl:max-h-[calc(100dvh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
+          'xl:max-h-[calc(100svh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
       )}
     >
       <div className="mb-3 space-y-0.5">
@@ -1853,7 +1853,7 @@ function TrainingBranch() {
   }, [])
 
   const historyRail = (
-    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100dvh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
+    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100svh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
       <LoraTrainingHistorySidebar />
     </aside>
   )

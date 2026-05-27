@@ -25,7 +25,7 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
       {/* Canvas + Dock: fills the initial viewport (minus navbar + topbar).
           Padding scales up at lg+ so 4K monitors don't run the canvas edge
           flush against the browser chrome. */}
-      <div className="flex min-h-0 flex-col md:min-h-[calc(100dvh-6.5rem)]">
+      <div className="flex min-h-0 flex-col md:min-h-[calc(100svh-6.5rem)]">
         {/* Canvas — flex-1 pushes dock to the bottom */}
         <div className="px-2 pt-2 pb-1 sm:px-6 sm:pt-3 md:flex-1 lg:px-8">
           {canvas}

@@ -35,7 +35,7 @@ export function CardsPageContent() {
     : 'characters'
 
   return (
-    <main className="dark min-h-[calc(100dvh-3rem)] bg-sidebar text-sidebar-foreground">
+    <main className="dark min-h-[calc(100svh-3rem)] bg-sidebar text-sidebar-foreground">
       <div className="mx-auto flex h-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6">
         <header className="space-y-2">
           <h1 className="font-display text-3xl font-medium tracking-tight">

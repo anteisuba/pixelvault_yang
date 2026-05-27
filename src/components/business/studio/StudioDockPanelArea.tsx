@@ -95,7 +95,7 @@ const StudioScriptPanel = dynamic(
 // doesn't feel oversized for short controls (civitai = one input) or
 // cramped for longer flows (voice selector + audio params).
 const DIALOG_BASE =
-  '!gap-0 !p-0 max-h-[85dvh] overflow-hidden border-border/40 bg-background shadow-2xl'
+  '!gap-0 !p-0 max-h-[85svh] overflow-hidden border-border/40 bg-background shadow-2xl'
 const DIALOG_BODY = 'overflow-y-auto px-5 pb-5 pt-1'
 const DIALOG_HEADER =
   'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'

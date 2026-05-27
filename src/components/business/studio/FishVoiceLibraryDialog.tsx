@@ -37,7 +37,7 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         closeLabel={t('voiceLibraryClose')}
-        className="flex h-[100dvh] min-h-0 flex-col !max-w-5xl p-0 sm:h-[85vh]"
+        className="flex h-[100svh] min-h-0 flex-col !max-w-5xl p-0 sm:h-[85vh]"
       >
         <DialogHeader className="border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
           <DialogTitle className="font-display text-base">
@@ -50,7 +50,7 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
 
         {/* Mobile (default): explicit `grid-cols-1` + `grid-rows-[minmax(0,1fr)_auto]`
             so the voice list (row 1) grows while the sidePanel (row 2) is
-            capped at 45dvh and scrolls internally. Without this, the implicit
+            capped at 45svh and scrolls internally. Without this, the implicit
             grid track sized both sections to min-content and squashed the
             voice list to ~one row. lg+ restores the side-by-side layout. */}
         <div
@@ -70,7 +70,7 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
             />
           </section>
           {sidePanel ? (
-            <aside className="min-h-0 max-h-[45dvh] overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3 sm:p-4 lg:max-h-none">
+            <aside className="min-h-0 max-h-[45svh] overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3 sm:p-4 lg:max-h-none">
               {sidePanel}
             </aside>
           ) : null}

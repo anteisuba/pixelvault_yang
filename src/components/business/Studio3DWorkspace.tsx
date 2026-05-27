@@ -1172,7 +1172,7 @@ export function Studio3DWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5.75rem)] w-full flex-col bg-background md:h-dvh">
+    <div className="flex h-[calc(100svh-5.75rem)] w-full flex-col bg-background md:h-svh">
       <header className="flex flex-col gap-1 border-b border-border/40 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2">
           <Box className="size-4 text-primary" />

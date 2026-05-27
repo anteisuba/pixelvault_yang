@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function StudioLoading() {
   return (
-    <div className="flex h-[calc(100dvh-4rem)] gap-4 p-4">
+    <div className="flex h-[calc(100svh-4rem)] gap-4 p-4">
       <div className="w-64 shrink-0 space-y-3">
         <Skeleton className="h-10 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />

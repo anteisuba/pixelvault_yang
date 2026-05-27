@@ -40,8 +40,8 @@ export default function GlobalError({
 
   return (
     <html lang={locale}>
-      <body className="min-h-dvh bg-background text-foreground">
-        <main className="editorial-page flex min-h-dvh items-center justify-center">
+      <body className="min-h-svh bg-background text-foreground">
+        <main className="editorial-page flex min-h-svh items-center justify-center">
           <div className="editorial-container">
             <section className="editorial-panel mx-auto max-w-xl text-center">
               <div className="space-y-4">

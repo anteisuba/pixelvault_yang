@@ -49,7 +49,7 @@ export function ToolPlaceholder({ toolKey, className }: ToolPlaceholderProps) {
   return (
     <div
       className={cn(
-        'flex min-h-[calc(100dvh-3rem)] items-center justify-center px-6',
+        'flex min-h-[calc(100svh-3rem)] items-center justify-center px-6',
         className,
       )}
     >

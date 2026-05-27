@@ -6,7 +6,7 @@
  */
 export default function AssetsLoading() {
   return (
-    <div className="dark flex min-h-dvh flex-col bg-sidebar text-sidebar-foreground">
+    <div className="dark flex min-h-svh flex-col bg-sidebar text-sidebar-foreground">
       {/* Toolbar row */}
       <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
         <div className="h-7 w-32 animate-pulse rounded-md bg-white/10" />

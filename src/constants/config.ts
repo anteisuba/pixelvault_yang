@@ -2,6 +2,54 @@
  * Application-wide configuration constants
  */
 
+export const DEFAULT_APP_ORIGIN = 'http://localhost:3000'
+
+export const LOCAL_APP_ORIGINS = [DEFAULT_APP_ORIGIN] as const
+
+function toHttpOrigin(value: string | undefined) {
+  if (!value) {
+    return null
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null
+    }
+
+    return url.origin
+  } catch {
+    return null
+  }
+}
+
+function uniqueOrigins(origins: Array<string | null>) {
+  return Array.from(
+    new Set(origins.filter((origin): origin is string => Boolean(origin))),
+  )
+}
+
+export function getAppOrigin() {
+  const configuredOrigin = toHttpOrigin(process.env.NEXT_PUBLIC_APP_URL?.trim())
+
+  if (process.env.NEXT_PUBLIC_APP_URL && !configuredOrigin) {
+    throw new Error('NEXT_PUBLIC_APP_URL must be an absolute http(s) URL')
+  }
+
+  return configuredOrigin ?? DEFAULT_APP_ORIGIN
+}
+
+export function getClerkAllowedOrigins(extraOrigins: readonly string[] = []) {
+  const localOrigins =
+    process.env.NODE_ENV === 'development' ? LOCAL_APP_ORIGINS : []
+
+  return uniqueOrigins([
+    getAppOrigin(),
+    ...localOrigins.map((origin) => toHttpOrigin(origin)),
+    ...extraOrigins.map((origin) => toHttpOrigin(origin)),
+  ])
+}
+
 /** API usage tracking defaults */
 export const API_USAGE = {
   DEFAULT_REQUESTS_PER_GENERATION: 1,

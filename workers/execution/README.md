@@ -22,7 +22,7 @@ the provider, and posts a signed result callback to
    ```env
    INTERNAL_CALLBACK_SECRET=replace-with-local-development-secret
    EXECUTION_WORKER_BASE_URL=http://127.0.0.1:8787
-   NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
    Restart the Next.js dev server after changing these values.
@@ -39,7 +39,7 @@ the provider, and posts a signed result callback to
    ```jsonc
    {
      "vars": {
-       "INTERNAL_CALLBACK_URL": "http://127.0.0.1:3000/api/internal/execution/callback",
+       "INTERNAL_CALLBACK_URL": "http://localhost:3000/api/internal/execution/callback",
      },
    }
    ```
@@ -74,7 +74,7 @@ JSON body. Generate one locally with the same secret used by Next.js:
 ```bash
 BODY='{"runId":"<generationJobId>","apiKeyId":"<userApiKeyId>"}'
 SIG=$(node -e "const c=require('crypto'); const b=process.argv[1]; console.log(c.createHmac('sha256', process.env.INTERNAL_CALLBACK_SECRET).update(b,'utf8').digest('hex'))" "$BODY")
-curl -X POST http://127.0.0.1:3000/api/internal/execution/resolve-key \
+curl -X POST http://localhost:3000/api/internal/execution/resolve-key \
   -H "Content-Type: application/json" \
   -H "X-Execution-Signature: $SIG" \
   -d "$BODY"
@@ -93,8 +93,8 @@ BODY='{
   "workflowId":"CINEMATIC_SHORT_VIDEO",
   "providerId":"fal",
   "apiKeyId":"<userApiKeyId>",
-  "callbackUrl":"http://127.0.0.1:3000/api/internal/execution/callback",
-  "resolveKeyUrl":"http://127.0.0.1:3000/api/internal/execution/resolve-key",
+  "callbackUrl":"http://localhost:3000/api/internal/execution/callback",
+  "resolveKeyUrl":"http://localhost:3000/api/internal/execution/resolve-key",
   "timeoutMs":600000,
   "maxAttempts":200,
   "pollIntervalMs":3000,

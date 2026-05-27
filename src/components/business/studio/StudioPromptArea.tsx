@@ -42,6 +42,7 @@ import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
@@ -509,7 +510,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     return undefined
   }, [state.audioPace])
   const composerContainerRef = useRef<HTMLDivElement>(null)
-  const [isComposerExpanded, setComposerExpanded] = useState(false)
+  // Mobile: stay expanded permanently so opening the keyboard does not animate
+  // the quick-controls row in/out (the previous focus-driven expand was the
+  // source of the "page jumps when keyboard opens" complaint). Desktop keeps
+  // the original collapse-by-default behavior — hover/focus expands.
+  const isMobile = useIsMobile()
+  const [isComposerExpandedState, setComposerExpanded] = useState(false)
+  const isComposerExpanded = isMobile || isComposerExpandedState
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
   )

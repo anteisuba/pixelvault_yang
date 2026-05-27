@@ -79,16 +79,16 @@ export function ApiKeyDrawerTrigger({
         </Button>
       </SheetTrigger>
       <SheetContent
-        className="flex w-full flex-col border-l bg-background/95 p-0 sm:max-w-2xl"
+        className="flex w-full flex-col border-l bg-background/95 p-0 sm:max-w-3xl"
         showCloseButton={false}
       >
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-6 pb-5 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
           <div className="flex flex-col gap-1.5">
-            <SheetTitle className="flex items-center gap-2 font-display text-lg font-medium">
+            <SheetTitle className="flex items-center gap-2 font-display text-base font-medium">
               <KeyRound className="size-4" />
               {t('sheetTitle')}
             </SheetTitle>
-            <SheetDescription className="max-w-md font-serif leading-6">
+            <SheetDescription className="max-w-lg text-sm leading-5">
               {t('sheetDescription')}
             </SheetDescription>
           </div>
@@ -99,7 +99,9 @@ export function ApiKeyDrawerTrigger({
             <X className="size-5" />
           </SheetClose>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          {children}
+        </div>
       </SheetContent>
     </Sheet>
   )

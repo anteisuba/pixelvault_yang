@@ -141,11 +141,13 @@ function FbImg({
   alt = '',
   className,
   sizes = '40vw',
+  eager = false,
 }: {
   src: string
   alt?: string
   className?: string
   sizes?: string
+  eager?: boolean
 }) {
   return (
     <Image
@@ -153,6 +155,8 @@ function FbImg({
       alt={alt}
       fill
       sizes={sizes}
+      loading={eager ? 'eager' : 'lazy'}
+      fetchPriority={eager ? 'high' : 'auto'}
       className={`object-cover ${className ?? ''}`}
     />
   )
@@ -186,7 +190,7 @@ function FallbackImageEditing({
   return (
     <div className="absolute inset-0 grid grid-cols-2">
       <div className="relative overflow-hidden">
-        <FbImg src={pick('imageEditing', 0, 0)} alt="" />
+        <FbImg src={pick('imageEditing', 0, 0)} alt="" eager />
         <FbLabel className="left-3 top-3">{originalLabel}</FbLabel>
       </div>
       <div className="grid grid-rows-3">

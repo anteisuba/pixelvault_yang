@@ -1,16 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  CheckCircle2,
-  Circle,
-  Loader2,
-  Pencil,
-  ShieldCheck,
-  Trash2,
-  X,
-  Check,
-} from 'lucide-react'
+import { Loader2, Pencil, ShieldCheck, Trash2, X, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getProviderLabel } from '@/constants/providers'
@@ -23,6 +14,7 @@ import type {
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
 interface ApiKeyRowProps {
@@ -77,29 +69,28 @@ export function ApiKeyRow({
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-2xl border px-4 py-3 transition-colors',
+        'flex flex-col gap-3 rounded-2xl border px-4 py-3 transition-colors sm:flex-row sm:items-center',
         record.isActive
-          ? 'border-primary/25 bg-primary/6'
-          : 'border-border/70 bg-background/76',
+          ? 'border-primary/25 bg-primary/10'
+          : 'border-border/70 bg-background/70',
       )}
     >
-      <button
-        type="button"
-        onClick={handleToggle}
-        disabled={isPending}
-        className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default"
-        title={
-          record.isActive ? t('actions.disableRoute') : t('actions.enableRoute')
-        }
-      >
+      <div className="flex items-center gap-2 sm:w-8">
         {isPending ? (
           <Loader2 className="size-4 animate-spin" />
-        ) : record.isActive ? (
-          <CheckCircle2 className="size-4 text-primary" />
         ) : (
-          <Circle className="size-4" />
+          <Switch
+            size="sm"
+            checked={record.isActive}
+            onCheckedChange={() => void handleToggle()}
+            aria-label={
+              record.isActive
+                ? t('actions.disableRoute')
+                : t('actions.enableRoute')
+            }
+          />
         )}
-      </button>
+      </div>
 
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -162,12 +153,9 @@ export function ApiKeyRow({
             {record.maskedKey}
           </p>
         )}
-        <p className="truncate font-mono text-xs text-muted-foreground">
-          {record.providerConfig.baseUrl}
-        </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-3 sm:justify-end">
         <button
           type="button"
           onClick={() => setIsEditing(true)}

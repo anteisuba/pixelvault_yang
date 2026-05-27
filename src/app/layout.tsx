@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import { VercelToolbar } from '@vercel/toolbar/next'
 import { getLocale } from 'next-intl/server'
 
+import { LocatorSetup } from '@/components/dev/LocatorSetup'
 import { HOMEPAGE_METADATA } from '@/constants/homepage'
 import {
   appSans,
@@ -24,6 +26,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const locale = await getLocale()
+  const isDev = process.env.NODE_ENV === 'development'
 
   return (
     <html
@@ -35,7 +38,9 @@ export default async function RootLayout({
       <body
         className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
       >
+        {isDev && <LocatorSetup />}
         {children}
+        {isDev && <VercelToolbar />}
       </body>
     </html>
   )

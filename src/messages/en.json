@@ -353,7 +353,6 @@
     "actions": {
       "signedOutPrimary": "Sign up",
       "signedOutUtility": "Sign in",
-      "signedInUtility": "Go to studio",
       "sharedSecondary": "See models",
       "gallerySecondary": "Browse gallery",
       "signInPrimary": "Create an account",
@@ -1450,17 +1449,14 @@
     "triggerLabel": "API Routes",
     "triggerLoading": "Loading",
     "triggerCount": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
-    "sheetTitle": "Manage API routes",
-    "sheetDescription": "Save provider routes per model, customize the provider label and base URL, and enable only the routes you want to surface in Studio.",
+    "sheetTitle": "API routes",
+    "sheetDescription": "Save your own keys. Enabled routes appear in Studio.",
     "closeLabel": "Close API routes panel",
-    "title": "Saved provider routes",
-    "description": "Each saved route combines an adapter, provider config, model ID, and key. Built-in workspace routes stay available by default, while enabled saved routes appear alongside them in Studio.",
+    "title": "Routes",
+    "description": "Choose a provider, pick a model, paste the key, then save.",
     "loading": "Loading your saved routes...",
     "customBadge": "Custom",
-    "groupCustomDescription": "Custom {adapter} model with one or more saved routes.",
     "emptyModel": "No saved route for {model} yet.",
-    "emptyCustomTitle": "No custom routes yet",
-    "emptyCustomDescription": "Add a custom model ID when you want to run a provider route outside the built-in catalog.",
     "providers": {
       "huggingface": {
         "label": "HuggingFace",
@@ -1510,17 +1506,10 @@
     "summary": {
       "activeRoutesLabel": "Active routes",
       "activeRoutesValue": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
-      "builtInModelsLabel": "Built-in models",
-      "builtInModelsValue": "{count, plural, one {# built-in model} other {# built-in models}}",
-      "customRoutesLabel": "Custom routes",
-      "customRoutesValue": "{count, plural, =0 {No custom routes} one {# custom route} other {# custom routes}}",
       "routeCount": "{count, plural, =0 {No routes} one {# route} other {# routes}}"
     },
     "sections": {
-      "builtInTitle": "Built-in model routes",
-      "builtInDescription": "Add saved routes when you want a built-in model to use your own key or a custom provider endpoint.",
-      "customTitle": "Custom model routes",
-      "customDescription": "Enable any saved custom route to surface it in the Studio model picker."
+      "builtInTitle": "Saved routes"
     },
     "actions": {
       "openComposer": "Add route",
@@ -1558,9 +1547,9 @@
     },
     "editKeyPlaceholder": "Paste new API key...",
     "addForm": {
-      "title": "Add a saved route",
-      "description": "Choose the adapter, configure the provider label and base URL, then attach a model ID and API key.",
-      "adapterLabel": "Adapter",
+      "title": "Add route",
+      "description": "Choose a provider, model, and key. Advanced settings are optional.",
+      "adapterLabel": "Provider",
       "providerNameLabel": "Provider label",
       "providerBaseUrlLabel": "Base URL",
       "providerBaseUrlHint": "Use the adapter-compatible base URL. The model ID will be appended automatically when the adapter requires it.",
@@ -1575,6 +1564,7 @@
       "showKey": "Show API key",
       "hideKey": "Hide API key",
       "getKeyLink": "Get your API key →",
+      "advancedToggle": "Advanced provider settings",
       "keyFormatValid": "Key format looks correct",
       "keyFormatInvalid": "Key should start with {hint}",
       "saveAction": "Save route",

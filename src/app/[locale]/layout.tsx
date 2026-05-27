@@ -8,13 +8,15 @@ import {
 } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
+import { getAppOrigin, getClerkAllowedOrigins } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
 import { MARKETING_NAMESPACES, pickMessages } from '@/i18n/messages-split'
 import { getPathname } from '@/i18n/navigation'
 import { isAppLocale, LOCALES } from '@/i18n/routing'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const APP_ORIGIN = getAppOrigin()
+const CLERK_ALLOWED_REDIRECT_ORIGINS = getClerkAllowedOrigins()
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }))
@@ -44,14 +46,14 @@ export async function generateMetadata({
     title,
     description,
     ...(keywords ? { keywords } : {}),
-    metadataBase: new URL(APP_URL),
+    metadataBase: new URL(APP_ORIGIN),
     openGraph: {
       title,
       description,
       siteName: 'PixelVault',
       type: 'website',
       locale,
-      url: `${APP_URL}/${locale}`,
+      url: `${APP_ORIGIN}/${locale}`,
     },
     twitter: {
       card: 'summary_large_image',
@@ -59,8 +61,10 @@ export async function generateMetadata({
       description,
     },
     alternates: {
-      canonical: `${APP_URL}/${locale}`,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `${APP_URL}/${l}`])),
+      canonical: `${APP_ORIGIN}/${locale}`,
+      languages: Object.fromEntries(
+        LOCALES.map((l) => [l, `${APP_ORIGIN}/${l}`]),
+      ),
     },
   }
 }
@@ -105,6 +109,7 @@ export default async function LocaleLayout({
       signUpUrl={signUpUrl}
       signInFallbackRedirectUrl={studioUrl}
       signUpFallbackRedirectUrl={studioUrl}
+      allowedRedirectOrigins={CLERK_ALLOWED_REDIRECT_ORIGINS}
     >
       <NextIntlClientProvider locale={locale} messages={marketingMessages}>
         {children}

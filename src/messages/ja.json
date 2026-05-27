@@ -353,7 +353,6 @@
     "actions": {
       "signedOutPrimary": "登録",
       "signedOutUtility": "サインイン",
-      "signedInUtility": "スタジオへ",
       "sharedSecondary": "モデルを見る",
       "gallerySecondary": "ギャラリーを見る",
       "signInPrimary": "アカウントを作成",
@@ -1450,17 +1449,14 @@
     "triggerLabel": "API ルート",
     "triggerLoading": "読込中",
     "triggerCount": "{count, plural, =0 {有効なルートなし} one {# 個の有効ルート} other {# 個の有効ルート}}",
-    "sheetTitle": "API ルート管理",
-    "sheetDescription": "モデルごとにプロバイダールートを保存し、表示名と Base URL を調整し、Studio に出すルートだけを有効化できます。",
+    "sheetTitle": "API ルート",
+    "sheetDescription": "自分のキーを保存します。有効なルートは Studio に表示されます。",
     "closeLabel": "ルートパネルを閉じる",
-    "title": "保存済みプロバイダールート",
-    "description": "各保存済みルートは、アダプター、プロバイダー設定、モデル ID、キーで構成されます。組み込みのワークスペースルートは常に残り、有効化した保存済みルートは Studio に並んで表示されます。",
+    "title": "ルート",
+    "description": "プロバイダー、モデル、キーを選んで保存します。",
     "loading": "保存済みルートを読み込んでいます...",
     "customBadge": "カスタム",
-    "groupCustomDescription": "1 つ以上の保存済みルートを持つカスタム {adapter} モデルです。",
     "emptyModel": "{model} 用の保存済みルートはまだありません。",
-    "emptyCustomTitle": "カスタムルートはまだありません",
-    "emptyCustomDescription": "組み込み一覧の外にあるプロバイダールートを使いたい場合は、カスタムモデル ID を追加してください。",
     "providers": {
       "huggingface": {
         "label": "HuggingFace",
@@ -1510,17 +1506,10 @@
     "summary": {
       "activeRoutesLabel": "有効ルート",
       "activeRoutesValue": "{count, plural, =0 {有効なルートはありません} one {# 個の有効ルート} other {# 個の有効ルート}}",
-      "builtInModelsLabel": "組み込みモデル",
-      "builtInModelsValue": "{count, plural, one {# 個の組み込みモデル} other {# 個の組み込みモデル}}",
-      "customRoutesLabel": "カスタムルート",
-      "customRoutesValue": "{count, plural, =0 {カスタムルートなし} one {# 個のカスタムルート} other {# 個のカスタムルート}}",
       "routeCount": "{count, plural, =0 {ルートなし} one {# 個のルート} other {# 個のルート}}"
     },
     "sections": {
-      "builtInTitle": "組み込みモデル用ルート",
-      "builtInDescription": "組み込みモデルを自分のキーやカスタム provider endpoint で動かしたいときに、保存済みルートを追加します。",
-      "customTitle": "カスタムモデル用ルート",
-      "customDescription": "保存済みのカスタムルートを有効化すると、そのまま Studio のモデルピッカーに表示されます。"
+      "builtInTitle": "保存済みルート"
     },
     "actions": {
       "openComposer": "ルートを追加",
@@ -1558,9 +1547,9 @@
     },
     "editKeyPlaceholder": "新しいAPIキーを貼り付け...",
     "addForm": {
-      "title": "保存済みルートを追加",
-      "description": "アダプターを選び、プロバイダー名と Base URL を設定してから、モデル ID と API キーを紐づけます。",
-      "adapterLabel": "アダプター",
+      "title": "ルートを追加",
+      "description": "プロバイダー、モデル、キーだけで追加できます。詳細設定は任意です。",
+      "adapterLabel": "プロバイダー",
       "providerNameLabel": "プロバイダー名",
       "providerBaseUrlLabel": "Base URL",
       "providerBaseUrlHint": "アダプター互換の Base URL を使ってください。必要に応じてモデル ID は自動で末尾に追加されます。",
@@ -1575,6 +1564,7 @@
       "showKey": "API キーを表示",
       "hideKey": "API キーを非表示",
       "getKeyLink": "APIキーを取得 →",
+      "advancedToggle": "詳細なプロバイダー設定",
       "keyFormatValid": "キー形式は正しいです",
       "keyFormatInvalid": "キーは {hint} で始まる必要があります",
       "saveAction": "ルートを保存",

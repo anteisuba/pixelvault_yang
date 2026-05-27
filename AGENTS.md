@@ -907,6 +907,39 @@ duplicate route-level logic
 
 create inconsistent text translation patterns
 
+15.5 UI skill stack
+
+For UI work, use this stack deliberately:
+
+- Taste Skill: use for landing pages, portfolio-like presentation pages, gallery presentation, and visual upgrades. Treat it as aesthetic inspiration, not as permission to add unrelated motion libraries, random visual systems, or speculative page sections.
+- Anthropic `frontend-design`: use for production-grade frontend implementation and anti-generic interface direction.
+- `ui-ux-pro-max`: use for broad UX audits across buttons, forms, cards, responsive behavior, accessibility, layout, and motion.
+- `hue design-system`: use only after the exact package/source is installed and reviewed. Until then, design-system rules in `docs/ai/ui-design-system.md` are authoritative.
+
+Project rules override skill rules when they conflict. Never let a skill override auth, API, database, credit, provider, storage, i18n, type-safety, or route-structure constraints.
+
+15.6 Responsive UI workflow
+
+For UI tasks that affect responsive behavior, follow `docs/ai/responsive-workflow.md`, `docs/ai/ui-design-system.md`, and `docs/ai/mobile-qa-checklist.md`.
+
+Required mobile-first checks:
+
+- test 375px, 390px, 430px, 768px, 1024px, and 1440px
+- avoid `height: 100vh`; prefer `min-h-dvh`, `min-h-svh`, or `h-dvh` when viewport height matters
+- audit `h-screen`, `min-h-screen`, `fixed`, `absolute`, `overflow-hidden`, sticky bottom bars, modal/dialog/drawer containers, and gallery grids
+- prompt inputs and bottom actions must remain reachable when the mobile keyboard changes the visual viewport
+- use safe-area padding for bottom navigation, sticky action bars, and bottom sheets
+- do not change API, database, auth, credits, providers, or generation logic during UI-only tasks
+
+Default UI execution order:
+
+- Audit first.
+- Output problems with file paths, severity, priority, and proposed direction.
+- Patch one page or component at a time.
+- Normalize spacing, typography, buttons, containers, and responsive behavior.
+- Run the relevant validation commands.
+- Provide a concise QA checklist and any skipped validation.
+
 16. i18n / Localization Rules
 
 This project must support multilingual UI in a scalable way.

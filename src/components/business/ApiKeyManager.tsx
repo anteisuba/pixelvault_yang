@@ -4,23 +4,14 @@ import { useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
-  KeyRound,
   Loader2,
   Plus,
   Sparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import {
-  getAvailableModels,
-  getModelMessageKey,
-  isBuiltInModel,
-} from '@/constants/models'
-import {
-  AI_ADAPTER_TYPES,
-  getDefaultProviderConfig,
-  getProviderLabel,
-} from '@/constants/providers'
+import { getAvailableModels, isBuiltInModel } from '@/constants/models'
+import { getProviderLabel } from '@/constants/providers'
 import type {
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
@@ -37,7 +28,8 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 interface ProviderRouteGroup {
   groupId: string
   modelId: string
-  adapterType: AI_ADAPTER_TYPES
+  providerLabel: string
+  isCustom: boolean
   keys: UserApiKeyRecord[]
 }
 
@@ -61,30 +53,26 @@ export function ApiKeyManager() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showAllBuiltIn, setShowAllBuiltIn] = useState(false)
-  const [showAllCustom, setShowAllCustom] = useState(false)
   const availableModels = getAvailableModels()
   const activeRouteCount = keys.filter((key) => key.isActive).length
-  const customRouteCount = keys.filter(
-    (key) => !isBuiltInModel(key.modelId),
-  ).length
 
-  // Group built-in models
-  const allBuiltInGroups = availableModels.map((model) => ({
-    modelId: model.id,
-    adapterType: model.adapterType,
-    providerConfig: model.providerConfig,
-    keys: sortRouteRecords(keys.filter((key) => key.modelId === model.id)),
-  }))
+  const allBuiltInGroups: ProviderRouteGroup[] = availableModels.map(
+    (model) => ({
+      groupId: model.id,
+      modelId: model.id,
+      providerLabel: getProviderLabel(model.providerConfig),
+      isCustom: false,
+      keys: sortRouteRecords(keys.filter((key) => key.modelId === model.id)),
+    }),
+  )
 
-  // Only show models with active routes unless expanded
-  const activeBuiltInGroups = allBuiltInGroups.filter((group) =>
-    group.keys.some((k) => k.isActive),
+  const savedBuiltInGroups = allBuiltInGroups.filter(
+    (group) => group.keys.length > 0,
   )
   const displayedBuiltInGroups = showAllBuiltIn
     ? allBuiltInGroups
-    : activeBuiltInGroups
+    : savedBuiltInGroups
 
-  // Group custom routes
   const customGroupMap = new Map<string, UserApiKeyRecord[]>()
   keys
     .filter((key) => !isBuiltInModel(key.modelId))
@@ -96,19 +84,19 @@ export function ApiKeyManager() {
 
   const allCustomGroups: ProviderRouteGroup[] = Array.from(
     customGroupMap.entries(),
-  ).map(([groupId, groupKeys]) => ({
-    groupId,
-    modelId: groupKeys[0]?.modelId ?? '',
-    adapterType: groupKeys[0]?.adapterType ?? AI_ADAPTER_TYPES.HUGGINGFACE,
-    keys: sortRouteRecords(groupKeys),
-  }))
+  ).map(([groupId, groupKeys]) => {
+    const firstKey = groupKeys[0]
 
-  const activeCustomGroups = allCustomGroups.filter((group) =>
-    group.keys.some((k) => k.isActive),
-  )
-  const displayedCustomGroups = showAllCustom
-    ? allCustomGroups
-    : activeCustomGroups
+    return {
+      groupId,
+      modelId: firstKey?.modelId ?? '',
+      providerLabel: firstKey ? getProviderLabel(firstKey.providerConfig) : '',
+      isCustom: true,
+      keys: sortRouteRecords(groupKeys),
+    }
+  })
+
+  const displayedRouteGroups = [...displayedBuiltInGroups, ...allCustomGroups]
 
   const handleAdd = async (data: CreateApiKeyRequest) => {
     setIsSubmitting(true)
@@ -133,22 +121,26 @@ export function ApiKeyManager() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header + Summary */}
-      <div className="rounded-3xl border border-border/70 bg-secondary/18 p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border/70 bg-secondary/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h2 className="font-display text-base font-medium text-foreground">
               {t('title')}
             </h2>
-            <p className="max-w-xl font-serif text-sm leading-6 text-muted-foreground">
-              {t('description')}
-            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Badge variant="secondary" className="rounded-full px-3 py-1">
+                {t('summary.activeRoutesValue', { count: activeRouteCount })}
+              </Badge>
+              <Badge variant="outline" className="rounded-full px-3 py-1">
+                {t('summary.routeCount', { count: keys.length })}
+              </Badge>
+            </div>
           </div>
 
           <Button
             type="button"
-            variant={showAddForm ? 'ghost' : 'default'}
+            variant={showAddForm ? 'outline' : 'default'}
             onClick={() => setShowAddForm((value) => !value)}
             className="rounded-full px-5"
           >
@@ -161,35 +153,6 @@ export function ApiKeyManager() {
               </>
             )}
           </Button>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {t('summary.activeRoutesLabel')}
-            </p>
-            <p className="mt-2 text-sm font-medium text-foreground">
-              {t('summary.activeRoutesValue', { count: activeRouteCount })}
-            </p>
-          </article>
-          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {t('summary.builtInModelsLabel')}
-            </p>
-            <p className="mt-2 text-sm font-medium text-foreground">
-              {t('summary.builtInModelsValue', {
-                count: allBuiltInGroups.length,
-              })}
-            </p>
-          </article>
-          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {t('summary.customRoutesLabel')}
-            </p>
-            <p className="mt-2 text-sm font-medium text-foreground">
-              {t('summary.customRoutesValue', { count: customRouteCount })}
-            </p>
-          </article>
         </div>
       </div>
 
@@ -214,60 +177,60 @@ export function ApiKeyManager() {
           {t('loading')}
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Built-in Model Routes */}
-          <section className="space-y-4">
+        <div>
+          <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-display text-sm font-medium text-foreground">
                   {t('sections.builtInTitle')}
                 </h3>
-                <p className="font-serif text-sm leading-6 text-muted-foreground">
-                  {t('sections.builtInDescription')}
-                </p>
+                <Badge variant="outline" className="rounded-full px-3 py-1">
+                  {t('summary.routeCount', { count: keys.length })}
+                </Badge>
               </div>
             </div>
 
-            {displayedBuiltInGroups.length > 0 ? (
-              <div className="space-y-4">
-                {displayedBuiltInGroups.map((group) => (
+            {displayedRouteGroups.length > 0 ? (
+              <div className="space-y-3">
+                {displayedRouteGroups.map((group) => (
                   <article
-                    key={group.modelId}
-                    className="rounded-3xl border border-border/70 bg-card/84 p-5"
+                    key={group.groupId}
+                    className="rounded-2xl border border-border/70 bg-card/84 p-4"
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-display text-sm font-medium text-foreground">
-                            {getTranslatedModelLabel(tModels, group.modelId)}
-                          </h4>
-                          <Badge
-                            variant="outline"
-                            className="rounded-full px-3 py-1"
-                          >
-                            {getProviderLabel(group.providerConfig)}
-                          </Badge>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-display text-sm font-medium text-foreground">
+                          {group.isCustom
+                            ? group.modelId
+                            : getTranslatedModelLabel(tModels, group.modelId)}
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full px-3 py-1"
+                        >
+                          {group.providerLabel}
+                        </Badge>
+                        {group.isCustom ? (
                           <Badge
                             variant="secondary"
                             className="rounded-full px-3 py-1"
                           >
-                            {t('summary.routeCount', {
-                              count: group.keys.length,
-                            })}
+                            <Sparkles className="size-3" />
+                            {t('customBadge')}
                           </Badge>
-                        </div>
-                        <p className="font-serif text-sm leading-6 text-muted-foreground">
-                          {tModels(
-                            `${getModelMessageKey(group.modelId)}.description`,
-                          )}
-                        </p>
-                        <p className="truncate font-mono text-xs text-muted-foreground">
-                          {group.providerConfig.baseUrl}
-                        </p>
+                        ) : null}
+                        <Badge
+                          variant="secondary"
+                          className="rounded-full px-3 py-1"
+                        >
+                          {t('summary.routeCount', {
+                            count: group.keys.length,
+                          })}
+                        </Badge>
                       </div>
                     </div>
 
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-3 space-y-2">
                       {group.keys.length ? (
                         group.keys.map((record) => (
                           <ApiKeyRow
@@ -280,7 +243,7 @@ export function ApiKeyManager() {
                           />
                         ))
                       ) : (
-                        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+                        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-4 text-sm text-muted-foreground">
                           {t('emptyModel', {
                             model: getTranslatedModelLabel(
                               tModels,
@@ -299,7 +262,7 @@ export function ApiKeyManager() {
               </div>
             ) : null}
 
-            {allBuiltInGroups.length > activeBuiltInGroups.length ? (
+            {allBuiltInGroups.length > savedBuiltInGroups.length ? (
               <button
                 type="button"
                 onClick={() => setShowAllBuiltIn((v) => !v)}
@@ -315,124 +278,6 @@ export function ApiKeyManager() {
                     <ChevronRight className="size-4" />
                     {t('collapse.showAll', {
                       count: allBuiltInGroups.length,
-                    })}
-                  </>
-                )}
-              </button>
-            ) : null}
-          </section>
-
-          {/* Custom Model Routes */}
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="font-display text-sm font-medium text-foreground">
-                {t('sections.customTitle')}
-              </h3>
-              <p className="font-serif text-sm leading-6 text-muted-foreground">
-                {t('sections.customDescription')}
-              </p>
-            </div>
-
-            {displayedCustomGroups.length > 0 ? (
-              <div className="space-y-4">
-                {displayedCustomGroups.map((group) => {
-                  const adapterLabel = getProviderLabel(
-                    getDefaultProviderConfig(group.adapterType),
-                  )
-
-                  return (
-                    <article
-                      key={group.groupId}
-                      className="rounded-3xl border border-border/70 bg-card/84 p-5"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-display text-sm font-medium text-foreground">
-                              {group.modelId}
-                            </h4>
-                            <Badge
-                              variant="outline"
-                              className="rounded-full px-3 py-1"
-                            >
-                              {adapterLabel}
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className="rounded-full px-3 py-1"
-                            >
-                              <Sparkles className="size-3" />
-                              {t('customBadge')}
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className="rounded-full px-3 py-1"
-                            >
-                              {t('summary.routeCount', {
-                                count: group.keys.length,
-                              })}
-                            </Badge>
-                          </div>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {t('groupCustomDescription', {
-                              adapter: adapterLabel,
-                            })}
-                          </p>
-                        </div>
-
-                        <div className="rounded-full border border-border/70 bg-background/70 px-3 py-2 font-mono text-xs text-foreground">
-                          {group.modelId}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        {group.keys.map((record) => (
-                          <ApiKeyRow
-                            key={record.id}
-                            record={record}
-                            healthStatus={healthMap[record.id]}
-                            onToggle={handleUpdate}
-                            onDelete={handleDelete}
-                            onVerify={handleVerify}
-                          />
-                        ))}
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-            ) : !showAllCustom ? (
-              <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-card/70 px-4 py-6 text-sm text-muted-foreground">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-full bg-secondary p-2 text-foreground">
-                    <KeyRound className="size-4" />
-                  </span>
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">
-                      {t('emptyCustomTitle')}
-                    </p>
-                    <p>{t('emptyCustomDescription')}</p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {allCustomGroups.length > activeCustomGroups.length ? (
-              <button
-                type="button"
-                onClick={() => setShowAllCustom((v) => !v)}
-                className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                {showAllCustom ? (
-                  <>
-                    <ChevronDown className="size-4" />
-                    {t('collapse.hideAll')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronRight className="size-4" />
-                    {t('collapse.showAll', {
-                      count: allCustomGroups.length,
                     })}
                   </>
                 )}

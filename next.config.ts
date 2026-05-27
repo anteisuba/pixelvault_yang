@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bundleAnalyzer from '@next/bundle-analyzer'
 import { withSentryConfig } from '@sentry/nextjs'
+import createWithVercelToolbar from '@vercel/toolbar/plugins/next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
 
@@ -35,6 +36,19 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: PROJECT_ROOT,
   turbopack: {
     root: PROJECT_ROOT,
+    // Inject `data-locator-*` source-location attributes into JSX so LocatorJS
+    // can map clicked DOM nodes back to file:line in the browser overlay.
+    // Wired up in `src/components/dev/LocatorSetup.tsx` (dev-only).
+    rules: {
+      '**/*.{tsx,jsx}': {
+        loaders: [
+          {
+            loader: '@locator/webpack-loader',
+            options: { env: 'development' },
+          },
+        ],
+      },
+    },
   },
   images: {
     // AI outputs are already served from R2/CDN/provider media hosts. Routing
@@ -116,16 +130,20 @@ const nextConfig: NextConfig = {
 }
 
 const withNextIntl = createNextIntlPlugin()
+const withVercelToolbar = createWithVercelToolbar()
 
-export default withSentryConfig(withBundleAnalyzer(withNextIntl(nextConfig)), {
-  // Suppress source map upload logs in CI
-  silent: !process.env.CI,
+export default withSentryConfig(
+  withBundleAnalyzer(withNextIntl(withVercelToolbar(nextConfig))),
+  {
+    // Suppress source map upload logs in CI
+    silent: !process.env.CI,
 
-  // Upload source maps for better stack traces
-  widenClientFileUpload: true,
+    // Upload source maps for better stack traces
+    widenClientFileUpload: true,
 
-  // Hide source maps from browser devtools in production
-  sourcemaps: {
-    deleteSourcemapsAfterUpload: true,
+    // Hide source maps from browser devtools in production
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
   },
-})
+)

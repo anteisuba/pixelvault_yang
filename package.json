@@ -59,6 +59,7 @@
     "@types/dagre": "^0.7.54",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
+    "@vercel/toolbar": "^0.2.6",
     "@xyflow/react": "^12.10.2",
     "ai": "^6.0.191",
     "class-variance-authority": "^0.7.1",
@@ -92,6 +93,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@locator/runtime": "^0.5.1",
+    "@locator/webpack-loader": "^0.5.1",
     "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",

@@ -353,7 +353,6 @@
     "actions": {
       "signedOutPrimary": "注册",
       "signedOutUtility": "登录",
-      "signedInUtility": "前往工作台",
       "sharedSecondary": "查看模型",
       "gallerySecondary": "浏览画廊",
       "signInPrimary": "创建账号",
@@ -1450,17 +1449,14 @@
     "triggerLabel": "API 路由",
     "triggerLoading": "加载中",
     "triggerCount": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
-    "sheetTitle": "管理 API 路由",
-    "sheetDescription": "按模型保存 provider 路由，自定义提供商名称和 Base URL，并只启用你希望出现在 Studio 里的路由。",
+    "sheetTitle": "API 路由",
+    "sheetDescription": "保存自己的 Key。启用后会出现在 Studio 里。",
     "closeLabel": "关闭路由面板",
-    "title": "已保存的 provider 路由",
-    "description": "每个保存的路由都由适配器、provider 配置、模型 ID 和密钥组成。内置工作区路由默认保留，启用后的已保存路由会一起出现在 Studio 中。",
+    "title": "路由",
+    "description": "选择供应商、模型和 Key，然后保存。",
     "loading": "正在加载你保存的路由...",
     "customBadge": "自定义",
-    "groupCustomDescription": "带有一个或多个已保存路由的自定义 {adapter} 模型。",
     "emptyModel": "还没有为 {model} 保存路由。",
-    "emptyCustomTitle": "还没有自定义路由",
-    "emptyCustomDescription": "如果你要调用内置目录之外的 provider 路由，可以先添加一个自定义模型 ID。",
     "providers": {
       "huggingface": {
         "label": "HuggingFace",
@@ -1510,17 +1506,10 @@
     "summary": {
       "activeRoutesLabel": "启用路由",
       "activeRoutesValue": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
-      "builtInModelsLabel": "内置模型",
-      "builtInModelsValue": "{count, plural, one {# 个内置模型} other {# 个内置模型}}",
-      "customRoutesLabel": "自定义路由",
-      "customRoutesValue": "{count, plural, =0 {没有自定义路由} one {# 个自定义路由} other {# 个自定义路由}}",
       "routeCount": "{count, plural, =0 {没有路由} one {# 个路由} other {# 个路由}}"
     },
     "sections": {
-      "builtInTitle": "内置模型路由",
-      "builtInDescription": "当你希望内置模型改用你自己的密钥或自定义 provider 端点时，可以在这里添加保存路由。",
-      "customTitle": "自定义模型路由",
-      "customDescription": "任何启用的自定义保存路由，都会自动出现在 Studio 模型选择器中。"
+      "builtInTitle": "已保存路由"
     },
     "actions": {
       "openComposer": "添加路由",
@@ -1558,9 +1547,9 @@
     },
     "editKeyPlaceholder": "粘贴新的 API Key...",
     "addForm": {
-      "title": "添加已保存路由",
-      "description": "先选择适配器，配置提供商名称和 Base URL，再绑定模型 ID 与 API 密钥。",
-      "adapterLabel": "适配器",
+      "title": "添加路由",
+      "description": "只需要供应商、模型和 Key。高级设置可选。",
+      "adapterLabel": "供应商",
       "providerNameLabel": "提供商名称",
       "providerBaseUrlLabel": "Base URL",
       "providerBaseUrlHint": "请使用与适配器兼容的 Base URL。适配器需要时会自动拼接模型 ID。",
@@ -1575,6 +1564,7 @@
       "showKey": "显示 API 密钥",
       "hideKey": "隐藏 API 密钥",
       "getKeyLink": "获取 API Key →",
+      "advancedToggle": "高级 provider 设置",
       "keyFormatValid": "密钥格式正确",
       "keyFormatInvalid": "密钥应以 {hint} 开头",
       "saveAction": "保存路由",

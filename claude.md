@@ -65,13 +65,11 @@ Personal AI Gallery — multi-model AI image generation + permanent archive.
 
 ## Design Language
 
-详见 `docs/reference/design-system.md`。三种 surface：
+UI 任务**必读** [`docs/ai/ui-design-system.md`](docs/ai/ui-design-system.md)（AI agent 项目级方向，dark-mode-first / 创作工具感 / 多语言 ready）。响应式细则见 [`docs/ai/responsive-workflow.md`](docs/ai/responsive-workflow.md)，QA 清单见 [`docs/ai/mobile-qa-checklist.md`](docs/ai/mobile-qa-checklist.md)。
 
-- **Editorial** (Studio / Gallery / Account)：背景 `#faf9f5` · 文字 `#141413` · 强调 `#d97757` · Space Grotesk + Lora
-- **Marketing** (Homepage / Auth)：背景 `#fff` · 主 CTA 黑色 `#141413` · 仅 Space Grotesk · Krea 风格大字 + 真实图片
-- **Krea Overlay** (AppSidebar / 全屏 modal)：包裹层加 `dark` className 翻转 sidebar token
+`docs/reference/design-system.md` 描述当前已实现的三 surface 模型（Editorial / Marketing / Krea Overlay，light-mode editorial）。**冲突时以 `docs/ai/` 为准** — `docs/reference/` 视为现状快照，`docs/ai/` 视为方向。改 UI 前若发现两者矛盾，先停下来问用户。
 
-**红线**：禁止蓝紫渐变、霓虹光晕、重阴影、深色科技蓝光风。Motion 只用 fade-in + translate-up，300-600ms ease-out。
+**Anti-slop 红线**：禁止紫蓝渐变、霓虹光晕、玻璃形态滥用、过度 hero 空白、深色科技蓝光风、随意动效。Motion 只在澄清状态/连续性/反馈时使用，不做装饰。
 
 ## Testing
 
@@ -132,11 +130,38 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 - Code review → `review`
 - 文档更新 → `document-release`
 - Weekly retro → `retro`
-- Design system → `design-consultation`
-- Visual audit → `design-review`
 - Architecture review → `plan-eng-review`
 - Save/resume progress → `context-save` / `context-restore`
 - Code health → `health`
+
+### UI / 设计任务路由
+
+任何 UI 改动前先读 `docs/ai/ui-design-system.md`。然后按任务类型选 skill：
+
+- **首页 / Landing / 视觉升级 / 反 AI-slop** → `Taste Skill`（外部安装，见下）
+- **生产级产品 UI 实现** → `frontend-design`（Anthropic plugin via `/plugin`）
+- **全站 UX 审查（按钮 / 表单 / 卡片 / 响应式 / a11y / 动效）** → `ui-ux-pro-max-skill`
+- **设计系统一致性 / token 治理** → `hue design-system`
+- **Plan-stage 设计评审（写代码前）** → `plan-design-review`（gstack 内置）
+- **Live 视觉审计（部署后）** → `design-review`（gstack 内置）
+
+**外部 skill 安装**（用户需要手动跑一次）：
+
+```bash
+# Taste Skill
+npx skills add Leonxlnx/taste-skill
+# Anthropic frontend-design — Claude Code 里跑：/plugin → marketplace → anthropics/claude-code
+# ui-ux-pro-max / hue — 同样通过 /plugin 安装
+```
+
+**UI 工作流契约**（与 [[feedback-design-first]] memory 一致）：
+
+1. 审查（audit only，不改代码）→ 输出问题清单 + 文件路径 + 严重程度 + 修复方案
+2. 非琐碎改动先出 Figma 改动清单，等设计稿
+3. 拿到设计稿后用 `mcp__figma__get_design_context` 拉参考代码
+4. 一次只改一个页面/组件
+5. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
+6. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
 
 ---
 

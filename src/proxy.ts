@@ -2,6 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import createIntlMiddleware from 'next-intl/middleware'
 
+import { getClerkAllowedOrigins } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { DEFAULT_LOCALE, LOCALES, routing } from '@/i18n/routing'
 
@@ -84,6 +85,9 @@ export default clerkMiddleware(
     const locale = resolveLocale(request.nextUrl.pathname)
 
     return {
+      authorizedParties: getClerkAllowedOrigins(
+        isDev ? [request.nextUrl.origin] : [],
+      ),
       signInUrl: `/${locale}${ROUTES.SIGN_IN}`,
       signUpUrl: `/${locale}${ROUTES.SIGN_UP}`,
     }

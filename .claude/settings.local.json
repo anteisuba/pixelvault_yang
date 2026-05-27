@@ -252,7 +252,9 @@
       "Bash(npx wrangler *)",
       "Bash(curl -s -o /dev/null -w \"callback: %{http_code}\\\\n\" -X POST -H \"Content-Type: application/json\" -d '{}' https://www.anteisuba.com/api/internal/execution/callback)",
       "Bash(curl -s -o /dev/null -w \"resolve-key: %{http_code}\\\\n\" -X POST -H \"Content-Type: application/json\" -d '{}' https://www.anteisuba.com/api/internal/execution/resolve-key)",
-      "WebFetch(domain:developers.cloudflare.com)"
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(grep -n \"return \\(\\\\|^  return\\\\|return null\\\\|<>$\\\\|<PromptInput\\\\|max-w-\\\\|mx-auto\" /Users/fulina/Code/pixelvault_yang/src/components/business/studio/StudioPromptArea.tsx)",
+      "mcp__Claude_in_Chrome__browser_batch"
     ],
     "deny": [
       "Edit(scripts/**)",

@@ -1,37 +1,73 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-test.use({ viewport: { width: 375, height: 812 } })
+import { ROUTES, type Route } from '../src/constants/routes'
+
+const LOCALE = 'en'
+const MOBILE_WIDTHS = [375, 390, 430] as const
+
+interface ResponsivePage {
+  name: string
+  path: string
+}
+
+const localizedPath = (route: Route): string =>
+  route === ROUTES.HOME ? `/${LOCALE}` : `/${LOCALE}${route}`
+
+const pages: ResponsivePage[] = [
+  { name: 'root', path: ROUTES.HOME },
+  { name: 'home', path: localizedPath(ROUTES.HOME) },
+  { name: 'gallery', path: localizedPath(ROUTES.GALLERY) },
+  { name: 'studio', path: localizedPath(ROUTES.STUDIO) },
+  { name: 'sign in', path: localizedPath(ROUTES.SIGN_IN) },
+]
 
 test.describe('Mobile Responsive', () => {
-  test('landing page renders correctly on mobile', async ({ page }) => {
-    await page.goto('/en')
+  for (const width of MOBILE_WIDTHS) {
+    test.describe(`${width}px`, () => {
+      test.use({
+        viewport: { width, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      })
 
-    // Page should be visible and not overflow
-    const body = page.locator('body')
-    await expect(body).toBeVisible()
+      for (const responsivePage of pages) {
+        test(`renders ${responsivePage.name} without horizontal overflow`, async ({
+          page,
+        }) => {
+          const pageErrors: string[] = []
+          page.on('pageerror', (error) => pageErrors.push(error.message))
 
-    // Navigation should be present (possibly as mobile menu)
-    const nav = page.locator('nav').first()
-    await expect(nav).toBeVisible()
-  })
+          await page.goto(responsivePage.path)
+          await page.waitForLoadState('networkidle')
+          await page.waitForTimeout(500)
 
-  test('gallery page renders on mobile', async ({ page }) => {
-    await page.goto('/en/gallery')
+          const metrics = await page.evaluate(() => {
+            const root = document.documentElement
+            const body = document.body
 
-    const main = page.locator('main').first()
-    await expect(main).toBeVisible()
+            return {
+              bodyTextLength: body.innerText.trim().length,
+              innerWidth: window.innerWidth,
+              maxScrollWidth: Math.max(root.scrollWidth, body.scrollWidth),
+            }
+          })
 
-    // No horizontal overflow
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-    const viewportWidth = await page.evaluate(() => window.innerWidth)
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 1) // 1px tolerance
-  })
+          await expect(page.locator('body')).toBeVisible()
+          expect(metrics.bodyTextLength).toBeGreaterThan(0)
+          expect(metrics.maxScrollWidth).toBeLessThanOrEqual(
+            metrics.innerWidth + 1,
+          )
+          expect(pageErrors).toHaveLength(0)
+        })
+      }
+    })
+  }
 
-  test('mobile tab bar is visible on small screens', async ({ page }) => {
-    await page.goto('/en')
+  test('mobile navigation exposes gallery access', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(localizedPath(ROUTES.HOME))
 
-    // Either a dedicated mobile tab bar or navigation with studio link should exist.
-    const navLinks = page.locator('a[href*="/gallery"]')
-    await expect(navLinks.first()).toBeVisible()
+    const galleryLinks = page.locator(`a[href*="${ROUTES.GALLERY}"]`)
+    await expect(galleryLinks.first()).toBeVisible()
   })
 })

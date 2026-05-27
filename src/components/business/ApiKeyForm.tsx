@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import {
   CheckCircle2,
+  ChevronDown,
   ExternalLink,
   Eye,
   EyeOff,
   Loader2,
   Plus,
+  SlidersHorizontal,
   XCircle,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -69,6 +71,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
   const [label, setLabel] = useState('')
   const [keyValue, setKeyValue] = useState('')
   const [showKey, setShowKey] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const resolvedPresetModelId = modelsForAdapter.some(
     (model) => model.id === presetModelId,
@@ -128,62 +131,22 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-5 rounded-3xl border border-border/70 bg-card/84 p-5"
+      className="space-y-4 rounded-2xl border border-border/70 bg-card/80 p-4"
     >
-      <div className="space-y-1">
-        <h3 className="font-display text-base font-medium text-foreground">
-          {t('addForm.title')}
-        </h3>
-        <p className="font-serif text-sm leading-6 text-muted-foreground">
-          {t('addForm.description')}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          {t('addForm.adapterLabel')}
-        </p>
-        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
-          {API_KEY_ADAPTER_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => handleAdapterChange(option)}
-              className={cn(
-                'rounded-2xl border px-4 py-3 text-left transition-colors',
-                adapterType === option
-                  ? 'border-primary/25 bg-primary/6'
-                  : 'border-border/70 bg-background/72 hover:bg-secondary/24',
-              )}
-            >
-              <p className="font-medium text-foreground">
-                {t(`providers.${option}.label`)}
-              </p>
-              <p className="mt-1 font-serif text-xs leading-5 text-muted-foreground">
-                {t(`providers.${option}.description`)}
-              </p>
-            </button>
-          ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h3 className="font-display text-base font-medium text-foreground">
+            {t('addForm.title')}
+          </h3>
+          <p className="text-sm leading-5 text-muted-foreground">
+            {t('addForm.description')}
+          </p>
         </div>
-      </div>
-
-      {/* ── Provider tutorial card ─────────────────────────────── */}
-      <div className="rounded-2xl border border-primary/15 bg-primary/4 p-4">
-        <p className="mb-2 text-sm font-semibold text-foreground">
-          {t('tutorial.title', {
-            provider: t(`providers.${adapterType}.label`),
-          })}
-        </p>
-        <ol className="mb-3 list-inside list-decimal space-y-1 font-serif text-sm leading-6 text-muted-foreground">
-          {guide.steps.split('→').map((step, i) => (
-            <li key={i}>{step.trim()}</li>
-          ))}
-        </ol>
         <a
           href={guide.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary/60"
         >
           {t('tutorial.goToProvider', {
             provider: t(`providers.${adapterType}.label`),
@@ -192,128 +155,105 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
         </a>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-        <div className="space-y-2">
-          <label
-            htmlFor="provider-label"
-            className="text-sm font-medium text-foreground"
-          >
-            {t('addForm.providerNameLabel')}
-          </label>
-          <Input
-            id="provider-label"
-            value={providerLabel}
-            onChange={(e) => setProviderLabel(e.target.value)}
-            placeholder={defaultProviderConfig.label}
-            maxLength={60}
-            className="h-11 rounded-2xl border-border/70 bg-background/80"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="provider-base-url"
-            className="text-sm font-medium text-foreground"
-          >
-            {t('addForm.providerBaseUrlLabel')}
-          </label>
-          <Input
-            id="provider-base-url"
-            type="url"
-            value={providerBaseUrl}
-            onChange={(e) => setProviderBaseUrl(e.target.value)}
-            placeholder={defaultProviderConfig.baseUrl}
-            className="h-11 rounded-2xl border-border/70 bg-background/80 font-mono"
-            required
-          />
-          <p className="text-xs leading-5 text-muted-foreground">
-            {t('addForm.providerBaseUrlHint')}
-          </p>
-        </div>
-      </div>
-
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">
-          {t('addForm.modelModeLabel')}
+          {t('addForm.adapterLabel')}
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(['preset', 'custom'] as EntryMode[]).map((mode) => (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {API_KEY_ADAPTER_OPTIONS.map((option) => (
             <button
-              key={mode}
+              key={option}
               type="button"
-              onClick={() => setEntryMode(mode)}
+              onClick={() => handleAdapterChange(option)}
               className={cn(
-                'rounded-2xl border px-4 py-3 text-left transition-colors',
-                entryMode === mode
-                  ? 'border-primary/25 bg-primary/6'
-                  : 'border-border/70 bg-background/72 hover:bg-secondary/24',
+                'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                adapterType === option
+                  ? 'border-primary/30 bg-primary/10 text-foreground'
+                  : 'border-border/70 bg-background/70 text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
               )}
             >
-              <p className="font-medium text-foreground">
-                {t(`addForm.modelModes.${mode}.label`)}
-              </p>
-              <p className="mt-1 font-serif text-xs leading-5 text-muted-foreground">
-                {t(`addForm.modelModes.${mode}.description`)}
-              </p>
+              {t(`providers.${option}.label`)}
             </button>
           ))}
         </div>
       </div>
 
-      {entryMode === 'preset' ? (
-        <div className="space-y-2">
-          <label
-            htmlFor="preset-model-select"
-            className="text-sm font-medium text-foreground"
-          >
-            {t('addForm.presetModelLabel')}
-          </label>
-          <Select
-            name="presetModelId"
-            value={resolvedPresetModelId}
-            onValueChange={setPresetModelId}
-          >
-            <SelectTrigger
-              id="preset-model-select"
-              className="h-11 rounded-2xl border-border/70 bg-background/80"
-            >
-              <SelectValue placeholder={t('addForm.presetModelPlaceholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {modelsForAdapter.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {tModels(`${getModelMessageKey(model.id)}.label`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <label
-            htmlFor="custom-model-id"
-            className="text-sm font-medium text-foreground"
-          >
-            {t('addForm.customModelLabel')}
-          </label>
-          <Input
-            id="custom-model-id"
-            value={customModelId}
-            onChange={(e) => setCustomModelId(e.target.value)}
-            placeholder={getAdapterCustomModelExample(adapterType)}
-            className="h-11 rounded-2xl border-border/70 bg-background/80 font-mono"
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            {t('addForm.customModelHint', {
-              provider: resolvedProviderLabel,
-            })}
-          </p>
-        </div>
-      )}
+      <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
+        <div className="mb-3 flex flex-wrap gap-2 rounded-xl bg-secondary/40 p-1">
+          {(['preset', 'custom'] as EntryMode[]).map((mode) => {
+            const isDisabled =
+              mode === 'preset' && modelsForAdapter.length === 0
 
-      <div className="grid gap-4 sm:grid-cols-2">
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => setEntryMode(mode)}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  entryMode === mode
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t(`addForm.modelModes.${mode}.label`)}
+              </button>
+            )
+          })}
+        </div>
+
+        {entryMode === 'preset' ? (
+          <div className="space-y-2">
+            <label
+              htmlFor="preset-model-select"
+              className="text-sm font-medium text-foreground"
+            >
+              {t('addForm.presetModelLabel')}
+            </label>
+            <Select
+              name="presetModelId"
+              value={resolvedPresetModelId}
+              onValueChange={setPresetModelId}
+            >
+              <SelectTrigger
+                id="preset-model-select"
+                className="h-11 rounded-xl border-border/70 bg-background/80"
+              >
+                <SelectValue
+                  placeholder={t('addForm.presetModelPlaceholder')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {modelsForAdapter.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {tModels(`${getModelMessageKey(model.id)}.label`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label
+              htmlFor="custom-model-id"
+              className="text-sm font-medium text-foreground"
+            >
+              {t('addForm.customModelLabel')}
+            </label>
+            <Input
+              id="custom-model-id"
+              value={customModelId}
+              onChange={(e) => setCustomModelId(e.target.value)}
+              placeholder={getAdapterCustomModelExample(adapterType)}
+              className="h-11 rounded-xl border-border/70 bg-background/80 font-mono"
+              required
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <label
             htmlFor="api-key-label"
@@ -327,7 +267,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             maxLength={50}
-            className="h-11 rounded-2xl border-border/70 bg-background/80"
+            className="h-11 rounded-xl border-border/70 bg-background/80"
             required
           />
         </div>
@@ -347,7 +287,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
               className={cn(
-                'h-11 rounded-2xl border-border/70 bg-background/80 pr-11 font-mono',
+                'h-11 rounded-xl border-border/70 bg-background/80 pr-11 font-mono',
                 keyValidation === 'valid' &&
                   'border-chart-3/50 ring-1 ring-chart-3/20',
                 keyValidation === 'invalid' &&
@@ -368,7 +308,6 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
               )}
             </button>
           </div>
-          {/* Instant validation feedback */}
           {keyValidation === 'valid' && (
             <p className="flex items-center gap-1 text-xs text-chart-3">
               <CheckCircle2 className="size-3" />
@@ -384,6 +323,69 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border/70 bg-background/50">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((value) => !value)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-foreground"
+          aria-expanded={showAdvanced}
+        >
+          <span className="inline-flex items-center gap-2">
+            <SlidersHorizontal className="size-4" />
+            {t('addForm.advancedToggle')}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 text-muted-foreground transition-transform',
+              showAdvanced && 'rotate-180',
+            )}
+          />
+        </button>
+
+        {showAdvanced ? (
+          <div className="grid gap-3 border-t border-border/70 p-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label
+                htmlFor="provider-label"
+                className="text-sm font-medium text-foreground"
+              >
+                {t('addForm.providerNameLabel')}
+              </label>
+              <Input
+                id="provider-label"
+                value={providerLabel}
+                onChange={(e) => setProviderLabel(e.target.value)}
+                placeholder={defaultProviderConfig.label}
+                maxLength={60}
+                className="h-11 rounded-xl border-border/70 bg-background/80"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="provider-base-url"
+                className="text-sm font-medium text-foreground"
+              >
+                {t('addForm.providerBaseUrlLabel')}
+              </label>
+              <Input
+                id="provider-base-url"
+                type="url"
+                value={providerBaseUrl}
+                onChange={(e) => setProviderBaseUrl(e.target.value)}
+                placeholder={defaultProviderConfig.baseUrl}
+                className="h-11 rounded-xl border-border/70 bg-background/80 font-mono"
+                required
+              />
+              <p className="text-xs leading-5 text-muted-foreground">
+                {t('addForm.providerBaseUrlHint')}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">

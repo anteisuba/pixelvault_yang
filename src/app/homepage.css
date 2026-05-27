@@ -100,9 +100,8 @@
 
 .homepage-secondary-btn {
   border-color: color-mix(in oklab, var(--foreground) 34%, transparent);
-  background: color-mix(in oklab, var(--background) 76%, transparent);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
   color: var(--foreground);
-  backdrop-filter: blur(8px);
   box-shadow: none;
   transition:
     border-color 180ms ease,
@@ -129,8 +128,7 @@
 
 .homepage-utility-btn {
   border-color: var(--home-border);
-  background: color-mix(in oklab, var(--background) 70%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
   transition: border-color 200ms ease;
 }
 .homepage-utility-btn:hover {
@@ -369,8 +367,7 @@
 }
 
 .homepage-scene-tag {
-  background: color-mix(in oklab, var(--background) 78%, transparent);
-  backdrop-filter: blur(4px);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
 }
 
 .homepage-hero-card {
@@ -381,8 +378,7 @@
 }
 
 .homepage-hero-label {
-  background: color-mix(in oklab, var(--background) 80%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
 }
 
 .homepage-hero-grid {

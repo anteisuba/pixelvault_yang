@@ -56,12 +56,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
       // StudioAspectRatioPopover, StudioEnhanceButton) — which use Radix
       // Toolbar.Button under the hood — can find their roving-focus
       // context. Plain `button` children stay valid inside Toolbar.Root.
-      <Toolbar.Root
-        className={cn(
-          'flex items-center gap-1.5',
-          compact ? 'flex-nowrap' : 'flex-wrap',
-        )}
-      >
+      <Toolbar.Root className={cn('flex items-center gap-1.5', 'flex-wrap')}>
         <StudioEnhanceButton disabled={isGenerating} />
         {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
         <ReferenceImageChip disabled={isGenerating} />
@@ -107,12 +102,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
     return (
       // Wrap in Toolbar.Root for StudioEnhanceButton (Toolbar.Button under
       // the hood); plain `button` children remain valid inside.
-      <Toolbar.Root
-        className={cn(
-          'flex items-center gap-1.5',
-          compact ? 'flex-nowrap' : 'flex-wrap',
-        )}
-      >
+      <Toolbar.Root className={cn('flex items-center gap-1.5', 'flex-wrap')}>
         <StudioEnhanceButton disabled={isGenerating} />
         <button
           type="button"

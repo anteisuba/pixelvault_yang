@@ -8,8 +8,12 @@ import {
   ArrowUpRight,
   CheckCircle2,
   CircleSlash,
+  Info,
+  Loader2,
   Palette,
   Share2,
+  Sparkles,
+  Users,
   Wand2,
   X,
 } from 'lucide-react'
@@ -25,9 +29,9 @@ import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useCivitaiMinedPrompts } from '@/hooks/use-civitai-mined-prompts'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { Link } from '@/i18n/navigation'
-import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
@@ -171,21 +175,15 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
     [dispatch, state.prompt, t],
   )
 
-  const handleUseTemplate = useCallback(
-    (asset: {
-      triggerWord: string
-      type: 'subject' | 'style'
-      name: string
-      // Author-recommended prompt from Civitai trainedWords / description
-      // code blocks. When present buildLoraPromptTemplate prefers it over
-      // our generic "portrait, dynamic pose, …" scaffold — passing this
-      // through is the difference between LoRAs actually activating (the
-      // wuthering-waves Denia case) and the user copying a useless template.
-      recommendedPrompt?: string | null
-    }) => {
-      const template = buildLoraPromptTemplate(asset)
-      dispatch({ type: 'SET_PROMPT', payload: template })
-      toast.success(t('templateApplied', { name: asset.name }))
+  // Replace the entire prompt with the LoRA's recommended activation
+  // prompt. Used by the "覆盖" / "Overwrite" button on each chip card
+  // when the user wants to start fresh with the author's tuned starter.
+  const handleApplyPrompt = useCallback(
+    (prompt: string, loraName: string) => {
+      const trimmed = prompt.trim()
+      if (!trimmed) return
+      dispatch({ type: 'SET_PROMPT', payload: trimmed })
+      toast.success(t('templateApplied', { name: loraName }))
     },
     [dispatch, t],
   )
@@ -439,115 +437,17 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
             </div>
           ) : (
             <ul className="space-y-2.5">
-              {items.map((entry) => {
-                const scale = entry.scale ?? entry.asset.defaultScale
-                const triggerInPrompt = promptIncludesTrigger(
-                  state.prompt,
-                  entry.asset.triggerWord,
-                )
-                return (
-                  <li
-                    key={entry.asset.id}
-                    className="rounded-lg border border-border/60 bg-card/40 p-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {entry.asset.name}
-                        </p>
-                        <p className="truncate text-2xs text-muted-foreground">
-                          {entry.asset.baseModelFamily}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => remove(entry.asset.id)}
-                        className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        aria-label={t('removeAria', { name: entry.asset.name })}
-                      >
-                        <X className="size-3.5" aria-hidden />
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleInsertTrigger(entry.asset.triggerWord)
-                      }
-                      disabled={triggerInPrompt}
-                      className={cn(
-                        'mt-2 inline-flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-2xs font-mono transition-colors',
-                        triggerInPrompt
-                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                          : 'border-border/60 text-foreground hover:bg-muted',
-                      )}
-                      aria-label={
-                        triggerInPrompt
-                          ? t('triggerAlreadyInPrompt')
-                          : t('insertTrigger', {
-                              word: entry.asset.triggerWord,
-                            })
-                      }
-                      title={
-                        triggerInPrompt
-                          ? t('triggerAlreadyInPrompt')
-                          : t('insertTriggerHint')
-                      }
-                    >
-                      <span className="truncate">
-                        {entry.asset.triggerWord}
-                      </span>
-                      <span className="shrink-0 text-2xs">
-                        {triggerInPrompt
-                          ? t('triggerInPromptBadge')
-                          : t('insertTriggerBadge')}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleUseTemplate({
-                          triggerWord: entry.asset.triggerWord,
-                          type: entry.asset.type,
-                          name: entry.asset.name,
-                          recommendedPrompt: entry.asset.recommendedPrompt,
-                        })
-                      }
-                      className="mt-1.5 inline-flex w-full items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs transition-colors hover:bg-muted"
-                      aria-label={t('useTemplate', { name: entry.asset.name })}
-                      title={t('useTemplateHint')}
-                    >
-                      <span className="inline-flex items-center gap-1 text-muted-foreground">
-                        <Wand2 className="size-3" aria-hidden />
-                        {t('useTemplate', { name: entry.asset.name })}
-                      </span>
-                      <span className="shrink-0 text-2xs text-muted-foreground">
-                        {t('useTemplateBadge')}
-                      </span>
-                    </button>
-
-                    <div className="mt-2 flex items-center gap-3">
-                      <Slider
-                        min={SCALE_MIN}
-                        max={SCALE_MAX}
-                        step={SCALE_STEP}
-                        value={[scale]}
-                        onValueChange={(next) => {
-                          const v = next[0]
-                          if (typeof v === 'number') {
-                            setScale(entry.asset.id, v)
-                          }
-                        }}
-                        className="flex-1"
-                      />
-                      <span className="w-12 shrink-0 text-right font-mono text-xs">
-                        ×{scale.toFixed(2)}
-                      </span>
-                    </div>
-                  </li>
-                )
-              })}
+              {items.map((entry) => (
+                <StudioLoraChipItem
+                  key={entry.asset.id}
+                  entry={entry}
+                  promptText={state.prompt}
+                  onRemove={remove}
+                  onSetScale={setScale}
+                  onInsertTrigger={handleInsertTrigger}
+                  onApplyPrompt={handleApplyPrompt}
+                />
+              ))}
             </ul>
           )}
 
@@ -689,5 +589,301 @@ function CompatibilityBanner({
         </p>
       ) : null}
     </div>
+  )
+}
+
+// ─── Per-LoRA chip card ─────────────────────────────────────────────────
+//
+// Pulled out into its own component so each entry can independently call
+// `useCivitaiMinedPrompts` (hooks can't be conditional inside a map) and
+// maintain its own outfit-selection state. Mirrors the LoRA library
+// inspector's outfit selector so users get the same affordances whether
+// they're picking the LoRA in the library or fine-tuning it in Studio.
+
+interface ChipItemEntry {
+  asset: {
+    id: string
+    name: string
+    baseModelFamily: string
+    triggerWord: string
+    type: 'subject' | 'style'
+    defaultScale: number
+    recommendedPrompt?: string | null
+    recommendedPromptAlternates?: { label: string; prompt: string }[]
+    triggerSource?: 'official' | 'inferred'
+    modelId?: number
+    modelVersionId?: number
+    fileHashAutoV3?: string | null
+  }
+  scale?: number
+}
+
+interface StudioLoraChipItemProps {
+  entry: ChipItemEntry
+  promptText: string
+  onRemove: (assetId: string) => void
+  onSetScale: (assetId: string, scale: number) => void
+  onInsertTrigger: (triggerWord: string) => void
+  onApplyPrompt: (prompt: string, loraName: string) => void
+}
+
+type ChipOutfit = {
+  label: string
+  prompt: string
+  source: 'author' | 'mined'
+  sampleCount?: number
+}
+
+function StudioLoraChipItem({
+  entry,
+  promptText,
+  onRemove,
+  onSetScale,
+  onInsertTrigger,
+  onApplyPrompt,
+}: StudioLoraChipItemProps) {
+  const t = useTranslations('StudioLoraChip')
+  const tWorkbench = useTranslations('LoraWorkbench')
+
+  const scale = entry.scale ?? entry.asset.defaultScale
+  const asset = entry.asset
+  const triggerInPrompt = promptIncludesTrigger(promptText, asset.triggerWord)
+
+  // Phase-2 enrichment: mine real activation prompts from /api/v1/images.
+  // Only fires when the asset carries Civitai identifiers (modelId +
+  // fileHashAutoV3); trained / favorite-only LoRAs get a no-op.
+  const mined = useCivitaiMinedPrompts({
+    modelId: asset.modelId,
+    modelVersionId: asset.modelVersionId,
+    fileHashAutoV3: asset.fileHashAutoV3,
+  })
+
+  const outfits = useMemo<ChipOutfit[]>(() => {
+    const authorAlts = asset.recommendedPromptAlternates ?? []
+    const hasAuthorPrompt = Boolean(asset.recommendedPrompt)
+    if (
+      !hasAuthorPrompt &&
+      authorAlts.length === 0 &&
+      mined.outfits.length === 0
+    )
+      return []
+
+    const seen = new Set<string>()
+    const result: ChipOutfit[] = []
+    const totalCount =
+      (hasAuthorPrompt ? 1 : 0) + authorAlts.length + mined.outfits.length
+
+    if (hasAuthorPrompt && asset.recommendedPrompt) {
+      const first: ChipOutfit = {
+        label: totalCount > 1 ? tWorkbench('outfitDefaultLabel', { n: 1 }) : '',
+        prompt: asset.recommendedPrompt,
+        source: 'author',
+      }
+      result.push(first)
+      seen.add(first.prompt.trim().toLowerCase())
+    }
+    authorAlts.forEach((alt) => {
+      const key = alt.prompt.trim().toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      result.push({
+        label:
+          alt.label ||
+          tWorkbench('outfitDefaultLabel', { n: result.length + 1 }),
+        prompt: alt.prompt,
+        source: 'author',
+      })
+    })
+    mined.outfits.forEach((m) => {
+      const key = m.prompt.trim().toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      result.push({
+        label:
+          m.label || tWorkbench('outfitDefaultLabel', { n: result.length + 1 }),
+        prompt: m.prompt,
+        source: 'mined',
+        sampleCount: m.sampleCount,
+      })
+    })
+    return result
+  }, [
+    asset.recommendedPrompt,
+    asset.recommendedPromptAlternates,
+    mined.outfits,
+    tWorkbench,
+  ])
+
+  const [selectedOutfitIdx, setSelectedOutfitIdx] = useState(0)
+  // Clamp the selected index when outfits grow / shrink (e.g. mined
+  // prompts arrive a beat after the card renders, or the user removes a
+  // LoRA from the stack mid-selection).
+  const safeIdx = Math.min(selectedOutfitIdx, Math.max(0, outfits.length - 1))
+  const currentOutfit = outfits[safeIdx]
+
+  const hasOutfits = outfits.length > 0
+  const showChips = outfits.length > 1
+  const showMinedSpinner = mined.isLoading && !hasOutfits
+
+  return (
+    <li className="rounded-lg border border-border/60 bg-card/40 p-2.5">
+      {/* Header — name + base model + remove */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{asset.name}</p>
+          <p className="flex items-center gap-1.5 truncate text-2xs text-muted-foreground">
+            <span className="truncate">{asset.baseModelFamily}</span>
+            {asset.triggerSource === 'inferred' ? (
+              <span
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1 py-0 text-2xs font-medium text-amber-700 dark:text-amber-300"
+                title={tWorkbench('triggerSourceInferredHint')}
+              >
+                <Info className="size-2.5" aria-hidden />
+                {tWorkbench('triggerSourceInferredBadge')}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRemove(asset.id)}
+          className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={t('removeAria', { name: asset.name })}
+        >
+          <X className="size-3.5" aria-hidden />
+        </button>
+      </div>
+
+      {/* Trigger word — kept as the quick "insert" affordance because
+          a single trigger token is what the user usually wants to splice
+          into an existing prompt without overwriting it. */}
+      <button
+        type="button"
+        onClick={() => onInsertTrigger(asset.triggerWord)}
+        disabled={triggerInPrompt}
+        className={cn(
+          'mt-2 inline-flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-2xs font-mono transition-colors',
+          triggerInPrompt
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+            : 'border-border/60 text-foreground hover:bg-muted',
+        )}
+        aria-label={
+          triggerInPrompt
+            ? t('triggerAlreadyInPrompt')
+            : t('insertTrigger', { word: asset.triggerWord })
+        }
+        title={
+          triggerInPrompt ? t('triggerAlreadyInPrompt') : t('insertTriggerHint')
+        }
+      >
+        <span className="truncate" title={asset.triggerWord}>
+          {asset.triggerWord}
+        </span>
+        <span className="shrink-0 text-2xs">
+          {triggerInPrompt
+            ? t('triggerInPromptBadge')
+            : t('insertTriggerBadge')}
+        </span>
+      </button>
+
+      {/* Recommended prompt panel — only renders when we actually have
+          something author-supplied or mined to show. Otherwise users only
+          see the trigger insert affordance above. */}
+      {hasOutfits ? (
+        <div className="mt-2 rounded-md border border-border/60 bg-background/60 p-2">
+          <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Wand2 className="size-3" aria-hidden />
+              {tWorkbench('tryPromptLabel')}
+              {currentOutfit?.source === 'author' ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
+                  <Sparkles className="size-2.5" aria-hidden />
+                  {tWorkbench('tryPromptOfficialBadge')}
+                </span>
+              ) : currentOutfit?.source === 'mined' ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-2xs font-medium text-sky-700 dark:text-sky-300"
+                  title={tWorkbench('tryPromptMinedHint', {
+                    sampled: mined.totalSampled,
+                  })}
+                >
+                  <Users className="size-2.5" aria-hidden />
+                  {tWorkbench('tryPromptMinedBadge', {
+                    count: currentOutfit.sampleCount ?? 0,
+                  })}
+                </span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                currentOutfit && onApplyPrompt(currentOutfit.prompt, asset.name)
+              }
+              className="text-2xs font-medium text-foreground hover:text-primary"
+              aria-label={t('useTemplate', { name: asset.name })}
+              title={t('useTemplateHint')}
+            >
+              {t('useTemplateBadge')}
+            </button>
+          </div>
+          {showChips ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {outfits.map((outfit, idx) => {
+                const isActive = idx === safeIdx
+                const isMined = outfit.source === 'mined'
+                return (
+                  <button
+                    key={`${outfit.label}-${idx}`}
+                    type="button"
+                    onClick={() => setSelectedOutfitIdx(idx)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
+                      isActive
+                        ? isMined
+                          ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                          : 'bg-primary/20 text-primary'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {isMined ? (
+                      <Users className="size-2.5" aria-hidden />
+                    ) : null}
+                    {outfit.label}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+          <p className="mt-1.5 max-h-24 overflow-y-auto break-words font-mono text-2xs leading-relaxed text-foreground">
+            {currentOutfit?.prompt}
+          </p>
+        </div>
+      ) : showMinedSpinner ? (
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background/40 px-2 py-1.5 text-2xs text-muted-foreground">
+          <Loader2 className="size-3 animate-spin" aria-hidden />
+          {tWorkbench('tryPromptMinedLoading')}
+        </div>
+      ) : null}
+
+      {/* Scale slider */}
+      <div className="mt-2 flex items-center gap-3">
+        <Slider
+          min={SCALE_MIN}
+          max={SCALE_MAX}
+          step={SCALE_STEP}
+          value={[scale]}
+          onValueChange={(next) => {
+            const v = next[0]
+            if (typeof v === 'number') {
+              onSetScale(asset.id, v)
+            }
+          }}
+          className="flex-1"
+        />
+        <span className="w-12 shrink-0 text-right font-mono text-xs">
+          ×{scale.toFixed(2)}
+        </span>
+      </div>
+    </li>
   )
 }

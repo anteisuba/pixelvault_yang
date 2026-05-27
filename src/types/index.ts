@@ -3273,6 +3273,13 @@ export const LoraAssetRecordSchema = z.object({
   recommendedPromptAlternates: z
     .array(z.object({ label: z.string(), prompt: z.string() }))
     .optional(),
+  // Civitai-only identifiers needed by the Phase-2 user-generation prompt
+  // miner. Optional here so the active-lora stack can store mixed source
+  // types (trained / favorited / Civitai-imported) without forcing every
+  // record to carry them; `useCivitaiMinedPrompts` no-ops on null.
+  modelId: z.number().int().positive().optional(),
+  modelVersionId: z.number().int().positive().optional(),
+  fileHashAutoV3: z.string().nullable().optional(),
 })
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>

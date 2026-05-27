@@ -4,7 +4,19 @@ import { useEffect, useReducer, useRef } from 'react'
 
 import { mineCivitaiLoraPromptsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type { CivitaiLoraLibraryItem, CivitaiMinedPromptsResult } from '@/types'
+import type { CivitaiMinedPromptsResult } from '@/types'
+
+/**
+ * Minimal input shape — anything carrying the Civitai identifiers can
+ * trigger a mine. CivitaiLoraLibraryItem satisfies this; so does any
+ * LoraAssetRecord pulled from the active-LoRA stack after a Civitai push
+ * (those carry these as optional fields).
+ */
+export interface MinedPromptsInputItem {
+  modelId?: number
+  modelVersionId?: number
+  fileHashAutoV3?: string | null
+}
 
 export interface UseCivitaiMinedPromptsReturn {
   outfits: CivitaiMinedPromptsResult['outfits']
@@ -106,7 +118,7 @@ function reducer(
  * while a new selection is loading (`isLoading: true`, outfits kept).
  */
 export function useCivitaiMinedPrompts(
-  item: CivitaiLoraLibraryItem | null,
+  item: MinedPromptsInputItem | null,
 ): UseCivitaiMinedPromptsReturn {
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const requestIdRef = useRef(0)
@@ -115,14 +127,19 @@ export function useCivitaiMinedPrompts(
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
 
-    // No item or no hash → idle. Reset to EMPTY so a previous LoRA's
-    // mined data doesn't leak into the next selection.
-    if (!item || !item.fileHashAutoV3) {
+    // No item or missing Civitai identifiers → idle. Reset to EMPTY so a
+    // previous LoRA's mined data doesn't leak into the next selection.
+    // modelId is required server-side; without it there's nothing to
+    // query even if a hash exists.
+    const modelId = item?.modelId
+    const fileHashAutoV3 = item?.fileHashAutoV3
+    const modelVersionId = item?.modelVersionId
+    if (!item || !fileHashAutoV3 || !modelId) {
       dispatch({ type: 'idle' })
       return
     }
 
-    const key = cacheKey(item.modelId, item.modelVersionId, item.fileHashAutoV3)
+    const key = cacheKey(modelId, modelVersionId, fileHashAutoV3)
 
     // Synchronous cache hit — apply immediately, no loading flash.
     const cached = cache.get(key)
@@ -144,9 +161,9 @@ export function useCivitaiMinedPrompts(
       const inflight =
         existing?.promise ??
         mineCivitaiLoraPromptsAPI({
-          modelId: item.modelId,
-          modelVersionId: item.modelVersionId,
-          fileHash: item.fileHashAutoV3 ?? '',
+          modelId,
+          modelVersionId,
+          fileHash: fileHashAutoV3,
         }).then((response) => {
           const entry = cache.get(key)
           if (response.success && response.data) {

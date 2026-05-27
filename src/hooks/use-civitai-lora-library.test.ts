@@ -26,6 +26,7 @@ function createItem(id: string, name: string): CivitaiLoraLibraryItem {
     triggerWord: name.toLowerCase(),
     triggerAlternates: [],
     recommendedPrompt: null,
+    recommendedPromptAlternates: [],
     triggerSource: 'official',
     loraUrl: `https://civitai.com/api/download/models/${id}`,
     coverImageUrl: null,

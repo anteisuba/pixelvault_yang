@@ -81,6 +81,11 @@ const CivitaiModelSchema = z
     id: z.number(),
     name: z.string(),
     type: z.string(),
+    // Civitai 富文本 description — character LoRA 作者常把真正的激活
+    // prompt 放在这里的 `<pre><code>` 块里（trainedWords 字段反而空着）。
+    // 这是我们抢救「trainedWords 空但 LoRA 仍有可用 prompt」case 的关键
+    // 数据源；进一步还可以走 /api/v1/images?modelId=X 拿用户生成统计。
+    description: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
     creator: z
       .object({
@@ -225,6 +230,7 @@ function toLibraryItem(
   const triggerInfo = extractCivitaiTrigger({
     trainedWords: version.trainedWords,
     modelName: model.name,
+    descriptionHtml: model.description ?? null,
   })
 
   return {
@@ -238,6 +244,7 @@ function toLibraryItem(
     triggerWord: triggerInfo.trigger,
     triggerAlternates: triggerInfo.alternates,
     recommendedPrompt: triggerInfo.recommendedPrompt,
+    recommendedPromptAlternates: triggerInfo.recommendedPromptAlternates,
     triggerSource: triggerInfo.source,
     loraUrl,
     coverImageUrl,

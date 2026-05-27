@@ -72,7 +72,12 @@ const MobileTrainingSheet = dynamic(
 )
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import {
@@ -817,10 +822,13 @@ function CivitaiCommunityBranch({
   }, [])
 
   const handleCopyTryPrompt = useCallback(
-    async (item: CivitaiLoraLibraryItem) => {
-      const template = buildLoraPromptTemplate(item)
+    // overridePrompt lets the inspector pass the currently-selected outfit
+    // when a LoRA has multiple variants; fallback path keeps the original
+    // single-prompt behaviour for non-Civitai callers and back-compat.
+    async (item: CivitaiLoraLibraryItem, overridePrompt?: string) => {
+      const text = overridePrompt ?? buildLoraPromptTemplate(item)
       try {
-        await navigator.clipboard.writeText(template)
+        await navigator.clipboard.writeText(text)
         toast.success(t('tryPromptCopied'))
       } catch {
         toast.error(t('tryPromptCopyFailed'))
@@ -1088,16 +1096,29 @@ function CivitaiCommunityBranch({
           if (!open) setCoverPreview(null)
         }}
       >
-        <DialogContent className="max-w-4xl border-none bg-transparent p-0 shadow-none">
+        <DialogContent
+          className="left-0 top-0 h-dvh max-h-dvh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:max-w-none"
+          showCloseButton={false}
+        >
           <DialogTitle className="sr-only">
             {coverPreview?.name ?? ''}
           </DialogTitle>
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="absolute left-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label={t('coverPreviewBack')}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              <span>{t('coverPreviewBack')}</span>
+            </button>
+          </DialogClose>
           {coverPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={coverPreview.url}
               alt={coverPreview.name}
-              className="h-auto w-full rounded-xl object-contain"
+              className="block max-h-full max-w-full rounded-xl object-contain"
             />
           ) : null}
         </DialogContent>
@@ -1319,7 +1340,10 @@ interface CivitaiLoraInspectorProps {
   isFavorited: boolean
   onUse: (item: CivitaiLoraLibraryItem) => void
   onFavorite: (item: CivitaiLoraLibraryItem) => void
-  onCopyTryPrompt: (item: CivitaiLoraLibraryItem) => Promise<void>
+  onCopyTryPrompt: (
+    item: CivitaiLoraLibraryItem,
+    overridePrompt?: string,
+  ) => Promise<void>
   onCopyTrigger: (trigger: string) => Promise<void>
   onPreviewCover: (item: CivitaiLoraLibraryItem) => void
 }
@@ -1337,6 +1361,42 @@ function CivitaiLoraInspector({
   const isGeneratable = item
     ? isCivitaiBaseModelGeneratable(item.baseModelFamily)
     : true
+
+  // Multi-outfit LoRAs: Civitai authors stash per-costume activation
+  // prompts in description <pre><code> blocks; we surface them as a chip
+  // selector inside the Try-Prompt panel. Reset on item change so we
+  // don't show outfit 3 of LoRA A when switching to LoRA B — using the
+  // React 19 "reset state on prop change in render" pattern instead of
+  // useEffect to avoid the set-state-in-effect lint and the extra render.
+  const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0)
+  const [trackedItemId, setTrackedItemId] = useState(item?.id ?? null)
+  if (item?.id !== trackedItemId) {
+    setTrackedItemId(item?.id ?? null)
+    setSelectedOutfitIndex(0)
+  }
+
+  // outfits[0] is the primary; alternates [1..] only exist for
+  // multi-outfit character LoRAs. Single-outfit LoRAs keep the
+  // original flat (no chips) layout.
+  const outfits = useMemo(() => {
+    if (!item) return []
+    const alts = item.recommendedPromptAlternates
+    if (!item.recommendedPrompt && alts.length === 0) return []
+    const first = {
+      label: alts.length > 0 ? t('outfitDefaultLabel', { n: 1 }) : '',
+      prompt: item.recommendedPrompt ?? buildLoraPromptTemplate(item),
+    }
+    const rest = alts.map((alt, idx) => ({
+      label: alt.label || t('outfitDefaultLabel', { n: idx + 2 }),
+      prompt: alt.prompt,
+    }))
+    return [first, ...rest]
+  }, [item, t])
+
+  const hasOutfitTabs = outfits.length > 1
+  const displayedPrompt = item
+    ? (outfits[selectedOutfitIndex]?.prompt ?? buildLoraPromptTemplate(item))
+    : ''
 
   if (!item) {
     // Hide the empty-state inspector on phone-portrait: it just shows a
@@ -1499,10 +1559,11 @@ function CivitaiLoraInspector({
             <span className="inline-flex items-center gap-1.5">
               <Wand2 className="size-3" aria-hidden />
               {t('tryPromptLabel')}
-              {/* When the template comes from the author's trainedWords[0]
-                  rather than our generic scaffold, badge it so users know
-                  this is the maker's tuned starter prompt — much more
-                  reliable than our "portrait, dynamic pose, …" template. */}
+              {/* When the template comes from the author's trainedWords or
+                  description code blocks rather than our generic scaffold,
+                  badge it so users know this is the maker's tuned starter
+                  prompt — much more reliable than our "portrait, dynamic
+                  pose, …" template. */}
               {item.recommendedPrompt ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
                   <Sparkles className="size-2.5" aria-hidden />
@@ -1512,14 +1573,40 @@ function CivitaiLoraInspector({
             </span>
             <button
               type="button"
-              onClick={() => void onCopyTryPrompt(item)}
+              onClick={() => void onCopyTryPrompt(item, displayedPrompt)}
               className="text-2xs font-medium text-foreground hover:text-primary"
             >
               {t('tryPromptCopy')}
             </button>
           </div>
-          <p className="mt-1.5 break-words font-mono text-2xs leading-relaxed text-foreground">
-            {buildLoraPromptTemplate(item)}
+          {/* Multi-outfit chip selector: lets the user flip between e.g.
+              costume1 / costume2 of a character LoRA before copying. Only
+              renders when alternates exist — single-outfit LoRAs keep the
+              flat layout. */}
+          {hasOutfitTabs ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {outfits.map((outfit, idx) => {
+                const isActive = idx === selectedOutfitIndex
+                return (
+                  <button
+                    key={`${outfit.label}-${idx}`}
+                    type="button"
+                    onClick={() => setSelectedOutfitIndex(idx)}
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {outfit.label}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+          <p className="mt-1.5 max-h-32 overflow-y-auto break-words font-mono text-2xs leading-relaxed text-foreground">
+            {displayedPrompt}
           </p>
         </div>
 

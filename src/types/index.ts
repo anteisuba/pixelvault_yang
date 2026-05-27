@@ -3321,9 +3321,20 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 造型）。`triggerWord` 是主推荐，`triggerAlternates` 是其他候选 — 空数组
   // 意味着只有一个触发词。
   triggerAlternates: z.array(z.string()),
-  // Civitai 作者声明的「整段推荐 prompt」（trainedWords[0] 清洗后）。null
-  // 意味着作者未提供，UI 应回退到内部模板。
+  // Civitai 作者声明的「整段推荐 prompt」（trainedWords[0] 清洗后，或
+  // description 中第一个 `<pre><code>` outfit prompt）。null 意味着作者
+  // 既没写 trainedWords 也没写 description code block，UI 应回退到内部
+  // 模板。
   recommendedPrompt: z.string().nullable(),
+  // 多 outfit / variant LoRA 的其余 prompt 候选（来自 description 的第 2+
+  // 个 code block）。`recommendedPrompt` 已经包含第一个，这里只有后续的。
+  // 空数组表示没有变体。UI 应展示 chip / tab 切换让用户选择。
+  recommendedPromptAlternates: z.array(
+    z.object({
+      label: z.string(),
+      prompt: z.string(),
+    }),
+  ),
   // 'official' = trigger 来自 Civitai 作者；'inferred' = 我们从模型名推断的，
   // UI 应展示「推断」徽章提示用户可能不准确。
   triggerSource: z.enum(['official', 'inferred']),

@@ -32,6 +32,7 @@ function makeItem(
     triggerWord: `trigger-${id}`,
     triggerAlternates: [],
     recommendedPrompt: null,
+    recommendedPromptAlternates: [],
     triggerSource: 'official',
     loraUrl: `https://example.com/lora/${id}.safetensors`,
     coverImageUrl: null,

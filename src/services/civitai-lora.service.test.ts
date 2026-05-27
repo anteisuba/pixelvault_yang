@@ -212,6 +212,70 @@ describe('listCivitaiLoras', () => {
     expect(rich.items[0]?.triggerSource).toBe('official')
   })
 
+  it('lifts outfit prompts from model.description when trainedWords is empty (the wuthering-waves Denia case)', async () => {
+    // Real-world bug: trainedWords=[], tags[0]='character', but the
+    // activation token `c1`/`c2` lives in description <pre><code> blocks.
+    // Old service shipped trigger='character' and a useless template;
+    // new service must lift the description prompt and expose both
+    // outfits so users actually get the LoRA they expect.
+    const description = `<ul><li><p>This is the character <strong>"Denia"</strong>.</p></li></ul>
+<p><strong>outfits:</strong></p>
+<p><strong>costume1</strong></p>
+<pre><code>purple eyes,pink pupils,pink hair,c1,white hair ribbon,2d style,</code></pre>
+<p><strong>costume2</strong></p>
+<pre><code>black halo,purple eyes,c2,black hair ribbon,2d style,</code></pre>`
+
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 2649729,
+            name: '鸣潮 (Wuthering Waves) || 达妮娅 (Denia)',
+            type: 'LORA',
+            description,
+            tags: ['character', 'woman', 'wuthering waves', '鸣潮', 'denia'],
+            modelVersions: [
+              {
+                id: 2975273,
+                name: 'ILLU',
+                baseModel: 'Illustrious',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl:
+                      'https://civitai.com/api/download/models/2975273',
+                  },
+                ],
+                trainedWords: [],
+                images: [],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+    const item = result.items[0]
+    expect(item).toBeDefined()
+    // Critical: trigger MUST NOT be 'character' (the tag fallback bug
+    // that shipped the original wrong UX).
+    expect(item?.triggerWord).not.toBe('character')
+    // Recommended prompt is lifted from description block #1 so copying
+    // it activates `c1` outfit.
+    expect(item?.recommendedPrompt).toContain('c1')
+    expect(item?.recommendedPrompt).toContain('white hair ribbon')
+    // Block #2 is exposed as alternate so the c2 outfit isn't lost.
+    expect(item?.recommendedPromptAlternates).toHaveLength(1)
+    expect(item?.recommendedPromptAlternates[0]?.label).toBe('costume2')
+    expect(item?.recommendedPromptAlternates[0]?.prompt).toContain('c2')
+    // Author wrote the prompts in description so this counts as official.
+    expect(item?.triggerSource).toBe('official')
+  })
+
   it('rewrites Civitai cover URLs to sized transforms and keeps the original for the lightbox', async () => {
     const ORIGINAL_URL =
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/original=true/1917130.jpeg'

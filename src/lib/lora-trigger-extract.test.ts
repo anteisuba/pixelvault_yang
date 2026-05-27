@@ -13,7 +13,52 @@ describe('extractCivitaiTrigger', () => {
     expect(result.trigger).toBe('鸣潮')
     expect(result.source).toBe('inferred')
     expect(result.recommendedPrompt).toBeNull()
+    expect(result.recommendedPromptAlternates).toEqual([])
     expect(result.alternates).toEqual([])
+  })
+
+  // ─── Pattern 1b: empty trainedWords BUT description has code blocks
+  //   This is the user-reported "screenshot bug" case: the character LoRA
+  //   left trainedWords empty and put activation prompts in description
+  //   <pre><code> blocks instead. The real trigger `c1` is buried inside
+  //   the prompt — only copying the full prompt activates the LoRA.
+
+  it('lifts outfit prompts from description <pre><code> when trainedWords is empty', () => {
+    const html = `<p><strong>outfits:</strong></p>
+<p><strong>costume1</strong></p>
+<pre><code>purple eyes,pink pupils,pink hair,c1,white hair ribbon,2d style,</code></pre>
+<p><strong>costume2</strong></p>
+<pre><code>black halo,purple eyes,c2,black hair ribbon,2d style,</code></pre>`
+    const result = extractCivitaiTrigger({
+      trainedWords: [],
+      modelName: '鸣潮 (Wuthering Waves) || 达妮娅 (Denia)',
+      descriptionHtml: html,
+    })
+    // Author wrote prompts in description → treat as 'official' even
+    // though trainedWords is empty; users copying the full prompt will
+    // correctly activate the LoRA.
+    expect(result.source).toBe('official')
+    expect(result.recommendedPrompt).toContain('c1')
+    expect(result.recommendedPrompt).toContain('white hair ribbon')
+    expect(result.recommendedPromptAlternates).toHaveLength(1)
+    expect(result.recommendedPromptAlternates[0]?.label).toBe('costume2')
+    expect(result.recommendedPromptAlternates[0]?.prompt).toContain('c2')
+    // Trigger word is still inferred from model name (no good way to pick
+    // a single token from "purple eyes, pink pupils, ..., c1, ..."), so
+    // the UI should rely on recommendedPrompt as the primary path.
+    expect(result.trigger).toBe('鸣潮')
+  })
+
+  it('prefers trainedWords over description when both exist', () => {
+    const html = '<pre><code>fallback_prompt</code></pre>'
+    const result = extractCivitaiTrigger({
+      trainedWords: ['real_trigger, 1girl'],
+      modelName: 'Some Model',
+      descriptionHtml: html,
+    })
+    expect(result.trigger).toBe('real_trigger')
+    expect(result.recommendedPrompt).toBe('real_trigger, 1girl')
+    expect(result.recommendedPromptAlternates).toEqual([])
   })
 
   it('infers English token from model name skipping generic stop words', () => {

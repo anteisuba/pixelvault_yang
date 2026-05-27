@@ -1494,7 +1494,7 @@ function PresetRailPanel({
       className={cn(
         'rounded-2xl border border-border bg-card p-4',
         variant === 'rail' &&
-          'xl:max-h-[calc(100vh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
+          'xl:max-h-[calc(100dvh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
       )}
     >
       <div className="mb-3 space-y-0.5">
@@ -1547,7 +1547,7 @@ function TrainingBranch() {
   }, [])
 
   const historyRail = (
-    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
+    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100dvh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
       <LoraTrainingHistorySidebar />
     </aside>
   )

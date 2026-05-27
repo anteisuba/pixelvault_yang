@@ -137,7 +137,7 @@ export function StudioNodeWorkbench() {
   return (
     <section
       ref={canvasRef}
-      className="dark relative h-[calc(100vh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground"
+      className="dark relative h-[calc(100dvh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground"
     >
       <ReactFlowProvider>
         <StudioNodeCanvas canvasRef={canvasRef} />

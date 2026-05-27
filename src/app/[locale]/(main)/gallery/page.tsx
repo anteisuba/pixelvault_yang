@@ -69,7 +69,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
   const total = initialPage.total ?? initialPage.generations.length
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-dvh">
       <div className="mx-auto max-w-gallery px-4 pt-6 pb-12 sm:px-6 lg:px-8">
         <GalleryFeed
           initialGenerations={initialPage.generations}

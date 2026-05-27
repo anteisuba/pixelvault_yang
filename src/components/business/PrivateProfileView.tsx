@@ -20,7 +20,7 @@ export function PrivateProfileView({
   const t = useTranslations('CreatorProfile')
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <div className="max-w-content mx-auto px-4 sm:px-6 pt-12 pb-20">
         <div className="flex flex-col items-center text-center">
           {/* Avatar */}

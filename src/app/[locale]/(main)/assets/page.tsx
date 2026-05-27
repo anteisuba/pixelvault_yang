@@ -128,7 +128,7 @@ export default async function AssetsPage({
     ]
 
     return (
-      <div className="flex h-[calc(100vh-3rem)] flex-col bg-background">
+      <div className="flex h-[calc(100dvh-3rem)] flex-col bg-background">
         <div className="relative flex min-h-0 flex-1 gap-4 px-2 sm:px-6">
           {/* ─── Main grid preview (blurred) ──────────────────── */}
           <main

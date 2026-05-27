@@ -348,7 +348,7 @@ html:lang(zh) {
 
   .editorial-page {
     position: relative;
-    min-height: calc(100vh - 3.5rem);
+    min-height: calc(100dvh - 3.5rem);
   }
 
   .editorial-page::before {

@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
@@ -25,11 +25,16 @@ export default async function MainLayout({
   // (not merges) on nesting.
   const fullMessages = await getMessages({ locale })
   const sidebarState = (await cookies()).get('sidebar_state')?.value
-  const defaultSidebarOpen =
-    sidebarState === undefined ? true : sidebarState === 'true'
+  const userAgent = (await headers()).get('user-agent') ?? ''
+  const isMobileUA = /Mobile|iP(hone|ad|od)|Android/i.test(userAgent)
+  const defaultSidebarOpen = isMobileUA
+    ? false
+    : sidebarState === undefined
+      ? true
+      : sidebarState === 'true'
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background">
+    <div className="min-h-dvh overflow-x-hidden bg-background">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"

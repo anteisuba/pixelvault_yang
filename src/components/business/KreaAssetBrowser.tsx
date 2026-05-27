@@ -1194,7 +1194,7 @@ export function KreaAssetBrowser({
   return (
     <div
       className={cn(
-        'flex h-[calc(100vh-3rem)] flex-col bg-background',
+        'flex h-[calc(100dvh-3rem)] flex-col bg-background',
         className,
       )}
     >

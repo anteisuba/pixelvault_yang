@@ -69,7 +69,7 @@ export function StudioKeepChangePanel({
         side="bottom"
         aria-describedby={undefined}
         data-has-intent={currentIntent !== null}
-        className="max-h-screen md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:border-l md:border-t-0"
+        className="max-h-dvh md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:border-l md:border-t-0"
       >
         <SheetHeader>
           <SheetTitle className="font-display">{t('title')}</SheetTitle>

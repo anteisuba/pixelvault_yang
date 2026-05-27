@@ -123,18 +123,24 @@ export function useCivitaiMinedPrompts(
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const requestIdRef = useRef(0)
 
+  // Effect depends on **primitive** identifiers, not the item object,
+  // because callers commonly construct the input as an inline `{...}`
+  // literal — a new reference every render. Depending on `[item]` made
+  // the effect re-run forever → dispatch → re-render → repeat, tripping
+  // React's "Maximum update depth exceeded" guard.
+  const modelId = item?.modelId
+  const fileHashAutoV3 = item?.fileHashAutoV3
+  const modelVersionId = item?.modelVersionId
+
   useEffect(() => {
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
 
-    // No item or missing Civitai identifiers → idle. Reset to EMPTY so a
-    // previous LoRA's mined data doesn't leak into the next selection.
-    // modelId is required server-side; without it there's nothing to
-    // query even if a hash exists.
-    const modelId = item?.modelId
-    const fileHashAutoV3 = item?.fileHashAutoV3
-    const modelVersionId = item?.modelVersionId
-    if (!item || !fileHashAutoV3 || !modelId) {
+    // No Civitai identifiers → idle. Reset to EMPTY so a previous LoRA's
+    // mined data doesn't leak into the next selection. modelId is
+    // required server-side; without it there's nothing to query even if
+    // a hash exists.
+    if (!fileHashAutoV3 || !modelId) {
       dispatch({ type: 'idle' })
       return
     }
@@ -187,7 +193,7 @@ export function useCivitaiMinedPrompts(
         }
       })
     })
-  }, [item])
+  }, [modelId, modelVersionId, fileHashAutoV3])
 
   return state
 }

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
+import { buildInspirationContext } from '@/services/inspiration.service'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,
@@ -76,22 +77,28 @@ RULES:
 - Do not include explanations, markdown headings, JSON, or negative prompt unless the user explicitly asks for it`
   }
 
-  return `You are a professional AI image generation prompt engineer.
-The user will describe what they want in natural language (any language).
+  return `# Role
+You are a Senior Visual Logic Analyst and prompt engineer for AI image generation.
+The user will describe what they want in natural language (any language) — sometimes across multiple turns. Your job is to turn that intent into a precise, executable prompt that modern reasoning models (Gemini 3 Pro Image, GPT Image 2, Seedream, FLUX 2) can render reliably.
 
-If a reference image is provided, analyze its visual characteristics
-(art medium, color palette, lighting, texture, composition, mood, effects)
-and incorporate those qualities into the prompt unless the user
-explicitly asks to change them.${modelSection}
+# Method (apply all four)
+1. Technical Precision over Feeling — translate vibes into technical causes (instead of "moody," use "low-key chiaroscuro lighting, desaturated cool palette, deep shadow fall-off"; instead of "cinematic," specify the lens, lighting setup, and framing).
+2. Quantifiable Spatial Logic — establish foreground / middle ground / background; specify camera framing, focal length, or aperture when the subject calls for it.
+3. Material & Sensory Physics — describe how materials interact with light (subsurface scattering, specular highlights, micro-textures, atmospheric haze, reflections).
+4. Cohesive Narrative — the prompt must read like a single coherent paragraph from a director's script, not a tag dump.
 
-RULES:
-- Output ONLY the prompt text inside a markdown code block (\`\`\`)
-- Be specific about visual details (lighting, texture, color, composition, effects)
-- Preserve the user's intent exactly
-- Each response should be a complete, ready-to-use prompt
-- If the user asks to modify a previous prompt, build on the last version
-- Support any language input
-- Output the final prompt in ${languageLabel}`
+# Reference Image
+If a reference image is attached, analyze its medium, palette, lighting architecture, texture, composition, and mood, and incorporate those qualities into the prompt — unless the user explicitly asks to change them.
+
+# Multi-turn Behavior
+If the user is iterating on a previous prompt, build on the last version: keep what they liked, change only what they asked to change.${modelSection}
+
+# Strict Output Protocol
+- Output ONLY the final prompt text inside a single markdown code block (\`\`\`).
+- Inside the code block: ONE dense, well-structured paragraph. No headings, no "Part 1 / Part 2," no bullet lists, no quotes.
+- Preserve the user's core subject and intent exactly.
+- Support any input language. Write the final prompt in ${languageLabel}.
+- No meta-commentary outside the code block. No explanations like "Here's the prompt:" — just the code block.`
 }
 
 // ─── Flatten conversation into user prompt ──────────────────────
@@ -149,15 +156,22 @@ export async function chatPromptAssistant(
   apiKeyId?: string,
   responseLanguage: PromptAssistantResponseLanguage = 'english',
   mode: PromptAssistantMode = 'general',
+  useInspirationContext?: boolean,
 ): Promise<{ prompt: string }> {
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  const systemPrompt = buildAssistantSystemPrompt(
-    modelId,
-    responseLanguage,
-    mode,
-  )
+  let systemPrompt = buildAssistantSystemPrompt(modelId, responseLanguage, mode)
+
+  // RAG: inject curated examples only on the first turn — later turns are
+  // iterative refinements where extra reference examples would dilute the
+  // user's evolving intent.
+  if (useInspirationContext && messages.length === 1) {
+    const seedPrompt = currentPrompt?.trim() || messages[0]?.content || ''
+    const contextBlock = await buildInspirationContext(seedPrompt)
+    if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
+  }
+
   const userPrompt = flattenConversation(messages, currentPrompt)
 
   const rawResult = await llmTextCompletion({

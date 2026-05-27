@@ -963,3 +963,43 @@ model ExtractedElement {
   @@index([userId, createdAt(sort: Desc)])
   @@index([sourceGenerationId])
 }
+
+// ─── Inspiration Prompt (curated public prompt library) ──────────
+//
+// Public, read-only catalog of curated prompts imported from external
+// sources (initially MeiGen-AI-Design's trending-prompts dataset,
+// ~1446 entries). Users browse, filter, and "clone to my Recipe" —
+// cloning copies the prompt text into a new Recipe owned by the user.
+// No userId here; this table is shared infrastructure.
+//
+// Primary key is the source ID (e.g. an X/Twitter status id) so the
+// import script can run idempotently — re-importing upserts in place.
+
+model InspirationPrompt {
+  id     String @id // source ID, e.g. "2017928823497453789"
+  source String @default("meigen") // origin dataset identifier
+
+  rank       Int      @default(0)
+  prompt     String   @db.Text
+  author     String // source handle, e.g. "TechieBySA"
+  authorName String // display name, e.g. "TechieSA"
+  likes      Int      @default(0)
+  views      Int      @default(0)
+  imageUrl   String   @db.Text
+  modelHint  String? // upstream model tag, e.g. "gptimage", "nanobanana"
+  categories String[] @default([]) // e.g. ["UI & Graphic"]
+  sourceUrl  String   @db.Text // original post URL
+
+  rating      Float?
+  score       Float?
+  publishedAt DateTime?
+
+  isPublic Boolean @default(true) // soft hide without losing the row
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublic, rank])
+  @@index([source])
+}
+

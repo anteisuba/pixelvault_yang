@@ -85,7 +85,8 @@ export const ModelName = {
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene',
-  ExtractedElement: 'ExtractedElement'
+  ExtractedElement: 'ExtractedElement',
+  InspirationPrompt: 'InspirationPrompt'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -757,6 +758,30 @@ export const ExtractedElementScalarFieldEnum = {
 } as const
 
 export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
+
+
+export const InspirationPromptScalarFieldEnum = {
+  id: 'id',
+  source: 'source',
+  rank: 'rank',
+  prompt: 'prompt',
+  author: 'author',
+  authorName: 'authorName',
+  likes: 'likes',
+  views: 'views',
+  imageUrl: 'imageUrl',
+  modelHint: 'modelHint',
+  categories: 'categories',
+  sourceUrl: 'sourceUrl',
+  rating: 'rating',
+  score: 'score',
+  publishedAt: 'publishedAt',
+  isPublic: 'isPublic',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
 
 
 export const SortOrder = {

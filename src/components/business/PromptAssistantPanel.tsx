@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   ArrowRight,
   Bot,
+  BookOpen,
   Check,
   ChevronDown,
   Loader2,
@@ -130,6 +131,7 @@ export function PromptAssistantPanel({
   const [selectedApiKeyId, setSelectedApiKeyId] = useState<string | undefined>(
     llmApiKeys?.[0]?.id,
   )
+  const [useInspirationContext, setUseInspirationContext] = useState(false)
   const [referenceImage, setReferenceImage] =
     useState<AssistantReferenceImage | null>(
       referenceImageData
@@ -155,6 +157,7 @@ export function PromptAssistantPanel({
       currentPrompt,
       apiKeyId: selectedApiKeyId,
       responseLanguage,
+      useInspirationContext,
     }),
     [
       modelId,
@@ -162,6 +165,7 @@ export function PromptAssistantPanel({
       currentPrompt,
       selectedApiKeyId,
       responseLanguage,
+      useInspirationContext,
     ],
   )
 
@@ -314,6 +318,12 @@ export function PromptAssistantPanel({
         selectedApiKeyId={selectedApiKeyId}
         selectApiKeyLabel={t('selectApiKey')}
         onSelectApiKey={setSelectedApiKeyId}
+        useInspirationContext={useInspirationContext}
+        onToggleInspirationContext={() =>
+          setUseInspirationContext((prev) => !prev)
+        }
+        inspirationContextLabel={t('useInspirationContext')}
+        inspirationContextOnLabel={t('useInspirationContextOn')}
         onClear={clear}
         onReferenceFile={handleReferenceFile}
         onReferenceAsset={handleReferenceAsset}
@@ -356,6 +366,10 @@ interface AssistantAnimatedInputProps {
   sendLabel: string
   showClear: boolean
   value: string
+  useInspirationContext: boolean
+  onToggleInspirationContext: () => void
+  inspirationContextLabel: string
+  inspirationContextOnLabel: string
 }
 
 function AssistantAnimatedInput({
@@ -372,6 +386,7 @@ function AssistantAnimatedInput({
   onResponseLanguageChange,
   onSelectApiKey,
   onSubmit,
+  onToggleInspirationContext,
   onValueChange,
   placeholder,
   referenceImageAlt,
@@ -388,6 +403,9 @@ function AssistantAnimatedInput({
   sendLabel,
   showClear,
   value,
+  useInspirationContext,
+  inspirationContextLabel,
+  inspirationContextOnLabel,
 }: AssistantAnimatedInputProps) {
   const [isComposing, setIsComposing] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
@@ -530,6 +548,27 @@ function AssistantAnimatedInput({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={inspirationContextLabel}
+              aria-pressed={useInspirationContext}
+              title={
+                useInspirationContext
+                  ? inspirationContextOnLabel
+                  : inspirationContextLabel
+              }
+              disabled={disabled}
+              onClick={onToggleInspirationContext}
+              className={cn(
+                'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                useInspirationContext && 'bg-primary/10 text-primary',
+              )}
+            >
+              <BookOpen className="size-4" />
+            </Button>
 
             <input
               ref={fileInputRef}

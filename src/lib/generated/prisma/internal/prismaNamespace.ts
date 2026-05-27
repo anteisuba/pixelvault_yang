@@ -418,7 +418,8 @@ export const ModelName = {
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene',
-  ExtractedElement: 'ExtractedElement'
+  ExtractedElement: 'ExtractedElement',
+  InspirationPrompt: 'InspirationPrompt'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -434,7 +435,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement"
+    modelProps: "user" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3028,6 +3029,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    InspirationPrompt: {
+      payload: Prisma.$InspirationPromptPayload<ExtArgs>
+      fields: Prisma.InspirationPromptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InspirationPromptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InspirationPromptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        findFirst: {
+          args: Prisma.InspirationPromptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InspirationPromptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        findMany: {
+          args: Prisma.InspirationPromptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
+        }
+        create: {
+          args: Prisma.InspirationPromptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        createMany: {
+          args: Prisma.InspirationPromptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InspirationPromptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
+        }
+        delete: {
+          args: Prisma.InspirationPromptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        update: {
+          args: Prisma.InspirationPromptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        deleteMany: {
+          args: Prisma.InspirationPromptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InspirationPromptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InspirationPromptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
+        }
+        upsert: {
+          args: Prisma.InspirationPromptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
+        }
+        aggregate: {
+          args: Prisma.InspirationPromptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInspirationPrompt>
+        }
+        groupBy: {
+          args: Prisma.InspirationPromptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InspirationPromptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InspirationPromptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InspirationPromptCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3722,6 +3797,30 @@ export const ExtractedElementScalarFieldEnum = {
 export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
 
 
+export const InspirationPromptScalarFieldEnum = {
+  id: 'id',
+  source: 'source',
+  rank: 'rank',
+  prompt: 'prompt',
+  author: 'author',
+  authorName: 'authorName',
+  likes: 'likes',
+  views: 'views',
+  imageUrl: 'imageUrl',
+  modelHint: 'modelHint',
+  categories: 'categories',
+  sourceUrl: 'sourceUrl',
+  rating: 'rating',
+  score: 'score',
+  publishedAt: 'publishedAt',
+  isPublic: 'isPublic',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -4136,6 +4235,7 @@ export type GlobalOmitConfig = {
   videoScript?: Prisma.VideoScriptOmit
   videoScriptScene?: Prisma.VideoScriptSceneOmit
   extractedElement?: Prisma.ExtractedElementOmit
+  inspirationPrompt?: Prisma.InspirationPromptOmit
 }
 
 /* Types for Logging */

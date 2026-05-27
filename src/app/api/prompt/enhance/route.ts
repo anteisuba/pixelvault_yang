@@ -26,6 +26,7 @@ export const POST = createApiRoute<
       data.style,
       data.modelId,
       data.apiKeyId,
+      data.useInspirationContext,
     )
   },
 })

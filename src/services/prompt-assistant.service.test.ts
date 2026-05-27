@@ -18,6 +18,12 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
 }))
 
+const mockBuildInspirationContext = vi.fn()
+vi.mock('@/services/inspiration.service', () => ({
+  buildInspirationContext: (...a: unknown[]) =>
+    mockBuildInspirationContext(...a),
+}))
+
 import { chatPromptAssistant } from '@/services/prompt-assistant.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -36,6 +42,7 @@ describe('chatPromptAssistant', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockResolveLlmRoute.mockResolvedValue(FAKE_ROUTE)
+    mockBuildInspirationContext.mockResolvedValue('')
   })
 
   it('extracts prompt from a code block in the LLM response', async () => {
@@ -115,5 +122,96 @@ describe('chatPromptAssistant', () => {
     expect(call.systemPrompt).toContain('Output the prompt in English')
     expect(call.systemPrompt).toContain('Preserve existing LoRA trigger words')
     expect(call.systemPrompt).not.toContain('Simplified Chinese')
+  })
+
+  // ── RAG: useInspirationContext ─────────────────────────────────
+
+  it('does NOT query the inspiration library when useInspirationContext is false', async () => {
+    mockLlmCompletion.mockResolvedValue('```\na sleepy cat\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'a cat under a tree' }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'english',
+      'general',
+      false,
+    )
+
+    expect(mockBuildInspirationContext).not.toHaveBeenCalled()
+  })
+
+  it('injects inspiration context into the system prompt on the first turn', async () => {
+    const INSPIRATION_BLOCK =
+      '\n\n# Reference Examples (from a curated prompt library)\n... Example 1: dramatic cat scene ...'
+    mockBuildInspirationContext.mockResolvedValue(INSPIRATION_BLOCK)
+    mockLlmCompletion.mockResolvedValue('```\na cat in golden hour\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'a cat under a tree' }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'english',
+      'general',
+      true,
+    )
+
+    expect(mockBuildInspirationContext).toHaveBeenCalledWith(
+      'a cat under a tree',
+    )
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+      systemPrompt: string
+    }
+    expect(call.systemPrompt).toContain('Reference Examples')
+    expect(call.systemPrompt).toContain('dramatic cat scene')
+  })
+
+  it('does NOT inject inspiration context on follow-up turns', async () => {
+    mockLlmCompletion.mockResolvedValue('```\nrefined prompt\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [
+        { role: 'user', content: 'a cat under a tree' },
+        { role: 'assistant', content: 'A tabby cat resting beneath...' },
+        { role: 'user', content: 'make it more dramatic' },
+      ],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'english',
+      'general',
+      true,
+    )
+
+    expect(mockBuildInspirationContext).not.toHaveBeenCalled()
+  })
+
+  it('prefers currentPrompt over the first message when seeding inspiration lookup', async () => {
+    mockBuildInspirationContext.mockResolvedValue('')
+    mockLlmCompletion.mockResolvedValue('```\nok\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'make it cinematic' }],
+      undefined,
+      undefined,
+      'an existing prompt about a cat',
+      undefined,
+      'english',
+      'general',
+      true,
+    )
+
+    expect(mockBuildInspirationContext).toHaveBeenCalledWith(
+      'an existing prompt about a cat',
+    )
   })
 })

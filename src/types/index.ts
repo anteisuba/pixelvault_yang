@@ -1732,6 +1732,9 @@ export const EnhancePromptRequestSchema = z.object({
   /** Current model ID for model-aware enhancement hints */
   modelId: z.string().optional(),
   apiKeyId: z.string().optional(),
+  /** When true, search the curated inspiration library and inject top-3
+   *  matches as a few-shot reference block into the system prompt. */
+  useInspirationContext: z.boolean().optional(),
 })
 
 export type EnhancePromptRequest = z.infer<typeof EnhancePromptRequestSchema>
@@ -1776,6 +1779,9 @@ export const PromptAssistantRequestSchema = z.object({
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
   /** Specialized prompt conversion mode */
   mode: PromptAssistantModeSchema.optional(),
+  /** When true (and only on the first turn), inject top-3 curated
+   *  inspiration prompts as a few-shot reference block. */
+  useInspirationContext: z.boolean().optional(),
 })
 
 export type PromptAssistantRequest = z.infer<
@@ -3710,6 +3716,58 @@ export type RecipeRecord = {
   isDeleted: boolean
   createdAt: string
   updatedAt: string
+}
+
+// ─── Inspiration Library (public curated prompts) ─────────────────
+
+export const INSPIRATION_SORT_BY = ['rank', 'likes', 'views', 'recent'] as const
+export type InspirationSortBy = (typeof INSPIRATION_SORT_BY)[number]
+
+export const ListInspirationsQuerySchema = z.object({
+  category: z.string().trim().max(80).optional(),
+  query: z.string().trim().max(200).optional(),
+  sortBy: z.enum(INSPIRATION_SORT_BY).default('rank'),
+  limit: z.coerce.number().int().positive().max(60).default(24),
+  offset: z.coerce.number().int().nonnegative().default(0),
+})
+
+export type ListInspirationsQuery = z.infer<typeof ListInspirationsQuerySchema>
+
+export const CloneInspirationRequestSchema = z.object({
+  modelId: z.string().trim().min(1).max(100).optional(),
+  provider: z.string().trim().min(1).max(100).optional(),
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']).optional(),
+})
+
+export type CloneInspirationRequest = z.infer<
+  typeof CloneInspirationRequestSchema
+>
+
+/** Wire-format inspiration record returned from the API (dates ISO strings) */
+export type InspirationRecord = {
+  id: string
+  source: string
+  rank: number
+  prompt: string
+  author: string
+  authorName: string
+  likes: number
+  views: number
+  imageUrl: string
+  modelHint: string | null
+  categories: string[]
+  sourceUrl: string
+  rating: number | null
+  score: number | null
+  publishedAt: string | null
+  isPublic: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type ListInspirationsResponse = {
+  inspirations: InspirationRecord[]
+  total: number
 }
 
 // ─── Voice Card Persistence ──────────────────────────────────────

@@ -219,3 +219,8 @@ export type VideoScriptScene = Prisma.VideoScriptSceneModel
  * 
  */
 export type ExtractedElement = Prisma.ExtractedElementModel
+/**
+ * Model InspirationPrompt
+ * 
+ */
+export type InspirationPrompt = Prisma.InspirationPromptModel

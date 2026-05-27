@@ -49,6 +49,7 @@ export function usePromptAssistant() {
         apiKeyId?: string
         responseLanguage?: PromptAssistantResponseLanguage
         mode?: PromptAssistantMode
+        useInspirationContext?: boolean
       },
     ) => {
       if (!text.trim()) return
@@ -76,6 +77,7 @@ export function usePromptAssistant() {
         apiKeyId: opts?.apiKeyId,
         responseLanguage: opts?.responseLanguage,
         mode: opts?.mode,
+        useInspirationContext: opts?.useInspirationContext,
       })
 
       if (result.success && result.data) {
@@ -109,6 +111,7 @@ export function usePromptAssistant() {
         apiKeyId?: string
         responseLanguage?: PromptAssistantResponseLanguage
         mode?: PromptAssistantMode
+        useInspirationContext?: boolean
       },
     ) => {
       const text = STYLE_SHORTCUTS[style]

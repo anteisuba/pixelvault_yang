@@ -71,6 +71,10 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.fal.media' },
       { protocol: 'https', hostname: 'replicate.delivery' },
       { protocol: 'https', hostname: 'img.clerk.com' },
+      // Inspiration library source — curated prompt thumbnails imported
+      // from MeiGen-AI-Design's trending-prompts dataset. Phase 1 uses
+      // external hot-linking; a future PR will mirror to R2.
+      { protocol: 'https', hostname: 'images.meigen.ai' },
     ],
   },
   async headers() {

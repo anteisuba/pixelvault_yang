@@ -22,14 +22,24 @@ export function usePromptEnhance() {
   })
 
   const enhance = useCallback(
-    async (prompt: string, style: PromptEnhanceStyle, apiKeyId?: string) => {
+    async (
+      prompt: string,
+      style: PromptEnhanceStyle,
+      apiKeyId?: string,
+      useInspirationContext?: boolean,
+    ) => {
       setState((prev) => ({
         ...prev,
         isEnhancing: true,
         error: null,
       }))
 
-      const result = await enhancePromptAPI({ prompt, style, apiKeyId })
+      const result = await enhancePromptAPI({
+        prompt,
+        style,
+        apiKeyId,
+        useInspirationContext,
+      })
 
       if (result.success && result.data) {
         setState({

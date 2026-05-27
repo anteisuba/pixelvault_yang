@@ -19,6 +19,7 @@ export const POST = createApiRoute({
       data.apiKeyId,
       data.responseLanguage,
       data.mode,
+      data.useInspirationContext,
     )
   },
 })

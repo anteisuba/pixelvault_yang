@@ -184,6 +184,9 @@ export const API_ENDPOINTS = {
   /** Recipes */
   RECIPES: '/api/recipes',
 
+  /** Public inspiration prompts (curated library) */
+  INSPIRATION: '/api/inspiration',
+
   /** Voice Cards */
   VOICE_CARDS: '/api/voice-cards',
 

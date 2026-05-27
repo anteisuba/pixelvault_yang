@@ -57,10 +57,16 @@ import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
+import { PlaceholderFillDialog } from '@/components/business/inspiration/PlaceholderFillDialog'
 import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
-import type { OutputType as RecipeOutputType, RecipeRecord } from '@/types'
+import { hasPlaceholders } from '@/lib/prompt-placeholders'
+import type {
+  InspirationRecord,
+  OutputType as RecipeOutputType,
+  RecipeRecord,
+} from '@/types'
 import {
   PromptInput,
   PromptInputTextarea,
@@ -230,6 +236,30 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       })
     },
     [dispatch],
+  )
+
+  // ── Inspiration: apply + placeholder dialog ─────────────────────
+  const [placeholderDialog, setPlaceholderDialog] = useState<{
+    open: boolean
+    prompt: string
+  }>({ open: false, prompt: '' })
+
+  const applyInspirationPrompt = useCallback(
+    (prompt: string) => {
+      dispatch({ type: 'SET_PROMPT', payload: prompt })
+    },
+    [dispatch],
+  )
+
+  const handleApplyInspiration = useCallback(
+    (inspiration: InspirationRecord) => {
+      if (hasPlaceholders(inspiration.prompt)) {
+        setPlaceholderDialog({ open: true, prompt: inspiration.prompt })
+      } else {
+        applyInspirationPrompt(inspiration.prompt)
+      }
+    },
+    [applyInspirationPrompt],
   )
 
   const handleApplyRecipe = useCallback(
@@ -1198,6 +1228,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                           : undefined
                       }
                       onApply={handleApplyRecipe}
+                      onApplyInspiration={handleApplyInspiration}
+                    />
+                    <PlaceholderFillDialog
+                      open={placeholderDialog.open}
+                      onOpenChange={(open) =>
+                        setPlaceholderDialog((prev) => ({ ...prev, open }))
+                      }
+                      prompt={placeholderDialog.prompt}
+                      onApply={applyInspirationPrompt}
                     />
                   </div>
                 </div>

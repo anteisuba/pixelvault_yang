@@ -88,6 +88,7 @@ describe('POST /api/prompt/enhance', () => {
       'detailed',
       undefined,
       undefined,
+      undefined,
     )
   })
 

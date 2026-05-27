@@ -3487,6 +3487,7 @@
     "layerDecompose": "レイヤー分解",
     "transform": "変換",
     "civitaiToken": "Civitai Token",
+    "advanced": "詳細",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
     "tokenPlaceholder": "Civitai API Tokenを入力",
@@ -4201,6 +4202,17 @@
     "scoreLabel": "スコア: {score}",
     "evaluating": "評価中...",
     "evalFailed": "評価できません"
+  },
+  "StudioImageAdvancedParams": {
+    "seedLabel": "Seed",
+    "seedPlaceholder": "空欄でランダム",
+    "seedHint": "同じseed + 同じprompt + 同じモデルで完全に同じ画像が再現できます。構図を保ったままタグだけを微調整したい時はseedを固定してください。",
+    "seedRandom": "ランダム",
+    "seedRandomAria": "ランダムseedを使用",
+    "seedLocked": "固定",
+    "negativePromptLabel": "Negative prompt（除外プロンプト）",
+    "negativePromptPlaceholder": "例：worst quality, lowres, blurry, extra fingers",
+    "negativePromptHint": "モデルに避けてほしい要素。定番：lowres, worst quality, extra fingers, watermark, signature。"
   },
   "StudioKeepChangePanel": {
     "title": "生成を改善",

@@ -3495,6 +3495,7 @@
     "layerDecompose": "图层分解",
     "transform": "变换",
     "civitaiToken": "Civitai Token",
+    "advanced": "高级",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
     "tokenPlaceholder": "输入 Civitai API Token",
@@ -4201,6 +4202,17 @@
     "scoreLabel": "评分：{score}",
     "evaluating": "正在评估...",
     "evalFailed": "评估不可用"
+  },
+  "StudioImageAdvancedParams": {
+    "seedLabel": "Seed",
+    "seedPlaceholder": "留空 = 随机",
+    "seedHint": "相同 seed + 相同 prompt + 相同模型 → 完全相同的图。固定 seed 可以在保持构图的前提下，只改某一个 tag 看效果。",
+    "seedRandom": "随机",
+    "seedRandomAria": "使用随机 seed",
+    "seedLocked": "已固定",
+    "negativePromptLabel": "Negative prompt（负向提示词）",
+    "negativePromptPlaceholder": "例如：worst quality, lowres, blurry, extra fingers",
+    "negativePromptHint": "希望模型避开的元素。常用起手：lowres, worst quality, extra fingers, watermark, signature。"
   },
   "StudioKeepChangePanel": {
     "title": "优化生成",

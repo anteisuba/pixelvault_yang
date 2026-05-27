@@ -3495,6 +3495,7 @@
     "layerDecompose": "Layers",
     "transform": "Transform",
     "civitaiToken": "Civitai Token",
+    "advanced": "Advanced",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
     "tokenPlaceholder": "Enter Civitai API token",
@@ -4201,6 +4202,17 @@
     "scoreLabel": "Score: {score}",
     "evaluating": "Evaluating...",
     "evalFailed": "Evaluation unavailable"
+  },
+  "StudioImageAdvancedParams": {
+    "seedLabel": "Seed",
+    "seedPlaceholder": "Leave empty for random",
+    "seedHint": "Same seed + same prompt + same model reproduces the same image. Lock the seed when you want to tweak a tag without losing the composition.",
+    "seedRandom": "Random",
+    "seedRandomAria": "Use a random seed",
+    "seedLocked": "Locked",
+    "negativePromptLabel": "Negative prompt",
+    "negativePromptPlaceholder": "e.g. worst quality, lowres, blurry, extra fingers",
+    "negativePromptHint": "Tags the model should push away from. Common starters: lowres, worst quality, extra fingers, watermark, signature."
   },
   "StudioKeepChangePanel": {
     "title": "Refine Generation",

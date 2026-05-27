@@ -82,6 +82,13 @@ const StudioVideoParams = dynamic(
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
+const StudioImageAdvancedParams = dynamic(
+  () =>
+    import('@/components/business/studio/StudioImageAdvancedParams').then(
+      (mod) => mod.StudioImageAdvancedParams,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
 const StudioScriptPanel = dynamic(
   () =>
     import('@/components/business/studio/StudioScriptPanel').then(
@@ -494,6 +501,28 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
             <AudioTranscribeDialog
               onComplete={() => closePanel('audioTranscribe')}
             />
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* ── Advanced Params (image mode) ───────────────────────
+          Phase 1A: seed lock + negative prompt. Lays the physical floor
+          for "reproduce that image" and "tweak one tag" workflows. */}
+      <ResponsiveDialog
+        open={state.panels.advanced}
+        onOpenChange={(open) => {
+          if (!open) closePanel('advanced')
+        }}
+      >
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
+          <ResponsiveDialogTitle className={DIALOG_HEADER}>
+            {tPanels('advanced')}
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="sr-only">
+            {tPanels('advanced')}
+          </ResponsiveDialogDescription>
+          <div className={DIALOG_BODY}>
+            <StudioImageAdvancedParams />
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

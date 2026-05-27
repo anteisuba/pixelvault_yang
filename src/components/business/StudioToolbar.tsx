@@ -1,6 +1,6 @@
 'use client'
 
-import { Key, Layers, Cpu } from 'lucide-react'
+import { Key, Layers, Cpu, SlidersHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -24,6 +24,17 @@ import { studioToolTriggerClass } from '@/components/business/studio/tool-surfac
 interface StudioToolbarProps {
   onLayerDecompose?: () => void
   onCivitaiToken?: () => void
+  /**
+   * Toggle the «Advanced» panel (seed lock + negative prompt). Image
+   * mode only — video/audio modes have their own params panels.
+   */
+  onAdvanced?: () => void
+  /**
+   * Indicates the user has dialled a non-random seed and/or a negative
+   * prompt — drives the active styling on the Advanced pill so users
+   * can spot from the toolbar that they're not on default settings.
+   */
+  advancedActive?: boolean
   hasToken?: boolean
   disabled?: boolean
   /** Quick mode hides advanced tools */
@@ -82,6 +93,8 @@ function ToolButton({
 export function StudioToolbar({
   onLayerDecompose,
   onCivitaiToken,
+  onAdvanced,
+  advancedActive,
   hasToken,
   disabled,
   quickMode,
@@ -122,8 +135,17 @@ export function StudioToolbar({
 
         <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
 
-        {/* Group 3 — Size */}
+        {/* Group 3 — Size + advanced params */}
         <StudioAspectRatioPopover disabled={disabled} />
+        {onAdvanced ? (
+          <ToolButton
+            icon={<SlidersHorizontal className="size-4" />}
+            label={t('advanced')}
+            onClick={onAdvanced}
+            active={advancedActive}
+            disabled={disabled}
+          />
+        ) : null}
         {!quickMode && (
           <>
             <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

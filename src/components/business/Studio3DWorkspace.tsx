@@ -76,13 +76,8 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import { ModelViewer } from '@/components/business/ModelViewer'
 import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
+import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -1471,36 +1466,14 @@ export function Studio3DWorkspace({
                   {selectedModel?.cost ?? 0} cr / gen
                 </p>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 shrink-0 rounded-full px-2.5 text-xs font-medium"
-                  >
-                    {t('changeModelButton')}
-                    <ChevronDown className="ml-1 size-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {models.map((model) => {
-                    const messageKey = getModelMessageKey(model.id)
-                    return (
-                      <DropdownMenuItem
-                        key={model.id}
-                        onClick={() => setSelectedModelId(model.id)}
-                        className={cn(
-                          model.id === selectedModelId &&
-                            'bg-accent font-medium',
-                        )}
-                      >
-                        {tModels(`${messageKey}.label`)}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <MainModelPicker
+                modality="model_3d"
+                size="compact"
+                value={`workspace:${selectedModelId}`}
+                onChange={(option) => setSelectedModelId(option.modelId)}
+                onRequestSetup={() => setQuickSetupOpen(true)}
+                triggerEmptyLabel={t('changeModelButton')}
+              />
             </div>
           </div>
 

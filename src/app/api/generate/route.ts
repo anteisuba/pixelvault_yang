@@ -1,8 +1,8 @@
 import { after } from 'next/server'
 
 import { GenerateRequestSchema } from '@/types'
-import { generateImageForUser } from '@/services/generate-image.service'
-import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image-preview-derivative.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
+import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { logger } from '@/lib/logger'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'

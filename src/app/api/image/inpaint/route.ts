@@ -4,7 +4,7 @@ import {
   inpaintImage,
   persistEditedImage,
   resolveEditApiKey,
-} from '@/services/image-edit.service'
+} from '@/services/image/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 import { InpaintRequestSchema } from '@/types'
 

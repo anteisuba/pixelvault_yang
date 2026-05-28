@@ -16,7 +16,7 @@ import type {
 } from '@/types'
 import { getModelFamily, resolveAdapterType } from '@/constants/models'
 import { getReferenceImageMode } from '@/constants/provider-capabilities'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import {
   fetchAsBuffer,
   generateStorageKey,

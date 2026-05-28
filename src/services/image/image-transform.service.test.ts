@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
-vi.mock('@/services/image-transform/handle-style-transform', () => ({
+vi.mock('@/services/image/image-transform/handle-style-transform', () => ({
   handleStyleTransform: vi.fn(),
 }))
-vi.mock('@/services/image-transform/handle-pose-transform', () => ({
+vi.mock('@/services/image/image-transform/handle-pose-transform', () => ({
   handlePoseTransform: vi.fn(),
 }))
 
-import { transformImage } from '@/services/image-transform.service'
-import { handleStyleTransform } from '@/services/image-transform/handle-style-transform'
-import { handlePoseTransform } from '@/services/image-transform/handle-pose-transform'
+import { transformImage } from '@/services/image/image-transform.service'
+import { handleStyleTransform } from '@/services/image/image-transform/handle-style-transform'
+import { handlePoseTransform } from '@/services/image/image-transform/handle-pose-transform'
 import { NotImplementedError } from '@/lib/errors'
 import type { TransformInput, TransformOutput } from '@/types/transform'
 

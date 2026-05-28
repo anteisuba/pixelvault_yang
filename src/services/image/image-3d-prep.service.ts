@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { MODEL_3D_SOURCE_QUALITY } from '@/constants/model-3d-generation'
-import { upscaleImage } from '@/services/image-edit.service'
+import { upscaleImage } from '@/services/image/image-edit.service'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,

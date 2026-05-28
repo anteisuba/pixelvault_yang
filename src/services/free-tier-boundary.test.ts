@@ -76,7 +76,7 @@ vi.mock('@/constants/models', async (importOriginal) => {
   }
 })
 
-import { resolveGenerationRoute } from '@/services/generate-image.service'
+import { resolveGenerationRoute } from '@/services/image/generate-image.service'
 import { atomicReserveFreeTierSlot } from '@/services/usage.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { getSystemApiKey } from '@/lib/platform-keys'

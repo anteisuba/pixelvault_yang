@@ -26,10 +26,10 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
-vi.mock('@/services/generate-image.service', async () => {
+vi.mock('@/services/image/generate-image.service', async () => {
   const actual = await vi.importActual<
-    typeof import('@/services/generate-image.service')
-  >('@/services/generate-image.service')
+    typeof import('@/services/image/generate-image.service')
+  >('@/services/image/generate-image.service')
 
   return {
     ...actual,

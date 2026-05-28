@@ -7,7 +7,7 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 import type { GenerationRecord } from '@/types'
 
 const MAX_POSTER_BYTES = 2 * 1024 * 1024 // 2 MB — poster is a small thumbnail

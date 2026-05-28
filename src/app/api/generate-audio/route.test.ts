@@ -26,7 +26,7 @@ vi.mock('@/constants/models', async () => {
   }
 })
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
@@ -36,7 +36,7 @@ import {
   submitAudioGeneration,
 } from '@/services/generate-audio.service'
 import { getModelById } from '@/constants/models'
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
 const mockGenerateAudioForUser = vi.mocked(generateAudioForUser)
 const mockSubmitAudioGeneration = vi.mocked(submitAudioGeneration)

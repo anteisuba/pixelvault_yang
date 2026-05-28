@@ -26,7 +26,7 @@ const { GenerateImageServiceErrorMock } = vi.hoisted(() => {
   return { GenerateImageServiceErrorMock }
 })
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   GenerateImageServiceError: GenerateImageServiceErrorMock,
   resolveGenerationRoute: vi.fn(),
 }))
@@ -53,7 +53,7 @@ vi.mock('@/services/storage/r2', () => ({
   uploadBufferedHttpToR2: vi.fn(),
 }))
 
-vi.mock('@/services/image-3d-prep.service', () => ({
+vi.mock('@/services/image/image-3d-prep.service', () => ({
   inspect3DSourceImageQuality: vi.fn(),
   prepare3DSourceImage: vi.fn(),
 }))
@@ -104,12 +104,12 @@ import {
   submit3DGenerationForUserId,
 } from './generate-3d.service'
 import { db } from '@/lib/db'
-import { resolveGenerationRoute } from '@/services/generate-image.service'
+import { resolveGenerationRoute } from '@/services/image/generate-image.service'
 import { createGeneration } from '@/services/generation.service'
 import {
   inspect3DSourceImageQuality,
   prepare3DSourceImage,
-} from '@/services/image-3d-prep.service'
+} from '@/services/image/image-3d-prep.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   attachUsageEntryToGeneration,

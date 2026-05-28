@@ -5,7 +5,7 @@ vi.mock('@/services/storage/r2', () => ({
   uploadToR2: vi.fn(),
 }))
 
-vi.mock('@/services/image-edit.service', () => ({
+vi.mock('@/services/image/image-edit.service', () => ({
   upscaleImage: vi.fn(),
 }))
 
@@ -25,7 +25,7 @@ import {
   prepare3DSourceImage,
 } from './image-3d-prep.service'
 import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
-import { upscaleImage } from '@/services/image-edit.service'
+import { upscaleImage } from '@/services/image/image-edit.service'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,

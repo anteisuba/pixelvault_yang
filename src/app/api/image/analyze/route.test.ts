@@ -8,11 +8,11 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/image-analysis.service', () => ({
+vi.mock('@/services/image/image-analysis.service', () => ({
   analyzeImage: vi.fn(),
 }))
 
-import { analyzeImage } from '@/services/image-analysis.service'
+import { analyzeImage } from '@/services/image/image-analysis.service'
 import { POST } from './route'
 
 beforeEach(() => {

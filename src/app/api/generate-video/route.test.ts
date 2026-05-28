@@ -15,13 +15,13 @@ vi.mock('@/services/generate-video.service', () => ({
   submitVideoGeneration: vi.fn(),
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
 import { POST } from '@/app/api/generate-video/route'
 import { submitVideoGeneration } from '@/services/generate-video.service'
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
 const mockSubmit = vi.mocked(submitVideoGeneration)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)

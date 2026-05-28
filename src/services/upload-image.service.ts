@@ -15,7 +15,7 @@ import {
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type { GenerationRecord, UploadImageRequest } from '@/types'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 /**
  * Persist a user-uploaded image as a first-class Generation row tagged with

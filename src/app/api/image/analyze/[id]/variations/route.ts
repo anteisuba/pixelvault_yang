@@ -5,7 +5,7 @@ import { ApiRequestError } from '@/lib/errors'
 import {
   getAnalysisById,
   generateVariations,
-} from '@/services/image-analysis.service'
+} from '@/services/image/image-analysis.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

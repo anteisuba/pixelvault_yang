@@ -26,7 +26,7 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   generateImageForUser: vi.fn(),
 }))
 
@@ -47,7 +47,7 @@ vi.mock('@/services/storage/r2', () => ({
 import {
   ANALYSIS_MAX_IMAGE_BYTES,
   analyzeImage,
-} from '@/services/image-analysis.service'
+} from '@/services/image/image-analysis.service'
 
 describe('analyzeImage', () => {
   beforeEach(() => {

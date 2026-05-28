@@ -16,7 +16,7 @@ import { compileScenePrompt } from '@/services/kernel/scene-prompt-compiler.serv
 import {
   GenerateImageServiceError,
   isGenerateImageServiceError,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import {
   checkVideoGenerationStatusForUserId,
   submitVideoGenerationForUserId,

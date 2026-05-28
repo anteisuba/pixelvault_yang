@@ -10,7 +10,7 @@ import type {
   WorkerRunContext,
 } from '@/types'
 import { WorkerDispatchResultSchema } from '@/types'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 function getInternalCallbackSecret(): string {
   const secret = process.env.INTERNAL_CALLBACK_SECRET

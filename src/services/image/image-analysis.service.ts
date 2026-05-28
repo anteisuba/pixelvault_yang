@@ -7,7 +7,7 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import {
   detectTrustedImageMime,
   fetchAsBuffer,

@@ -43,7 +43,7 @@ import { createGeneration } from '@/services/generation.service'
 import {
   resolveGenerationRoute,
   GenerateImageServiceError,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
   dispatchWorkerRun,

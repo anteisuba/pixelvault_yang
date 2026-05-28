@@ -17,7 +17,7 @@ import {
   GenerationValidationError,
   isGenerationError,
 } from '@/lib/errors'
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
 // ─── Types ───────────────────────────────────────────────────────
 

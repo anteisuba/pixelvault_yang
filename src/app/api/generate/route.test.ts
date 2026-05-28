@@ -12,11 +12,11 @@ import {
 
 // ─── Mocks ────────────────────────────────────────────────────────
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   generateImageForUser: vi.fn(),
   isGenerateImageServiceError: vi.fn(),
 }))
-vi.mock('@/services/image-preview-derivative.service', () => ({
+vi.mock('@/services/image/image-preview-derivative.service', () => ({
   processPendingImagePreviewDerivativeOutboxes: vi.fn(),
 }))
 
@@ -24,8 +24,8 @@ import { POST } from '@/app/api/generate/route'
 import {
   generateImageForUser,
   isGenerateImageServiceError,
-} from '@/services/generate-image.service'
-import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image-preview-derivative.service'
+} from '@/services/image/generate-image.service'
+import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
 
 const mockGenerate = vi.mocked(generateImageForUser)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)

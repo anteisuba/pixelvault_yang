@@ -15,7 +15,7 @@ import { getProviderLabel } from '@/constants/providers'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
 import { createApiUsageEntry } from '@/services/usage.service'

@@ -1,5 +1,5 @@
 import { AnalyzeImageRequestSchema } from '@/types'
-import { analyzeImage } from '@/services/image-analysis.service'
+import { analyzeImage } from '@/services/image/image-analysis.service'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { GenerationValidationError } from '@/lib/errors'

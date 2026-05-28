@@ -16,7 +16,7 @@ vi.mock('@/services/user.service', () => ({
 vi.mock('@/services/apiKey.service', () => ({
   getApiKeyValueById: vi.fn(),
 }))
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   resolveGenerationRoute: vi.fn(),
   GenerateImageServiceError: class GenerateImageServiceError extends Error {
     code: string
@@ -106,7 +106,7 @@ import {
   submitAudioGeneration,
 } from '@/services/generate-audio.service'
 import { getApiKeyValueById } from '@/services/apiKey.service'
-import { resolveGenerationRoute } from '@/services/generate-image.service'
+import { resolveGenerationRoute } from '@/services/image/generate-image.service'
 import { ensureUser } from '@/services/user.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { createGeneration } from '@/services/generation.service'

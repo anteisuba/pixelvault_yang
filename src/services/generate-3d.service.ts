@@ -33,7 +33,7 @@ import { createGeneration } from '@/services/generation.service'
 import {
   inspect3DSourceImageQuality,
   prepare3DSourceImage,
-} from '@/services/image-3d-prep.service'
+} from '@/services/image/image-3d-prep.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   ProviderError,
@@ -58,7 +58,7 @@ import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
   dispatchHyper3DRodinWorkerRun,

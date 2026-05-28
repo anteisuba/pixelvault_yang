@@ -7,7 +7,7 @@ import type {
   RefineCharacterCardRequest,
   RefineGenerationResult,
 } from '@/types'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import { scoreConsistency } from '@/services/cards/character-scoring.service'
 import { buildPromptFromAttributes } from '@/services/cards/character-card.service'
 import {

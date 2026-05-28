@@ -11,7 +11,7 @@ import 'server-only'
 
 import { logger } from '@/lib/logger'
 import { getTransformPresetById } from '@/constants/transform-presets'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import {
   fetchAsBuffer,

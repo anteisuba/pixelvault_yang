@@ -19,7 +19,7 @@ vi.mock('@/services/prompts/recipe.service', () => ({
   buildRecipeSnapshotForUser: (...args: unknown[]) =>
     mockBuildRecipeSnapshotForUser(...args),
 }))
-vi.mock('@/services/image-preview-derivative.service', () => ({
+vi.mock('@/services/image/image-preview-derivative.service', () => ({
   enqueueImagePreviewDerivatives: vi.fn(),
 }))
 vi.mock('@/services/providers/registry', () => ({
@@ -87,14 +87,14 @@ import {
   generateImageForUser,
   GenerateImageServiceError,
   resolveGenerationRoute,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import { ensureUser } from '@/services/user.service'
 import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
-import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
+import { enqueueImagePreviewDerivatives } from '@/services/image/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   fetchAsBuffer,

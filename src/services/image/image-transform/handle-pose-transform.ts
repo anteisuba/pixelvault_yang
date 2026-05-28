@@ -14,7 +14,7 @@ import 'server-only'
 
 import { logger } from '@/lib/logger'
 import { DIMENSION_PROVIDERS } from '@/constants/transform-dimensions'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import type {
   TransformInput,
   TransformOutput,

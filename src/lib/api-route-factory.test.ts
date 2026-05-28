@@ -19,7 +19,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
@@ -34,7 +34,7 @@ import {
   InsufficientCreditsError,
   GenerationValidationError,
 } from '@/lib/errors'
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
 

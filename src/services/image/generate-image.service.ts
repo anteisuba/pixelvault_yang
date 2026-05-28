@@ -18,7 +18,7 @@ import {
   getApiKeyValueById,
 } from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
-import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
+import { enqueueImagePreviewDerivatives } from '@/services/image/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
 import {

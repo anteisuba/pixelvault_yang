@@ -56,7 +56,7 @@ import {
   enqueueImagePreviewDerivatives,
   processImagePreviewDerivativeOutbox,
   processPendingImagePreviewDerivativeOutboxes,
-} from '@/services/image-preview-derivative.service'
+} from '@/services/image/image-preview-derivative.service'
 
 function buildOutbox() {
   return {

@@ -8,7 +8,7 @@ import {
 } from '@/constants/reference-image-capabilities'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import type { VideoResolution } from '@/constants/video-options'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 interface ValidateVideoGenerationInput {
   modelId: string

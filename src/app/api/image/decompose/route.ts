@@ -1,5 +1,5 @@
 import { ImageDecomposeSchema } from '@/types'
-import { decomposeImage } from '@/services/image-decompose.service'
+import { decomposeImage } from '@/services/image/image-decompose.service'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'

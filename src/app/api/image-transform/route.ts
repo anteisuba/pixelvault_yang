@@ -1,6 +1,6 @@
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { transformImage } from '@/services/image-transform.service'
+import { transformImage } from '@/services/image/image-transform.service'
 import { TransformInputSchema } from '@/types/transform'
 
 export const maxDuration = 240

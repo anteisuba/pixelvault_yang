@@ -11,12 +11,12 @@ import {
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
-vi.mock('@/services/image-transform.service', () => ({
+vi.mock('@/services/image/image-transform.service', () => ({
   transformImage: vi.fn(),
 }))
 
 import { POST } from '@/app/api/image-transform/route'
-import { transformImage } from '@/services/image-transform.service'
+import { transformImage } from '@/services/image/image-transform.service'
 import type { TransformOutput } from '@/types/transform'
 
 const mockTransformImage = vi.mocked(transformImage)

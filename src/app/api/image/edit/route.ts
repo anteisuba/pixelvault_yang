@@ -3,7 +3,7 @@ import {
   removeBackground,
   upscaleImage,
   persistEditedImage,
-} from '@/services/image-edit.service'
+} from '@/services/image/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'

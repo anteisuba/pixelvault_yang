@@ -3,7 +3,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 import { retryScene } from '@/services/video-scene-orchestrator.service'
 import { VideoScriptNotFoundError } from '@/services/video-script.service'
 import { ensureUser } from '@/services/user.service'

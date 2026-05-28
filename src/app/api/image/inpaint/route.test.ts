@@ -14,7 +14,7 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
 
-vi.mock('@/services/image-edit.service', () => ({
+vi.mock('@/services/image/image-edit.service', () => ({
   inpaintImage: vi.fn(),
   persistEditedImage: vi.fn(),
   resolveEditApiKey: vi.fn(),
@@ -25,7 +25,7 @@ import {
   inpaintImage,
   persistEditedImage,
   resolveEditApiKey,
-} from '@/services/image-edit.service'
+} from '@/services/image/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
 describe('video-generation-validation.service', () => {

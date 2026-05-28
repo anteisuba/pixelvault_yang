@@ -15,7 +15,7 @@ import {
   MERGE_VIDEO_LIMITS,
   MergeVideoServiceError,
 } from '@/services/video-merge.service'
-import { GenerateImageServiceError } from '@/services/generate-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 /**
  * Inputs split by intent:

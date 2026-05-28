@@ -31,7 +31,7 @@ import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
-} from '@/services/generate-image.service'
+} from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
   dispatchLongVideoPipelineWorkerRun,

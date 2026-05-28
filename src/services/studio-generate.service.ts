@@ -3,7 +3,7 @@ import 'server-only'
 import type { GenerationRecord, StudioGenerateRequest } from '@/types'
 import { db } from '@/lib/db'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
-import { generateImageForUser } from '@/services/generate-image.service'
+import { generateImageForUser } from '@/services/image/generate-image.service'
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 

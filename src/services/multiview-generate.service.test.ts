@@ -25,7 +25,7 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn().mockResolvedValue({ id: 'db-user-1' }),
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   GenerateImageServiceError: GenerateImageServiceErrorMock,
   resolveGenerationRoute: vi.fn(),
 }))
@@ -59,7 +59,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import { generateMultiView } from './multiview-generate.service'
-import { resolveGenerationRoute } from '@/services/generate-image.service'
+import { resolveGenerationRoute } from '@/services/image/generate-image.service'
 import { createApiUsageEntry } from '@/services/usage.service'
 import {
   GENERATED_VIEW_ANGLES,

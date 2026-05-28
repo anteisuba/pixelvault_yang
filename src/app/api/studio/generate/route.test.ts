@@ -16,13 +16,13 @@ vi.mock('@/services/studio-generate.service', () => ({
   compileAndGenerate: vi.fn(),
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
 import { POST } from '@/app/api/studio/generate/route'
 import { compileAndGenerate } from '@/services/studio-generate.service'
-import { isGenerateImageServiceError } from '@/services/generate-image.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
 const mockCompileAndGenerate = vi.mocked(compileAndGenerate)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)

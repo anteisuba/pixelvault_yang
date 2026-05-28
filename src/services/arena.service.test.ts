@@ -27,7 +27,7 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
-vi.mock('@/services/generate-image.service', () => ({
+vi.mock('@/services/image/generate-image.service', () => ({
   generateImageForUser: (...args: unknown[]) =>
     mockGenerateImageForUser(...args),
 }))

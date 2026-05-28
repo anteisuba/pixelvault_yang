@@ -68,7 +68,7 @@ function MainModelPickerImage(props: CommonProps) {
 }
 
 function MainModelPickerVideo(props: CommonProps) {
-  const { modelOptions } = useVideoModelOptions()
+  const { modelOptions } = useVideoModelOptions(props.value ?? '')
   return <BaseModelPickerPanel options={modelOptions} {...props} />
 }
 

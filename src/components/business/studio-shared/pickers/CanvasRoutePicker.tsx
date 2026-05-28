@@ -32,6 +32,19 @@ interface CommonProps {
   addKeyLabel?: string
   emptyLabel?: string
   loadingLabel?: string
+  /**
+   * Optional extra option rendered above the saved-routes list. Used by
+   * the assistant variant to expose the "auto route" entry without
+   * baking that concept into useLLMRoutePicker. When isSelected is true,
+   * this entry takes the selected styling and no saved route shows the
+   * check mark.
+   */
+  topOption?: {
+    label: string
+    description?: string
+    isSelected: boolean
+    onSelect: () => void
+  }
   className?: string
   disabled?: boolean
 }
@@ -78,6 +91,7 @@ function CanvasRouteLLMPicker({
   addKeyLabel = 'Add API Key',
   emptyLabel = 'No routes configured',
   loadingLabel = 'Loading…',
+  topOption,
   className,
   disabled,
 }: LLMPickerProps) {
@@ -143,7 +157,9 @@ function CanvasRouteLLMPicker({
               </span>
             )}
             <span className="block truncate text-xs font-semibold leading-4 text-node-foreground">
-              {selectedRoute?.label ?? emptyLabel}
+              {topOption?.isSelected
+                ? topOption.label
+                : (selectedRoute?.label ?? emptyLabel)}
             </span>
           </span>
           <ChevronDown
@@ -188,16 +204,52 @@ function CanvasRouteLLMPicker({
         )}
 
         <div className="max-h-80 overflow-y-auto overscroll-contain p-2">
-          {savedRoutes.length === 0 && lockedRoutes.length === 0 ? (
+          {savedRoutes.length === 0 &&
+          lockedRoutes.length === 0 &&
+          !topOption ? (
             <div className="rounded-xl px-3 py-2 text-xs text-node-muted">
               {loadingLabel}
             </div>
           ) : null}
 
+          {topOption && (
+            <button
+              type="button"
+              onClick={() => {
+                topOption.onSelect()
+                setOpen(false)
+              }}
+              className={cn(
+                'group relative mb-1 flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
+                topOption.isSelected
+                  ? 'border-node-amber/25 bg-node-panel-soft'
+                  : 'border-transparent bg-node-panel hover:border-node-panel-inner hover:bg-node-panel-inner',
+              )}
+            >
+              {topOption.isSelected && (
+                <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-amber" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-node-foreground">
+                  {topOption.label}
+                </span>
+                {topOption.description && (
+                  <span className="mt-0.5 block truncate text-xs text-node-muted">
+                    {topOption.description}
+                  </span>
+                )}
+              </span>
+              {topOption.isSelected && (
+                <Check className="size-4 shrink-0 text-lime-400" />
+              )}
+            </button>
+          )}
+
           {savedRoutes.length > 0 && (
             <div className="space-y-1">
               {savedRoutes.map((route) => {
-                const isSelected = route.optionId === value
+                const isSelected =
+                  !topOption?.isSelected && route.optionId === value
                 return (
                   <button
                     key={route.optionId}

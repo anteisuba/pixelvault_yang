@@ -13,7 +13,7 @@ import type {
 } from '@/types'
 import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
 import { MediaCardTile } from '@/components/business/MediaCardTile'
-import { StyleCardEditor } from '@/components/business/StyleCardEditor'
+import { StyleCardEditor } from '@/components/business/cards/StyleCardEditor'
 import {
   Dialog,
   DialogContent,

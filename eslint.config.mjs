@@ -7,6 +7,7 @@ import prettier from "eslint-config-prettier";
 // respective specs land. See:
 //   docs/spark/2026-05-28-architecture-contract-design.md (Spec 1)
 //   docs/spark/2026-05-28-spec-2-studio-shared-layer.md (Spec 2)
+//   docs/spark/2026-05-28-spec-3-cards-module.md (Spec 3)
 //   docs/spark/roadmap.md
 
 /** L1+ paths that L0 Shared Kernel must NEVER import from. */
@@ -49,6 +50,25 @@ const PROMPTS_FORBIDDEN_SIBLINGS = [
       "@/components/business/gallery/**",
       "@/components/business/assets/**",
       "@/components/business/cards/**",
+    ],
+    message:
+      "L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.",
+  },
+];
+
+/** Sibling L1 modules that L1 Cards must NEVER import from. */
+const CARDS_FORBIDDEN_SIBLINGS = [
+  {
+    group: [
+      "@/services/gallery/**",
+      "@/services/assets/**",
+      "@/services/prompts/**",
+      "@/hooks/gallery/**",
+      "@/hooks/assets/**",
+      "@/hooks/prompts/**",
+      "@/components/business/gallery/**",
+      "@/components/business/assets/**",
+      "@/components/business/prompts/**",
     ],
     message:
       "L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.",
@@ -102,6 +122,17 @@ const eslintConfig = defineConfig([
         "error",
         { patterns: STUDIO_SHARED_FORBIDDEN_PATTERNS },
       ],
+    },
+  },
+  // ─── Spec 3 boundary rules ─────────────────────────────────────
+  {
+    files: [
+      "src/services/cards/**/*.{ts,tsx}",
+      "src/hooks/cards/**/*.{ts,tsx}",
+      "src/components/business/cards/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: CARDS_FORBIDDEN_SIBLINGS }],
     },
   },
   // Override default ignores of eslint-config-next.

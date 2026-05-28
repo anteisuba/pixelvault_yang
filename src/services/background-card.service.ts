@@ -11,7 +11,7 @@ import type {
 } from '@/types'
 import { ensureUser } from '@/services/user.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
-import { extractBackgroundAttributes } from '@/services/recipe-compiler.service'
+import { extractBackgroundAttributes } from '@/services/kernel/card-recipe-compiler.service'
 import { ownedBy } from '@/lib/db-scope'
 
 // ─── Helpers ────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ vi.mock('@/services/storage/r2', () => ({
   uploadToR2: vi.fn().mockResolvedValue('https://r2.example.com/abc.jpg'),
 }))
 
-vi.mock('@/services/recipe-compiler.service', () => ({
+vi.mock('@/services/kernel/card-recipe-compiler.service', () => ({
   extractBackgroundAttributes: vi.fn().mockResolvedValue({
     attributes: { freeformDescription: 'forest' },
     prompt: 'a dense forest',

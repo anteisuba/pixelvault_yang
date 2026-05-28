@@ -51,7 +51,7 @@ vi.mock('@/services/civitai-token.service', () => ({
 }))
 
 import { db } from '@/lib/db'
-import { compileRecipe, previewRecipe } from './recipe-compiler.service'
+import { compileRecipe, previewRecipe } from './card-recipe-compiler.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import {
   llmTextCompletion,

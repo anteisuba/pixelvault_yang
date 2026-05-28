@@ -15,7 +15,7 @@ vi.mock('@/lib/logger', () => ({
 const mockCreate = vi.fn()
 const mockList = vi.fn()
 
-vi.mock('@/services/recipe.service', () => ({
+vi.mock('@/services/prompts/recipe.service', () => ({
   createRecipe: (...args: unknown[]) => mockCreate(...args),
   listRecipes: (...args: unknown[]) => mockList(...args),
 }))

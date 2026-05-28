@@ -13,7 +13,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockCreateFromGeneration = vi.fn()
 
-vi.mock('@/services/recipe.service', () => ({
+vi.mock('@/services/prompts/recipe.service', () => ({
   createRecipeFromGeneration: (...args: unknown[]) =>
     mockCreateFromGeneration(...args),
 }))

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { listRecipes } from '@/services/recipe.service'
+import { listRecipes } from '@/services/prompts/recipe.service'
 
 const PromptCreateQuerySchema = z.object({
   tab: z.enum(['mine', 'inspiration']).optional(),

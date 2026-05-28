@@ -15,7 +15,7 @@ vi.mock('@/services/generation.service', () => ({
 const { mockBuildRecipeSnapshotForUser } = vi.hoisted(() => ({
   mockBuildRecipeSnapshotForUser: vi.fn(),
 }))
-vi.mock('@/services/recipe.service', () => ({
+vi.mock('@/services/prompts/recipe.service', () => ({
   buildRecipeSnapshotForUser: (...args: unknown[]) =>
     mockBuildRecipeSnapshotForUser(...args),
 }))

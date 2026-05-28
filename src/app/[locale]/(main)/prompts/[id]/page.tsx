@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
-import { getRecipe, listRecipeGenerations } from '@/services/recipe.service'
+import {
+  getRecipe,
+  listRecipeGenerations,
+} from '@/services/prompts/recipe.service'
 
 interface PromptDetailPageProps {
   params: Promise<{ locale: AppLocale; id: string }>

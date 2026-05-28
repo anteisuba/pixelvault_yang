@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
 import { getCardRecipe } from '@/services/card-recipe.service'
-import { compileRecipe } from '@/services/recipe-compiler.service'
+import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

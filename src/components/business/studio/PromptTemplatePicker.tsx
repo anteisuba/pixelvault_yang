@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
-import { useRecipes } from '@/hooks/use-recipes'
+import { useRecipes } from '@/hooks/prompts/use-recipes'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
 import type {
   CreateRecipeRequest,

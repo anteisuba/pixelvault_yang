@@ -20,7 +20,7 @@ import {
 import { createGeneration } from '@/services/generation.service'
 import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
-import { buildRecipeSnapshotForUser } from '@/services/recipe.service'
+import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
 import {
   ProviderError,
   type ProviderGenerationResult,

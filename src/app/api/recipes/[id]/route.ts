@@ -11,7 +11,7 @@ import {
   deleteRecipe,
   getRecipe,
   updateRecipe,
-} from '@/services/recipe.service'
+} from '@/services/prompts/recipe.service'
 
 export const GET = createApiGetByIdRoute({
   routeName: 'GET /api/recipes/[id]',

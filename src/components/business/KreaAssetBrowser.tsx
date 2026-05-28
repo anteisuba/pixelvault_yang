@@ -27,6 +27,7 @@ import NextImage from 'next/image'
 import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
+import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,10 @@ import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
+import {
+  DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
+  getAudioAssetPreviewImage,
+} from '@/constants/asset-previews'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
@@ -163,6 +168,37 @@ const DENSITY_XL_COLS: Record<Density, number> = {
   comfortable: 4,
   normal: 6,
   compact: 8,
+}
+
+function getAudioPreviewCandidates(generation: GenerationRecord): string[] {
+  const snapshot = isPlainObject(generation.snapshot)
+    ? generation.snapshot
+    : null
+  const voiceId = getSnapshotString(snapshot, 'voiceId')
+  const voiceCoverImage =
+    getSnapshotString(snapshot, 'voiceCoverImage') ??
+    getSnapshotString(snapshot, 'coverImage')
+
+  return [
+    generation.thumbnailUrl,
+    generation.previewUrl,
+    voiceCoverImage,
+    getAudioAssetPreviewImage(generation.model, voiceId),
+    DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
+  ].filter((url): url is string => Boolean(url))
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getSnapshotString(
+  snapshot: Record<string, unknown> | null,
+  key: string,
+): string | null {
+  if (!snapshot) return null
+  const value = snapshot[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 type FolderTreeNodeData =
@@ -404,8 +440,28 @@ export function KreaAssetBrowser({
     useState<GenerationRecord | null>(
       isPickerMode ? null : initialSelectedGeneration,
     )
+  const [selectedOriginRect, setSelectedOriginRect] = useState<{
+    x: number
+    y: number
+    width: number
+    height: number
+  } | null>(null)
+  const [failedAudioPreviewUrls, setFailedAudioPreviewUrls] = useState<
+    ReadonlySet<string>
+  >(() => new Set())
+  const handleAudioPreviewError = useCallback((url: string) => {
+    setFailedAudioPreviewUrls((current) => {
+      if (current.has(url)) return current
+      const next = new Set(current)
+      next.add(url)
+      return next
+    })
+  }, [])
   useEffect(() => {
-    if (!isPickerMode) setSelectedGeneration(initialSelectedGeneration)
+    if (!isPickerMode) {
+      setSelectedGeneration(initialSelectedGeneration)
+      setSelectedOriginRect(null)
+    }
   }, [initialSelectedGeneration, isPickerMode])
 
   // ── Multi-select state ────────────────────────────────────────
@@ -1329,6 +1385,9 @@ export function KreaAssetBrowser({
                     const isSelected = selectedIds.has(gen.id)
                     const videoPoster =
                       gen.thumbnailUrl ?? gen.previewUrl ?? undefined
+                    const audioPreviewImage = getAudioPreviewCandidates(
+                      gen,
+                    ).find((url) => !failedAudioPreviewUrls.has(url))
                     const tileClass = cn(
                       'group relative aspect-square overflow-hidden rounded-md border bg-muted/40 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
                       isSelected
@@ -1337,31 +1396,54 @@ export function KreaAssetBrowser({
                     )
                     const tileChildren =
                       gen.outputType === 'VIDEO' ? (
-                        // `preload="none"` instead of `metadata` — a dense
-                        // grid would otherwise open a metadata fetch per
-                        // tile, throttling the browser's connection budget
-                        // and slowing the surrounding image loads. Tradeoff:
-                        // no first-frame thumbnail until we ship a real
-                        // poster pipeline, so we surface a Video badge so
-                        // the asset type is still legible.
                         <>
                           <video
                             src={gen.url}
                             poster={videoPoster}
                             muted
                             playsInline
-                            preload="none"
+                            preload={videoPoster ? 'none' : 'metadata'}
+                            onLoadedMetadata={(event) => {
+                              if (videoPoster) return
+                              const video = event.currentTarget
+                              if (
+                                !Number.isFinite(video.duration) ||
+                                video.duration <= 0
+                              ) {
+                                return
+                              }
+                              video.currentTime = Math.min(
+                                0.12,
+                                video.duration / 2,
+                              )
+                            }}
                             className="absolute inset-0 size-full bg-muted/40 object-cover"
                           />
-                          {!videoPoster && (
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground/80">
-                              <Video className="size-8" />
-                            </div>
-                          )}
+                          <span className="pointer-events-none absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground/70 shadow-sm backdrop-blur-sm">
+                            <Video className="size-3.5" />
+                          </span>
                         </>
                       ) : gen.outputType === 'AUDIO' ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                          <Mic className="size-8" />
+                        <div className="absolute inset-0 bg-muted/40">
+                          {audioPreviewImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- Audio cover URLs can be provider/model configured.
+                            <img
+                              src={audioPreviewImage}
+                              alt=""
+                              loading="lazy"
+                              className="size-full object-cover"
+                              onError={() =>
+                                handleAudioPreviewError(audioPreviewImage)
+                              }
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-muted-foreground">
+                              <Mic className="size-8" />
+                            </div>
+                          )}
+                          <span className="pointer-events-none absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground/70 shadow-sm backdrop-blur-sm">
+                            <Mic className="size-3.5" />
+                          </span>
                         </div>
                       ) : (
                         <NextImage
@@ -1373,7 +1455,9 @@ export function KreaAssetBrowser({
                           loading="lazy"
                         />
                       )
-                    const handleTileClick = () => {
+                    const handleTileClick = (
+                      event: React.MouseEvent<HTMLButtonElement>,
+                    ) => {
                       // Picker multi-select wins over single-select onSelect:
                       // tile click toggles membership in the selection set
                       // instead of immediately resolving the picker.
@@ -1389,6 +1473,11 @@ export function KreaAssetBrowser({
                         toggleSelection(gen.id)
                         return
                       }
+                      setSelectedOriginRect(
+                        toMediaTransitionOrigin(
+                          event.currentTarget.getBoundingClientRect(),
+                        ),
+                      )
                       setSelectedGeneration(gen)
                     }
                     const handleTileContextMenu = (
@@ -1623,12 +1712,16 @@ export function KreaAssetBrowser({
         <AssetDetailSheet
           generation={selectedGeneration}
           onOpenChange={(open) => {
-            if (!open) setSelectedGeneration(null)
+            if (!open) {
+              setSelectedGeneration(null)
+              setSelectedOriginRect(null)
+            }
           }}
           projects={projects}
           onDeleted={handleAssetDeleted}
           onMoved={handleAssetMoved}
           onUpdated={handleAssetUpdated}
+          transitionOrigin={selectedOriginRect}
         />
       )}
       {/* ─── Picker confirmation bar (multi-select picker mode) ── */}

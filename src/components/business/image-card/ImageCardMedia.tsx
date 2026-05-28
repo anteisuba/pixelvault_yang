@@ -4,13 +4,17 @@ import { OptimizedImage } from '@/components/ui/optimized-image'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import {
+  toMediaTransitionOrigin,
+  type MediaTransitionOrigin,
+} from '@/components/business/MediaDetailViewer'
 
 interface ImageCardMediaProps {
   generation: GenerationRecord
   isAudio: boolean
   isVideo: boolean
   aspectRatio: string
-  onOpenDetail: () => void
+  onOpenDetail: (origin: MediaTransitionOrigin | null) => void
   openImageLabel: string
   openVideoLabel: string
   referenceImageLabel: string
@@ -37,7 +41,13 @@ export function ImageCardMedia({
       <button
         type="button"
         className="block w-full cursor-pointer"
-        onClick={onOpenDetail}
+        onClick={(event) =>
+          onOpenDetail(
+            toMediaTransitionOrigin(
+              event.currentTarget.getBoundingClientRect(),
+            ),
+          )
+        }
         aria-label={isVideo ? openVideoLabel : openImageLabel}
       >
         {isAudio ? (
@@ -60,7 +70,15 @@ export function ImageCardMedia({
             poster={videoPoster}
             muted
             playsInline
-            preload="none"
+            preload={videoPoster ? 'none' : 'metadata'}
+            onLoadedMetadata={(event) => {
+              if (videoPoster) return
+              const video = event.currentTarget
+              if (!Number.isFinite(video.duration) || video.duration <= 0) {
+                return
+              }
+              video.currentTime = Math.min(0.12, video.duration / 2)
+            }}
             className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
             style={{ aspectRatio }}
           />

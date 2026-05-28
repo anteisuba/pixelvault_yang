@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  ArrowUpRight,
   Box,
   Check,
   Download,
@@ -20,6 +21,10 @@ import NextImage from 'next/image'
 import { toast } from 'sonner'
 
 import { ModelViewer } from '@/components/business/ModelViewer'
+import {
+  MediaDetailViewer,
+  type MediaTransitionOrigin,
+} from '@/components/business/MediaDetailViewer'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
@@ -42,9 +47,11 @@ import {
   assignGenerationProjectAPI,
   createRecipeFromGenerationAPI,
   deleteGenerationAPI,
+  downloadRemoteAsset,
   setGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, ProjectRecord } from '@/types'
@@ -60,6 +67,7 @@ interface AssetDetailSheetProps {
   onMoved?: (id: string, projectId: string | null) => void
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
+  transitionOrigin?: MediaTransitionOrigin | null
 }
 
 type PublishScope = 'private' | 'asset' | 'assetAndPrompt'
@@ -70,6 +78,44 @@ interface PublishScopeOptionProps {
   selected: boolean
   disabled: boolean
   onClick: () => void
+}
+
+function getDownloadTarget(generation: GenerationRecord): string {
+  if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
+    return generation.modelUrl
+  }
+
+  return generation.url
+}
+
+function getAssetFileName(generation: GenerationRecord): string {
+  if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
+    return `pixelvault-${generation.id.slice(0, 8)}.glb`
+  }
+
+  const ext = generation.mimeType.split('/')[1] || 'bin'
+  return `pixelvault-${generation.id.slice(0, 8)}.${ext}`
+}
+
+function triggerDirectAssetDownload(url: string, fileName: string) {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+function openExternalAsset(url: string) {
+  const openedWindow = window.open(url, '_blank')
+  if (openedWindow) {
+    openedWindow.opener = null
+    return
+  }
+
+  window.location.assign(url)
 }
 
 /**
@@ -85,15 +131,19 @@ export function AssetDetailSheet({
   onDeleted,
   onMoved,
   onUpdated,
+  transitionOrigin,
 }: AssetDetailSheetProps) {
   const t = useTranslations('AssetsPage')
+  const tCommon = useTranslations('Common')
   const tPrompts = useTranslations('PromptLibrary')
+  const tErrors = useTranslations('Errors')
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [isFavoriting, setIsFavoriting] = useState(false)
   const [isSavingRecipe, setIsSavingRecipe] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
   const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
 
   const open = generation !== null
@@ -250,276 +300,308 @@ export function AssetDetailSheet({
     }
   }
 
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) setIsPublishScopeOpen(false)
-        onOpenChange(nextOpen)
-      }}
-    >
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:w-[480px] sm:max-w-[520px]"
+  const handleDownload = async () => {
+    if (!generation || isDownloading) return
+    const downloadUrl = getDownloadTarget(generation)
+    const fileName = getAssetFileName(generation)
+
+    setIsDownloading(true)
+    try {
+      const response = await downloadRemoteAsset(downloadUrl, fileName)
+      if (!response.success) {
+        toast.error(
+          getApiErrorMessage(tErrors, response, t('detailDownloadFailed')),
+        )
+        triggerDirectAssetDownload(downloadUrl, fileName)
+      }
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleOpenOriginal = () => {
+    if (!generation) return
+    openExternalAsset(getDownloadTarget(generation))
+  }
+
+  if (!generation) return null
+
+  const previewUrl = getGenerationPreviewUrl(generation)
+  const toolbarActions = (
+    <>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        onClick={() => void handleDownload()}
+        disabled={isDownloading}
+        aria-label={
+          isDownloading ? t('detailDownloading') : t('detailDownload')
+        }
       >
-        {generation && (
-          <>
-            <SheetHeader className="px-5 pt-5 pb-3">
-              <SheetTitle className="font-display text-base">
-                {t('detailTitle')}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                {t('detailDescription')}
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="flex-1 overflow-y-auto px-5 pb-4">
-              <Preview generation={generation} />
-
-              <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                <Field
-                  label={t('detailPrompt')}
-                  value={generation.prompt || '—'}
-                  multiline
-                />
-                <Field label={t('detailModel')} value={generation.model} />
-                <Field
-                  label={t('detailProvider')}
-                  value={generation.provider}
-                />
-                <Field
-                  label={t('detailDimensions')}
-                  value={`${generation.width} × ${generation.height}`}
-                />
-                {generation.duration != null && (
-                  <Field
-                    label={t('detailDuration')}
-                    value={`${generation.duration}s`}
-                  />
-                )}
-                {generation.seed != null && (
-                  <Field
-                    label={t('detailSeed')}
-                    value={String(generation.seed)}
-                  />
-                )}
-                <Field
-                  label={t('detailCreatedAt')}
-                  value={new Date(generation.createdAt).toLocaleString()}
-                />
-              </dl>
-            </div>
-
-            <div className="shrink-0 border-t border-border/60 px-5 py-3">
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full gap-1.5 rounded-full"
-                onClick={handleRemix}
-              >
-                <Sparkles className="size-4" />
-                {t('detailRemix')}
-              </Button>
-              <div className="mt-2 flex flex-wrap items-center gap-1">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1.5"
-                      disabled={isMoving}
-                    >
-                      {isMoving ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <FolderInput className="size-4" />
-                      )}
-                      {t('detailMoveTo')}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="max-h-72 w-56 overflow-y-auto"
-                  >
-                    <DropdownMenuItem
-                      onClick={() => void handleMove(null)}
-                      className={cn(
-                        'gap-2',
-                        generation.projectId == null && 'font-medium',
-                      )}
-                    >
-                      <span className="flex w-4 shrink-0 items-center justify-center">
-                        {generation.projectId == null && (
-                          <Check className="size-3.5" />
-                        )}
-                      </span>
-                      {t('detailMoveUnassigned')}
-                    </DropdownMenuItem>
-                    {projects.length > 0 && <DropdownMenuSeparator />}
-                    {projects.map((project) => (
-                      <DropdownMenuItem
-                        key={project.id}
-                        onClick={() => void handleMove(project.id)}
-                        className={cn(
-                          'gap-2',
-                          generation.projectId === project.id && 'font-medium',
-                        )}
-                      >
-                        <span className="flex w-4 shrink-0 items-center justify-center">
-                          {generation.projectId === project.id && (
-                            <Check className="size-3.5" />
-                          )}
-                        </span>
-                        <span className="truncate">{project.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setIsPublishScopeOpen(true)}
-                  disabled={isPublishing}
-                  aria-pressed={generation.isPublic}
-                >
-                  {isPublishing ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : generation.isPublic ? (
-                    <GlobeLock className="size-4" />
-                  ) : (
-                    <Globe className="size-4" />
-                  )}
-                  {generation.isPublic
-                    ? t('detailPublishScope')
-                    : t('detailPublish')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    'gap-1.5',
-                    generation.isLiked && 'text-rose-500 hover:text-rose-500',
-                  )}
-                  onClick={() => void handleToggleFavorite()}
-                  disabled={isFavoriting}
-                  aria-pressed={!!generation.isLiked}
-                >
-                  {isFavoriting ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Heart
-                      className={cn(
-                        'size-4',
-                        generation.isLiked && 'fill-current',
-                      )}
-                    />
-                  )}
-                  {generation.isLiked
-                    ? t('detailUnfavorite')
-                    : t('detailFavorite')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => void handleSaveRecipe()}
-                  disabled={isSavingRecipe}
-                >
-                  {isSavingRecipe ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <FileText className="size-4" />
-                  )}
-                  {tPrompts('saveAsTemplate')}
-                </Button>
-                <ConfirmDialog
-                  title={t('detailDeleteConfirmTitle')}
-                  description={t('detailDeleteConfirmDescription')}
-                  cancelLabel={t('detailDeleteCancel')}
-                  confirmLabel={t('detailDelete')}
-                  variant="destructive"
-                  onConfirm={handleDelete}
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-4" />
-                      )}
-                      {t('detailDelete')}
-                    </Button>
-                  }
-                />
-              </div>
-            </div>
-            <Sheet
-              open={isPublishScopeOpen}
-              onOpenChange={(nextOpen) => {
-                if (!isPublishing) setIsPublishScopeOpen(nextOpen)
-              }}
+        <Download className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        onClick={handleOpenOriginal}
+        aria-label={t('detailOpenOriginal')}
+      >
+        <ArrowUpRight className="size-4" />
+      </Button>
+    </>
+  )
+  const sideHeader = (
+    <div className="space-y-1.5">
+      <h2 className="font-display text-base font-medium">{t('detailTitle')}</h2>
+      <p className="text-xs leading-5 text-muted-foreground">
+        {generation.model}
+      </p>
+    </div>
+  )
+  const sideContent = (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+      <Field
+        label={t('detailPrompt')}
+        value={generation.prompt || '—'}
+        multiline
+      />
+      <Field label={t('detailModel')} value={generation.model} />
+      <Field label={t('detailProvider')} value={generation.provider} />
+      <Field
+        label={t('detailDimensions')}
+        value={`${generation.width} × ${generation.height}`}
+      />
+      {generation.duration != null && (
+        <Field label={t('detailDuration')} value={`${generation.duration}s`} />
+      )}
+      {generation.seed != null && (
+        <Field label={t('detailSeed')} value={String(generation.seed)} />
+      )}
+      <Field
+        label={t('detailCreatedAt')}
+        value={new Date(generation.createdAt).toLocaleString()}
+      />
+    </dl>
+  )
+  const footerActions = (
+    <div className="space-y-2">
+      <Button
+        variant="default"
+        size="sm"
+        className="w-full gap-1.5 rounded-full"
+        onClick={handleRemix}
+      >
+        <Sparkles className="size-4" />
+        {t('detailRemix')}
+      </Button>
+      <div className="flex flex-wrap items-center gap-1">
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              disabled={isMoving}
             >
-              <SheetContent
-                side="bottom"
-                showCloseButton={false}
-                className="mx-auto max-w-lg gap-0 rounded-t-2xl border-border/70 p-0"
+              {isMoving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FolderInput className="size-4" />
+              )}
+              {t('detailMoveTo')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="max-h-72 w-56 overflow-y-auto"
+          >
+            <DropdownMenuItem
+              onClick={() => void handleMove(null)}
+              className={cn(
+                'gap-2',
+                generation.projectId == null && 'font-medium',
+              )}
+            >
+              <span className="flex w-4 shrink-0 items-center justify-center">
+                {generation.projectId == null && <Check className="size-3.5" />}
+              </span>
+              {t('detailMoveUnassigned')}
+            </DropdownMenuItem>
+            {projects.length > 0 && <DropdownMenuSeparator />}
+            {projects.map((project) => (
+              <DropdownMenuItem
+                key={project.id}
+                onClick={() => void handleMove(project.id)}
+                className={cn(
+                  'gap-2',
+                  generation.projectId === project.id && 'font-medium',
+                )}
               >
-                <SheetHeader className="px-5 pt-5 pb-3 text-left">
-                  <SheetTitle className="font-display text-base">
-                    {t('detailPublishScopeTitle')}
-                  </SheetTitle>
-                  <SheetDescription>
-                    {t('detailPublishScopeDescription')}
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="space-y-2 px-5 pb-2">
-                  <PublishScopeOption
-                    title={t('detailPublishScopeAsset')}
-                    description={t('detailPublishScopeAssetDescription')}
-                    selected={currentPublishScope === 'asset'}
-                    disabled={isPublishing}
-                    onClick={() => void handleApplyPublishScope('asset')}
-                  />
-                  <PublishScopeOption
-                    title={t('detailPublishScopeAssetAndPrompt')}
-                    description={t(
-                      'detailPublishScopeAssetAndPromptDescription',
-                    )}
-                    selected={currentPublishScope === 'assetAndPrompt'}
-                    disabled={isPublishing}
-                    onClick={() =>
-                      void handleApplyPublishScope('assetAndPrompt')
-                    }
-                  />
-                  <PublishScopeOption
-                    title={t('detailPublishScopePrivate')}
-                    description={t('detailPublishScopePrivateDescription')}
-                    selected={currentPublishScope === 'private'}
-                    disabled={isPublishing}
-                    onClick={() => void handleApplyPublishScope('private')}
-                  />
-                </div>
-                <SheetFooter className="px-5 pt-2 pb-5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsPublishScopeOpen(false)}
-                    disabled={isPublishing}
-                  >
-                    {t('detailPublishScopeCancel')}
-                  </Button>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+                <span className="flex w-4 shrink-0 items-center justify-center">
+                  {generation.projectId === project.id && (
+                    <Check className="size-3.5" />
+                  )}
+                </span>
+                <span className="truncate">{project.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setIsPublishScopeOpen(true)}
+          disabled={isPublishing}
+          aria-pressed={generation.isPublic}
+        >
+          {isPublishing ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : generation.isPublic ? (
+            <GlobeLock className="size-4" />
+          ) : (
+            <Globe className="size-4" />
+          )}
+          {generation.isPublic ? t('detailPublishScope') : t('detailPublish')}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'gap-1.5',
+            generation.isLiked && 'text-rose-500 hover:text-rose-500',
+          )}
+          onClick={() => void handleToggleFavorite()}
+          disabled={isFavoriting}
+          aria-pressed={!!generation.isLiked}
+        >
+          {isFavoriting ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Heart
+              className={cn('size-4', generation.isLiked && 'fill-current')}
+            />
+          )}
+          {generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => void handleSaveRecipe()}
+          disabled={isSavingRecipe}
+        >
+          {isSavingRecipe ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <FileText className="size-4" />
+          )}
+          {tPrompts('saveAsTemplate')}
+        </Button>
+        <ConfirmDialog
+          title={t('detailDeleteConfirmTitle')}
+          description={t('detailDeleteConfirmDescription')}
+          cancelLabel={t('detailDeleteCancel')}
+          confirmLabel={t('detailDelete')}
+          variant="destructive"
+          onConfirm={handleDelete}
+          trigger={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              {t('detailDelete')}
+            </Button>
+          }
+        />
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      <MediaDetailViewer
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setIsPublishScopeOpen(false)
+          onOpenChange(nextOpen)
+        }}
+        title={t('detailTitle')}
+        description={t('detailDescription')}
+        closeLabel={tCommon('close')}
+        media={<Preview generation={generation} />}
+        sideHeader={sideHeader}
+        sideContent={sideContent}
+        footerActions={footerActions}
+        toolbarActions={toolbarActions}
+        transitionOrigin={transitionOrigin}
+        transitionImageSrc={previewUrl}
+        transitionImageAlt={generation.prompt || generation.id}
+      />
+      <Sheet
+        open={isPublishScopeOpen}
+        onOpenChange={(nextOpen) => {
+          if (!isPublishing) setIsPublishScopeOpen(nextOpen)
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          className="mx-auto max-w-lg gap-0 rounded-t-2xl border-border/70 p-0"
+        >
+          <SheetHeader className="px-5 pt-5 pb-3 text-left">
+            <SheetTitle className="font-display text-base">
+              {t('detailPublishScopeTitle')}
+            </SheetTitle>
+            <SheetDescription>
+              {t('detailPublishScopeDescription')}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-2 px-5 pb-2">
+            <PublishScopeOption
+              title={t('detailPublishScopeAsset')}
+              description={t('detailPublishScopeAssetDescription')}
+              selected={currentPublishScope === 'asset'}
+              disabled={isPublishing}
+              onClick={() => void handleApplyPublishScope('asset')}
+            />
+            <PublishScopeOption
+              title={t('detailPublishScopeAssetAndPrompt')}
+              description={t('detailPublishScopeAssetAndPromptDescription')}
+              selected={currentPublishScope === 'assetAndPrompt'}
+              disabled={isPublishing}
+              onClick={() => void handleApplyPublishScope('assetAndPrompt')}
+            />
+            <PublishScopeOption
+              title={t('detailPublishScopePrivate')}
+              description={t('detailPublishScopePrivateDescription')}
+              selected={currentPublishScope === 'private'}
+              disabled={isPublishing}
+              onClick={() => void handleApplyPublishScope('private')}
+            />
+          </div>
+          <SheetFooter className="px-5 pt-2 pb-5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsPublishScopeOpen(false)}
+              disabled={isPublishing}
+            >
+              {t('detailPublishScopeCancel')}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
 
@@ -571,13 +653,13 @@ function Preview({ generation }: { generation: GenerationRecord }) {
         src={generation.url}
         controls
         playsInline
-        className="aspect-video w-full rounded-lg border border-border/60 bg-muted/40 object-contain"
+        className="max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl border border-border/60 bg-black/40 object-contain lg:max-h-[calc(100dvh-8rem)]"
       />
     )
   }
   if (generation.outputType === 'AUDIO') {
     return (
-      <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-lg border border-border/60 bg-muted/40 p-4">
+      <div className="flex min-h-64 w-[min(34rem,90vw)] max-w-full flex-col items-center justify-center gap-3 rounded-2xl border border-border/60 bg-muted/30 p-6">
         <Mic className="size-10 text-muted-foreground" />
         <audio src={generation.url} controls className="w-full max-w-[360px]" />
       </div>
@@ -591,13 +673,15 @@ function Preview({ generation }: { generation: GenerationRecord }) {
     return <Model3DPreview generation={generation} />
   }
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40">
+    <div className="relative z-10 flex max-h-full max-w-full items-center justify-center">
       <NextImage
         src={getGenerationPreviewUrl(generation)}
         alt={generation.prompt || generation.id}
-        fill
-        sizes="480px"
-        className="object-contain"
+        width={Math.max(generation.width, 1)}
+        height={Math.max(generation.height, 1)}
+        sizes="(max-width: 1024px) 92vw, 58vw"
+        className="h-auto max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl object-contain shadow-sm lg:max-h-[calc(100dvh-8rem)]"
+        unoptimized
       />
     </div>
   )
@@ -613,8 +697,8 @@ function Model3DPreview({ generation }: { generation: GenerationRecord }) {
   const t = useTranslations('Model3DGenerate')
   if (!generation.modelUrl) return null
   return (
-    <div className="flex flex-col gap-2">
-      <div className="aspect-square w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40">
+    <div className="flex w-[min(42rem,90vw)] max-w-full flex-col gap-2">
+      <div className="aspect-square max-h-[calc(48dvh-4rem)] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/40 lg:max-h-[calc(100dvh-12rem)]">
         <ModelViewer
           src={generation.modelUrl}
           poster={

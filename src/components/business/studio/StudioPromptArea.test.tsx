@@ -368,7 +368,7 @@ describe('StudioPromptArea', () => {
     expect(getSetPromptActions()).toEqual([])
   })
 
-  it('collapses the composer when pointer down happens outside', async () => {
+  it('keeps the composer expanded when pointer down happens outside', () => {
     setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
       outputType: 'image',
       selectedOptionId: null,
@@ -382,21 +382,13 @@ describe('StudioPromptArea', () => {
     )
 
     const promptGroup = screen.getByRole('group')
-    expect(promptGroup).toHaveAttribute('data-expanded', 'false')
-
-    fireEvent.focus(screen.getByRole('textbox', { name: 'promptLabel' }))
-
-    await waitFor(() =>
-      expect(promptGroup).toHaveAttribute('data-expanded', 'true'),
-    )
+    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
 
     fireEvent.pointerDown(
       screen.getByRole('button', { name: 'outside target' }),
     )
 
-    await waitFor(() =>
-      expect(promptGroup).toHaveAttribute('data-expanded', 'false'),
-    )
+    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
   })
 
   it('routes dropped reference images through the prompt box', async () => {
@@ -408,7 +400,7 @@ describe('StudioPromptArea', () => {
     render(<StudioPromptArea />)
 
     const promptGroup = screen.getByRole('group')
-    expect(promptGroup).toHaveAttribute('data-expanded', 'false')
+    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
 
     fireEvent.drop(promptGroup, {
       dataTransfer: {
@@ -420,9 +412,7 @@ describe('StudioPromptArea', () => {
     })
 
     expect(mockImageUploadHandleDrop).toHaveBeenCalledTimes(1)
-    await waitFor(() =>
-      expect(promptGroup).toHaveAttribute('data-expanded', 'true'),
-    )
+    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
   })
 
   it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {

@@ -663,6 +663,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
 
       const isImageMediaNode = kind === NODE_MEDIA_KIND_IDS.image
       const isVideoMediaNode = kind === NODE_MEDIA_KIND_IDS.video
+      const isAudioMediaNode = kind === NODE_MEDIA_KIND_IDS.audio
 
       // Video nodes are graph-aware: they read prompt fragments from upstream
       // shotText nodes, reference images from upstream visual + keyframe nodes,
@@ -812,6 +813,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               | '3:4'
               | undefined)
           : undefined
+      const audioVoiceId =
+        isAudioMediaNode && typeof node.data.voiceId === 'string'
+          ? node.data.voiceId.trim() || undefined
+          : undefined
 
       const result = await nodeMediaGeneration.generate({
         kind,
@@ -827,6 +832,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         audioBindings:
           upstreamAudioBindings.length > 0 ? upstreamAudioBindings : undefined,
         videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
+        voiceId: audioVoiceId,
         advancedParams,
       })
 

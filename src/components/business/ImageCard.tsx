@@ -8,6 +8,7 @@ import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
 import { ImageCardActions } from '@/components/business/image-card/ImageCardActions'
 import { ImageCardVisibility } from '@/components/business/image-card/ImageCardVisibility'
 import { UseLoraButton } from '@/components/business/image-card/UseLoraButton'
+import type { MediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 
 import { ArrowUpRight, Coins, Copy, LockKeyhole, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -80,7 +81,10 @@ export const ImageCard = memo(function ImageCard({
   // dynamic import above so neither the chunk nor the modal's hook tree
   // runs for cards the user never opens.
   const [hasOpenedDetail, setHasOpenedDetail] = useState(false)
-  const openDetail = useCallback(() => {
+  const [detailOrigin, setDetailOrigin] =
+    useState<MediaTransitionOrigin | null>(null)
+  const openDetail = useCallback((origin: MediaTransitionOrigin | null) => {
+    setDetailOrigin(origin)
     setHasOpenedDetail(true)
     setDetailOpen(true)
   }, [])
@@ -408,7 +412,7 @@ export const ImageCard = memo(function ImageCard({
 
               <button
                 type="button"
-                onClick={openDetail}
+                onClick={() => openDetail(null)}
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
                   isDenseLocale
@@ -497,6 +501,7 @@ export const ImageCard = memo(function ImageCard({
           showVisibility={showVisibility}
           showDelete={showDelete}
           onDelete={onDelete}
+          transitionOrigin={detailOrigin}
         />
       )}
     </>

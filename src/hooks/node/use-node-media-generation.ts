@@ -57,6 +57,9 @@ interface NodeMediaGenerationInput {
   }>
   /** Reference video clips (Seedance reference-to-video). */
   videoUrls?: string[]
+  voiceId?: string
+  referenceAudioUrl?: string
+  referenceText?: string
   advancedParams?: AdvancedParams
 }
 
@@ -226,6 +229,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             modelId: input.modelId,
             apiKeyId: input.apiKeyId,
             prompt: input.prompt,
+            voiceId: input.voiceId,
+            referenceAudioUrl: input.referenceAudioUrl,
+            referenceText: input.referenceText,
           })
 
           if (!response.success || !response.data) {

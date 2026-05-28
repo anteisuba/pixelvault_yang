@@ -345,4 +345,33 @@ describe('ImageCard', () => {
     expect(video).toHaveAttribute('preload', 'none')
     expect(video).toHaveAttribute('src', 'https://r2.example.com/video.mp4')
   })
+
+  it('loads video metadata for a first-frame preview when no poster exists', () => {
+    const { container } = renderCard({
+      generation: {
+        ...BASE_GEN,
+        outputType: 'VIDEO',
+        url: 'https://r2.example.com/video.mp4',
+        storageKey: 'generations/video/video.mp4',
+        mimeType: 'video/mp4',
+        thumbnailUrl: null,
+        previewUrl: null,
+        width: 1280,
+        height: 720,
+        duration: 5,
+      },
+    })
+
+    const video = container.querySelector('video')
+    expect(video).toHaveAttribute('preload', 'metadata')
+    expect(video).not.toHaveAttribute('poster')
+
+    Object.defineProperty(video, 'duration', {
+      configurable: true,
+      value: 5,
+    })
+    fireEvent.loadedMetadata(video!)
+
+    expect(video?.currentTime).toBe(0.12)
+  })
 })

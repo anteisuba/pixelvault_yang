@@ -9,6 +9,10 @@ vi.mock('@/lib/api-client', () => ({
   toggleGenerationVisibility: vi.fn(),
 }))
 
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: vi.fn(() => ({ isSignedIn: true })),
+}))
+
 vi.mock('@/i18n/routing', () => ({
   isCjkLocale: vi.fn(() => false),
 }))
@@ -161,6 +165,21 @@ describe('ImageDetailModal', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
     expect(screen.getByText('huggingface')).toBeInTheDocument()
+  })
+
+  it('keeps the generated image as the primary media when a reference image exists', () => {
+    renderModal({
+      generation: {
+        ...BASE_GEN,
+        referenceImageUrl: 'https://r2.example.com/reference.png',
+      },
+    })
+
+    expect(
+      screen.getByAltText('a beautiful mountain landscape'),
+    ).toBeInTheDocument()
+    expect(screen.queryByAltText('Generated')).not.toBeInTheDocument()
+    expect(screen.queryByAltText('Reference')).not.toBeInTheDocument()
   })
 
   it('shows copy prompt button when prompt is visible', () => {

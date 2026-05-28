@@ -107,6 +107,7 @@ const AudioQueueMetadataSchema = z.object({
   outputType: z.literal('AUDIO').optional(),
   workflowInstanceId: z.string().min(1).optional(),
   audioFormat: z.string().min(1).optional(),
+  voiceId: z.string().min(1).max(200).optional(),
 })
 
 type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
@@ -467,6 +468,7 @@ export async function generateAudioForUser(
             {
               audioFormat: result.format,
               providerPrompt,
+              voiceId: request.voiceId,
               timestamps: result.timestamps,
             },
             timer,
@@ -593,6 +595,7 @@ export async function submitAudioGeneration(
           prompt: request.prompt,
           externalRequestId: serializeAudioQueueMetadata({
             route: routeIdentity,
+            voiceId: request.voiceId,
           }),
         },
         tx,
@@ -665,6 +668,7 @@ async function submitFalAudioWorkerRun(params: {
     workerManaged: true,
     outputType: 'AUDIO',
     audioFormat: request.format,
+    voiceId: request.voiceId,
   }
 
   const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
@@ -949,6 +953,7 @@ export async function checkAudioGenerationStatus(
               {
                 requestId: queueMeta.requestId,
                 audioFormat: result.format,
+                voiceId: queueMeta.voiceId,
               },
               timer,
             ),
@@ -1097,10 +1102,12 @@ function parseAudioQueueRequest(value: unknown): AudioQueueRequest | null {
 function buildAudioQueueMetadata(
   route: AudioRouteIdentity,
   queueRequest: AudioQueueRequest,
+  voiceId?: string,
 ): ReadyAudioQueueMetadata {
   return {
     ...queueRequest,
     route,
+    voiceId,
   }
 }
 
@@ -1190,6 +1197,9 @@ async function dispatchAudioSubmitOutbox(
 
   if (outbox.status === 'COMPLETED') {
     const completedResult = parseAudioQueueRequest(outbox.result)
+    const completedPayload = AudioSubmitOutboxPayloadSchema.safeParse(
+      outbox.payload,
+    )
     if (!completedResult) {
       await failExecutionOutbox(outbox.id, {
         lastError: 'Audio execution outbox completed without queue metadata',
@@ -1201,7 +1211,11 @@ async function dispatchAudioSubmitOutbox(
       return null
     }
 
-    const queueMeta = buildAudioQueueMetadata(route, completedResult)
+    const queueMeta = buildAudioQueueMetadata(
+      route,
+      completedResult,
+      completedPayload.success ? completedPayload.data.voiceId : undefined,
+    )
     await repairAudioQueueMetadataFromOutbox(job.id, outbox.id, queueMeta)
     return queueMeta
   }
@@ -1289,7 +1303,11 @@ async function dispatchAudioSubmitOutbox(
     result: queueRequest,
   })
 
-  const queueMeta = buildAudioQueueMetadata(route, queueRequest)
+  const queueMeta = buildAudioQueueMetadata(
+    route,
+    queueRequest,
+    payload.data.voiceId,
+  )
   await repairAudioQueueMetadataFromOutbox(job.id, outbox.id, queueMeta)
 
   logger.info('Audio generation submitted from execution outbox', {

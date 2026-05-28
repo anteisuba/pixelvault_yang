@@ -91,6 +91,7 @@ describe('useNodeMediaGeneration', () => {
       freePrompt: IMAGE_GENERATION.prompt,
       aspectRatio: DEFAULT_ASPECT_RATIO,
       referenceImages: undefined,
+      advancedParams: undefined,
     })
   })
 
@@ -128,7 +129,11 @@ describe('useNodeMediaGeneration', () => {
       prompt: VIDEO_GENERATION_RECORD.prompt,
       aspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
       duration: VIDEO_GENERATION.DEFAULT_DURATION,
+      resolution: undefined,
       referenceImages: undefined,
+      audioUrls: undefined,
+      audioBindings: undefined,
+      videoUrls: undefined,
     })
     expect(checkVideoStatusAPI).toHaveBeenCalledWith('job-video')
   })
@@ -148,6 +153,7 @@ describe('useNodeMediaGeneration', () => {
         modelId: AUDIO_GENERATION_RECORD.model,
         prompt: AUDIO_GENERATION_RECORD.prompt,
         apiKeyId: 'key-audio',
+        voiceId: 'fish-voice-test',
       })
     })
 
@@ -160,6 +166,9 @@ describe('useNodeMediaGeneration', () => {
       modelId: AUDIO_GENERATION_RECORD.model,
       apiKeyId: 'key-audio',
       prompt: AUDIO_GENERATION_RECORD.prompt,
+      voiceId: 'fish-voice-test',
+      referenceAudioUrl: undefined,
+      referenceText: undefined,
     })
     expect(checkAudioStatusAPI).not.toHaveBeenCalled()
   })

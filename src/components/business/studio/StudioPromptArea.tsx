@@ -42,7 +42,6 @@ import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import {
@@ -425,19 +424,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     return undefined
   }, [state.audioPace])
   const composerContainerRef = useRef<HTMLDivElement>(null)
-  // Mobile: stay expanded permanently so opening the keyboard does not animate
-  // the quick-controls row in/out (the previous focus-driven expand was the
-  // source of the "page jumps when keyboard opens" complaint). Desktop keeps
-  // the original collapse-by-default behavior — hover/focus expands.
-  const isMobile = useIsMobile()
-  const [isComposerExpandedState, setComposerExpanded] = useState(false)
-  const isComposerExpanded = isMobile || isComposerExpandedState
+  const isComposerExpanded = true
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
   )
 
   useEffect(() => {
-    if (!isComposerExpanded && !hasOpenToolPanel) return
+    if (!hasOpenToolPanel) return
 
     const handleDocumentPointerDown = (event: PointerEvent) => {
       const target = event.target
@@ -468,15 +461,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       if (isInsideComposer) {
         return
       }
-
-      setComposerExpanded(false)
     }
 
     document.addEventListener('pointerdown', handleDocumentPointerDown)
     return () => {
       document.removeEventListener('pointerdown', handleDocumentPointerDown)
     }
-  }, [dispatch, hasOpenToolPanel, isComposerExpanded])
+  }, [dispatch, hasOpenToolPanel])
 
   /** Prepend style preset prefix to user prompt */
   const composePrompt = useCallback(
@@ -819,7 +810,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
-        setComposerExpanded(true)
         requestAnimationFrame(() => {
           document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
         })
@@ -867,7 +857,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const handlePromptDragEnter = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
-      setComposerExpanded(true)
       imageUpload.handleDragEnter(event)
     },
     [imageUpload],
@@ -889,7 +878,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const handlePromptDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
-      setComposerExpanded(true)
       void imageUpload.handleDrop(event).then(() => {
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
       })
@@ -946,8 +934,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
           maxHeight="var(--studio-prompt-max-h)"
           onSubmit={handleGenerate}
-          onClick={() => setComposerExpanded(true)}
-          onFocusCapture={() => setComposerExpanded(true)}
           onDragEnter={handlePromptDragEnter}
           onDragOver={handlePromptDragOver}
           onDragLeave={handlePromptDragLeave}
@@ -1057,8 +1043,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 aria-label={tForm('promptLabel')}
                 placeholder={placeholder}
                 onPaste={handlePromptPaste}
-                onClick={() => setComposerExpanded(true)}
-                onFocus={() => setComposerExpanded(true)}
                 className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
               />
               <PromptInputActions className="shrink-0 items-center gap-1">

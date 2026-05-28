@@ -101,6 +101,79 @@ describe('createSeedancePromptPlan', () => {
     )
   })
 
+  it('sends Seedance cinematography rules (Z-axis depth) in the system prompt', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_PLAN))
+
+    await createSeedancePromptPlan('clerk_user_1', {
+      idea: 'A cat sitting on a windowsill watching rain',
+      plannerProvider: 'auto',
+      locale: 'en',
+    })
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining('Z-AXIS DEPTH'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining('rear-right blind spot'),
+      }),
+    )
+  })
+
+  it('threads reference assets into the planner prompt with @VideoN / @AudioN tokens', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_PLAN))
+
+    await createSeedancePromptPlan('clerk_user_1', {
+      idea: 'A duel at dusk',
+      plannerProvider: 'auto',
+      locale: 'en',
+      references: {
+        imageCount: 2,
+        videoCount: 1,
+        audio: [{ characterName: 'Alice' }, {}],
+      },
+    })
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('PRODUCTION REFERENCES'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('2 reference image(s)'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('@Video1'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('Alice (@Audio1)'),
+      }),
+    )
+  })
+
+  it('omits the references block when no references are supplied', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_PLAN))
+
+    await createSeedancePromptPlan('clerk_user_1', {
+      idea: 'A quiet morning on the balcony',
+      plannerProvider: 'auto',
+      locale: 'en',
+    })
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.not.stringContaining('PRODUCTION REFERENCES'),
+      }),
+    )
+  })
+
   it('requests locale-matched Seedance prompt text for Chinese users', async () => {
     mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_PLAN))
 

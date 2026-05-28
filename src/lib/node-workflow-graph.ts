@@ -8,6 +8,7 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 
@@ -266,4 +267,29 @@ export function mergePromptWithUpstreamText(
   if (!upstream) return base
   if (!base) return upstream
   return `${upstream}\n\n${base}`
+}
+
+/**
+ * Summarise the reference assets feeding a focal Seedance node so the prompt
+ * planner can orchestrate Seedance's multimodal @VideoN / @AudioN tokens with
+ * intent. Counts are capped to the fal endpoint limits (≤9 images, ≤3 videos,
+ * ≤3 audio). Audio carries the routing character name when one is wired, so
+ * the planner can label `Alice (@Audio1)`. Returns zeros when nothing is wired.
+ */
+export function summarizeUpstreamSeedanceReferences(
+  focalNodeId: string,
+  edges: readonly NodeWorkflowEdge[],
+  nodes: readonly NodeWorkflowNode[],
+): SeedancePromptPlanReferences {
+  const upstream = getUpstreamNodes(focalNodeId, edges, nodes)
+
+  return {
+    imageCount: Math.min(9, harvestUpstreamImageUrls(upstream).length),
+    videoCount: Math.min(3, harvestUpstreamVideoUrls(upstream).length),
+    audio: harvestUpstreamAudioBindings(focalNodeId, edges, nodes)
+      .slice(0, 3)
+      .map((binding) =>
+        binding.characterName ? { characterName: binding.characterName } : {},
+      ),
+  }
 }

@@ -17,6 +17,7 @@ import {
   isVisualReferenceNode,
   isVoiceProfileNode,
   mergePromptWithUpstreamText,
+  summarizeUpstreamSeedanceReferences,
 } from './node-workflow-graph'
 
 function makeNode(
@@ -455,5 +456,67 @@ describe('harvestUpstreamAudioBindings', () => {
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
       { url: 'https://cdn/v.mp3', characterName: 'Charlie' },
     ])
+  })
+})
+
+describe('summarizeUpstreamSeedanceReferences', () => {
+  it('counts images / videos and names character-routed audio', () => {
+    const nodes = [
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        imageUrl: 'https://cdn/char.png',
+        characterName: 'Alice',
+      }),
+      makeNode('frame', NODE_TYPE_IDS.frameImage, {
+        imageUrl: 'https://cdn/frame.png',
+      }),
+      makeNode('clip', NODE_TYPE_IDS.videoReference, {
+        mediaUrl: 'https://cdn/clip.mp4',
+      }),
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char', 'seedance'),
+      makeEdge('e2', 'frame', 'seedance'),
+      makeEdge('e3', 'clip', 'seedance'),
+      makeEdge('e4', 'voice', 'char'),
+    ]
+
+    expect(
+      summarizeUpstreamSeedanceReferences('seedance', edges, nodes),
+    ).toEqual({
+      imageCount: 2,
+      videoCount: 1,
+      audio: [{ characterName: 'Alice' }],
+    })
+  })
+
+  it('returns zeros when nothing is wired upstream', () => {
+    const nodes = [makeNode('seedance', NODE_TYPE_IDS.seedance)]
+    expect(summarizeUpstreamSeedanceReferences('seedance', [], nodes)).toEqual({
+      imageCount: 0,
+      videoCount: 0,
+      audio: [],
+    })
+  })
+
+  it('omits characterName for voices wired directly into the node', () => {
+    const nodes = [
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+    ]
+    const edges = [makeEdge('e1', 'voice', 'seedance')]
+
+    expect(
+      summarizeUpstreamSeedanceReferences('seedance', edges, nodes),
+    ).toEqual({
+      imageCount: 0,
+      videoCount: 0,
+      audio: [{}],
+    })
   })
 })

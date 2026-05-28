@@ -37,6 +37,20 @@ export const SeedancePromptTimelineItemSchema = z.object({
   maxReferences: z.number().int().min(0).max(9).optional(),
 })
 
+// Summary of the reference assets wired into the downstream Seedance node at
+// plan time. Lets the planner orchestrate Seedance's multimodal @VideoN /
+// @AudioN tokens with intent instead of leaving the fal builder to prepend
+// semantically-empty tokens. Best-effort: empty when the graph has no refs yet.
+export const SeedancePromptPlanReferenceAudioSchema = z.object({
+  characterName: z.string().trim().min(1).max(80).optional(),
+})
+
+export const SeedancePromptPlanReferencesSchema = z.object({
+  imageCount: z.number().int().min(0).max(9).default(0),
+  videoCount: z.number().int().min(0).max(3).default(0),
+  audio: z.array(SeedancePromptPlanReferenceAudioSchema).max(3).default([]),
+})
+
 export const SeedancePromptPlanRequestSchema = z.object({
   idea: z.string().trim().min(1).max(SEEDANCE_PROMPT_PLAN_LIMITS.ideaMaxLength),
   plannerProvider: z
@@ -44,6 +58,7 @@ export const SeedancePromptPlanRequestSchema = z.object({
     .default(DEFAULT_SCRIPT_PLANNER_PROVIDER),
   apiKeyId: z.string().trim().min(1).max(160).optional(),
   locale: z.enum(LOCALES),
+  references: SeedancePromptPlanReferencesSchema.optional(),
 })
 
 export const SeedancePromptPlanResultSchema = z.object({
@@ -107,6 +122,9 @@ export const SeedancePromptPlanApiSuccessResponseSchema = z.object({
 
 export type SeedancePromptTimelineItem = z.infer<
   typeof SeedancePromptTimelineItemSchema
+>
+export type SeedancePromptPlanReferences = z.infer<
+  typeof SeedancePromptPlanReferencesSchema
 >
 export type SeedancePromptPlanRequest = z.infer<
   typeof SeedancePromptPlanRequestSchema

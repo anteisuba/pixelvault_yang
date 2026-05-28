@@ -66,6 +66,7 @@ import {
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoUrls,
   mergePromptWithUpstreamText,
+  summarizeUpstreamSeedanceReferences,
 } from '@/lib/node-workflow-graph'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -435,11 +436,34 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         targetAgent.data.agentMode ?? NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
 
       if (agentMode === NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt) {
+        // Surface the reference assets already wired into the downstream
+        // Seedance node so the planner can orchestrate @VideoN / @AudioN
+        // tokens with intent. Best-effort: undefined when nothing is wired.
+        const targetSeedance = workflow.getOutgoingTargetByType(
+          targetAgent.id,
+          NODE_TYPE_IDS.seedance,
+        )
+        const referenceSummary = targetSeedance
+          ? summarizeUpstreamSeedanceReferences(
+              targetSeedance.id,
+              workflow.edges,
+              workflow.nodes,
+            )
+          : null
+        const references =
+          referenceSummary &&
+          (referenceSummary.imageCount > 0 ||
+            referenceSummary.videoCount > 0 ||
+            referenceSummary.audio.length > 0)
+            ? referenceSummary
+            : undefined
+
         const result = await seedancePromptPlan.generate({
           idea,
           plannerProvider,
           apiKeyId: plannerApiKeyId,
           locale: appLocale,
+          references,
         })
 
         if (result.success) {

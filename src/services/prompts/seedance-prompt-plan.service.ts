@@ -19,6 +19,7 @@ import { resolveNodePlannerRoute } from '@/services/kernel/node-planner-route.se
 import { ensureUser } from '@/services/user.service'
 import {
   SeedancePromptPlanResultSchema,
+  type SeedancePromptPlanReferences,
   type SeedancePromptPlanResponseData,
 } from '@/types/seedance-prompt-plan'
 
@@ -26,13 +27,64 @@ function getSeedancePromptOutputLanguage(locale: AppLocale): string {
   return SEEDANCE_PROMPT_PLAN_OUTPUT_LANGUAGES[locale]
 }
 
-function buildUserPrompt(idea: string, locale: AppLocale): string {
+function buildReferenceBlock(
+  references: SeedancePromptPlanReferences | undefined,
+): string | null {
+  if (!references) return null
+
+  const lines: string[] = []
+
+  if (references.imageCount > 0) {
+    lines.push(
+      `- ${references.imageCount} reference image(s): use as opening frame, character likeness, or scene anchor as the idea requires. Images bind automatically — do not invent @Image tokens.`,
+    )
+  }
+
+  if (references.videoCount > 0) {
+    const tokens = Array.from(
+      { length: references.videoCount },
+      (_, index) => `@Video${index + 1}`,
+    ).join(', ')
+    lines.push(
+      `- ${references.videoCount} reference video(s) (${tokens}): cite each token in finalPrompt to replicate its camera language, motion, or effects, e.g. "replicate @Video1's camera movement".`,
+    )
+  }
+
+  if (references.audio.length > 0) {
+    const tokens = references.audio
+      .map((entry, index) => {
+        const slot = `@Audio${index + 1}`
+        return entry.characterName ? `${entry.characterName} (${slot})` : slot
+      })
+      .join(', ')
+    const example = references.audio[0]?.characterName ?? 'Speaker'
+    lines.push(
+      `- ${references.audio.length} reference voice(s) (${tokens}): bind dialogue to the matching token, e.g. "${example} (@Audio1): ...".`,
+    )
+  }
+
+  if (lines.length === 0) return null
+
+  return [
+    'PRODUCTION REFERENCES (the workflow includes these reference assets — weave them into the timeline and finalPrompt with intent):',
+    ...lines,
+    'Only use @VideoN / @AudioN tokens for the references listed above; never emit a token for a modality not listed.',
+  ].join('\n')
+}
+
+function buildUserPrompt(
+  idea: string,
+  locale: AppLocale,
+  references?: SeedancePromptPlanReferences,
+): string {
   const outputLanguage = getSeedancePromptOutputLanguage(locale)
+  const referenceBlock = buildReferenceBlock(references)
 
   return [
     SEEDANCE_PROMPT_PLAN_OUTPUT_CONTRACT,
     `Limits: max ${SEEDANCE_PROMPT_PLAN_LIMITS.maxTimelineItems} timeline items. Keep finalPrompt under ${SEEDANCE_PROMPT_PLAN_LIMITS.finalPromptMaxLength} characters.`,
     `Locale hint: ${locale}. Keep JSON keys in English. Write every JSON string value in ${outputLanguage}, including title, visualDescription, timeline items, motion, camera, audioIntent, and finalPrompt. Preserve standard film/camera/style terms when they are clearer as industry terms. If the user explicitly asks for another output language, use that language instead.`,
+    ...(referenceBlock ? [referenceBlock] : []),
     `User idea: ${idea}`,
   ].join('\n\n')
 }
@@ -136,6 +188,7 @@ export async function createSeedancePromptPlan(
     plannerProvider: ScriptPlannerProvider
     apiKeyId?: string
     locale: AppLocale
+    references?: SeedancePromptPlanReferences
   },
 ): Promise<SeedancePromptPlanResponseData> {
   const dbUser = await ensureUser(clerkId)
@@ -150,7 +203,11 @@ export async function createSeedancePromptPlan(
       const rawOutput = await withSeedancePromptPlanTimeout(
         llmTextCompletion({
           systemPrompt: SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT,
-          userPrompt: buildUserPrompt(params.idea, params.locale),
+          userPrompt: buildUserPrompt(
+            params.idea,
+            params.locale,
+            params.references,
+          ),
           modelId: route.modelId,
           maxTokens: SEEDANCE_PROMPT_PLAN_LIMITS.maxTokens,
           responseFormat: 'json_object',

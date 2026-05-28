@@ -9,7 +9,7 @@ import {
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
 } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
-import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
+import type { UserApiKeyRecord } from '@/types'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { getHealthDotClass, getHealthLabelKey } from '@/lib/health-status-utils'
 import { cn } from '@/lib/utils'
 
 export interface NodeAssistantRouteSelection {
@@ -74,38 +75,6 @@ function getSetupLabelKey(
       return 'setupDeepSeek'
     default:
       return 'setupGemini'
-  }
-}
-
-function getHealthDotClass(status: ApiKeyHealthStatus | undefined): string {
-  switch (status) {
-    case 'available':
-      return 'bg-emerald-400'
-    case 'no_key':
-      return 'bg-amber-400'
-    case 'failed':
-      return 'bg-red-400'
-    case 'unknown':
-      return 'bg-node-muted/45'
-    default:
-      return 'bg-transparent'
-  }
-}
-
-function getHealthLabelKey(
-  status: ApiKeyHealthStatus | undefined,
-): 'available' | 'failed' | 'noKey' | 'unknown' | null {
-  switch (status) {
-    case 'available':
-      return 'available'
-    case 'failed':
-      return 'failed'
-    case 'no_key':
-      return 'noKey'
-    case 'unknown':
-      return 'unknown'
-    default:
-      return null
   }
 }
 
@@ -239,7 +208,7 @@ export function CanvasAssistantRouteSelector({
                 <span
                   className={cn(
                     'absolute -right-0.5 top-0 size-1.5 rounded-full ring-1 ring-node-panel',
-                    getHealthDotClass(selectedHealthStatus),
+                    getHealthDotClass(selectedHealthStatus, 'node'),
                   )}
                 />
               ) : null}
@@ -343,7 +312,7 @@ export function CanvasAssistantRouteSelector({
                             <span
                               className={cn(
                                 'size-1.5 rounded-full',
-                                getHealthDotClass(healthStatus),
+                                getHealthDotClass(healthStatus, 'node'),
                               )}
                             />
                             {tApiKeys(`health.${healthLabelKey}`)}

@@ -51,6 +51,7 @@ import {
   getReferenceCapabilityMax,
 } from '@/constants/reference-image-capabilities'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
+import { useSplitModelOptions } from '@/hooks/use-split-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { getStylePresetById } from '@/constants/style-presets'
@@ -320,25 +321,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tSetup = useTranslations('QuickSetup')
 
   // ── Model options: split API-key routes from platform quota routes ──
-  const { savedModels, platformModels, lockedModels } = useMemo(() => {
-    const saved: typeof modelOptions = []
-    const platform: typeof modelOptions = []
-    const locked: typeof modelOptions = []
-    for (const opt of modelOptions) {
-      if (opt.sourceType === 'saved') {
-        saved.push(opt)
-      } else if (opt.freeTier) {
-        platform.push(opt)
-      } else {
-        locked.push(opt)
-      }
-    }
-    return {
-      savedModels: saved,
-      platformModels: platform,
-      lockedModels: locked,
-    }
-  }, [modelOptions])
+  const {
+    saved: savedModels,
+    platform: platformModels,
+    locked: lockedModels,
+  } = useSplitModelOptions(modelOptions)
 
   const closeModelPicker = useCallback(() => {
     setModelPickerOpen(false)

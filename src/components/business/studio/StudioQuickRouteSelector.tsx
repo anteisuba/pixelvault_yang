@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useState } from 'react'
 import { ChevronDown, KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -12,6 +12,7 @@ import { getProviderLabel } from '@/constants/providers'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useSplitModelOptions } from '@/hooks/use-split-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
@@ -36,10 +37,7 @@ export const StudioQuickRouteSelector = memo(function StudioQuickRouteSelector({
   const [isManagerOpen, setIsManagerOpen] = useState(false)
 
   const activeRouteCount = keys.filter((key) => key.isActive).length
-  const savedOptions = useMemo(
-    () => modelOptions.filter((option) => option.sourceType === 'saved'),
-    [modelOptions],
-  )
+  const { saved: savedOptions } = useSplitModelOptions(modelOptions)
 
   return (
     <section

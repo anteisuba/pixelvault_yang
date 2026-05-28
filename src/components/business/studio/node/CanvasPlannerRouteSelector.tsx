@@ -11,7 +11,6 @@ import {
   SCRIPT_PLANNER_PROVIDER_IDS,
   type ScriptPlannerConcreteProvider,
 } from '@/constants/script-breakdown'
-import type { ApiKeyHealthStatus } from '@/types'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
@@ -19,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { getHealthDotClass, getHealthLabelKey } from '@/lib/health-status-utils'
 import { cn } from '@/lib/utils'
 
 export interface NodePlannerRouteSelection {
@@ -89,38 +89,6 @@ function getPlannerSetupLabelKey(
       return 'setupDeepSeek'
     default:
       return 'setupGemini'
-  }
-}
-
-function getHealthDotClass(status: ApiKeyHealthStatus | undefined): string {
-  switch (status) {
-    case 'available':
-      return 'bg-emerald-400'
-    case 'no_key':
-      return 'bg-amber-400'
-    case 'failed':
-      return 'bg-red-400'
-    case 'unknown':
-      return 'bg-node-muted/45'
-    default:
-      return 'bg-transparent'
-  }
-}
-
-function getHealthLabelKey(
-  status: ApiKeyHealthStatus | undefined,
-): 'available' | 'failed' | 'noKey' | 'unknown' | null {
-  switch (status) {
-    case 'available':
-      return 'available'
-    case 'failed':
-      return 'failed'
-    case 'no_key':
-      return 'noKey'
-    case 'unknown':
-      return 'unknown'
-    default:
-      return null
   }
 }
 
@@ -281,7 +249,7 @@ export function CanvasPlannerRouteSelector({
                 <span
                   className={cn(
                     'absolute right-0 top-1 size-1.5 rounded-full ring-2 ring-node-panel-soft',
-                    getHealthDotClass(selectedHealthStatus),
+                    getHealthDotClass(selectedHealthStatus, 'node'),
                   )}
                 />
               ) : null}
@@ -376,7 +344,7 @@ export function CanvasPlannerRouteSelector({
                               <span
                                 className={cn(
                                   'size-1.5 rounded-full',
-                                  getHealthDotClass(healthStatus),
+                                  getHealthDotClass(healthStatus, 'node'),
                                 )}
                               />
                               {tApiKeys(`health.${healthLabelKey}`)}

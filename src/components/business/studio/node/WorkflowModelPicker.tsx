@@ -23,6 +23,7 @@ import {
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import { getProviderLabel } from '@/constants/providers'
+import { useSplitModelOptions } from '@/hooks/use-split-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
@@ -163,23 +164,11 @@ export function WorkflowModelPicker({
     [],
   )
 
-  // Split options the same way StudioPromptArea does — saved (has API key),
-  // platform (freeTier workspace), locked (needs key).
-  const { savedOptions, platformOptions, lockedOptions } = useMemo(() => {
-    const saved: NodeWorkflowModelOption[] = []
-    const platform: NodeWorkflowModelOption[] = []
-    const locked: NodeWorkflowModelOption[] = []
-    for (const opt of options) {
-      if (opt.sourceType === 'saved') saved.push(opt)
-      else if (opt.freeTier) platform.push(opt)
-      else locked.push(opt)
-    }
-    return {
-      savedOptions: saved,
-      platformOptions: platform,
-      lockedOptions: locked,
-    }
-  }, [options])
+  const {
+    saved: savedOptions,
+    platform: platformOptions,
+    locked: lockedOptions,
+  } = useSplitModelOptions(options)
 
   return (
     <>

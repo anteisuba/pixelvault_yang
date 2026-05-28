@@ -17,11 +17,14 @@ const mockCreateGeneration = vi.fn()
 const mockCompleteGenerationJob = vi.fn()
 const mockCreateApiUsageEntry = vi.fn()
 const mockFailGenerationJob = vi.fn()
+const mockTxUpdateMany = vi.fn()
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     generation: {},
     generationCharacterCard: {},
-    generationJob: {},
+    generationJob: {
+      updateMany: (...args: unknown[]) => mockTxUpdateMany(...args),
+    },
     apiUsageLedger: {},
   }),
 )
@@ -96,6 +99,7 @@ function buildJob(status: JobStatus) {
 describe('execution-callback.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockTxUpdateMany.mockResolvedValue({ count: 1 })
     mockStreamUploadToR2.mockResolvedValue({
       publicUrl: 'https://cdn.example.com/video.mp4',
       sizeBytes: 1024,
@@ -471,6 +475,37 @@ describe('execution-callback.service', () => {
       expect(mockDbTransaction).toHaveBeenCalledOnce()
       expect(result.action).toBe('failed')
       expect(mockFailGenerationJob).toHaveBeenCalledOnce()
+    })
+
+    it('ignores a concurrent duplicate result callback without double-writing (CAS guard)', async () => {
+      mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+      // This callback loses the RUNNING→COMPLETED race: the CAS update matches
+      // zero rows because a concurrent callback already finalized the job.
+      mockTxUpdateMany.mockResolvedValue({ count: 0 })
+
+      const payload: ExecutionCallbackPayload = {
+        runId: 'job-1',
+        kind: 'result',
+        ts: '2026-04-25T00:00:00.000Z',
+        data: {
+          artifactUrl: 'https://provider.com/video.mp4',
+          mimeType: 'video/mp4',
+          width: 1280,
+          height: 720,
+          duration: 5,
+          requestCount: 1,
+        },
+      }
+
+      const result = await handleExecutionCallback(payload)
+
+      expect(result.action).toBe('ignored-concurrent')
+      expect(result.jobStatus).toBe('COMPLETED')
+      // No double-write: Generation + ApiUsageLedger must NOT be created.
+      expect(mockCreateGeneration).not.toHaveBeenCalled()
+      expect(mockCreateApiUsageEntry).not.toHaveBeenCalled()
+      // And the job must NOT be marked FAILED — it was already finalized.
+      expect(mockFailGenerationJob).not.toHaveBeenCalled()
     })
   })
 })

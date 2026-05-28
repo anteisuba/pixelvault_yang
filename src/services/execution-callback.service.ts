@@ -44,6 +44,7 @@ export type ExecutionCallbackAction =
   | 'completed'
   | 'failed'
   | 'ignored-terminal'
+  | 'ignored-concurrent'
   | 'not-found'
 
 export interface CallbackResult {
@@ -217,6 +218,30 @@ export async function handleExecutionCallback(
   }
 }
 
+class ConcurrentCallbackError extends Error {
+  constructor(readonly runId: string) {
+    super(`Concurrent execution callback for already-finalized run ${runId}`)
+    this.name = 'ConcurrentCallbackError'
+  }
+}
+
+/**
+ * CAS guard used inside finalize transactions. Atomically flips the job
+ * RUNNING → COMPLETED; a concurrent duplicate `result` callback that loses the
+ * race sees count === 0 and must abort, preventing a double Generation + double
+ * ApiUsageLedger (neither row has a unique constraint to catch the duplicate).
+ */
+async function claimRunningJobForFinalize(
+  tx: Pick<typeof db, 'generationJob'>,
+  jobId: string,
+): Promise<boolean> {
+  const claim = await tx.generationJob.updateMany({
+    where: { id: jobId, status: 'RUNNING' },
+    data: { status: 'COMPLETED' },
+  })
+  return claim.count === 1
+}
+
 async function finalizeExecutionResult(
   payload: ExecutionCallbackPayload,
   job: {
@@ -325,6 +350,9 @@ async function finalizeExecutionResult(
 
     const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
       db.$transaction(async (tx) => {
+        if (!(await claimRunningJobForFinalize(tx, job.id))) {
+          throw new ConcurrentCallbackError(job.id)
+        }
         const createdGeneration = await createGeneration(
           {
             url: uploadResult.publicUrl,
@@ -410,6 +438,17 @@ async function finalizeExecutionResult(
       action: 'completed',
     }
   } catch (error) {
+    if (error instanceof ConcurrentCallbackError) {
+      logger.info('Concurrent execution callback ignored (already finalized)', {
+        runId: job.id,
+      })
+      return {
+        runId: job.id,
+        jobStatus: 'COMPLETED',
+        action: 'ignored-concurrent',
+      }
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -477,6 +516,9 @@ async function finalizeModel3DResult(
   try {
     const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
       db.$transaction(async (tx) => {
+        if (!(await claimRunningJobForFinalize(tx, job.id))) {
+          throw new ConcurrentCallbackError(job.id)
+        }
         const createdGeneration = await createGeneration(
           {
             url: resultData.artifactUrl,
@@ -562,6 +604,17 @@ async function finalizeModel3DResult(
 
     return { runId: job.id, jobStatus: 'COMPLETED', action: 'completed' }
   } catch (error) {
+    if (error instanceof ConcurrentCallbackError) {
+      logger.info('Concurrent execution callback ignored (already finalized)', {
+        runId: job.id,
+      })
+      return {
+        runId: job.id,
+        jobStatus: 'COMPLETED',
+        action: 'ignored-concurrent',
+      }
+    }
+
     const message =
       error instanceof Error
         ? error.message

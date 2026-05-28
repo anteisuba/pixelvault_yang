@@ -14,15 +14,9 @@ import {
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { adapterHasCapability } from '@/constants/llm-capability'
 import { cn } from '@/lib/utils'
 import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
-
-const LLM_CAPABLE_ADAPTERS = new Set([
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.VOLCENGINE,
-])
 
 function PanelLoadingFallback() {
   return (
@@ -59,7 +53,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
   const { keys: apiKeys } = useApiKeysContext()
 
   const llmApiKeys = apiKeys
-    .filter((k) => k.isActive && LLM_CAPABLE_ADAPTERS.has(k.adapterType))
+    .filter((k) => k.isActive && adapterHasCapability(k.adapterType, 'enhance'))
     .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
 
   const selectedStyleCard = styles.activeCard

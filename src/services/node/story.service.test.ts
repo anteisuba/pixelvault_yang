@@ -43,7 +43,7 @@ import {
   getStoryById,
   updateStory,
   deleteStory,
-} from '@/services/story.service'
+} from '@/services/node/story.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
 const FAKE_STORY = {

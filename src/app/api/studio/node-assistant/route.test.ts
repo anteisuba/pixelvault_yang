@@ -9,7 +9,7 @@ import {
 } from '@/test/api-helpers'
 
 const mockCreateNodeAssistantStream = vi.fn()
-vi.mock('@/services/node-assistant.service', () => ({
+vi.mock('@/services/node/node-assistant.service', () => ({
   createNodeAssistantStream: (...args: unknown[]) =>
     mockCreateNodeAssistantStream(...args),
 }))

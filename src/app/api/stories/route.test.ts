@@ -7,13 +7,13 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/story.service', () => ({
+vi.mock('@/services/node/story.service', () => ({
   listStories: vi.fn(),
   createStory: vi.fn(),
 }))
 
 import { GET, POST } from '@/app/api/stories/route'
-import { listStories, createStory } from '@/services/story.service'
+import { listStories, createStory } from '@/services/node/story.service'
 import type { StoryListItem, StoryRecord } from '@/types'
 
 const mockListStories = vi.mocked(listStories)

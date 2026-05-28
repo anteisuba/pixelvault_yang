@@ -10,7 +10,7 @@ import {
   deleteNodeWorkflowProject,
   getNodeWorkflowProject,
   updateNodeWorkflowProject,
-} from '@/services/node-workflow.service'
+} from '@/services/node/node-workflow.service'
 import { UpdateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 
 export const GET = createApiGetByIdRoute({

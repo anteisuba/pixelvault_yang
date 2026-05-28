@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { NodeAssistantRequestSchema } from '@/types/node-assistant'
-import { createNodeAssistantStream } from '@/services/node-assistant.service'
+import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 

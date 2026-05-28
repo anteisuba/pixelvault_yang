@@ -8,7 +8,7 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/story.service', () => ({
+vi.mock('@/services/node/story.service', () => ({
   getStoryById: vi.fn(),
   getPublicStoryById: vi.fn(),
   updateStory: vi.fn(),
@@ -21,7 +21,7 @@ import {
   getPublicStoryById,
   updateStory,
   deleteStory,
-} from '@/services/story.service'
+} from '@/services/node/story.service'
 import type { StoryRecord } from '@/types'
 
 const mockGetStoryById = vi.mocked(getStoryById)

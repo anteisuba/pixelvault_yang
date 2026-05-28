@@ -35,7 +35,7 @@ vi.mock('@/lib/with-retry', () => ({
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { SCRIPT_PLANNER_MODELS } from '@/constants/script-breakdown'
-import { createScriptBreakdown } from '@/services/script-breakdown.service'
+import { createScriptBreakdown } from '@/services/node/script-breakdown.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_user_1' }
 

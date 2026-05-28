@@ -9,7 +9,7 @@ import {
   createNodeWorkflowProject,
   listNodeWorkflowProjectsForUser,
   NodeWorkflowProjectLimitError,
-} from '@/services/node-workflow.service'
+} from '@/services/node/node-workflow.service'
 import { CreateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 
 export const GET = createApiGetRoute({

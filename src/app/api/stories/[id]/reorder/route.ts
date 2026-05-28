@@ -2,7 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { reorderPanels } from '@/services/story.service'
+import { reorderPanels } from '@/services/node/story.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

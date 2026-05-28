@@ -1,13 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
-import type {
-  ApiKeyHealthStatus,
-  ProviderConfig,
-  UserApiKeyRecord,
-} from '@/types'
+import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: vi.fn(),

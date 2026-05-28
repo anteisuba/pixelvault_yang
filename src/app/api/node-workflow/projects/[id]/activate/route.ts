@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiDeleteRoute } from '@/lib/api-route-factory'
-import { touchNodeWorkflowProject } from '@/services/node-workflow.service'
+import { touchNodeWorkflowProject } from '@/services/node/node-workflow.service'
 
 /**
  * Marks a Node Studio project as the user's active one by bumping its

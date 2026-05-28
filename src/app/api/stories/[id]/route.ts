@@ -6,7 +6,7 @@ import {
   getPublicStoryById,
   updateStory,
   deleteStory,
-} from '@/services/story.service'
+} from '@/services/node/story.service'
 import {
   createApiPutRoute,
   createApiDeleteRoute,

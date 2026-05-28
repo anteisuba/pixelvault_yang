@@ -21,7 +21,7 @@ vi.mock('@/services/llm-text.service', () => ({
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { createNodeAssistantStream } from '@/services/node-assistant.service'
+import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
 
 const REQUEST: NodeAssistantRequest = {

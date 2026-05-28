@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { GenerateNarrativeRequestSchema } from '@/types'
-import { generateNarrative } from '@/services/story.service'
+import { generateNarrative } from '@/services/node/story.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const maxDuration = 30

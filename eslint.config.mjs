@@ -3,9 +3,11 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier";
 
-// Spec 1 §7 boundary rules — Prompts + Kernel scope only.
-// Other modules opt-in once their respective specs land. See
-// docs/spark/2026-05-28-architecture-contract-design.md and roadmap.md.
+// Boundary rules — scoped per spec. Other modules opt in once their
+// respective specs land. See:
+//   docs/spark/2026-05-28-architecture-contract-design.md (Spec 1)
+//   docs/spark/2026-05-28-spec-2-studio-shared-layer.md (Spec 2)
+//   docs/spark/roadmap.md
 
 /** L1+ paths that L0 Shared Kernel must NEVER import from. */
 const KERNEL_FORBIDDEN_PATTERNS = [
@@ -53,6 +55,24 @@ const PROMPTS_FORBIDDEN_SIBLINGS = [
   },
 ];
 
+/** L2 tools / L3 orchestrator paths that L1.5 Studio Shared must NEVER import from. */
+const STUDIO_SHARED_FORBIDDEN_PATTERNS = [
+  {
+    group: [
+      "@/components/business/studio/edit/**",
+      "@/components/business/studio/lora/**",
+      "@/components/business/studio/node/**",
+    ],
+    message:
+      "L1.5 Studio Shared must not import from L2 tools (edit/lora) or L3 orchestrator (node). Tools call into shared, not the other way around.",
+  },
+  {
+    group: ["@/app/**"],
+    message:
+      "L1.5 Studio Shared must not import from app routes — keep components pure UI.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -72,6 +92,16 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-imports": ["error", { patterns: PROMPTS_FORBIDDEN_SIBLINGS }],
+    },
+  },
+  // ─── Spec 2 boundary rules ─────────────────────────────────────
+  {
+    files: ["src/components/business/studio-shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: STUDIO_SHARED_FORBIDDEN_PATTERNS },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

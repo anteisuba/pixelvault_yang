@@ -10,8 +10,8 @@
 
 | Spec       | 标题                                                                       | 范围                                                                                                                   | 状态      | 大小                           |
 | ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------ |
-| **Spec 1** | [架构契约 + Prompts pilot](./2026-05-28-architecture-contract-design.md)   | 5 层架构、铁律、决策树；prompt-engineering 下沉 L0；inspiration 归 Prompts                                             | ✅ 已定稿 | ~15 文件移动                   |
-| **Spec 2** | [Studio Shared 层首批 16 文件](./2026-05-28-spec-2-studio-shared-layer.md) | 16 SHARED → L1.5；删 2 死文件；ESLint 扩展                                                                             | ✅ 已定稿 | ~18 文件移动                   |
+| **Spec 1** | [架构契约 + Prompts pilot](./2026-05-28-architecture-contract-design.md)   | 5 层架构、铁律、决策树；prompt-engineering 下沉 L0；inspiration 归 Prompts                                             | 🚀 已落地 | ~15 文件移动                   |
+| **Spec 2** | [Studio Shared 层首批 16 文件](./2026-05-28-spec-2-studio-shared-layer.md) | 16 SHARED → L1.5；删 2 死文件；ESLint 扩展                                                                             | 🚀 已落地 | ~18 文件移动                   |
 | Spec 3     | Cards 模块 — Recipe 命名归一                                               | `recipe` / `card-recipe` / `recipe-compiler` 三套同义词梳清；Cards 模块目录化                                          | ⏳ 待写   | 小（~10 文件）                 |
 | Spec 4     | Image 模块目录化 + Image-owned 归位                                        | services/image/ 目录化；6 个 image-owned 扁平文件归位                                                                  | ⏳ 待写   | 中（~20 文件）                 |
 | Spec 5     | Node 模块拆分 + Node-owned 归位                                            | `use-node-workflow.ts` 1,695 行拆 3 段；2 个 node-owned 扁平归位；Node 内部 services 子目录化                          | ⏳ 待写   | 大（hook 拆分 + ~10 文件移动） |

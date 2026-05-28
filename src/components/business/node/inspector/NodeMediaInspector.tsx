@@ -49,8 +49,8 @@ import { ROUTES } from '@/constants/routes'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { CharacterImageLoraControls } from '@/components/business/studio/node/CharacterImageLoraControls'
-import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
+import { CharacterImageLoraControls } from '@/components/business/node/CharacterImageLoraControls'
+import { CharacterImageReferenceControls } from '@/components/business/node/CharacterImageReferenceControls'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -64,7 +64,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { WorkflowModelPicker } from '@/components/business/node/WorkflowModelPicker'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import {
   buildNodeWorkflowPrompt,

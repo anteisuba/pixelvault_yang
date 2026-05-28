@@ -30,18 +30,15 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))
 
-vi.mock(
-  '@/components/business/studio/node/CharacterImageReferenceControls',
-  () => ({
-    CharacterImageReferenceControls: () => <button>referenceControls</button>,
-  }),
-)
+vi.mock('@/components/business/node/CharacterImageReferenceControls', () => ({
+  CharacterImageReferenceControls: () => <button>referenceControls</button>,
+}))
 
-vi.mock('@/components/business/studio/node/CharacterImageLoraControls', () => ({
+vi.mock('@/components/business/node/CharacterImageLoraControls', () => ({
   CharacterImageLoraControls: () => <button>loraControls</button>,
 }))
 
-vi.mock('@/components/business/studio/node/WorkflowModelPicker', () => ({
+vi.mock('@/components/business/node/WorkflowModelPicker', () => ({
   WorkflowModelPicker: () => <button>modelPicker</button>,
 }))
 
@@ -65,9 +62,9 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { NodeWorkflowActionsProvider } from '@/components/business/studio/node/NodeWorkflowActionsContext'
-import { CharacterImageInspector } from '@/components/business/studio/node/inspector/CharacterImageInspector'
-import type { NodeWorkflowCanvasActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
+import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
+import { CharacterImageInspector } from '@/components/business/node/inspector/CharacterImageInspector'
+import type { NodeWorkflowCanvasActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import type {
   NodeWorkflowModelOption,
   NodeWorkflowNode,

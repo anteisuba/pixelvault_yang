@@ -58,9 +58,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { CharacterImageLoraControls } from '@/components/business/studio/node/CharacterImageLoraControls'
-import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
-import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { CharacterImageLoraControls } from '@/components/business/node/CharacterImageLoraControls'
+import { CharacterImageReferenceControls } from '@/components/business/node/CharacterImageReferenceControls'
+import { WorkflowModelPicker } from '@/components/business/node/WorkflowModelPicker'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { useRouter } from '@/i18n/navigation'

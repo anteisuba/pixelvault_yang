@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { StudioNodeWorkbench } from '@/components/business/studio/node/StudioNodeWorkbench'
+import { StudioNodeWorkbench } from '@/components/business/node/StudioNodeWorkbench'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioNodePageProps {

@@ -5,7 +5,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/business/studio/node/CanvasPlannerRouteSelector', () => ({
+vi.mock('@/components/business/node/CanvasPlannerRouteSelector', () => ({
   CanvasPlannerRouteSelector: ({
     onChange,
   }: {
@@ -32,9 +32,9 @@ vi.mock('@/components/business/studio/node/CanvasPlannerRouteSelector', () => ({
 }))
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { NodeWorkflowActionsProvider } from '@/components/business/studio/node/NodeWorkflowActionsContext'
-import { ComposerInspector } from '@/components/business/studio/node/inspector/ComposerInspector'
-import type { NodeWorkflowCanvasActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
+import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
+import { ComposerInspector } from '@/components/business/node/inspector/ComposerInspector'
+import type { NodeWorkflowCanvasActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 const updateNodeData = vi.fn()

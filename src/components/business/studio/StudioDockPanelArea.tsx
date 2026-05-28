@@ -49,7 +49,7 @@ const LayerDecomposePanel = dynamic(
 )
 const FishVoiceLibraryDialog = dynamic(
   () =>
-    import('@/components/business/studio/FishVoiceLibraryDialog').then(
+    import('@/components/business/node/FishVoiceLibraryDialog').then(
       (mod) => mod.FishVoiceLibraryDialog,
     ),
   { loading: () => <PanelLoadingFallback /> },

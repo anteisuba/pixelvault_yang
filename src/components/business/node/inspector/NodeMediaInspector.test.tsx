@@ -38,7 +38,7 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))
 
-vi.mock('@/components/business/studio/FishVoiceLibraryDialog', () => ({
+vi.mock('@/components/business/node/FishVoiceLibraryDialog', () => ({
   FishVoiceLibraryDialog: ({
     onSelectVoiceId,
   }: {
@@ -50,18 +50,15 @@ vi.mock('@/components/business/studio/FishVoiceLibraryDialog', () => ({
   ),
 }))
 
-vi.mock(
-  '@/components/business/studio/node/CharacterImageReferenceControls',
-  () => ({
-    CharacterImageReferenceControls: () => <button>referenceControls</button>,
-  }),
-)
+vi.mock('@/components/business/node/CharacterImageReferenceControls', () => ({
+  CharacterImageReferenceControls: () => <button>referenceControls</button>,
+}))
 
-vi.mock('@/components/business/studio/node/CharacterImageLoraControls', () => ({
+vi.mock('@/components/business/node/CharacterImageLoraControls', () => ({
   CharacterImageLoraControls: () => <button>loraControls</button>,
 }))
 
-vi.mock('@/components/business/studio/node/WorkflowModelPicker', () => ({
+vi.mock('@/components/business/node/WorkflowModelPicker', () => ({
   WorkflowModelPicker: ({
     options,
     onChange,
@@ -98,14 +95,14 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { NodeWorkflowActionsProvider } from '@/components/business/studio/node/NodeWorkflowActionsContext'
-import { BackgroundImageInspector } from '@/components/business/studio/node/inspector/BackgroundImageInspector'
-import { FrameImageInspector } from '@/components/business/studio/node/inspector/FrameImageInspector'
-import { SeedanceInspector } from '@/components/business/studio/node/inspector/SeedanceInspector'
-import { ShotInspector } from '@/components/business/studio/node/inspector/ShotInspector'
-import { ShotTextInspector } from '@/components/business/studio/node/inspector/ShotTextInspector'
-import { VoiceInspector } from '@/components/business/studio/node/inspector/VoiceInspector'
-import type { NodeWorkflowCanvasActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
+import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
+import { BackgroundImageInspector } from '@/components/business/node/inspector/BackgroundImageInspector'
+import { FrameImageInspector } from '@/components/business/node/inspector/FrameImageInspector'
+import { SeedanceInspector } from '@/components/business/node/inspector/SeedanceInspector'
+import { ShotInspector } from '@/components/business/node/inspector/ShotInspector'
+import { ShotTextInspector } from '@/components/business/node/inspector/ShotTextInspector'
+import { VoiceInspector } from '@/components/business/node/inspector/VoiceInspector'
+import type { NodeWorkflowCanvasActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import type {
   NodeWorkflowModelOption,
   NodeWorkflowNode,

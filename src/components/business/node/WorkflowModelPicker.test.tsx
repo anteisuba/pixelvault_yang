@@ -14,7 +14,7 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
-import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { WorkflowModelPicker } from '@/components/business/node/WorkflowModelPicker'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
 
 const MODEL_OPTION: NodeWorkflowModelOption = {

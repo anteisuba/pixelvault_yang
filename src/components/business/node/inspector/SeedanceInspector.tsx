@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { WorkflowModelPicker } from '@/components/business/node/WorkflowModelPicker'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import type { AspectRatio } from '@/constants/config'

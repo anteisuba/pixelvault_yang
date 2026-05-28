@@ -14,7 +14,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { FishVoiceLibraryDialog } from '@/components/business/studio/FishVoiceLibraryDialog'
+import { FishVoiceLibraryDialog } from '@/components/business/node/FishVoiceLibraryDialog'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import { AI_MODELS } from '@/constants/models'

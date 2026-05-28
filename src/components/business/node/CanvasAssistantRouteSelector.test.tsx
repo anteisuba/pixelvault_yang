@@ -6,7 +6,7 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
-import { CanvasAssistantRouteSelector } from '@/components/business/studio/node/CanvasAssistantRouteSelector'
+import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 
 const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
 

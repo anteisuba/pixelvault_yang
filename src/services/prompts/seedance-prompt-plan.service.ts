@@ -15,7 +15,7 @@ import type { AppLocale } from '@/i18n/routing'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { withRetry } from '@/lib/with-retry'
 import { llmTextCompletion } from '@/services/llm-text.service'
-import { resolveNodePlannerRoute } from '@/services/node-planner-route.service'
+import { resolveNodePlannerRoute } from '@/services/kernel/node-planner-route.service'
 import { ensureUser } from '@/services/user.service'
 import {
   SeedancePromptPlanResultSchema,

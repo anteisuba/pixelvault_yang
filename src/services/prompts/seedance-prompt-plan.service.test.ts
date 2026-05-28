@@ -12,7 +12,7 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 const mockResolveNodePlannerRoute = vi.fn()
-vi.mock('@/services/node-planner-route.service', () => ({
+vi.mock('@/services/kernel/node-planner-route.service', () => ({
   resolveNodePlannerRoute: (...args: unknown[]) =>
     mockResolveNodePlannerRoute(...args),
 }))

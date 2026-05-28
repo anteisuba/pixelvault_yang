@@ -8,6 +8,7 @@ import prettier from "eslint-config-prettier";
 //   docs/spark/2026-05-28-architecture-contract-design.md (Spec 1)
 //   docs/spark/2026-05-28-spec-2-studio-shared-layer.md (Spec 2)
 //   docs/spark/2026-05-28-spec-3-cards-module.md (Spec 3)
+//   docs/spark/2026-05-28-spec-4-image-module.md (Spec 4)
 //   docs/spark/roadmap.md
 
 /** L1+ paths that L0 Shared Kernel must NEVER import from. */
@@ -18,17 +19,20 @@ const KERNEL_FORBIDDEN_PATTERNS = [
       "@/services/gallery/**",
       "@/services/assets/**",
       "@/services/cards/**",
+      "@/services/image/**",
       "@/hooks/prompts/**",
       "@/hooks/gallery/**",
       "@/hooks/assets/**",
       "@/hooks/cards/**",
+      "@/hooks/image/**",
       "@/components/business/prompts/**",
       "@/components/business/gallery/**",
       "@/components/business/assets/**",
       "@/components/business/cards/**",
+      "@/components/business/image/**",
     ],
     message:
-      "L0 Shared Kernel must not import from L1 content domains. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.",
+      "L0 Shared Kernel must not import from L1+ modules. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.",
   },
   {
     group: ["@/app/**", "@/contexts/**"],
@@ -75,7 +79,15 @@ const CARDS_FORBIDDEN_SIBLINGS = [
   },
 ];
 
-/** L2 tools / L3 orchestrator paths that L1.5 Studio Shared must NEVER import from. */
+/** L2 tools / L3 orchestrator paths that L1.5 Studio Shared must NEVER import from.
+ *
+ * Note: @/components/business/image/** is intentionally NOT in this list yet.
+ * Spec 4 surfaced that StudioCanvas / StudioBottomDock (relocated by Spec 2)
+ * still import 5 Image-owned components (CompareGrid, StudioGenerationErrorDialog,
+ * StudioResultFeedback, VariantGrid, StudioKeepChangePanel). These are real
+ * pre-existing L1.5 → L2 upward dependencies that need StudioCanvas/BottomDock
+ * to be split or relocated before they can be enforced. Spec 6 owns that work.
+ */
 const STUDIO_SHARED_FORBIDDEN_PATTERNS = [
   {
     group: [
@@ -90,6 +102,19 @@ const STUDIO_SHARED_FORBIDDEN_PATTERNS = [
     group: ["@/app/**"],
     message:
       "L1.5 Studio Shared must not import from app routes — keep components pure UI.",
+  },
+];
+
+/** L3 Node and app paths that L2 Image must NEVER import from. */
+const IMAGE_FORBIDDEN_PATTERNS = [
+  {
+    group: ["@/components/business/studio/node/**"],
+    message: "L2 Image must not import from L3 orchestrator (Node).",
+  },
+  {
+    group: ["@/app/**"],
+    message:
+      "L2 Image must not import from app routes — services/hooks are pure logic.",
   },
 ];
 
@@ -133,6 +158,17 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-imports": ["error", { patterns: CARDS_FORBIDDEN_SIBLINGS }],
+    },
+  },
+  // ─── Spec 4 boundary rules ─────────────────────────────────────
+  {
+    files: [
+      "src/services/image/**/*.{ts,tsx}",
+      "src/hooks/image/**/*.{ts,tsx}",
+      "src/components/business/image/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: IMAGE_FORBIDDEN_PATTERNS }],
     },
   },
   // Override default ignores of eslint-config-next.

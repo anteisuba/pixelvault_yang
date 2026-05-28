@@ -129,6 +129,8 @@ graph LR
 
 **预期大小**：最大的 spec。可能再拆为 Spec 6a (4 巨型) + Spec 6b (24 剩余)。
 
+**Spec 4 遗留**：StudioCanvas / StudioBottomDock 当前 import 5 个 Image (L2) 组件，构成 L1.5 → L2 上向依赖。需要拆分或重定位才能让 L1.5 ESLint 规则把 Image 也加入禁止列表。
+
 **风险**：拆分逻辑组件是真正的代码改动，不是单纯搬位置。需要充分测试。
 
 ### Spec 7 — 其他 L2 工具目录化（合并版）

@@ -148,6 +148,9 @@ export function buildVolcEngineVideoQueueBody({
   aspectRatio,
   duration,
   referenceImage,
+  referenceImages,
+  videoUrls,
+  audioUrls,
   resolution,
   videoDefaults,
 }: ProviderQueueSubmitInput): Record<string, unknown> {
@@ -155,10 +158,57 @@ export function buildVolcEngineVideoQueueBody({
 
   const content: Record<string, unknown>[] = [{ type: 'text', text: prompt }]
 
-  if (referenceImage) {
+  // ark Seedance 2.0 multimodal caps: ≤9 reference images, ≤3 reference videos,
+  // ≤3 reference audio. content[] entries are {type}_url objects with a `role`.
+  // https://www.volcengine.com/docs/82379/1520757
+  const referenceImageUrls =
+    referenceImages && referenceImages.length > 0
+      ? referenceImages
+      : referenceImage
+        ? [referenceImage]
+        : []
+  const referenceVideoUrls = (videoUrls ?? []).slice(0, 3)
+  const referenceAudioUrls = (audioUrls ?? []).slice(0, 3)
+
+  // ark forbids mixing its three scenarios (first-frame i2v / first+last frame
+  // / multimodal reference). Reference mode activates when there are multiple
+  // images or any reference video/audio; a lone image with nothing else stays
+  // a classic first-frame i2v so existing single-image behaviour is preserved.
+  const useReferenceMode =
+    referenceImageUrls.length > 1 ||
+    referenceVideoUrls.length > 0 ||
+    referenceAudioUrls.length > 0
+
+  if (useReferenceMode) {
+    for (const url of referenceImageUrls.slice(0, 9)) {
+      content.push({
+        type: 'image_url',
+        image_url: { url },
+        role: 'reference_image',
+      })
+    }
+    for (const url of referenceVideoUrls) {
+      content.push({
+        type: 'video_url',
+        video_url: { url },
+        role: 'reference_video',
+      })
+    }
+    // ark rule: reference audio cannot be the sole input — it must accompany at
+    // least one reference image or video, otherwise the request is rejected.
+    if (referenceImageUrls.length > 0 || referenceVideoUrls.length > 0) {
+      for (const url of referenceAudioUrls) {
+        content.push({
+          type: 'audio_url',
+          audio_url: { url },
+          role: 'reference_audio',
+        })
+      }
+    }
+  } else if (referenceImageUrls.length === 1) {
     content.push({
       type: 'image_url',
-      image_url: { url: referenceImage },
+      image_url: { url: referenceImageUrls[0] },
       role: 'first_frame',
     })
   }
@@ -317,6 +367,9 @@ export const volcengineAdapter: ProviderAdapter = {
     apiKey,
     duration,
     referenceImage,
+    referenceImages,
+    videoUrls,
+    audioUrls,
     resolution,
     videoDefaults,
   }: ProviderQueueSubmitInput) {
@@ -330,6 +383,9 @@ export const volcengineAdapter: ProviderAdapter = {
       apiKey,
       duration,
       referenceImage,
+      referenceImages,
+      videoUrls,
+      audioUrls,
       resolution,
       videoDefaults,
     })

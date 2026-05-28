@@ -128,6 +128,22 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  // Volc Seedance shares fal's 9-image reference ceiling — the ark API takes up
+  // to 9 reference_image entries in content[] (same underlying ByteDance model).
+  [AI_MODELS.SEEDANCE_20_VOLC]: {
+    kind: 'flexible',
+    min: 0,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_VOLC]: {
+    kind: 'flexible',
+    min: 0,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
 }
 
 /**

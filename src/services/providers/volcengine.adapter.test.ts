@@ -158,3 +158,88 @@ describe('buildVolcEngineVideoQueueBody', () => {
     )
   })
 })
+
+describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
+  const IMG1 = 'https://example.com/a.png'
+  const IMG2 = 'https://example.com/b.png'
+  const VID1 = 'https://example.com/clip.mp4'
+  const AUD1 = 'https://example.com/voice.mp3'
+
+  it('sends multiple images as reference_image (not first_frame)', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      referenceImages: [IMG1, IMG2],
+    })
+
+    expect(body.content).toEqual([
+      { type: 'text', text: PROMPT },
+      { type: 'image_url', image_url: { url: IMG1 }, role: 'reference_image' },
+      { type: 'image_url', image_url: { url: IMG2 }, role: 'reference_image' },
+    ])
+  })
+
+  it('combines reference image, video and audio entries', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC, IMG1),
+      videoUrls: [VID1],
+      audioUrls: [AUD1],
+    })
+
+    expect(body.content).toEqual([
+      { type: 'text', text: PROMPT },
+      { type: 'image_url', image_url: { url: IMG1 }, role: 'reference_image' },
+      { type: 'video_url', video_url: { url: VID1 }, role: 'reference_video' },
+      { type: 'audio_url', audio_url: { url: AUD1 }, role: 'reference_audio' },
+    ])
+  })
+
+  it('keeps a lone first frame as i2v (no reference roles)', () => {
+    const body = buildVolcEngineVideoQueueBody(
+      buildInput(AI_MODELS.SEEDANCE_20_VOLC, IMG1),
+    )
+
+    expect(body.content).toEqual([
+      { type: 'text', text: PROMPT },
+      { type: 'image_url', image_url: { url: IMG1 }, role: 'first_frame' },
+    ])
+  })
+
+  it('drops reference audio when no image or video accompanies it', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      audioUrls: [AUD1],
+    })
+
+    // ark rejects audio-only reference input, so the builder omits it.
+    expect(body.content).toEqual([{ type: 'text', text: PROMPT }])
+  })
+
+  it('caps references at 9 images / 3 videos / 3 audio', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      referenceImages: Array.from(
+        { length: 12 },
+        (_, index) => `https://img/${index}.png`,
+      ),
+      videoUrls: Array.from(
+        { length: 5 },
+        (_, index) => `https://vid/${index}.mp4`,
+      ),
+      audioUrls: Array.from(
+        { length: 5 },
+        (_, index) => `https://aud/${index}.mp3`,
+      ),
+    })
+
+    const content = body.content as Array<{ role?: string }>
+    expect(
+      content.filter((item) => item.role === 'reference_image'),
+    ).toHaveLength(9)
+    expect(
+      content.filter((item) => item.role === 'reference_video'),
+    ).toHaveLength(3)
+    expect(
+      content.filter((item) => item.role === 'reference_audio'),
+    ).toHaveLength(3)
+  })
+})

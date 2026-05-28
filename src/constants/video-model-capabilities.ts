@@ -68,15 +68,20 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
+  // ark uses one model id for all scenarios — multimodal reference (incl.
+  // reference_audio) is supported on the same Volc Seedance model, so both
+  // tiers expose reference-audio like the fal *_REFERENCE endpoints.
   [AI_MODELS.SEEDANCE_20_VOLC]: {
     supportedDurations: [5, 10],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
   },
   [AI_MODELS.SEEDANCE_20_FAST_VOLC]: {
     supportedDurations: [5, 10],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
   },
   // Voice-cloning endpoints — only path to use voice node's reference audio
   [AI_MODELS.SEEDANCE_20_REFERENCE]: {

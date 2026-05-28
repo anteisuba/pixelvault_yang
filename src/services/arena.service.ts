@@ -208,7 +208,7 @@ export async function getArenaMatch(
     where: { id: matchId },
     include: {
       entries: {
-        include: { generation: true },
+        include: { generation: { select: { url: true } } },
         orderBy: { slotIndex: 'asc' },
       },
     },

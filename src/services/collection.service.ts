@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { COLLECTION } from '@/constants/config'
+import { LIST_GENERATION_SELECT } from './generation.service'
 import type {
   CollectionRecord,
   CollectionDetailRecord,
@@ -57,7 +58,7 @@ export async function getCollectionById(
     orderBy: { orderIndex: 'asc' },
     skip: offset,
     take: limit,
-    include: { generation: true },
+    include: { generation: { select: LIST_GENERATION_SELECT } },
   })
 
   const total = collection._count.items

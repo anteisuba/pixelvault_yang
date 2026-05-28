@@ -145,7 +145,7 @@ export interface GalleryGenerationPage {
  * Detail-style queries (`getGenerationById`, studio remix) still load
  * the full row.
  */
-const LIST_GENERATION_SELECT = {
+export const LIST_GENERATION_SELECT = {
   id: true,
   createdAt: true,
   outputType: true,

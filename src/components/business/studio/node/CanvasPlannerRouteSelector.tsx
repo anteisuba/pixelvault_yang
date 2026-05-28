@@ -13,7 +13,7 @@ import {
 } from '@/constants/script-breakdown'
 import type { ApiKeyHealthStatus } from '@/types'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   Popover,
   PopoverContent,

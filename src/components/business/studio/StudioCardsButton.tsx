@@ -12,7 +12,7 @@ import { StudioCardPicker } from './StudioCardPicker'
 import {
   StudioToolPopoverContent,
   studioToolTriggerClass,
-} from './tool-surface'
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StudioCardsButtonProps {
   disabled?: boolean

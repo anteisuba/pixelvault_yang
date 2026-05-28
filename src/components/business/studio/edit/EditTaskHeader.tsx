@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
 
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 import { EditProviderPicker } from './EditProviderPicker'
 

@@ -15,7 +15,7 @@ import type { GenerationRecord } from '@/types'
 import {
   StudioToolPopoverContent,
   studioToolTriggerClass,
-} from './tool-surface'
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface ReferenceImageChipProps {
   disabled?: boolean

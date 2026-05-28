@@ -33,12 +33,12 @@ import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompt
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { Link } from '@/i18n/navigation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import {
   StudioToolPopoverContent,
   studioToolTriggerClass,
-} from '@/components/business/studio/tool-surface'
+} from '@/components/business/studio-shared/primitives/tool-surface'
 import { Slider } from '@/components/ui/slider'
 import {
   Tooltip,

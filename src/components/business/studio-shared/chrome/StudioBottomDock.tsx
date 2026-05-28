@@ -4,10 +4,10 @@ import { memo, useCallback } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
 
-import { StudioCardSection } from './StudioCardSection'
-import { StudioKeepChangePanel } from './StudioKeepChangePanel'
-import { StudioPromptArea } from './StudioPromptArea'
-import { StudioDockPanelArea } from './StudioDockPanelArea'
+import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
+import { StudioKeepChangePanel } from '@/components/business/studio/StudioKeepChangePanel'
+import { StudioPromptArea } from '@/components/business/studio/StudioPromptArea'
+import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 
 function buildRefinePrompt(
   basePrompt: string,

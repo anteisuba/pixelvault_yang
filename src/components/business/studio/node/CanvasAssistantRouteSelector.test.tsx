@@ -19,7 +19,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: () => mockUseApiKeysContext(),
 }))
 
-vi.mock('@/components/business/studio/QuickSetupDialog', () => ({
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
 }))
 

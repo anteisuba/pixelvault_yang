@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   NODE_MEDIA_KIND_IDS,
   type NodeWorkflowMediaKind,

@@ -65,7 +65,7 @@ import {
 } from '@/constants/lora'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { SubmitSummaryCard } from '@/components/business/studio/lora/training/SubmitSummaryCard'
 import { CompletionCelebration } from '@/components/business/studio/lora/training/CompletionCelebration'
 import type { GenerationRecord } from '@/types'

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
   studioToolTriggerClass,
-} from './tool-surface'
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StylePresetButtonProps {
   disabled?: boolean

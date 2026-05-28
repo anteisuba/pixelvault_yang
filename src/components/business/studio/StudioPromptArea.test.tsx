@@ -159,7 +159,7 @@ vi.mock('@/components/business/ModelSelector', () => ({
   ModelSelector: () => <div data-testid="model-selector" />,
 }))
 
-vi.mock('@/components/business/studio/QuickSetupDialog', () => ({
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
 }))
 

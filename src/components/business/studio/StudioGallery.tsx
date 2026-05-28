@@ -10,7 +10,7 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { StudioLightbox } from './StudioLightbox'
+import { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useLike } from '@/hooks/use-like'
 import { batchGetLikesAPI } from '@/lib/api-client/profile'

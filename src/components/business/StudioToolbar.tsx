@@ -19,7 +19,7 @@ import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceB
 import { StudioLoraChip } from '@/components/business/studio/StudioLoraChip'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
-import { studioToolTriggerClass } from '@/components/business/studio/tool-surface'
+import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StudioToolbarProps {
   onLayerDecompose?: () => void

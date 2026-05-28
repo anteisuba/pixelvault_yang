@@ -9,7 +9,7 @@ import { CardDropdown } from '@/components/business/CardDropdown'
 import { CharacterCardManager } from '@/components/business/CharacterCardManager'
 import { SimpleCardManager } from '@/components/business/SimpleCardManager'
 import { StyleCardManager } from '@/components/business/StyleCardManager'
-import { StudioErrorBoundary } from './StudioErrorBoundary'
+import { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
 import {
   Sheet,
   SheetClose,
@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { modelSupportsLora } from '@/constants/models'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
-import { StudioApiRoutesSection } from './StudioApiRoutesSection'
+import { StudioApiRoutesSection } from '@/components/business/studio-shared/setup/StudioApiRoutesSection'
 
 /**
  * StudioCardSection — card mode only.

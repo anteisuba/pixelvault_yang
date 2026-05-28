@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
-import { ActiveLoraBar } from '@/components/business/studio/ActiveLoraBar'
+import { ActiveLoraBar } from '@/components/business/studio-shared/chrome/ActiveLoraBar'
 
 /**
  * Top-level Studio layout — wraps every /studio/* route in

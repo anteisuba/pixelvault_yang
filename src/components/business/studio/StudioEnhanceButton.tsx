@@ -16,7 +16,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { cn } from '@/lib/utils'
-import { studioToolTriggerClass } from './tool-surface'
+import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
 
 const LLM_CAPABLE_ADAPTERS = new Set([
   AI_ADAPTER_TYPES.GEMINI,

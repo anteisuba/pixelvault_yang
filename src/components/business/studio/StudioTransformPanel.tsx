@@ -26,7 +26,7 @@ import {
 } from '@/types/transform'
 
 import { StudioInputImage } from './StudioInputImage'
-import { StudioFaceConsentModal } from './StudioFaceConsentModal'
+import { StudioFaceConsentModal } from '@/components/business/studio-shared/setup/StudioFaceConsentModal'
 import { StudioTransformToggle } from './StudioTransformToggle'
 import { StudioVariantsGrid } from './StudioVariantsGrid'
 

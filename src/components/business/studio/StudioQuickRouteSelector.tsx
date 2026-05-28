@@ -15,7 +15,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
-import { StudioApiRoutesSection } from './StudioApiRoutesSection'
+import { StudioApiRoutesSection } from '@/components/business/studio-shared/setup/StudioApiRoutesSection'
 
 interface StudioQuickRouteSelectorProps {
   className?: string

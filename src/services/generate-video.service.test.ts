@@ -79,7 +79,7 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: (fn: () => Promise<unknown>) => fn(),
 }))
 
-vi.mock('@/lib/prompt-guard', () => ({
+vi.mock('@/services/kernel/prompt-guard', () => ({
   validatePrompt: () => ({ valid: true }),
 }))
 

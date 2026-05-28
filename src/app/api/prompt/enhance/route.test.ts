@@ -7,11 +7,11 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/prompt-enhance.service', () => ({
+vi.mock('@/services/kernel/prompt-enhance.service', () => ({
   enhancePrompt: vi.fn(),
 }))
 
-import { enhancePrompt } from '@/services/prompt-enhance.service'
+import { enhancePrompt } from '@/services/kernel/prompt-enhance.service'
 import { POST } from './route'
 
 beforeEach(() => {

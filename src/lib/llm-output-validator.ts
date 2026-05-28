@@ -15,7 +15,7 @@
 import type { z } from 'zod'
 
 import { logger } from '@/lib/logger'
-import { MAX_COMPILED_PROMPT_LENGTH } from '@/lib/prompt-guard'
+import { MAX_COMPILED_PROMPT_LENGTH } from '@/services/kernel/prompt-guard'
 
 // ─── Types ──────────────────────────────────────────────────────
 

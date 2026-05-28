@@ -24,7 +24,7 @@ vi.mock('@/services/inspiration.service', () => ({
     mockBuildInspirationContext(...a),
 }))
 
-import { chatPromptAssistant } from '@/services/prompt-assistant.service'
+import { chatPromptAssistant } from '@/services/kernel/prompt-assistant.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }

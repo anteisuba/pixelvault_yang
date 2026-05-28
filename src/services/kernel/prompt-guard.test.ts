@@ -10,7 +10,7 @@ import {
   sanitizePrompt,
   validateCompiledPrompt,
   validatePrompt,
-} from '@/lib/prompt-guard'
+} from '@/services/kernel/prompt-guard'
 
 // ─── validatePrompt ─────────────────────────────────────────────
 

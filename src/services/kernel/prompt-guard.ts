@@ -7,7 +7,7 @@
  * - Malformed prompts that confuse AI models
  *
  * Usage:
- *   import { validatePrompt, sanitizePrompt } from '@/lib/prompt-guard'
+ *   import { validatePrompt, sanitizePrompt } from '@/services/kernel/prompt-guard'
  *
  *   const result = validatePrompt(userPrompt)
  *   if (!result.valid) throw new Error(result.reason)

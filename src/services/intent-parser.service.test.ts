@@ -11,7 +11,7 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmRoute(...args),
 }))
 
-vi.mock('@/lib/prompt-guard', () => ({
+vi.mock('@/services/kernel/prompt-guard', () => ({
   validatePrompt: vi.fn(() => ({ valid: true })),
   sanitizePrompt: vi.fn((prompt: string) => prompt),
 }))
@@ -23,7 +23,7 @@ const FAKE_ROUTE = {
 }
 
 import { GenerationValidationError } from '@/lib/errors'
-import { sanitizePrompt, validatePrompt } from '@/lib/prompt-guard'
+import { sanitizePrompt, validatePrompt } from '@/services/kernel/prompt-guard'
 import type { ReferenceAsset } from '@/types'
 import { parseImageIntent } from './intent-parser.service'
 

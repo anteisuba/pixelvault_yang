@@ -44,7 +44,7 @@ import {
 import {
   usePromptAssistant,
   STYLE_SHORTCUTS,
-} from '@/hooks/use-prompt-assistant'
+} from '@/hooks/kernel/use-prompt-assistant'
 import { readImageFileAsBase64 } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
 import type {

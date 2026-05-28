@@ -28,7 +28,7 @@ vi.mock('@/services/model-router.service', () => ({
   estimateModelCost: (...args: unknown[]) => mockEstimateModelCost(...args),
 }))
 
-vi.mock('@/services/prompt-compiler.service', () => ({
+vi.mock('@/services/kernel/prompt-compiler.service', () => ({
   compilePrompt: (...args: unknown[]) => mockCompilePrompt(...args),
   compileNegativePrompt: (...args: unknown[]) =>
     mockCompileNegativePrompt(...args),

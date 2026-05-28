@@ -58,7 +58,7 @@ vi.mock('@/lib/circuit-breaker', () => ({
     call: (fn: () => Promise<unknown>) => fn(),
   })),
 }))
-vi.mock('@/lib/prompt-guard', () => ({
+vi.mock('@/services/kernel/prompt-guard', () => ({
   validatePrompt: vi.fn(() => ({ valid: true })),
 }))
 const { modelsMock } = vi.hoisted(() => ({
@@ -112,7 +112,7 @@ import {
   attachUsageEntryToGeneration,
 } from '@/services/usage.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
-import { validatePrompt } from '@/lib/prompt-guard'
+import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { ProviderError } from '@/services/providers/types'
 
 // ─── Test Fixtures ─────────────────────────────────────────────

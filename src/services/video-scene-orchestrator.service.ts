@@ -12,7 +12,7 @@ import {
   VideoScriptSceneStatus,
   VideoScriptStatus,
 } from '@/types/video-script'
-import { compileScenePrompt } from '@/services/scene-prompt-compiler.service'
+import { compileScenePrompt } from '@/services/kernel/scene-prompt-compiler.service'
 import {
   GenerateImageServiceError,
   isGenerateImageServiceError,

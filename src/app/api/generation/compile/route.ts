@@ -8,7 +8,7 @@ import {
 import {
   compileNegativePrompt,
   compilePrompt,
-} from '@/services/prompt-compiler.service'
+} from '@/services/kernel/prompt-compiler.service'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const POST = createApiRoute<

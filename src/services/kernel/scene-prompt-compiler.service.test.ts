@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { compileScenePrompt } from '@/services/scene-prompt-compiler.service'
+import { compileScenePrompt } from '@/services/kernel/scene-prompt-compiler.service'
 import type { VideoScriptScene } from '@/types/video-script'
 
 const baseScene: VideoScriptScene = {

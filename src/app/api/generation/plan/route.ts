@@ -13,7 +13,7 @@ import {
 import {
   compilePrompt,
   compileNegativePrompt,
-} from '@/services/prompt-compiler.service'
+} from '@/services/kernel/prompt-compiler.service'
 import { ensureUser } from '@/services/user.service'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

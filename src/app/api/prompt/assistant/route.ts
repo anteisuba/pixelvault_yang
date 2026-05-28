@@ -1,5 +1,5 @@
 import { PromptAssistantRequestSchema } from '@/types'
-import { chatPromptAssistant } from '@/services/prompt-assistant.service'
+import { chatPromptAssistant } from '@/services/kernel/prompt-assistant.service'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

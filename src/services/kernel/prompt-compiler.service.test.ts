@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   compilePrompt,
   compileNegativePrompt,
-} from '@/services/prompt-compiler.service'
+} from '@/services/kernel/prompt-compiler.service'
 import type { ImageIntent } from '@/types'
 
 const MINIMAL_INTENT: ImageIntent = { subject: 'a cat' }

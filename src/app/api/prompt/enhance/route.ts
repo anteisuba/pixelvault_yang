@@ -6,7 +6,7 @@ import {
   EnhancePromptRequestSchema,
   type EnhancePromptResponseData,
 } from '@/types'
-import { enhancePrompt } from '@/services/prompt-enhance.service'
+import { enhancePrompt } from '@/services/kernel/prompt-enhance.service'
 
 export const maxDuration = 30
 

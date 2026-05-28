@@ -13,7 +13,7 @@ import { decryptApiKey } from '@/lib/crypto'
 import { ApiRequestError } from '@/lib/errors'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
-import { validatePrompt } from '@/lib/prompt-guard'
+import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
 // ─── Types ───────────────────────────────────────────────────────

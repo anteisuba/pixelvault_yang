@@ -24,7 +24,7 @@ vi.mock('@/services/inspiration.service', () => ({
     mockBuildInspirationContext(...a),
 }))
 
-import { enhancePrompt } from '@/services/prompt-enhance.service'
+import { enhancePrompt } from '@/services/kernel/prompt-enhance.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { PROMPT_ENHANCE, type PromptEnhanceStyle } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'

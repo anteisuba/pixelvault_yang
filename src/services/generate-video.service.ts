@@ -46,7 +46,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
-import { validatePrompt } from '@/lib/prompt-guard'
+import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   GENERATION_STAGE,
   GenerationStageTimer,

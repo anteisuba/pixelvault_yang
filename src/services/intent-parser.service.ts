@@ -8,7 +8,7 @@ import {
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { logger } from '@/lib/logger'
 import { GenerationValidationError } from '@/lib/errors'
-import { validatePrompt, sanitizePrompt } from '@/lib/prompt-guard'
+import { validatePrompt, sanitizePrompt } from '@/services/kernel/prompt-guard'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,

@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-civitai-token', () => ({
   useCivitaiToken: () => ({}),
 }))
 
-vi.mock('@/hooks/use-prompt-enhance', () => ({
+vi.mock('@/hooks/kernel/use-prompt-enhance', () => ({
   usePromptEnhance: () => ({}),
 }))
 

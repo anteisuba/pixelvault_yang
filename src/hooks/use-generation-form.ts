@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
 import { useImageUpload } from '@/hooks/use-image-upload'
-import { usePromptEnhance } from '@/hooks/use-prompt-enhance'
+import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import type { AdvancedParams } from '@/types'
 
 interface UseGenerationFormOptions {

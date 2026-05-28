@@ -52,7 +52,7 @@ vi.mock('@/lib/circuit-breaker', () => ({
     call: (fn: () => Promise<unknown>) => fn(),
   })),
 }))
-vi.mock('@/lib/prompt-guard', () => ({
+vi.mock('@/services/kernel/prompt-guard', () => ({
   validatePrompt: vi.fn(() => ({ valid: true })),
 }))
 

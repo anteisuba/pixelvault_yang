@@ -15,7 +15,7 @@ vi.mock('@/lib/logger', () => ({
 const mockCompilePrompt = vi.fn()
 const mockCompileNegativePrompt = vi.fn()
 
-vi.mock('@/services/prompt-compiler.service', () => ({
+vi.mock('@/services/kernel/prompt-compiler.service', () => ({
   compilePrompt: (...args: unknown[]) => mockCompilePrompt(...args),
   compileNegativePrompt: (...args: unknown[]) =>
     mockCompileNegativePrompt(...args),

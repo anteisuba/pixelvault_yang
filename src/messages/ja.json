@@ -2724,7 +2724,8 @@
         "image": "設定済みキーで使える画像モデルはまだありません。",
         "video": "設定済みキーで使える動画モデルはまだありません。",
         "audio": "設定済みキーで使える音声モデルはまだありません。"
-      }
+      },
+      "searchPlaceholder": "モデルを検索..."
     },
     "agent": {
       "emptyTitle": "Composer 入力待ち",
@@ -3378,6 +3379,7 @@
     },
     "assistantRoute": {
       "triggerLabel": "キャンバス助手のルートを選択",
+      "fieldLabel": "助手ルート",
       "title": "キャンバス助手ルート",
       "description": "この会話で使うテキストモデル Key を選択します。自動ルートは AI Gateway を優先し、なければワークスペース既定の BYOK テキストルートを使います。",
       "autoLabel": "自動ルート",

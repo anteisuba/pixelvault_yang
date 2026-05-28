@@ -2724,7 +2724,8 @@
         "image": "暂时没有已配置 Key 的图像模型。",
         "video": "暂时没有已配置 Key 的视频模型。",
         "audio": "暂时没有已配置 Key 的音频模型。"
-      }
+      },
+      "searchPlaceholder": "搜索模型..."
     },
     "agent": {
       "emptyTitle": "等待 Composer 输入",
@@ -3378,6 +3379,7 @@
     },
     "assistantRoute": {
       "triggerLabel": "选择画布助手路由",
+      "fieldLabel": "助手路由",
       "title": "画布助手路由",
       "description": "选择本次对话使用的文本模型 Key。自动路由会优先使用 AI Gateway，否则使用工作区默认文本路由。",
       "autoLabel": "自动路由",

@@ -2724,7 +2724,8 @@
         "image": "No image model with a configured key is available yet.",
         "video": "No video model with a configured key is available yet.",
         "audio": "No audio model with a configured key is available yet."
-      }
+      },
+      "searchPlaceholder": "Search models..."
     },
     "agent": {
       "emptyTitle": "Waiting for Composer",
@@ -3378,6 +3379,7 @@
     },
     "assistantRoute": {
       "triggerLabel": "Select canvas assistant route",
+      "fieldLabel": "Assistant route",
       "title": "Canvas assistant route",
       "description": "Choose the text-model key for this conversation. Auto route uses AI Gateway first, then the workspace BYOK text route.",
       "autoLabel": "Auto route",

@@ -106,6 +106,7 @@ export function EditProviderPicker({
   onRequestSetup,
 }: EditProviderPickerProps) {
   const t = useTranslations('StudioImageEdit')
+  const tForm = useTranslations('StudioForm')
   const { keys } = useApiKeysContext()
   const meta = getEditTaskMeta(task)
   const taskModelIds = useMemo(() => meta?.models ?? [], [meta])
@@ -163,6 +164,8 @@ export function EditProviderPicker({
       }
       labelForOption={labelForOption}
       triggerEmptyLabel={current.displayName}
+      searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+      emptySearchText={tForm('modelSelector.emptySearch')}
       disabled={disabled}
       size="compact"
     />

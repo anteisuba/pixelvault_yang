@@ -407,6 +407,7 @@ function AssistantAnimatedInput({
   inspirationContextLabel,
   inspirationContextOnLabel,
 }: AssistantAnimatedInputProps) {
+  const tForm = useTranslations('StudioForm')
   const [isComposing, setIsComposing] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -490,6 +491,8 @@ function AssistantAnimatedInput({
                   if (option.keyId) onSelectApiKey(option.keyId)
                 }}
                 triggerEmptyLabel={selectApiKeyLabel}
+                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                emptySearchText={tForm('modelSelector.emptySearch')}
               />
             )}
 

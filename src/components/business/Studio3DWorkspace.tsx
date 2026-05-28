@@ -295,6 +295,7 @@ export function Studio3DWorkspace({
 }: Studio3DWorkspaceProps) {
   const t = useTranslations('Model3DGenerate')
   const tModels = useTranslations('Models')
+  const tForm = useTranslations('StudioForm')
   const models = useMemo(() => getAvailableModel3DModels(), [])
   // P6: surface Hunyuan's credit cost on the Refine button so the user knows
   // what they're about to spend. Pulled from the registry instead of being
@@ -1473,6 +1474,8 @@ export function Studio3DWorkspace({
                 onChange={(option) => setSelectedModelId(option.modelId)}
                 onRequestSetup={() => setQuickSetupOpen(true)}
                 triggerEmptyLabel={t('changeModelButton')}
+                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                emptySearchText={tForm('modelSelector.emptySearch')}
               />
             </div>
           </div>

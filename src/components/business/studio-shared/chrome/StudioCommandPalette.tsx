@@ -27,6 +27,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { DialogTitle } from '@/components/ui/dialog'
 
 /**
  * StudioCommandPalette — Cmd+K command palette for quick actions.
@@ -93,6 +94,10 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
         label={t('label')}
         className="studio-command-dialog"
       >
+        {/* Radix Dialog requires a DialogTitle for screen readers; the
+            visible UI already shows the input placeholder, so the title is
+            visually hidden. */}
+        <DialogTitle className="sr-only">{t('label')}</DialogTitle>
         <CommandInput placeholder={t('searchPlaceholder')} />
         <CommandList>
           <CommandEmpty>{t('empty')}</CommandEmpty>

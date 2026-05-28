@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
-import type { NodeWorkflowActions } from '@/hooks/use-node-workflow'
+import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
 import type { NodeWorkflowModelOptionsByType } from '@/types/node-workflow'
 
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {

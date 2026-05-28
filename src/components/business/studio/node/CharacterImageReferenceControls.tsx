@@ -34,7 +34,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
+import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { cn } from '@/lib/utils'
 import type {
   GenerationRecord,

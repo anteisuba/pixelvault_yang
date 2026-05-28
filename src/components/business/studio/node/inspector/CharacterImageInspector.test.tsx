@@ -45,7 +45,7 @@ vi.mock('@/components/business/studio/node/WorkflowModelPicker', () => ({
   WorkflowModelPicker: () => <button>modelPicker</button>,
 }))
 
-vi.mock('@/hooks/use-node-reference-upload', () => ({
+vi.mock('@/hooks/node/use-node-reference-upload', () => ({
   useNodeReferenceUpload: () => ({
     uploadFile: vi.fn(),
     isUploading: false,

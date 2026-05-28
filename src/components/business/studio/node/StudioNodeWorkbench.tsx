@@ -54,9 +54,9 @@ import {
 import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
-import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
-import { useNodeWorkflow } from '@/hooks/use-node-workflow'
-import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
+import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
+import { useNodeWorkflow } from '@/hooks/node/use-node-workflow'
+import { useScriptBreakdown } from '@/hooks/node/use-script-breakdown'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {

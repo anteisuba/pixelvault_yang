@@ -12,7 +12,7 @@ import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { useNodeSelection } from '@/hooks/use-node-selection'
+import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 function createNode(

@@ -62,7 +62,7 @@ import { CharacterImageLoraControls } from '@/components/business/studio/node/Ch
 import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
-import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
+import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { useRouter } from '@/i18n/navigation'
 import { getUpstreamNodes, isVoiceProfileNode } from '@/lib/node-workflow-graph'
 import type {

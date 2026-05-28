@@ -65,7 +65,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
-import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
+import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,

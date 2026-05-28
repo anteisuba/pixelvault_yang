@@ -7,7 +7,7 @@ vi.mock('@/lib/api-client/script-breakdown', () => ({
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { createScriptBreakdownAPI } from '@/lib/api-client/script-breakdown'
-import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
+import { useScriptBreakdown } from '@/hooks/node/use-script-breakdown'
 import type { ScriptBreakdownResponseData } from '@/types/script-breakdown'
 
 const BREAKDOWN_RESPONSE: ScriptBreakdownResponseData = {

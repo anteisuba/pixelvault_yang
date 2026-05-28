@@ -17,7 +17,7 @@ import {
   studioGenerateAPI,
   submitVideoAPI,
 } from '@/lib/api-client'
-import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
+import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import type { GenerationRecord } from '@/types'
 
 const IMAGE_GENERATION: GenerationRecord = {

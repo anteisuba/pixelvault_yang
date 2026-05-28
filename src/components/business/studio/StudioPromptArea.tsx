@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { Check, ChevronDown, Key, Loader2, Send, Sparkles } from 'lucide-react'
+import { Loader2, Send } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
@@ -43,7 +43,6 @@ import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import {
@@ -51,11 +50,10 @@ import {
   getReferenceCapabilityMax,
 } from '@/constants/reference-image-capabilities'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
-import { useSplitModelOptions } from '@/hooks/use-split-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { getStylePresetById } from '@/constants/style-presets'
-import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
+import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
@@ -73,19 +71,6 @@ import {
   PromptInputTextarea,
   PromptInputActions,
 } from '@/components/ui/prompt-input'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
@@ -114,7 +99,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tImageChip = useTranslations('ImageChip')
   const tModels = useTranslations('Models')
   const locale = useLocale()
-  const { healthMap } = useApiKeysContext()
 
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -316,33 +300,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     optionId: '',
   })
-  const [modelPickerOpen, setModelPickerOpen] = useState(false)
-
-  const tSetup = useTranslations('QuickSetup')
-
-  // ── Model options: split API-key routes from platform quota routes ──
-  const {
-    saved: savedModels,
-    platform: platformModels,
-    locked: lockedModels,
-  } = useSplitModelOptions(modelOptions)
-
-  const closeModelPicker = useCallback(() => {
-    setModelPickerOpen(false)
-  }, [])
-
-  const handleModelPickerOpenChange = useCallback((open: boolean) => {
-    setModelPickerOpen(open)
-  }, [])
-
-  const handleSelectModel = useCallback(
-    (optionId: string) => {
-      dispatch({ type: 'SET_OPTION_ID', payload: optionId })
-      closeModelPicker()
-    },
-    [closeModelPicker, dispatch],
-  )
-
   const handleOpenQuickSetup = useCallback(
     (option: (typeof modelOptions)[number]) => {
       setQuickSetup({
@@ -352,68 +309,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         adapterType: option.adapterType,
         optionId: option.optionId,
       })
-      closeModelPicker()
     },
-    [closeModelPicker, tModels],
+    [tModels],
   )
-
-  const renderAvailableModelOption = (
-    option: (typeof modelOptions)[number],
-  ) => {
-    const isSelected = option.optionId === state.selectedOptionId
-    const optionLabel =
-      option.keyLabel ?? getTranslatedModelLabel(tModels, option.modelId)
-    const optionModelLabel = getTranslatedModelLabel(tModels, option.modelId)
-    const providerLabel = getProviderLabel(option.providerConfig)
-    const optionMeta = option.keyLabel
-      ? `${optionModelLabel} · ${providerLabel}`
-      : option.freeTier && option.sourceType === 'workspace'
-        ? `${providerLabel} · ${tSetup('platformQuota')}`
-        : providerLabel
-    const searchValue = [
-      option.optionId,
-      optionLabel,
-      optionModelLabel,
-      providerLabel,
-      option.maskedKey,
-      option.freeTier && option.sourceType === 'workspace'
-        ? tSetup('platformQuota')
-        : undefined,
-    ]
-      .filter((v): v is string => Boolean(v))
-      .join(' ')
-
-    return (
-      <CommandItem
-        key={option.optionId}
-        value={searchValue}
-        onSelect={() => handleSelectModel(option.optionId)}
-        className="group min-h-12 gap-3 px-3 py-2.5"
-      >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-          <Sparkles className="size-3.5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            {option.keyId ? (
-              <ApiKeyHealthDot status={healthMap[option.keyId]} />
-            ) : option.freeTier ? (
-              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-            ) : null}
-            <span className="truncate text-sm font-semibold">
-              {optionLabel}
-            </span>
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-            {optionMeta}
-          </span>
-        </span>
-        {isSelected ? (
-          <Check className="size-4 shrink-0 text-foreground" />
-        ) : null}
-      </CommandItem>
-    )
-  }
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -1078,131 +976,28 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 <div className="flex items-center justify-between gap-2 px-1">
                   <div className="flex min-w-0 items-center gap-1.5">
                     {state.workflowMode === 'quick' && (
-                      <Popover
-                        open={modelPickerOpen}
-                        onOpenChange={handleModelPickerOpenChange}
-                      >
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={t('selectModel')}
-                            aria-expanded={modelPickerOpen}
-                            className={cn(
-                              'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
-                              'transition-[color,background-color,border-color,box-shadow] duration-200',
-                              'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
-                              'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
-                              'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
-                            )}
-                          >
-                            {selectedModel?.keyId && (
-                              <ApiKeyHealthDot
-                                status={healthMap[selectedModel.keyId]}
-                              />
-                            )}
-                            {!selectedModel?.keyId &&
-                              selectedModel?.freeTier && (
-                                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                              )}
-                            <span className="max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]">
-                              {selectedModel
-                                ? (selectedModel.keyLabel ??
-                                  getTranslatedModelLabel(
-                                    tModels,
-                                    selectedModel.modelId,
-                                  ))
-                                : t('noModelHint')}
-                            </span>
-                            <ChevronDown
-                              className={cn(
-                                'size-3 shrink-0 transition-transform duration-300 ease-out',
-                                modelPickerOpen && 'rotate-180',
-                              )}
-                            />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          side="top"
-                          sideOffset={10}
-                          collisionPadding={12}
-                          className="origin-bottom w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl data-[side=top]:slide-in-from-bottom-2"
-                        >
-                          <Command className="bg-transparent">
-                            <CommandInput
-                              placeholder={tForm(
-                                'modelSelector.searchPlaceholder',
-                              )}
-                              className="h-10 text-sm"
-                            />
-                            <CommandList className="max-h-80 overscroll-contain">
-                              <CommandEmpty>
-                                {tForm('modelSelector.emptySearch')}
-                              </CommandEmpty>
-                              {savedModels.length > 0 && (
-                                <CommandGroup
-                                  heading={tSetup('configuredKeys')}
-                                >
-                                  {savedModels.map(renderAvailableModelOption)}
-                                </CommandGroup>
-                              )}
-
-                              {platformModels.length > 0 && (
-                                <CommandGroup heading={tSetup('platformQuota')}>
-                                  {platformModels.map(
-                                    renderAvailableModelOption,
-                                  )}
-                                </CommandGroup>
-                              )}
-
-                              {lockedModels.length > 0 && (
-                                <CommandGroup heading={tSetup('needsKey')}>
-                                  {lockedModels.map((option) => {
-                                    const optionModelLabel =
-                                      getTranslatedModelLabel(
-                                        tModels,
-                                        option.modelId,
-                                      )
-                                    const providerLabel = getProviderLabel(
-                                      option.providerConfig,
-                                    )
-                                    const searchValue = [
-                                      option.optionId,
-                                      optionModelLabel,
-                                      providerLabel,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' ')
-
-                                    return (
-                                      <CommandItem
-                                        key={option.optionId}
-                                        value={searchValue}
-                                        onSelect={() =>
-                                          handleOpenQuickSetup(option)
-                                        }
-                                        className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
-                                      >
-                                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-                                          <Key className="size-3.5" />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                          <span className="block truncate text-sm font-semibold">
-                                            {optionModelLabel}
-                                          </span>
-                                          <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-                                            {providerLabel}
-                                          </span>
-                                        </span>
-                                      </CommandItem>
-                                    )
-                                  })}
-                                </CommandGroup>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <MainModelPicker
+                        modality={
+                          isAudioMode
+                            ? 'audio'
+                            : isVideoMode
+                              ? 'video'
+                              : 'image'
+                        }
+                        value={state.selectedOptionId ?? null}
+                        onChange={(option) =>
+                          dispatch({
+                            type: 'SET_OPTION_ID',
+                            payload: option.optionId,
+                          })
+                        }
+                        onRequestSetup={handleOpenQuickSetup}
+                        triggerEmptyLabel={t('noModelHint')}
+                        searchPlaceholder={tForm(
+                          'modelSelector.searchPlaceholder',
+                        )}
+                        emptySearchText={tForm('modelSelector.emptySearch')}
+                      />
                     )}
                     <PromptTemplatePicker
                       currentModelId={selectedModel?.modelId}

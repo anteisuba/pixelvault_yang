@@ -14,8 +14,10 @@ const HEALTH_COLORS: Record<ApiKeyHealthStatus, string> = {
 
 export function ApiKeyHealthDot({
   status,
+  showLabel = true,
 }: {
   status: ApiKeyHealthStatus | undefined
+  showLabel?: boolean
 }) {
   const t = useTranslations('StudioApiKeys')
 
@@ -26,12 +28,13 @@ export function ApiKeyHealthDot({
   return (
     <span
       className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+      aria-label={showLabel ? undefined : label}
       title={label}
     >
       <span
         className={cn('size-2 shrink-0 rounded-full', HEALTH_COLORS[status])}
       />
-      {label}
+      {showLabel ? label : null}
     </span>
   )
 }

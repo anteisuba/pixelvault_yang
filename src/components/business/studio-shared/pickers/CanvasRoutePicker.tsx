@@ -146,7 +146,10 @@ function CanvasRouteLLMPicker({
             {triggerIcon}
             {selectedRoute?.apiKeyId ? (
               <span className="absolute -right-0.5 top-0 size-1.5 rounded-full ring-1 ring-node-panel">
-                <ApiKeyHealthDot status={healthMap[selectedRoute.apiKeyId]} />
+                <ApiKeyHealthDot
+                  status={healthMap[selectedRoute.apiKeyId]}
+                  showLabel={false}
+                />
               </span>
             ) : null}
           </span>

@@ -194,4 +194,26 @@ describe('BaseModelPickerPanel', () => {
 
     expect(screen.getByPlaceholderText('Search now')).toBeInTheDocument()
   })
+
+  it('uses the popover content as the scroll container', () => {
+    render(
+      <BaseModelPickerPanel
+        options={[
+          makeOption({ optionId: 'opt-1' }),
+          makeOption({ optionId: 'opt-2' }),
+        ]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    const content = document.querySelector('[data-slot="popover-content"]')
+    const list = document.querySelector('[data-slot="command-list"]')
+
+    expect(content).toHaveClass('overflow-y-auto')
+    expect(content).toHaveClass('touch-pan-y')
+    expect(list).toHaveClass('max-h-none')
+    expect(list).toHaveClass('overflow-y-visible')
+  })
 })

@@ -229,6 +229,36 @@ describe('CanvasRoutePicker LLM variant — UI behavior', () => {
     ).toBeInTheDocument()
   })
 
+  it('does not render health status text inside the compact selected trigger', () => {
+    const saved = makeRoute({
+      optionId: 'llm-route:planner:key:k1',
+      apiKeyId: 'k1',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      label: 'DeepSeek',
+      providerLabel: 'DeepSeek',
+    })
+    vi.mocked(useLLMRoutePicker).mockReturnValue({
+      savedRoutes: [saved],
+      lockedRoutes: [],
+      allRoutes: [saved],
+      healthMap: { k1: 'unknown' },
+    })
+
+    render(
+      <CanvasRoutePicker
+        variant="planner"
+        value="llm-route:planner:key:k1"
+        onChange={vi.fn()}
+        triggerLabel="Planner route"
+      />,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Planner route' })
+    expect(trigger).toHaveTextContent('Planner route')
+    expect(trigger).toHaveTextContent('DeepSeek')
+    expect(trigger.textContent).not.toContain('StudioApiKeys.health.unknown')
+  })
+
   it('clicking a saved route calls onChange with converted StudioModelOption', () => {
     const saved = makeRoute({
       optionId: 'llm-route:planner:key:k1',

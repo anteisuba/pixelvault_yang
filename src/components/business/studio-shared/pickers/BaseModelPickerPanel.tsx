@@ -224,16 +224,16 @@ export function BaseModelPickerPanel({
         side="top"
         sideOffset={10}
         collisionPadding={12}
-        className="origin-bottom w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl data-[side=top]:slide-in-from-bottom-2"
+        className="origin-bottom max-h-[min(24rem,calc(var(--radix-popover-content-available-height)-0.5rem))] w-96 max-w-[calc(100vw-2rem)] touch-pan-y overflow-y-auto overscroll-y-contain rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] data-[side=top]:slide-in-from-bottom-2"
       >
-        <Command className="bg-transparent">
+        <Command className="h-auto min-h-0 overflow-visible bg-transparent">
           {enableSearch && (
             <CommandInput
               placeholder={searchPlaceholder}
               className="h-10 text-sm"
             />
           )}
-          <CommandList className="max-h-80 overscroll-contain">
+          <CommandList className="min-h-0 max-h-none overflow-y-visible">
             <CommandEmpty>{emptySearchText}</CommandEmpty>
             {saved.length > 0 && (
               <CommandGroup heading={tSetup('configuredKeys')}>

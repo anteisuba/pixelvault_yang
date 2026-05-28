@@ -334,21 +334,110 @@ src/components/business/CopyPromptButton.tsx     → src/components/business/pro
 
 新建 `src/services/prompts/index.ts`、`src/hooks/prompts/index.ts`、`src/components/business/prompts/index.ts` 列出 public exports。
 
-### 8.2 验证
+### 8.2 行为保留契约（重要）
 
-每一步都跑：
+**本 Spec 的核心承诺：零运行时行为变更。** 唯一允许的变化是文件位置 + import 路径 + 新增 index.ts + ESLint 配置。
+
+**明确允许的变化**：
+
+- 文件路径迁移（如 `src/services/prompt-enhance.service.ts` → `src/services/kernel/prompt-enhance.service.ts`）
+- 调用方 import 路径更新（指向新位置）
+- 新增 `index.ts` 做 re-export
+- 新增 ESLint `boundaries` / `import/no-restricted-paths` 配置
+- 新增 codemod 脚本
+
+**明确禁止的变化**（如出现需推回 Spec 1.1 处理）：
+
+- 任何函数签名 / 参数 / 返回值类型修改
+- 任何运行时副作用变化
+- 任何 API URL 改动
+- 任何数据库 schema 改动
+- 任何 React 组件 props / 渲染输出改动
+- 任何 i18n key 改动
+- 删除"看似没人用"的 export（除非 lint + grep 全代码库都确认无引用）
+
+### 8.3 三个易踩坑细节（必须显式检查）
+
+文件物理移动看似简单，但有 3 个陷阱会导致"build 通过但行为变了"。每个动作完成后**强制检查**：
+
+**陷阱 1：`'server-only'` 指令丢失**
+
+当前 `prompt-compiler.service.ts` 等顶部有 `import 'server-only'`，移动文件时**必须**保留。否则客户端代码理论上能 import 服务端代码，泄露 API key 或导致 hydration 错误。
+
+检查命令：
 
 ```bash
-npm run lint
-npm run build
-npx vitest run
+# 迁移前后对比 'server-only' 出现位置
+git diff HEAD~1 -- 'src/services/**' 'src/hooks/**' | grep -E "^[+-].*server-only"
 ```
 
-业务功能不变 —— 不应有用户可见的变化。`/prompts` 页面、灵感库 tab、Studio 内调用模板，全部应保持工作。
+**陷阱 2：新增循环依赖**
 
-### 8.3 ESLint 规则启用
+下沉到 L0 后，如果 kernel 中的 service 反过来 import 了 L1+ 的东西（出于历史耦合），会形成循环。TypeScript 编译可能通过，但运行时初始化顺序出错。
 
-在所有迁移完成后，本 Spec 同时引入 ESLint 层级规则（warn 模式）。已知违规预期在迁移后基本归零（除 recipe 相关，归 Spec 2 处理）。
+检查命令：
+
+```bash
+# 用 madge 检测循环依赖
+npx madge --circular --extensions ts,tsx src/services src/hooks
+```
+
+如有新增循环，必须解开（一般是把被 L0 反向依赖的部分也下沉，或抽 interface）。
+
+**陷阱 3：`index.ts` re-export 不完整**
+
+新增 `src/services/prompts/index.ts` 后，必须导出所有原本被外部使用的 named export。漏掉一个就报 runtime error。
+
+检查命令：
+
+```bash
+# 列出迁移前该模块的所有 export，对比 index.ts 是否覆盖
+git show HEAD~1:src/services/prompt-feedback.service.ts | grep -E "^export"
+# 然后人工核对 src/services/prompts/index.ts
+```
+
+**优先用 `export *`** 而不是命名 re-export，可以一次性覆盖；只对需要刻意隐藏的内部 helper 用显式排除。
+
+### 8.4 每个动作的验证流程
+
+每一步（动作 1 / 2 / 3）独立 commit，commit 前必须全部通过：
+
+```bash
+# 1. 静态检查
+npm run lint                      # 含新增的 boundary 规则
+npx tsc --noEmit                  # 类型完整性
+
+# 2. 构建
+npm run build                     # Next.js 生产构建（含 server-only 边界检查）
+
+# 3. 单元测试
+npx vitest run --reporter=verbose
+
+# 4. 循环依赖检查
+npx madge --circular --extensions ts,tsx src/
+
+# 5. E2E 烟雾测试（核心路径）
+npx playwright test e2e/mobile.spec.ts --project=mobile
+
+# 6. 手工烟雾测试（生产同等环境）
+npm run dev
+# 在浏览器逐项验证：
+#  - /prompts 页面正常加载
+#  - 灵感库 tab 切换正常
+#  - 新建模板、编辑模板正常
+#  - 在 Studio 内调用模板 → 模板内容正确填入
+#  - prompt-enhance（增强按钮）正常
+#  - prompt-assistant（AI 改写）正常
+#  - LoRA 卡片的 mined prompts 正常
+#  - Cards 编辑里的 recipe 调用正常
+#  - Node 节点编排里 scene-prompt 编译正常
+```
+
+**任一项失败 → 回滚到本动作前的 commit → 修干净再重试**。不允许"先 push 后修"。
+
+### 8.5 ESLint 规则启用
+
+在所有迁移完成后，本 Spec 同时引入 ESLint 层级规则。已知违规预期在迁移后基本归零（除 recipe 相关，归 Spec 3 处理）。规则作用范围按 §7 限定（仅 Prompts + Kernel 路径），其他模块通过 `ignorePatterns` 暂缓。
 
 ---
 
@@ -383,18 +472,24 @@ npx vitest run
 3. Cards / LoRA / Video / Node 对提示词工程的依赖在 ESLint 中显示"合法"（因为已下沉 L0）
 4. 灵感库的代码 100% 在 `src/{services,hooks,components}/prompts/` 下
 5. ESLint 在 Prompts 模块 + Kernel 范围内 `error` 级别违规数 = 0（其他模块通过 ignorePatterns 暂缓，待后续 Spec 启用）
+6. **用户可见行为零变化** —— `/prompts` 页面、灵感库、Studio 内调用模板、prompt-enhance、prompt-assistant、LoRA mined prompts、Card recipe、Node scene-prompt 全部保持迁移前的行为，通过 §8.4 手工烟雾测试逐项验证
+7. **无新增循环依赖** —— `npx madge --circular` 输出为空
+8. **无 `'server-only'` 边界泄露** —— 所有原带 `import 'server-only'` 的文件在新位置仍保留该指令
 
 ---
 
 ## 11. 风险与缓解
 
-| 风险                                                   | 缓解                                                                                                 |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| 路径变化太多，import 改不完                            | 用 codemod 脚本（jscodeshift / ts-morph）批量重写 import，不手改                                     |
-| ESLint 规则误判                                        | 先 warn 一周，统计违规清单 → 修干净 → 切 error                                                       |
-| Pilot 迁移破坏运行时                                   | 每个动作独立 commit + 跑 `npm run build` + `vitest run`；CI 上跑 e2e                                 |
-| 后续 spec 拖延，本 spec 成为孤岛                       | 在 §9 写明优先级和触发条件，建议 Spec 2 紧跟本 Spec 之后                                             |
-| Recipe / 82 个扁平文件违规进入 ESLint error 后阻塞开发 | ESLint 规则**只针对新文件 + Prompts 模块**生效；其他模块用 ignore-patterns 暂缓，等 Spec 2+ 逐个开启 |
+| 风险                                                   | 缓解                                                                                                |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 路径变化太多，import 改不完                            | 用 codemod 脚本（jscodeshift / ts-morph）批量重写 import，不手改；TypeScript 编译兜底（漏改即报错） |
+| `'server-only'` 指令在文件迁移中丢失，泄露服务端代码   | §8.3 陷阱 1：用 `git diff` 对比迁移前后；CI 加 grep 守卫拦截缺失情况                                |
+| 新增循环依赖导致运行时初始化错乱                       | §8.3 陷阱 2：每个动作后跑 `npx madge --circular`，发现循环必须解开才能 commit                       |
+| `index.ts` re-export 漏导出，调用方 runtime 报错       | §8.3 陷阱 3：优先用 `export *` 而非命名 re-export；与迁移前的 `export` 列表逐项对比                 |
+| Pilot 迁移破坏运行时                                   | §8.4：每个动作独立 commit，跑 `lint + tsc + build + vitest + madge + playwright + 手工烟雾测试`     |
+| ESLint 规则误判                                        | 作用范围限定（§7 仅 Prompts/Kernel 路径 + 新文件）；如出现意外违规切回 warn → 修干净 → 再切 error   |
+| 后续 spec 拖延，本 spec 成为孤岛                       | 在 §9 写明优先级和触发条件，建议 Spec 2 紧跟本 Spec 之后                                            |
+| Recipe / 82 个扁平文件违规进入 ESLint error 后阻塞开发 | ESLint 规则**只针对新路径 + Prompts 模块**生效；其他模块用 ignorePatterns 暂缓，等 Spec 2+ 逐个开启 |
 
 ---
 

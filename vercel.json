@@ -9,6 +9,10 @@
     {
       "path": "/api/internal/civitai-lora/prewarm",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/internal/execution/sweep",
+      "schedule": "0 * * * *"
     }
   ]
 }

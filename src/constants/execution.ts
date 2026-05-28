@@ -2,6 +2,17 @@ export const EXECUTION_OUTBOX = {
   LEASE_MS: 60_000,
 } as const
 
+export const EXECUTION_SWEEPER = {
+  /**
+   * RUNNING jobs whose `startedAt` is older than this are treated as orphaned
+   * (worker process crashed without ever calling back). Set far above the
+   * worker timeout (10 min) and the longest normal long-video run so in-flight
+   * work is never reaped. Reaping uses a `status: RUNNING` CAS, so a late
+   * callback that finalizes first is left untouched.
+   */
+  STALE_JOB_THRESHOLD_MS: 60 * 60 * 1000,
+} as const
+
 export const EXECUTION_INTERNAL = {
   SIGNATURE_HEADER: 'X-Execution-Signature',
   SIGNATURE_ALGORITHM: 'sha256',

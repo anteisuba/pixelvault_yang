@@ -6,7 +6,7 @@ import { getTranslations } from 'next-intl/server'
 import { ArrowLeft } from 'lucide-react'
 
 import { assetGenerationPath, ROUTES } from '@/constants/routes'
-import { PromptTemplateDetailEditor } from '@/components/business/PromptTemplateDetailEditor'
+import { PromptTemplateDetailEditor } from '@/components/business/prompts/PromptTemplateDetailEditor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'

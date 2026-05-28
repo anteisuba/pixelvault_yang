@@ -8,12 +8,12 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/seedance-prompt-plan.service', () => ({
+vi.mock('@/services/prompts/seedance-prompt-plan.service', () => ({
   createSeedancePromptPlan: vi.fn(),
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { createSeedancePromptPlan } from '@/services/seedance-prompt-plan.service'
+import { createSeedancePromptPlan } from '@/services/prompts/seedance-prompt-plan.service'
 import type { SeedancePromptPlanResponseData } from '@/types/seedance-prompt-plan'
 
 import { POST } from './route'

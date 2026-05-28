@@ -27,7 +27,7 @@ vi.mock('@/lib/with-retry', () => ({
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { createSeedancePromptPlan } from '@/services/seedance-prompt-plan.service'
+import { createSeedancePromptPlan } from '@/services/prompts/seedance-prompt-plan.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_user_1' }
 

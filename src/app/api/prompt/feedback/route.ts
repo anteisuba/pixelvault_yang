@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { PromptFeedbackRequestSchema } from '@/types'
-import { getPromptFeedback } from '@/services/prompt-feedback.service'
+import { getPromptFeedback } from '@/services/prompts/prompt-feedback.service'
 import { createApiRoute } from '@/lib/api-route-factory'
 
 export const maxDuration = 30

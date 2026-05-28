@@ -53,7 +53,7 @@ import { usePathname, useRouter } from '@/i18n/navigation'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
-import { useCivitaiMinedPrompts } from '@/hooks/use-civitai-mined-prompts'
+import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import {
   LoraTrainingForm,

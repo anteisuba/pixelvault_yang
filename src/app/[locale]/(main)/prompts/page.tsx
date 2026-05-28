@@ -5,7 +5,7 @@ import { FileText, Sparkles } from 'lucide-react'
 import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
-import { PromptTemplateCreatePanel } from '@/components/business/PromptTemplateCreatePanel'
+import { PromptTemplateCreatePanel } from '@/components/business/prompts/PromptTemplateCreatePanel'
 import { InspirationGrid } from '@/components/business/prompts/inspiration/InspirationGrid'
 import {
   PromptLibraryTabs,

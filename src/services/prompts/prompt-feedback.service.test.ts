@@ -14,7 +14,7 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
 }))
 
-import { getPromptFeedback } from '@/services/prompt-feedback.service'
+import { getPromptFeedback } from '@/services/prompts/prompt-feedback.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }

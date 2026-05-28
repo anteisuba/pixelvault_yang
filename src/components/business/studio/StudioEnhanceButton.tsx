@@ -34,7 +34,7 @@ function PanelLoadingFallback() {
 
 const PromptAssistantPanel = dynamic(
   () =>
-    import('@/components/business/PromptAssistantPanel').then(
+    import('@/components/business/prompts/PromptAssistantPanel').then(
       (mod) => mod.PromptAssistantPanel,
     ),
   { loading: () => <PanelLoadingFallback /> },

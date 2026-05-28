@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { STYLE_CARD } from '@/constants/card-types'
+import { STYLE_CARD } from '@/constants/cards/card-types'
 import type {
   StyleCardRecord,
   CreateStyleCardRequest,

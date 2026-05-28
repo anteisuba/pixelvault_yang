@@ -28,7 +28,7 @@ vi.mock('@/lib/platform-keys', () => ({
   getFishAudioVoiceLibraryApiKey: vi.fn(),
 }))
 
-vi.mock('@/services/voice-card.service', () => ({
+vi.mock('@/services/cards/voice-card.service', () => ({
   createClonedVoiceCard: vi.fn(),
 }))
 
@@ -37,7 +37,7 @@ import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
 import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
-import { createClonedVoiceCard } from '@/services/voice-card.service'
+import { createClonedVoiceCard } from '@/services/cards/voice-card.service'
 import { AI_MODELS } from '@/constants/models'
 import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
 

@@ -51,7 +51,7 @@ import {
   getMaxReferenceImages,
   hasCapability,
 } from '@/constants/provider-capabilities'
-import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
+import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'

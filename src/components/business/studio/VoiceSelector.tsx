@@ -34,7 +34,7 @@ import { AI_MODELS } from '@/constants/models'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
 import { useStudioFormOptional } from '@/contexts/studio-context'
-import { useVoiceCards } from '@/hooks/use-voice-cards'
+import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import {
   createVoiceCardAPI,
   deleteVoiceCardAPI,

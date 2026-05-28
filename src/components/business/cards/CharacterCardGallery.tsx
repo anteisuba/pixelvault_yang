@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { Loader2, ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useCharacterCardGallery } from '@/hooks/use-character-card-gallery'
+import { useCharacterCardGallery } from '@/hooks/cards/use-character-card-gallery'
 import { Button } from '@/components/ui/button'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 

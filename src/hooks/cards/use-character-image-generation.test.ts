@@ -7,7 +7,7 @@ vi.mock('@/lib/api-client', () => ({
 
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
 import { studioGenerateAPI } from '@/lib/api-client'
-import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
+import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import type { GenerationRecord } from '@/types'
 
 const FAKE_GENERATION: GenerationRecord = {

@@ -6,7 +6,7 @@ import {
   getStyleCard,
   updateStyleCard,
   deleteStyleCard,
-} from '@/services/style-card.service'
+} from '@/services/cards/style-card.service'
 import {
   createApiGetByIdRoute,
   createApiPutRoute,

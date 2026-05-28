@@ -15,11 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
-import { CharacterCardCreateForm } from '@/components/business/CharacterCardCreateForm'
-import { CharacterCardItem } from '@/components/business/CharacterCardItem'
-import { CharacterCardTile } from '@/components/business/CharacterCardTile'
-import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
+import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
+import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
+import { CharacterCardItem } from '@/components/business/cards/CharacterCardItem'
+import { CharacterCardTile } from '@/components/business/cards/CharacterCardTile'
+import { CharacterCardGallery } from '@/components/business/cards/CharacterCardGallery'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 

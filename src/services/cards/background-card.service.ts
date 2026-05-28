@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { BACKGROUND_CARD } from '@/constants/card-types'
+import { BACKGROUND_CARD } from '@/constants/cards/card-types'
 import type {
   BackgroundCardRecord,
   CreateBackgroundCardRequest,

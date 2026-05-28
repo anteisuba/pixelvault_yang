@@ -7,7 +7,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   listCharacterCards,
   createCharacterCard,
-} from '@/services/character-card.service'
+} from '@/services/cards/character-card.service'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetRoute({

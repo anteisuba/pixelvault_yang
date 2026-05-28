@@ -39,7 +39,7 @@ import {
   listStyleCards,
   getStyleCard,
   deleteStyleCard,
-} from '@/services/style-card.service'
+} from '@/services/cards/style-card.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
 

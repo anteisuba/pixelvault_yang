@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { CARD_RECIPE } from '@/constants/card-types'
+import { CARD_RECIPE } from '@/constants/cards/card-types'
 import type {
   CardRecipeRecord,
   CardRecipeDetailRecord,

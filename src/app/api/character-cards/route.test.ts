@@ -10,7 +10,7 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/character-card.service', () => ({
+vi.mock('@/services/cards/character-card.service', () => ({
   listCharacterCards: vi.fn(),
   createCharacterCard: vi.fn(),
 }))
@@ -19,7 +19,7 @@ import { GET, POST } from './route'
 import {
   listCharacterCards,
   createCharacterCard,
-} from '@/services/character-card.service'
+} from '@/services/cards/character-card.service'
 
 const mockListCharacterCards = vi.mocked(listCharacterCards)
 const mockCreateCharacterCard = vi.mocked(createCharacterCard)

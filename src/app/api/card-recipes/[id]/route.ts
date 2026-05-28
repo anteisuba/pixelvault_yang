@@ -6,7 +6,7 @@ import {
   getCardRecipe,
   updateCardRecipe,
   deleteCardRecipe,
-} from '@/services/card-recipe.service'
+} from '@/services/cards/card-recipe.service'
 import {
   createApiGetByIdRoute,
   createApiPutRoute,

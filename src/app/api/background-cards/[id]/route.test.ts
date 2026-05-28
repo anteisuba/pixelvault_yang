@@ -11,7 +11,7 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/background-card.service', () => ({
+vi.mock('@/services/cards/background-card.service', () => ({
   getBackgroundCard: vi.fn(),
   updateBackgroundCard: vi.fn(),
   deleteBackgroundCard: vi.fn(),
@@ -22,7 +22,7 @@ import {
   getBackgroundCard,
   updateBackgroundCard,
   deleteBackgroundCard,
-} from '@/services/background-card.service'
+} from '@/services/cards/background-card.service'
 
 const mockGetBackgroundCard = vi.mocked(getBackgroundCard)
 const mockUpdateBackgroundCard = vi.mocked(updateBackgroundCard)

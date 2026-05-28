@@ -2,7 +2,7 @@ import 'server-only'
 
 import { ScoreConsistencySchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { scoreGenerationForCard } from '@/services/character-scoring.service'
+import { scoreGenerationForCard } from '@/services/cards/character-scoring.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const POST = createApiPostByIdRoute({

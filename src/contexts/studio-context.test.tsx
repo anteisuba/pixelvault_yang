@@ -12,15 +12,15 @@ import {
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
 import type { GenerationEvaluation } from '@/types'
 
-vi.mock('@/hooks/use-character-cards', () => ({
+vi.mock('@/hooks/cards/use-character-cards', () => ({
   useCharacterCards: () => ({}),
 }))
 
-vi.mock('@/hooks/use-background-cards', () => ({
+vi.mock('@/hooks/cards/use-background-cards', () => ({
   useBackgroundCards: () => ({}),
 }))
 
-vi.mock('@/hooks/use-style-cards', () => ({
+vi.mock('@/hooks/cards/use-style-cards', () => ({
   useStyleCards: () => ({}),
 }))
 

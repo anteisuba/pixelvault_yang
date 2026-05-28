@@ -3,32 +3,31 @@
 import { useMemo } from 'react'
 
 import type {
-  StyleCardRecord,
-  CreateStyleCardRequest,
-  UpdateStyleCardRequest,
+  BackgroundCardRecord,
+  CreateBackgroundCardRequest,
+  UpdateBackgroundCardRequest,
 } from '@/types'
 import {
-  listStyleCardsAPI,
-  createStyleCardAPI,
-  updateStyleCardAPI,
-  deleteStyleCardAPI,
+  listBackgroundCardsAPI,
+  createBackgroundCardAPI,
+  updateBackgroundCardAPI,
+  deleteBackgroundCardAPI,
 } from '@/lib/api-client'
 import {
   useCardManager,
   type UseCardManagerReturn,
-} from '@/hooks/use-card-manager'
+} from '@/hooks/cards/use-card-manager'
 
-export type UseStyleCardsReturn = Pick<
+export type UseBackgroundCardsReturn = Pick<
   UseCardManagerReturn<
-    StyleCardRecord,
-    CreateStyleCardRequest,
-    UpdateStyleCardRequest
+    BackgroundCardRecord,
+    CreateBackgroundCardRequest,
+    UpdateBackgroundCardRequest
   >,
   | 'cards'
   | 'isLoading'
   | 'activeCardId'
   | 'setActiveCardId'
-  | 'activeCard'
   | 'create'
   | 'update'
   | 'remove'
@@ -36,21 +35,23 @@ export type UseStyleCardsReturn = Pick<
 >
 
 const api = {
-  list: listStyleCardsAPI,
-  create: createStyleCardAPI,
-  update: updateStyleCardAPI,
-  delete: deleteStyleCardAPI,
+  list: listBackgroundCardsAPI,
+  create: createBackgroundCardAPI,
+  update: updateBackgroundCardAPI,
+  delete: deleteBackgroundCardAPI,
 }
 
-export function useStyleCards(projectId?: string | null): UseStyleCardsReturn {
+export function useBackgroundCards(
+  projectId?: string | null,
+): UseBackgroundCardsReturn {
   const manager = useCardManager<
-    StyleCardRecord,
-    CreateStyleCardRequest,
-    UpdateStyleCardRequest
+    BackgroundCardRecord,
+    CreateBackgroundCardRequest,
+    UpdateBackgroundCardRequest
   >(
     useMemo(
       () => ({
-        cardType: 'style',
+        cardType: 'background',
         api,
         selectionMode: 'single' as const,
         projectId,
@@ -64,7 +65,6 @@ export function useStyleCards(projectId?: string | null): UseStyleCardsReturn {
     isLoading: manager.isLoading,
     activeCardId: manager.activeCardId,
     setActiveCardId: manager.setActiveCardId,
-    activeCard: manager.activeCard,
     create: manager.create,
     update: manager.update,
     remove: manager.remove,

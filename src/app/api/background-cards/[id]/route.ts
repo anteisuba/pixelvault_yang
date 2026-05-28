@@ -6,7 +6,7 @@ import {
   getBackgroundCard,
   updateBackgroundCard,
   deleteBackgroundCard,
-} from '@/services/background-card.service'
+} from '@/services/cards/background-card.service'
 import {
   createApiGetByIdRoute,
   createApiPutRoute,

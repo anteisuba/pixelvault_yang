@@ -11,7 +11,7 @@ import type {
   RefineCharacterCardRequest,
   RefineGenerationResult,
 } from '@/types'
-import { CHARACTER_CARD } from '@/constants/character-card'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import {
   listCharacterCardsAPI,
   createCharacterCardAPI,

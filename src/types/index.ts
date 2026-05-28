@@ -13,12 +13,12 @@ import {
   TTS_TOP_P_RANGE,
   TTS_VOLUME_RANGE,
 } from '@/constants/audio-options'
-import { CHARACTER_CARD } from '@/constants/character-card'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import {
   BACKGROUND_CARD,
   STYLE_CARD,
   CARD_RECIPE,
-} from '@/constants/card-types'
+} from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'

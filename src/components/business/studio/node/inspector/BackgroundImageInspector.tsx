@@ -17,7 +17,7 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { useBackgroundCards } from '@/hooks/use-background-cards'
+import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
 import type { BackgroundCardRecord } from '@/types'
 import type {
   NodeWorkflowNode,

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RefineCharacterCardSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { refineCharacterCard } from '@/services/character-refine.service'
+import { refineCharacterCard } from '@/services/cards/character-refine.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const POST = createApiPostByIdRoute({

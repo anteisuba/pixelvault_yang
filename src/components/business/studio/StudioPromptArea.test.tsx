@@ -141,7 +141,7 @@ vi.mock('@/hooks/use-video-model-options', () => ({
   },
 }))
 
-vi.mock('@/hooks/use-voice-cards', () => ({
+vi.mock('@/hooks/cards/use-voice-cards', () => ({
   useVoiceCards: mockUseVoiceCards,
 }))
 

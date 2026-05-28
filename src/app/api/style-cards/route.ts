@@ -4,7 +4,10 @@ import { z } from 'zod'
 
 import { CreateStyleCardSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { listStyleCards, createStyleCard } from '@/services/style-card.service'
+import {
+  listStyleCards,
+  createStyleCard,
+} from '@/services/cards/style-card.service'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetRoute({

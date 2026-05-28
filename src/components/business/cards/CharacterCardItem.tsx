@@ -21,8 +21,8 @@ import type {
   UpdateCharacterCardRequest,
   CharacterAttributes,
 } from '@/types'
-import { CharacterCardCreateForm } from '@/components/business/CharacterCardCreateForm'
-import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
+import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
+import { CharacterCardGallery } from '@/components/business/cards/CharacterCardGallery'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { cn } from '@/lib/utils'
 

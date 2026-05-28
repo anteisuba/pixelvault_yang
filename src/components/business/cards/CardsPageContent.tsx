@@ -7,13 +7,13 @@ import {
   CARD_MANAGEMENT_TABS,
   type CardManagementTab,
 } from '@/constants/routes'
-import { useCharacterCards } from '@/hooks/use-character-cards'
-import { useStyleCards } from '@/hooks/use-style-cards'
-import { useBackgroundCards } from '@/hooks/use-background-cards'
+import { useCharacterCards } from '@/hooks/cards/use-character-cards'
+import { useStyleCards } from '@/hooks/cards/use-style-cards'
+import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CharacterCardManager } from '@/components/business/CharacterCardManager'
-import { StyleCardManager } from '@/components/business/StyleCardManager'
-import { SimpleCardManager } from '@/components/business/SimpleCardManager'
+import { CharacterCardManager } from '@/components/business/cards/CharacterCardManager'
+import { StyleCardManager } from '@/components/business/cards/StyleCardManager'
+import { SimpleCardManager } from '@/components/business/cards/SimpleCardManager'
 
 /**
  * /cards 页面内容：复用 CardDrawerContent 的三个卡管理器，但以页面形式呈现。

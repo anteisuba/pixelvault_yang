@@ -19,7 +19,7 @@ vi.mock('@/lib/logger', () => ({
 const mockCreate = vi.fn()
 const mockList = vi.fn()
 
-vi.mock('@/services/voice-card.service', () => ({
+vi.mock('@/services/cards/voice-card.service', () => ({
   createVoiceCard: (...args: unknown[]) => mockCreate(...args),
   listVoiceCards: (...args: unknown[]) => mockList(...args),
 }))

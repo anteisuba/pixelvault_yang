@@ -11,7 +11,7 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/style-card.service', () => ({
+vi.mock('@/services/cards/style-card.service', () => ({
   getStyleCard: vi.fn(),
   updateStyleCard: vi.fn(),
   deleteStyleCard: vi.fn(),
@@ -22,7 +22,7 @@ import {
   getStyleCard,
   updateStyleCard,
   deleteStyleCard,
-} from '@/services/style-card.service'
+} from '@/services/cards/style-card.service'
 
 const mockGetStyleCard = vi.mocked(getStyleCard)
 const mockUpdateStyleCard = vi.mocked(updateStyleCard)

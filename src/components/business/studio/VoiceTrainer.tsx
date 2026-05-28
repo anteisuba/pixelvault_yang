@@ -11,7 +11,7 @@ import {
   VOICE_TRAIN_MAX_FILE_BYTES,
 } from '@/constants/voice-cards'
 import { useStudioForm } from '@/contexts/studio-context'
-import { useVoiceCards } from '@/hooks/use-voice-cards'
+import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 

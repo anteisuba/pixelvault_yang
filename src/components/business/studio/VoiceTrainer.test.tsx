@@ -18,7 +18,7 @@ vi.mock('@/contexts/studio-context', () => ({
 }))
 
 const refreshMock = vi.fn(async () => {})
-vi.mock('@/hooks/use-voice-cards', () => ({
+vi.mock('@/hooks/cards/use-voice-cards', () => ({
   useVoiceCards: () => ({
     cards: [],
     isLoading: false,

@@ -7,7 +7,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   listBackgroundCards,
   createBackgroundCard,
-} from '@/services/background-card.service'
+} from '@/services/cards/background-card.service'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetRoute({

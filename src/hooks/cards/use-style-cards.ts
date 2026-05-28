@@ -3,31 +3,32 @@
 import { useMemo } from 'react'
 
 import type {
-  BackgroundCardRecord,
-  CreateBackgroundCardRequest,
-  UpdateBackgroundCardRequest,
+  StyleCardRecord,
+  CreateStyleCardRequest,
+  UpdateStyleCardRequest,
 } from '@/types'
 import {
-  listBackgroundCardsAPI,
-  createBackgroundCardAPI,
-  updateBackgroundCardAPI,
-  deleteBackgroundCardAPI,
+  listStyleCardsAPI,
+  createStyleCardAPI,
+  updateStyleCardAPI,
+  deleteStyleCardAPI,
 } from '@/lib/api-client'
 import {
   useCardManager,
   type UseCardManagerReturn,
-} from '@/hooks/use-card-manager'
+} from '@/hooks/cards/use-card-manager'
 
-export type UseBackgroundCardsReturn = Pick<
+export type UseStyleCardsReturn = Pick<
   UseCardManagerReturn<
-    BackgroundCardRecord,
-    CreateBackgroundCardRequest,
-    UpdateBackgroundCardRequest
+    StyleCardRecord,
+    CreateStyleCardRequest,
+    UpdateStyleCardRequest
   >,
   | 'cards'
   | 'isLoading'
   | 'activeCardId'
   | 'setActiveCardId'
+  | 'activeCard'
   | 'create'
   | 'update'
   | 'remove'
@@ -35,23 +36,21 @@ export type UseBackgroundCardsReturn = Pick<
 >
 
 const api = {
-  list: listBackgroundCardsAPI,
-  create: createBackgroundCardAPI,
-  update: updateBackgroundCardAPI,
-  delete: deleteBackgroundCardAPI,
+  list: listStyleCardsAPI,
+  create: createStyleCardAPI,
+  update: updateStyleCardAPI,
+  delete: deleteStyleCardAPI,
 }
 
-export function useBackgroundCards(
-  projectId?: string | null,
-): UseBackgroundCardsReturn {
+export function useStyleCards(projectId?: string | null): UseStyleCardsReturn {
   const manager = useCardManager<
-    BackgroundCardRecord,
-    CreateBackgroundCardRequest,
-    UpdateBackgroundCardRequest
+    StyleCardRecord,
+    CreateStyleCardRequest,
+    UpdateStyleCardRequest
   >(
     useMemo(
       () => ({
-        cardType: 'background',
+        cardType: 'style',
         api,
         selectionMode: 'single' as const,
         projectId,
@@ -65,6 +64,7 @@ export function useBackgroundCards(
     isLoading: manager.isLoading,
     activeCardId: manager.activeCardId,
     setActiveCardId: manager.setActiveCardId,
+    activeCard: manager.activeCard,
     create: manager.create,
     update: manager.update,
     remove: manager.remove,

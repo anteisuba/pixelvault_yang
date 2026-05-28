@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { CHARACTER_CARD } from '@/constants/character-card'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import {
   CharacterAttributesSchema,
   type CharacterCardRecord,
@@ -20,7 +20,7 @@ import {
   serializeCharacterAttributes,
   serializeCharacterLoras,
   serializeSourceImageEntries,
-} from '@/services/character-card.mapper'
+} from '@/services/cards/character-card.mapper'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { ownedBy } from '@/lib/db-scope'

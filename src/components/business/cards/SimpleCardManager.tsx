@@ -17,8 +17,8 @@ import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import { cn } from '@/lib/utils'
-import type { CardType } from '@/constants/card-types'
-import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
+import type { CardType } from '@/constants/cards/card-types'
+import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
 import {
   MediaCardTile,
   type MediaCardAspect,

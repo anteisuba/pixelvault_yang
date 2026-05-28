@@ -22,7 +22,7 @@ const mockGet = vi.fn()
 const mockUpdate = vi.fn()
 const mockDelete = vi.fn()
 
-vi.mock('@/services/voice-card.service', () => ({
+vi.mock('@/services/cards/voice-card.service', () => ({
   getVoiceCard: (...args: unknown[]) => mockGet(...args),
   updateVoiceCard: (...args: unknown[]) => mockUpdate(...args),
   deleteVoiceCard: (...args: unknown[]) => mockDelete(...args),

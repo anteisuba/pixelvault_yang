@@ -21,7 +21,7 @@ vi.mock('@/services/storage/r2', () => ({
   }),
 }))
 
-import { scoreConsistency } from '@/services/character-scoring.service'
+import { scoreConsistency } from '@/services/cards/character-scoring.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }

@@ -11,10 +11,10 @@ import type {
   GenerationRecord,
   SourceImageUpload,
 } from '@/types'
-import { CHARACTER_CARD } from '@/constants/character-card'
-import { CARDIFY } from '@/constants/cardify'
-import type { SourceImageViewType } from '@/constants/character-card'
-import { CardifyPreview } from '@/components/business/CardifyPreview'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { CARDIFY } from '@/constants/cards/cardify'
+import type { SourceImageViewType } from '@/constants/cards/character-card'
+import { CardifyPreview } from '@/components/business/cards/CardifyPreview'
 
 interface CharacterCardCreateFormProps {
   onSubmit: (

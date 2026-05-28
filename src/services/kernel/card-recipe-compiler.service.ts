@@ -2,7 +2,7 @@ import 'server-only'
 
 import crypto from 'crypto'
 import { db } from '@/lib/db'
-import { CARD_RECIPE } from '@/constants/card-types'
+import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { ADAPTER_PROMPT_HINTS } from '@/constants/model-strengths'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { z } from 'zod'

@@ -1,15 +1,15 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { CHARACTER_CARD } from '@/constants/character-card'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import type {
   CharacterAttributes,
   RefineCharacterCardRequest,
   RefineGenerationResult,
 } from '@/types'
 import { generateImageForUser } from '@/services/generate-image.service'
-import { scoreConsistency } from '@/services/character-scoring.service'
-import { buildPromptFromAttributes } from '@/services/character-card.service'
+import { scoreConsistency } from '@/services/cards/character-scoring.service'
+import { buildPromptFromAttributes } from '@/services/cards/character-card.service'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,

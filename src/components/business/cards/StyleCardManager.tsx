@@ -11,7 +11,7 @@ import type {
   CreateStyleCardRequest,
   UpdateStyleCardRequest,
 } from '@/types'
-import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
+import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
 import { MediaCardTile } from '@/components/business/MediaCardTile'
 import { StyleCardEditor } from '@/components/business/StyleCardEditor'
 import {

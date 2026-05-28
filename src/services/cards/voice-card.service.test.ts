@@ -51,7 +51,7 @@ import {
   getVoiceCard,
   listVoiceCards,
   updateVoiceCard,
-} from '@/services/voice-card.service'
+} from '@/services/cards/voice-card.service'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
 const FAKE_API_KEY = { keyValue: 'fish-api-key' }

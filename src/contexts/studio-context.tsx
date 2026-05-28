@@ -53,9 +53,9 @@ import {
   AUDIO_DEFAULT_EMOTION,
   AUDIO_DEFAULT_PACE,
 } from '@/constants/voice-cards'
-import { useCharacterCards } from '@/hooks/use-character-cards'
-import { useBackgroundCards } from '@/hooks/use-background-cards'
-import { useStyleCards } from '@/hooks/use-style-cards'
+import { useCharacterCards } from '@/hooks/cards/use-character-cards'
+import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
+import { useStyleCards } from '@/hooks/cards/use-style-cards'
 import { useProjects } from '@/hooks/use-projects'
 import { useCivitaiToken } from '@/hooks/use-civitai-token'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
@@ -63,9 +63,9 @@ import { useImageUpload } from '@/hooks/use-image-upload'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import type { UseCharacterCardsReturn } from '@/hooks/use-character-cards'
-import type { UseBackgroundCardsReturn } from '@/hooks/use-background-cards'
-import type { UseStyleCardsReturn } from '@/hooks/use-style-cards'
+import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
+import type { UseBackgroundCardsReturn } from '@/hooks/cards/use-background-cards'
+import type { UseStyleCardsReturn } from '@/hooks/cards/use-style-cards'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 
 // ═══════════════════════════════════════════════════════════════════

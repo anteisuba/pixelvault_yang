@@ -42,7 +42,7 @@ import {
   listCharacterCards,
   getCharacterCard,
   deleteCharacterCard,
-} from '@/services/character-card.service'
+} from '@/services/cards/character-card.service'
 import type { CharacterAttributes } from '@/types'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }

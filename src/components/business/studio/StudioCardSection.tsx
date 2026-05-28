@@ -5,10 +5,10 @@ import { Settings2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
-import { CardDropdown } from '@/components/business/CardDropdown'
-import { CharacterCardManager } from '@/components/business/CharacterCardManager'
-import { SimpleCardManager } from '@/components/business/SimpleCardManager'
-import { StyleCardManager } from '@/components/business/StyleCardManager'
+import { CardDropdown } from '@/components/business/cards/CardDropdown'
+import { CharacterCardManager } from '@/components/business/cards/CharacterCardManager'
+import { SimpleCardManager } from '@/components/business/cards/SimpleCardManager'
+import { StyleCardManager } from '@/components/business/cards/StyleCardManager'
 import { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
 import {
   Sheet,

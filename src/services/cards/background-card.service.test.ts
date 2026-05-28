@@ -39,7 +39,7 @@ import {
   listBackgroundCards,
   getBackgroundCard,
   deleteBackgroundCard,
-} from '@/services/background-card.service'
+} from '@/services/cards/background-card.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
 

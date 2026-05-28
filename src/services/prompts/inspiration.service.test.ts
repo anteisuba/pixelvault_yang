@@ -32,7 +32,7 @@ import {
   cloneInspirationToRecipe,
   getInspirationById,
   listInspirations,
-} from '@/services/inspiration.service'
+} from '@/services/prompts/inspiration.service'
 import { ApiRequestError } from '@/lib/errors'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }

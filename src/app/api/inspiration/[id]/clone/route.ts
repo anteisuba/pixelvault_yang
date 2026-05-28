@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { cloneInspirationToRecipe } from '@/services/inspiration.service'
+import { cloneInspirationToRecipe } from '@/services/prompts/inspiration.service'
 import { CloneInspirationRequestSchema } from '@/types'
 
 const cloneRoute = createApiPostByIdRoute({

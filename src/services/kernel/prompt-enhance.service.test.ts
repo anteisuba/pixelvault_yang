@@ -19,7 +19,7 @@ vi.mock('@/services/llm-text.service', () => ({
 }))
 
 const mockBuildInspirationContext = vi.fn()
-vi.mock('@/services/inspiration.service', () => ({
+vi.mock('@/services/kernel/inspiration-context.service', () => ({
   buildInspirationContext: (...a: unknown[]) =>
     mockBuildInspirationContext(...a),
 }))

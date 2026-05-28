@@ -6,11 +6,11 @@ import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
 import { PromptTemplateCreatePanel } from '@/components/business/PromptTemplateCreatePanel'
-import { InspirationGrid } from '@/components/business/inspiration/InspirationGrid'
+import { InspirationGrid } from '@/components/business/prompts/inspiration/InspirationGrid'
 import {
   PromptLibraryTabs,
   type PromptLibraryTab,
-} from '@/components/business/inspiration/PromptLibraryTabs'
+} from '@/components/business/prompts/inspiration/PromptLibraryTabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/navigation'

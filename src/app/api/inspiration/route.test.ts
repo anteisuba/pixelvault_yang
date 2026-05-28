@@ -12,7 +12,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockList = vi.fn()
-vi.mock('@/services/inspiration.service', () => ({
+vi.mock('@/services/prompts/inspiration.service', () => ({
   listInspirations: (...args: unknown[]) => mockList(...args),
 }))
 

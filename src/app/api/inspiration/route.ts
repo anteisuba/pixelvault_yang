@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createApiGetRoute } from '@/lib/api-route-factory'
-import { listInspirations } from '@/services/inspiration.service'
+import { listInspirations } from '@/services/prompts/inspiration.service'
 import { ListInspirationsQuerySchema } from '@/types'
 
 export const GET = createApiGetRoute({

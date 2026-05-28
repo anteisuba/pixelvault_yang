@@ -3,7 +3,7 @@ import 'server-only'
 import type { PromptEnhanceStyle } from '@/constants/config'
 import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
-import { buildInspirationContext } from '@/services/inspiration.service'
+import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,

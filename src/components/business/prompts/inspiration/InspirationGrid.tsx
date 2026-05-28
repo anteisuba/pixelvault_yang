@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 
 import { InspirationCard } from './InspirationCard'
 import { InspirationFilters } from './InspirationFilters'
-import { useInspirations } from '@/hooks/use-inspirations'
+import { useInspirations } from '@/hooks/prompts/use-inspirations'
 
 export function InspirationGrid() {
   const t = useTranslations('PromptLibrary')

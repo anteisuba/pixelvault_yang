@@ -30,6 +30,9 @@ const KERNEL_FORBIDDEN_PATTERNS = [
       "@/components/business/assets/**",
       "@/components/business/cards/**",
       "@/components/business/image/**",
+      "@/services/node/**",
+      "@/hooks/node/**",
+      "@/components/business/node/**",
     ],
     message:
       "L0 Shared Kernel must not import from L1+ modules. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.",
@@ -169,6 +172,28 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-imports": ["error", { patterns: IMAGE_FORBIDDEN_PATTERNS }],
+    },
+  },
+  // ─── Spec 5a boundary rules ────────────────────────────────────
+  {
+    files: [
+      "src/services/node/**/*.{ts,tsx}",
+      "src/hooks/node/**/*.{ts,tsx}",
+      "src/components/business/node/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/app/**"],
+              message:
+                "L3 Node must not import from app routes — components/hooks/services are pure logic.",
+            },
+          ],
+        },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

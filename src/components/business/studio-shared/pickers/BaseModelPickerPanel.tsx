@@ -37,6 +37,14 @@ export interface BaseModelPickerPanelProps {
   size?: 'compact' | 'default'
   className?: string
   disabled?: boolean
+  /**
+   * Optional override for the primary display label of an option.
+   * Used when options carry modelIds that are not registered in the
+   * Models i18n namespace (e.g. EDIT_MODELS ids like
+   * "fal-ai/flux-pro/edit"). Receives the option, returns the
+   * label to show in the trigger and list items.
+   */
+  labelForOption?: (option: StudioModelOption) => string
 }
 
 export function BaseModelPickerPanel({
@@ -51,10 +59,18 @@ export function BaseModelPickerPanel({
   size = 'default',
   className,
   disabled,
+  labelForOption,
 }: BaseModelPickerPanelProps) {
   const [open, setOpen] = useState(false)
   const tModels = useTranslations('Models')
   const tSetup = useTranslations('QuickSetup')
+
+  const resolveLabel = (option: StudioModelOption): string =>
+    labelForOption?.(option) ??
+    option.keyLabel ??
+    getTranslatedModelLabel(tModels, option.modelId)
+  const resolveModelLabel = (option: StudioModelOption): string =>
+    labelForOption?.(option) ?? getTranslatedModelLabel(tModels, option.modelId)
 
   const { healthMap } = useApiKeysContext()
   const { saved, platform, locked } = useSplitModelOptions(options)
@@ -65,8 +81,7 @@ export function BaseModelPickerPanel({
   )
 
   const selectedLabel = selectedOption
-    ? (selectedOption.keyLabel ??
-      getTranslatedModelLabel(tModels, selectedOption.modelId))
+    ? resolveLabel(selectedOption)
     : triggerEmptyLabel
 
   const handleSelectOption = (option: StudioModelOption) => {
@@ -83,9 +98,8 @@ export function BaseModelPickerPanel({
 
   const renderAvailableModelOption = (option: StudioModelOption) => {
     const isSelected = option.optionId === value
-    const optionLabel =
-      option.keyLabel ?? getTranslatedModelLabel(tModels, option.modelId)
-    const optionModelLabel = getTranslatedModelLabel(tModels, option.modelId)
+    const optionLabel = resolveLabel(option)
+    const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const optionMeta = option.keyLabel
       ? `${optionModelLabel} · ${providerLabel}`
@@ -135,7 +149,7 @@ export function BaseModelPickerPanel({
   }
 
   const renderLockedOption = (option: StudioModelOption) => {
-    const optionModelLabel = getTranslatedModelLabel(tModels, option.modelId)
+    const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const searchValue = [option.optionId, optionModelLabel, providerLabel]
       .filter(Boolean)

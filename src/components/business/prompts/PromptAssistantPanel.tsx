@@ -10,7 +10,6 @@ import {
   type KeyboardEvent,
 } from 'react'
 import TextareaAutosize from 'react-textarea-autosize'
-import { AnimatePresence, motion } from 'motion/react'
 import {
   ArrowRight,
   Bot,
@@ -41,6 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import {
   usePromptAssistant,
   STYLE_SHORTCUTS,
@@ -410,8 +410,6 @@ function AssistantAnimatedInput({
   const [isComposing, setIsComposing] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const selectedApiKey = llmApiKeys.find((key) => key.id === selectedApiKeyId)
-  const routeLabel = selectedApiKey?.label ?? selectApiKeyLabel
   const responseLanguageOption = responseLanguageOptions.find(
     (option) => option.value === responseLanguage,
   )
@@ -478,45 +476,21 @@ function AssistantAnimatedInput({
         <div className="flex h-14 items-center border-t border-border/50 bg-muted/45 px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {llmApiKeys.length > 0 && (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={disabled}
-                    className="h-8 max-w-44 gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
-                  >
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.span
-                        key={routeLabel}
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex min-w-0 items-center gap-1"
-                      >
-                        <Bot className="size-3.5 shrink-0" />
-                        <span className="truncate">{routeLabel}</span>
-                        <ChevronDown className="size-3 shrink-0 opacity-60" />
-                      </motion.span>
-                    </AnimatePresence>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-44">
-                  {llmApiKeys.map((key) => (
-                    <DropdownMenuItem
-                      key={key.id}
-                      onSelect={() => onSelectApiKey(key.id)}
-                      className="justify-between gap-3"
-                    >
-                      <span className="truncate">{key.label}</span>
-                      {selectedApiKeyId === key.id && (
-                        <Check className="size-4 text-primary" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <MainModelPicker
+                modality="llm_assist"
+                llmCapability="enhance"
+                size="compact"
+                disabled={disabled}
+                value={
+                  selectedApiKeyId
+                    ? `llm-route:enhance:key:${selectedApiKeyId}`
+                    : null
+                }
+                onChange={(option) => {
+                  if (option.keyId) onSelectApiKey(option.keyId)
+                }}
+                triggerEmptyLabel={selectApiKeyLabel}
+              />
             )}
 
             <DropdownMenu modal={false}>

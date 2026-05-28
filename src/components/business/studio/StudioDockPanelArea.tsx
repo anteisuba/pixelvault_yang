@@ -84,7 +84,7 @@ const StudioVideoParams = dynamic(
 )
 const StudioImageAdvancedParams = dynamic(
   () =>
-    import('@/components/business/studio/StudioImageAdvancedParams').then(
+    import('@/components/business/image/StudioImageAdvancedParams').then(
       (mod) => mod.StudioImageAdvancedParams,
     ),
   { loading: () => <PanelLoadingFallback /> },

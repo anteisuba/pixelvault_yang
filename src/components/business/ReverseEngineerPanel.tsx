@@ -25,7 +25,7 @@ import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VariationGrid } from '@/components/business/VariationGrid'
-import { useReverseImage } from '@/hooks/use-reverse-image'
+import { useReverseImage } from '@/hooks/image/use-reverse-image'
 import { cn } from '@/lib/utils'
 
 const MAX_IMAGE_DIMENSION = 2048

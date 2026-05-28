@@ -69,7 +69,7 @@ vi.mock('@/lib/compress-image', () => ({
   ImageCompressionError,
 }))
 
-vi.mock('@/hooks/use-inpaint', () => ({
+vi.mock('@/hooks/image/use-inpaint', () => ({
   useInpaint: () => ({
     inpaint: vi.fn(),
     outpaint: vi.fn(),

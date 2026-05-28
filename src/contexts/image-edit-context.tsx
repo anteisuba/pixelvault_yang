@@ -21,7 +21,7 @@ import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
 } from '@/constants/uploads'
-import { useInpaint } from '@/hooks/use-inpaint'
+import { useInpaint } from '@/hooks/image/use-inpaint'
 import { uploadImageAPI } from '@/lib/api-client'
 import {
   getImageFileFromDataTransfer,

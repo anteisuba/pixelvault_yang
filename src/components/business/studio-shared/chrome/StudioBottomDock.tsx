@@ -5,7 +5,7 @@ import { memo, useCallback } from 'react'
 import { useStudioForm } from '@/contexts/studio-context'
 
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
-import { StudioKeepChangePanel } from '@/components/business/studio/StudioKeepChangePanel'
+import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { StudioPromptArea } from '@/components/business/studio/StudioPromptArea'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 

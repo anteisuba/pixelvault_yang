@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useImageTransform } from '@/hooks/use-image-transform'
+import { useImageTransform } from '@/hooks/image/use-image-transform'
 import {
   TRANSFORM_PRESETS,
   type TransformPresetId,

@@ -33,12 +33,12 @@ import {
 } from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
-import { CompareGrid } from '@/components/business/studio/CompareGrid'
+import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
-import { StudioGenerationErrorDialog } from '@/components/business/studio/StudioGenerationErrorDialog'
-import { StudioResultFeedback } from '@/components/business/studio/StudioResultFeedback'
-import { VariantGrid } from '@/components/business/studio/VariantGrid'
+import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
+import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
+import { VariantGrid } from '@/components/business/image/VariantGrid'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.

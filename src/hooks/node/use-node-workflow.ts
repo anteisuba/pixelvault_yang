@@ -1531,6 +1531,7 @@ export function useNodeWorkflow({
                       [NODE_WORKFLOW_FIELD_IDS.duration]: plan.duration,
                       [NODE_WORKFLOW_FIELD_IDS.audioIntent]: plan.audioIntent,
                       prompt: plan.finalPrompt,
+                      timeline: plan.timeline,
                       generationError: undefined,
                       status: NODE_STATUS_IDS.ready,
                     },

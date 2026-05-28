@@ -3038,6 +3038,13 @@
       }
     },
     "videoGeneration": {
+      "timeline": {
+        "title": "Shot timeline",
+        "secondsRange": "{start}–{end}s",
+        "beatLabel": "Beat {index}",
+        "cameraLabel": "Camera",
+        "compositionLabel": "Composition"
+      },
       "emptyPreview": "No video generated yet",
       "generating": "Generating video...",
       "motionLabel": "Motion",

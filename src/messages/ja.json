@@ -3038,6 +3038,13 @@
       }
     },
     "videoGeneration": {
+      "timeline": {
+        "title": "ショットタイムライン",
+        "secondsRange": "{start}–{end}秒",
+        "beatLabel": "ビート{index}",
+        "cameraLabel": "カメラ",
+        "compositionLabel": "構図"
+      },
       "emptyPreview": "動画はまだ生成されていません",
       "generating": "動画を生成中...",
       "motionLabel": "動き",

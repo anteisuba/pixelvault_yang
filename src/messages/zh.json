@@ -3038,6 +3038,13 @@
       }
     },
     "videoGeneration": {
+      "timeline": {
+        "title": "分镜时间轴",
+        "secondsRange": "{start}–{end}秒",
+        "beatLabel": "镜头{index}",
+        "cameraLabel": "运镜",
+        "compositionLabel": "构图"
+      },
       "emptyPreview": "还没有生成视频",
       "generating": "正在生成视频...",
       "motionLabel": "运动",

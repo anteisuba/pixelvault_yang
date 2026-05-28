@@ -830,6 +830,51 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         </InspectorField>
       </div>
 
+      {Array.isArray(node.data.timeline) && node.data.timeline.length > 0 ? (
+        <div className="space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-3">
+          <p className="text-sm font-semibold text-node-foreground">
+            {t('timeline.title')}
+          </p>
+          <ol className="space-y-2">
+            {node.data.timeline.map((segment, index) => (
+              <li
+                key={`${segment.startSecond}-${segment.endSecond}-${index}`}
+                className="rounded-xl border border-node-panel-inner bg-node-panel p-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-node-amber/15 px-2 py-0.5 text-2xs font-semibold text-node-amber">
+                    {t('timeline.secondsRange', {
+                      start: segment.startSecond,
+                      end: segment.endSecond,
+                    })}
+                  </span>
+                  <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-subtle">
+                    {t('timeline.beatLabel', { index: index + 1 })}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs leading-5 text-node-foreground">
+                  {segment.action}
+                </p>
+                <p className="mt-1 text-2xs leading-4 text-node-muted">
+                  <span className="font-semibold text-node-subtle">
+                    {t('timeline.cameraLabel')}
+                  </span>{' '}
+                  {segment.camera}
+                </p>
+                {segment.composition ? (
+                  <p className="mt-0.5 text-2xs leading-4 text-node-muted">
+                    <span className="font-semibold text-node-subtle">
+                      {t('timeline.compositionLabel')}
+                    </span>{' '}
+                    {segment.composition}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
       {node.data.generationError ? (
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
           {node.data.generationError}

@@ -529,6 +529,7 @@ describe('useNodeWorkflow', () => {
       [NODE_WORKFLOW_FIELD_IDS.camera]: FAKE_SEEDANCE_PLAN.camera,
       [NODE_WORKFLOW_FIELD_IDS.duration]: FAKE_SEEDANCE_PLAN.duration,
       [NODE_WORKFLOW_FIELD_IDS.audioIntent]: FAKE_SEEDANCE_PLAN.audioIntent,
+      timeline: FAKE_SEEDANCE_PLAN.timeline,
       status: NODE_STATUS_IDS.ready,
     })
   })

@@ -32,7 +32,10 @@ import {
   ScriptBreakdownPlannerSchema,
   ScriptBreakdownResultSchema,
 } from '@/types/script-breakdown'
-import { SeedancePromptPlanResultSchema } from '@/types/seedance-prompt-plan'
+import {
+  SeedancePromptPlanResultSchema,
+  SeedancePromptTimelineItemSchema,
+} from '@/types/seedance-prompt-plan'
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -167,6 +170,10 @@ export const NodeWorkflowNodeDataSchema = z
     breakdown: ScriptBreakdownResultSchema.optional(),
     agentMode: z.enum(NODE_STUDIO_AGENT_MODES).optional(),
     seedancePromptPlan: SeedancePromptPlanResultSchema.optional(),
+    // Read-only per-segment beats copied from the upstream agent's plan when
+    // applied to this Seedance node, so the breakdown stays visible in the
+    // Inspector instead of only living baked into finalPrompt.
+    timeline: z.array(SeedancePromptTimelineItemSchema).optional(),
     plannerProvider: z.enum(SCRIPT_PLANNER_PROVIDERS).optional(),
     plannerApiKeyId: z.string().trim().min(1).max(160).optional(),
     plannerRouteOptionId: z.string().trim().min(1).max(240).optional(),

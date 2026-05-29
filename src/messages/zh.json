@@ -1224,6 +1224,10 @@
     "detailTitle": "素材详情",
     "detailDescription": "查看这次生成的详情，可以在 Studio 中重新混搭、移动到其他文件夹，或者删除。",
     "detailRemix": "在 Studio 中混搭",
+    "detailDownload": "下载",
+    "detailDownloading": "下载中...",
+    "detailDownloadFailed": "下载失败，正在打开原始文件。",
+    "detailOpenOriginal": "查看原图",
     "detailMoveTo": "移动到文件夹",
     "detailMoveUnassigned": "未分类",
     "detailMoved": "已移动",
@@ -1333,10 +1337,10 @@
     "updateTemplateSuccess": "提示词模板已更新",
     "updateTemplateFailed": "更新提示词模板失败",
     "tabMine": "我的模板",
-    "tabInspiration": "灵感库",
-    "inspirationEyebrow": "精选",
-    "inspirationTitle": "灵感库",
-    "inspirationDescription": "浏览来自 AI 图像创作社区的精选提示词。把喜欢的复制到你的模板库，二次创作或直接生成。",
+    "tabInspiration": "共享提示词库",
+    "inspirationEyebrow": "社区共享",
+    "inspirationTitle": "共享提示词库",
+    "inspirationDescription": "浏览来自 AI 图像创作社区共享的提示词。把喜欢的复制到你的模板库，二次创作或直接生成。",
     "inspirationSearchPlaceholder": "搜索提示词...",
     "inspirationSortLabel": "排序",
     "inspirationSortRank": "编辑精选",
@@ -1993,8 +1997,8 @@
     "presetAnime": "动漫",
     "presetLora": "LoRA 转换",
     "presetTags": "标签",
-    "useInspirationContext": "用灵感库作参考",
-    "useInspirationContextOn": "灵感参考：已开启"
+    "useInspirationContext": "用共享提示词库作参考",
+    "useInspirationContextOn": "共享提示词参考：已开启"
   },
   "LayerDecompose": {
     "title": "图层分解",
@@ -2126,7 +2130,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Base LoRA",
-      "description": "通过 fal.ai Qwen Image 运行 Anima/Qwen LoRA，支持使用 Qwen-Image 模块命名的 Civitai Anima LoRA 权重。"
+      "description": "Civitai 的 Anima 系 LoRA 针对的是无托管端点的 Cosmos 系模型，请在 Civitai 上生成。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -3356,6 +3360,15 @@
       "create": "新建项目",
       "rename": "重命名",
       "delete": "删除当前项目"
+    },
+    "projectDialog": {
+      "createTitle": "新建项目",
+      "renameTitle": "重命名项目",
+      "cancel": "取消",
+      "createSubmit": "创建",
+      "renameSubmit": "保存",
+      "deleteTitle": "删除项目",
+      "deleteConfirm": "删除"
     },
     "bottomDock": {
       "pointer": "选择",

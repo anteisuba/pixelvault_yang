@@ -44,7 +44,7 @@ Current Studio capabilities include:
 - audio generation (TTS) with outbox-backed async + transactional finalize
 - voice library selection
 - private voice cloning
-- Civitai LoRA route guidance for FLUX, Illustrious / NoobAI, and Anima/Qwen; recent Civitai Anima LoRAs use Qwen-Image module keys, so raw Civitai Anima LoRA inference routes through FAL `fal-ai/qwen-image` rather than the generic Stable Diffusion `fal-ai/lora` endpoint
+- Civitai LoRA route guidance for FLUX (`fal-ai/flux-lora`) and Illustrious / NoobAI (Replicate `delta-lock/noobai-xl`); Anima-family LoRAs have no working internal endpoint — the `fal-ai/qwen-image` route was based on a misread of Anima's LoRA file headers and was reverted (Qwen-Image is a different MMDiT architecture, not SDXL), so Anima LoRAs route to "open in Civitai" instead of internal generation
 - gallery filter tabs (`all` / `favorites` / `today`) — fully functional
 - gallery `Heart` action wired to `useLike`
 - preview Super Res / Remove BG / Save Edited — all connected to `image-edit.service`

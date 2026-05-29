@@ -41,12 +41,8 @@ import {
   getLLMCapabilityScope,
   type LlmCapabilityScope,
 } from '@/constants/llm-capability'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type {
-  ApiKeyHealthStatus,
-  ProviderConfig,
-  UserApiKeyRecord,
-} from '@/types'
+import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: vi.fn(),

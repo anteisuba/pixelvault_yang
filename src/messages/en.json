@@ -1224,6 +1224,10 @@
     "detailTitle": "Asset details",
     "detailDescription": "Inspect this generation, remix it in Studio, move it between folders, or delete it.",
     "detailRemix": "Remix in Studio",
+    "detailDownload": "Download",
+    "detailDownloading": "Downloading...",
+    "detailDownloadFailed": "Download failed. Opening the original file.",
+    "detailOpenOriginal": "Open original",
     "detailMoveTo": "Move to folder",
     "detailMoveUnassigned": "Unassigned",
     "detailMoved": "Moved to folder",
@@ -1333,10 +1337,10 @@
     "updateTemplateSuccess": "Prompt template updated",
     "updateTemplateFailed": "Failed to update prompt template",
     "tabMine": "My templates",
-    "tabInspiration": "Inspiration",
-    "inspirationEyebrow": "Curated",
-    "inspirationTitle": "Inspiration library",
-    "inspirationDescription": "Browse curated prompts from the broader AI image community. Clone any prompt into your own library to remix and run.",
+    "tabInspiration": "Shared prompts",
+    "inspirationEyebrow": "Community shared",
+    "inspirationTitle": "Shared prompt library",
+    "inspirationDescription": "Browse prompts shared by the broader AI image community. Clone any prompt into your own library to remix and run.",
     "inspirationSearchPlaceholder": "Search prompts...",
     "inspirationSortLabel": "Sort",
     "inspirationSortRank": "Editor's pick",
@@ -1993,8 +1997,8 @@
     "presetAnime": "Anime",
     "presetLora": "LoRA Convert",
     "presetTags": "Tags",
-    "useInspirationContext": "Use inspiration library as reference",
-    "useInspirationContextOn": "Inspiration reference: on"
+    "useInspirationContext": "Use shared prompt library as reference",
+    "useInspirationContextOn": "Shared prompt reference: on"
   },
   "LayerDecompose": {
     "title": "Layer Decompose",
@@ -2126,7 +2130,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Base LoRA",
-      "description": "Anima/Qwen LoRA route via fal.ai Qwen Image. Supports Civitai Anima LoRA weights that use Qwen-Image modules."
+      "description": "Civitai Anima-family LoRAs target a Cosmos-based model with no hosted endpoint — open them on Civitai to generate."
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -3356,6 +3360,15 @@
       "create": "New project",
       "rename": "Rename",
       "delete": "Delete current project"
+    },
+    "projectDialog": {
+      "createTitle": "New project",
+      "renameTitle": "Rename project",
+      "cancel": "Cancel",
+      "createSubmit": "Create",
+      "renameSubmit": "Save",
+      "deleteTitle": "Delete project",
+      "deleteConfirm": "Delete"
     },
     "bottomDock": {
       "pointer": "Pointer",

@@ -11,7 +11,7 @@ interface PromptLibraryTabsProps {
 }
 
 /**
- * Two-tab nav on the /prompts page: "My templates" vs "Inspiration".
+ * Two-tab nav on the /prompts page: "My templates" vs shared prompts.
  * Server-rendered — selected tab driven by `?tab=` query param so the
  * URL is shareable and back/forward navigation works naturally.
  */

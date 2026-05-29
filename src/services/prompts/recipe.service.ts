@@ -19,6 +19,27 @@ export interface ListRecipesResult {
   total: number
 }
 
+export type RecipeListItem = Pick<
+  Recipe,
+  | 'id'
+  | 'outputType'
+  | 'name'
+  | 'compiledPrompt'
+  | 'modelId'
+  | 'version'
+  | 'createdAt'
+>
+
+const RECIPE_LIST_ITEM_SELECT = {
+  id: true,
+  outputType: true,
+  name: true,
+  compiledPrompt: true,
+  modelId: true,
+  version: true,
+  createdAt: true,
+} as const satisfies Prisma.RecipeSelect
+
 const RECIPE_GENERATION_SELECT = {
   id: true,
   createdAt: true,
@@ -258,6 +279,26 @@ export async function listRecipes(
   ])
 
   return { recipes, total }
+}
+
+export async function listRecipeSummaries(
+  clerkId: string,
+  page: number,
+  limit: number,
+): Promise<RecipeListItem[]> {
+  const user = await ensureUser(clerkId)
+  const skip = (page - 1) * limit
+
+  return db.recipe.findMany({
+    where: {
+      userId: user.id,
+      isDeleted: false,
+    },
+    select: RECIPE_LIST_ITEM_SELECT,
+    orderBy: { createdAt: 'desc' },
+    skip,
+    take: limit,
+  })
 }
 
 export async function createRecipeFromGeneration(

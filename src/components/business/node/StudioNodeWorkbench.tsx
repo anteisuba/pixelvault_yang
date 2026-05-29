@@ -71,12 +71,23 @@ import {
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
+import { ProjectNameDialog } from './ProjectNameDialog'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { AgentNode } from './nodes/AgentNode'
 import { BackgroundImageNode } from './nodes/BackgroundImageNode'
@@ -176,6 +187,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
   const [topbarOpen, setTopbarOpen] = useState(true)
+  const [projectDialogMode, setProjectDialogMode] = useState<
+    'create' | 'rename' | null
+  >(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   // Mobile UX: the AssistantDock spans left-4 → right-4 below md, so leaving
   // it default-open hides the canvas entirely on a phone. Close it on first
@@ -311,51 +326,42 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   )
 
   const handleCreateProject = useCallback(() => {
-    const projectName = window
-      .prompt(
-        t('topbar.createProjectPrompt'),
-        t('projectNewDefaultName', { n: workflow.projects.length + 1 }),
-      )
-      ?.trim()
-
-    if (!projectName) {
-      return
-    }
-
-    workflow.createProject(projectName)
-    toast.success(t('toasts.projectCreated', { name: projectName }), {
-      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-    })
-  }, [t, workflow])
+    setProjectDialogMode('create')
+  }, [])
 
   const handleRenameProject = useCallback(() => {
-    const projectName = window
-      .prompt(t('topbar.renameProjectPrompt'), workflow.currentProjectName)
-      ?.trim()
-
-    if (!projectName || projectName === workflow.currentProjectName) {
-      return
-    }
-
-    workflow.renameCurrentProject(projectName)
-    toast.success(t('toasts.projectRenamed', { name: projectName }), {
-      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-    })
-  }, [t, workflow])
+    setProjectDialogMode('rename')
+  }, [])
 
   const handleDeleteProject = useCallback(() => {
-    const shouldDelete = window.confirm(
-      t('topbar.deleteProjectConfirm', {
-        name: workflow.currentProjectName,
-      }),
-    )
+    setDeleteConfirmOpen(true)
+  }, [])
 
-    if (!shouldDelete) {
-      return
-    }
+  const handleProjectNameSubmit = useCallback(
+    (name: string) => {
+      if (projectDialogMode === 'create') {
+        workflow.createProject(name)
+        toast.success(t('toasts.projectCreated', { name }), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
 
+      if (name === workflow.currentProjectName) {
+        return
+      }
+
+      workflow.renameCurrentProject(name)
+      toast.success(t('toasts.projectRenamed', { name }), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [projectDialogMode, t, workflow],
+  )
+
+  const handleConfirmDeleteProject = useCallback(() => {
     const deletedProject = workflow.deleteProject(workflow.currentProjectId)
     if (!deletedProject) {
       return
@@ -1045,6 +1051,58 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             onClose={closeAddMenu}
           />
         </div>
+        <ProjectNameDialog
+          open={projectDialogMode !== null}
+          title={
+            projectDialogMode === 'rename'
+              ? t('projectDialog.renameTitle')
+              : t('projectDialog.createTitle')
+          }
+          placeholder={t('topbar.createProjectPrompt')}
+          submitLabel={
+            projectDialogMode === 'rename'
+              ? t('projectDialog.renameSubmit')
+              : t('projectDialog.createSubmit')
+          }
+          cancelLabel={t('projectDialog.cancel')}
+          defaultValue={
+            projectDialogMode === 'rename'
+              ? workflow.currentProjectName
+              : t('projectNewDefaultName', { n: workflow.projects.length + 1 })
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              setProjectDialogMode(null)
+            }
+          }}
+          onSubmit={handleProjectNameSubmit}
+        />
+        <AlertDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('projectDialog.deleteTitle')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('topbar.deleteProjectConfirm', {
+                  name: workflow.currentProjectName,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('projectDialog.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleConfirmDeleteProject}
+              >
+                {t('projectDialog.deleteConfirm')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </NodeWorkflowActionsProvider>
     </>
   )

@@ -200,20 +200,24 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'anime',
     supportsLora: true,
   },
-  // #9d — Anima — SDXL-architecture finetune popular on Civitai.
-  // DISABLED pending a real endpoint. Two attempted routes both failed:
-  //   1. lucataco/animapencil-xl-v4 → 404 (mirror doesn't exist on Replicate)
-  //   2. delta-lock/noobai-xl       → loads file but adapter set() is
-  //      empty: Anima LoRAs are trained against the Anima checkpoint
-  //      with vocab/layer names that don't map to NoobAI's structure.
-  //
-  // We also tried fal-ai/qwen-image based on a misreading of "Anima"
-  // LoRA file headers — Qwen-Image is a different MMDiT architecture and
-  // shares zero weight structure with Anima Pencil XL (SDXL finetune).
-  // Until a confirmed Anima checkpoint mirror is identified, this entry
-  // stays available:false. The Civitai LoRA library now routes Anima
-  // baseModel LoRAs to "open in Civitai" instead of trying to generate
-  // locally, so no user is dispatched into a guaranteed-failure path.
+  // #9d — Anima — DISABLED. Not integratable as a hosted path (investigated
+  // 2026-05-29; do NOT retry this as an SDXL model):
+  //   • Civitai "Anima" is NOT the SDXL "Anima Pencil XL" — pure name
+  //     collision. It's CircleStone Labs / Comfy Org's 2B model, a derivative
+  //     of NVIDIA Cosmos-Predict2-2B (a Diffusion Transformer). Text encoder
+  //     Qwen-3 0.6B + Qwen-Image VAE (hence stray "Qwen" hints), but the
+  //     backbone is a Cosmos DiT, not Qwen-Image's MMDiT.
+  //   • Live test (fal-ai/lora + SDXL base) → HTTP 422 "incompatible LoRA
+  //     checkpoint": the LoRA targets DiT modules (blocks.N.{self,cross}.attn,
+  //     mlp) that don't exist in an SDXL UNet. Same root cause sinks the
+  //     NoobAI / SDXL / fal-ai/qwen-image routes too.
+  //   • Two hard walls: (1) NO hosted endpoint runs Cosmos-Predict2 (fal /
+  //     Replicate / HF Inference — none); only local ComfyUI. (2) Non-
+  //     commercial license (CircleStone + NVIDIA Open Model License) blocks a
+  //     paid product even if self-hosted.
+  //   ⇒ Stays available:false; the Civitai LoRA library routes Anima
+  //     baseModel LoRAs to "open in Civitai". externalModelId below is a dead
+  //     placeholder — there is no working endpoint to point it at.
   {
     id: AI_MODELS.ANIMA_PENCIL_XL,
     cost: 2,

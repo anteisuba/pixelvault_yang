@@ -1,21 +1,21 @@
 import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import { FileText, Sparkles } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
 import { PromptTemplateCreatePanel } from '@/components/business/prompts/PromptTemplateCreatePanel'
+import { PromptTemplateList } from '@/components/business/prompts/PromptTemplateList'
 import { InspirationGrid } from '@/components/business/prompts/inspiration/InspirationGrid'
 import {
   PromptLibraryTabs,
   type PromptLibraryTab,
 } from '@/components/business/prompts/inspiration/PromptLibraryTabs'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { listRecipes } from '@/services/prompts/recipe.service'
+import { listRecipeSummaries } from '@/services/prompts/recipe.service'
 
 const PromptCreateQuerySchema = z.object({
   tab: z.enum(['mine', 'inspiration']).optional(),
@@ -63,8 +63,11 @@ export default async function PromptsPage({
   const { locale } = await params
   const queryResult = PromptCreateQuerySchema.safeParse(await searchParams)
   const query = queryResult.success ? queryResult.data : undefined
-  const t = await getTranslations({ locale, namespace: 'PromptLibrary' })
-  const { userId: clerkId } = await auth()
+  const [t, authState] = await Promise.all([
+    getTranslations({ locale, namespace: 'PromptLibrary' }),
+    auth(),
+  ])
+  const { userId: clerkId } = authState
 
   const currentTab: PromptLibraryTab =
     query?.tab === 'inspiration' ? 'inspiration' : 'mine'
@@ -133,7 +136,7 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
     )
   }
 
-  const { recipes } = await listRecipes(clerkId, 1, 50)
+  const recipes = await listRecipeSummaries(clerkId, 1, 50)
 
   return (
     <>
@@ -171,44 +174,19 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
           </div>
         </section>
       ) : (
-        <section className="grid gap-4 lg:grid-cols-2">
-          {recipes.map((recipe) => (
-            <Link
-              key={recipe.id}
-              href={`${ROUTES.PROMPTS}/${recipe.id}`}
-              className="group rounded-2xl border border-border/60 bg-card/80 p-5 transition-colors hover:border-primary/25 hover:bg-card"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 space-y-2">
-                  <h2 className="line-clamp-2 font-display text-xl font-medium tracking-tight">
-                    {recipe.name || recipe.modelId}
-                  </h2>
-                  <p className="line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground">
-                    {recipe.compiledPrompt}
-                  </p>
-                </div>
-                <Sparkles className="size-5 shrink-0 text-primary/70 transition-transform group-hover:scale-105" />
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="rounded-full">
-                  {getOutputTypeLabel(recipe.outputType)}
-                </Badge>
-                <span>
-                  {t('templateMeta', {
-                    model: recipe.modelId,
-                    version: recipe.version,
-                  })}
-                </span>
-                <span>
-                  {new Intl.DateTimeFormat(locale, {
-                    month: 'short',
-                    day: 'numeric',
-                  }).format(recipe.createdAt)}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </section>
+        <PromptTemplateList
+          locale={locale}
+          recipes={recipes.map((recipe) => ({
+            id: recipe.id,
+            outputType: recipe.outputType,
+            name: recipe.name,
+            compiledPrompt: recipe.compiledPrompt,
+            modelId: recipe.modelId,
+            version: recipe.version,
+            createdAt: recipe.createdAt.toISOString(),
+            outputTypeLabel: getOutputTypeLabel(recipe.outputType),
+          }))}
+        />
       )}
     </>
   )

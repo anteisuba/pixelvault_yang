@@ -46,6 +46,7 @@ import {
   updateRecipe,
   listRecipeGenerations,
   listRecipes,
+  listRecipeSummaries,
   getRecipe,
   deleteRecipe,
 } from '@/services/prompts/recipe.service'
@@ -389,6 +390,38 @@ describe('listRecipes', () => {
         }),
       }),
     )
+  })
+})
+
+describe('listRecipeSummaries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockFindMany.mockResolvedValue([FAKE_RECIPE])
+  })
+
+  it('queries only list fields without counting rows', async () => {
+    const result = await listRecipeSummaries('clerk_test_user', 1, 20)
+
+    expect(result).toHaveLength(1)
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: {
+          id: true,
+          outputType: true,
+          name: true,
+          compiledPrompt: true,
+          modelId: true,
+          version: true,
+          createdAt: true,
+        },
+        where: {
+          userId: 'db_user_123',
+          isDeleted: false,
+        },
+      }),
+    )
+    expect(mockCount).not.toHaveBeenCalled()
   })
 })
 

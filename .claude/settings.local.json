@@ -254,7 +254,16 @@
       "Bash(curl -s -o /dev/null -w \"resolve-key: %{http_code}\\\\n\" -X POST -H \"Content-Type: application/json\" -d '{}' https://www.anteisuba.com/api/internal/execution/resolve-key)",
       "WebFetch(domain:developers.cloudflare.com)",
       "Bash(grep -n \"return \\(\\\\|^  return\\\\|return null\\\\|<>$\\\\|<PromptInput\\\\|max-w-\\\\|mx-auto\" /Users/fulina/Code/pixelvault_yang/src/components/business/studio/StudioPromptArea.tsx)",
-      "mcp__Claude_in_Chrome__browser_batch"
+      "mcp__Claude_in_Chrome__browser_batch",
+      "Bash(xargs -I {} basename {})",
+      "Bash(bash /tmp/audit.sh)",
+      "Bash(npx madge *)",
+      "Bash(grep -E \"\\\\.tsx?$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(grep -nA 5 \"^export async function compileRecipe\\\\b\" src/services/recipe-compiler.service.ts)",
+      "Bash(grep -nB 2 -A 12 \"export interface CompileRecipeInput\" src/services/recipe-compiler.service.ts)",
+      "Bash(grep -nB2 -A6 \"workflowMode === 'card'\" src/components/business/studio/StudioPromptArea.tsx)",
+      "Skill(context-save)"
     ],
     "deny": [
       "Edit(scripts/**)",

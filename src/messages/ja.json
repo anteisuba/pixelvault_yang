@@ -1224,6 +1224,10 @@
     "detailTitle": "アセット詳細",
     "detailDescription": "この生成を確認し、Studio でリミックスしたり、フォルダーを移動したり、削除できます。",
     "detailRemix": "Studio でリミックス",
+    "detailDownload": "ダウンロード",
+    "detailDownloading": "ダウンロード中...",
+    "detailDownloadFailed": "ダウンロードに失敗しました。元ファイルを開きます。",
+    "detailOpenOriginal": "元画像を開く",
     "detailMoveTo": "フォルダーへ移動",
     "detailMoveUnassigned": "未分類",
     "detailMoved": "移動しました",
@@ -1333,10 +1337,10 @@
     "updateTemplateSuccess": "プロンプトテンプレートを更新しました",
     "updateTemplateFailed": "プロンプトテンプレートの更新に失敗しました",
     "tabMine": "マイテンプレート",
-    "tabInspiration": "インスピレーション",
-    "inspirationEyebrow": "厳選",
-    "inspirationTitle": "インスピレーションライブラリ",
-    "inspirationDescription": "AI 画像コミュニティで話題のプロンプトを厳選してお届け。気に入ったプロンプトを自分のライブラリに複製して、リミックスや実行ができます。",
+    "tabInspiration": "共有プロンプト",
+    "inspirationEyebrow": "コミュニティ共有",
+    "inspirationTitle": "共有プロンプトライブラリ",
+    "inspirationDescription": "AI 画像コミュニティで共有されたプロンプトを閲覧できます。気に入ったプロンプトを自分のライブラリに複製して、リミックスや実行ができます。",
     "inspirationSearchPlaceholder": "プロンプトを検索...",
     "inspirationSortLabel": "並び順",
     "inspirationSortRank": "編集部のおすすめ",
@@ -1993,8 +1997,8 @@
     "presetAnime": "アニメ",
     "presetLora": "LoRA変換",
     "presetTags": "タグ",
-    "useInspirationContext": "インスピレーションライブラリを参考にする",
-    "useInspirationContextOn": "インスピレーション参照: オン"
+    "useInspirationContext": "共有プロンプトライブラリを参考にする",
+    "useInspirationContextOn": "共有プロンプト参照: オン"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",
@@ -2126,7 +2130,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Base LoRA",
-      "description": "fal.ai Qwen Image で Anima/Qwen LoRA を実行します。Qwen-Image モジュール名を使う Civitai の Anima LoRA 重みに対応します。"
+      "description": "Civitai の Anima 系 LoRA は、ホスティング対応のない Cosmos 系モデル向けです。生成は Civitai 側で行ってください。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -3356,6 +3360,15 @@
       "create": "新規プロジェクト",
       "rename": "名前を変更",
       "delete": "現在のプロジェクトを削除"
+    },
+    "projectDialog": {
+      "createTitle": "新規プロジェクト",
+      "renameTitle": "プロジェクト名を変更",
+      "cancel": "キャンセル",
+      "createSubmit": "作成",
+      "renameSubmit": "保存",
+      "deleteTitle": "プロジェクトを削除",
+      "deleteConfirm": "削除"
     },
     "bottomDock": {
       "pointer": "選択",

@@ -27,6 +27,8 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const isDev = process.env.NODE_ENV === 'development'
+  const showVercelToolbar =
+    isDev && process.env.NEXT_PUBLIC_ENABLE_VERCEL_TOOLBAR === 'true'
 
   return (
     <html
@@ -40,7 +42,7 @@ export default async function RootLayout({
       >
         {isDev && <LocatorSetup />}
         {children}
-        {isDev && <VercelToolbar />}
+        {showVercelToolbar && <VercelToolbar />}
       </body>
     </html>
   )

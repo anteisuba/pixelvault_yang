@@ -159,6 +159,12 @@
       "skillPath": "skills/redesign-skill/SKILL.md",
       "computedHash": "b405eee0e0e80fc243f731d9aa368bca307e356db7e6157d27101d369dac6726"
     },
+    "spark": {
+      "source": "wishworldbetter/seedex-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spark/SKILL.md",
+      "computedHash": "bfbfddd1df1335481f73e7a6852d29041a225855867029f90b165ebd0a6c5c01"
+    },
     "stitch-design-taste": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

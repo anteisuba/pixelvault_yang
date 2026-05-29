@@ -134,7 +134,10 @@ const nextConfig: NextConfig = {
 }
 
 const withNextIntl = createNextIntlPlugin()
-const withVercelToolbar = createWithVercelToolbar()
+const withVercelToolbar =
+  process.env.NEXT_PUBLIC_ENABLE_VERCEL_TOOLBAR === 'true'
+    ? createWithVercelToolbar()
+    : (config: NextConfig) => config
 
 export default withSentryConfig(
   withBundleAnalyzer(withNextIntl(withVercelToolbar(nextConfig))),

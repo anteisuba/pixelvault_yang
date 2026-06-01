@@ -14,6 +14,8 @@
 
 PixelVault 是一个多模型 AI 图像与视频生成平台。选择任意模型 — GPT-Image、Gemini、FLUX、Kling、Sora 等 — 用同一个提示词生成并对比，每一件作品都会连同设置和元数据一起永久保存。
 
+![PixelVault 多模型归档小黑图](assets/readme-illustrations/01-pixelvault-overview-zh.png)
+
 ---
 
 ## 快速开始

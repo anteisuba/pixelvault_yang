@@ -14,6 +14,8 @@
 
 PixelVault は、マルチモデル対応の AI 画像・動画生成プラットフォームです。GPT-Image、Gemini、FLUX、Kling、Sora など、好きなモデルを選び、同じプロンプトから生成して比較。すべての作品は設定とメタデータとともに永久保存されます。
 
+![PixelVault マルチモデルアーカイブのスケッチ](assets/readme-illustrations/01-pixelvault-overview-ja.png)
+
 ---
 
 ## はじめかた

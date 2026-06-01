@@ -14,6 +14,8 @@ Generate images and videos with 20+ AI models. Compare them blind. Archive every
 
 PixelVault is a multi-model AI image & video generation platform. Pick any model — GPT-Image, Gemini, FLUX, Kling, Sora, and more — generate from the same prompt, and keep every creation permanently archived with its settings and metadata.
 
+![PixelVault multi-model archive sketch](assets/readme-illustrations/01-pixelvault-overview-en.png)
+
 ---
 
 ## Quick Start

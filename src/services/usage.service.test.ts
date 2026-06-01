@@ -65,6 +65,7 @@ import {
   createApiUsageEntry,
   attachUsageEntryToGeneration,
   atomicReserveFreeTierSlot,
+  getFreeTierSlotsUsedToday,
 } from './usage.service'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -283,6 +284,23 @@ describe('usage.service', () => {
       await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
         'connection refused',
       )
+    })
+  })
+
+  describe('getFreeTierSlotsUsedToday', () => {
+    it('counts reserved free-tier slots for the current UTC date', async () => {
+      mockSlotCount.mockResolvedValue(7)
+
+      const result = await getFreeTierSlotsUsedToday('user-1')
+      const today = new Date().toISOString().slice(0, 10)
+
+      expect(result).toBe(7)
+      expect(mockSlotCount).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          date: today,
+        },
+      })
     })
   })
 })

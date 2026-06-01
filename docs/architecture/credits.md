@@ -65,6 +65,7 @@ paid credit balance
 - `createApiUsageEntry`
 - `attachUsageEntryToGeneration`
 - `getUserUsageSummary`
+- `getFreeTierSlotsUsedToday`
 - `createGenerationJob`
 - `completeGenerationJob`
 - `failGenerationJob`
@@ -81,12 +82,11 @@ paid credit balance
 
 `atomicReserveFreeTierSlot(userId)` reserves one slot for `(userId, UTC date)` before platform-key free-tier execution.
 
-Current mismatch:
+Current user-facing free allowance display:
 
 - Reservation is based on `FreeTierSlot`.
-- `GET /api/usage-summary` displays `freeGenerationsToday` through `getFreeGenerationCountToday`, which counts successful `Generation` rows with `isFreeGeneration = true`.
-
-If free allowance is meant to limit attempts, the user-facing count should not rely only on successful `Generation` rows.
+- `GET /api/usage-summary` displays `freeGenerationsToday` from today's `FreeTierSlot` count, so the visible daily usage count matches the current limiting source of truth.
+- Successful `Generation` rows with `isFreeGeneration = true` remain useful for asset-level history and admin success stats, but they are not the daily allowance limit source.
 
 ### Generation Usage Fields
 
@@ -264,7 +264,7 @@ The important rule is that manual compensation must be auditable and must not be
 - Exact idempotency key strategy is unresolved for retries, callbacks, and worker replays.
 - Current `FreeTierSlot` count and successful `Generation` count do not express the full target lifecycle.
 - Current failed `ApiUsageLedger` entries are audit records, not refund/release records.
-- Whether `GET /api/usage-summary` should display reserved attempts, confirmed successful use, or both is unresolved.
+- `GET /api/usage-summary` now displays reserved `FreeTierSlot` attempts. A future ledger still needs to represent reserved, confirmed, and released/refunded allowance states explicitly.
 - Whether existing `ModelConfig.cost` should be actively used by every generation route needs implementation review.
 - Provider-side cancellation/refund facts have not been checked against official provider docs.
 

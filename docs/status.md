@@ -6,7 +6,7 @@
 
 ## Current Focus
 
-- 围绕代码事实源重建文档系统。
+- 第一轮文档重构已完成，当前不继续补 `docs/design/ui-system.md` 和 `docs/engineering/validation.md`。
 - 固定后续开发流程：读文档、查代码事实源、必要时核验官方资料、暴露不确定点、确认方向、写 task packet、实现小切片、跑验证、更新必要文档。
 - 当前文档整理阶段不改变产品方向、provider 契约、模型目录、API schema、数据库、认证、积分或存储行为。
 
@@ -23,7 +23,8 @@
 
 ## Next
 
-- 接下来可进入 `docs/design/ui-system.md` 或 `docs/engineering/validation.md`，用于固定 UI 和验证流程。
+- 先跳过 `docs/design/ui-system.md` 和 `docs/engineering/validation.md`；后续只有在 UI/响应式/i18n 或验证流程任务真正触发时再补。
+- 当前小切片：对齐 `GET /api/usage-summary` 的免费额度显示和 `FreeTierSlot` 限制事实源。
 - Provider/model/API 的具体实现前，仍必须按 `docs/integrations/providers.md` 做逐 provider / 逐模型官方文档核验。
 
 ## Blocked
@@ -51,13 +52,14 @@
 - `docs/domains/projects.md` 已记录普通 Project 是私有文件管理/归类域，不会有公开项目页；记录了项目层级、Assets 文件夹 UI、Generation/Card projectId 关系、删除不删作品、Project 与 NodeWorkflowProject 分离，以及当前 projectId 写入路径需要统一 ownership 校验的未决项。
 - `docs/domains/cards.md` 已记录 Cards 是可复用创作上下文层：CharacterCard 负责角色一致性和 workflow 角色卡复用，Background/Style/CardRecipe 负责背景、风格、组合配方，记录了 Studio quick/card mode、Generation lineage、Node workflow card hydration、VoiceCard 相关当前面，以及 card/project/reference ownership 校验未决项。
 - `docs/domains/node-workflow.md` 已记录 Node workflow 是 Studio advanced workspace / sub-workspace：负责画布工作流、节点/边语义、角色/声音/剧本连接、planner、Seedance 视频节点、reference video、video merge 和 Generation 回写；同时记录了服务端 graph execution、clip 生命周期、BYOK 对齐、card/voice binding schema 和 provider 官方文档核验的未决项。
-- `docs/domains/credits.md` 已记录 Credits 域当前不是付费钱包，而是 usage、free allowance、platform allowance 域；记录了 BYOK 不消耗平台额度、平台 key 额度目标生命周期、未来 allowance ledger 要求，以及当前 FreeTierSlot 限制和 Generation 成功计数显示之间的不一致。
+- `docs/domains/credits.md` 已记录 Credits 域当前不是付费钱包，而是 usage、free allowance、platform allowance 域；记录了 BYOK 不消耗平台额度、平台 key 额度目标生命周期、未来 allowance ledger 要求，以及当前 `FreeTierSlot` 限制和 display counter 的边界。
 - `docs/integrations/providers.md` 已记录 provider registry、model catalog、execution routing、BYOK/platform key 边界、server-side key verification 现状、官方文档核验入口、逐模型核验流程和未决风险。
+- `GET /api/usage-summary` 已改为使用 `FreeTierSlot` 今日预留数作为 `freeGenerationsToday`，让用户可见免费额度显示与当前限制源一致。
 
-## Needs Doc Sync
+## Deferred Doc Sync
 
-- `docs/design/ui-system.md`：响应式、i18n、可访问性和视觉系统规则。
-- `docs/engineering/validation.md`：typecheck、lint、tests、build 和浏览器 QA 的验证命令与流程。
+- `docs/design/ui-system.md`：先跳过；等 UI、响应式、移动端 QA、i18n 或可访问性任务开始时再按实际代码和设计方向补。
+- `docs/engineering/validation.md`：先跳过；等验证流程、CI、测试策略或浏览器 QA 工作开始时再按实际命令补。
 
 ## Known Unverified Areas
 

@@ -28,11 +28,11 @@ Current user-visible surfaces:
 - The sidebar and Studio UI read usage summary through the API client and `useUsageSummary`.
 - `GET /api/admin/free-tier-stats` exposes admin-only free-tier statistics.
 
-Current important mismatch:
+Current user-facing free allowance display:
 
 - Free-tier limiting currently reserves `FreeTierSlot` rows.
-- Free-tier display currently counts successful `Generation` rows where `isFreeGeneration = true`.
-- If the intended product rule is "free allowance limits attempts", UI display should not depend only on successful generations.
+- Free-tier display now counts today's `FreeTierSlot` rows through `GET /api/usage-summary`.
+- Successful `Generation` rows where `isFreeGeneration = true` remain asset-level history, not the user-facing daily allowance counter.
 
 ## Target
 
@@ -117,8 +117,8 @@ Credits domain does not own:
 - The future allowance ledger schema name and exact fields are not finalized.
 - Reservation idempotency strategy is not finalized.
 - Release/refund semantics are not implemented as a first-class ledger yet.
-- The product meaning of `GET /api/usage-summary.freeGenerationsToday` needs to be aligned with the limiting source of truth.
-- Current free-tier UI counts successful free generations, while current free-tier limiting reserves `FreeTierSlot` attempts.
+- `GET /api/usage-summary.freeGenerationsToday` now aligns with `FreeTierSlot`, but its field name still says "generations" even though the current meaning is reserved free-tier slots.
+- User-visible allowance release/refund is still unresolved because current `FreeTierSlot` reservations are not released on failed/cancelled generations.
 - `ModelConfig.cost` exists, but every generation route still needs an implementation audit to ensure it uses resolved effective model config consistently.
 - Historical `creditCost` naming remains and may confuse future implementation unless it is clearly treated as internal cost units.
 - Admin adjustment is required architecturally, but there is no current minimum admin API, script, or UI for it.

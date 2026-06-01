@@ -108,6 +108,17 @@ export async function atomicReserveFreeTierSlot(userId: string): Promise<void> {
   })
 }
 
+export async function getFreeTierSlotsUsedToday(
+  userId: string,
+): Promise<number> {
+  return db.freeTierSlot.count({
+    where: {
+      userId,
+      date: todayUTC(),
+    },
+  })
+}
+
 export async function createGenerationJob(
   input: CreateGenerationJobInput,
   client: Pick<typeof db, 'generationJob'> = db,

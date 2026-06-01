@@ -13,24 +13,21 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 vi.mock('@/services/usage.service', () => ({
+  getFreeTierSlotsUsedToday: vi.fn(),
   getUserUsageSummary: vi.fn(),
-}))
-
-vi.mock('@/services/generation.service', () => ({
-  getFreeGenerationCountToday: vi.fn(),
 }))
 
 import { ensureUser } from '@/services/user.service'
 import {
+  getFreeTierSlotsUsedToday,
   getUserUsageSummary,
   type UserUsageSummary,
 } from '@/services/usage.service'
-import { getFreeGenerationCountToday } from '@/services/generation.service'
 import { GET } from './route'
 import { FREE_TIER } from '@/constants/config'
 
 const mockEnsureUser = vi.mocked(ensureUser)
-const mockFreeCount = vi.mocked(getFreeGenerationCountToday)
+const mockFreeCount = vi.mocked(getFreeTierSlotsUsedToday)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -76,6 +73,7 @@ describe('GET /api/usage-summary', () => {
     })
     expect(mockEnsureUser).toHaveBeenCalledWith('clerk_test_user')
     expect(getUserUsageSummary).toHaveBeenCalledWith(FAKE_DB_USER.id)
+    expect(getFreeTierSlotsUsedToday).toHaveBeenCalledWith(FAKE_DB_USER.id)
   })
 
   it('returns summary with null lastRequestAt', async () => {

@@ -6,7 +6,7 @@ Generate images and videos with 20+ AI models. Compare them blind. Archive every
 
 **Try it now:** [pixelvault-seven.vercel.app](https://pixelvault-seven.vercel.app/)
 
-![PixelVault Landing Page](docs/screenshots/hero.png)
+![PixelVault Home Page](docs/screenshots/home.png)
 
 ---
 
@@ -26,6 +26,8 @@ PixelVault is a multi-model AI image & video generation platform. Pick any model
 
 That's it. No setup, no API keys needed (unless you want premium models).
 
+![PixelVault quick start sketch](assets/readme-illustrations/02-quick-start-en.png)
+
 ---
 
 ## Features
@@ -34,7 +36,7 @@ That's it. No setup, no API keys needed (unless you want premium models).
 
 Your creative workspace. Write a prompt, pick a model, and generate.
 
-![Studio](docs/screenshots/studio.png)
+![PixelVault Studio workbench sketch](assets/readme-illustrations/03-studio-workbench-en.png)
 
 - **11 image models + 10 video models** across 6 providers
 - **Prompt Enhancement** — Let AI rewrite your prompt in 5 styles (detailed, artistic, photorealistic, anime, LoRA)
@@ -44,11 +46,29 @@ Your creative workspace. Write a prompt, pick a model, and generate.
 - **Character Cards** — Save character presets to maintain consistency across generations
 - **Video durations** from 3s to 120s, resolutions up to 1080p
 
+#### Image Generation
+
+![Image generation workspace](docs/screenshots/studio-image.png)
+
+#### Video Generation
+
+![Video generation workspace](docs/screenshots/studio-video.png)
+
+#### Audio Generation
+
+![Audio generation workspace](docs/screenshots/studio-audio.png)
+
+#### 3D Generation
+
+![3D generation workspace](docs/screenshots/studio-3d.png)
+
+#### Node Workspace
+
+![Node workspace](docs/screenshots/studio-node.png)
+
 ### Gallery — Discover & Share
 
 Browse what others have created. Find inspiration. Share your own work.
-
-![Gallery](docs/screenshots/gallery.png)
 
 - Search by prompt text
 - Filter by model, type (image/video), and time range
@@ -60,7 +80,7 @@ Browse what others have created. Find inspiration. Share your own work.
 
 Which model is actually the best? Find out by voting blind.
 
-![Arena](docs/screenshots/arena.png)
+![PixelVault blind model battle sketch](assets/readme-illustrations/04-arena-blind-vote-en.png)
 
 1. Select 2–4 models and enter a prompt
 2. All models generate from the same prompt simultaneously
@@ -123,6 +143,10 @@ Every generation you've ever made, in one place.
 **Image Reverse** — Found an image you love? Upload it to "Image Reverse" and extract the generation parameters — style tags, composition details, and a ready-to-use prompt.
 
 **Character Cards** — Creating a series? Save your character as a card (face, outfit, full body views) and reuse it across generations for visual consistency.
+
+**Prompt Privacy** — Raw prompts stay personal creative context. Reusable recommendations should be consent-based templates and intent cards, not raw prompt copying.
+
+![Prompt privacy and template sketch](assets/readme-illustrations/05-prompt-privacy-en.png)
 
 ---
 

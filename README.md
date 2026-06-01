@@ -64,6 +64,8 @@ Your creative workspace. Write a prompt, pick a model, and generate.
 
 #### Node Workspace
 
+![PixelVault node workflow sketch](assets/readme-illustrations/06-node-workflow-en.png)
+
 ![Node workspace](docs/screenshots/studio-node.png)
 
 ### Gallery — Discover & Share

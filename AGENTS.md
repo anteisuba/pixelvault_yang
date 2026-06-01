@@ -77,13 +77,54 @@ All meaningful AI-assisted work in this repository must follow these rules:
 10. **Checkpoint every important step** — do not keep building on top of a broken step without noticing. Each important stage needs an observable state or validation point.
 11. **Match codebase conventions** — follow the existing implementation style unless there is a clear reason to change it. Do not silently switch paradigms that tests or lifecycle behavior may depend on.
 12. **Failures must be loud** — expose uncertainty, skipped records, partial failures, and degraded paths. Do not report success while silently dropping important work.
+13. **Stop when direction is unclear** — do not guess product direction, API contracts, provider capabilities, model parameters, pricing assumptions, permission boundaries, or persistence strategy. If the repository docs and code do not answer the question, stop and ask the user before changing behavior.
+
+## Documentation Context Discipline
+
+For future tasks, Codex must use the active documentation reading path defined in `docs/README.md`.
+
+This section supersedes older path-specific references to retired directories such as `docs/guides/**`, `docs/ai/**`, `docs/reference/**`, `docs/progress/**`, and historical `docs/plans/**` subtrees. If an old path no longer exists, use the current taxonomy in `docs/README.md` and the relevant code source of truth.
+
+Default reading order:
+
+1. `AGENTS.md`
+2. `docs/README.md`
+3. `docs/status.md` if it exists
+4. the relevant `docs/domains/*.md`
+5. the relevant `docs/architecture/*.md`
+6. the relevant `docs/integrations/*.md`
+7. the relevant code source of truth
+
+Do not read the whole `docs/` tree by default. Load the smallest relevant set, then inspect the code source of truth before making changes.
+
+If docs and code disagree, trust the code as the implementation fact, but do not silently choose a product or API direction. If the conflict affects product behavior, auth, credits, storage, database, provider/API integration, or user-visible contracts, stop and ask the user.
+
+## Required Development Workflow
+
+For every meaningful development, planning, debugging, provider/model/API, architecture, or UI task, Codex must follow this sequence:
+
+1. Read the relevant documentation.
+2. Inspect the code source of truth.
+3. Verify official or primary-source documentation when the task involves provider behavior, model behavior, API contracts, pricing, SDK/platform behavior, auth, storage, database, deployment, or security.
+4. Expose uncertainty, conflicts, and assumptions.
+5. Stop for user confirmation when direction is unclear or when multiple product/API/architecture directions are reasonable.
+6. Write or confirm a task packet before non-trivial implementation.
+7. Implement a small, scoped slice.
+8. Run the relevant validation.
+9. Update only the necessary documentation.
+
+Canonical short form:
+
+`读文档 -> 查代码事实源 -> 必要时查官方资料 -> 暴露不确定点 -> 你确认方向 -> 写 task packet -> 实现小切片 -> 跑验证 -> 更新必要文档`
+
+Skipping a step is allowed only for trivial changes where the step is genuinely irrelevant. If a step is skipped, the final report must say why.
 
 ## Agent Role Division
 
 This repository operates with two agent surfaces. They are not interchangeable.
 
 - **Codex** is the execution surface. It owns `规范` / `探索` / `前端` / `后端` threads, writes and reviews code under `src/**`, `prisma/**`, `scripts/**`, `e2e/**`, and their peers. See Appendix A.
-- **Claude Code** is the planning surface. It reads code but does not modify it. It produces task packets, long-term rules, plan documents, and map writebacks under `docs/guides/**`, `docs/plans/**`, `01/02/03/04/05` directories, and `AGENTS.md`. See Appendix C.
+- **Claude Code** is the planning surface. It reads code but does not modify it. It produces task packets, long-term rules, plan documents, and map writebacks under the active `docs/` taxonomy, `01/02/03/04/05` directories, and `AGENTS.md`. See Appendix C.
 
 Every non-trivial change flows: Claude Code produces a task packet → Codex executes → Claude Code reviews the diff and writes the result back into the maps. Trivial changes (typos, sub-10-line fixes, pure renames) can go directly to Codex without a task packet.
 
@@ -729,6 +770,22 @@ Normalize them into project-controlled shapes before they reach the broader app.
 12.3 Never expose secrets to client
 
 Provider API keys must never be exposed via NEXT*PUBLIC*\*.
+
+12.4 Official documentation verification required
+
+Before planning or modifying provider, model, generation API, payload schema, response normalization, webhook, pricing, or credit-cost behavior, Codex must verify the current behavior against the latest official or primary-source documentation.
+
+Preferred source order:
+
+1. Official API documentation
+2. Official SDK documentation or changelog
+3. Official model page, model card, or endpoint schema
+4. Official announcements, release notes, or migration guides
+5. Current repository implementation
+
+Do not rely on memory for model/API behavior. If official documentation cannot confirm a model name, capability, parameter, limit, return shape, pricing rule, or deprecation status, stop and ask the user instead of changing API-related code by inference.
+
+When the verified external documentation conflicts with current code or local docs, report the conflict with source links and ask before changing behavior.
 
 13. Storage Rules (Cloudflare R2)
     13.1 R2 logic belongs in storage service modules

@@ -37,6 +37,26 @@
     "previous": "Previous guide image",
     "next": "Next guide image",
     "goToStep": "Go to guide step {step}",
+    "image": {
+      "label": "Image generation guide",
+      "slides": {
+        "input": {
+          "title": "Start with what you want to see",
+          "description": "Describe the subject, style, composition, and mood so the model has a clear direction.",
+          "alt": "Hand-drawn Xiaohei guide showing subject, style, and composition entered for image generation"
+        },
+        "settings": {
+          "title": "Check model, ratio, and references",
+          "description": "Pick a model, then set the frame, reference images, and style controls for steadier results.",
+          "alt": "Hand-drawn Xiaohei guide showing image model, ratio, reference, and style settings"
+        },
+        "preview": {
+          "title": "Preview, save, or keep refining",
+          "description": "Inspect the result, save it if it works, or send feedback back into the prompt.",
+          "alt": "Hand-drawn Xiaohei guide showing image preview, save, and refine paths"
+        }
+      }
+    },
     "video": {
       "label": "Video generation guide",
       "slides": {

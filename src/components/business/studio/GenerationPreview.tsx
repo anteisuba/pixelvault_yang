@@ -122,7 +122,11 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
-    if (state.outputType === 'video' || state.outputType === 'audio') {
+    if (
+      state.outputType === 'image' ||
+      state.outputType === 'video' ||
+      state.outputType === 'audio'
+    ) {
       return (
         <div className="flex flex-col items-center justify-center px-3 py-4 sm:px-6 sm:py-8">
           <XiaoheiGuideCarousel
@@ -133,10 +137,6 @@ export const GenerationPreview = memo(function GenerationPreview({
       )
     }
 
-    const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6'] as const
-    // Suggestion pills are image-prompt phrases; only meaningful in image mode.
-    // Video and audio modes have their own input semantics (motion, TTS text).
-    const showSuggestions = state.outputType === 'image'
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl px-3 py-7 sm:px-6 sm:py-16">
         <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 sm:size-10">
@@ -148,25 +148,6 @@ export const GenerationPreview = memo(function GenerationPreview({
         <p className="mt-1 text-center text-sm leading-6 text-muted-foreground">
           {t('emptyStateHint')}
         </p>
-        {showSuggestions && (
-          <div className="mt-4 flex w-full max-w-full justify-start gap-2 overflow-x-auto px-1 [scrollbar-width:none] sm:mt-6 sm:flex-wrap sm:justify-center sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-            {SUGGESTION_KEYS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  dispatch({
-                    type: 'SET_PROMPT',
-                    payload: t(`suggestion.${key}`),
-                  })
-                }
-                className="shrink-0 rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-              >
-                {t(`suggestion.${key}`)}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     )
   }

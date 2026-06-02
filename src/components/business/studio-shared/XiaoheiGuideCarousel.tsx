@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type XiaoheiGuideId = 'video' | 'audio' | 'model3d' | 'node'
+type XiaoheiGuideId = 'image' | 'video' | 'audio' | 'model3d' | 'node'
 
 interface XiaoheiGuideSlide {
   imageSrc: string
@@ -21,6 +21,20 @@ interface XiaoheiGuideCarouselProps {
 }
 
 const XIAOHEI_GUIDES: Record<XiaoheiGuideId, XiaoheiGuideSlide[]> = {
+  image: [
+    {
+      imageSrc: '/tutorials/xiaohei-guides/image-01-input.png',
+      key: 'input',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/image-02-settings.png',
+      key: 'settings',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/image-03-preview.png',
+      key: 'preview',
+    },
+  ],
   video: [
     {
       imageSrc: '/tutorials/xiaohei-guides/video-01-input.png',

@@ -48,17 +48,25 @@ Your creative workspace. Write a prompt, pick a model, and generate.
 
 #### Image Generation
 
+![PixelVault image generation sketch](assets/readme-illustrations/07-image-generation-en.png)
+
 ![Image generation workspace](docs/screenshots/studio-image.png)
 
 #### Video Generation
+
+![PixelVault video generation sketch](assets/readme-illustrations/08-video-generation-en.png)
 
 ![Video generation workspace](docs/screenshots/studio-video.png)
 
 #### Audio Generation
 
+![PixelVault audio generation sketch](assets/readme-illustrations/09-audio-generation-en.png)
+
 ![Audio generation workspace](docs/screenshots/studio-audio.png)
 
 #### 3D Generation
+
+![PixelVault 3D generation sketch](assets/readme-illustrations/10-3d-generation-en.png)
 
 ![3D generation workspace](docs/screenshots/studio-3d.png)
 

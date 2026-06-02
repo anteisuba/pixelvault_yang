@@ -77,6 +77,7 @@ import { ModelViewer } from '@/components/business/ModelViewer'
 import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
+import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -1382,15 +1383,8 @@ export function Studio3DWorkspace({
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-              <Box className="size-12 opacity-40" />
-              <p className="font-serif text-sm">
-                {/* Text-to-3D users don't need a source image — point them at
-                    the prompt input instead. */}
-                {isRodin && rodinMode === 'text'
-                  ? t('rodinTextModePlaceholder')
-                  : t('sourceImagePlaceholder')}
-              </p>
+            <div className="flex w-full max-w-2xl flex-col items-center gap-3">
+              <XiaoheiGuideCarousel guideId="model3d" />
               {/*
                * Empty-canvas affordance to load a previously generated 3D
                * back into the viewer — same effect as the `?gen=<id>`

@@ -32,6 +32,92 @@
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
+  "XiaoheiGuide": {
+    "stepCounter": "Step {current} / {total}",
+    "previous": "Previous guide image",
+    "next": "Next guide image",
+    "goToStep": "Go to guide step {step}",
+    "video": {
+      "label": "Video generation guide",
+      "slides": {
+        "input": {
+          "title": "Start with the shot you want",
+          "description": "Describe the action, scene change, and camera direction in the bottom prompt box.",
+          "alt": "Hand-drawn Xiaohei guide showing a video prompt being written"
+        },
+        "settings": {
+          "title": "Tune duration, ratio, and references",
+          "description": "Pick a model, then set timing, framing, and optional reference material before sending.",
+          "alt": "Hand-drawn Xiaohei guide showing video generation settings"
+        },
+        "preview": {
+          "title": "Send and review the preview",
+          "description": "Use the send button, wait for the result above, then retry or refine from there.",
+          "alt": "Hand-drawn Xiaohei guide showing video frames appearing in the preview"
+        }
+      }
+    },
+    "audio": {
+      "label": "Audio generation guide",
+      "slides": {
+        "input": {
+          "title": "Type the text you want spoken",
+          "description": "This field takes the exact line or narration you want to hear, not a sound description.",
+          "alt": "Hand-drawn Xiaohei guide showing text entered for audio generation"
+        },
+        "voice": {
+          "title": "Choose a voice and reference",
+          "description": "Select the model and voice, then add a reference when you need a more specific result.",
+          "alt": "Hand-drawn Xiaohei guide showing voice and audio reference settings"
+        },
+        "preview": {
+          "title": "Preview the waveform and listen",
+          "description": "The result appears in the preview area so you can listen and adjust with feedback.",
+          "alt": "Hand-drawn Xiaohei guide showing an audio waveform preview"
+        }
+      }
+    },
+    "model3d": {
+      "label": "3D generation guide",
+      "slides": {
+        "source": {
+          "title": "Upload or choose a source image",
+          "description": "Clear images with one complete subject work best for a rotatable 3D model.",
+          "alt": "Hand-drawn Xiaohei guide showing a source image selected for 3D generation"
+        },
+        "settings": {
+          "title": "Check quality, mesh, and texture",
+          "description": "The right-side settings affect detail, face count, texture, and waiting time.",
+          "alt": "Hand-drawn Xiaohei guide showing 3D quality and mesh settings"
+        },
+        "preview": {
+          "title": "Rotate the model after generation",
+          "description": "Inspect the shape and details in the preview, then download or refine the result.",
+          "alt": "Hand-drawn Xiaohei guide showing a rotatable 3D preview"
+        }
+      }
+    },
+    "node": {
+      "label": "Node workflow guide",
+      "slides": {
+        "add": {
+          "title": "Add the first node",
+          "description": "Use the top add button or canvas menu to place Composer, character, voice, or media nodes.",
+          "alt": "Hand-drawn Xiaohei guide showing a node added to the canvas"
+        },
+        "connect": {
+          "title": "Connect nodes into a path",
+          "description": "Wire ideas, characters, voices, shots, and generation nodes into executable steps.",
+          "alt": "Hand-drawn Xiaohei guide showing connected workflow nodes"
+        },
+        "run": {
+          "title": "Select a node and run it",
+          "description": "Click a node, check parameters and model routing in the inspector, then run that step.",
+          "alt": "Hand-drawn Xiaohei guide showing a selected node with an inspector run button"
+        }
+      }
+    }
+  },
   "Toasts": {
     "createSuccess": "Created successfully",
     "createFailed": "Failed to create",

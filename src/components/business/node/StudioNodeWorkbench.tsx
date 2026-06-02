@@ -81,6 +81,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
@@ -1006,6 +1007,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           />
           <CanvasMiniMap />
         </ReactFlow>
+        {workflow.nodes.length === 0 && (
+          <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
+            <XiaoheiGuideCarousel
+              guideId="node"
+              className="pointer-events-auto max-w-3xl"
+            />
+          </div>
+        )}
         <div className="pointer-events-none absolute inset-0 z-10">
           {topbarOpen ? (
             <CanvasTopBar

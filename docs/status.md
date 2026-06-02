@@ -6,7 +6,7 @@
 
 ## Current Focus
 
-- 第一轮文档重构已完成，当前不继续补 `docs/design/ui-system.md` 和 `docs/engineering/validation.md`。
+- 第一轮文档重构已完成，`docs/design/` 已调整为结构入口；详细 UI 设计文档先不写，后续一页一页确认。
 - 固定后续开发流程：读文档、查代码事实源、必要时核验官方资料、暴露不确定点、确认方向、写 task packet、实现小切片、跑验证、更新必要文档。
 - 当前文档整理阶段不改变产品方向、provider 契约、模型目录、API schema、数据库、认证、积分或存储行为。
 
@@ -23,8 +23,8 @@
 
 ## Next
 
-- 先跳过 `docs/design/ui-system.md` 和 `docs/engineering/validation.md`；后续只有在 UI/响应式/i18n 或验证流程任务真正触发时再补。
-- 当前小切片：对齐 `GET /api/usage-summary` 的免费额度显示和 `FreeTierSlot` 限制事实源。
+- `docs/engineering/validation.md` 先跳过；等验证流程、CI、测试策略或浏览器 QA 工作开始时再按实际命令补。
+- 后续 UI 优化任务先从 `docs/design/README.md` 进入，再按页面或系统主题逐个确认详细设计文档。
 - Provider/model/API 的具体实现前，仍必须按 `docs/integrations/providers.md` 做逐 provider / 逐模型官方文档核验。
 
 ## Blocked
@@ -55,10 +55,10 @@
 - `docs/domains/credits.md` 已记录 Credits 域当前不是付费钱包，而是 usage、free allowance、platform allowance 域；记录了 BYOK 不消耗平台额度、平台 key 额度目标生命周期、未来 allowance ledger 要求，以及当前 `FreeTierSlot` 限制和 display counter 的边界。
 - `docs/integrations/providers.md` 已记录 provider registry、model catalog、execution routing、BYOK/platform key 边界、server-side key verification 现状、官方文档核验入口、逐模型核验流程和未决风险。
 - `GET /api/usage-summary` 已改为使用 `FreeTierSlot` 今日预留数作为 `freeGenerationsToday`，让用户可见免费额度显示与当前限制源一致。
+- `docs/design/` 已建立结构：`system/` 放全局 UI/CSS/组件/响应式/i18n 规则，`pages/` 放逐页设计，`reviews/` 放可复用 UI 审查；详细内容先不定稿。
 
 ## Deferred Doc Sync
 
-- `docs/design/ui-system.md`：先跳过；等 UI、响应式、移动端 QA、i18n 或可访问性任务开始时再按实际代码和设计方向补。
 - `docs/engineering/validation.md`：先跳过；等验证流程、CI、测试策略或浏览器 QA 工作开始时再按实际命令补。
 
 ## Known Unverified Areas
@@ -97,9 +97,13 @@
 - `docs/domains/node-workflow.md`
 - `docs/domains/credits.md`
 - `docs/integrations/providers.md`
+- `docs/design/README.md`
+- `docs/design/system/README.md`
+- `docs/design/pages/README.md`
+- `docs/design/reviews/README.md`
 
 ## Last Verified
 
 - Date: 2026-06-02
-- Method: code inspection, file counts, generation chain inspection, usage/allowance inspection, storage lifecycle inspection, auth boundary inspection, Studio domain inspection, Gallery domain inspection, Profile domain inspection, API Keys domain inspection, Projects domain inspection, Cards domain inspection, Node workflow domain inspection, Credits domain inspection, and provider integration inspection
+- Method: code inspection, file counts, generation chain inspection, usage/allowance inspection, storage lifecycle inspection, auth boundary inspection, Studio domain inspection, Gallery domain inspection, Profile domain inspection, API Keys domain inspection, Projects domain inspection, Cards domain inspection, Node workflow domain inspection, Credits domain inspection, provider integration inspection, and design docs structure inspection
 - External docs: checked provider-level official documentation for OpenAI, Google Gemini, Hugging Face, FAL, Replicate, Runway, NovelAI, VolcEngine Ark, Fish Audio, Hyper3D Rodin, and DeepSeek for `docs/integrations/providers.md`

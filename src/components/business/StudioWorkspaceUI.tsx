@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 
-import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import {
   StudioCanvas,
@@ -11,7 +10,7 @@ import {
   StudioCommandPalette,
 } from '@/components/business/studio'
 
-import { useStudioForm, useStudioData } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
@@ -28,7 +27,6 @@ const STUDIO_MODE_KEY = 'studio-workflow-mode'
  */
 export function StudioWorkspaceUI() {
   const { state, dispatch } = useStudioForm()
-  const { onboarding } = useStudioData()
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
   // the URL on mount when the user arrived via "Use this image" replay.
@@ -101,18 +99,6 @@ export function StudioWorkspaceUI() {
       </div>
 
       <StudioCommandPalette />
-
-      <OnboardingTooltip
-        active={onboarding.active}
-        step={onboarding.currentStep}
-        stepIndex={onboarding.currentIndex}
-        totalSteps={onboarding.totalSteps}
-        isLastStep={onboarding.isLastStep}
-        isSkippable={onboarding.isSkippable}
-        onNext={onboarding.next}
-        onSkip={onboarding.skip}
-        onDismiss={onboarding.dismiss}
-      />
     </>
   )
 }

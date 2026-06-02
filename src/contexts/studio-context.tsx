@@ -61,7 +61,6 @@ import { useCivitaiToken } from '@/hooks/use-civitai-token'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
-import { useOnboarding } from '@/hooks/use-onboarding'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
 import type { UseBackgroundCardsReturn } from '@/hooks/cards/use-background-cards'
@@ -543,7 +542,6 @@ interface StudioDataContextValue {
   imageUpload: ReturnType<typeof useImageUpload>
   promptEnhance: ReturnType<typeof usePromptEnhance>
   civitai: ReturnType<typeof useCivitaiToken>
-  onboarding: ReturnType<typeof useOnboarding>
   usageSummary: ReturnType<typeof useUsageSummary>
 }
 
@@ -593,7 +591,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const imageUpload = useImageUpload()
   const promptEnhance = usePromptEnhance()
   const civitai = useCivitaiToken()
-  const onboarding = useOnboarding()
   const usageSummary = useUsageSummary()
 
   const dataValue = useMemo<StudioDataContextValue>(
@@ -605,7 +602,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       imageUpload,
       promptEnhance,
       civitai,
-      onboarding,
       usageSummary,
     }),
     [
@@ -616,7 +612,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       imageUpload,
       promptEnhance,
       civitai,
-      onboarding,
       usageSummary,
     ],
   )

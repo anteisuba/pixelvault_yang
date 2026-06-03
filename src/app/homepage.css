@@ -1280,8 +1280,16 @@ html.homepage-motion-ready
 .homepage-capability-panel {
   display: grid;
   gap: clamp(2rem, 5vw, 4rem);
-  border-block: 1px solid var(--home-border);
-  padding-block: clamp(2.5rem, 5vw, 4rem);
+  border-radius: clamp(1.5rem, 3vw, 2rem);
+  padding: clamp(2.25rem, 4vw, 3.5rem);
+
+  /* dark block inside the white island — second-level contrast */
+  --background: oklch(7.5% 0.01 220);
+  --foreground: oklch(98% 0 0);
+  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 56%, var(--background));
+  background: var(--background);
+  color: var(--foreground);
 }
 
 @media (min-width: 1024px) {

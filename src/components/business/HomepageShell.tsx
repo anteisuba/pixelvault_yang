@@ -16,7 +16,6 @@ import { HomepageHero } from './HomepageHero'
 import { HomepageMenu } from './HomepageMenu'
 import { HomepageModelLineup } from './HomepageModelLineup'
 import { HomepageRevealMotion } from './HomepageRevealMotion'
-import { HomepageShowcaseRail } from './HomepageShowcaseRail'
 
 export function HomepageShell() {
   const t = useTranslations('Homepage')
@@ -75,7 +74,6 @@ export function HomepageShell() {
                   media={section.media}
                 />
               ))}
-              <HomepageShowcaseRail />
               <HomepageCapabilityMatrix />
             </div>
           </div>

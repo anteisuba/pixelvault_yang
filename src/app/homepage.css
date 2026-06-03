@@ -1023,7 +1023,7 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
 }
 
 .homepage-feature-section {
-  min-height: clamp(28rem, 50vw, 36rem);
+  min-height: clamp(19rem, 33vw, 28rem);
 }
 
 .homepage-feature-section-compact {

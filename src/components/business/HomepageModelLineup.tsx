@@ -116,6 +116,7 @@ export function HomepageModelLineup() {
     <section
       id="models"
       data-homepage-reveal
+      data-expanded={expanded ? 'true' : 'false'}
       className="homepage-model-lineup scroll-mt-24"
       aria-labelledby="homepage-model-lineup-title"
     >

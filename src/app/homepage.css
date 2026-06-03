@@ -1455,6 +1455,13 @@ html.homepage-motion-ready
   transform: translateY(-1px);
 }
 
+@media (max-width: 767px) {
+  .homepage-model-lineup[data-expanded='false']
+    .homepage-model-card:nth-child(n + 3) {
+    display: none;
+  }
+}
+
 .homepage-model-card-name {
   color: var(--foreground);
   display: -webkit-box;

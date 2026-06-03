@@ -347,10 +347,6 @@
     "badges": {
       "soon": "Soon"
     },
-    "showcaseRail": {
-      "title": "The archive, growing in real time",
-      "description": "A live rail of recent keepers. Every prompt and model is one click away to remix."
-    },
     "madeWithAntei": {
       "titlePrefix": "Made with",
       "titleBrand": "ANTEI",
@@ -387,7 +383,7 @@
     },
     "capabilityMatrix": {
       "eyebrow": "Connected tools",
-      "title": "More ways to create, one place to save.",
+      "title": "More ways to create, one place to save",
       "description": "Voice, 3D, workflows, rankings, and gallery discovery stay tied to the work you save, so projects do not scatter across separate tools."
     },
     "mediaLabels": {
@@ -432,12 +428,12 @@
     },
     "bottomCta": {
       "eyebrow": "Start archiving",
-      "title": "Your next image should belong to you.",
+      "title": "Your next image should belong to you",
       "description": "Connect your first API key in minutes. Then generate across {count} active models and keep every image, clip, prompt, and seed in your own archive.",
       "primary": "Start creating"
     },
     "footer": {
-      "tagline": "Personal AI gallery · Bring your own keys · Forever archived",
+      "tagline": "Personal AI gallery · Bring your own keys, forever archived",
       "sections": {
         "product": "Product",
         "resources": "Resources",
@@ -453,7 +449,7 @@
         "privacy": "Privacy",
         "terms": "Terms"
       },
-      "copyright": "© {year} ANTEI · BYOK · Forever archived"
+      "copyright": "© {year} ANTEI · BYOK, forever archived"
     },
     "featureSections": {
       "imageEditing": {

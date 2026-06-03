@@ -347,10 +347,6 @@
     "badges": {
       "soon": "近日公開"
     },
-    "showcaseRail": {
-      "title": "アーカイブはリアルタイムで育つ",
-      "description": "最近アーカイブに残った作品の横スクロール。プロンプトもモデルもワンクリックで再利用。"
-    },
     "madeWithAntei": {
       "titlePrefix": "Made with",
       "titleBrand": "ANTEI",
@@ -387,7 +383,7 @@
     },
     "capabilityMatrix": {
       "eyebrow": "つながった制作ツール",
-      "title": "作り方は増えても、保存先はひとつ。",
+      "title": "作り方は増えても、保存先はひとつ",
       "description": "音声、3D、ワークフロー、ランキング、ギャラリー発見まで。保存した作品と一緒に残るので、別々のツールで文脈を探し直す必要がありません。"
     },
     "mediaLabels": {
@@ -432,12 +428,12 @@
     },
     "bottomCta": {
       "eyebrow": "アーカイブを始める",
-      "title": "次の 1 枚は、あなた自身のものに。",
+      "title": "次の 1 枚は、あなた自身のものに",
       "description": "数分で最初の API キーを接続。{count} 件の有効モデルで生成し、画像・動画・プロンプト・シードを自分のアーカイブに残せます。",
       "primary": "制作を始める"
     },
     "footer": {
-      "tagline": "個人 AI ギャラリー · 自分のキーで · 永久保存",
+      "tagline": "個人 AI ギャラリー · 自分のキーで、永久保存",
       "sections": {
         "product": "プロダクト",
         "resources": "リソース",
@@ -453,7 +449,7 @@
         "privacy": "プライバシー",
         "terms": "利用規約"
       },
-      "copyright": "© {year} ANTEI · BYOK · 永久アーカイブ"
+      "copyright": "© {year} ANTEI · BYOK、永久アーカイブ"
     },
     "featureSections": {
       "imageEditing": {

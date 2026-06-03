@@ -347,10 +347,6 @@
     "badges": {
       "soon": "即将上线"
     },
-    "showcaseRail": {
-      "title": "社区档案，正在生长",
-      "description": "实时滚动展示最近留进归档的精选生成，prompt 与模型都可一键复用。"
-    },
     "madeWithAntei": {
       "titlePrefix": "用",
       "titleBrand": "ANTEI 创作",
@@ -387,7 +383,7 @@
     },
     "capabilityMatrix": {
       "eyebrow": "创作工具已串好",
-      "title": "更多创作方式，统一保存。",
+      "title": "更多创作方式，统一保存",
       "description": "语音、3D、工作流、排行和画廊发现都跟着作品走，不必在一堆分散工具里找回上下文。"
     },
     "mediaLabels": {
@@ -432,12 +428,12 @@
     },
     "bottomCta": {
       "eyebrow": "开始建档",
-      "title": "你的下一张图，应该属于你自己。",
+      "title": "你的下一张图，应该属于你自己",
       "description": "几分钟接好你的第一把 API key。然后用 {count} 个可用模型生成，并把图、视频、prompt 和 seed 留在自己的档案里。",
       "primary": "开始创作"
     },
     "footer": {
-      "tagline": "个人 AI 画廊 · 自带 key · 永久归档",
+      "tagline": "个人 AI 画廊 · 自带 key，永久归档",
       "sections": {
         "product": "产品",
         "resources": "资源",
@@ -453,7 +449,7 @@
         "privacy": "隐私",
         "terms": "服务条款"
       },
-      "copyright": "© {year} ANTEI · BYOK · 永久归档"
+      "copyright": "© {year} ANTEI · BYOK，永久归档"
     },
     "featureSections": {
       "imageEditing": {

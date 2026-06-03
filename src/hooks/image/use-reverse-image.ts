@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+
 import type { AspectRatio } from '@/constants/config'
 import type {
   AnalysisDimension,
@@ -45,6 +47,7 @@ const INITIAL_STATE: ReverseImageState = {
 }
 
 export function useReverseImage() {
+  const t = useTranslations('ReverseEngineer')
   const [state, setState] = useState<ReverseImageState>(INITIAL_STATE)
 
   /** Step 1: Upload image → transition to dimension selection */
@@ -88,13 +91,13 @@ export function useReverseImage() {
         setState((prev) => ({
           ...prev,
           step: 'select-dimensions',
-          error: result.error ?? 'Analysis failed',
+          error: result.error ?? t('analysisFailed'),
         }))
       }
 
       return result
     },
-    [state.pendingImageData],
+    [state.pendingImageData, t],
   )
 
   /** Legacy: analyze without dimension selection (backward compat) */
@@ -121,13 +124,13 @@ export function useReverseImage() {
         setState((prev) => ({
           ...prev,
           step: 'idle',
-          error: result.error ?? 'Analysis failed',
+          error: result.error ?? t('analysisFailed'),
         }))
       }
 
       return result
     },
-    [],
+    [t],
   )
 
   const updatePrompt = useCallback((prompt: string) => {
@@ -163,13 +166,13 @@ export function useReverseImage() {
         setState((prev) => ({
           ...prev,
           step: 'prompt-ready',
-          error: result.error ?? 'Generation failed',
+          error: result.error ?? t('generationFailed'),
         }))
       }
 
       return result
     },
-    [state.analysisId],
+    [state.analysisId, t],
   )
 
   const reset = useCallback(() => {

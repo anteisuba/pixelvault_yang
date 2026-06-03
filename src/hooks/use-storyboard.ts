@@ -113,7 +113,7 @@ export function useStoryEditor(storyId: string) {
         }
         toast.success(t('narrativeGenerated'))
       } else {
-        const msg = result.error ?? 'Failed to generate narrative'
+        const msg = result.error ?? t('narrativeGenerateFailed')
         setError(msg)
         toast.error(msg)
       }

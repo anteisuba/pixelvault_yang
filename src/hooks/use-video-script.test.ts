@@ -9,6 +9,14 @@ vi.mock('@/lib/api-client', () => ({
   updateVideoScriptAPI: vi.fn(),
 }))
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 import {
   createVideoScriptAPI,
   deleteVideoScriptAPI,

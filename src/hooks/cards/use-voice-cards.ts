@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import type { VoiceCardRecord } from '@/types'
 import { listVoiceCardsAPI } from '@/lib/api-client'
@@ -17,6 +18,7 @@ export interface UseVoiceCardsReturn {
 export function useVoiceCards(options?: {
   enabled?: boolean
 }): UseVoiceCardsReturn {
+  const t = useTranslations('StudioPage')
   const enabled = options?.enabled ?? true
   const [cards, setCards] = useState<VoiceCardRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -33,10 +35,10 @@ export function useVoiceCards(options?: {
     if (response.success && response.data) {
       setCards(response.data.items)
     } else {
-      setError(response.error ?? 'Failed to load voice cards')
+      setError(response.error ?? t('voiceCardsLoadFailed'))
     }
     setIsLoading(false)
-  }, [enabled])
+  }, [enabled, t])
 
   useEffect(() => {
     if (!enabled) {

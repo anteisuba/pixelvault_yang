@@ -8,6 +8,14 @@ vi.mock('@/lib/api-client', () => ({
   startOrchestrationAPI: vi.fn(),
 }))
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 import { SCENE_POLL_INTERVAL_MS } from '@/constants/video-scene'
 import {
   advanceSceneAPI,

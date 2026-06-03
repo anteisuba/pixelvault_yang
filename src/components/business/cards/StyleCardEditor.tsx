@@ -266,7 +266,7 @@ export function StyleCardEditor({
             <Input
               value={loraUrl}
               onChange={(e) => setLoraUrl(e.target.value)}
-              placeholder="LoRA URL (Civitai / HuggingFace)"
+              placeholder={t('loraUrlPlaceholder')}
               className="flex-1 text-xs border-border/60 bg-background"
               disabled={isLoading}
             />

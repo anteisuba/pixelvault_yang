@@ -8,6 +8,14 @@ vi.mock('@/lib/api-client/node-assistant', () => ({
     mockStreamNodeAssistantAPI(...args),
 }))
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
 import type { AssistantConversationContext } from '@/hooks/use-assistant-conversation'

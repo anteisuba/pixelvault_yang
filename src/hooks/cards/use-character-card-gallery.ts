@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 import type { GenerationRecord } from '@/types'
 import {
@@ -25,6 +26,7 @@ export interface UseCharacterCardGalleryReturn {
 export function useCharacterCardGallery(
   cardIds: string[],
 ): UseCharacterCardGalleryReturn {
+  const t = useTranslations('CharacterCard')
   const [generations, setGenerations] = useState<GenerationRecord[]>([])
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -75,12 +77,12 @@ export function useCharacterCardGallery(
         setHasMore(response.data.hasMore)
         setNextCursor(response.data.nextCursor)
       } else {
-        setError(response.error ?? 'Failed to load generations')
+        setError(response.error ?? t('gallery.loadFailed'))
       }
       setIsLoading(false)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cardKey],
+    [cardKey, t],
   )
 
   // Reset when card selection changes

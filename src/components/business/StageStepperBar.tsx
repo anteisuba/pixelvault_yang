@@ -65,7 +65,7 @@ export function StageStepperBar({
         className,
       )}
       role="progressbar"
-      aria-label="3D generation stages"
+      aria-label={t('stageStepperLabel')}
     >
       <div className="flex w-full items-center gap-2">
         {steps.map((step, idx) => {

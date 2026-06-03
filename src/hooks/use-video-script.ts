@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import {
   createVideoScriptAPI,
@@ -29,6 +30,7 @@ export interface UseVideoScriptReturn {
 }
 
 export function useVideoScript(id: string | null): UseVideoScriptReturn {
+  const t = useTranslations('VideoScript')
   const [script, setScript] = useState<VideoScriptRecord | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,10 +46,10 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
     if (res.success && res.data) {
       setScript(res.data)
     } else {
-      setError(res.error ?? 'Failed to load script')
+      setError(res.error ?? t('loadFailed'))
     }
     setIsLoading(false)
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     let cancelled = false
@@ -63,7 +65,7 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
       if (res.success && res.data) {
         setScript(res.data)
       } else {
-        setError(res.error ?? 'Failed to load script')
+        setError(res.error ?? t('loadFailed'))
       }
       setIsLoading(false)
     }
@@ -71,7 +73,7 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, t])
 
   const save = useCallback(
     async (scenes: VideoScriptScene[]): Promise<boolean> => {
@@ -84,10 +86,10 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
         setScript(res.data)
         return true
       }
-      setError(res.error ?? 'Failed to save scenes')
+      setError(res.error ?? t('saveFailed'))
       return false
     },
-    [id],
+    [id, t],
   )
 
   const confirm = useCallback(async (): Promise<boolean> => {
@@ -102,9 +104,9 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
       setScript(res.data)
       return true
     }
-    setError(res.error ?? 'Failed to confirm script')
+    setError(res.error ?? t('confirmFailed'))
     return false
-  }, [id])
+  }, [id, t])
 
   const remove = useCallback(async (): Promise<boolean> => {
     if (!id) return false
@@ -116,9 +118,9 @@ export function useVideoScript(id: string | null): UseVideoScriptReturn {
       setScript(null)
       return true
     }
-    setError(res.error ?? 'Failed to delete script')
+    setError(res.error ?? t('deleteFailed'))
     return false
-  }, [id])
+  }, [id, t])
 
   return { script, isLoading, error, refresh, save, confirm, remove }
 }
@@ -139,6 +141,7 @@ export interface UseVideoScriptListReturn {
 export function useVideoScriptList(
   size: number = DEFAULT_PAGE_SIZE,
 ): UseVideoScriptListReturn {
+  const t = useTranslations('VideoScript')
   const [scripts, setScripts] = useState<VideoScriptRecord[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -162,10 +165,10 @@ export function useVideoScriptList(
           replace ? res.data!.scripts : [...prev, ...res.data!.scripts],
         )
       } else {
-        setError(res.error ?? 'Failed to load scripts')
+        setError(res.error ?? t('listLoadFailed'))
       }
     },
-    [size],
+    [size, t],
   )
 
   const refresh = useCallback(() => fetchPage(1, true), [fetchPage])
@@ -193,6 +196,7 @@ export interface UseCreateVideoScriptReturn {
 }
 
 export function useCreateVideoScript(): UseCreateVideoScriptReturn {
+  const t = useTranslations('VideoScript')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -205,10 +209,10 @@ export function useCreateVideoScript(): UseCreateVideoScriptReturn {
       const res = await createVideoScriptAPI(input)
       setIsLoading(false)
       if (res.success && res.data) return res.data
-      setError(res.error ?? 'Failed to create script')
+      setError(res.error ?? t('createFailed'))
       return null
     },
-    [],
+    [t],
   )
 
   return { create, isLoading, error }

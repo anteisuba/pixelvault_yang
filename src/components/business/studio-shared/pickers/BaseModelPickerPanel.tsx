@@ -52,9 +52,9 @@ export function BaseModelPickerPanel({
   value,
   onChange,
   onRequestSetup,
-  triggerEmptyLabel = 'Select model',
-  searchPlaceholder = 'Search models…',
-  emptySearchText = 'No models found',
+  triggerEmptyLabel,
+  searchPlaceholder,
+  emptySearchText,
   enableSearch = true,
   size = 'default',
   className,
@@ -62,8 +62,12 @@ export function BaseModelPickerPanel({
   labelForOption,
 }: BaseModelPickerPanelProps) {
   const [open, setOpen] = useState(false)
+  const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
   const tSetup = useTranslations('QuickSetup')
+  const resolvedTriggerEmptyLabel = triggerEmptyLabel ?? tCommon('selectModel')
+  const resolvedSearchPlaceholder = searchPlaceholder ?? tCommon('searchModels')
+  const resolvedEmptySearchText = emptySearchText ?? tCommon('noModelsFound')
 
   const resolveLabel = (option: StudioModelOption): string =>
     labelForOption?.(option) ??
@@ -82,7 +86,7 @@ export function BaseModelPickerPanel({
 
   const selectedLabel = selectedOption
     ? resolveLabel(selectedOption)
-    : triggerEmptyLabel
+    : resolvedTriggerEmptyLabel
 
   const handleSelectOption = (option: StudioModelOption) => {
     onChange(option)
@@ -190,7 +194,7 @@ export function BaseModelPickerPanel({
           type="button"
           disabled={disabled}
           aria-expanded={open}
-          aria-label={triggerEmptyLabel}
+          aria-label={resolvedTriggerEmptyLabel}
           className={cn(
             'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
             'transition-[color,background-color,border-color,box-shadow] duration-200',
@@ -229,12 +233,12 @@ export function BaseModelPickerPanel({
         <Command className="h-auto min-h-0 overflow-visible bg-transparent">
           {enableSearch && (
             <CommandInput
-              placeholder={searchPlaceholder}
+              placeholder={resolvedSearchPlaceholder}
               className="h-10 text-sm"
             />
           )}
           <CommandList className="min-h-0 max-h-none overflow-y-visible">
-            <CommandEmpty>{emptySearchText}</CommandEmpty>
+            <CommandEmpty>{resolvedEmptySearchText}</CommandEmpty>
             {saved.length > 0 && (
               <CommandGroup heading={tSetup('configuredKeys')}>
                 {saved.map(renderAvailableModelOption)}

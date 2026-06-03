@@ -75,8 +75,6 @@ function saveHealthCache(map: Record<string, ApiKeyHealthStatus>) {
 // ─── API Key List Cache (per user, in-memory) ─────────────────────
 
 const API_KEYS_CACHE_TTL_MS = 60_000
-const API_KEYS_LOAD_ERROR = 'Failed to load API keys'
-
 interface ApiKeysSnapshot {
   userId: string
   keys: UserApiKeyRecord[]
@@ -125,6 +123,7 @@ function updateCachedHealthMap(
 async function loadApiKeysSnapshot(
   userId: string,
   force: boolean,
+  loadFailedMessage: string,
 ): Promise<ApiKeysSnapshot> {
   if (!force) {
     const cached = getFreshApiKeysSnapshot(userId)
@@ -135,7 +134,7 @@ async function loadApiKeysSnapshot(
   const request = listApiKeys()
     .then((response) => {
       if (!response.success || !response.data) {
-        throw new Error(response.error ?? API_KEYS_LOAD_ERROR)
+        throw new Error(response.error ?? loadFailedMessage)
       }
 
       const cached = loadHealthCache()
@@ -220,7 +219,11 @@ export function useApiKeys({
     async function loadInitialKeys() {
       if (!userId) return
       try {
-        const snapshot = await loadApiKeysSnapshot(userId, false)
+        const snapshot = await loadApiKeysSnapshot(
+          userId,
+          false,
+          t('apiKeyLoadFailed'),
+        )
         if (isCancelled) return
         setKeys(snapshot.keys)
         setHealthMap(snapshot.healthMap)
@@ -228,7 +231,9 @@ export function useApiKeys({
       } catch (loadError) {
         if (isCancelled) return
         setError(
-          loadError instanceof Error ? loadError.message : API_KEYS_LOAD_ERROR,
+          loadError instanceof Error
+            ? loadError.message
+            : t('apiKeyLoadFailed'),
         )
       } finally {
         if (!isCancelled) setIsLoading(false)
@@ -275,7 +280,7 @@ export function useApiKeys({
       isCancelled = true
       cancelDefer()
     }
-  }, [autoLoad, isLoaded, isSignedIn, userId])
+  }, [autoLoad, isLoaded, isSignedIn, userId, t])
 
   const fetchKeys = useCallback(async () => {
     if (!userId) {
@@ -288,17 +293,21 @@ export function useApiKeys({
     setIsLoading(true)
     setError(null)
     try {
-      const snapshot = await loadApiKeysSnapshot(userId, true)
+      const snapshot = await loadApiKeysSnapshot(
+        userId,
+        true,
+        t('apiKeyLoadFailed'),
+      )
       setKeys(snapshot.keys)
       setHealthMap(snapshot.healthMap)
     } catch (loadError) {
       setError(
-        loadError instanceof Error ? loadError.message : API_KEYS_LOAD_ERROR,
+        loadError instanceof Error ? loadError.message : t('apiKeyLoadFailed'),
       )
     } finally {
       setIsLoading(false)
     }
-  }, [userId])
+  }, [userId, t])
 
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<boolean> => {
@@ -318,7 +327,7 @@ export function useApiKeys({
         toast.success(t('apiKeyCreated'))
         return true
       }
-      setError(response.error ?? 'Failed to create API key')
+      setError(response.error ?? t('apiKeyCreateFailed'))
       toast.error(t('apiKeyCreateFailed'))
       return false
     },
@@ -344,7 +353,7 @@ export function useApiKeys({
         toast.success(t('apiKeyUpdated'))
         return true
       }
-      setError(response.error ?? 'Failed to update API key')
+      setError(response.error ?? t('apiKeyUpdateFailed'))
       toast.error(t('apiKeyUpdateFailed'))
       return false
     },
@@ -375,7 +384,7 @@ export function useApiKeys({
         toast.success(t('apiKeyDeleted'))
         return true
       }
-      setError(response.error ?? 'Failed to delete API key')
+      setError(response.error ?? t('apiKeyDeleteFailed'))
       toast.error(t('apiKeyDeleteFailed'))
       return false
     },

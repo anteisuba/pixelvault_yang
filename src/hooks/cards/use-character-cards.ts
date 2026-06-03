@@ -123,18 +123,21 @@ export function useCharacterCards(): UseCharacterCardsReturn {
 
   // ─── Card CRUD ────────────────────────────────────────────────
 
-  const fetchCards = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setIsLoading(true)
-    setError(null)
-    const response = await listCharacterCardsAPI()
-    if (response.success && response.data) {
-      setCards(response.data)
-      writeCardCache(CHARACTER_CARDS_CACHE_KEY, response.data)
-    } else {
-      setError(response.error ?? 'Failed to load character cards')
-    }
-    if (!opts?.silent) setIsLoading(false)
-  }, [])
+  const fetchCards = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setIsLoading(true)
+      setError(null)
+      const response = await listCharacterCardsAPI()
+      if (response.success && response.data) {
+        setCards(response.data)
+        writeCardCache(CHARACTER_CARDS_CACHE_KEY, response.data)
+      } else {
+        setError(response.error ?? t('characterCardLoadFailed'))
+      }
+      if (!opts?.silent) setIsLoading(false)
+    },
+    [t],
+  )
 
   useEffect(() => {
     const hasCached =
@@ -170,7 +173,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardCreated'))
         return newCard
       }
-      const msg = response.error ?? 'Failed to create character card'
+      const msg = response.error ?? t('characterCardCreateFailed')
       setError(msg)
       toast.error(msg)
       return null
@@ -204,7 +207,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardUpdated'))
         return true
       }
-      const msg = response.error ?? 'Failed to update character card'
+      const msg = response.error ?? t('characterCardUpdateFailed')
       setError(msg)
       toast.error(msg)
       return false
@@ -237,7 +240,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardDeleted'))
         return true
       }
-      const msg = response.error ?? 'Failed to delete character card'
+      const msg = response.error ?? t('characterCardDeleteFailed')
       setError(msg)
       toast.error(msg)
       return false
@@ -270,7 +273,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         return response.data
       }
 
-      const msg = response.error ?? 'Refinement failed'
+      const msg = response.error ?? t('characterCardRefineFailed')
       setError(msg)
       toast.error(msg)
       return null

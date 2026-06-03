@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
+
 import { ARENA } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import type {
@@ -52,6 +54,7 @@ export interface StartBattleInput {
 }
 
 export function useArena() {
+  const t = useTranslations('ArenaPage')
   const [state, setState] = useState<ArenaState>(INITIAL_STATE)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -65,132 +68,139 @@ export function useArena() {
   // Cleanup on unmount
   useEffect(() => stopPolling, [stopPolling])
 
-  const startBattle = useCallback(async (input: StartBattleInput) => {
-    const models = input.models ?? []
-    if (models.length < ARENA.MIN_MODELS_FOR_MATCH) return
+  const startBattle = useCallback(
+    async (input: StartBattleInput) => {
+      const models = input.models ?? []
+      if (models.length < ARENA.MIN_MODELS_FOR_MATCH) return
 
-    // Shuffle models for blind testing
-    const shuffled = [...models].sort(() => Math.random() - 0.5)
+      // Shuffle models for blind testing
+      const shuffled = [...models].sort(() => Math.random() - 0.5)
 
-    setState({
-      step: 'creating',
-      matchId: null,
-      match: null,
-      eloUpdates: [],
-      error: null,
-      entryProgress: shuffled.map((m) => ({
-        modelId: m.modelId,
-        status: 'pending',
-      })),
-    })
+      setState({
+        step: 'creating',
+        matchId: null,
+        match: null,
+        eloUpdates: [],
+        error: null,
+        entryProgress: shuffled.map((m) => ({
+          modelId: m.modelId,
+          status: 'pending',
+        })),
+      })
 
-    // Step 1: Create match record (instant)
-    const matchResult = await createArenaMatchAPI({
-      prompt: input.prompt,
-      aspectRatio: input.aspectRatio,
-      referenceImage: input.referenceImage,
-      advancedParams: input.advancedParams,
-    })
-
-    if (!matchResult.success || !matchResult.data) {
-      setState((prev) => ({
-        ...prev,
-        step: 'idle',
-        error: matchResult.error ?? 'Failed to create match',
-      }))
-      return
-    }
-
-    const matchId = matchResult.data.matchId
-
-    setState((prev) => ({
-      ...prev,
-      step: 'generating',
-      matchId,
-    }))
-
-    // Step 2: Generate entries with limited concurrency to avoid stack overflow
-    // in dev mode (single Node.js process handles all requests)
-    const CONCURRENCY = 4
-    const generateEntry = async (
-      selection: ArenaModelSelection,
-      index: number,
-    ) => {
-      const result = await generateArenaEntryAPI(matchId, {
-        modelId: selection.modelId,
-        apiKeyId: selection.apiKeyId,
-        slotIndex: index,
+      // Step 1: Create match record (instant)
+      const matchResult = await createArenaMatchAPI({
+        prompt: input.prompt,
+        aspectRatio: input.aspectRatio,
+        referenceImage: input.referenceImage,
         advancedParams: input.advancedParams,
       })
 
-      setState((prev) => ({
-        ...prev,
-        entryProgress: prev.entryProgress.map((ep, i) =>
-          i === index
-            ? {
-                ...ep,
-                status: result.success ? 'completed' : 'failed',
-                error: result.error,
-              }
-            : ep,
-        ),
-      }))
-
-      if (!result.success) {
-        throw new Error(result.error ?? 'Entry generation failed')
+      if (!matchResult.success || !matchResult.data) {
+        setState((prev) => ({
+          ...prev,
+          step: 'idle',
+          error: matchResult.error ?? t('createMatchFailed'),
+        }))
+        return
       }
 
-      return result.data!
-    }
-
-    // Process in batches of CONCURRENCY
-    const entryResults: PromiseSettledResult<ArenaEntryRecord>[] = []
-    for (let i = 0; i < shuffled.length; i += CONCURRENCY) {
-      const batch = shuffled.slice(i, i + CONCURRENCY)
-      const batchResults = await Promise.allSettled(
-        batch.map((selection, batchIdx) =>
-          generateEntry(selection, i + batchIdx),
-        ),
-      )
-      entryResults.push(...batchResults)
-    }
-
-    // Count successes
-    const successCount = entryResults.filter(
-      (r) => r.status === 'fulfilled',
-    ).length
-
-    if (successCount < ARENA.MIN_MODELS_FOR_MATCH) {
-      const failedReasons = entryResults
-        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-        .map((r) => r.reason?.message ?? 'Unknown error')
-        .join('; ')
+      const matchId = matchResult.data.matchId
 
       setState((prev) => ({
         ...prev,
-        step: 'idle',
-        error: `Not enough models succeeded (${successCount}/${shuffled.length}). ${failedReasons}`,
+        step: 'generating',
+        matchId,
       }))
-      return
-    }
 
-    // Step 3: Fetch the completed match
-    const fullMatch = await getArenaMatchAPI(matchId)
+      // Step 2: Generate entries with limited concurrency to avoid stack overflow
+      // in dev mode (single Node.js process handles all requests)
+      const CONCURRENCY = 4
+      const generateEntry = async (
+        selection: ArenaModelSelection,
+        index: number,
+      ) => {
+        const result = await generateArenaEntryAPI(matchId, {
+          modelId: selection.modelId,
+          apiKeyId: selection.apiKeyId,
+          slotIndex: index,
+          advancedParams: input.advancedParams,
+        })
 
-    if (fullMatch.success && fullMatch.data) {
-      setState((prev) => ({
-        ...prev,
-        step: 'voting',
-        match: fullMatch.data!,
-      }))
-    } else {
-      setState((prev) => ({
-        ...prev,
-        step: 'idle',
-        error: fullMatch.error ?? 'Failed to fetch match results',
-      }))
-    }
-  }, [])
+        setState((prev) => ({
+          ...prev,
+          entryProgress: prev.entryProgress.map((ep, i) =>
+            i === index
+              ? {
+                  ...ep,
+                  status: result.success ? 'completed' : 'failed',
+                  error: result.error,
+                }
+              : ep,
+          ),
+        }))
+
+        if (!result.success) {
+          throw new Error(result.error ?? t('entryGenerationFailed'))
+        }
+
+        return result.data!
+      }
+
+      // Process in batches of CONCURRENCY
+      const entryResults: PromiseSettledResult<ArenaEntryRecord>[] = []
+      for (let i = 0; i < shuffled.length; i += CONCURRENCY) {
+        const batch = shuffled.slice(i, i + CONCURRENCY)
+        const batchResults = await Promise.allSettled(
+          batch.map((selection, batchIdx) =>
+            generateEntry(selection, i + batchIdx),
+          ),
+        )
+        entryResults.push(...batchResults)
+      }
+
+      // Count successes
+      const successCount = entryResults.filter(
+        (r) => r.status === 'fulfilled',
+      ).length
+
+      if (successCount < ARENA.MIN_MODELS_FOR_MATCH) {
+        const failedReasons = entryResults
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .map((r) => r.reason?.message ?? 'Unknown error')
+          .join('; ')
+
+        setState((prev) => ({
+          ...prev,
+          step: 'idle',
+          error: t('notEnoughModelsSucceeded', {
+            successCount,
+            totalCount: shuffled.length,
+            reasons: failedReasons,
+          }),
+        }))
+        return
+      }
+
+      // Step 3: Fetch the completed match
+      const fullMatch = await getArenaMatchAPI(matchId)
+
+      if (fullMatch.success && fullMatch.data) {
+        setState((prev) => ({
+          ...prev,
+          step: 'voting',
+          match: fullMatch.data!,
+        }))
+      } else {
+        setState((prev) => ({
+          ...prev,
+          step: 'idle',
+          error: fullMatch.error ?? t('fetchMatchResultsFailed'),
+        }))
+      }
+    },
+    [t],
+  )
 
   const vote = useCallback(
     async (winnerEntryId: string) => {
@@ -217,11 +227,11 @@ export function useArena() {
         setState((prev) => ({
           ...prev,
           step: 'voting',
-          error: result.error ?? 'Vote failed',
+          error: result.error ?? t('voteFailed'),
         }))
       }
     },
-    [state.matchId, state.step],
+    [state.matchId, state.step, t],
   )
 
   const reset = useCallback(() => {

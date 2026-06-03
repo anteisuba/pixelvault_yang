@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import {
   inpaintImageAPI,
@@ -10,6 +11,7 @@ import {
 import type { InpaintRequest, OutpaintRequest } from '@/types'
 
 export function useInpaint() {
+  const t = useTranslations('StudioV3')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ImageEditApiResult | null>(null)
@@ -22,7 +24,7 @@ export function useInpaint() {
       try {
         const response = await inpaintImageAPI(params)
         if (!response.success || !response.data) {
-          setError(response.error ?? 'Inpaint failed')
+          setError(response.error ?? t('inpaintEditor.failed'))
           return null
         }
 
@@ -30,14 +32,16 @@ export function useInpaint() {
         return response.data
       } catch (caughtError) {
         const message =
-          caughtError instanceof Error ? caughtError.message : 'Inpaint failed'
+          caughtError instanceof Error
+            ? caughtError.message
+            : t('inpaintEditor.failed')
         setError(message)
         return null
       } finally {
         setIsLoading(false)
       }
     },
-    [],
+    [t],
   )
 
   const outpaint = useCallback(
@@ -48,7 +52,7 @@ export function useInpaint() {
       try {
         const response = await outpaintImageAPI(params)
         if (!response.success || !response.data) {
-          setError(response.error ?? 'Outpaint failed')
+          setError(response.error ?? t('outpaintEditor.failed'))
           return null
         }
 
@@ -56,14 +60,16 @@ export function useInpaint() {
         return response.data
       } catch (caughtError) {
         const message =
-          caughtError instanceof Error ? caughtError.message : 'Outpaint failed'
+          caughtError instanceof Error
+            ? caughtError.message
+            : t('outpaintEditor.failed')
         setError(message)
         return null
       } finally {
         setIsLoading(false)
       }
     },
-    [],
+    [t],
   )
 
   return {

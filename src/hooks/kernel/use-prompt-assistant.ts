@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+
 import type {
   PromptAssistantMessage,
   PromptAssistantMode,
@@ -37,6 +39,7 @@ const INITIAL_STATE: PromptAssistantState = {
 }
 
 export function usePromptAssistant() {
+  const t = useTranslations('PromptAssistant')
   const [state, setState] = useState<PromptAssistantState>(INITIAL_STATE)
 
   const send = useCallback(
@@ -94,11 +97,11 @@ export function usePromptAssistant() {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: result.error ?? 'Failed to generate prompt',
+          error: result.error ?? t('failed'),
         }))
       }
     },
-    [state.messages],
+    [state.messages, t],
   )
 
   const applyPreset = useCallback(

@@ -8,6 +8,14 @@ vi.mock('@/lib/api-client/image-edit', () => ({
   outpaintImageAPI: vi.fn(),
 }))
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 import {
   inpaintImageAPI,
   outpaintImageAPI,

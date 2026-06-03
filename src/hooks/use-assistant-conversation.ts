@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_ID_PREFIXES } from '@/constants/node-studio'
 import { streamNodeAssistantAPI } from '@/lib/api-client/node-assistant'
@@ -121,6 +122,7 @@ async function readTextStream(
 }
 
 export function useAssistantConversation(): UseAssistantConversationValue {
+  const t = useTranslations('StudioNode')
   const [messages, setMessages] = useState<AssistantConversationMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -185,11 +187,11 @@ export function useAssistantConversation(): UseAssistantConversationValue {
         setError(
           caughtError instanceof Error
             ? caughtError.message
-            : 'Assistant stream failed',
+            : t('assistant.streamFailed'),
         )
       }
     },
-    [isLoading, messages],
+    [isLoading, messages, t],
   )
 
   const retry = useCallback(

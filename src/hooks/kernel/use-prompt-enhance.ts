@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+
 import type { PromptEnhanceStyle } from '@/constants/config'
 import { enhancePromptAPI } from '@/lib/api-client'
 
@@ -13,6 +15,7 @@ interface PromptEnhanceState {
 }
 
 export function usePromptEnhance() {
+  const t = useTranslations('PromptEnhance')
   const [state, setState] = useState<PromptEnhanceState>({
     isEnhancing: false,
     enhanced: null,
@@ -53,13 +56,13 @@ export function usePromptEnhance() {
         setState((prev) => ({
           ...prev,
           isEnhancing: false,
-          error: result.error ?? 'Enhancement failed',
+          error: result.error ?? t('failed'),
         }))
       }
 
       return result
     },
-    [],
+    [t],
   )
 
   const clearEnhancement = useCallback(() => {

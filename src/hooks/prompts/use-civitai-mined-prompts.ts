@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useReducer, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { mineCivitaiLoraPromptsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -120,6 +121,7 @@ function reducer(
 export function useCivitaiMinedPrompts(
   item: MinedPromptsInputItem | null,
 ): UseCivitaiMinedPromptsReturn {
+  const t = useTranslations('LoraWorkbench')
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const requestIdRef = useRef(0)
 
@@ -176,7 +178,8 @@ export function useCivitaiMinedPrompts(
             if (entry) entry.result = response.data
             return response.data
           }
-          if (entry) entry.error = response.error ?? 'Unknown error'
+          if (entry)
+            entry.error = response.error ?? t('minedPromptsUnknownError')
           return null
         })
       if (!existing) cache.set(key, { promise: inflight })
@@ -188,12 +191,12 @@ export function useCivitaiMinedPrompts(
         } else {
           dispatch({
             type: 'error',
-            message: cache.get(key)?.error ?? 'Failed to mine prompts',
+            message: cache.get(key)?.error ?? t('minedPromptsFailed'),
           })
         }
       })
     })
-  }, [modelId, modelVersionId, fileHashAutoV3])
+  }, [modelId, modelVersionId, fileHashAutoV3, t])
 
   return state
 }

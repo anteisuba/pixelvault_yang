@@ -517,7 +517,7 @@ function MineToolbar({
             type="button"
             onClick={() => onQueryChange('')}
             className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="clear"
+            aria-label={t('clearSearch')}
           >
             <X className="size-3" aria-hidden />
           </button>

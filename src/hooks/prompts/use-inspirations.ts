@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { cloneInspirationAPI, listInspirationsAPI } from '@/lib/api-client'
 import type {
@@ -56,6 +57,7 @@ export interface UseInspirationsReturn extends InspirationsState {
 }
 
 export function useInspirations(): UseInspirationsReturn {
+  const t = useTranslations('PromptLibrary')
   const [filters, setFilters] = useState<InspirationFilters>(DEFAULT_FILTERS)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [state, setState] = useState<InspirationsState>(INITIAL_STATE)
@@ -110,7 +112,7 @@ export function useInspirations(): UseInspirationsReturn {
           total: 0,
           isLoading: false,
           isLoadingMore: false,
-          error: result.error ?? 'Failed to load inspirations',
+          error: result.error ?? t('inspirationLoadFailed'),
         })
       }
     })
@@ -151,10 +153,10 @@ export function useInspirations(): UseInspirationsReturn {
       return {
         ...prev,
         isLoadingMore: false,
-        error: result.error ?? 'Failed to load more',
+        error: result.error ?? t('inspirationLoadMoreFailed'),
       }
     })
-  }, [debouncedQuery, filters.category, filters.sortBy, state.items.length])
+  }, [debouncedQuery, filters.category, filters.sortBy, state.items.length, t])
 
   const setCategory = useCallback((category: string | null) => {
     setFilters((prev) => ({ ...prev, category }))
@@ -180,10 +182,10 @@ export function useInspirations(): UseInspirationsReturn {
       }
       return {
         success: false as const,
-        error: result.error ?? 'Clone failed',
+        error: result.error ?? t('inspirationCloneFailed'),
       }
     },
-    [],
+    [t],
   )
 
   const hasMore = state.items.length < state.total

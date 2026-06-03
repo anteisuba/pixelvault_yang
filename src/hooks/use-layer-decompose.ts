@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+
 import type { DecomposedLayer } from '@/types'
 import { decomposeImageAPI } from '@/lib/api-client'
 
@@ -25,33 +27,37 @@ const INITIAL_STATE: LayerDecomposeState = {
 }
 
 export function useLayerDecompose() {
+  const t = useTranslations('LayerDecompose')
   const [state, setState] = useState<LayerDecomposeState>(INITIAL_STATE)
 
-  const startDecompose = useCallback(async (imageUrl: string) => {
-    setState({
-      ...INITIAL_STATE,
-      step: 'decomposing',
-      sourceImageUrl: imageUrl,
-    })
+  const startDecompose = useCallback(
+    async (imageUrl: string) => {
+      setState({
+        ...INITIAL_STATE,
+        step: 'decomposing',
+        sourceImageUrl: imageUrl,
+      })
 
-    const result = await decomposeImageAPI(imageUrl)
+      const result = await decomposeImageAPI(imageUrl)
 
-    if (result.success && result.data) {
-      setState((prev) => ({
-        ...prev,
-        step: 'done',
-        layers: result.data!.layers,
-        psdUrl: result.data!.psdUrl,
-        layerCount: result.data!.layerCount,
-      }))
-    } else {
-      setState((prev) => ({
-        ...prev,
-        step: 'error',
-        error: result.error ?? 'Decomposition failed',
-      }))
-    }
-  }, [])
+      if (result.success && result.data) {
+        setState((prev) => ({
+          ...prev,
+          step: 'done',
+          layers: result.data!.layers,
+          psdUrl: result.data!.psdUrl,
+          layerCount: result.data!.layerCount,
+        }))
+      } else {
+        setState((prev) => ({
+          ...prev,
+          step: 'error',
+          error: result.error ?? t('error'),
+        }))
+      }
+    },
+    [t],
+  )
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE)

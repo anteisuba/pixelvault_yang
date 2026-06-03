@@ -108,13 +108,13 @@ export function useCardRecipes(
         if (result.success && result.data) {
           return result.data
         }
-        toast.error(result.error ?? 'Compilation failed')
+        toast.error(result.error ?? t('cardRecipeCompileFailed'))
         return null
       } finally {
         setIsCompiling(false)
       }
     },
-    [],
+    [t],
   )
 
   return {

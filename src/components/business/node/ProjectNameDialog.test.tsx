@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ProjectNameDialog } from './ProjectNameDialog'
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 type DialogProps = React.ComponentProps<typeof ProjectNameDialog>
 
 function renderDialog(overrides: Partial<DialogProps> = {}) {

@@ -47,10 +47,10 @@ export function useCollections(): UseCollectionsReturn {
     if (result.success && result.data) {
       setCollections(result.data)
     } else {
-      setError(result.error ?? 'Failed to load collections')
+      setError(result.error ?? t('collectionLoadFailed'))
     }
     setIsLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -113,10 +113,10 @@ export function useCollections(): UseCollectionsReturn {
         void refresh()
         return result.data.added
       }
-      toast.error(result.error ?? 'Failed to add to collection')
+      toast.error(result.error ?? t('collectionAddItemsFailed'))
       return 0
     },
-    [refresh],
+    [refresh, t],
   )
 
   const removeItem = useCallback(
@@ -126,10 +126,10 @@ export function useCollections(): UseCollectionsReturn {
         void refresh()
         return true
       }
-      toast.error(result.error ?? 'Failed to remove from collection')
+      toast.error(result.error ?? t('collectionRemoveItemFailed'))
       return false
     },
-    [refresh],
+    [refresh, t],
   )
 
   return {

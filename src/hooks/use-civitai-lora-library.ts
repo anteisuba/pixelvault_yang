@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
@@ -114,6 +115,7 @@ export function __resetCivitaiLibraryCacheForTests(): void {
 }
 
 export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
+  const t = useTranslations('LoraWorkbench')
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
@@ -204,10 +206,10 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       // Stale-tolerant error mode: keep whatever items we had on screen so the
       // user is not punished with a blank wall when Civitai blips. Just
       // surface the error so the caller can render a toast/banner.
-      setError(response.error ?? 'Failed to load Civitai LoRAs')
+      setError(response.error ?? t('communityLoadFailed'))
     }
     setIsRevalidating(false)
-  }, [applyResult, baseModel, debouncedSearch, page, search, sort])
+  }, [applyResult, baseModel, debouncedSearch, page, search, sort, t])
 
   // Debounce search input → committed `debouncedSearch`. Pagination resets to
   // page 1 whenever the active search term actually changes.

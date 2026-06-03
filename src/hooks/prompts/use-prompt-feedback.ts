@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { promptFeedbackAPI } from '@/lib/api-client'
 import type { PromptFeedbackResponseData } from '@/types'
@@ -12,6 +13,7 @@ interface PromptFeedbackState {
 }
 
 export function usePromptFeedback() {
+  const t = useTranslations('PromptFeedback')
   const [state, setState] = useState<PromptFeedbackState>({
     isLoading: false,
     feedback: null,
@@ -34,13 +36,13 @@ export function usePromptFeedback() {
         setState({
           isLoading: false,
           feedback: null,
-          error: result.error ?? 'Feedback request failed',
+          error: result.error ?? t('requestFailed'),
         })
       }
 
       return result
     },
-    [],
+    [t],
   )
 
   const clearFeedback = useCallback(() => {

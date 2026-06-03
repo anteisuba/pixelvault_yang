@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import {
@@ -26,6 +27,7 @@ const STUDIO_MODE_KEY = 'studio-workflow-mode'
  * component never sees the prop.
  */
 export function StudioWorkspaceUI() {
+  const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
@@ -72,7 +74,7 @@ export function StudioWorkspaceUI() {
         href="#studio-prompt"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"
       >
-        Skip to prompt
+        {t('skipToPrompt')}
       </a>
       <div
         role="tabpanel"

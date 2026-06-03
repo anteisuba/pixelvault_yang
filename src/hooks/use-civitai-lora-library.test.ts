@@ -12,6 +12,14 @@ vi.mock('@/lib/api-client/lora-assets', () => ({
   listCivitaiLoraAssetsAPI: vi.fn(),
 }))
 
+vi.mock('next-intl', () => {
+  const t = (key: string) => key
+
+  return {
+    useTranslations: () => t,
+  }
+})
+
 const mockListCivitaiLoraAssetsAPI = vi.mocked(listCivitaiLoraAssetsAPI)
 
 function createItem(id: string, name: string): CivitaiLoraLibraryItem {

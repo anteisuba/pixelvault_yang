@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { generationFeedbackAPI } from '@/lib/api-client'
 import type { ConversationMessage } from '@/types'
@@ -24,6 +25,7 @@ const INITIAL_STATE: ConversationState = {
 }
 
 export function useGenerationFeedback() {
+  const t = useTranslations('GenerationFeedback')
   const [state, setState] = useState<ConversationState>(INITIAL_STATE)
 
   /** Start the conversation — AI analyzes the image and asks first questions */
@@ -60,11 +62,11 @@ export function useGenerationFeedback() {
       } else {
         setState({
           ...INITIAL_STATE,
-          error: response.error ?? 'Failed to start conversation',
+          error: response.error ?? t('startFailed'),
         })
       }
     },
-    [],
+    [t],
   )
 
   /** Send a user reply and get AI's next response */
@@ -114,11 +116,11 @@ export function useGenerationFeedback() {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: response.error ?? 'Failed to get response',
+          error: response.error ?? t('responseFailed'),
         }))
       }
     },
-    [state.messages],
+    [state.messages, t],
   )
 
   const reset = useCallback(() => {

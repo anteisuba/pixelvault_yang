@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 import type { CreatorProfilePageData } from '@/types'
 import { getCreatorProfileAPI } from '@/lib/api-client'
@@ -17,6 +18,7 @@ export interface UseCreatorProfileReturn {
 }
 
 export function useCreatorProfile(username: string): UseCreatorProfileReturn {
+  const t = useTranslations('CreatorProfile')
   const [profile, setProfile] = useState<CreatorProfilePageData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,10 +36,10 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
       setNextCursor(response.data.nextCursor)
     } else {
       setNextCursor(null)
-      setError(response.error ?? 'Failed to load profile')
+      setError(response.error ?? t('loadFailed'))
     }
     setIsLoading(false)
-  }, [username])
+  }, [username, t])
 
   const loadMore = useCallback(async () => {
     if (!profile || !profile.hasMore || !nextCursor || isLoadingMore) return

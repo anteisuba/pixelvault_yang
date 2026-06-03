@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { ARENA } from '@/constants/config'
 import { getArenaHistoryAPI } from '@/lib/api-client'
@@ -17,6 +18,7 @@ interface UseArenaHistoryReturn {
 }
 
 export function useArenaHistory(): UseArenaHistoryReturn {
+  const t = useTranslations('ArenaHistory')
   const [matches, setMatches] = useState<ArenaHistoryEntry[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -25,28 +27,33 @@ export function useArenaHistory(): UseArenaHistoryReturn {
   const pageRef = useRef(0)
   const isFetchingRef = useRef(false)
 
-  const fetchPage = useCallback(async (page: number) => {
-    if (isFetchingRef.current) return
-    isFetchingRef.current = true
-    setIsLoading(true)
+  const fetchPage = useCallback(
+    async (page: number) => {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
+      setIsLoading(true)
 
-    const result = await getArenaHistoryAPI(page, ARENA.HISTORY_PAGE_SIZE)
+      const result = await getArenaHistoryAPI(page, ARENA.HISTORY_PAGE_SIZE)
 
-    if (result.success && result.data) {
-      setMatches((prev) =>
-        page === 1 ? result.data!.matches : [...prev, ...result.data!.matches],
-      )
-      setTotal(result.data.total)
-      setHasMore(result.data.hasMore)
-      setError(null)
-      pageRef.current = page
-    } else {
-      setError(result.error ?? 'Failed to load history')
-    }
+      if (result.success && result.data) {
+        setMatches((prev) =>
+          page === 1
+            ? result.data!.matches
+            : [...prev, ...result.data!.matches],
+        )
+        setTotal(result.data.total)
+        setHasMore(result.data.hasMore)
+        setError(null)
+        pageRef.current = page
+      } else {
+        setError(result.error ?? t('loadFailed'))
+      }
 
-    setIsLoading(false)
-    isFetchingRef.current = false
-  }, [])
+      setIsLoading(false)
+      isFetchingRef.current = false
+    },
+    [t],
+  )
 
   useEffect(() => {
     return deferEffectTask(() => {

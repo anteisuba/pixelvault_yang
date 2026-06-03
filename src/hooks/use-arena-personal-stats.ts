@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { getArenaPersonalStatsAPI } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -15,6 +16,7 @@ interface UseArenaPersonalStatsReturn {
 }
 
 export function useArenaPersonalStats(): UseArenaPersonalStatsReturn {
+  const t = useTranslations('ArenaPersonalStats')
   const [totalMatches, setTotalMatches] = useState(0)
   const [stats, setStats] = useState<PersonalModelStat[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -29,10 +31,10 @@ export function useArenaPersonalStats(): UseArenaPersonalStatsReturn {
       setStats(result.data.stats)
       setError(null)
     } else {
-      setError(result.error ?? 'Failed to load stats')
+      setError(result.error ?? t('loadFailed'))
     }
     setIsLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     return deferEffectTask(() => {

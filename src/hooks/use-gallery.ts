@@ -282,14 +282,20 @@ export function useGallery({
         } else {
           if (!opts?.silent) {
             setError(
-              getApiErrorMessage(tErrors, response, 'Failed to load gallery'),
+              getApiErrorMessage(
+                tErrors,
+                response,
+                tErrors('gallery.loadFailed'),
+              ),
             )
           }
         }
       } catch (error) {
         if (requestId === requestIdRef.current && !opts?.silent) {
           setError(
-            error instanceof Error ? error.message : 'Failed to load gallery',
+            error instanceof Error
+              ? error.message
+              : tErrors('gallery.loadFailed'),
           )
         }
       } finally {

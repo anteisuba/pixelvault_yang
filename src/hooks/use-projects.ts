@@ -81,10 +81,10 @@ export function useProjects(
     if (response.success && response.data) {
       setProjects(response.data)
     } else {
-      setError(response.error ?? 'Failed to load projects')
+      setError(response.error ?? t('projectLoadFailed'))
     }
     setIsLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -102,7 +102,7 @@ export function useProjects(
         toast.success(t('projectCreated'))
         return newProject
       }
-      const msg = response.error ?? 'Failed to create project'
+      const msg = response.error ?? t('projectCreateFailed')
       setError(msg)
       toast.error(msg)
       return null
@@ -121,7 +121,7 @@ export function useProjects(
         toast.success(t('projectUpdated'))
         return true
       }
-      const msg = response.error ?? 'Failed to update project'
+      const msg = response.error ?? t('projectUpdateFailed')
       setError(msg)
       toast.error(msg)
       return false
@@ -141,7 +141,7 @@ export function useProjects(
         toast.success(t('projectDeleted'))
         return true
       }
-      const msg = response.error ?? 'Failed to delete project'
+      const msg = response.error ?? t('projectDeleteFailed')
       setError(msg)
       toast.error(msg)
       return false

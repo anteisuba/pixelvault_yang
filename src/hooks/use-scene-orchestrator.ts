@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { SCENE_POLL_INTERVAL_MS } from '@/constants/video-scene'
 import {
@@ -48,6 +49,7 @@ function shouldPoll(status: SceneOrchestratorStatus | null): boolean {
 export function useSceneOrchestrator(
   scriptId: string | null,
 ): UseSceneOrchestratorReturn {
+  const t = useTranslations('VideoScript')
   const [status, setStatus] = useState<SceneOrchestratorStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
@@ -75,9 +77,9 @@ export function useSceneOrchestrator(
         return res.data
       }
 
-      setError(res.error ?? 'Failed to load scene status')
+      setError(res.error ?? t('sceneStatusLoadFailed'))
       return null
-    }, [scriptId])
+    }, [scriptId, t])
 
   const start = useCallback(async (): Promise<boolean> => {
     if (!scriptId) return false
@@ -88,13 +90,13 @@ export function useSceneOrchestrator(
     setIsStarting(false)
 
     if (!res.success) {
-      setError(res.error ?? 'Failed to start scene orchestration')
+      setError(res.error ?? t('sceneStartFailed'))
       return false
     }
 
     await refresh()
     return true
-  }, [refresh, scriptId])
+  }, [refresh, scriptId, t])
 
   const advance = useCallback(async (): Promise<boolean> => {
     if (!scriptId) return false
@@ -105,13 +107,13 @@ export function useSceneOrchestrator(
     setIsAdvancing(false)
 
     if (!res.success) {
-      setError(res.error ?? 'Failed to advance scene')
+      setError(res.error ?? t('sceneAdvanceFailed'))
       return false
     }
 
     await refresh()
     return true
-  }, [refresh, scriptId])
+  }, [refresh, scriptId, t])
 
   const retry = useCallback(
     async (sceneIndex: number): Promise<boolean> => {
@@ -123,14 +125,14 @@ export function useSceneOrchestrator(
       setIsRetrying(false)
 
       if (!res.success) {
-        setError(res.error ?? 'Failed to retry scene')
+        setError(res.error ?? t('sceneRetryFailed'))
         return false
       }
 
       await refresh()
       return true
     },
-    [refresh, scriptId],
+    [refresh, scriptId, t],
   )
 
   useEffect(() => {

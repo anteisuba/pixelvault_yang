@@ -129,6 +129,22 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Studio onboarding guide images under /public/tutorials rarely change.
+        // Vercel serves public assets with `max-age=0, must-revalidate` by
+        // default, forcing a revalidation round-trip on every Studio empty-
+        // state view and mode switch. Pin them immutable so repeat views hit
+        // the browser cache. Filenames are semantic (not content-hashed), so
+        // when a guide image is updated, rename it (e.g. bump a suffix) to bust
+        // the cache — overwriting in place would leave clients on the old one.
+        source: '/tutorials/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
     ]
   },
 }

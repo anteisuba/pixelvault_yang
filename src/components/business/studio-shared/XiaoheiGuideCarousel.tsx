@@ -23,71 +23,71 @@ interface XiaoheiGuideCarouselProps {
 const XIAOHEI_GUIDES: Record<XiaoheiGuideId, XiaoheiGuideSlide[]> = {
   image: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-01-input.png',
+      imageSrc: '/tutorials/xiaohei-guides/image-01-input.webp',
       key: 'input',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-02-settings.png',
+      imageSrc: '/tutorials/xiaohei-guides/image-02-settings.webp',
       key: 'settings',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-03-preview.png',
+      imageSrc: '/tutorials/xiaohei-guides/image-03-preview.webp',
       key: 'preview',
     },
   ],
   video: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/video-01-input.png',
+      imageSrc: '/tutorials/xiaohei-guides/video-01-input.webp',
       key: 'input',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/video-02-settings.png',
+      imageSrc: '/tutorials/xiaohei-guides/video-02-settings.webp',
       key: 'settings',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/video-03-preview.png',
+      imageSrc: '/tutorials/xiaohei-guides/video-03-preview.webp',
       key: 'preview',
     },
   ],
   audio: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/audio-01-input.png',
+      imageSrc: '/tutorials/xiaohei-guides/audio-01-input.webp',
       key: 'input',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/audio-02-voice.png',
+      imageSrc: '/tutorials/xiaohei-guides/audio-02-voice.webp',
       key: 'voice',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/audio-03-preview.png',
+      imageSrc: '/tutorials/xiaohei-guides/audio-03-preview.webp',
       key: 'preview',
     },
   ],
   model3d: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/model3d-01-source.png',
+      imageSrc: '/tutorials/xiaohei-guides/model3d-01-source.webp',
       key: 'source',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/model3d-02-settings.png',
+      imageSrc: '/tutorials/xiaohei-guides/model3d-02-settings.webp',
       key: 'settings',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/model3d-03-preview.png',
+      imageSrc: '/tutorials/xiaohei-guides/model3d-03-preview.webp',
       key: 'preview',
     },
   ],
   node: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/node-01-add.png',
+      imageSrc: '/tutorials/xiaohei-guides/node-01-add.webp',
       key: 'add',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/node-02-connect.png',
+      imageSrc: '/tutorials/xiaohei-guides/node-02-connect.webp',
       key: 'connect',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/node-03-run.png',
+      imageSrc: '/tutorials/xiaohei-guides/node-03-run.webp',
       key: 'run',
     },
   ],

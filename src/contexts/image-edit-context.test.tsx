@@ -82,8 +82,9 @@ vi.mock('@/hooks/image/use-inpaint', () => ({
 // Imports below must come AFTER the mocks so the modules under test pick
 // them up.
 import { ImageEditProvider, useImageEdit } from '@/contexts/image-edit-context'
+import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 
-const FIVE_MB = 5 * 1024 * 1024
+const EXPECTED_MAX_MB = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
 
 function makeFile(name: string, type: string, size: number): File {
   // Build a real File then redefine .size so the test can simulate any
@@ -187,7 +188,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     // Compressor was called with the original file + project size cap.
     expect(compressImageToLimit).toHaveBeenCalledWith(
       file,
-      expect.objectContaining({ maxBytes: FIVE_MB }),
+      expect.objectContaining({ maxBytes: CLIENT_UPLOAD_MAX_BYTES }),
     )
     // Loading toast appeared and was dismissed.
     expect(toastMock.loading).toHaveBeenCalledWith('uploadCompressing')
@@ -249,7 +250,9 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
       expect(toastMock.error).toHaveBeenCalledTimes(1)
     })
     expect(toastMock.error.mock.calls[0][0]).toMatch(/uploadGifTooLarge/)
-    expect(toastMock.error.mock.calls[0][0]).toMatch(/"maxMb":"5"/)
+    expect(toastMock.error.mock.calls[0][0]).toMatch(
+      new RegExp(`"maxMb":"${EXPECTED_MAX_MB}"`),
+    )
     expect(uploadImageAPI).not.toHaveBeenCalled()
     // Banner mirrors the toast for the persistent in-canvas error UI.
     await waitFor(() => {

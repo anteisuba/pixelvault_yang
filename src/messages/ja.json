@@ -1,4 +1,11 @@
 {
+  "ImageUpload": {
+    "compressing": "大きな画像を最適化しています…",
+    "compressed": "圧縮しました {from} MB → {to} MB",
+    "gifTooLarge": "GIF が大きすぎて自動圧縮できません。上限 {maxMb} MB、先に圧縮してください。",
+    "tooLarge": "画像が大きすぎます。上限 {maxMb} MB、より小さい画像をご使用ください。",
+    "uploadFailed": "参照画像のアップロードに失敗しました。もう一度お試しください。"
+  },
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {

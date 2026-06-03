@@ -60,7 +60,7 @@ import {
 } from '@/constants/asset-previews'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
-  USER_UPLOAD_MAX_BYTES,
+  CLIENT_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
@@ -893,10 +893,10 @@ export function KreaAssetBrowser({
       try {
         // Over-cap files get squeezed client-side instead of bouncing, so
         // pasting a Retina screenshot or dragging in a phone photo just
-        // works. Server still enforces the same cap as a safety net.
-        const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+        // works. Server enforces its own cap as a safety net.
+        const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
         const uploadFile = await prepareImageUpload(file, {
-          maxBytes: USER_UPLOAD_MAX_BYTES,
+          maxBytes: CLIENT_UPLOAD_MAX_BYTES,
           messages: {
             compressing: t('uploadCompressing'),
             compressed: ({ from, to }) => t('uploadCompressed', { from, to }),

@@ -70,7 +70,7 @@ import {
 } from '@/constants/model-3d-generation'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
-import { USER_UPLOAD_MAX_BYTES } from '@/constants/uploads'
+import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { ModelViewer } from '@/components/business/ModelViewer'
@@ -1016,9 +1016,9 @@ export function Studio3DWorkspace({
   // Shared by both upload entry points (manual side-view and source image).
   // Wraps the lib helper with Model3DGenerate-namespace i18n keys.
   const prepareUploadFile = (file: File): Promise<File | null> => {
-    const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+    const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
     return prepareImageUpload(file, {
-      maxBytes: USER_UPLOAD_MAX_BYTES,
+      maxBytes: CLIENT_UPLOAD_MAX_BYTES,
       messages: {
         compressing: t('uploadCompressing'),
         compressed: ({ from, to }) => t('uploadCompressed', { from, to }),

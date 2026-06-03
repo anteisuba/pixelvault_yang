@@ -2,6 +2,12 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react'
 
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
+
+import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
+import { uploadImageAPI } from '@/lib/api-client'
+import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 
 /**
@@ -66,6 +72,8 @@ interface UseImageUploadReturn {
   openFilePicker: () => void
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>
   clearImage: () => void
+  /** True while a local file is being compressed + uploaded to R2. */
+  isUploading: boolean
 }
 
 function computeDisabledReason(
@@ -101,6 +109,8 @@ export function useImageUpload(): UseImageUploadReturn {
   // "Unlimited until configured" — protects first-mount additions from
   // getting auto-disabled before StudioDockPanelArea runs its effect.
   const maxImagesRef = useRef<number>(Infinity)
+  const [isUploading, setIsUploading] = useState(false)
+  const t = useTranslations('ImageUpload')
 
   const referenceImages = useMemo(
     () =>
@@ -203,13 +213,48 @@ export function useImageUpload(): UseImageUploadReturn {
     ])
   }, [])
 
-  const handleFileChange = useCallback(
+  // Local files are compressed under the Vercel request-body cap, uploaded to
+  // R2, and stored as an http(s) URL — never inlined as a multi-MB base64 data
+  // URL in the generate request body (that overflows the ~4.5 MB limit and
+  // 413s before the request ever reaches the worker). Mirrors the node-editor
+  // / image-edit upload path.
+  const uploadLocalFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) return
-      const base64 = await loadImageAsBase64(file)
-      addReferenceImage(base64)
+      setIsUploading(true)
+      try {
+        const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
+        const prepared = await prepareImageUpload(file, {
+          maxBytes: CLIENT_UPLOAD_MAX_BYTES,
+          messages: {
+            compressing: t('compressing'),
+            compressed: ({ from, to }) => t('compressed', { from, to }),
+            gifTooLarge: t('gifTooLarge', { maxMb }),
+            tooLarge: t('tooLarge', { maxMb }),
+          },
+        })
+        if (!prepared) return // prepareImageUpload already toasted the reason
+        const imageDataUrl = await loadImageAsBase64(prepared)
+        const response = await uploadImageAPI({ imageDataUrl })
+        if (response.success && response.data?.generation.url) {
+          addReferenceImage(response.data.generation.url)
+        } else {
+          toast.error(response.error ?? t('uploadFailed'))
+        }
+      } catch {
+        toast.error(t('uploadFailed'))
+      } finally {
+        setIsUploading(false)
+      }
     },
-    [loadImageAsBase64, addReferenceImage],
+    [t, loadImageAsBase64, addReferenceImage],
+  )
+
+  const handleFileChange = useCallback(
+    async (file: File) => {
+      await uploadLocalFile(file)
+    },
+    [uploadLocalFile],
   )
 
   const handleDrop = useCallback(
@@ -236,11 +281,10 @@ export function useImageUpload(): UseImageUploadReturn {
         f.type.startsWith('image/'),
       )
       for (const file of files) {
-        const base64 = await loadImageAsBase64(file)
-        addReferenceImage(base64)
+        await uploadLocalFile(file)
       }
     },
-    [loadImageAsBase64, addReferenceImage, addFromUrl, resetDragging],
+    [uploadLocalFile, addFromUrl, resetDragging],
   )
 
   const openFilePicker = useCallback(() => {
@@ -252,17 +296,14 @@ export function useImageUpload(): UseImageUploadReturn {
       const files = e.target.files
       if (!files) return
       for (const file of Array.from(files)) {
-        if (file.type.startsWith('image/')) {
-          const base64 = await loadImageAsBase64(file)
-          addReferenceImage(base64)
-        }
+        await uploadLocalFile(file)
       }
       // Reset input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     },
-    [loadImageAsBase64, addReferenceImage],
+    [uploadLocalFile],
   )
 
   // Legacy clear — clears all images
@@ -289,5 +330,6 @@ export function useImageUpload(): UseImageUploadReturn {
     openFilePicker,
     handleInputChange,
     clearImage,
+    isUploading,
   }
 }

@@ -6,8 +6,23 @@
  */
 export const USER_UPLOAD_PROVIDER = 'user-upload'
 
-/** Maximum size in bytes for a single user-upload (5 MB) */
+/**
+ * Server-side business cap: a stored user-upload's decoded image may not
+ * exceed this (5 MB). Enforced in `upload-image.service`. NOT a safe
+ * client-side compression target — see `CLIENT_UPLOAD_MAX_BYTES`.
+ */
 export const USER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+
+/**
+ * Client-side compression cap for images sent to the server as a base64 data
+ * URL in the request body. Vercel caps a Serverless Function request body at
+ * ~4.5 MB and base64 inflates bytes by ~33%, so the pre-encode file must stay
+ * well under that: 3 MB → ~4.1 MB base64, leaving headroom for the JSON
+ * envelope. Every client upload that inlines a data URL must compress to this
+ * first, or large images 413 at the platform before reaching the handler.
+ * (Raising this requires presigned direct-to-R2 uploads to bypass the limit.)
+ */
+export const CLIENT_UPLOAD_MAX_BYTES = 3 * 1024 * 1024
 
 /**
  * Accepted MIME types for user uploads. Deliberately narrow — `image/svg+xml`

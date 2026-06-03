@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from 'react'
 
+import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { uploadImageAPI } from '@/lib/api-client'
+import { compressImageToLimit } from '@/lib/compress-image'
 
 const NODE_REFERENCE_UPLOAD_FALLBACK_ERROR = 'Reference image upload failed'
 
@@ -44,7 +46,12 @@ export function useNodeReferenceUpload(): UseNodeReferenceUploadValue {
       setError(null)
 
       try {
-        const imageDataUrl = await readFileAsDataUrl(file)
+        // Compress under the Vercel request-body cap before base64-encoding —
+        // an oversized data URL 413s at the platform before reaching the API.
+        const { file: compressed } = await compressImageToLimit(file, {
+          maxBytes: CLIENT_UPLOAD_MAX_BYTES,
+        })
+        const imageDataUrl = await readFileAsDataUrl(compressed)
         const response = await uploadImageAPI({
           imageDataUrl,
           note,

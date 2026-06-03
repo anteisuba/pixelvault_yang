@@ -1,4 +1,11 @@
 {
+  "ImageUpload": {
+    "compressing": "Optimizing large image…",
+    "compressed": "Compressed {from} MB → {to} MB",
+    "gifTooLarge": "GIF too large to auto-compress. Max {maxMb} MB — please optimize it first.",
+    "tooLarge": "Image too large. Max {maxMb} MB — please use a smaller one.",
+    "uploadFailed": "Reference image upload failed. Please try again."
+  },
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {

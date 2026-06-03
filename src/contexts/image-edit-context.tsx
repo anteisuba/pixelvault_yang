@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
-  USER_UPLOAD_MAX_BYTES,
+  CLIENT_UPLOAD_MAX_BYTES,
 } from '@/constants/uploads'
 import { useInpaint } from '@/hooks/image/use-inpaint'
 import { uploadImageAPI } from '@/lib/api-client'
@@ -264,9 +264,9 @@ export function ImageEditProvider({ children }: { children: ReactNode }) {
       setIsUploadingSource(true)
       setBannerError(null)
       try {
-        const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+        const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
         const uploadFile = await prepareImageUpload(file, {
-          maxBytes: USER_UPLOAD_MAX_BYTES,
+          maxBytes: CLIENT_UPLOAD_MAX_BYTES,
           messages: {
             compressing: t('uploadCompressing'),
             compressed: ({ from, to }) => t('uploadCompressed', { from, to }),

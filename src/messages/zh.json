@@ -1,4 +1,11 @@
 {
+  "ImageUpload": {
+    "compressing": "正在优化大图…",
+    "compressed": "已压缩 {from} MB → {to} MB",
+    "gifTooLarge": "GIF 太大，无法自动压缩。上限 {maxMb} MB，请先自行压缩。",
+    "tooLarge": "图片太大。上限 {maxMb} MB，请换一张更小的图。",
+    "uploadFailed": "参考图上传失败，请重试。"
+  },
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {

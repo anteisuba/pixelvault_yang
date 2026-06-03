@@ -1,7 +1,35 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { FAKE_GENERATION } from '@/test/api-helpers'
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
+
+vi.mock('@/lib/prepare-image-upload', () => ({
+  prepareImageUpload: vi.fn(),
+}))
+
+vi.mock('@/lib/api-client', () => ({
+  uploadImageAPI: vi.fn(),
+}))
 
 import { useImageUpload } from '@/hooks/use-image-upload'
+import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import { uploadImageAPI } from '@/lib/api-client'
+
+const mockPrepare = vi.mocked(prepareImageUpload)
+const mockUpload = vi.mocked(uploadImageAPI)
 
 describe('useImageUpload', () => {
   describe('initial state', () => {
@@ -182,6 +210,72 @@ describe('useImageUpload', () => {
       expect(result.current.referenceImages).toEqual([
         'https://cdn.example.com/x.jpg',
       ])
+    })
+  })
+
+  describe('local file upload (R2)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      mockPrepare.mockImplementation(async (file) => file)
+    })
+
+    const imageFile = () => new File(['x'], 'photo.png', { type: 'image/png' })
+
+    it('compresses, uploads to R2, and stores the url — never inline base64', async () => {
+      mockUpload.mockResolvedValue({
+        success: true,
+        data: {
+          generation: { ...FAKE_GENERATION, url: 'https://cdn/r2/photo.png' },
+        },
+      })
+
+      const { result } = renderHook(() => useImageUpload())
+      await act(async () => {
+        await result.current.handleFileChange(imageFile())
+      })
+
+      expect(mockPrepare).toHaveBeenCalledTimes(1)
+      expect(mockUpload).toHaveBeenCalledTimes(1)
+      expect(result.current.referenceImages).toEqual([
+        'https://cdn/r2/photo.png',
+      ])
+      // The reference is an R2 url, never a multi-MB inline base64 data URL.
+      expect(result.current.referenceImages[0]).not.toMatch(/^data:/)
+    })
+
+    it('adds no reference when the R2 upload fails', async () => {
+      mockUpload.mockResolvedValue({ success: false, error: 'boom' })
+
+      const { result } = renderHook(() => useImageUpload())
+      await act(async () => {
+        await result.current.handleFileChange(imageFile())
+      })
+
+      expect(result.current.referenceImages).toEqual([])
+    })
+
+    it('skips upload when the file cannot be shrunk under the cap', async () => {
+      mockPrepare.mockResolvedValue(null)
+
+      const { result } = renderHook(() => useImageUpload())
+      await act(async () => {
+        await result.current.handleFileChange(imageFile())
+      })
+
+      expect(mockUpload).not.toHaveBeenCalled()
+      expect(result.current.referenceImages).toEqual([])
+    })
+
+    it('ignores non-image files', async () => {
+      const { result } = renderHook(() => useImageUpload())
+      await act(async () => {
+        await result.current.handleFileChange(
+          new File(['x'], 'doc.pdf', { type: 'application/pdf' }),
+        )
+      })
+
+      expect(mockPrepare).not.toHaveBeenCalled()
+      expect(mockUpload).not.toHaveBeenCalled()
     })
   })
 

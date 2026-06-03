@@ -1,33 +1,32 @@
 # src/components/business/studio/ — Studio Workspace Components
 
-## Risk Level: HIGH (31 tightly-coupled components sharing 3 contexts)
+## Risk Level: HIGH (53 components across `studio/` + `studio-shared/`, sharing 3 contexts)
 
 ## Component Tree
 
+Studio chrome 已物理拆分：稳定外壳在 `studio-shared/`（`chrome/` + `workflow/` + `setup/`），
+image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注每个节点的真实目录。
+
 ```
-StudioPage
-├── StudioResizableLayout
-│   ├── StudioTopBar (mode selector, top actions)
-│   ├── StudioSidebar
-│   │   ├── StudioModeSelector (image/video/audio)
-│   │   ├── StudioQuickRouteSelector (model selector)
-│   │   ├── StudioCardSection → StudioCardSelectors (char/bg/style cards)
-│   │   ├── StudioCardManagement (card CRUD)
-│   │   └── StudioToolbarPanels (enhance, reverse, advanced, refImage, etc.)
-│   └── StudioCanvas
-│       ├── StudioPreview → GenerationPreview (current result)
-│       ├── CompareGrid (B4 — side-by-side compare)
-│       └── VariantGrid (B5 — multi-variant generation)
-├── StudioBottomDock
-│   ├── StudioPromptArea (prompt input + generate button)
-│   ├── StudioGenerateBar (aspect ratio + generate action)
-│   ├── StudioDockPanelArea (inline panels: advanced, civitai, refImage, etc.)
-│   ├── StudioPanelDialogs (modals: enhance, reverse, transform)
-│   └── StudioGallery (sidebar history gallery)
-├── StudioLightbox (fullscreen image viewer)
-├── StudioCommandPalette (Cmd+K quick actions)
-└── StudioErrorBoundary (error recovery)
+(workspace)/layout.tsx
+└── StudioProvider
+    └── StudioWorkspaceUI (components/business/ — mounted once for image/video/audio)
+        ├── StudioFlowLayout (studio-shared/chrome/StudioResizableLayout.tsx — vertical canvas + dock)
+        │   ├── StudioCanvas (studio-shared/chrome/)
+        │   │   ├── GenerationPreview (studio/ — current result)
+        │   │   ├── CompareGrid / VariantGrid (image/ — side-by-side + multi-variant)
+        │   │   └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
+        │   └── StudioBottomDock (studio-shared/chrome/)
+        │       ├── StudioCardSection (studio/ — char/bg/style cards)
+        │       ├── StudioPromptArea (studio/ — prompt input + generate)
+        │       ├── StudioDockPanelArea (studio/ — inline panels: advanced, civitai, refImage, etc.)
+        │       └── StudioKeepChangePanel (image/)
+        └── StudioCommandPalette (studio-shared/chrome/ — Cmd+K)
 ```
+
+按需挂载、不在主树固定位置的常用单元：StudioModeSelector / StudioGenerateBar / StudioWorkflowPicker
+（studio-shared/workflow/）、StudioToolbarPanels / StudioQuickRouteSelector / StudioAspectRatioPopover /
+StudioGallery（studio/）、StudioLightbox / StudioErrorBoundary（studio-shared/chrome/）。
 
 ## Data Flow
 
@@ -49,20 +48,19 @@ GenerationPreview renders result
 
 1. **Before modifying any component**: check which context hooks it uses (`useStudioForm`, `useStudioData`, `useStudioGen`)
 2. **Panels**: controlled by `StudioFormState.panels` — toggling is handled by reducer dispatch, not local state
-3. **Panel hosts**: `StudioDockPanelArea` renders inline panels (advanced, civitai, refImage, layerDecompose, voiceSelector, voiceTrainer, videoParams, script). `StudioPanelDialogs` renders modal panels (enhance, reverse, transform). Both are mounted by `StudioBottomDock`. The `aspectRatio` panel is its own popover (`StudioAspectRatioPopover`).
+3. **Panel hosts**: `StudioDockPanelArea` (studio/) renders inline panels (advanced, civitai, refImage, layerDecompose, voiceSelector, voiceTrainer, videoParams, script) and is mounted by `StudioBottomDock`. The `aspectRatio` panel is its own popover (`StudioAspectRatioPopover`). (`StudioPanelDialogs` no longer exists — confirm the current modal-panel host against code before relying on it.)
 4. **Entry point**: `index.ts` re-exports the main component
 
 ## Relatively Isolated Components (safer to modify)
 
-- `CompareGrid.tsx` — B4 compare feature, self-contained
-- `VariantGrid.tsx` — B5 variant feature, self-contained
-- `StudioCommandPalette.tsx` — Cmd+K overlay, reads context but doesn't write
-- `StudioLightbox.tsx` — Fullscreen viewer, display-only
-- `StudioErrorBoundary.tsx` — Error recovery wrapper
+- `CompareGrid.tsx` / `VariantGrid.tsx` (image/) — B4 compare / B5 variant, self-contained
+- `StudioCommandPalette.tsx` (studio-shared/chrome/) — Cmd+K overlay, reads context but doesn't write
+- `StudioLightbox.tsx` (studio-shared/chrome/) — Fullscreen viewer, display-only
+- `StudioErrorBoundary.tsx` (studio-shared/chrome/) — Error recovery wrapper
 
 ## High-Risk Components (modify with caution)
 
-- `StudioPromptArea.tsx` — Core input, dispatches to FormContext
-- `StudioCanvas.tsx` — Uses Pragmatic DnD, complex layout logic
-- `StudioSidebar.tsx` — Orchestrates card selection + model options
-- `StudioResizableLayout.tsx` — Controls panel sizes, affects all children
+- `StudioPromptArea.tsx` (studio/) — Core input, dispatches to FormContext
+- `StudioCanvas.tsx` (studio-shared/chrome/) — result surface, complex layout logic
+- `StudioCardSection.tsx` (studio/) — orchestrates char/bg/style card selection
+- `StudioResizableLayout.tsx` (studio-shared/chrome/) — exports `StudioFlowLayout`, the vertical canvas+dock shell

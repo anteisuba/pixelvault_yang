@@ -1,0 +1,66 @@
+{
+  "accountButton": {
+    "ariaExpanded": "true",
+    "ariaHaspopup": "true",
+    "ariaLabel": "View Profile",
+    "box": {
+      "height": 40,
+      "left": 8,
+      "top": 661,
+      "visible": true,
+      "width": 175
+    },
+    "text": "YINIG"
+  },
+  "capturedAt": "2026-06-02T11:28:21.268Z",
+  "menuItems": [
+    {
+      "ariaExpanded": null,
+      "ariaHaspopup": null,
+      "ariaLabel": null,
+      "box": {
+        "height": 36,
+        "left": 9,
+        "top": 531,
+        "visible": true,
+        "width": 173
+      },
+      "text": "View Profile"
+    },
+    {
+      "ariaExpanded": null,
+      "ariaHaspopup": null,
+      "ariaLabel": null,
+      "box": {
+        "height": 36,
+        "left": 9,
+        "top": 567,
+        "visible": true,
+        "width": 173
+      },
+      "text": "API Keys"
+    },
+    {
+      "ariaExpanded": null,
+      "ariaHaspopup": null,
+      "ariaLabel": null,
+      "box": {
+        "height": 36,
+        "left": 9,
+        "top": 612,
+        "visible": true,
+        "width": 173
+      },
+      "text": "Sign Out"
+    }
+  ],
+  "notes": [
+    "Enter and Space opened the custom account menu in Chrome signed-in state.",
+    "Escape did not close the menu during QA.",
+    "Tab moved focus to View Profile then API Keys.",
+    "ArrowDown did not move focus from API Keys."
+  ],
+  "signedInVisible": true,
+  "title": "Image Studio — PixelVault",
+  "url": "http://localhost:3000/en/studio/image"
+}

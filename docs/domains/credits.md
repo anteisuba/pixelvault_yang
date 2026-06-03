@@ -155,5 +155,12 @@ Related documents:
 - `docs/architecture/generation.md`
 - `docs/architecture/auth.md`
 - `docs/domains/api-keys.md`
+
+## Last Verified
+
+- Date: 2026-06-02
+- Method: usage / free-allowance / platform-allowance / BYOK 与 generation 链路的 service / schema / API 代码检查
+- External docs: provider 侧的取消 / 退款 / 计费行为须按官方资料复核（见 Unresolved）
+- Runtime: not run
 - `docs/domains/studio.md`
 - `docs/integrations/providers.md`

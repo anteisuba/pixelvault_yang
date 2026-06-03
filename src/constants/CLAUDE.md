@@ -1,6 +1,6 @@
 # src/constants/ — Configuration & Enums
 
-## Risk Level: HIGH (178 files import from this directory)
+## Risk Level: HIGH (515 files import from this directory)
 
 Constants are imported throughout the entire codebase. Changes here affect provider selection, UI display, billing, and validation rules.
 
@@ -25,7 +25,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 ### Adding a New AI Model (most common change)
 
-Follow `sop_add_model.md` in memory. Summary:
+Use the `add-model` skill (checklist also in root CLAUDE.md → Common Pitfalls 1). Summary:
 
 1. Add model to `AI_MODELS` enum in `models.ts`
 2. Add `ModelOption` config (provider, credit cost, capabilities)

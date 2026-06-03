@@ -1,0 +1,1914 @@
+{
+  "capturedAt": "2026-06-02T11:14:43.616Z",
+  "baseUrl": "http://localhost:3000",
+  "onboardingCompleted": true,
+  "evidence": [
+    {
+      "label": "studio-image-desktop-1440-expanded-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "bodyTextLength": 429,
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 900,
+        "bodyHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvKFlNxgi290utmi8ORhPOC8g; __clerk_db_jwt=dvb_3EZvKFlNxgi290utmi8ORhPOC8g; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1248,
+          "height": 900,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 147,
+          "top": 14,
+          "right": 179,
+          "bottom": 46,
+          "width": 32,
+          "height": 32,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1248,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 612,
+          "right": 1440,
+          "bottom": 796,
+          "width": 1248,
+          "height": 184,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 368,
+          "top": 625,
+          "right": 1264,
+          "bottom": 784,
+          "width": 896,
+          "height": 159,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1248,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign In",
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 34,
+        "buttons": 19,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-desktop-1440-collapsed-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "bodyTextLength": 413,
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 900,
+        "bodyHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvKFlNxgi290utmi8ORhPOC8g; __clerk_db_jwt=dvb_3EZvKFlNxgi290utmi8ORhPOC8g; __client_uat_R4LmUDOU=0; __client_uat=0; sidebar_state=false"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 48,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1392,
+          "height": 900,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 47,
+          "bottom": 900,
+          "width": 47,
+          "height": 900,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 8,
+          "top": 14,
+          "right": 40,
+          "bottom": 46,
+          "width": 32,
+          "height": 32,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 48,
+          "top": 0,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1392,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 48,
+          "top": 612,
+          "right": 1440,
+          "bottom": 796,
+          "width": 1392,
+          "height": 184,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 296,
+          "top": 625,
+          "right": 1192,
+          "bottom": 784,
+          "width": 896,
+          "height": 159,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 48,
+          "top": 0,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1392,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign In",
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 34,
+        "buttons": 19,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-375-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 375,
+        "height": 844
+      },
+      "bodyTextLength": 270,
+      "scroll": {
+        "docWidth": 375,
+        "bodyWidth": 375,
+        "docHeight": 880,
+        "bodyHeight": 880,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvLKKJvcwy8VPG29aEp5cftpN; __clerk_db_jwt=dvb_3EZvLKKJvcwy8VPG29aEp5cftpN; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 375,
+          "bottom": 880,
+          "width": 375,
+          "height": 880,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": null,
+        "sidebarGap": null,
+        "sidebarTrigger": null,
+        "mobileRail": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 44,
+          "bottom": 844,
+          "width": 44,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 795,
+          "right": 375,
+          "bottom": 844,
+          "width": 331,
+          "height": 49,
+          "position": "fixed",
+          "display": "block",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 375,
+          "bottom": 832,
+          "width": 331,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 453,
+          "right": 375,
+          "bottom": 673,
+          "width": 331,
+          "height": 220,
+          "position": "sticky",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 56,
+          "top": 462,
+          "right": 363,
+          "bottom": 665,
+          "width": 307,
+          "height": 203,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 375,
+          "bottom": 832,
+          "width": 331,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": null,
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 20,
+        "buttons": 17,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 375,
+        "height": 844
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-390-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "bodyTextLength": 270,
+      "scroll": {
+        "docWidth": 390,
+        "bodyWidth": 390,
+        "docHeight": 880,
+        "bodyHeight": 880,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvM35Tk5ktF3WNtoKpqAGtm8M; __clerk_db_jwt=dvb_3EZvM35Tk5ktF3WNtoKpqAGtm8M; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 390,
+          "bottom": 880,
+          "width": 390,
+          "height": 880,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": null,
+        "sidebarGap": null,
+        "sidebarTrigger": null,
+        "mobileRail": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 44,
+          "bottom": 844,
+          "width": 44,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 795,
+          "right": 390,
+          "bottom": 844,
+          "width": 346,
+          "height": 49,
+          "position": "fixed",
+          "display": "block",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 390,
+          "bottom": 832,
+          "width": 346,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 438,
+          "right": 390,
+          "bottom": 658,
+          "width": 346,
+          "height": 220,
+          "position": "sticky",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 56,
+          "top": 447,
+          "right": 378,
+          "bottom": 650,
+          "width": 322,
+          "height": 203,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 390,
+          "bottom": 832,
+          "width": 346,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": null,
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 20,
+        "buttons": 17,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-mobile-390-menu-open-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "bodyTextLength": 437,
+      "scroll": {
+        "docWidth": 390,
+        "bodyWidth": 390,
+        "docHeight": 880,
+        "bodyHeight": 880,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": "open",
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvM35Tk5ktF3WNtoKpqAGtm8M; __clerk_db_jwt=dvb_3EZvM35Tk5ktF3WNtoKpqAGtm8M; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 390,
+          "bottom": 880,
+          "width": 390,
+          "height": 880,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 208,
+          "bottom": 844,
+          "width": 208,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 151,
+          "top": 8,
+          "right": 195,
+          "bottom": 52,
+          "width": 44,
+          "height": 44,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": null,
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 795,
+          "right": 390,
+          "bottom": 844,
+          "width": 346,
+          "height": 49,
+          "position": "fixed",
+          "display": "block",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 208,
+          "bottom": 844,
+          "width": 208,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 390,
+          "bottom": 832,
+          "width": 346,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 438,
+          "right": 390,
+          "bottom": 658,
+          "width": 346,
+          "height": 220,
+          "position": "sticky",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 56,
+          "top": 447,
+          "right": 378,
+          "bottom": 650,
+          "width": 322,
+          "height": 203,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 390,
+          "bottom": 832,
+          "width": 346,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "SidebarDisplays the mobile sidebar.ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign InClose",
+        "mobileRail": null,
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [],
+      "counts": {
+        "links": 18,
+        "buttons": 19,
+        "dialogs": 1
+      },
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-430-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 430,
+        "height": 844
+      },
+      "bodyTextLength": 270,
+      "scroll": {
+        "docWidth": 430,
+        "bodyWidth": 430,
+        "docHeight": 880,
+        "bodyHeight": 880,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvN8ofm7nLDMYfzkbAwa4Twxy; __clerk_db_jwt=dvb_3EZvN8ofm7nLDMYfzkbAwa4Twxy; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 430,
+          "bottom": 880,
+          "width": 430,
+          "height": 880,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": null,
+        "sidebarGap": null,
+        "sidebarTrigger": null,
+        "mobileRail": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 44,
+          "bottom": 844,
+          "width": 44,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 795,
+          "right": 430,
+          "bottom": 844,
+          "width": 386,
+          "height": 49,
+          "position": "fixed",
+          "display": "block",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 430,
+          "bottom": 832,
+          "width": 386,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 440,
+          "right": 430,
+          "bottom": 640,
+          "width": 386,
+          "height": 200,
+          "position": "sticky",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 56,
+          "top": 449,
+          "right": 418,
+          "bottom": 632,
+          "width": 362,
+          "height": 183,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 430,
+          "bottom": 832,
+          "width": 386,
+          "height": 788,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": null,
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 20,
+        "buttons": 17,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 430,
+        "height": 844
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "log",
+          "text": "[Fast Refresh] rebuilding"
+        },
+        {
+          "type": "log",
+          "text": "[Fast Refresh] done in 121ms"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-768-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "bodyTextLength": 429,
+      "scroll": {
+        "docWidth": 768,
+        "bodyWidth": 768,
+        "docHeight": 900,
+        "bodyHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvNmNySolTvFhqHmv7WAhLrwx; __clerk_db_jwt=dvb_3EZvNmNySolTvFhqHmv7WAhLrwx; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 960,
+          "bottom": 900,
+          "width": 768,
+          "height": 900,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 147,
+          "top": 14,
+          "right": 179,
+          "bottom": 46,
+          "width": 32,
+          "height": 32,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 960,
+          "bottom": 844,
+          "width": 768,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 616,
+          "right": 960,
+          "bottom": 796,
+          "width": 768,
+          "height": 180,
+          "position": "sticky",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 204,
+          "top": 625,
+          "right": 948,
+          "bottom": 788,
+          "width": 744,
+          "height": 163,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 960,
+          "bottom": 844,
+          "width": 768,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign In",
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 34,
+        "buttons": 19,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 768,
+        "height": 900
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-image-1024-clean",
+      "url": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "bodyTextLength": 429,
+      "scroll": {
+        "docWidth": 1024,
+        "bodyWidth": 1024,
+        "docHeight": 900,
+        "bodyHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvOMSrzQXy8tvu6CeCQhgl8Cf; __clerk_db_jwt=dvb_3EZvOMSrzQXy8tvu6CeCQhgl8Cf; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1056,
+          "bottom": 900,
+          "width": 864,
+          "height": 900,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 147,
+          "top": 14,
+          "right": 179,
+          "bottom": 46,
+          "width": 32,
+          "height": 32,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1056,
+          "bottom": 844,
+          "width": 864,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "studioDock": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 608,
+          "right": 1056,
+          "bottom": 796,
+          "width": 864,
+          "height": 188,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "10",
+          "overflowY": "visible"
+        },
+        "studioPrompt": {
+          "exists": true,
+          "visible": true,
+          "left": 216,
+          "top": 621,
+          "right": 1032,
+          "bottom": 784,
+          "width": 816,
+          "height": 163,
+          "position": "relative",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1056,
+          "bottom": 844,
+          "width": 864,
+          "height": 844,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign In",
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/image",
+          "ariaLabel": "Image"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/image",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 34,
+        "buttons": 19,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "console": [
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "log",
+          "text": "[Fast Refresh] rebuilding"
+        },
+        {
+          "type": "log",
+          "text": "[Fast Refresh] done in 105ms"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-edit-inpaint-390-clean",
+      "url": "http://localhost:3000/en/studio/edit/inpaint",
+      "title": "PixelVault | Personal AI Gallery",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "bodyTextLength": 370,
+      "scroll": {
+        "docWidth": 390,
+        "bodyWidth": 390,
+        "docHeight": 936,
+        "bodyHeight": 936,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvOxAKCQQjT0SUHm9KAOnH2mE; __clerk_db_jwt=dvb_3EZvOxAKCQQjT0SUHm9KAOnH2mE; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 390,
+          "bottom": 936,
+          "width": 390,
+          "height": 936,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": null,
+        "sidebarGap": null,
+        "sidebarTrigger": null,
+        "mobileRail": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 44,
+          "bottom": 844,
+          "width": 44,
+          "height": 844,
+          "position": "fixed",
+          "display": "flex",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 795,
+          "right": 390,
+          "bottom": 844,
+          "width": 346,
+          "height": 49,
+          "position": "fixed",
+          "display": "block",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": null,
+        "studioDock": null,
+        "studioPrompt": null,
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 44,
+          "top": 44,
+          "right": 390,
+          "bottom": 888,
+          "width": 346,
+          "height": 844,
+          "position": "static",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": null,
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/edit",
+          "ariaLabel": "Edit"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/edit/inpaint",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 20,
+        "buttons": 4,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "console": [],
+      "pageErrors": []
+    },
+    {
+      "label": "studio-edit-inpaint-1440-clean",
+      "url": "http://localhost:3000/en/studio/edit/inpaint",
+      "title": "PixelVault | Personal AI Gallery",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "bodyTextLength": 474,
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 900,
+        "bodyHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "sidebar": {
+        "state": null,
+        "collapsible": null,
+        "cookie": "NEXT_LOCALE=en; __clerk_db_jwt_R4LmUDOU=dvb_3EZvPUqK4iXht7CyEIobzlJqwFM; __clerk_db_jwt=dvb_3EZvPUqK4iXht7CyEIobzlJqwFM; __client_uat_R4LmUDOU=0; __client_uat=0"
+      },
+      "rects": {
+        "main": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1248,
+          "height": 900,
+          "position": "relative",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "desktopSidebar": {
+          "exists": true,
+          "visible": true,
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "sidebarGap": null,
+        "sidebarTrigger": {
+          "exists": true,
+          "visible": true,
+          "left": 147,
+          "top": 14,
+          "right": 179,
+          "bottom": 46,
+          "width": 32,
+          "height": 32,
+          "position": "static",
+          "display": "flex",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        },
+        "mobileRail": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "50",
+          "overflowY": "visible"
+        },
+        "mobileBottomNav": {
+          "exists": true,
+          "visible": false,
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "position": "fixed",
+          "display": "none",
+          "zIndex": "40",
+          "overflowY": "visible"
+        },
+        "mobileDialog": null,
+        "studioRoot": null,
+        "studioDock": null,
+        "studioPrompt": null,
+        "editRoot": {
+          "exists": true,
+          "visible": true,
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1248,
+          "height": 900,
+          "position": "static",
+          "display": "block",
+          "zIndex": "auto",
+          "overflowY": "visible"
+        }
+      },
+      "text": {
+        "desktopSidebar": "ANTEIToggle SidebarGalleryPromptsAssetsCard ManagementToolsImageVideoAudio3DEditLoRANode EditorArenaComing Soon3Sign In",
+        "mobileRail": "ENJAZH",
+        "mobileBottomNav": "GallerySign In",
+        "firstH1": null
+      },
+      "activeLinks": [
+        {
+          "text": "",
+          "href": "/en/studio/edit",
+          "ariaLabel": "Edit"
+        },
+        {
+          "text": "EN",
+          "href": "/en/studio/edit/inpaint",
+          "ariaLabel": "English"
+        }
+      ],
+      "counts": {
+        "links": 34,
+        "buttons": 6,
+        "dialogs": 0
+      },
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "console": [],
+      "pageErrors": []
+    }
+  ],
+  "screenshots": [
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-desktop-1440-expanded-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-desktop-1440-collapsed-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-390-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-mobile-390-menu-open-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-768-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-image-1024-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-edit-inpaint-390-clean.png",
+    "/Users/fulina/Code/pixelvault_yang/docs/screenshots/layout-shell/studio-edit-inpaint-1440-clean.png"
+  ]
+}

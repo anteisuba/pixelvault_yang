@@ -31,16 +31,15 @@ StudioDataContext initializes these hooks at mount time:
 - `usePromptEnhance` (LLM prompt enhancement)
 - `useImageUpload` (reference image upload)
 - `useUnifiedGenerate` (core generation orchestrator)
-- `useOnboarding` (first-time user flow)
 - `useUsageSummary` (credit display)
 
 ## Consumer Hooks
 
 | Hook              | Context     | Consumers      |
 | ----------------- | ----------- | -------------- |
-| `useStudioForm()` | FormContext | ~43 components |
-| `useStudioData()` | DataContext | ~26 components |
-| `useStudioGen()`  | GenContext  | ~18 components |
+| `useStudioForm()` | FormContext | ~37 components |
+| `useStudioData()` | DataContext | ~12 components |
+| `useStudioGen()`  | GenContext  | ~8 components  |
 
 ## Change Checklist
 
@@ -52,5 +51,5 @@ StudioDataContext initializes these hooks at mount time:
 ## Files
 
 - `studio-context.tsx` — The 3-provider context + reducer + hooks
-- `studio-context.test.ts` — Unit tests
+- `studio-context.test.ts` / `studio-context.test.tsx` — Unit tests
 - `api-keys-context.tsx` — Separate API key management context (isolated, low risk)

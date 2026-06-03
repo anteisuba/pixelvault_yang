@@ -1,6 +1,6 @@
 # src/types/ — Central Type Hub
 
-## Risk Level: CRITICAL (189 files depend on this)
+## Risk Level: CRITICAL (333 files depend on this)
 
 This is the most widely imported module in the project. Changes here cascade to virtually every service, hook, component, and API route.
 
@@ -36,6 +36,6 @@ When modifying a type in this file:
 
 ## File Structure
 
-- `index.ts` — All Zod schemas + TypeScript types (single file, ~2000 lines)
+- `index.ts` — All Zod schemas + TypeScript types (single file, ~3850 lines)
 - `next-intl.d.ts` — next-intl augmentation
 - `advanced-params.test.ts` — Tests for AdvancedParams schema

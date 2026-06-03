@@ -2,11 +2,11 @@
 
 Last updated: 2026-06-02
 
-This directory will hold global UI system documents.
+This directory holds global UI system documents.
 
 Do not fill these documents as final rules until each topic is reviewed.
 
-Planned files:
+Current / planned files:
 
 - `current-ui-inventory.md`
 - `css-and-tokens.md`

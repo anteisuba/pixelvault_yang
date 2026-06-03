@@ -1,8 +1,8 @@
 # src/hooks/ — Client-Side Custom Hooks
 
-## Risk Level: HIGH (42 hooks, 0 test coverage)
+## Risk Level: HIGH (70 hooks, partial test coverage — ~22 have `.test` files)
 
-All hooks use `'use client'`. No tests exist — modifications require manual verification.
+All hooks use `'use client'`. Test coverage is partial (~22 of 70 hooks have `.test` files, including `use-onboarding`, `use-gallery`, `use-unified-generate`) — untested hooks require manual verification.
 
 ## Hook Domains
 
@@ -44,7 +44,7 @@ All hooks use `'use client'`. No tests exist — modifications require manual ve
 - `use-studio-shortcuts.ts` — Keyboard shortcut bindings
 - `use-studio-draggable.ts` — Drag & drop support
 - `use-image-upload.ts` — Reference image upload (injected into StudioDataContext)
-- `use-onboarding.ts` — First-time user flow (injected into StudioDataContext)
+- `use-onboarding.ts` — First-time user flow (onboarding wiring removed in `ec23c94d`; hook retained, no longer injected)
 
 ### Utility
 

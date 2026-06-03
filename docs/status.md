@@ -56,6 +56,10 @@
 - `docs/integrations/providers.md` 已记录 provider registry、model catalog、execution routing、BYOK/platform key 边界、server-side key verification 现状、官方文档核验入口、逐模型核验流程和未决风险。
 - `GET /api/usage-summary` 已改为使用 `FreeTierSlot` 今日预留数作为 `freeGenerationsToday`，让用户可见免费额度显示与当前限制源一致。
 - `docs/design/` 已建立结构：`system/` 放全局 UI/CSS/组件/响应式/i18n 规则，`pages/` 放逐页设计，`reviews/` 放可复用 UI 审查；详细内容先不定稿。
+- （2026-06-03）`docs/domains/arena.md` 已补：记录 Arena 模型对战域（match 创建、并行多模型 entry、投票、ELO 排名、按 taskType 胜率、个人统计），并标注 entry 复用标准生成链路。
+- （2026-06-03）`docs/domains/storyboard.md` 已补：记录 Storyboard 叙事编排域（从已有作品挑图成 Story、LLM 叙事、scroll/comic 呈现、导出、公开切换），并标注它只消费 Generation、不生成图像。
+- （2026-06-03）`docs/domains/prompts.md` 已补：记录 Prompts 提示词库域（`Recipe` 模板 + `InspirationPrompt` 灵感库、从作品存模板、模板到作品血缘），并把 prompt 增强/助手/守卫等创作辅助划归 Studio 链路（`services/kernel/`）。
+- （2026-06-03）`docs/domains/credits.md` 补齐 `Last Verified` 区块，使 domains 层验证区块一致。
 
 ## Deferred Doc Sync
 

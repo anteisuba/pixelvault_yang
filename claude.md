@@ -27,7 +27,7 @@ Personal AI Gallery — multi-model AI image generation + permanent archive.
 5. **No Tailwind arbitrary values** — 扩展 `tailwind.config.ts`
 6. **Feature dev order** — constants → types → services → hooks → components
 7. **Import order** — React/Next → 第三方 → 内部 constants/types → components/hooks → styles
-8. **API key gates** — 缺 API key 时不要禁用 UI，路由到 `QuickSetupDialog` 让用户内联配置。见 `src/components/business/studio/QuickSetupDialog.tsx` JSDoc。
+8. **API key gates** — 缺 API key 时不要禁用 UI，路由到 `QuickSetupDialog` 让用户内联配置。见 `src/components/business/studio-shared/setup/QuickSetupDialog.tsx` JSDoc。
 
 ## Key Entry Points
 
@@ -54,14 +54,13 @@ Personal AI Gallery — multi-model AI image generation + permanent archive.
 
 ## Resilience Utilities
 
-| Utility         | Path                              | When to use                               |
-| --------------- | --------------------------------- | ----------------------------------------- |
-| Logger          | `src/lib/logger.ts`               | 所有 service 日志，不要用 `console.log`   |
-| Retry           | `src/lib/with-retry.ts`           | 包裹所有外部 API 调用                     |
-| Circuit Breaker | `src/lib/circuit-breaker.ts`      | Per-provider 防止级联失败                 |
-| Prompt Guard    | `src/lib/prompt-guard.ts`         | 校验用户 prompt 再发给 AI                 |
-| LLM Validator   | `src/lib/llm-output-validator.ts` | 校验 LLM 输出（prompt 增强、recipe 融合） |
-| Invariants      | `src/lib/invariants.ts`           | 运行时断言（程序员错误）                  |
+| Utility         | Path                                  | When to use                               |
+| --------------- | ------------------------------------- | ----------------------------------------- |
+| Logger          | `src/lib/logger.ts`                   | 所有 service 日志，不要用 `console.log`   |
+| Retry           | `src/lib/with-retry.ts`               | 包裹所有外部 API 调用                     |
+| Circuit Breaker | `src/lib/circuit-breaker.ts`          | Per-provider 防止级联失败                 |
+| Prompt Guard    | `src/services/kernel/prompt-guard.ts` | 校验用户 prompt 再发给 AI                 |
+| LLM Validator   | `src/lib/llm-output-validator.ts`     | 校验 LLM 输出（prompt 增强、recipe 融合） |
 
 ## Design Language
 
@@ -85,14 +84,14 @@ UI 任务**必读** [`docs/ai/ui-design-system.md`](docs/ai/ui-design-system.md)
 
 改这些前先 `grep -r "import.*from.*<模块>" src/` 确认影响范围；被引用 >5 处只做向后兼容修改：
 
-- `src/types/index.ts` — 189 files (see `src/types/CLAUDE.md`)
-- `src/services/user.service.ts` — 22 files
-- `src/services/generate-image.service.ts` — orchestrator, 8+ deps
-- `src/contexts/studio-context.tsx` — 23+ components (see `src/contexts/CLAUDE.md`)
-- `src/constants/models.ts` — 178 files (see `src/constants/CLAUDE.md`)
-- `src/services/storage/r2.ts` — 15 services
+- `src/types/index.ts` — 333 files (see `src/types/CLAUDE.md`)
+- `src/services/user.service.ts` — 141 files
+- `src/services/image/generate-image.service.ts` — orchestrator, 8+ deps
+- `src/contexts/studio-context.tsx` — 47 files (see `src/contexts/CLAUDE.md`)
+- `src/constants/models.ts` — 99 files (see `src/constants/CLAUDE.md`)
+- `src/services/storage/r2.ts` — 55 importers
 
-Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/business/studio/`、`hooks/`、`constants/`。
+Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/business/studio/`、`hooks/`、`constants/`、`services/`、`app/api/`、`prisma/`。
 
 ## Common Pitfalls
 
@@ -117,7 +116,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Docs
 
-文档导航见 [`docs/README.md`](docs/README.md)。Studio 改动前必读 [`docs/plans/frontend/studio-feature-map.md`](docs/plans/frontend/studio-feature-map.md)。
+文档导航见 [`docs/README.md`](docs/README.md)。Studio 改动前必读 [`docs/domains/studio.md`](docs/domains/studio.md)。
 
 ## Skill Routing
 

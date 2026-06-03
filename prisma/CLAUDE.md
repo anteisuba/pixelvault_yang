@@ -14,7 +14,7 @@
 
 ## Schema Reference
 
-See `docs/reference/database.md` for full model documentation.
+Models are defined in `prisma/schema.prisma` (the source of truth). For architecture-level context, see the "Database and Prisma" section of `docs/architecture/overview.md`.
 
 ## Naming Conventions
 

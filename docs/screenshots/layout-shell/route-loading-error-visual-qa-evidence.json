@@ -1,0 +1,438 @@
+{
+  "capturedAt": "2026-06-02T11:30:08.995Z",
+  "note": "Loading/error browser attempts use delayed or forced-failed App Router RSC requests; source inspection remains the source of truth when Next cache/dev overlay prevents stable state capture.",
+  "evidence": [
+    {
+      "label": "loading-gallery-desktop-delayed-rsc",
+      "href": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "textSample": "Skip to main content ANTEI Toggle Sidebar Gallery Prompts Assets Card Management Tools Image Video Audio 3D Edit LoRA Node Editor Arena Coming Soon 3 Sign In Skip to prompt Step 1 / 3 Start with what you want to see Describe the subject, style, composition, and mood so the model has a clear direction. Previous guide image Next guide image Select a model first Templates Enhance Style Image Transform Cards LoRA 1:1 Advanced",
+      "hasErrorBoundaryCopy": false,
+      "hasSkeletonSignals": 0,
+      "rects": {
+        "main": {
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1248,
+          "height": 900,
+          "visible": true
+        },
+        "mobileRail": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "mobileBottomNav": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "desktopSidebar": {
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "visible": true
+        }
+      },
+      "delayedRequests": [
+        "http://localhost:3000/en/gallery?_rsc=PqLo0S7VXyP8RseO"
+      ],
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-referenc"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "warning",
+          "text": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview"
+        }
+      ],
+      "linkCount": 3
+    },
+    {
+      "label": "loading-gallery-mobile-delayed-rsc",
+      "href": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scroll": {
+        "docWidth": 390,
+        "bodyWidth": 390,
+        "docHeight": 880,
+        "hasHorizontalOverflow": false
+      },
+      "textSample": "Skip to main content EN JA ZH Studio Skip to prompt Step 1 / 3 Start with what you want to see Describe the subject, style, composition, and mood so the model has a clear direction. Previous guide image Next guide image Select a model first Templates Gallery Sign In",
+      "hasErrorBoundaryCopy": false,
+      "hasSkeletonSignals": 0,
+      "rects": {
+        "main": {
+          "left": 0,
+          "top": 0,
+          "right": 390,
+          "bottom": 880,
+          "width": 390,
+          "height": 880,
+          "visible": true
+        },
+        "mobileRail": {
+          "left": 0,
+          "top": 0,
+          "right": 44,
+          "bottom": 844,
+          "width": 44,
+          "height": 844,
+          "visible": true
+        },
+        "mobileBottomNav": {
+          "left": 44,
+          "top": 795,
+          "right": 390,
+          "bottom": 844,
+          "width": 346,
+          "height": 49,
+          "visible": true
+        },
+        "desktopSidebar": null
+      },
+      "delayedRequests": [
+        "http://localhost:3000/en/gallery?_rsc=PqLo0S7VXyP8RseO"
+      ],
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "warning",
+          "text": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-referenc"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "linkCount": 2
+    },
+    {
+      "label": "loading-assets-desktop-delayed-rsc",
+      "href": "http://localhost:3000/en/studio/image",
+      "title": "Image Studio — PixelVault",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 900,
+        "hasHorizontalOverflow": false
+      },
+      "textSample": "Skip to main content ANTEI Toggle Sidebar Gallery Prompts Assets Card Management Tools Image Video Audio 3D Edit LoRA Node Editor Arena Coming Soon 3 Sign In Skip to prompt Step 1 / 3 Start with what you want to see Describe the subject, style, composition, and mood so the model has a clear direction. Previous guide image Next guide image Select a model first Templates Enhance Style Image Transform Cards LoRA 1:1 Advanced",
+      "hasErrorBoundaryCopy": false,
+      "hasSkeletonSignals": 0,
+      "rects": {
+        "main": {
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1248,
+          "height": 900,
+          "visible": true
+        },
+        "mobileRail": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "mobileBottomNav": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "desktopSidebar": {
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "visible": true
+        }
+      },
+      "delayedRequests": [
+        "http://localhost:3000/en/assets?_rsc=PqLo0S7VXyP8RseO"
+      ],
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-referenc"
+        },
+        {
+          "type": "warning",
+          "text": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "linkCount": 2
+    },
+    {
+      "label": "error-gallery-desktop-forced-rsc-500",
+      "href": "http://localhost:3000/en/gallery",
+      "title": "Gallery — PixelVault",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scroll": {
+        "docWidth": 1440,
+        "bodyWidth": 1440,
+        "docHeight": 2031,
+        "hasHorizontalOverflow": false
+      },
+      "textSample": "Skip to main content ANTEI Toggle Sidebar Gallery Prompts Assets Card Management Tools Image Video Audio 3D Edit LoRA Node Editor Arena Coming Soon 3 Sign In PUBLIC GALLERY Recent public work Browse public images, videos, and voice pieces from the community, then reuse what sparks an idea. SHOWING 20 OF 23 Newest first Oldest first All types Images Videos Audio All Today Search the archive Ref 0:10 1 YINIG @yining120224 正对着角色，上半身。 近景，主要拍摄角色的上半身。 10 角色微笑着说“真是好久不见，还记得我吗” 角色面部动作： 眉部眉心松⁠开，⁠眉⁠尾不再下⁠压，⁠额⁠部的戒备感从脸上退⁠掉。 眼部眼角弯⁠起，⁠下⁠眼睑被脸颊推⁠高，⁠外⁠侧眼轮匝肌参与进⁠来。 口部嘴角主动上⁠扬，⁠颧⁠大肌和脸颊同步抬⁠起，⁠不⁠再需要手势替她完成表⁠情。 Seedance 2.0 (Reference) Copy prompt Use in Studio Ref 1 YINIG @yining120224 将参考图像用作角色设计的基底，绘制“商业动画制作现场使用的、专",
+      "hasErrorBoundaryCopy": false,
+      "hasSkeletonSignals": 5,
+      "rects": {
+        "main": {
+          "left": 192,
+          "top": 0,
+          "right": 1440,
+          "bottom": 2031,
+          "width": 1248,
+          "height": 2031,
+          "visible": true
+        },
+        "mobileRail": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "mobileBottomNav": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "width": 0,
+          "height": 0,
+          "visible": false
+        },
+        "desktopSidebar": {
+          "left": 0,
+          "top": 0,
+          "right": 191,
+          "bottom": 900,
+          "width": 191,
+          "height": 900,
+          "visible": true
+        }
+      },
+      "forcedFailures": [
+        "http://localhost:3000/en/gallery?_rsc=PqLo0S7VXyP8RseO"
+      ],
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "warning",
+          "text": "Image with src \"/tutorials/xiaohei-guides/image-01-input.png\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold. Read more: https://nextjs.org/docs/app/api-referenc"
+        },
+        {
+          "type": "warning",
+          "text": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        },
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "warning",
+          "text": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview"
+        }
+      ],
+      "linkCount": 3
+    }
+  ]
+}

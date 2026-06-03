@@ -1,0 +1,160 @@
+{
+  "capturedAt": "2026-06-02T11:28:57.880Z",
+  "limitation": "Headless Chromium focus does not summon a real mobile OS virtual keyboard; 390x520 is a simulated shrunken viewport stress check.",
+  "evidence": [
+    {
+      "label": "focused-390x844-real-automation",
+      "href": "http://localhost:3000/en/studio/image",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "visualViewport": {
+        "width": 390,
+        "height": 844,
+        "offsetTop": 0,
+        "pageTop": 36,
+        "scale": 1
+      },
+      "activeElement": {
+        "tag": "TEXTAREA",
+        "id": "studio-prompt-textarea",
+        "ariaLabel": "Prompt"
+      },
+      "scroll": {
+        "x": 0,
+        "y": 36,
+        "docHeight": 880,
+        "docWidth": 390,
+        "hasHorizontalOverflow": false
+      },
+      "rects": {
+        "prompt": {
+          "left": 56,
+          "top": 411,
+          "right": 378,
+          "bottom": 614,
+          "width": 322,
+          "height": 203,
+          "visible": true,
+          "position": "relative",
+          "zIndex": "auto"
+        },
+        "dock": {
+          "left": 44,
+          "top": 402,
+          "right": 390,
+          "bottom": 622,
+          "width": 346,
+          "height": 220,
+          "visible": true,
+          "position": "sticky",
+          "zIndex": "10"
+        },
+        "bottomNav": {
+          "left": 44,
+          "top": 795,
+          "right": 390,
+          "bottom": 844,
+          "width": 346,
+          "height": 49,
+          "visible": true,
+          "position": "fixed",
+          "zIndex": "40"
+        },
+        "generate": {
+          "left": 329,
+          "top": 488,
+          "right": 369,
+          "bottom": 528,
+          "width": 40,
+          "height": 40,
+          "visible": true,
+          "position": "static",
+          "zIndex": "auto"
+        }
+      },
+      "promptAboveBottomNav": true,
+      "generateAboveBottomNav": true,
+      "dockAboveBottomNav": true,
+      "bodyTextSample": "Skip to main content EN JA ZH Studio Skip to prompt Step 1 / 3 Start with what you want to see Describe the subject, style, composition, and mood so the model has a clear direction. Previous guide image Next guide image Select a model first Templates Gallery Sign In"
+    },
+    {
+      "label": "focused-390x520-keyboard-simulated",
+      "href": "http://localhost:3000/en/studio/image",
+      "viewport": {
+        "width": 390,
+        "height": 520
+      },
+      "visualViewport": {
+        "width": 390,
+        "height": 520,
+        "offsetTop": 0,
+        "pageTop": 130,
+        "scale": 1
+      },
+      "activeElement": {
+        "tag": "TEXTAREA",
+        "id": "studio-prompt-textarea",
+        "ariaLabel": "Prompt"
+      },
+      "scroll": {
+        "x": 0,
+        "y": 130,
+        "docHeight": 706,
+        "docWidth": 390,
+        "hasHorizontalOverflow": false
+      },
+      "rects": {
+        "prompt": {
+          "left": 56,
+          "top": 317,
+          "right": 378,
+          "bottom": 520,
+          "width": 322,
+          "height": 203,
+          "visible": true,
+          "position": "relative",
+          "zIndex": "auto"
+        },
+        "dock": {
+          "left": 44,
+          "top": 308,
+          "right": 390,
+          "bottom": 528,
+          "width": 346,
+          "height": 220,
+          "visible": true,
+          "position": "sticky",
+          "zIndex": "10"
+        },
+        "bottomNav": {
+          "left": 44,
+          "top": 471,
+          "right": 390,
+          "bottom": 520,
+          "width": 346,
+          "height": 49,
+          "visible": true,
+          "position": "fixed",
+          "zIndex": "40"
+        },
+        "generate": {
+          "left": 329,
+          "top": 394,
+          "right": 369,
+          "bottom": 434,
+          "width": 40,
+          "height": 40,
+          "visible": true,
+          "position": "static",
+          "zIndex": "auto"
+        }
+      },
+      "promptAboveBottomNav": false,
+      "generateAboveBottomNav": true,
+      "dockAboveBottomNav": false,
+      "bodyTextSample": "Skip to main content EN JA ZH Studio Skip to prompt Step 1 / 3 Start with what you want to see Describe the subject, style, composition, and mood so the model has a clear direction. Previous guide image Next guide image Select a model first Templates Gallery Sign In"
+    }
+  ]
+}

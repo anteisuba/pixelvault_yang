@@ -514,8 +514,6 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "Sign up free",
-      "signedOutUtility": "Log in",
       "sharedSecondary": "See models",
       "gallerySecondary": "Browse gallery",
       "startCreating": "Start creating",

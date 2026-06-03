@@ -514,8 +514,6 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "免费注册",
-      "signedOutUtility": "登录",
       "sharedSecondary": "查看模型",
       "gallerySecondary": "浏览画廊",
       "startCreating": "开始创作",

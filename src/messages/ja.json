@@ -514,8 +514,6 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "無料登録",
-      "signedOutUtility": "ログイン",
       "sharedSecondary": "モデルを見る",
       "gallerySecondary": "ギャラリーを見る",
       "startCreating": "制作を始める",

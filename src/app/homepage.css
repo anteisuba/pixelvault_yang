@@ -1362,6 +1362,38 @@ html.homepage-motion-ready
   text-transform: uppercase;
 }
 
+.homepage-capability-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.homepage-capability-item-head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.homepage-capability-chevron {
+  flex-shrink: 0;
+  color: var(--home-muted);
+  transition: transform 200ms ease;
+}
+
+.homepage-capability-item[data-open='true'] .homepage-capability-chevron {
+  transform: rotate(180deg);
+}
+
 .homepage-capability-item-title {
   font-size: clamp(1.2rem, 1.8vw, 1.45rem);
   line-height: 1.18;
@@ -1369,8 +1401,29 @@ html.homepage-motion-ready
 }
 
 .homepage-capability-item-copy {
+  display: none;
+  margin-top: 0.75rem;
   font-size: 0.95rem;
   line-height: 1.55;
+}
+
+.homepage-capability-item[data-open='true'] .homepage-capability-item-copy {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .homepage-capability-trigger {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .homepage-capability-chevron {
+    display: none;
+  }
+
+  .homepage-capability-item-copy {
+    display: block;
+  }
 }
 
 .homepage-model-lineup {

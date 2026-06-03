@@ -1,3 +1,8 @@
+'use client'
+
+import { useState } from 'react'
+
+import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -9,6 +14,7 @@ export function HomepageCapabilityMatrix() {
   const t = useTranslations('Homepage.capabilityMatrix')
   const tFeature = useTranslations('Homepage.featureSections')
   const tHomepage = useTranslations('Homepage')
+  const [openId, setOpenId] = useState<string | null>(null)
 
   return (
     <section
@@ -33,28 +39,41 @@ export function HomepageCapabilityMatrix() {
         {HOMEPAGE_CAPABILITY_ITEMS.map((item) => {
           const translationValues =
             HOMEPAGE_FEATURE_TRANSLATION_VALUES[item.id] ?? {}
+          const isOpen = openId === item.id
 
           return (
             <article
               key={item.id}
               data-homepage-reveal-item
+              data-open={isOpen ? 'true' : undefined}
               className="homepage-capability-item"
             >
-              <div className="min-w-0">
-                {item.comingSoon && (
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="homepage-capability-trigger"
+                aria-expanded={isOpen}
+                onClick={() =>
+                  setOpenId((current) => (current === item.id ? null : item.id))
+                }
+              >
+                <span className="homepage-capability-item-head">
+                  {item.comingSoon && (
                     <span className="homepage-capability-status">
                       {tHomepage('badges.soon')}
                     </span>
-                  </div>
-                )}
-                <h3 className="homepage-capability-item-title font-display font-semibold text-foreground">
-                  {tFeature(`${item.id}.title`, translationValues)}
-                </h3>
-                <p className="homepage-capability-item-copy mt-3 text-[var(--home-muted)]">
-                  {tFeature(`${item.id}.description`, translationValues)}
-                </p>
-              </div>
+                  )}
+                  <h3 className="homepage-capability-item-title font-display font-semibold text-foreground">
+                    {tFeature(`${item.id}.title`, translationValues)}
+                  </h3>
+                </span>
+                <ChevronDown
+                  className="homepage-capability-chevron size-5"
+                  aria-hidden="true"
+                />
+              </button>
+              <p className="homepage-capability-item-copy text-[var(--home-muted)]">
+                {tFeature(`${item.id}.description`, translationValues)}
+              </p>
             </article>
           )
         })}

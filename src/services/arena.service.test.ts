@@ -14,7 +14,8 @@ const mockArenaEntryFindMany = vi.hoisted(() => vi.fn())
 const mockModelEloUpsert = vi.hoisted(() => vi.fn())
 const mockModelEloUpdateMany = vi.hoisted(() => vi.fn())
 const mockModelEloFindMany = vi.hoisted(() => vi.fn())
-const mockGenerateImageForUser = vi.hoisted(() => vi.fn())
+const mockSubmitImageGeneration = vi.hoisted(() => vi.fn())
+const mockWaitForImageGenerationResult = vi.hoisted(() => vi.fn())
 const mockFetchAsBuffer = vi.hoisted(() => vi.fn())
 const mockGenerateStorageKey = vi.hoisted(() => vi.fn())
 const mockUploadToR2 = vi.hoisted(() => vi.fn())
@@ -27,9 +28,11 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
-vi.mock('@/services/image/generate-image.service', () => ({
-  generateImageForUser: (...args: unknown[]) =>
-    mockGenerateImageForUser(...args),
+vi.mock('@/services/image/submit-image.service', () => ({
+  submitImageGeneration: (...args: unknown[]) =>
+    mockSubmitImageGeneration(...args),
+  waitForImageGenerationResult: (...args: unknown[]) =>
+    mockWaitForImageGenerationResult(...args),
 }))
 
 vi.mock('@/services/storage/r2', () => ({
@@ -145,7 +148,11 @@ describe('generateArenaEntry', () => {
       referenceImage: null,
       votedAt: null,
     })
-    mockGenerateImageForUser.mockResolvedValue({
+    mockSubmitImageGeneration.mockResolvedValue({
+      jobId: 'job-1',
+      requestId: 'wf-1',
+    })
+    mockWaitForImageGenerationResult.mockResolvedValue({
       id: 'gen-1',
       url: 'https://cdn.example.com/gen.png',
     })
@@ -168,13 +175,17 @@ describe('generateArenaEntry', () => {
       imageUrl: 'https://cdn.example.com/gen.png',
       wasVoted: false,
     })
-    expect(mockGenerateImageForUser).toHaveBeenCalledWith(
+    expect(mockSubmitImageGeneration).toHaveBeenCalledWith(
       'clerk-1',
       expect.objectContaining({
         prompt: 'a city at night',
         modelId: 'model-a',
         aspectRatio: '16:9',
       }),
+    )
+    expect(mockWaitForImageGenerationResult).toHaveBeenCalledWith(
+      'clerk-1',
+      'job-1',
     )
   })
 
@@ -190,7 +201,7 @@ describe('generateArenaEntry', () => {
         slotIndex: 0,
       }),
     ).rejects.toThrow('Match not found')
-    expect(mockGenerateImageForUser).not.toHaveBeenCalled()
+    expect(mockSubmitImageGeneration).not.toHaveBeenCalled()
   })
 })
 

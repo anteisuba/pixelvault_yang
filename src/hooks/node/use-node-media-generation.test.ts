@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api-client', () => ({
   checkAudioStatusAPI: vi.fn(),
+  checkImageGenerationStatusAPI: vi.fn(),
   checkVideoStatusAPI: vi.fn(),
   generateAudioAPI: vi.fn(),
   studioGenerateAPI: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock('@/lib/api-client', () => ({
 import { DEFAULT_ASPECT_RATIO, VIDEO_GENERATION } from '@/constants/config'
 import {
   checkAudioStatusAPI,
+  checkImageGenerationStatusAPI,
   checkVideoStatusAPI,
   generateAudioAPI,
   studioGenerateAPI,
@@ -66,7 +68,15 @@ describe('useNodeMediaGeneration', () => {
   it('generates image media through studioGenerateAPI', async () => {
     vi.mocked(studioGenerateAPI).mockResolvedValue({
       success: true,
-      data: { generation: IMAGE_GENERATION },
+      data: { jobId: 'job-image', requestId: 'request-image' },
+    })
+    vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image',
+        status: 'COMPLETED',
+        generation: IMAGE_GENERATION,
+      },
     })
 
     const { result } = renderHook(() => useNodeMediaGeneration())
@@ -138,10 +148,18 @@ describe('useNodeMediaGeneration', () => {
     expect(checkVideoStatusAPI).toHaveBeenCalledWith('job-video')
   })
 
-  it('generates audio media when the audio API returns a generation directly', async () => {
+  it('generates audio media through the queue and status API', async () => {
     vi.mocked(generateAudioAPI).mockResolvedValue({
       success: true,
-      data: { generation: AUDIO_GENERATION_RECORD },
+      data: { jobId: 'job-audio', requestId: 'request-audio' },
+    })
+    vi.mocked(checkAudioStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio',
+        status: 'COMPLETED',
+        generation: AUDIO_GENERATION_RECORD,
+      },
     })
 
     const { result } = renderHook(() => useNodeMediaGeneration())
@@ -170,6 +188,6 @@ describe('useNodeMediaGeneration', () => {
       referenceAudioUrl: undefined,
       referenceText: undefined,
     })
-    expect(checkAudioStatusAPI).not.toHaveBeenCalled()
+    expect(checkAudioStatusAPI).toHaveBeenCalledWith('job-audio')
   })
 })

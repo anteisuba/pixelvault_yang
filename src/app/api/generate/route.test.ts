@@ -7,31 +7,23 @@ import {
   mockRateLimitExceeded,
   createPOST,
   parseJSON,
-  FAKE_GENERATION,
 } from '@/test/api-helpers'
 
 // ─── Mocks ────────────────────────────────────────────────────────
 
 vi.mock('@/services/image/generate-image.service', () => ({
-  generateImageForUser: vi.fn(),
   isGenerateImageServiceError: vi.fn(),
 }))
-vi.mock('@/services/image/image-preview-derivative.service', () => ({
-  processPendingImagePreviewDerivativeOutboxes: vi.fn(),
+vi.mock('@/services/image/submit-image.service', () => ({
+  submitImageGeneration: vi.fn(),
 }))
 
 import { POST } from '@/app/api/generate/route'
-import {
-  generateImageForUser,
-  isGenerateImageServiceError,
-} from '@/services/image/generate-image.service'
-import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
+import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
+import { submitImageGeneration } from '@/services/image/submit-image.service'
 
-const mockGenerate = vi.mocked(generateImageForUser)
+const mockSubmitImageGeneration = vi.mocked(submitImageGeneration)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
-const mockProcessImagePreviewDerivatives = vi.mocked(
-  processPendingImagePreviewDerivativeOutboxes,
-)
 
 // ─── Tests ────────────────────────────────────────────────────────
 
@@ -46,7 +38,10 @@ describe('POST /api/generate', () => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
-    mockGenerate.mockResolvedValue(FAKE_GENERATION as never)
+    mockSubmitImageGeneration.mockResolvedValue({
+      jobId: 'job-image-1',
+      requestId: 'wf-image-1',
+    } as never)
     mockIsServiceError.mockReturnValue(false)
   })
 
@@ -99,35 +94,31 @@ describe('POST /api/generate', () => {
     expect(json.success).toBe(false)
   })
 
-  it('returns generation on success', async () => {
+  it('returns job references on success', async () => {
     const req = createPOST('/api/generate', VALID_BODY)
     const res = await POST(req)
     const json = await parseJSON<{
       success: boolean
-      data: { generation: typeof FAKE_GENERATION }
+      data: { jobId: string; requestId: string }
     }>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(json.data.generation).toEqual(
-      expect.objectContaining({ id: FAKE_GENERATION.id }),
-    )
-    expect(mockGenerate).toHaveBeenCalledWith(
+    expect(json.data).toEqual({
+      jobId: 'job-image-1',
+      requestId: 'wf-image-1',
+    })
+    expect(mockSubmitImageGeneration).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({ prompt: VALID_BODY.prompt }),
     )
-    await vi.waitFor(() => {
-      expect(mockProcessImagePreviewDerivatives).toHaveBeenCalledWith({
-        limit: 2,
-      })
-    })
   })
 
   it('returns sanitized error on service failure', async () => {
     const serviceError = Object.assign(new Error('Insufficient credits'), {
       status: 402,
     })
-    mockGenerate.mockRejectedValue(serviceError)
+    mockSubmitImageGeneration.mockRejectedValue(serviceError)
     mockIsServiceError.mockReturnValue(true)
 
     const req = createPOST('/api/generate', VALID_BODY)
@@ -153,7 +144,7 @@ describe('POST /api/generate', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(200)
-    expect(mockGenerate).toHaveBeenCalledWith(
+    expect(mockSubmitImageGeneration).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({
         prompt: VALID_BODY.prompt,
@@ -172,7 +163,7 @@ describe('POST /api/generate', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(200)
-    expect(mockGenerate).toHaveBeenCalledWith(
+    expect(mockSubmitImageGeneration).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.not.objectContaining({ advancedParams: expect.anything() }),
     )
@@ -194,7 +185,7 @@ describe('POST /api/generate', () => {
   })
 
   it('returns 500 on unexpected error', async () => {
-    mockGenerate.mockRejectedValue(new Error('unexpected'))
+    mockSubmitImageGeneration.mockRejectedValue(new Error('unexpected'))
     mockIsServiceError.mockReturnValue(false)
 
     const req = createPOST('/api/generate', VALID_BODY)

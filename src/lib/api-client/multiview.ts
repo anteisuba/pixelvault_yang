@@ -1,6 +1,7 @@
 import type {
   MultiViewGenerateRequest,
   MultiViewGenerateResponse,
+  MultiViewStatusResponse,
 } from '@/types'
 import { API_ENDPOINTS } from '@/constants/config'
 
@@ -26,6 +27,40 @@ export async function generateMultiViewAPI(
         error: payload.error,
         errorCode: payload.errorCode,
         i18nKey: payload.i18nKey,
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function checkMultiViewStatusAPI(
+  batchId: string,
+  jobIds: string[],
+): Promise<MultiViewStatusResponse> {
+  try {
+    const params = new URLSearchParams({
+      batchId,
+      jobIds: jobIds.join(','),
+    })
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATE_MULTIVIEW_STATUS}?${params.toString()}`,
+    )
+
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Multi-view status failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
       }
     }
 

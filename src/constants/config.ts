@@ -165,6 +165,7 @@ export const API_ENDPOINTS = {
 
   /** Multi-view generation (reference-edit chain for 3D inputs) */
   GENERATE_MULTIVIEW: '/api/generate-multiview',
+  GENERATE_MULTIVIEW_STATUS: '/api/generate-multiview/status',
 
   /** Upload a local image as a Generation row (user-upload provider) */
   UPLOAD_IMAGE: '/api/upload-image',

@@ -11,9 +11,14 @@ import type {
   GenerationRecord,
   SourceImageUpload,
 } from '@/types'
+import { IMAGE_GENERATION } from '@/constants/config'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import { CARDIFY } from '@/constants/cards/cardify'
 import type { SourceImageViewType } from '@/constants/cards/character-card'
+import {
+  checkImageGenerationStatusAPI,
+  generateImageAPI,
+} from '@/lib/api-client'
 import { CardifyPreview } from '@/components/business/cards/CardifyPreview'
 
 interface CharacterCardCreateFormProps {
@@ -24,6 +29,37 @@ interface CharacterCardCreateFormProps {
   isSubmitting: boolean
   /** If set, form creates a variant under this parent */
   parentId?: string
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function waitForCardifyGeneration(
+  jobId: string,
+): Promise<GenerationRecord | null> {
+  for (
+    let attempt = 0;
+    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+    attempt += 1
+  ) {
+    const statusResponse = await checkImageGenerationStatusAPI(jobId)
+    if (!statusResponse.success || !statusResponse.data) {
+      return null
+    }
+
+    if (statusResponse.data.status === 'COMPLETED') {
+      return statusResponse.data.generation
+    }
+
+    if (statusResponse.data.status === 'FAILED') {
+      return null
+    }
+
+    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
+  }
+
+  return null
 }
 
 export function CharacterCardCreateForm({
@@ -89,23 +125,18 @@ export function CharacterCardCreateForm({
     })
 
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: CARDIFY.PROMPT,
-          modelId: CARDIFY.DEFAULT_MODEL_ID,
-          aspectRatio: CARDIFY.ASPECT_RATIO,
-          referenceImage: originalImage,
-        }),
+      const result = await generateImageAPI({
+        prompt: CARDIFY.PROMPT,
+        modelId: CARDIFY.DEFAULT_MODEL_ID,
+        aspectRatio: CARDIFY.ASPECT_RATIO,
+        referenceImage: originalImage,
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = (await res.json()) as { generation?: GenerationRecord }
-      const url = json.generation?.url
-      if (!url) throw new Error('no url')
+      if (!result.success || !result.data) throw new Error('no job')
+      const generation = await waitForCardifyGeneration(result.data.jobId)
+      if (!generation) throw new Error('no generation')
       setCardifyState({
         originalImage,
-        renderedUrl: url,
+        renderedUrl: generation.url,
         isRendering: false,
         error: null,
       })

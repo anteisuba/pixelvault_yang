@@ -537,6 +537,7 @@ describe('submitAudioGeneration', () => {
       workflowInstanceId: 'wf-audio-1',
     })
     mockGenerationJobUpdate.mockResolvedValue(undefined)
+    vi.mocked(generateStorageKey).mockReturnValue('audio/user-1/gen.mp3')
   })
 
   it('dispatches FAL audio to the execution worker without inline provider submit', async () => {
@@ -571,6 +572,60 @@ describe('submitAudioGeneration', () => {
         }),
       }),
     )
+  })
+
+  it('dispatches Fish Audio to the execution worker without requiring queue adapter support', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+
+    const result = await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      voiceId: 'voice-1',
+      format: 'mp3',
+      withTimestamps: true,
+      temperature: 0.8,
+    })
+
+    expect(result).toEqual({
+      jobId: 'job-async-1',
+      requestId: 'wf-audio-1',
+    })
+    expect(createExecutionOutbox).not.toHaveBeenCalled()
+    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'job-async-1',
+        outputType: 'AUDIO',
+        providerId: AI_ADAPTER_TYPES.FISH_AUDIO,
+        apiKeyId: 'sync-key-1',
+        providerInput: expect.objectContaining({
+          externalModelId: 's2-pro',
+          voiceId: 'voice-1',
+          format: 'mp3',
+          withTimestamps: true,
+          temperature: 0.8,
+          providerBaseUrl: 'https://api.fish.audio',
+          outputStorageKey: 'audio/user-1/gen.mp3',
+        }),
+      }),
+    )
+  })
+
+  it('rejects Fish Audio worker submissions without voice or reference input', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+
+    await expect(
+      submitAudioGeneration('clerk-1', BASE_SYNC_REQUEST),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    })
+
+    expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
   })
 
   it('keeps routes without worker-resolvable keys on the execution outbox path', async () => {
@@ -612,10 +667,14 @@ describe('submitAudioGeneration', () => {
   })
 
   it('fails before creating durable state when the model has no async submit support', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce({
+      ...FAKE_SYNC_ROUTE,
+      modelId: 'legacy-audio',
+    } as never)
     vi.mocked(getProviderAdapter).mockReturnValue({} as never)
 
     await expect(
-      submitAudioGeneration('clerk-1', BASE_ASYNC_REQUEST),
+      submitAudioGeneration('clerk-1', BASE_SYNC_REQUEST),
     ).rejects.toMatchObject({
       code: 'UNSUPPORTED_MODEL',
       status: 400,

@@ -3,22 +3,19 @@ import 'server-only'
 /**
  * Phase 1 style transformation handler.
  *
- * Resolves style from card or preset → calls generateImageForUser N times
- * (1 or 4 variants) via Promise.allSettled → aggregates results.
+ * Resolves style from card or preset → submits worker jobs for variants
+ * via Promise.allSettled → aggregates results.
  *
  * @see 02-功能/功能-實作落地清單.md §1.2
  */
 
 import { logger } from '@/lib/logger'
 import { getTransformPresetById } from '@/constants/transform-presets'
-import { generateImageForUser } from '@/services/image/generate-image.service'
-import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import {
-  fetchAsBuffer,
-  generateStorageKey,
-  uploadToR2,
-} from '@/services/storage/r2'
-import { ensureUser } from '@/services/user.service'
+  submitImageGeneration,
+  waitForImageGenerationResult,
+} from '@/services/image/submit-image.service'
+import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import type {
   TransformInput,
   TransformOutput,
@@ -59,26 +56,7 @@ export async function handleStyleTransform(
 
   // ─── 2. Generate N variants in parallel ───────────────────────
   const variantCount = input.variants
-  let referenceImage = input.subject.imageData
-
-  // image-perf #1: a 4-variant transform request used to upload the
-  // same data:URL reference image to R2 four times. Hoist the upload
-  // once when there is more than one variant — each downstream
-  // `generateImageForUser` call's `isOwnedStorageUrl` check then
-  // short-circuits the in-line upload, and providers receive an R2
-  // URL they can fetch in parallel. Single-variant requests keep the
-  // existing parallel-with-provider path (see image-perf #2 in
-  // generate-image.service.ts).
-  if (variantCount > 1 && referenceImage?.startsWith('data:')) {
-    const dbUser = await ensureUser(clerkId)
-    const refKey = generateStorageKey('IMAGE', dbUser.id)
-    const refData = await fetchAsBuffer(referenceImage)
-    referenceImage = await uploadToR2({
-      data: refData.buffer,
-      key: refKey,
-      mimeType: refData.mimeType,
-    })
-  }
+  const referenceImage = input.subject.imageData
 
   logger.info(`[handleStyleTransform] Starting ${variantCount} variant(s)`, {
     style: input.style.type,
@@ -87,8 +65,8 @@ export async function handleStyleTransform(
   })
 
   const results = await Promise.allSettled(
-    Array.from({ length: variantCount }, () =>
-      generateImageForUser(clerkId, {
+    Array.from({ length: variantCount }, async () => {
+      const submitted = await submitImageGeneration(clerkId, {
         prompt: compiledPrompt,
         modelId: modelId!,
         aspectRatio: '1:1',
@@ -97,8 +75,9 @@ export async function handleStyleTransform(
         advancedParams: {
           referenceStrength: input.preservation.structure,
         },
-      }),
-    ),
+      })
+      return waitForImageGenerationResult(clerkId, submitted.jobId)
+    }),
   )
 
   // ─── 3. Map results to TransformOutput ────────────────────────

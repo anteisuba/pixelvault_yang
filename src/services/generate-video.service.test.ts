@@ -54,7 +54,10 @@ vi.mock('@/services/storage/r2', () => ({
   createVideoPosterAsset: (...args: unknown[]) =>
     mockCreateVideoPosterAsset(...args),
   fetchAsBuffer: (...args: unknown[]) => mockFetchAsBuffer(...args),
-  generateStorageKey: () => 'generations/user-1/image/ref.png',
+  generateStorageKey: (outputType: string) =>
+    outputType === 'VIDEO'
+      ? 'generations/user-1/video/test.mp4'
+      : 'generations/user-1/image/ref.png',
   uploadToR2: (...args: unknown[]) => mockUploadToR2(...args),
   streamUploadToR2: vi.fn(),
 }))
@@ -193,6 +196,9 @@ describe('generate-video.service worker dispatch', () => {
       callbackUrl: 'http://localhost:3000/api/internal/execution/callback',
       resolveKeyUrl: 'http://localhost:3000/api/internal/execution/resolve-key',
     })
+    expect(dispatchBody.providerInput).toMatchObject({
+      outputStorageKey: 'generations/user-1/video/test.mp4',
+    })
     expect(dispatchBody).not.toHaveProperty('apiKey')
     expect(mockGenerationJobUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -212,27 +218,16 @@ describe('generate-video.service worker dispatch', () => {
     expect(fetch).toHaveBeenCalled()
   })
 
-  it('falls back to the inline queue path when the execution worker URL is not configured', async () => {
+  it('fails when the execution worker URL is not configured', async () => {
     delete process.env.EXECUTION_WORKER_BASE_URL
-    mockSubmitVideoToQueue.mockResolvedValue({
-      requestId: 'provider-request-1',
-      statusUrl: 'https://queue.fal.run/status',
-      responseUrl: 'https://queue.fal.run/response',
-    })
 
-    const result = await submitVideoGeneration('clerk-1', buildVideoRequest())
-
-    expect(result).toEqual({
-      jobId: 'job-1',
-      requestId: 'provider-request-1',
+    await expect(
+      submitVideoGeneration('clerk-1', buildVideoRequest()),
+    ).rejects.toMatchObject({
+      code: 'UNSUPPORTED_MODEL',
+      status: 501,
     })
-    expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: 'cinematic camera move over a neon city',
-        modelId: AI_MODELS.KLING_VIDEO,
-        apiKey: 'plain-key',
-      }),
-    )
+    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -302,7 +297,7 @@ describe('generate-video.service worker dispatch', () => {
     expect(dispatchBody.providerInput.videoUrls).toBeUndefined()
   })
 
-  it('forwards videoUrls through the inline fal adapter path when the worker URL is absent', async () => {
+  it('fails without inline fallback when the worker URL is absent', async () => {
     delete process.env.EXECUTION_WORKER_BASE_URL
     mockResolveGenerationRoute.mockResolvedValueOnce({
       modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
@@ -313,30 +308,24 @@ describe('generate-video.service worker dispatch', () => {
       isFreeGeneration: false,
       creditCost: 4,
     })
-    mockSubmitVideoToQueue.mockResolvedValue({
-      requestId: 'provider-request-1',
-      statusUrl: 'https://queue.fal.run/status',
-      responseUrl: 'https://queue.fal.run/response',
+
+    await expect(
+      submitVideoGeneration(
+        'clerk-1',
+        buildVideoRequest({
+          modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+          referenceImage: 'data:image/png;base64,cmVm',
+          videoUrls: ['https://cdn.example.com/clip-a.mp4'],
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'UNSUPPORTED_MODEL',
+      status: 501,
     })
-
-    await submitVideoGeneration(
-      'clerk-1',
-      buildVideoRequest({
-        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
-        referenceImage: 'data:image/png;base64,cmVm',
-        videoUrls: ['https://cdn.example.com/clip-a.mp4'],
-      }),
-    )
-
-    expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
-        videoUrls: ['https://cdn.example.com/clip-a.mp4'],
-      }),
-    )
+    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
   })
 
-  it('keeps routes without worker-resolvable keys on the existing inline queue path', async () => {
+  it('fails routes without worker-resolvable keys instead of using inline queue', async () => {
     mockResolveGenerationRoute.mockResolvedValueOnce({
       modelId: AI_MODELS.KLING_VIDEO,
       adapterType: 'fal',
@@ -346,22 +335,17 @@ describe('generate-video.service worker dispatch', () => {
       isFreeGeneration: false,
       creditCost: 5,
     })
-    mockSubmitVideoToQueue.mockResolvedValue({
-      requestId: 'provider-request-1',
-      statusUrl: 'https://queue.fal.run/status',
-      responseUrl: 'https://queue.fal.run/response',
-    })
 
-    const result = await submitVideoGeneration(
-      'clerk-1',
-      buildVideoRequest({ workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO }),
-    )
-
-    expect(result).toEqual({
-      jobId: 'job-1',
-      requestId: 'provider-request-1',
+    await expect(
+      submitVideoGeneration(
+        'clerk-1',
+        buildVideoRequest({ workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'UNSUPPORTED_MODEL',
+      status: 501,
     })
-    expect(mockSubmitVideoToQueue).toHaveBeenCalled()
+    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
   })
 })

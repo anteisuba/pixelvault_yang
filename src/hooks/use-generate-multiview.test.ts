@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 
+import { IMAGE_GENERATION } from '@/constants/config'
 import type { MultiViewGenerateRequest, MultiViewImageRecord } from '@/types'
 
 vi.mock('next-intl', () => ({
@@ -17,6 +18,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   generateMultiViewAPI: vi.fn(),
+  checkMultiViewStatusAPI: vi.fn(),
 }))
 
 let mockAuthState: { isLoaded: boolean; userId: string | null } = {
@@ -27,10 +29,11 @@ vi.mock('@clerk/nextjs', () => ({
   useAuth: () => mockAuthState,
 }))
 
-import { generateMultiViewAPI } from '@/lib/api-client'
+import { checkMultiViewStatusAPI, generateMultiViewAPI } from '@/lib/api-client'
 import { useGenerateMultiView } from './use-generate-multiview'
 
 const mockGenerate = vi.mocked(generateMultiViewAPI)
+const mockCheckStatus = vi.mocked(checkMultiViewStatusAPI)
 
 const TEST_CLERK_ID = 'user_test_clerk_1'
 const OTHER_CLERK_ID = 'user_test_clerk_2'
@@ -59,26 +62,76 @@ const SAMPLE_VIEWS: MultiViewImageRecord[] = [
   makeView('right'),
 ]
 
+function mockSuccessfulMultiView() {
+  mockGenerate.mockResolvedValue({
+    success: true,
+    data: {
+      batchId: 'batch-1',
+      jobs: [
+        {
+          jobId: 'job-back',
+          view: 'back',
+          prompt: 'back prompt',
+          model: 'flux-edit',
+          provider: 'fal',
+        },
+        {
+          jobId: 'job-left',
+          view: 'left',
+          prompt: 'left prompt',
+          model: 'flux-edit',
+          provider: 'fal',
+        },
+        {
+          jobId: 'job-right',
+          view: 'right',
+          prompt: 'right prompt',
+          model: 'flux-edit',
+          provider: 'fal',
+        },
+      ],
+    },
+  })
+  mockCheckStatus.mockResolvedValue({
+    success: true,
+    data: {
+      batchId: 'batch-1',
+      status: 'COMPLETED',
+      views: SAMPLE_VIEWS,
+      jobs: [],
+    },
+  })
+}
+
+async function generateWithSinglePoll(
+  generate: () => Promise<MultiViewImageRecord[]>,
+) {
+  const promise = generate()
+  await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+  return promise
+}
+
 beforeEach(() => {
+  vi.useFakeTimers()
   vi.clearAllMocks()
   window.localStorage.clear()
   mockAuthState = { isLoaded: true, userId: TEST_CLERK_ID }
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   window.localStorage.clear()
 })
 
 describe('useGenerateMultiView', () => {
   it('writes a cache slot scoped to the active clerkId after generate', async () => {
-    mockGenerate.mockResolvedValue({
-      success: true,
-      data: { views: SAMPLE_VIEWS },
-    })
+    mockSuccessfulMultiView()
     const { result } = renderHook(() => useGenerateMultiView())
 
     await act(async () => {
-      await result.current.generate(SAMPLE_REQUEST)
+      await generateWithSinglePoll(() =>
+        result.current.generate(SAMPLE_REQUEST),
+      )
     })
 
     const keys = Object.keys(window.localStorage)
@@ -89,13 +142,12 @@ describe('useGenerateMultiView', () => {
 
   it('does not surface user A cache to user B even on identical imageUrl', async () => {
     // User A generates and caches.
-    mockGenerate.mockResolvedValue({
-      success: true,
-      data: { views: SAMPLE_VIEWS },
-    })
+    mockSuccessfulMultiView()
     const a = renderHook(() => useGenerateMultiView())
     await act(async () => {
-      await a.result.current.generate(SAMPLE_REQUEST)
+      await generateWithSinglePoll(() =>
+        a.result.current.generate(SAMPLE_REQUEST),
+      )
     })
     a.unmount()
 
@@ -113,16 +165,15 @@ describe('useGenerateMultiView', () => {
 
   it('skips cache reads/writes entirely while Clerk is loading', async () => {
     mockAuthState = { isLoaded: false, userId: null }
-    mockGenerate.mockResolvedValue({
-      success: true,
-      data: { views: SAMPLE_VIEWS },
-    })
+    mockSuccessfulMultiView()
     const { result } = renderHook(() => useGenerateMultiView())
 
     expect(result.current.restore(SAMPLE_REQUEST)).toBe(false)
 
     await act(async () => {
-      await result.current.generate(SAMPLE_REQUEST)
+      await generateWithSinglePoll(() =>
+        result.current.generate(SAMPLE_REQUEST),
+      )
     })
 
     // generate() still works (round-trips the API), but never persists.
@@ -130,23 +181,20 @@ describe('useGenerateMultiView', () => {
   })
 
   it('restore() returns true on cache hit for the same clerkId', async () => {
-    mockGenerate.mockResolvedValue({
-      success: true,
-      data: { views: SAMPLE_VIEWS },
-    })
+    mockSuccessfulMultiView()
     const { result } = renderHook(() => useGenerateMultiView())
 
     await act(async () => {
-      await result.current.generate(SAMPLE_REQUEST)
+      await generateWithSinglePoll(() =>
+        result.current.generate(SAMPLE_REQUEST),
+      )
     })
 
     let restored = false
     act(() => {
       result.current.reset()
     })
-    await waitFor(() => {
-      expect(result.current.views).toEqual([])
-    })
+    expect(result.current.views).toEqual([])
     act(() => {
       restored = result.current.restore(SAMPLE_REQUEST)
     })

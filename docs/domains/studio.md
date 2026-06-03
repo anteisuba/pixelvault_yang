@@ -1,6 +1,6 @@
 # Studio Domain
 
-最后更新：2026-06-02
+最后更新：2026-06-03
 
 本文档记录 Studio 业务域的当前事实、已确认目标和未决边界。它不替代生成、存储、认证、用量或 provider 架构文档。
 
@@ -85,15 +85,20 @@ Studio UI
 -> studioGenerateAPI
 -> POST /api/studio/generate
 -> compileAndGenerate
--> generateImageForUser
+-> submitImageGeneration
+-> Cloudflare Worker execution
+-> internal execution callback
+-> Generation
 ```
 
 `src/services/studio-generate.service.ts` has two image paths:
 
-- quick mode: direct `generateImageForUser`
-- card mode: `compileRecipe` then `generateImageForUser`
+- quick mode: direct worker job submit
+- card mode: `compileRecipe` then worker job submit
 
 Video and audio generation use media-specific APIs and services, not `compileAndGenerate`.
+
+Studio image, video, and audio submit APIs now return job IDs for polling. Synchronous provider execution through Next.js is not a supported fallback. Migrated image providers, ordinary image reference inputs, independent multi-view image fan-out, FAL video, FAL audio, Fish Audio, and long-video pipeline runs perform provider execution plus final artifact upload inside the Cloudflare Worker before callback finalization or DB-only long-video state updates. Next.js may standardize uploaded reference images into R2 URLs before dispatch and aggregate multi-view child job status, but it must not call provider generation. Provider-specific special image paths that are not Worker-safe fail until the matching Worker handler exists.
 
 ### Node Workflow
 

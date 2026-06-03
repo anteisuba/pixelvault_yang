@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-import { AUDIO_GENERATION } from '@/constants/config'
+import { AUDIO_GENERATION, IMAGE_GENERATION } from '@/constants/config'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -26,6 +26,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   studioGenerateAPI: vi.fn(),
+  checkImageGenerationStatusAPI: vi.fn(),
   submitVideoAPI: vi.fn(),
   checkVideoStatusAPI: vi.fn(),
   generateAudioAPI: vi.fn(),
@@ -50,6 +51,7 @@ vi.mock('@clerk/nextjs', () => ({
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
 import {
+  checkImageGenerationStatusAPI,
   studioGenerateAPI,
   generateAudioAPI,
   checkAudioStatusAPI,
@@ -57,6 +59,7 @@ import {
 import { toast } from 'sonner'
 
 const mockStudioGenerate = vi.mocked(studioGenerateAPI)
+const mockCheckImageStatus = vi.mocked(checkImageGenerationStatusAPI)
 const mockGenerateAudio = vi.mocked(generateAudioAPI)
 const mockCheckAudioStatus = vi.mocked(checkAudioStatusAPI)
 
@@ -77,9 +80,9 @@ const AUDIO_INPUT = {
   freePrompt: 'Hello world',
 }
 
-const SUCCESS_RESPONSE = {
+const SUCCESS_IMAGE_SUBMIT_RESPONSE = {
   success: true as const,
-  data: { generation: FAKE_GENERATION },
+  data: { jobId: 'job-image-123', requestId: 'request-image-123' },
 }
 
 const ERROR_RESPONSE = {
@@ -100,6 +103,14 @@ describe('useUnifiedGenerate', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(
       '00000000-0000-0000-0000-000000000000',
     )
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image-123',
+        status: 'COMPLETED',
+        generation: FAKE_GENERATION,
+      },
+    })
   })
 
   it('starts in idle state', () => {
@@ -113,18 +124,25 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('generates image in single mode and returns generation', async () => {
-    mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
 
     const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
-    let gen: unknown
+    let generationPromise: Promise<GenerationRecord | null>
     await act(async () => {
-      gen = await result.current.generate({
+      generationPromise = result.current.generate({
         mode: 'image',
         image: IMAGE_INPUT,
       })
+      await Promise.resolve()
     })
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    const gen = await generationPromise!
     expect(gen).toEqual(expect.objectContaining({ id: FAKE_GENERATION.id }))
     expect(result.current.lastGeneration?.id).toBe(FAKE_GENERATION.id)
     expect(result.current.isGenerating).toBe(false)
@@ -134,7 +152,10 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('dedupes concurrent single image generate calls', async () => {
-    let resolveGeneration!: (value: typeof SUCCESS_RESPONSE) => void
+    vi.useFakeTimers()
+    let resolveGeneration!: (
+      value: typeof SUCCESS_IMAGE_SUBMIT_RESPONSE,
+    ) => void
     mockStudioGenerate.mockReturnValue(
       new Promise((resolve) => {
         resolveGeneration = resolve
@@ -161,7 +182,9 @@ describe('useUnifiedGenerate', () => {
     expect(mockStudioGenerate).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      resolveGeneration(SUCCESS_RESPONSE)
+      resolveGeneration(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
       await expect(first).resolves.toEqual(
         expect.objectContaining({ id: FAKE_GENERATION.id }),
       )
@@ -189,13 +212,24 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('creates activeRun with correct mode for single image', async () => {
-    mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
 
     const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
+    let generationPromise: Promise<GenerationRecord | null>
     await act(async () => {
-      await result.current.generate({ mode: 'image', image: IMAGE_INPUT })
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      await Promise.resolve()
     })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
 
     expect(result.current.activeRun).not.toBeNull()
     expect(result.current.activeRun?.mode).toBe('single')
@@ -204,18 +238,38 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('generates audio and returns generation', async () => {
-    mockGenerateAudio.mockResolvedValue(SUCCESS_RESPONSE)
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-123',
+      },
+    })
+    mockCheckAudioStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-123',
+        status: 'COMPLETED',
+        generation: FAKE_GENERATION,
+      },
+    })
 
     const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
-    let gen: unknown
+    let generationPromise: Promise<GenerationRecord | null>
     await act(async () => {
-      gen = await result.current.generate({
+      generationPromise = result.current.generate({
         mode: 'audio',
         audio: AUDIO_INPUT,
       })
+      await Promise.resolve()
     })
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    const gen = await generationPromise!
     expect(gen).toEqual(expect.objectContaining({ id: FAKE_GENERATION.id }))
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -452,9 +506,10 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('retry re-sends the last request', async () => {
+    vi.useFakeTimers()
     mockStudioGenerate
       .mockResolvedValueOnce(ERROR_RESPONSE)
-      .mockResolvedValueOnce(SUCCESS_RESPONSE)
+      .mockResolvedValueOnce(SUCCESS_IMAGE_SUBMIT_RESPONSE)
 
     const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
@@ -464,9 +519,16 @@ describe('useUnifiedGenerate', () => {
 
     expect(result.current.error).toBe('Provider unavailable')
 
+    let retryPromise: Promise<GenerationRecord | null>
     await act(async () => {
-      await result.current.retry()
+      retryPromise = result.current.retry()
+      await Promise.resolve()
     })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await retryPromise!
 
     expect(result.current.lastGeneration?.id).toBe(FAKE_GENERATION.id)
     expect(result.current.error).toBeNull()
@@ -474,13 +536,24 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('reset clears all state', async () => {
-    mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
 
     const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
+    let generationPromise: Promise<GenerationRecord | null>
     await act(async () => {
-      await result.current.generate({ mode: 'image', image: IMAGE_INPUT })
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      await Promise.resolve()
     })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
 
     expect(result.current.lastGeneration).not.toBeNull()
 

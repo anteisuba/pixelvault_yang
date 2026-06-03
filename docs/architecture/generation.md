@@ -1,6 +1,6 @@
 # 生成架构
 
-最后更新：2026-06-01
+最后更新：2026-06-03
 
 本文档记录生成链路的当前事实、owner 确认的目标契约和未决项。它不记录具体 provider 参数、模型能力或价格；这些必须在 `docs/integrations/providers.md` 中基于官方资料核验。
 
@@ -20,8 +20,8 @@
 
 ### Entry Points
 
-- Studio 图片生成入口：`src/app/api/studio/generate/route.ts` -> `src/services/studio-generate.service.ts`。
-- 旧/通用图片生成入口：`src/app/api/generate/route.ts` -> image generation service。
+- Studio 图片生成入口：`src/app/api/studio/generate/route.ts` -> `src/services/studio-generate.service.ts` -> `src/services/image/submit-image.service.ts`。
+- 旧/通用图片生成入口：`src/app/api/generate/route.ts` -> `src/services/image/submit-image.service.ts`。
 - 视频生成入口：`src/app/api/generate-video/route.ts` -> `src/services/generate-video.service.ts`。
 - 音频生成入口：`src/app/api/generate-audio/route.ts` -> `src/services/generate-audio.service.ts`。
 - 3D 生成入口：`src/app/api/generate-3d/route.ts` -> `src/services/generate-3d.service.ts`。
@@ -122,13 +122,15 @@ Current normal adapter registry includes:
 
 `src/services/execution-worker.service.ts` dispatches signed worker runs.
 
-Current worker-backed or async areas include:
+Current worker-backed execution areas include:
 
-- FAL queue video runs
-- long-video pipeline workflow
+- Image worker dispatch for migrated image adapters. Current migrated scope is OpenAI, FAL, Gemini, Replicate, NovelAI, VolcEngine, and Hugging Face text-to-image plus provider-supported ordinary reference-image / image-to-image paths. Replicate LoRA image requests also submit from Worker, with Civitai LoRA token resolution through the signed internal key endpoint. Next.js standardizes reference inputs into R2/public URLs before dispatch; Worker performs provider execution, provider polling where needed, completed artifact download, R2 upload, and returns `imageR2Key`; the Next.js callback uses that key for DB finalization instead of downloading/uploading the image again. Provider-specific special paths that are not yet worker-safe fail loudly instead of falling back to Next.js provider execution.
+- FAL queue video runs. Worker performs provider submit/poll, downloads the completed video artifact, uploads it to R2, then sends the internal callback with the R2 key.
+- FAL F5-TTS audio queue runs and Fish Audio TTS runs. Worker performs provider submit/poll or TTS stream parsing, downloads/collects the completed audio artifact, uploads it to R2, then sends the internal callback with the R2 key.
+- FAL long-video pipeline runs. Next.js creates the `VideoPipeline`/`VideoPipelineClip` rows and dispatches a signed Worker workflow; Worker performs clip submit/poll/download/R2 upload and clip chaining, then calls the signed internal endpoint only for DB state updates and final `Generation` creation.
+- Independent multi-view image generation. `POST /api/generate-multiview` now creates a batch id and fans out back/left/right reference-edit image jobs through the same `IMAGE_QUEUE` Worker path; `GET /api/generate-multiview/status` aggregates the child `GenerationJob` rows and returns completed side-view `Generation` URLs for Hunyuan3D multi-view input. Next.js does not call image providers directly in this flow.
 - Hyper3D Rodin workflow
 - Hunyuan3D workflow
-- audio queue/outbox paths
 - internal execution callbacks and key resolution
 
 Internal endpoints under `src/app/api/internal/**` are Clerk-bypassed at middleware and must verify their own signatures or internal rules.
@@ -186,6 +188,15 @@ Execution layer: split by media type and provider behavior
 
 This preserves consistent asset management without hiding real provider/media complexity behind an over-generalized abstraction.
 
+Execution ownership target:
+
+```text
+Next.js: auth, validation, route/key resolution, job creation, signed dispatch, callback finalization
+Cloudflare Worker: provider submit, provider polling/retry, provider result download, R2 artifact upload
+```
+
+Next.js routes and services must not fall back to provider execution when a model or flow has not been migrated to the Worker. They should fail loudly until the Worker handler and callback contract exist.
+
 ### Studio and Node Workflow
 
 `Studio` remains the main generation center for the default creation flow.
@@ -233,7 +244,8 @@ This document does not define the final credit implementation details.
 - Whether all API routes should use `src/lib/api-route-factory.ts` consistently is unresolved.
 - The final boundary between Studio workspace routes and Node workflow route needs `docs/domains/studio.md`.
 - Long-video Node workflow should be specified in a future domain document before major implementation changes.
-- Provider/model currentness has not been checked against official docs in this pass.
+- NovelAI multi-reference Director paths still need a Worker-safe image padding/normalization handler before that provider-special path can work under the worker-only rule. The ordinary NovelAI single-reference img2img path is Worker-backed.
+- FAL queue and Veo 3.1 extend behavior were checked against official docs on 2026-06-03 for the long-video Worker migration; `fal-ai/kling-video/v3/pro/extend-video` was not discoverable in the current official docs, so that endpoint remains a code-configured path that fails loudly if FAL rejects it.
 - `package.json` still has model-doc scripts pointing to deleted `docs/reference/api/model-doc-monitor.snapshot.json`; replacement artifact location is unresolved.
 - 3D stays a branch for now, but existing code still contains active 3D services and routes. Future work should avoid expanding it unless explicitly prioritized.
 

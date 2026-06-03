@@ -5,23 +5,20 @@ import { useCallback, useState } from 'react'
 import {
   AUDIO_GENERATION,
   DEFAULT_ASPECT_RATIO,
+  IMAGE_GENERATION,
   VIDEO_GENERATION,
   type AspectRatio,
 } from '@/constants/config'
 import type { VideoResolution } from '@/constants/video-options'
 import {
   checkAudioStatusAPI,
+  checkImageGenerationStatusAPI,
   checkVideoStatusAPI,
   generateAudioAPI,
   studioGenerateAPI,
   submitVideoAPI,
 } from '@/lib/api-client'
-import type {
-  AdvancedParams,
-  GenerateAudioResponseData,
-  GenerationRecord,
-  VideoStatusResponseData,
-} from '@/types'
+import type { AdvancedParams, GenerationRecord } from '@/types'
 import type { NodeWorkflowMediaKind } from '@/types/node-workflow'
 
 const NODE_MEDIA_GENERATION_FALLBACK_ERROR = 'Node media generation failed'
@@ -83,15 +80,9 @@ interface UseNodeMediaGenerationValue {
   reset(): void
 }
 
-function hasGeneration(
-  data: GenerateAudioResponseData | VideoStatusResponseData | undefined,
-): data is { generation: GenerationRecord } {
-  return Boolean(data && 'generation' in data && data.generation)
-}
-
 function hasAudioJobId(
-  data: GenerateAudioResponseData | undefined,
-): data is { jobId: string; requestId: string } {
+  data: { jobId?: string } | undefined,
+): data is { jobId: string } {
   return Boolean(data && 'jobId' in data && data.jobId)
 }
 
@@ -121,6 +112,33 @@ async function waitForVideoGeneration(
     }
 
     await delay(VIDEO_GENERATION.POLL_INTERVAL_MS)
+  }
+
+  return null
+}
+
+async function waitForImageGeneration(
+  jobId: string,
+): Promise<GenerationRecord | null> {
+  for (
+    let attempt = 0;
+    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+    attempt += 1
+  ) {
+    const statusResponse = await checkImageGenerationStatusAPI(jobId)
+    if (!statusResponse.success || !statusResponse.data) {
+      return null
+    }
+
+    if (statusResponse.data.status === 'COMPLETED') {
+      return statusResponse.data.generation
+    }
+
+    if (statusResponse.data.status === 'FAILED') {
+      return null
+    }
+
+    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
   }
 
   return null
@@ -181,7 +199,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             advancedParams: input.advancedParams,
           })
 
-          if (!response.success || !hasGeneration(response.data)) {
+          if (!response.success || !response.data) {
             const message =
               response.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR
             setError(message)
@@ -193,7 +211,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             }
           }
 
-          generation = response.data.generation
+          generation = await waitForImageGeneration(response.data.jobId)
         }
 
         if (input.kind === 'video') {
@@ -246,9 +264,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             }
           }
 
-          if (hasGeneration(response.data)) {
-            generation = response.data.generation
-          } else if (hasAudioJobId(response.data)) {
+          if (hasAudioJobId(response.data)) {
             generation = await waitForAudioGeneration(response.data.jobId)
           }
         }

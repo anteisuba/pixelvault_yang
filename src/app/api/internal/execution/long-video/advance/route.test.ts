@@ -4,16 +4,12 @@ import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { parseJSON } from '@/test/api-helpers'
-import {
-  advanceLongVideoPipelineFromWorker,
-  failLongVideoPipelineFromWorker,
-} from '@/services/video-pipeline.service'
+import { applyLongVideoPipelineWorkerUpdate } from '@/services/video-pipeline.service'
 
 import { POST } from './route'
 
 vi.mock('@/services/video-pipeline.service', () => ({
-  advanceLongVideoPipelineFromWorker: vi.fn(),
-  failLongVideoPipelineFromWorker: vi.fn(),
+  applyLongVideoPipelineWorkerUpdate: vi.fn(),
 }))
 
 const ADVANCE_URL =
@@ -39,8 +35,7 @@ const PIPELINE_STATUS = {
   clips: [],
 }
 
-const mockAdvance = vi.mocked(advanceLongVideoPipelineFromWorker)
-const mockFail = vi.mocked(failLongVideoPipelineFromWorker)
+const mockApplyUpdate = vi.mocked(applyLongVideoPipelineWorkerUpdate)
 
 function signBody(body: string, secret = CALLBACK_SECRET): string {
   return createHmac('sha256', secret).update(body, 'utf8').digest('hex')
@@ -66,8 +61,7 @@ describe('POST /api/internal/execution/long-video/advance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.INTERNAL_CALLBACK_SECRET = CALLBACK_SECRET
-    mockAdvance.mockResolvedValue(PIPELINE_STATUS)
-    mockFail.mockResolvedValue({ ...PIPELINE_STATUS, status: 'FAILED' })
+    mockApplyUpdate.mockResolvedValue(PIPELINE_STATUS)
   })
 
   afterEach(() => {
@@ -93,11 +87,22 @@ describe('POST /api/internal/execution/long-video/advance', () => {
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
     expect(json.data?.status).toBe('RUNNING')
-    expect(mockAdvance).toHaveBeenCalledWith('pipeline-1')
-    expect(mockFail).not.toHaveBeenCalled()
+    expect(mockApplyUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'pipeline-1',
+        pipelineId: 'pipeline-1',
+        action: 'advance',
+        attempt: 2,
+      }),
+    )
   })
 
   it('marks a pipeline failed from a signed worker failure', async () => {
+    mockApplyUpdate.mockResolvedValueOnce({
+      ...PIPELINE_STATUS,
+      status: 'FAILED',
+    })
+
     const req = createAdvanceRequest({
       runId: 'pipeline-1',
       pipelineId: 'pipeline-1',
@@ -111,7 +116,12 @@ describe('POST /api/internal/execution/long-video/advance', () => {
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
     expect(json.data?.status).toBe('FAILED')
-    expect(mockFail).toHaveBeenCalledWith('pipeline-1', 'workflow timed out')
+    expect(mockApplyUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'fail',
+        error: 'workflow timed out',
+      }),
+    )
   })
 
   it('rejects missing signatures', async () => {
@@ -126,6 +136,6 @@ describe('POST /api/internal/execution/long-video/advance', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INVALID_EXECUTION_SIGNATURE')
-    expect(mockAdvance).not.toHaveBeenCalled()
+    expect(mockApplyUpdate).not.toHaveBeenCalled()
   })
 })

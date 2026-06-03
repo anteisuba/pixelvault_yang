@@ -2,8 +2,15 @@
 
 import { useCallback, useState } from 'react'
 
-import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
-import { studioGenerateAPI } from '@/lib/api-client'
+import {
+  DEFAULT_ASPECT_RATIO,
+  IMAGE_GENERATION,
+  type AspectRatio,
+} from '@/constants/config'
+import {
+  checkImageGenerationStatusAPI,
+  studioGenerateAPI,
+} from '@/lib/api-client'
 import type { AdvancedParams, GenerationRecord } from '@/types'
 
 const CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR =
@@ -41,6 +48,37 @@ interface UseCharacterImageGenerationValue {
   reset(): void
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function waitForCharacterImageGeneration(
+  jobId: string,
+): Promise<GenerationRecord | null> {
+  for (
+    let attempt = 0;
+    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+    attempt += 1
+  ) {
+    const statusResponse = await checkImageGenerationStatusAPI(jobId)
+    if (!statusResponse.success || !statusResponse.data) {
+      return null
+    }
+
+    if (statusResponse.data.status === 'COMPLETED') {
+      return statusResponse.data.generation
+    }
+
+    if (statusResponse.data.status === 'FAILED') {
+      return null
+    }
+
+    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
+  }
+
+  return null
+}
+
 export function useCharacterImageGeneration(): UseCharacterImageGenerationValue {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,11 +107,24 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
           advancedParams: input.advancedParams,
         })
 
-        if (response.success && response.data?.generation) {
+        if (response.success && response.data?.jobId) {
+          const generation = await waitForCharacterImageGeneration(
+            response.data.jobId,
+          )
+          if (!generation) {
+            const message = CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR
+            setError(message)
+            setErrorCode(null)
+            return {
+              success: false,
+              error: message,
+            }
+          }
+
           return {
             success: true,
-            generation: response.data.generation,
-            imageUrl: response.data.generation.url,
+            generation,
+            imageUrl: generation.url,
           }
         }
 

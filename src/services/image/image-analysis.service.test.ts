@@ -26,8 +26,9 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
 }))
 
-vi.mock('@/services/image/generate-image.service', () => ({
-  generateImageForUser: vi.fn(),
+vi.mock('@/services/image/submit-image.service', () => ({
+  submitImageGeneration: vi.fn(),
+  waitForImageGenerationResult: vi.fn(),
 }))
 
 const mockFetchAsBuffer = vi.fn()

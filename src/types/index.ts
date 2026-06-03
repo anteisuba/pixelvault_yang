@@ -284,9 +284,10 @@ export type GenerateRequest = z.infer<typeof GenerateRequestSchema>
 
 // ─── Generate Response ────────────────────────────────────────────
 
-/** Successful generation response data */
+/** Successful image submit response data */
 export interface GenerateResponseData {
-  generation: GenerationRecord
+  jobId: string
+  requestId: string
 }
 
 /** Image generation API response */
@@ -522,15 +523,7 @@ export const AudioStatusRequestSchema = z.object({
   jobId: z.string().trim().min(1, 'Job ID is required'),
 })
 
-export type GenerateAudioResponseData =
-  | {
-      generation: GenerationRecord
-      jobId?: never
-      requestId?: never
-    }
-  | (AudioSubmitResponseData & {
-      generation?: never
-    })
+export type GenerateAudioResponseData = AudioSubmitResponseData
 
 export interface GenerateAudioResponse {
   success: boolean
@@ -575,19 +568,7 @@ export interface ImageStatusResponse {
   error?: string
 }
 
-/**
- * Studio generate response. Async (worker dispatch) returns a jobId to poll;
- * sync (fallback / non-migrated provider) returns the generation row directly.
- */
-export type StudioGenerateResponseData =
-  | {
-      generation: GenerationRecord
-      jobId?: never
-      requestId?: never
-    }
-  | (ImageSubmitResponseData & {
-      generation?: never
-    })
+export type StudioGenerateResponseData = ImageSubmitResponseData
 
 export interface StudioGenerateResponse {
   success: boolean
@@ -1062,9 +1043,9 @@ export type Model3DStatusResponseData =
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
 
 /**
- * Generate alternate camera angles of a source image. These are temporary
- * provider URLs, not Generation rows, so the final 3D run is the only
- * archived output. Hunyuan v3/v3.1 can consume the returned views directly.
+ * Generate alternate camera angles of a source image through image worker
+ * jobs. The completed side views are IMAGE Generation rows with R2-backed
+ * URLs, and Hunyuan v3/v3.1 can consume those views directly.
  */
 export const MultiViewGenerateRequestSchema = z.object({
   /** Public URL of the front-view source image (reference) */
@@ -1083,6 +1064,13 @@ export type MultiViewGenerateRequest = z.infer<
   typeof MultiViewGenerateRequestSchema
 >
 
+export type MultiViewGeneratedAngle = 'back' | 'left' | 'right'
+
+export type MultiViewImageView =
+  | MultiViewGeneratedAngle
+  | 'leftFront'
+  | 'rightFront'
+
 export interface MultiViewImageRecord {
   id: string
   /**
@@ -1090,7 +1078,7 @@ export interface MultiViewImageRecord {
    * Hunyuan3D feeds. `leftFront / rightFront` are 45° diagonal variants kept
    * available for manual workflows; they aren't part of the default fan-out.
    */
-  view: 'back' | 'left' | 'right' | 'leftFront' | 'rightFront'
+  view: MultiViewImageView
   url: string
   width: number
   height: number
@@ -1099,9 +1087,59 @@ export interface MultiViewImageRecord {
   provider: string
 }
 
-export interface MultiViewGenerateResponseData {
-  /** Temporary side-view URLs in stable order [back, left, right]. */
+export interface MultiViewJobRecord {
+  jobId: string
+  requestId?: string
+  view: MultiViewGeneratedAngle
+  prompt: string
+  model: string
+  provider: string
+}
+
+export interface MultiViewSubmitResponseData {
+  batchId: string
+  jobs: MultiViewJobRecord[]
+}
+
+export type MultiViewGenerateResponseData = MultiViewSubmitResponseData
+
+export const MultiViewStatusRequestSchema = z
+  .object({
+    batchId: z.string().trim().min(1, 'Batch ID is required'),
+    jobIds: z.string().trim().min(1, 'Job IDs are required'),
+  })
+  .transform((value) => ({
+    batchId: value.batchId,
+    jobIds: value.jobIds
+      .split(',')
+      .map((jobId) => jobId.trim())
+      .filter((jobId) => jobId.length > 0),
+  }))
+  .superRefine((value, ctx) => {
+    if (value.jobIds.length === 0 || value.jobIds.length > 5) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['jobIds'],
+        message: 'Expected 1 to 5 job IDs',
+      })
+    }
+  })
+
+export type MultiViewStatusRequest = z.infer<
+  typeof MultiViewStatusRequestSchema
+>
+
+export interface MultiViewJobStatusRecord extends MultiViewJobRecord {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  generationId?: string
+  error?: string
+}
+
+export interface MultiViewStatusResponseData {
+  batchId: string
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   views: MultiViewImageRecord[]
+  jobs: MultiViewJobStatusRecord[]
 }
 
 export interface MultiViewGenerateResponse {
@@ -1110,6 +1148,12 @@ export interface MultiViewGenerateResponse {
   error?: string
   errorCode?: string
   i18nKey?: string
+}
+
+export interface MultiViewStatusResponse {
+  success: boolean
+  data?: MultiViewStatusResponseData
+  error?: string
 }
 
 export interface Model3DSubmitResponse {
@@ -1148,6 +1192,12 @@ export const ExecutionCallbackResultDataSchema = z.object({
   requestCount: z.number().int().positive().optional(),
   mimeType: z.string().trim().min(1).optional(),
   fetchHeaders: z.record(z.string(), z.string()).optional(),
+  /** AUDIO: pre-uploaded R2 storage key when Worker performed provider download + R2 upload */
+  audioR2Key: z.string().trim().min(1).optional(),
+  /** VIDEO: pre-uploaded R2 storage key when Worker performed provider download + R2 upload */
+  videoR2Key: z.string().trim().min(1).optional(),
+  /** IMAGE: pre-uploaded R2 storage key when Worker performed provider generation/download + R2 upload */
+  imageR2Key: z.string().trim().min(1).optional(),
   /** 3D: pre-uploaded R2 storage key (Hyper3D Rodin worker uploads GLB before callback) */
   glbR2Key: z.string().trim().min(1).optional(),
 })
@@ -1169,6 +1219,7 @@ export type ExecutionCallbackErrorData = z.infer<
 export const ResolveKeyRequestSchema = z
   .object({
     runId: z.string().trim().min(1, 'Run ID is required'),
+    keyKind: z.enum(['provider', 'civitai']).optional(),
     apiKeyId: z.string().trim().min(1, 'API key ID is required').optional(),
     adapterType: z
       .enum(
@@ -1181,6 +1232,7 @@ export const ResolveKeyRequestSchema = z
     useSystemKey: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
+    if (value.keyKind === 'civitai') return
     if (value.apiKeyId || value.useSystemKey) return
 
     ctx.addIssue({
@@ -1251,6 +1303,7 @@ const WorkerVideoProviderInputSchema = z.object({
   i2vModelId: z.string().optional(),
   videoDefaults: z.unknown().optional(),
   providerBaseUrl: z.string().trim().url().optional(),
+  outputStorageKey: z.string().trim().min(1).optional(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
 })
@@ -1259,9 +1312,10 @@ const WorkerAudioProviderInputSchema = z.object({
   prompt: z.string().min(1),
   modelId: z.string().min(1),
   externalModelId: z.string().min(1),
-  referenceAudioUrl: z.string().url(),
+  referenceAudioUrl: z.string().url().optional(),
   referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
   voiceId: z.string().min(1).optional(),
+  speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
   volume: z
     .number()
@@ -1305,7 +1359,8 @@ const WorkerAudioProviderInputSchema = z.object({
     .min(TTS_REPETITION_PENALTY_RANGE.min)
     .max(TTS_REPETITION_PENALTY_RANGE.max)
     .optional(),
-  speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
+  providerBaseUrl: z.string().trim().url().optional(),
+  outputStorageKey: z.string().trim().min(1).optional(),
 })
 
 const WorkerImageProviderInputSchema = z.object({
@@ -1318,6 +1373,7 @@ const WorkerImageProviderInputSchema = z.object({
   referenceImages: z.array(z.string()).optional(),
   /** Provider-specific params, transparently forwarded to the adapter. */
   advancedParams: z.unknown().optional(),
+  outputStorageKey: z.string().trim().min(1).optional(),
 })
 
 export const WorkerRunContextSchema = z
@@ -1352,15 +1408,52 @@ export const WorkerDispatchResultSchema = z.object({
 export type WorkerRunContext = z.infer<typeof WorkerRunContextSchema>
 export type WorkerDispatchResult = z.infer<typeof WorkerDispatchResultSchema>
 
-export const LongVideoPipelineWorkerRunContextSchema = z.object({
-  runId: z.string().trim().min(1),
-  workflowId: z.literal(EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE),
-  pipelineId: z.string().trim().min(1),
-  advanceUrl: z.string().trim().url(),
-  timeoutMs: z.number().int().positive(),
-  maxAttempts: z.number().int().positive(),
-  pollIntervalMs: z.number().int().positive(),
-})
+export const LongVideoPipelineWorkerRunContextSchema = z
+  .object({
+    runId: z.string().trim().min(1),
+    workflowId: z.literal(EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE),
+    pipelineId: z.string().trim().min(1),
+    advanceUrl: z.string().trim().url(),
+    providerId: z.string().trim().min(1),
+    apiKeyId: z.string().trim().min(1).optional(),
+    useSystemKey: z.boolean().optional(),
+    resolveKeyUrl: z.string().trim().url(),
+    timeoutMs: z.number().int().positive(),
+    maxAttempts: z.number().int().positive(),
+    pollIntervalMs: z.number().int().positive(),
+    startClipIndex: z.number().int().min(0).default(0),
+    initialVideoUrl: z.string().trim().url().optional(),
+    initialFrameUrl: z.string().trim().url().optional(),
+    providerInput: z.object({
+      prompt: z.string().trim().min(1),
+      modelId: z.string().trim().min(1),
+      externalModelId: z.string().trim().min(1),
+      aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
+      firstClipDuration: z.number().int().positive(),
+      extensionClipDuration: z.number().int().positive(),
+      totalClips: z.number().int().positive(),
+      extensionMethod: z.enum(['native_extend', 'last_frame_chain']),
+      extendEndpointId: z.string().trim().min(1).optional(),
+      referenceImage: z.string().trim().url().optional(),
+      negativePrompt: z.string().trim().min(1).optional(),
+      resolution: z.string().trim().min(1).optional(),
+      i2vModelId: z.string().trim().min(1).optional(),
+      videoDefaults: z.record(z.string(), z.unknown()).optional(),
+      providerBaseUrl: z.string().trim().url().optional(),
+      outputStorageKeys: z.array(z.string().trim().min(1)).min(1),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    }),
+  })
+  .superRefine((value, ctx) => {
+    if (value.apiKeyId || value.useSystemKey) return
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['apiKeyId'],
+      message: 'Either API key ID or system key flag is required',
+    })
+  })
 
 export type LongVideoPipelineWorkerRunContext = z.infer<
   typeof LongVideoPipelineWorkerRunContextSchema
@@ -1462,10 +1555,37 @@ export const LongVideoStatusRequestSchema = z.object({
 export const LongVideoPipelineAdvanceRequestSchema = z.object({
   runId: z.string().trim().min(1, 'Run ID is required'),
   pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
-  action: z.enum(['advance', 'fail']).default('advance'),
+  action: z
+    .enum([
+      'advance',
+      'clip-queued',
+      'clip-running',
+      'clip-completed',
+      'finalize',
+      'fail',
+    ])
+    .default('advance'),
   attempt: z.number().int().positive().optional(),
+  clipIndex: z.number().int().min(0).optional(),
+  requestId: z.string().trim().min(1).optional(),
+  statusUrl: z.string().trim().url().optional(),
+  responseUrl: z.string().trim().url().optional(),
+  inputVideoUrl: z.string().trim().url().optional(),
+  inputFrameUrl: z.string().trim().url().optional(),
+  videoUrl: z.string().trim().url().optional(),
+  storageKey: z.string().trim().min(1).optional(),
+  lastFrameUrl: z.string().trim().url().optional(),
+  durationSec: z.number().positive().optional(),
+  requestCount: z.number().int().positive().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  providerMetadata: z.record(z.string(), z.unknown()).optional(),
   error: z.string().trim().max(2000).optional(),
 })
+
+export type LongVideoPipelineAdvanceRequest = z.infer<
+  typeof LongVideoPipelineAdvanceRequestSchema
+>
 
 export type PipelineClipStatus =
   | 'PENDING'

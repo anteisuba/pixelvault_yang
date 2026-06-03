@@ -64,9 +64,14 @@ export type ExecutionOutboxKind =
 
 /**
  * Image adapters whose worker handler is live and may be dispatched async.
- * Adapters not listed fall back to synchronous generateImageForUser. Grows
- * one provider at a time as worker handlers ship.
+ * Adapters not listed fail loudly until their worker handlers ship.
  */
 export const WORKER_MIGRATED_IMAGE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = [
   AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.FAL,
+  AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.REPLICATE,
+  AI_ADAPTER_TYPES.NOVELAI,
+  AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.HUGGINGFACE,
 ]

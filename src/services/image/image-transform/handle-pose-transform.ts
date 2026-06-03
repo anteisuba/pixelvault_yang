@@ -14,7 +14,10 @@ import 'server-only'
 
 import { logger } from '@/lib/logger'
 import { DIMENSION_PROVIDERS } from '@/constants/transform-dimensions'
-import { generateImageForUser } from '@/services/image/generate-image.service'
+import {
+  submitImageGeneration,
+  waitForImageGenerationResult,
+} from '@/services/image/submit-image.service'
 import type {
   TransformInput,
   TransformOutput,
@@ -43,8 +46,8 @@ export async function handlePoseTransform(
   })
 
   const results = await Promise.allSettled(
-    Array.from({ length: variantCount }, () =>
-      generateImageForUser(clerkId, {
+    Array.from({ length: variantCount }, async () => {
+      const submitted = await submitImageGeneration(clerkId, {
         prompt,
         modelId: poseConfig.defaultModelId,
         aspectRatio: '1:1',
@@ -52,8 +55,9 @@ export async function handlePoseTransform(
         advancedParams: {
           referenceStrength: input.preservation.structure,
         },
-      }),
-    ),
+      })
+      return waitForImageGenerationResult(clerkId, submitted.jobId)
+    }),
   )
 
   let totalCost = 0

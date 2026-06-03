@@ -7,7 +7,10 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { generateImageForUser } from '@/services/image/generate-image.service'
+import {
+  submitImageGeneration,
+  waitForImageGenerationResult,
+} from '@/services/image/submit-image.service'
 import {
   detectTrustedImageMime,
   fetchAsBuffer,
@@ -264,14 +267,15 @@ export async function generateVariations(
   }
 
   const results = await Promise.allSettled(
-    models.map((model) =>
-      generateImageForUser(clerkId, {
+    models.map(async (model) => {
+      const submitted = await submitImageGeneration(clerkId, {
         prompt: analysis.generatedPrompt,
         modelId: model.modelId,
         aspectRatio,
         apiKeyId: model.apiKeyId,
-      }),
-    ),
+      })
+      return waitForImageGenerationResult(clerkId, submitted.jobId)
+    }),
   )
 
   const variations: GenerationRecord[] = []

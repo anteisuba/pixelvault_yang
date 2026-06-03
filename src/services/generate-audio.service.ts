@@ -314,10 +314,15 @@ function canSubmitAudioViaExecutionWorker(route: {
   resolvedApiKeyId?: string | null
   isFreeGeneration?: boolean
 }): boolean {
+  const hasWorkerResolvableKey =
+    Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true
+  if (!hasWorkerResolvableKey) return false
+
   return (
-    route.adapterType === AI_ADAPTER_TYPES.FAL &&
-    route.modelId === AI_MODELS.FAL_F5_TTS &&
-    (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
+    (route.adapterType === AI_ADAPTER_TYPES.FAL &&
+      route.modelId === AI_MODELS.FAL_F5_TTS) ||
+    (route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO &&
+      route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO)
   )
 }
 
@@ -332,6 +337,24 @@ function assertReferenceAudioUrl(
   throw new GenerateImageServiceError(
     'VALIDATION_ERROR',
     `${modelId} requires a reference audio URL`,
+    400,
+  )
+}
+
+function assertFishAudioVoiceInput(request: GenerateAudioRequest): void {
+  const hasVoiceId = typeof request.voiceId === 'string'
+  const hasSpeakerVoiceIds =
+    Array.isArray(request.speakerVoiceIds) && request.speakerVoiceIds.length > 0
+  const hasReferencePair =
+    typeof request.referenceAudioUrl === 'string' &&
+    typeof request.referenceText === 'string' &&
+    request.referenceText.trim().length > 0
+
+  if (hasVoiceId || hasSpeakerVoiceIds || hasReferencePair) return
+
+  throw new GenerateImageServiceError(
+    'VALIDATION_ERROR',
+    'Fish Audio requires a voice ID or a reference audio/transcript pair',
     400,
   )
 }
@@ -534,9 +557,8 @@ export async function submitAudioGeneration(
     modelId: request.modelId,
   })
 
-  const { userId, route, providerLabel, modelConfig } = await timer.measure(
-    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
-    async () => {
+  const { userId, route, providerLabel, modelConfig, adapter } =
+    await timer.measure(GENERATION_STAGE.AUTH_ROUTE_RESOLVE, async () => {
       const dbUser = await ensureUser(clerkId)
       const resolvedRoute = await resolveGenerationRoute(dbUser.id, {
         modelId: request.modelId,
@@ -544,22 +566,15 @@ export async function submitAudioGeneration(
       })
 
       const adapter = getProviderAdapter(resolvedRoute.adapterType)
-      if (!adapter?.submitAudioToQueue) {
-        throw new GenerateImageServiceError(
-          'UNSUPPORTED_MODEL',
-          'This model does not support async audio generation',
-          400,
-        )
-      }
 
       return {
         userId: dbUser.id,
         route: resolvedRoute,
         providerLabel: getProviderLabel(resolvedRoute.providerConfig),
         modelConfig: getModelById(resolvedRoute.modelId),
+        adapter,
       }
-    },
-  )
+    })
 
   timer.setContext({
     modelId: route.modelId,
@@ -569,7 +584,7 @@ export async function submitAudioGeneration(
   })
 
   if (modelConfig && canSubmitAudioViaExecutionWorker(route)) {
-    return submitFalAudioWorkerRun({
+    return submitAudioWorkerRun({
       request,
       userId,
       route,
@@ -579,6 +594,14 @@ export async function submitAudioGeneration(
       modelConfig,
       timer,
     })
+  }
+
+  if (!adapter?.submitAudioToQueue) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'This model does not support async audio generation',
+      400,
+    )
   }
 
   const routeIdentity = buildAudioRouteIdentity(route, providerLabel)
@@ -626,7 +649,7 @@ export async function submitAudioGeneration(
   }
 }
 
-async function submitFalAudioWorkerRun(params: {
+async function submitAudioWorkerRun(params: {
   request: GenerateAudioRequest
   userId: string
   route: {
@@ -652,7 +675,14 @@ async function submitFalAudioWorkerRun(params: {
     modelConfig,
     timer,
   } = params
-  const referenceAudioUrl = assertReferenceAudioUrl(request, route.modelId)
+  const referenceAudioUrl =
+    route.adapterType === AI_ADAPTER_TYPES.FAL
+      ? assertReferenceAudioUrl(request, route.modelId)
+      : request.referenceAudioUrl
+
+  if (route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO) {
+    assertFishAudioVoiceInput(request)
+  }
 
   if (!apiKeyId && !useSystemKey) {
     throw new GenerateImageServiceError(
@@ -670,6 +700,11 @@ async function submitFalAudioWorkerRun(params: {
     audioFormat: request.format,
     voiceId: request.voiceId,
   }
+  const outputStorageKey = generateStorageKey(
+    'AUDIO',
+    userId,
+    request.format ?? 'mp3',
+  )
 
   const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
     createGenerationJob({
@@ -703,10 +738,12 @@ async function submitFalAudioWorkerRun(params: {
       referenceAudioUrl,
       referenceText: request.referenceText,
       voiceId: request.voiceId,
+      speakerVoiceIds: request.speakerVoiceIds,
       speed: resolveAudioSpeed(request),
       volume: request.volume,
       normalizeLoudness: request.normalizeLoudness,
       normalizeText: request.normalizeText,
+      withTimestamps: request.withTimestamps,
       format: request.format,
       sampleRate: request.sampleRate,
       mp3Bitrate: request.mp3Bitrate,
@@ -716,6 +753,8 @@ async function submitFalAudioWorkerRun(params: {
       topP: request.topP,
       chunkLength: request.chunkLength,
       repetitionPenalty: request.repetitionPenalty,
+      providerBaseUrl: route.providerConfig.baseUrl,
+      outputStorageKey,
     },
   }
 
@@ -737,10 +776,11 @@ async function submitFalAudioWorkerRun(params: {
       }),
     )
 
-    logger.info('FAL audio dispatched to execution worker', {
+    logger.info('Audio dispatched to execution worker', {
       jobId: job.id,
       workflowInstanceId: dispatchResult.workflowInstanceId,
       model: route.modelId,
+      adapterType: route.adapterType,
     })
     timer.log({ workflowInstanceId: dispatchResult.workflowInstanceId })
 

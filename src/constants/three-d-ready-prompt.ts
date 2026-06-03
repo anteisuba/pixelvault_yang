@@ -53,5 +53,5 @@ export type MultiViewAngle = keyof typeof MULTI_VIEW_PROMPTS
  * geometry reconstruction more than the extra view helps.
  */
 export const GENERATED_VIEW_ANGLES: ReadonlyArray<
-  Exclude<MultiViewAngle, 'front'>
+  Exclude<MultiViewAngle, 'front' | 'leftFront' | 'rightFront'>
 > = ['back', 'left', 'right']

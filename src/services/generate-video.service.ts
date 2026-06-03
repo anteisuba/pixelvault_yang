@@ -15,20 +15,13 @@ import type {
   VideoStatusResponseData,
   VideoSubmitResponseData,
 } from '@/types'
-import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
-import { ProviderError } from '@/services/providers/types'
 import {
-  createVideoPosterAsset,
   fetchAsBuffer,
   generateStorageKey,
-  streamUploadToR2,
   uploadToR2,
 } from '@/services/storage/r2'
 import {
-  attachUsageEntryToGeneration,
-  completeGenerationJob,
-  createApiUsageEntry,
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
@@ -44,13 +37,10 @@ import {
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { withRetry } from '@/lib/with-retry'
-import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   GENERATION_STAGE,
   GenerationStageTimer,
-  withGenerationObservability,
 } from '@/lib/generation-observability'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
@@ -86,8 +76,9 @@ export async function submitVideoGenerationForUserId(
     modelId: input.modelId,
   })
 
-  const { executionRoute, provider, providerAdapter, modelConfig } =
-    await timer.measure(GENERATION_STAGE.AUTH_ROUTE_RESOLVE, async () => {
+  const { executionRoute, provider, modelConfig } = await timer.measure(
+    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
+    async () => {
       const promptCheck = validatePrompt(input.prompt)
       if (!promptCheck.valid) {
         throw new GenerateImageServiceError(
@@ -121,10 +112,10 @@ export async function submitVideoGenerationForUserId(
       return {
         executionRoute: resolvedRoute,
         provider: resolvedProvider,
-        providerAdapter: adapter,
         modelConfig: getModelById(resolvedRoute.modelId),
       }
-    })
+    },
+  )
 
   timer.setContext({
     modelId: executionRoute.modelId,
@@ -150,118 +141,11 @@ export async function submitVideoGenerationForUserId(
     })
   }
 
-  const breaker = getCircuitBreaker(executionRoute.adapterType)
-
-  // video-perf #4: kick off the reference-image upload before we hand
-  // off to the provider queue. The upload (typically ~1–3s) is fully
-  // independent of `submitVideoToQueue` — its result is only used as
-  // metadata for later polling. Running them in parallel hides the
-  // upload behind the provider submit window. The `.catch(() => {})`
-  // detaches the rejection so the orphan path (when submit throws
-  // first) doesn't trigger unhandledRejection; the await further down
-  // still surfaces the real error if the upload itself failed.
-  //
-  // Multi-reference models (Veo 3.1) supply `referenceImages`; we still
-  // only persist the first one as the poster reference because metadata
-  // is for callback / record-keeping only, not for re-generation.
-  const posterReference = input.referenceImage ?? input.referenceImages?.[0]
-  const referenceImageUrlPromise: Promise<string | undefined> = posterReference
-    ? timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
-        const refKey = generateStorageKey('IMAGE', userId)
-        const { buffer: refBuffer, mimeType: refMimeType } =
-          await fetchAsBuffer(posterReference)
-        return uploadToR2({
-          data: refBuffer,
-          key: refKey,
-          mimeType: refMimeType,
-        })
-      })
-    : Promise.resolve(undefined)
-  referenceImageUrlPromise.catch(() => {
-    /* swallowed; re-awaited below */
-  })
-
-  let queueResult: Awaited<
-    ReturnType<NonNullable<typeof providerAdapter.submitVideoToQueue>>
-  >
-  try {
-    queueResult = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
-      breaker.call(() =>
-        withRetry(
-          () =>
-            providerAdapter.submitVideoToQueue!({
-              prompt: input.prompt,
-              modelId: executionRoute.modelId,
-              aspectRatio: input.aspectRatio,
-              providerConfig: executionRoute.providerConfig,
-              apiKey: executionRoute.apiKey,
-              duration: input.duration,
-              referenceImage: input.referenceImage,
-              referenceImages: input.referenceImages,
-              audioUrls: input.audioUrls,
-              audioBindings: input.audioBindings,
-              videoUrls: input.videoUrls,
-              negativePrompt: input.negativePrompt,
-              resolution: input.resolution,
-              i2vModelId: modelConfig?.i2vModelId,
-              videoDefaults: modelConfig?.videoDefaults,
-            }),
-          {
-            maxAttempts: 2,
-            baseDelayMs: 2000,
-            label: `${executionRoute.adapterType}.submitVideo`,
-          },
-        ),
-      ),
-    )
-
-    logger.info('Video submitted to queue', {
-      adapter: executionRoute.adapterType,
-      modelId: executionRoute.modelId,
-      requestId: queueResult.requestId,
-    })
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : 'Video generation failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
-  }
-
-  const referenceImageUrl = await referenceImageUrlPromise
-
-  const generationJob = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
-    createGenerationJob({
-      userId,
-      adapterType: executionRoute.adapterType,
-      provider,
-      modelId: executionRoute.modelId,
-    }),
+  throw new GenerateImageServiceError(
+    'UNSUPPORTED_MODEL',
+    'This video provider has not been migrated to the execution worker yet',
+    501,
   )
-  timer.setContext({ jobId: generationJob.id })
-
-  // Store queue metadata as JSON for later polling
-  const queueMeta = JSON.stringify({
-    requestId: queueResult.requestId,
-    statusUrl: queueResult.statusUrl,
-    responseUrl: queueResult.responseUrl,
-    referenceImageUrl,
-    characterCardIds: input.characterCardIds,
-  })
-
-  await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
-    db.generationJob.update({
-      where: { id: generationJob.id },
-      data: { externalRequestId: queueMeta, prompt: input.prompt },
-    }),
-  )
-
-  timer.log({ requestId: queueResult.requestId })
-
-  return {
-    jobId: generationJob.id,
-    requestId: queueResult.requestId,
-  }
 }
 
 async function submitFalVideoWorkerRun(params: {
@@ -327,6 +211,7 @@ async function submitFalVideoWorkerRun(params: {
 
   const { width, height } =
     IMAGE_SIZES[input.aspectRatio] ?? IMAGE_SIZES['16:9']
+  const outputStorageKey = generateStorageKey('VIDEO', userId)
   const metadata = {
     workerManaged: true,
     outputType: 'VIDEO',
@@ -386,6 +271,7 @@ async function submitFalVideoWorkerRun(params: {
       i2vModelId: modelConfig.i2vModelId,
       videoDefaults: modelConfig.videoDefaults,
       providerBaseUrl: modelConfig.providerConfig.baseUrl,
+      outputStorageKey,
       width,
       height,
     },
@@ -483,23 +369,9 @@ export async function checkVideoGenerationStatusForUserId(
     )
   }
 
-  const timer = new GenerationStageTimer({
-    outputType: 'VIDEO',
-    jobId: job.id,
-    modelId: job.modelId,
-    adapterType: job.adapterType,
-    provider: job.provider,
-  })
-
   // Parse stored queue metadata
   let queueMeta: {
-    requestId: string
-    statusUrl: string
-    responseUrl: string
-    referenceImageUrl?: string
-    characterCardIds?: string[]
     workerManaged?: boolean
-    workflowInstanceId?: string
   }
   try {
     queueMeta = JSON.parse(job.externalRequestId)
@@ -515,218 +387,11 @@ export async function checkVideoGenerationStatusForUserId(
     return { jobId: job.id, status: 'IN_PROGRESS' }
   }
 
-  const executionRoute = await resolveGenerationRoute(userId, {
-    modelId: job.modelId,
+  await failGenerationJob(job.id, {
+    errorMessage:
+      'Legacy inline video jobs are no longer supported; video execution must run on the execution worker',
   })
-  const providerAdapter = getProviderAdapter(executionRoute.adapterType)
-
-  const checkVideoQueueStatus = providerAdapter?.checkVideoQueueStatus
-  if (!checkVideoQueueStatus) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      'Video status check is not supported for this provider',
-      400,
-    )
-  }
-
-  let queueStatus: Awaited<ReturnType<typeof checkVideoQueueStatus>>
-  try {
-    queueStatus = await timer.measure(GENERATION_STAGE.PROVIDER_WAIT_POLL, () =>
-      checkVideoQueueStatus({
-        statusUrl: queueMeta.statusUrl,
-        responseUrl: queueMeta.responseUrl,
-        apiKey: executionRoute.apiKey,
-      }),
-    )
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : 'Video status check failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
-  }
-
-  if (
-    queueStatus.status === 'IN_QUEUE' ||
-    queueStatus.status === 'IN_PROGRESS'
-  ) {
-    return { jobId: job.id, status: queueStatus.status }
-  }
-
-  if (queueStatus.status === 'FAILED') {
-    await failGenerationJob(job.id, {
-      errorMessage: 'Video generation failed on provider side',
-    })
-    return { jobId: job.id, status: 'FAILED' }
-  }
-
-  // COMPLETED — finalize (upload to R2, create generation record)
-  if (!queueStatus.result) {
-    await failGenerationJob(job.id, {
-      errorMessage: 'Provider returned completed but no result',
-    })
-    return { jobId: job.id, status: 'FAILED' }
-  }
-
-  // Optimistic lock: atomically claim this job for finalization
-  // updateMany with status filter ensures only one request wins the race
-  const claimed = await db.generationJob.updateMany({
-    where: { id: jobId, status: 'RUNNING' },
-    data: { status: 'QUEUED' }, // Reuse QUEUED as "finalizing" marker
-  })
-
-  if (claimed.count === 0) {
-    // Another request already claimed it — return cached or wait
-    const freshJob = await db.generationJob.findUnique({
-      where: { id: jobId },
-      include: { generation: true },
-    })
-
-    if (freshJob?.status === 'COMPLETED' && freshJob.generation) {
-      return {
-        jobId: job.id,
-        status: 'COMPLETED',
-        generation: mapGenerationToRecord(freshJob.generation),
-      }
-    }
-
-    // Still being finalized by another request
-    return { jobId: job.id, status: 'IN_PROGRESS' }
-  }
-
-  const provider = getProviderLabel(executionRoute.providerConfig)
-  const videoResult = queueStatus.result
-  timer.setDuration(
-    GENERATION_STAGE.PROVIDER_WAIT_POLL,
-    Date.now() - job.createdAt.getTime(),
-  )
-
-  const storageKey = generateStorageKey('VIDEO', userId)
-  const checkedJobId = job.id
-
-  async function tryCreateVideoPosterAsset() {
-    if (!videoResult.thumbnailUrl) {
-      timer.addNote('video_poster_unavailable')
-      return undefined
-    }
-
-    try {
-      return await createVideoPosterAsset({
-        sourceUrl: videoResult.thumbnailUrl,
-        sourceStorageKey: storageKey,
-        fetchHeaders: videoResult.fetchHeaders,
-      })
-    } catch (error) {
-      logger.warn('Video poster derivative creation failed', {
-        jobId: checkedJobId,
-        storageKey,
-        thumbnailUrl: videoResult.thumbnailUrl,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      timer.addNote('video_poster_generation_failed')
-      return undefined
-    }
-  }
-
-  try {
-    // video-perf #3: the video upload and the poster derivative both
-    // pull from provider-controlled URLs (videoUrl + thumbnailUrl) but
-    // produce independent outputs. Used to run sequentially, costing
-    // ~3–8s on the poster step that the user spent waiting for the
-    // generation row to commit. Now they share the wall clock; the
-    // poster failure path stays best-effort via the helper's try/catch.
-    const [{ publicUrl }, posterAsset] = await Promise.all([
-      timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
-        streamUploadToR2({
-          sourceUrl: videoResult.videoUrl,
-          key: storageKey,
-          mimeType: 'video/mp4',
-          fetchHeaders: videoResult.fetchHeaders,
-        }),
-      ),
-      timer.measure(
-        GENERATION_STAGE.THUMBNAIL_GENERATION,
-        tryCreateVideoPosterAsset,
-      ),
-    ])
-    timer.addNote('result_download_streamed_with_r2_upload')
-
-    const generation = await timer.measure(
-      GENERATION_STAGE.DB_FINALIZE,
-      async () => {
-        const usageEntry = await createApiUsageEntry({
-          userId,
-          generationJobId: job.id,
-          adapterType: executionRoute.adapterType,
-          provider,
-          modelId: job.modelId,
-          requestCount: videoResult.requestCount,
-          inputImageCount: 0,
-          outputImageCount: 0,
-          width: videoResult.width,
-          height: videoResult.height,
-          durationMs: Date.now() - job.createdAt.getTime(),
-          wasSuccessful: true,
-        })
-
-        const createdGeneration = await createGeneration({
-          url: publicUrl,
-          storageKey,
-          mimeType: 'video/mp4',
-          thumbnailUrl: posterAsset?.thumbnailUrl,
-          thumbnailStorageKey: posterAsset?.thumbnailStorageKey,
-          width: videoResult.width,
-          height: videoResult.height,
-          duration: videoResult.duration,
-          referenceImageUrl: queueMeta.referenceImageUrl,
-          prompt: job.prompt ?? '',
-          model: job.modelId,
-          provider,
-          requestCount: videoResult.requestCount,
-          outputType: 'VIDEO',
-          userId,
-          characterCardIds: queueMeta.characterCardIds,
-          snapshot: withGenerationObservability(
-            {
-              requestId: queueMeta.requestId,
-              referenceImageUrl: queueMeta.referenceImageUrl,
-              providerThumbnailUrl: videoResult.thumbnailUrl,
-            },
-            timer,
-          ),
-        })
-
-        await Promise.all([
-          attachUsageEntryToGeneration(usageEntry.id, createdGeneration.id),
-          completeGenerationJob(job.id, {
-            generationId: createdGeneration.id,
-            requestCount: videoResult.requestCount,
-          }),
-        ])
-
-        return createdGeneration
-      },
-    )
-
-    timer.setContext({ generationId: generation.id })
-    timer.log({ requestId: queueMeta.requestId })
-
-    return {
-      jobId: job.id,
-      status: 'COMPLETED',
-      generation: mapGenerationToRecord(generation),
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to persist video'
-
-    await failGenerationJob(job.id, {
-      requestCount: videoResult.requestCount,
-      errorMessage: message,
-    })
-
-    throw error
-  }
+  return { jobId: job.id, status: 'FAILED' }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────

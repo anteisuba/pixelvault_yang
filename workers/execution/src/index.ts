@@ -23,6 +23,15 @@ const HYPER3D_BASE_URL = 'https://api.hyper3d.com'
 const IMAGE_QUEUE_PATH = '/workflows/image-queue'
 const IMAGE_QUEUE_WORKFLOW_ID = 'IMAGE_QUEUE'
 const OPENAI_BASE_URL = 'https://api.openai.com'
+const GEMINI_IMAGE_BASE_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models'
+const HUGGINGFACE_IMAGE_BASE_URL =
+  'https://router.huggingface.co/hf-inference/models'
+const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
+const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
+const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
+const R2_WORKER_BASE = 'https://r2.anteisuba.com'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
@@ -104,6 +113,7 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     i2vModelId?: string
     videoDefaults?: Record<string, unknown>
     providerBaseUrl?: string
+    outputStorageKey?: string
     width: number
     height: number
   }
@@ -115,12 +125,26 @@ interface WorkerAudioRunContext extends WorkerRunContextBase {
     prompt: string
     modelId: string
     externalModelId: string
-    referenceAudioUrl: string
+    referenceAudioUrl?: string
     referenceText?: string
     voiceId?: string
+    speakerVoiceIds?: string[]
     speed?: number
+    volume?: number
+    normalizeLoudness?: boolean
+    normalizeText?: boolean
+    withTimestamps?: boolean
     format?: string
     sampleRate?: number
+    mp3Bitrate?: number
+    opusBitrate?: number
+    latency?: string
+    temperature?: number
+    topP?: number
+    chunkLength?: number
+    repetitionPenalty?: number
+    providerBaseUrl?: string
+    outputStorageKey?: string
   }
 }
 
@@ -146,6 +170,7 @@ interface WorkerImageRunContext {
     referenceImage?: string
     referenceImages?: string[]
     advancedParams?: Record<string, unknown>
+    outputStorageKey?: string
   }
 }
 
@@ -154,9 +179,36 @@ interface LongVideoPipelineRunContext {
   workflowId: typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID
   pipelineId: string
   advanceUrl: string
+  providerId: string
+  apiKeyId?: string
+  useSystemKey?: boolean
+  resolveKeyUrl: string
   timeoutMs: number
   maxAttempts: number
   pollIntervalMs: number
+  startClipIndex: number
+  initialVideoUrl?: string
+  initialFrameUrl?: string
+  providerInput: {
+    prompt: string
+    modelId: string
+    externalModelId: string
+    aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
+    firstClipDuration: number
+    extensionClipDuration: number
+    totalClips: number
+    extensionMethod: 'native_extend' | 'last_frame_chain'
+    extendEndpointId?: string
+    referenceImage?: string
+    negativePrompt?: string
+    resolution?: string
+    i2vModelId?: string
+    videoDefaults?: Record<string, unknown>
+    providerBaseUrl?: string
+    outputStorageKeys: string[]
+    width: number
+    height: number
+  }
 }
 
 interface LongVideoPipelineStatus {
@@ -178,7 +230,7 @@ interface WorkerModel3DRunContext {
   maxAttempts: number
   pollIntervalMs: number
   providerInput: {
-    imageUrl: string
+    imageUrl?: string
     modelId: string
     externalModelId: string
     seed?: number
@@ -274,12 +326,36 @@ function readPositiveNumberField(
   return typeof fieldValue === 'number' && fieldValue > 0 ? fieldValue : null
 }
 
+function readNumberField(
+  value: Record<string, unknown>,
+  key: string,
+): number | null {
+  const fieldValue = value[key]
+  return typeof fieldValue === 'number' && Number.isFinite(fieldValue)
+    ? fieldValue
+    : null
+}
+
 function readBooleanField(
   value: Record<string, unknown>,
   key: string,
 ): boolean | null {
   const fieldValue = value[key]
   return typeof fieldValue === 'boolean' ? fieldValue : null
+}
+
+function readStringArrayField(
+  value: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
+  const fieldValue = value[key]
+  if (!Array.isArray(fieldValue)) return undefined
+
+  const strings = fieldValue.filter(
+    (item): item is string =>
+      typeof item === 'string' && item.trim().length > 0,
+  )
+  return strings.length > 0 ? strings : undefined
 }
 
 function readCallbackKind(value: Record<string, unknown>): CallbackKind {
@@ -529,7 +605,21 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       providerInput,
       'referenceAudioUrl',
     )
-    if (!referenceAudioUrl) return null
+    const speakerVoiceIds = readStringArrayField(
+      providerInput,
+      'speakerVoiceIds',
+    )
+    const voiceId = readStringField(providerInput, 'voiceId') ?? undefined
+
+    if (providerId === 'fal' && !referenceAudioUrl) return null
+    if (
+      providerId === 'fish_audio' &&
+      !voiceId &&
+      !speakerVoiceIds &&
+      !(referenceAudioUrl && readStringField(providerInput, 'referenceText'))
+    ) {
+      return null
+    }
 
     return {
       runId,
@@ -547,14 +637,38 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
         prompt,
         modelId,
         externalModelId,
-        referenceAudioUrl,
+        referenceAudioUrl: referenceAudioUrl ?? undefined,
         referenceText:
           readStringField(providerInput, 'referenceText') ?? undefined,
-        voiceId: readStringField(providerInput, 'voiceId') ?? undefined,
+        voiceId,
+        speakerVoiceIds,
         speed: readPositiveNumberField(providerInput, 'speed') ?? undefined,
+        volume: readNumberField(providerInput, 'volume') ?? undefined,
+        normalizeLoudness:
+          readBooleanField(providerInput, 'normalizeLoudness') ?? undefined,
+        normalizeText:
+          readBooleanField(providerInput, 'normalizeText') ?? undefined,
+        withTimestamps:
+          readBooleanField(providerInput, 'withTimestamps') ?? undefined,
         format: readStringField(providerInput, 'format') ?? undefined,
         sampleRate:
           readPositiveNumberField(providerInput, 'sampleRate') ?? undefined,
+        mp3Bitrate:
+          readPositiveNumberField(providerInput, 'mp3Bitrate') ?? undefined,
+        opusBitrate:
+          readPositiveNumberField(providerInput, 'opusBitrate') ?? undefined,
+        latency: readStringField(providerInput, 'latency') ?? undefined,
+        temperature: readNumberField(providerInput, 'temperature') ?? undefined,
+        topP: readNumberField(providerInput, 'topP') ?? undefined,
+        chunkLength:
+          readPositiveNumberField(providerInput, 'chunkLength') ?? undefined,
+        repetitionPenalty:
+          readPositiveNumberField(providerInput, 'repetitionPenalty') ??
+          undefined,
+        providerBaseUrl:
+          readStringField(providerInput, 'providerBaseUrl') ?? undefined,
+        outputStorageKey:
+          readStringField(providerInput, 'outputStorageKey') ?? undefined,
       },
     }
   }
@@ -635,6 +749,8 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
         : undefined,
       providerBaseUrl:
         readStringField(providerInput, 'providerBaseUrl') ?? undefined,
+      outputStorageKey:
+        readStringField(providerInput, 'outputStorageKey') ?? undefined,
       width,
       height,
     },
@@ -645,23 +761,67 @@ function parseLongVideoPipelineRunContext(
   input: unknown,
 ): LongVideoPipelineRunContext | null {
   if (!isRecord(input)) return null
+  const providerInput = input.providerInput
+  if (!isRecord(providerInput)) return null
 
   const runId = readStringField(input, 'runId')
   const workflowId = readStringField(input, 'workflowId')
   const pipelineId = readStringField(input, 'pipelineId')
   const advanceUrl = readStringField(input, 'advanceUrl')
+  const providerId = readStringField(input, 'providerId')
+  const apiKeyId = readStringField(input, 'apiKeyId') ?? undefined
+  const useSystemKey = readBooleanField(input, 'useSystemKey') ?? undefined
+  const resolveKeyUrl = readStringField(input, 'resolveKeyUrl')
   const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
   const maxAttempts = readPositiveNumberField(input, 'maxAttempts')
   const pollIntervalMs = readPositiveNumberField(input, 'pollIntervalMs')
+  const startClipIndex = readNumberField(input, 'startClipIndex') ?? 0
+  const prompt = readStringField(providerInput, 'prompt')
+  const modelId = readStringField(providerInput, 'modelId')
+  const externalModelId = readStringField(providerInput, 'externalModelId')
+  const aspectRatio = readStringField(providerInput, 'aspectRatio')
+  const firstClipDuration = readPositiveNumberField(
+    providerInput,
+    'firstClipDuration',
+  )
+  const extensionClipDuration = readPositiveNumberField(
+    providerInput,
+    'extensionClipDuration',
+  )
+  const totalClips = readPositiveNumberField(providerInput, 'totalClips')
+  const extensionMethod = readStringField(providerInput, 'extensionMethod')
+  const outputStorageKeys = readStringArrayField(
+    providerInput,
+    'outputStorageKeys',
+  )
+  const width = readPositiveNumberField(providerInput, 'width')
+  const height = readPositiveNumberField(providerInput, 'height')
 
   if (
     !runId ||
     !isLongVideoPipelineWorkflowId(workflowId) ||
     !pipelineId ||
     !advanceUrl ||
+    !providerId ||
+    (!apiKeyId && !useSystemKey) ||
+    !resolveKeyUrl ||
     !timeoutMs ||
     !maxAttempts ||
-    !pollIntervalMs
+    !pollIntervalMs ||
+    startClipIndex < 0 ||
+    !prompt ||
+    !modelId ||
+    !externalModelId ||
+    !aspectRatio ||
+    !firstClipDuration ||
+    !extensionClipDuration ||
+    !totalClips ||
+    (extensionMethod !== 'native_extend' &&
+      extensionMethod !== 'last_frame_chain') ||
+    !outputStorageKeys ||
+    outputStorageKeys.length < totalClips ||
+    !width ||
+    !height
   ) {
     return null
   }
@@ -671,9 +831,43 @@ function parseLongVideoPipelineRunContext(
     workflowId,
     pipelineId,
     advanceUrl,
+    providerId,
+    apiKeyId,
+    useSystemKey,
+    resolveKeyUrl,
     timeoutMs,
     maxAttempts,
     pollIntervalMs,
+    startClipIndex,
+    initialVideoUrl: readStringField(input, 'initialVideoUrl') ?? undefined,
+    initialFrameUrl: readStringField(input, 'initialFrameUrl') ?? undefined,
+    providerInput: {
+      prompt,
+      modelId,
+      externalModelId,
+      aspectRatio:
+        aspectRatio as LongVideoPipelineRunContext['providerInput']['aspectRatio'],
+      firstClipDuration,
+      extensionClipDuration,
+      totalClips,
+      extensionMethod,
+      extendEndpointId:
+        readStringField(providerInput, 'extendEndpointId') ?? undefined,
+      referenceImage:
+        readStringField(providerInput, 'referenceImage') ?? undefined,
+      negativePrompt:
+        readStringField(providerInput, 'negativePrompt') ?? undefined,
+      resolution: readStringField(providerInput, 'resolution') ?? undefined,
+      i2vModelId: readStringField(providerInput, 'i2vModelId') ?? undefined,
+      videoDefaults: isRecord(providerInput.videoDefaults)
+        ? providerInput.videoDefaults
+        : undefined,
+      providerBaseUrl:
+        readStringField(providerInput, 'providerBaseUrl') ?? undefined,
+      outputStorageKeys,
+      width,
+      height,
+    },
   }
 }
 
@@ -704,6 +898,7 @@ function parseModel3DRunContext(
   const imageUrl = readStringField(providerInput, 'imageUrl')
   const modelId = readStringField(providerInput, 'modelId')
   const externalModelId = readStringField(providerInput, 'externalModelId')
+  const prompt = readStringField(providerInput, 'prompt')
 
   if (
     !runId ||
@@ -716,9 +911,10 @@ function parseModel3DRunContext(
     !timeoutMs ||
     !maxAttempts ||
     !pollIntervalMs ||
-    !imageUrl ||
     !modelId ||
-    !externalModelId
+    !externalModelId ||
+    (workflowId === HUNYUAN3D_WORKFLOW_ID && !imageUrl) ||
+    (workflowId === HYPER3D_RODIN_WORKFLOW_ID && !imageUrl && !prompt)
   ) {
     return null
   }
@@ -753,7 +949,7 @@ function parseModel3DRunContext(
     maxAttempts,
     pollIntervalMs,
     providerInput: {
-      imageUrl,
+      imageUrl: imageUrl ?? undefined,
       modelId,
       externalModelId,
       seed: readPositiveNumberField(providerInput, 'seed') ?? undefined,
@@ -782,6 +978,7 @@ function parseModel3DRunContext(
         readPositiveNumberField(providerInput, 'octreeResolution') ?? undefined,
       generateType: readStringField(providerInput, 'generateType') ?? undefined,
       polygonType: readStringField(providerInput, 'polygonType') ?? undefined,
+      prompt: prompt ?? undefined,
     },
   }
 }
@@ -1076,6 +1273,11 @@ async function submitRodinTextureOnlyJob(
       'rodin_texture_only requires providerInput.parentMeshUrl (GLB to texture).',
     )
   }
+  if (!providerInput.imageUrl) {
+    throw new Error(
+      'rodin_texture_only requires providerInput.imageUrl (reference image).',
+    )
+  }
 
   const form = new FormData()
 
@@ -1353,6 +1555,32 @@ function readFalModel3DResult(resultData: Record<string, unknown>): {
   return { artifactUrl: null, mimeType: 'model/gltf-binary' }
 }
 
+async function downloadAndUploadModel3DArtifact(
+  env: ExecutionEnv,
+  context: WorkerModel3DRunContext,
+  artifactUrl: string,
+  mimeType: string,
+): Promise<{ artifactUrl: string; glbR2Key: string }> {
+  const response = await fetch(artifactUrl)
+  if (!response.ok) {
+    throw new Error(
+      `3D artifact download failed with status ${response.status}`,
+    )
+  }
+
+  const buffer = await response.arrayBuffer()
+  const glbR2Key = `3d/${context.runId}/model.glb`
+
+  await env.GENERATION_BUCKET.put(glbR2Key, buffer, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: `${env.R2_PUBLIC_URL}/${glbR2Key}`,
+    glbR2Key,
+  }
+}
+
 async function handleHyper3DRodinDispatch(
   request: Request,
   env: ExecutionEnv,
@@ -1539,7 +1767,7 @@ async function handleFalQueueDispatch(
 
 async function resolveApiKey(
   env: ExecutionEnv,
-  context: WorkerRunContext,
+  context: WorkerRunContext | LongVideoPipelineRunContext,
 ): Promise<string> {
   if (!env.INTERNAL_CALLBACK_SECRET) {
     throw new Error('Internal callback secret is not configured.')
@@ -1577,6 +1805,10 @@ function buildFalWorkerAudioQueueRequest(context: WorkerAudioRunContext): {
   input: Record<string, unknown>
   isDocumentationVerified: boolean
 } {
+  if (!context.providerInput.referenceAudioUrl) {
+    throw new Error('fal.ai F5-TTS requires referenceAudioUrl.')
+  }
+
   const body: Record<string, unknown> = {
     gen_text: context.providerInput.prompt,
     ref_audio_url: context.providerInput.referenceAudioUrl,
@@ -1648,6 +1880,501 @@ async function submitFalQueue(
   }
 
   return { requestId, statusUrl, responseUrl }
+}
+
+function buildLongVideoClipQueueContext(
+  context: LongVideoPipelineRunContext,
+  clipIndex: number,
+  referenceImage: string | undefined,
+  duration: number,
+  outputStorageKey: string,
+): WorkerVideoRunContext {
+  return {
+    runId: `${context.runId}:clip-${clipIndex}`,
+    workflowId: 'FAL_QUEUE',
+    outputType: 'VIDEO',
+    providerId: context.providerId,
+    apiKeyId: context.apiKeyId,
+    useSystemKey: context.useSystemKey,
+    callbackUrl: context.advanceUrl,
+    resolveKeyUrl: context.resolveKeyUrl,
+    timeoutMs: context.timeoutMs,
+    maxAttempts: context.maxAttempts,
+    pollIntervalMs: context.pollIntervalMs,
+    providerInput: {
+      prompt: context.providerInput.prompt,
+      modelId: context.providerInput.modelId,
+      externalModelId: context.providerInput.externalModelId,
+      aspectRatio: context.providerInput.aspectRatio,
+      duration,
+      referenceImage,
+      negativePrompt: context.providerInput.negativePrompt,
+      resolution: context.providerInput.resolution,
+      i2vModelId: context.providerInput.i2vModelId,
+      videoDefaults: context.providerInput.videoDefaults,
+      providerBaseUrl: context.providerInput.providerBaseUrl,
+      outputStorageKey,
+      width: context.providerInput.width,
+      height: context.providerInput.height,
+    },
+  }
+}
+
+function getLongVideoClipDuration(
+  context: LongVideoPipelineRunContext,
+  clipIndex: number,
+): number {
+  return clipIndex === 0
+    ? context.providerInput.firstClipDuration
+    : context.providerInput.extensionClipDuration
+}
+
+function getFalExtendDurationValue(
+  context: LongVideoPipelineRunContext,
+  duration: number,
+): string {
+  const endpoint = context.providerInput.extendEndpointId ?? ''
+  if (endpoint.includes('veo3.1')) {
+    return `${duration}s`
+  }
+  return String(duration)
+}
+
+async function submitFalLongVideoExtendQueue(
+  context: LongVideoPipelineRunContext,
+  apiKey: string,
+  previousVideoUrl: string,
+  clipIndex: number,
+): Promise<FalQueueSubmitResult> {
+  const extendEndpointId = context.providerInput.extendEndpointId
+  if (!extendEndpointId) {
+    throw new Error('Long-video native extend endpoint is not configured.')
+  }
+
+  const duration = getLongVideoClipDuration(context, clipIndex)
+  const input: Record<string, unknown> = {
+    prompt: context.providerInput.prompt,
+    video_url: previousVideoUrl,
+    aspect_ratio: context.providerInput.aspectRatio,
+    duration: getFalExtendDurationValue(context, duration),
+  }
+
+  appendDefinedBodyValue(
+    input,
+    'negative_prompt',
+    context.providerInput.negativePrompt,
+  )
+  appendDefinedBodyValue(input, 'resolution', context.providerInput.resolution)
+
+  const response = await fetch(`https://queue.fal.run/${extendEndpointId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Key ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(input),
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `fal.ai long-video extend submit failed with status ${response.status}`,
+    )
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const requestId = readStringField(data, 'request_id')
+  const statusUrl = readStringField(data, 'status_url')
+  const responseUrl = readStringField(data, 'response_url')
+
+  if (!requestId || !statusUrl || !responseUrl) {
+    throw new Error('fal.ai extend submit returned an invalid response.')
+  }
+
+  return { requestId, statusUrl, responseUrl }
+}
+
+async function submitFalLongVideoClipQueue(
+  context: LongVideoPipelineRunContext,
+  apiKey: string,
+  clipIndex: number,
+  previousVideoUrl: string | undefined,
+  previousFrameUrl: string | undefined,
+): Promise<{
+  queue: FalQueueSubmitResult
+  inputVideoUrl?: string
+  inputFrameUrl?: string
+}> {
+  const duration = getLongVideoClipDuration(context, clipIndex)
+
+  if (
+    clipIndex > 0 &&
+    context.providerInput.extensionMethod === 'native_extend'
+  ) {
+    if (!previousVideoUrl) {
+      throw new Error('Long-video native extend is missing previous video URL.')
+    }
+    return {
+      queue: await submitFalLongVideoExtendQueue(
+        context,
+        apiKey,
+        previousVideoUrl,
+        clipIndex,
+      ),
+      inputVideoUrl: previousVideoUrl,
+    }
+  }
+
+  const referenceImage =
+    clipIndex === 0 ? context.providerInput.referenceImage : previousFrameUrl
+  if (
+    clipIndex > 0 &&
+    context.providerInput.extensionMethod === 'last_frame_chain' &&
+    !referenceImage
+  ) {
+    throw new Error(
+      'Long-video last-frame chain is missing previous frame URL.',
+    )
+  }
+
+  const queueContext = buildLongVideoClipQueueContext(
+    context,
+    clipIndex,
+    referenceImage,
+    duration,
+    context.providerInput.outputStorageKeys[clipIndex],
+  )
+
+  return {
+    queue: await submitFalQueue(queueContext, apiKey),
+    inputFrameUrl: clipIndex > 0 ? referenceImage : undefined,
+  }
+}
+
+interface FishAudioSubmitResult {
+  artifactUrl: string
+  audioR2Key: string
+  mimeType: string
+  duration?: number
+  providerMetadata: Record<string, unknown>
+}
+
+function getAudioMimeSubtype(format: string): string {
+  if (format === 'mp3') return 'mpeg'
+  return format
+}
+
+function getAudioMimeType(format: string): string {
+  return `audio/${getAudioMimeSubtype(format)}`
+}
+
+function getEstimatedAudioDuration(
+  byteLength: number,
+  format: string,
+  sampleRate?: number,
+): number {
+  if (format === 'wav') {
+    const bytesPerSecond = (sampleRate ?? 44100) * 2
+    return Math.max(1, Math.round(byteLength / bytesPerSecond))
+  }
+
+  const bytesPerSecond = format === 'opus' ? 4000 : 16000
+  return Math.max(1, Math.round(byteLength / bytesPerSecond))
+}
+
+function appendDefinedBodyValue(
+  body: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void {
+  if (value !== undefined) {
+    body[key] = value
+  }
+}
+
+function buildFishAudioRequestBody(
+  context: WorkerAudioRunContext,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const outputFormat = providerInput.format ?? 'mp3'
+  const body: Record<string, unknown> = {
+    text: providerInput.prompt,
+    format: outputFormat,
+    normalize: providerInput.normalizeText ?? true,
+  }
+
+  appendDefinedBodyValue(body, 'sample_rate', providerInput.sampleRate)
+
+  if (providerInput.speakerVoiceIds?.length) {
+    body.reference_id = providerInput.speakerVoiceIds
+  } else if (providerInput.voiceId) {
+    body.reference_id = providerInput.voiceId
+  } else if (providerInput.referenceAudioUrl && providerInput.referenceText) {
+    body.references = [
+      {
+        audio: providerInput.referenceAudioUrl,
+        text: providerInput.referenceText.trim(),
+      },
+    ]
+  } else {
+    throw new Error(
+      'Fish Audio requires a voice ID or a reference audio/transcript pair.',
+    )
+  }
+
+  const prosody: Record<string, unknown> = {}
+  appendDefinedBodyValue(prosody, 'speed', providerInput.speed)
+  appendDefinedBodyValue(prosody, 'volume', providerInput.volume)
+  appendDefinedBodyValue(
+    prosody,
+    'normalize_loudness',
+    providerInput.normalizeLoudness,
+  )
+  if (Object.keys(prosody).length > 0) {
+    body.prosody = prosody
+  }
+
+  if (outputFormat === 'mp3') {
+    appendDefinedBodyValue(body, 'mp3_bitrate', providerInput.mp3Bitrate)
+  }
+  if (outputFormat === 'opus') {
+    appendDefinedBodyValue(body, 'opus_bitrate', providerInput.opusBitrate)
+  }
+
+  appendDefinedBodyValue(body, 'latency', providerInput.latency)
+  appendDefinedBodyValue(body, 'temperature', providerInput.temperature)
+  appendDefinedBodyValue(body, 'top_p', providerInput.topP)
+  appendDefinedBodyValue(body, 'chunk_length', providerInput.chunkLength)
+  appendDefinedBodyValue(
+    body,
+    'repetition_penalty',
+    providerInput.repetitionPenalty,
+  )
+
+  return body
+}
+
+function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
+  const totalLength = chunks.reduce((total, chunk) => total + chunk.length, 0)
+  const combined = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    combined.set(chunk, offset)
+    offset += chunk.length
+  }
+  return combined
+}
+
+function parseFishTimestampEvent(
+  eventText: string,
+  chunks: Uint8Array[],
+): number | null {
+  const dataLine = eventText
+    .split('\n')
+    .find((line) => line.startsWith('data: '))
+  if (!dataLine) return null
+
+  const event = JSON.parse(dataLine.slice(6)) as unknown
+  if (!isRecord(event)) return null
+
+  const audioBase64 = readStringField(event, 'audio_base64')
+  if (audioBase64) {
+    chunks.push(base64ToBytes(audioBase64))
+  }
+
+  const offset = readNumberField(event, 'chunk_audio_offset_sec') ?? 0
+  const alignment = isRecord(event.alignment) ? event.alignment : null
+  const audioDuration = alignment
+    ? (readNumberField(alignment, 'audio_duration') ?? 0)
+    : 0
+
+  return audioDuration > 0 ? offset + audioDuration : null
+}
+
+async function parseFishTimestampStream(response: Response): Promise<{
+  audioBytes: Uint8Array
+  duration?: number
+  chunkCount: number
+}> {
+  if (!response.body) {
+    throw new Error('Fish Audio timestamp stream returned an empty body.')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  const chunks: Uint8Array[] = []
+  let buffer = ''
+  let duration = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split('\n\n')
+    buffer = events.pop() ?? ''
+
+    for (const eventText of events) {
+      duration = Math.max(
+        duration,
+        parseFishTimestampEvent(eventText, chunks) ?? 0,
+      )
+    }
+  }
+
+  if (buffer.trim()) {
+    duration = Math.max(duration, parseFishTimestampEvent(buffer, chunks) ?? 0)
+  }
+
+  return {
+    audioBytes: concatUint8Arrays(chunks),
+    duration: duration > 0 ? Math.round(duration) : undefined,
+    chunkCount: chunks.length,
+  }
+}
+
+function buildR2PublicUrl(env: ExecutionEnv, key: string): string {
+  return `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`
+}
+
+async function submitFishAudio(
+  env: ExecutionEnv,
+  context: WorkerAudioRunContext,
+  apiKey: string,
+): Promise<FishAudioSubmitResult> {
+  const { providerInput } = context
+  const outputFormat = providerInput.format ?? 'mp3'
+  const mimeType = getAudioMimeType(outputFormat)
+  const endpointPath = providerInput.withTimestamps
+    ? '/v1/tts/stream/with-timestamp'
+    : '/v1/tts'
+  const baseUrl = (
+    providerInput.providerBaseUrl ?? 'https://api.fish.audio'
+  ).replace(/\/$/, '')
+
+  const response = await fetch(`${baseUrl}${endpointPath}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+      model: providerInput.externalModelId,
+    },
+    body: JSON.stringify(buildFishAudioRequestBody(context)),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Fish Audio TTS failed with status ${response.status}`)
+  }
+
+  const parsed = providerInput.withTimestamps
+    ? await parseFishTimestampStream(response)
+    : {
+        audioBytes: new Uint8Array(await response.arrayBuffer()),
+        duration: undefined,
+        chunkCount: undefined,
+      }
+
+  if (parsed.audioBytes.byteLength === 0) {
+    throw new Error('Fish Audio returned an empty audio response.')
+  }
+
+  const duration =
+    parsed.duration ??
+    getEstimatedAudioDuration(
+      parsed.audioBytes.byteLength,
+      outputFormat,
+      providerInput.sampleRate,
+    )
+  const audioR2Key =
+    providerInput.outputStorageKey ??
+    `generations/worker/audio/${context.runId}/output.${outputFormat}`
+
+  await env.GENERATION_BUCKET.put(audioR2Key, parsed.audioBytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: buildR2PublicUrl(env, audioR2Key),
+    audioR2Key,
+    mimeType,
+    duration,
+    providerMetadata: {
+      endpointPath,
+      model: providerInput.externalModelId,
+      format: outputFormat,
+      ...(parsed.chunkCount !== undefined && {
+        timestampChunkCount: parsed.chunkCount,
+      }),
+    },
+  }
+}
+
+async function downloadAndUploadAudioArtifact(
+  env: ExecutionEnv,
+  context: WorkerAudioRunContext,
+  artifactUrl: string,
+  mimeType: string,
+): Promise<{ artifactUrl: string; audioR2Key: string }> {
+  const response = await fetch(artifactUrl)
+  if (!response.ok) {
+    throw new Error(
+      `Audio artifact download failed with status ${response.status}`,
+    )
+  }
+
+  const audioBytes = await response.arrayBuffer()
+  const outputFormat = context.providerInput.format ?? 'wav'
+  const audioR2Key =
+    context.providerInput.outputStorageKey ??
+    `generations/worker/audio/${context.runId}/output.${outputFormat}`
+
+  await env.GENERATION_BUCKET.put(audioR2Key, audioBytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: buildR2PublicUrl(env, audioR2Key),
+    audioR2Key,
+  }
+}
+
+async function downloadAndUploadVideoArtifact(
+  env: ExecutionEnv,
+  context: WorkerVideoRunContext,
+  artifactUrl: string,
+  mimeType: string,
+): Promise<{ artifactUrl: string; videoR2Key: string }> {
+  return downloadAndUploadVideoArtifactToKey(
+    env,
+    artifactUrl,
+    mimeType,
+    context.providerInput.outputStorageKey ??
+      `generations/worker/video/${context.runId}/output.mp4`,
+  )
+}
+
+async function downloadAndUploadVideoArtifactToKey(
+  env: ExecutionEnv,
+  artifactUrl: string,
+  mimeType: string,
+  videoR2Key: string,
+): Promise<{ artifactUrl: string; videoR2Key: string }> {
+  const response = await fetch(artifactUrl)
+  if (!response.ok) {
+    throw new Error(
+      `Video artifact download failed with status ${response.status}`,
+    )
+  }
+
+  const videoBytes = await response.arrayBuffer()
+
+  await env.GENERATION_BUCKET.put(videoR2Key, videoBytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: buildR2PublicUrl(env, videoR2Key),
+    videoR2Key,
+  }
 }
 
 function readFalAudioArtifact(resultData: Record<string, unknown>): {
@@ -1801,6 +2528,36 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         },
       )
 
+      if (
+        context.outputType === 'AUDIO' &&
+        context.providerId === 'fish_audio'
+      ) {
+        const audioResult = await step.do(
+          'submit-fish-audio-and-upload-r2',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 1_800_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return submitFishAudio(this.env, context, apiKey)
+          },
+        )
+
+        await step.do('callback-result', async () =>
+          emitCallback(this.env, context, {
+            artifactUrl: audioResult.artifactUrl,
+            audioR2Key: audioResult.audioR2Key,
+            providerMetadata: audioResult.providerMetadata,
+            duration: audioResult.duration,
+            requestCount: 1,
+            mimeType: audioResult.mimeType,
+          }),
+        )
+
+        return { status: 'COMPLETED', runId: context.runId }
+      }
+
       const queue = await step.do(
         'submit-provider',
         {
@@ -1833,9 +2590,62 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         }
 
         if (pollResult.status === 'COMPLETED' && pollResult.artifactUrl) {
+          const artifactUrl = pollResult.artifactUrl
+          let workerArtifactUrl: string | undefined
+          let audioR2Key: string | undefined
+          let videoR2Key: string | undefined
+
+          if (context.outputType === 'AUDIO') {
+            const uploaded = await step.do(
+              'download-and-upload-audio',
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '120 seconds',
+              },
+              () =>
+                downloadAndUploadAudioArtifact(
+                  this.env,
+                  context,
+                  artifactUrl,
+                  pollResult.mimeType ?? 'audio/wav',
+                ),
+            )
+            workerArtifactUrl = uploaded.artifactUrl
+            audioR2Key = uploaded.audioR2Key
+          }
+
+          if (context.outputType === 'VIDEO') {
+            const uploaded = await step.do(
+              'download-and-upload-video',
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '120 seconds',
+              },
+              () =>
+                downloadAndUploadVideoArtifact(
+                  this.env,
+                  context,
+                  artifactUrl,
+                  pollResult.mimeType ?? 'video/mp4',
+                ),
+            )
+            workerArtifactUrl = uploaded.artifactUrl
+            videoR2Key = uploaded.videoR2Key
+          }
+
           await step.do('callback-result', async () =>
             emitCallback(this.env, context, {
-              artifactUrl: pollResult.artifactUrl,
+              artifactUrl: workerArtifactUrl ?? artifactUrl,
+              audioR2Key,
+              videoR2Key,
               thumbnailUrl: pollResult.thumbnailUrl,
               providerMetadata: pollResult.providerMetadata,
               width:
@@ -1883,11 +2693,38 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
   }
 }
 
-async function postLongVideoPipelineAdvance(
+type LongVideoPipelineWorkerAction =
+  | 'advance'
+  | 'clip-queued'
+  | 'clip-running'
+  | 'clip-completed'
+  | 'finalize'
+  | 'fail'
+
+interface LongVideoPipelineWorkerUpdateData {
+  attempt?: number
+  clipIndex?: number
+  requestId?: string
+  statusUrl?: string
+  responseUrl?: string
+  inputVideoUrl?: string
+  inputFrameUrl?: string
+  videoUrl?: string
+  storageKey?: string
+  lastFrameUrl?: string
+  durationSec?: number
+  requestCount?: number
+  width?: number
+  height?: number
+  providerMetadata?: Record<string, unknown>
+  error?: string
+}
+
+async function postLongVideoPipelineUpdate(
   env: ExecutionEnv,
   context: LongVideoPipelineRunContext,
-  action: 'advance' | 'fail',
-  data?: { attempt?: number; error?: string },
+  action: LongVideoPipelineWorkerAction,
+  data: LongVideoPipelineWorkerUpdateData = {},
 ): Promise<LongVideoPipelineStatus> {
   if (!env.INTERNAL_CALLBACK_SECRET) {
     throw new Error('Internal callback secret is not configured.')
@@ -1900,14 +2737,13 @@ async function postLongVideoPipelineAdvance(
       runId: context.runId,
       pipelineId: context.pipelineId,
       action,
-      attempt: data?.attempt,
-      error: data?.error,
+      ...data,
     },
   )
 
   if (!response.ok) {
     throw new Error(
-      `Long-video pipeline advance failed with status ${response.status}`,
+      `Long-video pipeline update failed with status ${response.status}`,
     )
   }
 
@@ -1918,13 +2754,13 @@ async function postLongVideoPipelineAdvance(
   }
 
   if (payload.success !== true || !isRecord(payload.data)) {
-    throw new Error(payload.error ?? 'Invalid long-video advance response.')
+    throw new Error(payload.error ?? 'Invalid long-video update response.')
   }
 
   const pipelineId = readStringField(payload.data, 'pipelineId')
   const status = readStringField(payload.data, 'status')
   if (!pipelineId || !status) {
-    throw new Error('Long-video advance response is missing pipeline status.')
+    throw new Error('Long-video update response is missing pipeline status.')
   }
 
   return {
@@ -1945,31 +2781,235 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
-      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
-        const status = await step.do(
-          `advance-pipeline-${attempt}`,
+      if (context.providerId !== 'fal') {
+        throw new Error('Only fal.ai long-video pipelines are worker-migrated.')
+      }
+
+      const encryptedApiKey = await step.do(
+        'resolve-api-key',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        async () => {
+          const plaintext = await resolveApiKey(this.env, context)
+          return encryptStateString(plaintext, this.env)
+        },
+      )
+
+      let previousVideoUrl = context.initialVideoUrl
+      let previousFrameUrl = context.initialFrameUrl
+      const attemptsPerClip = Math.max(
+        1,
+        Math.ceil(context.maxAttempts / context.providerInput.totalClips),
+      )
+
+      for (
+        let clipIndex = context.startClipIndex;
+        clipIndex < context.providerInput.totalClips;
+        clipIndex += 1
+      ) {
+        const pipelineStatus = await step.do(
+          `read-pipeline-${clipIndex}`,
           {
             retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: Math.min(context.timeoutMs, 1_800_000),
+            timeout: '30 seconds',
           },
           () =>
-            postLongVideoPipelineAdvance(this.env, context, 'advance', {
-              attempt,
+            postLongVideoPipelineUpdate(this.env, context, 'advance', {
+              attempt: clipIndex + 1,
             }),
         )
 
-        if (isLongVideoPipelineTerminalStatus(status.status)) {
+        if (isLongVideoPipelineTerminalStatus(pipelineStatus.status)) {
           return {
-            status: status.status,
+            status: pipelineStatus.status,
             runId: context.runId,
             pipelineId: context.pipelineId,
           }
         }
 
-        await step.sleep(`wait-pipeline-${attempt}`, context.pollIntervalMs)
+        const outputStorageKey =
+          context.providerInput.outputStorageKeys[clipIndex]
+        if (!outputStorageKey) {
+          throw new Error(
+            `Missing output storage key for clip ${clipIndex + 1}.`,
+          )
+        }
+
+        const clipQueue = await step.do(
+          `submit-clip-${clipIndex}`,
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 1_800_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return submitFalLongVideoClipQueue(
+              context,
+              apiKey,
+              clipIndex,
+              previousVideoUrl,
+              previousFrameUrl,
+            )
+          },
+        )
+
+        const queuedStatus = await step.do(
+          `mark-clip-${clipIndex}-queued`,
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          () =>
+            postLongVideoPipelineUpdate(this.env, context, 'clip-queued', {
+              clipIndex,
+              requestId: clipQueue.queue.requestId,
+              statusUrl: clipQueue.queue.statusUrl,
+              responseUrl: clipQueue.queue.responseUrl,
+              inputVideoUrl: clipQueue.inputVideoUrl,
+              inputFrameUrl: clipQueue.inputFrameUrl,
+              providerMetadata: { workflowInstanceId: event.instanceId },
+            }),
+        )
+        if (isLongVideoPipelineTerminalStatus(queuedStatus.status)) {
+          return {
+            status: queuedStatus.status,
+            runId: context.runId,
+            pipelineId: context.pipelineId,
+          }
+        }
+
+        let completedClip:
+          | { videoUrl: string; storageKey: string; lastFrameUrl?: string }
+          | undefined
+        let markedRunning = false
+
+        for (let attempt = 1; attempt <= attemptsPerClip; attempt += 1) {
+          await step.sleep(
+            `wait-clip-${clipIndex}-${attempt}`,
+            context.pollIntervalMs,
+          )
+
+          const pollResult = await step.do(
+            `poll-clip-${clipIndex}-${attempt}`,
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '30 seconds',
+            },
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              return pollFalQueue(clipQueue.queue, apiKey, 'VIDEO')
+            },
+          )
+
+          if (pollResult.status === 'FAILED') {
+            throw new Error(
+              `Provider reported failed status for clip ${clipIndex + 1}.`,
+            )
+          }
+
+          if (pollResult.status === 'IN_PROGRESS' && !markedRunning) {
+            await step.do(
+              `mark-clip-${clipIndex}-running`,
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '30 seconds',
+              },
+              () =>
+                postLongVideoPipelineUpdate(this.env, context, 'clip-running', {
+                  clipIndex,
+                }),
+            )
+            markedRunning = true
+          }
+
+          if (pollResult.status === 'COMPLETED' && pollResult.artifactUrl) {
+            const artifactUrl = pollResult.artifactUrl
+            const uploaded = await step.do(
+              `upload-clip-${clipIndex}`,
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '120 seconds',
+              },
+              () =>
+                downloadAndUploadVideoArtifactToKey(
+                  this.env,
+                  artifactUrl,
+                  pollResult.mimeType ?? 'video/mp4',
+                  outputStorageKey,
+                ),
+            )
+
+            completedClip = {
+              videoUrl: uploaded.artifactUrl,
+              storageKey: uploaded.videoR2Key,
+              lastFrameUrl: pollResult.thumbnailUrl,
+            }
+
+            await step.do(
+              `mark-clip-${clipIndex}-completed`,
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '30 seconds',
+              },
+              () =>
+                postLongVideoPipelineUpdate(
+                  this.env,
+                  context,
+                  'clip-completed',
+                  {
+                    clipIndex,
+                    videoUrl: completedClip?.videoUrl,
+                    storageKey: completedClip?.storageKey,
+                    lastFrameUrl: completedClip?.lastFrameUrl,
+                    durationSec: getLongVideoClipDuration(context, clipIndex),
+                    requestCount: 1,
+                    width: context.providerInput.width,
+                    height: context.providerInput.height,
+                    providerMetadata: pollResult.providerMetadata,
+                  },
+                ),
+            )
+
+            break
+          }
+        }
+
+        if (!completedClip) {
+          throw new Error(`Long-video clip ${clipIndex + 1} polling timed out.`)
+        }
+
+        previousVideoUrl = completedClip.videoUrl
+        previousFrameUrl = completedClip.lastFrameUrl
       }
 
-      throw new Error('Long-video pipeline polling timed out.')
+      const finalStatus = await step.do(
+        'finalize-pipeline',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        () => postLongVideoPipelineUpdate(this.env, context, 'finalize'),
+      )
+
+      return {
+        status: finalStatus.status,
+        runId: context.runId,
+        pipelineId: context.pipelineId,
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -1977,7 +3017,7 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
           : 'Long-video workflow execution failed.'
 
       await step.do('mark-pipeline-failed', async () =>
-        postLongVideoPipelineAdvance(this.env, context, 'fail', {
+        postLongVideoPipelineUpdate(this.env, context, 'fail', {
           error: message,
         }),
       )
@@ -2241,9 +3281,25 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
           'artifactUrl' in pollResult &&
           pollResult.artifactUrl
         ) {
+          const uploaded = await step.do(
+            'download-and-upload-glb',
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '120 seconds',
+            },
+            () =>
+              downloadAndUploadModel3DArtifact(
+                this.env,
+                context,
+                pollResult.artifactUrl,
+                pollResult.mimeType ?? 'model/gltf-binary',
+              ),
+          )
+
           await step.do('callback-result', async () =>
             emitModel3DCallback(this.env, context, {
-              artifactUrl: pollResult.artifactUrl,
+              artifactUrl: uploaded.artifactUrl,
+              glbR2Key: uploaded.glbR2Key,
               mimeType: pollResult.mimeType ?? 'model/gltf-binary',
               providerMetadata: {
                 requestId: queue.requestId,
@@ -2356,6 +3412,8 @@ function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
       referenceImage,
       referenceImages,
       advancedParams,
+      outputStorageKey:
+        readStringField(providerInput, 'outputStorageKey') ?? undefined,
     },
   }
 }
@@ -2393,6 +3451,35 @@ async function resolveApiKeyImage(
   }
 
   return payload.data.apiKey
+}
+
+async function resolveCivitaiTokenImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+): Promise<string | null> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const response = await postSignedJson(
+    context.resolveKeyUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      keyKind: 'civitai',
+    },
+  )
+
+  if (!response.ok) return null
+
+  const payload = (await response.json()) as {
+    success?: boolean
+    data?: { apiKey?: unknown }
+  }
+
+  return payload.success === true && typeof payload.data?.apiKey === 'string'
+    ? payload.data.apiKey
+    : null
 }
 
 async function emitImageCallback(
@@ -2438,6 +3525,1100 @@ function aspectRatioToOpenAISize(aspectRatio: string): {
   }
 }
 
+const FAL_IMAGE_SIZES: Record<string, string> = {
+  '1:1': 'square_hd',
+  '16:9': 'landscape_16_9',
+  '9:16': 'portrait_16_9',
+  '4:3': 'landscape_4_3',
+  '3:4': 'portrait_4_3',
+}
+
+const FAL_IMAGE_DIMENSIONS: Record<string, { width: number; height: number }> =
+  {
+    '1:1': { width: 1024, height: 1024 },
+    '16:9': { width: 1792, height: 1024 },
+    '9:16': { width: 1024, height: 1792 },
+    '4:3': { width: 1024, height: 768 },
+    '3:4': { width: 768, height: 1024 },
+  }
+
+const FAL_KONTEXT_SINGLE_IMAGE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
+const FAL_KONTEXT_MULTI_IMAGE_MODELS = new Set([
+  'fal-ai/flux-pro/kontext/max/multi',
+])
+const FAL_IDEOGRAM_MULTI_IMAGE_MODELS = new Set(['fal-ai/ideogram/v3'])
+const FAL_TEXT_TO_IMAGE_ONLY_MODELS = new Set([
+  'fal-ai/flux-lora',
+  'fal-ai/flux-2-pro',
+  'fal-ai/flux-2',
+  'fal-ai/flux-2-max',
+  'fal-ai/flux/schnell',
+  'fal-ai/bytedance/seedream/v4.5/text-to-image',
+  'fal-ai/recraft/v4/pro/text-to-image',
+])
+
+interface FalImageResult {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  imageUrl?: string
+  width?: number
+  height?: number
+  mimeType?: string
+  providerMetadata?: Record<string, unknown>
+}
+
+function invertReferenceStrength(value: number): number {
+  return Math.max(0.01, Math.min(0.99, 1 - value))
+}
+
+function readAdvancedRecord(
+  context: WorkerImageRunContext,
+): Record<string, unknown> {
+  return context.providerInput.advancedParams ?? {}
+}
+
+function getImageReferenceInputs(context: WorkerImageRunContext): string[] {
+  if (context.providerInput.referenceImages?.length) {
+    return context.providerInput.referenceImages
+  }
+  return context.providerInput.referenceImage
+    ? [context.providerInput.referenceImage]
+    : []
+}
+
+interface ImageLoraInput {
+  url: string
+  scale?: number | null
+}
+
+function getImageLoraInputs(context: WorkerImageRunContext): ImageLoraInput[] {
+  const loras = readAdvancedRecord(context).loras
+  if (!Array.isArray(loras)) return []
+
+  return loras.flatMap((candidate): ImageLoraInput[] => {
+    if (!isRecord(candidate)) return []
+    const url = readStringField(candidate, 'url')
+    if (!url) return []
+    return [{ url, scale: readNumberField(candidate, 'scale') }]
+  })
+}
+
+function hasCivitaiLora(context: WorkerImageRunContext): boolean {
+  return getImageLoraInputs(context).some((lora) =>
+    lora.url.includes('civitai.com'),
+  )
+}
+
+function injectCivitaiToken(url: string, civitaiToken: string | null): string {
+  if (!civitaiToken || !url.includes('civitai.com')) return url
+  try {
+    const parsed = new URL(url)
+    if (!parsed.searchParams.has('token')) {
+      parsed.searchParams.set('token', civitaiToken)
+    }
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
+function toReplicateReachableUrl(url: string, env: ExecutionEnv): string {
+  if (OLD_R2_DEV_PATTERN.test(url)) {
+    const key = url.replace(OLD_R2_DEV_PATTERN, '')
+    return `${R2_WORKER_BASE}/${key}`
+  }
+
+  const publicBase = env.R2_PUBLIC_URL.replace(/\/$/, '')
+  if (url.startsWith(`${publicBase}/`)) {
+    const key = url.slice(publicBase.length + 1)
+    return `${R2_WORKER_BASE}/${key}`
+  }
+
+  return url
+}
+
+async function resolveReplicateCivitaiUrl(
+  url: string,
+  civitaiToken: string | null,
+): Promise<string> {
+  if (!url.includes('civitai.com/api/download')) return url
+
+  if (civitaiToken) {
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        redirect: 'manual',
+        headers: { Authorization: `Bearer ${civitaiToken}` },
+      })
+      const cdnUrl = response.headers.get('location')
+      if (cdnUrl?.includes('.safetensors')) return cdnUrl
+    } catch {
+      // Fall through to token-in-URL mode; Replicate's downloader follows
+      // redirects but cannot attach Authorization headers for Civitai.
+    }
+  }
+
+  return injectCivitaiToken(url, civitaiToken)
+}
+
+function buildFalImageInput(
+  context: WorkerImageRunContext,
+  civitaiToken: string | null = null,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const advancedParams = readAdvancedRecord(context)
+  const input: Record<string, unknown> = {
+    prompt: providerInput.prompt,
+    image_size: FAL_IMAGE_SIZES[providerInput.aspectRatio] ?? 'square_hd',
+    num_images: 1,
+  }
+
+  const negativePrompt = readStringField(advancedParams, 'negativePrompt')
+  if (negativePrompt) input.negative_prompt = negativePrompt
+
+  const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
+  if (guidanceScale != null) input.guidance_scale = guidanceScale
+
+  const steps = readPositiveNumberField(advancedParams, 'steps')
+  if (steps != null) input.num_inference_steps = steps
+
+  const seed = readNumberField(advancedParams, 'seed')
+  if (seed != null && seed >= 0) input.seed = Math.round(seed)
+
+  const loras = getImageLoraInputs(context)
+  if (loras.length > 0) {
+    input.loras = loras.map((lora) => ({
+      path: injectCivitaiToken(lora.url, civitaiToken),
+      scale: lora.scale ?? 1,
+    }))
+  }
+
+  const externalModelId = providerInput.externalModelId
+  if (FAL_KONTEXT_MULTI_IMAGE_MODELS.has(externalModelId)) {
+    if (providerInput.referenceImages?.length) {
+      input.image_urls = providerInput.referenceImages
+    }
+  } else if (FAL_IDEOGRAM_MULTI_IMAGE_MODELS.has(externalModelId)) {
+    if (providerInput.referenceImages?.length) {
+      input.image_urls = providerInput.referenceImages.slice(0, 3)
+    }
+  } else if (FAL_KONTEXT_SINGLE_IMAGE_MODELS.has(externalModelId)) {
+    const referenceImage =
+      providerInput.referenceImages?.[0] ?? providerInput.referenceImage
+    if (referenceImage) input.image_url = referenceImage
+  } else if (!FAL_TEXT_TO_IMAGE_ONLY_MODELS.has(externalModelId)) {
+    const referenceImage =
+      providerInput.referenceImages?.[0] ?? providerInput.referenceImage
+    if (referenceImage) {
+      input.image_url = referenceImage
+      const referenceStrength = readNumberField(
+        advancedParams,
+        'referenceStrength',
+      )
+      if (referenceStrength != null) {
+        input.strength = invertReferenceStrength(referenceStrength)
+      }
+    }
+  }
+
+  return input
+}
+
+async function submitFalImageQueue(
+  context: WorkerImageRunContext,
+  apiKey: string,
+  civitaiToken: string | null = null,
+): Promise<FalQueueSubmitResult> {
+  const response = await fetch(
+    `https://queue.fal.run/${context.providerInput.externalModelId}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': JSON_CONTENT_TYPE,
+      },
+      body: JSON.stringify(buildFalImageInput(context, civitaiToken)),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(
+      `fal.ai image queue submit failed with status ${response.status}`,
+    )
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const requestId = readStringField(data, 'request_id')
+  const statusUrl = readStringField(data, 'status_url')
+  const responseUrl = readStringField(data, 'response_url')
+
+  if (!requestId || !statusUrl || !responseUrl) {
+    throw new Error('fal.ai image queue submit returned an invalid response.')
+  }
+
+  return { requestId, statusUrl, responseUrl }
+}
+
+async function pollFalImageQueue(
+  queue: FalQueueSubmitResult,
+  apiKey: string,
+): Promise<FalImageResult> {
+  const statusResponse = await fetch(queue.statusUrl, {
+    headers: { Authorization: `Key ${apiKey}` },
+  })
+
+  if (!statusResponse.ok) {
+    throw new Error(
+      `fal.ai image status poll failed with status ${statusResponse.status}`,
+    )
+  }
+
+  const statusData = (await statusResponse.json()) as Record<string, unknown>
+  const status = readStringField(statusData, 'status')
+  if (status && isFalQueueFailureStatus(status)) {
+    return {
+      status: 'FAILED',
+      providerMetadata: { requestId: queue.requestId },
+    }
+  }
+  if (status !== 'COMPLETED') {
+    return {
+      status: status === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'IN_QUEUE',
+      providerMetadata: { requestId: queue.requestId },
+    }
+  }
+
+  const resultResponse = await fetch(queue.responseUrl, {
+    headers: { Authorization: `Key ${apiKey}` },
+  })
+
+  if (!resultResponse.ok) {
+    throw new Error(
+      `fal.ai image result fetch failed with status ${resultResponse.status}`,
+    )
+  }
+
+  const resultData = (await resultResponse.json()) as Record<string, unknown>
+  const nsfw = Array.isArray(resultData.has_nsfw_concepts)
+    ? resultData.has_nsfw_concepts.some(Boolean)
+    : false
+  if (nsfw) {
+    return {
+      status: 'FAILED',
+      providerMetadata: { requestId: queue.requestId, moderation: 'nsfw' },
+    }
+  }
+
+  const images = Array.isArray(resultData.images) ? resultData.images : []
+  const firstImage = images.find(isRecord)
+  const imageUrl = firstImage ? readStringField(firstImage, 'url') : null
+  if (!imageUrl) {
+    throw new Error(
+      'fal.ai image result response did not include an image URL.',
+    )
+  }
+
+  return {
+    status: 'COMPLETED',
+    imageUrl,
+    width: firstImage
+      ? (readPositiveNumberField(firstImage, 'width') ?? undefined)
+      : undefined,
+    height: firstImage
+      ? (readPositiveNumberField(firstImage, 'height') ?? undefined)
+      : undefined,
+    mimeType:
+      (firstImage ? readStringField(firstImage, 'content_type') : null) ??
+      undefined,
+    providerMetadata: {
+      requestId: queue.requestId,
+      statusUrl: queue.statusUrl,
+      responseUrl: queue.responseUrl,
+    },
+  }
+}
+
+async function downloadAndUploadImageArtifactToKey(
+  env: ExecutionEnv,
+  artifactUrl: string,
+  fallbackMimeType: string,
+  imageR2Key: string,
+  fetchHeaders?: Record<string, string>,
+): Promise<{ artifactUrl: string; imageR2Key: string; mimeType: string }> {
+  const response = await fetch(artifactUrl, { headers: fetchHeaders })
+  if (!response.ok) {
+    throw new Error(
+      `Image artifact download failed with status ${response.status}`,
+    )
+  }
+
+  const imageBytes = await response.arrayBuffer()
+  const mimeType =
+    response.headers.get('content-type')?.split(';')[0] ?? fallbackMimeType
+
+  await env.GENERATION_BUCKET.put(imageR2Key, imageBytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: buildR2PublicUrl(env, imageR2Key),
+    imageR2Key,
+    mimeType,
+  }
+}
+
+async function readReferenceImageAsInlinePart(
+  referenceImage: string,
+): Promise<Record<string, unknown>> {
+  const dataUrlMatch = referenceImage.match(/^data:([^;]+);base64,(.+)$/)
+  if (dataUrlMatch) {
+    return {
+      inlineData: {
+        mimeType: dataUrlMatch[1],
+        data: dataUrlMatch[2],
+      },
+    }
+  }
+
+  const response = await fetch(referenceImage)
+  if (!response.ok) {
+    throw new Error(
+      `Reference image download failed with status ${response.status}`,
+    )
+  }
+
+  const mimeType =
+    response.headers.get('content-type')?.split(';')[0] ?? 'image/png'
+  return {
+    inlineData: {
+      mimeType,
+      data: bytesToBase64(new Uint8Array(await response.arrayBuffer())),
+    },
+  }
+}
+
+async function readReferenceImageAsBase64(
+  referenceImage: string,
+): Promise<string> {
+  const dataUrlMatch = referenceImage.match(/^data:[^;]+;base64,(.+)$/)
+  if (dataUrlMatch) return dataUrlMatch[1]
+
+  const response = await fetch(referenceImage)
+  if (!response.ok) {
+    throw new Error(
+      `Reference image download failed with status ${response.status}`,
+    )
+  }
+
+  return bytesToBase64(new Uint8Array(await response.arrayBuffer()))
+}
+
+async function uploadImageBytesToKey(
+  env: ExecutionEnv,
+  bytes: ArrayBuffer | Uint8Array,
+  mimeType: string,
+  imageR2Key: string,
+): Promise<{ artifactUrl: string; imageR2Key: string; mimeType: string }> {
+  await env.GENERATION_BUCKET.put(imageR2Key, bytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: buildR2PublicUrl(env, imageR2Key),
+    imageR2Key,
+    mimeType,
+  }
+}
+
+function getWorkerImageOutputKey(
+  context: WorkerImageRunContext,
+  extension = 'png',
+): string {
+  return (
+    context.providerInput.outputStorageKey ??
+    `image/${context.runId}.${extension}`
+  )
+}
+
+function getStandardImageDimensions(aspectRatio: string): {
+  width: number
+  height: number
+} {
+  switch (aspectRatio) {
+    case '16:9':
+      return { width: 1792, height: 1024 }
+    case '9:16':
+      return { width: 1024, height: 1792 }
+    case '4:3':
+      return { width: 1024, height: 768 }
+    case '3:4':
+      return { width: 768, height: 1024 }
+    default:
+      return { width: 1024, height: 1024 }
+  }
+}
+
+function getVolcEngineImageSize(aspectRatio: string): {
+  width: number
+  height: number
+  size: string
+} {
+  switch (aspectRatio) {
+    case '16:9':
+      return { width: 2560, height: 1440, size: '2560x1440' }
+    case '9:16':
+      return { width: 1440, height: 2560, size: '1440x2560' }
+    case '4:3':
+      return { width: 2304, height: 1728, size: '2304x1728' }
+    case '3:4':
+      return { width: 1728, height: 2304, size: '1728x2304' }
+    default:
+      return { width: 2048, height: 2048, size: '2048x2048' }
+  }
+}
+
+function getNovelAiImageDimensions(aspectRatio: string): {
+  width: number
+  height: number
+} {
+  switch (aspectRatio) {
+    case '16:9':
+      return { width: 1216, height: 832 }
+    case '9:16':
+      return { width: 832, height: 1216 }
+    case '4:3':
+      return { width: 1024, height: 768 }
+    case '3:4':
+      return { width: 768, height: 1024 }
+    default:
+      return { width: 1024, height: 1024 }
+  }
+}
+
+interface WorkerImageGenerationResult {
+  artifactUrl: string
+  imageR2Key: string
+  width: number
+  height: number
+  mimeType: string
+  providerMetadata?: Record<string, unknown>
+}
+
+async function generateGeminiImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<WorkerImageGenerationResult> {
+  const dimensions = getStandardImageDimensions(
+    context.providerInput.aspectRatio,
+  )
+  const parts: Record<string, unknown>[] = [
+    { text: context.providerInput.prompt },
+  ]
+  for (const referenceImage of getImageReferenceInputs(context)) {
+    parts.push(await readReferenceImageAsInlinePart(referenceImage))
+  }
+
+  const response = await fetch(
+    `${GEMINI_IMAGE_BASE_URL}/${context.providerInput.externalModelId}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': JSON_CONTENT_TYPE,
+      },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+          imageConfig: {
+            aspectRatio: context.providerInput.aspectRatio,
+          },
+        },
+      }),
+    },
+  )
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `Gemini image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>
+  const candidates = Array.isArray(payload.candidates) ? payload.candidates : []
+  for (const candidate of candidates) {
+    if (!isRecord(candidate) || !isRecord(candidate.content)) continue
+    const parts = Array.isArray(candidate.content.parts)
+      ? candidate.content.parts
+      : []
+    for (const part of parts) {
+      if (!isRecord(part)) continue
+      const inlineData = isRecord(part.inlineData)
+        ? part.inlineData
+        : isRecord(part.inline_data)
+          ? part.inline_data
+          : null
+      const b64 = inlineData ? readStringField(inlineData, 'data') : null
+      if (!b64) continue
+      if (!inlineData) continue
+      const mimeType =
+        readStringField(inlineData, 'mimeType') ??
+        readStringField(inlineData, 'mime_type') ??
+        'image/png'
+      const uploaded = await uploadImageBytesToKey(
+        env,
+        base64ToBytes(b64),
+        mimeType,
+        getWorkerImageOutputKey(context),
+      )
+      return { ...uploaded, ...dimensions }
+    }
+  }
+
+  throw new Error('Gemini response did not include inline image data.')
+}
+
+async function generateHuggingFaceImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<WorkerImageGenerationResult> {
+  const dimensions = getStandardImageDimensions(
+    context.providerInput.aspectRatio,
+  )
+  const advancedParams = readAdvancedRecord(context)
+  const parameters: Record<string, unknown> = {
+    width: dimensions.width,
+    height: dimensions.height,
+  }
+
+  const negativePrompt = readStringField(advancedParams, 'negativePrompt')
+  if (negativePrompt) parameters.negative_prompt = negativePrompt
+  const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
+  if (guidanceScale != null) parameters.guidance_scale = guidanceScale
+  const steps = readPositiveNumberField(advancedParams, 'steps')
+  if (steps != null) parameters.num_inference_steps = steps
+  const seed = readNumberField(advancedParams, 'seed')
+  if (seed != null && seed >= 0) parameters.seed = Math.round(seed)
+
+  const referenceImage = getImageReferenceInputs(context)[0]
+  const body: Record<string, unknown> = referenceImage
+    ? {
+        inputs: await readReferenceImageAsBase64(referenceImage),
+        parameters: {
+          ...parameters,
+          prompt: context.providerInput.prompt,
+        },
+      }
+    : {
+        inputs: context.providerInput.prompt,
+        parameters,
+      }
+
+  if (referenceImage) {
+    const referenceStrength = readNumberField(
+      advancedParams,
+      'referenceStrength',
+    )
+    if (referenceStrength != null) {
+      const bodyParameters = body.parameters as Record<string, unknown>
+      bodyParameters.strength = invertReferenceStrength(referenceStrength)
+    }
+  }
+
+  const response = await fetch(
+    `${HUGGINGFACE_IMAGE_BASE_URL}/${context.providerInput.externalModelId}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': JSON_CONTENT_TYPE,
+      },
+      body: JSON.stringify(body),
+    },
+  )
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `Hugging Face image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const mimeType =
+    response.headers.get('content-type')?.split(';')[0] ?? 'image/png'
+  const uploaded = await uploadImageBytesToKey(
+    env,
+    await response.arrayBuffer(),
+    mimeType,
+    getWorkerImageOutputKey(context),
+  )
+
+  return { ...uploaded, ...dimensions }
+}
+
+async function generateVolcEngineImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<WorkerImageGenerationResult> {
+  const size = getVolcEngineImageSize(context.providerInput.aspectRatio)
+  const advancedParams = readAdvancedRecord(context)
+  const body: Record<string, unknown> = {
+    model: context.providerInput.externalModelId,
+    prompt: context.providerInput.prompt,
+    content: [
+      { type: 'text', text: context.providerInput.prompt },
+      ...getImageReferenceInputs(context)
+        .slice(0, 14)
+        .map((url) => ({ type: 'image_url', image_url: { url } })),
+    ],
+    size: size.size,
+    response_format: 'url',
+    watermark: false,
+    n: 1,
+  }
+
+  const seed = readNumberField(advancedParams, 'seed')
+  if (seed != null && seed >= 0) {
+    body.seed = Math.min(Math.round(seed), 2_147_483_647)
+  }
+  const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
+  if (guidanceScale != null) body.guidance_scale = guidanceScale
+
+  const response = await fetch(`${VOLCENGINE_BASE_URL}/images/generations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `VolcEngine image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>
+  const data = Array.isArray(payload.data) ? payload.data : []
+  const first = data.find(isRecord)
+  const imageUrl = first ? readStringField(first, 'url') : null
+  if (!imageUrl) {
+    throw new Error('VolcEngine response did not include an image URL.')
+  }
+
+  const uploaded = await downloadAndUploadImageArtifactToKey(
+    env,
+    imageUrl,
+    'image/png',
+    getWorkerImageOutputKey(context),
+  )
+
+  return {
+    ...uploaded,
+    width: size.width,
+    height: size.height,
+    providerMetadata: { sourceUrlHost: new URL(imageUrl).host },
+  }
+}
+
+interface ReplicatePrediction {
+  id: string
+  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled'
+  output?: unknown
+  error?: unknown
+}
+
+function readReplicatePrediction(payload: unknown): ReplicatePrediction {
+  if (!isRecord(payload)) {
+    throw new Error('Replicate returned an invalid prediction response.')
+  }
+  const id = readStringField(payload, 'id')
+  const status = readStringField(payload, 'status')
+  if (
+    !id ||
+    (status !== 'starting' &&
+      status !== 'processing' &&
+      status !== 'succeeded' &&
+      status !== 'failed' &&
+      status !== 'canceled')
+  ) {
+    throw new Error('Replicate prediction response is missing id or status.')
+  }
+  return { id, status, output: payload.output, error: payload.error }
+}
+
+function getReplicateImageSchema(
+  context: WorkerImageRunContext,
+): 'flux' | 'sdxl' {
+  if (
+    context.providerInput.modelId === 'illustrious-xl' ||
+    context.providerInput.externalModelId.includes('noobai')
+  ) {
+    return 'sdxl'
+  }
+  return 'flux'
+}
+
+async function buildReplicateImageInput(
+  context: WorkerImageRunContext,
+  env: ExecutionEnv,
+  civitaiToken: string | null = null,
+): Promise<Record<string, unknown>> {
+  const advancedParams = readAdvancedRecord(context)
+  const schema = getReplicateImageSchema(context)
+
+  const dimensions = getStandardImageDimensions(
+    context.providerInput.aspectRatio,
+  )
+  const input: Record<string, unknown> =
+    schema === 'sdxl'
+      ? {
+          prompt: context.providerInput.prompt,
+          width: dimensions.width,
+          height: dimensions.height,
+        }
+      : {
+          prompt: context.providerInput.prompt,
+          aspect_ratio: context.providerInput.aspectRatio,
+        }
+
+  const negativePrompt = readStringField(advancedParams, 'negativePrompt')
+  if (negativePrompt) input.negative_prompt = negativePrompt
+  const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
+  if (guidanceScale != null) {
+    input[schema === 'sdxl' ? 'cfg_scale' : 'guidance_scale'] = guidanceScale
+  }
+  const steps = readPositiveNumberField(advancedParams, 'steps')
+  if (steps != null) {
+    input[schema === 'sdxl' ? 'steps' : 'num_inference_steps'] = steps
+  }
+  const seed = readNumberField(advancedParams, 'seed')
+  if (seed != null && seed >= 0) input.seed = Math.round(seed)
+
+  const loras = getImageLoraInputs(context)
+  if (loras.length > 0) {
+    if (schema === 'sdxl') {
+      const resolved = await Promise.all(
+        loras.map(async (lora) => {
+          const resolvedUrl = await resolveReplicateCivitaiUrl(
+            lora.url,
+            civitaiToken,
+          )
+          return {
+            url: toReplicateReachableUrl(resolvedUrl, env),
+            strength: lora.scale ?? 1,
+          }
+        }),
+      )
+      input.loras = JSON.stringify(resolved)
+    } else {
+      const first = loras[0]
+      if (first) {
+        const resolvedUrl = await resolveReplicateCivitaiUrl(
+          first.url,
+          civitaiToken,
+        )
+        input.hf_lora = toReplicateReachableUrl(resolvedUrl, env)
+        if (first.scale != null) input.lora_scale = first.scale
+      }
+    }
+  }
+
+  const referenceImage = getImageReferenceInputs(context)[0]
+  if (referenceImage) {
+    input.image = referenceImage
+    const referenceStrength = readNumberField(
+      advancedParams,
+      'referenceStrength',
+    )
+    if (referenceStrength != null) {
+      input.strength = invertReferenceStrength(referenceStrength)
+    }
+  }
+
+  return input
+}
+
+async function buildReplicatePredictionBody(
+  context: WorkerImageRunContext,
+  env: ExecutionEnv,
+  apiKey: string,
+  civitaiToken: string | null = null,
+): Promise<Record<string, unknown>> {
+  const input = await buildReplicateImageInput(context, env, civitaiToken)
+  if (getReplicateImageSchema(context) === 'flux') {
+    return { model: context.providerInput.externalModelId, input }
+  }
+
+  const modelResponse = await fetch(
+    `${REPLICATE_BASE_URL}/models/${context.providerInput.externalModelId}`,
+    { headers: { Authorization: `Bearer ${apiKey}` } },
+  )
+  if (!modelResponse.ok) {
+    throw new Error(
+      `Replicate model lookup failed with status ${modelResponse.status}`,
+    )
+  }
+  const model = (await modelResponse.json()) as Record<string, unknown>
+  const latestVersion = isRecord(model.latest_version)
+    ? readStringField(model.latest_version, 'id')
+    : null
+  if (!latestVersion) {
+    throw new Error('Replicate model response did not include latest version.')
+  }
+  return { version: latestVersion, input }
+}
+
+async function submitReplicateImagePrediction(
+  context: WorkerImageRunContext,
+  env: ExecutionEnv,
+  apiKey: string,
+  civitaiToken: string | null = null,
+): Promise<ReplicatePrediction> {
+  const response = await fetch(`${REPLICATE_BASE_URL}/predictions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(
+      await buildReplicatePredictionBody(context, env, apiKey, civitaiToken),
+    ),
+  })
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `Replicate prediction submit failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  return readReplicatePrediction(await response.json())
+}
+
+async function pollReplicateImagePrediction(
+  predictionId: string,
+  apiKey: string,
+): Promise<ReplicatePrediction> {
+  const response = await fetch(
+    `${REPLICATE_BASE_URL}/predictions/${predictionId}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+  )
+  if (!response.ok) {
+    throw new Error(`Replicate poll failed with status ${response.status}`)
+  }
+  return readReplicatePrediction(await response.json())
+}
+
+function extractReplicateImageUrl(output: unknown): string {
+  if (typeof output === 'string') return output
+  if (Array.isArray(output)) {
+    const first = output[0]
+    if (typeof first === 'string') return first
+    if (isRecord(first)) {
+      const url = readStringField(first, 'url')
+      if (url) return url
+    }
+  }
+  if (isRecord(output)) {
+    const url = readStringField(output, 'url')
+    if (url) return url
+  }
+  throw new Error('Replicate output did not include an image URL.')
+}
+
+function isNovelAiV4Model(externalModelId: string): boolean {
+  return (
+    externalModelId === 'nai-diffusion-4-full' ||
+    externalModelId === 'nai-diffusion-4-curated-preview' ||
+    externalModelId === 'nai-diffusion-4-5-full' ||
+    externalModelId === 'nai-diffusion-4-5-curated'
+  )
+}
+
+function randomUint32(): number {
+  const bytes = new Uint32Array(1)
+  crypto.getRandomValues(bytes)
+  return bytes[0]
+}
+
+async function inflateRawZipEntry(bytes: Uint8Array): Promise<Uint8Array> {
+  const chunkBuffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(chunkBuffer).set(bytes)
+  const stream = new Blob([chunkBuffer])
+    .stream()
+    .pipeThrough(new DecompressionStream('deflate-raw' as CompressionFormat))
+  return new Uint8Array(await new Response(stream).arrayBuffer())
+}
+
+async function extractNovelAiZipImage(
+  zipBytes: Uint8Array,
+): Promise<Uint8Array> {
+  if (
+    zipBytes[0] !== 0x50 ||
+    zipBytes[1] !== 0x4b ||
+    zipBytes[2] !== 0x03 ||
+    zipBytes[3] !== 0x04
+  ) {
+    throw new Error('NovelAI returned an invalid ZIP image response.')
+  }
+
+  const view = new DataView(
+    zipBytes.buffer,
+    zipBytes.byteOffset,
+    zipBytes.byteLength,
+  )
+  const compressionMethod = view.getUint16(8, true)
+  let compressedSize = view.getUint32(18, true)
+  const filenameLength = view.getUint16(26, true)
+  const extraFieldLength = view.getUint16(28, true)
+  const dataOffset = 30 + filenameLength + extraFieldLength
+
+  if (compressedSize === 0) {
+    for (let index = dataOffset; index < zipBytes.length - 3; index += 1) {
+      if (
+        zipBytes[index] === 0x50 &&
+        zipBytes[index + 1] === 0x4b &&
+        (zipBytes[index + 2] === 0x01 || zipBytes[index + 2] === 0x03)
+      ) {
+        compressedSize = index - dataOffset
+        break
+      }
+    }
+  }
+
+  const compressed = zipBytes.subarray(dataOffset, dataOffset + compressedSize)
+  if (compressionMethod === 0) return compressed
+  if (compressionMethod === 8) return inflateRawZipEntry(compressed)
+  throw new Error(
+    `NovelAI ZIP compression is unsupported: ${compressionMethod}`,
+  )
+}
+
+async function generateNovelAiImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<WorkerImageGenerationResult> {
+  const referenceImages = getImageReferenceInputs(context)
+  if (referenceImages.length > 1) {
+    throw new Error(
+      'NovelAI multi-reference Director generation is not worker-migrated yet.',
+    )
+  }
+
+  const dimensions = getNovelAiImageDimensions(
+    context.providerInput.aspectRatio,
+  )
+  const advancedParams = readAdvancedRecord(context)
+  const externalModelId = context.providerInput.externalModelId
+  const referenceImage = referenceImages[0]
+  const isImg2Img = Boolean(referenceImage)
+  const negative =
+    readStringField(advancedParams, 'negativePrompt') ??
+    'lowres, bad anatomy, bad hands, missing fingers, extra digit'
+  const configuredSeed = readNumberField(advancedParams, 'seed')
+  const seed =
+    configuredSeed != null && configuredSeed >= 0
+      ? Math.round(configuredSeed)
+      : randomUint32()
+  const useV4 = isNovelAiV4Model(externalModelId)
+  const parameters: Record<string, unknown> = {
+    params_version: useV4 ? 3 : 1,
+    width: dimensions.width,
+    height: dimensions.height,
+    scale: readNumberField(advancedParams, 'guidanceScale') ?? 5,
+    sampler: 'k_euler_ancestral',
+    steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
+    seed,
+    extra_noise_seed: seed,
+    n_samples: 1,
+    ucPreset: useV4 ? 4 : 3,
+    qualityToggle: false,
+    sm: false,
+    sm_dyn: false,
+    dynamic_thresholding: false,
+    controlnet_strength: 1,
+    legacy: false,
+    add_original_image: isImg2Img && useV4,
+    cfg_rescale: 0,
+    noise_schedule: 'karras',
+    legacy_v3_extend: false,
+    skip_cfg_above_sigma: null,
+    use_coords: false,
+    characterPrompts: [],
+    negative_prompt: negative,
+    prompt: context.providerInput.prompt,
+    reference_image_multiple: [],
+    reference_information_extracted_multiple: [],
+    reference_strength_multiple: [],
+  }
+
+  if (referenceImage) {
+    parameters.image = await readReferenceImageAsBase64(referenceImage)
+    parameters.strength = invertReferenceStrength(
+      readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
+    )
+    parameters.noise = 0
+    parameters.extra_noise_seed = seed
+  }
+
+  if (useV4) {
+    parameters.v4_prompt = {
+      caption: {
+        base_caption: context.providerInput.prompt,
+        char_captions: [],
+      },
+      use_coords: false,
+      use_order: true,
+    }
+    parameters.v4_negative_prompt = {
+      caption: { base_caption: negative, char_captions: [] },
+      legacy_uc: false,
+    }
+  }
+
+  const response = await fetch(`${NOVELAI_IMAGE_BASE_URL}/ai/generate-image`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify({
+      input: context.providerInput.prompt,
+      model: externalModelId,
+      action: isImg2Img ? 'img2img' : 'generate',
+      parameters,
+    }),
+  })
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `NovelAI image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const imageBytes = await extractNovelAiZipImage(
+    new Uint8Array(await response.arrayBuffer()),
+  )
+  const uploaded = await uploadImageBytesToKey(
+    env,
+    imageBytes,
+    'image/png',
+    getWorkerImageOutputKey(context),
+  )
+
+  return { ...uploaded, ...dimensions }
+}
+
 /**
  * Call OpenAI's image API and upload the result to R2. gpt-image models return
  * base64 (no hosted URL), so the worker persists the bytes to R2 and returns a
@@ -2449,6 +4630,7 @@ async function generateOpenAIImage(
   apiKey: string,
 ): Promise<{
   artifactUrl: string
+  imageR2Key: string
   width: number
   height: number
   mimeType: string
@@ -2457,20 +4639,42 @@ async function generateOpenAIImage(
   const { size, width, height } = aspectRatioToOpenAISize(
     providerInput.aspectRatio,
   )
+  const advancedParams = readAdvancedRecord(context)
+  const referenceImages = getImageReferenceInputs(context)
+  const body: Record<string, unknown> =
+    referenceImages.length > 0
+      ? {
+          model: providerInput.externalModelId,
+          prompt: providerInput.prompt,
+          images: referenceImages.map((imageUrl) => ({ image_url: imageUrl })),
+          size,
+          n: 1,
+        }
+      : {
+          model: providerInput.externalModelId,
+          prompt: providerInput.prompt,
+          size,
+          n: 1,
+        }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/v1/images/generations`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': JSON_CONTENT_TYPE,
+  const quality = readStringField(advancedParams, 'quality')
+  if (quality) body.quality = quality
+  const background = readStringField(advancedParams, 'background')
+  if (background) body.background = background
+
+  const response = await fetch(
+    `${OPENAI_BASE_URL}/v1/images/${
+      referenceImages.length > 0 ? 'edits' : 'generations'
+    }`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': JSON_CONTENT_TYPE,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify({
-      model: providerInput.externalModelId,
-      prompt: providerInput.prompt,
-      size,
-      n: 1,
-    }),
-  })
+  )
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => '')
@@ -2490,13 +4694,14 @@ async function generateOpenAIImage(
 
   const bytes = base64ToBytes(b64)
   const mimeType = 'image/png'
-  const r2Key = `image/${context.runId}.png`
+  const r2Key = providerInput.outputStorageKey ?? `image/${context.runId}.png`
   await env.GENERATION_BUCKET.put(r2Key, bytes, {
     httpMetadata: { contentType: mimeType },
   })
 
   return {
     artifactUrl: `${env.R2_PUBLIC_URL}/${r2Key}`,
+    imageR2Key: r2Key,
     width,
     height,
     mimeType,
@@ -2528,25 +4733,240 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
         },
       )
 
-      // Image providers are synchronous HTTP — no provider-side polling.
-      const result = await step.do(
-        'generate-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateOpenAIImage(this.env, context, apiKey)
-        },
-      )
+      let result: WorkerImageGenerationResult
+
+      if (context.providerId === 'fal') {
+        const queue = await step.do(
+          'submit-fal-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            const civitaiToken = hasCivitaiLora(context)
+              ? await resolveCivitaiTokenImage(this.env, context)
+              : null
+            return submitFalImageQueue(context, apiKey, civitaiToken)
+          },
+        )
+
+        let falResult: FalImageResult | undefined
+        for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
+          await step.sleep(`wait-fal-image-${attempt}`, context.pollIntervalMs)
+
+          const pollResult = await step.do(
+            `poll-fal-image-${attempt}`,
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '30 seconds',
+            },
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              return pollFalImageQueue(queue, apiKey)
+            },
+          )
+
+          if (pollResult.status === 'FAILED') {
+            throw new Error('fal.ai image generation failed.')
+          }
+
+          if (pollResult.status === 'COMPLETED' && pollResult.imageUrl) {
+            falResult = pollResult
+            break
+          }
+        }
+
+        if (!falResult?.imageUrl) {
+          throw new Error('fal.ai image generation timed out.')
+        }
+
+        const dimensions = FAL_IMAGE_DIMENSIONS[
+          context.providerInput.aspectRatio
+        ] ?? { width: 1024, height: 1024 }
+        const uploaded = await step.do(
+          'upload-fal-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '120 seconds',
+          },
+          () =>
+            downloadAndUploadImageArtifactToKey(
+              this.env,
+              falResult.imageUrl!,
+              falResult.mimeType ?? 'image/png',
+              context.providerInput.outputStorageKey ??
+                `image/${context.runId}.png`,
+            ),
+        )
+
+        result = {
+          artifactUrl: uploaded.artifactUrl,
+          imageR2Key: uploaded.imageR2Key,
+          width: falResult.width ?? dimensions.width,
+          height: falResult.height ?? dimensions.height,
+          mimeType: uploaded.mimeType,
+          providerMetadata: falResult.providerMetadata,
+        }
+      } else if (context.providerId === 'replicate') {
+        const prediction = await step.do(
+          'submit-replicate-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            const civitaiToken = hasCivitaiLora(context)
+              ? await resolveCivitaiTokenImage(this.env, context)
+              : null
+            return submitReplicateImagePrediction(
+              context,
+              this.env,
+              apiKey,
+              civitaiToken,
+            )
+          },
+        )
+
+        let completedPrediction =
+          prediction.status === 'succeeded' ? prediction : undefined
+        for (
+          let attempt = 1;
+          !completedPrediction && attempt <= context.maxAttempts;
+          attempt += 1
+        ) {
+          await step.sleep(
+            `wait-replicate-image-${attempt}`,
+            context.pollIntervalMs,
+          )
+          const pollResult = await step.do(
+            `poll-replicate-image-${attempt}`,
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '30 seconds',
+            },
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              return pollReplicateImagePrediction(prediction.id, apiKey)
+            },
+          )
+
+          if (
+            pollResult.status === 'failed' ||
+            pollResult.status === 'canceled'
+          ) {
+            throw new Error(
+              `Replicate image generation failed: ${String(pollResult.error ?? 'unknown')}`,
+            )
+          }
+          if (pollResult.status === 'succeeded') {
+            completedPrediction = pollResult
+          }
+        }
+
+        if (!completedPrediction) {
+          throw new Error('Replicate image generation timed out.')
+        }
+
+        const imageUrl = extractReplicateImageUrl(completedPrediction.output)
+        const dimensions = getStandardImageDimensions(
+          context.providerInput.aspectRatio,
+        )
+        const uploaded = await step.do(
+          'upload-replicate-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '120 seconds',
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return downloadAndUploadImageArtifactToKey(
+              this.env,
+              imageUrl,
+              'image/png',
+              getWorkerImageOutputKey(context),
+              { Authorization: `Bearer ${apiKey}` },
+            )
+          },
+        )
+        result = {
+          ...uploaded,
+          ...dimensions,
+          providerMetadata: { predictionId: completedPrediction.id },
+        }
+      } else if (context.providerId === 'gemini') {
+        result = await step.do(
+          'generate-gemini-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 600_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return generateGeminiImage(this.env, context, apiKey)
+          },
+        )
+      } else if (context.providerId === 'huggingface') {
+        result = await step.do(
+          'generate-huggingface-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 600_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return generateHuggingFaceImage(this.env, context, apiKey)
+          },
+        )
+      } else if (context.providerId === 'volcengine') {
+        result = await step.do(
+          'generate-volcengine-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 600_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return generateVolcEngineImage(this.env, context, apiKey)
+          },
+        )
+      } else if (context.providerId === 'novelai') {
+        result = await step.do(
+          'generate-novelai-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 600_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return generateNovelAiImage(this.env, context, apiKey)
+          },
+        )
+      } else if (context.providerId === 'openai') {
+        result = await step.do(
+          'generate-openai-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 600_000),
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return generateOpenAIImage(this.env, context, apiKey)
+          },
+        )
+      } else {
+        throw new Error(`Image provider ${context.providerId} is not migrated.`)
+      }
 
       await step.do('callback-result', async () =>
         emitImageCallback(this.env, context, {
           artifactUrl: result.artifactUrl,
+          imageR2Key: result.imageR2Key,
           width: result.width,
           height: result.height,
           mimeType: result.mimeType,
+          providerMetadata: result.providerMetadata,
           requestCount: 1,
         }),
       )

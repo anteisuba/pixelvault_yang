@@ -27,7 +27,6 @@ import type {
   RunItem,
   StudioGenerateRequest,
   StudioGenerateResponseData,
-  VideoStatusResponseData,
   GenerateVideoRequest,
 } from '@/types'
 import {
@@ -128,16 +127,6 @@ function isAudioPauseMarker(
   )
 }
 
-function hasGeneration(
-  data:
-    | GenerateAudioResponseData
-    | VideoStatusResponseData
-    | { generation?: GenerationRecord }
-    | undefined,
-): data is { generation: GenerationRecord } {
-  return data?.generation != null
-}
-
 function hasJobId(
   data: GenerateAudioResponseData | StudioGenerateResponseData | undefined,
 ): data is Extract<
@@ -145,6 +134,10 @@ function hasJobId(
   { jobId: string }
 > {
   return typeof data?.jobId === 'string' && data.jobId.length > 0
+}
+
+function waitForPollInterval(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function toCompletedRunItem<T extends RunItem>(
@@ -274,7 +267,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [updateActiveRunItem],
   )
 
-  // ── Image generation (sync fallback or async worker poll) ─────
+  // ── Image generation (worker submit + poll) ───────────────────
 
   const generateImage = useCallback(
     async (input: StudioGenerateRequest): Promise<GenerationRecord | null> => {
@@ -308,17 +301,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       try {
         const result = await studioGenerateAPI(input)
 
-        // Sync path (fallback / non-migrated provider): generation inline.
-        if (result.success && hasGeneration(result.data)) {
-          const generation = result.data.generation
-          setError(null)
-          setLastGeneration(generation)
-          markActiveRunItemCompleted(itemId, generation)
-          toast.success(tStudio('generateSuccess'))
-          return generation
-        }
-
-        // Async path (worker dispatch): poll the job until it resolves.
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data
           setStage('processing')
@@ -410,6 +392,51 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
     ],
+  )
+
+  const pollImageJobForRunItem = useCallback(
+    async (jobId: string, itemId: string): Promise<GenerationRecord | null> => {
+      for (
+        let attempt = 1;
+        attempt <= IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+        attempt += 1
+      ) {
+        await waitForPollInterval(IMAGE_GENERATION.POLL_INTERVAL_MS)
+
+        try {
+          const statusResponse = await checkImageGenerationStatusAPI(jobId)
+
+          if (!statusResponse.success || !statusResponse.data) {
+            const msg = statusResponse.error ?? tStudio('generateFailed')
+            markActiveRunItemFailed(itemId, msg)
+            return null
+          }
+
+          const statusData = statusResponse.data
+
+          if (statusData.status === 'COMPLETED') {
+            const generation = statusData.generation
+            markActiveRunItemCompleted(itemId, generation)
+            return generation
+          }
+
+          if (statusData.status === 'FAILED') {
+            const msg = statusResponse.error ?? tStudio('generateFailed')
+            markActiveRunItemFailed(itemId, msg)
+            return null
+          }
+        } catch {
+          const msg = tStudio('generateFailed')
+          markActiveRunItemFailed(itemId, msg)
+          return null
+        }
+      }
+
+      const msg = tStudio('generateFailed')
+      markActiveRunItemFailed(itemId, msg)
+      return null
+    },
+    [tStudio, markActiveRunItemCompleted, markActiveRunItemFailed],
   )
 
   // ── Video generation (async queue + polling) ──────────────────
@@ -579,10 +606,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               runGroupType: 'variant',
               runGroupIndex: item.index,
             })
-            if (result.success && hasGeneration(result.data)) {
-              const gen = result.data.generation
-              if (!firstSuccess) firstSuccess = gen
-              markActiveRunItemCompleted(item.id, gen)
+            if (result.success && hasJobId(result.data)) {
+              setStage('processing')
+              const gen = await pollImageJobForRunItem(
+                result.data.jobId,
+                item.id,
+              )
+              if (gen && !firstSuccess) firstSuccess = gen
             } else {
               markActiveRunItemFailed(
                 item.id,
@@ -615,7 +645,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       tStudio,
       startTimer,
       stopTimer,
-      markActiveRunItemCompleted,
+      pollImageJobForRunItem,
       markActiveRunItemFailed,
     ],
   )
@@ -702,10 +732,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               runGroupType: 'compare',
               runGroupIndex: item.index,
             })
-            if (result.success && hasGeneration(result.data)) {
-              const gen = result.data.generation
-              if (!firstSuccess) firstSuccess = gen
-              markActiveRunItemCompleted(item.id, gen)
+            if (result.success && hasJobId(result.data)) {
+              setStage('processing')
+              const gen = await pollImageJobForRunItem(
+                result.data.jobId,
+                item.id,
+              )
+              if (gen && !firstSuccess) firstSuccess = gen
             } else {
               markActiveRunItemFailed(
                 item.id,
@@ -738,12 +771,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       tStudio,
       startTimer,
       stopTimer,
-      markActiveRunItemCompleted,
+      pollImageJobForRunItem,
       markActiveRunItemFailed,
     ],
   )
 
-  // ── Audio generation (sync result or async submit + polling) ──
+  // ── Audio generation (worker submit + polling) ────────────────
 
   const generateAudio = useCallback(
     async (input: AudioGenerateInput): Promise<GenerationRecord | null> => {
@@ -798,15 +831,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           repetitionPenalty: input.repetitionPenalty,
           speakerVoiceIds: input.speakerVoiceIds,
         })
-
-        if (result.success && hasGeneration(result.data)) {
-          const generation = result.data.generation
-          setError(null)
-          setLastGeneration(generation)
-          markActiveRunItemCompleted(itemId, generation)
-          toast.success(tStudio('generateSuccess'))
-          return generation
-        }
 
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data

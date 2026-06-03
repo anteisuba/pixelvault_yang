@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { FishVoiceLibraryDialog } from '@/components/business/node/FishVoiceLibraryDialog'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
+import { AUDIO_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import {
   NODE_STUDIO_AUDIO_INPUT,
@@ -31,7 +32,12 @@ import {
 } from '@/constants/node-types'
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
-import { generateAudioAPI, uploadReferenceAudioAPI } from '@/lib/api-client'
+import {
+  checkAudioStatusAPI,
+  generateAudioAPI,
+  uploadReferenceAudioAPI,
+} from '@/lib/api-client'
+import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
@@ -75,6 +81,37 @@ function getVoiceStatus(
 
 function truncateAudioName(name: string): string {
   return name.trim().slice(0, NODE_STUDIO_VOICE_PROFILE.maxAudioNameLength)
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function waitForGeneratedReferenceAudio(
+  jobId: string,
+): Promise<GenerationRecord | null> {
+  for (
+    let attempt = 0;
+    attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
+    attempt += 1
+  ) {
+    const statusResponse = await checkAudioStatusAPI(jobId)
+    if (!statusResponse.success || !statusResponse.data) {
+      return null
+    }
+
+    if (statusResponse.data.status === 'COMPLETED') {
+      return statusResponse.data.generation
+    }
+
+    if (statusResponse.data.status === 'FAILED') {
+      return null
+    }
+
+    await delay(AUDIO_GENERATION.POLL_INTERVAL_MS)
+  }
+
+  return null
 }
 
 export function VoiceInspector({ node }: VoiceInspectorProps) {
@@ -214,12 +251,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
       return
     }
 
-    // Fish Audio runs synchronously — the response includes a finished
-    // generation record with the R2-hosted audio URL. F5-TTS would return
-    // a jobId we'd need to poll; we never hit that path because we pin to
-    // FISH_AUDIO_S2_PRO above.
-    const generation =
-      'generation' in response.data ? response.data.generation : undefined
+    const generation = await waitForGeneratedReferenceAudio(response.data.jobId)
     if (!generation) {
       toast.error(t('toasts.referenceGenerateFailed'), {
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,

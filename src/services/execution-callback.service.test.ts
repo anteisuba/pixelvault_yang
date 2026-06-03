@@ -270,6 +270,45 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('finalizes worker-uploaded video without re-uploading from Next.js', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-video-1',
+      outputType: 'VIDEO',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/video-from-worker.mp4',
+        videoR2Key: 'generations/user-1/video/worker.mp4',
+        providerMetadata: { requestId: 'request-video-1' },
+        width: 1280,
+        height: 720,
+        duration: 5,
+        requestCount: 1,
+        mimeType: 'video/mp4',
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'completed',
+    })
+    expect(mockGenerateStorageKey).not.toHaveBeenCalled()
+    expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputType: 'VIDEO',
+        url: 'https://cdn.example.com/video-from-worker.mp4',
+        storageKey: 'generations/user-1/video/worker.mp4',
+        mimeType: 'video/mp4',
+      }),
+      expect.anything(),
+    )
+  })
+
   it('finalizes worker-managed audio result callbacks as AUDIO generations', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),
@@ -338,6 +377,54 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('finalizes worker-uploaded audio without re-uploading from Next.js', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      modelId: 'fish-audio-s2-pro',
+      adapterType: 'fish_audio',
+      provider: 'Fish Audio',
+      prompt: 'audio prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'AUDIO',
+        audioFormat: 'mp3',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-audio-1',
+      outputType: 'AUDIO',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/audio-from-worker.mp3',
+        audioR2Key: 'generations/user-1/audio/worker.mp3',
+        providerMetadata: { endpointPath: '/v1/tts' },
+        mimeType: 'audio/mpeg',
+        duration: 3,
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'completed',
+    })
+    expect(mockGenerateStorageKey).not.toHaveBeenCalled()
+    expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputType: 'AUDIO',
+        url: 'https://cdn.example.com/audio-from-worker.mp3',
+        storageKey: 'generations/user-1/audio/worker.mp3',
+        mimeType: 'audio/mpeg',
+        duration: 3,
+      }),
+      expect.anything(),
+    )
+  })
+
   it('finalizes IMAGE result callbacks as IMAGE generations', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),
@@ -350,6 +437,11 @@ describe('execution-callback.service', () => {
         isFreeGeneration: true,
         creditCost: 1,
         aspectRatio: '1:1',
+        referenceImageUrl: 'https://cdn.example.com/ref-1.png',
+        referenceImages: [
+          'https://cdn.example.com/ref-1.png',
+          'https://cdn.example.com/ref-2.png',
+        ],
         originalModelId: 'gpt-image-2',
       }),
     })
@@ -394,12 +486,20 @@ describe('execution-callback.service', () => {
         height: 1024,
         model: 'gpt-image-2',
         provider: 'OpenAI',
+        referenceImageUrl: 'https://cdn.example.com/ref-1.png',
+        snapshot: expect.objectContaining({
+          referenceImages: [
+            'https://cdn.example.com/ref-1.png',
+            'https://cdn.example.com/ref-2.png',
+          ],
+        }),
       }),
       expect.anything(),
     )
     expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         outputImageCount: 1,
+        inputImageCount: 2,
         width: 1024,
         height: 1024,
       }),
@@ -407,6 +507,51 @@ describe('execution-callback.service', () => {
     )
     // preview derivatives enqueued (sharp runs in the outbox worker)
     expect(mockEnqueuePreview).toHaveBeenCalledTimes(1)
+  })
+
+  it('finalizes worker-uploaded IMAGE callbacks without a Next R2 upload', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'fal',
+      provider: 'fal.ai',
+      modelId: 'flux-2-pro',
+      prompt: 'image prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        isFreeGeneration: true,
+        creditCost: 1,
+        aspectRatio: '1:1',
+        originalModelId: 'flux-2-pro',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-image-1',
+      outputType: 'IMAGE',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        width: 1024,
+        height: 1024,
+        requestCount: 1,
+      },
+    })
+
+    expect(result.action).toBe('completed')
+    expect(mockGenerateStorageKey).not.toHaveBeenCalledWith('IMAGE', 'user-1')
+    expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://cdn.example.com/image.png',
+        storageKey: 'generations/user-1/image/worker.png',
+        outputType: 'IMAGE',
+      }),
+      expect.anything(),
+    )
   })
 
   it('ignores result callbacks for an already COMPLETED job idempotently', async () => {

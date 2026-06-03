@@ -554,17 +554,23 @@ export async function uploadReferenceImageIfNeeded(params: {
   input: GenerateRequest
   timer: GenerationStageTimer
 }): Promise<string | undefined> {
-  const { userId, input, timer } = params
-  const effectiveRefImage =
-    input.referenceImage || input.referenceImages?.[0] || undefined
+  const referenceImages = await uploadReferenceImagesIfNeeded(params)
+  return referenceImages[0]
+}
 
-  if (!effectiveRefImage) return undefined
-  if (isOwnedStorageUrl(effectiveRefImage)) return effectiveRefImage
+async function uploadSingleReferenceImageIfNeeded(params: {
+  userId: string
+  referenceImage: string
+  timer: GenerationStageTimer
+}): Promise<string> {
+  const { userId, referenceImage, timer } = params
+
+  if (isOwnedStorageUrl(referenceImage)) return referenceImage
 
   const refKey = generateStorageKey('IMAGE', userId)
-  if (effectiveRefImage.startsWith('data:')) {
+  if (referenceImage.startsWith('data:')) {
     return timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
-      const refData = await fetchAsBuffer(effectiveRefImage)
+      const refData = await fetchAsBuffer(referenceImage)
       return uploadToR2({
         data: refData.buffer,
         key: refKey,
@@ -576,12 +582,38 @@ export async function uploadReferenceImageIfNeeded(params: {
     GENERATION_STAGE.REFERENCE_UPLOAD,
     () =>
       uploadFromHttpToR2({
-        sourceUrl: effectiveRefImage,
+        sourceUrl: referenceImage,
         key: refKey,
       }),
   )
   timer.addNote('reference_upload_streams_download_and_r2_upload')
   return publicUrl
+}
+
+export async function uploadReferenceImagesIfNeeded(params: {
+  userId: string
+  input: GenerateRequest
+  timer: GenerationStageTimer
+}): Promise<string[]> {
+  const { userId, input, timer } = params
+  const referenceImages =
+    input.referenceImages && input.referenceImages.length > 0
+      ? input.referenceImages
+      : input.referenceImage
+        ? [input.referenceImage]
+        : []
+
+  if (referenceImages.length === 0) return []
+
+  return Promise.all(
+    referenceImages.map((referenceImage) =>
+      uploadSingleReferenceImageIfNeeded({
+        userId,
+        referenceImage,
+        timer,
+      }),
+    ),
+  )
 }
 
 // ─── Stage C: Persist generated image to R2 + DB ────────────────

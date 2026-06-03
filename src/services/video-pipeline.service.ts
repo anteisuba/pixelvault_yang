@@ -7,10 +7,11 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
-import { VIDEO_GENERATION } from '@/constants/config'
-import { getModelById } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
+import { IMAGE_SIZES, VIDEO_GENERATION } from '@/constants/config'
+import { getExecutionModelId, getModelById } from '@/constants/models'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type {
+  LongVideoPipelineAdvanceRequest,
   LongVideoRequest,
   LongVideoSubmitResponseData,
   PipelineClipRecord,
@@ -18,11 +19,8 @@ import type {
   GenerationRecord,
 } from '@/types'
 import { createGeneration } from '@/services/generation.service'
-import { getProviderAdapter } from '@/services/providers/registry'
-import { ProviderError } from '@/services/providers/types'
 import {
   generateStorageKey,
-  streamUploadToR2,
   uploadToR2,
   fetchAsBuffer,
 } from '@/services/storage/r2'
@@ -38,7 +36,6 @@ import {
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { isVideoResolution } from '@/constants/video-options'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
 // ─── Create Long Video Pipeline ─────────────────────────────────
@@ -72,11 +69,21 @@ export async function createLongVideoPipeline(
     apiKeyId: input.apiKeyId,
   })
 
-  const providerAdapter = getProviderAdapter(executionRoute.adapterType)
-  if (!providerAdapter?.submitVideoToQueue) {
+  if (executionRoute.adapterType !== AI_ADAPTER_TYPES.FAL) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
-      'Video generation is not supported for this provider',
+      'This long-video provider has not been migrated to the execution worker yet',
+      501,
+    )
+  }
+
+  const apiKeyId = executionRoute.resolvedApiKeyId ?? input.apiKeyId
+  const useSystemKey =
+    executionRoute.isFreeGeneration === true && !executionRoute.resolvedApiKeyId
+  if (!apiKeyId && !useSystemKey) {
+    throw new GenerateImageServiceError(
+      'MISSING_API_KEY',
+      'Execution worker runs require a saved API key or platform key',
       400,
     )
   }
@@ -115,31 +122,9 @@ export async function createLongVideoPipeline(
     })
   }
 
-  // Submit first clip
-  let queueResult: Awaited<
-    ReturnType<NonNullable<typeof providerAdapter.submitVideoToQueue>>
-  >
-  try {
-    queueResult = await providerAdapter.submitVideoToQueue({
-      prompt: input.prompt,
-      modelId: executionRoute.modelId,
-      aspectRatio: input.aspectRatio,
-      providerConfig: executionRoute.providerConfig,
-      apiKey: executionRoute.apiKey,
-      duration: firstClipDuration,
-      referenceImage: input.referenceImage,
-      negativePrompt: input.negativePrompt,
-      resolution: input.resolution,
-      i2vModelId: modelConfig.i2vModelId,
-      videoDefaults: modelConfig.videoDefaults,
-    })
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : 'Video generation failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
-  }
+  const outputStorageKeys = Array.from({ length: totalClips }, () =>
+    generateStorageKey('VIDEO', dbUser.id),
+  )
 
   // Create pipeline + clips in a transaction
   const pipeline = await db.videoPipeline.create({
@@ -157,20 +142,11 @@ export async function createLongVideoPipeline(
       totalClips,
       characterCardIds: input.characterCardIds ?? [],
       referenceImageUrl,
-      apiKeyId: input.apiKeyId,
+      apiKeyId: apiKeyId ?? null,
       clips: {
         create: Array.from({ length: totalClips }, (_, i) => ({
           clipIndex: i,
-          status: i === 0 ? ('QUEUED' as const) : ('PENDING' as const),
-          externalRequestId:
-            i === 0
-              ? JSON.stringify({
-                  requestId: queueResult.requestId,
-                  statusUrl: queueResult.statusUrl,
-                  responseUrl: queueResult.responseUrl,
-                })
-              : undefined,
-          startedAt: i === 0 ? new Date() : undefined,
+          status: 'PENDING' as const,
         })),
       },
     },
@@ -179,6 +155,25 @@ export async function createLongVideoPipeline(
   await dispatchLongVideoPipelineWorkflow({
     pipelineId: pipeline.id,
     totalClips,
+    providerId: executionRoute.adapterType,
+    apiKeyId,
+    useSystemKey,
+    routeModelId: executionRoute.modelId,
+    prompt: input.prompt,
+    aspectRatio: input.aspectRatio,
+    firstClipDuration,
+    extensionClipDuration: extensionConfig.extensionClipDuration,
+    extensionMethod: extensionConfig.extensionMethod,
+    extendEndpointId: extensionConfig.extendEndpointId,
+    referenceImageUrl,
+    negativePrompt: input.negativePrompt,
+    resolution: input.resolution,
+    i2vModelId: modelConfig.i2vModelId,
+    videoDefaults: modelConfig.videoDefaults
+      ? { ...modelConfig.videoDefaults }
+      : undefined,
+    providerBaseUrl: modelConfig.providerConfig.baseUrl,
+    outputStorageKeys,
   })
 
   return {
@@ -236,7 +231,35 @@ export async function advanceLongVideoPipelineFromWorker(
     )
   }
 
-  // Terminal states — return cached result
+  return mapPipelineToRecord(pipeline)
+}
+
+export async function applyLongVideoPipelineWorkerUpdate(
+  input: LongVideoPipelineAdvanceRequest,
+): Promise<PipelineStatusRecord> {
+  const pipeline = await db.videoPipeline.findUnique({
+    where: { id: input.pipelineId },
+    include: {
+      clips: { orderBy: { clipIndex: 'asc' } },
+      generation: true,
+    },
+  })
+
+  if (!pipeline) {
+    throw new GenerateImageServiceError(
+      'JOB_NOT_FOUND',
+      'Video pipeline not found',
+      404,
+    )
+  }
+
+  if (input.action === 'fail') {
+    return failLongVideoPipelineFromWorker(
+      input.pipelineId,
+      input.error ?? 'Long-video execution worker failed',
+    )
+  }
+
   if (
     pipeline.status === 'COMPLETED' ||
     pipeline.status === 'FAILED' ||
@@ -245,288 +268,241 @@ export async function advanceLongVideoPipelineFromWorker(
     return mapPipelineToRecord(pipeline)
   }
 
-  // Find the active clip (first non-COMPLETED clip)
-  const activeClip = pipeline.clips.find((c) => c.status !== 'COMPLETED')
-  if (!activeClip) {
-    // All clips completed but pipeline not marked complete — finalize
-    return await finalizePipeline(pipeline, pipeline.userId)
-  }
-
-  // If the active clip hasn't been submitted yet (PENDING), it means
-  // we haven't advanced to it yet — this shouldn't normally happen
-  // because we advance in the completion handler below
-  if (activeClip.status === 'PENDING') {
+  if (input.action === 'advance') {
     return mapPipelineToRecord(pipeline)
   }
 
-  // Check the active clip's status with the provider
-  if (!activeClip.externalRequestId) {
-    return mapPipelineToRecord(pipeline)
+  if (input.action === 'finalize') {
+    return finalizePipeline(pipeline, pipeline.userId)
   }
 
-  let queueMeta: { statusUrl: string; responseUrl: string }
-  try {
-    queueMeta = JSON.parse(activeClip.externalRequestId)
-  } catch {
-    await db.videoPipelineClip.update({
-      where: { id: activeClip.id },
-      data: { status: 'FAILED', errorMessage: 'Invalid queue metadata' },
-    })
-    await db.videoPipeline.update({
-      where: { id: pipelineId },
-      data: {
-        status: 'FAILED',
-        errorMessage: 'Clip has invalid queue metadata',
-      },
-    })
-    return mapPipelineToRecord(
-      await db.videoPipeline.findUniqueOrThrow({
-        where: { id: pipelineId },
-        include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
-      }),
-    )
+  const clip = getPipelineClipByIndex(pipeline, input.clipIndex)
+
+  if (input.action === 'clip-queued') {
+    return updateWorkerQueuedClip(input, clip)
   }
 
-  const executionRoute = await resolveGenerationRoute(pipeline.userId, {
-    modelId: pipeline.modelId,
-    apiKeyId: pipeline.apiKeyId ?? undefined,
-  })
-  const providerAdapter = getProviderAdapter(executionRoute.adapterType)
+  if (input.action === 'clip-running') {
+    return updateWorkerRunningClip(input, clip)
+  }
 
-  if (!providerAdapter?.checkVideoQueueStatus) {
+  return updateWorkerCompletedClip(input, pipeline, clip)
+}
+
+function getPipelineClipByIndex(
+  pipeline: {
+    clips: Array<{
+      id: string
+      clipIndex: number
+      status: string
+      startedAt: Date | null
+    }>
+  },
+  clipIndex: number | undefined,
+) {
+  if (clipIndex === undefined) {
     throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      'Video status check is not supported for this provider',
+      'INVALID_JOB',
+      'Worker update is missing clip index',
       400,
     )
   }
 
-  let queueStatus: Awaited<
-    ReturnType<NonNullable<typeof providerAdapter.checkVideoQueueStatus>>
-  >
-  try {
-    queueStatus = await providerAdapter.checkVideoQueueStatus({
-      statusUrl: queueMeta.statusUrl,
-      responseUrl: queueMeta.responseUrl,
-      apiKey: executionRoute.apiKey,
-    })
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : 'Video status check failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
-  }
-
-  // Still running
-  if (
-    queueStatus.status === 'IN_QUEUE' ||
-    queueStatus.status === 'IN_PROGRESS'
-  ) {
-    // Update clip status to RUNNING if it was QUEUED
-    if (activeClip.status === 'QUEUED') {
-      await db.videoPipelineClip.update({
-        where: { id: activeClip.id },
-        data: { status: 'RUNNING' },
-      })
-    }
-    return mapPipelineToRecord(
-      await db.videoPipeline.findUniqueOrThrow({
-        where: { id: pipelineId },
-        include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
-      }),
+  const clip = pipeline.clips.find((item) => item.clipIndex === clipIndex)
+  if (!clip) {
+    throw new GenerateImageServiceError(
+      'JOB_NOT_FOUND',
+      'Video pipeline clip not found',
+      404,
     )
   }
 
-  // Failed
-  if (queueStatus.status === 'FAILED') {
-    await db.videoPipelineClip.update({
-      where: { id: activeClip.id },
-      data: {
-        status: 'FAILED',
-        errorMessage: 'Video generation failed on provider side',
-      },
-    })
-    await db.videoPipeline.update({
-      where: { id: pipelineId },
-      data: {
-        status: 'FAILED',
-        errorMessage: `Clip ${activeClip.clipIndex + 1} failed`,
-      },
-    })
-    return mapPipelineToRecord(
-      await db.videoPipeline.findUniqueOrThrow({
-        where: { id: pipelineId },
-        include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
-      }),
-    )
-  }
+  return clip
+}
 
-  // COMPLETED — handle clip completion
-  if (!queueStatus.result) {
-    await db.videoPipelineClip.update({
-      where: { id: activeClip.id },
-      data: {
-        status: 'FAILED',
-        errorMessage: 'Provider returned completed but no result',
-      },
-    })
-    await db.videoPipeline.update({
-      where: { id: pipelineId },
-      data: { status: 'FAILED', errorMessage: 'No result from provider' },
-    })
-    return mapPipelineToRecord(
-      await db.videoPipeline.findUniqueOrThrow({
-        where: { id: pipelineId },
-        include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
-      }),
-    )
-  }
+function requireWorkerString(
+  value: string | undefined,
+  fieldName: string,
+): string {
+  if (value) return value
 
-  const videoResult = queueStatus.result
-  const provider = getProviderLabel(executionRoute.providerConfig)
+  throw new GenerateImageServiceError(
+    'INVALID_JOB',
+    `Worker update is missing ${fieldName}`,
+    400,
+  )
+}
 
-  // video-perf #1: For `last_frame_chain` pipelines, the next clip's
-  // submission only needs the provider's thumbnail URL — which is
-  // already in `videoResult.thumbnailUrl` at this point. Run that
-  // submit in parallel with the R2 upload of the current clip so the
-  // ~3–10s upload window stops being dead time between clips. For
-  // 4-clip pipelines this saves ~9–30s end-to-end.
-  //
-  // `native_extend` stays sequential because `submitExtendVideoToQueue`
-  // takes a video URL we want to persist in R2 first (the alternative —
-  // passing the provider's short-lived URL — would leave `inputVideoUrl`
-  // in DB pointing at a TTL'd asset, breaking the retry path).
-  //
-  // The `nextClip.status === 'PENDING'` guard makes the optimisation
-  // idempotent under worker retry: if a previous attempt already
-  // submitted N+1 (and we crashed before persisting clip N's R2 row),
-  // we won't re-submit and double-bill the provider queue.
-  const extensionMethod = getModelById(pipeline.modelId)?.videoExtension
-    ?.extensionMethod
-  const nextClipIndex = activeClip.clipIndex + 1
-  const nextClip = pipeline.clips.find((c) => c.clipIndex === nextClipIndex)
-  const willHaveMoreClips = pipeline.completedClips + 1 < pipeline.totalClips
-  const parallelSubmitTargetClip =
-    willHaveMoreClips &&
-    nextClip &&
-    nextClip.status === 'PENDING' &&
-    extensionMethod === 'last_frame_chain'
-      ? nextClip
-      : undefined
+function requireWorkerNumber(
+  value: number | undefined,
+  fieldName: string,
+): number {
+  if (value !== undefined) return value
 
-  const clipStorageKey = generateStorageKey('VIDEO', pipeline.userId)
-  const r2UploadPromise = streamUploadToR2({
-    sourceUrl: videoResult.videoUrl,
-    key: clipStorageKey,
-    mimeType: 'video/mp4',
-    fetchHeaders: videoResult.fetchHeaders,
-  })
+  throw new GenerateImageServiceError(
+    'INVALID_JOB',
+    `Worker update is missing ${fieldName}`,
+    400,
+  )
+}
 
-  const parallelSubmitPromise: Promise<void> = parallelSubmitTargetClip
-    ? submitNextClip({
-        pipeline,
-        previousClipVideoUrl: undefined,
-        previousClipLastFrameUrl: videoResult.thumbnailUrl,
-        nextClipId: parallelSubmitTargetClip.id,
-        nextClipIndex,
-        executionRoute,
-      })
-    : Promise.resolve()
-  // submitNextClip catches its own errors and writes FAILED status to
-  // both the clip and the pipeline — swallow here so an unhandled
-  // rejection doesn't fire before Promise.all awaits it below.
-  parallelSubmitPromise.catch(() => {})
-
-  const [{ publicUrl: clipVideoUrl }] = await Promise.all([
-    r2UploadPromise,
-    parallelSubmitPromise,
-  ])
-
-  // Create usage entry for this clip
-  await createApiUsageEntry({
-    userId: pipeline.userId,
-    adapterType: executionRoute.adapterType,
-    provider,
-    modelId: pipeline.modelId,
-    requestCount: videoResult.requestCount,
-    inputImageCount: 0,
-    outputImageCount: 0,
-    width: videoResult.width,
-    height: videoResult.height,
-    durationMs: Date.now() - (activeClip.startedAt?.getTime() ?? Date.now()),
-    wasSuccessful: true,
-  })
-
-  // Update clip as completed
-  const newCompletedClips = pipeline.completedClips + 1
-  const newCurrentDuration = pipeline.currentDurationSec + videoResult.duration
-
-  await db.videoPipelineClip.update({
-    where: { id: activeClip.id },
-    data: {
-      status: 'COMPLETED',
-      videoUrl: clipVideoUrl,
-      storageKey: clipStorageKey,
-      lastFrameUrl: videoResult.thumbnailUrl,
-      durationSec: videoResult.duration,
-      completedAt: new Date(),
-    },
-  })
-
-  await db.videoPipeline.update({
-    where: { id: pipelineId },
-    data: {
-      completedClips: newCompletedClips,
-      currentDurationSec: newCurrentDuration,
-    },
-  })
-
-  // Check if all clips are done
-  if (newCompletedClips >= pipeline.totalClips) {
-    const updatedPipeline = await db.videoPipeline.findUniqueOrThrow({
-      where: { id: pipelineId },
-      include: {
-        clips: { orderBy: { clipIndex: 'asc' } },
-        generation: true,
-      },
-    })
-    return await finalizePipeline(updatedPipeline, pipeline.userId)
-  }
-
-  if (!nextClip) {
-    // Shouldn't happen, but handle gracefully
-    const updatedPipeline = await db.videoPipeline.findUniqueOrThrow({
-      where: { id: pipelineId },
-      include: {
-        clips: { orderBy: { clipIndex: 'asc' } },
-        generation: true,
-      },
-    })
-    return await finalizePipeline(updatedPipeline, pipeline.userId)
-  }
-
-  // Submit next clip sequentially when we didn't pipeline it above.
-  // The PENDING guard makes this a no-op when a previous worker
-  // iteration already queued the next clip.
-  if (!parallelSubmitTargetClip && nextClip.status === 'PENDING') {
-    await submitNextClip({
-      pipeline,
-      previousClipVideoUrl: clipVideoUrl,
-      previousClipLastFrameUrl: videoResult.thumbnailUrl,
-      nextClipId: nextClip.id,
-      nextClipIndex,
-      executionRoute,
-    })
-  }
-
-  // Return fresh pipeline state
+async function fetchPipelineStatus(pipelineId: string) {
   return mapPipelineToRecord(
     await db.videoPipeline.findUniqueOrThrow({
       where: { id: pipelineId },
       include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
     }),
   )
+}
+
+async function updateWorkerQueuedClip(
+  input: LongVideoPipelineAdvanceRequest,
+  clip: { id: string; status: string },
+): Promise<PipelineStatusRecord> {
+  if (clip.status === 'COMPLETED') {
+    return fetchPipelineStatus(input.pipelineId)
+  }
+
+  const requestId = requireWorkerString(input.requestId, 'requestId')
+  const statusUrl = requireWorkerString(input.statusUrl, 'statusUrl')
+  const responseUrl = requireWorkerString(input.responseUrl, 'responseUrl')
+
+  await db.videoPipelineClip.update({
+    where: { id: clip.id },
+    data: {
+      status: 'QUEUED',
+      errorMessage: null,
+      externalRequestId: JSON.stringify({
+        requestId,
+        statusUrl,
+        responseUrl,
+        providerMetadata: input.providerMetadata,
+      }),
+      inputVideoUrl: input.inputVideoUrl,
+      inputFrameUrl: input.inputFrameUrl,
+      startedAt: new Date(),
+      completedAt: null,
+    },
+  })
+
+  await db.videoPipeline.update({
+    where: { id: input.pipelineId },
+    data: { status: 'RUNNING', errorMessage: null },
+  })
+
+  return fetchPipelineStatus(input.pipelineId)
+}
+
+async function updateWorkerRunningClip(
+  input: LongVideoPipelineAdvanceRequest,
+  clip: { id: string; status: string },
+): Promise<PipelineStatusRecord> {
+  if (clip.status === 'COMPLETED') {
+    return fetchPipelineStatus(input.pipelineId)
+  }
+
+  await db.videoPipelineClip.update({
+    where: { id: clip.id },
+    data: { status: 'RUNNING' },
+  })
+
+  return fetchPipelineStatus(input.pipelineId)
+}
+
+async function updateWorkerCompletedClip(
+  input: LongVideoPipelineAdvanceRequest,
+  pipeline: {
+    id: string
+    userId: string
+    modelId: string
+    adapterType: string
+    totalClips: number
+    clips: Array<{
+      id: string
+      clipIndex: number
+      status: string
+      startedAt: Date | null
+      durationSec: number | null
+    }>
+    generation: GenerationDbRow | null
+  },
+  clip: { id: string; status: string; startedAt: Date | null },
+): Promise<PipelineStatusRecord> {
+  if (clip.status === 'COMPLETED') {
+    return fetchPipelineStatus(input.pipelineId)
+  }
+
+  const videoUrl = requireWorkerString(input.videoUrl, 'videoUrl')
+  const storageKey = requireWorkerString(input.storageKey, 'storageKey')
+  const durationSec = requireWorkerNumber(input.durationSec, 'durationSec')
+  const modelForProvider = getModelById(pipeline.modelId)
+  const provider = modelForProvider
+    ? getProviderLabel(modelForProvider.providerConfig)
+    : pipeline.adapterType
+
+  await createApiUsageEntry({
+    userId: pipeline.userId,
+    adapterType: pipeline.adapterType,
+    provider,
+    modelId: pipeline.modelId,
+    requestCount: input.requestCount,
+    inputImageCount: 0,
+    outputImageCount: 0,
+    width: input.width,
+    height: input.height,
+    durationMs: Date.now() - (clip.startedAt?.getTime() ?? Date.now()),
+    wasSuccessful: true,
+  })
+
+  await db.videoPipelineClip.update({
+    where: { id: clip.id },
+    data: {
+      status: 'COMPLETED',
+      videoUrl,
+      storageKey,
+      lastFrameUrl: input.lastFrameUrl,
+      durationSec,
+      errorMessage: null,
+      completedAt: new Date(),
+    },
+  })
+
+  const updatedPipeline = await db.videoPipeline.findUniqueOrThrow({
+    where: { id: input.pipelineId },
+    include: {
+      clips: { orderBy: { clipIndex: 'asc' } },
+      generation: true,
+    },
+  })
+  const completedClips = updatedPipeline.clips.filter(
+    (item) => item.status === 'COMPLETED',
+  )
+  const currentDurationSec = completedClips.reduce(
+    (total, item) => total + (item.durationSec ?? 0),
+    0,
+  )
+
+  await db.videoPipeline.update({
+    where: { id: input.pipelineId },
+    data: {
+      completedClips: completedClips.length,
+      currentDurationSec,
+    },
+  })
+
+  const refreshedPipeline = await db.videoPipeline.findUniqueOrThrow({
+    where: { id: input.pipelineId },
+    include: {
+      clips: { orderBy: { clipIndex: 'asc' } },
+      generation: true,
+    },
+  })
+
+  if (completedClips.length >= pipeline.totalClips) {
+    return finalizePipeline(refreshedPipeline, pipeline.userId)
+  }
+
+  return mapPipelineToRecord(refreshedPipeline)
 }
 
 // ─── Retry Failed Clip ──────────────────────────────────────────
@@ -565,89 +541,122 @@ export async function retryPipelineClip(
     apiKeyId: pipeline.apiKeyId ?? undefined,
   })
 
-  if (clipIndex === 0) {
-    // Retry first clip as T2V/I2V
-    const providerAdapter = getProviderAdapter(executionRoute.adapterType)
-    if (!providerAdapter?.submitVideoToQueue) {
-      throw new GenerateImageServiceError(
-        'UNSUPPORTED_MODEL',
-        'Video generation is not supported',
-        400,
-      )
-    }
-
-    const modelConfig = getModelById(pipeline.modelId)
-    const firstClipDuration = Math.min(
-      VIDEO_GENERATION.LONG_VIDEO_FIRST_CLIP_MAX_DURATION,
-      pipeline.targetDurationSec,
+  if (executionRoute.adapterType !== AI_ADAPTER_TYPES.FAL) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'This long-video provider has not been migrated to the execution worker yet',
+      501,
     )
-    const validatedResolution =
-      pipeline.resolution && isVideoResolution(pipeline.resolution)
-        ? pipeline.resolution
-        : undefined
-
-    const queueResult = await providerAdapter.submitVideoToQueue({
-      prompt: pipeline.prompt,
-      modelId: executionRoute.modelId,
-      aspectRatio: pipeline.aspectRatio as Parameters<
-        typeof providerAdapter.submitVideoToQueue
-      >[0]['aspectRatio'],
-      providerConfig: executionRoute.providerConfig,
-      apiKey: executionRoute.apiKey,
-      duration: firstClipDuration,
-      referenceImage: pipeline.referenceImageUrl ?? undefined,
-      negativePrompt: pipeline.negativePrompt ?? undefined,
-      resolution: validatedResolution,
-      i2vModelId: modelConfig?.i2vModelId,
-      videoDefaults: modelConfig?.videoDefaults,
-    })
-
-    await db.videoPipelineClip.update({
-      where: { id: clip.id },
-      data: {
-        status: 'QUEUED',
-        errorMessage: null,
-        externalRequestId: JSON.stringify({
-          requestId: queueResult.requestId,
-          statusUrl: queueResult.statusUrl,
-          responseUrl: queueResult.responseUrl,
-        }),
-        startedAt: new Date(),
-      },
-    })
-  } else {
-    // Retry extension clip — need previous clip's data
-    const previousClip = pipeline.clips.find(
-      (c) => c.clipIndex === clipIndex - 1,
-    )
-    if (!previousClip || previousClip.status !== 'COMPLETED') {
-      throw new GenerateImageServiceError(
-        'INVALID_JOB',
-        'Previous clip must be completed before retrying',
-        400,
-      )
-    }
-
-    await submitNextClip({
-      pipeline,
-      previousClipVideoUrl: previousClip.videoUrl ?? undefined,
-      previousClipLastFrameUrl: previousClip.lastFrameUrl ?? undefined,
-      nextClipId: clip.id,
-      nextClipIndex: clipIndex,
-      executionRoute,
-    })
   }
+
+  const apiKeyId = executionRoute.resolvedApiKeyId ?? pipeline.apiKeyId
+  const useSystemKey =
+    executionRoute.isFreeGeneration === true && !executionRoute.resolvedApiKeyId
+  if (!apiKeyId && !useSystemKey) {
+    throw new GenerateImageServiceError(
+      'MISSING_API_KEY',
+      'Execution worker runs require a saved API key or platform key',
+      400,
+    )
+  }
+
+  const modelConfig = getModelById(pipeline.modelId)
+  const extensionConfig = modelConfig?.videoExtension
+  if (!modelConfig || !extensionConfig) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'This model does not support long video generation',
+      400,
+    )
+  }
+
+  const previousClip =
+    clipIndex > 0
+      ? pipeline.clips.find((item) => item.clipIndex === clipIndex - 1)
+      : undefined
+  if (clipIndex > 0 && (!previousClip || previousClip.status !== 'COMPLETED')) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Previous clip must be completed before retrying',
+      400,
+    )
+  }
+
+  await db.videoPipelineClip.updateMany({
+    where: {
+      pipelineId,
+      clipIndex: { gte: clipIndex },
+    },
+    data: {
+      status: 'PENDING',
+      errorMessage: null,
+      externalRequestId: null,
+      videoUrl: null,
+      storageKey: null,
+      lastFrameUrl: null,
+      durationSec: null,
+      inputVideoUrl: null,
+      inputFrameUrl: null,
+      startedAt: null,
+      completedAt: null,
+    },
+  })
+
+  const completedBeforeRetry = pipeline.clips.filter(
+    (item) => item.clipIndex < clipIndex && item.status === 'COMPLETED',
+  )
+  const currentDurationSec = completedBeforeRetry.reduce(
+    (total, item) => total + (item.durationSec ?? 0),
+    0,
+  )
 
   // Reset pipeline status to RUNNING
   await db.videoPipeline.update({
     where: { id: pipelineId },
-    data: { status: 'RUNNING', errorMessage: null },
+    data: {
+      status: 'RUNNING',
+      errorMessage: null,
+      completedClips: completedBeforeRetry.length,
+      currentDurationSec,
+    },
   })
 
   await dispatchLongVideoPipelineWorkflow({
     pipelineId,
     totalClips: pipeline.totalClips,
     runId: `${pipelineId}-retry-${randomUUID()}`,
+    providerId: executionRoute.adapterType,
+    apiKeyId,
+    useSystemKey,
+    routeModelId: executionRoute.modelId,
+    prompt: pipeline.prompt,
+    aspectRatio: pipeline.aspectRatio,
+    firstClipDuration: Math.min(
+      VIDEO_GENERATION.LONG_VIDEO_FIRST_CLIP_MAX_DURATION,
+      pipeline.targetDurationSec,
+    ),
+    extensionClipDuration: extensionConfig.extensionClipDuration,
+    extensionMethod: extensionConfig.extensionMethod,
+    extendEndpointId: extensionConfig.extendEndpointId,
+    referenceImageUrl: pipeline.referenceImageUrl ?? undefined,
+    negativePrompt: pipeline.negativePrompt ?? undefined,
+    resolution: pipeline.resolution ?? undefined,
+    i2vModelId: modelConfig.i2vModelId,
+    videoDefaults: modelConfig.videoDefaults
+      ? { ...modelConfig.videoDefaults }
+      : undefined,
+    providerBaseUrl: modelConfig.providerConfig.baseUrl,
+    outputStorageKeys: Array.from(
+      { length: pipeline.totalClips },
+      (_, index) =>
+        index < clipIndex
+          ? (pipeline.clips.find((item) => item.clipIndex === index)
+              ?.storageKey ?? generateStorageKey('VIDEO', dbUser.id))
+          : generateStorageKey('VIDEO', dbUser.id),
+    ),
+    startClipIndex: clipIndex,
+    initialVideoUrl: previousClip?.videoUrl ?? undefined,
+    initialFrameUrl: previousClip?.lastFrameUrl ?? undefined,
   })
 
   return mapPipelineToRecord(
@@ -760,19 +769,74 @@ async function dispatchLongVideoPipelineWorkflow(input: {
   pipelineId: string
   totalClips: number
   runId?: string
+  providerId: string
+  apiKeyId?: string | null
+  useSystemKey: boolean
+  routeModelId: string
+  prompt: string
+  aspectRatio: string
+  firstClipDuration: number
+  extensionClipDuration: number
+  extensionMethod: 'native_extend' | 'last_frame_chain'
+  extendEndpointId?: string
+  referenceImageUrl?: string
+  negativePrompt?: string
+  resolution?: string
+  i2vModelId?: string
+  videoDefaults?: Record<string, unknown>
+  providerBaseUrl?: string
+  outputStorageKeys: string[]
+  startClipIndex?: number
+  initialVideoUrl?: string
+  initialFrameUrl?: string
 }) {
   try {
+    const { width, height } =
+      IMAGE_SIZES[input.aspectRatio as keyof typeof IMAGE_SIZES] ??
+      IMAGE_SIZES['16:9']
     const result = await dispatchLongVideoPipelineWorkerRun({
       runId: input.runId ?? input.pipelineId,
       workflowId: EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE,
       pipelineId: input.pipelineId,
       advanceUrl: buildInternalUrl(EXECUTION_INTERNAL.LONG_VIDEO_ADVANCE_PATH),
+      providerId: input.providerId,
+      apiKeyId: input.apiKeyId ?? undefined,
+      useSystemKey: input.useSystemKey || undefined,
+      resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
       timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
       maxAttempts: Math.max(
         EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
         input.totalClips * EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
       ),
       pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+      startClipIndex: input.startClipIndex ?? 0,
+      initialVideoUrl: input.initialVideoUrl,
+      initialFrameUrl: input.initialFrameUrl,
+      providerInput: {
+        prompt: input.prompt,
+        modelId: input.routeModelId,
+        externalModelId: getExecutionModelId(input.routeModelId),
+        aspectRatio: input.aspectRatio as
+          | '1:1'
+          | '16:9'
+          | '9:16'
+          | '4:3'
+          | '3:4',
+        firstClipDuration: input.firstClipDuration,
+        extensionClipDuration: input.extensionClipDuration,
+        totalClips: input.totalClips,
+        extensionMethod: input.extensionMethod,
+        extendEndpointId: input.extendEndpointId,
+        referenceImage: input.referenceImageUrl,
+        negativePrompt: input.negativePrompt,
+        resolution: input.resolution,
+        i2vModelId: input.i2vModelId,
+        videoDefaults: input.videoDefaults,
+        providerBaseUrl: input.providerBaseUrl,
+        outputStorageKeys: input.outputStorageKeys,
+        width,
+        height,
+      },
     })
 
     logger.info('Long-video pipeline dispatched to execution worker', {
@@ -804,130 +868,6 @@ async function dispatchLongVideoPipelineWorkflow(input: {
     })
 
     throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
-  }
-}
-
-interface SubmitNextClipParams {
-  pipeline: {
-    id: string
-    modelId: string
-    prompt: string
-    aspectRatio: string
-    negativePrompt: string | null
-    resolution: string | null
-    extensionMethod: string
-    referenceImageUrl: string | null
-  }
-  previousClipVideoUrl?: string
-  previousClipLastFrameUrl?: string
-  nextClipId: string
-  nextClipIndex: number
-  executionRoute: Awaited<ReturnType<typeof resolveGenerationRoute>>
-}
-
-async function submitNextClip({
-  pipeline,
-  previousClipVideoUrl,
-  previousClipLastFrameUrl,
-  nextClipId,
-  nextClipIndex,
-  executionRoute,
-}: SubmitNextClipParams) {
-  const modelConfig = getModelById(pipeline.modelId)
-  const extensionConfig = modelConfig?.videoExtension
-  if (!extensionConfig) return
-
-  const providerAdapter = getProviderAdapter(executionRoute.adapterType)
-  if (!providerAdapter) return
-
-  const validatedResolution =
-    pipeline.resolution && isVideoResolution(pipeline.resolution)
-      ? pipeline.resolution
-      : undefined
-
-  try {
-    if (
-      extensionConfig.extensionMethod === 'native_extend' &&
-      extensionConfig.extendEndpointId &&
-      providerAdapter.submitExtendVideoToQueue &&
-      previousClipVideoUrl
-    ) {
-      // Native extend: pass video URL to extend endpoint
-      const queueResult = await providerAdapter.submitExtendVideoToQueue({
-        videoUrl: previousClipVideoUrl,
-        prompt: pipeline.prompt,
-        aspectRatio: pipeline.aspectRatio as Parameters<
-          typeof providerAdapter.submitExtendVideoToQueue
-        >[0]['aspectRatio'],
-        providerConfig: executionRoute.providerConfig,
-        apiKey: executionRoute.apiKey,
-        extendEndpointId: extensionConfig.extendEndpointId,
-        duration: extensionConfig.extensionClipDuration,
-      })
-
-      await db.videoPipelineClip.update({
-        where: { id: nextClipId },
-        data: {
-          status: 'QUEUED',
-          inputVideoUrl: previousClipVideoUrl,
-          externalRequestId: JSON.stringify({
-            requestId: queueResult.requestId,
-            statusUrl: queueResult.statusUrl,
-            responseUrl: queueResult.responseUrl,
-          }),
-          startedAt: new Date(),
-        },
-      })
-    } else if (
-      extensionConfig.extensionMethod === 'last_frame_chain' &&
-      previousClipLastFrameUrl &&
-      providerAdapter.submitVideoToQueue
-    ) {
-      // Last-frame chain: use last frame as I2V reference
-      const queueResult = await providerAdapter.submitVideoToQueue({
-        prompt: pipeline.prompt,
-        modelId: executionRoute.modelId,
-        aspectRatio: pipeline.aspectRatio as Parameters<
-          typeof providerAdapter.submitVideoToQueue
-        >[0]['aspectRatio'],
-        providerConfig: executionRoute.providerConfig,
-        apiKey: executionRoute.apiKey,
-        duration: extensionConfig.extensionClipDuration,
-        referenceImage: previousClipLastFrameUrl,
-        negativePrompt: pipeline.negativePrompt ?? undefined,
-        resolution: validatedResolution,
-        i2vModelId: modelConfig?.i2vModelId,
-        videoDefaults: modelConfig?.videoDefaults,
-      })
-
-      await db.videoPipelineClip.update({
-        where: { id: nextClipId },
-        data: {
-          status: 'QUEUED',
-          inputFrameUrl: previousClipLastFrameUrl,
-          externalRequestId: JSON.stringify({
-            requestId: queueResult.requestId,
-            statusUrl: queueResult.statusUrl,
-            responseUrl: queueResult.responseUrl,
-          }),
-          startedAt: new Date(),
-        },
-      })
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to submit next clip'
-    await db.videoPipelineClip.update({
-      where: { id: nextClipId },
-      data: { status: 'FAILED', errorMessage: message },
-    })
-    await db.videoPipeline.update({
-      where: { id: pipeline.id },
-      data: {
-        status: 'FAILED',
-        errorMessage: `Failed to submit clip ${nextClipIndex + 1}: ${message}`,
-      },
-    })
   }
 }
 

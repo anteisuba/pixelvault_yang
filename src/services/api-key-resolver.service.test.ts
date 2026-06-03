@@ -11,6 +11,8 @@ vi.mock('@/lib/logger', () => ({
 const mockFindUnique = vi.fn()
 const mockGetApiKeyValueById = vi.fn()
 const mockGetSystemApiKey = vi.fn()
+const mockGetSystemCivitaiToken = vi.fn()
+const mockGetCivitaiTokenByInternalUserId = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -26,6 +28,13 @@ vi.mock('@/services/apiKey.service', () => ({
 
 vi.mock('@/lib/platform-keys', () => ({
   getSystemApiKey: (...args: unknown[]) => mockGetSystemApiKey(...args),
+  getSystemCivitaiToken: (...args: unknown[]) =>
+    mockGetSystemCivitaiToken(...args),
+}))
+
+vi.mock('@/services/civitai-token.service', () => ({
+  getCivitaiTokenByInternalUserId: (...args: unknown[]) =>
+    mockGetCivitaiTokenByInternalUserId(...args),
 }))
 
 import { resolveExecutionApiKey } from './api-key-resolver.service'
@@ -138,5 +147,55 @@ describe('api-key-resolver.service', () => {
       }),
     )
     expect(mockGetSystemApiKey).not.toHaveBeenCalled()
+  })
+
+  it('returns the user Civitai token for running Replicate jobs', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob(),
+      adapterType: AI_ADAPTER_TYPES.REPLICATE,
+    })
+    mockGetCivitaiTokenByInternalUserId.mockResolvedValue('user-civitai-token')
+
+    const result = await resolveExecutionApiKey({
+      runId: 'job-1',
+      keyKind: 'civitai',
+    })
+
+    expect(result).toEqual({ apiKey: 'user-civitai-token' })
+    expect(mockGetCivitaiTokenByInternalUserId).toHaveBeenCalledWith('user-1')
+    expect(mockGetSystemCivitaiToken).not.toHaveBeenCalled()
+    expect(mockGetApiKeyValueById).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the system Civitai token when the user has none', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob(),
+      adapterType: AI_ADAPTER_TYPES.FAL,
+    })
+    mockGetCivitaiTokenByInternalUserId.mockResolvedValue(null)
+    mockGetSystemCivitaiToken.mockReturnValue('system-civitai-token')
+
+    const result = await resolveExecutionApiKey({
+      runId: 'job-1',
+      keyKind: 'civitai',
+    })
+
+    expect(result).toEqual({ apiKey: 'system-civitai-token' })
+  })
+
+  it('returns 403 for Civitai token requests on unsupported adapters', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob(),
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
+
+    await expectForbidden(
+      resolveExecutionApiKey({
+        runId: 'job-1',
+        keyKind: 'civitai',
+      }),
+    )
+    expect(mockGetCivitaiTokenByInternalUserId).not.toHaveBeenCalled()
+    expect(mockGetSystemCivitaiToken).not.toHaveBeenCalled()
   })
 })

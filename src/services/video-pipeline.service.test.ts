@@ -89,6 +89,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  applyLongVideoPipelineWorkerUpdate,
   cancelPipeline,
   advanceLongVideoPipelineFromWorker,
   checkPipelineStatus,
@@ -224,7 +225,7 @@ describe('video-pipeline.service', () => {
   })
 
   describe('createLongVideoPipeline', () => {
-    it('submits the first clip and creates a pipeline with calculated clip count', async () => {
+    it('creates a pipeline and dispatches provider-owned execution to the worker', async () => {
       const result = await createLongVideoPipeline('clerk-1', BASE_INPUT)
 
       expect(result).toEqual({
@@ -238,14 +239,7 @@ describe('video-pipeline.service', () => {
           duration: 10,
         }),
       )
-      expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          prompt: BASE_INPUT.prompt,
-          modelId: EXECUTION_ROUTE.modelId,
-          apiKey: 'plain-key',
-          duration: 10,
-        }),
-      )
+      expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
       expect(mockVideoPipelineCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -254,7 +248,7 @@ describe('video-pipeline.service', () => {
             totalClips: 3,
             clips: expect.objectContaining({
               create: expect.arrayContaining([
-                expect.objectContaining({ clipIndex: 0, status: 'QUEUED' }),
+                expect.objectContaining({ clipIndex: 0, status: 'PENDING' }),
                 expect.objectContaining({ clipIndex: 1, status: 'PENDING' }),
                 expect.objectContaining({ clipIndex: 2, status: 'PENDING' }),
               ]),
@@ -269,7 +263,25 @@ describe('video-pipeline.service', () => {
           pipelineId: 'pipeline-1',
           advanceUrl:
             'https://app.example.com/api/internal/execution/long-video/advance',
+          resolveKeyUrl:
+            'https://app.example.com/api/internal/execution/resolve-key',
+          providerId: AI_ADAPTER_TYPES.FAL,
+          apiKeyId: 'key-1',
           maxAttempts: 600,
+          providerInput: expect.objectContaining({
+            prompt: BASE_INPUT.prompt,
+            modelId: EXECUTION_ROUTE.modelId,
+            externalModelId: 'fal-ai/kling-video/v3/pro/text-to-video',
+            firstClipDuration: 10,
+            extensionClipDuration: 5,
+            totalClips: 3,
+            extensionMethod: 'native_extend',
+            outputStorageKeys: [
+              'videos/user-1/clip.mp4',
+              'videos/user-1/clip.mp4',
+              'videos/user-1/clip.mp4',
+            ],
+          }),
         }),
       )
     })
@@ -288,7 +300,7 @@ describe('video-pipeline.service', () => {
     })
   })
 
-  describe('checkPipelineStatus', () => {
+  describe('pipeline status and worker updates', () => {
     it('returns cached terminal pipeline status without provider polling', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(
         pipeline({
@@ -309,214 +321,125 @@ describe('video-pipeline.service', () => {
       expect(mockCheckVideoQueueStatus).not.toHaveBeenCalled()
     })
 
-    it('marks a queued active clip as running while provider is still processing', async () => {
+    it('keeps legacy advance ticks read-only', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(pipeline())
-      mockCheckVideoQueueStatus.mockResolvedValue({ status: 'IN_PROGRESS' })
+
+      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
+
+      expect(result.status).toBe('RUNNING')
+      expect(mockCheckVideoQueueStatus).not.toHaveBeenCalled()
+      expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+      expect(mockSubmitExtendVideoToQueue).not.toHaveBeenCalled()
+    })
+
+    it('persists a queued clip from a worker update', async () => {
+      mockVideoPipelineFindUnique.mockResolvedValue(pipeline())
       mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
         pipeline({
           clips: [
-            clip({ status: 'RUNNING' }),
+            clip({ status: 'QUEUED' }),
             clip({ id: 'clip-1', clipIndex: 1, status: 'PENDING' }),
           ],
         }),
       )
 
-      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
+      const result = await applyLongVideoPipelineWorkerUpdate({
+        runId: 'pipeline-1',
+        pipelineId: 'pipeline-1',
+        action: 'clip-queued',
+        clipIndex: 0,
+        requestId: 'request-1',
+        statusUrl: 'https://queue.example.com/status',
+        responseUrl: 'https://queue.example.com/response',
+      })
 
-      expect(result.clips[0].status).toBe('RUNNING')
+      expect(result.clips[0].status).toBe('QUEUED')
       expect(mockVideoPipelineClipUpdate).toHaveBeenCalledWith({
         where: { id: 'clip-0' },
-        data: { status: 'RUNNING' },
+        data: expect.objectContaining({
+          status: 'QUEUED',
+          externalRequestId: expect.stringContaining('request-1'),
+        }),
       })
+      expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     })
 
-    it('fails the pipeline when provider marks the active clip failed', async () => {
+    it('stores a completed worker-uploaded clip without provider polling', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(pipeline())
-      mockCheckVideoQueueStatus.mockResolvedValue({ status: 'FAILED' })
-      mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
-        pipeline({
-          status: 'FAILED',
-          errorMessage: 'Clip 1 failed',
-          clips: [
-            clip({
-              status: 'FAILED',
-              errorMessage: 'Video generation failed on provider side',
-            }),
-            clip({ id: 'clip-1', clipIndex: 1, status: 'PENDING' }),
-          ],
-        }),
-      )
+      mockVideoPipelineFindUniqueOrThrow
+        .mockResolvedValueOnce(
+          pipeline({
+            completedClips: 1,
+            currentDurationSec: 10,
+            clips: [
+              clip({
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip.mp4',
+                storageKey: 'videos/user-1/clip.mp4',
+                durationSec: 10,
+              }),
+              clip({ id: 'clip-1', clipIndex: 1, status: 'PENDING' }),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          pipeline({
+            completedClips: 1,
+            currentDurationSec: 10,
+            clips: [
+              clip({
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip.mp4',
+                storageKey: 'videos/user-1/clip.mp4',
+                durationSec: 10,
+              }),
+              clip({ id: 'clip-1', clipIndex: 1, status: 'PENDING' }),
+            ],
+          }),
+        )
 
-      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
-
-      expect(result.status).toBe('FAILED')
-      expect(mockVideoPipelineUpdate).toHaveBeenCalledWith({
-        where: { id: 'pipeline-1' },
-        data: {
-          status: 'FAILED',
-          errorMessage: 'Clip 1 failed',
-        },
+      const result = await applyLongVideoPipelineWorkerUpdate({
+        runId: 'pipeline-1',
+        pipelineId: 'pipeline-1',
+        action: 'clip-completed',
+        clipIndex: 0,
+        videoUrl: 'https://cdn.example.com/clip.mp4',
+        storageKey: 'videos/user-1/clip.mp4',
+        lastFrameUrl: 'https://provider.example.com/last-frame.png',
+        durationSec: 10,
+        requestCount: 1,
+        width: 1280,
+        height: 720,
       })
-    })
-
-    it('stores a completed clip and submits the next native extension clip', async () => {
-      mockVideoPipelineFindUnique.mockResolvedValue(pipeline())
-      mockCheckVideoQueueStatus.mockResolvedValue({
-        status: 'COMPLETED',
-        result: {
-          videoUrl: 'https://provider.example.com/clip.mp4',
-          thumbnailUrl: 'https://provider.example.com/last-frame.png',
-          duration: 10,
-          width: 1280,
-          height: 720,
-          requestCount: 1,
-        },
-      })
-      mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
-        pipeline({
-          completedClips: 1,
-          currentDurationSec: 10,
-          clips: [
-            clip({
-              status: 'COMPLETED',
-              videoUrl: 'https://cdn.example.com/clip.mp4',
-              storageKey: 'videos/user-1/clip.mp4',
-              durationSec: 10,
-            }),
-            clip({ id: 'clip-1', clipIndex: 1, status: 'QUEUED' }),
-          ],
-        }),
-      )
-
-      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
 
       expect(result.completedClips).toBe(1)
-      expect(mockStreamUploadToR2).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sourceUrl: 'https://provider.example.com/clip.mp4',
-          key: 'videos/user-1/clip.mp4',
-          mimeType: 'video/mp4',
-        }),
-      )
+      expect(mockStreamUploadToR2).not.toHaveBeenCalled()
       expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-1',
           provider: 'fal.ai',
           modelId: AI_MODELS.KLING_V3_PRO,
+          width: 1280,
+          height: 720,
           wasSuccessful: true,
         }),
       )
-      expect(mockSubmitExtendVideoToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mockVideoPipelineClipUpdate).toHaveBeenCalledWith({
+        where: { id: 'clip-0' },
+        data: expect.objectContaining({
+          status: 'COMPLETED',
           videoUrl: 'https://cdn.example.com/clip.mp4',
-          extendEndpointId: 'fal-ai/kling-video/v3/pro/extend-video',
-          duration: 5,
+          storageKey: 'videos/user-1/clip.mp4',
         }),
-      )
+      })
     })
 
-    it('submits the next last_frame_chain clip in parallel with the current R2 upload', async () => {
-      // video-perf #1: last_frame_chain pipelines should kick the next
-      // clip's submitVideoToQueue at the same time the previous clip's
-      // bytes are being multipart-uploaded to R2 — the next clip only
-      // depends on the provider thumbnail URL, which we already have.
-      const submitOrder: string[] = []
-      let resolveStreamUpload!: (value: {
-        publicUrl: string
-        sizeBytes: number
-      }) => void
-      mockStreamUploadToR2.mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            submitOrder.push('r2Upload:start')
-            resolveStreamUpload = (value) => {
-              submitOrder.push('r2Upload:end')
-              resolve(value)
-            }
-          }),
-      )
-      mockSubmitVideoToQueue.mockImplementationOnce(async () => {
-        submitOrder.push('submitNextClip')
-        return {
-          requestId: 'request-2',
-          statusUrl: 'https://queue.example.com/status-2',
-          responseUrl: 'https://queue.example.com/response-2',
-        }
-      })
-
-      mockVideoPipelineFindUnique.mockResolvedValue(
-        pipeline({
-          modelId: AI_MODELS.SEEDANCE_15_PRO,
-          extensionMethod: 'last_frame_chain',
-        }),
-      )
-      mockCheckVideoQueueStatus.mockResolvedValue({
-        status: 'COMPLETED',
-        result: {
-          videoUrl: 'https://provider.example.com/clip.mp4',
-          thumbnailUrl: 'https://provider.example.com/last-frame.png',
-          duration: 10,
-          width: 1280,
-          height: 720,
-          requestCount: 1,
-        },
-      })
-      mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
-        pipeline({
-          modelId: AI_MODELS.SEEDANCE_15_PRO,
-          extensionMethod: 'last_frame_chain',
-          completedClips: 1,
-          currentDurationSec: 10,
-          clips: [
-            clip({
-              status: 'COMPLETED',
-              videoUrl: 'https://cdn.example.com/clip.mp4',
-              storageKey: 'videos/user-1/clip.mp4',
-              durationSec: 10,
-            }),
-            clip({ id: 'clip-1', clipIndex: 1, status: 'QUEUED' }),
-          ],
-        }),
-      )
-
-      const advancePromise = advanceLongVideoPipelineFromWorker('pipeline-1')
-
-      // Yield so the in-flight uploadPromise has the chance to start,
-      // and verify the parallel submit didn't wait for it.
-      await new Promise((resolve) => setImmediate(resolve))
-
-      expect(submitOrder).toContain('r2Upload:start')
-      expect(submitOrder).toContain('submitNextClip')
-      // submitNextClip must complete before the R2 upload finishes —
-      // that's the whole point of the parallel optimisation.
-      expect(submitOrder.indexOf('submitNextClip')).toBeLessThan(
-        submitOrder.indexOf('r2Upload:end') === -1
-          ? Number.MAX_SAFE_INTEGER
-          : submitOrder.indexOf('r2Upload:end'),
-      )
-
-      resolveStreamUpload({
-        publicUrl: 'https://cdn.example.com/clip.mp4',
-        sizeBytes: 1024,
-      })
-      await advancePromise
-
-      expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceImage: 'https://provider.example.com/last-frame.png',
-        }),
-      )
-      // native_extend's `submitExtendVideoToQueue` should not fire on
-      // last_frame_chain pipelines.
-      expect(mockSubmitExtendVideoToQueue).not.toHaveBeenCalled()
-    })
-
-    it('finalizes the pipeline when all clips are completed', async () => {
+    it('finalizes after the worker completes the last clip', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(
         pipeline({
           totalClips: 2,
-          completedClips: 2,
-          currentDurationSec: 15,
+          completedClips: 1,
+          currentDurationSec: 10,
           clips: [
             clip({
               status: 'COMPLETED',
@@ -527,25 +450,77 @@ describe('video-pipeline.service', () => {
             clip({
               id: 'clip-1',
               clipIndex: 1,
-              status: 'COMPLETED',
-              videoUrl: 'https://cdn.example.com/clip-2.mp4',
-              storageKey: 'videos/clip-2.mp4',
-              durationSec: 5,
+              status: 'QUEUED',
             }),
           ],
         }),
       )
-      mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
-        pipeline({
-          status: 'COMPLETED',
-          totalClips: 2,
-          completedClips: 2,
-          currentDurationSec: 15,
-          generation: BASE_GENERATION,
-        }),
-      )
+      mockVideoPipelineFindUniqueOrThrow
+        .mockResolvedValueOnce(
+          pipeline({
+            totalClips: 2,
+            completedClips: 2,
+            currentDurationSec: 15,
+            clips: [
+              clip({
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip-1.mp4',
+                storageKey: 'videos/clip-1.mp4',
+                durationSec: 10,
+              }),
+              clip({
+                id: 'clip-1',
+                clipIndex: 1,
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip-2.mp4',
+                storageKey: 'videos/clip-2.mp4',
+                durationSec: 5,
+              }),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          pipeline({
+            totalClips: 2,
+            completedClips: 2,
+            currentDurationSec: 15,
+            clips: [
+              clip({
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip-1.mp4',
+                storageKey: 'videos/clip-1.mp4',
+                durationSec: 10,
+              }),
+              clip({
+                id: 'clip-1',
+                clipIndex: 1,
+                status: 'COMPLETED',
+                videoUrl: 'https://cdn.example.com/clip-2.mp4',
+                storageKey: 'videos/clip-2.mp4',
+                durationSec: 5,
+              }),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          pipeline({
+            status: 'COMPLETED',
+            totalClips: 2,
+            completedClips: 2,
+            currentDurationSec: 15,
+            generation: BASE_GENERATION,
+          }),
+        )
 
-      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
+      const result = await applyLongVideoPipelineWorkerUpdate({
+        runId: 'pipeline-1',
+        pipelineId: 'pipeline-1',
+        action: 'clip-completed',
+        clipIndex: 1,
+        videoUrl: 'https://cdn.example.com/clip-2.mp4',
+        storageKey: 'videos/clip-2.mp4',
+        durationSec: 5,
+      })
 
       expect(result).toMatchObject({
         status: 'COMPLETED',
@@ -560,20 +535,11 @@ describe('video-pipeline.service', () => {
           characterCardIds: ['card-1'],
         }),
       )
-      expect(mockVideoPipelineUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'pipeline-1' },
-          data: expect.objectContaining({
-            status: 'COMPLETED',
-            generationId: 'generation-1',
-          }),
-        }),
-      )
     })
   })
 
   describe('retryPipelineClip', () => {
-    it('retries a failed first clip through the normal video queue', async () => {
+    it('retries a failed first clip by dispatching a new worker run', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(
         pipeline({
           status: 'FAILED',
@@ -585,25 +551,39 @@ describe('video-pipeline.service', () => {
       const result = await retryPipelineClip('clerk-1', 'pipeline-1', 0)
 
       expect(result.status).toBe('RUNNING')
-      expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          prompt: BASE_INPUT.prompt,
-          duration: 10,
+      expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
+      expect(mockVideoPipelineClipUpdateMany).toHaveBeenCalledWith({
+        where: {
+          pipelineId: 'pipeline-1',
+          clipIndex: { gte: 0 },
+        },
+        data: expect.objectContaining({
+          status: 'PENDING',
+          errorMessage: null,
+          externalRequestId: null,
         }),
-      )
-      expect(mockVideoPipelineClipUpdate).toHaveBeenCalledWith(
+      })
+      expect(mockVideoPipelineUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'clip-0' },
+          where: { id: 'pipeline-1' },
           data: expect.objectContaining({
-            status: 'QUEUED',
+            status: 'RUNNING',
             errorMessage: null,
+            completedClips: 0,
+            currentDurationSec: 0,
           }),
         }),
       )
-      expect(mockVideoPipelineUpdate).toHaveBeenCalledWith({
-        where: { id: 'pipeline-1' },
-        data: { status: 'RUNNING', errorMessage: null },
-      })
+      expect(mockDispatchLongVideoPipelineWorkerRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pipelineId: 'pipeline-1',
+          startClipIndex: 0,
+          providerInput: expect.objectContaining({
+            firstClipDuration: 10,
+            extensionClipDuration: 5,
+          }),
+        }),
+      )
     })
 
     it('rejects retry when the previous extension clip is not completed', async () => {

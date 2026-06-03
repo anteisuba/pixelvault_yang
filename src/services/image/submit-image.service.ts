@@ -6,11 +6,15 @@ import {
   EXECUTION_WORKFLOW_IDS,
   WORKER_MIGRATED_IMAGE_ADAPTERS,
 } from '@/constants/execution'
+import { IMAGE_GENERATION } from '@/constants/config'
+import { getExecutionModelId } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   GenerateRequest,
   GenerationRecord,
   ImageStatusResponseData,
   ImageSubmitResponseData,
+  MultiViewGeneratedAngle,
   WorkerRunContext,
 } from '@/types'
 import { db } from '@/lib/db'
@@ -23,9 +27,8 @@ import {
 } from '@/services/execution-worker.service'
 import {
   GenerateImageServiceError,
-  generateImageForUser,
   resolveImageRouteAndValidate,
-  uploadReferenceImageIfNeeded,
+  uploadReferenceImagesIfNeeded,
   type GenerateImageDeps,
 } from '@/services/image/generate-image.service'
 import { getGenerationByIdForUser } from '@/services/generation.service'
@@ -34,6 +37,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { generateStorageKey } from '@/services/storage/r2'
 
 /**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
@@ -47,6 +51,7 @@ export interface ImageQueueMetadata {
   creditCost: number
   aspectRatio: string
   referenceImageUrl?: string
+  referenceImages?: string[]
   characterCardIds?: string[]
   projectId?: string
   apiKeyId?: string
@@ -57,20 +62,40 @@ export interface ImageQueueMetadata {
   /** Set to true once a fallback re-dispatch has happened (caps it at one). */
   fallbackUsed?: boolean
   workflowInstanceId?: string
+  runGroupId?: string
+  runGroupType?: 'single' | 'compare' | 'variant'
+  runGroupIndex?: number
+  multiViewBatchId?: string
+  multiViewAngle?: MultiViewGeneratedAngle
+  sourceGenerationId?: string
+  studioSnapshot?: {
+    freePrompt?: string
+    characterCardId?: string
+    backgroundCardId?: string
+    styleCardId?: string
+  }
 }
 
 /**
- * Submit an image generation. When the resolved provider is migrated to the
- * execution worker (and dispatch is configured) the job runs async: create a
- * RUNNING job, dispatch to the worker, return a jobId for the client to poll.
- * Otherwise fall back to synchronous `generateImageForUser` (local dev, or a
- * provider whose worker handler hasn't shipped yet).
+ * Submit an image generation to the execution worker. Next.js owns control
+ * plane work only: validation, route/key selection, job creation, and signed
+ * dispatch. Provider execution must not fall back to the Next.js server.
  */
 export async function submitImageGeneration(
   clerkId: string,
   input: GenerateRequest,
   deps: GenerateImageDeps = {},
-): Promise<ImageSubmitResponseData | { generation: GenerationRecord }> {
+  queueMetadataInput: Pick<
+    ImageQueueMetadata,
+    | 'runGroupId'
+    | 'runGroupType'
+    | 'runGroupIndex'
+    | 'multiViewBatchId'
+    | 'multiViewAngle'
+    | 'sourceGenerationId'
+    | 'studioSnapshot'
+  > = {},
+): Promise<ImageSubmitResponseData> {
   const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
 
   const { dbUser, route, provider } = await resolveImageRouteAndValidate(
@@ -79,21 +104,20 @@ export async function submitImageGeneration(
     deps,
   )
 
-  // First batch: the OpenAI worker handler only does text-to-image. Route
-  // reference-image (image-to-image) requests to the synchronous path until the
-  // worker grows an image-to-image branch — otherwise the worker would silently
-  // ignore the reference and return a plain text-to-image result.
-  const hasReferenceImage = Boolean(
-    input.referenceImage || input.referenceImages?.length,
-  )
-  const canDispatch =
-    isExecutionWorkerDispatchConfigured() &&
-    WORKER_MIGRATED_IMAGE_ADAPTERS.includes(route.adapterType) &&
-    !hasReferenceImage
+  if (!isExecutionWorkerDispatchConfigured()) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Execution worker is required for image generation',
+      503,
+    )
+  }
 
-  if (!canDispatch) {
-    const generation = await generateImageForUser(clerkId, input, deps)
-    return { generation }
+  if (!WORKER_MIGRATED_IMAGE_ADAPTERS.includes(route.adapterType)) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'This image provider has not been migrated to the execution worker yet',
+      501,
+    )
   }
 
   const apiKeyId = route.resolvedApiKeyId ?? input.apiKeyId
@@ -113,11 +137,13 @@ export async function submitImageGeneration(
     outputType: 'IMAGE',
     modelId: route.modelId,
   })
-  const referenceImageUrl = await uploadReferenceImageIfNeeded({
+  const referenceImages = await uploadReferenceImagesIfNeeded({
     userId: dbUser.id,
     input,
     timer,
   })
+  const referenceImageUrl = referenceImages[0]
+  const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
 
   const metadata: ImageQueueMetadata = {
     outputType: 'IMAGE',
@@ -125,12 +151,20 @@ export async function submitImageGeneration(
     creditCost: route.creditCost,
     aspectRatio: input.aspectRatio,
     referenceImageUrl,
+    referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
     characterCardIds: input.characterCardIds,
     projectId: input.projectId,
     apiKeyId: apiKeyId ?? undefined,
     originalModelId: input.modelId,
     recipeUsage: input.recipeUsage,
     advancedParams: input.advancedParams,
+    runGroupId: queueMetadataInput.runGroupId,
+    runGroupType: queueMetadataInput.runGroupType,
+    runGroupIndex: queueMetadataInput.runGroupIndex,
+    multiViewBatchId: queueMetadataInput.multiViewBatchId,
+    multiViewAngle: queueMetadataInput.multiViewAngle,
+    sourceGenerationId: queueMetadataInput.sourceGenerationId,
+    studioSnapshot: queueMetadataInput.studioSnapshot,
   }
 
   const job = await createGenerationJobFn({
@@ -152,18 +186,21 @@ export async function submitImageGeneration(
     callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
     resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
     timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
-    // Image providers are synchronous HTTP — the worker awaits the response
-    // directly rather than polling a provider-side queue.
-    maxAttempts: 1,
+    maxAttempts:
+      route.adapterType === AI_ADAPTER_TYPES.FAL ||
+      route.adapterType === AI_ADAPTER_TYPES.REPLICATE
+        ? EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS
+        : 1,
     pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
     providerInput: {
       prompt: input.prompt,
       modelId: route.modelId,
-      externalModelId: route.modelId,
+      externalModelId: getExecutionModelId(route.modelId),
       aspectRatio: input.aspectRatio,
-      referenceImage: referenceImageUrl ?? input.referenceImage,
-      referenceImages: input.referenceImages,
+      referenceImage: referenceImageUrl,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
       advancedParams: input.advancedParams,
+      outputStorageKey,
     },
   }
 
@@ -233,4 +270,41 @@ export async function checkImageGenerationStatus(
   }
 
   return { jobId: job.id, status: 'IN_PROGRESS' }
+}
+
+export async function waitForImageGenerationResult(
+  clerkId: string,
+  jobId: string,
+  options: {
+    maxAttempts?: number
+    pollIntervalMs?: number
+  } = {},
+): Promise<GenerationRecord> {
+  const maxAttempts = options.maxAttempts ?? IMAGE_GENERATION.MAX_POLL_ATTEMPTS
+  const pollIntervalMs =
+    options.pollIntervalMs ?? IMAGE_GENERATION.POLL_INTERVAL_MS
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const status = await checkImageGenerationStatus(clerkId, jobId)
+
+    if (status.status === 'COMPLETED') {
+      return status.generation
+    }
+
+    if (status.status === 'FAILED') {
+      throw new GenerateImageServiceError(
+        'PROVIDER_ERROR',
+        'Image generation failed',
+        502,
+      )
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+  }
+
+  throw new GenerateImageServiceError(
+    'PROVIDER_ERROR',
+    'Image generation timed out',
+    504,
+  )
 }

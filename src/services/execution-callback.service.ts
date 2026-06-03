@@ -87,6 +87,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
   .extend({
     outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D', 'IMAGE']).optional(),
     referenceImageUrl: z.string().url().optional(),
+    referenceImages: z.array(z.string().url()).optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
     projectId: z.string().min(1).optional(),
     isFreeGeneration: z.boolean().optional(),
@@ -99,6 +100,20 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     fallbackUsed: z.boolean().optional(),
     advancedParams: z.unknown().optional(),
     recipeUsage: z.unknown().optional(),
+    runGroupId: z.string().min(1).optional(),
+    runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
+    runGroupIndex: z.number().int().min(0).optional(),
+    multiViewBatchId: z.string().min(1).optional(),
+    multiViewAngle: z.enum(['back', 'left', 'right']).optional(),
+    sourceGenerationId: z.string().min(1).optional(),
+    studioSnapshot: z
+      .object({
+        freePrompt: z.string().optional(),
+        characterCardId: z.string().optional(),
+        backgroundCardId: z.string().optional(),
+        styleCardId: z.string().optional(),
+      })
+      .optional(),
     /**
      * Hyper3D Rodin mesh-first: true on the first-pass mesh-only Generation.
      * Mirrored from the job's queue meta — see `submitWorker3DGeneration` in
@@ -124,6 +139,15 @@ function parseWorkerJobMetadata(value: string | null) {
   } catch {
     return {}
   }
+}
+
+function getImageInputCount(metadata: {
+  referenceImageUrl?: string
+  referenceImages?: string[]
+}): number {
+  return (
+    metadata.referenceImages?.length ?? (metadata.referenceImageUrl ? 1 : 0)
+  )
 }
 
 function getDefaultMimeType(outputType: 'VIDEO' | 'AUDIO'): string {
@@ -312,13 +336,21 @@ async function finalizeExecutionResult(
       Date.now() - job.createdAt.getTime(),
     )
     const mimeType = resultData.mimeType ?? getDefaultMimeType(outputType)
-    const storageKey = generateStorageKey(
-      outputType,
-      job.userId,
+    const workerUploadedKey =
       outputType === 'AUDIO'
-        ? inferAudioFormat(mimeType, metadata.audioFormat)
-        : undefined,
-    )
+        ? resultData.audioR2Key
+        : outputType === 'VIDEO'
+          ? resultData.videoR2Key
+          : undefined
+    const storageKey =
+      workerUploadedKey ??
+      generateStorageKey(
+        outputType,
+        job.userId,
+        outputType === 'AUDIO'
+          ? inferAudioFormat(mimeType, metadata.audioFormat)
+          : undefined,
+      )
 
     async function tryCreateVideoPosterAsset() {
       if (outputType !== 'VIDEO') return undefined
@@ -345,15 +377,21 @@ async function finalizeExecutionResult(
       }
     }
 
-    const uploadResult = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
-      streamUploadToR2({
-        sourceUrl: resultData.artifactUrl,
-        key: storageKey,
-        mimeType,
-        fetchHeaders: resultData.fetchHeaders,
-      }),
+    const uploadResult = workerUploadedKey
+      ? { publicUrl: resultData.artifactUrl }
+      : await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+          streamUploadToR2({
+            sourceUrl: resultData.artifactUrl,
+            key: storageKey,
+            mimeType,
+            fetchHeaders: resultData.fetchHeaders,
+          }),
+        )
+    timer.addNote(
+      workerUploadedKey
+        ? 'result_uploaded_by_worker'
+        : 'result_download_streamed_with_r2_upload',
     )
-    timer.addNote('result_download_streamed_with_r2_upload')
     const posterAsset =
       outputType === 'VIDEO'
         ? await timer.measure(
@@ -677,19 +715,28 @@ async function finalizeImageResult(
   )
 
   const mimeType = resultData.mimeType ?? 'image/png'
-  const storageKey = generateStorageKey('IMAGE', job.userId)
+  const workerUploadedKey = resultData.imageR2Key
+  const storageKey =
+    workerUploadedKey ?? generateStorageKey('IMAGE', job.userId)
   const requestCount = resultData.requestCount ?? metadata.creditCost ?? 1
   const seedValue = (metadata.advancedParams as { seed?: number } | undefined)
     ?.seed
 
   try {
-    const uploadResult = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
-      streamUploadToR2({
-        sourceUrl: resultData.artifactUrl,
-        key: storageKey,
-        mimeType,
-        fetchHeaders: resultData.fetchHeaders,
-      }),
+    const uploadResult = workerUploadedKey
+      ? { publicUrl: resultData.artifactUrl }
+      : await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+          streamUploadToR2({
+            sourceUrl: resultData.artifactUrl,
+            key: storageKey,
+            mimeType,
+            fetchHeaders: resultData.fetchHeaders,
+          }),
+        )
+    timer.addNote(
+      workerUploadedKey
+        ? 'image_result_uploaded_by_worker'
+        : 'image_result_download_streamed_with_r2_upload',
     )
 
     const recipeSnapshot = metadata.recipeUsage
@@ -725,16 +772,24 @@ async function finalizeImageResult(
             projectId: metadata.projectId,
             recipeSnapshot,
             seed: seedValue != null ? BigInt(seedValue) : undefined,
+            runGroupId: metadata.runGroupId,
+            runGroupType: metadata.runGroupType,
+            runGroupIndex: metadata.runGroupIndex,
             snapshot: withGenerationObservability(
               {
+                ...metadata.studioSnapshot,
                 compiledPrompt: job.prompt ?? '',
                 modelId: job.modelId,
                 aspectRatio: metadata.aspectRatio,
                 advancedParams: metadata.advancedParams,
+                referenceImages: metadata.referenceImages,
                 isFreeGeneration: metadata.isFreeGeneration,
                 creditCost: metadata.creditCost,
                 seed: seedValue,
                 apiKeyId: metadata.apiKeyId,
+                multiViewBatchId: metadata.multiViewBatchId,
+                multiViewAngle: metadata.multiViewAngle,
+                sourceGenerationId: metadata.sourceGenerationId,
                 executionCallback: {
                   runId: payload.runId,
                   ts: payload.ts,
@@ -764,7 +819,7 @@ async function finalizeImageResult(
             provider: job.provider,
             modelId: job.modelId,
             requestCount,
-            inputImageCount: metadata.referenceImageUrl ? 1 : 0,
+            inputImageCount: getImageInputCount(metadata),
             outputImageCount: 1,
             width: resultData.width,
             height: resultData.height,

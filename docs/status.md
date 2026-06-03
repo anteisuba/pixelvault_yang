@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-06-02
+最后更新：2026-06-03
 
 这是唯一的活跃进度文档。它应该保持短，并随着项目变化覆盖更新。
 
@@ -30,7 +30,7 @@
 ## Blocked
 
 - 文档重构当前没有阻塞。
-- 本轮状态快照尚未验证运行时健康：没有跑 typecheck、tests、build 或浏览器主路径。
+- 本轮 Worker 迁移已跑 typecheck 和相关单元测试；仍未跑 full build 或浏览器主路径。
 - Provider 官方资料已为 `docs/integrations/providers.md` 做过 provider-level 核验，但尚未完成逐模型 payload 审计。任何 provider/model/API 规划或代码修改都必须重新查对应官方资料。
 
 ## Recently Changed
@@ -60,6 +60,7 @@
 - （2026-06-03）`docs/domains/storyboard.md` 已补：记录 Storyboard 叙事编排域（从已有作品挑图成 Story、LLM 叙事、scroll/comic 呈现、导出、公开切换），并标注它只消费 Generation、不生成图像。
 - （2026-06-03）`docs/domains/prompts.md` 已补：记录 Prompts 提示词库域（`Recipe` 模板 + `InspirationPrompt` 灵感库、从作品存模板、模板到作品血缘），并把 prompt 增强/助手/守卫等创作辅助划归 Studio 链路（`services/kernel/`）。
 - （2026-06-03）`docs/domains/credits.md` 补齐 `Last Verified` 区块，使 domains 层验证区块一致。
+- （2026-06-03）Worker-only 生成迁移继续推进：Fish Audio TTS 改为 Cloudflare Worker 执行；FAL/Fish audio、普通 FAL video、FAL 长视频 pipeline、独立 multi-view image fan-out、OpenAI/FAL/Gemini/Replicate/NovelAI/VolcEngine/Hugging Face text-to-image、provider 已支持的普通图片 reference-image / image-to-image、Replicate LoRA image 的 provider submit/poll/artifact download/R2 upload 已由 Worker 负责，Next 只做 auth/validation/reference R2 标准化/dispatch/status aggregation/DB finalization、Civitai token signed resolve 或长视频 clip 状态落库。当前可用视频模型均为 FAL-backed 且已走 Worker；未迁移视频仅剩 disabled 的 `seedance-2.0-volc`、`seedance-2.0-fast-volc`、`seedance-1.5-pro`、`seedance-1.0-pro`、`runway-gen4.5`、`runway-gen4-turbo`。图片剩余未迁移集中在 NovelAI multi-reference Director padding/normalization 这一类 provider 特殊路径。
 
 ## Deferred Doc Sync
 
@@ -108,6 +109,6 @@
 
 ## Last Verified
 
-- Date: 2026-06-02
-- Method: code inspection, file counts, generation chain inspection, usage/allowance inspection, storage lifecycle inspection, auth boundary inspection, Studio domain inspection, Gallery domain inspection, Profile domain inspection, API Keys domain inspection, Projects domain inspection, Cards domain inspection, Node workflow domain inspection, Credits domain inspection, provider integration inspection, and design docs structure inspection
-- External docs: checked provider-level official documentation for OpenAI, Google Gemini, Hugging Face, FAL, Replicate, Runway, NovelAI, VolcEngine Ark, Fish Audio, Hyper3D Rodin, and DeepSeek for `docs/integrations/providers.md`
+- Date: 2026-06-03
+- Method: focused code inspection and validation for Worker-only generation migration, long-video pipeline state updates, image provider Worker dispatch, and docs synchronization
+- External docs: checked provider-level official documentation for OpenAI, Google Gemini, Hugging Face, FAL, Replicate, Runway, NovelAI, VolcEngine Ark, Fish Audio, Hyper3D Rodin, and DeepSeek for `docs/integrations/providers.md`; rechecked FAL queue/Veo extend, Gemini image generation, Replicate predictions, NovelAI image Swagger entry, VolcEngine Seedream, Hugging Face HF Inference, Fish Audio TTS, and Cloudflare Workers best practices for 2026-06-03 Worker migrations

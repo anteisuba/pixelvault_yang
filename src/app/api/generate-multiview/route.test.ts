@@ -23,12 +23,9 @@ const VALID_BODY = {
   sourceGenerationId: 'gen_1',
 }
 
-const FAKE_SIDE_VIEW = {
-  id: 'tmp-back',
+const FAKE_SIDE_VIEW_JOB = {
+  jobId: 'job-back',
   view: 'back',
-  url: 'https://provider.test/back.png',
-  width: 1024,
-  height: 1024,
   prompt: 'back view',
   model: 'flux-kontext-pro',
   provider: 'fal.ai',
@@ -40,10 +37,11 @@ describe('POST /api/generate-multiview', () => {
     mockAuthenticated()
     mockRateLimitAllowed()
     mockGenerate.mockResolvedValue({
-      views: [
-        FAKE_SIDE_VIEW,
-        { ...FAKE_SIDE_VIEW, id: 'tmp-left', view: 'left' },
-        { ...FAKE_SIDE_VIEW, id: 'tmp-right', view: 'right' },
+      batchId: 'batch-1',
+      jobs: [
+        FAKE_SIDE_VIEW_JOB,
+        { ...FAKE_SIDE_VIEW_JOB, jobId: 'job-left', view: 'left' },
+        { ...FAKE_SIDE_VIEW_JOB, jobId: 'job-right', view: 'right' },
       ],
     } as never)
   })
@@ -72,16 +70,17 @@ describe('POST /api/generate-multiview', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns the 3 views on success', async () => {
+  it('returns the submitted angle jobs on success', async () => {
     const res = await POST(createPOST('/api/generate-multiview', VALID_BODY))
     const json = await parseJSON<{
       success: boolean
-      data: { views: unknown[] }
+      data: { batchId: string; jobs: unknown[] }
     }>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(json.data.views).toHaveLength(3)
+    expect(json.data.batchId).toBe('batch-1')
+    expect(json.data.jobs).toHaveLength(3)
     expect(mockGenerate).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({ imageUrl: VALID_BODY.imageUrl }),

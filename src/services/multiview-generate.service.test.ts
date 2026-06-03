@@ -1,9 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
+import {
+  GENERATED_VIEW_ANGLES,
+  MULTI_VIEW_NEGATIVE,
+  MULTI_VIEW_PROMPTS,
+} from '@/constants/three-d-ready-prompt'
+import type { ImageStatusResponseData } from '@/types'
 
-const { GenerateImageServiceErrorMock, generateImageMock } = vi.hoisted(() => {
+const { GenerateImageServiceErrorMock } = vi.hoisted(() => {
   class GenerateImageServiceErrorMock extends Error {
     readonly code: string
     readonly status: number
@@ -15,10 +20,7 @@ const { GenerateImageServiceErrorMock, generateImageMock } = vi.hoisted(() => {
     }
   }
 
-  return {
-    GenerateImageServiceErrorMock,
-    generateImageMock: vi.fn(),
-  }
+  return { GenerateImageServiceErrorMock }
 })
 
 vi.mock('@/services/user.service', () => ({
@@ -27,27 +29,19 @@ vi.mock('@/services/user.service', () => ({
 
 vi.mock('@/services/image/generate-image.service', () => ({
   GenerateImageServiceError: GenerateImageServiceErrorMock,
-  resolveGenerationRoute: vi.fn(),
 }))
 
-vi.mock('@/services/providers/registry', () => ({
-  getProviderAdapter: vi.fn(() => ({
-    generateImage: generateImageMock,
-  })),
+vi.mock('@/services/image/submit-image.service', () => ({
+  submitImageGeneration: vi.fn(),
+  checkImageGenerationStatus: vi.fn(),
 }))
 
-vi.mock('@/services/usage.service', () => ({
-  createApiUsageEntry: vi.fn().mockResolvedValue({ id: 'usage-1' }),
-}))
-
-vi.mock('@/lib/circuit-breaker', () => ({
-  getCircuitBreaker: vi.fn(() => ({
-    call: (fn: () => Promise<unknown>) => fn(),
-  })),
-}))
-
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: (fn: () => Promise<unknown>) => fn(),
+vi.mock('@/lib/db', () => ({
+  db: {
+    generationJob: {
+      findMany: vi.fn(),
+    },
+  },
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -58,171 +52,134 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
-import { generateMultiView } from './multiview-generate.service'
-import { resolveGenerationRoute } from '@/services/image/generate-image.service'
-import { createApiUsageEntry } from '@/services/usage.service'
+import { db } from '@/lib/db'
 import {
-  GENERATED_VIEW_ANGLES,
-  MULTI_VIEW_NEGATIVE,
-  MULTI_VIEW_PROMPTS,
-} from '@/constants/three-d-ready-prompt'
+  checkImageGenerationStatus,
+  submitImageGeneration,
+} from '@/services/image/submit-image.service'
+import {
+  checkMultiViewGenerationStatus,
+  generateMultiView,
+} from './multiview-generate.service'
 
-const mockResolveRoute = vi.mocked(resolveGenerationRoute)
-const mockCreateUsage = vi.mocked(createApiUsageEntry)
+const mockSubmitImageGeneration = vi.mocked(submitImageGeneration)
+const mockCheckImageGenerationStatus = vi.mocked(checkImageGenerationStatus)
+const mockFindMany = vi.mocked(db.generationJob.findMany)
 
-const fakeRoute = {
-  modelId: AI_MODELS.FLUX_KONTEXT_PRO,
-  adapterType: AI_ADAPTER_TYPES.FAL,
-  providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.example.com' },
-  apiKey: 'fal-key',
-  resolvedApiKeyId: 'key-1',
-  creditCost: 2,
+function multiViewMetadata(angle: (typeof GENERATED_VIEW_ANGLES)[number]) {
+  return JSON.stringify({
+    outputType: 'IMAGE',
+    multiViewBatchId: 'batch-1',
+    multiViewAngle: angle,
+  })
 }
 
-const fakeImageResult = (name: string) => ({
-  imageUrl: `https://provider.example.com/${name}.png`,
-  width: 1024,
-  height: 1024,
-  requestCount: 1,
-})
+function generationFor(angle: (typeof GENERATED_VIEW_ANGLES)[number]) {
+  return {
+    jobId: `job-${angle}`,
+    status: 'COMPLETED',
+    generation: {
+      id: `gen-${angle}`,
+      url: `https://cdn.example.com/${angle}.png`,
+      width: 1024,
+      height: 1024,
+      prompt: MULTI_VIEW_PROMPTS[angle],
+      model: AI_MODELS.FLUX_KONTEXT_PRO,
+      provider: 'fal.ai',
+    },
+  } as ImageStatusResponseData
+}
 
 describe('generateMultiView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockResolveRoute.mockResolvedValue(fakeRoute)
+    mockSubmitImageGeneration.mockImplementation(async () => {
+      const callIndex = mockSubmitImageGeneration.mock.calls.length - 1
+      const angle = GENERATED_VIEW_ANGLES[callIndex]
+      return { jobId: `job-${angle}`, requestId: `wf-${angle}` }
+    })
   })
 
-  it('calls the provider once per non-front angle in parallel', async () => {
-    generateImageMock
-      .mockResolvedValueOnce(fakeImageResult('back'))
-      .mockResolvedValueOnce(fakeImageResult('left'))
-      .mockResolvedValueOnce(fakeImageResult('right'))
-
+  it('submits one worker image job per generated angle', async () => {
     const result = await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
       sourceGenerationId: 'src_1',
     })
 
-    expect(generateImageMock).toHaveBeenCalledTimes(
+    expect(mockSubmitImageGeneration).toHaveBeenCalledTimes(
       GENERATED_VIEW_ANGLES.length,
     )
-    expect(result.views).toHaveLength(3)
-    expect(result.views.map((v) => v.view)).toEqual(['back', 'left', 'right'])
-    expect(result.views.map((v) => v.url)).toEqual([
-      'https://provider.example.com/back.png',
-      'https://provider.example.com/left.png',
-      'https://provider.example.com/right.png',
+    expect(result.jobs.map((job) => job.view)).toEqual(GENERATED_VIEW_ANGLES)
+    expect(result.jobs.map((job) => job.jobId)).toEqual([
+      'job-back',
+      'job-left',
+      'job-right',
     ])
   })
 
-  it('passes the front view as referenceImage and applies negative prompt', async () => {
-    generateImageMock.mockResolvedValue(fakeImageResult('any'))
-
+  it('passes the front view as referenceImages and applies multi-view metadata', async () => {
     await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
+      sourceGenerationId: 'src_1',
     })
 
-    for (const call of generateImageMock.mock.calls) {
-      const [input] = call
-      expect(input.referenceImage).toBe('https://cdn.test/front.png')
+    const batchIds = new Set<string>()
+    for (const [
+      index,
+      call,
+    ] of mockSubmitImageGeneration.mock.calls.entries()) {
+      const input = call[1]
+      const metadata = call[3]
+      const angle = GENERATED_VIEW_ANGLES[index]
+
+      expect(input.referenceImages).toEqual(['https://cdn.test/front.png'])
       expect(input.aspectRatio).toBe('1:1')
       expect(input.advancedParams?.negativePrompt).toBe(MULTI_VIEW_NEGATIVE)
+      expect(input.prompt).toBe(MULTI_VIEW_PROMPTS[angle])
+      expect(metadata?.multiViewAngle).toBe(angle)
+      expect(metadata?.sourceGenerationId).toBe('src_1')
+      expect(metadata?.multiViewBatchId).toEqual(expect.any(String))
+      batchIds.add(metadata!.multiViewBatchId!)
     }
+    expect(batchIds.size).toBe(1)
   })
 
-  it('defaults to a fal reference-edit route for temporary provider URLs', async () => {
-    generateImageMock.mockResolvedValue(fakeImageResult('any'))
-
+  it('honours user-supplied modelId / apiKeyId / projectId', async () => {
     await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
-    })
-
-    expect(mockResolveRoute).toHaveBeenCalledWith('db-user-1', {
-      modelId: AI_MODELS.FLUX_KONTEXT_PRO,
-      apiKeyId: undefined,
-    })
-  })
-
-  it('uses the camera-angle prompts in stable order', async () => {
-    generateImageMock.mockResolvedValue(fakeImageResult('any'))
-
-    await generateMultiView('clerk_test', {
-      imageUrl: 'https://cdn.test/front.png',
-    })
-
-    expect(generateImageMock.mock.calls[0][0].prompt).toBe(
-      MULTI_VIEW_PROMPTS.back,
-    )
-    expect(generateImageMock.mock.calls[1][0].prompt).toBe(
-      MULTI_VIEW_PROMPTS.left,
-    )
-    expect(generateImageMock.mock.calls[2][0].prompt).toBe(
-      MULTI_VIEW_PROMPTS.right,
-    )
-  })
-
-  it('honours user-supplied modelId / apiKeyId', async () => {
-    generateImageMock.mockResolvedValue(fakeImageResult('any'))
-
-    await generateMultiView('clerk_test', {
-      imageUrl: 'https://cdn.test/front.png',
-      modelId: 'gemini-3-pro-image-preview',
+      modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
       apiKeyId: 'key_42',
       projectId: 'proj_99',
     })
 
-    expect(mockResolveRoute).toHaveBeenCalledWith('db-user-1', {
-      modelId: 'gemini-3-pro-image-preview',
-      apiKeyId: 'key_42',
-    })
+    for (const call of mockSubmitImageGeneration.mock.calls) {
+      expect(call[1]).toEqual(
+        expect.objectContaining({
+          modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+          apiKeyId: 'key_42',
+          projectId: 'proj_99',
+        }),
+      )
+    }
   })
 
-  it('records usage without creating Generation rows', async () => {
-    generateImageMock.mockResolvedValue(fakeImageResult('any'))
-
-    await generateMultiView('clerk_test', {
-      imageUrl: 'https://cdn.test/front.png',
+  it('returns partial submitted jobs when one angle dispatch fails', async () => {
+    mockSubmitImageGeneration.mockImplementation(async () => {
+      const callIndex = mockSubmitImageGeneration.mock.calls.length - 1
+      const angle = GENERATED_VIEW_ANGLES[callIndex]
+      if (angle === 'left') throw new Error('worker dispatch failed')
+      return { jobId: `job-${angle}`, requestId: `wf-${angle}` }
     })
-
-    // One usage row per generated angle in GENERATED_VIEW_ANGLES
-    // (back, left, right, leftFront, rightFront).
-    expect(mockCreateUsage).toHaveBeenCalledTimes(GENERATED_VIEW_ANGLES.length)
-    expect(mockCreateUsage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: 'db-user-1',
-        requestCount: 2,
-        inputImageCount: 1,
-        outputImageCount: 1,
-      }),
-    )
-  })
-
-  it('returns partial results when some angles fail', async () => {
-    // Reject only the `left` angle (identified by its prompt) so the test
-    // stays robust against Promise.allSettled ordering: any successful
-    // angles should still come back, the failing one should be dropped.
-    generateImageMock.mockImplementation(
-      async ({ prompt }: { prompt: string }) => {
-        if (prompt === MULTI_VIEW_PROMPTS.left) {
-          throw new Error('boom')
-        }
-        return fakeImageResult('any')
-      },
-    )
 
     const result = await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
     })
 
-    const expectedSurvivors = GENERATED_VIEW_ANGLES.filter((a) => a !== 'left')
-    expect(result.views).toHaveLength(expectedSurvivors.length)
-    expect(result.views.map((v) => v.view).sort()).toEqual(
-      [...expectedSurvivors].sort(),
-    )
+    expect(result.jobs.map((job) => job.view)).toEqual(['back', 'right'])
   })
 
-  it('throws a provider error when every angle fails', async () => {
-    generateImageMock.mockRejectedValue(new Error('upstream down'))
+  it('fails loudly when all angle dispatches fail', async () => {
+    mockSubmitImageGeneration.mockRejectedValue(new Error('worker down'))
 
     await expect(
       generateMultiView('clerk_test', {
@@ -231,6 +188,151 @@ describe('generateMultiView', () => {
     ).rejects.toMatchObject({
       code: 'PROVIDER_ERROR',
       status: 502,
+    })
+  })
+
+  it('rejects unsupported multi-view models before dispatch', async () => {
+    await expect(
+      generateMultiView('clerk_test', {
+        imageUrl: 'https://cdn.test/front.png',
+        modelId: AI_MODELS.SDXL,
+      }),
+    ).rejects.toMatchObject({
+      code: 'UNSUPPORTED_MODEL',
+      status: 400,
+    })
+    expect(mockSubmitImageGeneration).not.toHaveBeenCalled()
+  })
+})
+
+describe('checkMultiViewGenerationStatus', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindMany.mockResolvedValue(
+      GENERATED_VIEW_ANGLES.map((angle) => ({
+        id: `job-${angle}`,
+        userId: 'db-user-1',
+        status: 'COMPLETED',
+        generationId: `gen-${angle}`,
+        modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS[angle],
+        errorMessage: null,
+        externalRequestId: multiViewMetadata(angle),
+      })) as never,
+    )
+    mockCheckImageGenerationStatus.mockImplementation(
+      async (_clerkId, jobId) => {
+        const angle = GENERATED_VIEW_ANGLES.find(
+          (candidate) => jobId === `job-${candidate}`,
+        )
+        if (!angle) throw new Error('unknown job')
+        return generationFor(angle)
+      },
+    )
+  })
+
+  it('aggregates completed angle jobs into stable view records', async () => {
+    const result = await checkMultiViewGenerationStatus('clerk_test', {
+      batchId: 'batch-1',
+      jobIds: ['job-back', 'job-left', 'job-right'],
+    })
+
+    expect(result.status).toBe('COMPLETED')
+    expect(result.views.map((view) => view.view)).toEqual(GENERATED_VIEW_ANGLES)
+    expect(result.views.map((view) => view.url)).toEqual([
+      'https://cdn.example.com/back.png',
+      'https://cdn.example.com/left.png',
+      'https://cdn.example.com/right.png',
+    ])
+  })
+
+  it('completes with partial views when at least one terminal job succeeded', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'job-back',
+        userId: 'db-user-1',
+        status: 'COMPLETED',
+        generationId: 'gen-back',
+        modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.back,
+        errorMessage: null,
+        externalRequestId: multiViewMetadata('back'),
+      },
+      {
+        id: 'job-left',
+        userId: 'db-user-1',
+        status: 'FAILED',
+        generationId: null,
+        modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.left,
+        errorMessage: 'provider failed',
+        externalRequestId: multiViewMetadata('left'),
+      },
+    ] as never)
+    mockCheckImageGenerationStatus.mockResolvedValue(generationFor('back'))
+
+    const result = await checkMultiViewGenerationStatus('clerk_test', {
+      batchId: 'batch-1',
+      jobIds: ['job-back', 'job-left'],
+    })
+
+    expect(result.status).toBe('COMPLETED')
+    expect(result.views.map((view) => view.view)).toEqual(['back'])
+    expect(result.jobs.find((job) => job.view === 'left')?.status).toBe(
+      'FAILED',
+    )
+  })
+
+  it('returns FAILED when every terminal job failed', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'job-back',
+        userId: 'db-user-1',
+        status: 'FAILED',
+        generationId: null,
+        modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.back,
+        errorMessage: 'provider failed',
+        externalRequestId: multiViewMetadata('back'),
+      },
+    ] as never)
+
+    const result = await checkMultiViewGenerationStatus('clerk_test', {
+      batchId: 'batch-1',
+      jobIds: ['job-back'],
+    })
+
+    expect(result.status).toBe('FAILED')
+    expect(result.views).toEqual([])
+  })
+
+  it('rejects jobs that are missing, owned by another user, or not in the batch', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'job-back',
+        userId: 'someone-else',
+        status: 'COMPLETED',
+        generationId: 'gen-back',
+        modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.back,
+        errorMessage: null,
+        externalRequestId: multiViewMetadata('back'),
+      },
+    ] as never)
+
+    await expect(
+      checkMultiViewGenerationStatus('clerk_test', {
+        batchId: 'batch-1',
+        jobIds: ['job-back'],
+      }),
+    ).rejects.toMatchObject({
+      code: 'JOB_NOT_FOUND',
+      status: 404,
     })
   })
 })

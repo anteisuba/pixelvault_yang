@@ -8,39 +8,20 @@ import {
   mockUnauthenticated,
   parseJSON,
 } from '@/test/api-helpers'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 vi.mock('@/services/generate-audio.service', () => ({
-  generateAudioForUser: vi.fn(),
   submitAudioGeneration: vi.fn(),
 }))
-
-vi.mock('@/constants/models', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/constants/models')>(
-      '@/constants/models',
-    )
-  return {
-    ...actual,
-    getModelById: vi.fn(),
-  }
-})
 
 vi.mock('@/services/image/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
 import { POST } from '@/app/api/generate-audio/route'
-import {
-  generateAudioForUser,
-  submitAudioGeneration,
-} from '@/services/generate-audio.service'
-import { getModelById } from '@/constants/models'
+import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
 
-const mockGenerateAudioForUser = vi.mocked(generateAudioForUser)
 const mockSubmitAudioGeneration = vi.mocked(submitAudioGeneration)
-const mockGetModelById = vi.mocked(getModelById)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
 
 const VALID_SYNC_BODY = {
@@ -53,34 +34,12 @@ const VALID_ASYNC_BODY = {
   modelId: 'fal-f5-tts',
 }
 
-const FAKE_AUDIO_GENERATION = {
-  id: 'gen-audio-1',
-  createdAt: new Date('2026-04-23T00:00:01.000Z'),
-  outputType: 'AUDIO' as const,
-  status: 'COMPLETED' as const,
-  url: 'https://cdn.example.com/audio.mp3',
-  storageKey: 'audio/user-1/gen.mp3',
-  mimeType: 'audio/mpeg',
-  width: 0,
-  height: 0,
-  duration: 3.5,
-  prompt: 'Hello world',
-  negativePrompt: null,
-  model: 'fish-audio-s2-pro',
-  provider: 'Fish Audio',
-  requestCount: 1,
-  isPublic: false,
-  isPromptPublic: false,
-  userId: 'user-1',
-}
-
 describe('POST /api/generate-audio', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
     mockIsServiceError.mockReturnValue(false)
-    mockGenerateAudioForUser.mockResolvedValue(FAKE_AUDIO_GENERATION as never)
     mockSubmitAudioGeneration.mockResolvedValue({
       jobId: 'job-audio-1',
     } as never)
@@ -118,31 +77,24 @@ describe('POST /api/generate-audio', () => {
     expect(body.success).toBe(false)
   })
 
-  it('delegates Fish Audio models to sync generation service', async () => {
-    mockGetModelById.mockReturnValue({
-      adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
-    } as never)
+  it('delegates Fish Audio models to async submit service', async () => {
     const req = createPOST('/api/generate-audio', VALID_SYNC_BODY)
     const res = await POST(req)
 
     expect(res.status).toBe(200)
     const body = await parseJSON<{
       success: boolean
-      data: { generation: typeof FAKE_AUDIO_GENERATION }
+      data: { jobId: string }
     }>(res)
     expect(body.success).toBe(true)
-    expect(body.data.generation.id).toBe('gen-audio-1')
-    expect(mockGenerateAudioForUser).toHaveBeenCalledWith(
+    expect(body.data.jobId).toBe('job-audio-1')
+    expect(mockSubmitAudioGeneration).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({ prompt: VALID_SYNC_BODY.prompt }),
     )
-    expect(mockSubmitAudioGeneration).not.toHaveBeenCalled()
   })
 
   it('delegates queued models to async submit service', async () => {
-    mockGetModelById.mockReturnValue({
-      adapterType: AI_ADAPTER_TYPES.FAL,
-    } as never)
     const req = createPOST('/api/generate-audio', VALID_ASYNC_BODY)
     const res = await POST(req)
 
@@ -157,14 +109,10 @@ describe('POST /api/generate-audio', () => {
       'clerk_test_user',
       expect.objectContaining({ prompt: VALID_ASYNC_BODY.prompt }),
     )
-    expect(mockGenerateAudioForUser).not.toHaveBeenCalled()
   })
 
-  it('returns legacy service error status when sync generation fails', async () => {
-    mockGetModelById.mockReturnValue({
-      adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
-    } as never)
-    mockGenerateAudioForUser.mockRejectedValue(
+  it('returns service error status when async submit fails', async () => {
+    mockSubmitAudioGeneration.mockRejectedValue(
       Object.assign(new Error('Audio provider unavailable'), {
         code: 'PROVIDER_ERROR',
         status: 503,
@@ -182,9 +130,6 @@ describe('POST /api/generate-audio', () => {
   })
 
   it('returns 500 on unexpected async submit error', async () => {
-    mockGetModelById.mockReturnValue({
-      adapterType: AI_ADAPTER_TYPES.FAL,
-    } as never)
     mockSubmitAudioGeneration.mockRejectedValue(new Error('unexpected'))
 
     const req = createPOST('/api/generate-audio', VALID_ASYNC_BODY)

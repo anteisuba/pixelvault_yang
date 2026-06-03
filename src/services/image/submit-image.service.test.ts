@@ -35,7 +35,7 @@ vi.mock('@/services/image/generate-image.service', () => {
     GenerateImageServiceError,
     resolveImageRouteAndValidate: vi.fn(),
     generateImageForUser: vi.fn(),
-    uploadReferenceImageIfNeeded: vi.fn(),
+    uploadReferenceImagesIfNeeded: vi.fn(),
   }
 })
 vi.mock('@/services/generation.service', () => ({
@@ -48,6 +48,9 @@ vi.mock('@/services/usage.service', () => ({
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
+vi.mock('@/services/storage/r2', () => ({
+  generateStorageKey: vi.fn(() => 'generations/user-1/image/output.png'),
+}))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
@@ -59,9 +62,8 @@ import {
 } from '@/services/execution-worker.service'
 import {
   GenerateImageServiceError,
-  generateImageForUser,
   resolveImageRouteAndValidate,
-  uploadReferenceImageIfNeeded,
+  uploadReferenceImagesIfNeeded,
 } from '@/services/image/generate-image.service'
 import { getGenerationByIdForUser } from '@/services/generation.service'
 import {
@@ -103,7 +105,7 @@ function setupResolve(adapterType: AI_ADAPTER_TYPES) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(uploadReferenceImageIfNeeded).mockResolvedValue(undefined)
+  vi.mocked(uploadReferenceImagesIfNeeded).mockResolvedValue([])
   vi.mocked(createGenerationJob).mockResolvedValue({ id: 'job-1' } as never)
   vi.mocked(dispatchImageWorkerRun).mockResolvedValue({
     workflowInstanceId: 'wf-1',
@@ -123,35 +125,63 @@ describe('submitImageGeneration', () => {
 
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
     expect(dispatchImageWorkerRun).toHaveBeenCalledTimes(1)
-    expect(generateImageForUser).not.toHaveBeenCalled()
     // job created RUNNING, then patched with the workflow instance id
     expect(createGenerationJob).toHaveBeenCalledTimes(1)
     expect(db.generationJob.update).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to synchronous generation when dispatch is not configured', async () => {
+  it('dispatches FAL text-to-image to the worker with a final R2 key', async () => {
+    setupResolve(AI_ADAPTER_TYPES.FAL)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    const result = await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      modelId: 'flux-2-pro',
+    })
+
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: AI_ADAPTER_TYPES.FAL,
+        maxAttempts: 200,
+        providerInput: expect.objectContaining({
+          modelId: 'gpt-image-2',
+          outputStorageKey: 'generations/user-1/image/output.png',
+        }),
+      }),
+    )
+  })
+
+  it('fails when dispatch is not configured', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(false)
-    vi.mocked(generateImageForUser).mockResolvedValue({ id: 'gen-1' } as never)
 
-    const result = await submitImageGeneration('clerk-1', INPUT)
-
-    expect(result).toEqual({ generation: { id: 'gen-1' } })
-    expect(generateImageForUser).toHaveBeenCalledTimes(1)
+    await expect(submitImageGeneration('clerk-1', INPUT)).rejects.toMatchObject(
+      {
+        code: 'PROVIDER_ERROR',
+        status: 503,
+      },
+    )
     expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
     expect(createGenerationJob).not.toHaveBeenCalled()
   })
 
-  it('falls back to synchronous generation when adapter is not migrated', async () => {
+  it('dispatches migrated non-OpenAI image adapters to the worker', async () => {
     setupResolve(AI_ADAPTER_TYPES.GEMINI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
-    vi.mocked(generateImageForUser).mockResolvedValue({ id: 'gen-1' } as never)
 
     const result = await submitImageGeneration('clerk-1', INPUT)
 
-    expect(result).toEqual({ generation: { id: 'gen-1' } })
-    expect(generateImageForUser).toHaveBeenCalledTimes(1)
-    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: AI_ADAPTER_TYPES.GEMINI,
+        maxAttempts: 1,
+        providerInput: expect.objectContaining({
+          outputStorageKey: 'generations/user-1/image/output.png',
+        }),
+      }),
+    )
   })
 
   it('fails the job and rethrows when dispatch errors', async () => {
@@ -169,19 +199,58 @@ describe('submitImageGeneration', () => {
     })
   })
 
-  it('falls back to synchronous generation for image-to-image requests', async () => {
+  it('dispatches reference-image requests with stable uploaded references', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
-    vi.mocked(generateImageForUser).mockResolvedValue({ id: 'gen-1' } as never)
+    vi.mocked(uploadReferenceImagesIfNeeded).mockResolvedValue([
+      'https://cdn.example.com/stable-ref.png',
+    ])
 
-    const result = await submitImageGeneration('clerk-1', {
+    await submitImageGeneration('clerk-1', {
       ...INPUT,
-      referenceImages: ['https://cdn.example.com/ref.png'],
+      referenceImages: ['data:image/png;base64,cmVm'],
     })
 
-    expect(result).toEqual({ generation: { id: 'gen-1' } })
-    expect(generateImageForUser).toHaveBeenCalledTimes(1)
-    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+    expect(uploadReferenceImagesIfNeeded).toHaveBeenCalledTimes(1)
+    expect(createGenerationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalRequestId: expect.stringContaining(
+          'https://cdn.example.com/stable-ref.png',
+        ),
+      }),
+    )
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerInput: expect.objectContaining({
+          referenceImage: 'https://cdn.example.com/stable-ref.png',
+          referenceImages: ['https://cdn.example.com/stable-ref.png'],
+        }),
+      }),
+    )
+  })
+
+  it('persists multi-view batch metadata for status aggregation', async () => {
+    setupResolve(AI_ADAPTER_TYPES.FAL)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await submitImageGeneration(
+      'clerk-1',
+      INPUT,
+      {},
+      {
+        multiViewBatchId: 'batch-1',
+        multiViewAngle: 'back',
+        sourceGenerationId: 'source-gen-1',
+      },
+    )
+
+    const createInput = vi.mocked(createGenerationJob).mock.calls[0][0]
+    expect(JSON.parse(createInput.externalRequestId ?? '{}')).toMatchObject({
+      outputType: 'IMAGE',
+      multiViewBatchId: 'batch-1',
+      multiViewAngle: 'back',
+      sourceGenerationId: 'source-gen-1',
+    })
   })
 })
 

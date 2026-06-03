@@ -16,7 +16,10 @@ import type {
 } from '@/types'
 import { getModelFamily, resolveAdapterType } from '@/constants/models'
 import { getReferenceImageMode } from '@/constants/provider-capabilities'
-import { generateImageForUser } from '@/services/image/generate-image.service'
+import {
+  submitImageGeneration,
+  waitForImageGenerationResult,
+} from '@/services/image/submit-image.service'
 import {
   fetchAsBuffer,
   generateStorageKey,
@@ -168,7 +171,7 @@ export async function generateArenaEntry(
     // 'native' mode (OpenAI, Gemini, VolcEngine): pass as-is
   }
 
-  const generation = await generateImageForUser(clerkId, {
+  const submitted = await submitImageGeneration(clerkId, {
     prompt: match.prompt,
     modelId: input.modelId,
     aspectRatio: match.aspectRatio as AspectRatio,
@@ -176,6 +179,10 @@ export async function generateArenaEntry(
     apiKeyId: input.apiKeyId,
     advancedParams,
   })
+  const generation = await waitForImageGenerationResult(
+    clerkId,
+    submitted.jobId,
+  )
 
   const entry = await db.arenaEntry.create({
     data: {

@@ -2,11 +2,15 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api-client', () => ({
+  checkImageGenerationStatusAPI: vi.fn(),
   studioGenerateAPI: vi.fn(),
 }))
 
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
-import { studioGenerateAPI } from '@/lib/api-client'
+import {
+  checkImageGenerationStatusAPI,
+  studioGenerateAPI,
+} from '@/lib/api-client'
 import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import type { GenerationRecord } from '@/types'
 
@@ -30,15 +34,22 @@ const FAKE_GENERATION: GenerationRecord = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(studioGenerateAPI).mockResolvedValue({
+    success: true,
+    data: { jobId: 'job-image', requestId: 'request-image' },
+  })
+  vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+    success: true,
+    data: {
+      jobId: 'job-image',
+      status: 'COMPLETED',
+      generation: FAKE_GENERATION,
+    },
+  })
 })
 
 describe('useCharacterImageGeneration', () => {
   it('returns a generated image on success', async () => {
-    vi.mocked(studioGenerateAPI).mockResolvedValue({
-      success: true,
-      data: { generation: FAKE_GENERATION },
-    })
-
     const { result } = renderHook(() => useCharacterImageGeneration())
     let response: Awaited<ReturnType<typeof result.current.generate>>
 
@@ -67,11 +78,6 @@ describe('useCharacterImageGeneration', () => {
   })
 
   it('passes a saved-route apiKeyId through to studio generation', async () => {
-    vi.mocked(studioGenerateAPI).mockResolvedValue({
-      success: true,
-      data: { generation: FAKE_GENERATION },
-    })
-
     const { result } = renderHook(() => useCharacterImageGeneration())
 
     await act(async () => {
@@ -94,11 +100,6 @@ describe('useCharacterImageGeneration', () => {
   })
 
   it('passes reference images and LoRA advanced params through', async () => {
-    vi.mocked(studioGenerateAPI).mockResolvedValue({
-      success: true,
-      data: { generation: FAKE_GENERATION },
-    })
-
     const { result } = renderHook(() => useCharacterImageGeneration())
 
     await act(async () => {

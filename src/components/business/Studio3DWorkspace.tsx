@@ -179,6 +179,12 @@ type ManualMultiViewImages = Partial<
   Record<GeneratedSideView, MultiViewImageRecord>
 >
 
+function isGeneratedSideView(
+  view: MultiViewImageRecord['view'],
+): view is GeneratedSideView {
+  return GENERATED_VIEW_ANGLES.some((candidate) => candidate === view)
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -209,7 +215,9 @@ function mergeMultiViewImages(
 ): MultiViewImageRecord[] {
   const byView = new Map<GeneratedSideView, MultiViewImageRecord>()
   for (const view of generatedViews) {
-    byView.set(view.view, view)
+    if (isGeneratedSideView(view.view)) {
+      byView.set(view.view, view)
+    }
   }
   for (const view of GENERATED_VIEW_ANGLES) {
     const manualView = manualViews[view]
@@ -420,9 +428,9 @@ export function Studio3DWorkspace({
   const [finalModelVisible, setFinalModelVisible] = useState(false)
 
   // Multi-view input — once the user has a front-view source image we
-  // generate temporary back / left / right views via reference-edit. These
-  // are not Generation rows; Hunyuan v3/v3.1 receives them alongside the
-  // front view during the final 3D submission.
+  // generate R2-backed back / left / right Generation views via reference-edit.
+  // Hunyuan v3/v3.1 receives them alongside the front view during the final 3D
+  // submission.
   const {
     isGenerating: isGeneratingViews,
     views: generatedViews,
@@ -953,9 +961,9 @@ export function Studio3DWorkspace({
     reset()
   }
 
-  // Fan out 3 reference-edit calls to render back / left / right angles
-  // of the current source. Results stay as temporary provider URLs and are
-  // submitted with the final Hunyuan v3/v3.1 job instead of being archived.
+  // Fan out 3 reference-edit worker jobs to render back / left / right angles
+  // of the current source. Completed side views are R2-backed Generation rows
+  // submitted with the final Hunyuan v3/v3.1 job.
   const handleGenerate4Views = async (options?: { force?: boolean }) => {
     if (
       !sourceImage ||
@@ -997,7 +1005,7 @@ export function Studio3DWorkspace({
     })
   }
 
-  const getViewLabel = (view: GeneratedSideView) => {
+  const getViewLabel = (view: MultiViewImageRecord['view']) => {
     if (view === 'back') return t('viewBack')
     if (view === 'left') return t('viewLeft')
     if (view === 'right') return t('viewRight')

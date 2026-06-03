@@ -6,9 +6,10 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { IMAGE_GENERATION } from '@/constants/config'
 import { MODEL_3D_MULTIVIEW_CACHE } from '@/constants/model-3d-generation'
 import type { MultiViewImageRecord, MultiViewGenerateRequest } from '@/types'
-import { generateMultiViewAPI } from '@/lib/api-client'
+import { checkMultiViewStatusAPI, generateMultiViewAPI } from '@/lib/api-client'
 
 const MultiViewCacheEntrySchema = z.object({
   createdAt: z.number(),
@@ -122,11 +123,14 @@ function removeCachedViews(params: MultiViewGenerateRequest, clerkId: string) {
   }
 }
 
+function waitForPollInterval(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 /**
  * Generate 3 alternate camera angles (back / left / right) of a source image
- * via the reference-edit chain. Returns temporary provider URLs; partial
- * results are not failures because Hunyuan can still use whichever side
- * views completed.
+ * via the worker-backed reference-edit chain. Partial results are not failures
+ * because Hunyuan can still use whichever side views completed.
  */
 export function useGenerateMultiView(): UseGenerateMultiViewReturn {
   const [isGenerating, setIsGenerating] = useState(false)
@@ -170,18 +174,49 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
       try {
         const response = await generateMultiViewAPI(params)
         if (response.success && response.data) {
-          setViews(response.data.views)
-          if (activeClerkId !== null) {
-            writeCachedViews(params, response.data.views, activeClerkId)
-          }
-          if (response.data.views.length < 3) {
-            toast.warning(
-              t('partialSuccess', { count: response.data.views.length }),
+          const jobIds = response.data.jobs.map((job) => job.jobId)
+          for (
+            let attempt = 1;
+            attempt <= IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+            attempt += 1
+          ) {
+            await waitForPollInterval(IMAGE_GENERATION.POLL_INTERVAL_MS)
+
+            const statusResponse = await checkMultiViewStatusAPI(
+              response.data.batchId,
+              jobIds,
             )
-          } else {
-            toast.success(t('success'))
+            if (!statusResponse.success || !statusResponse.data) {
+              toast.error(statusResponse.error ?? t('failed'))
+              return []
+            }
+
+            if (statusResponse.data.status === 'IN_PROGRESS') {
+              continue
+            }
+
+            if (statusResponse.data.status === 'FAILED') {
+              toast.error(statusResponse.error ?? t('failed'))
+              return []
+            }
+
+            const completedViews = statusResponse.data.views
+            setViews(completedViews)
+            if (activeClerkId !== null) {
+              writeCachedViews(params, completedViews, activeClerkId)
+            }
+            if (completedViews.length < 3) {
+              toast.warning(
+                t('partialSuccess', { count: completedViews.length }),
+              )
+            } else {
+              toast.success(t('success'))
+            }
+            return completedViews
           }
-          return response.data.views
+
+          toast.error(t('failed'))
+          return []
         }
         toast.error(response.error ?? t('failed'))
         return []

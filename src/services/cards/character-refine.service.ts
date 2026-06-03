@@ -7,7 +7,10 @@ import type {
   RefineCharacterCardRequest,
   RefineGenerationResult,
 } from '@/types'
-import { generateImageForUser } from '@/services/image/generate-image.service'
+import {
+  submitImageGeneration,
+  waitForImageGenerationResult,
+} from '@/services/image/submit-image.service'
 import { scoreConsistency } from '@/services/cards/character-scoring.service'
 import { buildPromptFromAttributes } from '@/services/cards/character-card.service'
 import {
@@ -57,15 +60,16 @@ export async function refineCharacterCard(
 
   // Generate image for each model
   const generationResults = await Promise.allSettled(
-    input.models.map((model) =>
-      generateImageForUser(clerkId, {
+    input.models.map(async (model) => {
+      const submitted = await submitImageGeneration(clerkId, {
         prompt: card.characterPrompt,
         modelId: model.modelId,
         aspectRatio: input.aspectRatio,
         apiKeyId: model.apiKeyId,
         referenceImage: card.sourceImageUrl,
-      }),
-    ),
+      })
+      return waitForImageGenerationResult(clerkId, submitted.jobId)
+    }),
   )
 
   // Score each successful generation

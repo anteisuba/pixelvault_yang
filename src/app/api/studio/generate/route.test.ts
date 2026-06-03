@@ -7,7 +7,6 @@ import {
   mockRateLimitExceeded,
   createPOST,
   parseJSON,
-  FAKE_GENERATION,
 } from '@/test/api-helpers'
 
 // ─── Mocks ────────────────────────────────────────────────────────
@@ -49,7 +48,10 @@ describe('POST /api/studio/generate', () => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
-    mockCompileAndGenerate.mockResolvedValue(FAKE_GENERATION as never)
+    mockCompileAndGenerate.mockResolvedValue({
+      jobId: 'job-1',
+      requestId: 'wf-1',
+    } as never)
     mockIsServiceError.mockReturnValue(false)
   })
 
@@ -87,14 +89,12 @@ describe('POST /api/studio/generate', () => {
     const res = await POST(req)
     const json = await parseJSON<{
       success: boolean
-      data: { generation: typeof FAKE_GENERATION }
+      data: { jobId: string; requestId: string }
     }>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(json.data.generation).toEqual(
-      expect.objectContaining({ id: FAKE_GENERATION.id }),
-    )
+    expect(json.data).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
     expect(mockCompileAndGenerate).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({
@@ -127,11 +127,12 @@ describe('POST /api/studio/generate', () => {
     const res = await POST(req)
     const json = await parseJSON<{
       success: boolean
-      data: { generation: typeof FAKE_GENERATION }
+      data: { jobId: string; requestId: string }
     }>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
+    expect(json.data.jobId).toBe('job-1')
     expect(mockCompileAndGenerate).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({

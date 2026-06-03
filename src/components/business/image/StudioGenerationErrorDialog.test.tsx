@@ -20,9 +20,7 @@ describe('StudioGenerationErrorDialog', () => {
     render(<StudioGenerationErrorDialog {...defaultProps} />)
 
     expect(screen.getByText('generationError.title')).toBeInTheDocument()
-    expect(
-      screen.getByText('generationError.reasons.provider_timeout'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('generation.provider_timeout')).toBeInTheDocument()
   })
 
   it('calls onRetry and closes on retry button click', () => {
@@ -81,8 +79,6 @@ describe('StudioGenerationErrorDialog', () => {
       />,
     )
 
-    expect(
-      screen.getByText('generationError.reasons.content_filtered'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('generation.content_filtered')).toBeInTheDocument()
   })
 })

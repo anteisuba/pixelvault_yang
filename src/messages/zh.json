@@ -446,7 +446,7 @@
         "privacy": "隐私",
         "terms": "服务条款"
       },
-      "copyright": "© {year} PixelVault · BYOK · 永久归档"
+      "copyright": "© {year} ANTEI · BYOK · 永久归档"
     },
     "featureSections": {
       "imageEditing": {
@@ -3724,22 +3724,7 @@
       "title": "生成失败",
       "retry": "重试",
       "switchModel": "换个模型",
-      "viewDetails": "查看详情",
-      "reasons": {
-        "provider_timeout": "AI 服务商响应超时",
-        "provider_rate_limit": "请求过于频繁，请稍后再试",
-        "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
-        "invalid_api_key": "你的 API Key 无效或已过期",
-        "content_filtered": "内容被服务商安全系统过滤",
-        "model_unavailable": "该模型暂时不可用",
-        "insufficient_credits": "今日免费生成次数已用完",
-        "unsupported_reference_image_format": "该模型无法读取当前参考图格式",
-        "reference_image_too_large": "参考图文件过大，超出该模型限制",
-        "reference_image_unreachable": "服务商无法下载这张参考图",
-        "reference_image_limit_exceeded": "参考图数量超过该模型限制",
-        "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
-        "unknown": "发生了未知错误"
-      }
+      "viewDetails": "查看详情"
     },
     "variantRequests": "消耗 {count} 积分"
   },
@@ -3803,6 +3788,7 @@
     "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",
     "previewErrorTitle": "这次生成需要再试一次",
+    "stillProcessingHint": "仍在后台生成，完成后会出现在素材库中。",
     "retry": "重试",
     "remix": "Remix",
     "promptPreviewLabel": "提示词",
@@ -4152,6 +4138,22 @@
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。"
+    },
+    "generation": {
+      "provider_timeout": "AI 服务商响应超时",
+      "provider_rate_limit": "请求过于频繁，请稍后再试",
+      "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
+      "invalid_api_key": "你的 API Key 无效或已过期",
+      "content_filtered": "内容被服务商安全系统过滤",
+      "model_unavailable": "该模型暂时不可用",
+      "provider_insufficient_balance": "服务商账户余额不足",
+      "insufficient_credits": "今日免费生成次数已用完",
+      "unsupported_reference_image_format": "该模型无法读取当前参考图格式",
+      "reference_image_too_large": "参考图文件过大，超出该模型限制",
+      "reference_image_unreachable": "服务商无法下载这张参考图",
+      "reference_image_limit_exceeded": "参考图数量超过该模型限制",
+      "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
+      "unknown": "发生了未知错误"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",

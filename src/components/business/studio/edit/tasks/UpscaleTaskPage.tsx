@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 
 import { getEditTaskMeta } from '@/constants/edit-tasks'
 import { useImageEdit } from '@/contexts/image-edit-context'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { editImageAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -53,7 +53,7 @@ export function UpscaleTaskPage() {
     setRunningTask(null)
 
     if (!response.success || !response.data) {
-      toast.error(getApiErrorMessage(tErrors, response, t('editFailed')))
+      toast.error(getGenerationErrorMessage(tErrors, response, t('editFailed')))
       return
     }
 

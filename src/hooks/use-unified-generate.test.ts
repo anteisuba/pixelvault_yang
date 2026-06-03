@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -36,6 +36,10 @@ vi.mock('@/lib/api-client', () => ({
 
 vi.mock('@/lib/api-error-message', () => ({
   getApiErrorMessage: vi.fn(
+    (_tErrors: unknown, result: { error?: string }, fallback: string) =>
+      result?.error ?? fallback,
+  ),
+  getGenerationErrorMessage: vi.fn(
     (_tErrors: unknown, result: { error?: string }, fallback: string) =>
       result?.error ?? fallback,
   ),
@@ -70,7 +74,7 @@ function wrapper({ children }: { children: ReactNode }) {
 // ─── Fixtures ─────────────────────────────────────────────────────
 
 const IMAGE_INPUT = {
-  modelId: 'gemini-3.1-flash-image-preview',
+  modelId: 'gemini-3.1-flash-image',
   freePrompt: 'a red circle',
   aspectRatio: '1:1' as const,
 }
@@ -235,6 +239,93 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.activeRun?.mode).toBe('single')
     expect(result.current.activeRun?.items).toHaveLength(1)
     expect(result.current.activeRun?.items[0].status).toBe('completed')
+  })
+
+  it('recovers a completed image when polling times out (worker still succeeded)', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+    // Worker is slower than the poll window: every poll sees IN_PROGRESS, but
+    // the authoritative status check after exhaustion sees COMPLETED. A
+    // generated image must never be reported as a failure.
+    let calls = 0
+    mockCheckImageStatus.mockImplementation(async () => {
+      calls += 1
+      if (calls > IMAGE_GENERATION.MAX_POLL_ATTEMPTS) {
+        return {
+          success: true,
+          data: {
+            jobId: 'job-image-123',
+            status: 'COMPLETED',
+            generation: FAKE_GENERATION,
+          },
+        }
+      }
+      return {
+        success: true,
+        data: { jobId: 'job-image-123', status: 'IN_PROGRESS' },
+      }
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null> | undefined
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        IMAGE_GENERATION.POLL_INTERVAL_MS *
+          (IMAGE_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+    })
+
+    await expect(generationPromise).resolves.toEqual(
+      expect.objectContaining({ id: FAKE_GENERATION.id }),
+    )
+    expect(result.current.error).toBeNull()
+    expect(result.current.activeRun?.items[0].status).toBe('completed')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('does not report failure when polling times out but the job is still running', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+    // Job never reaches a terminal state within the poll window and the
+    // authoritative check still sees it running — the worker may yet finish,
+    // so this must NOT be surfaced as a failure.
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-image-123', status: 'IN_PROGRESS' },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null> | undefined
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        IMAGE_GENERATION.POLL_INTERVAL_MS *
+          (IMAGE_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+    })
+
+    await expect(generationPromise).resolves.toBeNull()
+    expect(result.current.error).toBeNull()
+    expect(result.current.activeRun?.items[0].status).not.toBe('failed')
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalled()
   })
 
   it('generates audio and returns generation', async () => {
@@ -468,7 +559,7 @@ describe('useUnifiedGenerate', () => {
 
     await expect(generationPromise).resolves.toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.error).toBe('generation.provider_timeout')
     expect(result.current.activeRun?.items[0].status).toBe('failed')
   })
 

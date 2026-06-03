@@ -7,7 +7,10 @@ import { toast } from 'sonner'
 
 import { getEditTaskMeta } from '@/constants/edit-tasks'
 import { useImageEdit } from '@/contexts/image-edit-context'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  getApiErrorMessage,
+  getGenerationErrorMessage,
+} from '@/lib/api-error-message'
 import { decomposeImageAPI, downloadRemoteAsset } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 
@@ -49,7 +52,9 @@ export function DecomposeTaskPage() {
       const response = await decomposeImageAPI(source.imageUrl, { modelId })
 
       if (!response.success || !response.data) {
-        toast.error(getApiErrorMessage(tErrors, response, t('decomposeFailed')))
+        toast.error(
+          getGenerationErrorMessage(tErrors, response, t('decomposeFailed')),
+        )
         return
       }
 

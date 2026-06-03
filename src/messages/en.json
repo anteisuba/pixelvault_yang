@@ -446,7 +446,7 @@
         "privacy": "Privacy",
         "terms": "Terms"
       },
-      "copyright": "© {year} PixelVault · BYOK · Forever archived"
+      "copyright": "© {year} ANTEI · BYOK · Forever archived"
     },
     "featureSections": {
       "imageEditing": {
@@ -3724,22 +3724,7 @@
       "title": "Generation Failed",
       "retry": "Retry",
       "switchModel": "Switch Model",
-      "viewDetails": "View Details",
-      "reasons": {
-        "provider_timeout": "The AI provider took too long to respond",
-        "provider_rate_limit": "Too many requests, please wait a moment",
-        "provider_overloaded": "This model is at capacity right now. Try another model.",
-        "invalid_api_key": "Your API key is invalid or expired",
-        "content_filtered": "Content was filtered by the provider's safety system",
-        "model_unavailable": "This model is temporarily unavailable",
-        "insufficient_credits": "Daily free generation limit reached",
-        "unsupported_reference_image_format": "This model cannot read the reference image format",
-        "reference_image_too_large": "The reference image is too large for this model",
-        "reference_image_unreachable": "The provider could not download the reference image",
-        "reference_image_limit_exceeded": "This model received too many reference images",
-        "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
-        "unknown": "An unexpected error occurred"
-      }
+      "viewDetails": "View Details"
     },
     "variantRequests": "Uses {count} credits"
   },
@@ -3803,6 +3788,7 @@
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",
     "previewErrorTitle": "Generation needs another try",
+    "stillProcessingHint": "Still generating in the background — it'll appear in your library when it's ready.",
     "retry": "Try again",
     "remix": "Remix",
     "promptPreviewLabel": "Prompt",
@@ -4152,6 +4138,22 @@
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again."
+    },
+    "generation": {
+      "provider_timeout": "The AI provider took too long to respond",
+      "provider_rate_limit": "Too many requests, please wait a moment",
+      "provider_overloaded": "This model is at capacity right now. Try another model.",
+      "invalid_api_key": "Your API key is invalid or expired",
+      "content_filtered": "Content was filtered by the provider's safety system",
+      "model_unavailable": "This model is temporarily unavailable",
+      "provider_insufficient_balance": "The provider account has insufficient balance",
+      "insufficient_credits": "Daily free generation limit reached",
+      "unsupported_reference_image_format": "This model cannot read the reference image format",
+      "reference_image_too_large": "The reference image is too large for this model",
+      "reference_image_unreachable": "The provider could not download the reference image",
+      "reference_image_limit_exceeded": "This model received too many reference images",
+      "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
+      "unknown": "An unexpected error occurred"
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",

@@ -10,6 +10,7 @@ import { IMAGE_GENERATION } from '@/constants/config'
 import { MODEL_3D_MULTIVIEW_CACHE } from '@/constants/model-3d-generation'
 import type { MultiViewImageRecord, MultiViewGenerateRequest } from '@/types'
 import { checkMultiViewStatusAPI, generateMultiViewAPI } from '@/lib/api-client'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 
 const MultiViewCacheEntrySchema = z.object({
   createdAt: z.number(),
@@ -136,6 +137,7 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
   const [isGenerating, setIsGenerating] = useState(false)
   const [views, setViews] = useState<MultiViewImageRecord[]>([])
   const t = useTranslations('MultiViewGenerate')
+  const tErrors = useTranslations('Errors')
   // Clerk scopes every cache slot. While Clerk is still loading or the
   // user is signed out, restore() returns false and generate() skips
   // cache reads/writes — better to round-trip the API than to leak
@@ -187,7 +189,9 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
               jobIds,
             )
             if (!statusResponse.success || !statusResponse.data) {
-              toast.error(statusResponse.error ?? t('failed'))
+              toast.error(
+                getGenerationErrorMessage(tErrors, statusResponse, t('failed')),
+              )
               return []
             }
 
@@ -196,7 +200,9 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
             }
 
             if (statusResponse.data.status === 'FAILED') {
-              toast.error(statusResponse.error ?? t('failed'))
+              toast.error(
+                getGenerationErrorMessage(tErrors, statusResponse, t('failed')),
+              )
               return []
             }
 
@@ -218,13 +224,13 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
           toast.error(t('failed'))
           return []
         }
-        toast.error(response.error ?? t('failed'))
+        toast.error(getGenerationErrorMessage(tErrors, response, t('failed')))
         return []
       } finally {
         setIsGenerating(false)
       }
     },
-    [activeClerkId, t],
+    [activeClerkId, t, tErrors],
   )
 
   const reset = useCallback(() => {

@@ -446,7 +446,7 @@
         "privacy": "プライバシー",
         "terms": "利用規約"
       },
-      "copyright": "© {year} PixelVault · BYOK · 永久アーカイブ"
+      "copyright": "© {year} ANTEI · BYOK · 永久アーカイブ"
     },
     "featureSections": {
       "imageEditing": {
@@ -3724,22 +3724,7 @@
       "title": "生成に失敗しました",
       "retry": "リトライ",
       "switchModel": "モデルを変更",
-      "viewDetails": "詳細を表示",
-      "reasons": {
-        "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
-        "provider_rate_limit": "リクエストが多すぎます。しばらくお待ちください",
-        "provider_overloaded": "このモデルは現在混雑しています。別のモデルをお試しください。",
-        "invalid_api_key": "APIキーが無効または期限切れです",
-        "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
-        "model_unavailable": "このモデルは一時的に利用できません",
-        "insufficient_credits": "本日の無料生成上限に達しました",
-        "unsupported_reference_image_format": "このモデルは現在の参照画像形式を読み取れません",
-        "reference_image_too_large": "参照画像がこのモデルの上限を超えています",
-        "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
-        "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
-        "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
-        "unknown": "予期しないエラーが発生しました"
-      }
+      "viewDetails": "詳細を表示"
     },
     "variantRequests": "{count}クレジット使用"
   },
@@ -3803,6 +3788,7 @@
     "generateFailed": "生成に失敗しました",
     "elapsed": "経過時間: {seconds}",
     "previewErrorTitle": "生成に再試行が必要です",
+    "stillProcessingHint": "バックグラウンドで生成を続けています。完了するとライブラリに表示されます。",
     "retry": "再試行",
     "remix": "Remix",
     "promptPreviewLabel": "プロンプト",
@@ -4152,6 +4138,22 @@
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。"
+    },
+    "generation": {
+      "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
+      "provider_rate_limit": "リクエストが多すぎます。しばらくお待ちください",
+      "provider_overloaded": "このモデルは現在混雑しています。別のモデルをお試しください。",
+      "invalid_api_key": "APIキーが無効または期限切れです",
+      "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
+      "model_unavailable": "このモデルは一時的に利用できません",
+      "provider_insufficient_balance": "プロバイダーアカウントの残高が不足しています",
+      "insufficient_credits": "本日の無料生成上限に達しました",
+      "unsupported_reference_image_format": "このモデルは現在の参照画像形式を読み取れません",
+      "reference_image_too_large": "参照画像がこのモデルの上限を超えています",
+      "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
+      "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
+      "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
+      "unknown": "予期しないエラーが発生しました"
     },
     "validation": {
       "invalidInput": "入力が無効です。パラメータを確認してください。",

@@ -18,7 +18,13 @@ import {
   type AudioPace,
 } from '@/constants/voice-cards'
 import { VARIANT_COUNT, VARIANT_MAX_SEED } from '@/constants/studio'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  GENERATION_ERROR_CODES,
+  type GenerationErrorCode,
+  normalizeErrorCode,
+  parseGenerationErrorCode,
+} from '@/constants/generation-errors'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
   GenerateAudioResponseData,
@@ -101,6 +107,7 @@ export interface UseUnifiedGenerateReturn {
   stage: GenerationStage
   elapsedSeconds: number
   error: string | null
+  errorCode: GenerationErrorCode | null
   lastGeneration: GenerationRecord | null
   generate: (input: UnifiedGenerateInput) => Promise<GenerationRecord | null>
   retry: () => Promise<GenerationRecord | null>
@@ -161,6 +168,15 @@ function toFailedRunItem<T extends RunItem>(item: T, error: string) {
   }
 }
 
+// Outcome of polling an async image job. `pending` means the poll window ran
+// out while the worker was still producing the image — that is NOT a failure
+// (the image lands in the gallery via callback), so it must never be surfaced
+// as one. Only `failed` (the server reported FAILED) is a real failure.
+type ImageJobPollOutcome =
+  | { status: 'completed'; generation: GenerationRecord }
+  | { status: 'failed' }
+  | { status: 'pending' }
+
 // ─── Hook ────────────────────────────────────────────────────────
 
 export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
@@ -168,6 +184,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const [stage, setStage] = useState<GenerationStage>('idle')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<GenerationErrorCode | null>(null)
   const [lastGeneration, setLastGeneration] = useState<GenerationRecord | null>(
     null,
   )
@@ -215,13 +232,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   }, [stopTimer])
 
   const finish = useCallback(
-    (err?: string) => {
+    (err?: string, code?: GenerationErrorCode | null) => {
       stopPolling()
       stopTimer()
       setIsGenerating(false)
       setStage('idle')
       if (err) {
         setError(err)
+        setErrorCode(code ?? null)
         toast.error(err)
       }
     },
@@ -267,6 +285,56 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [updateActiveRunItem],
   )
 
+  // Resolve an API error payload into both a localized message (for display)
+  // and a classification code (for the error dialog to pick its reason).
+  const resolveGenerationError = useCallback(
+    (
+      payload: { error?: string; errorCode?: string; i18nKey?: string },
+      fallback: string,
+    ): { message: string; code: GenerationErrorCode } => ({
+      message: getGenerationErrorMessage(tErrors, payload, fallback),
+      code:
+        normalizeErrorCode(payload.errorCode) ??
+        parseGenerationErrorCode(payload.error ?? ''),
+    }),
+    [tErrors],
+  )
+
+  // Authoritative resolution of a finished image job from its server status.
+  // Used when the poll window is exhausted: the worker (not the poll loop) is
+  // the source of truth, so a generated image — already COMPLETED and in the
+  // gallery — is never reported as a failure just because the UI stopped
+  // polling. A still-RUNNING job resolves to `pending`, not a failure.
+  const resolveImageJobFromStatus = useCallback(
+    async (jobId: string, itemId: string): Promise<ImageJobPollOutcome> => {
+      try {
+        const statusResponse = await checkImageGenerationStatusAPI(jobId)
+        if (statusResponse.success && statusResponse.data) {
+          if (statusResponse.data.status === 'COMPLETED') {
+            const generation = statusResponse.data.generation
+            markActiveRunItemCompleted(itemId, generation)
+            return { status: 'completed', generation }
+          }
+          if (statusResponse.data.status === 'FAILED') {
+            markActiveRunItemFailed(
+              itemId,
+              getGenerationErrorMessage(
+                tErrors,
+                statusResponse,
+                tStudio('generateFailed'),
+              ),
+            )
+            return { status: 'failed' }
+          }
+        }
+      } catch {
+        // Unknown — treat as still-pending, never a confirmed failure.
+      }
+      return { status: 'pending' }
+    },
+    [tErrors, tStudio, markActiveRunItemCompleted, markActiveRunItemFailed],
+  )
+
   // ── Image generation (worker submit + poll) ───────────────────
 
   const generateImage = useCallback(
@@ -277,6 +345,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
+      setErrorCode(null)
       startTimer()
 
       // B0: Create ActiveRun with single item
@@ -311,10 +380,26 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               pollCountRef.current += 1
 
               if (pollCountRef.current > IMAGE_GENERATION.MAX_POLL_ATTEMPTS) {
-                const msg = tStudio('generateFailed')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg)
-                resolve(null)
+                // Poll window exhausted. Don't blind-fail: check the job's
+                // authoritative status once more. A generated image (COMPLETED,
+                // already in the gallery) must never be reported as a failure
+                // just because we stopped polling.
+                const outcome = await resolveImageJobFromStatus(jobId, itemId)
+                if (outcome.status === 'completed') {
+                  setLastGeneration(outcome.generation)
+                  finish()
+                  toast.success(tStudio('generateSuccess'))
+                  resolve(outcome.generation)
+                } else if (outcome.status === 'failed') {
+                  finish(tStudio('generateFailed'))
+                  resolve(null)
+                } else {
+                  // Still running on the worker — it will finish and land in
+                  // the gallery via callback. Say so, don't claim failure.
+                  finish()
+                  toast.info(tStudio('stillProcessingHint'))
+                  resolve(null)
+                }
                 return
               }
 
@@ -322,13 +407,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 const statusResponse =
                   await checkImageGenerationStatusAPI(jobId)
 
-                if (!statusResponse.success || !statusResponse.data) {
-                  const msg = statusResponse.error ?? tStudio('generateFailed')
-                  markActiveRunItemFailed(itemId, msg)
-                  finish(msg)
-                  resolve(null)
-                  return
-                }
+                // Transient status-API error — skip this tick and keep polling
+                // rather than fail a run the worker may still be completing.
+                if (!statusResponse.success || !statusResponse.data) return
 
                 const statusData = statusResponse.data
 
@@ -343,9 +424,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 }
 
                 if (statusData.status === 'FAILED') {
-                  const msg = statusResponse.error ?? tStudio('generateFailed')
-                  markActiveRunItemFailed(itemId, msg)
-                  finish(msg)
+                  const { message, code } = resolveGenerationError(
+                    statusResponse,
+                    tStudio('generateFailed'),
+                  )
+                  markActiveRunItemFailed(itemId, message)
+                  finish(message, code)
                   resolve(null)
                   return
                 }
@@ -359,22 +443,19 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   setStage('processing')
                 }
               } catch {
-                const msg = tStudio('generateFailed')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg)
-                resolve(null)
+                // Transient network blip — skip this tick, keep polling.
               }
             }, IMAGE_GENERATION.POLL_INTERVAL_MS)
           })
         }
 
-        const msg = getApiErrorMessage(
-          tErrors,
+        const { message, code } = resolveGenerationError(
           result,
           tStudio('generateFailed'),
         )
-        setError(msg)
-        markActiveRunItemFailed(itemId, msg)
+        setError(message)
+        setErrorCode(code)
+        markActiveRunItemFailed(itemId, message)
         return null
       } finally {
         singleImageInFlightRef.current = false
@@ -384,18 +465,19 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
     },
     [
-      tErrors,
       tStudio,
       startTimer,
       stopTimer,
       finish,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      resolveGenerationError,
+      resolveImageJobFromStatus,
     ],
   )
 
   const pollImageJobForRunItem = useCallback(
-    async (jobId: string, itemId: string): Promise<GenerationRecord | null> => {
+    async (jobId: string, itemId: string): Promise<ImageJobPollOutcome> => {
       for (
         let attempt = 1;
         attempt <= IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
@@ -406,37 +488,46 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         try {
           const statusResponse = await checkImageGenerationStatusAPI(jobId)
 
-          if (!statusResponse.success || !statusResponse.data) {
-            const msg = statusResponse.error ?? tStudio('generateFailed')
-            markActiveRunItemFailed(itemId, msg)
-            return null
-          }
+          // Transient status-API error — skip this tick rather than fail a run
+          // the worker may still be completing.
+          if (!statusResponse.success || !statusResponse.data) continue
 
           const statusData = statusResponse.data
 
           if (statusData.status === 'COMPLETED') {
             const generation = statusData.generation
             markActiveRunItemCompleted(itemId, generation)
-            return generation
+            return { status: 'completed', generation }
           }
 
           if (statusData.status === 'FAILED') {
-            const msg = statusResponse.error ?? tStudio('generateFailed')
-            markActiveRunItemFailed(itemId, msg)
-            return null
+            markActiveRunItemFailed(
+              itemId,
+              getGenerationErrorMessage(
+                tErrors,
+                statusResponse,
+                tStudio('generateFailed'),
+              ),
+            )
+            return { status: 'failed' }
           }
         } catch {
-          const msg = tStudio('generateFailed')
-          markActiveRunItemFailed(itemId, msg)
-          return null
+          // Transient network blip — skip this tick, keep polling.
+          continue
         }
       }
 
-      const msg = tStudio('generateFailed')
-      markActiveRunItemFailed(itemId, msg)
-      return null
+      // Poll window exhausted: trust the authoritative job status instead of
+      // assuming failure — the worker may have produced the image already.
+      return resolveImageJobFromStatus(jobId, itemId)
     },
-    [tStudio, markActiveRunItemCompleted, markActiveRunItemFailed],
+    [
+      tErrors,
+      tStudio,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      resolveImageJobFromStatus,
+    ],
   )
 
   // ── Video generation (async queue + polling) ──────────────────
@@ -445,6 +536,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (params: GenerateVideoRequest): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setError(null)
+      setErrorCode(null)
       setStage('queued')
       startTimer()
 
@@ -470,9 +562,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       try {
         const submitResponse = await submitVideoAPI(params)
         if (!submitResponse.success || !submitResponse.data) {
-          const msg = submitResponse.error ?? tVideo('errorFallback')
-          markActiveRunItemFailed(itemId, msg)
-          finish(msg)
+          const { message, code } = resolveGenerationError(
+            submitResponse,
+            tVideo('errorFallback'),
+          )
+          markActiveRunItemFailed(itemId, message)
+          finish(message, code)
           return null
         }
 
@@ -486,7 +581,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
             if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
               markActiveRunItemFailed(itemId, tVideo('errorTimeout'))
-              finish(tVideo('errorTimeout'))
+              finish(
+                tVideo('errorTimeout'),
+                GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
+              )
               resolve(null)
               return
             }
@@ -500,9 +598,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 ) {
                   return
                 }
-                const msg = statusResponse.error ?? tVideo('errorFallback')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg)
+                const { message, code } = resolveGenerationError(
+                  statusResponse,
+                  tVideo('errorFallback'),
+                )
+                markActiveRunItemFailed(itemId, message)
+                finish(message, code)
                 resolve(null)
                 return
               }
@@ -520,9 +621,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               }
 
               if (statusData.status === 'FAILED') {
-                const msg = statusResponse.error ?? tVideo('errorFallback')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg)
+                const { message, code } = resolveGenerationError(
+                  statusResponse,
+                  tVideo('errorFallback'),
+                )
+                markActiveRunItemFailed(itemId, message)
+                finish(message, code)
                 resolve(null)
                 return
               }
@@ -551,6 +655,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tVideo,
+      resolveGenerationError,
       startTimer,
       finish,
       markActiveRunItemCompleted,
@@ -565,6 +670,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
+      setErrorCode(null)
       startTimer()
 
       const runGroupId = crypto.randomUUID()
@@ -596,6 +702,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // result lands. `firstSuccess` is whichever variant finishes
         // first — the natural "show me the fastest preview" behaviour.
         let firstSuccess: GenerationRecord | null = null
+        let anyFailed = false
 
         const tasks = items.map(async (item) => {
           try {
@@ -608,19 +715,29 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             })
             if (result.success && hasJobId(result.data)) {
               setStage('processing')
-              const gen = await pollImageJobForRunItem(
+              const outcome = await pollImageJobForRunItem(
                 result.data.jobId,
                 item.id,
               )
-              if (gen && !firstSuccess) firstSuccess = gen
+              if (outcome.status === 'completed') {
+                if (!firstSuccess) firstSuccess = outcome.generation
+              } else if (outcome.status === 'failed') {
+                anyFailed = true
+              }
             } else {
               markActiveRunItemFailed(
                 item.id,
-                getApiErrorMessage(tErrors, result, tStudio('generateFailed')),
+                getGenerationErrorMessage(
+                  tErrors,
+                  result,
+                  tStudio('generateFailed'),
+                ),
               )
+              anyFailed = true
             }
           } catch {
             markActiveRunItemFailed(item.id, tStudio('generateFailed'))
+            anyFailed = true
           }
         })
 
@@ -629,8 +746,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
           toast.success(tStudio('variantSuccess'))
-        } else {
+        } else if (anyFailed) {
           setError(tStudio('generateFailed'))
+          setErrorCode(null)
+        } else {
+          // Every variant is still generating on the worker — not a failure.
+          toast.info(tStudio('stillProcessingHint'))
         }
 
         return firstSuccess
@@ -694,6 +815,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
+      setErrorCode(null)
       startTimer()
 
       const runGroupId = crypto.randomUUID()
@@ -721,6 +843,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // its API call returns — fast providers no longer wait for the
         // slowest one before becoming visible.
         let firstSuccess: GenerationRecord | null = null
+        let anyFailed = false
 
         const tasks = items.map(async (item) => {
           try {
@@ -734,19 +857,29 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             })
             if (result.success && hasJobId(result.data)) {
               setStage('processing')
-              const gen = await pollImageJobForRunItem(
+              const outcome = await pollImageJobForRunItem(
                 result.data.jobId,
                 item.id,
               )
-              if (gen && !firstSuccess) firstSuccess = gen
+              if (outcome.status === 'completed') {
+                if (!firstSuccess) firstSuccess = outcome.generation
+              } else if (outcome.status === 'failed') {
+                anyFailed = true
+              }
             } else {
               markActiveRunItemFailed(
                 item.id,
-                getApiErrorMessage(tErrors, result, tStudio('generateFailed')),
+                getGenerationErrorMessage(
+                  tErrors,
+                  result,
+                  tStudio('generateFailed'),
+                ),
               )
+              anyFailed = true
             }
           } catch {
             markActiveRunItemFailed(item.id, tStudio('generateFailed'))
+            anyFailed = true
           }
         })
 
@@ -755,8 +888,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
           toast.success(tStudio('compareSuccess'))
-        } else {
+        } else if (anyFailed) {
           setError(tStudio('generateFailed'))
+          setErrorCode(null)
+        } else {
+          // Every model is still generating on the worker — not a failure.
+          toast.info(tStudio('stillProcessingHint'))
         }
 
         return firstSuccess
@@ -783,6 +920,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
+      setErrorCode(null)
       startTimer()
 
       const itemId = crypto.randomUUID()
@@ -842,9 +980,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               pollCountRef.current += 1
 
               if (pollCountRef.current > AUDIO_GENERATION.MAX_POLL_ATTEMPTS) {
-                const msg = tStudio('generateFailed')
+                const msg = tErrors('generation.provider_timeout')
                 markActiveRunItemFailed(itemId, msg)
-                finish(msg)
+                finish(msg, GENERATION_ERROR_CODES.PROVIDER_TIMEOUT)
                 resolve(null)
                 return
               }
@@ -853,9 +991,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 const statusResponse = await checkAudioStatusAPI(jobId)
 
                 if (!statusResponse.success || !statusResponse.data) {
-                  const msg = statusResponse.error ?? tStudio('generateFailed')
-                  markActiveRunItemFailed(itemId, msg)
-                  finish(msg)
+                  const { message, code } = resolveGenerationError(
+                    statusResponse,
+                    tStudio('generateFailed'),
+                  )
+                  markActiveRunItemFailed(itemId, message)
+                  finish(message, code)
                   resolve(null)
                   return
                 }
@@ -873,9 +1014,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 }
 
                 if (statusData.status === 'FAILED') {
-                  const msg = statusResponse.error ?? tStudio('generateFailed')
-                  markActiveRunItemFailed(itemId, msg)
-                  finish(msg)
+                  const { message, code } = resolveGenerationError(
+                    statusResponse,
+                    tStudio('generateFailed'),
+                  )
+                  markActiveRunItemFailed(itemId, message)
+                  finish(message, code)
                   resolve(null)
                   return
                 }
@@ -898,13 +1042,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           })
         }
 
-        const msg = getApiErrorMessage(
-          tErrors,
+        const { message, code } = resolveGenerationError(
           result,
           tStudio('generateFailed'),
         )
-        setError(msg)
-        markActiveRunItemFailed(itemId, msg)
+        setError(message)
+        setErrorCode(code)
+        markActiveRunItemFailed(itemId, message)
         return null
       } finally {
         stopTimer()
@@ -920,6 +1064,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       finish,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      resolveGenerationError,
     ],
   )
 
@@ -977,6 +1122,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
   const reset = useCallback(() => {
     setError(null)
+    setErrorCode(null)
     setLastGeneration(null)
     setStage('idle')
     setElapsedSeconds(0)
@@ -991,6 +1137,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     stage,
     elapsedSeconds,
     error,
+    errorCode,
     lastGeneration,
     generate,
     retry,

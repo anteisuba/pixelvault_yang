@@ -43,10 +43,11 @@ export function StudioGenerationErrorDialog({
   onSwitchModel,
 }: StudioGenerationErrorDialogProps) {
   const t = useTranslations('StudioV2')
+  const tErrors = useTranslations('Errors')
   const [detailsExpanded, setDetailsExpanded] = useState(false)
 
   const errorCode = error.code ?? parseGenerationErrorCode(error.message)
-  const reasonKey = `generationError.reasons.${errorCode}` as const
+  const reasonKey = `generation.${errorCode}` as const
 
   const handleRetry = () => {
     onOpenChange(false)
@@ -71,7 +72,7 @@ export function StudioGenerationErrorDialog({
                 {t('generationError.title')}
               </DialogTitle>
               <DialogDescription className="mt-1 font-serif">
-                {t(reasonKey)}
+                {tErrors(reasonKey)}
               </DialogDescription>
             </div>
           </div>

@@ -17,7 +17,7 @@ import {
   retryMesh3DAPI,
   submit3DAPI,
 } from '@/lib/api-client'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 
 type Model3DStage =
   | 'idle'
@@ -171,7 +171,11 @@ export function useGenerate3D(): UseGenerate3DReturn {
           if (!statusResponse.success || !statusResponse.data) {
             if (pollCountRef.current <= 5) return
             finish(
-              getApiErrorMessage(tErrors, statusResponse, t('errorFallback')),
+              getGenerationErrorMessage(
+                tErrors,
+                statusResponse,
+                t('errorFallback'),
+              ),
             )
             return
           }
@@ -226,7 +230,11 @@ export function useGenerate3D(): UseGenerate3DReturn {
               return
             }
             finish(
-              getApiErrorMessage(tErrors, statusResponse, t('errorFallback')),
+              getGenerationErrorMessage(
+                tErrors,
+                statusResponse,
+                t('errorFallback'),
+              ),
             )
             return
           }
@@ -269,7 +277,11 @@ export function useGenerate3D(): UseGenerate3DReturn {
 
         if (!submitResponse.success || !submitResponse.data) {
           finish(
-            getApiErrorMessage(tErrors, submitResponse, t('errorFallback')),
+            getGenerationErrorMessage(
+              tErrors,
+              submitResponse,
+              t('errorFallback'),
+            ),
           )
           return
         }
@@ -300,7 +312,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
         ...(options?.seed != null && { seed: options.seed }),
       })
       if (!response.success || !response.data) {
-        finish(getApiErrorMessage(tErrors, response, t('errorFallback')))
+        finish(getGenerationErrorMessage(tErrors, response, t('errorFallback')))
         return
       }
       setStage('texture')
@@ -321,7 +333,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
         ...options,
       })
       if (!response.success || !response.data) {
-        finish(getApiErrorMessage(tErrors, response, t('errorFallback')))
+        finish(getGenerationErrorMessage(tErrors, response, t('errorFallback')))
         return
       }
       setStage('mesh')

@@ -136,6 +136,45 @@ export function parseGenerationErrorCode(
   return GENERATION_ERROR_CODES.UNKNOWN
 }
 
+// Server-side `GenerationError` subclasses and legacy service errors use
+// SCREAMING_SNAKE codes (PROVIDER_TIMEOUT, RATE_LIMIT_EXCEEDED…); the client
+// classification dictionary uses the lower-case GENERATION_ERROR_CODES. This
+// bridges the two so the UI can resolve a friendly reason from the payload's
+// errorCode without re-parsing the message string.
+const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
+  PROVIDER_TIMEOUT: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
+  RATE_LIMIT_EXCEEDED: GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT,
+  SAFETY_FILTER_BLOCKED: GENERATION_ERROR_CODES.CONTENT_FILTERED,
+  FREE_LIMIT_EXCEEDED: GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS,
+  INVALID_API_KEY: GENERATION_ERROR_CODES.INVALID_API_KEY,
+  MISSING_API_KEY: GENERATION_ERROR_CODES.INVALID_API_KEY,
+  UNSUPPORTED_MODEL: GENERATION_ERROR_CODES.MODEL_UNAVAILABLE,
+}
+
+const GENERATION_ERROR_CODE_VALUES = new Set<string>(
+  Object.values(GENERATION_ERROR_CODES),
+)
+
+/**
+ * Normalize an error code from any source into a client `GenerationErrorCode`.
+ *
+ * Returns `null` for codes that carry no specific classification (e.g. the
+ * generic `PROVIDER_ERROR`, `VALIDATION_ERROR`) so the caller can fall back to
+ * `parseGenerationErrorCode(message)` and recover a finer reason from the
+ * provider's raw error text.
+ */
+export function normalizeErrorCode(
+  code?: string | null,
+): GenerationErrorCode | null {
+  if (!code) {
+    return null
+  }
+  if (GENERATION_ERROR_CODE_VALUES.has(code)) {
+    return code as GenerationErrorCode
+  }
+  return BACKEND_ERROR_CODE_MAP[code] ?? null
+}
+
 function getUnsupportedReferenceImageI18nKey(errorMessage: string): string {
   const providerGuidance = PROVIDER_REFERENCE_FORMAT_GUIDANCE.find((guidance) =>
     guidance.providerPattern.test(errorMessage),

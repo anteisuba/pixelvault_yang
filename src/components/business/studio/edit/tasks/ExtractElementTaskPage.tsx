@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { getEditTaskMeta } from '@/constants/edit-tasks'
 import { useImageEdit } from '@/contexts/image-edit-context'
 import { useExtractedElements } from '@/hooks/use-extracted-elements'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { createExtractedElementAPI, extractElementAPI } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
@@ -98,7 +98,9 @@ export function ExtractElementTaskPage() {
 
     if (!response.success || !response.data) {
       setRunningTask(null)
-      toast.error(getApiErrorMessage(tErrors, response, t('extractFailed')))
+      toast.error(
+        getGenerationErrorMessage(tErrors, response, t('extractFailed')),
+      )
       return
     }
 

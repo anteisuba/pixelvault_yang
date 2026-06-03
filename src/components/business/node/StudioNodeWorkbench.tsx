@@ -70,7 +70,7 @@ import {
 } from '@/lib/node-workflow-graph'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -489,7 +489,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           return
         }
 
-        const failureMessage = getApiErrorMessage(
+        const failureMessage = getGenerationErrorMessage(
           tErrors,
           result,
           t('toasts.seedancePromptPlanFailed'),
@@ -534,7 +534,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
-      const failureMessage = getApiErrorMessage(
+      const failureMessage = getGenerationErrorMessage(
         tErrors,
         result,
         t('toasts.scriptBreakdownFailed'),
@@ -649,7 +649,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
-      const failureMessage = getApiErrorMessage(
+      const failureMessage = getGenerationErrorMessage(
         tErrors,
         result,
         t('characterImage.fallbackError'),
@@ -892,7 +892,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
-      const failureMessage = getApiErrorMessage(
+      const failureMessage = getGenerationErrorMessage(
         tErrors,
         result,
         t('mediaNodes.fallbackError'),

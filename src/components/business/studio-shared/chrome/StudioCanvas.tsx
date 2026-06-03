@@ -52,6 +52,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const {
     lastGeneration: rawLastGeneration,
     error,
+    errorCode,
     retry,
     activeRun,
     selectWinner,
@@ -309,7 +310,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
           onOpenChange={(open) => {
             if (!open) setErrorDismissed(error)
           }}
-          error={{ message: error }}
+          error={{ message: error, code: errorCode ?? undefined }}
           onRetry={() => {
             setErrorDismissed(null)
             retry()

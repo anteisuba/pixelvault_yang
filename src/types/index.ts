@@ -563,6 +563,40 @@ export interface AudioStatusResponse {
   error?: string
 }
 
+// ─── Async Image Generation (execution worker) ────────────────────
+
+export type ImageSubmitResponseData = AsyncJobSubmitResponseData
+
+export type ImageStatusResponseData = AudioStatusResponseData
+
+export interface ImageStatusResponse {
+  success: boolean
+  data?: ImageStatusResponseData
+  error?: string
+}
+
+/**
+ * Studio generate response. Async (worker dispatch) returns a jobId to poll;
+ * sync (fallback / non-migrated provider) returns the generation row directly.
+ */
+export type StudioGenerateResponseData =
+  | {
+      generation: GenerationRecord
+      jobId?: never
+      requestId?: never
+    }
+  | (ImageSubmitResponseData & {
+      generation?: never
+    })
+
+export interface StudioGenerateResponse {
+  success: boolean
+  data?: StudioGenerateResponseData
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}
+
 // ─── Image Edit ──────────────────────────────────────────────────
 // Moved from /api/image/edit/route.ts to centralize all schemas
 
@@ -1168,6 +1202,7 @@ const WorkerRunContextBaseSchema = z.object({
   workflowId: z.enum([
     EXECUTION_WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
     EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
+    EXECUTION_WORKFLOW_IDS.IMAGE_QUEUE,
   ]),
   providerId: z.string().trim().min(1),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -1273,6 +1308,18 @@ const WorkerAudioProviderInputSchema = z.object({
   speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
 })
 
+const WorkerImageProviderInputSchema = z.object({
+  prompt: z.string().min(1),
+  modelId: z.string().min(1),
+  externalModelId: z.string().min(1),
+  /** Worker passes this through to the provider; kept loose here. */
+  aspectRatio: z.string().min(1),
+  referenceImage: z.string().optional(),
+  referenceImages: z.array(z.string()).optional(),
+  /** Provider-specific params, transparently forwarded to the adapter. */
+  advancedParams: z.unknown().optional(),
+})
+
 export const WorkerRunContextSchema = z
   .discriminatedUnion('outputType', [
     WorkerRunContextBaseSchema.extend({
@@ -1282,6 +1329,10 @@ export const WorkerRunContextSchema = z
     WorkerRunContextBaseSchema.extend({
       outputType: z.literal('AUDIO'),
       providerInput: WorkerAudioProviderInputSchema,
+    }),
+    WorkerRunContextBaseSchema.extend({
+      outputType: z.literal('IMAGE'),
+      providerInput: WorkerImageProviderInputSchema,
     }),
   ])
   .superRefine((value, ctx) => {

@@ -241,6 +241,7 @@ export const API_ENDPOINTS = {
 
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',
+  STUDIO_GENERATE_STATUS: '/api/studio/generate/status',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
   GENERATION_PLAN: '/api/generation/plan',
   GENERATION_COMPILE: '/api/generation/compile',
@@ -445,6 +446,12 @@ export const AUDIO_GENERATION = {
   MAX_TEXT_LENGTH: 5000,
   POLL_INTERVAL_MS: 2000,
   MAX_POLL_ATTEMPTS: 100,
+} as const
+
+/** Image generation (async via execution worker) configuration */
+export const IMAGE_GENERATION = {
+  POLL_INTERVAL_MS: 2000,
+  MAX_POLL_ATTEMPTS: 60,
 } as const
 
 /** Health check configuration */

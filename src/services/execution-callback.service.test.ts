@@ -18,6 +18,8 @@ const mockCompleteGenerationJob = vi.fn()
 const mockCreateApiUsageEntry = vi.fn()
 const mockFailGenerationJob = vi.fn()
 const mockTxUpdateMany = vi.fn()
+const mockEnqueuePreview = vi.fn()
+const mockBuildRecipeSnapshot = vi.fn()
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     generation: {},
@@ -55,6 +57,16 @@ vi.mock('@/services/usage.service', () => ({
     mockCompleteGenerationJob(...args),
   createApiUsageEntry: (...args: unknown[]) => mockCreateApiUsageEntry(...args),
   failGenerationJob: (...args: unknown[]) => mockFailGenerationJob(...args),
+}))
+
+vi.mock('@/services/prompts/recipe.service', () => ({
+  buildRecipeSnapshotForUser: (...args: unknown[]) =>
+    mockBuildRecipeSnapshot(...args),
+}))
+
+vi.mock('@/services/image/image-preview-derivative.service', () => ({
+  enqueueImagePreviewDerivatives: (...args: unknown[]) =>
+    mockEnqueuePreview(...args),
 }))
 
 import { handleExecutionCallback } from './execution-callback.service'
@@ -134,6 +146,8 @@ describe('execution-callback.service', () => {
     })
     mockCreateApiUsageEntry.mockResolvedValue({ id: 'usage-1' })
     mockFailGenerationJob.mockResolvedValue({ id: 'job-1', status: 'FAILED' })
+    mockEnqueuePreview.mockResolvedValue({ id: 'outbox-1' })
+    mockBuildRecipeSnapshot.mockResolvedValue(undefined)
   })
 
   it('throws 404 EXECUTION_RUN_NOT_FOUND when runId does not match a generationJob', async () => {
@@ -322,6 +336,77 @@ describe('execution-callback.service', () => {
       }),
       expect.anything(),
     )
+  })
+
+  it('finalizes IMAGE result callbacks as IMAGE generations', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'openai',
+      provider: 'OpenAI',
+      modelId: 'gpt-image-2',
+      prompt: 'image prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        isFreeGeneration: true,
+        creditCost: 1,
+        aspectRatio: '1:1',
+        originalModelId: 'gpt-image-2',
+      }),
+    })
+    mockGenerateStorageKey.mockReturnValue('generations/user-1/image/test.png')
+    mockStreamUploadToR2.mockResolvedValue({
+      publicUrl: 'https://cdn.example.com/image.png',
+      sizeBytes: 4096,
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-image-1',
+      outputType: 'IMAGE',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/image.png',
+        mimeType: 'image/png',
+        width: 1024,
+        height: 1024,
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'completed',
+    })
+    expect(mockGenerateStorageKey).toHaveBeenCalledWith('IMAGE', 'user-1')
+    expect(mockStreamUploadToR2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceUrl: 'https://provider.example.com/image.png',
+        key: 'generations/user-1/image/test.png',
+        mimeType: 'image/png',
+      }),
+    )
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputType: 'IMAGE',
+        width: 1024,
+        height: 1024,
+        model: 'gpt-image-2',
+        provider: 'OpenAI',
+      }),
+      expect.anything(),
+    )
+    expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputImageCount: 1,
+        width: 1024,
+        height: 1024,
+      }),
+      expect.anything(),
+    )
+    // preview derivatives enqueued (sharp runs in the outbox worker)
+    expect(mockEnqueuePreview).toHaveBeenCalledTimes(1)
   })
 
   it('ignores result callbacks for an already COMPLETED job idempotently', async () => {

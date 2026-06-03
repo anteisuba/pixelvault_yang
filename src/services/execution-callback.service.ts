@@ -16,6 +16,8 @@ import {
   withGenerationObservability,
 } from '@/lib/generation-observability'
 import { createGeneration } from '@/services/generation.service'
+import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
+import { enqueueImagePreviewDerivatives } from '@/services/image/image-preview-derivative.service'
 import {
   createVideoPosterAsset,
   generateStorageKey,
@@ -83,12 +85,20 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
 })
   .partial()
   .extend({
-    outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D']).optional(),
+    outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D', 'IMAGE']).optional(),
     referenceImageUrl: z.string().url().optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
     projectId: z.string().min(1).optional(),
     isFreeGeneration: z.boolean().optional(),
     audioFormat: z.string().min(1).optional(),
+    // IMAGE async metadata — mirrors ImageQueueMetadata in submit-image.service
+    aspectRatio: z.string().min(1).optional(),
+    creditCost: z.number().int().positive().optional(),
+    apiKeyId: z.string().min(1).optional(),
+    originalModelId: z.string().min(1).optional(),
+    fallbackUsed: z.boolean().optional(),
+    advancedParams: z.unknown().optional(),
+    recipeUsage: z.unknown().optional(),
     /**
      * Hyper3D Rodin mesh-first: true on the first-pass mesh-only Generation.
      * Mirrored from the job's queue meta — see `submitWorker3DGeneration` in
@@ -283,6 +293,10 @@ async function finalizeExecutionResult(
 
   if (outputType === 'MODEL_3D') {
     return finalizeModel3DResult(payload, resultData, job, metadata)
+  }
+
+  if (outputType === 'IMAGE') {
+    return finalizeImageResult(payload, resultData, job, metadata)
   }
 
   try {
@@ -626,6 +640,189 @@ async function finalizeModel3DResult(
     })
 
     logger.error('Execution callback MODEL_3D result finalization failed', {
+      runId: job.id,
+      error: message,
+    })
+
+    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
+  }
+}
+
+async function finalizeImageResult(
+  payload: ExecutionCallbackPayload,
+  resultData: ReturnType<typeof parseResultData>,
+  job: {
+    id: string
+    userId: string
+    status: string
+    adapterType: string
+    provider: string
+    modelId: string
+    prompt: string | null
+    externalRequestId: string | null
+    createdAt: Date
+  },
+  metadata: ReturnType<typeof parseWorkerJobMetadata>,
+): Promise<CallbackResult> {
+  const timer = new GenerationStageTimer({
+    outputType: 'IMAGE',
+    jobId: job.id,
+    modelId: job.modelId,
+    adapterType: job.adapterType,
+    provider: job.provider,
+  })
+  timer.setDuration(
+    GENERATION_STAGE.PROVIDER_WAIT_POLL,
+    Date.now() - job.createdAt.getTime(),
+  )
+
+  const mimeType = resultData.mimeType ?? 'image/png'
+  const storageKey = generateStorageKey('IMAGE', job.userId)
+  const requestCount = resultData.requestCount ?? metadata.creditCost ?? 1
+  const seedValue = (metadata.advancedParams as { seed?: number } | undefined)
+    ?.seed
+
+  try {
+    const uploadResult = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+      streamUploadToR2({
+        sourceUrl: resultData.artifactUrl,
+        key: storageKey,
+        mimeType,
+        fetchHeaders: resultData.fetchHeaders,
+      }),
+    )
+
+    const recipeSnapshot = metadata.recipeUsage
+      ? await buildRecipeSnapshotForUser(
+          job.userId,
+          metadata.recipeUsage as Parameters<
+            typeof buildRecipeSnapshotForUser
+          >[1],
+        )
+      : undefined
+
+    const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+      db.$transaction(async (tx) => {
+        if (!(await claimRunningJobForFinalize(tx, job.id))) {
+          throw new ConcurrentCallbackError(job.id)
+        }
+        const createdGeneration = await createGeneration(
+          {
+            url: uploadResult.publicUrl,
+            storageKey,
+            mimeType,
+            width: resultData.width ?? 0,
+            height: resultData.height ?? 0,
+            referenceImageUrl: metadata.referenceImageUrl,
+            prompt: job.prompt ?? '',
+            model: job.modelId,
+            provider: job.provider,
+            requestCount,
+            isFreeGeneration: metadata.isFreeGeneration,
+            outputType: 'IMAGE',
+            userId: job.userId,
+            characterCardIds: metadata.characterCardIds,
+            projectId: metadata.projectId,
+            recipeSnapshot,
+            seed: seedValue != null ? BigInt(seedValue) : undefined,
+            snapshot: withGenerationObservability(
+              {
+                compiledPrompt: job.prompt ?? '',
+                modelId: job.modelId,
+                aspectRatio: metadata.aspectRatio,
+                advancedParams: metadata.advancedParams,
+                isFreeGeneration: metadata.isFreeGeneration,
+                creditCost: metadata.creditCost,
+                seed: seedValue,
+                apiKeyId: metadata.apiKeyId,
+                executionCallback: {
+                  runId: payload.runId,
+                  ts: payload.ts,
+                  artifactUrl: resultData.artifactUrl,
+                  providerMetadata: resultData.providerMetadata,
+                  cost: resultData.cost,
+                },
+              },
+              timer,
+            ),
+          },
+          tx,
+        )
+
+        await completeGenerationJob(
+          job.id,
+          { generationId: createdGeneration.id, requestCount },
+          tx,
+        )
+
+        await createApiUsageEntry(
+          {
+            userId: job.userId,
+            generationId: createdGeneration.id,
+            generationJobId: job.id,
+            adapterType: job.adapterType,
+            provider: job.provider,
+            modelId: job.modelId,
+            requestCount,
+            inputImageCount: metadata.referenceImageUrl ? 1 : 0,
+            outputImageCount: 1,
+            width: resultData.width,
+            height: resultData.height,
+            durationMs: Date.now() - job.createdAt.getTime(),
+            wasSuccessful: true,
+          },
+          tx,
+        )
+
+        return createdGeneration
+      }),
+    )
+
+    // Thumbnail/preview derivatives run sharp in the outbox worker — best
+    // effort, never block finalization.
+    await enqueueImagePreviewDerivatives({
+      generationJobId: job.id,
+      generationId: generation.id,
+      sourceUrl: uploadResult.publicUrl,
+      sourceStorageKey: storageKey,
+    }).catch((error: unknown) => {
+      logger.warn('Image preview derivative enqueue failed (callback)', {
+        runId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+
+    logger.info('Execution callback IMAGE result finalized', {
+      runId: job.id,
+      generationId: generation.id,
+    })
+    timer.setContext({ generationId: generation.id })
+    timer.log({ runId: job.id })
+
+    return { runId: job.id, jobStatus: 'COMPLETED', action: 'completed' }
+  } catch (error) {
+    if (error instanceof ConcurrentCallbackError) {
+      logger.info('Concurrent execution callback ignored (already finalized)', {
+        runId: job.id,
+      })
+      return {
+        runId: job.id,
+        jobStatus: 'COMPLETED',
+        action: 'ignored-concurrent',
+      }
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'IMAGE result finalization failed'
+
+    await failGenerationJob(job.id, {
+      requestCount: resultData.requestCount,
+      errorMessage: message,
+    })
+
+    logger.error('Execution callback IMAGE result finalization failed', {
       runId: job.id,
       error: message,
     })

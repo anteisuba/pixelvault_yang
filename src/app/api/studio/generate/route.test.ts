@@ -104,6 +104,24 @@ describe('POST /api/studio/generate', () => {
     )
   })
 
+  it('returns a jobId when generation is dispatched to the worker', async () => {
+    mockCompileAndGenerate.mockResolvedValue({
+      jobId: 'job-1',
+      requestId: 'wf-1',
+    } as never)
+
+    const req = createPOST('/api/studio/generate', QUICK_MODE_BODY)
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      data: { jobId: string; requestId: string }
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.jobId).toBe('job-1')
+  })
+
   it('succeeds with card mode input (styleCardId present)', async () => {
     const req = createPOST('/api/studio/generate', CARD_MODE_BODY)
     const res = await POST(req)

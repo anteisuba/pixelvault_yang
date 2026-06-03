@@ -20,6 +20,9 @@ const LONG_VIDEO_PIPELINE_WORKFLOW_ID = 'LONG_VIDEO_PIPELINE'
 const HYPER3D_RODIN_WORKFLOW_ID = 'HYPER3D_RODIN'
 const HUNYUAN3D_WORKFLOW_ID = 'HUNYUAN3D'
 const HYPER3D_BASE_URL = 'https://api.hyper3d.com'
+const IMAGE_QUEUE_PATH = '/workflows/image-queue'
+const IMAGE_QUEUE_WORKFLOW_ID = 'IMAGE_QUEUE'
+const OPENAI_BASE_URL = 'https://api.openai.com'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
@@ -47,6 +50,7 @@ interface ExecutionEnv {
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
   HUNYUAN3D_WORKFLOW: Workflow<WorkerModel3DRunContext>
+  IMAGE_QUEUE_WORKFLOW: Workflow<WorkerImageRunContext>
   GENERATION_BUCKET: R2Bucket
   R2_PUBLIC_URL: string
 }
@@ -121,6 +125,29 @@ interface WorkerAudioRunContext extends WorkerRunContextBase {
 }
 
 type WorkerRunContext = WorkerVideoRunContext | WorkerAudioRunContext
+
+interface WorkerImageRunContext {
+  runId: string
+  workflowId: typeof IMAGE_QUEUE_WORKFLOW_ID
+  outputType: 'IMAGE'
+  providerId: string
+  apiKeyId?: string
+  useSystemKey?: boolean
+  callbackUrl: string
+  resolveKeyUrl: string
+  timeoutMs: number
+  maxAttempts: number
+  pollIntervalMs: number
+  providerInput: {
+    prompt: string
+    modelId: string
+    externalModelId: string
+    aspectRatio: string
+    referenceImage?: string
+    referenceImages?: string[]
+    advancedParams?: Record<string, unknown>
+  }
+}
 
 interface LongVideoPipelineRunContext {
   runId: string
@@ -2248,6 +2275,346 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
   }
 }
 
+// ─── Image generation (OpenAI gpt-image, synchronous HTTP) ────────────────────
+
+class OpenAIImageError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'OpenAIImageError'
+  }
+}
+
+function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
+  if (!isRecord(input)) return null
+  const providerInput = input.providerInput
+  if (!isRecord(providerInput)) return null
+
+  const runId = readStringField(input, 'runId')
+  const workflowId = readStringField(input, 'workflowId')
+  const providerId = readStringField(input, 'providerId')
+  const apiKeyId = readStringField(input, 'apiKeyId') ?? undefined
+  const useSystemKey = readBooleanField(input, 'useSystemKey') ?? undefined
+  const callbackUrl = readStringField(input, 'callbackUrl')
+  const resolveKeyUrl = readStringField(input, 'resolveKeyUrl')
+  const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
+  const maxAttempts = readPositiveNumberField(input, 'maxAttempts')
+  const pollIntervalMs = readPositiveNumberField(input, 'pollIntervalMs')
+  const prompt = readStringField(providerInput, 'prompt')
+  const modelId = readStringField(providerInput, 'modelId')
+  const externalModelId = readStringField(providerInput, 'externalModelId')
+  const aspectRatio = readStringField(providerInput, 'aspectRatio')
+
+  if (
+    !runId ||
+    workflowId !== IMAGE_QUEUE_WORKFLOW_ID ||
+    !providerId ||
+    (!apiKeyId && !useSystemKey) ||
+    !callbackUrl ||
+    !resolveKeyUrl ||
+    !timeoutMs ||
+    !maxAttempts ||
+    !pollIntervalMs ||
+    !prompt ||
+    !modelId ||
+    !externalModelId ||
+    !aspectRatio
+  ) {
+    return null
+  }
+
+  const referenceImage =
+    readStringField(providerInput, 'referenceImage') ?? undefined
+  const referenceImages = Array.isArray(providerInput.referenceImages)
+    ? providerInput.referenceImages.filter(
+        (value): value is string => typeof value === 'string',
+      )
+    : undefined
+  const advancedParams = isRecord(providerInput.advancedParams)
+    ? (providerInput.advancedParams as Record<string, unknown>)
+    : undefined
+
+  return {
+    runId,
+    workflowId: IMAGE_QUEUE_WORKFLOW_ID,
+    outputType: 'IMAGE',
+    providerId,
+    apiKeyId,
+    useSystemKey,
+    callbackUrl,
+    resolveKeyUrl,
+    timeoutMs,
+    maxAttempts,
+    pollIntervalMs,
+    providerInput: {
+      prompt,
+      modelId,
+      externalModelId,
+      aspectRatio,
+      referenceImage,
+      referenceImages,
+      advancedParams,
+    },
+  }
+}
+
+async function resolveApiKeyImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+): Promise<string> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const response = await postSignedJson(
+    context.resolveKeyUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      apiKeyId: context.apiKeyId,
+      adapterType: context.providerId,
+      useSystemKey: context.useSystemKey,
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Resolve key failed with status ${response.status}`)
+  }
+
+  const payload = (await response.json()) as {
+    success?: boolean
+    data?: { apiKey?: unknown }
+  }
+
+  if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
+    throw new Error('Resolve key returned an invalid response.')
+  }
+
+  return payload.data.apiKey
+}
+
+async function emitImageCallback(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  data: unknown,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const callbackResponse = await postSignedJson(
+    context.callbackUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      kind: 'result',
+      ts: new Date().toISOString(),
+      data,
+    },
+  )
+
+  if (!callbackResponse.ok) {
+    throw new Error(`Callback failed with status ${callbackResponse.status}`)
+  }
+}
+
+/** Map the wire aspect ratio to a gpt-image supported size. */
+function aspectRatioToOpenAISize(aspectRatio: string): {
+  size: string
+  width: number
+  height: number
+} {
+  switch (aspectRatio) {
+    case '16:9':
+    case '4:3':
+      return { size: '1536x1024', width: 1536, height: 1024 }
+    case '9:16':
+    case '3:4':
+      return { size: '1024x1536', width: 1024, height: 1536 }
+    default:
+      return { size: '1024x1024', width: 1024, height: 1024 }
+  }
+}
+
+/**
+ * Call OpenAI's image API and upload the result to R2. gpt-image models return
+ * base64 (no hosted URL), so the worker persists the bytes to R2 and returns a
+ * public URL for the Vercel callback to finalize.
+ */
+async function generateOpenAIImage(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<{
+  artifactUrl: string
+  width: number
+  height: number
+  mimeType: string
+}> {
+  const { providerInput } = context
+  const { size, width, height } = aspectRatioToOpenAISize(
+    providerInput.aspectRatio,
+  )
+
+  const response = await fetch(`${OPENAI_BASE_URL}/v1/images/generations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify({
+      model: providerInput.externalModelId,
+      prompt: providerInput.prompt,
+      size,
+      n: 1,
+    }),
+  })
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new OpenAIImageError(
+      response.status,
+      `OpenAI image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{ b64_json?: unknown }>
+  }
+  const b64 = payload.data?.[0]?.b64_json
+  if (typeof b64 !== 'string') {
+    throw new Error('OpenAI response did not include base64 image data.')
+  }
+
+  const bytes = base64ToBytes(b64)
+  const mimeType = 'image/png'
+  const r2Key = `image/${context.runId}.png`
+  await env.GENERATION_BUCKET.put(r2Key, bytes, {
+    httpMetadata: { contentType: mimeType },
+  })
+
+  return {
+    artifactUrl: `${env.R2_PUBLIC_URL}/${r2Key}`,
+    width,
+    height,
+    mimeType,
+  }
+}
+
+export class ImageQueueWorkflow extends WorkflowEntrypoint<
+  ExecutionEnv,
+  WorkerImageRunContext
+> {
+  async run(
+    event: WorkflowEvent<WorkerImageRunContext>,
+    step: WorkflowStep,
+  ): Promise<unknown> {
+    const context = event.payload
+
+    try {
+      // Resolve + AES-GCM encrypt the API key once before persisting in
+      // workflow state (same pattern as the 3D/video workflows).
+      const encryptedApiKey = await step.do(
+        'resolve-api-key',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        async () => {
+          const plaintext = await resolveApiKeyImage(this.env, context)
+          return encryptStateString(plaintext, this.env)
+        },
+      )
+
+      // Image providers are synchronous HTTP — no provider-side polling.
+      const result = await step.do(
+        'generate-image',
+        {
+          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+          timeout: Math.min(context.timeoutMs, 600_000),
+        },
+        async () => {
+          const apiKey = await decryptStateString(encryptedApiKey, this.env)
+          return generateOpenAIImage(this.env, context, apiKey)
+        },
+      )
+
+      await step.do('callback-result', async () =>
+        emitImageCallback(this.env, context, {
+          artifactUrl: result.artifactUrl,
+          width: result.width,
+          height: result.height,
+          mimeType: result.mimeType,
+          requestCount: 1,
+        }),
+      )
+
+      return { status: 'COMPLETED', runId: context.runId }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Workflow execution failed.'
+
+      await step.do('callback-failure', async () =>
+        emitImageCallback(this.env, context, {
+          error: message,
+          status: error instanceof OpenAIImageError ? error.status : undefined,
+          providerMetadata: { workflowInstanceId: event.instanceId },
+        }),
+      )
+
+      return { status: 'FAILED', runId: context.runId }
+    }
+  }
+}
+
+async function handleImageQueueDispatch(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Invalid JSON body.' },
+      { status: 400 },
+    )
+  }
+
+  const runContext = parseImageRunContext(parsed)
+  if (!runContext) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid image run context.' },
+      { status: 400 },
+    )
+  }
+
+  const instance = await env.IMAGE_QUEUE_WORKFLOW.create({
+    id: runContext.runId,
+    params: runContext,
+  })
+
+  return jsonResponse({ workflowInstanceId: instance.id })
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -2281,6 +2648,10 @@ const executionWorker = {
 
     if (request.method === 'POST' && url.pathname === HUNYUAN3D_PATH) {
       return handleHunyuan3DDispatch(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === IMAGE_QUEUE_PATH) {
+      return handleImageQueueDispatch(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

@@ -632,7 +632,7 @@ describe('generateImageForUser', () => {
     )
   })
 
-  it('attempts provider fallback for free-tier transient failures', async () => {
+  it('attempts provider fallback for free-tier transient failures, reusing the same job and reservation', async () => {
     // Make fallback model (gpt-image-2) also free-tier eligible
     const realImpl = modelsMock.realGetModelById!
     vi.mocked(getModelById).mockImplementation((id: string) => {
@@ -660,10 +660,47 @@ describe('generateImageForUser', () => {
     // Also need platform key for the fallback model's adapter (OpenAI)
     vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
 
-    // ensureUser called twice (original + recursive fallback)
     const result = await generateImageForUser('clerk-1', BASE_INPUT)
 
     expect(result.id).toBe('gen-1')
-    expect(ensureUser).toHaveBeenCalledTimes(2)
+    expect(generateImage).toHaveBeenCalledTimes(2)
+    // Fallback now reuses the same job + reservation instead of recursing
+    // into generateImageForUser — so each of these runs exactly once.
+    expect(ensureUser).toHaveBeenCalledTimes(1)
+    expect(atomicReserveFreeTierSlot).toHaveBeenCalledTimes(1)
+    expect(createGenerationJob).toHaveBeenCalledTimes(1)
+  })
+
+  it('records a single failure when both primary and fallback providers fail', async () => {
+    const realImpl = modelsMock.realGetModelById!
+    vi.mocked(getModelById).mockImplementation((id: string) => {
+      const model = realImpl(id)
+      if (!model) return undefined
+      return { ...model, freeTier: true } as never
+    })
+
+    const generateImage = vi
+      .fn()
+      .mockRejectedValue(new ProviderError('Gemini', 500, 'Server error'))
+
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      generateImage,
+    } as never)
+    vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
+
+    await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
+      GenerateImageServiceError,
+    )
+
+    // Primary + fallback both attempted...
+    expect(generateImage).toHaveBeenCalledTimes(2)
+    // ...but only one job + one reservation ever existed, and the failure
+    // is recorded exactly once against that single job.
+    expect(ensureUser).toHaveBeenCalledTimes(1)
+    expect(atomicReserveFreeTierSlot).toHaveBeenCalledTimes(1)
+    expect(createGenerationJob).toHaveBeenCalledTimes(1)
+    expect(failGenerationJob).toHaveBeenCalledTimes(1)
+    expect(createApiUsageEntry).toHaveBeenCalledTimes(1)
   })
 })

@@ -70,6 +70,12 @@ export async function dispatchWorkerRun(
   return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.FAL_QUEUE_PATH)
 }
 
+export async function dispatchImageWorkerRun(
+  runContext: WorkerRunContext,
+): Promise<WorkerDispatchResult> {
+  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.IMAGE_QUEUE_PATH)
+}
+
 export async function dispatchLongVideoPipelineWorkerRun(
   runContext: LongVideoPipelineWorkerRunContext,
 ): Promise<WorkerDispatchResult> {

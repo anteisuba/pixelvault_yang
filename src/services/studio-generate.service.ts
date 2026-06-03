@@ -1,9 +1,14 @@
 import 'server-only'
 
-import type { GenerationRecord, StudioGenerateRequest } from '@/types'
+import type {
+  GenerationRecord,
+  ImageSubmitResponseData,
+  StudioGenerateRequest,
+} from '@/types'
 import { db } from '@/lib/db'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import { generateImageForUser } from '@/services/image/generate-image.service'
+import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 
@@ -19,7 +24,7 @@ import { logger } from '@/lib/logger'
 export async function compileAndGenerate(
   clerkId: string,
   input: StudioGenerateRequest,
-): Promise<GenerationRecord> {
+): Promise<GenerationRecord | ImageSubmitResponseData> {
   const dbUser = await ensureUser(clerkId)
 
   // ── Quick mode: modelId direct path ─────────────────────────
@@ -38,7 +43,7 @@ export async function compileAndGenerate(
       ...(input.seed != null ? { seed: input.seed } : {}),
     }
 
-    const generation = await generateImageForUser(clerkId, {
+    const requestInput = {
       prompt: input.freePrompt ?? '',
       modelId: input.modelId,
       apiKeyId: input.apiKeyId,
@@ -53,25 +58,36 @@ export async function compileAndGenerate(
           : undefined,
       projectId: input.projectId,
       recipeUsage: input.recipeUsage,
-    })
+    }
+
+    // Quick mode without a run group has no post-generation enrichment, so it
+    // can run async via the execution worker. `submitImageGeneration` returns a
+    // jobId when the provider is migrated + dispatch is configured, and falls
+    // back to a synchronous generation internally otherwise. Run-group batches
+    // need the generation row up front to write batch metadata, so they stay
+    // synchronous until that post-processing is moved into the callback.
+    if (!input.runGroupId) {
+      const result = await submitImageGeneration(clerkId, requestInput)
+      return 'generation' in result ? result.generation : result
+    }
+
+    const generation = await generateImageForUser(clerkId, requestInput)
 
     // B5: Update batch metadata if part of a run group
-    if (input.runGroupId) {
-      await db.generation.update({
-        where: { id: generation.id },
-        data: {
-          runGroupId: input.runGroupId,
-          runGroupType: input.runGroupType ?? 'single',
-          runGroupIndex: input.runGroupIndex ?? 0,
-          seed:
-            input.seed != null
-              ? BigInt(input.seed)
-              : generation.seed != null
-                ? BigInt(generation.seed)
-                : null,
-        },
-      })
-    }
+    await db.generation.update({
+      where: { id: generation.id },
+      data: {
+        runGroupId: input.runGroupId,
+        runGroupType: input.runGroupType ?? 'single',
+        runGroupIndex: input.runGroupIndex ?? 0,
+        seed:
+          input.seed != null
+            ? BigInt(input.seed)
+            : generation.seed != null
+              ? BigInt(generation.seed)
+              : null,
+      },
+    })
 
     return generation
   }

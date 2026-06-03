@@ -37,5 +37,10 @@
       "binding": "HUNYUAN3D_WORKFLOW",
       "class_name": "Hunyuan3DWorkflow",
     },
+    {
+      "name": "pixelvault-image-queue",
+      "binding": "IMAGE_QUEUE_WORKFLOW",
+      "class_name": "ImageQueueWorkflow",
+    },
   ],
 }

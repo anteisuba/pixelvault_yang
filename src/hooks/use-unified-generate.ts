@@ -4,7 +4,11 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AUDIO_GENERATION, VIDEO_GENERATION } from '@/constants/config'
+import {
+  AUDIO_GENERATION,
+  IMAGE_GENERATION,
+  VIDEO_GENERATION,
+} from '@/constants/config'
 import type { AudioFormat, AudioLatency } from '@/constants/audio-options'
 import {
   AUDIO_EMOTIONS,
@@ -22,11 +26,13 @@ import type {
   RunGroupMode,
   RunItem,
   StudioGenerateRequest,
+  StudioGenerateResponseData,
   VideoStatusResponseData,
   GenerateVideoRequest,
 } from '@/types'
 import {
   checkAudioStatusAPI,
+  checkImageGenerationStatusAPI,
   studioGenerateAPI,
   studioSelectWinnerAPI,
   submitVideoAPI,
@@ -133,8 +139,11 @@ function hasGeneration(
 }
 
 function hasJobId(
-  data: GenerateAudioResponseData | undefined,
-): data is Extract<GenerateAudioResponseData, { jobId: string }> {
+  data: GenerateAudioResponseData | StudioGenerateResponseData | undefined,
+): data is Extract<
+  GenerateAudioResponseData | StudioGenerateResponseData,
+  { jobId: string }
+> {
   return typeof data?.jobId === 'string' && data.jobId.length > 0
 }
 
@@ -265,7 +274,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [updateActiveRunItem],
   )
 
-  // ── Image generation (synchronous) ────────────────────────────
+  // ── Image generation (sync fallback or async worker poll) ─────
 
   const generateImage = useCallback(
     async (input: StudioGenerateRequest): Promise<GenerationRecord | null> => {
@@ -298,6 +307,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
       try {
         const result = await studioGenerateAPI(input)
+
+        // Sync path (fallback / non-migrated provider): generation inline.
         if (result.success && hasGeneration(result.data)) {
           const generation = result.data.generation
           setError(null)
@@ -306,6 +317,75 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           toast.success(tStudio('generateSuccess'))
           return generation
         }
+
+        // Async path (worker dispatch): poll the job until it resolves.
+        if (result.success && hasJobId(result.data)) {
+          const { jobId } = result.data
+          setStage('processing')
+          pollCountRef.current = 0
+
+          return await new Promise<GenerationRecord | null>((resolve) => {
+            pollRef.current = setInterval(async () => {
+              pollCountRef.current += 1
+
+              if (pollCountRef.current > IMAGE_GENERATION.MAX_POLL_ATTEMPTS) {
+                const msg = tStudio('generateFailed')
+                markActiveRunItemFailed(itemId, msg)
+                finish(msg)
+                resolve(null)
+                return
+              }
+
+              try {
+                const statusResponse =
+                  await checkImageGenerationStatusAPI(jobId)
+
+                if (!statusResponse.success || !statusResponse.data) {
+                  const msg = statusResponse.error ?? tStudio('generateFailed')
+                  markActiveRunItemFailed(itemId, msg)
+                  finish(msg)
+                  resolve(null)
+                  return
+                }
+
+                const statusData = statusResponse.data
+
+                if (statusData.status === 'COMPLETED') {
+                  const generation = statusData.generation
+                  setLastGeneration(generation)
+                  markActiveRunItemCompleted(itemId, generation)
+                  finish()
+                  toast.success(tStudio('generateSuccess'))
+                  resolve(generation)
+                  return
+                }
+
+                if (statusData.status === 'FAILED') {
+                  const msg = statusResponse.error ?? tStudio('generateFailed')
+                  markActiveRunItemFailed(itemId, msg)
+                  finish(msg)
+                  resolve(null)
+                  return
+                }
+
+                if (statusData.status === 'IN_QUEUE') {
+                  setStage('queued')
+                  return
+                }
+
+                if (statusData.status === 'IN_PROGRESS') {
+                  setStage('processing')
+                }
+              } catch {
+                const msg = tStudio('generateFailed')
+                markActiveRunItemFailed(itemId, msg)
+                finish(msg)
+                resolve(null)
+              }
+            }, IMAGE_GENERATION.POLL_INTERVAL_MS)
+          })
+        }
+
         const msg = getApiErrorMessage(
           tErrors,
           result,
@@ -326,6 +406,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       tStudio,
       startTimer,
       stopTimer,
+      finish,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
     ],

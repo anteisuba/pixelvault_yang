@@ -9,7 +9,6 @@ import type {
   PromptAssistantResponse,
   GenerateAudioRequest,
   GenerateAudioResponse,
-  GenerateResponse,
   GenerateVariationsRequest,
   GenerateVariationsResponse,
   Cancel3DRequest,
@@ -29,7 +28,9 @@ import type {
   PromptFeedbackResponse,
   ImageDecomposeResult,
   RetryMesh3DRequest,
+  ImageStatusResponse,
   StudioGenerateRequest,
+  StudioGenerateResponse,
   ToggleVisibilityResponse,
   Model3DStatusResponse,
   Model3DSubmitResponse,
@@ -899,9 +900,37 @@ export async function cancelLongVideoAPI(
   }
 }
 
+export async function checkImageGenerationStatusAPI(
+  jobId: string,
+): Promise<ImageStatusResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.STUDIO_GENERATE_STATUS}?jobId=${encodeURIComponent(jobId)}`,
+    )
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Status check failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function studioGenerateAPI(
   data: StudioGenerateRequest,
-): Promise<GenerateResponse> {
+): Promise<StudioGenerateResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.STUDIO_GENERATE, {
       method: 'POST',

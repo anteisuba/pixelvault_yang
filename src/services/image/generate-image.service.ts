@@ -296,21 +296,55 @@ export async function recordFailedUsage(params: {
 
 // ─── Stage B: Call Provider with resilience + fallback ──────────
 
-async function callProviderWithFallback(params: {
-  clerkId: string
-  input: GenerateRequest
+/**
+ * Build a free-tier route for a fallback model WITHOUT reserving a new
+ * free-tier slot. The primary attempt already reserved one; provider
+ * fallback is internal fault-tolerance, not a second generation, so it
+ * reuses that reservation rather than charging the user a second slot.
+ * Returns null when the fallback model is unknown or has no platform key,
+ * so the caller surfaces the original failure instead.
+ */
+function buildFreeTierFallbackRoute(
+  fallbackModelId: string,
+): ResolvedGenerationRoute | null {
+  const fallbackModel = getModelById(fallbackModelId)
+  if (!fallbackModel) return null
+
+  const platformKey = getSystemApiKey(fallbackModel.adapterType)
+  if (!platformKey) return null
+
+  return {
+    modelId: fallbackModelId,
+    adapterType: fallbackModel.adapterType,
+    providerConfig: fallbackModel.providerConfig,
+    apiKey: platformKey,
+    resolvedApiKeyId: null,
+    isFreeGeneration: true,
+    creditCost: fallbackModel.cost,
+  }
+}
+
+function isTransientProviderError(error: unknown): boolean {
+  return (
+    (error instanceof ProviderError && error.status >= 500) ||
+    (error instanceof Error &&
+      /timeout|econnreset|fetch failed/i.test(error.message))
+  )
+}
+
+/**
+ * Single provider invocation wrapped in the circuit breaker + retry policy.
+ * Shared by the primary attempt and the fallback attempt so both get
+ * identical resilience handling.
+ */
+async function invokeProvider(params: {
   route: ResolvedGenerationRoute
+  input: GenerateRequest
   userId: string
-  provider: string
-  generationJobId: string
-}): Promise<
-  | { fallbackUsed: false; asset: ProviderGenerationResult; durationMs: number }
-  | { fallbackUsed: true; generation: GenerationRecord }
-> {
-  const { clerkId, input, route, userId, provider, generationJobId } = params
+}): Promise<ProviderGenerationResult> {
+  const { route, input, userId } = params
   const providerAdapter = getProviderAdapter(route.adapterType)!
   const breaker = getCircuitBreaker(route.adapterType)
-  const startedAt = Date.now()
 
   // Civitai's download endpoint now 401s without auth, even for public
   // models. Resolution order:
@@ -324,61 +358,89 @@ async function callProviderWithFallback(params: {
   const civitaiToken =
     (await getCivitaiTokenByInternalUserId(userId)) ?? getSystemCivitaiToken()
 
-  try {
-    const asset = await breaker.call(() =>
-      withRetry(
-        () =>
-          providerAdapter.generateImage({
-            prompt: input.prompt,
-            modelId: route.modelId,
-            aspectRatio: input.aspectRatio,
-            providerConfig: route.providerConfig,
-            apiKey: route.apiKey,
-            referenceImage: input.referenceImage,
-            referenceImages: input.referenceImages,
-            advancedParams: input.advancedParams,
-            civitaiToken,
-          }),
-        {
-          maxAttempts: 2,
-          baseDelayMs: 1500,
-          label: `${route.adapterType}.generateImage`,
-          // Default retry policy treats every 5xx the same. For 503
-          // ("UNAVAILABLE" / "high demand") the upstream provider is
-          // explicitly telling us the spike is minutes long — a 1.5s
-          // wait won't clear it and just doubles the user's wait
-          // before the eventual failure. Provider-side 504 timeouts also
-          // often mean a job was already accepted upstream, so retrying can
-          // duplicate cost and still exceed the route deadline.
-          isRetryable: (error: unknown) => {
-            const status = (error as { status?: number })?.status
-            if (error instanceof ProviderError && status === 504) return false
-            if (
-              error instanceof ProviderError &&
-              error.message.includes('LoRA model file could not be loaded')
-            ) {
-              return false
-            }
-            if (status === 503) return false
-            if (typeof status === 'number') {
-              return status >= 500 || status === 429
-            }
-            if (error instanceof Error) {
-              const msg = error.message.toLowerCase()
-              return (
-                msg.includes('timeout') ||
-                msg.includes('econnreset') ||
-                msg.includes('econnrefused') ||
-                msg.includes('fetch failed') ||
-                msg.includes('network') ||
-                msg.includes('socket hang up')
-              )
-            }
+  return breaker.call(() =>
+    withRetry(
+      () =>
+        providerAdapter.generateImage({
+          prompt: input.prompt,
+          modelId: route.modelId,
+          aspectRatio: input.aspectRatio,
+          providerConfig: route.providerConfig,
+          apiKey: route.apiKey,
+          referenceImage: input.referenceImage,
+          referenceImages: input.referenceImages,
+          advancedParams: input.advancedParams,
+          civitaiToken,
+        }),
+      {
+        maxAttempts: 2,
+        baseDelayMs: 1500,
+        label: `${route.adapterType}.generateImage`,
+        // Default retry policy treats every 5xx the same. For 503
+        // ("UNAVAILABLE" / "high demand") the upstream provider is
+        // explicitly telling us the spike is minutes long — a 1.5s
+        // wait won't clear it and just doubles the user's wait
+        // before the eventual failure. Provider-side 504 timeouts also
+        // often mean a job was already accepted upstream, so retrying can
+        // duplicate cost and still exceed the route deadline.
+        isRetryable: (error: unknown) => {
+          const status = (error as { status?: number })?.status
+          if (error instanceof ProviderError && status === 504) return false
+          if (
+            error instanceof ProviderError &&
+            error.message.includes('LoRA model file could not be loaded')
+          ) {
             return false
-          },
+          }
+          if (status === 503) return false
+          if (typeof status === 'number') {
+            return status >= 500 || status === 429
+          }
+          if (error instanceof Error) {
+            const msg = error.message.toLowerCase()
+            return (
+              msg.includes('timeout') ||
+              msg.includes('econnreset') ||
+              msg.includes('econnrefused') ||
+              msg.includes('fetch failed') ||
+              msg.includes('network') ||
+              msg.includes('socket hang up')
+            )
+          }
+          return false
         },
-      ),
-    )
+      },
+    ),
+  )
+}
+
+/**
+ * Run the provider call for `route`, transparently retrying on a different
+ * provider for free-tier transient failures. Returns the asset plus the
+ * route/provider that actually produced it (a fallback differs from the
+ * primary) so the caller persists the real model/provider.
+ *
+ * The fallback runs in the SAME job and reuses the SAME free-tier
+ * reservation — previously it recursed into `generateImageForUser`, which
+ * re-reserved a free-tier slot and created a second job on every fallback.
+ */
+async function callProviderWithFallback(params: {
+  input: GenerateRequest
+  route: ResolvedGenerationRoute
+  userId: string
+  provider: string
+  generationJobId: string
+}): Promise<{
+  asset: ProviderGenerationResult
+  durationMs: number
+  route: ResolvedGenerationRoute
+  provider: string
+}> {
+  const { input, route, userId, provider, generationJobId } = params
+  const startedAt = Date.now()
+
+  try {
+    const asset = await invokeProvider({ route, input, userId })
 
     logger.info('Image generated successfully', {
       adapter: route.adapterType,
@@ -387,15 +449,66 @@ async function callProviderWithFallback(params: {
       durationMs: Date.now() - startedAt,
     })
 
-    return {
-      fallbackUsed: false as const,
-      asset,
-      durationMs: Date.now() - startedAt,
-    }
+    return { asset, durationMs: Date.now() - startedAt, route, provider }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Image generation failed'
 
+    // Attempt provider fallback only for platform-key/free-tier generation.
+    // User-owned keys, including auto-selected keys, must stay on the selected
+    // provider so we do not silently spend a different provider account.
+    const fallbackModelId =
+      !(error instanceof GenerateImageServiceError) &&
+      isTransientProviderError(error) &&
+      route.isFreeGeneration
+        ? PROVIDER_FALLBACK_MAP[route.modelId]
+        : undefined
+    const fallbackRoute = fallbackModelId
+      ? buildFreeTierFallbackRoute(fallbackModelId)
+      : null
+
+    if (fallbackRoute) {
+      logger.warn('Primary provider failed, attempting fallback', {
+        failedModel: route.modelId,
+        fallbackModel: fallbackRoute.modelId,
+        generationJobId,
+        routeKind: 'free-tier',
+        error: message,
+      })
+      try {
+        const fallbackStartedAt = Date.now()
+        const asset = await invokeProvider({
+          route: fallbackRoute,
+          input,
+          userId,
+        })
+
+        logger.info('Image generated successfully via fallback', {
+          adapter: fallbackRoute.adapterType,
+          modelId: fallbackRoute.modelId,
+          generationJobId,
+          durationMs: Date.now() - fallbackStartedAt,
+        })
+
+        return {
+          asset,
+          durationMs: Date.now() - fallbackStartedAt,
+          route: fallbackRoute,
+          provider: getProviderLabel(fallbackRoute.providerConfig),
+        }
+      } catch (fallbackError) {
+        logger.error('Fallback provider also failed', {
+          fallbackModel: fallbackRoute.modelId,
+          error:
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : String(fallbackError),
+        })
+      }
+    }
+
+    // No eligible fallback, or the fallback also failed: record the failure
+    // against the single job exactly once, then surface it.
     await recordFailedUsage({
       userId,
       generationJobId,
@@ -410,42 +523,6 @@ async function callProviderWithFallback(params: {
 
     if (error instanceof GenerateImageServiceError) {
       throw error
-    }
-
-    // Attempt provider fallback only for platform-key/free-tier generation.
-    // User-owned keys, including auto-selected keys, must stay on the selected
-    // provider so we do not silently spend a different provider account.
-    const isTransient =
-      (error instanceof ProviderError && error.status >= 500) ||
-      (error instanceof Error &&
-        /timeout|econnreset|fetch failed/i.test(error.message))
-
-    if (isTransient && route.isFreeGeneration) {
-      const fallbackModelId = PROVIDER_FALLBACK_MAP[route.modelId]
-      if (fallbackModelId) {
-        logger.warn('Primary provider failed, attempting fallback', {
-          failedModel: route.modelId,
-          fallbackModel: fallbackModelId,
-          generationJobId,
-          routeKind: 'free-tier',
-          error: message,
-        })
-        try {
-          const generation = await generateImageForUser(clerkId, {
-            ...input,
-            modelId: fallbackModelId,
-          })
-          return { fallbackUsed: true as const, generation }
-        } catch (fallbackError) {
-          logger.error('Fallback provider also failed', {
-            fallbackModel: fallbackModelId,
-            error:
-              fallbackError instanceof Error
-                ? fallbackError.message
-                : String(fallbackError),
-          })
-        }
-      }
     }
 
     const status = error instanceof ProviderError ? error.status : 502
@@ -472,7 +549,7 @@ async function callProviderWithFallback(params: {
  * call typically dominates wall-clock; running the ref upload alongside
  * it hides the upload latency entirely. See image-perf optimisation #2.
  */
-async function uploadReferenceImageIfNeeded(params: {
+export async function uploadReferenceImageIfNeeded(params: {
   userId: string
   input: GenerateRequest
   timer: GenerationStageTimer
@@ -716,17 +793,96 @@ export interface GenerateImageDeps {
   getProviderAdapter?: typeof getProviderAdapter
 }
 
+/**
+ * Auth + prompt validation + route resolution + reference-image capability
+ * checks. Shared by the synchronous `generateImageForUser` and the async
+ * `submitImageGeneration` so both paths apply identical gating — including the
+ * free-tier slot reservation that happens inside `resolveGenerationRoute`.
+ */
+export async function resolveImageRouteAndValidate(
+  clerkId: string,
+  input: GenerateRequest,
+  deps: GenerateImageDeps = {},
+): Promise<{
+  dbUser: Awaited<ReturnType<typeof ensureUser>>
+  route: ResolvedGenerationRoute
+  provider: string
+}> {
+  const ensureUserFn = deps.ensureUser ?? ensureUser
+  const validatePromptFn = deps.validatePrompt ?? validatePrompt
+  const resolveRouteFn = deps.resolveGenerationRoute ?? resolveGenerationRoute
+  const getModelByIdFn = deps.getModelById ?? getModelById
+  const getProviderAdapterFn = deps.getProviderAdapter ?? getProviderAdapter
+
+  const ensuredUser = await ensureUserFn(clerkId)
+
+  const promptCheck = validatePromptFn(input.prompt)
+  if (!promptCheck.valid) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      promptCheck.reason ?? 'Invalid prompt',
+      400,
+    )
+  }
+
+  const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
+
+  const builtInModel = getModelByIdFn(input.modelId)
+  const refCount =
+    input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
+  const hasReferenceImage = refCount > 0
+  if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'This model requires at least one reference image',
+      400,
+    )
+  }
+  // Defence-in-depth: front-end already caps reference count via the
+  // capability layer, but a stale / malicious client could still POST an
+  // over-cap array. Reject before reaching the provider so users get a
+  // structured error rather than a 4xx from the upstream service.
+  const refCap = getReferenceCapabilityMax(
+    getImageReferenceCapability(resolvedRoute.adapterType, input.modelId),
+  )
+  if (hasReferenceImage && refCap === 0) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'The selected model does not support reference images',
+      400,
+    )
+  }
+  if (refCount > refCap) {
+    throw new GenerateImageServiceError(
+      'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+      `This model accepts at most ${refCap} reference ${refCap === 1 ? 'image' : 'images'} (got ${refCount}).`,
+      400,
+    )
+  }
+
+  const resolvedProvider = getProviderLabel(resolvedRoute.providerConfig)
+  const providerAdapter = getProviderAdapterFn(resolvedRoute.adapterType)
+  if (!providerAdapter) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      `Unsupported model: ${resolvedRoute.modelId}`,
+      400,
+    )
+  }
+
+  return {
+    dbUser: ensuredUser,
+    route: resolvedRoute,
+    provider: resolvedProvider,
+  }
+}
+
 export async function generateImageForUser(
   clerkId: string,
   input: GenerateRequest,
   deps: GenerateImageDeps = {},
 ): Promise<GenerationRecord> {
-  const ensureUserFn = deps.ensureUser ?? ensureUser
-  const validatePromptFn = deps.validatePrompt ?? validatePrompt
-  const resolveRouteFn = deps.resolveGenerationRoute ?? resolveGenerationRoute
-  const getModelByIdFn = deps.getModelById ?? getModelById
   const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
-  const getProviderAdapterFn = deps.getProviderAdapter ?? getProviderAdapter
 
   const timer = new GenerationStageTimer({
     outputType: 'IMAGE',
@@ -735,69 +891,7 @@ export async function generateImageForUser(
 
   const { dbUser, route, provider } = await timer.measure(
     GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
-    async () => {
-      const ensuredUser = await ensureUserFn(clerkId)
-
-      const promptCheck = validatePromptFn(input.prompt)
-      if (!promptCheck.valid) {
-        throw new GenerateImageServiceError(
-          'PROVIDER_ERROR',
-          promptCheck.reason ?? 'Invalid prompt',
-          400,
-        )
-      }
-
-      const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
-
-      const builtInModel = getModelByIdFn(input.modelId)
-      const refCount =
-        input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
-      const hasReferenceImage = refCount > 0
-      if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
-        throw new GenerateImageServiceError(
-          'VALIDATION_ERROR',
-          'This model requires at least one reference image',
-          400,
-        )
-      }
-      // Defence-in-depth: front-end already caps reference count via the
-      // capability layer, but a stale / malicious client could still POST an
-      // over-cap array. Reject before reaching the provider so users get a
-      // structured error rather than a 4xx from the upstream service.
-      const refCap = getReferenceCapabilityMax(
-        getImageReferenceCapability(resolvedRoute.adapterType, input.modelId),
-      )
-      if (hasReferenceImage && refCap === 0) {
-        throw new GenerateImageServiceError(
-          'VALIDATION_ERROR',
-          'The selected model does not support reference images',
-          400,
-        )
-      }
-      if (refCount > refCap) {
-        throw new GenerateImageServiceError(
-          'REFERENCE_IMAGE_LIMIT_EXCEEDED',
-          `This model accepts at most ${refCap} reference ${refCap === 1 ? 'image' : 'images'} (got ${refCount}).`,
-          400,
-        )
-      }
-
-      const resolvedProvider = getProviderLabel(resolvedRoute.providerConfig)
-      const providerAdapter = getProviderAdapterFn(resolvedRoute.adapterType)
-      if (!providerAdapter) {
-        throw new GenerateImageServiceError(
-          'UNSUPPORTED_MODEL',
-          `Unsupported model: ${resolvedRoute.modelId}`,
-          400,
-        )
-      }
-
-      return {
-        dbUser: ensuredUser,
-        route: resolvedRoute,
-        provider: resolvedProvider,
-      }
-    },
+    () => resolveImageRouteAndValidate(clerkId, input, deps),
   )
 
   timer.setContext({
@@ -843,7 +937,6 @@ export async function generateImageForUser(
 
   const result = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
     callProviderWithFallback({
-      clerkId,
       input,
       route,
       userId: dbUser.id,
@@ -852,14 +945,14 @@ export async function generateImageForUser(
     }),
   )
 
-  // Fallback already ran the full pipeline via recursive generateImageForUser
-  if (result.fallbackUsed) return result.generation
-
+  // `result.route` / `result.provider` reflect the provider that actually
+  // produced the asset — for a fallback they differ from the requested
+  // route, so the persisted generation records the real model/provider.
   return persistGeneratedImage({
     userId: dbUser.id,
     input,
-    route,
-    provider,
+    route: result.route,
+    provider: result.provider,
     generationJobId: job.id,
     asset: result.asset,
     durationMs: result.durationMs,

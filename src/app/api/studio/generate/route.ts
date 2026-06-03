@@ -11,7 +11,8 @@ export const POST = createApiRoute({
   rateLimit: RATE_LIMIT_CONFIGS.studioGenerate,
   routeName: 'POST /api/studio/generate',
   handler: async (clerkId, data) => {
-    const generation = await compileAndGenerate(clerkId, data)
-    return { generation }
+    const result = await compileAndGenerate(clerkId, data)
+    // Async (worker dispatch) returns a jobId to poll; sync returns the row.
+    return 'jobId' in result ? result : { generation: result }
   },
 })

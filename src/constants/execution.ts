@@ -1,3 +1,5 @@
+import { AI_ADAPTER_TYPES } from './providers'
+
 export const EXECUTION_OUTBOX = {
   LEASE_MS: 60_000,
 } as const
@@ -37,6 +39,7 @@ export const EXECUTION_WORKER = {
   LONG_VIDEO_PIPELINE_PATH: '/workflows/long-video-pipeline',
   HYPER3D_RODIN_PATH: '/workflows/hyper3d-rodin',
   HUNYUAN3D_PATH: '/workflows/hunyuan3d',
+  IMAGE_QUEUE_PATH: '/workflows/image-queue',
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,
@@ -48,6 +51,7 @@ export const EXECUTION_WORKFLOW_IDS = {
   LONG_VIDEO_PIPELINE: 'LONG_VIDEO_PIPELINE',
   HYPER3D_RODIN: 'HYPER3D_RODIN',
   HUNYUAN3D: 'HUNYUAN3D',
+  IMAGE_QUEUE: 'IMAGE_QUEUE',
 } as const
 
 export const EXECUTION_OUTBOX_KINDS = {
@@ -57,3 +61,12 @@ export const EXECUTION_OUTBOX_KINDS = {
 
 export type ExecutionOutboxKind =
   (typeof EXECUTION_OUTBOX_KINDS)[keyof typeof EXECUTION_OUTBOX_KINDS]
+
+/**
+ * Image adapters whose worker handler is live and may be dispatched async.
+ * Adapters not listed fall back to synchronous generateImageForUser. Grows
+ * one provider at a time as worker handlers ship.
+ */
+export const WORKER_MIGRATED_IMAGE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = [
+  AI_ADAPTER_TYPES.OPENAI,
+]

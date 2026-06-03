@@ -1,6 +1,6 @@
 # Home 页面优化 — 工作任务包
 
-状态：进行中 · 起始 2026-06-03
+状态：进行中 · 起始 2026-06-03 · 末次 2026-06-04（Taste 审查后 anti-slop 批 + 移动端单独适配，10 commit 已 push 到 b36d726e）
 
 > 活跃任务包（按 `docs/README.md`：`plans/` 只放活跃任务，完成后删除 / 归档 / 沉淀）。
 > 现状事实见 `docs/design/pages/home.md`；本文件记录优化的流程、调研与决策。
@@ -37,7 +37,7 @@
 
 ## 现状快照
 
-结构（见 `home.md`）：sticky header（brand + LocaleSwitcher + auth CTA）→ `HomepageHero` → `HomepageFeatureSection`×N → `HomepageShowcaseRail` → `HomepageCapabilityMatrix` → `HomepageModelLineup` → `HomepageBottomCta` → `HomepageFooter`。
+结构（见 `home.md`，2026-06-04 后）：sticky header（ANTEI wordmark + 登录 + `HomepageMenu` 语言菜单）→ `HomepageHero`（8 格真实作品网格）→ `HomepageFeatureSection`×N（含「用 ANTEI 创作」作品画廊，移动端横滑 rail）→ `HomepageCapabilityMatrix`（白岛内深色圆角卡，移动端 accordion）→ `HomepageModelLineup`（默认折叠 + 展开全部 toggle）→ `HomepageBottomCta` → `HomepageFooter`。`HomepageShowcaseRail` 与 `HomepageAuthCta` 已删除。
 
 CSS：`homepage.css` 1302 行，page-local，含一处 light feature-band theme island（深色页面里的白色对比带）。
 
@@ -199,3 +199,21 @@ UI-only，不碰 `app/api` / `services` / Clerk / credit。改完跑验证再 co
 - 2026-06-03 · 生成后端调整：HF Space invoke 被禁用（gradio=none），改为产出**详细 GPT 生成 spec**（见 Step 2 §生成 spec），owner 自行用 GPT-Image 生成 Hero / Showcase 参考图。拿到图后回到**确认点 2**（确认视觉方向）再进 Step 3 实现。
 - 2026-06-03 · 确认点 2 通过：owner 用 GPT 生成 Hero + Showcase 参考图，视觉方向 OK——Hero（dark + ANTEI + 结果标题 + 主/次 CTA + 真实作品网格）、Showcase（精选作品 + 每卡 prompt/model + Remix hover + 视频时长），均落地 dark-first 与 anti-slop。进 Step 3，先实现 Hero。落地待定：① header 导航（参考图加了 Models/Pricing/Docs，现状仅 brand+语言+登录）② Hero 网格张数（参考图 8、现素材 6）③ 交互范围（Remix→Studio 本期；Submit/收藏/Explore 待定）④ 文案进 en/ja/zh。
 - 2026-06-03 · Step 3 Hero 代码完成：`HomepageHero`（headline/subline + 主 CTA + 8 格网格）、新建 `HomepageHeroCta`（auth 分支：登入→Studio、登出→注册）、`homepage.css`（4 列卡片网格 + 删 28s 缩放动效 + 主 CTA 实色）、三语言文案、test 重写 + HeroCta test。验证通过：vitest 5/5、lint 0 error、tsc、i18n 三语言对齐。**待 owner 补素材**：`public/showcase/showcase-07.webp` + `-08.webp`（与现有 01–06 同规格 webp），并确认 2 张 model 名（暂占位 Flux / Gemini）。补后跑 playwright 移动端 + 前后截图再 commit（暂未 commit，避免提交 broken 网格）。
+
+- 2026-06-04 · 素材到位 + Hero/header/footer 落地（早前 commit 已 push）：owner 补齐 `showcase-07/08` 与各 feature 真实媒体（`public/homepage/`），Hero 8 格网格、「用 ANTEI 创作」作品画廊、4 个 feature 真实图全部到位；header 改 ANTEI wordmark + 登录 + `HomepageMenu`（语言菜单，移除旧 LocaleSwitcher）；footer 品牌 PixelVault→ANTEI（`Common.brand`）。
+
+- 2026-06-04 · Taste skill 桌面审查 → anti-slop 批（7 commit，桌面 docHeight 7761→6255）：
+  - `2c327dec` 能力矩阵去 01–06 编号 + 6 个 provider eyebrow；showcase rail em-dash → 句号（三语）。
+  - `06961d43` 删重复「社区档案」横排（`HomepageShowcaseRail`，与「用 ANTEI 创作」画廊语义重复）；能力矩阵改深色圆角卡（复用 made-section palette），在白岛内做白→深二次反差。
+  - `74046d49` 模型区精简：默认每组 4（32→13）+「展开全部」toggle（转 client component，新增常量 `HOMEPAGE_MODEL_GROUP_PREVIEW_COUNT`）。
+  - `1c205dc5` feature section `min-height` 36→28rem（= media tile 高度），消虚高（576→448px）。
+  - `92d782fd` signup CTA 统一：bottom「免费开始建档」→「开始创作」，与 hero 一致（解决 §可优化点 7 的 CTA 发散）。
+  - `c8e34b06` P2：能力矩阵 / bottom CTA 标题去句号、footer 中点 2→1、删 dead `showcaseRail` i18n。
+  - `3caf1e65` 删 dead `HomepageAuthCta`（无引用，含从不渲染的「免费注册」）+ test + `signedOut*` i18n。
+
+- 2026-06-04 · Taste skill 移动端审查 → P0/P1 单独适配（3 commit，移动 docHeight 6627→5655，原则「重组而非缩放」）：
+  - `e0bdbf2f` 能力矩阵移动端 **accordion**：< 768px 6 卡折叠成标题列表、点开展开 copy（1217→710px）；桌面 CSS 强制全显 / 隐藏 chevron / 禁用 trigger，2 列布局不变。
+  - `8881f41a` 模型区移动端每组 **2 卡**（`data-expanded` 标记 + CSS `nth-child`；13→7，1601→1131px），桌面仍 4，「展开全部」照常放开 32。
+  - `b36d726e` header 触控目标 40→44px（`.homepage-header-action` min-height 2.5→2.75rem）。
+  - 实测无需改：作品 rail 移动端已是横滑 scroll-snap + 天然露边、hero 8 图已 4→2 列、字号已 clamp。
+  - e2e mobile：home / root（首页）三视口全 passed；gallery 横向溢出 = pre-existing（`homepage.css` 仅 `HomepageShell` import、page-scoped，不波及 gallery），已 spawn 独立排查任务。

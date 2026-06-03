@@ -1,6 +1,6 @@
 # Home Page
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 This document records the current page-level facts for the public homepage. It
 is not a redesign spec and not a request to change UI code.
@@ -36,9 +36,11 @@ Current visible structure:
     - `imageEditing` renders a dedicated dark `Made with ANTEI` community
       works section
     - later feature sections keep the standard image/text section layout
-  - `HomepageShowcaseRail`
-  - `HomepageCapabilityMatrix`
-  - `HomepageModelLineup`
+      (Made with ANTEI gallery becomes a horizontal scroll-snap rail on mobile)
+  - `HomepageCapabilityMatrix` (dark rounded card inside the light band;
+    mobile collapses each capability into an accordion)
+  - `HomepageModelLineup` (collapsed by default with a show-all toggle;
+    4 per group desktop / 2 per group mobile)
   - `HomepageBottomCta`
   - `HomepageFooter`
 
@@ -78,13 +80,13 @@ needs the same treatment.
 
 ## Components
 
-| Area     | Components                                                                                          |
-| -------- | --------------------------------------------------------------------------------------------------- |
-| shell    | `HomepageShell`, `HomepageRevealMotion`, `HomepageMenu`                                             |
-| header   | brand link, sign-in link, language trigger                                                          |
-| hero     | `HomepageHero`, `HomepageHeroCta`                                                                   |
-| sections | `HomepageFeatureSection`, `HomepageShowcaseRail`, `HomepageCapabilityMatrix`, `HomepageModelLineup` |
-| footer   | `HomepageBottomCta`, `HomepageFooter`                                                               |
+| Area     | Components                                                                  |
+| -------- | --------------------------------------------------------------------------- |
+| shell    | `HomepageShell`, `HomepageRevealMotion`, `HomepageMenu`                     |
+| header   | brand link, sign-in link, language trigger                                  |
+| hero     | `HomepageHero`, `HomepageHeroCta`                                           |
+| sections | `HomepageFeatureSection`, `HomepageCapabilityMatrix`, `HomepageModelLineup` |
+| footer   | `HomepageBottomCta`, `HomepageFooter`                                       |
 
 ## Interaction Details
 

@@ -349,7 +349,7 @@
     },
     "showcaseRail": {
       "title": "アーカイブはリアルタイムで育つ",
-      "description": "最近アーカイブに残った作品の横スクロール — プロンプトもモデルもワンクリックで再利用。"
+      "description": "最近アーカイブに残った作品の横スクロール。プロンプトもモデルもワンクリックで再利用。"
     },
     "madeWithAntei": {
       "titlePrefix": "Made with",

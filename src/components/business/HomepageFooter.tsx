@@ -35,6 +35,7 @@ const SECTIONS = [
 
 export function HomepageFooter() {
   const t = useTranslations('Homepage.footer')
+  const tCommon = useTranslations('Common')
   const year = new Date().getFullYear()
 
   return (
@@ -49,7 +50,7 @@ export function HomepageFooter() {
               <span />
             </span>
             <span className="font-display text-base font-semibold text-foreground">
-              PixelVault
+              {tCommon('brand')}
             </span>
           </div>
           <p className="max-w-xs text-sm text-[var(--home-muted)]">

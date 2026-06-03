@@ -1295,8 +1295,7 @@ html.homepage-motion-ready
   max-width: 34rem;
 }
 
-.homepage-capability-kicker,
-.homepage-capability-label {
+.homepage-capability-kicker {
   color: color-mix(in oklab, var(--foreground) 58%, var(--background));
   font-size: 0.72rem;
   font-weight: 700;
@@ -1329,9 +1328,6 @@ html.homepage-motion-ready
 }
 
 .homepage-capability-item {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr);
-  gap: clamp(1rem, 2vw, 1.5rem);
   border-bottom: 1px solid var(--home-border);
   padding: clamp(1.35rem, 2.5vw, 2rem) 0;
 }
@@ -1345,13 +1341,6 @@ html.homepage-motion-ready
     border-right: 1px solid var(--home-border);
     padding-left: 0;
   }
-}
-
-.homepage-capability-index {
-  color: color-mix(in oklab, var(--foreground) 36%, var(--background));
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .homepage-capability-status {

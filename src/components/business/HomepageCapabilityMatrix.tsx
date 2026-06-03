@@ -30,7 +30,7 @@ export function HomepageCapabilityMatrix() {
       </div>
 
       <div className="homepage-capability-grid">
-        {HOMEPAGE_CAPABILITY_ITEMS.map((item, index) => {
+        {HOMEPAGE_CAPABILITY_ITEMS.map((item) => {
           const translationValues =
             HOMEPAGE_FEATURE_TRANSLATION_VALUES[item.id] ?? {}
 
@@ -40,20 +40,14 @@ export function HomepageCapabilityMatrix() {
               data-homepage-reveal-item
               className="homepage-capability-item"
             >
-              <span className="homepage-capability-index">
-                {String(index + 1).padStart(2, '0')}
-              </span>
               <div className="min-w-0">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="homepage-capability-label">
-                    {tFeature(`${item.id}.eyebrow`, translationValues)}
-                  </span>
-                  {item.comingSoon && (
+                {item.comingSoon && (
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="homepage-capability-status">
                       {tHomepage('badges.soon')}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
                 <h3 className="homepage-capability-item-title font-display font-semibold text-foreground">
                   {tFeature(`${item.id}.title`, translationValues)}
                 </h3>

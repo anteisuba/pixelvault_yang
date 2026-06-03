@@ -344,6 +344,40 @@
       "title": "アーカイブはリアルタイムで育つ",
       "description": "最近アーカイブに残った作品の横スクロール — プロンプトもモデルもワンクリックで再利用。"
     },
+    "madeWithAntei": {
+      "titlePrefix": "Made with",
+      "titleBrand": "ANTEI",
+      "description": "コミュニティの美しい作品を探索。ANTEI の力で作られたクリエーションです。",
+      "submit": "作品を投稿",
+      "remix": "Remix",
+      "explore": "もっと見る",
+      "items": {
+        "storybookForest": {
+          "caption": "森の錬金術師、物語の光"
+        },
+        "goldenGlass": {
+          "caption": "金色のグラス、雨のバーライト"
+        },
+        "quietArchitecture": {
+          "caption": "超現実建築、ミニマル、静寂"
+        },
+        "summerAnime": {
+          "caption": "アニメ少女、風、夏空"
+        },
+        "atelierRoom": {
+          "caption": "静かなアトリエ、暖かな午後"
+        },
+        "softPortrait": {
+          "caption": "映画的ポートレート、柔らかな光、85mm"
+        },
+        "mangaPanel": {
+          "caption": "モノクロ恋愛マンガのコマ"
+        },
+        "spaceExplorer": {
+          "caption": "映画的ショット、宇宙探検家"
+        }
+      }
+    },
     "capabilityMatrix": {
       "eyebrow": "つながった制作ツール",
       "title": "作り方は増えても、保存先はひとつ。",

@@ -565,8 +565,9 @@
 
 .homepage-hero-grid {
   grid-template-columns: minmax(0, 1fr);
-  gap: 2rem;
-  min-height: 39rem;
+  gap: 0;
+  min-height: clamp(20rem, 36vw, 26rem);
+  padding-block: clamp(2.5rem, 5vw, 4.5rem) clamp(2rem, 4vw, 3rem);
 }
 
 .homepage-hero-title {
@@ -708,7 +709,7 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
   /* break out to full viewport width */
   margin-inline: calc(50% - 50vw);
   padding-inline: max(1rem, calc(50vw - 37.5rem));
-  padding-block: clamp(3rem, 5vw, 5rem);
+  padding-block: 0 clamp(3rem, 5vw, 5rem);
 
   /* force light palette so inherited CSS variables flip */
   --background: oklch(100% 0 0);
@@ -733,6 +734,280 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
 
   background: var(--background);
   color: var(--foreground);
+}
+
+.homepage-made-section {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(1.5rem, calc(50vw - 38rem));
+  padding-block: 3.25rem 2.75rem;
+  --background: oklch(7.5% 0.01 220);
+  --foreground: oklch(98% 0 0);
+  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 56%, var(--background));
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--background) 94%, black),
+    var(--background)
+  );
+  color: var(--foreground);
+}
+
+.homepage-made-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.95fr) minmax(15rem, 0.75fr) minmax(
+      18rem,
+      0.95fr
+    );
+  gap: 1rem;
+  align-items: start;
+}
+
+.homepage-made-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.homepage-made-intro {
+  padding-block: 0.1rem 0.7rem;
+}
+
+.homepage-made-title {
+  font-size: 2.25rem;
+  line-height: 1.04;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.homepage-made-title-brand {
+  color: oklch(84% 0.04 72);
+}
+
+.homepage-made-copy {
+  margin-top: 1rem;
+  max-width: 20rem;
+  color: var(--home-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.homepage-made-submit {
+  margin-top: 0.95rem;
+  color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  transition: color 0.18s ease;
+}
+
+.homepage-made-submit:hover,
+.homepage-made-submit:focus-visible {
+  color: var(--foreground);
+}
+
+.homepage-made-card {
+  overflow: hidden;
+  border: 1px solid var(--home-border);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--foreground) 5%, var(--background));
+}
+
+.homepage-made-media {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: color-mix(in oklab, var(--foreground) 7%, var(--background));
+}
+
+.homepage-made-card-featured .homepage-made-media {
+  aspect-ratio: 1 / 1.02;
+}
+
+.homepage-made-card-video .homepage-made-media {
+  aspect-ratio: 16 / 9;
+}
+
+.homepage-made-card-meta {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem 0.8rem;
+  color: var(--home-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.homepage-made-card-meta p {
+  min-width: 0;
+}
+
+.homepage-made-card-meta span {
+  flex: none;
+  border: 1px solid var(--home-border);
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  color: color-mix(in oklab, var(--foreground) 76%, var(--background));
+}
+
+.homepage-made-heart {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklab, var(--foreground) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, black 48%, transparent);
+  color: var(--foreground);
+}
+
+.homepage-made-remix {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: color-mix(in oklab, var(--foreground) 96%, white);
+  color: var(--background);
+  box-shadow: 0 10px 30px color-mix(in oklab, black 28%, transparent);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.homepage-made-remix:hover,
+.homepage-made-remix:focus-visible {
+  background: var(--foreground);
+  transform: translate(-50%, -50%) scale(1.03);
+}
+
+.homepage-made-duration {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--foreground);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.homepage-made-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 2rem;
+}
+
+.homepage-made-explore {
+  border-color: var(--home-border);
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  color: var(--foreground);
+}
+
+.homepage-made-explore:hover {
+  border-color: color-mix(in oklab, var(--foreground) 26%, transparent);
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  color: var(--foreground);
+}
+
+@media (max-width: 1023px) {
+  .homepage-made-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .homepage-made-section {
+    padding-inline: 1.25rem;
+    padding-block: 2.25rem 2rem;
+  }
+
+  .homepage-made-grid {
+    display: flex;
+    gap: 0.75rem;
+    margin-inline: -1.25rem;
+    overflow-x: auto;
+    padding-inline: 1.25rem;
+    padding-bottom: 0.35rem;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .homepage-made-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .homepage-made-column {
+    display: contents;
+  }
+
+  .homepage-made-intro {
+    flex: 0 0 min(16.5rem, 74vw);
+    padding-block: 0.2rem;
+    scroll-snap-align: start;
+  }
+
+  .homepage-made-title {
+    max-width: 12ch;
+    font-size: 2rem;
+    white-space: normal;
+  }
+
+  .homepage-made-copy {
+    margin-top: 0.75rem;
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.9rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .homepage-made-submit {
+    display: none;
+  }
+
+  .homepage-made-card {
+    flex: 0 0 min(17rem, 78vw);
+    scroll-snap-align: start;
+  }
+
+  .homepage-made-card-featured .homepage-made-media,
+  .homepage-made-media,
+  .homepage-made-card-video .homepage-made-media {
+    aspect-ratio: 4 / 3;
+  }
+
+  .homepage-made-card-meta {
+    min-height: 2.7rem;
+    padding: 0.6rem 0.65rem;
+  }
+
+  .homepage-made-card-meta p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .homepage-made-remix {
+    display: none;
+  }
+
+  .homepage-made-heart {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .homepage-made-footer {
+    justify-content: flex-start;
+    padding-top: 1.15rem;
+  }
+
+  .homepage-made-explore {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .homepage-feature-stack {

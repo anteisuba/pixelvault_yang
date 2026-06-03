@@ -344,6 +344,40 @@
       "title": "社区档案，正在生长",
       "description": "实时滚动展示最近留进归档的精选生成 — prompt 与模型都可一键复用。"
     },
+    "madeWithAntei": {
+      "titlePrefix": "用",
+      "titleBrand": "ANTEI 创作",
+      "description": "探索社区里的精彩作品，每一张都由 ANTEI 的多模型能力生成。",
+      "submit": "提交你的作品",
+      "remix": "Remix",
+      "explore": "查看更多作品",
+      "items": {
+        "storybookForest": {
+          "caption": "森林炼金术士，故事书光影"
+        },
+        "goldenGlass": {
+          "caption": "金色酒杯，雨夜吧台光"
+        },
+        "quietArchitecture": {
+          "caption": "超现实建筑，极简，安静"
+        },
+        "summerAnime": {
+          "caption": "动漫少女，风，夏日天空"
+        },
+        "atelierRoom": {
+          "caption": "安静工作室，温暖午后"
+        },
+        "softPortrait": {
+          "caption": "电影感肖像，柔光，85mm"
+        },
+        "mangaPanel": {
+          "caption": "黑白恋爱漫画分镜"
+        },
+        "spaceExplorer": {
+          "caption": "电影镜头，太空探索者"
+        }
+      }
+    },
     "capabilityMatrix": {
       "eyebrow": "创作工具已串好",
       "title": "更多创作方式，统一保存。",

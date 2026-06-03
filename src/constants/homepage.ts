@@ -127,10 +127,12 @@ export type HomepageFeatureMedia =
 
 export type HomepageFeatureRhythm = 'feature' | 'compact'
 
+export const HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID = 'imageEditing'
+
 /** Krea-style feature sections — left-image / right-text alternating */
 export const HOMEPAGE_FEATURE_SECTIONS = [
   {
-    id: 'imageEditing',
+    id: HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID,
     ctaHref: ROUTES.STUDIO,
     tone: 'sky',
     reverse: false,
@@ -259,3 +261,73 @@ export const HOMEPAGE_SHOWCASE = [
     tone: 'ink',
   },
 ] as const
+
+export type HomepageMadeWithAnteiColumn = 'left' | 'middle' | 'right'
+export type HomepageMadeWithAnteiVariant = 'featured' | 'standard' | 'video'
+
+export const HOMEPAGE_MADE_WITH_ANTEI_ITEMS = [
+  {
+    id: 'storybookForest',
+    src: '/showcase/showcase-06.webp',
+    model: 'Flux',
+    column: 'left',
+    variant: 'featured',
+  },
+  {
+    id: 'goldenGlass',
+    src: '/showcase/showcase-05.webp',
+    model: 'Gemini',
+    column: 'left',
+    variant: 'standard',
+  },
+  {
+    id: 'quietArchitecture',
+    src: '/showcase/showcase-03.webp',
+    model: 'Flux',
+    column: 'middle',
+    variant: 'standard',
+  },
+  {
+    id: 'summerAnime',
+    src: '/showcase/showcase-02.webp',
+    model: 'SDXL',
+    column: 'middle',
+    variant: 'standard',
+  },
+  {
+    id: 'atelierRoom',
+    src: '/showcase/showcase-08.webp',
+    model: 'Flux',
+    column: 'middle',
+    variant: 'standard',
+  },
+  {
+    id: 'softPortrait',
+    src: '/showcase/showcase-01.webp',
+    model: 'SDXL',
+    column: 'right',
+    variant: 'standard',
+  },
+  {
+    id: 'mangaPanel',
+    src: '/showcase/showcase-07.webp',
+    model: 'Flux',
+    column: 'right',
+    variant: 'standard',
+  },
+  {
+    id: 'spaceExplorer',
+    src: '/showcase/showcase-04.webp',
+    model: 'Gemini',
+    column: 'right',
+    variant: 'video',
+    duration: '0:06',
+  },
+] as const satisfies ReadonlyArray<{
+  id: string
+  src: string
+  model: string
+  column: HomepageMadeWithAnteiColumn
+  variant: HomepageMadeWithAnteiVariant
+  duration?: string
+}>

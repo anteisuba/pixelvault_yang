@@ -1,16 +1,14 @@
-import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { HomepageHeroCta } from '@/components/business/HomepageHeroCta'
-import { HOMEPAGE_ROUTES, HOMEPAGE_SHOWCASE } from '@/constants/homepage'
+import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 import { Link } from '@/i18n/navigation'
 
 export function HomepageHero() {
   const t = useTranslations('Homepage.hero')
   const tActions = useTranslations('Homepage.actions')
-  const showcase = HOMEPAGE_SHOWCASE
 
   return (
     <section
@@ -44,21 +42,6 @@ export function HomepageHero() {
             </Link>
           </Button>
         </div>
-      </div>
-
-      <div className="homepage-hero-mosaic overflow-hidden">
-        {showcase.map((item, idx) => (
-          <div key={item.id} className="homepage-hero-tile">
-            <Image
-              src={item.src}
-              alt={`${item.model} showcase`}
-              width={480}
-              height={480}
-              className="homepage-hero-tile-image h-full w-full object-cover"
-              priority={idx < 4}
-            />
-          </div>
-        ))}
       </div>
     </section>
   )

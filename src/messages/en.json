@@ -344,6 +344,40 @@
       "title": "The archive, growing in real time",
       "description": "A live rail of recent keepers — every prompt and model is one click away to remix."
     },
+    "madeWithAntei": {
+      "titlePrefix": "Made with",
+      "titleBrand": "ANTEI",
+      "description": "Explore stunning creations from the community, made with the power of ANTEI.",
+      "submit": "Submit your creation",
+      "remix": "Remix",
+      "explore": "Explore more creations",
+      "items": {
+        "storybookForest": {
+          "caption": "Forest alchemist, storybook light"
+        },
+        "goldenGlass": {
+          "caption": "Golden glass, rainy bar light"
+        },
+        "quietArchitecture": {
+          "caption": "Surreal architecture, minimal, calm"
+        },
+        "summerAnime": {
+          "caption": "Anime girl, wind, summer sky"
+        },
+        "atelierRoom": {
+          "caption": "Quiet atelier, warm afternoon"
+        },
+        "softPortrait": {
+          "caption": "Cinematic portrait, soft light, 85mm"
+        },
+        "mangaPanel": {
+          "caption": "Monochrome romance panel"
+        },
+        "spaceExplorer": {
+          "caption": "Cinematic shot, space explorer"
+        }
+      }
+    },
     "capabilityMatrix": {
       "eyebrow": "Connected tools",
       "title": "More ways to create, one place to save.",

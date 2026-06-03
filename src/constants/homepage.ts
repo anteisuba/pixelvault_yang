@@ -26,6 +26,8 @@ export const HOMEPAGE_MODEL_COUNT_VALUES: Record<string, number> = {
   model3dCount: HOMEPAGE_MODEL_COUNTS.model3d,
 }
 
+export const HOMEPAGE_MODEL_GROUP_PREVIEW_COUNT = 4
+
 export type HomepageModelPricingUnit = 'image' | 'second' | 'kchars'
 
 export interface HomepageModelReferencePrice {

@@ -541,7 +541,9 @@
       },
       "priceImage": "{amount} per image",
       "priceSecond": "{amount} per second",
-      "priceKChars": "{amount} per 1k chars"
+      "priceKChars": "{amount} per 1k chars",
+      "expandAll": "Show all {count} models",
+      "collapse": "Show less"
     },
     "auth": {
       "note": "Your account keeps prompts, model choices, and generated results together across sessions.",

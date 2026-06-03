@@ -541,7 +541,9 @@
       },
       "priceImage": "{amount} / 枚",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 1k 文字"
+      "priceKChars": "{amount} / 1k 文字",
+      "expandAll": "すべての{count}モデルを表示",
+      "collapse": "閉じる"
     },
     "auth": {
       "note": "プロンプト、モデル選択、生成結果を同じ制作履歴として保てます。",

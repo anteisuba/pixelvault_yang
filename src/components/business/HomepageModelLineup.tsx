@@ -1,9 +1,15 @@
+'use client'
+
+import { useState } from 'react'
+
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getProviderLabel } from '@/constants/providers'
 import {
   formatHomepageReferencePriceAmount,
   HOMEPAGE_MODEL_COUNT_VALUES,
+  HOMEPAGE_MODEL_GROUP_PREVIEW_COUNT,
   HOMEPAGE_MODEL_REFERENCE_PRICES,
   type HomepageModelReferencePrice,
 } from '@/constants/homepage'
@@ -45,10 +51,19 @@ interface ModelGroupProps {
   models: readonly ModelOption[]
   formatPrice: (price: HomepageModelReferencePrice) => string
   tModels: (key: string) => string
+  limit?: number
 }
 
-function ModelGroup({ label, models, formatPrice, tModels }: ModelGroupProps) {
+function ModelGroup({
+  label,
+  models,
+  formatPrice,
+  tModels,
+  limit,
+}: ModelGroupProps) {
   if (models.length === 0) return null
+
+  const shown = typeof limit === 'number' ? models.slice(0, limit) : models
 
   return (
     <div>
@@ -56,7 +71,7 @@ function ModelGroup({ label, models, formatPrice, tModels }: ModelGroupProps) {
         {label}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {models.map((model) => {
+        {shown.map((model) => {
           const provider = getProviderLabel(model.providerConfig)
           return (
             <div key={model.id} className="homepage-model-card">
@@ -80,12 +95,15 @@ function ModelGroup({ label, models, formatPrice, tModels }: ModelGroupProps) {
 export function HomepageModelLineup() {
   const t = useTranslations('Homepage.modelLineup')
   const tModels = useTranslations('Models')
+  const [expanded, setExpanded] = useState(false)
 
   const available = getAvailableModels()
   const imageModels = available.filter((m) => m.outputType === 'IMAGE')
   const videoModels = available.filter((m) => m.outputType === 'VIDEO')
   const audioModels = available.filter((m) => m.outputType === 'AUDIO')
   const model3dModels = available.filter((m) => m.outputType === 'MODEL_3D')
+
+  const limit = expanded ? undefined : HOMEPAGE_MODEL_GROUP_PREVIEW_COUNT
 
   const formatPrice = (price: HomepageModelReferencePrice) => {
     const amountStr = formatHomepageReferencePriceAmount(price.amount)
@@ -119,25 +137,47 @@ export function HomepageModelLineup() {
           models={imageModels}
           formatPrice={formatPrice}
           tModels={tModels}
+          limit={limit}
         />
         <ModelGroup
           label={t('groups.video')}
           models={videoModels}
           formatPrice={formatPrice}
           tModels={tModels}
+          limit={limit}
         />
         <ModelGroup
           label={t('groups.audio')}
           models={audioModels}
           formatPrice={formatPrice}
           tModels={tModels}
+          limit={limit}
         />
         <ModelGroup
           label={t('groups.model3d')}
           models={model3dModels}
           formatPrice={formatPrice}
           tModels={tModels}
+          limit={limit}
         />
+      </div>
+
+      <div className="mt-10 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="homepage-model-toggle inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
+          aria-expanded={expanded}
+        >
+          {expanded
+            ? t('collapse')
+            : t('expandAll', { count: HOMEPAGE_MODEL_COUNT_VALUES.count })}
+          {expanded ? (
+            <ChevronUp className="size-4" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="size-4" aria-hidden="true" />
+          )}
+        </button>
       </div>
     </section>
   )

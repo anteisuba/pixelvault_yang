@@ -1423,6 +1423,26 @@ html.homepage-motion-ready
   color: var(--background);
 }
 
+.homepage-model-toggle {
+  border: 1px solid var(--home-border);
+  background: color-mix(in oklab, var(--background) 92%, var(--card));
+  color: var(--foreground);
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.homepage-model-toggle:hover {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--home-border));
+  background: color-mix(in oklab, var(--background) 96%, var(--card));
+  transform: translateY(-1px);
+}
+
+.homepage-model-toggle:active {
+  transform: translateY(0);
+}
+
 .homepage-model-group {
   border-top: 1px solid var(--home-border);
 }

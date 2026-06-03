@@ -541,7 +541,9 @@
       },
       "priceImage": "{amount} / 张",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 千字符"
+      "priceKChars": "{amount} / 千字符",
+      "expandAll": "展开全部 {count} 个模型",
+      "collapse": "收起"
     },
     "auth": {
       "note": "账号会把你的提示词、模型选择和生成结果保留在同一条创作记录里。",

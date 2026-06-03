@@ -105,6 +105,8 @@ export const HOMEPAGE_ROUTES = {
   signUp: ROUTES.SIGN_UP,
   studio: ROUTES.STUDIO,
   models: '#models',
+  pricing: '#models',
+  docs: '/docs',
 } as const
 
 /**
@@ -243,5 +245,17 @@ export const HOMEPAGE_SHOWCASE = [
     src: '/showcase/showcase-06.webp',
     model: 'NovelAI',
     tone: 'earth',
+  },
+  {
+    id: 'showcase07',
+    src: '/showcase/showcase-07.webp',
+    model: 'Flux',
+    tone: 'sky',
+  },
+  {
+    id: 'showcase08',
+    src: '/showcase/showcase-08.webp',
+    model: 'Gemini',
+    tone: 'ink',
   },
 ] as const

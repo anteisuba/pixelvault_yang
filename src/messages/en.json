@@ -1,6 +1,6 @@
 {
   "Common": {
-    "brand": "PixelVault",
+    "brand": "ANTEI",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -29,6 +29,12 @@
     "cost": "Cost",
     "capabilities": "Capabilities",
     "close": "Close",
+    "sidebar": "Sidebar",
+    "sidebarDescription": "Displays the mobile sidebar.",
+    "toggleSidebar": "Toggle sidebar",
+    "selectModel": "Select model",
+    "searchModels": "Search models...",
+    "noModelsFound": "No models found",
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
@@ -148,6 +154,7 @@
     "visibilityUpdated": "Visibility updated",
     "visibilityFailed": "Failed to update visibility",
     "apiKeyCreated": "API key added successfully",
+    "apiKeyLoadFailed": "Failed to load API keys",
     "apiKeyCreateFailed": "Failed to add API key",
     "apiKeyUpdated": "API key updated",
     "apiKeyUpdateFailed": "Failed to update API key",
@@ -157,23 +164,37 @@
     "storyDeleteFailed": "Failed to delete story",
     "storyCreated": "Story created",
     "narrativeGenerated": "Narrative generated",
+    "narrativeGenerateFailed": "Failed to generate narrative",
     "projectCreated": "Project created",
+    "projectLoadFailed": "Failed to load projects",
+    "projectCreateFailed": "Failed to create project",
     "projectUpdated": "Project updated",
+    "projectUpdateFailed": "Failed to update project",
     "projectDeleted": "Project deleted",
+    "projectDeleteFailed": "Failed to delete project",
     "characterCardCreated": "Character card created",
+    "characterCardLoadFailed": "Failed to load character cards",
+    "characterCardCreateFailed": "Failed to create character card",
     "characterCardUpdated": "Character card updated",
+    "characterCardUpdateFailed": "Failed to update character card",
     "characterCardDeleted": "Character card deleted",
+    "characterCardDeleteFailed": "Failed to delete character card",
     "characterCardStable": "Character card is now stable!",
+    "characterCardRefineFailed": "Refinement failed",
     "featuredAdded": "Pinned to profile",
     "featuredRemoved": "Unpinned from profile",
     "featuredFailed": "Failed to update pin status",
     "featuredLimitReached": "You can pin up to 9 works",
+    "collectionLoadFailed": "Failed to load collections",
     "collectionCreated": "Collection created",
     "collectionCreateFailed": "Failed to create collection",
     "collectionUpdated": "Collection updated",
     "collectionUpdateFailed": "Failed to update collection",
     "collectionDeleted": "Collection deleted",
     "collectionDeleteFailed": "Failed to delete collection",
+    "collectionAddItemsFailed": "Failed to add to collection",
+    "collectionRemoveItemFailed": "Failed to remove from collection",
+    "cardRecipeCompileFailed": "Compilation failed",
     "loraTrainingSubmitted": "LoRA training started",
     "loraTrainingSubmitFailed": "Failed to start LoRA training",
     "loraTrainingComplete": "LoRA training complete! Model ready to use.",
@@ -312,10 +333,9 @@
     "brandLabel": "Personal AI Gallery",
     "skipToContent": "Skip to homepage content",
     "hero": {
-      "title": "ANTEI image, video, and voice creation platform",
-      "brand": "ANTEI",
-      "mediums": "Image, video, voice",
-      "platform": "Creation platform"
+      "title": "Generate across every model, keep every result",
+      "headline": "Generate across every model",
+      "subline": "keep every result"
     },
     "badges": {
       "soon": "Soon"
@@ -461,6 +481,10 @@
       "signedOutUtility": "Log in",
       "sharedSecondary": "See models",
       "gallerySecondary": "Browse gallery",
+      "startCreating": "Start creating",
+      "models": "Models",
+      "pricing": "Pricing",
+      "docs": "Docs",
       "signInPrimary": "Create an account",
       "signUpPrimary": "Already have an account?",
       "authSecondary": "Back home"
@@ -513,6 +537,7 @@
     "workspaceLabel": "Workspace",
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
+    "skipToPrompt": "Skip to prompt",
     "workflowEmptyHint": "Choose a workflow to start creating",
     "modeLabel": "Generation mode",
     "modeImage": "Image",
@@ -608,6 +633,7 @@
     "voiceTranscribeSuccess": "Transcript filled",
     "voiceTranscribeFailed": "Failed to transcribe audio",
     "voiceCards": "Voice Cards",
+    "voiceCardsLoadFailed": "Failed to load voice cards",
     "voiceCardsEmpty": "No voice cards yet",
     "voiceCardSelected": "In use",
     "voiceCardFishAudio": "Fish Audio",
@@ -808,6 +834,7 @@
     "viewerLoading": "Loading 3D model...",
     "viewerError": "Failed to load 3D model.",
     "wireframePreviewLabel": "3D wireframe preview",
+    "stageStepperLabel": "3D generation stages",
     "wireframePreviewLoading": "Loading mesh preview...",
     "wireframePreviewError": "Failed to load mesh preview.",
     "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro builds a geometry preview first, then automatically runs the final PBR model.",
@@ -1147,6 +1174,7 @@
     "myLorasErrorTitle": "Couldn't load your LoRAs",
     "myLorasErrorRetry": "Retry",
     "myLorasSearchPlaceholder": "Search name or trigger word…",
+    "clearSearch": "Clear search",
     "myLorasSearchEmpty": "No LoRA matches {query}.",
     "myLorasSortLabel": "Sort",
     "myLorasSortNewest": "Newest",
@@ -1176,6 +1204,8 @@
     "communitySearch": "Search LoRAs...",
     "communitySortFilter": "Sort",
     "communityLoadFailed": "Failed to load the Civitai LoRA library. Please try again.",
+    "minedPromptsUnknownError": "Unknown error",
+    "minedPromptsFailed": "Failed to mine prompts",
     "communityUnknownCreator": "Unknown creator",
     "communityNoSelection": "Select a LoRA on the left to inspect it.",
     "communityDownloads": "Downloads",
@@ -1457,6 +1487,8 @@
     "inspirationResultCount": "{count, plural, =0 {No results} one {# prompt} other {# prompts}}",
     "inspirationLoadMore": "Load more",
     "inspirationLoadingMore": "Loading...",
+    "inspirationLoadFailed": "Failed to load inspirations",
+    "inspirationLoadMoreFailed": "Failed to load more",
     "inspirationEmptyTitle": "No prompts match",
     "inspirationEmptyDescription": "Try removing a filter or searching different keywords.",
     "inspirationClone": "Clone to my library",
@@ -1812,6 +1844,7 @@
   },
   "PromptEnhance": {
     "button": "Enhance",
+    "failed": "Enhancement failed",
     "comparisonTitle": "Prompt Enhancement",
     "originalLabel": "Original",
     "enhancedLabel": "Enhanced",
@@ -1957,7 +1990,12 @@
     "voteButton": "Vote",
     "newBattle": "New Battle",
     "arenaComparison": "Model comparison",
-    "referenceImage": "Reference Image"
+    "referenceImage": "Reference Image",
+    "createMatchFailed": "Failed to create match",
+    "entryGenerationFailed": "Entry generation failed",
+    "notEnoughModelsSucceeded": "Not enough models succeeded ({successCount}/{totalCount}). {reasons}",
+    "fetchMatchResultsFailed": "Failed to fetch match results",
+    "voteFailed": "Vote failed"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "Leaderboard",
@@ -1990,7 +2028,8 @@
     "promptUsed": "Prompt",
     "winner": "Winner",
     "matchDate": "Date",
-    "viewDetails": "View"
+    "viewDetails": "View",
+    "loadFailed": "Failed to load history"
   },
   "ArenaPersonalStats": {
     "title": "My Arena Stats",
@@ -2001,7 +2040,8 @@
     "winCount": "Wins",
     "winRate": "Win Rate",
     "empty": "No stats yet. Vote in battles to see your model preferences!",
-    "loading": "Loading stats..."
+    "loading": "Loading stats...",
+    "loadFailed": "Failed to load stats"
   },
   "AdvancedSettings": {
     "title": "Advanced Settings",
@@ -2062,6 +2102,8 @@
     "variationsTitle": "{count} variations generated",
     "originalImage": "Original",
     "failedModels": "Failed: {models}",
+    "analysisFailed": "Analysis failed",
+    "generationFailed": "Generation failed",
     "reset": "Reset",
     "useAsPrompt": "Use as Prompt",
     "selectDimensions": "What do you want to extract from this image?",
@@ -2078,6 +2120,7 @@
     "send": "Send",
     "usePrompt": "Use as Prompt",
     "clear": "Clear",
+    "failed": "Failed to generate prompt",
     "loading": "Generating prompt...",
     "emptyHint": "Add an image to extract its style, or type an instruction to improve the prompt.",
     "targetModel": "Target model",
@@ -2481,7 +2524,8 @@
       "empty": "No generations yet",
       "emptyComboHint": "No generations found with {names} together",
       "count": "{count} generations",
-      "loadMore": "Load More"
+      "loadMore": "Load More",
+      "loadFailed": "Failed to load generations"
     }
   },
   "PromptFeedback": {
@@ -2489,7 +2533,8 @@
     "loading": "Analyzing...",
     "title": "AI Prompt Coach",
     "improvedPrompt": "Improved Version",
-    "applyImproved": "Use this prompt"
+    "applyImproved": "Use this prompt",
+    "requestFailed": "Feedback request failed"
   },
   "GenerationFeedback": {
     "useAsReference": "Use as Reference",
@@ -2502,7 +2547,9 @@
     "apply": "Apply Prompt",
     "applyAndReference": "Apply & use as reference",
     "negativeAdditions": "Suggested negative prompt",
-    "conversationDone": "Refined prompt ready!"
+    "conversationDone": "Refined prompt ready!",
+    "startFailed": "Failed to start conversation",
+    "responseFailed": "Failed to get response"
   },
   "ErrorBoundary": {
     "title": "Something went wrong",
@@ -2547,6 +2594,7 @@
     "avatarTooLarge": "Avatar must be under 5 MB",
     "bannerTooLarge": "Cover image must be under 10 MB",
     "privateProfile": "This profile is private",
+    "loadFailed": "Failed to load profile",
     "privateProfileHint": "The creator has chosen to keep their profile hidden",
     "noPublicImages": "No public images yet",
     "startCreating": "Start creating in Studio",
@@ -2583,6 +2631,7 @@
     "extracting": "Extracting style attributes...",
     "prompt": "Style Description",
     "promptPlaceholder": "Describe the art style, medium, or aesthetic...",
+    "loraUrlPlaceholder": "LoRA URL (Civitai / HuggingFace)",
     "sourceImage": "Source Image",
     "sourceImageHint": "Upload an image to automatically extract style attributes",
     "empty": "No style cards yet",
@@ -3486,7 +3535,8 @@
       "redo": "Redo"
     },
     "assistant": {
-      "toggle": "Assistant"
+      "toggle": "Assistant",
+      "streamFailed": "Assistant stream failed"
     },
     "dock": {
       "title": "Assistant dock",
@@ -3787,7 +3837,8 @@
       "prompt": "Prompt",
       "promptPlaceholder": "Describe what should replace the painted area...",
       "cancel": "Cancel",
-      "apply": "Apply inpaint"
+      "apply": "Apply inpaint",
+      "failed": "Inpaint failed"
     },
     "outpaintEditor": {
       "title": "Outpaint",
@@ -3803,7 +3854,8 @@
       "promptPlaceholder": "Describe how the expanded area should continue...",
       "cancel": "Cancel",
       "apply": "Apply outpaint",
-      "finalSize": "Final size {width} × {height}"
+      "finalSize": "Final size {width} × {height}",
+      "failed": "Outpaint failed"
     },
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
@@ -4317,6 +4369,14 @@
     "generateFailedRetry": "The AI providers didn't respond. Try again in a moment.",
     "loadFailed": "Couldn't load this script.",
     "saveFailed": "Couldn't save scenes.",
+    "confirmFailed": "Couldn't confirm this script.",
+    "deleteFailed": "Couldn't delete this script.",
+    "listLoadFailed": "Couldn't load scripts.",
+    "createFailed": "Couldn't create a script.",
+    "sceneStatusLoadFailed": "Couldn't load scene status.",
+    "sceneStartFailed": "Couldn't start scene orchestration.",
+    "sceneAdvanceFailed": "Couldn't advance scene.",
+    "sceneRetryFailed": "Couldn't retry scene.",
     "statusDraft": "Draft",
     "statusScriptReady": "Ready"
   },

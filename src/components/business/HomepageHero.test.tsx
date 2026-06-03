@@ -8,22 +8,19 @@ import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    title: 'ANTEI image, video, and voice creation platform',
-    brand: 'ANTEI',
-    mediums: 'Image, video, voice',
-    platform: 'Creation platform',
+    title: 'Generate across every model, keep every result',
+    headline: 'Generate across every model',
+    subline: 'keep every result',
   },
   zh: {
-    title: 'ANTEI 图像、视频、声音创作平台',
-    brand: 'ANTEI',
-    mediums: '图像、视频、声音',
-    platform: '创作平台',
+    title: '用每一个模型生成，保留每一次结果',
+    headline: '用每一个模型生成',
+    subline: '保留每一次结果',
   },
   ja: {
-    title: 'ANTEI 画像・動画・音声 制作プラットフォーム',
-    brand: 'ANTEI',
-    mediums: '画像・動画・音声',
-    platform: '制作プラットフォーム',
+    title: 'あらゆるモデルで生成し、すべての結果を保存',
+    headline: 'あらゆるモデルで生成',
+    subline: 'すべての結果を保存',
   },
 } as const
 
@@ -33,13 +30,17 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
       title: EXPECTED_HERO.en.title,
-      brand: EXPECTED_HERO.en.brand,
-      mediums: EXPECTED_HERO.en.mediums,
-      platform: EXPECTED_HERO.en.platform,
+      headline: EXPECTED_HERO.en.headline,
+      subline: EXPECTED_HERO.en.subline,
+      startCreating: 'Start creating',
       gallerySecondary: 'Browse gallery',
     }
     return map[key] ?? key
   },
+}))
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -65,25 +66,23 @@ function loadMessages(locale: Locale): Record<string, unknown> {
 }
 
 describe('HomepageHero', () => {
-  it('renders title and gallery CTA without eyebrow or subtitle copy', () => {
+  it('renders outcome headline, subline, primary and gallery CTAs', () => {
     render(<HomepageHero />)
 
     expect(
       screen.getByRole('heading', { name: EXPECTED_HERO.en.title }),
     ).toBeInTheDocument()
-    expect(screen.getByText(EXPECTED_HERO.en.brand)).toBeInTheDocument()
-    expect(screen.getByText(EXPECTED_HERO.en.mediums)).toBeInTheDocument()
-    expect(screen.getByText(EXPECTED_HERO.en.platform)).toBeInTheDocument()
-    expect(screen.queryByText(/API key/i)).not.toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.headline)).toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.subline)).toBeInTheDocument()
     expect(
-      screen.queryByText(/save every result|保存每次结果/i),
-    ).not.toBeInTheDocument()
+      screen.getByRole('link', { name: 'Start creating' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Browse gallery' }),
     ).toHaveAttribute('href', expect.stringContaining('gallery'))
   })
 
-  it('keeps Homepage.hero title present in every locale', () => {
+  it('keeps Homepage.hero headline/subline in every locale, without legacy keys', () => {
     for (const locale of Object.keys(EXPECTED_HERO) as Locale[]) {
       const homepage = loadMessages(locale).Homepage
       expect(isRecord(homepage)).toBe(true)
@@ -97,12 +96,12 @@ describe('HomepageHero', () => {
         throw new Error(`Homepage.hero missing in ${locale}.json`)
       }
 
-      expect('eyebrow' in hero).toBe(false)
-      expect('subtitle' in hero).toBe(false)
+      expect('brand' in hero).toBe(false)
+      expect('mediums' in hero).toBe(false)
+      expect('platform' in hero).toBe(false)
       expect(hero.title).toBe(EXPECTED_HERO[locale].title)
-      expect(hero.brand).toBe(EXPECTED_HERO[locale].brand)
-      expect(hero.mediums).toBe(EXPECTED_HERO[locale].mediums)
-      expect(hero.platform).toBe(EXPECTED_HERO[locale].platform)
+      expect(hero.headline).toBe(EXPECTED_HERO[locale].headline)
+      expect(hero.subline).toBe(EXPECTED_HERO[locale].subline)
     }
   })
 })

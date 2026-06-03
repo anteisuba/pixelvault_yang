@@ -1,6 +1,6 @@
 {
   "Common": {
-    "brand": "PixelVault",
+    "brand": "ANTEI",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -29,6 +29,12 @@
     "cost": "コスト",
     "capabilities": "機能",
     "close": "閉じる",
+    "sidebar": "サイドバー",
+    "sidebarDescription": "モバイル用サイドバーを表示します。",
+    "toggleSidebar": "サイドバーを切り替え",
+    "selectModel": "モデルを選択",
+    "searchModels": "モデルを検索...",
+    "noModelsFound": "モデルが見つかりません",
     "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト"
   },
@@ -148,6 +154,7 @@
     "visibilityUpdated": "公開設定を更新しました",
     "visibilityFailed": "公開設定の更新に失敗しました",
     "apiKeyCreated": "APIキーを追加しました",
+    "apiKeyLoadFailed": "APIキーを読み込めませんでした",
     "apiKeyCreateFailed": "APIキーの追加に失敗しました",
     "apiKeyUpdated": "APIキーを更新しました",
     "apiKeyUpdateFailed": "APIキーの更新に失敗しました",
@@ -157,23 +164,37 @@
     "storyDeleteFailed": "ストーリーの削除に失敗しました",
     "storyCreated": "ストーリーを作成しました",
     "narrativeGenerated": "ナラティブを生成しました",
+    "narrativeGenerateFailed": "ナラティブの生成に失敗しました",
     "projectCreated": "プロジェクトを作成しました",
+    "projectLoadFailed": "プロジェクトを読み込めませんでした",
+    "projectCreateFailed": "プロジェクトの作成に失敗しました",
     "projectUpdated": "プロジェクトを更新しました",
+    "projectUpdateFailed": "プロジェクトの更新に失敗しました",
     "projectDeleted": "プロジェクトを削除しました",
+    "projectDeleteFailed": "プロジェクトの削除に失敗しました",
     "characterCardCreated": "キャラクターカードを作成しました",
+    "characterCardLoadFailed": "キャラクターカードを読み込めませんでした",
+    "characterCardCreateFailed": "キャラクターカードの作成に失敗しました",
     "characterCardUpdated": "キャラクターカードを更新しました",
+    "characterCardUpdateFailed": "キャラクターカードの更新に失敗しました",
     "characterCardDeleted": "キャラクターカードを削除しました",
+    "characterCardDeleteFailed": "キャラクターカードの削除に失敗しました",
     "characterCardStable": "キャラクターカードが安定しました！",
+    "characterCardRefineFailed": "精錬に失敗しました",
     "featuredAdded": "プロフィールにピン留めしました",
     "featuredRemoved": "ピン留めを解除しました",
     "featuredFailed": "ピン留めの更新に失敗しました",
     "featuredLimitReached": "ピン留めは最大9件までです",
+    "collectionLoadFailed": "コレクションを読み込めませんでした",
     "collectionCreated": "コレクションを作成しました",
     "collectionCreateFailed": "コレクションの作成に失敗しました",
     "collectionUpdated": "コレクションを更新しました",
     "collectionUpdateFailed": "コレクションの更新に失敗しました",
     "collectionDeleted": "コレクションを削除しました",
     "collectionDeleteFailed": "コレクションの削除に失敗しました",
+    "collectionAddItemsFailed": "コレクションへの追加に失敗しました",
+    "collectionRemoveItemFailed": "コレクションからの削除に失敗しました",
+    "cardRecipeCompileFailed": "レシピのコンパイルに失敗しました",
     "loraTrainingSubmitted": "LoRAトレーニングを開始しました",
     "loraTrainingSubmitFailed": "LoRAトレーニングの開始に失敗しました",
     "loraTrainingComplete": "LoRAトレーニング完了！モデルが使用可能です。",
@@ -312,10 +333,9 @@
     "brandLabel": "パーソナルAIギャラリー",
     "skipToContent": "ホームページ本文へ移動",
     "hero": {
-      "title": "ANTEI 画像・動画・音声 制作プラットフォーム",
-      "brand": "ANTEI",
-      "mediums": "画像・動画・音声",
-      "platform": "制作プラットフォーム"
+      "title": "あらゆるモデルで生成し、すべての結果を保存",
+      "headline": "あらゆるモデルで生成",
+      "subline": "すべての結果を保存"
     },
     "badges": {
       "soon": "近日公開"
@@ -461,6 +481,10 @@
       "signedOutUtility": "ログイン",
       "sharedSecondary": "モデルを見る",
       "gallerySecondary": "ギャラリーを見る",
+      "startCreating": "制作を始める",
+      "models": "モデル",
+      "pricing": "料金",
+      "docs": "ドキュメント",
       "signInPrimary": "アカウントを作成",
       "signUpPrimary": "すでにアカウントがありますか？",
       "authSecondary": "ホームに戻る"
@@ -513,6 +537,7 @@
     "workspaceLabel": "ワークスペース",
     "workspaceTitle": "制作開始",
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
+    "skipToPrompt": "プロンプトへスキップ",
     "workflowEmptyHint": "ワークフローを選んで制作を始める",
     "modeLabel": "生成モード",
     "modeImage": "画像",
@@ -608,6 +633,7 @@
     "voiceTranscribeSuccess": "文字起こしを入力しました",
     "voiceTranscribeFailed": "音声の文字起こしに失敗しました",
     "voiceCards": "ボイスカード",
+    "voiceCardsLoadFailed": "ボイスカードを読み込めませんでした",
     "voiceCardsEmpty": "ボイスカードがまだありません",
     "voiceCardSelected": "使用中",
     "voiceCardFishAudio": "Fish Audio",
@@ -808,6 +834,7 @@
     "viewerLoading": "3Dモデルを読み込み中...",
     "viewerError": "3Dモデルを読み込めませんでした。",
     "wireframePreviewLabel": "3Dワイヤーフレームプレビュー",
+    "stageStepperLabel": "3D生成ステージ",
     "wireframePreviewLoading": "メッシュプレビューを読み込み中...",
     "wireframePreviewError": "メッシュプレビューを読み込めませんでした。",
     "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro は先にジオメトリプレビューを生成し、その後 PBR 付きの最終モデルを自動生成します。",
@@ -1147,6 +1174,7 @@
     "myLorasErrorTitle": "読み込みに失敗しました",
     "myLorasErrorRetry": "再試行",
     "myLorasSearchPlaceholder": "名前またはトリガー語を検索…",
+    "clearSearch": "検索をクリア",
     "myLorasSearchEmpty": "{query} に一致するLoRAはありません。",
     "myLorasSortLabel": "並び替え",
     "myLorasSortNewest": "新しい順",
@@ -1176,6 +1204,8 @@
     "communitySearch": "LoRAを検索...",
     "communitySortFilter": "並び順",
     "communityLoadFailed": "Civitai LoRAライブラリを読み込めませんでした。もう一度お試しください。",
+    "minedPromptsUnknownError": "不明なエラー",
+    "minedPromptsFailed": "プロンプト抽出に失敗しました",
     "communityUnknownCreator": "不明なクリエイター",
     "communityNoSelection": "左側からLoRAを選んで詳細を確認してください。",
     "communityDownloads": "ダウンロード",
@@ -1457,6 +1487,8 @@
     "inspirationResultCount": "{count, plural, =0 {結果なし} other {# 件のプロンプト}}",
     "inspirationLoadMore": "もっと読み込む",
     "inspirationLoadingMore": "読み込み中...",
+    "inspirationLoadFailed": "共有プロンプトを読み込めませんでした",
+    "inspirationLoadMoreFailed": "追加読み込みに失敗しました",
     "inspirationEmptyTitle": "該当するプロンプトがありません",
     "inspirationEmptyDescription": "フィルターを外すか、別のキーワードで検索してください。",
     "inspirationClone": "マイライブラリに複製",
@@ -1812,6 +1844,7 @@
   },
   "PromptEnhance": {
     "button": "強化",
+    "failed": "強化に失敗しました",
     "comparisonTitle": "プロンプト強化",
     "originalLabel": "オリジナル",
     "enhancedLabel": "強化版",
@@ -1957,7 +1990,12 @@
     "voteButton": "投票",
     "newBattle": "新しいバトル",
     "arenaComparison": "モデル比較",
-    "referenceImage": "参照画像"
+    "referenceImage": "参照画像",
+    "createMatchFailed": "対戦の作成に失敗しました",
+    "entryGenerationFailed": "エントリー生成に失敗しました",
+    "notEnoughModelsSucceeded": "成功したモデルが足りません（{successCount}/{totalCount}）。{reasons}",
+    "fetchMatchResultsFailed": "対戦結果を取得できませんでした",
+    "voteFailed": "投票に失敗しました"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "ランキング",
@@ -1990,7 +2028,8 @@
     "promptUsed": "プロンプト",
     "winner": "勝者",
     "matchDate": "日付",
-    "viewDetails": "詳細"
+    "viewDetails": "詳細",
+    "loadFailed": "履歴を読み込めませんでした"
   },
   "ArenaPersonalStats": {
     "title": "マイアリーナ統計",
@@ -2001,7 +2040,8 @@
     "winCount": "勝利数",
     "winRate": "勝率",
     "empty": "まだ統計がありません。バトルで投票してモデルの傾向を確認しましょう！",
-    "loading": "統計を読み込み中..."
+    "loading": "統計を読み込み中...",
+    "loadFailed": "統計を読み込めませんでした"
   },
   "AdvancedSettings": {
     "title": "詳細設定",
@@ -2062,6 +2102,8 @@
     "variationsTitle": "{count}個のバリエーションを生成",
     "originalImage": "オリジナル",
     "failedModels": "失敗: {models}",
+    "analysisFailed": "分析に失敗しました",
+    "generationFailed": "生成に失敗しました",
     "reset": "リセット",
     "useAsPrompt": "プロンプトとして使用",
     "selectDimensions": "この画像から何を抽出しますか？",
@@ -2078,6 +2120,7 @@
     "send": "送信",
     "usePrompt": "プロンプトとして使用",
     "clear": "クリア",
+    "failed": "プロンプト生成に失敗しました",
     "loading": "プロンプトを生成中...",
     "emptyHint": "画像からスタイルを抽出するか、指示を入力してプロンプトを改善します。",
     "targetModel": "対象モデル",
@@ -2481,7 +2524,8 @@
       "empty": "まだ生成がありません",
       "emptyComboHint": "{names} の組み合わせ生成はまだありません",
       "count": "{count} 件の生成",
-      "loadMore": "もっと見る"
+      "loadMore": "もっと見る",
+      "loadFailed": "生成を読み込めませんでした"
     }
   },
   "PromptFeedback": {
@@ -2489,7 +2533,8 @@
     "loading": "分析中...",
     "title": "AIプロンプトコーチ",
     "improvedPrompt": "改善バージョン",
-    "applyImproved": "このプロンプトを使用"
+    "applyImproved": "このプロンプトを使用",
+    "requestFailed": "フィードバックの取得に失敗しました"
   },
   "GenerationFeedback": {
     "useAsReference": "参考画像として使用",
@@ -2502,7 +2547,9 @@
     "apply": "プロンプトを適用",
     "applyAndReference": "適用して参考画像にする",
     "negativeAdditions": "推奨ネガティブプロンプト",
-    "conversationDone": "改善プロンプト完成！"
+    "conversationDone": "改善プロンプト完成！",
+    "startFailed": "会話の開始に失敗しました",
+    "responseFailed": "応答の取得に失敗しました"
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",
@@ -2547,6 +2594,7 @@
     "avatarTooLarge": "アバターは5MB以下にしてください",
     "bannerTooLarge": "カバー画像は10MB以下にしてください",
     "privateProfile": "このプロフィールは非公開です",
+    "loadFailed": "プロフィールを読み込めませんでした",
     "privateProfileHint": "クリエイターがプロフィールを非公開に設定しています",
     "noPublicImages": "公開画像はまだありません",
     "startCreating": "スタジオで制作を始める",
@@ -2583,6 +2631,7 @@
     "extracting": "画風属性を抽出中...",
     "prompt": "画風の説明",
     "promptPlaceholder": "アートスタイル、メディア、美学を説明してください...",
+    "loraUrlPlaceholder": "LoRA URL（Civitai / HuggingFace）",
     "sourceImage": "ソース画像",
     "sourceImageHint": "画像をアップロードして画風属性を自動抽出",
     "empty": "画風カードがありません",
@@ -3486,7 +3535,8 @@
       "redo": "やり直す"
     },
     "assistant": {
-      "toggle": "アシスタント"
+      "toggle": "アシスタント",
+      "streamFailed": "アシスタントのストリームに失敗しました"
     },
     "dock": {
       "title": "アシスタントドック",
@@ -3787,7 +3837,8 @@
       "prompt": "プロンプト",
       "promptPlaceholder": "塗った範囲を何に置き換えるか説明してください...",
       "cancel": "キャンセル",
-      "apply": "部分修復を適用"
+      "apply": "部分修復を適用",
+      "failed": "部分修復に失敗しました"
     },
     "outpaintEditor": {
       "title": "キャンバス拡張",
@@ -3803,7 +3854,8 @@
       "promptPlaceholder": "拡張部分をどう続けるか説明してください...",
       "cancel": "キャンセル",
       "apply": "拡張を適用",
-      "finalSize": "最終サイズ {width} × {height}"
+      "finalSize": "最終サイズ {width} × {height}",
+      "failed": "キャンバス拡張に失敗しました"
     },
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
@@ -4317,6 +4369,14 @@
     "generateFailedRetry": "AI プロバイダーが応答しませんでした。少し待って再試行してください。",
     "loadFailed": "脚本を読み込めませんでした。",
     "saveFailed": "シーンを保存できませんでした。",
+    "confirmFailed": "脚本を確定できませんでした。",
+    "deleteFailed": "脚本を削除できませんでした。",
+    "listLoadFailed": "脚本一覧を読み込めませんでした。",
+    "createFailed": "脚本を作成できませんでした。",
+    "sceneStatusLoadFailed": "シーン状態を読み込めませんでした。",
+    "sceneStartFailed": "シーン生成を開始できませんでした。",
+    "sceneAdvanceFailed": "次のシーンへ進めませんでした。",
+    "sceneRetryFailed": "シーンを再試行できませんでした。",
     "statusDraft": "下書き",
     "statusScriptReady": "確定済み"
   },

@@ -1,7 +1,9 @@
 import Image from 'next/image'
+import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { HomepageHeroCta } from '@/components/business/HomepageHeroCta'
 import { HOMEPAGE_ROUTES, HOMEPAGE_SHOWCASE } from '@/constants/homepage'
 import { Link } from '@/i18n/navigation'
 
@@ -21,20 +23,24 @@ export function HomepageHero() {
           className="homepage-hero-title font-display font-bold text-foreground text-balance"
           aria-label={t('title')}
         >
-          <span className="homepage-hero-brand">{t('brand')}</span>
-          <span className="homepage-hero-title-main">{t('mediums')}</span>
-          <span className="homepage-hero-title-platform">{t('platform')}</span>
+          <span className="homepage-hero-title-main">{t('headline')}</span>
+          <span className="homepage-hero-title-platform">{t('subline')}</span>
         </h1>
 
         <div className="homepage-hero-actions mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-9">
+          <HomepageHeroCta />
           <Button
             asChild
             variant="outline"
             size="lg"
-            className="homepage-secondary-btn h-12 rounded-full px-7 text-base font-semibold sm:h-14 sm:px-8"
+            className="homepage-secondary-btn h-11 rounded-full px-6 text-sm font-semibold sm:px-7"
           >
-            <Link href={HOMEPAGE_ROUTES.gallery}>
+            <Link
+              href={HOMEPAGE_ROUTES.gallery}
+              className="inline-flex items-center gap-2"
+            >
               {tActions('gallerySecondary')}
+              <ArrowRight className="size-4" />
             </Link>
           </Button>
         </div>
@@ -48,8 +54,8 @@ export function HomepageHero() {
               alt={`${item.model} showcase`}
               width={480}
               height={480}
-              className="homepage-hero-tile-image homepage-hero-tile-image-a h-full w-full object-cover"
-              priority={idx < 3}
+              className="homepage-hero-tile-image h-full w-full object-cover"
+              priority={idx < 4}
             />
           </div>
         ))}

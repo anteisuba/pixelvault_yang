@@ -452,7 +452,12 @@ export const AUDIO_GENERATION = {
 /** Image generation (async via execution worker) configuration */
 export const IMAGE_GENERATION = {
   POLL_INTERVAL_MS: 2000,
-  MAX_POLL_ATTEMPTS: 60,
+  // The worker runs up to EXECUTION_WORKER.DEFAULT_TIMEOUT_MS (600s) before it
+  // sends a terminal callback. The poll window must out-wait that plus a margin
+  // for the callback + R2 finalize roundtrip, or the UI declares failure while
+  // the worker is still working and the image silently lands in the gallery.
+  // gpt-image-2 multi-reference edits routinely take 2-3 min. 330 × 2s = 660s.
+  MAX_POLL_ATTEMPTS: 330,
 } as const
 
 /** Health check configuration */

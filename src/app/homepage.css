@@ -263,7 +263,7 @@
 }
 
 .homepage-header-action {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   align-items: center;
   border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
   border-radius: 999px;

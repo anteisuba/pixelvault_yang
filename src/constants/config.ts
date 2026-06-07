@@ -258,6 +258,8 @@ export const API_ENDPOINTS = {
   LORA_ASSETS: '/api/lora-assets',
   /** Public Civitai LoRA browser */
   LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
+  /** Redirect a Civitai model version download id to its concrete model page */
+  LORA_ASSETS_CIVITAI_SOURCE: '/api/lora-assets/civitai/source',
   /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */
   LORA_ASSETS_CIVITAI_MINED_PROMPTS: '/api/lora-assets/civitai/mined-prompts',
   /** Resolve a style-code share-link → LoraAsset */

@@ -1139,11 +1139,110 @@
     "clear": "すべて解除",
     "scaleLabel": "強度",
     "scaleHint": "0 = オフ、1 = 最大",
-    "alreadyHere": "{name} を適用済み — 生成できます",
+    "alreadyHere": "{name} はPrompt内のLoRAタグに追加済みです",
     "share": "共有",
     "shareCopied": "リンクをコピーしました — 同じLoRAスタックが開きます",
     "shareCopyFailed": "コピーに失敗しました",
     "shareEmpty": "スタックが空です — 共有するものがありません"
+  },
+  "PromptTags": {
+    "toolbar": {
+      "label": "Tags",
+      "trigger": "Promptタグを開く",
+      "triggerWithCount": "{count}個のPromptタグが有効"
+    },
+    "tray": {
+      "empty": "タグを追加",
+      "loraTrack": "LoRA",
+      "positiveTrack": "Tags",
+      "negativeTrack": "Neg",
+      "addPositive": "ポジティブタグを追加",
+      "addNegative": "ネガティブタグを追加",
+      "collapse": "閉じる"
+    },
+    "chip": {
+      "remove": "削除"
+    },
+    "lora": {
+      "insertTrigger": "+ Prompt",
+      "inPrompt": "Prompt内",
+      "scale": "Scale"
+    },
+    "library": {
+      "title": "Promptタグライブラリ",
+      "description": "ポジティブ、ネガティブ、LoRAのPromptタグを検索して追加します。",
+      "searchPlaceholder": "欲しい効果を入力、またはPromptタグを検索…",
+      "positive": "Positive",
+      "negative": "Negative",
+      "recommended": "Recommended",
+      "loraTags": "LoRA tags",
+      "openLoraLibrary": "LoRA LibraryでLoRAタグを追加",
+      "openLoraLibraryShort": "LoRA Library",
+      "categories": "Categories",
+      "emptyTitle": "一致するタグがありません",
+      "emptyDescription": "Enterで「{query}」をカスタムタグとして追加します。",
+      "addCustom": "カスタム{polarity}を追加",
+      "add": "タグを追加",
+      "added": "追加済み",
+      "clearAll": "すべてクリア"
+    },
+    "source": {
+      "system": "Curated",
+      "danbooru": "Danbooru",
+      "lora_asset": "LoRA",
+      "civitai": "Civitai",
+      "mined_prompt": "Mined",
+      "recent": "Recent",
+      "user": "Custom"
+    },
+    "category": {
+      "anatomy": "Anatomy",
+      "artifacts": "Artifacts",
+      "camera": "Camera",
+      "custom": "Custom",
+      "lighting": "Lighting",
+      "quality": "Quality",
+      "scene": "Scene",
+      "style": "Style"
+    }
+  },
+  "LoraPromptControl": {
+    "label": "LoRA",
+    "trigger": "LoRA コントロールパネルを開く",
+    "triggerWithCount": "LoRA コントロールパネル、{count} 件有効",
+    "title": "LoRA",
+    "description": "LoRA・プロンプト・ネガティブプロンプト・コントロールタグを一括管理します。",
+    "openLibraryShort": "LoRA ライブラリ",
+    "tabs": {
+      "generate": "生成",
+      "tags": "タグ"
+    },
+    "generate": {
+      "promptLabel": "プロンプト",
+      "promptPlaceholder": "被写体・スタイル・構図・雰囲気を記述…",
+      "negativeLabel": "ネガティブプロンプト",
+      "negativePlaceholder": "出したくない要素、例: blurry, watermark…",
+      "loraStack": "LoRA モデル",
+      "emptyTitle": "LoRA がまだありません",
+      "emptyDescription": "LoRA ライブラリからキャラクター・スタイル・オブジェクトのモデルを追加すると、ここでトリガーワードとモデル係数を調整できます。",
+      "openLibrary": "LoRA ライブラリを開く",
+      "clearAll": "LoRA をクリア",
+      "scale": "モデル係数",
+      "remove": "LoRA を削除",
+      "insertTrigger": "プロンプトに追加",
+      "inPrompt": "プロンプトに追加済み",
+      "useStarter": "おすすめプロンプトを使う",
+      "useSourceMatch": "ソース画像に寄せる",
+      "modelMatched": "自動マッチ: {model}",
+      "modelSwitching": "自動で切り替え中: {model}",
+      "modelUnavailable": "{model} を推奨しますが、利用可能なルートがありません",
+      "sourceMatch": {
+        "author": "作者のソースプロンプトを使い、3D ドリフト防止設定を追加します。",
+        "mined": "コミュニティのソース画像プロンプトを使い、3D ドリフト防止設定を追加します。",
+        "fallback": "汎用のソース近似プロンプトを使い、3D ドリフト防止設定を追加します。",
+        "loading": "ソースプロンプトを検索中…"
+      }
+    }
   },
   "StudioLoraChip": {
     "label": "LoRA",
@@ -1202,8 +1301,8 @@
     "myLorasFavoritesEmpty": "お気に入りはまだありません。LoRAライブラリでハートをタップしてください。",
     "myLorasTrainedSectionEmpty": "自分で訓練したLoRAはまだありません",
     "myLorasFavoritesSectionEmpty": "お気に入りはまだありません",
-    "mineSectionToggleLabel": "自分で訓練したLoRAとお気に入りを切り替え",
-    "myLorasSubtitle": "自分で訓練したLoRAとお気に入りはここに。「使う」でStudioに反映。",
+    "mineSectionToggleLabel": "お気に入りと自分で訓練したLoRAを切り替え",
+    "myLorasSubtitle": "自分で訓練したLoRAとお気に入りはここに。Promptタグに追加するとStudioで使えます。",
     "myLorasEmptyTitle": "最初のLoRAを訓練しよう",
     "myLorasEmptyDescription": "LoRAは自分専用のスタイル/キャラ。一度訓練すれば、何度でも使えます。",
     "myLorasEmptyCtaTrain": "新しいLoRAを訓練",
@@ -1219,6 +1318,7 @@
     "myLorasSortNameAsc": "名前順",
     "recentlyTrainedBadge": "訓練完了",
     "assetActionsLabel": "操作メニュー",
+    "assetActionOpenSource": "ソースを開く",
     "assetActionMakePublic": "公開にする",
     "assetActionDelete": "削除",
     "assetDeleteConfirmTitle": "このLoRAを削除しますか？",
@@ -1231,6 +1331,7 @@
     "communityTitle": "LoRA ライブラリ",
     "communityEmpty": "一致するLoRAがありません。",
     "baseModelFilterLabel": "ベースモデルで絞り込み",
+    "baseModelFilterHint": "これはフィルターです。Promptタグではありません。",
     "baseModelFilterAll": "全部",
     "searchHistoryTitle": "最近の検索",
     "searchHistoryClear": "クリア",
@@ -1260,7 +1361,7 @@
     "tryPromptMinedHint": "Civitai上の {sampled} 件のコミュニティ生成から逆解析しました。",
     "tryPromptMinedLoading": "コミュニティ生成から実際の起動プロンプトを抽出中…",
     "communityTags": "タグ",
-    "communityUseInStudio": "Studioで使う",
+    "communityUseInStudio": "LoRAタグを追加",
     "communityOpenSource": "ソースを開く",
     "communityPrevious": "前へ",
     "communityNext": "次へ",
@@ -1272,10 +1373,11 @@
     "refresh": "更新",
     "typeStyle": "スタイル",
     "typeSubject": "サブジェクト",
-    "use": "使う",
-    "alreadyInUse": "使用中",
-    "addedToStack": "{name} を有効化し、Studioを開いています",
+    "use": "Promptで使う",
+    "alreadyInUse": "追加済み",
+    "addedToStack": "{name} をLoRAタグとして追加し、Studioを開いています",
     "copyCode": "スタイルコードをコピー",
+    "assetSourceShort": "ソース",
     "codeCopied": "スタイルコードをコピーしました",
     "codeCopyFailed": "コピーできませんでした",
     "public": "公開",

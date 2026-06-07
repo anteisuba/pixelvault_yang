@@ -26,6 +26,7 @@ import type {
 } from '@/types'
 
 const CIVITAI_MODELS_API = 'https://civitai.com/api/v1/models'
+const CIVITAI_MODEL_VERSIONS_API = 'https://civitai.com/api/v1/model-versions'
 const CIVITAI_REQUEST_TIMEOUT_MS = 8000
 
 const CivitaiStatsSchema = z
@@ -122,6 +123,19 @@ const CivitaiModelsResponseSchema = z
         totalItems: z.number().optional(),
         nextPage: z.string().nullable().optional(),
         nextCursor: z.union([z.string(), z.number()]).nullable().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+
+const CivitaiModelVersionDetailSchema = z
+  .object({
+    id: z.number(),
+    modelId: z.number().optional(),
+    model: z
+      .object({
+        id: z.number().optional(),
       })
       .passthrough()
       .optional(),
@@ -347,6 +361,37 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   } finally {
     if (timeoutId) clearTimeout(timeoutId)
   }
+}
+
+export async function resolveCivitaiModelPageUrlByVersion(
+  modelVersionId: number,
+): Promise<string | null> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+  const payload = await withRetry(() => fetchCivitaiPayload(url), {
+    maxAttempts: 3,
+    baseDelayMs: 400,
+    maxDelayMs: 2000,
+    label: 'civitai.resolveModelVersion',
+  })
+  const parsed = CivitaiModelVersionDetailSchema.safeParse(payload)
+
+  if (!parsed.success) {
+    logger.warn('Civitai model version response had an unexpected shape', {
+      modelVersionId,
+      issues: parsed.error.issues.map((issue) => issue.message).join('; '),
+    })
+    return null
+  }
+
+  const modelId = parsed.data.modelId ?? parsed.data.model?.id ?? null
+  if (!modelId) {
+    logger.warn('Civitai model version response did not include a model id', {
+      modelVersionId,
+    })
+    return null
+  }
+
+  return `https://civitai.com/models/${modelId}?modelVersionId=${modelVersionId}`
 }
 
 function parseNextCursor(

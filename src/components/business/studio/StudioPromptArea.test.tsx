@@ -110,6 +110,20 @@ vi.mock('@/hooks/use-studio-shortcuts', () => ({
   useStudioShortcuts: vi.fn(),
 }))
 
+vi.mock('@/hooks/use-prompt-tag-stack', () => ({
+  usePromptTagStack: () => ({
+    positive: [],
+    negative: [],
+    selectedTagIds: new Set<string>(),
+    selectedCount: 0,
+    addTag: vi.fn(),
+    removeTag: vi.fn(),
+    clearTags: vi.fn(),
+    setWeight: vi.fn(),
+    allSelections: () => [],
+  }),
+}))
+
 vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: mockUseImageModelOptions,
 }))
@@ -173,6 +187,10 @@ vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
 
 vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
   StudioToolbarPanels: () => <div data-testid="studio-toolbar-panels" />,
+}))
+
+vi.mock('@/components/business/studio/prompt-tags/PromptTagTray', () => ({
+  PromptTagTray: () => <div data-testid="prompt-tag-tray" />,
 }))
 
 vi.mock('@/components/ui/prompt-input', () => ({

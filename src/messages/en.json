@@ -1139,11 +1139,110 @@
     "clear": "Clear all",
     "scaleLabel": "Strength",
     "scaleHint": "0 = off, 1 = full effect",
-    "alreadyHere": "{name} is active — ready to generate",
+    "alreadyHere": "{name} is already a LoRA tag in prompt",
     "share": "Share",
     "shareCopied": "Link copied — opening it loads the same LoRA stack",
     "shareCopyFailed": "Couldn't copy",
     "shareEmpty": "Stack is empty — nothing to share"
+  },
+  "PromptTags": {
+    "toolbar": {
+      "label": "Tags",
+      "trigger": "Open prompt tags",
+      "triggerWithCount": "{count} prompt tags active"
+    },
+    "tray": {
+      "empty": "Add tags",
+      "loraTrack": "LoRA",
+      "positiveTrack": "Tags",
+      "negativeTrack": "Neg",
+      "addPositive": "Add positive tags",
+      "addNegative": "Add negative tags",
+      "collapse": "Collapse"
+    },
+    "chip": {
+      "remove": "Remove"
+    },
+    "lora": {
+      "insertTrigger": "+ Prompt",
+      "inPrompt": "In prompt",
+      "scale": "Scale"
+    },
+    "library": {
+      "title": "Prompt tag library",
+      "description": "Search and add positive, negative, and LoRA prompt tags.",
+      "searchPlaceholder": "Describe an effect or search a prompt tag…",
+      "positive": "Positive",
+      "negative": "Negative",
+      "recommended": "Recommended",
+      "loraTags": "LoRA tags",
+      "openLoraLibrary": "Open LoRA Library to add LoRA tags",
+      "openLoraLibraryShort": "LoRA Library",
+      "categories": "Categories",
+      "emptyTitle": "No matching tag",
+      "emptyDescription": "Press Enter to add “{query}” as a custom tag.",
+      "addCustom": "Add custom {polarity}",
+      "add": "Add tag",
+      "added": "Already added",
+      "clearAll": "Clear all"
+    },
+    "source": {
+      "system": "Curated",
+      "danbooru": "Danbooru",
+      "lora_asset": "LoRA",
+      "civitai": "Civitai",
+      "mined_prompt": "Mined",
+      "recent": "Recent",
+      "user": "Custom"
+    },
+    "category": {
+      "anatomy": "Anatomy",
+      "artifacts": "Artifacts",
+      "camera": "Camera",
+      "custom": "Custom",
+      "lighting": "Lighting",
+      "quality": "Quality",
+      "scene": "Scene",
+      "style": "Style"
+    }
+  },
+  "LoraPromptControl": {
+    "label": "LoRA",
+    "trigger": "Open LoRA control panel",
+    "triggerWithCount": "LoRA control panel, {count} active",
+    "title": "LoRA",
+    "description": "Manage LoRAs, prompt, negative prompt and control tags in one place.",
+    "openLibraryShort": "LoRA library",
+    "tabs": {
+      "generate": "Generate",
+      "tags": "Tags"
+    },
+    "generate": {
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "Describe the subject, style, composition or mood…",
+      "negativeLabel": "Negative Prompt",
+      "negativePlaceholder": "What you don't want, e.g. blurry, watermark…",
+      "loraStack": "LoRA models",
+      "emptyTitle": "No LoRA yet",
+      "emptyDescription": "Add character, style or object models from the LoRA library, then tune trigger words and model scale here.",
+      "openLibrary": "Open LoRA library",
+      "clearAll": "Clear LoRAs",
+      "scale": "Scale",
+      "remove": "Remove LoRA",
+      "insertTrigger": "Add to prompt",
+      "inPrompt": "In prompt",
+      "useStarter": "Use suggested prompt",
+      "useSourceMatch": "Match source image",
+      "modelMatched": "Auto-matched: {model}",
+      "modelSwitching": "Switching to: {model}",
+      "modelUnavailable": "{model} recommended, but no route is available",
+      "sourceMatch": {
+        "author": "Use the author's source prompt, with anti-3D-drift settings added.",
+        "mined": "Use a community source-image prompt, with anti-3D-drift settings added.",
+        "fallback": "Use a generic source-matching prompt, with anti-3D-drift settings added.",
+        "loading": "Looking up source prompt…"
+      }
+    }
   },
   "StudioLoraChip": {
     "label": "LoRA",
@@ -1202,8 +1301,8 @@
     "myLorasFavoritesEmpty": "No favorites yet. Open the LoRA Library and tap the heart on one you like.",
     "myLorasTrainedSectionEmpty": "No trained LoRAs yet",
     "myLorasFavoritesSectionEmpty": "No favorites yet",
-    "mineSectionToggleLabel": "Switch between Trained and Favorites",
-    "myLorasSubtitle": "Trained and favorited LoRAs live here. Hit Use to activate one in Studio.",
+    "mineSectionToggleLabel": "Switch between Favorites and Trained",
+    "myLorasSubtitle": "Trained and favorited LoRAs live here. Add one to your prompt tags to use it in Studio.",
     "myLorasEmptyTitle": "Train your first LoRA",
     "myLorasEmptyDescription": "A LoRA is your private style or subject — train once, reuse it on every generation.",
     "myLorasEmptyCtaTrain": "Train a new LoRA",
@@ -1219,6 +1318,7 @@
     "myLorasSortNameAsc": "Name A–Z",
     "recentlyTrainedBadge": "Just trained",
     "assetActionsLabel": "More actions",
+    "assetActionOpenSource": "Open source",
     "assetActionMakePublic": "Make public",
     "assetActionDelete": "Delete",
     "assetDeleteConfirmTitle": "Delete this LoRA?",
@@ -1231,6 +1331,7 @@
     "communityTitle": "LoRA Library",
     "communityEmpty": "No matching LoRAs found.",
     "baseModelFilterLabel": "Filter by base model",
+    "baseModelFilterHint": "Filters only — these are not prompt tags.",
     "baseModelFilterAll": "All",
     "searchHistoryTitle": "Recent searches",
     "searchHistoryClear": "Clear",
@@ -1260,7 +1361,7 @@
     "tryPromptMinedHint": "Reverse-engineered from {sampled} community generations on Civitai.",
     "tryPromptMinedLoading": "Mining real activation prompts from community generations…",
     "communityTags": "Tags",
-    "communityUseInStudio": "Use in Studio",
+    "communityUseInStudio": "Add LoRA tag",
     "communityOpenSource": "Open source",
     "communityPrevious": "Previous",
     "communityNext": "Next",
@@ -1272,10 +1373,11 @@
     "refresh": "Refresh",
     "typeStyle": "Style",
     "typeSubject": "Subject",
-    "use": "Use",
-    "alreadyInUse": "In use",
-    "addedToStack": "Activated {name} and opening Studio",
+    "use": "Use in prompt",
+    "alreadyInUse": "Added",
+    "addedToStack": "Added {name} as a LoRA tag and opening Studio",
     "copyCode": "Copy style code",
+    "assetSourceShort": "Source",
     "codeCopied": "Style code copied",
     "codeCopyFailed": "Couldn't copy",
     "public": "Public",

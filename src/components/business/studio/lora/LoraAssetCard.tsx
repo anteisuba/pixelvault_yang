@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import {
   Copy,
+  ExternalLink,
   Globe2,
   HeartOff,
   Lock,
@@ -15,6 +16,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { API_ENDPOINTS } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
@@ -54,11 +56,32 @@ interface LoraAssetCardProps {
 // 7 天阈值用于「刚训练好」标签。只有 source === 'trained' 的资产会显示，
 // curated（系统种子）和 imported（收藏）不算「训练」。
 const RECENTLY_TRAINED_MS = 7 * 24 * 60 * 60 * 1000
+const CIVITAI_DOWNLOAD_MODEL_RE =
+  /https:\/\/civitai\.com\/api\/download\/models\/(\d+)/i
 
 function isRecentlyTrained(asset: LoraAssetRecord): boolean {
   if (asset.source !== 'trained') return false
   const age = Date.now() - new Date(asset.createdAt).getTime()
   return age >= 0 && age < RECENTLY_TRAINED_MS
+}
+
+function getAssetSourceUrl(asset: LoraAssetRecord): string | null {
+  if (asset.source === 'trained') return null
+
+  const civitaiDownload = asset.loraUrl.match(CIVITAI_DOWNLOAD_MODEL_RE)
+  if (civitaiDownload?.[1]) {
+    return `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_SOURCE}?modelVersionId=${civitaiDownload[1]}`
+  }
+
+  if (asset.loraUrl.startsWith('https://civitai.com/models/')) {
+    return asset.loraUrl
+  }
+
+  if (asset.provider.toLowerCase() !== 'civitai') {
+    return asset.loraUrl
+  }
+
+  return null
 }
 
 export function LoraAssetCard({
@@ -88,6 +111,7 @@ export function LoraAssetCard({
     (entry) => entry.asset.id === asset.id,
   )
   const recentlyTrained = isRecentlyTrained(asset)
+  const sourceUrl = getAssetSourceUrl(asset)
 
   const handleUse = useCallback(() => {
     if (!alreadyInStack) {
@@ -136,7 +160,11 @@ export function LoraAssetCard({
     }
   }, [asset.id, isDeleting, onDelete])
 
-  const hasMenu = showVisibilityToggle || Boolean(onUnfavorite) || canDelete
+  const hasMenu =
+    Boolean(sourceUrl) ||
+    showVisibilityToggle ||
+    Boolean(onUnfavorite) ||
+    canDelete
 
   return (
     <article
@@ -246,6 +274,14 @@ export function LoraAssetCard({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {sourceUrl ? (
+                  <DropdownMenuItem asChild>
+                    <a href={sourceUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="size-3.5" aria-hidden />
+                      {t('assetActionOpenSource')}
+                    </a>
+                  </DropdownMenuItem>
+                ) : null}
                 {showVisibilityToggle ? (
                   <DropdownMenuItem
                     disabled={isToggling}
@@ -311,20 +347,40 @@ export function LoraAssetCard({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={handleUse}
+        <div
           className={cn(
-            'mt-auto inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-            alreadyInStack
-              ? 'bg-muted text-muted-foreground'
-              : 'bg-foreground text-background hover:bg-foreground/85',
+            'mt-auto grid gap-2',
+            sourceUrl ? 'grid-cols-[auto_1fr]' : 'grid-cols-1',
           )}
-          aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}
         >
-          <Sparkles className="size-3" aria-hidden />
-          {alreadyInStack ? t('alreadyInUse') : t('use')}
-        </button>
+          {sourceUrl ? (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-1 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={t('assetActionOpenSource')}
+              title={t('assetActionOpenSource')}
+            >
+              <ExternalLink className="size-3" aria-hidden />
+              <span className="hidden sm:inline">{t('assetSourceShort')}</span>
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleUse}
+            className={cn(
+              'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              alreadyInStack
+                ? 'bg-muted text-muted-foreground'
+                : 'bg-foreground text-background hover:bg-foreground/85',
+            )}
+            aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}
+          >
+            <Sparkles className="size-3" aria-hidden />
+            {alreadyInStack ? t('alreadyInUse') : t('use')}
+          </button>
+        </div>
 
         {/* visibility 状态指示器 — 只在 showVisibilityToggle (own asset)
             时显示一个简洁的图标 + 文字行，让用户随时知道这个 LoRA

@@ -1,6 +1,6 @@
 'use client'
 
-import { Key, Layers, Cpu, SlidersHorizontal } from 'lucide-react'
+import { Key, Layers, Cpu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -16,7 +16,7 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
-import { StudioLoraChip } from '@/components/business/studio/StudioLoraChip'
+import { LoraPromptControlButton } from '@/components/business/studio/prompt-tags/LoraPromptControlButton'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
@@ -24,17 +24,6 @@ import { studioToolTriggerClass } from '@/components/business/studio-shared/prim
 interface StudioToolbarProps {
   onLayerDecompose?: () => void
   onCivitaiToken?: () => void
-  /**
-   * Toggle the «Advanced» panel (seed lock + negative prompt). Image
-   * mode only — video/audio modes have their own params panels.
-   */
-  onAdvanced?: () => void
-  /**
-   * Indicates the user has dialled a non-random seed and/or a negative
-   * prompt — drives the active styling on the Advanced pill so users
-   * can spot from the toolbar that they're not on default settings.
-   */
-  advancedActive?: boolean
   hasToken?: boolean
   disabled?: boolean
   /** Quick mode hides advanced tools */
@@ -93,8 +82,6 @@ function ToolButton({
 export function StudioToolbar({
   onLayerDecompose,
   onCivitaiToken,
-  onAdvanced,
-  advancedActive,
   hasToken,
   disabled,
   quickMode,
@@ -123,7 +110,7 @@ export function StudioToolbar({
         <ReferenceImageChip disabled={disabled} />
         <StudioTransformButton disabled={disabled} />
         <StudioCardsButton disabled={disabled} />
-        <StudioLoraChip disabled={disabled} />
+        <LoraPromptControlButton disabled={disabled} />
         {!quickMode && (
           <ToolButton
             icon={<Layers className="size-4" />}
@@ -137,15 +124,6 @@ export function StudioToolbar({
 
         {/* Group 3 — Size + advanced params */}
         <StudioAspectRatioPopover disabled={disabled} />
-        {onAdvanced ? (
-          <ToolButton
-            icon={<SlidersHorizontal className="size-4" />}
-            label={t('advanced')}
-            onClick={onAdvanced}
-            active={advancedActive}
-            disabled={disabled}
-          />
-        ) : null}
         {!quickMode && (
           <>
             <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

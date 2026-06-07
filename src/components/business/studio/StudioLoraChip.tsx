@@ -33,6 +33,7 @@ import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompt
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { Link } from '@/i18n/navigation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { promptIncludesTrigger } from '@/lib/prompt-text'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -50,19 +51,6 @@ import { cn } from '@/lib/utils'
 const SCALE_MIN = 0
 const SCALE_MAX = 1.5
 const SCALE_STEP = 0.05
-
-/**
- * Whole-word, case-insensitive check for whether the user has already
- * written the LoRA's trigger word in their prompt. Without this we'd
- * insert "concept" on every click and end up with "concept, concept,
- * concept, a girl" — Civitai-style triggers are common English words
- * so substring matching would over-fire ("concept" in "conceptual").
- */
-function promptIncludesTrigger(prompt: string, trigger: string): boolean {
-  const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const re = new RegExp(`(^|[^A-Za-z0-9_])${escaped}([^A-Za-z0-9_]|$)`, 'i')
-  return re.test(prompt)
-}
 
 type CompatibilityKind =
   | 'ok' // model supports LoRA and family matches (or stack is empty)

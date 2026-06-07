@@ -1,15 +1,14 @@
 import { Suspense } from 'react'
 
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
-import { ActiveLoraBar } from '@/components/business/studio-shared/chrome/ActiveLoraBar'
+import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
 
 /**
  * Top-level Studio layout — wraps every /studio/* route in
  * <LoraStackProvider>, which exposes a session-wide ActiveLoraStack
- * (localStorage-persisted, ?style=<code> aware). ActiveLoraBar then
- * renders a sticky chip strip whenever the stack is non-empty so the
- * user can see which LoRA(s) will be applied across image, edit,
- * video, and the lora workbench itself.
+ * (localStorage-persisted, ?style=<code> aware). PromptTagProvider keeps
+ * selected prompt tags scoped to the signed-in user. Visible LoRA state now
+ * lives inside the prompt workspace instead of the top Studio chrome.
  *
  * The (workspace) and edit sub-layouts continue to own their own
  * StudioProvider / EditWorkspaceShell — this layer sits above them.
@@ -26,8 +25,7 @@ export default function StudioLayout({
   return (
     <Suspense fallback={null}>
       <LoraStackProvider>
-        <ActiveLoraBar />
-        {children}
+        <PromptTagProvider>{children}</PromptTagProvider>
       </LoraStackProvider>
     </Suspense>
   )

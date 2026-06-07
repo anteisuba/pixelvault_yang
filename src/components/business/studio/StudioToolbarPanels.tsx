@@ -162,18 +162,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
     )
   }
 
-  // Active = non-default seed / negative present. Drives the toolbar pill
-  // highlight so users notice when they're on dialled-in settings vs
-  // pristine defaults — important once Phase 1B's "use same seed"
-  // actions start writing seed into advancedParams without opening the
-  // panel themselves.
-  const advancedActive = Boolean(
-    (typeof state.advancedParams.seed === 'number' &&
-      state.advancedParams.seed >= 0) ||
-    (state.advancedParams.negativePrompt &&
-      state.advancedParams.negativePrompt.trim().length > 0),
-  )
-
   return (
     <StudioToolbar
       onLayerDecompose={() =>
@@ -182,12 +170,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
       onCivitaiToken={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
       }
-      onAdvanced={
-        state.outputType === 'image'
-          ? () => dispatch({ type: 'TOGGLE_PANEL', payload: 'advanced' })
-          : undefined
-      }
-      advancedActive={advancedActive}
       hasToken={civitai.hasToken}
       disabled={isGenerating}
       quickMode={state.workflowMode === 'quick'}

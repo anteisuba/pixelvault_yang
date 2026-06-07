@@ -235,12 +235,9 @@ function MyLoraBranch({
   const t = useTranslations('LoraWorkbench')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<MineSort>('newest')
-  // section toggle 替换之前两段堆叠展示。默认开在「自训」—— 那是
-  // 用户最自己的东西，读起来也匹配从左到右的自然顺序。如果用户
-  // 完全没有自训只有收藏，把默认翻到「收藏」避免一进来就是空。
-  const [section, setSection] = useState<MineSection>(() =>
-    trained.length === 0 && favorites.length > 0 ? 'favorites' : 'trained',
-  )
+  // Favorites are the common browsing surface for this branch; trained LoRAs
+  // remain one click away for users who have their own fine-tunes.
+  const [section, setSection] = useState<MineSection>('favorites')
 
   const totalCount = trained.length + favorites.length
 
@@ -385,16 +382,16 @@ function MineSectionToggle({
       className="inline-flex h-10 items-center gap-1 rounded-full bg-muted/40 p-1"
     >
       <SectionToggleButton
-        active={section === 'trained'}
-        onClick={() => onSectionChange('trained')}
-        label={t('myLorasTrainedSection')}
-        count={trainedCount}
-      />
-      <SectionToggleButton
         active={section === 'favorites'}
         onClick={() => onSectionChange('favorites')}
         label={t('myLorasFavoritesSection')}
         count={favoritesCount}
+      />
+      <SectionToggleButton
+        active={section === 'trained'}
+        onClick={() => onSectionChange('trained')}
+        label={t('myLorasTrainedSection')}
+        count={trainedCount}
       />
     </div>
   )
@@ -1974,20 +1971,25 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
   }
 
   return (
-    <div
-      role="radiogroup"
-      aria-label={t('baseModelFilterLabel')}
-      // `max-w-full` + explicit `w-full` ensures the row's intrinsic width
-      // never exceeds the parent column, so flex-wrap activates instead of
-      // silently overflowing the section card on narrow viewports.
-      className="flex w-full max-w-full flex-wrap items-center gap-1.5"
-    >
-      {renderChip('all')}
-      {generatableChips.map(renderChip)}
-      {externalChips.length > 0 ? (
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/60" aria-hidden />
-      ) : null}
-      {externalChips.map(renderChip)}
+    <div className="space-y-1.5">
+      <div
+        role="radiogroup"
+        aria-label={t('baseModelFilterLabel')}
+        // `max-w-full` + explicit `w-full` ensures the row's intrinsic width
+        // never exceeds the parent column, so flex-wrap activates instead of
+        // silently overflowing the section card on narrow viewports.
+        className="flex w-full max-w-full flex-wrap items-center gap-1.5"
+      >
+        {renderChip('all')}
+        {generatableChips.map(renderChip)}
+        {externalChips.length > 0 ? (
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/60" aria-hidden />
+        ) : null}
+        {externalChips.map(renderChip)}
+      </div>
+      <p className="px-1 text-2xs text-muted-foreground">
+        {t('baseModelFilterHint')}
+      </p>
     </div>
   )
 }

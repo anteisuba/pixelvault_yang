@@ -1139,11 +1139,110 @@
     "clear": "全部清除",
     "scaleLabel": "强度",
     "scaleHint": "0 = 关闭，1 = 完全应用",
-    "alreadyHere": "{name} 已激活，准备生成",
+    "alreadyHere": "{name} 已在 prompt 的 LoRA 标签里",
     "share": "分享",
     "shareCopied": "链接已复制 — 朋友打开会自动加载这些 LoRA",
     "shareCopyFailed": "复制失败",
     "shareEmpty": "栈是空的，没有可分享的 LoRA"
+  },
+  "PromptTags": {
+    "toolbar": {
+      "label": "Tags",
+      "trigger": "打开 prompt 标签库",
+      "triggerWithCount": "已启用 {count} 个 prompt 标签"
+    },
+    "tray": {
+      "empty": "添加标签",
+      "loraTrack": "LoRA",
+      "positiveTrack": "Tags",
+      "negativeTrack": "负向",
+      "addPositive": "添加正向标签",
+      "addNegative": "添加负向标签",
+      "collapse": "收起"
+    },
+    "chip": {
+      "remove": "移除"
+    },
+    "lora": {
+      "insertTrigger": "+ Prompt",
+      "inPrompt": "已在 prompt",
+      "scale": "强度"
+    },
+    "library": {
+      "title": "Prompt 标签库",
+      "description": "搜索并添加正向、负向和 LoRA prompt 标签。",
+      "searchPlaceholder": "描述想要的效果，或搜索 prompt tag…",
+      "positive": "正向",
+      "negative": "负向",
+      "recommended": "推荐",
+      "loraTags": "LoRA 标签",
+      "openLoraLibrary": "打开 LoRA Library 添加 LoRA 标签",
+      "openLoraLibraryShort": "LoRA Library",
+      "categories": "分类",
+      "emptyTitle": "没有匹配标签",
+      "emptyDescription": "按 Enter 将“{query}”添加为自定义标签。",
+      "addCustom": "添加自定义{polarity}",
+      "add": "添加标签",
+      "added": "已添加",
+      "clearAll": "清空"
+    },
+    "source": {
+      "system": "精选",
+      "danbooru": "Danbooru",
+      "lora_asset": "LoRA",
+      "civitai": "Civitai",
+      "mined_prompt": "挖掘",
+      "recent": "最近",
+      "user": "自定义"
+    },
+    "category": {
+      "anatomy": "结构",
+      "artifacts": "瑕疵",
+      "camera": "镜头",
+      "custom": "自定义",
+      "lighting": "光线",
+      "quality": "质量",
+      "scene": "场景",
+      "style": "风格"
+    }
+  },
+  "LoraPromptControl": {
+    "label": "LoRA",
+    "trigger": "打开 LoRA 控制面板",
+    "triggerWithCount": "LoRA 控制面板，{count} 项已启用",
+    "title": "LoRA",
+    "description": "集中管理 LoRA、prompt、负面 prompt 和控制 tags。",
+    "openLibraryShort": "LoRA 库",
+    "tabs": {
+      "generate": "生成",
+      "tags": "标签"
+    },
+    "generate": {
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "描述主体、风格、构图或氛围…",
+      "negativeLabel": "负面 Prompt",
+      "negativePlaceholder": "输入不想出现的内容，例如 blurry, watermark…",
+      "loraStack": "LoRA 模型",
+      "emptyTitle": "还没有 LoRA",
+      "emptyDescription": "从 LoRA 库添加角色、风格或物体模型后，可在这里调整触发词和模型系数。",
+      "openLibrary": "打开 LoRA 库",
+      "clearAll": "清空 LoRA",
+      "scale": "模型系数",
+      "remove": "移除 LoRA",
+      "insertTrigger": "加入 Prompt",
+      "inPrompt": "已在 Prompt",
+      "useStarter": "使用推荐 Prompt",
+      "useSourceMatch": "贴近来源图",
+      "modelMatched": "已自动匹配：{model}",
+      "modelSwitching": "正在自动切换到：{model}",
+      "modelUnavailable": "建议使用 {model}，但当前没有可用路线",
+      "sourceMatch": {
+        "author": "使用作者来源 prompt，并补上防 3D 漂移设置。",
+        "mined": "使用社区来源图 prompt，并补上防 3D 漂移设置。",
+        "fallback": "使用通用来源接近 prompt，并补上防 3D 漂移设置。",
+        "loading": "正在查找来源 prompt…"
+      }
+    }
   },
   "StudioLoraChip": {
     "label": "LoRA",
@@ -1202,8 +1301,8 @@
     "myLorasFavoritesEmpty": "还没有收藏。打开 LoRA 库，给喜欢的 LoRA 点一颗心。",
     "myLorasTrainedSectionEmpty": "还没有自训 LoRA",
     "myLorasFavoritesSectionEmpty": "还没有收藏的 LoRA",
-    "mineSectionToggleLabel": "在「自训」与「收藏」之间切换",
-    "myLorasSubtitle": "自训和收藏的 LoRA 都在这里。点「使用」即可激活到 Studio。",
+    "mineSectionToggleLabel": "在「收藏」与「自训」之间切换",
+    "myLorasSubtitle": "自训和收藏的 LoRA 都在这里。添加到 prompt tags 后即可在 Studio 使用。",
     "myLorasEmptyTitle": "训练你的第一个 LoRA",
     "myLorasEmptyDescription": "LoRA 是你的私有风格 / 角色，训练一次，所有生成都能用。",
     "myLorasEmptyCtaTrain": "训练新 LoRA",
@@ -1219,6 +1318,7 @@
     "myLorasSortNameAsc": "按名称",
     "recentlyTrainedBadge": "刚训练好",
     "assetActionsLabel": "更多操作",
+    "assetActionOpenSource": "打开来源",
     "assetActionMakePublic": "设为公开",
     "assetActionDelete": "删除",
     "assetDeleteConfirmTitle": "删除这个 LoRA？",
@@ -1231,6 +1331,7 @@
     "communityTitle": "LoRA 库",
     "communityEmpty": "没有找到匹配的 LoRA。",
     "baseModelFilterLabel": "按基础模型过滤",
+    "baseModelFilterHint": "这里是筛选器，不是 prompt 标签。",
     "baseModelFilterAll": "全部",
     "searchHistoryTitle": "最近搜索",
     "searchHistoryClear": "清空",
@@ -1260,7 +1361,7 @@
     "tryPromptMinedHint": "从 Civitai 上 {sampled} 张社区生成图反推得到。",
     "tryPromptMinedLoading": "正在从社区生成中提取真实激活 prompt…",
     "communityTags": "标签",
-    "communityUseInStudio": "在 Studio 使用",
+    "communityUseInStudio": "添加 LoRA 标签",
     "communityOpenSource": "打开来源",
     "communityPrevious": "上一页",
     "communityNext": "下一页",
@@ -1272,10 +1373,11 @@
     "refresh": "刷新",
     "typeStyle": "风格",
     "typeSubject": "主体",
-    "use": "使用",
-    "alreadyInUse": "已激活",
-    "addedToStack": "已激活 {name}，正在打开 Studio",
+    "use": "用于 prompt",
+    "alreadyInUse": "已添加",
+    "addedToStack": "已将 {name} 添加为 LoRA 标签，正在打开 Studio",
     "copyCode": "复制风格码",
+    "assetSourceShort": "来源",
     "codeCopied": "风格码已复制",
     "codeCopyFailed": "复制失败",
     "public": "公开",

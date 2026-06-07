@@ -20,6 +20,7 @@ import {
   listCivitaiLoras,
   mineCivitaiUserPrompts,
   prewarmCivitaiLoraLibrary,
+  resolveCivitaiModelPageUrlByVersion,
 } from '@/services/civitai-lora.service'
 
 const mockFetch = vi.fn<typeof fetch>()
@@ -780,6 +781,51 @@ describe('listCivitaiLoras', () => {
     // schedule across multiple retry attempts.
     await vi.runAllTimersAsync()
     await promise
+  })
+})
+
+describe('resolveCivitaiModelPageUrlByVersion', () => {
+  it('resolves a concrete Civitai model page from a model version id', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2819970,
+        modelId: 2508748,
+        model: {
+          name: '鸣潮 (Wuthering Waves) || 娜波摩 (Nivora)',
+          type: 'LORA',
+        },
+      }),
+    )
+
+    const result = await resolveCivitaiModelPageUrlByVersion(2819970)
+
+    expect(result).toBe(
+      'https://civitai.com/models/2508748?modelVersionId=2819970',
+    )
+    expect(String(mockFetch.mock.calls[0]?.[0])).toBe(
+      'https://civitai.com/api/v1/model-versions/2819970',
+    )
+  })
+
+  it('falls back to nested model.id when modelId is omitted', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2819970,
+        model: { id: 2508748 },
+      }),
+    )
+
+    await expect(resolveCivitaiModelPageUrlByVersion(2819970)).resolves.toBe(
+      'https://civitai.com/models/2508748?modelVersionId=2819970',
+    )
+  })
+
+  it('returns null when Civitai omits the owning model id', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: 2819970, model: {} }))
+
+    await expect(resolveCivitaiModelPageUrlByVersion(2819970)).resolves.toBe(
+      null,
+    )
   })
 })
 

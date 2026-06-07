@@ -93,8 +93,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@locator/runtime": "^0.5.1",
-    "@locator/webpack-loader": "^0.5.1",
+    "@clerk/testing": "^2.0.35",
     "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",

@@ -36,19 +36,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: PROJECT_ROOT,
   turbopack: {
     root: PROJECT_ROOT,
-    // Inject `data-locator-*` source-location attributes into JSX so LocatorJS
-    // can map clicked DOM nodes back to file:line in the browser overlay.
-    // Wired up in `src/components/dev/LocatorSetup.tsx` (dev-only).
-    rules: {
-      '**/*.{tsx,jsx}': {
-        loaders: [
-          {
-            loader: '@locator/webpack-loader',
-            options: { env: 'development' },
-          },
-        ],
-      },
-    },
   },
   images: {
     // AI outputs are already served from R2/CDN/provider media hosts. Routing

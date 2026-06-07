@@ -1,4 +1,12 @@
+import { loadEnvConfig } from '@next/env'
 import { defineConfig, devices } from '@playwright/test'
+
+// Load .env.local exactly like Next.js does, so Clerk keys (clerkSetup) and the
+// E2E_CLERK_USER_* credentials (auth.setup.ts) are available to the test runner.
+loadEnvConfig(process.cwd())
+
+const SETUP_FILES = /.*\.setup\.ts/
+const STUDIO_VISUAL = /studio\.visual\.spec\.ts/
 
 export default defineConfig({
   testDir: './e2e',
@@ -16,13 +24,34 @@ export default defineConfig({
   },
 
   projects: [
+    // 1. Clerk testing token (bypass bot detection) — must run before sign-in.
+    { name: 'global setup', testMatch: /global\.setup\.ts/ },
+    // 2. Programmatic sign-in → saves storageState to e2e/.auth/user.json.
+    {
+      name: 'auth setup',
+      testMatch: /auth\.setup\.ts/,
+      dependencies: ['global setup'],
+    },
+    // Public (unauthenticated) tests — exclude setup files and auth-only specs.
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: [SETUP_FILES, STUDIO_VISUAL],
     },
     {
       name: 'mobile',
       use: { ...devices['iPhone 14'] },
+      testIgnore: [SETUP_FILES, STUDIO_VISUAL],
+    },
+    // Authenticated studio visual regression — reuses the saved session.
+    {
+      name: 'studio',
+      testMatch: STUDIO_VISUAL,
+      dependencies: ['auth setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/user.json',
+      },
     },
   ],
 

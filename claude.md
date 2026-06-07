@@ -162,6 +162,16 @@ npx skills add Leonxlnx/taste-skill
 5. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
 6. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
 
+**UI 确认阶梯**（每次优化/修改 UI 后**逐项**走一遍并在完成报告里逐条说明结果，不要只截图"看一眼"）：
+
+1. **机械检查** — `npm run lint && npm run build` 通过（绿才继续）。
+2. **视觉回归** — 跑 `npx playwright test e2e/visual.spec.ts`，截图 diff 必须为空；有意改动则更新基线 `--update-snapshots` 并在报告里点名改了哪些快照。截图不是替代品。
+3. **token / a11y / 响应式断言** — 改动涉及间距、颜色、断点、触达区、role 时，用 `toHaveCSS` / `toHaveClass` / `getByRole` 断言**具体值**（呼应 Hard Rule 5「No arbitrary values」与 44px 触达区）。
+4. **Figma 对比** — 有设计稿时用 `mcp__figma__get_design_context` / `get_screenshot` 拉源并与渲染结果并排核对，差异要么修要么记。
+5. **交互验证** — hover / focus / loading / 空态 / 报错态 / 键盘导航 用 `verify` skill 或 Chrome MCP 实跑一遍；静态截图看不出这些。
+
+机械步骤（1、2）可跑可断言；判断步骤（3-5）靠 agent 执行，**每一项都要在报告里给出结论**，跳过哪项要写明原因。
+
 ---
 
 # General Coding Guidelines

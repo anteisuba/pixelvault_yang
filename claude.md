@@ -80,7 +80,7 @@ UI 任务**必读** [`docs/ai/ui-design-system.md`](docs/ai/ui-design-system.md)
 - Service / Hook / Component 分别测：业务逻辑边界 / 状态变化与 API mock / 渲染与交互
 - Zod schema 用 `.safeParse()`（不要 `.parse()`），测有效/无效/边界
 
-E2E / 视觉回归 / API key 测试准备见 [`docs/development/testing.md`](docs/development/testing.md)。**视觉基线是 win32 平台绑定**（换 Mac/CI 会全红）、**studio 基线依赖测试用户状态**——细节与 mask 方案在该文档。测试用 key 必须是一次性/dev 实例,**严禁用生产 key**。
+E2E / 视觉回归 / API key 测试准备见 [`docs/development/testing.md`](docs/development/testing.md)。**视觉基线按 OS 分套**（`-win32`/`-darwin`/`-linux`，Playwright 自动选）——本项目 Mac + PC 双机开发,换到 Mac 要先 `--update-snapshots` 生成 darwin 那套;**studio 基线依赖测试用户状态**(含 mask 方案)。测试用 key 必须是一次性/dev 实例,**严禁用生产 key**。
 
 ## Change Safety — High-Risk Modules
 

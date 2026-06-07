@@ -25,23 +25,36 @@ Specs use `toHaveScreenshot`. They run against the dev server
   Then call out which snapshots changed in your PR / report.
 - **Studio (authenticated) only:** `npx playwright test --project=studio`
 
-### ⚠️ Caveat 1 — baselines are platform-bound (`-win32.png`)
+### ⚠️ Caveat 1 — baselines are per-OS (`-win32` / `-darwin` / `-linux`)
 
-Snapshots are generated on **Windows**. Font rendering differs on macOS / Linux,
-so the same baselines will **fail everywhere else**, including CI (ubuntu). Today
-this set is **local-Windows-only**.
+Screenshots render differently per operating system (fonts, anti-aliasing), so
+`toHaveScreenshot` namespaces baselines by platform: `studio-studio-win32.png`,
+`studio-studio-darwin.png`, etc. Playwright auto-selects the set matching the
+machine it runs on.
 
-To run visual regression in CI (or on a Mac), generate a matching baseline set in
-the Linux Playwright container and commit those alongside, e.g.:
+**This repo is developed on both PC (Windows) and Mac.** Commit a baseline set
+for **each OS you develop on**:
 
-```bash
-docker run --rm -v "${PWD}:/work" -w /work \
-  mcr.microsoft.com/playwright:v1.59.1-jammy \
-  npx playwright test e2e/visual.spec.ts --update-snapshots
-```
+- Currently committed: `-win32.png` (generated on Windows).
+- **Next time on the Mac**, generate the macOS set once and commit it:
+  `npx playwright test --update-snapshots` → produces `-darwin.png`.
 
-(Generates `*-linux.png` baselines. Requires the dev server reachable from the
-container, or a built app served inside it.)
+After that each machine uses its own baselines automatically — no Docker, no CI
+needed.
+
+> **Maintenance:** an intentional UI change only updates the baselines on the OS
+> you regenerate on; the other OS's set goes stale until you switch to that
+> machine and re-run `--update-snapshots`. (Solo + git keeps both in sync.)
+
+> **CI later (optional):** to run visual regression in CI (Linux), generate a
+> matching `-linux.png` set in the official Playwright container and commit it —
+> CI's Linux rendering won't match win32/darwin baselines:
+>
+> ```bash
+> docker run --rm -v "${PWD}:/work" -w /work \
+>   mcr.microsoft.com/playwright:v1.59.1-jammy \
+>   npx playwright test e2e/visual.spec.ts --update-snapshots
+> ```
 
 ### ⚠️ Caveat 2 — the studio baseline depends on the test user's state
 

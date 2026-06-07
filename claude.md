@@ -80,6 +80,8 @@ UI 任务**必读** [`docs/ai/ui-design-system.md`](docs/ai/ui-design-system.md)
 - Service / Hook / Component 分别测：业务逻辑边界 / 状态变化与 API mock / 渲染与交互
 - Zod schema 用 `.safeParse()`（不要 `.parse()`），测有效/无效/边界
 
+E2E / 视觉回归 / API key 测试准备见 [`docs/development/testing.md`](docs/development/testing.md)。**视觉基线是 win32 平台绑定**（换 Mac/CI 会全红）、**studio 基线依赖测试用户状态**——细节与 mask 方案在该文档。测试用 key 必须是一次性/dev 实例,**严禁用生产 key**。
+
 ## Change Safety — High-Risk Modules
 
 改这些前先 `grep -r "import.*from.*<模块>" src/` 确认影响范围；被引用 >5 处只做向后兼容修改：

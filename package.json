@@ -23,7 +23,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "analyze": "ANALYZE=true npm run build",
     "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "preflight": "npm run typecheck && npm run lint && npm run test:run"
   },
   "engines": {
     "node": "22.x",

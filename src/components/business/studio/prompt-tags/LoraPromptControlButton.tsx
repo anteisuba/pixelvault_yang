@@ -455,6 +455,11 @@ function LoraGenerateRow({
     [asset.triggerWord, prompt],
   )
 
+  // Mining may still resolve a reliable source prompt — keep the button in a
+  // loading state instead of "unavailable" until the fetch settles.
+  const sourceMatchLoading = minedPrompts.isLoading
+  const sourceMatchUnavailable = !sourceMatch.reliable && !sourceMatchLoading
+
   const handleInsertTrigger = useCallback(() => {
     const trimmed = asset.triggerWord.trim()
     if (!trimmed || triggerInPrompt) return
@@ -468,6 +473,10 @@ function LoraGenerateRow({
   }, [asset.recommendedPrompt, onPromptChange])
 
   const handleApplySourceMatch = useCallback(() => {
+    // Guard: never apply an unreliable (bare-trigger) result — it would just
+    // ship a generic image unrelated to the source. The button is disabled in
+    // this state, but guard here too so a stray call can't degrade the prompt.
+    if (!sourceMatch.reliable) return
     onPromptChange(sourceMatch.prompt)
     if (sourceMatch.negativePrompt) {
       onNegativePromptChange(
@@ -546,8 +555,14 @@ function LoraGenerateRow({
           variant="default"
           size="xs"
           onClick={handleApplySourceMatch}
-          disabled={disabled}
-          title={t(`sourceMatch.${sourceMatch.source}`)}
+          disabled={disabled || sourceMatchLoading || !sourceMatch.reliable}
+          title={
+            sourceMatchLoading
+              ? t('sourceMatch.loading')
+              : sourceMatch.reliable
+                ? t(`sourceMatch.${sourceMatch.source}`)
+                : t('sourceMatch.unavailable')
+          }
         >
           <SparklesIcon />
           {t('useSourceMatch')}
@@ -577,9 +592,14 @@ function LoraGenerateRow({
             {t('useStarter')}
           </Button>
         ) : null}
-        {minedPrompts.isLoading ? (
+        {sourceMatchLoading ? (
           <span className="inline-flex h-6 items-center rounded-md px-1.5 text-2xs font-medium text-muted-foreground">
             {t('sourceMatch.loading')}
+          </span>
+        ) : null}
+        {sourceMatchUnavailable ? (
+          <span className="inline-flex h-6 items-center rounded-md px-1.5 text-2xs font-medium text-amber-300/90">
+            {t('sourceMatch.unavailable')}
           </span>
         ) : null}
       </div>

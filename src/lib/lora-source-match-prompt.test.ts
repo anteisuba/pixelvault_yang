@@ -16,6 +16,7 @@ describe('buildSourceMatchedLoraPrompt', () => {
     })
 
     expect(out.source).toBe('author')
+    expect(out.reliable).toBe(true)
     expect(out.prompt).toContain('denia, turquoise eyes, long hair')
     expect(out.prompt).toContain('2d style')
     expect(out.prompt).toContain('anime illustration')
@@ -44,8 +45,48 @@ describe('buildSourceMatchedLoraPrompt', () => {
     )
 
     expect(out.source).toBe('mined')
+    expect(out.reliable).toBe(true)
     expect(out.prompt).toContain('character_token')
     expect(out.prompt).toContain('blue dress')
+  })
+
+  it('prefers a mined community prompt over a bare-trigger author prompt', () => {
+    const out = buildSourceMatchedLoraPrompt(
+      {
+        // Author trainedWords is just the trigger — too sparse to match a
+        // source image. The richer mined community prompt should win.
+        triggerWord: 'denia',
+        type: 'subject',
+        baseModelFamily: 'Illustrious',
+        recommendedPrompt: 'denia',
+        recommendedPromptAlternates: [],
+      },
+      [
+        {
+          label: 'community outfit',
+          prompt: 'school uniform, classroom, looking at viewer',
+          sampleCount: 9,
+        },
+      ],
+    )
+
+    expect(out.source).toBe('mined')
+    expect(out.reliable).toBe(true)
+    expect(out.prompt).toContain('denia')
+    expect(out.prompt).toContain('school uniform')
+  })
+
+  it('flags fallback unreliable when only a bare trigger is available', () => {
+    const out = buildSourceMatchedLoraPrompt({
+      triggerWord: 'denia',
+      type: 'subject',
+      baseModelFamily: 'Illustrious',
+      recommendedPrompt: 'denia',
+      recommendedPromptAlternates: [],
+    })
+
+    expect(out.source).toBe('fallback')
+    expect(out.reliable).toBe(false)
   })
 
   it('merges negative prompt recommendations without duplicates', () => {

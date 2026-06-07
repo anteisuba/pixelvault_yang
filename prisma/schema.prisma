@@ -867,6 +867,16 @@ model LoraAsset {
 
   defaultScale Float @default(1.0)
 
+  // Civitai-source provenance — populated only for source='imported' rows
+  // favorited from the Civitai browser. Persisting these lets "贴近来源图"
+  // reconstruct the author/mined source prompt after a reload or via a
+  // shared ?style= link, instead of silently degrading to a generic
+  // template. Null for trained/curated LoRAs.
+  civitaiModelId        Int?
+  civitaiModelVersionId Int?
+  civitaiFileHashAutoV3 String?
+  recommendedPrompt     String? @db.Text
+
   trainingJobId String?          @unique
   trainingJob   LoraTrainingJob? @relation(fields: [trainingJobId], references: [id], onDelete: SetNull)
 

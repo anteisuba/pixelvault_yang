@@ -1240,7 +1240,8 @@
         "author": "Use the author's source prompt, with anti-3D-drift settings added.",
         "mined": "Use a community source-image prompt, with anti-3D-drift settings added.",
         "fallback": "Use a generic source-matching prompt, with anti-3D-drift settings added.",
-        "loading": "Looking up source prompt…"
+        "loading": "Looking up source prompt…",
+        "unavailable": "No source prompt — the author and community didn't provide one for this LoRA"
       }
     }
   },

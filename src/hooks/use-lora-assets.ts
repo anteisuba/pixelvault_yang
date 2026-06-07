@@ -121,6 +121,13 @@ export function useLoraAssets(): UseLoraAssetsReturn {
         baseModelFamily: item.baseModelFamily,
         provider: item.provider,
         coverImageUrl: item.coverImageUrl,
+        // Carry Civitai provenance so "贴近来源图" still works after a reload —
+        // these are dropped on the wire today, leaving favorited LoRAs unable
+        // to reconstruct their source prompt.
+        recommendedPrompt: item.recommendedPrompt,
+        modelId: item.modelId,
+        modelVersionId: item.modelVersionId,
+        fileHashAutoV3: item.fileHashAutoV3,
       }
       const result = await favoriteLoraAPI(payload)
       if (!result.success || !result.data) {

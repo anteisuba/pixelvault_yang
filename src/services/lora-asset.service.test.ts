@@ -72,6 +72,10 @@ function buildRow(overrides: Partial<Record<string, unknown>> = {}) {
     defaultScale: 1.0,
     isPublic: false,
     createdAt: new Date('2026-01-01T00:00:00Z'),
+    civitaiModelId: null,
+    civitaiModelVersionId: null,
+    civitaiFileHashAutoV3: null,
+    recommendedPrompt: null,
     ...overrides,
   }
 }
@@ -502,6 +506,44 @@ describe('favoriteExternalLora', () => {
     })
     expect(result.id).toBe('fav_1')
     expect(result.isOwn).toBe(true)
+  })
+
+  it('persists Civitai provenance so source-match survives a reload', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue(
+      buildRow({
+        id: 'fav_2',
+        source: 'imported',
+        recommendedPrompt: 'phoebe_anima, red dress',
+        civitaiModelId: 12345,
+        civitaiModelVersionId: 67890,
+        civitaiFileHashAutoV3: 'abcdef123456',
+      }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, {
+      ...civitaiInput,
+      recommendedPrompt: 'phoebe_anima, red dress',
+      modelId: 12345,
+      modelVersionId: 67890,
+      fileHashAutoV3: 'abcdef123456',
+    })
+
+    const arg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect(arg.data).toMatchObject({
+      recommendedPrompt: 'phoebe_anima, red dress',
+      civitaiModelId: 12345,
+      civitaiModelVersionId: 67890,
+      civitaiFileHashAutoV3: 'abcdef123456',
+    })
+    expect(result.modelId).toBe(12345)
+    expect(result.modelVersionId).toBe(67890)
+    expect(result.fileHashAutoV3).toBe('abcdef123456')
+    expect(result.recommendedPrompt).toBe('phoebe_anima, red dress')
   })
 
   it('is idempotent — returns existing row without creating a duplicate', async () => {

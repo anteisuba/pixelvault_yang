@@ -3478,6 +3478,14 @@ export const FavoriteLoraRequestSchema = z.object({
   baseModelFamily: LoraAssetBaseFamilySchema,
   provider: z.string().trim().min(1).max(40),
   coverImageUrl: z.string().url().nullable().optional(),
+  // Civitai-source provenance — carried over from the live listing so the
+  // favorited row can power "贴近来源图" (mined community prompt) + author
+  // starter prompt after a reload. Optional so trained/own favorites still
+  // validate; see `LoraAssetRecord` for the matching read-side fields.
+  recommendedPrompt: z.string().nullable().optional(),
+  modelId: z.number().int().positive().optional(),
+  modelVersionId: z.number().int().positive().optional(),
+  fileHashAutoV3: z.string().nullable().optional(),
 })
 export type FavoriteLoraRequest = z.infer<typeof FavoriteLoraRequestSchema>
 

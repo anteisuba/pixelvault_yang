@@ -1240,7 +1240,8 @@
         "author": "使用作者来源 prompt，并补上防 3D 漂移设置。",
         "mined": "使用社区来源图 prompt，并补上防 3D 漂移设置。",
         "fallback": "使用通用来源接近 prompt，并补上防 3D 漂移设置。",
-        "loading": "正在查找来源 prompt…"
+        "loading": "正在查找来源 prompt…",
+        "unavailable": "没有来源 prompt —— 这个 LoRA 的作者和社区都没有提供"
       }
     }
   },

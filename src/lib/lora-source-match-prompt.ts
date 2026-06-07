@@ -33,7 +33,25 @@ export interface SourceMatchedLoraPrompt {
   negativePrompt: string
   scale: number
   source: SourceMatchedPromptSource
+  /**
+   * False when no real source data was available and `prompt` is just the
+   * trigger word wrapped in a generic scaffold. Callers should NOT silently
+   * apply an unreliable result — a bare trigger produces output unrelated to
+   * the LoRA's source image. The button should degrade to a disabled/hint
+   * state instead. True only when an author or mined community prompt with
+   * actual descriptive tokens backed the result.
+   */
+  reliable: boolean
 }
+
+/**
+ * Minimum descriptive (non-trigger) tokens a prompt needs before it can
+ * resemble a specific source image. A bare trigger word ("denia") carries
+ * zero composition/outfit signal — the LoRA fires but pose, outfit, scene,
+ * and framing are all random, which is exactly the "no relation to the
+ * source" failure. Two descriptive tokens is the floor for "reliable".
+ */
+const SOURCE_MATCH_MIN_DESCRIPTIVE_TOKENS = 2
 
 export function buildSourceMatchedLoraPrompt(
   asset: Pick<
@@ -46,26 +64,46 @@ export function buildSourceMatchedLoraPrompt(
   >,
   minedOutfits: readonly CivitaiMinedPromptsResult['outfits'][number][] = [],
 ): SourceMatchedLoraPrompt {
-  const authorPrompt = asset.recommendedPrompt?.trim()
-  const authorAlternate = asset.recommendedPromptAlternates?.find((variant) =>
-    variant.prompt.trim(),
-  )?.prompt
-  const minedPrompt = minedOutfits.find((variant) =>
-    variant.prompt.trim(),
-  )?.prompt
+  const authorCandidate =
+    asset.recommendedPrompt?.trim() ||
+    asset.recommendedPromptAlternates
+      ?.find((variant) => variant.prompt.trim())
+      ?.prompt?.trim() ||
+    null
+  const minedPrompt =
+    minedOutfits.find((variant) => variant.prompt.trim())?.prompt?.trim() ??
+    null
 
-  const source: SourceMatchedPromptSource = authorPrompt
-    ? 'author'
-    : authorAlternate
-      ? 'author'
-      : minedPrompt
-        ? 'mined'
-        : 'fallback'
-  const basePrompt =
-    authorPrompt ??
-    authorAlternate?.trim() ??
-    minedPrompt?.trim() ??
-    buildLoraPromptTemplate(asset)
+  // An author prompt is only trustworthy when it carries real descriptive
+  // tokens. Civitai character LoRAs routinely ship `trainedWords = [trigger]`,
+  // so author-first would lock us into a generic result. Prefer a real mined
+  // community prompt over a bare-trigger author prompt.
+  const authorIsRich =
+    !!authorCandidate &&
+    countDescriptiveTokens(authorCandidate, asset.triggerWord) >=
+      SOURCE_MATCH_MIN_DESCRIPTIVE_TOKENS
+
+  let basePrompt: string
+  let source: SourceMatchedPromptSource
+  let reliable: boolean
+
+  if (authorIsRich && authorCandidate) {
+    basePrompt = authorCandidate
+    source = 'author'
+    reliable = true
+  } else if (minedPrompt) {
+    basePrompt = minedPrompt
+    source = 'mined'
+    reliable = true
+  } else {
+    // Only a bare-trigger author prompt (or nothing) — too sparse to match the
+    // source. Build something usable but flag it unreliable so the UI can stop
+    // instead of silently shipping a generic image.
+    basePrompt = authorCandidate ?? buildLoraPromptTemplate(asset)
+    source = 'fallback'
+    reliable = false
+  }
+
   const promptWithTrigger = ensureTrigger(basePrompt, asset.triggerWord)
   const prompt = isAnimeLikeLora(asset.baseModelFamily)
     ? appendMissingTags(promptWithTrigger, ANIME_SOURCE_MATCH_TAGS)
@@ -78,7 +116,20 @@ export function buildSourceMatchedLoraPrompt(
       : '',
     scale: LORA_SOURCE_MATCH_SCALE,
     source,
+    reliable,
   }
+}
+
+/**
+ * Count comma-separated tokens in `prompt` that aren't the trigger word
+ * itself. Used to decide whether an author prompt is rich enough to resemble
+ * a source image or is effectively just the trigger.
+ */
+function countDescriptiveTokens(prompt: string, triggerWord: string): number {
+  const trigger = normalizeTag(triggerWord)
+  return splitTags(prompt)
+    .map(normalizeTag)
+    .filter((token) => token && token !== trigger).length
 }
 
 export function mergeNegativePrompt(

@@ -29,6 +29,10 @@ interface LoraAssetRow {
   defaultScale: number
   isPublic: boolean
   createdAt: Date
+  civitaiModelId: number | null
+  civitaiModelVersionId: number | null
+  civitaiFileHashAutoV3: string | null
+  recommendedPrompt: string | null
 }
 
 function toRecord(
@@ -54,6 +58,10 @@ function toRecord(
     isPublic: row.isPublic,
     isOwn: viewerUserId !== null && row.userId === viewerUserId,
     createdAt: row.createdAt.toISOString(),
+    recommendedPrompt: row.recommendedPrompt,
+    modelId: row.civitaiModelId ?? undefined,
+    modelVersionId: row.civitaiModelVersionId ?? undefined,
+    fileHashAutoV3: row.civitaiFileHashAutoV3,
   }
 }
 
@@ -282,6 +290,10 @@ export async function favoriteExternalLora(
     baseModelFamily: string
     provider: string
     coverImageUrl?: string | null
+    recommendedPrompt?: string | null
+    modelId?: number
+    modelVersionId?: number
+    fileHashAutoV3?: string | null
   },
 ): Promise<LoraAssetRecord> {
   const user = await ensureUser(clerkId)
@@ -306,6 +318,10 @@ export async function favoriteExternalLora(
       coverImageUrl: input.coverImageUrl ?? null,
       defaultScale: 1.0,
       isPublic: false,
+      recommendedPrompt: input.recommendedPrompt ?? null,
+      civitaiModelId: input.modelId ?? null,
+      civitaiModelVersionId: input.modelVersionId ?? null,
+      civitaiFileHashAutoV3: input.fileHashAutoV3 ?? null,
     },
   })
 

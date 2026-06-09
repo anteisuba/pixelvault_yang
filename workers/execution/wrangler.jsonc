@@ -14,6 +14,10 @@
     {
       "binding": "GENERATION_BUCKET",
       "bucket_name": "personal-ai-gallery",
+      // Local wrangler dev must write to real R2 so CDN URLs saved by Next.js
+      // resolve to objects that actually exist. Use `wrangler dev --local`
+      // temporarily if a fully local R2 simulation is needed.
+      "remote": true,
     },
   ],
   "workflows": [

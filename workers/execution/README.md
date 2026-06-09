@@ -32,19 +32,36 @@ the provider, and posts a signed result callback to
 
    ```env
    INTERNAL_CALLBACK_SECRET=replace-with-local-development-secret
+   INTERNAL_CALLBACK_URL=http://localhost:3000/api/internal/execution/callback
    ```
 
-3. Keep `workers/execution/wrangler.jsonc` pointed at the local callback URL:
+3. The committed `workers/execution/wrangler.jsonc` keeps production callback
+   and CDN defaults for deploy. Local development should override the callback
+   URL through `.dev.vars`:
 
    ```jsonc
    {
      "vars": {
-       "INTERNAL_CALLBACK_URL": "http://localhost:3000/api/internal/execution/callback",
+       "INTERNAL_CALLBACK_URL": "https://www.anteisuba.com/api/internal/execution/callback",
+       "R2_PUBLIC_URL": "https://cdn.anteisuba.com",
      },
+     "r2_buckets": [
+       {
+         "binding": "GENERATION_BUCKET",
+         "bucket_name": "personal-ai-gallery",
+         "remote": true,
+       },
+     ],
    }
    ```
 
-4. Start the Worker:
+4. The `GENERATION_BUCKET` R2 binding uses `remote: true` for local
+   development. This keeps generated CDN URLs valid because artifacts are
+   written to the real R2 bucket instead of Wrangler's local R2 simulation. Use
+   `wrangler dev --local` only when you intentionally want local-only objects
+   that will not be visible through the CDN.
+
+5. Start the Worker:
 
    ```bash
    cd workers/execution
@@ -52,13 +69,13 @@ the provider, and posts a signed result callback to
    npm run dev
    ```
 
-5. Check Worker health:
+6. Check Worker health:
 
    ```bash
    curl http://127.0.0.1:8787/health
    ```
 
-6. Check the echo callback pipe:
+7. Check the echo callback pipe:
 
    ```bash
    curl -X POST http://127.0.0.1:8787/echo \

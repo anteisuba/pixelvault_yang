@@ -13,6 +13,7 @@ const SOURCE_RANK: Record<PromptTagDefinition['source'], number> = {
   recent: 70,
   mined_prompt: 60,
   civitai: 50,
+  model_keyword: 48,
   danbooru: 45,
   user: 40,
 }

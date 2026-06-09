@@ -17,6 +17,15 @@ export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
 export const CIVITAI_LORA_PAGE_SIZE = 10
 
+export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =
+  'https://raw.githubusercontent.com/mix1009/model-keyword/main/lora-keyword.txt'
+
+export const MODEL_KEYWORD_LORA_QUERY_MIN_LENGTH = 2
+
+export const MODEL_KEYWORD_LORA_RESULT_LIMIT = 12
+
+export const MODEL_KEYWORD_LORA_FETCH_TIMEOUT_MS = 8000
+
 // Base model options exposed in the LoRA training form. `available: false`
 // shows the option as "Coming Soon" so users see the roadmap but can't
 // submit a job we don't have a trainer for. Add a Replicate/fal trainer

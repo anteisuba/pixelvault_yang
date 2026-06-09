@@ -187,6 +187,8 @@ export const API_ENDPOINTS = {
 
   /** Public inspiration prompts (curated library) */
   INSPIRATION: '/api/inspiration',
+  /** Public prompt-tag search over model-keyword LoRA trigger words */
+  PROMPT_TAGS_MODEL_KEYWORD: '/api/prompt-tags/model-keyword',
 
   /** Voice Cards */
   VOICE_CARDS: '/api/voice-cards',

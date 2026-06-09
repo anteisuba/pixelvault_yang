@@ -22,6 +22,7 @@ export const PROMPT_TAG_SOURCE_VALUES = [
   'danbooru',
   'lora_asset',
   'civitai',
+  'model_keyword',
   'mined_prompt',
   'recent',
   'user',

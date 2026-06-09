@@ -62,6 +62,8 @@ import type { AdvancedParams, LoraAssetRecord } from '@/types'
 
 import { TagLibrary } from './TagLibrary'
 
+type LoraPromptControlTab = 'generate' | 'tags'
+
 interface LoraPromptControlButtonProps {
   disabled?: boolean
 }
@@ -71,6 +73,7 @@ export function LoraPromptControlButton({
 }: LoraPromptControlButtonProps) {
   const t = useTranslations('LoraPromptControl')
   const [open, setOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<LoraPromptControlTab>('generate')
   const isMobile = useIsMobile()
   const promptTags = usePromptTagStack()
   const loraStack = useActiveLoraStack()
@@ -81,6 +84,13 @@ export function LoraPromptControlButton({
   const count =
     promptTags.selectedCount + loraStack.items.length + negativeActive
   const active = open || count > 0
+
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      setActiveTab('generate')
+    }
+  }, [])
 
   const trigger = (
     <Toolbar.Button
@@ -104,14 +114,16 @@ export function LoraPromptControlButton({
 
   const panel = (
     <LoraPromptControlPanel
+      activeTab={activeTab}
       disabled={disabled}
+      onActiveTabChange={setActiveTab}
       onClose={() => setOpen(false)}
     />
   )
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
+      <Drawer open={open} onOpenChange={handleOpenChange}>
         <DrawerTrigger asChild>{trigger}</DrawerTrigger>
         <DrawerContent className="max-h-[88vh] overflow-hidden">
           <DrawerTitle className="sr-only">{t('title')}</DrawerTitle>
@@ -125,7 +137,7 @@ export function LoraPromptControlButton({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <StudioToolPopoverContent
         side="top"
@@ -140,18 +152,31 @@ export function LoraPromptControlButton({
 }
 
 interface LoraPromptControlPanelProps {
+  activeTab: LoraPromptControlTab
   disabled?: boolean
+  onActiveTabChange: (next: LoraPromptControlTab) => void
   onClose?: () => void
 }
 
 function LoraPromptControlPanel({
+  activeTab,
   disabled,
+  onActiveTabChange,
   onClose,
 }: LoraPromptControlPanelProps) {
   const t = useTranslations('LoraPromptControl')
 
+  const handleTabChange = useCallback(
+    (value: string) => {
+      if (value === 'generate' || value === 'tags') {
+        onActiveTabChange(value)
+      }
+    },
+    [onActiveTabChange],
+  )
+
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-border/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -160,7 +185,7 @@ function LoraPromptControlPanel({
             </p>
           </div>
           <Link
-            href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+            href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
             className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-xs font-semibold text-foreground hover:bg-muted"
             onClick={onClose}
           >
@@ -170,7 +195,11 @@ function LoraPromptControlPanel({
         </div>
       </div>
 
-      <Tabs defaultValue="generate" className="min-h-0 flex-1 gap-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="min-h-0 flex-1 gap-0"
+      >
         <div className="border-b border-border/60 px-3 py-2">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="generate">
@@ -284,32 +313,6 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('promptLabel')}
-        </label>
-        <Textarea
-          value={state.prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          placeholder={t('promptPlaceholder')}
-          disabled={disabled}
-          className="min-h-24 resize-none text-sm"
-        />
-      </section>
-
-      <section className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('negativeLabel')}
-        </label>
-        <Textarea
-          value={state.advancedParams.negativePrompt ?? ''}
-          onChange={(event) => setNegativePrompt(event.target.value)}
-          placeholder={t('negativePlaceholder')}
-          disabled={disabled}
-          className="min-h-20 resize-none text-sm"
-        />
-      </section>
-
-      <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('loraStack')}
@@ -353,15 +356,26 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
             <p className="mt-1 text-xs text-muted-foreground">
               {t('emptyDescription')}
             </p>
-            <Button asChild variant="outline" size="sm" className="mt-3">
-              <Link
-                href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
-                onClick={onClose}
-              >
-                <ExternalLink className="size-4" aria-hidden />
-                {t('openLibrary')}
-              </Link>
-            </Button>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Button asChild variant="default" size="sm">
+                <Link
+                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
+                  onClick={onClose}
+                >
+                  <Diamond className="size-4" aria-hidden />
+                  {t('openMine')}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+                  onClick={onClose}
+                >
+                  <ExternalLink className="size-4" aria-hidden />
+                  {t('openLibrary')}
+                </Link>
+              </Button>
+            </div>
           </div>
         )}
 
@@ -379,6 +393,40 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
           </Button>
         ) : null}
       </section>
+
+      <details className="group rounded-lg border border-border/70 bg-background/40">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          {t('advancedPrompt')}
+          <SlidersHorizontal className="size-3.5 transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="space-y-3 border-t border-border/60 p-3">
+          <section className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('promptLabel')}
+            </label>
+            <Textarea
+              value={state.prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder={t('promptPlaceholder')}
+              disabled={disabled}
+              className="min-h-24 resize-none text-sm"
+            />
+          </section>
+
+          <section className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('negativeLabel')}
+            </label>
+            <Textarea
+              value={state.advancedParams.negativePrompt ?? ''}
+              onChange={(event) => setNegativePrompt(event.target.value)}
+              placeholder={t('negativePlaceholder')}
+              disabled={disabled}
+              className="min-h-20 resize-none text-sm"
+            />
+          </section>
+        </div>
+      </details>
     </div>
   )
 }
@@ -525,30 +573,6 @@ function LoraGenerateRow({
         </Button>
       </div>
 
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="font-medium text-muted-foreground">
-            {t('scale')}
-          </span>
-          <span className="font-mono text-muted-foreground">
-            {scale.toFixed(2)}
-          </span>
-        </div>
-        <Slider
-          value={[scale]}
-          min={0}
-          max={1.5}
-          step={0.05}
-          disabled={disabled}
-          onValueChange={(value) => {
-            const next = value[0]
-            if (typeof next === 'number') {
-              onSetScale(asset.id, Number(next.toFixed(2)))
-            }
-          }}
-        />
-      </div>
-
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Button
           type="button"
@@ -603,6 +627,36 @@ function LoraGenerateRow({
           </span>
         ) : null}
       </div>
+
+      <details className="group mt-3 rounded-md border border-border/60 bg-muted/20">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+          {t('advancedControls')}
+          <SlidersHorizontal className="size-3.5 transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="space-y-2 border-t border-border/60 px-2.5 py-2.5">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="font-medium text-muted-foreground">
+              {t('scale')}
+            </span>
+            <span className="font-mono text-muted-foreground">
+              {scale.toFixed(2)}
+            </span>
+          </div>
+          <Slider
+            value={[scale]}
+            min={0}
+            max={1.5}
+            step={0.05}
+            disabled={disabled}
+            onValueChange={(value) => {
+              const next = value[0]
+              if (typeof next === 'number') {
+                onSetScale(asset.id, Number(next.toFixed(2)))
+              }
+            }}
+          />
+        </div>
+      </details>
     </article>
   )
 }

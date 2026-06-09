@@ -1,7 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowUpRight, Check, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Check,
+  Loader2,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -11,6 +19,8 @@ import {
 import { PROMPT_TAG_DEFINITIONS } from '@/constants/prompt-tags'
 import { ROUTES } from '@/constants/routes'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { useModelKeywordLoraTags } from '@/hooks/prompts/use-model-keyword-lora-tags'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { Link } from '@/i18n/navigation'
 import {
@@ -20,7 +30,9 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { LoraAssetRecord } from '@/types'
 import type { PromptPolarity, PromptTagSearchResult } from '@/types/prompt-tags'
+import type { PromptTagDefinition } from '@/types/prompt-tags'
 
 import { TagSourceBadge } from './TagSourceBadge'
 
@@ -29,6 +41,8 @@ interface TagLibraryProps {
   className?: string
 }
 
+type PromptTagsTranslator = ReturnType<typeof useTranslations>
+
 export function TagLibrary({ onClose, className }: TagLibraryProps) {
   const t = useTranslations('PromptTags')
   const [query, setQuery] = useState('')
@@ -36,15 +50,30 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
   const promptTags = usePromptTagStack()
   const loraStack = useActiveLoraStack()
   const trimmedQuery = query.trim()
+  const modelKeywordTags = useModelKeywordLoraTags(trimmedQuery)
+  const activeLoraTags = useMemo(
+    () =>
+      loraStack.items.flatMap((entry) => buildLoraSourceTags(entry.asset, t)),
+    [loraStack.items, t],
+  )
+  const searchableDefinitions = useMemo(
+    () => [
+      ...PROMPT_TAG_DEFINITIONS,
+      ...activeLoraTags,
+      ...modelKeywordTags.tags,
+    ],
+    [activeLoraTags, modelKeywordTags.tags],
+  )
 
   const results = useMemo(
     () =>
       searchPromptTags({
         query,
         polarity,
+        definitions: searchableDefinitions,
         selectedTagIds: promptTags.selectedTagIds,
       }),
-    [polarity, promptTags.selectedTagIds, query],
+    [polarity, promptTags.selectedTagIds, query, searchableDefinitions],
   )
   const categories = useMemo(
     () => getPromptTagCategories(PROMPT_TAG_DEFINITIONS, polarity),
@@ -54,7 +83,7 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
     () =>
       PROMPT_TAG_DEFINITIONS.filter(
         (tag) => tag.source === 'system' && tag.polarity === polarity,
-      ).slice(0, 8),
+      ).slice(0, 10),
     [polarity],
   )
 
@@ -86,11 +115,15 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
+              event.stopPropagation()
               if (event.key === 'Enter' && results.length === 0) {
                 event.preventDefault()
                 addCustomTag()
               }
             }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onFocus={(event) => event.stopPropagation()}
             placeholder={t('library.searchPlaceholder')}
             className="pl-8"
           />
@@ -120,6 +153,8 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
             results={results}
             query={trimmedQuery}
             polarity={polarity}
+            isModelKeywordLoading={modelKeywordTags.isLoading}
+            modelKeywordError={modelKeywordTags.error}
             onAddCustom={addCustomTag}
           />
         ) : (
@@ -130,9 +165,9 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
                   {t('library.recommended')}
                 </h3>
               </div>
-              <div className="grid gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {landingTags.map((tag) => (
-                  <TagResultRow
+                  <TagQuickChip
                     key={tag.id}
                     result={{
                       tag,
@@ -149,27 +184,17 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
                 {t('library.loraTags')}
               </h3>
               {loraStack.items.length > 0 ? (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {loraStack.items.map((entry) => (
-                    <div
+                    <LoraSourceTagGroup
                       key={entry.asset.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs text-violet-900"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          {entry.asset.name}
-                        </p>
-                        <p className="truncate font-mono text-2xs text-violet-700">
-                          {entry.asset.triggerWord}
-                        </p>
-                      </div>
-                      <Check className="size-4 shrink-0" aria-hidden />
-                    </div>
+                      asset={entry.asset}
+                    />
                   ))}
                 </div>
               ) : (
                 <Link
-                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
                   className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
                   onClick={onClose}
                 >
@@ -218,7 +243,7 @@ export function TagLibrary({ onClose, className }: TagLibraryProps) {
           {t('library.clearAll')}
         </Button>
         <Link
-          href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+          href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
           className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-foreground hover:bg-muted"
           onClick={onClose}
         >
@@ -235,6 +260,8 @@ interface SearchResultsProps {
   query: string
   polarity: PromptPolarity
   onAddCustom: () => void
+  isModelKeywordLoading: boolean
+  modelKeywordError: string | null
 }
 
 function SearchResults({
@@ -242,8 +269,24 @@ function SearchResults({
   query,
   polarity,
   onAddCustom,
+  isModelKeywordLoading,
+  modelKeywordError,
 }: SearchResultsProps) {
   const t = useTranslations('PromptTags')
+
+  if (results.length === 0 && isModelKeywordLoading) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-4 text-center">
+        <Loader2
+          className="mx-auto size-5 animate-spin text-muted-foreground"
+          aria-hidden
+        />
+        <p className="mt-2 text-sm font-medium">
+          {t('library.modelKeywordLoading')}
+        </p>
+      </div>
+    )
+  }
 
   if (results.length === 0) {
     return (
@@ -274,7 +317,224 @@ function SearchResults({
       {results.map((result) => (
         <TagResultRow key={result.tag.id} result={result} />
       ))}
+      {isModelKeywordLoading ? (
+        <div className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          {t('library.modelKeywordLoading')}
+        </div>
+      ) : null}
+      {modelKeywordError ? (
+        <p className="px-1 text-xs text-muted-foreground">
+          {t('library.modelKeywordError')}
+        </p>
+      ) : null}
     </div>
+  )
+}
+
+function tagSlug(value: string): string {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  return slug.replace(/^-+|-+$/g, '') || 'tag'
+}
+
+function buildLoraPromptTag({
+  asset,
+  idSuffix,
+  label,
+  promptText,
+  source,
+  orderGroup,
+  confidence,
+}: {
+  asset: LoraAssetRecord
+  idSuffix: string
+  label: string
+  promptText: string
+  source: PromptTagDefinition['source']
+  orderGroup: number
+  confidence: PromptTagDefinition['confidence']
+}): PromptTagDefinition {
+  return {
+    id: `lora-source:${asset.id}:${idSuffix}`,
+    type:
+      source === 'mined_prompt' || source === 'civitai'
+        ? 'prompt_preset'
+        : 'lora_trigger',
+    source,
+    label,
+    promptText,
+    aliases: [
+      asset.name,
+      asset.triggerWord,
+      asset.baseModelFamily,
+      asset.provider,
+    ].filter((value): value is string => Boolean(value)),
+    category: 'lora',
+    polarity: 'positive',
+    modelFamilies: ['any'],
+    orderGroup,
+    confidence,
+    loraAssetId: asset.id,
+    loraStyleCode: asset.styleCode,
+    loraUrl: asset.loraUrl,
+    loraDefaultScale: asset.defaultScale,
+  }
+}
+
+function buildLoraSourceTags(
+  asset: LoraAssetRecord,
+  t: PromptTagsTranslator,
+): PromptTagDefinition[] {
+  const tags: PromptTagDefinition[] = []
+  const trigger = asset.triggerWord.trim()
+  if (trigger) {
+    tags.push(
+      buildLoraPromptTag({
+        asset,
+        idSuffix: 'trigger',
+        label: t('library.loraSourceTrigger', { name: asset.name }),
+        promptText: trigger,
+        source: 'lora_asset',
+        orderGroup: 20,
+        confidence: 'official',
+      }),
+    )
+  }
+
+  const authorPrompt = asset.recommendedPrompt?.trim()
+  if (authorPrompt) {
+    tags.push(
+      buildLoraPromptTag({
+        asset,
+        idSuffix: 'author',
+        label: t('library.loraSourceAuthorPrompt', { name: asset.name }),
+        promptText: authorPrompt,
+        source: 'civitai',
+        orderGroup: 21,
+        confidence: 'official',
+      }),
+    )
+  }
+
+  for (const [index, variant] of (
+    asset.recommendedPromptAlternates ?? []
+  ).entries()) {
+    const prompt = variant.prompt.trim()
+    if (!prompt) continue
+    tags.push(
+      buildLoraPromptTag({
+        asset,
+        idSuffix: `author-alt-${index}`,
+        label: t('library.loraSourceAlternatePrompt', {
+          name: asset.name,
+          index: index + 2,
+        }),
+        promptText: prompt,
+        source: 'civitai',
+        orderGroup: 22 + index,
+        confidence: 'official',
+      }),
+    )
+  }
+
+  return tags
+}
+
+function LoraSourceTagGroup({ asset }: { asset: LoraAssetRecord }) {
+  const t = useTranslations('PromptTags')
+  const promptTags = usePromptTagStack()
+  const minedPrompts = useCivitaiMinedPrompts(asset)
+  const sourceTags = useMemo(() => {
+    const baseTags = buildLoraSourceTags(asset, t)
+    const minedTags = minedPrompts.outfits.map((outfit, index) =>
+      buildLoraPromptTag({
+        asset,
+        idSuffix: `mined-${index}-${tagSlug(outfit.prompt)}`,
+        label: t('library.loraSourceMinedPrompt', {
+          name: asset.name,
+          index: index + 1,
+        }),
+        promptText: outfit.prompt,
+        source: 'mined_prompt',
+        orderGroup: 30 + index,
+        confidence: 'mined',
+      }),
+    )
+    return [...baseTags, ...minedTags]
+  }, [asset, minedPrompts.outfits, t])
+
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/40 p-2.5">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">
+            {asset.name}
+          </p>
+          <p className="mt-0.5 truncate font-mono text-2xs text-muted-foreground">
+            {asset.triggerWord}
+          </p>
+        </div>
+        <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />
+      </div>
+      {sourceTags.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {sourceTags.map((tag) => (
+            <TagQuickChip
+              key={tag.id}
+              result={{
+                tag,
+                score: 1,
+                isSelected: promptTags.selectedTagIds.has(tag.id),
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
+      {minedPrompts.isLoading ? (
+        <div className="mt-2 inline-flex h-6 items-center gap-1.5 rounded-md text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          {t('library.civitaiMinedLoading')}
+        </div>
+      ) : null}
+      {minedPrompts.hasFetched &&
+      minedPrompts.outfits.length === 0 &&
+      asset.fileHashAutoV3 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('library.civitaiMinedEmpty')}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function TagQuickChip({ result }: { result: PromptTagSearchResult }) {
+  const t = useTranslations('PromptTags')
+  const { addTag } = usePromptTagStack()
+  const tag = result.tag
+
+  return (
+    <button
+      type="button"
+      disabled={result.isSelected}
+      onClick={() => addTag(tag)}
+      title={tag.promptText}
+      className={cn(
+        'inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+        result.isSelected
+          ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+          : 'border-border/70 bg-background/40 text-foreground hover:bg-muted',
+      )}
+    >
+      {result.isSelected ? (
+        <Check className="size-3.5 shrink-0" aria-hidden />
+      ) : (
+        <Plus className="size-3.5 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{tag.label}</span>
+      <span className="sr-only">
+        {result.isSelected ? t('library.added') : t('library.add')}
+      </span>
+    </button>
   )
 }
 

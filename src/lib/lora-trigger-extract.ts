@@ -39,7 +39,7 @@ export interface CivitaiTriggerExtraction {
    */
   alternates: string[]
   /**
-   * 作者推荐的完整 prompt 起始段。优先级：
+   * 作者填写/描述解析出的完整 prompt 起始段。优先级：
    *   1. trainedWords[0] 清洗后
    *   2. description 中第一个 `<pre><code>` 块
    *   3. null（fallback 到内部模板）
@@ -52,8 +52,9 @@ export interface CivitaiTriggerExtraction {
    */
   recommendedPromptAlternates: RecommendedPromptVariant[]
   /**
-   * 'official' = trigger / recommendedPrompt 来自 Civitai 作者明确声明的
-   * trainedWords 或 description code block。
+   * 'official' = trigger / recommendedPrompt 来自 Civitai 作者填写的
+   * trainedWords 或 description code block。这里的 official 只表示字段来源，
+   * 不表示它是能还原来源图的官方推荐 prompt。
    * 'inferred' = 从 model name 推断，UI 应加 badge 警示。
    */
   source: TriggerSource
@@ -199,8 +200,8 @@ export function extractCivitaiTrigger({
       alternates: [],
       recommendedPrompt: descBlocks[0]?.prompt ?? null,
       recommendedPromptAlternates: descBlocks.slice(1),
-      // 来自作者写的 description，仍算 official — 用户复制 prompt 整段
-      // 100% 能激活 LoRA。trigger 短词本身只是辅助显示。
+      // 来自作者写的 description，仍算 official 字段来源。它能帮助激活
+      // LoRA，但不等同于 Civitai 来源图 meta prompt。
       source: 'official',
     }
   }

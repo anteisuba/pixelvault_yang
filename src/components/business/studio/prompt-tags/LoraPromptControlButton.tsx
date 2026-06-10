@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from 'react'
 import {
   ArrowUpRight,
   Check,
@@ -66,6 +73,10 @@ type LoraPromptControlTab = 'generate' | 'tags'
 
 interface LoraPromptControlButtonProps {
   disabled?: boolean
+}
+
+function stopStudioInputEvent(event: SyntheticEvent) {
+  event.stopPropagation()
 }
 
 export function LoraPromptControlButton({
@@ -407,6 +418,10 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
             <Textarea
               value={state.prompt}
               onChange={(event) => setPrompt(event.target.value)}
+              onKeyDown={stopStudioInputEvent}
+              onPointerDown={stopStudioInputEvent}
+              onClick={stopStudioInputEvent}
+              onFocus={stopStudioInputEvent}
               placeholder={t('promptPlaceholder')}
               disabled={disabled}
               className="min-h-24 resize-none text-sm"
@@ -420,6 +435,10 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
             <Textarea
               value={state.advancedParams.negativePrompt ?? ''}
               onChange={(event) => setNegativePrompt(event.target.value)}
+              onKeyDown={stopStudioInputEvent}
+              onPointerDown={stopStudioInputEvent}
+              onClick={stopStudioInputEvent}
+              onFocus={stopStudioInputEvent}
               placeholder={t('negativePlaceholder')}
               disabled={disabled}
               className="min-h-20 resize-none text-sm"

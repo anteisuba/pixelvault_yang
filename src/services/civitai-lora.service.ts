@@ -15,6 +15,7 @@ import {
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -49,10 +50,30 @@ const CivitaiFileSchema = z
   })
   .passthrough()
 
+const CivitaiImageResourceSchema = z
+  .object({
+    hash: z.string().optional(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    weight: z.number().optional(),
+  })
+  .passthrough()
+
+const CivitaiImageMetaSchema = z
+  .object({
+    prompt: z.string().optional(),
+    negativePrompt: z.string().optional(),
+    resources: z.array(CivitaiImageResourceSchema).optional(),
+  })
+  .passthrough()
+
 const CivitaiImageSchema = z
   .object({
     url: z.string().url(),
     nsfwLevel: z.number().optional(),
+    hasMeta: z.boolean().optional(),
+    hasPositivePrompt: z.boolean().optional(),
+    meta: CivitaiImageMetaSchema.nullable().optional(),
   })
   .passthrough()
 
@@ -690,31 +711,20 @@ export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmRes
   }
 }
 
-// ─── Phase 2: mine real activation prompts from /api/v1/images ─────────
+// ─── Phase 2: recover source prompts from Civitai images ───────────────
 //
 // Covers the ~34 % of LoRAs that ship neither trainedWords nor description
-// code blocks. The Civitai images API returns every public generation,
-// each with the full SD prompt + a `resources` array mapping LoRA hashes
-// to the names used in that prompt's `<lora:NAME:weight>` tags. We:
-//   1. Fetch up to N recent generations for the modelId
-//   2. For each, find the resource whose AutoV3 hash matches our LoRA
-//   3. Slice the prompt segment immediately after that <lora:NAME:..> tag
-//      up to the next <lora:> or \n (authors group character vs scene
-//      tokens with newlines)
-//   4. Cluster + dedupe segments into outfit-level prompts
+// code blocks. Source confidence order:
+//   1. /api/v1/model-versions/:id images[].meta.prompt — closest to the
+//      LoRA page source/reference images.
+//   2. /api/v1/images?modelId=&modelVersionId= — community generations,
+//      useful only when meta is present (often null in current Civitai API).
+//   3. Author description/trainedWords stay on the library item; they are
+//      author-filled hints, not source-image prompts.
 
 const CIVITAI_IMAGES_API = 'https://civitai.com/api/v1/images'
 const CIVITAI_IMAGES_SAMPLE_LIMIT = 30
 const CIVITAI_IMAGES_OUTFIT_CAP = 6
-
-const CivitaiImageResourceSchema = z
-  .object({
-    hash: z.string().optional(),
-    name: z.string().optional(),
-    type: z.string().optional(),
-    weight: z.number().optional(),
-  })
-  .passthrough()
 
 const CivitaiImageMetaInnerSchema = z
   .object({
@@ -751,6 +761,63 @@ const CivitaiImagesResponseSchema = z
   })
   .passthrough()
 
+async function fetchModelVersionSourcePrompts(
+  modelId: number,
+  modelVersionId: number,
+): Promise<CivitaiMinedPromptsResult['outfits']> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 3,
+      baseDelayMs: 400,
+      maxDelayMs: 2000,
+      label: 'civitai.mineModelVersionPrompts',
+    })
+  } catch (error) {
+    logger.warn('Civitai model version prompt fetch failed', {
+      modelId,
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return []
+  }
+
+  const parsed = CivitaiModelVersionSchema.safeParse(payload)
+  if (!parsed.success) {
+    logger.warn(
+      'Civitai model version prompt response had an unexpected shape',
+      {
+        modelId,
+        modelVersionId,
+        issues: parsed.error.issues.map((issue) => issue.message).join('; '),
+      },
+    )
+    return []
+  }
+
+  const seen = new Set<string>()
+  const prompts: CivitaiMinedPromptsResult['outfits'] = []
+  for (const image of parsed.data.images ?? []) {
+    if ((image.nsfwLevel ?? 1) > 2) continue
+    const prompt = cleanRecommendedPrompt(image.meta?.prompt ?? '')
+    if (!prompt) continue
+    const key = prompt.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    prompts.push({
+      label: '',
+      prompt,
+      sampleCount: 1,
+      source: 'model_version_image',
+    })
+    if (prompts.length >= CIVITAI_IMAGES_OUTFIT_CAP) break
+  }
+
+  return prompts
+}
+
 export interface MineCivitaiUserPromptsInput {
   modelId: number
   modelVersionId?: number
@@ -763,6 +830,19 @@ export async function mineCivitaiUserPrompts({
   modelVersionId,
   fileHashAutoV3,
 }: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
+  if (modelVersionId !== undefined) {
+    const sourceImagePrompts = await fetchModelVersionSourcePrompts(
+      modelId,
+      modelVersionId,
+    )
+    if (sourceImagePrompts.length > 0) {
+      return {
+        outfits: sourceImagePrompts,
+        totalSampled: sourceImagePrompts.length,
+      }
+    }
+  }
+
   const url = new URL(CIVITAI_IMAGES_API)
   url.searchParams.set('modelId', String(modelId))
   if (modelVersionId !== undefined) {
@@ -824,10 +904,11 @@ export async function mineCivitaiUserPrompts({
 
   const summarised = summariseActivationSegments(segments)
     .slice(0, CIVITAI_IMAGES_OUTFIT_CAP)
-    .map((s, idx) => ({
-      label: `Outfit ${idx + 1}`,
+    .map((s) => ({
+      label: '',
       prompt: s.prompt,
       sampleCount: s.sampleCount,
+      source: 'community_image' as const,
     }))
 
   return {

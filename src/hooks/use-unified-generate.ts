@@ -174,7 +174,7 @@ function toFailedRunItem<T extends RunItem>(item: T, error: string) {
 // as one. Only `failed` (the server reported FAILED) is a real failure.
 type ImageJobPollOutcome =
   | { status: 'completed'; generation: GenerationRecord }
-  | { status: 'failed' }
+  | { status: 'failed'; message: string; code: GenerationErrorCode }
   | { status: 'pending' }
 
 // ─── Hook ────────────────────────────────────────────────────────
@@ -316,15 +316,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             return { status: 'completed', generation }
           }
           if (statusResponse.data.status === 'FAILED') {
-            markActiveRunItemFailed(
-              itemId,
-              getGenerationErrorMessage(
-                tErrors,
-                statusResponse,
-                tStudio('generateFailed'),
-              ),
+            const failure = resolveGenerationError(
+              statusResponse.data,
+              tStudio('generateFailed'),
             )
-            return { status: 'failed' }
+            markActiveRunItemFailed(itemId, failure.message)
+            return { status: 'failed', ...failure }
           }
         }
       } catch {
@@ -332,7 +329,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
       return { status: 'pending' }
     },
-    [tErrors, tStudio, markActiveRunItemCompleted, markActiveRunItemFailed],
+    [
+      tStudio,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      resolveGenerationError,
+    ],
   )
 
   // ── Image generation (worker submit + poll) ───────────────────
@@ -391,7 +393,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   toast.success(tStudio('generateSuccess'))
                   resolve(outcome.generation)
                 } else if (outcome.status === 'failed') {
-                  finish(tStudio('generateFailed'))
+                  finish(outcome.message, outcome.code)
                   resolve(null)
                 } else {
                   // Still running on the worker — it will finish and land in
@@ -425,7 +427,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
                 if (statusData.status === 'FAILED') {
                   const { message, code } = resolveGenerationError(
-                    statusResponse,
+                    statusData,
                     tStudio('generateFailed'),
                   )
                   markActiveRunItemFailed(itemId, message)
@@ -501,15 +503,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           }
 
           if (statusData.status === 'FAILED') {
-            markActiveRunItemFailed(
-              itemId,
-              getGenerationErrorMessage(
-                tErrors,
-                statusResponse,
-                tStudio('generateFailed'),
-              ),
+            const failure = resolveGenerationError(
+              statusData,
+              tStudio('generateFailed'),
             )
-            return { status: 'failed' }
+            markActiveRunItemFailed(itemId, failure.message)
+            return { status: 'failed', ...failure }
           }
         } catch {
           // Transient network blip — skip this tick, keep polling.
@@ -522,11 +521,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       return resolveImageJobFromStatus(jobId, itemId)
     },
     [
-      tErrors,
       tStudio,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
       resolveImageJobFromStatus,
+      resolveGenerationError,
     ],
   )
 
@@ -703,6 +702,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // first — the natural "show me the fastest preview" behaviour.
         let firstSuccess: GenerationRecord | null = null
         let anyFailed = false
+        const firstFailure = {
+          current: null as {
+            message: string
+            code: GenerationErrorCode
+          } | null,
+        }
 
         const tasks = items.map(async (item) => {
           try {
@@ -723,21 +728,33 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 if (!firstSuccess) firstSuccess = outcome.generation
               } else if (outcome.status === 'failed') {
                 anyFailed = true
+                firstFailure.current ??= {
+                  message: outcome.message,
+                  code: outcome.code,
+                }
               }
             } else {
-              markActiveRunItemFailed(
-                item.id,
-                getGenerationErrorMessage(
-                  tErrors,
-                  result,
-                  tStudio('generateFailed'),
-                ),
+              const failure = resolveGenerationError(
+                result,
+                tStudio('generateFailed'),
               )
+              markActiveRunItemFailed(item.id, failure.message)
               anyFailed = true
+              firstFailure.current ??= failure
             }
-          } catch {
-            markActiveRunItemFailed(item.id, tStudio('generateFailed'))
+          } catch (error) {
+            const failure = resolveGenerationError(
+              {
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : tStudio('generateFailed'),
+              },
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(item.id, failure.message)
             anyFailed = true
+            firstFailure.current ??= failure
           }
         })
 
@@ -747,8 +764,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           setLastGeneration(firstSuccess)
           toast.success(tStudio('variantSuccess'))
         } else if (anyFailed) {
-          setError(tStudio('generateFailed'))
-          setErrorCode(null)
+          setError(firstFailure.current?.message ?? tStudio('generateFailed'))
+          setErrorCode(firstFailure.current?.code ?? null)
         } else {
           // Every variant is still generating on the worker — not a failure.
           toast.info(tStudio('stillProcessingHint'))
@@ -762,12 +779,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
     },
     [
-      tErrors,
       tStudio,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
       markActiveRunItemFailed,
+      resolveGenerationError,
     ],
   )
 
@@ -844,6 +861,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // slowest one before becoming visible.
         let firstSuccess: GenerationRecord | null = null
         let anyFailed = false
+        const firstFailure = {
+          current: null as {
+            message: string
+            code: GenerationErrorCode
+          } | null,
+        }
 
         const tasks = items.map(async (item) => {
           try {
@@ -865,21 +888,33 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 if (!firstSuccess) firstSuccess = outcome.generation
               } else if (outcome.status === 'failed') {
                 anyFailed = true
+                firstFailure.current ??= {
+                  message: outcome.message,
+                  code: outcome.code,
+                }
               }
             } else {
-              markActiveRunItemFailed(
-                item.id,
-                getGenerationErrorMessage(
-                  tErrors,
-                  result,
-                  tStudio('generateFailed'),
-                ),
+              const failure = resolveGenerationError(
+                result,
+                tStudio('generateFailed'),
               )
+              markActiveRunItemFailed(item.id, failure.message)
               anyFailed = true
+              firstFailure.current ??= failure
             }
-          } catch {
-            markActiveRunItemFailed(item.id, tStudio('generateFailed'))
+          } catch (error) {
+            const failure = resolveGenerationError(
+              {
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : tStudio('generateFailed'),
+              },
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(item.id, failure.message)
             anyFailed = true
+            firstFailure.current ??= failure
           }
         })
 
@@ -889,8 +924,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           setLastGeneration(firstSuccess)
           toast.success(tStudio('compareSuccess'))
         } else if (anyFailed) {
-          setError(tStudio('generateFailed'))
-          setErrorCode(null)
+          setError(firstFailure.current?.message ?? tStudio('generateFailed'))
+          setErrorCode(firstFailure.current?.code ?? null)
         } else {
           // Every model is still generating on the worker — not a failure.
           toast.info(tStudio('stillProcessingHint'))
@@ -904,12 +939,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
     },
     [
-      tErrors,
       tStudio,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
       markActiveRunItemFailed,
+      resolveGenerationError,
     ],
   )
 

@@ -75,6 +75,7 @@ export function cleanRecommendedPrompt(raw: string): string {
     .replace(ESCAPED_PAREN_RE, '$1')
     .replace(/\s+/g, ' ')
     .replace(/\s*,\s*/g, ', ')
+    .replace(/(?:,\s*){2,}/g, ', ')
     .replace(/^[\s,]+|[\s,]+$/g, '')
     .trim()
 }

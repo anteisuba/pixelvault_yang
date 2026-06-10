@@ -619,6 +619,7 @@ type ChipOutfit = {
   label: string
   prompt: string
   source: 'author' | 'mined'
+  minedSource?: 'model_version_image' | 'community_image' | 'ai_inferred'
   sampleCount?: number
 }
 
@@ -688,9 +689,16 @@ function StudioLoraChipItem({
       seen.add(key)
       result.push({
         label:
-          m.label || tWorkbench('outfitDefaultLabel', { n: result.length + 1 }),
+          m.label ||
+          tWorkbench(
+            m.source === 'model_version_image'
+              ? 'sourceImageDefaultLabel'
+              : 'communityPromptDefaultLabel',
+            { n: result.length + 1 },
+          ),
         prompt: m.prompt,
         source: 'mined',
+        minedSource: m.source,
         sampleCount: m.sampleCount,
       })
     })
@@ -786,7 +794,15 @@ function StudioLoraChipItem({
               {currentOutfit?.source === 'author' ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
                   <Sparkles className="size-2.5" aria-hidden />
-                  {tWorkbench('tryPromptOfficialBadge')}
+                  {tWorkbench('tryPromptAuthorParsedBadge')}
+                </span>
+              ) : currentOutfit?.minedSource === 'model_version_image' ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:text-emerald-300"
+                  title={tWorkbench('tryPromptSourceImageHint')}
+                >
+                  <Sparkles className="size-2.5" aria-hidden />
+                  {tWorkbench('tryPromptSourceImageBadge')}
                 </span>
               ) : currentOutfit?.source === 'mined' ? (
                 <span
@@ -818,6 +834,8 @@ function StudioLoraChipItem({
             <div className="mt-1.5 flex flex-wrap gap-1">
               {outfits.map((outfit, idx) => {
                 const isActive = idx === safeIdx
+                const isSourceImage =
+                  outfit.minedSource === 'model_version_image'
                 const isMined = outfit.source === 'mined'
                 return (
                   <button
@@ -827,13 +845,17 @@ function StudioLoraChipItem({
                     className={cn(
                       'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
                       isActive
-                        ? isMined
-                          ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
-                          : 'bg-primary/20 text-primary'
+                        ? isSourceImage
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                          : isMined
+                            ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                            : 'bg-primary/20 text-primary'
                         : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                     )}
                   >
-                    {isMined ? (
+                    {isSourceImage ? (
+                      <Sparkles className="size-2.5" aria-hidden />
+                    ) : isMined ? (
                       <Users className="size-2.5" aria-hidden />
                     ) : null}
                     {outfit.label}

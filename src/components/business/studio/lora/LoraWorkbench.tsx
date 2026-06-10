@@ -50,7 +50,11 @@ import {
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
-import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
+import type {
+  CivitaiLoraLibraryItem,
+  CivitaiMinedPromptsResult,
+  LoraAssetRecord,
+} from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
@@ -1372,7 +1376,7 @@ interface CivitaiLoraInspectorProps {
    * Surfaced as extra chips in the outfit picker, badged so users know
    * they came from community generations rather than the author.
    */
-  minedOutfits: { label: string; prompt: string; sampleCount: number }[]
+  minedOutfits: CivitaiMinedPromptsResult['outfits']
   minedTotalSampled: number
   minedIsLoading: boolean
 }
@@ -1410,6 +1414,7 @@ function CivitaiLoraInspector({
     label: string
     prompt: string
     source: 'author' | 'mined'
+    minedSource?: 'model_version_image' | 'community_image' | 'ai_inferred'
     sampleCount?: number
   }
   const outfits = useMemo<Outfit[]>(() => {
@@ -1455,9 +1460,17 @@ function CivitaiLoraInspector({
       if (seen.has(key)) return // skip if identical to an author prompt
       seen.add(key)
       result.push({
-        label: mined.label || t('outfitDefaultLabel', { n: result.length + 1 }),
+        label:
+          mined.label ||
+          t(
+            mined.source === 'model_version_image'
+              ? 'sourceImageDefaultLabel'
+              : 'communityPromptDefaultLabel',
+            { n: result.length + 1 },
+          ),
         prompt: mined.prompt,
         source: 'mined',
+        minedSource: mined.source,
         sampleCount: mined.sampleCount,
       })
     })
@@ -1635,13 +1648,22 @@ function CivitaiLoraInspector({
               <Wand2 className="size-3" aria-hidden />
               {t('tryPromptLabel')}
               {/* Badge reflects the *currently selected* outfit's source.
-                  Author-supplied (trainedWords / description) wins primary
-                  styling; community-mined gets a softer secondary badge so
-                  users know which Civitai user prompts came from. */}
+                  Author-supplied (trainedWords / description), direct
+                  source-image meta, and community-mined prompts are labelled
+                  separately so users know the confidence tier. */}
               {outfits[selectedOutfitIndex]?.source === 'author' ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary">
                   <Sparkles className="size-2.5" aria-hidden />
-                  {t('tryPromptOfficialBadge')}
+                  {t('tryPromptAuthorParsedBadge')}
+                </span>
+              ) : outfits[selectedOutfitIndex]?.minedSource ===
+                'model_version_image' ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:text-emerald-300"
+                  title={t('tryPromptSourceImageHint')}
+                >
+                  <Sparkles className="size-2.5" aria-hidden />
+                  {t('tryPromptSourceImageBadge')}
                 </span>
               ) : outfits[selectedOutfitIndex]?.source === 'mined' ? (
                 <span
@@ -1680,6 +1702,8 @@ function CivitaiLoraInspector({
             <div className="mt-2 flex flex-wrap gap-1">
               {outfits.map((outfit, idx) => {
                 const isActive = idx === selectedOutfitIndex
+                const isSourceImage =
+                  outfit.minedSource === 'model_version_image'
                 const isMined = outfit.source === 'mined'
                 return (
                   <button
@@ -1689,13 +1713,17 @@ function CivitaiLoraInspector({
                     className={cn(
                       'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium transition-colors',
                       isActive
-                        ? isMined
-                          ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
-                          : 'bg-primary/20 text-primary'
+                        ? isSourceImage
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                          : isMined
+                            ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                            : 'bg-primary/20 text-primary'
                         : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                     )}
                   >
-                    {isMined ? (
+                    {isSourceImage ? (
+                      <Sparkles className="size-2.5" aria-hidden />
+                    ) : isMined ? (
                       <Users className="size-2.5" aria-hidden />
                     ) : null}
                     {outfit.label}

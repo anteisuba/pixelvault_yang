@@ -1,6 +1,6 @@
 # LoRA Prompt Tag System Design
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 This document defines the system direction for turning PixelVault's LoRA
 workflow into a prompt tag workflow. It is intentionally system-facing: UI
@@ -346,11 +346,13 @@ not a static import.
 Sources:
 
 ```text
+Civitai model-versions/:id images[].meta.prompt
+Civitai /api/v1/images meta.prompt when present
 Civitai modelVersions.trainedWords
 Civitai description prompt blocks already extracted by service code
 trained PixelVault LoRA triggerWord
 favorite/imported LoraAssetRecord triggerWord
-mined prompt alternates when available
+AI-inferred prompt drafts when explicitly requested
 ```
 
 Mapping:
@@ -373,10 +375,12 @@ category              -> LoRA
 LoRA trigger tags must carry confidence:
 
 ```text
-official -> Civitai trainedWords or trained asset trigger
-inferred -> fallback from model name
-mined    -> mined from community generation prompts
-user     -> manually entered/imported
+source_image -> Civitai model-version image meta prompt
+community    -> Civitai community image prompt
+declared     -> Civitai trainedWords / trained asset trigger
+parsed       -> Civitai description code block
+inferred     -> fallback from model name or AI reverse prompt
+user         -> manually entered/imported
 ```
 
 Runtime behavior:

@@ -830,6 +830,52 @@ describe('resolveCivitaiModelPageUrlByVersion', () => {
 })
 
 describe('mineCivitaiUserPrompts', () => {
+  it('prefers model-version source image prompts over the community images endpoint', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2819970,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/source-1.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                'simple background, <lora:NivoraV1-Nuclear1811-IL:0.85>, Nivora, turquoise eyes, 2d style',
+            },
+          },
+          {
+            url: 'https://image.civitai.com/source-2.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                'portrait, <lora:NivoraV1-Nuclear1811-IL:0.85>, Nivora, fur hood, anime illustration',
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2508748,
+      modelVersionId: 2819970,
+      fileHashAutoV3: '7353e384259c',
+    })
+
+    expect(result.outfits).toHaveLength(2)
+    expect(result.outfits[0]?.label).toBe('')
+    expect(result.outfits[0]?.source).toBe('model_version_image')
+    expect(result.outfits[0]?.prompt).toBe(
+      'simple background, Nivora, turquoise eyes, 2d style',
+    )
+    expect(result.outfits[1]?.source).toBe('model_version_image')
+    expect(result.totalSampled).toBe(2)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.pathname).toBe('/api/v1/model-versions/2819970')
+  })
+
   it('clusters real activation segments from /api/v1/images by hash', async () => {
     // Two c1-outfit generations + one c2-outfit, mirroring the actual
     // wuthering-waves Denia shape. Hash comparison is case-insensitive
@@ -840,6 +886,13 @@ describe('mineCivitaiUserPrompts', () => {
     const c1Prompt = `intro tokens,\n<lora:${LORA_NAME}:0.9>,purple eyes,pink hair,c1,white dress,2d style,\nfull body,pose`
     const c2Prompt = `intro tokens,\n<lora:${LORA_NAME}:0.9>,black halo,purple eyes,c2,black dress,2d style,\nfull body,pose`
 
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2975273,
+        name: 'v1',
+        images: [],
+      }),
+    )
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         items: [
@@ -893,7 +946,8 @@ describe('mineCivitaiUserPrompts', () => {
 
     // Two outfit clusters surfaced (c1 = 2 samples, c2 = 1)
     expect(result.outfits).toHaveLength(2)
-    expect(result.outfits[0]?.label).toBe('Outfit 1')
+    expect(result.outfits[0]?.label).toBe('')
+    expect(result.outfits[0]?.source).toBe('community_image')
     expect(result.outfits[0]?.sampleCount).toBe(2)
     expect(result.outfits[0]?.prompt).toContain('c1')
     expect(result.outfits[1]?.sampleCount).toBe(1)
@@ -904,7 +958,7 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.totalSampled).toBe(4)
 
     // Verify the API was called with the right query params.
-    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    const requestUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
     expect(requestUrl.searchParams.get('modelId')).toBe('2649729')
     expect(requestUrl.searchParams.get('modelVersionId')).toBe('2975273')
     expect(requestUrl.searchParams.get('sort')).toBe('Most Reactions')

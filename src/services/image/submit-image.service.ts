@@ -244,7 +244,13 @@ export async function checkImageGenerationStatus(
   const dbUser = await ensureUser(clerkId)
   const job = await db.generationJob.findUnique({
     where: { id: jobId },
-    select: { id: true, userId: true, status: true, generationId: true },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      generationId: true,
+      errorMessage: true,
+    },
   })
 
   if (!job || job.userId !== dbUser.id) {
@@ -266,7 +272,11 @@ export async function checkImageGenerationStatus(
   }
 
   if (job.status === 'FAILED') {
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      ...(job.errorMessage ? { error: job.errorMessage } : {}),
+    }
   }
 
   return { jobId: job.id, status: 'IN_PROGRESS' }

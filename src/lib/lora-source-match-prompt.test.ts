@@ -26,6 +26,31 @@ describe('buildSourceMatchedLoraPrompt', () => {
     expect(out.scale).toBe(0.85)
   })
 
+  it('prefers Civitai source image prompts over rich author text', () => {
+    const out = buildSourceMatchedLoraPrompt(
+      {
+        triggerWord: 'denia',
+        type: 'subject',
+        baseModelFamily: 'Illustrious',
+        recommendedPrompt: 'denia, turquoise eyes, long hair',
+        recommendedPromptAlternates: [],
+      },
+      [
+        {
+          label: 'Source image 1',
+          prompt: 'denia, white hood, upper body, looking at viewer',
+          sampleCount: 1,
+          source: 'model_version_image',
+        },
+      ],
+    )
+
+    expect(out.source).toBe('source_image')
+    expect(out.reliable).toBe(true)
+    expect(out.prompt).toContain('white hood')
+    expect(out.prompt).not.toContain('long hair')
+  })
+
   it('falls back to mined prompts when author prompts are missing', () => {
     const out = buildSourceMatchedLoraPrompt(
       {
@@ -44,7 +69,7 @@ describe('buildSourceMatchedLoraPrompt', () => {
       ],
     )
 
-    expect(out.source).toBe('mined')
+    expect(out.source).toBe('community')
     expect(out.reliable).toBe(true)
     expect(out.prompt).toContain('character_token')
     expect(out.prompt).toContain('blue dress')
@@ -70,7 +95,7 @@ describe('buildSourceMatchedLoraPrompt', () => {
       ],
     )
 
-    expect(out.source).toBe('mined')
+    expect(out.source).toBe('community')
     expect(out.reliable).toBe(true)
     expect(out.prompt).toContain('denia')
     expect(out.prompt).toContain('school uniform')

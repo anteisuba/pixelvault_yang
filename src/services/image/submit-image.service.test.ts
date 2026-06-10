@@ -283,11 +283,17 @@ describe('checkImageGenerationStatus', () => {
       userId: 'user-1',
       status: 'FAILED',
       generationId: null,
+      errorMessage:
+        'Replicate image generation failed: Checkpoint not supported',
     } as never)
 
     const result = await checkImageGenerationStatus('clerk-1', 'job-1')
 
-    expect(result).toEqual({ jobId: 'job-1', status: 'FAILED' })
+    expect(result).toEqual({
+      jobId: 'job-1',
+      status: 'FAILED',
+      error: 'Replicate image generation failed: Checkpoint not supported',
+    })
   })
 
   it('returns IN_PROGRESS for a running job', async () => {

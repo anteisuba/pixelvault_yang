@@ -560,7 +560,25 @@ export interface AudioStatusResponse {
 
 export type ImageSubmitResponseData = AsyncJobSubmitResponseData
 
-export type ImageStatusResponseData = AudioStatusResponseData
+export type ImageStatusResponseData =
+  | {
+      jobId: string
+      status: 'IN_QUEUE' | 'IN_PROGRESS'
+      generation?: never
+      error?: never
+    }
+  | {
+      jobId: string
+      status: 'COMPLETED'
+      generation: GenerationRecord
+      error?: never
+    }
+  | {
+      jobId: string
+      status: 'FAILED'
+      generation?: never
+      error?: string
+    }
 
 export interface ImageStatusResponse {
   success: boolean
@@ -3522,10 +3540,9 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 造型）。`triggerWord` 是主推荐，`triggerAlternates` 是其他候选 — 空数组
   // 意味着只有一个触发词。
   triggerAlternates: z.array(z.string()),
-  // Civitai 作者声明的「整段推荐 prompt」（trainedWords[0] 清洗后，或
-  // description 中第一个 `<pre><code>` outfit prompt）。null 意味着作者
-  // 既没写 trainedWords 也没写 description code block，UI 应回退到内部
-  // 模板。
+  // Civitai 作者填写/描述解析出的 prompt（trainedWords[0] 清洗后，或
+  // description 中第一个 `<pre><code>` outfit prompt）。这不是“官方还原
+  // prompt”；贴近来源图时优先使用 Civitai image meta prompt。
   recommendedPrompt: z.string().nullable(),
   // 多 outfit / variant LoRA 的其余 prompt 候选（来自 description 的第 2+
   // 个 code block）。`recommendedPrompt` 已经包含第一个，这里只有后续的。
@@ -3536,8 +3553,8 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
       prompt: z.string(),
     }),
   ),
-  // 'official' = trigger 来自 Civitai 作者；'inferred' = 我们从模型名推断的，
-  // UI 应展示「推断」徽章提示用户可能不准确。
+  // 'official' = trigger 来自 Civitai 作者填写字段；'inferred' = 我们从
+  // 模型名推断的，UI 应展示「推断」徽章提示用户可能不准确。
   triggerSource: z.enum(['official', 'inferred']),
   // 主 LoRA 权重文件的 Civitai AutoV3 hash（lower-case，无前缀）。客户端
   // 用它调 `/api/lora-assets/civitai/mined-prompts` 端点，从作者/社区生成
@@ -3546,7 +3563,8 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   fileHashAutoV3: z.string().nullable(),
 })
 
-// 用户生成图反推的「实测激活 prompt」单条记录。多张图汇总去重后产生。
+// Civitai 来源 prompt 单条记录。优先来自 model-versions/:id 图片 meta；
+// fallback 才来自 /api/v1/images 社区生成图汇总去重。
 export const CivitaiMinedPromptSchema = z.object({
   // outfit / variant label。多个高频段时按 `'Outfit 1'` / `'Outfit 2'` 给序号。
   label: z.string(),
@@ -3554,6 +3572,11 @@ export const CivitaiMinedPromptSchema = z.object({
   prompt: z.string(),
   // 该 prompt 段在采样图里出现的次数 — 用于 UI 「N 张图用了这个」hint。
   sampleCount: z.number().int().positive(),
+  // prompt 来源可信度。model-version 图片 meta 最接近 LoRA 页面来源图；
+  // images endpoint 是社区实测补充，可能缺 meta；AI 反推不能伪装成 Civitai 来源。
+  source: z
+    .enum(['model_version_image', 'community_image', 'ai_inferred'])
+    .optional(),
 })
 export type CivitaiMinedPrompt = z.infer<typeof CivitaiMinedPromptSchema>
 

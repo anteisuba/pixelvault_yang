@@ -1,6 +1,6 @@
 # Prompt 助手 (LoRA-aware Prompt Assistant) — Redesign
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 This document redesigns the Studio image-page补词 panel (today internally
 `LoraPromptControl` + `TagLibrary`) into a **LoRA-aware prompt assistant**.
@@ -37,10 +37,10 @@ churn; only the displayed `title` / trigger `label` strings change.
 | Prompt compile (positive/negative ordering, dedupe)                 | `prompt-tag-compiler.ts`            | Selected-preview + recipe apply |
 | Curated system tags (with CN/JP aliases)                            | `prompt-tags.curated.ts`            | Purpose-grouped corpus          |
 | Danbooru imported tags                                              | `prompt-tags.danbooru.generated.ts` | Advanced search tail            |
-| LoRA source tags (trigger / author / alternates)                    | `TagLibrary.buildLoraSourceTags`    | Current-LoRA zone               |
-| Civitai mined community prompts                                     | `use-civitai-mined-prompts.ts`      | Current-LoRA "实测 prompt"      |
+| LoRA source tags (trigger / author-filled / alternates)             | `TagLibrary.buildLoraSourceTags`    | Current-LoRA zone               |
+| Civitai source image + community prompts                            | `use-civitai-mined-prompts.ts`      | Current-LoRA source prompt      |
 | model-keyword fallback triggers                                     | `use-model-keyword-lora-tags.ts`    | Low-confidence fallback         |
-| Source-match (author/mined + anti-3D + scale 0.85, `reliable` flag) | `lora-source-match-prompt.ts`       | Backs the "忠实还原角色" recipe |
+| Source-match (source image/community/author + anti-3D + scale 0.85) | `lora-source-match-prompt.ts`       | Backs the "忠实还原角色" recipe |
 | Source confidence badge                                             | `TagSourceBadge.tsx`                | Confidence chips                |
 
 The Generate tab (`GenerateControlTab`) is already LoRA-aware (trigger insert,
@@ -63,7 +63,8 @@ Two facts changed the weighting of this design after a code pass:
 2. **`useModelKeywordLoraTags(query)` is search-time only** — it takes a query
    string with a min length, not "give me this LoRA's keyword triggers". So
    model-keyword fallback belongs in zones ①/④ (search), **not** as a
-   zero-query zone-② recommendation. Zone ② shows trigger / author / mined only.
+   zero-query zone-② recommendation. Zone ② shows Civitai source image,
+   community-tested, author-filled/description-parsed, and trigger data.
 3. **Negative prompt has two stores, already reconciled at compile** —
    `promptTags.negative` selections + `advancedParams.negativePrompt`. They are
    merged by `compilePromptTags(...)` at `StudioPromptArea.tsx:519`
@@ -78,8 +79,8 @@ Five stacked zones inside one panel (single scroll; search + preview pinned):
 ┌───────────────────────────────────────────────┐
 │ ① NL 搜索框 (pinned top)                         │  角色/衣服/画风/镜头/光线/负向
 ├───────────────────────────────────────────────┤
-│ ② 当前 LoRA 推荐  (only when a LoRA is active)   │  必须触发词 → 作者 prompt →
-│    [触发词] [作者 prompt] [实测 prompt]           │  实测 prompt → keyword fallback
+│ ② 当前 LoRA 推荐  (only when a LoRA is active)   │  来源图 prompt → 社区实测 →
+│    [来源图] [社区实测] [作者填写] [触发词]        │  作者填写/描述解析 → trigger
 │    推荐 scale 0.85 · 防漂移正/负词                  │  + 推荐 scale + 防漂移词
 ├───────────────────────────────────────────────┤
 │ ③ 一键配方 (LoRA-type-aware)                      │  忠实还原角色 / 2D插画 /
@@ -108,18 +109,26 @@ keyword+synonym, not an LLM parser.)
 Renders only when `useActiveLoraStack().items` is non-empty. Per LoRA, ordered
 by confidence:
 
-1. **必须触发词** (official) — always first; one-tap insert.
-2. **作者推荐 prompt** (official) — `recommendedPrompt`.
-3. **作者变体 prompt** (official) — `recommendedPromptAlternates`.
-4. **实测 prompt** (mined, 中高) — `useCivitaiMinedPrompts` outfits. Requires the
-   persisted Civitai ids (the A-fix); historical favorites need a re-favorite.
-5. **推荐 scale** — `LORA_SOURCE_MATCH_SCALE` (0.85) surfaced as a hint + the
+1. **来源图 prompt** (highest) — `model-versions/:id` `images[].meta.prompt`.
+   This is closest to the LoRA page reference/source images.
+2. **社区实测 prompt** (medium-high) — `/api/v1/images?modelId=&modelVersionId=`
+   image meta. Current Civitai responses often return `meta: null`, so this is
+   a fallback/supplement, not the primary source.
+3. **作者描述解析** (medium) — prompt blocks parsed from `model.description`
+   `<pre><code>`. Do not label this "official recommendation"; it is author
+   description parsing.
+4. **触发词 / 作者填写词** (low-to-medium) — `trainedWords`. It triggers the
+   LoRA, but does not guarantee source-image clothing, pose, framing, or style.
+5. **model-keyword** (low) — community trigger-word fallback, search-time only.
+6. **AI 图片反推** (inferred) — may help draft missing clothing/pose/camera
+   words, but must be labelled as AI 推测 and never as a Civitai source prompt.
+7. **推荐 scale** — `LORA_SOURCE_MATCH_SCALE` (0.85) surfaced as a hint + the
    existing slider.
-6. **防漂移词** — `2d style / anime illustration / …` positive + the anti-3D
+8. **防漂移词** — `2d style / anime illustration / …` positive + the anti-3D
    negative set, shown as a one-tap pair (the "去 3D 质感" recipe; family-gated).
 
-model-keyword fallback is **not** in this zone — it is search-time only (see
-现状校正 #2); it surfaces in ①/④ when the user searches, badged 低可信.
+model-keyword fallback is **not** a source-image prompt — it is search-time only
+(see 现状校正 #2); it surfaces in ①/④ when the user searches, badged 低可信.
 
 This zone is the existing `GenerateControlTab` + `LoraSourceTagGroup` merged
 and reordered by confidence rather than by control type.
@@ -169,8 +178,8 @@ If `loraScale` is set, also call `loraStack.setScale(asset.id, scale)`.
 
 The **`source-match`** recipe ("忠实还原角色") is dynamic: it delegates to
 `buildSourceMatchedLoraPrompt(asset, minedOutfits)` (just shipped) and inherits
-its `reliable` gating — disabled with a hint when no author/mined data exists,
-exactly like the 贴近来源图 button.
+its `reliable` gating — disabled with a hint when no source-image, community,
+or rich author-filled data exists, exactly like the 贴近来源图 button.
 
 Initial set (tokens are placeholders for design review, English-only):
 
@@ -215,13 +224,15 @@ knows what a click does before generating. Includes the clear-all action.
 Small, on every recommended/result chip. Map `source` → label + tone:
 
 ```text
-civitai (author)    高     emerald
-mined_prompt        中高   teal
-model_keyword       中/低  amber
-system / curated    通用   neutral
-lora_asset (trigger) 官方   violet
-danbooru            参考   muted
-user                自定义  muted
+civitai_source_image     最高   emerald
+community_image_prompt   中高   teal
+author_description       中     blue
+author_trained_words     中/低  violet
+model_keyword            低     amber
+ai_inferred              推测   amber
+system / curated         通用   neutral
+danbooru                 参考   muted
+user                     自定义  muted
 ```
 
 `TagSourceBadge` already exists; extend its mapping + add the confidence tone.

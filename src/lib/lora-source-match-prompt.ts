@@ -26,7 +26,11 @@ const ANIME_SOURCE_MATCH_NEGATIVE_TAGS = [
   'game render',
 ] as const
 
-type SourceMatchedPromptSource = 'author' | 'mined' | 'fallback'
+type SourceMatchedPromptSource =
+  | 'author'
+  | 'source_image'
+  | 'community'
+  | 'fallback'
 
 export interface SourceMatchedLoraPrompt {
   prompt: string
@@ -70,14 +74,14 @@ export function buildSourceMatchedLoraPrompt(
       ?.find((variant) => variant.prompt.trim())
       ?.prompt?.trim() ||
     null
-  const minedPrompt =
-    minedOutfits.find((variant) => variant.prompt.trim())?.prompt?.trim() ??
-    null
+  const minedCandidate =
+    minedOutfits.find((variant) => variant.prompt.trim()) ?? null
+  const minedPrompt = minedCandidate?.prompt?.trim() ?? null
 
-  // An author prompt is only trustworthy when it carries real descriptive
-  // tokens. Civitai character LoRAs routinely ship `trainedWords = [trigger]`,
-  // so author-first would lock us into a generic result. Prefer a real mined
-  // community prompt over a bare-trigger author prompt.
+  // Civitai image meta is the closest recoverable source prompt: direct
+  // model-version images first, community images second. Author text
+  // (description/trainedWords) is still useful, but it may be just a trigger
+  // word or a generic usage note rather than the prompt for a source image.
   const authorIsRich =
     !!authorCandidate &&
     countDescriptiveTokens(authorCandidate, asset.triggerWord) >=
@@ -87,13 +91,16 @@ export function buildSourceMatchedLoraPrompt(
   let source: SourceMatchedPromptSource
   let reliable: boolean
 
-  if (authorIsRich && authorCandidate) {
+  if (minedPrompt) {
+    basePrompt = minedPrompt
+    source =
+      minedCandidate?.source === 'model_version_image'
+        ? 'source_image'
+        : 'community'
+    reliable = true
+  } else if (authorIsRich && authorCandidate) {
     basePrompt = authorCandidate
     source = 'author'
-    reliable = true
-  } else if (minedPrompt) {
-    basePrompt = minedPrompt
-    source = 'mined'
     reliable = true
   } else {
     // Only a bare-trigger author prompt (or nothing) — too sparse to match the

@@ -111,9 +111,12 @@ by confidence:
 
 1. **来源图 prompt** (highest) — `model-versions/:id` `images[].meta.prompt`.
    This is closest to the LoRA page reference/source images.
-2. **社区实测 prompt** (medium-high) — `/api/v1/images?modelId=&modelVersionId=`
-   image meta. Current Civitai responses often return `meta: null`, so this is
-   a fallback/supplement, not the primary source.
+2. **社区实测 prompt** (medium-high) — `/api/v1/images?modelVersionId=`
+   image meta. 注意（2026-06-11 核验）：该端点的 `withMeta` 参数默认
+   false，不传则 `meta` 恒为 null——此前"社区图大多没 meta"是调用缺参
+   造成的误诊。传 `withMeta=true` 后命中率可用但不稳定（实测 0%–100%
+   因模型而异），故仍是 fallback/supplement，来源图才是主面。详见
+   `docs/plans/lora-recipe-workflow.md` 的核验事实。
 3. **作者描述解析** (medium) — prompt blocks parsed from `model.description`
    `<pre><code>`. Do not label this "official recommendation"; it is author
    description parsing.

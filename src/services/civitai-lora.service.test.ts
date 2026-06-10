@@ -838,10 +838,29 @@ describe('mineCivitaiUserPrompts', () => {
         images: [
           {
             url: 'https://image.civitai.com/source-1.jpeg',
+            width: 832,
+            height: 1216,
             nsfwLevel: 1,
             meta: {
               prompt:
                 'simple background, <lora:NivoraV1-Nuclear1811-IL:0.85>, Nivora, turquoise eyes, 2d style',
+              negativePrompt: '3d, realistic',
+              seed: 1234567890,
+              steps: 28,
+              cfgScale: 6.5,
+              sampler: 'DPM++ 2M Karras',
+              'Clip skip': '2',
+              Size: '832x1216',
+              Model: 'Illustrious-XL-v1.0',
+              resources: [
+                {
+                  hash: '7353E384259C',
+                  name: 'NivoraV1-Nuclear1811-IL',
+                  type: 'lora',
+                  weight: 0.85,
+                },
+                { name: 'detail-tweaker-xl', type: 'lora', weight: 0.4 },
+              ],
             },
           },
           {
@@ -872,6 +891,33 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.totalSampled).toBe(2)
     expect(mockFetch).toHaveBeenCalledTimes(1)
 
+    // Per-image recipes pair the image URL with the FULL generation params
+    // (hash matching is case-insensitive) and surface stacked extra LoRAs.
+    expect(result.recipes).toHaveLength(2)
+    expect(result.recipes?.[0]).toMatchObject({
+      imageUrl: 'https://image.civitai.com/source-1.jpeg',
+      width: 832,
+      height: 1216,
+      source: 'model_version_image',
+      negativePrompt: '3d, realistic',
+      seed: 1234567890,
+      steps: 28,
+      cfgScale: 6.5,
+      sampler: 'DPM++ 2M Karras',
+      clipSkip: 2,
+      sizeRaw: '832x1216',
+      checkpoint: 'Illustrious-XL-v1.0',
+      loraWeight: 0.85,
+      extraLoras: [{ name: 'detail-tweaker-xl', weight: 0.4 }],
+    })
+    // Second image has bare meta (no resources) — recipe still exists, and
+    // the weight is recovered from its single in-prompt `<lora:..:0.85>` tag.
+    expect(result.recipes?.[1]).toMatchObject({
+      imageUrl: 'https://image.civitai.com/source-2.jpeg',
+      source: 'model_version_image',
+      loraWeight: 0.85,
+    })
+
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.pathname).toBe('/api/v1/model-versions/2819970')
   })
@@ -898,6 +944,9 @@ describe('mineCivitaiUserPrompts', () => {
         items: [
           {
             id: 1,
+            url: 'https://image.civitai.com/community-1.jpeg',
+            width: 512,
+            height: 768,
             meta: {
               meta: {
                 prompt: c1Prompt,
@@ -906,6 +955,7 @@ describe('mineCivitaiUserPrompts', () => {
                     hash: FILE_HASH.toUpperCase(),
                     name: LORA_NAME,
                     type: 'lora',
+                    weight: 0.9,
                   },
                 ],
               },
@@ -913,6 +963,7 @@ describe('mineCivitaiUserPrompts', () => {
           },
           {
             id: 2,
+            url: 'https://image.civitai.com/community-2.jpeg',
             meta: {
               meta: {
                 prompt: c1Prompt,
@@ -957,10 +1008,29 @@ describe('mineCivitaiUserPrompts', () => {
     // is not.
     expect(result.totalSampled).toBe(4)
 
-    // Verify the API was called with the right query params.
+    // Community recipes: only hash-matched images WITH a url (items 1+2;
+    // item 3 has no url, items 4+5 don't reference the LoRA). Full prompt
+    // (lora tag stripped), real weight from resources.
+    expect(result.recipes).toHaveLength(2)
+    expect(result.recipes?.[0]).toMatchObject({
+      imageUrl: 'https://image.civitai.com/community-1.jpeg',
+      width: 512,
+      height: 768,
+      source: 'community_image',
+      loraWeight: 0.9,
+    })
+    expect(result.recipes?.[0]?.prompt).toContain('c1')
+    expect(result.recipes?.[0]?.prompt).not.toContain('<lora:')
+
+    // Verify the API was called with the right query params: version id
+    // only (no modelId — Cloudflare timeout risk), withMeta=true (without
+    // it meta is always null), browsingLevel instead of legacy nsfw.
     const requestUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
-    expect(requestUrl.searchParams.get('modelId')).toBe('2649729')
+    expect(requestUrl.searchParams.get('modelId')).toBeNull()
     expect(requestUrl.searchParams.get('modelVersionId')).toBe('2975273')
+    expect(requestUrl.searchParams.get('withMeta')).toBe('true')
+    expect(requestUrl.searchParams.get('browsingLevel')).toBe('1')
+    expect(requestUrl.searchParams.get('nsfw')).toBeNull()
     expect(requestUrl.searchParams.get('sort')).toBe('Most Reactions')
   })
 
@@ -991,6 +1061,14 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.outfits).toHaveLength(1)
     expect(result.outfits[0]?.prompt).toBe('trigger_word, 1girl')
     expect(result.totalSampled).toBe(1)
+
+    // Legacy favorites without a version id fall back to modelId — the
+    // meta/browsing params must still be present.
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('modelId')).toBe('1')
+    expect(requestUrl.searchParams.get('modelVersionId')).toBeNull()
+    expect(requestUrl.searchParams.get('withMeta')).toBe('true')
+    expect(requestUrl.searchParams.get('browsingLevel')).toBe('1')
   })
 
   it('returns empty outfits without crashing when no generation references the LoRA', async () => {
@@ -1015,6 +1093,88 @@ describe('mineCivitaiUserPrompts', () => {
       fileHashAutoV3: 'deadbeef',
     })
     expect(result.outfits).toEqual([])
+    expect(result.recipes).toEqual([])
     expect(result.totalSampled).toBe(1)
+  })
+
+  it('recovers lora weight from the prompt tag when resources only list the checkpoint', async () => {
+    // Live-verified shape (Detail Tweaker XL source images): resources has
+    // ONLY the checkpoint; the LoRA weight lives in the in-prompt tag.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 135867,
+        name: 'v1',
+        files: [
+          { type: 'Model', primary: true, name: 'add-detail-xl.safetensors' },
+        ],
+        images: [
+          {
+            url: 'https://image.civitai.com/source-tag.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                'photo, 8k portrait, intricate, elegant, <lora:add-detail-xl:0.8>',
+              resources: [
+                { hash: '82b5f664ae', name: 'dreamshaperXL10', type: 'model' },
+              ],
+            },
+          },
+          {
+            url: 'https://image.civitai.com/source-multitag.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              // Multi-tag prompt: ours is identified by the file-name stem;
+              // the other tag becomes an extra (fidelity warning).
+              prompt:
+                '1girl, <lora:add-detail-xl:0.6>, <lora:other-style:0.5>, scenery',
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 122359,
+      modelVersionId: 135867,
+      fileHashAutoV3: '9c783c8ce46c',
+    })
+
+    expect(result.recipes?.[0]?.loraWeight).toBe(0.8)
+    expect(result.recipes?.[0]?.extraLoras).toBeUndefined()
+    expect(result.recipes?.[1]?.loraWeight).toBe(0.6)
+    expect(result.recipes?.[1]?.extraLoras).toEqual([
+      { name: 'other-style', weight: 0.5 },
+    ])
+  })
+
+  it('recovers lora weight from civitaiResources by modelVersionId (onsite generations)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 555,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/onsite.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt: 'masterpiece, 1girl, white dress',
+              civitaiResources: [
+                { type: 'checkpoint', modelVersionId: 999999 },
+                { type: 'lora', weight: 0.75, modelVersionId: 555 },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 444,
+      modelVersionId: 555,
+      fileHashAutoV3: 'deadbeef0000',
+    })
+
+    expect(result.recipes?.[0]?.loraWeight).toBe(0.75)
+    expect(result.recipes?.[0]?.extraLoras).toBeUndefined()
   })
 })

@@ -1,8 +1,11 @@
 # LoRA 配方工作流 — 活跃任务包
 
 创建：2026-06-11
-状态：M0 完成（2026-06-11，in-flight 改动已入 `1cc6dca4`，文档修正入
-`5ca0ce38`）；下一步 M1 配方数据层
+状态：M1 完成（2026-06-11）；下一步 M2a 挂载可见性。
+M1 实现备注：①loraWeight 三信号回收（resources hash → civitaiResources
+modelVersionId → prompt `<lora:名:权重>` 标签 + 文件名词干匹配），实测
+来源图 resources 常只含 checkpoint、权重多在 prompt 标签里；②映射层对
+越界值（如 detail-slider 的负权重）跳过并列入 skippedParams，不静默钳制。
 
 ## 问题定义（owner 2026-06-11 确认）
 

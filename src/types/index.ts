@@ -3580,10 +3580,51 @@ export const CivitaiMinedPromptSchema = z.object({
 })
 export type CivitaiMinedPrompt = z.infer<typeof CivitaiMinedPromptSchema>
 
+// 该图 meta.resources 里除目标 LoRA 之外的其它 LoRA 资源。非空 = 这张图
+// 叠加了多个 LoRA，仅挂目标 LoRA 无法完整还原 — UI 必须明示"还原度受限"。
+export const CivitaiRecipeExtraLoraSchema = z.object({
+  name: z.string().optional(),
+  weight: z.number().optional(),
+})
+export type CivitaiRecipeExtraLora = z.infer<
+  typeof CivitaiRecipeExtraLoraSchema
+>
+
+// Civitai 单图完整配方 — 图↔生成参数一一配对的逐图记录，支撑 M2"来源图
+// 网格 → 一键同款"（docs/plans/lora-recipe-workflow.md）。与 outfits 并存：
+// outfits 是按 prompt 去重的文本视图（旧消费方继续用），recipes 是按图配
+// 对的参数视图。字段均来自 image.meta（uploader 提供才有，故大量 optional；
+// prompt 是配方存在的前提，必填）。
+export const CivitaiImageRecipeSchema = z.object({
+  imageUrl: z.string().url(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  source: z.enum(['model_version_image', 'community_image']),
+  // 已过 cleanRecommendedPrompt（去 <lora:..> 标签等）的正向 prompt。
+  prompt: z.string().min(1),
+  negativePrompt: z.string().optional(),
+  seed: z.number().int().optional(),
+  steps: z.number().int().optional(),
+  cfgScale: z.number().optional(),
+  // sampler/clipSkip 当前生成链路不支持 — 保留供 UI 列入"未应用参数"。
+  sampler: z.string().optional(),
+  clipSkip: z.number().int().optional(),
+  // meta.Size 原文（如 "512x768"），映射层负责换算最近比例档。
+  sizeRaw: z.string().optional(),
+  // meta.Model — 该图所用 checkpoint 名，解释"底模差异"用。
+  checkpoint: z.string().optional(),
+  // 目标 LoRA 在该图中的真实权重（meta.resources hash 匹配）。
+  loraWeight: z.number().optional(),
+  extraLoras: z.array(CivitaiRecipeExtraLoraSchema).optional(),
+})
+export type CivitaiImageRecipe = z.infer<typeof CivitaiImageRecipeSchema>
+
 export const CivitaiMinedPromptsResultSchema = z.object({
   outfits: z.array(CivitaiMinedPromptSchema),
   // 实际采样的图片数（用于 UI footer「采样自 N 张作者实测图」）。
   totalSampled: z.number().int().nonnegative(),
+  // 逐图配方（optional：旧缓存/旧响应没有这个字段，消费方需兜底）。
+  recipes: z.array(CivitaiImageRecipeSchema).optional(),
 })
 export type CivitaiMinedPromptsResult = z.infer<
   typeof CivitaiMinedPromptsResultSchema

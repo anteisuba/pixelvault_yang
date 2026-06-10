@@ -20,9 +20,11 @@ import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import type {
+  CivitaiImageRecipe,
   CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
+  CivitaiRecipeExtraLora,
   LoraAssetType,
 } from '@/types'
 
@@ -40,6 +42,7 @@ const CivitaiStatsSchema = z
 const CivitaiFileSchema = z
   .object({
     type: z.string().optional(),
+    name: z.string().optional(),
     primary: z.boolean().optional(),
     downloadUrl: z.string().url().optional(),
     // Civitai returns multiple hash algorithms per file; AutoV3 is the one
@@ -59,17 +62,31 @@ const CivitaiImageResourceSchema = z
   })
   .passthrough()
 
+// Newer onsite generations identify resources by Civitai version id instead
+// of file hash — this is how we recover the LoRA's real weight when the
+// legacy `resources` array only lists the checkpoint.
+const CivitaiResourceByVersionSchema = z
+  .object({
+    type: z.string().optional(),
+    weight: z.number().optional(),
+    modelVersionId: z.number().optional(),
+  })
+  .passthrough()
+
 const CivitaiImageMetaSchema = z
   .object({
     prompt: z.string().optional(),
     negativePrompt: z.string().optional(),
     resources: z.array(CivitaiImageResourceSchema).optional(),
+    civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
   })
   .passthrough()
 
 const CivitaiImageSchema = z
   .object({
     url: z.string().url(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
     nsfwLevel: z.number().optional(),
     hasMeta: z.boolean().optional(),
     hasPositivePrompt: z.boolean().optional(),
@@ -711,25 +728,40 @@ export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmRes
   }
 }
 
-// ─── Phase 2: recover source prompts from Civitai images ───────────────
+// ─── Phase 2: recover source prompts + per-image recipes ───────────────
 //
-// Covers the ~34 % of LoRAs that ship neither trainedWords nor description
-// code blocks. Source confidence order:
-//   1. /api/v1/model-versions/:id images[].meta.prompt — closest to the
-//      LoRA page source/reference images.
-//   2. /api/v1/images?modelId=&modelVersionId= — community generations,
-//      useful only when meta is present (often null in current Civitai API).
+// Source confidence order (verified live 2026-06-11, see
+// docs/plans/lora-recipe-workflow.md):
+//   1. /api/v1/model-versions/:id images[].meta — the LoRA page source/
+//      reference images; ≥96 % carry a full recipe (prompt, negativePrompt,
+//      seed, steps, cfgScale, Size, resources) in sampled top LoRAs.
+//   2. /api/v1/images?modelVersionId= — community generations. `withMeta`
+//      defaults to FALSE: without it `meta` is always null (this was the
+//      old "community meta is mostly missing" misdiagnosis). Query by
+//      modelVersionId (modelId-only risks Cloudflare timeouts per official
+//      docs) and browsingLevel=1 (legacy `nsfw=false` behaves erratically).
 //   3. Author description/trainedWords stay on the library item; they are
 //      author-filled hints, not source-image prompts.
+//
+// Two views are produced from the same data:
+//   outfits — prompt-deduped text view (legacy consumers, chip selector)
+//   recipes — per-image full-parameter view (M2 source-image grid →
+//             "一键同款"), capped at CIVITAI_IMAGES_RECIPE_CAP
 
 const CIVITAI_IMAGES_API = 'https://civitai.com/api/v1/images'
 const CIVITAI_IMAGES_SAMPLE_LIMIT = 30
 const CIVITAI_IMAGES_OUTFIT_CAP = 6
+const CIVITAI_IMAGES_RECIPE_CAP = 12
+// /api/v1/images browsingLevel bitmask: 1 = SFW only.
+const CIVITAI_IMAGES_BROWSING_LEVEL_SFW = 1
+// model-versions images[] use the numeric nsfwLevel scale; ≤2 ≈ SFW/Soft.
+const CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL = 2
 
 const CivitaiImageMetaInnerSchema = z
   .object({
     prompt: z.string().optional(),
     resources: z.array(CivitaiImageResourceSchema).optional(),
+    civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
   })
   .passthrough()
 
@@ -743,10 +775,14 @@ const CivitaiImageMetaInnerSchema = z
 const CivitaiImageItemSchema = z
   .object({
     id: z.union([z.number(), z.string()]).optional(),
+    url: z.string().url().optional(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
     meta: z
       .object({
         prompt: z.string().optional(),
         resources: z.array(CivitaiImageResourceSchema).optional(),
+        civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
         meta: CivitaiImageMetaInnerSchema.optional(),
       })
       .passthrough()
@@ -761,10 +797,191 @@ const CivitaiImagesResponseSchema = z
   })
   .passthrough()
 
-async function fetchModelVersionSourcePrompts(
+// ── meta → recipe field extraction ──────────────────────────────────────
+//
+// Civitai image meta is uploader-supplied A1111-style data: numbers arrive
+// as numbers OR strings, key casing varies ("clipSkip" vs "Clip skip",
+// "Size"). Extraction is defensive coercion, never validation — a recipe
+// with a weird cfgScale should still surface; the mapping layer
+// (civitai-recipe-to-generation) decides what is applicable.
+
+function coerceFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
+}
+
+function coerceInteger(value: unknown): number | undefined {
+  const parsed = coerceFiniteNumber(value)
+  if (parsed === undefined) return undefined
+  return Number.isInteger(parsed) ? parsed : Math.round(parsed)
+}
+
+function coerceTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+type RecipeMetaParams = Pick<
+  CivitaiImageRecipe,
+  | 'negativePrompt'
+  | 'seed'
+  | 'steps'
+  | 'cfgScale'
+  | 'sampler'
+  | 'clipSkip'
+  | 'sizeRaw'
+  | 'checkpoint'
+>
+
+function extractRecipeMetaParams(
+  meta: Record<string, unknown>,
+): RecipeMetaParams {
+  return {
+    negativePrompt: coerceTrimmedString(meta.negativePrompt),
+    seed: coerceInteger(meta.seed),
+    steps: coerceInteger(meta.steps),
+    cfgScale: coerceFiniteNumber(meta.cfgScale),
+    sampler: coerceTrimmedString(meta.sampler),
+    clipSkip: coerceInteger(meta.clipSkip ?? meta['Clip skip']),
+    sizeRaw: coerceTrimmedString(meta.Size ?? meta.size),
+    checkpoint: coerceTrimmedString(meta.Model),
+  }
+}
+
+type CivitaiImageResource = z.infer<typeof CivitaiImageResourceSchema>
+type CivitaiResourceByVersion = z.infer<typeof CivitaiResourceByVersionSchema>
+
+interface RecipeLoraResources {
+  loraWeight?: number
+  extraLoras?: CivitaiRecipeExtraLora[]
+}
+
+// SD WebUI in-prompt LoRA syntax: `<lora:name:weight>` (weight optional,
+// defaults to 1; can be negative for slider LoRAs). RAW prompt only — the
+// cleaned recipe prompt has these stripped.
+const PROMPT_LORA_TAG_RE = /<lora:([^:>]+?)(?::\s*(-?\d+(?:\.\d+)?))?\s*>/gi
+
+interface PromptLoraTag {
+  name: string
+  weight?: number
+}
+
+function parsePromptLoraTags(rawPrompt: string): PromptLoraTag[] {
+  const tags: PromptLoraTag[] = []
+  for (const match of rawPrompt.matchAll(PROMPT_LORA_TAG_RE)) {
+    const name = match[1]?.trim()
+    if (!name) continue
+    const weight = match[2] !== undefined ? Number(match[2]) : undefined
+    tags.push({
+      name,
+      weight:
+        weight !== undefined && Number.isFinite(weight) ? weight : undefined,
+    })
+  }
+  return tags
+}
+
+/** "add-detail-xl.safetensors" → "add-detail-xl" (in-prompt tag name). */
+function fileNameStem(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, '').toLowerCase()
+}
+
+interface RecipeLoraSignalInput {
+  /** RAW (pre-clean) prompt — needed for `<lora:..>` tag parsing. */
+  rawPrompt: string
+  resources: readonly CivitaiImageResource[] | undefined
+  civitaiResources: readonly CivitaiResourceByVersion[] | undefined
+  targetHashLower: string | null
+  targetModelVersionId: number | null
+  /** Lower-cased name hints for the target LoRA's in-prompt tag (file stems). */
+  targetNameHints: readonly string[]
+}
+
+/**
+ * Recover "the target LoRA's real weight in this image" plus "other LoRAs
+ * stacked on the same image" from the three places Civitai meta encodes
+ * resource usage (verified live 2026-06-11):
+ *   1. `resources[].hash` — legacy A1111 metas; often lists ONLY the
+ *      checkpoint, so a miss here is normal.
+ *   2. `civitaiResources[].modelVersionId` — newer onsite generations.
+ *   3. `<lora:name:weight>` tags in the raw prompt — matched against the
+ *      version's file-name stems, or assumed when it is the only tag.
+ * Non-empty `extraLoras` means mounting only the target LoRA cannot fully
+ * reproduce the image — the UI must surface that instead of letting the
+ * user blame themselves for a mismatch.
+ */
+function resolveRecipeLoraSignals({
+  rawPrompt,
+  resources,
+  civitaiResources,
+  targetHashLower,
+  targetModelVersionId,
+  targetNameHints,
+}: RecipeLoraSignalInput): RecipeLoraResources {
+  const matchedResource = targetHashLower
+    ? resources?.find((r) => r.hash?.toLowerCase() === targetHashLower)
+    : undefined
+  const matchedByVersion =
+    targetModelVersionId !== null
+      ? civitaiResources?.find(
+          (r) =>
+            r.modelVersionId === targetModelVersionId &&
+            (r.type ?? 'lora').toLowerCase() === 'lora',
+        )
+      : undefined
+
+  const promptTags = parsePromptLoraTags(rawPrompt)
+  const knownTargetNames = new Set<string>(targetNameHints)
+  if (matchedResource?.name) {
+    knownTargetNames.add(matchedResource.name.toLowerCase())
+  }
+  let targetTag = promptTags.find((tag) =>
+    knownTargetNames.has(tag.name.toLowerCase()),
+  )
+  // A model version's own gallery image with exactly one LoRA tag is, in
+  // practice, that LoRA — accept it when nothing identified the tag by name.
+  if (!targetTag && promptTags.length === 1) targetTag = promptTags[0]
+
+  const loraWeight =
+    matchedResource?.weight ?? matchedByVersion?.weight ?? targetTag?.weight
+
+  const extras: CivitaiRecipeExtraLora[] = []
+  const seenNames = new Set<string>()
+  for (const r of resources ?? []) {
+    if (r === matchedResource || (r.type ?? '').toLowerCase() !== 'lora') {
+      continue
+    }
+    const key = r.name?.toLowerCase()
+    if (key) {
+      if (seenNames.has(key) || knownTargetNames.has(key)) continue
+      seenNames.add(key)
+    }
+    extras.push({ name: r.name, weight: r.weight })
+  }
+  for (const tag of promptTags) {
+    if (tag === targetTag) continue
+    const key = tag.name.toLowerCase()
+    if (seenNames.has(key) || knownTargetNames.has(key)) continue
+    seenNames.add(key)
+    extras.push({ name: tag.name, weight: tag.weight })
+  }
+
+  return {
+    loraWeight,
+    extraLoras: extras.length > 0 ? extras : undefined,
+  }
+}
+
+async function fetchModelVersionSourceRecipes(
   modelId: number,
   modelVersionId: number,
-): Promise<CivitaiMinedPromptsResult['outfits']> {
+  targetHashLower: string | null,
+): Promise<CivitaiImageRecipe[]> {
   const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
 
   let payload: unknown
@@ -797,25 +1014,65 @@ async function fetchModelVersionSourcePrompts(
     return []
   }
 
-  const seen = new Set<string>()
-  const prompts: CivitaiMinedPromptsResult['outfits'] = []
+  // In-prompt `<lora:NAME:..>` tags use the file name stem — collect every
+  // file's stem as a name hint so multi-tag prompts can identify our tag.
+  const targetNameHints = (parsed.data.files ?? [])
+    .map((file) => (file.name ? fileNameStem(file.name) : null))
+    .filter((stem): stem is string => Boolean(stem))
+
+  const recipes: CivitaiImageRecipe[] = []
   for (const image of parsed.data.images ?? []) {
-    if ((image.nsfwLevel ?? 1) > 2) continue
-    const prompt = cleanRecommendedPrompt(image.meta?.prompt ?? '')
+    if ((image.nsfwLevel ?? 1) > CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL) {
+      continue
+    }
+    const rawPrompt = image.meta?.prompt ?? ''
+    const prompt = cleanRecommendedPrompt(rawPrompt)
     if (!prompt) continue
-    const key = prompt.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    prompts.push({
-      label: '',
-      prompt,
-      sampleCount: 1,
+    recipes.push({
+      imageUrl: image.url,
+      width: image.width,
+      height: image.height,
       source: 'model_version_image',
+      prompt,
+      ...extractRecipeMetaParams(image.meta ?? {}),
+      ...resolveRecipeLoraSignals({
+        rawPrompt,
+        resources: image.meta?.resources,
+        civitaiResources: image.meta?.civitaiResources,
+        targetHashLower,
+        targetModelVersionId: modelVersionId,
+        targetNameHints,
+      }),
     })
-    if (prompts.length >= CIVITAI_IMAGES_OUTFIT_CAP) break
+    if (recipes.length >= CIVITAI_IMAGES_RECIPE_CAP) break
   }
 
-  return prompts
+  return recipes
+}
+
+/**
+ * Derive the legacy prompt-deduped outfit view from per-image recipes so
+ * existing consumers (chip selector, workbench inspector) keep working
+ * unchanged while the grid consumes `recipes`.
+ */
+function deriveOutfitsFromRecipes(
+  recipes: readonly CivitaiImageRecipe[],
+): CivitaiMinedPromptsResult['outfits'] {
+  const seen = new Set<string>()
+  const outfits: CivitaiMinedPromptsResult['outfits'] = []
+  for (const recipe of recipes) {
+    const key = recipe.prompt.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    outfits.push({
+      label: '',
+      prompt: recipe.prompt,
+      sampleCount: 1,
+      source: recipe.source,
+    })
+    if (outfits.length >= CIVITAI_IMAGES_OUTFIT_CAP) break
+  }
+  return outfits
 }
 
 export interface MineCivitaiUserPromptsInput {
@@ -830,26 +1087,43 @@ export async function mineCivitaiUserPrompts({
   modelVersionId,
   fileHashAutoV3,
 }: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
+  const targetHash = fileHashAutoV3.toLowerCase()
+
   if (modelVersionId !== undefined) {
-    const sourceImagePrompts = await fetchModelVersionSourcePrompts(
+    const sourceRecipes = await fetchModelVersionSourceRecipes(
       modelId,
       modelVersionId,
+      targetHash,
     )
-    if (sourceImagePrompts.length > 0) {
+    if (sourceRecipes.length > 0) {
       return {
-        outfits: sourceImagePrompts,
-        totalSampled: sourceImagePrompts.length,
+        outfits: deriveOutfitsFromRecipes(sourceRecipes),
+        totalSampled: sourceRecipes.length,
+        recipes: sourceRecipes,
       }
     }
   }
 
   const url = new URL(CIVITAI_IMAGES_API)
-  url.searchParams.set('modelId', String(modelId))
+  // Query by modelVersionId alone when we have it — modelId-only queries on
+  // popular models risk Cloudflare timeouts (official docs) and return a
+  // different, often empty result set. modelId stays the fallback for
+  // legacy favorites that never persisted a version id.
   if (modelVersionId !== undefined) {
     url.searchParams.set('modelVersionId', String(modelVersionId))
+  } else {
+    url.searchParams.set('modelId', String(modelId))
   }
   url.searchParams.set('limit', String(CIVITAI_IMAGES_SAMPLE_LIMIT))
-  url.searchParams.set('nsfw', 'false')
+  // withMeta defaults to false — without it the API strips `meta` entirely
+  // and every image looks recipe-less (verified live 2026-06-11).
+  url.searchParams.set('withMeta', 'true')
+  // browsingLevel bitmask supersedes the legacy `nsfw` param, whose
+  // combinations with sort/model filters return erratic/empty result sets.
+  url.searchParams.set(
+    'browsingLevel',
+    String(CIVITAI_IMAGES_BROWSING_LEVEL_SFW),
+  )
   // 'Most Reactions' biases toward generations the community judged good,
   // which tend to carry well-formed activation prompts. Civitai's default
   // sort is Newest, which surfaces lots of partial / broken prompts.
@@ -873,9 +1147,9 @@ export async function mineCivitaiUserPrompts({
   }
 
   const parsed = CivitaiImagesResponseSchema.parse(payload)
-  const targetHash = fileHashAutoV3.toLowerCase()
 
   const segments: string[] = []
+  const recipes: CivitaiImageRecipe[] = []
   let consideredCount = 0
   for (const item of parsed.items) {
     // Civitai serves both `meta.{prompt,resources}` (single layer) and
@@ -897,7 +1171,37 @@ export async function mineCivitaiUserPrompts({
     const matched = sdMeta.resources?.find(
       (r) => r.hash && r.hash.toLowerCase() === targetHash,
     )
-    if (!matched?.name) continue
+    if (!matched) continue
+
+    // Per-image recipe: the FULL prompt + params, paired to the image —
+    // "一键同款" wants everything the uploader used, not just the
+    // activation segment.
+    const cleanedPrompt = cleanRecommendedPrompt(prompt)
+    if (
+      item.url &&
+      cleanedPrompt &&
+      recipes.length < CIVITAI_IMAGES_RECIPE_CAP
+    ) {
+      recipes.push({
+        imageUrl: item.url,
+        width: item.width,
+        height: item.height,
+        source: 'community_image',
+        prompt: cleanedPrompt,
+        ...extractRecipeMetaParams(sdMeta),
+        ...resolveRecipeLoraSignals({
+          rawPrompt: prompt,
+          resources: sdMeta.resources,
+          civitaiResources: sdMeta.civitaiResources,
+          targetHashLower: targetHash,
+          targetModelVersionId: modelVersionId ?? null,
+          targetNameHints: [],
+        }),
+      })
+    }
+
+    // Outfit segment clustering needs the in-prompt LoRA tag name.
+    if (!matched.name) continue
     const seg = extractActivationSegment(prompt, matched.name)
     if (seg) segments.push(seg)
   }
@@ -914,5 +1218,6 @@ export async function mineCivitaiUserPrompts({
   return {
     outfits: summarised,
     totalSampled: consideredCount,
+    recipes,
   }
 }

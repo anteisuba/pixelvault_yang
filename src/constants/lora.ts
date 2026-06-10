@@ -15,6 +15,14 @@ export const DEFAULT_LORA_WORKBENCH_SECTION = LORA_WORKBENCH_SECTIONS.COMMUNITY
 
 export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
+// ── 挂载可见性（M2a，docs/plans/lora-recipe-workflow.md）──────────────
+// Studio chip 缩略图请求宽度：facepile 20px / 卡片 48px，96 覆盖 2x 屏。
+export const LORA_CHIP_THUMBNAIL_WIDTH = 96
+// 挂载事件新鲜窗口：超过它的事件不再弹 toast（用户早已离开挂载现场）。
+export const LORA_MOUNT_EVENT_FRESH_MS = 5 * 60 * 1000
+// 挂载后触发按钮的高亮时长。
+export const LORA_MOUNT_PULSE_MS = 4000
+
 export const CIVITAI_LORA_PAGE_SIZE = 10
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =

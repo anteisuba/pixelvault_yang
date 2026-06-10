@@ -1283,6 +1283,8 @@
     "useTemplateHint": "替换当前提示词为这个 LoRA 的推荐起手式",
     "useTemplateBadge": "覆盖",
     "templateApplied": "已应用「{name}」的示例提示词",
+    "mountedToast": "已挂载「{name}」",
+    "mountedToastAction": "查看",
     "clearAll": "全部清除",
     "bannerEmpty": "LoRA 会把角色或画风叠加到当前图像模型上。",
     "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",

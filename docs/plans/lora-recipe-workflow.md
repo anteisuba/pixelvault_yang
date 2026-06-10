@@ -1,7 +1,12 @@
 # LoRA 配方工作流 — 活跃任务包
 
 创建：2026-06-11
-状态：M1 完成（2026-06-11）；下一步 M2a 挂载可见性。
+状态：M2a 完成（2026-06-11）；下一步 M2b 面板形态 + 入口收敛（布局级
+决策，先出 Figma 改动清单）。
+M2a 实现备注：挂载事件为内存态（provider 在 studio layout，跨
+/studio/lora→/studio/image 导航存活，不落 localStorage）；同 tick 批量
+push 的事件判定可能用到旧快照（真实交互为逐次点击，不受影响，见
+use-active-lora-stack push 注释）。
 M1 实现备注：①loraWeight 三信号回收（resources hash → civitaiResources
 modelVersionId → prompt `<lora:名:权重>` 标签 + 文件名词干匹配），实测
 来源图 resources 常只含 checkpoint、权重多在 prompt 标签里；②映射层对

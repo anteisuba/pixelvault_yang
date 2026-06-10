@@ -1283,6 +1283,8 @@
     "useTemplateHint": "現在のプロンプトをこのLoRAの推奨お手本に置き換えます",
     "useTemplateBadge": "上書き",
     "templateApplied": "「{name}」のお手本プロンプトを適用しました",
+    "mountedToast": "「{name}」を適用しました",
+    "mountedToastAction": "表示",
     "clearAll": "すべて解除",
     "bannerEmpty": "LoRAは現在の画像モデルにキャラクターや画風を重ねます。",
     "bannerOk": "現在のモデル「{model}」でこれらのLoRAを実行できます。",

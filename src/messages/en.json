@@ -1283,6 +1283,8 @@
     "useTemplateHint": "Replaces the current prompt with this LoRA's recommended starter",
     "useTemplateBadge": "Replace",
     "templateApplied": "Applied {name}'s starter prompt",
+    "mountedToast": "Mounted \"{name}\"",
+    "mountedToastAction": "View",
     "clearAll": "Clear all",
     "bannerEmpty": "LoRAs add a subject or style layer on top of the current image model.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",

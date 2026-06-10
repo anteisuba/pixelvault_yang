@@ -157,6 +157,65 @@ describe('useActiveLoraStack', () => {
     expect(result.current.items.map((i) => i.asset.id)).toEqual(['1', '2', '3'])
   })
 
+  it('push fires a mount event that acknowledge clears', () => {
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    act(() => {
+      result.current.push(
+        makeAsset({ id: '1', name: 'Nivora', styleCode: 'c1' }),
+      )
+    })
+
+    expect(result.current.mountEvent).toMatchObject({
+      assetId: '1',
+      assetName: 'Nivora',
+    })
+    expect(typeof result.current.mountEvent?.at).toBe('number')
+
+    act(() => {
+      result.current.acknowledgeMountEvent()
+    })
+    expect(result.current.mountEvent).toBeNull()
+  })
+
+  it('re-pushing an already mounted asset does not re-fire the mount event', () => {
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+    const asset = makeAsset({ id: '1', styleCode: 'c1' })
+
+    act(() => {
+      result.current.push(asset)
+    })
+    act(() => {
+      result.current.acknowledgeMountEvent()
+    })
+    act(() => {
+      result.current.push(asset) // duplicate — stack unchanged
+    })
+
+    expect(result.current.items).toHaveLength(1)
+    expect(result.current.mountEvent).toBeNull()
+  })
+
+  it('resolving ?style= fires a mount event for the added LoRA', async () => {
+    const asset = makeAsset({
+      id: 'url1',
+      name: 'Shared LoRA',
+      styleCode: 'pv-x',
+    })
+    mockGet.mockResolvedValue({ success: true, data: asset })
+    mockSearchParams.set('style', 'pv-x')
+
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1)
+    })
+    expect(result.current.mountEvent).toMatchObject({
+      assetId: 'url1',
+      assetName: 'Shared LoRA',
+    })
+  })
+
   it('setScale updates a single entry without disturbing others', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 

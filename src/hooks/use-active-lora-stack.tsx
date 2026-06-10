@@ -114,6 +114,18 @@ interface StoredEnvelope {
   items: StoredEntry[]
 }
 
+/**
+ * 最近一次"新 LoRA 进入挂载栈"事件（workbench push 或 ?style= 分享链接
+ * 解析）。Provider 挂在 studio layout，事件在内存里跨 /studio/lora →
+ * /studio/image 的客户端导航存活；消费方（StudioLoraChip）展示一次性
+ * 反馈后调 acknowledgeMountEvent 清掉，不落 localStorage。
+ */
+export interface LoraMountEvent {
+  assetId: string
+  assetName: string
+  at: number
+}
+
 interface ActiveLoraStackValue {
   items: StoredEntry[]
   /** Plain shape for snapshots / URL persistence */
@@ -124,6 +136,10 @@ interface ActiveLoraStackValue {
   clear(): void
   /** True while resolving a `?style=` query param on mount */
   isResolvingFromUrl: boolean
+  /** 待消费的挂载事件；无则 null。 */
+  mountEvent: LoraMountEvent | null
+  /** 消费（清除）当前挂载事件 — 反馈只展示一次。 */
+  acknowledgeMountEvent(): void
   /**
    * Build a shareable URL that reproduces this stack on the canvas.
    * Always points at /<locale>/studio/image with a `?style=` value
@@ -203,6 +219,10 @@ function purgeLegacyGlobalStorage(): void {
 export function LoraStackProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<StoredEntry[]>([])
   const [isResolvingFromUrl, setIsResolvingFromUrl] = useState(false)
+  const [mountEvent, setMountEvent] = useState<LoraMountEvent | null>(null)
+  // Mirror of `items` for event-side dup/capacity checks in callbacks —
+  // the setItems updater stays the single source of truth for mutations.
+  const itemsRef = useRef<StoredEntry[]>([])
   const hasHydrated = useRef(false)
   const searchParams = useSearchParams()
   // Clerk scopes every read and write. Until isLoaded === true we treat
@@ -230,7 +250,7 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     }
 
     loadedForClerkId.current = activeClerkId
-     
+
     setItems(readFromStorage(activeClerkId))
     hasHydrated.current = true
   }, [activeClerkId])
@@ -264,6 +284,15 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       }
       if (cancelled) return
       if (resolved.length > 0) {
+        // Predict which entries will actually land (dup/capacity) against
+        // the latest snapshot so the mount event matches the merge below.
+        const currentIds = new Set(
+          itemsRef.current.map((entry) => entry.asset.id),
+        )
+        const capacity = Math.max(0, MAX_STACK - itemsRef.current.length)
+        const added = resolved
+          .filter((entry) => !currentIds.has(entry.asset.id))
+          .slice(0, capacity)
         setItems((prev) => {
           const seen = new Set(prev.map((entry) => entry.asset.id))
           const merged = [...prev]
@@ -275,6 +304,14 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
           }
           return merged
         })
+        const lastAdded = added[added.length - 1]
+        if (lastAdded) {
+          setMountEvent({
+            assetId: lastAdded.asset.id,
+            assetName: lastAdded.asset.name,
+            at: Date.now(),
+          })
+        }
       }
       setIsResolvingFromUrl(false)
     })()
@@ -287,6 +324,7 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   // While parked, mutations stay in memory (won't survive reload, but
   // that's intentional: don't leak unsigned-in edits into anyone's slot).
   useEffect(() => {
+    itemsRef.current = items
     if (!hasHydrated.current) return
     if (activeClerkId === null) return
     if (loadedForClerkId.current !== activeClerkId) return
@@ -294,11 +332,26 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   }, [activeClerkId, items])
 
   const push = useCallback((asset: LoraAssetRecord, scale?: number) => {
+    // willAdd reads the post-render mirror: exact for real interactions
+    // (one push per click/tick). Same-tick batched pushes may evaluate
+    // against a stale mirror and over-fire the mount event — items
+    // themselves stay correct via the updater guards below.
+    const current = itemsRef.current
+    const willAdd =
+      !current.some((entry) => entry.asset.id === asset.id) &&
+      current.length < MAX_STACK
     setItems((prev) => {
       if (prev.some((entry) => entry.asset.id === asset.id)) return prev
       if (prev.length >= MAX_STACK) return prev
       return [...prev, { asset, scale }]
     })
+    if (willAdd) {
+      setMountEvent({
+        assetId: asset.id,
+        assetName: asset.name,
+        at: Date.now(),
+      })
+    }
   }, [])
 
   const setScale = useCallback((assetId: string, scale: number) => {
@@ -315,6 +368,10 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => {
     setItems([])
+  }, [])
+
+  const acknowledgeMountEvent = useCallback(() => {
+    setMountEvent(null)
   }, [])
 
   const toActiveLoras = useCallback(
@@ -349,6 +406,8 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       remove,
       clear,
       isResolvingFromUrl,
+      mountEvent,
+      acknowledgeMountEvent,
       getShareUrl,
     }),
     [
@@ -359,6 +418,8 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       remove,
       clear,
       isResolvingFromUrl,
+      mountEvent,
+      acknowledgeMountEvent,
       getShareUrl,
     ],
   )

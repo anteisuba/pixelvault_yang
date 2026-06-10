@@ -64,9 +64,9 @@ Personal AI Gallery — multi-model AI image generation + permanent archive.
 
 ## Design Language
 
-UI 任务**必读** [`docs/ai/ui-design-system.md`](docs/ai/ui-design-system.md)（AI agent 项目级方向，dark-mode-first / 创作工具感 / 多语言 ready）。响应式细则见 [`docs/ai/responsive-workflow.md`](docs/ai/responsive-workflow.md)，QA 清单见 [`docs/ai/mobile-qa-checklist.md`](docs/ai/mobile-qa-checklist.md)。
+UI 任务**必读** [`docs/design/`](docs/design/README.md)：`system/` 是全局 CSS/token/布局的现状事实，`pages/` 是各页面现状事实，`reviews/` 是 UI 审查报告（最新：[`reviews/2026-06-11-ui-audit-pass1-code.md`](docs/design/reviews/2026-06-11-ui-audit-pass1-code.md)）。
 
-`docs/reference/design-system.md` 描述当前已实现的三 surface 模型（Editorial / Marketing / Krea Overlay，light-mode editorial）。**冲突时以 `docs/ai/` 为准** — `docs/reference/` 视为现状快照，`docs/ai/` 视为方向。改 UI 前若发现两者矛盾，先停下来问用户。
+方向文档：[`docs/design/direction.md`](docs/design/direction.md)（主基调 v1 **已确认**，2026-06-11：双面模式 / 无彩反相 CTA / 落地顺序，含按面参考集）。`system/`、`pages/` 是现状快照而非方向；页面 `Target` 段为空时以 direction.md 为准，再有缺口先停下来问用户。
 
 **Anti-slop 红线**：禁止紫蓝渐变、霓虹光晕、玻璃形态滥用、过度 hero 空白、深色科技蓝光风、随意动效。Motion 只在澄清状态/连续性/反馈时使用，不做装饰。
 
@@ -137,7 +137,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ### UI / 设计任务路由
 
-任何 UI 改动前先读 `docs/ai/ui-design-system.md`。然后按任务类型选 skill：
+任何 UI 改动前先读 `docs/design/README.md` 与最新 `docs/design/reviews/` 审查报告。然后按任务类型选 skill：
 
 - **首页 / Landing / 视觉升级 / 反 AI-slop** → `Taste Skill`（外部安装，见下）
 - **生产级产品 UI 实现** → `frontend-design`（Anthropic plugin via `/plugin`）

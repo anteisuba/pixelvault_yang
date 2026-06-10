@@ -29,9 +29,10 @@ import {
   Wand2,
   Workflow,
 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { motionTransition } from '@/constants/motion'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
@@ -630,6 +631,7 @@ function SidebarFooterUserMenu() {
   const { signOut } = useClerk()
   const router = useRouter()
   const { isMobile, state } = useSidebar()
+  const reducedMotion = useReducedMotion()
   const isCollapsed = state === 'collapsed'
   const isCompact = isCollapsed || isMobile
 
@@ -726,7 +728,7 @@ function SidebarFooterUserMenu() {
             initial={{ opacity: 0, y: 6, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            transition={motionTransition('fast', reducedMotion)}
             className={cn(
               'absolute z-50 rounded-xl border border-sidebar-border/60 bg-sidebar/95 py-1 shadow-lg backdrop-blur-xl',
               isCompact

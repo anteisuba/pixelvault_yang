@@ -2,8 +2,9 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 import { Link, usePathname } from '@/i18n/navigation'
 import { LOCALES, type AppLocale } from '@/i18n/routing'
@@ -25,6 +26,7 @@ export function LocaleSwitcher({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const t = useTranslations('LocaleSwitcher')
+  const reducedMotion = useReducedMotion()
   const isVertical = orientation === 'vertical'
   const isCompact = size === 'compact'
   const isSidebar = tone === 'sidebar'
@@ -94,8 +96,8 @@ export function LocaleSwitcher({
                 )}
                 transition={{
                   type: 'tween',
-                  ease: 'easeOut',
-                  duration: 0.3,
+                  ease: EASE_STANDARD,
+                  duration: reducedMotion ? 0 : DURATION.base,
                 }}
               />
             )}

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   motion,
+  useReducedMotion,
   type DOMMotionComponents,
   type HTMLMotionProps,
   type MotionProps,
@@ -92,9 +93,10 @@ export function HyperText({
   const [isAnimating, setIsAnimating] = useState(false)
   const iterationCount = useRef(0)
   const elementRef = useRef<HTMLElement | null>(null)
+  const reducedMotion = useReducedMotion()
 
   const handleAnimationTrigger = () => {
-    if (animateOnHover && !isAnimating) {
+    if (animateOnHover && !isAnimating && !reducedMotion) {
       iterationCount.current = 0
       setIsAnimating(true)
     }
@@ -102,7 +104,7 @@ export function HyperText({
 
   // Handle animation start based on view or delay
   useEffect(() => {
-    if (!animateOnMount) return
+    if (!animateOnMount || reducedMotion) return
 
     if (!startOnView) {
       const startTimeout = setTimeout(() => {
@@ -128,7 +130,7 @@ export function HyperText({
     }
 
     return () => observer.disconnect()
-  }, [animateOnMount, delay, startOnView])
+  }, [animateOnMount, delay, startOnView, reducedMotion])
 
   // Handle scramble animation
   useEffect(() => {

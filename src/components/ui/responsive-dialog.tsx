@@ -28,8 +28,9 @@ import {
  *
  * Same API surface as `Dialog`. Pick this over `Dialog` whenever the dialog
  * has more than a confirmation message — forms, lists, multi-step flows,
- * anything where keyboard or scroll matters on small screens. See
- * docs/ai/responsive-workflow.md §7.
+ * anything where keyboard or scroll matters on small screens. For toolbar
+ * chips / quick anchored config use ResponsivePopover instead. See
+ * docs/design/direction.md（移动端一等公民）.
  *
  * Mobile-only behaviors handled here so callers do not have to repeat them:
  *   - Drawer content caps at `max-h-[95svh]` so it never gets clipped by the

@@ -10,11 +10,12 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { Loader2, Send } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { motionTransition } from '@/constants/motion'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   getWorkflowById,
@@ -102,6 +103,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tImageChip = useTranslations('ImageChip')
   const tModels = useTranslations('Models')
   const locale = useLocale()
+  const reducedMotion = useReducedMotion()
   const promptTags = usePromptTagStack()
 
   useEffect(() => {
@@ -1007,7 +1009,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
                 animate={{ height: 'auto', opacity: 1, y: 0, marginBottom: 8 }}
                 exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
-                transition={{ duration: 0.36, ease: [0.4, 0, 0.2, 1] }}
+                transition={motionTransition('slow', reducedMotion)}
               >
                 <div className="flex items-center justify-between gap-2 px-1">
                   <div className="flex min-w-0 items-center gap-1.5">
@@ -1074,7 +1076,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               'overflow-hidden border border-white/90 bg-white text-neutral-950 shadow-2xl shadow-black/25 ring-1 ring-black/10',
               'has-[textarea:focus-visible]:border-white has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/20',
             )}
-            transition={{ duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
+            transition={motionTransition('slow', reducedMotion)}
           >
             <ImageAttachmentPreviewStrip
               entries={imageUpload.referenceEntries}
@@ -1122,7 +1124,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                       'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
                   )}
                   style={{
-                    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                    transitionTimingFunction: 'var(--ease-standard)',
                   }}
                 >
                   <AnimatePresence initial={false} mode="wait">
@@ -1133,7 +1135,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                         initial={{ opacity: 0, scale: 0.92 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.92 }}
-                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        transition={motionTransition('fast', reducedMotion)}
                       >
                         <Loader2 className="size-4 animate-spin" />
                         {elapsedSeconds > 0 && (
@@ -1149,7 +1151,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                         initial={{ opacity: 0, scale: 0.92 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.92 }}
-                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        transition={motionTransition('fast', reducedMotion)}
                       >
                         <Send className="size-4 -rotate-12" />
                       </motion.span>
@@ -1166,7 +1168,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                   initial={{ height: 0, opacity: 0, y: -4 }}
                   animate={{ height: 'auto', opacity: 1, y: 0 }}
                   exit={{ height: 0, opacity: 0, y: -4 }}
-                  transition={{ duration: 0.36, ease: [0.4, 0, 0.2, 1] }}
+                  transition={motionTransition('slow', reducedMotion)}
                 >
                   <div className="mt-2 overflow-x-auto border-t border-neutral-200 pt-2 text-black [&_button]:text-black [&_svg]:text-black">
                     <StudioToolbarPanels compact />

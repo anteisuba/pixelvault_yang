@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useCallback, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronRight, File, Folder, FolderOpen } from 'lucide-react'
 
+import { DURATION, EASE_STANDARD, motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface TreeNode<TData = unknown> {
@@ -65,6 +66,7 @@ export function TreeView<TData = unknown>({
   )
 
   const currentSelectedIds = selectedIds ?? internalSelectedIds
+  const reducedMotion = useReducedMotion()
 
   const toggleExpanded = useCallback(
     (nodeId: string) => {
@@ -154,7 +156,11 @@ export function TreeView<TData = unknown>({
               activateNode(node, hasChildren, event.ctrlKey || event.metaKey)
             }
           }}
-          whileTap={{ scale: 0.99, transition: { duration: 0.1 } }}
+          whileTap={
+            reducedMotion
+              ? undefined
+              : { scale: 0.99, transition: { duration: DURATION.fast } }
+          }
         >
           {showLines && level > 0 && (
             <div className="pointer-events-none absolute inset-y-0 left-0">
@@ -194,7 +200,7 @@ export function TreeView<TData = unknown>({
           <motion.span
             className="mr-1 flex size-4 shrink-0 items-center justify-center"
             animate={{ rotate: hasChildren && isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            transition={motionTransition('fast', reducedMotion)}
           >
             {hasChildren && (
               <ChevronRight className="size-3 text-muted-foreground" />
@@ -226,8 +232,8 @@ export function TreeView<TData = unknown>({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{
-                duration: animateExpand ? 0.22 : 0,
-                ease: 'easeInOut',
+                duration: animateExpand && !reducedMotion ? DURATION.base : 0,
+                ease: EASE_STANDARD,
               }}
               className="overflow-hidden"
             >
@@ -252,7 +258,7 @@ export function TreeView<TData = unknown>({
       className={cn('w-full', className)}
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={motionTransition('base', reducedMotion)}
     >
       {data.map((node, index) =>
         renderNode(node, 0, index === data.length - 1),

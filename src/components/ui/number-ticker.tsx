@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect, useRef, type ComponentPropsWithoutRef } from 'react'
-import { useInView, useMotionValue, useSpring } from 'motion/react'
+import {
+  useInView,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+} from 'motion/react'
 
 import { cn } from '@/lib/utils'
 
@@ -29,13 +34,19 @@ export function NumberTicker({
     stiffness: 100,
   })
   const isInView = useInView(ref, { once: true, margin: '0px' })
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
 
     if (isInView) {
       timer = setTimeout(() => {
-        motionValue.set(direction === 'down' ? startValue : value)
+        const target = direction === 'down' ? startValue : value
+        if (reducedMotion) {
+          springValue.jump(target)
+        } else {
+          motionValue.set(target)
+        }
       }, delay * 1000)
     }
 
@@ -44,7 +55,16 @@ export function NumberTicker({
         clearTimeout(timer)
       }
     }
-  }, [motionValue, isInView, delay, value, direction, startValue])
+  }, [
+    motionValue,
+    springValue,
+    isInView,
+    delay,
+    value,
+    direction,
+    startValue,
+    reducedMotion,
+  ])
 
   useEffect(
     () =>

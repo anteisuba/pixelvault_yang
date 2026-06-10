@@ -7,9 +7,10 @@ import {
   useState,
   type ComponentPropsWithoutRef,
 } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Search } from 'lucide-react'
 
+import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 interface PlaceholdersInputProps extends Omit<
@@ -32,6 +33,7 @@ export function PlaceholdersInput({
 }: PlaceholdersInputProps) {
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (value) return // Don't cycle when user is typing
@@ -68,7 +70,7 @@ export function PlaceholdersInput({
               initial={{ y: 12, opacity: 0 }}
               animate={{ y: 0, opacity: 0.5 }}
               exit={{ y: -12, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              transition={motionTransition('base', reducedMotion)}
               className="block text-sm text-muted-foreground whitespace-nowrap"
             >
               {placeholders[placeholderIndex]}

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createGET, parseJSON } from '@/test/api-helpers'
+import { createGET, mockAuthenticated, parseJSON } from '@/test/api-helpers'
 
 vi.mock('server-only', () => ({}))
 
@@ -12,11 +12,17 @@ vi.mock('@/services/civitai-lora.service', () => ({
   resolveCivitaiLoraByReference: vi.fn(),
 }))
 
+vi.mock('@/services/lora-asset.service', () => ({
+  findLoraAssetByExtraReference: vi.fn(),
+}))
+
 import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
+import { findLoraAssetByExtraReference } from '@/services/lora-asset.service'
 
 import { GET } from './route'
 
 const mockResolve = vi.mocked(resolveCivitaiLoraByReference)
+const mockFindLocal = vi.mocked(findLoraAssetByExtraReference)
 
 const ITEM = {
   id: 'civitai:122359:135867',
@@ -26,10 +32,37 @@ const ITEM = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockAuthenticated()
+  mockFindLocal.mockResolvedValue(null)
   mockResolve.mockResolvedValue(ITEM as never)
 })
 
 describe('GET /api/lora-assets/civitai/resolve', () => {
+  it('prefers a local library hit and never touches Civitai for it', async () => {
+    const LOCAL = { id: 'asset_local', name: 'My Trained LoRA' }
+    mockFindLocal.mockResolvedValueOnce(LOCAL as never)
+
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        hash: '9c783c8ce46c',
+      }),
+    )
+    const body = await parseJSON<{ success: boolean; data?: typeof LOCAL }>(
+      response,
+    )
+
+    expect(response.status).toBe(200)
+    expect(body.data?.id).toBe('asset_local')
+    expect(mockFindLocal).toHaveBeenCalledWith('clerk_test_user', {
+      hash: '9c783c8ce46c',
+      modelVersionId: undefined,
+      name: undefined,
+    })
+    expect(mockResolve).not.toHaveBeenCalled()
+    // 用户相关数据绝不能进共享缓存
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+
   it('resolves by hash', async () => {
     const response = await GET(
       createGET('/api/lora-assets/civitai/resolve', {

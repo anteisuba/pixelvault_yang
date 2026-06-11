@@ -6,7 +6,10 @@ import { LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST } from '@/constants/lora'
 import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { fetchCivitaiVersionIdentifiers } from '@/services/civitai-lora.service'
+import {
+  fetchCivitaiVersionIdentifiers,
+  normalizeLoraNameKey,
+} from '@/services/civitai-lora.service'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -159,6 +162,51 @@ export async function findLoraAssetsByUrls(
     if (picked) out.push(toRecord(picked, viewerUserId))
   }
   return out
+}
+
+/**
+ * 本地库优先匹配（一键补挂第 0 层）：配方 extras 先对照自己的库（收藏/
+ * 自训练/精选/公开），命中直接挂 — 毫秒级、不依赖 Civitai、覆盖
+ * Civitai 上不存在的自训练 LoRA。匹配键按可靠度：文件 hash →
+ * versionId → 名字归一键（与 Civitai 文件名词干同一把尺子）。
+ */
+export async function findLoraAssetByExtraReference(
+  clerkId: string | null,
+  ref: {
+    hash?: string | null
+    modelVersionId?: number | null
+    name?: string | null
+  },
+): Promise<LoraAssetRecord | null> {
+  const viewerUserId = clerkId ? (await ensureUser(clerkId)).id : null
+  const visibility = viewerUserId
+    ? { OR: [{ userId: viewerUserId }, { isPublic: true }] }
+    : { isPublic: true }
+
+  if (ref.hash) {
+    const row = await db.loraAsset.findFirst({
+      where: { civitaiFileHashAutoV3: ref.hash.toLowerCase(), ...visibility },
+    })
+    if (row) return toRecord(row, viewerUserId)
+  }
+  if (ref.modelVersionId) {
+    const row = await db.loraAsset.findFirst({
+      where: { civitaiModelVersionId: ref.modelVersionId, ...visibility },
+    })
+    if (row) return toRecord(row, viewerUserId)
+  }
+  if (ref.name) {
+    // 名字归一比对需要 JS 侧进行 — 候选集是可见行的小集合（库有上限）。
+    const key = normalizeLoraNameKey(ref.name)
+    const rows = await db.loraAsset.findMany({
+      where: visibility,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    const hit = rows.find((row) => normalizeLoraNameKey(row.name) === key)
+    if (hit) return toRecord(hit, viewerUserId)
+  }
+  return null
 }
 
 /**

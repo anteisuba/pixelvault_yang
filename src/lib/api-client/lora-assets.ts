@@ -1,7 +1,6 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
 import type {
-  CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
   FavoriteLoraRequest,
@@ -151,13 +150,16 @@ export async function mineCivitaiLoraPromptsAPI(params: {
 
 interface ResolveCivitaiLoraResponse {
   success: boolean
-  data?: CivitaiLoraLibraryItem
+  // 本地库命中返回 LoraAssetRecord；Civitai 命中返回其超集
+  // CivitaiLoraLibraryItem — 统一按基类型消费。
+  data?: LoraAssetRecord
   error?: string
 }
 
 /**
- * 按 hash / modelVersionId 把配方里的"其它 LoRA"解析成可挂载条目
- * （一键补挂）。两个参数至少给一个。
+ * 把配方里的"其它 LoRA"解析成可挂载条目（一键补挂）：本地库优先
+ * （hash/versionId/名字归一），未命中再走 Civitai（by-id → by-hash →
+ * 拆词搜索）。三个参数至少给一个。
  */
 export async function resolveCivitaiLoraAPI(params: {
   hash?: string

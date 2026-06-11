@@ -1,15 +1,19 @@
 import 'server-only'
 
+import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
-import type { CivitaiLoraLibraryItem } from '@/types'
+import { findLoraAssetByExtraReference } from '@/services/lora-asset.service'
+import type { LoraAssetRecord } from '@/types'
 
-// 模型文件与其元数据在 Civitai 上基本不变 — 长缓存。与 mined-prompts
-// 同模式：只读公共数据代理，无需 auth。
-const CACHE_CONTROL = 'public, s-maxage=86400, stale-while-revalidate=604800'
+// Civitai 解析结果对所有人相同 — 长 CDN 缓存。本地库命中是用户相关
+// 数据，绝不能进共享缓存（见下 private 分支）。
+const CIVITAI_CACHE_CONTROL =
+  'public, s-maxage=86400, stale-while-revalidate=604800'
+const LOCAL_CACHE_CONTROL = 'private, no-store'
 
 const QuerySchema = z
   .object({
@@ -36,7 +40,7 @@ const QuerySchema = z
 
 interface SuccessBody {
   success: true
-  data: CivitaiLoraLibraryItem
+  data: LoraAssetRecord
 }
 interface ErrorBody {
   success: false
@@ -61,15 +65,28 @@ export async function GET(
   }
 
   try {
+    // 第 0 层：本地库（收藏/自训练/精选/公开）— 毫秒级、覆盖 Civitai 上
+    // 不存在的自训练 LoRA。登录是可选的：未登录只匹配公开行。
+    const { userId: clerkId } = await auth()
+    const local = await findLoraAssetByExtraReference(clerkId, parsed.data)
+    if (local) {
+      const response = NextResponse.json<SuccessBody>({
+        success: true,
+        data: local,
+      })
+      response.headers.set('Cache-Control', LOCAL_CACHE_CONTROL)
+      return response
+    }
+
     const data = await resolveCivitaiLoraByReference(parsed.data)
     if (!data) {
       return NextResponse.json<ErrorBody>(
-        { success: false, error: 'LoRA not found on Civitai' },
+        { success: false, error: 'LoRA not found locally or on Civitai' },
         { status: 404 },
       )
     }
     const response = NextResponse.json<SuccessBody>({ success: true, data })
-    response.headers.set('Cache-Control', CACHE_CONTROL)
+    response.headers.set('Cache-Control', CIVITAI_CACHE_CONTROL)
     return response
   } catch (error) {
     logger.warn('GET /api/lora-assets/civitai/resolve failed', {

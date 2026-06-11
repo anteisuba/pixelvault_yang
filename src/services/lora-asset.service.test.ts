@@ -42,6 +42,9 @@ const mockFetchCivitaiVersionIdentifiers = vi.fn()
 vi.mock('@/services/civitai-lora.service', () => ({
   fetchCivitaiVersionIdentifiers: (...a: unknown[]) =>
     mockFetchCivitaiVersionIdentifiers(...a),
+  // 与真实实现保持同一归一化语义（小写 + 去分隔符）。
+  normalizeLoraNameKey: (value: string) =>
+    value.toLowerCase().replace(/[\s\-_.]+/g, ''),
 }))
 
 import {
@@ -49,6 +52,7 @@ import {
   getLoraAssetByStyleCode,
   listLoraAssetsForUser,
   ensureLoraAssetFromTrainingJob,
+  findLoraAssetByExtraReference,
   findLoraAssetsByUrls,
   listDiscoverLoraAssets,
   setLoraAssetVisibility,
@@ -257,6 +261,55 @@ describe('listLoraAssetsForUser', () => {
     // 失败行原样返回，不阻塞列表
     expect(result.map((r) => r.id)).toEqual(['fav_cover', 'fav_fail'])
     expect(result[1]?.modelId).toBeUndefined()
+  })
+
+  it('finds a local asset by hash, then versionId, then normalized name', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+
+    // hash 命中
+    mockAssetFindFirst.mockResolvedValueOnce(
+      buildRow({ id: 'by_hash', civitaiFileHashAutoV3: 'aabbccddeeff' }),
+    )
+    const byHash = await findLoraAssetByExtraReference(OWNER.clerkId, {
+      hash: 'AABBCCDDEEFF',
+    })
+    expect(byHash?.id).toBe('by_hash')
+    expect(mockAssetFindFirst).toHaveBeenCalledWith({
+      where: {
+        civitaiFileHashAutoV3: 'aabbccddeeff',
+        OR: [{ userId: OWNER.id }, { isPublic: true }],
+      },
+    })
+
+    // 名字归一命中（hash/versionId 缺失）
+    mockAssetFindMany.mockResolvedValueOnce([
+      buildRow({ id: 'other', name: 'Something Else' }),
+      buildRow({ id: 'by_name', name: 'Enchanting Eyes (Detailed Eyes)' }),
+    ])
+    const byName = await findLoraAssetByExtraReference(OWNER.clerkId, {
+      name: 'enchanting-eyes details eyes', // 不全等 → 不命中
+    })
+    expect(byName).toBeNull()
+
+    mockAssetFindMany.mockResolvedValueOnce([
+      buildRow({ id: 'by_name', name: 'EnchantingEyes Illustrious' }),
+    ])
+    const byNameHit = await findLoraAssetByExtraReference(OWNER.clerkId, {
+      name: 'enchanting_eyes-illustrious',
+    })
+    expect(byNameHit?.id).toBe('by_name')
+  })
+
+  it('signed-out reference lookup only matches public rows', async () => {
+    mockAssetFindFirst.mockResolvedValueOnce(null)
+    const result = await findLoraAssetByExtraReference(null, {
+      hash: 'aabbccddeeff',
+    })
+    expect(result).toBeNull()
+    expect(mockAssetFindFirst).toHaveBeenCalledWith({
+      where: { civitaiFileHashAutoV3: 'aabbccddeeff', isPublic: true },
+    })
+    expect(mockEnsureUser).not.toHaveBeenCalled()
   })
 
   it('caps backfill fetches per request', async () => {

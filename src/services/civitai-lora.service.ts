@@ -291,8 +291,9 @@ function nameToSearchQuery(name: string): string {
 /**
  * 词干比对键：小写 + 去空格/横线/下划线/点。仍是全长严格相等 — 只是
  * 容忍 meta 名与文件名之间的分隔符差异，不做前缀/包含式模糊匹配。
+ * （导出给本地库匹配复用 — 同一把尺子量本地行和 Civitai 文件名。）
  */
-function normalizeStemKey(value: string): string {
+export function normalizeLoraNameKey(value: string): string {
   return value.toLowerCase().replace(/[\s\-_.]+/g, '')
 }
 
@@ -332,12 +333,12 @@ async function resolveCivitaiLoraByNameStem(
   const parsed = CivitaiModelsResponseSchema.safeParse(payload)
   if (!parsed.success) return null
 
-  const target = normalizeStemKey(trimmed)
+  const target = normalizeLoraNameKey(trimmed)
   for (const model of parsed.data.items) {
     for (const version of model.modelVersions ?? []) {
       const matched = version.files?.some(
         (file) =>
-          file.name && normalizeStemKey(fileNameStem(file.name)) === target,
+          file.name && normalizeLoraNameKey(fileNameStem(file.name)) === target,
       )
       if (matched) {
         return toLibraryItem({ ...model, modelVersions: [version] })

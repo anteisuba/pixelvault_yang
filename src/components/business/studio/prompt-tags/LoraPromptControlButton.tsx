@@ -15,14 +15,21 @@ import {
   ExternalLink,
   Plus,
   SlidersHorizontal,
+  Sparkles,
   Tags,
   Trash2,
+  User,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
 import {
+  LORA_CARD_SOURCE_IMAGE_WIDTH,
+  LORA_CHIP_THUMBNAIL_WIDTH,
+  LORA_MOUNT_EVENT_FRESH_MS,
+  LORA_MOUNT_PULSE_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
@@ -37,11 +44,13 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { Link } from '@/i18n/navigation'
+import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import {
   findUsableRecommendedLoraRoute,
   getRecommendedLoraImageModelId,
   isImageModelCompatibleWithLoraFamily,
 } from '@/lib/lora-model-compatibility'
+import { loraThumbnailUrl } from '@/lib/lora-thumbnail'
 import {
   buildSourceMatchedLoraPrompt,
   mergeNegativePrompt,
@@ -103,6 +112,45 @@ export function LoraPromptControlButton({
     }
   }, [])
 
+  // 挂载即时反馈：workbench 挂载返回 / ?style= 分享链接解析后，toast
+  // （带"查看"action，点击展开本面板）+ 触发按钮短暂高亮一次。事件消费
+  // 后即清，不重复打扰；过期事件（用户早已离开挂载现场）只消费不提示。
+  const [recentlyMounted, setRecentlyMounted] = useState(false)
+  const pulseTimerRef = useRef<number | null>(null)
+  const { mountEvent, acknowledgeMountEvent } = loraStack
+  useEffect(() => {
+    if (!mountEvent) return
+    acknowledgeMountEvent()
+    if (Date.now() - mountEvent.at > LORA_MOUNT_EVENT_FRESH_MS) return
+    toast.success(t('mountedToast', { name: mountEvent.assetName }), {
+      action: {
+        label: t('mountedToastAction'),
+        onClick: () => {
+          setActiveTab('generate')
+          setOpen(true)
+        },
+      },
+    })
+    // One-shot event consumption; guarded by the mountEvent null check above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRecentlyMounted(true)
+    if (pulseTimerRef.current !== null) {
+      window.clearTimeout(pulseTimerRef.current)
+    }
+    pulseTimerRef.current = window.setTimeout(
+      () => setRecentlyMounted(false),
+      LORA_MOUNT_PULSE_MS,
+    )
+  }, [mountEvent, acknowledgeMountEvent, t])
+  useEffect(
+    () => () => {
+      if (pulseTimerRef.current !== null) {
+        window.clearTimeout(pulseTimerRef.current)
+      }
+    },
+    [],
+  )
+
   const trigger = (
     <Toolbar.Button
       type="button"
@@ -111,6 +159,7 @@ export function LoraPromptControlButton({
       className={cn(
         studioToolTriggerClass,
         active ? 'bg-muted/30 text-primary' : 'text-muted-foreground',
+        recentlyMounted && 'ring-2 ring-primary/60',
       )}
     >
       <Diamond className="size-4" aria-hidden />
@@ -527,6 +576,19 @@ function LoraGenerateRow({
   const sourceMatchLoading = minedPrompts.isLoading
   const sourceMatchUnavailable = !sourceMatch.reliable && !sourceMatchLoading
 
+  // 缩略图三级兜底：cover → preview → 第一张 Civitai 来源图。旧收藏行
+  // 没存 coverImageUrl（字段后加的），但带 modelVersionId 就能从挖掘
+  // 结果里拿来源图补上，无需数据回填。
+  const firstSourceImage = minedPrompts.recipes[0]?.imageUrl ?? null
+  const thumbUrl =
+    loraThumbnailUrl(asset, LORA_CHIP_THUMBNAIL_WIDTH) ??
+    (firstSourceImage
+      ? rewriteCivitaiImageUrl(firstSourceImage, {
+          width: LORA_CHIP_THUMBNAIL_WIDTH,
+        })
+      : null)
+  const FallbackIcon = asset.type === 'style' ? Sparkles : User
+
   const handleInsertTrigger = useCallback(() => {
     const trimmed = asset.triggerWord.trim()
     if (!trimmed || triggerInPrompt) return
@@ -562,8 +624,24 @@ function LoraGenerateRow({
 
   return (
     <article className="rounded-lg border border-border/70 p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start gap-2.5">
+        {thumbUrl ? (
+          // Plain <img>，与 LoraAssetCard 同约定（用户/外部内容，不走
+          // next/image 优化）。
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbUrl}
+            alt={asset.name}
+            className="size-12 shrink-0 rounded-md border border-border/60 object-cover"
+          />
+        ) : (
+          // 无封面 fallback 与 LoraAssetCard 同语义：style→Sparkles、
+          // subject→User。来源图加载完成后会自动补上真实图。
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <FallbackIcon className="size-5 opacity-50" aria-hidden />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <Diamond
               className="size-3.5 shrink-0 fill-current text-violet-600"
@@ -591,6 +669,30 @@ function LoraGenerateRow({
           <X className="size-3.5" aria-hidden />
         </Button>
       </div>
+
+      {/* 来源图预览 — LoRA 页的官方来源图（M1 逐图配方数据），横滚一行。
+          M2c 在这里接"点图→配方→一键同款"。 */}
+      {minedPrompts.recipes.length > 0 ? (
+        <div className="mt-2.5">
+          <p className="text-2xs text-muted-foreground">
+            {t('sourceImagesLabel', { count: minedPrompts.recipes.length })}
+          </p>
+          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
+            {minedPrompts.recipes.map((recipe, idx) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={recipe.imageUrl}
+                src={rewriteCivitaiImageUrl(recipe.imageUrl, {
+                  width: LORA_CARD_SOURCE_IMAGE_WIDTH,
+                })}
+                alt={t('sourceImageAlt', { name: asset.name, n: idx + 1 })}
+                loading="lazy"
+                className="h-16 w-12 shrink-0 rounded-md border border-border/60 object-cover"
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Button

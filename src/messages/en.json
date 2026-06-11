@@ -1222,11 +1222,15 @@
     "title": "LoRA",
     "description": "Manage LoRAs, prompt, negative prompt and control tags in one place.",
     "openLibraryShort": "Choose LoRA",
+    "mountedToast": "Mounted \"{name}\"",
+    "mountedToastAction": "View",
     "tabs": {
       "generate": "LoRA",
       "tags": "Add tags"
     },
     "generate": {
+      "sourceImagesLabel": "Source images ({count})",
+      "sourceImageAlt": "{name} source image {n}",
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe the subject, style, composition or mood…",
       "negativeLabel": "Negative Prompt",
@@ -1283,10 +1287,6 @@
     "useTemplateHint": "Replaces the current prompt with this LoRA's recommended starter",
     "useTemplateBadge": "Replace",
     "templateApplied": "Applied {name}'s starter prompt",
-    "mountedToast": "Mounted \"{name}\"",
-    "mountedToastAction": "View",
-    "sourceImagesLabel": "Source images ({count})",
-    "sourceImageAlt": "{name} source image {n}",
     "clearAll": "Clear all",
     "bannerEmpty": "LoRAs add a subject or style layer on top of the current image model.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",

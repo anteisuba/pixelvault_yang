@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { toast } from 'sonner'
 import {
@@ -13,7 +13,6 @@ import {
   Palette,
   Share2,
   Sparkles,
-  User,
   Users,
   Wand2,
   X,
@@ -21,10 +20,6 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
-  LORA_CARD_SOURCE_IMAGE_WIDTH,
-  LORA_CHIP_THUMBNAIL_WIDTH,
-  LORA_MOUNT_EVENT_FRESH_MS,
-  LORA_MOUNT_PULSE_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
@@ -37,8 +32,6 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { Link } from '@/i18n/navigation'
-import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
-import { loraThumbnailUrl } from '@/lib/lora-thumbnail'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { promptIncludesTrigger } from '@/lib/prompt-text'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
@@ -140,51 +133,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
   const tModels = useTranslations('Models')
   const { state, dispatch } = useStudioForm()
   const { modelOptions, selectedModel } = useImageModelOptions()
-  const {
-    items,
-    setScale,
-    remove,
-    clear,
-    getShareUrl,
-    mountEvent,
-    acknowledgeMountEvent,
-  } = useActiveLoraStack()
-
-  // 挂载即时反馈：workbench 挂载返回 / ?style= 分享链接解析后，toast +
-  // 触发按钮短暂高亮一次（事件消费后即清，不重复打扰）。过期事件（用户
-  // 早已离开挂载现场）只消费不提示。
-  const [recentlyMounted, setRecentlyMounted] = useState(false)
-  const pulseTimerRef = useRef<number | null>(null)
-  useEffect(() => {
-    if (!mountEvent) return
-    acknowledgeMountEvent()
-    if (Date.now() - mountEvent.at > LORA_MOUNT_EVENT_FRESH_MS) return
-    toast.success(t('mountedToast', { name: mountEvent.assetName }), {
-      action: {
-        label: t('mountedToastAction'),
-        onClick: () =>
-          dispatch({ type: 'OPEN_PANEL', payload: 'loraSelector' }),
-      },
-    })
-    // One-shot event consumption; guarded by the mountEvent null check above.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRecentlyMounted(true)
-    if (pulseTimerRef.current !== null) {
-      window.clearTimeout(pulseTimerRef.current)
-    }
-    pulseTimerRef.current = window.setTimeout(
-      () => setRecentlyMounted(false),
-      LORA_MOUNT_PULSE_MS,
-    )
-  }, [mountEvent, acknowledgeMountEvent, dispatch, t])
-  useEffect(
-    () => () => {
-      if (pulseTimerRef.current !== null) {
-        window.clearTimeout(pulseTimerRef.current)
-      }
-    },
-    [],
-  )
+  const { items, setScale, remove, clear, getShareUrl } = useActiveLoraStack()
 
   const handleShare = useCallback(async () => {
     const url = getShareUrl()
@@ -420,7 +369,6 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
               count > 0 || open
                 ? 'bg-muted/30 text-primary'
                 : 'text-muted-foreground',
-              recentlyMounted && 'ring-2 ring-primary/60',
             )}
           >
             <Palette className="size-4" aria-hidden />
@@ -648,9 +596,6 @@ interface ChipItemEntry {
     triggerWord: string
     type: 'subject' | 'style'
     defaultScale: number
-    // 缩略图来源（可选防御：旧 localStorage 条目可能缺这两个键）。
-    coverImageUrl?: string | null
-    previewImageUrls?: string[]
     recommendedPrompt?: string | null
     recommendedPromptAlternates?: { label: string; prompt: string }[]
     triggerSource?: 'official' | 'inferred'
@@ -776,43 +721,10 @@ function StudioLoraChipItem({
   const showChips = outfits.length > 1
   const showMinedSpinner = mined.isLoading && !hasOutfits
 
-  // 三级兜底：cover → preview → 第一张 Civitai 来源图（旧收藏没存封面
-  // 字段，但只要带 modelVersionId 就能从挖掘结果里拿到来源图补上）。
-  const firstSourceImage = mined.recipes[0]?.imageUrl ?? null
-  const thumbUrl =
-    loraThumbnailUrl(asset, LORA_CHIP_THUMBNAIL_WIDTH) ??
-    (firstSourceImage
-      ? rewriteCivitaiImageUrl(firstSourceImage, {
-          width: LORA_CHIP_THUMBNAIL_WIDTH,
-        })
-      : null)
-  const FallbackIcon =
-    asset.type === 'style'
-      ? Sparkles
-      : asset.type === 'subject'
-        ? User
-        : Palette
-
   return (
     <li className="rounded-lg border border-border/60 bg-card/40 p-2.5">
-      {/* Header — cover thumbnail + name + base model + remove */}
-      <div className="flex items-start gap-2.5">
-        {thumbUrl ? (
-          // Plain <img>，与 LoraAssetCard 同约定（用户/外部内容，不走
-          // next/image 优化）。
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbUrl}
-            alt={asset.name}
-            className="size-12 shrink-0 rounded-md border border-border/60 object-cover"
-          />
-        ) : (
-          // 无封面 fallback 与 LoraAssetCard 同语义：style→Sparkles、
-          // subject→User。旧挂载条目缺图字段时落到这里，重新收藏可补全。
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <FallbackIcon className="size-5 opacity-50" aria-hidden />
-          </span>
-        )}
+      {/* Header — name + base model + remove */}
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{asset.name}</p>
           <p className="flex items-center gap-1.5 truncate text-2xs text-muted-foreground">
@@ -837,30 +749,6 @@ function StudioLoraChipItem({
           <X className="size-3.5" aria-hidden />
         </button>
       </div>
-
-      {/* 来源图预览 — LoRA 页的官方来源图（M1 逐图配方数据），横滚一行。
-          M2c 在这里接"点图→配方→一键同款"。 */}
-      {mined.recipes.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-2xs text-muted-foreground">
-            {t('sourceImagesLabel', { count: mined.recipes.length })}
-          </p>
-          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
-            {mined.recipes.map((recipe, idx) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={recipe.imageUrl}
-                src={rewriteCivitaiImageUrl(recipe.imageUrl, {
-                  width: LORA_CARD_SOURCE_IMAGE_WIDTH,
-                })}
-                alt={t('sourceImageAlt', { name: asset.name, n: idx + 1 })}
-                loading="lazy"
-                className="h-16 w-12 shrink-0 rounded-md border border-border/60 object-cover"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       {/* Trigger word — kept as the quick "insert" affordance because
           a single trigger token is what the user usually wants to splice

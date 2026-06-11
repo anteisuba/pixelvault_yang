@@ -1222,11 +1222,15 @@
     "title": "LoRA",
     "description": "集中管理 LoRA、prompt、负面 prompt 和控制 tags。",
     "openLibraryShort": "选择 LoRA",
+    "mountedToast": "已挂载「{name}」",
+    "mountedToastAction": "查看",
     "tabs": {
       "generate": "LoRA",
       "tags": "补词"
     },
     "generate": {
+      "sourceImagesLabel": "来源图（{count}）",
+      "sourceImageAlt": "{name} 来源图 {n}",
       "promptLabel": "Prompt",
       "promptPlaceholder": "描述主体、风格、构图或氛围…",
       "negativeLabel": "负面 Prompt",
@@ -1283,10 +1287,6 @@
     "useTemplateHint": "替换当前提示词为这个 LoRA 的推荐起手式",
     "useTemplateBadge": "覆盖",
     "templateApplied": "已应用「{name}」的示例提示词",
-    "mountedToast": "已挂载「{name}」",
-    "mountedToastAction": "查看",
-    "sourceImagesLabel": "来源图（{count}）",
-    "sourceImageAlt": "{name} 来源图 {n}",
     "clearAll": "全部清除",
     "bannerEmpty": "LoRA 会把角色或画风叠加到当前图像模型上。",
     "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",

@@ -21,11 +21,16 @@ const QuerySchema = z
       .max(64)
       .optional(),
     modelVersionId: z.coerce.number().int().positive().optional(),
+    // meta 里的 LoRA 名 — hash 对不上索引时的搜索兜底（词干精确匹配）。
+    name: z.string().trim().min(1).max(200).optional(),
   })
   .refine(
-    (value) => value.hash !== undefined || value.modelVersionId !== undefined,
+    (value) =>
+      value.hash !== undefined ||
+      value.modelVersionId !== undefined ||
+      value.name !== undefined,
     {
-      message: 'Either hash or modelVersionId is required',
+      message: 'hash, modelVersionId or name is required',
     },
   )
 
@@ -45,6 +50,7 @@ export async function GET(
   const parsed = QuerySchema.safeParse({
     hash: searchParams.get('hash') ?? undefined,
     modelVersionId: searchParams.get('modelVersionId') ?? undefined,
+    name: searchParams.get('name') ?? undefined,
   })
 
   if (!parsed.success) {

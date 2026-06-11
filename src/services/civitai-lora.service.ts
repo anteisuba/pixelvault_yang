@@ -217,12 +217,20 @@ const CivitaiVersionResolveSchema = CivitaiModelVersionSchema.extend({
 export interface ResolveCivitaiLoraReference {
   hash?: string | null
   modelVersionId?: number | null
+  /**
+   * meta 里的 LoRA 名（≈ 文件名词干）。hash/versionId 都失败或缺失时的
+   * 搜索兜底：query 搜索 → 候选版本文件名词干与 name 精确匹配（大小写
+   * 不敏感）才算命中 — 不做模糊接受，避免挂错模型。
+   */
+  name?: string | null
 }
 
-export async function resolveCivitaiLoraByReference({
-  hash,
-  modelVersionId,
-}: ResolveCivitaiLoraReference): Promise<CivitaiLoraLibraryItem | null> {
+const CIVITAI_RESOLVE_SEARCH_LIMIT = 10
+
+async function resolveCivitaiLoraByLocator(
+  hash: string | null | undefined,
+  modelVersionId: number | null | undefined,
+): Promise<CivitaiLoraLibraryItem | null> {
   const url = modelVersionId
     ? new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
     : hash
@@ -265,6 +273,71 @@ export async function resolveCivitaiLoraByReference({
     tags: [],
     modelVersions: [version],
   })
+}
+
+/**
+ * 名字搜索兜底。实测依据（2026-06-11）：图 meta 的 resources hash 常是
+ * 作者本地文件（剪枝/转码副本）的 hash，by-hash 对不上 Civitai 索引；
+ * 但 meta 名字 ≈ 上架文件的词干（如 "EnchantingEyesIllustrious" ↔
+ * EnchantingEyesIllustrious.safetensors），词干精确匹配即可确定性定位。
+ */
+async function resolveCivitaiLoraByNameStem(
+  name: string,
+): Promise<CivitaiLoraLibraryItem | null> {
+  const trimmed = name.trim()
+  if (!trimmed) return null
+
+  const url = new URL(CIVITAI_MODELS_API)
+  url.searchParams.set('types', 'LORA')
+  url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
+  url.searchParams.set('query', trimmed)
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.resolveLoraByName',
+    })
+  } catch (error) {
+    logger.warn('Civitai LoRA name search failed', {
+      name: trimmed,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+
+  const parsed = CivitaiModelsResponseSchema.safeParse(payload)
+  if (!parsed.success) return null
+
+  const target = trimmed.toLowerCase()
+  for (const model of parsed.data.items) {
+    for (const version of model.modelVersions ?? []) {
+      const matched = version.files?.some(
+        (file) => file.name && fileNameStem(file.name) === target,
+      )
+      if (matched) {
+        return toLibraryItem({ ...model, modelVersions: [version] })
+      }
+    }
+  }
+  return null
+}
+
+export async function resolveCivitaiLoraByReference({
+  hash,
+  modelVersionId,
+  name,
+}: ResolveCivitaiLoraReference): Promise<CivitaiLoraLibraryItem | null> {
+  if (hash || modelVersionId) {
+    const direct = await resolveCivitaiLoraByLocator(hash, modelVersionId)
+    if (direct) return direct
+  }
+  if (name) {
+    return resolveCivitaiLoraByNameStem(name)
+  }
+  return null
 }
 
 export async function fetchCivitaiVersionIdentifiers(

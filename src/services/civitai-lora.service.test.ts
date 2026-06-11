@@ -1289,4 +1289,110 @@ describe('resolveCivitaiLoraByReference', () => {
     ).toBeNull()
     expect(await resolveCivitaiLoraByReference({})).toBeNull()
   })
+
+  it('falls back to name search with exact file-stem matching when the hash misses', async () => {
+    // Live-verified failure mode: meta hashes are often the author's LOCAL
+    // file (pruned/converted) and miss Civitai's index, while the meta name
+    // equals the published file's stem.
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ error: 'not found' }, 404))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: 999,
+              name: 'Unrelated Style',
+              type: 'LORA',
+              modelVersions: [
+                {
+                  id: 1,
+                  name: 'v1',
+                  baseModel: 'Illustrious',
+                  files: [
+                    {
+                      type: 'Model',
+                      primary: true,
+                      name: 'SomethingElse.safetensors',
+                      downloadUrl: 'https://civitai.com/api/download/models/1',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 974076,
+              name: 'Enchanting Eyes (Detailed Eyes)',
+              type: 'LORA',
+              modelVersions: [
+                {
+                  id: 1463317,
+                  name: 'Illustrious',
+                  baseModel: 'Illustrious',
+                  trainedWords: [],
+                  files: [
+                    {
+                      type: 'Model',
+                      primary: true,
+                      name: 'EnchantingEyesIllustrious.safetensors',
+                      downloadUrl:
+                        'https://civitai.com/api/download/models/1463317',
+                      hashes: { AutoV3: '6F4F88234D6C' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      )
+
+    const item = await resolveCivitaiLoraByReference({
+      hash: 'aaaaaaaaaaaa', // 作者本地文件 hash，索引里没有
+      name: 'EnchantingEyesIllustrious',
+    })
+
+    const searchUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
+    expect(searchUrl.pathname).toBe('/api/v1/models')
+    expect(searchUrl.searchParams.get('query')).toBe(
+      'EnchantingEyesIllustrious',
+    )
+    expect(item).toMatchObject({
+      id: 'civitai:974076:1463317',
+      name: 'Enchanting Eyes (Detailed Eyes)',
+      baseModelFamily: 'Illustrious',
+    })
+  })
+
+  it('does not fuzzy-accept name search results without a stem match', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Close But No Match',
+            type: 'LORA',
+            modelVersions: [
+              {
+                id: 2,
+                name: 'v1',
+                files: [
+                  {
+                    type: 'Model',
+                    name: 'close-but-no.safetensors',
+                    downloadUrl: 'https://civitai.com/api/download/models/2',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    )
+
+    expect(
+      await resolveCivitaiLoraByReference({
+        name: 'detailed hand focus style illustriousXL v1.1',
+      }),
+    ).toBeNull()
+  })
 })

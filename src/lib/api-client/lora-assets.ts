@@ -162,6 +162,7 @@ interface ResolveCivitaiLoraResponse {
 export async function resolveCivitaiLoraAPI(params: {
   hash?: string
   modelVersionId?: number
+  name?: string
 }): Promise<ResolveCivitaiLoraResponse> {
   try {
     const query = new URLSearchParams()
@@ -169,6 +170,7 @@ export async function resolveCivitaiLoraAPI(params: {
     if (params.modelVersionId !== undefined) {
       query.set('modelVersionId', String(params.modelVersionId))
     }
+    if (params.name) query.set('name', params.name)
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_RESOLVE}?${query.toString()}`,

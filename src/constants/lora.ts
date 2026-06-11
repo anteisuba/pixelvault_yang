@@ -29,6 +29,9 @@ export const LORA_MOUNT_PULSE_MS = 4000
 // 限量避免旧收藏多的用户首次加载被拖慢；剩余行下次请求继续愈合）。
 export const LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST = 3
 
+// 配方 extras 自动定位全部失败时的逃生口：跳 Civitai 站内搜索让用户自查。
+export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
+
 export const CIVITAI_LORA_PAGE_SIZE = 10
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =

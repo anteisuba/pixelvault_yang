@@ -1240,6 +1240,7 @@
       "recipeExtraResolving": "定位中…",
       "recipeExtraMounted": "已挂载",
       "recipeExtraFailed": "未能定位",
+      "recipeExtraSearchLink": "去 Civitai 找",
       "recipeExtraUnresolvable": "仅有名字，无法自动定位",
       "recipeExtraStackFull": "挂载栏已满（{max}），请先移除一个",
       "recipeClose": "收起配方",

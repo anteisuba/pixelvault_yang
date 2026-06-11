@@ -1,10 +1,21 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { AlertTriangle, Check, Loader2, Plus, Wand2, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Wand2,
+  X,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
+import {
+  CIVITAI_MODEL_SEARCH_URL,
+  LORA_CARD_SOURCE_IMAGE_WIDTH,
+} from '@/constants/lora'
 import {
   LORA_STACK_MAX,
   useActiveLoraStack,
@@ -262,6 +273,7 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
       const result = await resolveCivitaiLoraAPI({
         hash: extra.hash,
         modelVersionId: extra.modelVersionId,
+        name: extra.name,
       })
       if (!result.success || !result.data) {
         setStatusByKey((prev) => ({ ...prev, [key]: 'failed' }))
@@ -293,8 +305,11 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
         {extras.map((extra) => {
           const key = extraLoraKey(extra)
           const status = statusByKey[key]
+          // 名字也可定位（搜索 + 文件名词干精确匹配兜底）。
           const resolvable =
-            extra.hash !== undefined || extra.modelVersionId !== undefined
+            extra.hash !== undefined ||
+            extra.modelVersionId !== undefined ||
+            extra.name !== undefined
           return (
             <li
               key={key}
@@ -316,8 +331,21 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
               ) : (
                 <span className="inline-flex shrink-0 items-center gap-1.5">
                   {status === 'failed' ? (
-                    <span className="text-destructive">
-                      {t('recipeExtraFailed')}
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-destructive">
+                        {t('recipeExtraFailed')}
+                      </span>
+                      {extra.name ? (
+                        <a
+                          href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(extra.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-0.5 text-muted-foreground underline hover:text-foreground"
+                        >
+                          {t('recipeExtraSearchLink')}
+                          <ExternalLink className="size-2.5" aria-hidden />
+                        </a>
+                      ) : null}
                     </span>
                   ) : null}
                   <Button

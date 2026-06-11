@@ -1353,8 +1353,9 @@ describe('resolveCivitaiLoraByReference', () => {
 
     const searchUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
     expect(searchUrl.pathname).toBe('/api/v1/models')
+    // camelCase 词干必须拆词后再搜 — Civitai 搜索不拆 camelCase（实测）。
     expect(searchUrl.searchParams.get('query')).toBe(
-      'EnchantingEyesIllustrious',
+      'Enchanting Eyes Illustrious',
     )
     expect(item).toMatchObject({
       id: 'civitai:974076:1463317',

@@ -276,6 +276,27 @@ async function resolveCivitaiLoraByLocator(
 }
 
 /**
+ * Civitai 搜索不拆 camelCase：query=EnchantingEyesIllustrious 命中 0，
+ * query=Enchanting Eyes Illustrious 命中（实测 2026-06-11）。搜索词按
+ * camel 边界和 -_ 分隔符拆词；点号保留（v1.1 拆开反而伤命中）。
+ */
+function nameToSearchQuery(name: string): string {
+  return name
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * 词干比对键：小写 + 去空格/横线/下划线/点。仍是全长严格相等 — 只是
+ * 容忍 meta 名与文件名之间的分隔符差异，不做前缀/包含式模糊匹配。
+ */
+function normalizeStemKey(value: string): string {
+  return value.toLowerCase().replace(/[\s\-_.]+/g, '')
+}
+
+/**
  * 名字搜索兜底。实测依据（2026-06-11）：图 meta 的 resources hash 常是
  * 作者本地文件（剪枝/转码副本）的 hash，by-hash 对不上 Civitai 索引；
  * 但 meta 名字 ≈ 上架文件的词干（如 "EnchantingEyesIllustrious" ↔
@@ -290,7 +311,7 @@ async function resolveCivitaiLoraByNameStem(
   const url = new URL(CIVITAI_MODELS_API)
   url.searchParams.set('types', 'LORA')
   url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
-  url.searchParams.set('query', trimmed)
+  url.searchParams.set('query', nameToSearchQuery(trimmed))
 
   let payload: unknown
   try {
@@ -311,11 +332,12 @@ async function resolveCivitaiLoraByNameStem(
   const parsed = CivitaiModelsResponseSchema.safeParse(payload)
   if (!parsed.success) return null
 
-  const target = trimmed.toLowerCase()
+  const target = normalizeStemKey(trimmed)
   for (const model of parsed.data.items) {
     for (const version of model.modelVersions ?? []) {
       const matched = version.files?.some(
-        (file) => file.name && fileNameStem(file.name) === target,
+        (file) =>
+          file.name && normalizeStemKey(fileNameStem(file.name)) === target,
       )
       if (matched) {
         return toLibraryItem({ ...model, modelVersions: [version] })

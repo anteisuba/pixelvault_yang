@@ -995,7 +995,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           role="group"
           disabled={isGenerating}
           className={cn(
-            'group/input-group relative mx-auto w-full max-w-4xl rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
+            'group/input-group relative mx-auto w-full max-w-5xl 2xl:max-w-6xl rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
             isGenerating && 'opacity-100',
             imageUpload.isDragging &&
               'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',

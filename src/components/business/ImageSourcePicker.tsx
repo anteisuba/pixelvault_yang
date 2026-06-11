@@ -169,8 +169,10 @@ export function ImageSourcePicker({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              'flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition-colors',
-              'hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              // 面板内动作不用反相白丸（白只留给"生成"，direction.md 决议 2）——
+              // 与下方"选择素材"同为 muted 家族，拖入时才高亮。
+              'flex h-11 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground shadow-sm transition-colors',
+              'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
               isDragging &&
                 'bg-primary text-primary-foreground ring-2 ring-primary/35',

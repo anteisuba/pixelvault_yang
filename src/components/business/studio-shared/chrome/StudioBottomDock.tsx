@@ -3,6 +3,7 @@
 import { memo, useCallback } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
+import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -37,6 +38,9 @@ function buildRefinePrompt(
  */
 export const StudioBottomDock = memo(function StudioBottomDock() {
   const { state, dispatch } = useStudioForm()
+  // 软键盘弹起时把 sticky dock 抬到键盘上方（审查 C1）。无键盘时为 0，
+  // 不产生 transform。
+  const keyboardInset = useKeyboardInset()
 
   const handleKeepChangeSubmit = useCallback(
     (keepTags: string[], changeTags: string[], freeText: string) => {
@@ -56,7 +60,14 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
 
   return (
     <>
-      <div className="studio-dock">
+      <div
+        className="studio-dock"
+        style={
+          keyboardInset > 0
+            ? { transform: `translateY(-${keyboardInset}px)` }
+            : undefined
+        }
+      >
         <div className="space-y-2">
           {state.workflowMode === 'card' && state.outputType !== 'audio' && (
             <StudioCardSection />

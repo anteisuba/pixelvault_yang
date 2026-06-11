@@ -33,15 +33,20 @@ export default defineConfig({
       dependencies: ['global setup'],
     },
     // Public (unauthenticated) tests — exclude setup files and auth-only specs.
+    // Depend on global setup so its sequential route warm-up finishes first;
+    // parallel workers hitting uncompiled dev-server routes get permanently
+    // unstyled pages (CSS chunk 404s) and fail layout assertions.
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       testIgnore: [SETUP_FILES, STUDIO_VISUAL],
+      dependencies: ['global setup'],
     },
     {
       name: 'mobile',
       use: { ...devices['iPhone 14'] },
       testIgnore: [SETUP_FILES, STUDIO_VISUAL],
+      dependencies: ['global setup'],
     },
     // Authenticated studio visual regression — reuses the saved session.
     {

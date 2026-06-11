@@ -37,26 +37,34 @@ test.describe('Mobile Responsive', () => {
           const pageErrors: string[] = []
           page.on('pageerror', (error) => pageErrors.push(error.message))
 
-          await page.goto(responsivePage.path)
-          await page.waitForLoadState('networkidle')
-          await page.waitForTimeout(500)
-
-          const metrics = await page.evaluate(() => {
-            const root = document.documentElement
-            const body = document.body
-
-            return {
-              bodyTextLength: body.innerText.trim().length,
-              innerWidth: window.innerWidth,
-              maxScrollWidth: Math.max(root.scrollWidth, body.scrollWidth),
-            }
-          })
+          // 'load' (not 'networkidle'): gallery/studio keep image requests
+          // trickling and may never go network-idle; the settle-poll below is
+          // the real "layout is stable" gate.
+          await page.goto(responsivePage.path, { waitUntil: 'load' })
 
           await expect(page.locator('body')).toBeVisible()
-          expect(metrics.bodyTextLength).toBeGreaterThan(0)
-          expect(metrics.maxScrollWidth).toBeLessThanOrEqual(
-            metrics.innerWidth + 1,
+
+          // Dev-server cold compiles paint a transiently unstyled page whose
+          // scrollWidth far exceeds the viewport. Poll until layout settles so
+          // only overflow that PERSISTS fails the test.
+          await expect
+            .poll(
+              () =>
+                page.evaluate(() => {
+                  const root = document.documentElement
+                  return (
+                    Math.max(root.scrollWidth, document.body.scrollWidth) -
+                    window.innerWidth
+                  )
+                }),
+              { timeout: 10_000 },
+            )
+            .toBeLessThanOrEqual(1)
+
+          const bodyTextLength = await page.evaluate(
+            () => document.body.innerText.trim().length,
           )
+          expect(bodyTextLength).toBeGreaterThan(0)
           expect(pageErrors).toHaveLength(0)
         })
       }

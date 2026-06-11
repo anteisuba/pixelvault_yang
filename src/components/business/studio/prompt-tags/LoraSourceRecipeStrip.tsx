@@ -1,15 +1,24 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { AlertTriangle, Check, Wand2, X } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { AlertTriangle, Check, Loader2, Plus, Wand2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
+import {
+  LORA_STACK_MAX,
+  useActiveLoraStack,
+} from '@/hooks/use-active-lora-stack'
+import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import type { CivitaiImageRecipe } from '@/types'
+import {
+  LoraSchema,
+  type CivitaiImageRecipe,
+  type CivitaiRecipeExtraLora,
+} from '@/types'
 
 /**
  * 来源图配方条（M2c）：横滚的 Civitai 来源图，点选一张展开它的完整配方
@@ -172,10 +181,7 @@ export function LoraSourceRecipeStrip({
           ) : null}
 
           {plan.extraLoras.length > 0 ? (
-            <p className="flex items-start gap-1.5 text-2xs text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />
-              {t('recipeExtraLoras', { count: plan.extraLoras.length })}
-            </p>
+            <ExtraLoraList disabled={disabled} extras={plan.extraLoras} />
           ) : null}
 
           {plan.skippedParams.length > 0 ? (
@@ -210,6 +216,141 @@ export function LoraSourceRecipeStrip({
             </Button>
           </div>
         </div>
+      ) : null}
+    </div>
+  )
+}
+
+// ── 一键补挂：配方里的其它 LoRA ─────────────────────────────────────────
+
+type ExtraMountStatus = 'loading' | 'mounted' | 'failed'
+
+function extraLoraKey(extra: CivitaiRecipeExtraLora): string {
+  return (
+    extra.hash ??
+    (extra.modelVersionId !== undefined ? `v${extra.modelVersionId}` : null) ??
+    `n:${extra.name ?? 'unknown'}`
+  )
+}
+
+function extraLoraLabel(extra: CivitaiRecipeExtraLora): string {
+  return (
+    extra.name ??
+    (extra.modelVersionId !== undefined
+      ? `#${extra.modelVersionId}`
+      : (extra.hash?.slice(0, 12) ?? 'LoRA'))
+  )
+}
+
+interface ExtraLoraListProps {
+  extras: readonly CivitaiRecipeExtraLora[]
+  disabled?: boolean
+}
+
+function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
+  const t = useTranslations('LoraPromptControl.generate')
+  const loraStack = useActiveLoraStack()
+  const [statusByKey, setStatusByKey] = useState<
+    Record<string, ExtraMountStatus>
+  >({})
+  const stackFull = loraStack.items.length >= LORA_STACK_MAX
+
+  const handleMount = useCallback(
+    async (extra: CivitaiRecipeExtraLora) => {
+      const key = extraLoraKey(extra)
+      setStatusByKey((prev) => ({ ...prev, [key]: 'loading' }))
+      const result = await resolveCivitaiLoraAPI({
+        hash: extra.hash,
+        modelVersionId: extra.modelVersionId,
+      })
+      if (!result.success || !result.data) {
+        setStatusByKey((prev) => ({ ...prev, [key]: 'failed' }))
+        return
+      }
+      const item = result.data
+      const alreadyMounted = loraStack.items.some(
+        (entry) => entry.asset.id === item.id,
+      )
+      if (!alreadyMounted) {
+        // 原图权重在合法范围内时随挂载带上；越界（如负权重滑块）回落默认。
+        const scale = LoraSchema.shape.scale.safeParse(extra.weight).success
+          ? extra.weight
+          : undefined
+        loraStack.push(item, scale)
+      }
+      setStatusByKey((prev) => ({ ...prev, [key]: 'mounted' }))
+    },
+    [loraStack],
+  )
+
+  return (
+    <div className="space-y-1">
+      <p className="flex items-start gap-1.5 text-2xs text-amber-700 dark:text-amber-300">
+        <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />
+        {t('recipeExtraLoras', { count: extras.length })}
+      </p>
+      <ul className="space-y-1">
+        {extras.map((extra) => {
+          const key = extraLoraKey(extra)
+          const status = statusByKey[key]
+          const resolvable =
+            extra.hash !== undefined || extra.modelVersionId !== undefined
+          return (
+            <li
+              key={key}
+              className="flex items-center justify-between gap-2 text-2xs"
+            >
+              <span className="min-w-0 truncate font-mono text-muted-foreground">
+                {extraLoraLabel(extra)}
+                {extra.weight !== undefined ? ` ×${extra.weight}` : ''}
+              </span>
+              {!resolvable ? (
+                <span className="shrink-0 text-muted-foreground/70">
+                  {t('recipeExtraUnresolvable')}
+                </span>
+              ) : status === 'mounted' ? (
+                <span className="inline-flex shrink-0 items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                  <Check className="size-3" aria-hidden />
+                  {t('recipeExtraMounted')}
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5">
+                  {status === 'failed' ? (
+                    <span className="text-destructive">
+                      {t('recipeExtraFailed')}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    disabled={disabled || status === 'loading' || stackFull}
+                    title={
+                      stackFull
+                        ? t('recipeExtraStackFull', { max: LORA_STACK_MAX })
+                        : undefined
+                    }
+                    onClick={() => void handleMount(extra)}
+                  >
+                    {status === 'loading' ? (
+                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Plus className="size-3" aria-hidden />
+                    )}
+                    {status === 'loading'
+                      ? t('recipeExtraResolving')
+                      : t('recipeExtraMount')}
+                  </Button>
+                </span>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      {stackFull ? (
+        <p className="text-2xs text-muted-foreground">
+          {t('recipeExtraStackFull', { max: LORA_STACK_MAX })}
+        </p>
       ) : null}
     </div>
   )

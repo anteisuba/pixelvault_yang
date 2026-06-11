@@ -196,6 +196,77 @@ export interface CivitaiVersionIdentifiers {
   coverImageUrl: string | null
 }
 
+// ── 一键补挂：按 hash / versionId 把"配方里的其它 LoRA"解析成可挂载项 ──
+//
+// by-hash 端点实测（2026-06-11）：返回完整 version 负载（modelId、
+// model.{name,type}、downloadUrl、files、images、baseModel），hash 大小
+// 写不敏感。解析后构造单版本伪 model 复用 toLibraryItem 的全套抽取
+// （触发词/封面/家族/AutoV3），产出与社区库一致的可挂载条目。
+
+const CivitaiVersionResolveSchema = CivitaiModelVersionSchema.extend({
+  modelId: z.number().optional(),
+  model: z
+    .object({
+      name: z.string().optional(),
+      type: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+})
+
+export interface ResolveCivitaiLoraReference {
+  hash?: string | null
+  modelVersionId?: number | null
+}
+
+export async function resolveCivitaiLoraByReference({
+  hash,
+  modelVersionId,
+}: ResolveCivitaiLoraReference): Promise<CivitaiLoraLibraryItem | null> {
+  const url = modelVersionId
+    ? new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+    : hash
+      ? new URL(`${CIVITAI_MODEL_VERSIONS_API}/by-hash/${hash.toLowerCase()}`)
+      : null
+  if (!url) return null
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.resolveLoraReference',
+    })
+  } catch (error) {
+    logger.warn('Civitai LoRA reference resolve failed', {
+      hash: hash ?? null,
+      modelVersionId: modelVersionId ?? null,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+
+  const parsed = CivitaiVersionResolveSchema.safeParse(payload)
+  if (!parsed.success) {
+    logger.warn('Civitai LoRA reference response had unexpected shape', {
+      hash: hash ?? null,
+      modelVersionId: modelVersionId ?? null,
+      issues: parsed.error.issues.map((issue) => issue.message).join('; '),
+    })
+    return null
+  }
+
+  const { modelId, model, ...version } = parsed.data
+  return toLibraryItem({
+    id: modelId ?? 0,
+    name: model?.name ?? version.name,
+    type: model?.type ?? 'LORA',
+    tags: [],
+    modelVersions: [version],
+  })
+}
+
 export async function fetchCivitaiVersionIdentifiers(
   modelVersionId: number,
 ): Promise<CivitaiVersionIdentifiers | null> {
@@ -1018,8 +1089,13 @@ function resolveRecipeLoraSignals({
   const loraWeight =
     matchedResource?.weight ?? matchedByVersion?.weight ?? targetTag?.weight
 
+  // Extras carry their locator (hash / modelVersionId) whenever the meta
+  // had one — that is what powers "一键补挂": hash → by-hash endpoint,
+  // modelVersionId → /:id. Prompt-tag extras only have a name (cannot be
+  // auto-located).
   const extras: CivitaiRecipeExtraLora[] = []
   const seenNames = new Set<string>()
+  const seenVersionIds = new Set<number>()
   for (const r of resources ?? []) {
     if (r === matchedResource || (r.type ?? '').toLowerCase() !== 'lora') {
       continue
@@ -1029,7 +1105,25 @@ function resolveRecipeLoraSignals({
       if (seenNames.has(key) || knownTargetNames.has(key)) continue
       seenNames.add(key)
     }
-    extras.push({ name: r.name, weight: r.weight })
+    extras.push({
+      name: r.name,
+      weight: r.weight,
+      hash: r.hash?.toLowerCase(),
+    })
+  }
+  for (const r of civitaiResources ?? []) {
+    if (r === matchedByVersion) continue
+    if ((r.type ?? '').toLowerCase() !== 'lora') continue
+    if (r.modelVersionId === undefined) continue
+    if (
+      targetModelVersionId !== null &&
+      r.modelVersionId === targetModelVersionId
+    ) {
+      continue
+    }
+    if (seenVersionIds.has(r.modelVersionId)) continue
+    seenVersionIds.add(r.modelVersionId)
+    extras.push({ weight: r.weight, modelVersionId: r.modelVersionId })
   }
   for (const tag of promptTags) {
     if (tag === targetTag) continue

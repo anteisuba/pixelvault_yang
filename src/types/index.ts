@@ -3580,11 +3580,16 @@ export const CivitaiMinedPromptSchema = z.object({
 })
 export type CivitaiMinedPrompt = z.infer<typeof CivitaiMinedPromptSchema>
 
-// 该图 meta.resources 里除目标 LoRA 之外的其它 LoRA 资源。非空 = 这张图
-// 叠加了多个 LoRA，仅挂目标 LoRA 无法完整还原 — UI 必须明示"还原度受限"。
+// 该图 meta 里除目标 LoRA 之外的其它 LoRA 资源。非空 = 这张图叠加了多
+// 个 LoRA，仅挂目标 LoRA 无法完整还原 — UI 必须明示"还原度受限"。
+// hash / modelVersionId 是"一键补挂"的定位信息：hash → Civitai
+// model-versions/by-hash；modelVersionId → model-versions/:id。两者都
+// 没有（仅 prompt 标签名）时无法自动定位。
 export const CivitaiRecipeExtraLoraSchema = z.object({
   name: z.string().optional(),
   weight: z.number().optional(),
+  hash: z.string().optional(),
+  modelVersionId: z.number().int().optional(),
 })
 export type CivitaiRecipeExtraLora = z.infer<
   typeof CivitaiRecipeExtraLoraSchema

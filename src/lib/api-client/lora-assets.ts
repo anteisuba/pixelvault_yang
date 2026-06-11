@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
 import type {
+  CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
   FavoriteLoraRequest,
@@ -140,6 +141,48 @@ export async function mineCivitaiLoraPromptsAPI(params: {
       }
     }
     return (await response.json()) as CivitaiMinedPromptsResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+interface ResolveCivitaiLoraResponse {
+  success: boolean
+  data?: CivitaiLoraLibraryItem
+  error?: string
+}
+
+/**
+ * 按 hash / modelVersionId 把配方里的"其它 LoRA"解析成可挂载条目
+ * （一键补挂）。两个参数至少给一个。
+ */
+export async function resolveCivitaiLoraAPI(params: {
+  hash?: string
+  modelVersionId?: number
+}): Promise<ResolveCivitaiLoraResponse> {
+  try {
+    const query = new URLSearchParams()
+    if (params.hash) query.set('hash', params.hash)
+    if (params.modelVersionId !== undefined) {
+      query.set('modelVersionId', String(params.modelVersionId))
+    }
+
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_RESOLVE}?${query.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as ResolveCivitaiLoraResponse
   } catch (error) {
     return {
       success: false,

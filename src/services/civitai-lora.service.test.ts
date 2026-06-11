@@ -20,6 +20,7 @@ import {
   listCivitaiLoras,
   mineCivitaiUserPrompts,
   prewarmCivitaiLoraLibrary,
+  resolveCivitaiLoraByReference,
   resolveCivitaiModelPageUrlByVersion,
 } from '@/services/civitai-lora.service'
 
@@ -1176,5 +1177,116 @@ describe('mineCivitaiUserPrompts', () => {
 
     expect(result.recipes?.[0]?.loraWeight).toBe(0.75)
     expect(result.recipes?.[0]?.extraLoras).toBeUndefined()
+  })
+
+  it('extras carry their locators (hash / modelVersionId) for one-tap mounting', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 555,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/stacked.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt: 'masterpiece, 1girl',
+              resources: [
+                {
+                  hash: 'AABBCCDDEEFF',
+                  name: 'other-by-hash',
+                  type: 'lora',
+                  weight: 0.4,
+                },
+              ],
+              civitaiResources: [
+                { type: 'lora', weight: 0.75, modelVersionId: 555 }, // target
+                { type: 'lora', weight: 0.3, modelVersionId: 777 }, // extra
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 444,
+      modelVersionId: 555,
+      fileHashAutoV3: 'deadbeef0000',
+    })
+
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      { name: 'other-by-hash', weight: 0.4, hash: 'aabbccddeeff' },
+      { weight: 0.3, modelVersionId: 777 },
+    ])
+  })
+})
+
+describe('resolveCivitaiLoraByReference', () => {
+  // Live-verified by-hash payload shape (2026-06-11): version object with
+  // modelId + nested model {name, type} + files/images/downloadUrl.
+  const VERSION_PAYLOAD = {
+    id: 135867,
+    modelId: 122359,
+    name: 'v1.0',
+    baseModel: 'SDXL 1.0',
+    trainedWords: ['add detail'],
+    downloadUrl: 'https://civitai.com/api/download/models/135867',
+    model: { name: 'Detail Tweaker XL', type: 'LORA' },
+    files: [
+      {
+        type: 'Model',
+        primary: true,
+        name: 'add-detail-xl.safetensors',
+        downloadUrl: 'https://civitai.com/api/download/models/135867',
+        hashes: { AutoV3: '9C783C8CE46C' },
+      },
+    ],
+    images: [
+      {
+        url: 'https://image.civitai.com/cover/original=true/1.jpeg',
+        nsfwLevel: 1,
+      },
+    ],
+  }
+
+  it('resolves a hash into a mountable library item', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
+
+    const item = await resolveCivitaiLoraByReference({ hash: '9C783C8CE46C' })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.pathname).toBe(
+      '/api/v1/model-versions/by-hash/9c783c8ce46c',
+    )
+    expect(item).toMatchObject({
+      id: 'civitai:122359:135867',
+      name: 'Detail Tweaker XL',
+      loraUrl: 'https://civitai.com/api/download/models/135867',
+      baseModelFamily: 'SDXL 1.0',
+      fileHashAutoV3: '9c783c8ce46c',
+    })
+  })
+
+  it('resolves a modelVersionId via the /:id endpoint', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
+
+    const item = await resolveCivitaiLoraByReference({ modelVersionId: 135867 })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.pathname).toBe('/api/v1/model-versions/135867')
+    expect(item?.id).toBe('civitai:122359:135867')
+  })
+
+  it('returns null for non-LoRA references and missing input', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        ...VERSION_PAYLOAD,
+        model: { name: 'Some Checkpoint', type: 'Checkpoint' },
+      }),
+    )
+    expect(
+      await resolveCivitaiLoraByReference({ hash: 'aabbccddeeff' }),
+    ).toBeNull()
+    expect(await resolveCivitaiLoraByReference({})).toBeNull()
   })
 })

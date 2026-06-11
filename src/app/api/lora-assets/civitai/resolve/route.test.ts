@@ -1,0 +1,109 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createGET, parseJSON } from '@/test/api-helpers'
+
+vi.mock('server-only', () => ({}))
+
+vi.mock('@/lib/logger', () => ({
+  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}))
+
+vi.mock('@/services/civitai-lora.service', () => ({
+  resolveCivitaiLoraByReference: vi.fn(),
+}))
+
+import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
+
+import { GET } from './route'
+
+const mockResolve = vi.mocked(resolveCivitaiLoraByReference)
+
+const ITEM = {
+  id: 'civitai:122359:135867',
+  name: 'Detail Tweaker XL',
+  loraUrl: 'https://civitai.com/api/download/models/135867',
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockResolve.mockResolvedValue(ITEM as never)
+})
+
+describe('GET /api/lora-assets/civitai/resolve', () => {
+  it('resolves by hash', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        hash: '9c783c8ce46c',
+      }),
+    )
+    const body = await parseJSON<{ success: boolean; data?: typeof ITEM }>(
+      response,
+    )
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.data?.id).toBe(ITEM.id)
+    expect(mockResolve).toHaveBeenCalledWith({
+      hash: '9c783c8ce46c',
+      modelVersionId: undefined,
+    })
+  })
+
+  it('resolves by modelVersionId', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        modelVersionId: '135867',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockResolve).toHaveBeenCalledWith({
+      hash: undefined,
+      modelVersionId: 135867,
+    })
+  })
+
+  it('rejects requests with neither hash nor modelVersionId', async () => {
+    const response = await GET(createGET('/api/lora-assets/civitai/resolve'))
+    const body = await parseJSON<{ success: boolean }>(response)
+
+    expect(response.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(mockResolve).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed hashes', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', { hash: 'not-hex!!' }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(mockResolve).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when the reference cannot be resolved', async () => {
+    mockResolve.mockResolvedValueOnce(null)
+
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        modelVersionId: '999999',
+      }),
+    )
+    const body = await parseJSON<{ success: boolean }>(response)
+
+    expect(response.status).toBe(404)
+    expect(body.success).toBe(false)
+  })
+
+  it('returns 502 when the service throws', async () => {
+    mockResolve.mockRejectedValueOnce(new Error('Civitai down'))
+
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        modelVersionId: '135867',
+      }),
+    )
+
+    expect(response.status).toBe(502)
+  })
+})

@@ -1,0 +1,116 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+
+import type { PromptAssistantMessage } from '@/types'
+
+// ─── Mocks ───────────────────────────────────────────────────────
+
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
+
+const sendMock = vi.fn()
+const applyPresetMock = vi.fn()
+let mockMessages: PromptAssistantMessage[] = []
+
+vi.mock('@/hooks/kernel/use-prompt-assistant', () => ({
+  STYLE_SHORTCUTS: {
+    imageStyle: 'image-style-shortcut',
+    detailed: 'detailed-shortcut',
+    artistic: 'artistic-shortcut',
+    photorealistic: 'photo-shortcut',
+    anime: 'anime-shortcut',
+    lora: 'lora-shortcut',
+    tags: 'tags-shortcut',
+  },
+  usePromptAssistant: () => ({
+    messages: mockMessages,
+    isLoading: false,
+    error: null,
+    send: sendMock,
+    applyPreset: applyPresetMock,
+    clear: vi.fn(),
+  }),
+}))
+
+vi.mock('@/components/business/studio-shared/pickers', () => ({
+  MainModelPicker: () => null,
+}))
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: () => null,
+}))
+
+import { PromptAssistantPanel } from './PromptAssistantPanel'
+
+beforeEach(() => {
+  mockMessages = []
+  sendMock.mockClear()
+  applyPresetMock.mockClear()
+})
+
+describe('PromptAssistantPanel', () => {
+  it('keeps action presets and drops the style presets (decision 5②)', () => {
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    for (const key of [
+      'presetImageStyle',
+      'presetDetailed',
+      'presetLora',
+      'presetTags',
+    ]) {
+      expect(screen.getByText(key)).toBeInTheDocument()
+    }
+    for (const key of ['presetArtistic', 'presetPhoto', 'presetAnime']) {
+      expect(screen.queryByText(key)).not.toBeInTheDocument()
+    }
+  })
+
+  it('renders starter examples in the empty state and sends on click', () => {
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    expect(screen.getByText('starterA')).toBeInTheDocument()
+    expect(screen.getByText('starterB')).toBeInTheDocument()
+    expect(screen.getByText('starterC')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('starterA'))
+    expect(sendMock).toHaveBeenCalledTimes(1)
+    expect(sendMock.mock.calls[0][0]).toBe('starterA')
+  })
+
+  it('offers use / append / copy on assistant output', async () => {
+    mockMessages = [{ role: 'assistant', content: 'a moody ivory hallway' }]
+    const onUsePrompt = vi.fn()
+    const onAppendPrompt = vi.fn()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+    render(
+      <PromptAssistantPanel
+        currentPrompt="base prompt"
+        onUsePrompt={onUsePrompt}
+        onAppendPrompt={onAppendPrompt}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('usePrompt'))
+    expect(onUsePrompt).toHaveBeenCalledWith('a moody ivory hallway')
+
+    fireEvent.click(screen.getByText('appendPrompt'))
+    expect(onAppendPrompt).toHaveBeenCalledWith('a moody ivory hallway')
+
+    fireEvent.click(screen.getByText('copyPrompt'))
+    expect(writeText).toHaveBeenCalledWith('a moody ivory hallway')
+    expect(await screen.findByText('copied')).toBeInTheDocument()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('hides the append action when no handler is wired', () => {
+    mockMessages = [{ role: 'assistant', content: 'output' }]
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    expect(screen.getByText('usePrompt')).toBeInTheDocument()
+    expect(screen.queryByText('appendPrompt')).not.toBeInTheDocument()
+  })
+})

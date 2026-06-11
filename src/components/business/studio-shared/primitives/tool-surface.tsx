@@ -9,6 +9,17 @@ import {
 } from '@/components/ui/responsive-popover'
 import { cn } from '@/lib/utils'
 
+/**
+ * Dialog 型工具面板的统一 chrome（决议 5 工具面板契约）。
+ * 重型面板（多轮对话/大列表/多步表单）走居中 Dialog；轻面板走
+ * StudioToolSurface 锚定 popover。两类共用同一套暗面外观与头部规范。
+ */
+export const studioDialogBaseClass =
+  '!gap-0 !p-0 max-h-[85svh] overflow-hidden border-border/40 bg-background shadow-2xl'
+export const studioDialogBodyClass = 'overflow-y-auto px-5 pb-5 pt-1'
+export const studioDialogHeaderClass =
+  'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'
+
 export const studioToolTriggerClass = cn(
   'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150',
   'hover:bg-muted/30 hover:text-foreground',

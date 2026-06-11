@@ -16,16 +16,15 @@ import {
   BookOpen,
   Check,
   ChevronDown,
-  Loader2,
-  Palette,
-  Camera,
+  Copy,
   ImagePlus,
   Images,
   Languages,
+  Loader2,
   Paperclip,
+  Plus,
   Sparkles,
   Tag,
-  Paintbrush,
   WandSparkles,
   X,
 } from 'lucide-react'
@@ -73,21 +72,23 @@ function getDefaultResponseLanguage(
   return 'english'
 }
 
-// ─── Style presets config ───────────────────────────────────────
+// ─── Action presets config ──────────────────────────────────────
+// 决议 5②：助手只保留"对文字做什么"的动作类预设；风格类
+// （artistic / photorealistic / anime）已并入卡片→画风（内置风格）。
 
-const STYLE_PRESETS: {
+const ACTION_PRESETS: {
   key: keyof typeof STYLE_SHORTCUTS
   icon: React.ElementType
   labelKey: string
 }[] = [
   { key: 'imageStyle', icon: ImagePlus, labelKey: 'presetImageStyle' },
   { key: 'detailed', icon: Sparkles, labelKey: 'presetDetailed' },
-  { key: 'artistic', icon: Paintbrush, labelKey: 'presetArtistic' },
-  { key: 'photorealistic', icon: Camera, labelKey: 'presetPhoto' },
-  { key: 'anime', icon: Palette, labelKey: 'presetAnime' },
   { key: 'lora', icon: WandSparkles, labelKey: 'presetLora' },
   { key: 'tags', icon: Tag, labelKey: 'presetTags' },
 ]
+
+/** 空态起手势示例（i18n 键，点击后直接交给 LLM 扩写）。 */
+const STARTER_KEYS = ['starterA', 'starterB', 'starterC'] as const
 
 interface AssistantReferenceImage {
   data: string
@@ -107,6 +108,8 @@ interface PromptAssistantPanelProps {
   llmApiKeys?: { id: string; label: string }[]
   /** Called when user clicks [填入] on an assistant response */
   onUsePrompt: (prompt: string) => void
+  /** Called when user clicks [追加] — append to the current prompt */
+  onAppendPrompt?: (prompt: string) => void
   /** Called when panel is closed */
   onClose?: () => void
 }
@@ -117,6 +120,7 @@ export function PromptAssistantPanel({
   referenceImageData,
   llmApiKeys,
   onUsePrompt,
+  onAppendPrompt,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const locale = useLocale()
@@ -221,7 +225,7 @@ export function PromptAssistantPanel({
       {/* ── Header: style presets + API key selector ── */}
       <div className="space-y-2">
         <div className="flex flex-wrap gap-1.5">
-          {STYLE_PRESETS.map(({ key, icon: Icon, labelKey }) => {
+          {ACTION_PRESETS.map(({ key, icon: Icon, labelKey }) => {
             const presetDisabled =
               isLoading ||
               (key === 'imageStyle' && !effectiveReferenceImageData)
@@ -258,9 +262,25 @@ export function PromptAssistantPanel({
       <div className="flex-1 overflow-y-auto pr-2" ref={scrollRef}>
         <div className="space-y-3 pb-2">
           {messages.length === 0 && !isLoading && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {t('emptyHint')}
-            </p>
+            <div className="space-y-3 py-6">
+              <p className="text-center text-sm text-muted-foreground">
+                {t('emptyHint')}
+              </p>
+              {/* 空态起手势：点一个示例，AI 直接扩成完整提示词（决议 5②） */}
+              <div className="mx-auto flex w-full max-w-md flex-col gap-2">
+                {STARTER_KEYS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => void send(t(key), sendOpts())}
+                    className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {t(key)}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {messages.map((msg: PromptAssistantMessage, i: number) => (
@@ -268,7 +288,11 @@ export function PromptAssistantPanel({
               key={i}
               message={msg}
               onUsePrompt={onUsePrompt}
+              onAppendPrompt={onAppendPrompt}
               useLabel={t('usePrompt')}
+              appendLabel={t('appendPrompt')}
+              copyLabel={t('copyPrompt')}
+              copiedLabel={t('copied')}
             />
           ))}
 
@@ -624,12 +648,22 @@ function AssistantAnimatedInput({
 function MessageBubble({
   message,
   onUsePrompt,
+  onAppendPrompt,
   useLabel,
+  appendLabel,
+  copyLabel,
+  copiedLabel,
 }: {
   message: PromptAssistantMessage
   onUsePrompt: (prompt: string) => void
+  onAppendPrompt?: (prompt: string) => void
   useLabel: string
+  appendLabel: string
+  copyLabel: string
+  copiedLabel: string
 }) {
+  const [copied, setCopied] = useState(false)
+
   if (message.role === 'user') {
     return (
       <Message className="justify-end">
@@ -640,7 +674,15 @@ function MessageBubble({
     )
   }
 
-  // Assistant message
+  const handleCopy = () => {
+    void navigator.clipboard?.writeText(message.content).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  // Assistant message — 产出三动作：填入 / 追加 / 复制（决议 5 契约，
+  // 与未来反推/提取风格的产出动作共用同一套语法）。
   return (
     <Message className="justify-start">
       <div className="max-w-[95%] space-y-2">
@@ -650,7 +692,7 @@ function MessageBubble({
             {message.content}
           </MessageContent>
         </div>
-        <div className="pl-6">
+        <div className="flex flex-wrap gap-1.5 pl-6">
           <Button
             type="button"
             variant="outline"
@@ -660,6 +702,32 @@ function MessageBubble({
           >
             <Check className="size-3" />
             {useLabel}
+          </Button>
+          {onAppendPrompt && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onAppendPrompt(message.content)}
+              className="h-7 gap-1.5 rounded-full px-3 text-xs"
+            >
+              <Plus className="size-3" />
+              {appendLabel}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            className="h-7 gap-1.5 rounded-full px-3 text-xs"
+          >
+            {copied ? (
+              <Check className="size-3" />
+            ) : (
+              <Copy className="size-3" />
+            )}
+            {copied ? copiedLabel : copyLabel}
           </Button>
         </div>
       </div>

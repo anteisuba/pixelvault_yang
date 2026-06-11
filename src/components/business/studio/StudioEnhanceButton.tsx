@@ -16,7 +16,11 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { adapterHasCapability } from '@/constants/llm-capability'
 import { cn } from '@/lib/utils'
-import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
+import {
+  studioDialogBaseClass,
+  studioDialogHeaderClass,
+  studioToolTriggerClass,
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 function PanelLoadingFallback() {
   return (
@@ -90,12 +94,19 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
         </Toolbar.Button>
       </DialogTrigger>
       <DialogContent
-        className="w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-2xl !p-0 sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]"
+        className={cn(
+          studioDialogBaseClass,
+          'w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] rounded-2xl sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
+        )}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <DialogTitle className="sr-only">{t('enhance')}</DialogTitle>
-        <div className="flex h-[min(720px,78vh)] flex-col overflow-hidden">
+        {/* 可见头部 — 与 StudioDockPanelArea 的 Dialog 型面板同规范（决议 5 契约） */}
+        <DialogTitle className={studioDialogHeaderClass}>
+          <Sparkles className="size-3.5 text-primary" />
+          {t('enhance')}
+        </DialogTitle>
+        <div className="flex h-[min(680px,75vh)] flex-col overflow-hidden px-5 pb-5 pt-3">
           <PromptAssistantPanel
             currentPrompt={state.prompt}
             modelId={modelId}
@@ -103,6 +114,13 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
             llmApiKeys={llmApiKeys}
             onUsePrompt={(text) => {
               dispatch({ type: 'SET_PROMPT', payload: text })
+            }}
+            onAppendPrompt={(text) => {
+              const current = state.prompt.trim()
+              dispatch({
+                type: 'SET_PROMPT',
+                payload: current ? `${current}, ${text}` : text,
+              })
             }}
             onClose={() => {
               dispatch({ type: 'CLOSE_PANEL', payload: 'enhance' })

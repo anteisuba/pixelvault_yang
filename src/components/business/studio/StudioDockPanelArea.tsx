@@ -23,6 +23,11 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
+import {
+  studioDialogBaseClass,
+  studioDialogBodyClass,
+  studioDialogHeaderClass,
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
@@ -101,11 +106,10 @@ const StudioScriptPanel = dynamic(
 // inside the content area. Each panel picks the closest fit so the dialog
 // doesn't feel oversized for short controls (civitai = one input) or
 // cramped for longer flows (voice selector + audio params).
-const DIALOG_BASE =
-  '!gap-0 !p-0 max-h-[85svh] overflow-hidden border-border/40 bg-background shadow-2xl'
-const DIALOG_BODY = 'overflow-y-auto px-5 pb-5 pt-1'
-const DIALOG_HEADER =
-  'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'
+// Chrome 类来自 tool-surface（决议 5 工具面板契约），与助手等 Dialog 型面板共用。
+const DIALOG_BASE = studioDialogBaseClass
+const DIALOG_BODY = studioDialogBodyClass
+const DIALOG_HEADER = studioDialogHeaderClass
 
 type SpeakerVoiceSelectionTarget =
   | { mode: 'append' }

@@ -14,6 +14,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface-composer: var(--surface-composer);
+  --color-surface-composer-foreground: var(--surface-composer-foreground);
   --color-node-canvas: var(--node-canvas);
   --color-node-panel: var(--node-panel);
   --color-node-panel-inner: var(--node-panel-inner);
@@ -244,6 +246,11 @@
     var(--background)
   );
   --page-border: color-mix(in oklab, var(--border) 85%, transparent);
+
+  /* Composer（Studio 输入条）— 象牙工作台，主题不变量（direction.md B4 决议：方案 B）。
+     暗房工作台上唯一的"亮纸"，与陈列面米白同源；CTA 在其上用黑丸。 */
+  --surface-composer: oklch(96% 0.008 95);
+  --surface-composer-foreground: oklch(20% 0 0);
 
   --node-canvas: #0b0b0a;
   --node-panel: #181716;

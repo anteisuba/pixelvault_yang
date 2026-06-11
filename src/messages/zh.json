@@ -1285,6 +1285,8 @@
     "templateApplied": "已应用「{name}」的示例提示词",
     "mountedToast": "已挂载「{name}」",
     "mountedToastAction": "查看",
+    "sourceImagesLabel": "来源图（{count}）",
+    "sourceImageAlt": "{name} 来源图 {n}",
     "clearAll": "全部清除",
     "bannerEmpty": "LoRA 会把角色或画风叠加到当前图像模型上。",
     "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",

@@ -21,6 +21,11 @@ export interface MinedPromptsInputItem {
 
 export interface UseCivitaiMinedPromptsReturn {
   outfits: CivitaiMinedPromptsResult['outfits']
+  /**
+   * 逐图配方（图片 URL + 完整生成参数，M1 数据层）。旧缓存/旧响应可能
+   * 没有该字段 — 恒为数组，缺失时为空。
+   */
+  recipes: NonNullable<CivitaiMinedPromptsResult['recipes']>
   totalSampled: number
   isLoading: boolean
   /**
@@ -35,6 +40,7 @@ export interface UseCivitaiMinedPromptsReturn {
 
 const EMPTY: UseCivitaiMinedPromptsReturn = {
   outfits: [],
+  recipes: [],
   totalSampled: 0,
   isLoading: false,
   hasFetched: false,
@@ -93,6 +99,7 @@ function reducer(
     case 'success':
       return {
         outfits: action.data.outfits,
+        recipes: action.data.recipes ?? [],
         totalSampled: action.data.totalSampled,
         isLoading: false,
         hasFetched: true,
@@ -101,6 +108,7 @@ function reducer(
     case 'error':
       return {
         outfits: [],
+        recipes: [],
         totalSampled: 0,
         isLoading: false,
         hasFetched: true,

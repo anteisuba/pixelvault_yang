@@ -1285,6 +1285,8 @@
     "templateApplied": "「{name}」のお手本プロンプトを適用しました",
     "mountedToast": "「{name}」を適用しました",
     "mountedToastAction": "表示",
+    "sourceImagesLabel": "サンプル画像（{count}）",
+    "sourceImageAlt": "{name} のサンプル画像 {n}",
     "clearAll": "すべて解除",
     "bannerEmpty": "LoRAは現在の画像モデルにキャラクターや画風を重ねます。",
     "bannerOk": "現在のモデル「{model}」でこれらのLoRAを実行できます。",

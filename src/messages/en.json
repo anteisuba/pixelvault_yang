@@ -1285,6 +1285,8 @@
     "templateApplied": "Applied {name}'s starter prompt",
     "mountedToast": "Mounted \"{name}\"",
     "mountedToastAction": "View",
+    "sourceImagesLabel": "Source images ({count})",
+    "sourceImageAlt": "{name} source image {n}",
     "clearAll": "Clear all",
     "bannerEmpty": "LoRAs add a subject or style layer on top of the current image model.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",

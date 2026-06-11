@@ -16,8 +16,10 @@ export const DEFAULT_LORA_WORKBENCH_SECTION = LORA_WORKBENCH_SECTIONS.COMMUNITY
 export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
 // ── 挂载可见性（M2a，docs/plans/lora-recipe-workflow.md）──────────────
-// Studio chip 缩略图请求宽度：facepile 20px / 卡片 48px，96 覆盖 2x 屏。
+// Studio chip 卡片 48px 缩略图请求宽度，96 覆盖 2x 屏。
 export const LORA_CHIP_THUMBNAIL_WIDTH = 96
+// 详细卡片来源图横滚条：图块 48×64，192 宽留出 2x + 裁切余量。
+export const LORA_CARD_SOURCE_IMAGE_WIDTH = 192
 // 挂载事件新鲜窗口：超过它的事件不再弹 toast（用户早已离开挂载现场）。
 export const LORA_MOUNT_EVENT_FRESH_MS = 5 * 60 * 1000
 // 挂载后触发按钮的高亮时长。

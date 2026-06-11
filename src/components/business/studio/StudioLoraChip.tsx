@@ -21,6 +21,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
+  LORA_CARD_SOURCE_IMAGE_WIDTH,
   LORA_CHIP_THUMBNAIL_WIDTH,
   LORA_MOUNT_EVENT_FRESH_MS,
   LORA_MOUNT_PULSE_MS,
@@ -36,6 +37,7 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { Link } from '@/i18n/navigation'
+import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { loraThumbnailUrl } from '@/lib/lora-thumbnail'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { promptIncludesTrigger } from '@/lib/prompt-text'
@@ -421,36 +423,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
               recentlyMounted && 'ring-2 ring-primary/60',
             )}
           >
-            {count > 0 ? (
-              // Facepile：挂载中 LoRA 的封面叠放（≤3，与 MAX_STACK 一致），
-              // 不点开也能认出挂了什么。无图条目落到调色板占位圆。
-              <span className="flex shrink-0 -space-x-2" aria-hidden>
-                {items.map((entry) => {
-                  const thumb = loraThumbnailUrl(
-                    entry.asset,
-                    LORA_CHIP_THUMBNAIL_WIDTH,
-                  )
-                  return thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={entry.asset.id}
-                      src={thumb}
-                      alt=""
-                      className="size-5 shrink-0 rounded-full border border-background object-cover"
-                    />
-                  ) : (
-                    <span
-                      key={entry.asset.id}
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-background bg-muted"
-                    >
-                      <Palette className="size-3" aria-hidden />
-                    </span>
-                  )
-                })}
-              </span>
-            ) : (
-              <Palette className="size-4" aria-hidden />
-            )}
+            <Palette className="size-4" aria-hidden />
             <span className="hidden sm:inline">{t('label')}</span>
             {count > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
@@ -803,7 +776,16 @@ function StudioLoraChipItem({
   const showChips = outfits.length > 1
   const showMinedSpinner = mined.isLoading && !hasOutfits
 
-  const thumbUrl = loraThumbnailUrl(asset, LORA_CHIP_THUMBNAIL_WIDTH)
+  // 三级兜底：cover → preview → 第一张 Civitai 来源图（旧收藏没存封面
+  // 字段，但只要带 modelVersionId 就能从挖掘结果里拿到来源图补上）。
+  const firstSourceImage = mined.recipes[0]?.imageUrl ?? null
+  const thumbUrl =
+    loraThumbnailUrl(asset, LORA_CHIP_THUMBNAIL_WIDTH) ??
+    (firstSourceImage
+      ? rewriteCivitaiImageUrl(firstSourceImage, {
+          width: LORA_CHIP_THUMBNAIL_WIDTH,
+        })
+      : null)
   const FallbackIcon =
     asset.type === 'style'
       ? Sparkles
@@ -855,6 +837,30 @@ function StudioLoraChipItem({
           <X className="size-3.5" aria-hidden />
         </button>
       </div>
+
+      {/* 来源图预览 — LoRA 页的官方来源图（M1 逐图配方数据），横滚一行。
+          M2c 在这里接"点图→配方→一键同款"。 */}
+      {mined.recipes.length > 0 ? (
+        <div className="mt-2">
+          <p className="text-2xs text-muted-foreground">
+            {t('sourceImagesLabel', { count: mined.recipes.length })}
+          </p>
+          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
+            {mined.recipes.map((recipe, idx) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={recipe.imageUrl}
+                src={rewriteCivitaiImageUrl(recipe.imageUrl, {
+                  width: LORA_CARD_SOURCE_IMAGE_WIDTH,
+                })}
+                alt={t('sourceImageAlt', { name: asset.name, n: idx + 1 })}
+                loading="lazy"
+                className="h-16 w-12 shrink-0 rounded-md border border-border/60 object-cover"
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Trigger word — kept as the quick "insert" affordance because
           a single trigger token is what the user usually wants to splice

@@ -1,12 +1,19 @@
 # LoRA 配方工作流 — 活跃任务包
 
 创建：2026-06-11
-状态：M2a 完成（2026-06-11）；下一步 M2b 面板形态 + 入口收敛（布局级
-决策，先出 Figma 改动清单）。
+状态：M2a 完成 + owner 实测修订（2026-06-11）；下一步 M2b 面板形态 +
+入口收敛（布局级决策，先出 Figma 改动清单），M2c 在详细卡片预览区上
+接"点图→配方→一键同款"。
 M2a 实现备注：挂载事件为内存态（provider 在 studio layout，跨
 /studio/lora→/studio/image 导航存活，不落 localStorage）；同 tick 批量
 push 的事件判定可能用到旧快照（真实交互为逐次点击，不受影响，见
 use-active-lora-stack push 注释）。
+M2a 修订（owner 实测拍板 2026-06-11）：①工具栏按钮 facepile 撤销——
+回退为图标+角标，预览图只进"点击 LoRA 后的详细信息卡片"；②详细卡片
+新增**来源图横滚预览区**（M1 recipes 数据，即 M2c 第一步提前落地）；
+③卡片缩略图兜底链补"第一张来源图"档——旧收藏行没存 coverImageUrl
+（字段后加的），带 modelVersionId 即可由来源图补上，无需数据回填。
+另：旧收藏 cover 批量回填脚本列为可选小修，暂缓。
 M1 实现备注：①loraWeight 三信号回收（resources hash → civitaiResources
 modelVersionId → prompt `<lora:名:权重>` 标签 + 文件名词干匹配），实测
 来源图 resources 常只含 checkpoint、权重多在 prompt 标签里；②映射层对

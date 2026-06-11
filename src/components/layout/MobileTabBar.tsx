@@ -272,7 +272,7 @@ export function MobileCollapsedRail() {
   return (
     <aside
       aria-label={t('mobileNavigation')}
-      className="dark fixed inset-y-0 left-0 z-50 flex w-11 flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground md:hidden"
+      className="dark fixed inset-y-0 left-0 z-50 flex w-11 flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground lg:hidden"
     >
       <button
         type="button"
@@ -330,7 +330,7 @@ export function MobileHeader() {
   })()
 
   return (
-    <header className="fixed left-11 right-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+    <header className="fixed left-11 right-0 top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden">
       <div className="min-w-0 flex-1 px-1">
         <div className="truncate text-center font-display text-sm font-semibold text-foreground">
           {title}
@@ -365,7 +365,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t('mobileNavigation')}
-      className="fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      className="fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-12">

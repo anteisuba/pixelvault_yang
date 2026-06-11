@@ -626,8 +626,8 @@ html:lang(zh) {
     z-index: 10;
   }
 
-  /* Mobile: fix dock above virtual keyboard + reduce padding */
-  @media (max-width: 768px) {
+  /* Mobile/tablet (<1024, 与 MOBILE_BREAKPOINT 同界): sticky dock above keyboard + reduce padding */
+  @media (max-width: 1023.98px) {
     .studio-dock {
       position: sticky;
       bottom: 0;

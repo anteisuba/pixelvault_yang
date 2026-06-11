@@ -1073,7 +1073,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               paddingRight: 8,
             }}
             className={cn(
-              'overflow-hidden border border-black/5 bg-surface-composer text-surface-composer-foreground shadow-2xl shadow-black/20 ring-1 ring-black/5',
+              'studio-composer overflow-hidden border border-black/5 shadow-2xl shadow-black/20 ring-1 ring-black/5',
               'has-[textarea:focus-visible]:border-black/10 has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/10',
             )}
             transition={motionTransition('slow', reducedMotion)}
@@ -1104,7 +1104,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 aria-label={tForm('promptLabel')}
                 placeholder={placeholder}
                 onPaste={handlePromptPaste}
-                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-surface-composer-foreground selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
+                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
               />
               <PromptInputActions className="shrink-0 items-center gap-1">
                 <button

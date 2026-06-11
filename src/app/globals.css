@@ -643,6 +643,15 @@ html:lang(zh) {
     }
   }
 
+  /* Composer 壳体 — 象牙工作台（direction.md 决议 4）。
+     用语义类而非 @theme 生成的工具类：跑着的 dev server 对新增
+     theme key 不重启不生成工具类，语义类热更新立即生效。
+     文字色靠继承（preflight 已让 textarea/button color: inherit）。 */
+  .studio-composer {
+    background: var(--surface-composer);
+    color: var(--surface-composer-foreground);
+  }
+
   /* ── Touch-device utility: make hover-only elements always visible ── */
   @media (hover: none) {
     .card-actions {

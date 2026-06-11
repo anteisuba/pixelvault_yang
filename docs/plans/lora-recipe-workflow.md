@@ -1,9 +1,12 @@
 # LoRA 配方工作流 — 活跃任务包
 
 创建：2026-06-11
-状态：M2a 完成 + owner 实测修订（2026-06-11）；下一步 M2b 面板形态 +
-入口收敛（布局级决策，先出 Figma 改动清单），M2c 在详细卡片预览区上
-接"点图→配方→一键同款"。
+状态：M2c 一键同款已落地（2026-06-11，宿主 LoraPromptControlButton →
+LoraSourceRecipeStrip）：点来源图→展开配方（prompt/负向/seed/steps/
+cfg/尺寸/checkpoint）→ seed 开关 → 一键同款（prompt 替换、负向合并、
+参数覆盖、真实 LoRA 权重、最近比例档；未应用参数与多 LoRA 警告明示）。
+下一步：M2b 面板形态 + 入口收敛（布局级，先出 Figma 改动清单）、
+M3 配方拆层。
 M2a 实现备注：挂载事件为内存态（provider 在 studio layout，跨
 /studio/lora→/studio/image 导航存活，不落 localStorage）；同 tick 批量
 push 的事件判定可能用到旧快照（真实交互为逐次点击，不受影响，见

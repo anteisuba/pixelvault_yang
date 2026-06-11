@@ -26,7 +26,6 @@ import { toast } from 'sonner'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
 import {
-  LORA_CARD_SOURCE_IMAGE_WIDTH,
   LORA_CHIP_THUMBNAIL_WIDTH,
   LORA_MOUNT_EVENT_FRESH_MS,
   LORA_MOUNT_PULSE_MS,
@@ -45,6 +44,10 @@ import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { Link } from '@/i18n/navigation'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import {
+  applyRecipePlanToAdvancedParams,
+  buildCivitaiRecipeGenerationPlan,
+} from '@/lib/civitai-recipe-to-generation'
 import {
   findUsableRecommendedLoraRoute,
   getRecommendedLoraImageModelId,
@@ -74,8 +77,17 @@ import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import type { AdvancedParams, LoraAssetRecord } from '@/types'
+import type { AspectRatio } from '@/constants/config'
+import type {
+  AdvancedParams,
+  CivitaiImageRecipe,
+  LoraAssetRecord,
+} from '@/types'
 
+import {
+  LoraSourceRecipeStrip,
+  type ApplyRecipeOptions,
+} from './LoraSourceRecipeStrip'
 import { TagLibrary } from './TagLibrary'
 
 type LoraPromptControlTab = 'generate' | 'tags'
@@ -370,6 +382,20 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
     [dispatch, state.advancedParams],
   )
 
+  const setAdvancedParams = useCallback(
+    (next: AdvancedParams) => {
+      dispatch({ type: 'SET_ADVANCED_PARAMS', payload: next })
+    },
+    [dispatch],
+  )
+
+  const setAspectRatio = useCallback(
+    (ratio: AspectRatio) => {
+      dispatch({ type: 'SET_ASPECT_RATIO', payload: ratio })
+    },
+    [dispatch],
+  )
+
   return (
     <div className="space-y-4">
       <section className="space-y-2">
@@ -398,9 +424,12 @@ function GenerateControlTab({ disabled, onClose }: GenerateControlTabProps) {
                 scale={entry.scale ?? entry.asset.defaultScale}
                 prompt={state.prompt}
                 negativePrompt={state.advancedParams.negativePrompt}
+                advancedParams={state.advancedParams}
                 disabled={disabled}
                 onPromptChange={setPrompt}
                 onNegativePromptChange={setNegativePrompt}
+                onAdvancedParamsChange={setAdvancedParams}
+                onAspectRatioChange={setAspectRatio}
                 onRemove={loraStack.remove}
                 onSetScale={loraStack.setScale}
               />
@@ -504,9 +533,12 @@ interface LoraGenerateRowProps {
   scale: number
   prompt: string
   negativePrompt?: string
+  advancedParams?: AdvancedParams
   disabled?: boolean
   onPromptChange: (value: string) => void
   onNegativePromptChange: (value: string) => void
+  onAdvancedParamsChange: (next: AdvancedParams) => void
+  onAspectRatioChange: (ratio: AspectRatio) => void
   onRemove: (assetId: string) => void
   onSetScale: (assetId: string, scale: number) => void
 }
@@ -554,9 +586,12 @@ function LoraGenerateRow({
   scale,
   prompt,
   negativePrompt,
+  advancedParams,
   disabled,
   onPromptChange,
   onNegativePromptChange,
+  onAdvancedParamsChange,
+  onAspectRatioChange,
   onRemove,
   onSetScale,
 }: LoraGenerateRowProps) {
@@ -600,6 +635,43 @@ function LoraGenerateRow({
     if (!starterPrompt) return
     onPromptChange(starterPrompt)
   }, [asset.recommendedPrompt, onPromptChange])
+
+  // 一键同款：来源图配方 → prompt 替换 + 负向合并 + seed/steps/cfg 覆盖
+  // + 真实 LoRA 权重 + 最近比例档。映射不了的字段在 toast 里明示。
+  const handleApplyRecipe = useCallback(
+    (recipe: CivitaiImageRecipe, { includeSeed }: ApplyRecipeOptions) => {
+      const plan = buildCivitaiRecipeGenerationPlan(recipe)
+      onPromptChange(plan.prompt)
+      onAdvancedParamsChange(
+        applyRecipePlanToAdvancedParams(advancedParams, plan, { includeSeed }),
+      )
+      if (plan.loraScale !== undefined) {
+        onSetScale(asset.id, plan.loraScale)
+      }
+      if (plan.aspectRatio) {
+        onAspectRatioChange(plan.aspectRatio)
+      }
+      toast.success(
+        t('recipeApplied'),
+        plan.skippedParams.length > 0
+          ? {
+              description: t('recipeSkipped', {
+                params: plan.skippedParams.join(', '),
+              }),
+            }
+          : undefined,
+      )
+    },
+    [
+      advancedParams,
+      asset.id,
+      onAdvancedParamsChange,
+      onAspectRatioChange,
+      onPromptChange,
+      onSetScale,
+      t,
+    ],
+  )
 
   const handleApplySourceMatch = useCallback(() => {
     // Guard: never apply an unreliable (bare-trigger) result — it would just
@@ -670,29 +742,13 @@ function LoraGenerateRow({
         </Button>
       </div>
 
-      {/* 来源图预览 — LoRA 页的官方来源图（M1 逐图配方数据），横滚一行。
-          M2c 在这里接"点图→配方→一键同款"。 */}
-      {minedPrompts.recipes.length > 0 ? (
-        <div className="mt-2.5">
-          <p className="text-2xs text-muted-foreground">
-            {t('sourceImagesLabel', { count: minedPrompts.recipes.length })}
-          </p>
-          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
-            {minedPrompts.recipes.map((recipe, idx) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={recipe.imageUrl}
-                src={rewriteCivitaiImageUrl(recipe.imageUrl, {
-                  width: LORA_CARD_SOURCE_IMAGE_WIDTH,
-                })}
-                alt={t('sourceImageAlt', { name: asset.name, n: idx + 1 })}
-                loading="lazy"
-                className="h-16 w-12 shrink-0 rounded-md border border-border/60 object-cover"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {/* 来源图配方条（M2c）：点图→展开配方→一键同款 */}
+      <LoraSourceRecipeStrip
+        assetName={asset.name}
+        recipes={minedPrompts.recipes}
+        disabled={disabled}
+        onApplyRecipe={handleApplyRecipe}
+      />
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Button

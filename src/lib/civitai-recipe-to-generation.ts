@@ -1,5 +1,6 @@
 import type { AspectRatio } from '@/constants/config'
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
+import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 import {
   AdvancedParamsSchema,
   LoraSchema,
@@ -152,4 +153,42 @@ export function buildCivitaiRecipeGenerationPlan(
     skippedParams,
     extraLoras: recipe.extraLoras ?? [],
   }
+}
+
+export interface ApplyRecipePlanOptions {
+  /** false = 保留随机：不写入原图 seed（UI 的"使用原图 seed"开关）。 */
+  includeSeed: boolean
+}
+
+/**
+ * 把配方 plan 合并进用户当前的 advancedParams（"一键同款"的写入步）。
+ * 负向词走 mergeNegativePrompt 语义（保留用户已有词、去重追加）；
+ * guidanceScale/steps 直接覆盖（同款的意义就是用原图参数）；seed 受
+ * 开关控制。不动 plan 没提供的字段。
+ */
+export function applyRecipePlanToAdvancedParams(
+  existing: AdvancedParams | undefined,
+  plan: CivitaiRecipeGenerationPlan,
+  { includeSeed }: ApplyRecipePlanOptions,
+): AdvancedParams {
+  const next: AdvancedParams = { ...existing }
+  const planParams = plan.advancedParams
+  if (!planParams) return next
+
+  if (planParams.negativePrompt !== undefined) {
+    next.negativePrompt = mergeNegativePrompt(
+      existing?.negativePrompt,
+      planParams.negativePrompt,
+    )
+  }
+  if (planParams.guidanceScale !== undefined) {
+    next.guidanceScale = planParams.guidanceScale
+  }
+  if (planParams.steps !== undefined) {
+    next.steps = planParams.steps
+  }
+  if (includeSeed && planParams.seed !== undefined) {
+    next.seed = planParams.seed
+  }
+  return next
 }

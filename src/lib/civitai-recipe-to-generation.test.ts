@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { CivitaiImageRecipe } from '@/types'
 
-import { buildCivitaiRecipeGenerationPlan } from './civitai-recipe-to-generation'
+import {
+  applyRecipePlanToAdvancedParams,
+  buildCivitaiRecipeGenerationPlan,
+} from './civitai-recipe-to-generation'
 
 function makeRecipe(
   overrides: Partial<CivitaiImageRecipe> = {},
@@ -111,5 +114,48 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
     expect(plan.loraScale).toBeUndefined()
     expect(plan.aspectRatio).toBeUndefined()
     expect(plan.skippedParams).toEqual([])
+  })
+})
+
+describe('applyRecipePlanToAdvancedParams', () => {
+  const fullPlan = buildCivitaiRecipeGenerationPlan(
+    makeRecipe({
+      negativePrompt: '3d, cgi',
+      seed: 42,
+      steps: 28,
+      cfgScale: 6.5,
+    }),
+  )
+
+  it('merges negative prompt and overwrites guidance/steps/seed', () => {
+    const next = applyRecipePlanToAdvancedParams(
+      { negativePrompt: 'blurry, 3d', guidanceScale: 9, quality: 'high' },
+      fullPlan,
+      { includeSeed: true },
+    )
+    // user's words kept, recipe words deduped-appended
+    expect(next.negativePrompt).toBe('blurry, 3d, cgi')
+    expect(next.guidanceScale).toBe(6.5)
+    expect(next.steps).toBe(28)
+    expect(next.seed).toBe(42)
+    // unrelated existing params untouched
+    expect(next.quality).toBe('high')
+  })
+
+  it('skips seed when includeSeed is false (random toggle)', () => {
+    const next = applyRecipePlanToAdvancedParams({ seed: 7 }, fullPlan, {
+      includeSeed: false,
+    })
+    expect(next.seed).toBe(7)
+  })
+
+  it('returns existing params unchanged for a plan with no advanced params', () => {
+    const emptyPlan = buildCivitaiRecipeGenerationPlan(makeRecipe())
+    const existing = { negativePrompt: 'blurry' }
+    expect(
+      applyRecipePlanToAdvancedParams(existing, emptyPlan, {
+        includeSeed: true,
+      }),
+    ).toEqual(existing)
   })
 })

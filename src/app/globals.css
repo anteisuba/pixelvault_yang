@@ -650,6 +650,23 @@ html:lang(zh) {
   .studio-composer {
     background: var(--surface-composer);
     color: var(--surface-composer-foreground);
+    /* 局部反转：composer 是暗面上的光面物体——在其作用域内重映射
+       语义色板，让 text-foreground / text-muted-foreground / border-*
+       等工具类在象牙面上解析为深色（暖灰阶与米白同族）。 */
+    --foreground: var(--surface-composer-foreground);
+    --muted-foreground: oklch(50% 0.005 95);
+    --border: oklch(89% 0.006 95);
+    --input: oklch(89% 0.006 95);
+    /* primary 在光面上=深色（textarea 的 text-primary、任何 bg-primary
+       子元素自动成为"象牙上的黑丸"——与反相 CTA 规则一致）。 */
+    --primary: var(--surface-composer-foreground);
+    --primary-foreground: var(--surface-composer);
+  }
+
+  /* 后代规则压过组件内部的主题文字工具类（(0,1,1) > (0,1,0)）。 */
+  .studio-composer textarea {
+    color: var(--surface-composer-foreground);
+    caret-color: var(--surface-composer-foreground);
   }
 
   /* ── Touch-device utility: make hover-only elements always visible ── */

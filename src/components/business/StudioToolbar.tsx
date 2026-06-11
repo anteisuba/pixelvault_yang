@@ -18,7 +18,6 @@ import { StudioCardsButton } from '@/components/business/studio/StudioCardsButto
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { LoraPromptControlButton } from '@/components/business/studio/prompt-tags/LoraPromptControlButton'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
-import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 import { studioToolTriggerClass } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StudioToolbarProps {
@@ -100,9 +99,8 @@ export function StudioToolbar({
         )}
         aria-label={t('toolbarLabel')}
       >
-        {/* Group 1 — Prompt modifiers: enhance / style */}
+        {/* Group 1 — Prompt modifiers: enhance（风格预设已并入卡片→画风，决议 5①） */}
         <StudioEnhanceButton disabled={disabled} />
-        <StylePresetButton disabled={disabled} />
 
         <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
 

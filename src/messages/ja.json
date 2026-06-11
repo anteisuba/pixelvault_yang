@@ -3822,6 +3822,7 @@
     "characterCards": "キャラクターカード",
     "backgroundCards": "背景カード",
     "styleCards": "画風カード",
+    "builtinStyles": "プリセットスタイル",
     "edit": "編集",
     "save": "保存",
     "cancel": "キャンセル",

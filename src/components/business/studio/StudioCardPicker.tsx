@@ -15,7 +15,8 @@ import { useTranslations } from 'next-intl'
 
 import { modelSupportsLora } from '@/constants/models'
 import { cardManagementPath, type CardManagementTab } from '@/constants/routes'
-import { useStudioData } from '@/contexts/studio-context'
+import { NO_STYLE_PRESET_ID, STYLE_PRESETS } from '@/constants/style-presets'
+import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
 import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
@@ -61,8 +62,12 @@ function toTimestampMs(value: Date | string | number | null | undefined) {
  */
 export function StudioCardPicker() {
   const { characters, backgrounds, styles, projects } = useStudioData()
+  const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
+  const tPresets = useTranslations('StylePresets')
+  const activePresetId = state.stylePresetId
+  const presetActive = activePresetId !== NO_STYLE_PRESET_ID
   const [activeKind, setActiveKind] = useState<CardKind>('character')
   const [query, setQuery] = useState('')
   const usage = useMemo(
@@ -120,7 +125,9 @@ export function StudioCardPicker() {
         createdAt: card.createdAt,
         lastUsedAt: usage.style[card.id] ?? null,
       })),
-      selectedIds: selectedStyleId,
+      selectedIds: presetActive
+        ? [...selectedStyleId, activePresetId]
+        : selectedStyleId,
       isLoading: styles.isLoading,
       onSelect: (id) => styles.setActiveCardId(id),
     },
@@ -233,6 +240,50 @@ export function StudioCardPicker() {
       </header>
 
       <div className="max-h-[min(48vh,28rem)] overflow-y-auto p-3">
+        {/* 内置风格 — 原工具栏「风格」预设并入画风页签（direction.md 决议 5①）。
+            与画风卡可叠加（预设改写 prompt，画风卡带模型/参考），语义与原 chip 一致。 */}
+        {activeGroup.kind === 'style' ? (
+          <div className="mb-3 space-y-2">
+            <p className="px-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
+              {t('builtinStyles')}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: 'SET_STYLE_PRESET',
+                    payload: NO_STYLE_PRESET_ID,
+                  })
+                }
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors duration-150 ${
+                  !presetActive
+                    ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {tPresets('none')}
+              </button>
+              {STYLE_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() =>
+                    dispatch({ type: 'SET_STYLE_PRESET', payload: preset.id })
+                  }
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors duration-150 ${
+                    activePresetId === preset.id
+                      ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <span>{preset.icon}</span>
+                  <span>{tPresets(preset.messageKey)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {activeGroup.cards.length > 0 || activeGroup.selectedIds.length > 0 ? (
           <button
             type="button"

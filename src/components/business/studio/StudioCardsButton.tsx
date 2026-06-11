@@ -4,6 +4,7 @@ import { PanelsTopLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
+import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
@@ -31,7 +32,8 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
   const selectedCardCount =
     characters.activeCardIds.length +
     (backgrounds.activeCardId ? 1 : 0) +
-    (styles.activeCardId ? 1 : 0)
+    (styles.activeCardId ? 1 : 0) +
+    (state.stylePresetId !== NO_STYLE_PRESET_ID ? 1 : 0)
 
   return (
     <StudioToolSurface

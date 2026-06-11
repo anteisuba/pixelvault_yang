@@ -42,6 +42,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { analyzeImageAPI } from '@/lib/api-client'
 import { Link } from '@/i18n/navigation'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import {
@@ -597,6 +598,39 @@ function LoraGenerateRow({
 }: LoraGenerateRowProps) {
   const t = useTranslations('LoraPromptControl.generate')
   const minedPrompts = useCivitaiMinedPrompts(asset)
+
+  // 解法三：无配方数据（旧收藏自愈后仍无 / 自训练）但有封面时，AI 反推
+  // 一份仅含 prompt 的伪配方，标注"AI 推测"进入同一条来源图工作流。
+  const [inferredRecipe, setInferredRecipe] =
+    useState<CivitaiImageRecipe | null>(null)
+  const [inferenceLoading, setInferenceLoading] = useState(false)
+  const [inferenceError, setInferenceError] = useState<string | null>(null)
+  const inferenceSourceUrl =
+    asset.coverImageUrl ?? asset.previewImageUrls.find(Boolean) ?? null
+
+  const handleRequestInference = useCallback(async () => {
+    if (!inferenceSourceUrl || inferenceLoading) return
+    setInferenceLoading(true)
+    setInferenceError(null)
+    const result = await analyzeImageAPI({ imageData: inferenceSourceUrl })
+    setInferenceLoading(false)
+    if (result.success && result.data?.generatedPrompt) {
+      setInferredRecipe({
+        imageUrl: inferenceSourceUrl,
+        source: 'ai_inferred',
+        prompt: result.data.generatedPrompt,
+      })
+    } else {
+      setInferenceError(t('recipeInferFailed'))
+    }
+  }, [inferenceLoading, inferenceSourceUrl, t])
+
+  const stripRecipes =
+    minedPrompts.recipes.length > 0
+      ? minedPrompts.recipes
+      : inferredRecipe
+        ? [inferredRecipe]
+        : []
   const sourceMatch = useMemo(
     () => buildSourceMatchedLoraPrompt(asset, minedPrompts.outfits),
     [asset, minedPrompts.outfits],
@@ -742,12 +776,22 @@ function LoraGenerateRow({
         </Button>
       </div>
 
-      {/* 来源图配方条（M2c）：点图→展开配方→一键同款 */}
+      {/* 来源图配方条（M2c）：点图→展开配方→一键同款；无配方且有封面
+          时提供 AI 反推入口（解法三）。等挖掘结果落定再亮反推按钮。 */}
       <LoraSourceRecipeStrip
         assetName={asset.name}
-        recipes={minedPrompts.recipes}
+        recipes={stripRecipes}
         disabled={disabled}
         onApplyRecipe={handleApplyRecipe}
+        onRequestInference={
+          inferenceSourceUrl &&
+          minedPrompts.hasFetched &&
+          !minedPrompts.isLoading
+            ? handleRequestInference
+            : undefined
+        }
+        inferenceLoading={inferenceLoading}
+        inferenceError={inferenceError}
       />
 
       <div className="mt-3 flex flex-wrap gap-1.5">

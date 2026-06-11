@@ -2,8 +2,11 @@ import 'server-only'
 
 import { randomBytes } from 'node:crypto'
 
+import { LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST } from '@/constants/lora'
+import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { fetchCivitaiVersionIdentifiers } from '@/services/civitai-lora.service'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -159,6 +162,75 @@ export async function findLoraAssetsByUrls(
 }
 
 /**
+ * 旧收藏自愈回填（解法一）：civitai 来源但缺 modelId/fileHash 标识的行，
+ * 从 loraUrl 恢复 versionId → 拉一次 model-versions 详情 → 回填标识 +
+ * （缺失时）封面。来源图挖掘与缩略图从此对旧收藏也能工作。
+ *
+ * 每次请求限量 LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST 行（每行一次外部
+ * 请求），其余行下次请求继续愈合；单行失败不影响列表返回（原样返回）。
+ */
+async function healCivitaiIdentifiers(
+  rows: LoraAssetRow[],
+): Promise<LoraAssetRow[]> {
+  const candidates = rows
+    .filter(
+      (row) =>
+        row.provider === 'civitai' &&
+        (row.civitaiModelId === null ||
+          row.civitaiModelVersionId === null ||
+          row.civitaiFileHashAutoV3 === null),
+    )
+    .map((row) => ({
+      row,
+      versionId:
+        row.civitaiModelVersionId ??
+        parseCivitaiVersionIdFromDownloadUrl(row.loraUrl),
+    }))
+    .filter(
+      (entry): entry is { row: LoraAssetRow; versionId: number } =>
+        entry.versionId !== null,
+    )
+    .slice(0, LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST)
+
+  if (candidates.length === 0) return rows
+
+  const healed = new Map<string, LoraAssetRow>()
+  await Promise.allSettled(
+    candidates.map(async ({ row, versionId }) => {
+      const identifiers = await fetchCivitaiVersionIdentifiers(versionId)
+      if (!identifiers) return
+      const updated = await db.loraAsset.update({
+        where: { id: row.id },
+        data: {
+          civitaiModelVersionId: versionId,
+          ...(identifiers.modelId !== null
+            ? { civitaiModelId: identifiers.modelId }
+            : {}),
+          ...(identifiers.fileHashAutoV3 !== null
+            ? { civitaiFileHashAutoV3: identifiers.fileHashAutoV3 }
+            : {}),
+          // 只补缺：用户自定义过的封面不动。
+          ...(row.coverImageUrl === null && identifiers.coverImageUrl !== null
+            ? { coverImageUrl: identifiers.coverImageUrl }
+            : {}),
+        },
+      })
+      healed.set(row.id, updated as LoraAssetRow)
+      logger.info('Healed legacy Civitai LoRA favorite', {
+        loraAssetId: row.id,
+        versionId,
+        gotModelId: identifiers.modelId !== null,
+        gotFileHash: identifiers.fileHashAutoV3 !== null,
+        gotCover: identifiers.coverImageUrl !== null,
+      })
+    }),
+  )
+
+  if (healed.size === 0) return rows
+  return rows.map((row) => healed.get(row.id) ?? row)
+}
+
+/**
  * List LoRA assets the viewer can use: their own + all curated.
  * Ordered: owned (newest first) → curated (newest first).
  */
@@ -180,7 +252,9 @@ export async function listLoraAssetsForUser(
     }),
   ])
 
-  return [...owned, ...curated].map((row) => toRecord(row, user.id))
+  const healedOwned = await healCivitaiIdentifiers(owned)
+
+  return [...healedOwned, ...curated].map((row) => toRecord(row, user.id))
 }
 
 /**

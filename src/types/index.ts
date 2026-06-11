@@ -3599,7 +3599,9 @@ export const CivitaiImageRecipeSchema = z.object({
   imageUrl: z.string().url(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
-  source: z.enum(['model_version_image', 'community_image']),
+  // ai_inferred = 无配方数据时由 vision 反推的伪配方（解法三）：仅有
+  // prompt、无参数，UI 必须标注"AI 推测"，绝不能伪装成 Civitai 来源。
+  source: z.enum(['model_version_image', 'community_image', 'ai_inferred']),
   // 已过 cleanRecommendedPrompt（去 <lora:..> 标签等）的正向 prompt。
   prompt: z.string().min(1),
   negativePrompt: z.string().optional(),

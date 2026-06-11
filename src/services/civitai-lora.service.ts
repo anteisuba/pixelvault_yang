@@ -180,6 +180,74 @@ const CivitaiModelVersionDetailSchema = z
   })
   .passthrough()
 
+// ── 收藏自愈回填（解法一，docs/plans/lora-recipe-workflow.md）──────────
+//
+// 旧收藏行缺 civitaiModelId / civitaiFileHashAutoV3 / 封面（字段后加），
+// 导致来源图挖掘 no-op。versionId 可从 loraUrl 恢复，其余标识由本函数
+// 从 model-versions/:id 一次取回。
+
+const CivitaiVersionBackfillSchema = CivitaiModelVersionSchema.extend({
+  modelId: z.number().optional(),
+})
+
+export interface CivitaiVersionIdentifiers {
+  modelId: number | null
+  fileHashAutoV3: string | null
+  coverImageUrl: string | null
+}
+
+export async function fetchCivitaiVersionIdentifiers(
+  modelVersionId: number,
+): Promise<CivitaiVersionIdentifiers | null> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.backfillIdentifiers',
+    })
+  } catch (error) {
+    logger.warn('Civitai identifier backfill fetch failed', {
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+
+  const parsed = CivitaiVersionBackfillSchema.safeParse(payload)
+  if (!parsed.success) {
+    logger.warn('Civitai identifier backfill response had unexpected shape', {
+      modelVersionId,
+      issues: parsed.error.issues.map((issue) => issue.message).join('; '),
+    })
+    return null
+  }
+
+  const primaryFile =
+    parsed.data.files?.find((f) => f.primary && f.type === 'Model') ??
+    parsed.data.files?.find((f) => f.type === 'Model')
+  const fileHashAutoV3 = primaryFile?.hashes?.AutoV3
+    ? primaryFile.hashes.AutoV3.toLowerCase()
+    : null
+
+  const coverOriginal =
+    parsed.data.images?.find(
+      (image) =>
+        (image.nsfwLevel ?? 1) <= CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
+    )?.url ?? null
+
+  return {
+    modelId: parsed.data.modelId ?? null,
+    fileHashAutoV3,
+    coverImageUrl: coverOriginal
+      ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })
+      : null,
+  }
+}
+
 export interface ListCivitaiLorasInput {
   page?: number
   pageSize?: number

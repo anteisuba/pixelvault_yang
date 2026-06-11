@@ -38,6 +38,12 @@ vi.mock('@/services/storage/r2', () => ({
   isOwnedStorageUrl: (url: string) => mockIsOwnedStorageUrl(url),
 }))
 
+const mockFetchCivitaiVersionIdentifiers = vi.fn()
+vi.mock('@/services/civitai-lora.service', () => ({
+  fetchCivitaiVersionIdentifiers: (...a: unknown[]) =>
+    mockFetchCivitaiVersionIdentifiers(...a),
+}))
+
 import {
   generateStyleCode,
   getLoraAssetByStyleCode,
@@ -159,6 +165,119 @@ describe('listLoraAssetsForUser', () => {
     expect(result.map((r) => r.id)).toEqual(['owned_1', 'owned_2', 'curated_1'])
     expect(result[0]?.isOwn).toBe(true)
     expect(result[2]?.isOwn).toBe(false)
+    // Non-civitai rows never trigger the backfill fetch.
+    expect(mockFetchCivitaiVersionIdentifiers).not.toHaveBeenCalled()
+  })
+
+  it('heals legacy civitai favorites missing identifiers from loraUrl', async () => {
+    const legacy = buildRow({
+      id: 'fav_legacy',
+      source: 'imported',
+      provider: 'civitai',
+      loraUrl: 'https://civitai.com/api/download/models/135867',
+      civitaiModelId: null,
+      civitaiModelVersionId: null,
+      civitaiFileHashAutoV3: null,
+      coverImageUrl: null,
+    })
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindMany.mockResolvedValueOnce([legacy]).mockResolvedValueOnce([])
+    mockFetchCivitaiVersionIdentifiers.mockResolvedValue({
+      modelId: 122359,
+      fileHashAutoV3: '9c783c8ce46c',
+      coverImageUrl: 'https://image.civitai.com/cover/width=640/1.jpeg',
+    })
+    mockAssetUpdate.mockResolvedValue({
+      ...legacy,
+      civitaiModelId: 122359,
+      civitaiModelVersionId: 135867,
+      civitaiFileHashAutoV3: '9c783c8ce46c',
+      coverImageUrl: 'https://image.civitai.com/cover/width=640/1.jpeg',
+    })
+
+    const result = await listLoraAssetsForUser(OWNER.clerkId)
+
+    expect(mockFetchCivitaiVersionIdentifiers).toHaveBeenCalledWith(135867)
+    expect(mockAssetUpdate).toHaveBeenCalledWith({
+      where: { id: 'fav_legacy' },
+      data: {
+        civitaiModelVersionId: 135867,
+        civitaiModelId: 122359,
+        civitaiFileHashAutoV3: '9c783c8ce46c',
+        coverImageUrl: 'https://image.civitai.com/cover/width=640/1.jpeg',
+      },
+    })
+    expect(result[0]).toMatchObject({
+      modelId: 122359,
+      modelVersionId: 135867,
+      fileHashAutoV3: '9c783c8ce46c',
+    })
+  })
+
+  it('keeps a user-set cover and tolerates backfill failure', async () => {
+    const withCover = buildRow({
+      id: 'fav_cover',
+      source: 'imported',
+      provider: 'civitai',
+      loraUrl: 'https://civitai.com/api/download/models/111',
+      civitaiModelId: null,
+      coverImageUrl: 'https://r2.example.com/custom-cover.png',
+    })
+    const failing = buildRow({
+      id: 'fav_fail',
+      source: 'imported',
+      provider: 'civitai',
+      loraUrl: 'https://civitai.com/api/download/models/222',
+      civitaiModelId: null,
+    })
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindMany
+      .mockResolvedValueOnce([withCover, failing])
+      .mockResolvedValueOnce([])
+    mockFetchCivitaiVersionIdentifiers
+      .mockResolvedValueOnce({
+        modelId: 1,
+        fileHashAutoV3: 'aabbccddeeff',
+        coverImageUrl: 'https://image.civitai.com/new-cover.jpeg',
+      })
+      .mockResolvedValueOnce(null) // second row: Civitai unreachable
+    mockAssetUpdate.mockResolvedValue({
+      ...withCover,
+      civitaiModelId: 1,
+      civitaiModelVersionId: 111,
+      civitaiFileHashAutoV3: 'aabbccddeeff',
+    })
+
+    const result = await listLoraAssetsForUser(OWNER.clerkId)
+
+    // 已有自定义封面的行：update data 不包含 coverImageUrl
+    expect(mockAssetUpdate).toHaveBeenCalledTimes(1)
+    const updateData = mockAssetUpdate.mock.calls[0]?.[0]?.data
+    expect(updateData).not.toHaveProperty('coverImageUrl')
+    // 失败行原样返回，不阻塞列表
+    expect(result.map((r) => r.id)).toEqual(['fav_cover', 'fav_fail'])
+    expect(result[1]?.modelId).toBeUndefined()
+  })
+
+  it('caps backfill fetches per request', async () => {
+    const legacyRows = Array.from({ length: 5 }, (_, i) =>
+      buildRow({
+        id: `fav_${i}`,
+        source: 'imported',
+        provider: 'civitai',
+        loraUrl: `https://civitai.com/api/download/models/${1000 + i}`,
+        civitaiModelId: null,
+      }),
+    )
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindMany
+      .mockResolvedValueOnce(legacyRows)
+      .mockResolvedValueOnce([])
+    mockFetchCivitaiVersionIdentifiers.mockResolvedValue(null)
+
+    await listLoraAssetsForUser(OWNER.clerkId)
+
+    expect(mockFetchCivitaiVersionIdentifiers).toHaveBeenCalledTimes(3)
   })
 })
 

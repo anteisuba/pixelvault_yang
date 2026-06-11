@@ -25,6 +25,10 @@ export const LORA_MOUNT_EVENT_FRESH_MS = 5 * 60 * 1000
 // 挂载后触发按钮的高亮时长。
 export const LORA_MOUNT_PULSE_MS = 4000
 
+// 收藏自愈回填：单次列表请求最多回填几行（每行一次 Civitai 请求，
+// 限量避免旧收藏多的用户首次加载被拖慢；剩余行下次请求继续愈合）。
+export const LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST = 3
+
 export const CIVITAI_LORA_PAGE_SIZE = 10
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =

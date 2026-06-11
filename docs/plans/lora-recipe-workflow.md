@@ -5,18 +5,27 @@
 LoraSourceRecipeStrip）：点来源图→展开配方（prompt/负向/seed/steps/
 cfg/尺寸/checkpoint）→ seed 开关 → 一键同款（prompt 替换、负向合并、
 参数覆盖、真实 LoRA 权重、最近比例档；未应用参数与多 LoRA 警告明示）。
-下一步：M2b 面板形态 + 入口收敛（布局级，先出 Figma 改动清单）、
-M3 配方拆层。
-M2a 实现备注：挂载事件为内存态（provider 在 studio layout，跨
-/studio/lora→/studio/image 导航存活，不落 localStorage）；同 tick 批量
-push 的事件判定可能用到旧快照（真实交互为逐次点击，不受影响，见
-use-active-lora-stack push 注释）。
-M2a 修订（owner 实测拍板 2026-06-11）：①工具栏按钮 facepile 撤销——
-回退为图标+角标，预览图只进"点击 LoRA 后的详细信息卡片"；②详细卡片
-新增**来源图横滚预览区**（M1 recipes 数据，即 M2c 第一步提前落地）；
-③卡片缩略图兜底链补"第一张来源图"档——旧收藏行没存 coverImageUrl
-（字段后加的），带 modelVersionId 即可由来源图补上，无需数据回填。
-另：旧收藏 cover 批量回填脚本列为可选小修，暂缓。
+缺配方兜底已落地（2026-06-11，owner 选 1→3）：
+
+- 解法一：旧收藏读取时自愈回填——loraUrl 解析 versionId →
+  model-versions 拿 modelId/AutoV3/封面 → 回填 DB（每请求限 3 行，
+  失败不阻塞列表）。`healCivitaiIdentifiers` in lora-asset.service。
+- 解法三：仍无配方但有封面时「AI 反推配方」——复用 analyze-image
+  路由（imageData 本就接受 URL），产出 ai_inferred 伪配方（仅
+  prompt），strip 内强制"AI 推测"徽章。
+- 解法二（用自己的生成历史当来源图）owner 暂缓未选，留作后续。
+  下一步：M2b 面板形态 + 入口收敛（布局级，先出 Figma 改动清单）、
+  M3 配方拆层。
+  M2a 实现备注：挂载事件为内存态（provider 在 studio layout，跨
+  /studio/lora→/studio/image 导航存活，不落 localStorage）；同 tick 批量
+  push 的事件判定可能用到旧快照（真实交互为逐次点击，不受影响，见
+  use-active-lora-stack push 注释）。
+  M2a 修订（owner 实测拍板 2026-06-11）：①工具栏按钮 facepile 撤销——
+  回退为图标+角标，预览图只进"点击 LoRA 后的详细信息卡片"；②详细卡片
+  新增**来源图横滚预览区**（M1 recipes 数据，即 M2c 第一步提前落地）；
+  ③卡片缩略图兜底链补"第一张来源图"档——旧收藏行没存 coverImageUrl
+  （字段后加的），带 modelVersionId 即可由来源图补上，无需数据回填。
+  另：旧收藏 cover 批量回填脚本列为可选小修，暂缓。
 
 ⚠️ 重要勘误（2026-06-11）：**`StudioLoraChip` 是死代码**——prompt-tags
 上线时已被 `LoraPromptControlButton`（工具栏「LoRA」钻石按钮，

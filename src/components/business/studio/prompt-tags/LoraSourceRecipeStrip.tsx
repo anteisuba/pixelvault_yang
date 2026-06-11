@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Check, X } from 'lucide-react'
+import { AlertTriangle, Check, Wand2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
@@ -30,6 +30,14 @@ interface LoraSourceRecipeStripProps {
     recipe: CivitaiImageRecipe,
     options: ApplyRecipeOptions,
   ) => void
+  /**
+   * 解法三：无配方数据但有封面/预览图时的 AI 反推入口。提供该回调即在
+   * recipes 为空时渲染「AI 反推配方」按钮；产出的伪配方（source =
+   * 'ai_inferred'）由父级并入 recipes，本组件负责"推测"标注。
+   */
+  onRequestInference?: () => void
+  inferenceLoading?: boolean
+  inferenceError?: string | null
 }
 
 export function LoraSourceRecipeStrip({
@@ -37,6 +45,9 @@ export function LoraSourceRecipeStrip({
   recipes,
   disabled,
   onApplyRecipe,
+  onRequestInference,
+  inferenceLoading,
+  inferenceError,
 }: LoraSourceRecipeStripProps) {
   const t = useTranslations('LoraPromptControl.generate')
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
@@ -48,7 +59,31 @@ export function LoraSourceRecipeStrip({
     [selected],
   )
 
-  if (recipes.length === 0) return null
+  if (recipes.length === 0) {
+    if (!onRequestInference) return null
+    return (
+      <div className="mt-2.5 rounded-md border border-dashed border-border/70 p-2.5">
+        <p className="text-2xs leading-relaxed text-muted-foreground">
+          {t('recipeInferHint')}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={disabled || inferenceLoading}
+            onClick={onRequestInference}
+          >
+            <Wand2 className="size-3.5" aria-hidden />
+            {inferenceLoading ? t('recipeInferring') : t('recipeInferButton')}
+          </Button>
+          {inferenceError ? (
+            <span className="text-2xs text-destructive">{inferenceError}</span>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
 
   const paramsLine = selected
     ? [
@@ -103,6 +138,12 @@ export function LoraSourceRecipeStrip({
 
       {selected && plan ? (
         <div className="mt-1.5 space-y-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
+          {selected.source === 'ai_inferred' ? (
+            <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300">
+              <Wand2 className="size-2.5" aria-hidden />
+              {t('recipeInferredBadge')}
+            </p>
+          ) : null}
           <div className="flex items-start justify-between gap-2">
             <p className="break-words font-mono text-2xs leading-relaxed text-foreground">
               {plan.prompt}

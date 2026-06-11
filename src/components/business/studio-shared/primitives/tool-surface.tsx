@@ -2,7 +2,11 @@
 
 import type * as React from 'react'
 
-import { PopoverContent } from '@/components/ui/popover'
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { cn } from '@/lib/utils'
 
 export const studioToolTriggerClass = cn(
@@ -10,6 +14,18 @@ export const studioToolTriggerClass = cn(
   'hover:bg-muted/30 hover:text-foreground',
   'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
 )
+
+/**
+ * StudioToolSurface / StudioToolSurfaceTrigger — 工具栏 chip 的统一披露根与
+ * 触发器：桌面 = 锚定 Popover，移动端 = 底部 Drawer
+ * （docs/design/direction.md §Studio 工具栏规则）。
+ *
+ * 新 chip 一律用这对原语，不要直接用 Popover —— 锚定 popover 在手机窄视口
+ * 会被裁切。仍用裸 `Popover` 作根的旧宿主不受影响：`StudioToolPopoverContent`
+ * 只有在 StudioToolSurface 根的上下文里才会切换成抽屉。
+ */
+export const StudioToolSurface = ResponsivePopover
+export const StudioToolSurfaceTrigger = ResponsivePopoverTrigger
 
 type StudioToolSurfaceSize = 'small' | 'action' | 'medium'
 
@@ -19,10 +35,24 @@ const studioToolSurfaceSizeClass: Record<StudioToolSurfaceSize, string> = {
   medium: 'w-[min(640px,calc(100vw-2rem))] overflow-hidden !p-0',
 }
 
-interface StudioToolPopoverContentProps extends React.ComponentProps<
-  typeof PopoverContent
+/** 移动端抽屉里宽度交给抽屉本身，只保留内边距语义。 */
+const studioToolSurfaceMobileClass: Record<StudioToolSurfaceSize, string> = {
+  small: '',
+  action: '',
+  medium: 'px-0 pt-0',
+}
+
+interface StudioToolPopoverContentProps extends Omit<
+  React.ComponentProps<typeof ResponsivePopoverContent>,
+  'label'
 > {
   size?: StudioToolSurfaceSize
+  /**
+   * 浮层可访问名称（移动端抽屉标题 / 桌面 aria-label）。
+   * 迁移到 StudioToolSurface 根的宿主必须传；仍用裸 Popover 根的旧宿主
+   * 可暂缺（过渡期）。
+   */
+  label?: string
 }
 
 export function StudioToolPopoverContent({
@@ -31,15 +61,18 @@ export function StudioToolPopoverContent({
   align = 'center',
   sideOffset = 12,
   collisionPadding = 12,
+  label,
   className,
+  mobileClassName,
   onFocusOutside,
   onInteractOutside,
   onPointerDownOutside,
   ...props
 }: StudioToolPopoverContentProps) {
   return (
-    <PopoverContent
+    <ResponsivePopoverContent
       data-studio-tool-popover=""
+      label={label ?? ''}
       side={side}
       align={align}
       sideOffset={sideOffset}
@@ -51,6 +84,7 @@ export function StudioToolPopoverContent({
         studioToolSurfaceSizeClass[size],
         className,
       )}
+      mobileClassName={cn(studioToolSurfaceMobileClass[size], mobileClassName)}
       onFocusOutside={(event) => {
         event.preventDefault()
         onFocusOutside?.(event)

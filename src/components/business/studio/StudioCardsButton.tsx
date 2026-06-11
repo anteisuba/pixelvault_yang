@@ -4,13 +4,14 @@ import { PanelsTopLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
 import { StudioCardPicker } from './StudioCardPicker'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -33,7 +34,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
     (styles.activeCardId ? 1 : 0)
 
   return (
-    <Popover
+    <StudioToolSurface
       open={open}
       onOpenChange={(nextOpen) => {
         dispatch({
@@ -42,7 +43,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
         })
       }}
     >
-      <PopoverTrigger asChild>
+      <StudioToolSurfaceTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
@@ -60,10 +61,15 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
             </span>
           ) : null}
         </Toolbar.Button>
-      </PopoverTrigger>
-      <StudioToolPopoverContent size="medium" side="top" align="center">
+      </StudioToolSurfaceTrigger>
+      <StudioToolPopoverContent
+        size="medium"
+        side="top"
+        align="center"
+        label={t('cards')}
+      >
         <StudioCardPicker />
       </StudioToolPopoverContent>
-    </Popover>
+    </StudioToolSurface>
   )
 }

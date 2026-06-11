@@ -4,7 +4,6 @@ import { RatioIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import type { AspectRatio } from '@/constants/config'
 import {
   STUDIO_IMAGE_ASPECT_RATIOS,
@@ -14,6 +13,8 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -69,7 +70,7 @@ export function StudioAspectRatioPopover({
       : STUDIO_IMAGE_ASPECT_RATIOS
 
   return (
-    <Popover
+    <StudioToolSurface
       open={open}
       onOpenChange={(nextOpen) =>
         dispatch({
@@ -78,7 +79,7 @@ export function StudioAspectRatioPopover({
         })
       }
     >
-      <PopoverTrigger asChild>
+      <StudioToolSurfaceTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
@@ -91,12 +92,13 @@ export function StudioAspectRatioPopover({
           <RatioIcon className="size-4 shrink-0" />
           <span className="hidden sm:inline">{state.aspectRatio}</span>
         </Toolbar.Button>
-      </PopoverTrigger>
+      </StudioToolSurfaceTrigger>
       <StudioToolPopoverContent
         size="small"
         className="w-auto"
         side="top"
         align="center"
+        label={t('aspectRatioLabel')}
       >
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1.5">
@@ -123,6 +125,6 @@ export function StudioAspectRatioPopover({
           <RatioPreview ratio={state.aspectRatio} />
         </div>
       </StudioToolPopoverContent>
-    </Popover>
+    </StudioToolSurface>
   )
 }

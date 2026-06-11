@@ -4,12 +4,13 @@ import { Palette } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { STYLE_PRESETS, NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -38,7 +39,7 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
     : t('label')
 
   return (
-    <Popover
+    <StudioToolSurface
       open={open}
       onOpenChange={(nextOpen) =>
         dispatch({
@@ -47,7 +48,7 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
         })
       }
     >
-      <PopoverTrigger asChild>
+      <StudioToolSurfaceTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
@@ -60,8 +61,13 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
           <Palette className="size-4 shrink-0" />
           <span className="hidden truncate sm:inline">{buttonLabel}</span>
         </Toolbar.Button>
-      </PopoverTrigger>
-      <StudioToolPopoverContent size="small" side="top" align="center">
+      </StudioToolSurfaceTrigger>
+      <StudioToolPopoverContent
+        size="small"
+        side="top"
+        align="center"
+        label={t('label')}
+      >
         <div className="mb-2 text-2xs font-medium text-muted-foreground/70">
           {t('label')}
         </div>
@@ -103,6 +109,6 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
           ))}
         </div>
       </StudioToolPopoverContent>
-    </Popover>
+    </StudioToolSurface>
   )
 }

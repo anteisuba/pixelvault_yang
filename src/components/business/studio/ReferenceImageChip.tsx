@@ -8,12 +8,13 @@ import * as Toolbar from '@radix-ui/react-toolbar'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -73,7 +74,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
   return (
     <>
-      <Popover
+      <StudioToolSurface
         open={popoverOpen}
         onOpenChange={(nextOpen) =>
           dispatch({
@@ -82,7 +83,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           })
         }
       >
-        <PopoverTrigger asChild>
+        <StudioToolSurfaceTrigger asChild>
           <Toolbar.Button
             type="button"
             disabled={disabled}
@@ -107,9 +108,14 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
               </span>
             )}
           </Toolbar.Button>
-        </PopoverTrigger>
+        </StudioToolSurfaceTrigger>
 
-        <StudioToolPopoverContent size="action" side="top" align="center">
+        <StudioToolPopoverContent
+          size="action"
+          side="top"
+          align="center"
+          label={t('label')}
+        >
           <ImageSourcePicker
             description={t('description')}
             uploadLabel={t('upload')}
@@ -136,7 +142,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             }
           />
         </StudioToolPopoverContent>
-      </Popover>
+      </StudioToolSurface>
 
       <AssetSelectorDialog
         open={assetDialogOpen}

@@ -5,11 +5,12 @@ import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -45,7 +46,7 @@ export function StudioTransformButton({
   const open = state.panels.transform
 
   return (
-    <Popover
+    <StudioToolSurface
       open={open}
       onOpenChange={(nextOpen) =>
         dispatch({
@@ -54,7 +55,7 @@ export function StudioTransformButton({
         })
       }
     >
-      <PopoverTrigger asChild>
+      <StudioToolSurfaceTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
@@ -67,17 +68,18 @@ export function StudioTransformButton({
           <Wand2 className="size-4" />
           <span className="hidden sm:inline">{t('transform')}</span>
         </Toolbar.Button>
-      </PopoverTrigger>
+      </StudioToolSurfaceTrigger>
       <StudioToolPopoverContent
         size="medium"
         side="top"
         align="center"
+        label={t('transform')}
         className="w-[min(600px,calc(100vw-2rem))]"
       >
         <div className="flex max-h-[min(600px,76vh)] flex-col overflow-y-auto p-4">
           <StudioTransformPanel />
         </div>
       </StudioToolPopoverContent>
-    </Popover>
+    </StudioToolSurface>
   )
 }

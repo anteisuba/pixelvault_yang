@@ -2,6 +2,7 @@
 
 import { memo, useState } from 'react'
 import {
+  BookmarkPlus,
   Download,
   GripHorizontal,
   ImagePlus,
@@ -42,6 +43,7 @@ interface GenerationPreviewProps {
   onUseAsReference?: (url: string) => void
   onRemix?: (generation: GenerationRecord) => void
   onEdit?: (generation: GenerationRecord) => void
+  onSaveRecipe?: (generation: GenerationRecord) => void
   onRetry?: () => void
 }
 
@@ -95,6 +97,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   onUseAsReference,
   onRemix,
   onEdit,
+  onSaveRecipe,
   onRetry,
 }: GenerationPreviewProps) {
   const { error, isGenerating, elapsedSeconds } = useStudioGen()
@@ -416,6 +419,14 @@ export const GenerationPreview = memo(function GenerationPreview({
           icon={PenTool}
           label={t('toolEdit')}
           onClick={() => onEdit(generation)}
+          variant={variant}
+        />
+      )}
+      {onSaveRecipe && generation && (
+        <CanvasToolButton
+          icon={BookmarkPlus}
+          label={t('toolSaveRecipe')}
+          onClick={() => onSaveRecipe(generation)}
           variant={variant}
         />
       )}

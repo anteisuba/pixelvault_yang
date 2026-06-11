@@ -20,6 +20,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }))
 
+// The hook routes "view in gallery" toast actions through the locale-aware
+// router; next-intl's createNavigation can't resolve in jsdom, so stub it.
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
@@ -152,7 +158,14 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.isGenerating).toBe(false)
     expect(result.current.error).toBeNull()
     expect(mockStudioGenerate).toHaveBeenCalledWith(IMAGE_INPUT)
-    expect(toast.success).toHaveBeenCalled()
+    // 审查 D1：完成提示必须带"查看作品"直达动作（结果的去向）。
+    expect(toast.success).toHaveBeenCalledWith(
+      'generateSuccess',
+      expect.objectContaining({
+        id: `generation-saved-${FAKE_GENERATION.id}`,
+        action: expect.objectContaining({ label: 'viewInGallery' }),
+      }),
+    )
   })
 
   it('dedupes concurrent single image generate calls', async () => {

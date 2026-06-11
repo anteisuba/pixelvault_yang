@@ -1231,6 +1231,12 @@
     "generate": {
       "sourceImagesLabel": "Source images ({count})",
       "sourceImageAlt": "{name} source image {n}",
+      "recipeApply": "Use this recipe",
+      "recipeUseSeed": "Use source seed",
+      "recipeApplied": "Source recipe applied",
+      "recipeSkipped": "Not applied: {params}",
+      "recipeExtraLoras": "This image stacked {count} other LoRA(s) — reproduction with only this one is limited",
+      "recipeClose": "Collapse recipe",
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe the subject, style, composition or mood…",
       "negativeLabel": "Negative Prompt",
@@ -3818,6 +3824,7 @@
     "generate": "Generate",
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
+    "viewInGallery": "View in gallery",
     "generateFailed": "Generation failed",
     "stillProcessingHint": "Still generating in the background — it'll appear in your library when it's ready.",
     "variantGenerate": "Generate Variants",
@@ -3974,6 +3981,7 @@
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
     "toolEdit": "Edit with AI",
+    "toolSaveRecipe": "Save as recipe",
     "toolInpaint": "Inpaint",
     "toolOutpaint": "Outpaint",
     "inpaintEditor": {

@@ -20,7 +20,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { studioImageEditPath } from '@/constants/routes'
+import { promptCreatePath, studioImageEditPath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -251,6 +251,24 @@ export const StudioCanvas = memo(function StudioCanvas() {
     [router],
   )
 
+  // 审查 D3：从画布结果一键存配方——复用 ImageDetailModal 同款深链，
+  // 不再绕道 Gallery 详情。
+  const handleSaveRecipe = useCallback(
+    (generation: GenerationRecord) => {
+      router.push(
+        promptCreatePath({
+          prompt: generation.prompt,
+          negativePrompt: generation.negativePrompt,
+          modelId: generation.model,
+          provider: generation.provider,
+          outputType: generation.outputType,
+          generationId: generation.id,
+        }),
+      )
+    },
+    [router],
+  )
+
   return (
     <div
       ref={canvasRef}
@@ -284,6 +302,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
               onUseAsReference={handleUseAsReference}
               onRemix={handleRemix}
               onEdit={handleEdit}
+              onSaveRecipe={handleSaveRecipe}
               onRetry={retry}
             />
             {lastGeneration?.outputType === 'IMAGE' && !activeRun?.mode && (

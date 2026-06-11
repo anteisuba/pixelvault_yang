@@ -1231,6 +1231,12 @@
     "generate": {
       "sourceImagesLabel": "サンプル画像（{count}）",
       "sourceImageAlt": "{name} のサンプル画像 {n}",
+      "recipeApply": "このレシピを使う",
+      "recipeUseSeed": "元画像のseedを使う",
+      "recipeApplied": "サンプルのレシピを適用しました",
+      "recipeSkipped": "未適用：{params}",
+      "recipeExtraLoras": "この画像は他に {count} 個のLoRAを併用しています — このLoRAだけでは再現度が下がります",
+      "recipeClose": "レシピを閉じる",
       "promptLabel": "プロンプト",
       "promptPlaceholder": "被写体・スタイル・構図・雰囲気を記述…",
       "negativeLabel": "ネガティブプロンプト",
@@ -3810,6 +3816,7 @@
     "generate": "生成",
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
+    "viewInGallery": "ギャラリーで見る",
     "generateFailed": "生成失敗",
     "stillProcessingHint": "バックグラウンドで生成を続けています。完了するとライブラリに表示されます。",
     "variantGenerate": "バリアント生成",
@@ -3974,6 +3981,7 @@
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
     "toolEdit": "AIで編集",
+    "toolSaveRecipe": "レシピとして保存",
     "toolInpaint": "部分修復",
     "toolOutpaint": "キャンバス拡張",
     "inpaintEditor": {

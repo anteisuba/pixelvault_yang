@@ -1231,6 +1231,12 @@
     "generate": {
       "sourceImagesLabel": "来源图（{count}）",
       "sourceImageAlt": "{name} 来源图 {n}",
+      "recipeApply": "一键同款",
+      "recipeUseSeed": "使用原图 seed",
+      "recipeApplied": "已应用来源图配方",
+      "recipeSkipped": "未应用：{params}",
+      "recipeExtraLoras": "该图叠加了 {count} 个其他 LoRA，仅挂载当前 LoRA 还原度有限",
+      "recipeClose": "收起配方",
       "promptLabel": "Prompt",
       "promptPlaceholder": "描述主体、风格、构图或氛围…",
       "negativeLabel": "负面 Prompt",
@@ -3818,6 +3824,7 @@
     "generate": "生成",
     "generating": "生成中...",
     "generateSuccess": "图片已生成！",
+    "viewInGallery": "查看作品",
     "generateFailed": "生成失败",
     "stillProcessingHint": "仍在后台生成，完成后会出现在素材库中。",
     "variantGenerate": "生成变体",
@@ -3974,6 +3981,7 @@
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
     "toolEdit": "AI 编辑",
+    "toolSaveRecipe": "存为配方",
     "toolInpaint": "局部重绘",
     "toolOutpaint": "扩展画布",
     "inpaintEditor": {

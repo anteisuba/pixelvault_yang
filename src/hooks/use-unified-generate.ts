@@ -24,6 +24,7 @@ import {
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
+import { galleryGenerationPath } from '@/constants/routes'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
@@ -44,6 +45,7 @@ import {
   checkVideoStatusAPI,
   generateAudioAPI,
 } from '@/lib/api-client'
+import { useRouter } from '@/i18n/navigation'
 import { mergeStackLoras } from '@/lib/merge-stack-loras'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 
@@ -199,6 +201,26 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
   const tErrors = useTranslations('Errors')
+  const router = useRouter()
+
+  // 审查 D1：完成提示必须给"去向"——附"查看作品"直达动作，用户不再
+  // 以为结果丢了。以 generation.id 作 toast id，变体/对比多次完成时去重。
+  const notifySaved = useCallback(
+    (generation: GenerationRecord | null | undefined, message: string) => {
+      if (generation?.id) {
+        toast.success(message, {
+          id: `generation-saved-${generation.id}`,
+          action: {
+            label: tStudio('viewInGallery'),
+            onClick: () => router.push(galleryGenerationPath(generation.id)),
+          },
+        })
+      } else {
+        toast.success(message)
+      }
+    },
+    [router, tStudio],
+  )
 
   // Active LoRA stack — read at generate() time via a ref so the
   // useCallback identity stays stable across stack edits.
@@ -390,7 +412,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 if (outcome.status === 'completed') {
                   setLastGeneration(outcome.generation)
                   finish()
-                  toast.success(tStudio('generateSuccess'))
+                  notifySaved(outcome.generation, tStudio('generateSuccess'))
                   resolve(outcome.generation)
                 } else if (outcome.status === 'failed') {
                   finish(outcome.message, outcome.code)
@@ -420,7 +442,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   setLastGeneration(generation)
                   markActiveRunItemCompleted(itemId, generation)
                   finish()
-                  toast.success(tStudio('generateSuccess'))
+                  notifySaved(generation, tStudio('generateSuccess'))
                   resolve(generation)
                   return
                 }
@@ -468,6 +490,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
+      notifySaved,
       startTimer,
       stopTimer,
       finish,
@@ -614,7 +637,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 setLastGeneration(generation)
                 markActiveRunItemCompleted(itemId, generation)
                 finish()
-                toast.success(tVideo('toastSuccess'))
+                notifySaved(generation, tVideo('toastSuccess'))
                 resolve(generation)
                 return
               }
@@ -654,6 +677,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tVideo,
+      notifySaved,
       resolveGenerationError,
       startTimer,
       finish,
@@ -762,7 +786,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
-          toast.success(tStudio('variantSuccess'))
+          notifySaved(firstSuccess, tStudio('variantSuccess'))
         } else if (anyFailed) {
           setError(firstFailure.current?.message ?? tStudio('generateFailed'))
           setErrorCode(firstFailure.current?.code ?? null)
@@ -780,6 +804,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
+      notifySaved,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
@@ -922,7 +947,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
-          toast.success(tStudio('compareSuccess'))
+          notifySaved(firstSuccess, tStudio('compareSuccess'))
         } else if (anyFailed) {
           setError(firstFailure.current?.message ?? tStudio('generateFailed'))
           setErrorCode(firstFailure.current?.code ?? null)
@@ -940,6 +965,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
+      notifySaved,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
@@ -1043,7 +1069,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   setLastGeneration(generation)
                   markActiveRunItemCompleted(itemId, generation)
                   finish()
-                  toast.success(tStudio('generateSuccess'))
+                  notifySaved(generation, tStudio('generateSuccess'))
                   resolve(generation)
                   return
                 }
@@ -1094,6 +1120,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [
       tErrors,
       tStudio,
+      notifySaved,
       startTimer,
       stopTimer,
       finish,

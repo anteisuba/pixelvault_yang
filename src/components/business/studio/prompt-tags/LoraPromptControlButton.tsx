@@ -223,6 +223,8 @@ function LoraPromptControlPanel({
   onClose,
 }: LoraPromptControlPanelProps) {
   const t = useTranslations('LoraPromptControl')
+  const { dispatch } = useStudioForm()
+  const { civitai } = useStudioData()
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -233,6 +235,11 @@ function LoraPromptControlPanel({
     [onActiveTabChange],
   )
 
+  const handleRequestCivitaiToken = useCallback(() => {
+    onClose?.()
+    dispatch({ type: 'OPEN_PANEL', payload: 'civitai' })
+  }, [dispatch, onClose])
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-border/60 p-3">
@@ -242,14 +249,24 @@ function LoraPromptControlPanel({
               {t('title')}
             </p>
           </div>
-          <Link
-            href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-xs font-semibold text-foreground hover:bg-muted"
-            onClick={onClose}
-          >
-            {t('openLibraryShort')}
-            <ArrowUpRight className="size-3.5" aria-hidden />
-          </Link>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Link
+              href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.TRAIN}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-xs font-semibold text-foreground hover:bg-muted"
+              onClick={onClose}
+            >
+              {t('trainLoraShort')}
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Link>
+            <Link
+              href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.MINE}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-xs font-semibold text-foreground hover:bg-muted"
+              onClick={onClose}
+            >
+              {t('openLibraryShort')}
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -277,6 +294,22 @@ function LoraPromptControlPanel({
           <TagLibrary onClose={onClose} className="h-full" />
         </TabsContent>
       </Tabs>
+      <div className="border-t border-border/60 p-3">
+        <button
+          type="button"
+          onClick={handleRequestCivitaiToken}
+          className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 text-left text-xs transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <span className="font-semibold text-foreground">
+            {t('civitaiToken')}
+          </span>
+          <span className="text-muted-foreground">
+            {civitai.hasToken
+              ? t('civitaiTokenConnected')
+              : t('civitaiTokenMissing')}
+          </span>
+        </button>
+      </div>
     </div>
   )
 }

@@ -1222,6 +1222,10 @@
     "title": "LoRA",
     "description": "LoRA・プロンプト・ネガティブプロンプト・コントロールタグを一括管理します。",
     "openLibraryShort": "LoRAを選択",
+    "trainLoraShort": "LoRAをトレーニング",
+    "civitaiToken": "Civitai Token",
+    "civitaiTokenConnected": "接続済み",
+    "civitaiTokenMissing": "未接続",
     "mountedToast": "「{name}」を適用しました",
     "mountedToastAction": "表示",
     "tabs": {
@@ -1424,6 +1428,7 @@
     "uploadHint": "ドラッグ、クリック、または貼り付け",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "アーカイブから選ぶ",
+    "layerDecompose": "画像をレイヤー分解",
     "dropComposerHint": "離すと画像を添付します",
     "removeReferenceImage": "参照画像 {index} を削除",
     "disabledOverLimit": "現在のモデルが受け付ける枚数を超えています",
@@ -4261,7 +4266,10 @@
       "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
-      "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。"
+      "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
+      "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
+      "callbackTimeout": "生成 Worker から時間内に結果が返りませんでした。もう一度試すか、Worker ログを確認してください。",
+      "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。"
     },
     "generation": {
       "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
@@ -4270,6 +4278,9 @@
       "invalid_api_key": "APIキーが無効または期限切れです",
       "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
       "model_unavailable": "このモデルは一時的に利用できません",
+      "provider_no_output": "プロバイダーが利用できるメディアを返しませんでした",
+      "callback_timeout": "生成 Worker から時間内に結果が返りませんでした",
+      "storage_upload_failed": "生成メディアの保存に失敗しました",
       "provider_insufficient_balance": "プロバイダーアカウントの残高が不足しています",
       "insufficient_credits": "本日の無料生成上限に達しました",
       "unsupported_reference_image_format": "このモデルは現在の参照画像形式を読み取れません",

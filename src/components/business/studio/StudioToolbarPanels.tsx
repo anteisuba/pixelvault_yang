@@ -12,11 +12,7 @@ import {
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  useStudioForm,
-  useStudioData,
-  useStudioGen,
-} from '@/contexts/studio-context'
+import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { StudioToolbar } from '@/components/business/StudioToolbar'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +35,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
   compact = false,
 }: StudioToolbarPanelsProps) {
   const { state, dispatch } = useStudioForm()
-  const { civitai } = useStudioData()
   const { isGenerating } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
@@ -162,18 +157,5 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
     )
   }
 
-  return (
-    <StudioToolbar
-      onLayerDecompose={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
-      }
-      onCivitaiToken={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
-      }
-      hasToken={civitai.hasToken}
-      disabled={isGenerating}
-      quickMode={state.workflowMode === 'quick'}
-      compact={compact}
-    />
-  )
+  return <StudioToolbar disabled={isGenerating} compact={compact} />
 })

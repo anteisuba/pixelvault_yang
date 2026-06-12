@@ -1222,6 +1222,10 @@
     "title": "LoRA",
     "description": "Manage LoRAs, prompt, negative prompt and control tags in one place.",
     "openLibraryShort": "Choose LoRA",
+    "trainLoraShort": "Train LoRA",
+    "civitaiToken": "Civitai Token",
+    "civitaiTokenConnected": "Connected",
+    "civitaiTokenMissing": "Not connected",
     "mountedToast": "Mounted \"{name}\"",
     "mountedToastAction": "View",
     "tabs": {
@@ -1424,6 +1428,7 @@
     "uploadHint": "Drag, click, or paste an image",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "Select asset",
+    "layerDecompose": "Split into layers",
     "dropComposerHint": "Drop to attach image",
     "removeReferenceImage": "Remove reference image {index}",
     "disabledOverLimit": "Exceeds the current model's image limit",
@@ -4261,7 +4266,10 @@
       "referenceImageTooLarge": "The reference image is too large for this model. Compress it or use a smaller image, then try again.",
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
-      "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again."
+      "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
+      "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
+      "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
+      "storageUploadFailed": "The provider returned media, but saving it failed. Try again."
     },
     "generation": {
       "provider_timeout": "The AI provider took too long to respond",
@@ -4270,6 +4278,9 @@
       "invalid_api_key": "Your API key is invalid or expired",
       "content_filtered": "Content was filtered by the provider's safety system",
       "model_unavailable": "This model is temporarily unavailable",
+      "provider_no_output": "The provider did not return usable media",
+      "callback_timeout": "The generation worker did not report back in time",
+      "storage_upload_failed": "Saving the generated media failed",
       "provider_insufficient_balance": "The provider account has insufficient balance",
       "insufficient_credits": "Daily free generation limit reached",
       "unsupported_reference_image_format": "This model cannot read the reference image format",

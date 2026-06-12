@@ -1222,6 +1222,10 @@
     "title": "LoRA",
     "description": "集中管理 LoRA、prompt、负面 prompt 和控制 tags。",
     "openLibraryShort": "选择 LoRA",
+    "trainLoraShort": "训练 LoRA",
+    "civitaiToken": "Civitai Token",
+    "civitaiTokenConnected": "已连接",
+    "civitaiTokenMissing": "未连接",
     "mountedToast": "已挂载「{name}」",
     "mountedToastAction": "查看",
     "tabs": {
@@ -1424,6 +1428,7 @@
     "uploadHint": "拖拽或点击上传，也可以直接粘贴",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "选择素材",
+    "layerDecompose": "从图片拆层",
     "dropComposerHint": "松开即可添加图片",
     "removeReferenceImage": "移除第 {index} 张参考图",
     "disabledOverLimit": "超出当前模型的参考图数量限制",
@@ -4261,7 +4266,10 @@
       "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
-      "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。"
+      "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
+      "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
+      "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
+      "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。"
     },
     "generation": {
       "provider_timeout": "AI 服务商响应超时",
@@ -4270,6 +4278,9 @@
       "invalid_api_key": "你的 API Key 无效或已过期",
       "content_filtered": "内容被服务商安全系统过滤",
       "model_unavailable": "该模型暂时不可用",
+      "provider_no_output": "服务商没有返回可用媒体",
+      "callback_timeout": "生成 Worker 没有按时回报结果",
+      "storage_upload_failed": "保存生成媒体失败",
       "provider_insufficient_balance": "服务商账户余额不足",
       "insufficient_credits": "今日免费生成次数已用完",
       "unsupported_reference_image_format": "该模型无法读取当前参考图格式",

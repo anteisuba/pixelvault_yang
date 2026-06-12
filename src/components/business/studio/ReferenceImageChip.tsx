@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Image as ImageIcon } from 'lucide-react'
+import { Image as ImageIcon, Layers } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -72,6 +72,11 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     setAssetDialogOpen(true)
   }
 
+  const handleRequestLayerDecompose = () => {
+    closePopover()
+    dispatch({ type: 'OPEN_PANEL', payload: 'layerDecompose' })
+  }
+
   return (
     <>
       <StudioToolSurface
@@ -116,31 +121,44 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           align="center"
           label={t('label')}
         >
-          <ImageSourcePicker
-            description={t('description')}
-            uploadLabel={t('upload')}
-            uploadHint={t('uploadHint')}
-            selectAssetLabel={t('selectAsset')}
-            assetDialogTitle={t('selectAsset')}
-            assetDialogDescription={t('description')}
-            pasteHint={t('pasteHint')}
-            onFileSelect={handleFileSelect}
-            onAssetSelect={handleSelectAsset}
-            onRequestClose={closePopover}
-            onRequestAssetDialog={handleRequestAssetDialog}
-            preview={
-              totalEntries > 0 ? (
-                <ImageAttachmentPreviewStrip
-                  entries={imageUpload.referenceEntries}
-                  previewAlt={t('label')}
-                  removeLabel={(index) => t('removeReferenceImage', { index })}
-                  onRemove={imageUpload.removeReferenceImage}
-                  overLimitTooltip={t('disabledOverLimit')}
-                  unsupportedTooltip={t('disabledUnsupported')}
-                />
-              ) : null
-            }
-          />
+          <div className="space-y-2">
+            <ImageSourcePicker
+              description={t('description')}
+              uploadLabel={t('upload')}
+              uploadHint={t('uploadHint')}
+              selectAssetLabel={t('selectAsset')}
+              assetDialogTitle={t('selectAsset')}
+              assetDialogDescription={t('description')}
+              pasteHint={t('pasteHint')}
+              onFileSelect={handleFileSelect}
+              onAssetSelect={handleSelectAsset}
+              onRequestClose={closePopover}
+              onRequestAssetDialog={handleRequestAssetDialog}
+              preview={
+                totalEntries > 0 ? (
+                  <ImageAttachmentPreviewStrip
+                    entries={imageUpload.referenceEntries}
+                    previewAlt={t('label')}
+                    removeLabel={(index) =>
+                      t('removeReferenceImage', { index })
+                    }
+                    onRemove={imageUpload.removeReferenceImage}
+                    overLimitTooltip={t('disabledOverLimit')}
+                    unsupportedTooltip={t('disabledUnsupported')}
+                  />
+                ) : null
+              }
+            />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={handleRequestLayerDecompose}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Layers className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{t('layerDecompose')}</span>
+            </button>
+          </div>
         </StudioToolPopoverContent>
       </StudioToolSurface>
 

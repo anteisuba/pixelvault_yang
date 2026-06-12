@@ -1219,6 +1219,76 @@ describe('mineCivitaiUserPrompts', () => {
       { weight: 0.3, modelVersionId: 777 },
     ])
   })
+
+  it('repairs Civitai mojibake strings in source recipes and extra LoRAs', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 160,
+        name: 'v1.6',
+        files: [
+          {
+            type: 'Model',
+            primary: true,
+            name: 'waiIllustriousSDXL_v160.safetensors',
+          },
+        ],
+        images: [
+          {
+            url: 'https://image.civitai.com/mojibake.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                '<lora:waiIllustriousSDXL_v160:0.9>, detached sleeves, dragon girl, <lora:ææ¥æ¹èç»æ«å°å²ä»£çäºº:0.8>, white dress',
+              negativePrompt:
+                'bad proportions,out of focus,username,text,bad anatomy',
+              seed: '3839998829',
+              steps: '24',
+              cfgScale: '3.5',
+              Size: '832x1216',
+              Model: 'éç¨æ´æ°å¿«waiIllustriousSDXL_v160',
+              resources: [
+                {
+                  hash: 'DEADBEEF0000',
+                  name: 'waiIllustriousSDXL_v160',
+                  type: 'lora',
+                  weight: 0.9,
+                },
+                {
+                  name: 'ææ¥æ¹èç»æ«å°å²ä»£çäºº',
+                  type: 'lora',
+                  weight: 0.8,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 999,
+      modelVersionId: 160,
+      fileHashAutoV3: 'deadbeef0000',
+    })
+
+    expect(result.recipes?.[0]).toMatchObject({
+      checkpoint: '通用更新快waiIllustriousSDXL_v160',
+      seed: 3839998829,
+      steps: 24,
+      cfgScale: 3.5,
+      sizeRaw: '832x1216',
+      loraWeight: 0.9,
+      extraLoras: [
+        {
+          name: '明日方舟终末地岁代理人',
+          weight: 0.8,
+        },
+      ],
+    })
+    expect(result.recipes?.[0]?.prompt).toBe(
+      'detached sleeves, dragon girl, white dress',
+    )
+  })
 })
 
 describe('resolveCivitaiLoraByReference', () => {
@@ -1364,23 +1434,27 @@ describe('resolveCivitaiLoraByReference', () => {
     })
   })
 
-  it('does not fuzzy-accept name search results without a stem match', async () => {
+  it('repairs mojibake before exact name-stem matching', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         items: [
           {
-            id: 1,
-            name: 'Close But No Match',
+            id: 3001,
+            name: 'Arknights Endfield Agent',
             type: 'LORA',
             modelVersions: [
               {
-                id: 2,
-                name: 'v1',
+                id: 4001,
+                name: 'Illustrious',
+                baseModel: 'Illustrious',
+                trainedWords: [],
                 files: [
                   {
                     type: 'Model',
-                    name: 'close-but-no.safetensors',
-                    downloadUrl: 'https://civitai.com/api/download/models/2',
+                    primary: true,
+                    name: '明日方舟终末地岁代理人.safetensors',
+                    downloadUrl: 'https://civitai.com/api/download/models/4001',
+                    hashes: { AutoV3: 'AABBCCDDEEFF' },
                   },
                 ],
               },
@@ -1390,10 +1464,194 @@ describe('resolveCivitaiLoraByReference', () => {
       }),
     )
 
+    const item = await resolveCivitaiLoraByReference({
+      name: 'ææ¥æ¹èç»æ«å°å²ä»£çäºº',
+    })
+
+    const searchUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(searchUrl.searchParams.get('query')).toBe('明日方舟终末地岁代理人')
+    expect(item).toMatchObject({
+      id: 'civitai:3001:4001',
+      name: 'Arknights Endfield Agent',
+      baseModelFamily: 'Illustrious',
+      fileHashAutoV3: 'aabbccddeeff',
+    })
+  })
+
+  it('does not fuzzy-accept name search results without a stem match', async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: 1,
+              name: 'Close But No Match',
+              type: 'LORA',
+              modelVersions: [
+                {
+                  id: 2,
+                  name: 'v1',
+                  files: [
+                    {
+                      type: 'Model',
+                      name: 'close-but-no.safetensors',
+                      downloadUrl: 'https://civitai.com/api/download/models/2',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ results: [{ hits: [] }] }))
+
     expect(
       await resolveCivitaiLoraByReference({
         name: 'detailed hand focus style illustriousXL v1.1',
       }),
     ).toBeNull()
+  })
+
+  it('falls back to Civitai web search when the public models API misses an exact version file stem', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ items: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          results: [
+            {
+              hits: [
+                {
+                  id: 421162,
+                  name: 'Detailed style XL + F1D + SD1.5 + zib',
+                  type: 'LORA',
+                  versions: [
+                    {
+                      id: 469308,
+                      name: 'Detailed XL v1.0',
+                      baseModel: 'SDXL 1.0',
+                      files: [
+                        {
+                          name: 'detailed hand focus style XL v1.0.safetensors',
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  id: 200255,
+                  name: 'Hands XL + SD 1.5 + F1D + Pony + Illustrious + zit + ZIB',
+                  type: 'LORA',
+                  versions: [
+                    {
+                      id: 2212079,
+                      name: 'Hands Illu v1.1',
+                      baseModel: 'Illustrious',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 2212079,
+          modelId: 200255,
+          name: 'Hands Illu v1.1',
+          baseModel: 'Illustrious',
+          trainedWords: [],
+          downloadUrl: 'https://civitai.com/api/download/models/2212079',
+          model: {
+            name: 'Hands XL + SD 1.5 + F1D + Pony + Illustrious + zit + ZIB',
+            type: 'LORA',
+          },
+          files: [
+            {
+              type: 'Model',
+              primary: true,
+              name: 'detailed hand focus style illustriousXL v1.1.safetensors',
+              downloadUrl: 'https://civitai.com/api/download/models/2212079',
+              hashes: { AutoV3: '6D97C71F80C8' },
+            },
+          ],
+        }),
+      )
+
+    const item = await resolveCivitaiLoraByReference({
+      name: 'detailed hand focus style illustriousXL v1.1',
+      baseModelFamily: 'Illustrious',
+    })
+
+    const searchUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
+    const searchInit = mockFetch.mock.calls[1]?.[1] as RequestInit | undefined
+    const searchBody = JSON.parse(String(searchInit?.body)) as {
+      queries: Array<{
+        indexUid: string
+        q: string
+        limit: number
+        filter: string[]
+      }>
+    }
+    const versionUrl = new URL(String(mockFetch.mock.calls[2]?.[0]))
+
+    expect(searchUrl.origin).toBe('https://search-new.civitai.com')
+    expect(searchBody.queries[0]).toMatchObject({
+      indexUid: 'models_v9',
+      q: 'detailed hand focus style illustrious XL v1.1',
+      limit: 50,
+      filter: [
+        'type = LoRA',
+        'versions.baseModel IN ["Illustrious", "NoobAI"]',
+      ],
+    })
+    expect(versionUrl.pathname).toBe('/api/v1/model-versions/2212079')
+    expect(item).toMatchObject({
+      id: 'civitai:200255:2212079',
+      name: 'Hands XL + SD 1.5 + F1D + Pony + Illustrious + zit + ZIB',
+      baseModelFamily: 'Illustrious',
+      fileHashAutoV3: '6d97c71f80c8',
+    })
+  })
+
+  it('does not accept web search matches from a different base model family', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ items: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          results: [
+            {
+              hits: [
+                {
+                  id: 421162,
+                  name: 'Detailed style XL + F1D + SD1.5 + zib',
+                  type: 'LORA',
+                  versions: [
+                    {
+                      id: 469308,
+                      name: 'Detailed XL v1.0',
+                      baseModel: 'SDXL 1.0',
+                      files: [
+                        {
+                          name: 'detailed hand focus style illustriousXL v1.1.safetensors',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      )
+
+    expect(
+      await resolveCivitaiLoraByReference({
+        name: 'detailed hand focus style illustriousXL v1.1',
+        baseModelFamily: 'Illustrious',
+      }),
+    ).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })

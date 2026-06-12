@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -16,26 +16,24 @@ import {
   CIVITAI_MODEL_SEARCH_URL,
   LORA_CARD_SOURCE_IMAGE_WIDTH,
 } from '@/constants/lora'
-import {
-  LORA_STACK_MAX,
-  useActiveLoraStack,
-} from '@/hooks/use-active-lora-stack'
-import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
+import { LORA_STACK_MAX } from '@/hooks/use-active-lora-stack'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
+import {
+  extraLoraKey,
+  extraLoraLabel,
+  isRecipeExtraResolvable,
+  type ExtraMountStatus,
+} from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  LoraSchema,
-  type CivitaiImageRecipe,
-  type CivitaiRecipeExtraLora,
-} from '@/types'
+import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 /**
- * 来源图配方条（M2c）：横滚的 Civitai 来源图，点选一张展开它的完整配方
- * （prompt / 负向 / seed / steps / cfg / 尺寸 / checkpoint），确认后
- * "一键同款"。展示层组件 — 配方→生成请求的写入由父级（LoraGenerateRow）
- * 通过 onApplyRecipe 执行，本组件只负责选中态、预览与 seed 开关。
+ * Source image recipe strip (M2c): show Civitai source images and expand the
+ * selected image's recipe. The parent owns recipe application so the external
+ * CTA and expanded preview always use the same selected recipe and seed flag.
  */
 
 export interface ApplyRecipeOptions {
@@ -45,15 +43,22 @@ export interface ApplyRecipeOptions {
 interface LoraSourceRecipeStripProps {
   assetName: string
   recipes: readonly CivitaiImageRecipe[]
+  selectedImageUrl: string | null
+  includeSeed: boolean
+  extraMountStatusByKey: Record<string, ExtraMountStatus>
+  extraStackFull: boolean
   disabled?: boolean
+  onSelectedImageUrlChange: (imageUrl: string | null) => void
+  onIncludeSeedChange: (includeSeed: boolean) => void
+  onMountExtraLora: (extra: CivitaiRecipeExtraLora) => void
   onApplyRecipe: (
     recipe: CivitaiImageRecipe,
     options: ApplyRecipeOptions,
   ) => void
   /**
-   * 解法三：无配方数据但有封面/预览图时的 AI 反推入口。提供该回调即在
-   * recipes 为空时渲染「AI 反推配方」按钮；产出的伪配方（source =
-   * 'ai_inferred'）由父级并入 recipes，本组件负责"推测"标注。
+   * AI inference fallback: when no Civitai recipe exists but a cover/preview
+   * image does, this renders the inference action. The parent appends the
+   * inferred recipe and this strip only displays the inferred badge.
    */
   onRequestInference?: () => void
   inferenceLoading?: boolean
@@ -63,17 +68,24 @@ interface LoraSourceRecipeStripProps {
 export function LoraSourceRecipeStrip({
   assetName,
   recipes,
+  selectedImageUrl,
+  includeSeed,
+  extraMountStatusByKey,
+  extraStackFull,
   disabled,
+  onSelectedImageUrlChange,
+  onIncludeSeedChange,
+  onMountExtraLora,
   onApplyRecipe,
   onRequestInference,
   inferenceLoading,
   inferenceError,
 }: LoraSourceRecipeStripProps) {
   const t = useTranslations('LoraPromptControl.generate')
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [includeSeed, setIncludeSeed] = useState(true)
 
-  const selected = selectedIdx !== null ? (recipes[selectedIdx] ?? null) : null
+  const selected = selectedImageUrl
+    ? (recipes.find((recipe) => recipe.imageUrl === selectedImageUrl) ?? null)
+    : null
   const plan = useMemo(
     () => (selected ? buildCivitaiRecipeGenerationPlan(selected) : null),
     [selected],
@@ -112,11 +124,11 @@ export function LoraSourceRecipeStrip({
         selected.cfgScale !== undefined ? `cfg ${selected.cfgScale}` : null,
         selected.sizeRaw ??
           (selected.width && selected.height
-            ? `${selected.width}×${selected.height}`
+            ? `${selected.width}x${selected.height}`
             : null),
       ]
         .filter(Boolean)
-        .join(' · ')
+        .join(' | ')
     : ''
 
   return (
@@ -126,13 +138,15 @@ export function LoraSourceRecipeStrip({
       </p>
       <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
         {recipes.map((recipe, idx) => {
-          const isSelected = idx === selectedIdx
+          const isSelected = recipe.imageUrl === selectedImageUrl
           return (
             <button
               key={recipe.imageUrl}
               type="button"
               disabled={disabled}
-              onClick={() => setSelectedIdx(isSelected ? null : idx)}
+              onClick={() =>
+                onSelectedImageUrlChange(isSelected ? null : recipe.imageUrl)
+              }
               aria-pressed={isSelected}
               aria-label={t('sourceImageAlt', { name: assetName, n: idx + 1 })}
               className={cn(
@@ -170,7 +184,7 @@ export function LoraSourceRecipeStrip({
             </p>
             <button
               type="button"
-              onClick={() => setSelectedIdx(null)}
+              onClick={() => onSelectedImageUrlChange(null)}
               className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label={t('recipeClose')}
             >
@@ -187,12 +201,18 @@ export function LoraSourceRecipeStrip({
           {paramsLine ? (
             <p className="font-mono text-2xs text-muted-foreground">
               {paramsLine}
-              {selected.checkpoint ? ` · ${selected.checkpoint}` : ''}
+              {selected.checkpoint ? ` | ${selected.checkpoint}` : ''}
             </p>
           ) : null}
 
           {plan.extraLoras.length > 0 ? (
-            <ExtraLoraList disabled={disabled} extras={plan.extraLoras} />
+            <ExtraLoraList
+              disabled={disabled}
+              extras={plan.extraLoras}
+              statusByKey={extraMountStatusByKey}
+              stackFull={extraStackFull}
+              onMountExtraLora={onMountExtraLora}
+            />
           ) : null}
 
           {plan.skippedParams.length > 0 ? (
@@ -207,7 +227,9 @@ export function LoraSourceRecipeStrip({
                 <input
                   type="checkbox"
                   checked={includeSeed}
-                  onChange={(event) => setIncludeSeed(event.target.checked)}
+                  onChange={(event) =>
+                    onIncludeSeedChange(event.target.checked)
+                  }
                   className="size-3 accent-primary"
                 />
                 {t('recipeUseSeed')}
@@ -232,68 +254,24 @@ export function LoraSourceRecipeStrip({
   )
 }
 
-// ── 一键补挂：配方里的其它 LoRA ─────────────────────────────────────────
-
-type ExtraMountStatus = 'loading' | 'mounted' | 'failed'
-
-function extraLoraKey(extra: CivitaiRecipeExtraLora): string {
-  return (
-    extra.hash ??
-    (extra.modelVersionId !== undefined ? `v${extra.modelVersionId}` : null) ??
-    `n:${extra.name ?? 'unknown'}`
-  )
-}
-
-function extraLoraLabel(extra: CivitaiRecipeExtraLora): string {
-  return (
-    extra.name ??
-    (extra.modelVersionId !== undefined
-      ? `#${extra.modelVersionId}`
-      : (extra.hash?.slice(0, 12) ?? 'LoRA'))
-  )
-}
+// Extra LoRA mount controls for stacked source-image recipes.
 
 interface ExtraLoraListProps {
   extras: readonly CivitaiRecipeExtraLora[]
+  statusByKey: Record<string, ExtraMountStatus>
+  stackFull: boolean
   disabled?: boolean
+  onMountExtraLora: (extra: CivitaiRecipeExtraLora) => void
 }
 
-function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
+function ExtraLoraList({
+  extras,
+  statusByKey,
+  stackFull,
+  disabled,
+  onMountExtraLora,
+}: ExtraLoraListProps) {
   const t = useTranslations('LoraPromptControl.generate')
-  const loraStack = useActiveLoraStack()
-  const [statusByKey, setStatusByKey] = useState<
-    Record<string, ExtraMountStatus>
-  >({})
-  const stackFull = loraStack.items.length >= LORA_STACK_MAX
-
-  const handleMount = useCallback(
-    async (extra: CivitaiRecipeExtraLora) => {
-      const key = extraLoraKey(extra)
-      setStatusByKey((prev) => ({ ...prev, [key]: 'loading' }))
-      const result = await resolveCivitaiLoraAPI({
-        hash: extra.hash,
-        modelVersionId: extra.modelVersionId,
-        name: extra.name,
-      })
-      if (!result.success || !result.data) {
-        setStatusByKey((prev) => ({ ...prev, [key]: 'failed' }))
-        return
-      }
-      const item = result.data
-      const alreadyMounted = loraStack.items.some(
-        (entry) => entry.asset.id === item.id,
-      )
-      if (!alreadyMounted) {
-        // 原图权重在合法范围内时随挂载带上；越界（如负权重滑块）回落默认。
-        const scale = LoraSchema.shape.scale.safeParse(extra.weight).success
-          ? extra.weight
-          : undefined
-        loraStack.push(item, scale)
-      }
-      setStatusByKey((prev) => ({ ...prev, [key]: 'mounted' }))
-    },
-    [loraStack],
-  )
 
   return (
     <div className="space-y-1">
@@ -305,11 +283,7 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
         {extras.map((extra) => {
           const key = extraLoraKey(extra)
           const status = statusByKey[key]
-          // 名字也可定位（搜索 + 文件名词干精确匹配兜底）。
-          const resolvable =
-            extra.hash !== undefined ||
-            extra.modelVersionId !== undefined ||
-            extra.name !== undefined
+          const resolvable = isRecipeExtraResolvable(extra)
           return (
             <li
               key={key}
@@ -317,7 +291,7 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
             >
               <span className="min-w-0 truncate font-mono text-muted-foreground">
                 {extraLoraLabel(extra)}
-                {extra.weight !== undefined ? ` ×${extra.weight}` : ''}
+                {extra.weight !== undefined ? ` x${extra.weight}` : ''}
               </span>
               {!resolvable ? (
                 <span className="shrink-0 text-muted-foreground/70">
@@ -337,7 +311,9 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
                       </span>
                       {extra.name ? (
                         <a
-                          href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(extra.name)}`}
+                          href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
+                            toCivitaiModelSearchQuery(extra.name),
+                          )}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-0.5 text-muted-foreground underline hover:text-foreground"
@@ -358,7 +334,7 @@ function ExtraLoraList({ extras, disabled }: ExtraLoraListProps) {
                         ? t('recipeExtraStackFull', { max: LORA_STACK_MAX })
                         : undefined
                     }
-                    onClick={() => void handleMount(extra)}
+                    onClick={() => onMountExtraLora(extra)}
                   >
                     {status === 'loading' ? (
                       <Loader2 className="size-3 animate-spin" aria-hidden />

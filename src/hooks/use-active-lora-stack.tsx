@@ -117,7 +117,7 @@ interface StoredEnvelope {
 /**
  * 最近一次"新 LoRA 进入挂载栈"事件（workbench push 或 ?style= 分享链接
  * 解析）。Provider 挂在 studio layout，事件在内存里跨 /studio/lora →
- * /studio/image 的客户端导航存活；消费方（StudioLoraChip）展示一次性
+ * /studio/image 的客户端导航存活；消费方（LoraPromptControlButton）展示一次性
  * 反馈后调 acknowledgeMountEvent 清掉，不落 localStorage。
  */
 export interface LoraMountEvent {

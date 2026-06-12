@@ -57,6 +57,7 @@ describe('GET /api/lora-assets/civitai/resolve', () => {
       hash: '9c783c8ce46c',
       modelVersionId: undefined,
       name: undefined,
+      baseModelFamily: undefined,
     })
     expect(mockResolve).not.toHaveBeenCalled()
     // 用户相关数据绝不能进共享缓存
@@ -79,6 +80,8 @@ describe('GET /api/lora-assets/civitai/resolve', () => {
     expect(mockResolve).toHaveBeenCalledWith({
       hash: '9c783c8ce46c',
       modelVersionId: undefined,
+      name: undefined,
+      baseModelFamily: undefined,
     })
   })
 
@@ -93,6 +96,25 @@ describe('GET /api/lora-assets/civitai/resolve', () => {
     expect(mockResolve).toHaveBeenCalledWith({
       hash: undefined,
       modelVersionId: 135867,
+      name: undefined,
+      baseModelFamily: undefined,
+    })
+  })
+
+  it('passes the requested base model family to the resolver', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        name: 'detailed hand focus style illustriousXL v1.1',
+        baseModelFamily: 'Illustrious',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockResolve).toHaveBeenCalledWith({
+      hash: undefined,
+      modelVersionId: undefined,
+      name: 'detailed hand focus style illustriousXL v1.1',
+      baseModelFamily: 'Illustrious',
     })
   })
 
@@ -112,6 +134,29 @@ describe('GET /api/lora-assets/civitai/resolve', () => {
 
     expect(response.status).toBe(400)
     expect(mockResolve).not.toHaveBeenCalled()
+  })
+
+  it('ignores a malformed hash when a name fallback is available', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai/resolve', {
+        hash: 'not-hex!!',
+        name: 'EnchantingEyesIllustrious',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockFindLocal).toHaveBeenCalledWith('clerk_test_user', {
+      hash: undefined,
+      modelVersionId: undefined,
+      name: 'EnchantingEyesIllustrious',
+      baseModelFamily: undefined,
+    })
+    expect(mockResolve).toHaveBeenCalledWith({
+      hash: undefined,
+      modelVersionId: undefined,
+      name: 'EnchantingEyesIllustrious',
+      baseModelFamily: undefined,
+    })
   })
 
   it('returns 404 when the reference cannot be resolved', async () => {

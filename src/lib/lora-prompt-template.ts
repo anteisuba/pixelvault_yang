@@ -14,8 +14,8 @@ import type { LoraAssetRecord, LoraAssetType } from '@/types'
  *      - style (aesthetic / lineart / effect) → scenery framing with mood
  *
  * Always leads with the trigger word so the LoRA fires. Used in both
- * the LoRA Library inspector ("Copy template") and the in-canvas
- * StudioLoraChip ("Use this prompt").
+ * the LoRA Library inspector ("Copy template") and the Studio LoRA prompt
+ * control ("Use suggested prompt").
  */
 export function buildLoraPromptTemplate(
   asset: Pick<LoraAssetRecord, 'triggerWord' | 'type'> & {

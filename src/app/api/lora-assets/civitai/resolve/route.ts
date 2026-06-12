@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { normalizeOptionalCivitaiHash } from '@/lib/civitai-lora-reference'
 import { logger } from '@/lib/logger'
 import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
 import { findLoraAssetByExtraReference } from '@/services/lora-asset.service'
@@ -27,6 +28,8 @@ const QuerySchema = z
     modelVersionId: z.coerce.number().int().positive().optional(),
     // meta 里的 LoRA 名 — hash 对不上索引时的搜索兜底（词干精确匹配）。
     name: z.string().trim().min(1).max(200).optional(),
+    // 主 LoRA 的底模 family，用于 Civitai 网页索引兜底时避免跨底模误挂。
+    baseModelFamily: z.string().trim().min(1).max(80).optional(),
   })
   .refine(
     (value) =>
@@ -51,10 +54,12 @@ export async function GET(
   request: NextRequest,
 ): Promise<NextResponse<SuccessBody | ErrorBody>> {
   const { searchParams } = new URL(request.url)
+  const hash = normalizeOptionalCivitaiHash(searchParams.get('hash'))
   const parsed = QuerySchema.safeParse({
-    hash: searchParams.get('hash') ?? undefined,
+    hash,
     modelVersionId: searchParams.get('modelVersionId') ?? undefined,
     name: searchParams.get('name') ?? undefined,
+    baseModelFamily: searchParams.get('baseModelFamily') ?? undefined,
   })
 
   if (!parsed.success) {

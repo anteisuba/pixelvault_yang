@@ -33,16 +33,16 @@ import {
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
-import { useStudioForm } from '@/contexts/studio-context'
+import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import {
   LORA_STACK_MAX,
   useActiveLoraStack,
 } from '@/hooks/use-active-lora-stack'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { analyzeImageAPI } from '@/lib/api-client'
+import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
 import { Link } from '@/i18n/navigation'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import {
@@ -59,30 +59,29 @@ import {
   buildSourceMatchedLoraPrompt,
   mergeNegativePrompt,
 } from '@/lib/lora-source-match-prompt'
+import {
+  mountRecipeExtraLoras,
+  type ExtraMountStatus,
+} from '@/lib/lora-recipe-extra-mount'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { promptIncludesTrigger } from '@/lib/prompt-text'
 import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { Button } from '@/components/ui/button'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@/components/ui/drawer'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { AspectRatio } from '@/constants/config'
-import type {
-  AdvancedParams,
-  CivitaiImageRecipe,
-  LoraAssetRecord,
+import {
+  type AdvancedParams,
+  type CivitaiImageRecipe,
+  type CivitaiRecipeExtraLora,
+  type LoraAssetRecord,
 } from '@/types'
 
 import {
@@ -107,7 +106,6 @@ export function LoraPromptControlButton({
   const t = useTranslations('LoraPromptControl')
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<LoraPromptControlTab>('generate')
-  const isMobile = useIsMobile()
   const promptTags = usePromptTagStack()
   const loraStack = useActiveLoraStack()
   const { state } = useStudioForm()
@@ -194,33 +192,20 @@ export function LoraPromptControlButton({
     />
   )
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={handleOpenChange}>
-        <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-        <DrawerContent className="max-h-[88vh] overflow-hidden">
-          <DrawerTitle className="sr-only">{t('title')}</DrawerTitle>
-          <DrawerDescription className="sr-only">
-            {t('description')}
-          </DrawerDescription>
-          {panel}
-        </DrawerContent>
-      </Drawer>
-    )
-  }
-
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+    <StudioToolSurface open={open} onOpenChange={handleOpenChange}>
+      <StudioToolSurfaceTrigger asChild>{trigger}</StudioToolSurfaceTrigger>
       <StudioToolPopoverContent
         side="top"
         align="end"
         size="medium"
+        label={t('title')}
         className="h-[min(680px,82vh)] w-[min(520px,calc(100vw-2rem))] overflow-hidden p-0"
+        mobileClassName="px-0 pt-0"
       >
         {panel}
       </StudioToolPopoverContent>
-    </Popover>
+    </StudioToolSurface>
   )
 }
 
@@ -597,14 +582,24 @@ function LoraGenerateRow({
   onSetScale,
 }: LoraGenerateRowProps) {
   const t = useTranslations('LoraPromptControl.generate')
+  const { imageUpload } = useStudioData()
   const minedPrompts = useCivitaiMinedPrompts(asset)
 
-  // 解法三：无配方数据（旧收藏自愈后仍无 / 自训练）但有封面时，AI 反推
-  // 一份仅含 prompt 的伪配方，标注"AI 推测"进入同一条来源图工作流。
+  // AI fallback: when an older imported/trained LoRA has a cover but no
+  // source recipe, infer a prompt-only recipe and keep it in the same flow.
   const [inferredRecipe, setInferredRecipe] =
     useState<CivitaiImageRecipe | null>(null)
   const [inferenceLoading, setInferenceLoading] = useState(false)
   const [inferenceError, setInferenceError] = useState<string | null>(null)
+  const [selectedRecipeImageUrl, setSelectedRecipeImageUrl] = useState<
+    string | null | undefined
+  >(undefined)
+  const [includeRecipeSeed, setIncludeRecipeSeed] = useState(true)
+  const [recipeApplyLoading, setRecipeApplyLoading] = useState(false)
+  const [extraMountStatusByKey, setExtraMountStatusByKey] = useState<
+    Record<string, ExtraMountStatus>
+  >({})
+  const loraStackForExtras = useActiveLoraStack()
   const inferenceSourceUrl =
     asset.coverImageUrl ?? asset.previewImageUrls.find(Boolean) ?? null
 
@@ -631,6 +626,17 @@ function LoraGenerateRow({
       : inferredRecipe
         ? [inferredRecipe]
         : []
+  const selectedRecipe =
+    selectedRecipeImageUrl === null
+      ? null
+      : selectedRecipeImageUrl
+        ? (stripRecipes.find(
+            (recipe) => recipe.imageUrl === selectedRecipeImageUrl,
+          ) ??
+          stripRecipes[0] ??
+          null)
+        : (stripRecipes[0] ?? null)
+  const sourceMatchRecipe = selectedRecipe ?? stripRecipes[0] ?? null
   const sourceMatch = useMemo(
     () => buildSourceMatchedLoraPrompt(asset, minedPrompts.outfits),
     [asset, minedPrompts.outfits],
@@ -640,14 +646,15 @@ function LoraGenerateRow({
     [asset.triggerWord, prompt],
   )
 
-  // Mining may still resolve a reliable source prompt — keep the button in a
+  // Mining may still resolve a reliable source prompt; keep the button in a
   // loading state instead of "unavailable" until the fetch settles.
   const sourceMatchLoading = minedPrompts.isLoading
-  const sourceMatchUnavailable = !sourceMatch.reliable && !sourceMatchLoading
+  const sourceMatchUnavailable =
+    !sourceMatchRecipe && !sourceMatch.reliable && !sourceMatchLoading
 
-  // 缩略图三级兜底：cover → preview → 第一张 Civitai 来源图。旧收藏行
-  // 没存 coverImageUrl（字段后加的），但带 modelVersionId 就能从挖掘
-  // 结果里拿来源图补上，无需数据回填。
+  // Thumbnail fallback: cover, preview, then first mined Civitai source image.
+  // Older favorites may not have coverImageUrl, but modelVersionId can still
+  // recover a source image without a data backfill.
   const firstSourceImage = minedPrompts.recipes[0]?.imageUrl ?? null
   const thumbUrl =
     loraThumbnailUrl(asset, LORA_CHIP_THUMBNAIL_WIDTH) ??
@@ -670,11 +677,40 @@ function LoraGenerateRow({
     onPromptChange(starterPrompt)
   }, [asset.recommendedPrompt, onPromptChange])
 
-  // 一键同款：来源图配方 → prompt 替换 + 负向合并 + seed/steps/cfg 覆盖
-  // + 真实 LoRA 权重 + 最近比例档。映射不了的字段在 toast 里明示。
-  const handleApplyRecipe = useCallback(
-    (recipe: CivitaiImageRecipe, { includeSeed }: ApplyRecipeOptions) => {
+  const mountRecipeExtras = useCallback(
+    async (
+      extras: readonly CivitaiRecipeExtraLora[],
+    ): Promise<{ newlyMounted: number; missing: number }> => {
+      return mountRecipeExtraLoras({
+        extras,
+        stackItems: loraStackForExtras.items,
+        maxStack: LORA_STACK_MAX,
+        baseModelFamily: asset.baseModelFamily,
+        resolveLora: resolveCivitaiLoraAPI,
+        pushLora: loraStackForExtras.push,
+        setLoraScale: loraStackForExtras.setScale,
+        setStatus: (key, status) =>
+          setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status })),
+      })
+    },
+    [asset.baseModelFamily, loraStackForExtras],
+  )
+
+  const handleMountExtraLora = useCallback(
+    (extra: CivitaiRecipeExtraLora) => {
+      void mountRecipeExtras([extra])
+    },
+    [mountRecipeExtras],
+  )
+
+  const applyRecipeToForm = useCallback(
+    (
+      recipe: CivitaiImageRecipe,
+      { includeSeed }: ApplyRecipeOptions,
+      extraDescription?: string,
+    ) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
+      imageUpload.setReferenceImage(recipe.imageUrl)
       onPromptChange(plan.prompt)
       onAdvancedParamsChange(
         applyRecipePlanToAdvancedParams(advancedParams, plan, { includeSeed }),
@@ -685,20 +721,28 @@ function LoraGenerateRow({
       if (plan.aspectRatio) {
         onAspectRatioChange(plan.aspectRatio)
       }
+
+      const descriptions = [
+        plan.skippedParams.length > 0
+          ? t('recipeSkipped', {
+              params: plan.skippedParams.join(', '),
+            })
+          : null,
+        t('recipeReferenceAttached'),
+        extraDescription ?? null,
+      ].filter((value): value is string => Boolean(value))
+
       toast.success(
         t('recipeApplied'),
-        plan.skippedParams.length > 0
-          ? {
-              description: t('recipeSkipped', {
-                params: plan.skippedParams.join(', '),
-              }),
-            }
+        descriptions.length > 0
+          ? { description: descriptions.join(' ') }
           : undefined,
       )
     },
     [
       advancedParams,
       asset.id,
+      imageUpload,
       onAdvancedParamsChange,
       onAspectRatioChange,
       onPromptChange,
@@ -707,8 +751,40 @@ function LoraGenerateRow({
     ],
   )
 
+  // Source recipe apply: replace prompt, merge negative prompt, apply
+  // seed/steps/cfg, LoRA weight, and nearest aspect ratio. If the source image
+  // used extra LoRAs, mount resolvable ones first and report limited fidelity
+  // for the rest.
+  const handleApplyRecipe = useCallback(
+    async (recipe: CivitaiImageRecipe, options: ApplyRecipeOptions) => {
+      if (recipeApplyLoading) return
+      setRecipeApplyLoading(true)
+      try {
+        const extraResult = await mountRecipeExtras(recipe.extraLoras ?? [])
+        const extraDescription =
+          extraResult.missing > 0
+            ? t('recipeExtraApplyLimited', { count: extraResult.missing })
+            : extraResult.newlyMounted > 0
+              ? t('recipeExtraAutoMounted', {
+                  count: extraResult.newlyMounted,
+                })
+              : undefined
+        applyRecipeToForm(recipe, options, extraDescription)
+      } finally {
+        setRecipeApplyLoading(false)
+      }
+    },
+    [applyRecipeToForm, mountRecipeExtras, recipeApplyLoading, t],
+  )
+
   const handleApplySourceMatch = useCallback(() => {
-    // Guard: never apply an unreliable (bare-trigger) result — it would just
+    if (sourceMatchRecipe) {
+      void handleApplyRecipe(sourceMatchRecipe, {
+        includeSeed: includeRecipeSeed,
+      })
+      return
+    }
+    // Guard: never apply an unreliable bare-trigger result; it would just
     // ship a generic image unrelated to the source. The button is disabled in
     // this state, but guard here too so a stray call can't degrade the prompt.
     if (!sourceMatch.reliable) return
@@ -721,19 +797,34 @@ function LoraGenerateRow({
     onSetScale(asset.id, sourceMatch.scale)
   }, [
     asset.id,
+    handleApplyRecipe,
+    includeRecipeSeed,
     negativePrompt,
     onNegativePromptChange,
     onPromptChange,
     onSetScale,
+    sourceMatchRecipe,
     sourceMatch,
   ])
+
+  const sourceMatchButtonDisabled =
+    disabled ||
+    recipeApplyLoading ||
+    (sourceMatchRecipe ? false : sourceMatchLoading || !sourceMatch.reliable)
+  const sourceMatchButtonTitle = sourceMatchRecipe
+    ? t('sourceMatch.recipe')
+    : sourceMatchLoading
+      ? t('sourceMatch.loading')
+      : sourceMatch.reliable
+        ? t(`sourceMatch.${sourceMatch.source}`)
+        : t('sourceMatch.unavailable')
 
   return (
     <article className="rounded-lg border border-border/70 p-3">
       <div className="flex items-start gap-2.5">
         {thumbUrl ? (
-          // Plain <img>，与 LoraAssetCard 同约定（用户/外部内容，不走
-          // next/image 优化）。
+          // Plain img follows LoraAssetCard: user/external content, no
+          // next/image optimization.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbUrl}
@@ -741,8 +832,8 @@ function LoraGenerateRow({
             className="size-12 shrink-0 rounded-md border border-border/60 object-cover"
           />
         ) : (
-          // 无封面 fallback 与 LoraAssetCard 同语义：style→Sparkles、
-          // subject→User。来源图加载完成后会自动补上真实图。
+          // Same fallback semantics as LoraAssetCard. A mined source image can
+          // replace this thumbnail once available.
           <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <FallbackIcon className="size-5 opacity-50" aria-hidden />
           </span>
@@ -776,12 +867,19 @@ function LoraGenerateRow({
         </Button>
       </div>
 
-      {/* 来源图配方条（M2c）：点图→展开配方→一键同款；无配方且有封面
-          时提供 AI 反推入口（解法三）。等挖掘结果落定再亮反推按钮。 */}
+      {/* Source recipe strip: select image, preview recipe, apply recipe. The
+          AI inference action is shown only after mining settles with no recipe. */}
       <LoraSourceRecipeStrip
         assetName={asset.name}
         recipes={stripRecipes}
-        disabled={disabled}
+        selectedImageUrl={selectedRecipe?.imageUrl ?? null}
+        includeSeed={includeRecipeSeed}
+        extraMountStatusByKey={extraMountStatusByKey}
+        extraStackFull={loraStackForExtras.items.length >= LORA_STACK_MAX}
+        disabled={disabled || recipeApplyLoading}
+        onSelectedImageUrlChange={setSelectedRecipeImageUrl}
+        onIncludeSeedChange={setIncludeRecipeSeed}
+        onMountExtraLora={handleMountExtraLora}
         onApplyRecipe={handleApplyRecipe}
         onRequestInference={
           inferenceSourceUrl &&
@@ -800,14 +898,8 @@ function LoraGenerateRow({
           variant="default"
           size="xs"
           onClick={handleApplySourceMatch}
-          disabled={disabled || sourceMatchLoading || !sourceMatch.reliable}
-          title={
-            sourceMatchLoading
-              ? t('sourceMatch.loading')
-              : sourceMatch.reliable
-                ? t(`sourceMatch.${sourceMatch.source}`)
-                : t('sourceMatch.unavailable')
-          }
+          disabled={sourceMatchButtonDisabled}
+          title={sourceMatchButtonTitle}
         >
           <SparklesIcon />
           {t('useSourceMatch')}

@@ -7,6 +7,7 @@ import type {
   LoraAssetRecord,
 } from '@/types'
 
+import { normalizeOptionalCivitaiHash } from '@/lib/civitai-lora-reference'
 import { getErrorMessage } from '@/lib/api-client/shared'
 
 interface ListResponse {
@@ -165,14 +166,19 @@ export async function resolveCivitaiLoraAPI(params: {
   hash?: string
   modelVersionId?: number
   name?: string
+  baseModelFamily?: string
 }): Promise<ResolveCivitaiLoraResponse> {
   try {
     const query = new URLSearchParams()
-    if (params.hash) query.set('hash', params.hash)
+    const hash = normalizeOptionalCivitaiHash(params.hash)
+    if (hash) query.set('hash', hash)
     if (params.modelVersionId !== undefined) {
       query.set('modelVersionId', String(params.modelVersionId))
     }
     if (params.name) query.set('name', params.name)
+    if (params.baseModelFamily) {
+      query.set('baseModelFamily', params.baseModelFamily)
+    }
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_RESOLVE}?${query.toString()}`,

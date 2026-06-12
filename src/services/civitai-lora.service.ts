@@ -14,10 +14,12 @@ import {
   extractActivationSegment,
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
+import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
+import { repairUtf8Mojibake } from '@/lib/text-encoding-repair'
 import { withRetry } from '@/lib/with-retry'
 import type {
   CivitaiImageRecipe,
@@ -30,6 +32,12 @@ import type {
 
 const CIVITAI_MODELS_API = 'https://civitai.com/api/v1/models'
 const CIVITAI_MODEL_VERSIONS_API = 'https://civitai.com/api/v1/model-versions'
+const CIVITAI_MODEL_SEARCH_API = 'https://search-new.civitai.com/multi-search'
+const CIVITAI_MODEL_SEARCH_INDEX = 'models_v9'
+// Public browser key shipped by civitai.com for its own search UI. This is not
+// a private secret; keep it scoped to the read-only model search fallback.
+const CIVITAI_MODEL_SEARCH_PUBLIC_KEY =
+  '8c46eb2508e21db1e9828a97968d91ab1ca1caa5f70a00e88a2ba1e286603b61'
 const CIVITAI_REQUEST_TIMEOUT_MS = 8000
 
 const CivitaiStatsSchema = z
@@ -167,6 +175,42 @@ const CivitaiModelsResponseSchema = z
   })
   .passthrough()
 
+const CivitaiSearchVersionFileSchema = z
+  .object({
+    name: z.string().optional(),
+  })
+  .passthrough()
+
+const CivitaiSearchVersionSchema = z
+  .object({
+    id: z.number(),
+    name: z.string().optional(),
+    baseModel: z.string().nullable().optional(),
+    files: z.array(CivitaiSearchVersionFileSchema).optional(),
+  })
+  .passthrough()
+
+const CivitaiSearchHitSchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    type: z.string().optional(),
+    versions: z.array(CivitaiSearchVersionSchema).optional(),
+  })
+  .passthrough()
+
+const CivitaiModelSearchResponseSchema = z
+  .object({
+    results: z.array(
+      z
+        .object({
+          hits: z.array(CivitaiSearchHitSchema).optional(),
+        })
+        .passthrough(),
+    ),
+  })
+  .passthrough()
+
 const CivitaiModelVersionDetailSchema = z
   .object({
     id: z.number(),
@@ -223,13 +267,31 @@ export interface ResolveCivitaiLoraReference {
    * 不敏感）才算命中 — 不做模糊接受，避免挂错模型。
    */
   name?: string | null
+  /**
+   * 主 LoRA 的底模 family。只用于搜索兜底的候选过滤，避免把 SDXL/Flux 等
+   * 同名或近名 LoRA 自动挂到 Illustrious 配方里。
+   */
+  baseModelFamily?: string | null
 }
 
 const CIVITAI_RESOLVE_SEARCH_LIMIT = 10
+const CIVITAI_WEB_RESOLVE_SEARCH_LIMIT = 50
+const CIVITAI_WEB_RESOLVE_VERSION_FETCH_LIMIT = 48
+const CIVITAI_WEB_RESOLVE_VERSION_FETCH_BATCH_SIZE = 6
+
+interface ResolveCivitaiLoraLocatorOptions {
+  exactNameKey?: string
+  baseModelFamily?: string | null
+}
+
+interface CivitaiSearchVersionCandidate {
+  versionId: number
+}
 
 async function resolveCivitaiLoraByLocator(
   hash: string | null | undefined,
   modelVersionId: number | null | undefined,
+  options: ResolveCivitaiLoraLocatorOptions = {},
 ): Promise<CivitaiLoraLibraryItem | null> {
   const url = modelVersionId
     ? new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
@@ -266,6 +328,19 @@ async function resolveCivitaiLoraByLocator(
   }
 
   const { modelId, model, ...version } = parsed.data
+  if (
+    options.baseModelFamily &&
+    !baseModelMatchesCandidate(version.baseModel, options.baseModelFamily)
+  ) {
+    return null
+  }
+  if (
+    options.exactNameKey &&
+    !searchVersionHasExactFileStem(version, options.exactNameKey)
+  ) {
+    return null
+  }
+
   return toLibraryItem({
     id: modelId ?? 0,
     name: model?.name ?? version.name,
@@ -280,21 +355,151 @@ async function resolveCivitaiLoraByLocator(
  * query=Enchanting Eyes Illustrious 命中（实测 2026-06-11）。搜索词按
  * camel 边界和 -_ 分隔符拆词；点号保留（v1.1 拆开反而伤命中）。
  */
-function nameToSearchQuery(name: string): string {
-  return name
-    .replace(/[-_]+/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 /**
  * 词干比对键：小写 + 去空格/横线/下划线/点。仍是全长严格相等 — 只是
  * 容忍 meta 名与文件名之间的分隔符差异，不做前缀/包含式模糊匹配。
  * （导出给本地库匹配复用 — 同一把尺子量本地行和 Civitai 文件名。）
  */
 export function normalizeLoraNameKey(value: string): string {
-  return value.toLowerCase().replace(/[\s\-_.]+/g, '')
+  return repairUtf8Mojibake(value)
+    .toLowerCase()
+    .replace(/[\s\-_.]+/g, '')
+}
+
+type CivitaiKnownBaseModelFamily =
+  keyof typeof CIVITAI_BASE_MODEL_FAMILY_MEMBERS
+
+const CIVITAI_BASE_MODEL_FAMILY_ALIASES: Record<
+  string,
+  CivitaiKnownBaseModelFamily
+> = {
+  flux: 'Flux.1 D',
+  flux1: 'Flux.1 D',
+  sdxl: 'SDXL 1.0',
+  sd15: 'SD 1.5',
+  sd1: 'SD 1.5',
+  illustriousxl: 'Illustrious',
+}
+
+function toBaseModelKey(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? normalizeLoraNameKey(trimmed) : null
+}
+
+function acceptedBaseModelKeys(
+  baseModelFamily: string | null | undefined,
+): Set<string> | null {
+  const requestedKey = toBaseModelKey(baseModelFamily)
+  if (!requestedKey) return null
+
+  const aliasFamily = CIVITAI_BASE_MODEL_FAMILY_ALIASES[requestedKey]
+  if (aliasFamily) {
+    return new Set(
+      [aliasFamily, ...CIVITAI_BASE_MODEL_FAMILY_MEMBERS[aliasFamily]].map(
+        normalizeLoraNameKey,
+      ),
+    )
+  }
+
+  for (const [family, members] of Object.entries(
+    CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
+  )) {
+    const keys = [family, ...members].map(normalizeLoraNameKey)
+    if (keys.includes(requestedKey)) return new Set(keys)
+  }
+
+  return new Set([requestedKey])
+}
+
+function acceptedBaseModelNames(
+  baseModelFamily: string | null | undefined,
+): string[] | null {
+  const requestedKey = toBaseModelKey(baseModelFamily)
+  if (!requestedKey) return null
+
+  const aliasFamily = CIVITAI_BASE_MODEL_FAMILY_ALIASES[requestedKey]
+  if (aliasFamily) {
+    return Array.from(
+      new Set([aliasFamily, ...CIVITAI_BASE_MODEL_FAMILY_MEMBERS[aliasFamily]]),
+    )
+  }
+
+  for (const [family, members] of Object.entries(
+    CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
+  )) {
+    const keys = [family, ...members].map(normalizeLoraNameKey)
+    if (keys.includes(requestedKey)) {
+      return Array.from(new Set([family, ...members]))
+    }
+  }
+
+  return [baseModelFamily?.trim() ?? requestedKey].filter(Boolean)
+}
+
+function buildCivitaiSearchFilters(
+  baseModelFamily: string | null | undefined,
+): string[] {
+  const filters = ['type = LoRA']
+  const baseModelNames = acceptedBaseModelNames(baseModelFamily)
+  if (baseModelNames && baseModelNames.length > 0) {
+    const quoted = baseModelNames.map((name) => JSON.stringify(name)).join(', ')
+    filters.push(`versions.baseModel IN [${quoted}]`)
+  }
+  return filters
+}
+
+function baseModelMatchesCandidate(
+  candidateBaseModel: string | null | undefined,
+  requestedBaseModelFamily: string | null | undefined,
+): boolean {
+  const acceptedKeys = acceptedBaseModelKeys(requestedBaseModelFamily)
+  if (!acceptedKeys) return true
+  const candidateKey = toBaseModelKey(candidateBaseModel)
+  return candidateKey !== null && acceptedKeys.has(candidateKey)
+}
+
+function searchVersionHasExactFileStem(
+  version: z.infer<typeof CivitaiSearchVersionSchema>,
+  targetNameKey: string,
+): boolean {
+  return (
+    version.files?.some(
+      (file) =>
+        file.name &&
+        normalizeLoraNameKey(fileNameStem(file.name)) === targetNameKey,
+    ) ?? false
+  )
+}
+
+async function resolveFirstExactCivitaiVersionCandidate(
+  candidates: readonly CivitaiSearchVersionCandidate[],
+  targetNameKey: string,
+  baseModelFamily: string | null | undefined,
+): Promise<CivitaiLoraLibraryItem | null> {
+  const capped = candidates.slice(0, CIVITAI_WEB_RESOLVE_VERSION_FETCH_LIMIT)
+  for (
+    let start = 0;
+    start < capped.length;
+    start += CIVITAI_WEB_RESOLVE_VERSION_FETCH_BATCH_SIZE
+  ) {
+    const batch = capped.slice(
+      start,
+      start + CIVITAI_WEB_RESOLVE_VERSION_FETCH_BATCH_SIZE,
+    )
+    const resolved = await Promise.all(
+      batch.map((candidate) =>
+        resolveCivitaiLoraByLocator(undefined, candidate.versionId, {
+          exactNameKey: targetNameKey,
+          baseModelFamily,
+        }),
+      ),
+    )
+    const match = resolved.find(
+      (item): item is CivitaiLoraLibraryItem => item !== null,
+    )
+    if (match) return match
+  }
+  return null
 }
 
 /**
@@ -312,7 +517,7 @@ async function resolveCivitaiLoraByNameStem(
   const url = new URL(CIVITAI_MODELS_API)
   url.searchParams.set('types', 'LORA')
   url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
-  url.searchParams.set('query', nameToSearchQuery(trimmed))
+  url.searchParams.set('query', toCivitaiModelSearchQuery(trimmed))
 
   let payload: unknown
   try {
@@ -348,17 +553,102 @@ async function resolveCivitaiLoraByNameStem(
   return null
 }
 
+async function resolveCivitaiLoraByWebSearchNameStem(
+  name: string,
+  baseModelFamily: string | null | undefined,
+): Promise<CivitaiLoraLibraryItem | null> {
+  const trimmed = name.trim()
+  if (!trimmed) return null
+
+  const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const body = {
+    queries: [
+      {
+        indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+        q: toCivitaiModelSearchQuery(trimmed),
+        limit: CIVITAI_WEB_RESOLVE_SEARCH_LIMIT,
+        offset: 0,
+        filter: buildCivitaiSearchFilters(baseModelFamily),
+      },
+    ],
+  }
+
+  let payload: unknown
+  try {
+    payload = await withRetry(
+      () =>
+        fetchCivitaiPayload(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }),
+      {
+        maxAttempts: 2,
+        baseDelayMs: 400,
+        maxDelayMs: 1500,
+        label: 'civitai.resolveLoraByWebSearchName',
+      },
+    )
+  } catch (error) {
+    logger.warn('Civitai LoRA web search fallback failed', {
+      name: trimmed,
+      baseModelFamily: baseModelFamily ?? null,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+
+  const parsed = CivitaiModelSearchResponseSchema.safeParse(payload)
+  if (!parsed.success) return null
+
+  const target = normalizeLoraNameKey(trimmed)
+  const candidates: CivitaiSearchVersionCandidate[] = []
+  const seenVersionIds = new Set<number>()
+  for (const result of parsed.data.results) {
+    for (const hit of result.hits ?? []) {
+      if (hit.type && hit.type.toUpperCase() !== 'LORA') continue
+      for (const version of hit.versions ?? []) {
+        if (!baseModelMatchesCandidate(version.baseModel, baseModelFamily)) {
+          continue
+        }
+        const hasSearchFileNames = (version.files?.length ?? 0) > 0
+        if (
+          hasSearchFileNames &&
+          !searchVersionHasExactFileStem(version, target)
+        ) {
+          continue
+        }
+        if (seenVersionIds.has(version.id)) continue
+        seenVersionIds.add(version.id)
+        candidates.push({ versionId: version.id })
+      }
+    }
+  }
+
+  return resolveFirstExactCivitaiVersionCandidate(
+    candidates,
+    target,
+    baseModelFamily,
+  )
+}
+
 export async function resolveCivitaiLoraByReference({
   hash,
   modelVersionId,
   name,
+  baseModelFamily,
 }: ResolveCivitaiLoraReference): Promise<CivitaiLoraLibraryItem | null> {
   if (hash || modelVersionId) {
     const direct = await resolveCivitaiLoraByLocator(hash, modelVersionId)
     if (direct) return direct
   }
   if (name) {
-    return resolveCivitaiLoraByNameStem(name)
+    const official = await resolveCivitaiLoraByNameStem(name)
+    if (official) return official
+    return resolveCivitaiLoraByWebSearchNameStem(name, baseModelFamily)
   }
   return null
 }
@@ -595,7 +885,16 @@ class CivitaiFetchError extends Error {
   }
 }
 
-async function fetchCivitaiPayload(url: URL): Promise<unknown> {
+interface CivitaiFetchOptions {
+  method?: 'GET' | 'POST'
+  headers?: HeadersInit
+  body?: BodyInit | null
+}
+
+async function fetchCivitaiPayload(
+  url: URL,
+  options: CivitaiFetchOptions = {},
+): Promise<unknown> {
   const controller = new AbortController()
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -615,8 +914,13 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   // the late reject so it doesn't pollute logs / test runners.
   timeoutPromise.catch(() => {})
 
+  const headers = new Headers(options.headers)
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+
   const requestPromise = fetch(url, {
-    headers: { Accept: 'application/json' },
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body,
     next: { revalidate: 300 },
     signal: controller.signal,
   }).then(async (response) => {
@@ -1058,7 +1362,7 @@ function coerceInteger(value: unknown): number | undefined {
 function coerceTrimmedString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
-  return trimmed ? trimmed : undefined
+  return trimmed ? repairUtf8Mojibake(trimmed) : undefined
 }
 
 type RecipeMetaParams = Pick<
@@ -1113,7 +1417,7 @@ function parsePromptLoraTags(rawPrompt: string): PromptLoraTag[] {
     if (!name) continue
     const weight = match[2] !== undefined ? Number(match[2]) : undefined
     tags.push({
-      name,
+      name: repairUtf8Mojibake(name),
       weight:
         weight !== undefined && Number.isFinite(weight) ? weight : undefined,
     })
@@ -1123,7 +1427,7 @@ function parsePromptLoraTags(rawPrompt: string): PromptLoraTag[] {
 
 /** "add-detail-xl.safetensors" → "add-detail-xl" (in-prompt tag name). */
 function fileNameStem(fileName: string): string {
-  return fileName.replace(/\.[^.]+$/, '').toLowerCase()
+  return repairUtf8Mojibake(fileName.replace(/\.[^.]+$/, '')).toLowerCase()
 }
 
 interface RecipeLoraSignalInput {
@@ -1173,7 +1477,7 @@ function resolveRecipeLoraSignals({
   const promptTags = parsePromptLoraTags(rawPrompt)
   const knownTargetNames = new Set<string>(targetNameHints)
   if (matchedResource?.name) {
-    knownTargetNames.add(matchedResource.name.toLowerCase())
+    knownTargetNames.add(repairUtf8Mojibake(matchedResource.name).toLowerCase())
   }
   let targetTag = promptTags.find((tag) =>
     knownTargetNames.has(tag.name.toLowerCase()),
@@ -1196,13 +1500,14 @@ function resolveRecipeLoraSignals({
     if (r === matchedResource || (r.type ?? '').toLowerCase() !== 'lora') {
       continue
     }
-    const key = r.name?.toLowerCase()
+    const repairedName = r.name ? repairUtf8Mojibake(r.name) : undefined
+    const key = repairedName?.toLowerCase()
     if (key) {
       if (seenNames.has(key) || knownTargetNames.has(key)) continue
       seenNames.add(key)
     }
     extras.push({
-      name: r.name,
+      name: repairedName,
       weight: r.weight,
       hash: r.hash?.toLowerCase(),
     })
@@ -1283,7 +1588,7 @@ async function fetchModelVersionSourceRecipes(
     if ((image.nsfwLevel ?? 1) > CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL) {
       continue
     }
-    const rawPrompt = image.meta?.prompt ?? ''
+    const rawPrompt = repairUtf8Mojibake(image.meta?.prompt ?? '')
     const prompt = cleanRecommendedPrompt(rawPrompt)
     if (!prompt) continue
     recipes.push({
@@ -1423,7 +1728,7 @@ export async function mineCivitaiUserPrompts({
           ? outer
           : null
     if (!sdMeta) continue
-    const prompt = sdMeta.prompt?.trim()
+    const prompt = repairUtf8Mojibake(sdMeta.prompt?.trim() ?? '')
     if (!prompt) continue
     consideredCount += 1
     const matched = sdMeta.resources?.find(
@@ -1460,7 +1765,10 @@ export async function mineCivitaiUserPrompts({
 
     // Outfit segment clustering needs the in-prompt LoRA tag name.
     if (!matched.name) continue
-    const seg = extractActivationSegment(prompt, matched.name)
+    const seg = extractActivationSegment(
+      prompt,
+      repairUtf8Mojibake(matched.name),
+    )
     if (seg) segments.push(seg)
   }
 

@@ -15,8 +15,12 @@ import {
 } from '@/types'
 
 export interface ListRecipesResult {
-  recipes: Recipe[]
+  recipes: RecipeWithCover[]
   total: number
+}
+
+export type RecipeWithCover = Recipe & {
+  coverThumbnailUrl: string | null
 }
 
 export type RecipeListItem = Pick<
@@ -79,6 +83,13 @@ const RECIPE_GENERATION_SELECT = {
   isWinner: true,
 } as const satisfies Prisma.GenerationSelect
 
+const RECIPE_COVER_GENERATION_SELECT = {
+  id: true,
+  thumbnailUrl: true,
+  previewUrl: true,
+  url: true,
+} as const satisfies Prisma.GenerationSelect
+
 function toPrismaJson(value: unknown): Prisma.InputJsonValue | undefined {
   if (value == null) return undefined
   const serialized = JSON.stringify(value)
@@ -106,6 +117,14 @@ function getGenerationRecipeParams(generation: {
     aspectRatio: parsed.data.aspectRatio,
     advancedParams: parsed.data.advancedParams,
   }
+}
+
+function getGenerationCoverThumbnailUrl(generation: {
+  thumbnailUrl: string | null
+  previewUrl: string | null
+  url: string | null
+}): string | null {
+  return generation.thumbnailUrl ?? generation.previewUrl ?? generation.url
 }
 
 function getGenerationReferenceAssets(generation: {
@@ -278,7 +297,48 @@ export async function listRecipes(
     db.recipe.count({ where }),
   ])
 
-  return { recipes, total }
+  const parentGenerationIds = Array.from(
+    new Set(
+      recipes
+        .map((recipe) => recipe.parentGenerationId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  )
+
+  if (parentGenerationIds.length === 0) {
+    return {
+      recipes: recipes.map((recipe) => ({
+        ...recipe,
+        coverThumbnailUrl: null,
+      })),
+      total,
+    }
+  }
+
+  const coverGenerations = await db.generation.findMany({
+    where: {
+      userId: user.id,
+      id: { in: parentGenerationIds },
+    },
+    select: RECIPE_COVER_GENERATION_SELECT,
+  })
+
+  const coverUrlByGenerationId = new Map(
+    coverGenerations.map((generation) => [
+      generation.id,
+      getGenerationCoverThumbnailUrl(generation),
+    ]),
+  )
+
+  return {
+    recipes: recipes.map((recipe) => ({
+      ...recipe,
+      coverThumbnailUrl: recipe.parentGenerationId
+        ? (coverUrlByGenerationId.get(recipe.parentGenerationId) ?? null)
+        : null,
+    })),
+    total,
+  }
 }
 
 export async function listRecipeSummaries(

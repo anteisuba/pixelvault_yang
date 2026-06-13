@@ -9,6 +9,7 @@
 - 第一轮文档重构已完成，`docs/design/` 已调整为结构入口；详细 UI 设计文档先不写，后续一页一页确认。
 - `docs/product/mainline.md` 已成为产品方向主线文档；后续功能、媒体、资源管理和 Studio 相关任务应在 `docs/status.md` 后读取它。
 - 视频方向已确认：`Studio Video` 保持轻量短片入口，`Node workflow` 承担长视频、系列镜头、角色/声音绑定、分镜、参考视频和片段合并等导演式生产能力。
+- （2026-06-13）后续开发方向已经 owner 两轮核对锁定，全域 Codex 任务包在 [`docs/plans/execution-roadmap-2026-06.md`](plans/execution-roadmap-2026-06.md)：视频三系统收敛成分层架构、第一期系列镜头、Seedance via fal、视频 BYOK 先行、专业优先+长视频画布为核心等决策见该文件 §0。
 - 固定后续开发流程：读文档、查代码事实源、必要时核验官方资料、暴露不确定点、确认方向、写 task packet、实现小切片、跑验证、更新必要文档。
 - 当前文档整理阶段不改变产品方向、provider 契约、模型目录、API schema、数据库、认证、积分或存储行为。
 

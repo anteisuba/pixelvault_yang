@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
+import type { AppLocale } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -93,15 +94,34 @@ const XIAOHEI_GUIDES: Record<XiaoheiGuideId, XiaoheiGuideSlide[]> = {
   ],
 }
 
+function getLocalizedImageSrc(
+  guideId: XiaoheiGuideId,
+  locale: AppLocale,
+  imageSrc: string,
+) {
+  if (guideId !== 'image' || locale === 'zh') return imageSrc
+
+  return imageSrc.replace(
+    '/tutorials/xiaohei-guides/',
+    `/tutorials/xiaohei-guides/${locale}/`,
+  )
+}
+
 export function XiaoheiGuideCarousel({
   guideId,
   className,
 }: XiaoheiGuideCarouselProps) {
+  const locale = useLocale() as AppLocale
   const t = useTranslations('XiaoheiGuide')
   const slides = XIAOHEI_GUIDES[guideId]
   const [activeIndex, setActiveIndex] = useState(0)
   const activeSlide = slides[activeIndex]
   const slideKey = `${guideId}.slides.${activeSlide.key}`
+  const activeImageSrc = getLocalizedImageSrc(
+    guideId,
+    locale,
+    activeSlide.imageSrc,
+  )
 
   const goToPrevious = () => {
     setActiveIndex((index) => (index === 0 ? slides.length - 1 : index - 1))
@@ -121,7 +141,7 @@ export function XiaoheiGuideCarousel({
     >
       <div className="relative aspect-video overflow-hidden rounded-xl border border-border/50 bg-white">
         <Image
-          src={activeSlide.imageSrc}
+          src={activeImageSrc}
           alt={t(`${slideKey}.alt`)}
           fill
           sizes="(max-width: 768px) 92vw, (max-width: 1280px) 72vw, 64rem"

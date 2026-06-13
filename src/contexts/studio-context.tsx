@@ -88,7 +88,6 @@ export type PanelName =
   | 'voiceSelector'
   | 'voiceTrainer'
   | 'audioTranscribe'
-  | 'transform'
   | 'videoParams'
   | 'script'
   | 'keepChange'
@@ -247,7 +246,6 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
-  transform: false,
   videoParams: false,
   script: false,
   keepChange: false,
@@ -264,7 +262,6 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'layerDecompose',
   'civitai',
   'aspectRatio',
-  'transform',
   'videoParams',
   'script',
   'voiceSelector',

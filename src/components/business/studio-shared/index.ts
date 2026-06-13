@@ -10,9 +10,9 @@
  * External modules MUST import from this index, not from individual
  * files inside chrome/ setup/ workflow/ primitives/.
  *
- * Status (Spec 2, 2026-05-28): first batch of 16 files. Remaining 4
- * giants (StudioPromptArea, StudioLoraChip, GenerationPreview,
- * StudioDockPanelArea) and 24 other SHARED files stay in the flat
+ * Status (Spec 2, 2026-05-28): first batch of 16 files. Remaining 3
+ * giants (StudioPromptArea, GenerationPreview, StudioDockPanelArea)
+ * and 24 other SHARED files stay in the flat
  * studio/ layer until Spec 6 splits and relocates them.
  */
 
@@ -28,7 +28,6 @@ export * from './chrome/StudioResizableLayout'
 // setup — API key / model configuration gates
 export * from './setup/QuickSetupDialog'
 export * from './setup/StudioApiRoutesSection'
-export * from './setup/StudioFaceConsentModal'
 
 // workflow — workflow / mode selection chrome
 export * from './workflow/StudioGenerateBar'

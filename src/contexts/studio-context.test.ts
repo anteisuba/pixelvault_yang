@@ -1,4 +1,18 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('@/i18n/navigation', () => ({
+  Link: 'a',
+  redirect: vi.fn(),
+  usePathname: () => '/',
+  useRouter: () => ({
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
+    replace: vi.fn(),
+  }),
+}))
 
 import {
   DEFAULT_WORKFLOW_ID,
@@ -73,7 +87,6 @@ function makeInitialState(
       voiceSelector: false,
       voiceTrainer: false,
       audioTranscribe: false,
-      transform: false,
       videoParams: false,
       script: false,
       keepChange: false,

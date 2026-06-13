@@ -3834,7 +3834,6 @@
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
     "layerDecompose": "Layers",
-    "transform": "Transform",
     "civitaiToken": "Civitai Token",
     "advanced": "Advanced",
     "tokenSaved": "Token saved",
@@ -3863,7 +3862,6 @@
     "referenceDisabledUnsupported": "Current model doesn't accept reference images",
     "reverse": "Image Reverse Engineer",
     "layers": "Layer Decompose",
-    "transform": "Image Transform",
     "script": "Video Script",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Assistant",
@@ -4324,51 +4322,9 @@
     "notImplemented": "This feature is coming soon."
   },
   "Transform": {
-    "title": "Image Transform",
-    "description": "Transform your images with AI-powered style transfer",
-    "styleLabel": "Style",
-    "chooseInputImage": "Add an image to transform",
-    "uploadImage": "Upload image",
-    "selectAsset": "Choose from Assets",
-    "selectAssetDescription": "Pick an image asset to transform.",
-    "inputPreviewAlt": "Transform input",
-    "removeInputImage": "Remove transform input image",
     "errors": {
-      "notImplemented": "This transformation type is not yet available. Stay tuned!",
-      "uploadRequired": "Please upload an image to transform.",
-      "styleRequired": "Please select a style or preset.",
-      "partialSuccess": "{count} of {total} variants generated successfully.",
-      "allFailed": "All variants failed to generate. Please try again.",
-      "inputTooLarge": "Image must be under 10 MB and 2048×2048 pixels."
-    },
-    "variants": {
-      "fast": "Fast (1×)",
-      "full": "4 Variants",
-      "retry": "Retry"
-    },
-    "preservation": {
-      "light": "Light",
-      "medium": "Medium",
-      "heavy": "Heavy",
-      "structure": "Structure",
-      "text": "Text",
-      "composition": "Composition",
-      "people": "People"
-    },
-    "faceConsent": {
-      "title": "Face Detected",
-      "description": "This image appears to contain faces. Please confirm you have the right to transform this image.",
-      "confirm": "I confirm",
-      "cancel": "Cancel"
+      "allFailed": "All variants failed to generate. Please try again."
     }
-  },
-  "TransformPresets": {
-    "watercolor": "Watercolor",
-    "oilPainting": "Oil Painting",
-    "ghibli": "Ghibli Animation",
-    "cyberpunk": "Cyberpunk",
-    "pixel": "Pixel Art",
-    "photoRealistic": "Photo-realistic"
   },
   "LoraTraining": {
     "title": "Train LoRA",

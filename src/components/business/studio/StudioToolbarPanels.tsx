@@ -26,7 +26,7 @@ interface StudioToolbarPanelsProps {
 
 /**
  * StudioToolbarRow — renders ONLY the toolbar button row. Each interactive
- * tool (enhance, reverse, transform, cards, refImage, style, aspect ratio)
+ * tool (enhance, reverse, cards, refImage, style, aspect ratio)
  * is now a self-contained Krea-style popover button anchored to its own
  * trigger; only inline panels (advanced, civitai, layer decompose)
  * are still routed via dispatch + StudioDockPanelArea.

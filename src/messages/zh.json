@@ -3834,7 +3834,6 @@
     "referenceImage": "参考图",
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "图层分解",
-    "transform": "变换",
     "civitaiToken": "Civitai Token",
     "advanced": "高级",
     "tokenSaved": "Token 已保存",
@@ -3863,7 +3862,6 @@
     "referenceDisabledUnsupported": "当前模型不支持参考图",
     "reverse": "图片反向工程",
     "layers": "图层分解",
-    "transform": "图像变换",
     "script": "视频剧本",
     "advanced": "高级设置",
     "enhance": "提示词助手",
@@ -4324,51 +4322,9 @@
     "notImplemented": "此功能即将推出。"
   },
   "Transform": {
-    "title": "图像变换",
-    "description": "使用 AI 风格迁移变换你的图像",
-    "styleLabel": "风格",
-    "chooseInputImage": "添加要变换的图片",
-    "uploadImage": "上传图片",
-    "selectAsset": "从素材库选择",
-    "selectAssetDescription": "选择一张素材图片用于变换。",
-    "inputPreviewAlt": "待变换输入图",
-    "removeInputImage": "移除待变换输入图",
     "errors": {
-      "notImplemented": "此变换类型暂未开放，敬请期待！",
-      "uploadRequired": "请上传一张图片进行变换。",
-      "styleRequired": "请选择一个风格或预设。",
-      "partialSuccess": "{total} 个变体中有 {count} 个生成成功。",
-      "allFailed": "所有变体均生成失败，请重试。",
-      "inputTooLarge": "图片不能超过 10 MB，分辨率不能超过 2048×2048。"
-    },
-    "variants": {
-      "fast": "快速 (1×)",
-      "full": "4 变体",
-      "retry": "重试"
-    },
-    "preservation": {
-      "light": "轻度",
-      "medium": "中度",
-      "heavy": "重度",
-      "structure": "结构",
-      "text": "文字",
-      "composition": "构图",
-      "people": "人物"
-    },
-    "faceConsent": {
-      "title": "检测到人脸",
-      "description": "此图片似乎包含人脸。请确认你有权变换此图片。",
-      "confirm": "确认",
-      "cancel": "取消"
+      "allFailed": "所有变体均生成失败，请重试。"
     }
-  },
-  "TransformPresets": {
-    "watercolor": "水彩画",
-    "oilPainting": "油画",
-    "ghibli": "吉卜力动画",
-    "cyberpunk": "赛博朋克",
-    "pixel": "像素艺术",
-    "photoRealistic": "照片级写实"
   },
   "LoraTraining": {
     "title": "训练 LoRA",

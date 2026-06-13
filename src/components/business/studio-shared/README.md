@@ -35,8 +35,8 @@ Deep imports (`@/components/business/studio-shared/setup/QuickSetupDialog`) work
 
 ## What does NOT belong here (yet)
 
-- 4 giant SHARED files still in `studio/` flat (`StudioPromptArea` 1,371 LOC, `StudioLoraChip` 889 LOC, `GenerationPreview` 667 LOC, `StudioDockPanelArea` 571 LOC) — Spec 6 will split them and relocate the cohesive pieces.
-- ~24 other SHARED candidates (`ReferenceImageChip`, `StudioAspectRatioPopover`, `StudioCardsButton`, `StudioEnhanceButton`, `StudioGallery`, `StudioQuickRouteSelector`, `StudioCardSection`, `StudioTransformPanel`, etc.) — Spec 6 second pass.
+- 3 giant SHARED files still in `studio/` flat (`StudioPromptArea` 1,371 LOC, `GenerationPreview` 667 LOC, `StudioDockPanelArea` 571 LOC) — Spec 6 will split them and relocate the cohesive pieces.
+- ~22 other SHARED candidates (`ReferenceImageChip`, `StudioAspectRatioPopover`, `StudioCardsButton`, `StudioEnhanceButton`, `StudioGallery`, `StudioCardSection`, etc.) — Spec 6 second pass.
 - Single-tool-owned files mislabeled as shared (`StudioInpaintEditor` → Edit, `VoiceSelector` → Node, etc.) — moved by each tool's module spec.
 
 ## Boundary rules (ESLint-enforced)

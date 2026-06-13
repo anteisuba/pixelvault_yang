@@ -201,17 +201,10 @@ describe('StudioProvider panel state', () => {
     expect(result.current.state.panels.reverse).toBe(true)
 
     act(() => {
-      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'transform' })
-    })
-
-    expect(result.current.state.panels.reverse).toBe(false)
-    expect(result.current.state.panels.transform).toBe(true)
-
-    act(() => {
       result.current.dispatch({ type: 'OPEN_PANEL', payload: 'stylePreset' })
     })
 
-    expect(result.current.state.panels.transform).toBe(false)
+    expect(result.current.state.panels.reverse).toBe(false)
     expect(result.current.state.panels.stylePreset).toBe(true)
 
     act(() => {

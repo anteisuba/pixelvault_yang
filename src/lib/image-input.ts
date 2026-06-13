@@ -45,7 +45,7 @@ export type ImageFileResult =
  *
  * Returns a discriminated union so callers can map each failure mode to a
  * specific i18n string when they care, or collapse everything to a single
- * message when they don't (the original `StudioInputImage` does the latter).
+ * generic message when they don't.
  */
 export function readImageFileAsBase64(
   file: File,

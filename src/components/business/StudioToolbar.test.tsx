@@ -15,10 +15,6 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => <button type="button">image</button>,
 }))
 
-vi.mock('@/components/business/studio/StudioTransformButton', () => ({
-  StudioTransformButton: () => <button type="button">transform</button>,
-}))
-
 vi.mock('@/components/business/studio/StudioCardsButton', () => ({
   StudioCardsButton: () => <button type="button">cards</button>,
 }))
@@ -35,13 +31,13 @@ vi.mock('@/components/business/studio/StudioAspectRatioPopover', () => ({
 }))
 
 describe('StudioToolbar', () => {
-  it('renders the fixed six-chip image toolbar without separators', () => {
+  it('renders the fixed five-chip image toolbar without separators', () => {
     render(<StudioToolbar />)
 
-    expect(screen.getAllByRole('button')).toHaveLength(6)
+    expect(screen.getAllByRole('button')).toHaveLength(5)
     expect(screen.queryAllByRole('separator')).toHaveLength(0)
     expect(
       screen.getAllByRole('button').map((button) => button.textContent),
-    ).toEqual(['assistant', 'image', 'transform', 'cards', 'lora', 'aspect'])
+    ).toEqual(['assistant', 'image', 'cards', 'lora', 'aspect'])
   })
 })

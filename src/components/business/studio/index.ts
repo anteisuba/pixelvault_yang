@@ -14,7 +14,6 @@ export { StudioWorkflowPicker } from '@/components/business/studio-shared/workfl
 export { StudioWorkflowSummary } from '@/components/business/studio-shared/workflow/StudioWorkflowSummary'
 export { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'
 export { StudioCommandPalette } from '@/components/business/studio-shared/chrome/StudioCommandPalette'
-export { StudioFaceConsentModal } from '@/components/business/studio-shared/setup/StudioFaceConsentModal'
 
 // Still flat — to be relocated by Spec 6 (4 giants + 24 remaining SHARED)
 // or by individual L2 module specs.
@@ -22,12 +21,7 @@ export { StudioPromptArea } from './StudioPromptArea'
 export { GenerationPreview } from './GenerationPreview'
 export { StudioToolbarPanels } from './StudioToolbarPanels'
 export { StudioCardSection } from './StudioCardSection'
-export { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
 export { StudioGallery } from './StudioGallery'
-export { StudioTransformPanel } from './StudioTransformPanel'
-export { StudioInputImage } from './StudioInputImage'
-export { StudioTransformToggle } from './StudioTransformToggle'
-export { StudioVariantsGrid } from './StudioVariantsGrid'
 export { StudioSceneProgress } from './StudioSceneProgress'
 export { StudioSceneFeedback } from './StudioSceneFeedback'
 export type { SceneFeedbackAction } from './StudioSceneFeedback'

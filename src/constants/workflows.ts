@@ -50,7 +50,6 @@ export type WorkflowDefaultOpenPanel =
   | 'aspectRatio'
   | 'voiceSelector'
   | 'voiceTrainer'
-  | 'transform'
   | 'videoParams'
   | 'script'
 

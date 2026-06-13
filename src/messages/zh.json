@@ -1589,6 +1589,7 @@
     "saveTemplateFailed": "保存提示词失败",
     "saveCurrentPrompt": "保存当前提示词",
     "saveCurrentPromptEmpty": "先输入提示词，就可以直接保存为模板。",
+    "manageInPrompts": "在提示词中管理",
     "savingCurrentPrompt": "正在保存提示词...",
     "loadingTemplates": "正在加载模板...",
     "createAction": "新建模板",

@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { ExternalLink, FileText, Loader2, Save, Sparkles } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { ArrowUpRight, FileText, Loader2, Save, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -15,11 +15,19 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTrigger,
+} from '@/components/ui/responsive-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  StudioPanelHeader,
+  studioDialogBaseClass,
+  studioDialogBodyClass,
+} from '@/components/business/studio-shared/primitives/tool-surface'
+import { ROUTES } from '@/constants/routes'
+import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
 import { useRecipes } from '@/hooks/prompts/use-recipes'
@@ -76,6 +84,7 @@ export function PromptTemplatePicker({
   onApplyInspiration,
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<PickerTab>('mine')
   const [isSavingCurrent, setIsSavingCurrent] = useState(false)
@@ -108,6 +117,11 @@ export function PromptTemplatePicker({
     setOpen(false)
   }
 
+  const handleManagePrompts = () => {
+    setOpen(false)
+    router.push(ROUTES.PROMPTS)
+  }
+
   const handleSaveCurrentPrompt = async () => {
     if (!trimmedCurrentPrompt) {
       toast.error(t('createPromptRequired'))
@@ -133,7 +147,6 @@ export function PromptTemplatePicker({
       if (result.success && result.data) {
         addRecipe(result.data)
         toast.success(t('saveTemplateSuccess'))
-        setOpen(false)
         return
       }
       toast.error(result.error ?? t('saveTemplateFailed'))
@@ -173,8 +186,8 @@ export function PromptTemplatePicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <ResponsiveDialog open={open} onOpenChange={setOpen}>
+      <ResponsiveDialogTrigger asChild>
         <Button
           type="button"
           variant="ghost"
@@ -190,70 +203,92 @@ export function PromptTemplatePicker({
           <FileText className="size-4" />
           {t('templatePicker')}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        side="top"
-        sideOffset={10}
-        collisionPadding={12}
-        className="w-[28rem] max-w-[calc(100vw-2rem)] overflow-hidden p-0"
-      >
-        {showInspiration ? (
-          <Tabs
-            value={tab}
-            onValueChange={(v) => setTab(v as PickerTab)}
-            className="gap-0"
-          >
-            <div className="border-b border-border/60 p-2">
-              <TabsList
-                variant="line"
-                className="h-8 w-full justify-start gap-3"
-              >
-                <TabsTrigger value="mine" className="flex-none px-2">
-                  {t('tabMine')}
-                </TabsTrigger>
-                <TabsTrigger value="inspiration" className="flex-none px-2">
-                  <Sparkles className="size-3.5" />
-                  {t('tabInspiration')}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="mine" className="mt-0">
-              <MineTabBody
-                canSaveCurrent={canSaveCurrent}
-                isSavingCurrent={isSavingCurrent}
-                trimmedCurrentPrompt={trimmedCurrentPrompt}
-                onSaveCurrent={() => void handleSaveCurrentPrompt()}
-                isLoading={isLoading}
-                recentRecipes={recentRecipes}
-                restRecipes={restRecipes}
-                renderRecipeItem={renderRecipeItem}
-              />
-            </TabsContent>
-
-            <TabsContent value="inspiration" className="mt-0">
-              <InspirationTabBody onPick={runInspirationAction} />
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <MineTabBody
-            canSaveCurrent={canSaveCurrent}
-            isSavingCurrent={isSavingCurrent}
-            trimmedCurrentPrompt={trimmedCurrentPrompt}
-            onSaveCurrent={() => void handleSaveCurrentPrompt()}
-            isLoading={isLoading}
-            recentRecipes={recentRecipes}
-            restRecipes={restRecipes}
-            renderRecipeItem={renderRecipeItem}
-          />
+      </ResponsiveDialogTrigger>
+      <ResponsiveDialogContent
+        className={cn(
+          studioDialogBaseClass,
+          'flex w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col sm:w-[min(640px,calc(100vw-4rem))] sm:!max-w-xl',
         )}
-      </PopoverContent>
-    </Popover>
+        mobileBodyClassName="px-0 pt-0"
+      >
+        <StudioPanelHeader icon={<FileText className="size-3.5" />}>
+          {t('templatePickerTitle')}
+        </StudioPanelHeader>
+        <ResponsiveDialogDescription className="sr-only">
+          {t('templatePickerTitle')}
+        </ResponsiveDialogDescription>
+        <div
+          className={cn(
+            studioDialogBodyClass,
+            'flex min-h-0 flex-1 flex-col pt-3',
+          )}
+        >
+          {showInspiration ? (
+            <Tabs
+              value={tab}
+              onValueChange={(v) => setTab(v as PickerTab)}
+              className="gap-0"
+            >
+              <div className="border-b border-border/60 pb-2">
+                <TabsList
+                  variant="line"
+                  className="h-8 w-full justify-start gap-3"
+                >
+                  <TabsTrigger value="mine" className="flex-none px-2">
+                    {t('tabMine')}
+                  </TabsTrigger>
+                  <TabsTrigger value="inspiration" className="flex-none px-2">
+                    <Sparkles className="size-3.5" />
+                    {t('tabInspiration')}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="mine" className="mt-0">
+                <MineTabBody
+                  canSaveCurrent={canSaveCurrent}
+                  isSavingCurrent={isSavingCurrent}
+                  trimmedCurrentPrompt={trimmedCurrentPrompt}
+                  onSaveCurrent={() => void handleSaveCurrentPrompt()}
+                  isLoading={isLoading}
+                  recentRecipes={recentRecipes}
+                  restRecipes={restRecipes}
+                  renderRecipeItem={renderRecipeItem}
+                />
+              </TabsContent>
+
+              <TabsContent value="inspiration" className="mt-0">
+                <InspirationTabBody onPick={runInspirationAction} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <MineTabBody
+              canSaveCurrent={canSaveCurrent}
+              isSavingCurrent={isSavingCurrent}
+              trimmedCurrentPrompt={trimmedCurrentPrompt}
+              onSaveCurrent={() => void handleSaveCurrentPrompt()}
+              isLoading={isLoading}
+              recentRecipes={recentRecipes}
+              restRecipes={restRecipes}
+              renderRecipeItem={renderRecipeItem}
+            />
+          )}
+          <div className="mt-3 border-t border-border/40 pt-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleManagePrompts}
+              className="min-h-11 w-full justify-center gap-2 rounded-full text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            >
+              {t('manageInPrompts')}
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
-
-// ─── Mine tab body (factored so it can be rendered with or without Tabs) ─
 
 interface MineTabBodyProps {
   canSaveCurrent: boolean
@@ -263,7 +298,7 @@ interface MineTabBodyProps {
   isLoading: boolean
   recentRecipes: RecipeRecord[]
   restRecipes: RecipeRecord[]
-  renderRecipeItem: (recipe: RecipeRecord) => React.ReactNode
+  renderRecipeItem: (recipe: RecipeRecord) => ReactNode
 }
 
 function MineTabBody({
@@ -280,15 +315,15 @@ function MineTabBody({
   const hasRecipes = recentRecipes.length + restRecipes.length > 0
   return (
     <>
-      <div className="border-b border-border/60 p-2">
+      <div className="border-b border-border/60 py-3">
         <Button
           type="button"
           variant="ghost"
           disabled={!canSaveCurrent || isSavingCurrent}
           onClick={onSaveCurrent}
           className={cn(
-            'h-10 w-full justify-start gap-2 rounded-lg px-3 text-sm',
-            'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+            'min-h-11 w-full justify-start gap-2 rounded-full border border-border/40 bg-muted/65 px-3 text-sm',
+            'text-muted-foreground hover:bg-muted hover:text-foreground',
             'disabled:pointer-events-none disabled:opacity-45',
           )}
         >
@@ -300,17 +335,17 @@ function MineTabBody({
           {isSavingCurrent ? t('savingCurrentPrompt') : t('saveCurrentPrompt')}
         </Button>
         {!trimmedCurrentPrompt && (
-          <p className="px-3 pb-1 text-xs text-muted-foreground/75">
+          <p className="px-3 pt-2 text-xs text-muted-foreground/75">
             {t('saveCurrentPromptEmpty')}
           </p>
         )}
       </div>
-      <Command className="bg-transparent">
+      <Command className="overflow-visible rounded-none bg-transparent">
         <CommandInput
           placeholder={t('searchPlaceholder')}
           className="h-10 text-sm"
         />
-        <CommandList className="max-h-96 overscroll-contain">
+        <CommandList className="max-h-none overflow-visible overscroll-auto">
           {isLoading && !hasRecipes ? (
             <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -337,8 +372,6 @@ function MineTabBody({
   )
 }
 
-// ─── Inspiration tab body ────────────────────────────────────────
-
 interface InspirationTabBodyProps {
   onPick: (inspiration: InspirationRecord) => void
 }
@@ -349,7 +382,7 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
 
   return (
     <div className="flex flex-col">
-      <div className="border-b border-border/60 p-2">
+      <div className="border-b border-border/60 py-2">
         <input
           type="search"
           inputMode="search"
@@ -365,7 +398,7 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
         />
       </div>
 
-      <div className="max-h-96 overflow-y-auto overscroll-contain">
+      <div>
         {error ? (
           <div className="px-4 py-8 text-center text-sm text-destructive">
             {error}
@@ -413,16 +446,12 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                       <span>@{inspiration.authorName}</span>
                       {inspiration.categories[0] && (
                         <>
-                          <span>·</span>
+                          <span>/</span>
                           <span>{inspiration.categories[0]}</span>
                         </>
                       )}
                     </span>
                   </span>
-                  <ExternalLink
-                    className="mt-1 size-3 shrink-0 text-muted-foreground/60"
-                    aria-hidden
-                  />
                 </button>
               </li>
             ))}

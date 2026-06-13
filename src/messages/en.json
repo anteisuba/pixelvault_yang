@@ -1589,6 +1589,7 @@
     "saveTemplateFailed": "Failed to save prompt",
     "saveCurrentPrompt": "Save current prompt",
     "saveCurrentPromptEmpty": "Write a prompt first, then save it as a template.",
+    "manageInPrompts": "Manage in Prompts",
     "savingCurrentPrompt": "Saving prompt...",
     "loadingTemplates": "Loading templates...",
     "createAction": "New template",

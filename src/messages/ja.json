@@ -1589,6 +1589,7 @@
     "saveTemplateFailed": "プロンプトの保存に失敗しました",
     "saveCurrentPrompt": "現在のプロンプトを保存",
     "saveCurrentPromptEmpty": "先にプロンプトを入力すると、テンプレートとして保存できます。",
+    "manageInPrompts": "プロンプトで管理",
     "savingCurrentPrompt": "プロンプトを保存中...",
     "loadingTemplates": "テンプレートを読み込み中...",
     "createAction": "新規テンプレート",

@@ -12,9 +12,11 @@ import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
+  StudioChipBadge,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
+  studioChipActiveClass,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -45,6 +47,10 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const enabledReferenceCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
   const isActive = totalEntries > 0
+  const badgeWarning =
+    totalEntries > 0 && enabledReferenceCount === 0
+      ? t('disabledUnsupported')
+      : undefined
 
   const closePopover = () => {
     dispatch({ type: 'CLOSE_PANEL', payload: 'refImage' })
@@ -93,24 +99,18 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             type="button"
             disabled={disabled}
             aria-label={t('label')}
+            title={badgeWarning}
             className={cn(
               studioToolTriggerClass,
-              (isActive || popoverOpen) && 'bg-muted/30 text-primary',
+              (isActive || popoverOpen) && studioChipActiveClass,
             )}
           >
             <ImageIcon className="size-4 shrink-0" />
             <span className="hidden sm:inline">{t('label')}</span>
             {totalEntries > 0 && (
-              <span
-                className={cn(
-                  'absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full text-[10px]',
-                  enabledReferenceCount > 0
-                    ? 'bg-primary text-white'
-                    : 'bg-muted-foreground text-background',
-                )}
-              >
+              <StudioChipBadge title={badgeWarning} ariaLabel={badgeWarning}>
                 {totalEntries}
-              </span>
+              </StudioChipBadge>
             )}
           </Toolbar.Button>
         </StudioToolSurfaceTrigger>

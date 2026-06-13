@@ -4,9 +4,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import {
+  StudioChipBadge,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
+  studioChipActiveClass,
+  studioToolTriggerClass,
 } from './tool-surface'
 
 vi.mock('@/hooks/use-mobile', () => ({
@@ -56,6 +59,30 @@ function renderChip(open?: boolean) {
     </StudioToolSurface>,
   )
 }
+
+describe('Studio chip primitives', () => {
+  it('keeps the canonical rounded trigger and active classes', () => {
+    expect(studioToolTriggerClass).toContain('h-11')
+    expect(studioToolTriggerClass).toContain('sm:h-9')
+    expect(studioToolTriggerClass).toContain('rounded-full')
+    expect(studioToolTriggerClass).toContain('px-3.5')
+    expect(studioToolTriggerClass).toContain('font-medium')
+    expect(studioToolTriggerClass).toContain('duration-fast')
+    expect(studioToolTriggerClass).toContain('ease-standard')
+    expect(studioChipActiveClass).toBe(
+      'bg-primary/10 text-primary ring-1 ring-primary/30',
+    )
+  })
+
+  it('renders the shared primary badge with semantic foreground tokens', () => {
+    render(<StudioChipBadge title="Badge title">3</StudioChipBadge>)
+
+    const badge = screen.getByText('3')
+    expect(badge).toHaveClass('bg-primary')
+    expect(badge).toHaveClass('text-primary-foreground')
+    expect(badge).toHaveAttribute('title', 'Badge title')
+  })
+})
 
 describe('StudioToolSurface', () => {
   it('opens an anchored popover with the tool data attribute on desktop', async () => {

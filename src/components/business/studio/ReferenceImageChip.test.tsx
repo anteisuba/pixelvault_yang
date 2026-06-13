@@ -40,6 +40,19 @@ vi.mock('@/components/business/ImageSourcePicker', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
+  StudioChipBadge: ({
+    children,
+    title,
+    ariaLabel,
+  }: {
+    children: ReactNode
+    title?: string
+    ariaLabel?: string
+  }) => (
+    <span title={title} aria-label={ariaLabel}>
+      {children}
+    </span>
+  ),
   StudioToolSurface: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -49,6 +62,7 @@ vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
   StudioToolPopoverContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  studioChipActiveClass: 'studio-chip-active',
   studioToolTriggerClass: '',
 }))
 

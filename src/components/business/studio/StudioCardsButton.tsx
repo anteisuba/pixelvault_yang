@@ -10,9 +10,11 @@ import { cn } from '@/lib/utils'
 
 import { StudioCardPicker } from './StudioCardPicker'
 import {
+  StudioChipBadge,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
+  studioChipActiveClass,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -50,17 +52,12 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
           type="button"
           disabled={disabled}
           aria-label={t('cards')}
-          className={cn(
-            studioToolTriggerClass,
-            open && 'bg-muted/30 text-primary',
-          )}
+          className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
         >
           <PanelsTopLeft className="size-4" />
           <span className="hidden sm:inline">{t('cards')}</span>
           {selectedCardCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
-              {selectedCardCount}
-            </span>
+            <StudioChipBadge>{selectedCardCount}</StudioChipBadge>
           ) : null}
         </Toolbar.Button>
       </StudioToolSurfaceTrigger>

@@ -6,19 +6,20 @@ import dynamic from 'next/dynamic'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTrigger,
+} from '@/components/ui/responsive-dialog'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { adapterHasCapability } from '@/constants/llm-capability'
 import { cn } from '@/lib/utils'
 import {
+  studioChipActiveClass,
   studioDialogBaseClass,
-  studioDialogHeaderClass,
+  StudioPanelHeader,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -44,10 +45,10 @@ interface StudioEnhanceButtonProps {
 
 /**
  * StudioEnhanceButton — toolbar trigger that opens the PromptAssistantPanel
- * in a centred Dialog. Enhance is intentionally heavier than its toolbar
+ * in a responsive heavy panel. Enhance is intentionally heavier than its toolbar
  * siblings (style / refImage / aspect): it bundles an LLM textarea, style
- * picker, and Gemini quick-setup, so a focused modal beats a popover that
- * would clip on smaller viewports.
+ * picker, and Gemini quick-setup, so it uses desktop Dialog / mobile Drawer
+ * instead of a popover that would clip on smaller viewports.
  */
 export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
   const { state, dispatch } = useStudioForm()
@@ -70,7 +71,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
   const isEnhancing = promptEnhance.isEnhancing
 
   return (
-    <Dialog
+    <ResponsiveDialog
       open={open}
       onOpenChange={(nextOpen) =>
         dispatch({
@@ -79,33 +80,34 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
         })
       }
     >
-      <DialogTrigger asChild>
+      <ResponsiveDialogTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled || isEnhancing}
           aria-label={t('enhance')}
-          className={cn(
-            studioToolTriggerClass,
-            open && 'bg-muted/30 text-primary',
-          )}
+          className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
         >
           <Sparkles className={cn('size-4', isEnhancing && 'animate-pulse')} />
           <span className="hidden sm:inline">{t('enhance')}</span>
         </Toolbar.Button>
-      </DialogTrigger>
-      <DialogContent
+      </ResponsiveDialogTrigger>
+      <ResponsiveDialogContent
         className={cn(
           studioDialogBaseClass,
-          'w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] rounded-2xl sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
+          'w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
         )}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
         {/* 可见头部 — 与 StudioDockPanelArea 的 Dialog 型面板同规范（决议 5 契约） */}
-        <DialogTitle className={studioDialogHeaderClass}>
-          <Sparkles className="size-3.5 text-primary" />
+        <StudioPanelHeader
+          icon={<Sparkles className="size-3.5 text-primary" />}
+        >
           {t('enhance')}
-        </DialogTitle>
+        </StudioPanelHeader>
+        <ResponsiveDialogDescription className="sr-only">
+          {t('enhance')}
+        </ResponsiveDialogDescription>
         <div className="flex h-[min(680px,75vh)] flex-col overflow-hidden px-5 pb-5 pt-3">
           <PromptAssistantPanel
             currentPrompt={state.prompt}
@@ -127,7 +129,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
             }}
           />
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

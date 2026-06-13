@@ -21,12 +21,11 @@ import {
   ResponsiveDialog,
   ResponsiveDialogContent,
   ResponsiveDialogDescription,
-  ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import {
+  StudioPanelHeader,
   studioDialogBaseClass,
   studioDialogBodyClass,
-  studioDialogHeaderClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
@@ -109,7 +108,6 @@ const StudioScriptPanel = dynamic(
 // Chrome 类来自 tool-surface（决议 5 工具面板契约），与助手等 Dialog 型面板共用。
 const DIALOG_BASE = studioDialogBaseClass
 const DIALOG_BODY = studioDialogBodyClass
-const DIALOG_HEADER = studioDialogHeaderClass
 
 type SpeakerVoiceSelectionTarget =
   | { mode: 'append' }
@@ -238,15 +236,14 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            <Key className="size-3.5 text-primary" />
+          <StudioPanelHeader icon={<Key className="size-3.5 text-primary" />}>
             {tPanels('civitai')}
             {civitai.hasToken && (
               <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
                 {t('tokenSaved')}
               </span>
             )}
-          </ResponsiveDialogTitle>
+          </StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tPanels('civitai')}
           </ResponsiveDialogDescription>
@@ -296,9 +293,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tPanels('layers')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tPanels('layers')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tPanels('layers')}
           </ResponsiveDialogDescription>
@@ -475,9 +470,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tBar('clone')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tBar('clone')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tBar('clone')}
           </ResponsiveDialogDescription>
@@ -495,9 +488,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tBar('transcribe')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tBar('transcribe')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tBar('transcribe')}
           </ResponsiveDialogDescription>
@@ -519,9 +510,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tPanels('advanced')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tPanels('advanced')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tPanels('advanced')}
           </ResponsiveDialogDescription>
@@ -539,9 +528,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tPanels('videoSettings')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tPanels('videoSettings')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tPanels('videoSettings')}
           </ResponsiveDialogDescription>
@@ -559,9 +546,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         }}
       >
         <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
-          <ResponsiveDialogTitle className={DIALOG_HEADER}>
-            {tPanels('script')}
-          </ResponsiveDialogTitle>
+          <StudioPanelHeader>{tPanels('script')}</StudioPanelHeader>
           <ResponsiveDialogDescription className="sr-only">
             {tPanels('script')}
           </ResponsiveDialogDescription>

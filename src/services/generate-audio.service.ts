@@ -8,6 +8,7 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import {
   AI_MODELS,
   getExecutionModelId,
@@ -40,6 +41,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { createGeneration } from '@/services/generation.service'
+import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
   resolveGenerationRoute,
   GenerateImageServiceError,
@@ -834,7 +836,11 @@ export async function checkAudioGenerationStatus(
   }
 
   if (job.status === 'FAILED') {
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      ...buildGenerationFailureResponseFields(job),
+    }
   }
 
   if (!job.externalRequestId) {
@@ -870,7 +876,11 @@ export async function checkAudioGenerationStatus(
     })
 
     if (freshJob?.status === 'FAILED') {
-      return { jobId: job.id, status: 'FAILED' }
+      return {
+        jobId: job.id,
+        status: 'FAILED',
+        ...buildGenerationFailureResponseFields(freshJob),
+      }
     }
 
     return { jobId: job.id, status: 'IN_QUEUE' }
@@ -912,17 +922,31 @@ export async function checkAudioGenerationStatus(
   }
 
   if (pollResult.status === 'FAILED') {
+    const errorMessage = 'Audio generation failed on provider side'
     await failGenerationJob(job.id, {
-      errorMessage: 'Audio generation failed on provider side',
+      errorMessage,
+      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
     })
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: errorMessage,
+      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+    }
   }
 
   if (!pollResult.result) {
+    const errorMessage = 'Provider returned completed but no result'
     await failGenerationJob(job.id, {
-      errorMessage: 'Provider returned completed but no result',
+      errorMessage,
+      errorCode: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
     })
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: errorMessage,
+      errorCode: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+    }
   }
 
   const claimed = await db.generationJob.updateMany({
@@ -945,7 +969,11 @@ export async function checkAudioGenerationStatus(
     }
 
     if (freshJob?.status === 'FAILED') {
-      return { jobId: freshJob.id, status: 'FAILED' }
+      return {
+        jobId: freshJob.id,
+        status: 'FAILED',
+        ...buildGenerationFailureResponseFields(freshJob),
+      }
     }
 
     return { jobId: job.id, status: 'IN_PROGRESS' }

@@ -644,7 +644,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
               if (statusData.status === 'FAILED') {
                 const { message, code } = resolveGenerationError(
-                  statusResponse,
+                  statusData,
                   tVideo('errorFallback'),
                 )
                 markActiveRunItemFailed(itemId, message)
@@ -1076,7 +1076,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
                 if (statusData.status === 'FAILED') {
                   const { message, code } = resolveGenerationError(
-                    statusResponse,
+                    statusData,
                     tStudio('generateFailed'),
                   )
                   markActiveRunItemFailed(itemId, message)

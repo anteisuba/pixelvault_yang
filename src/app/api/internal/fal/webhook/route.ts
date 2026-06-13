@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 import { FAL_WEBHOOK } from '@/constants/execution'
+import { parseGenerationErrorCode } from '@/constants/generation-errors'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { verifyFalWebhookSignature } from '@/lib/signature-verifiers/fal-webhook'
@@ -50,11 +51,41 @@ function extractFalVideoResult(body: Record<string, unknown>): {
   return { artifactUrl, thumbnailUrl, mimeType }
 }
 
-function isFalErrorBody(body: Record<string, unknown>): boolean {
+export function isFalErrorBody(body: Record<string, unknown>): boolean {
   return (
+    readString(body, 'status') === 'ERROR' ||
     typeof body.error === 'string' ||
     typeof body.detail === 'string' ||
-    Array.isArray(body.detail)
+    Array.isArray(body.detail) ||
+    (isRecord(body.payload) && Array.isArray(body.payload.detail))
+  )
+}
+
+export function extractFalDetailMessage(detail: unknown): string | null {
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (!Array.isArray(detail)) return null
+
+  const parts = detail
+    .map((item) => {
+      if (typeof item === 'string') return item
+      if (!isRecord(item)) return null
+      const type = readString(item, 'type')
+      const message = readString(item, 'msg') ?? readString(item, 'message')
+      if (type && message) return `${type}: ${message}`
+      return message ?? type
+    })
+    .filter((item): item is string => Boolean(item))
+
+  return parts.length > 0 ? parts.join('; ') : null
+}
+
+export function extractFalErrorMessage(body: Record<string, unknown>): string {
+  const payload = isRecord(body.payload) ? body.payload : null
+  return (
+    readString(body, 'error') ??
+    extractFalDetailMessage(body.detail) ??
+    (payload ? extractFalDetailMessage(payload.detail) : null) ??
+    'FAL generation failed.'
   )
 }
 
@@ -117,18 +148,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let result: CallbackResult
   try {
     if (isFailed) {
-      const errorMessage =
-        typeof body.error === 'string'
-          ? body.error
-          : typeof body.detail === 'string'
-            ? body.detail
-            : 'FAL generation failed.'
+      const errorMessage = extractFalErrorMessage(body)
 
       result = await handleExecutionCallback({
         runId,
         kind: 'result',
         ts,
-        data: { error: errorMessage },
+        data: {
+          error: errorMessage,
+          errorCode: parseGenerationErrorCode(errorMessage),
+          providerMetadata: {
+            requestId: readString(body, 'request_id') ?? undefined,
+            status: readString(body, 'status') ?? undefined,
+            source: 'fal_webhook',
+          },
+        },
       })
     } else {
       const extracted = extractFalVideoResult(body)

@@ -307,6 +307,8 @@ model GenerationJob {
   requestCount      Int                 @default(0)
   prompt            String?             @db.Text
   errorMessage      String?             @db.Text
+  errorCode         String?
+  providerFailure   Json?
   externalRequestId String?
   startedAt         DateTime?
   completedAt       DateTime?

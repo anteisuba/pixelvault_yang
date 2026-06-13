@@ -45,6 +45,7 @@ export type GenerationJobMinAggregateOutputType = {
   requestCount: number | null
   prompt: string | null
   errorMessage: string | null
+  errorCode: string | null
   externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
@@ -63,6 +64,7 @@ export type GenerationJobMaxAggregateOutputType = {
   requestCount: number | null
   prompt: string | null
   errorMessage: string | null
+  errorCode: string | null
   externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
@@ -81,6 +83,8 @@ export type GenerationJobCountAggregateOutputType = {
   requestCount: number
   prompt: number
   errorMessage: number
+  errorCode: number
+  providerFailure: number
   externalRequestId: number
   startedAt: number
   completedAt: number
@@ -109,6 +113,7 @@ export type GenerationJobMinAggregateInputType = {
   requestCount?: true
   prompt?: true
   errorMessage?: true
+  errorCode?: true
   externalRequestId?: true
   startedAt?: true
   completedAt?: true
@@ -127,6 +132,7 @@ export type GenerationJobMaxAggregateInputType = {
   requestCount?: true
   prompt?: true
   errorMessage?: true
+  errorCode?: true
   externalRequestId?: true
   startedAt?: true
   completedAt?: true
@@ -145,6 +151,8 @@ export type GenerationJobCountAggregateInputType = {
   requestCount?: true
   prompt?: true
   errorMessage?: true
+  errorCode?: true
+  providerFailure?: true
   externalRequestId?: true
   startedAt?: true
   completedAt?: true
@@ -250,6 +258,8 @@ export type GenerationJobGroupByOutputType = {
   requestCount: number
   prompt: string | null
   errorMessage: string | null
+  errorCode: string | null
+  providerFailure: runtime.JsonValue | null
   externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
@@ -291,6 +301,8 @@ export type GenerationJobWhereInput = {
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
   prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  errorCode?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  providerFailure?: Prisma.JsonNullableFilter<"GenerationJob">
   externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
@@ -313,6 +325,8 @@ export type GenerationJobOrderByWithRelationInput = {
   requestCount?: Prisma.SortOrder
   prompt?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  errorCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerFailure?: Prisma.SortOrderInput | Prisma.SortOrder
   externalRequestId?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -338,6 +352,8 @@ export type GenerationJobWhereUniqueInput = Prisma.AtLeast<{
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
   prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  errorCode?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  providerFailure?: Prisma.JsonNullableFilter<"GenerationJob">
   externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
@@ -360,6 +376,8 @@ export type GenerationJobOrderByWithAggregationInput = {
   requestCount?: Prisma.SortOrder
   prompt?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  errorCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerFailure?: Prisma.SortOrderInput | Prisma.SortOrder
   externalRequestId?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -386,6 +404,8 @@ export type GenerationJobScalarWhereWithAggregatesInput = {
   requestCount?: Prisma.IntWithAggregatesFilter<"GenerationJob"> | number
   prompt?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
+  errorCode?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
+  providerFailure?: Prisma.JsonNullableWithAggregatesFilter<"GenerationJob">
   externalRequestId?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
@@ -402,6 +422,8 @@ export type GenerationJobCreateInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -424,6 +446,8 @@ export type GenerationJobUncheckedCreateInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -442,6 +466,8 @@ export type GenerationJobUpdateInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -464,6 +490,8 @@ export type GenerationJobUncheckedUpdateInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -484,6 +512,8 @@ export type GenerationJobCreateManyInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -500,6 +530,8 @@ export type GenerationJobUpdateManyMutationInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -518,6 +550,8 @@ export type GenerationJobUncheckedUpdateManyInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -551,6 +585,8 @@ export type GenerationJobCountOrderByAggregateInput = {
   requestCount?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  errorCode?: Prisma.SortOrder
+  providerFailure?: Prisma.SortOrder
   externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -573,6 +609,7 @@ export type GenerationJobMaxOrderByAggregateInput = {
   requestCount?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  errorCode?: Prisma.SortOrder
   externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -591,6 +628,7 @@ export type GenerationJobMinOrderByAggregateInput = {
   requestCount?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  errorCode?: Prisma.SortOrder
   externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -728,6 +766,8 @@ export type GenerationJobCreateWithoutUserInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -748,6 +788,8 @@ export type GenerationJobUncheckedCreateWithoutUserInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -797,6 +839,8 @@ export type GenerationJobScalarWhereInput = {
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
   prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  errorCode?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  providerFailure?: Prisma.JsonNullableFilter<"GenerationJob">
   externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
@@ -813,6 +857,8 @@ export type GenerationJobCreateWithoutGenerationInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -833,6 +879,8 @@ export type GenerationJobUncheckedCreateWithoutGenerationInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -867,6 +915,8 @@ export type GenerationJobUpdateWithoutGenerationInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -887,6 +937,8 @@ export type GenerationJobUncheckedUpdateWithoutGenerationInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -905,6 +957,8 @@ export type GenerationJobCreateWithoutExecutionOutboxInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -926,6 +980,8 @@ export type GenerationJobUncheckedCreateWithoutExecutionOutboxInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -959,6 +1015,8 @@ export type GenerationJobUpdateWithoutExecutionOutboxInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -980,6 +1038,8 @@ export type GenerationJobUncheckedUpdateWithoutExecutionOutboxInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -997,6 +1057,8 @@ export type GenerationJobCreateWithoutApiUsageLedgerInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -1018,6 +1080,8 @@ export type GenerationJobUncheckedCreateWithoutApiUsageLedgerInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -1051,6 +1115,8 @@ export type GenerationJobUpdateWithoutApiUsageLedgerInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1072,6 +1138,8 @@ export type GenerationJobUncheckedUpdateWithoutApiUsageLedgerInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1090,6 +1158,8 @@ export type GenerationJobCreateManyUserInput = {
   requestCount?: number
   prompt?: string | null
   errorMessage?: string | null
+  errorCode?: string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
@@ -1106,6 +1176,8 @@ export type GenerationJobUpdateWithoutUserInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1126,6 +1198,8 @@ export type GenerationJobUncheckedUpdateWithoutUserInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1145,6 +1219,8 @@ export type GenerationJobUncheckedUpdateManyWithoutUserInput = {
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
   prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerFailure?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1194,6 +1270,8 @@ export type GenerationJobSelect<ExtArgs extends runtime.Types.Extensions.Interna
   requestCount?: boolean
   prompt?: boolean
   errorMessage?: boolean
+  errorCode?: boolean
+  providerFailure?: boolean
   externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
@@ -1217,6 +1295,8 @@ export type GenerationJobSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   requestCount?: boolean
   prompt?: boolean
   errorMessage?: boolean
+  errorCode?: boolean
+  providerFailure?: boolean
   externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
@@ -1237,6 +1317,8 @@ export type GenerationJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   requestCount?: boolean
   prompt?: boolean
   errorMessage?: boolean
+  errorCode?: boolean
+  providerFailure?: boolean
   externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
@@ -1257,6 +1339,8 @@ export type GenerationJobSelectScalar = {
   requestCount?: boolean
   prompt?: boolean
   errorMessage?: boolean
+  errorCode?: boolean
+  providerFailure?: boolean
   externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
@@ -1264,7 +1348,7 @@ export type GenerationJobSelectScalar = {
   updatedAt?: boolean
 }
 
-export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "prompt" | "errorMessage" | "externalRequestId" | "startedAt" | "completedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
+export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "prompt" | "errorMessage" | "errorCode" | "providerFailure" | "externalRequestId" | "startedAt" | "completedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
 export type GenerationJobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.GenerationJob$generationArgs<ExtArgs>
@@ -1300,6 +1384,8 @@ export type $GenerationJobPayload<ExtArgs extends runtime.Types.Extensions.Inter
     requestCount: number
     prompt: string | null
     errorMessage: string | null
+    errorCode: string | null
+    providerFailure: runtime.JsonValue | null
     externalRequestId: string | null
     startedAt: Date | null
     completedAt: Date | null
@@ -1742,6 +1828,8 @@ export interface GenerationJobFieldRefs {
   readonly requestCount: Prisma.FieldRef<"GenerationJob", 'Int'>
   readonly prompt: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly errorMessage: Prisma.FieldRef<"GenerationJob", 'String'>
+  readonly errorCode: Prisma.FieldRef<"GenerationJob", 'String'>
+  readonly providerFailure: Prisma.FieldRef<"GenerationJob", 'Json'>
   readonly externalRequestId: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly startedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>

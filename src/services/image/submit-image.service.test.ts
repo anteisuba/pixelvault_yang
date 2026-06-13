@@ -74,6 +74,7 @@ import { ensureUser } from '@/services/user.service'
 import {
   checkImageGenerationStatus,
   submitImageGeneration,
+  waitForImageGenerationResult,
 } from '@/services/image/submit-image.service'
 
 // ─── Fixtures ──────────────────────────────────────────────────
@@ -293,6 +294,22 @@ describe('checkImageGenerationStatus', () => {
       jobId: 'job-1',
       status: 'FAILED',
       error: 'Replicate image generation failed: Checkpoint not supported',
+    })
+  })
+
+  it('preserves the failed job error when server-side wait resolves failure', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'FAILED',
+      generationId: null,
+      errorMessage: 'Provider rejected the reference image',
+    } as never)
+
+    await expect(
+      waitForImageGenerationResult('clerk-1', 'job-1'),
+    ).rejects.toMatchObject({
+      message: 'Provider rejected the reference image',
     })
   })
 

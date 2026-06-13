@@ -774,4 +774,21 @@ describe('PR3-α staged-mode 3D generation', () => {
       cancelled: true,
     })
   })
+
+  it('status check surfaces stored failure messages for non-cancelled jobs', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      status: 'FAILED',
+      errorMessage: 'Rodin generation failed with status 400',
+    } as never)
+
+    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'FAILED',
+      error: 'Rodin generation failed with status 400',
+    })
+    expect(result).not.toHaveProperty('cancelled')
+  })
 })

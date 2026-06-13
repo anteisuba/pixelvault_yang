@@ -2,6 +2,7 @@ import 'server-only'
 
 import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { db } from '@/lib/db'
+import { Prisma } from '@/lib/generated/prisma/client'
 import type {
   ApiUsageLedger,
   GenerationJob,
@@ -22,6 +23,8 @@ export interface UpdateGenerationJobInput {
   generationId?: string
   requestCount?: number
   errorMessage?: string
+  errorCode?: string
+  providerFailure?: Prisma.InputJsonValue
 }
 
 export interface CreateApiUsageEntryInput {
@@ -150,6 +153,8 @@ export async function completeGenerationJob(
       status: 'COMPLETED',
       completedAt: new Date(),
       errorMessage: null,
+      errorCode: null,
+      providerFailure: Prisma.DbNull,
     },
   })
 }
@@ -166,6 +171,8 @@ export async function failGenerationJob(
       status: 'FAILED',
       completedAt: new Date(),
       errorMessage: input.errorMessage,
+      errorCode: input.errorCode,
+      providerFailure: input.providerFailure,
     },
   })
 }

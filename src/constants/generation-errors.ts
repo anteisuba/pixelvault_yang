@@ -5,6 +5,9 @@ export const GENERATION_ERROR_CODES = {
   INVALID_API_KEY: 'invalid_api_key',
   CONTENT_FILTERED: 'content_filtered',
   MODEL_UNAVAILABLE: 'model_unavailable',
+  PROVIDER_NO_OUTPUT: 'provider_no_output',
+  CALLBACK_TIMEOUT: 'callback_timeout',
+  STORAGE_UPLOAD_FAILED: 'storage_upload_failed',
   PROVIDER_INSUFFICIENT_BALANCE: 'provider_insufficient_balance',
   INSUFFICIENT_CREDITS: 'insufficient_credits',
   UNSUPPORTED_REFERENCE_IMAGE_FORMAT: 'unsupported_reference_image_format',
@@ -102,6 +105,10 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
     code: GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT,
   },
   {
+    pattern: /quota.*(?:exhausted|exceeded)|insufficient.*quota/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
+  },
+  {
     pattern:
       /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|余额不足|余额已耗尽|充值/i,
     code: GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
@@ -114,6 +121,11 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
   {
     pattern: /content.*filter|safety|nsfw|blocked|moderation/i,
     code: GENERATION_ERROR_CODES.CONTENT_FILTERED,
+  },
+  {
+    pattern:
+      /no_media_generated|no media|no output|no image|did not include.*(?:url|image|audio|video)|completed but no result/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
   },
   {
     pattern: /model.*unavailable|not\s*found|\b502\b/i,
@@ -149,6 +161,9 @@ const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
   INVALID_API_KEY: GENERATION_ERROR_CODES.INVALID_API_KEY,
   MISSING_API_KEY: GENERATION_ERROR_CODES.INVALID_API_KEY,
   UNSUPPORTED_MODEL: GENERATION_ERROR_CODES.MODEL_UNAVAILABLE,
+  CALLBACK_TIMEOUT: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+  STORAGE_UPLOAD_FAILED: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+  PROVIDER_NO_OUTPUT: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
 }
 
 const GENERATION_ERROR_CODE_VALUES = new Set<string>(
@@ -205,6 +220,15 @@ export function getGenerationErrorI18nKey(errorMessage: string): string | null {
   }
   if (errorCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE) {
     return 'errors.provider.insufficientBalance'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT) {
+    return 'errors.provider.noOutput'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.CALLBACK_TIMEOUT) {
+    return 'errors.provider.callbackTimeout'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED) {
+    return 'errors.provider.storageUploadFailed'
   }
 
   return null

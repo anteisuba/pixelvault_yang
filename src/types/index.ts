@@ -548,6 +548,9 @@ export type AudioStatusResponseData =
       jobId: string
       status: 'FAILED'
       generation?: never
+      error?: string
+      errorCode?: string
+      i18nKey?: string
     }
 
 export interface AudioStatusResponse {
@@ -578,6 +581,8 @@ export type ImageStatusResponseData =
       status: 'FAILED'
       generation?: never
       error?: string
+      errorCode?: string
+      i18nKey?: string
     }
 
 export interface ImageStatusResponse {
@@ -1056,6 +1061,9 @@ export type Model3DStatusResponseData =
       previewModelUrl?: string
       stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
       cancelled?: boolean
+      error?: string
+      errorCode?: string
+      i18nKey?: string
     }
 
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
@@ -1227,6 +1235,8 @@ export type ExecutionCallbackResultData = z.infer<
 export const ExecutionCallbackErrorDataSchema = z.object({
   error: z.string().trim().min(1),
   providerMetadata: z.record(z.string(), z.unknown()).optional(),
+  errorCode: z.string().trim().min(1).optional(),
+  i18nKey: z.string().trim().min(1).optional(),
   requestCount: z.number().int().positive().optional(),
 })
 

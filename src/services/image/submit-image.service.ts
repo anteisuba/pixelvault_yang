@@ -32,6 +32,7 @@ import {
   type GenerateImageDeps,
 } from '@/services/image/generate-image.service'
 import { getGenerationByIdForUser } from '@/services/generation.service'
+import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
   createGenerationJob,
   failGenerationJob,
@@ -250,6 +251,7 @@ export async function checkImageGenerationStatus(
       status: true,
       generationId: true,
       errorMessage: true,
+      errorCode: true,
     },
   })
 
@@ -275,7 +277,7 @@ export async function checkImageGenerationStatus(
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...(job.errorMessage ? { error: job.errorMessage } : {}),
+      ...buildGenerationFailureResponseFields(job),
     }
   }
 
@@ -304,7 +306,7 @@ export async function waitForImageGenerationResult(
     if (status.status === 'FAILED') {
       throw new GenerateImageServiceError(
         'PROVIDER_ERROR',
-        'Image generation failed',
+        status.error ?? 'Image generation failed',
         502,
       )
     }

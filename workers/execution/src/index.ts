@@ -1,6 +1,14 @@
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import type { Workflow, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 
+import {
+  WorkerProviderError,
+  buildWorkerFailureCallbackData,
+  createGeminiNoImageError,
+  createProviderNoOutputError,
+  createProviderPayloadError,
+  createProviderResponseError,
+} from './lib/provider-error'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
 
 const HEALTH_PATH = '/health'
@@ -280,6 +288,9 @@ interface RodinSubmitResult {
 
 interface RodinPollResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  error?: string
+  errorCode?: string
+  providerMetadata?: Record<string, unknown>
 }
 
 interface FalQueueSubmitResult {
@@ -293,6 +304,8 @@ interface FalQueueStatusResult {
   artifactUrl?: string
   thumbnailUrl?: string
   mimeType?: string
+  error?: string
+  errorCode?: string
   providerMetadata?: Record<string, unknown>
 }
 
@@ -1226,13 +1239,21 @@ async function submitRodinJob(
   })
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new Error(
-      `Hyper3D Rodin submit failed with status ${response.status}: ${errBody.slice(0, 400)}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'hyper3d_rodin',
+      phase: 'submit',
+      fallbackMessage: `Hyper3D Rodin submit failed with status ${response.status}`,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'hyper3d_rodin',
+    phase: 'submit',
+    fallbackMessage: 'Hyper3D Rodin submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
   // Response shape: { uuid, jobs: { uuids: [...], subscription_key: <JWT> } }
   const jobUuid = readStringField(data, 'uuid')
   const jobsMeta =
@@ -1339,13 +1360,21 @@ async function submitRodinTextureOnlyJob(
   )
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new Error(
-      `Hyper3D Rodin texture-only submit failed with status ${response.status}: ${errBody.slice(0, 400)}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'hyper3d_rodin',
+      phase: 'texture_only_submit',
+      fallbackMessage: `Hyper3D Rodin texture-only submit failed with status ${response.status}`,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'hyper3d_rodin',
+    phase: 'texture_only_submit',
+    fallbackMessage: 'Hyper3D Rodin texture-only submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
   const jobUuid = readStringField(data, 'uuid')
   const jobsMeta =
     data.jobs != null && typeof data.jobs === 'object'
@@ -1398,15 +1427,30 @@ async function pollRodinJob(
   })
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    console.error(
-      `[Rodin] poll failed status ${response.status}:`,
-      errBody.slice(0, 300),
-    )
-    return { status: 'IN_QUEUE' }
+    throw await createProviderResponseError(response, {
+      provider: 'hyper3d_rodin',
+      phase: 'status_poll',
+      fallbackMessage: `Hyper3D Rodin status poll failed with status ${response.status}`,
+      requestId: rodin.jobUuid,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const pollFailure = createProviderPayloadError(data, {
+    provider: 'hyper3d_rodin',
+    phase: 'status_poll',
+    fallbackMessage: 'Hyper3D Rodin status response reported failure.',
+    requestId: rodin.jobUuid,
+  })
+  if (pollFailure) {
+    return {
+      status: 'FAILED',
+      error: pollFailure.message,
+      errorCode: pollFailure.errorCode,
+      providerMetadata: pollFailure.providerMetadata,
+    }
+  }
+
   console.log('[Rodin] poll response:', JSON.stringify(data).slice(0, 400))
   const jobs = Array.isArray(data.jobs) ? data.jobs : []
   const messages = Array.isArray(data.status_messages)
@@ -1433,7 +1477,15 @@ async function pollRodinJob(
       'full response:',
       JSON.stringify(data).slice(0, 500),
     )
-    return { status: 'FAILED' }
+    return {
+      status: 'FAILED',
+      error: failMsg,
+      providerMetadata: {
+        provider: 'hyper3d_rodin',
+        phase: 'status_poll',
+        jobUuid: rodin.jobUuid,
+      },
+    }
   }
   if (statuses.every((s) => s === 'COMPLETED')) return { status: 'COMPLETED' }
   if (statuses.some((s) => s === 'IN_PROGRESS'))
@@ -1867,10 +1919,21 @@ async function submitFalQueue(
   })
 
   if (!response.ok) {
-    throw new Error(`fal.ai queue submit failed with status ${response.status}`)
+    throw await createProviderResponseError(response, {
+      provider: 'fal',
+      phase: 'queue_submit',
+      fallbackMessage: `fal.ai queue submit failed with status ${response.status}`,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'fal',
+    phase: 'queue_submit',
+    fallbackMessage: 'fal.ai queue submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
   const requestId = readStringField(data, 'request_id')
   const statusUrl = readStringField(data, 'status_url')
   const responseUrl = readStringField(data, 'response_url')
@@ -1976,12 +2039,21 @@ async function submitFalLongVideoExtendQueue(
   })
 
   if (!response.ok) {
-    throw new Error(
-      `fal.ai long-video extend submit failed with status ${response.status}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'fal',
+      phase: 'long_video_extend_submit',
+      fallbackMessage: `fal.ai long-video extend submit failed with status ${response.status}`,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'fal',
+    phase: 'long_video_extend_submit',
+    fallbackMessage: 'fal.ai long-video extend submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
   const requestId = readStringField(data, 'request_id')
   const statusUrl = readStringField(data, 'status_url')
   const responseUrl = readStringField(data, 'response_url')
@@ -2262,7 +2334,15 @@ async function submitFishAudio(
   })
 
   if (!response.ok) {
-    throw new Error(`Fish Audio TTS failed with status ${response.status}`)
+    throw await createProviderResponseError(response, {
+      provider: 'fish_audio',
+      phase: 'tts',
+      fallbackMessage: `Fish Audio TTS failed with status ${response.status}`,
+      providerMetadata: {
+        endpointPath,
+        model: providerInput.externalModelId,
+      },
+    })
   }
 
   const parsed = providerInput.withTimestamps
@@ -2274,7 +2354,15 @@ async function submitFishAudio(
       }
 
   if (parsed.audioBytes.byteLength === 0) {
-    throw new Error('Fish Audio returned an empty audio response.')
+    throw createProviderNoOutputError({
+      provider: 'fish_audio',
+      phase: 'tts',
+      message: 'Fish Audio returned an empty audio response.',
+      providerMetadata: {
+        endpointPath,
+        model: providerInput.externalModelId,
+      },
+    })
   }
 
   const duration =
@@ -2403,18 +2491,44 @@ async function pollFalQueue(
   })
 
   if (!statusResponse.ok) {
-    throw new Error(
-      `fal.ai status poll failed with status ${statusResponse.status}`,
-    )
+    throw await createProviderResponseError(statusResponse, {
+      provider: 'fal',
+      phase: 'status_poll',
+      fallbackMessage: `fal.ai status poll failed with status ${statusResponse.status}`,
+      requestId: queue.requestId,
+    })
   }
 
   const statusData = (await statusResponse.json()) as Record<string, unknown>
   const status = readStringField(statusData, 'status')
+  const statusFailure = createProviderPayloadError(statusData, {
+    provider: 'fal',
+    phase: 'status_poll',
+    fallbackMessage: 'fal.ai queue reported failed status.',
+    requestId: queue.requestId,
+    providerMetadata: {
+      statusUrl: queue.statusUrl,
+      responseUrl: queue.responseUrl,
+    },
+  })
 
+  if (statusFailure) {
+    return {
+      status: 'FAILED',
+      error: statusFailure.message,
+      errorCode: statusFailure.errorCode,
+      providerMetadata: statusFailure.providerMetadata,
+    }
+  }
   if (status && isFalQueueFailureStatus(status)) {
     return {
       status: 'FAILED',
-      providerMetadata: { requestId: queue.requestId },
+      error: 'fal.ai queue reported failed status.',
+      providerMetadata: {
+        requestId: queue.requestId,
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
     }
   }
   if (status !== 'COMPLETED') {
@@ -2429,16 +2543,51 @@ async function pollFalQueue(
   })
 
   if (!resultResponse.ok) {
-    throw new Error(
-      `fal.ai result fetch failed with status ${resultResponse.status}`,
-    )
+    throw await createProviderResponseError(resultResponse, {
+      provider: 'fal',
+      phase: 'result_fetch',
+      fallbackMessage: `fal.ai result fetch failed with status ${resultResponse.status}`,
+      requestId: queue.requestId,
+      providerMetadata: {
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
+    })
   }
 
   const resultData = (await resultResponse.json()) as Record<string, unknown>
+  const resultFailure = createProviderPayloadError(resultData, {
+    provider: 'fal',
+    phase: 'result_fetch',
+    fallbackMessage: 'fal.ai result response reported failure.',
+    requestId: queue.requestId,
+    providerMetadata: {
+      statusUrl: queue.statusUrl,
+      responseUrl: queue.responseUrl,
+    },
+  })
+  if (resultFailure) {
+    return {
+      status: 'FAILED',
+      error: resultFailure.message,
+      errorCode: resultFailure.errorCode,
+      providerMetadata: resultFailure.providerMetadata,
+    }
+  }
+
   if (outputType === 'AUDIO') {
     const audio = readFalAudioArtifact(resultData)
     if (!audio.artifactUrl) {
-      throw new Error('fal.ai result response did not include an audio URL.')
+      throw createProviderNoOutputError({
+        provider: 'fal',
+        phase: 'result_fetch',
+        message: 'fal.ai result response did not include an audio URL.',
+        requestId: queue.requestId,
+        providerMetadata: {
+          statusUrl: queue.statusUrl,
+          responseUrl: queue.responseUrl,
+        },
+      })
     }
 
     return {
@@ -2459,7 +2608,16 @@ async function pollFalQueue(
   const thumbnailUrl = thumbnail ? readStringField(thumbnail, 'url') : null
 
   if (!artifactUrl) {
-    throw new Error('fal.ai result response did not include a video URL.')
+    throw createProviderNoOutputError({
+      provider: 'fal',
+      phase: 'result_fetch',
+      message: 'fal.ai result response did not include a video URL.',
+      requestId: queue.requestId,
+      providerMetadata: {
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
+    })
   }
 
   return {
@@ -2586,7 +2744,13 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         )
 
         if (pollResult.status === 'FAILED') {
-          throw new Error('Provider reported failed status.')
+          throw new WorkerProviderError({
+            message: pollResult.error ?? 'Provider reported failed status.',
+            provider: context.providerId,
+            phase: 'provider_poll',
+            errorCode: pollResult.errorCode,
+            providerMetadata: pollResult.providerMetadata,
+          })
         }
 
         if (pollResult.status === 'COMPLETED' && pollResult.artifactUrl) {
@@ -2678,14 +2842,13 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
 
       throw new Error('Provider polling timed out.')
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Workflow execution failed.'
+      const failureData = buildWorkerFailureCallbackData(error, {
+        message: 'Workflow execution failed.',
+        providerMetadata: { workflowInstanceId: event.instanceId },
+      })
 
       await step.do('callback-failure', async () =>
-        emitCallback(this.env, context, {
-          error: message,
-          providerMetadata: { workflowInstanceId: event.instanceId },
-        }),
+        emitCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -2904,9 +3067,18 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
           )
 
           if (pollResult.status === 'FAILED') {
-            throw new Error(
-              `Provider reported failed status for clip ${clipIndex + 1}.`,
-            )
+            throw new WorkerProviderError({
+              message:
+                pollResult.error ??
+                `Provider reported failed status for clip ${clipIndex + 1}.`,
+              provider: context.providerId,
+              phase: 'long_video_clip_poll',
+              errorCode: pollResult.errorCode,
+              providerMetadata: {
+                clipIndex,
+                ...pollResult.providerMetadata,
+              },
+            })
           }
 
           if (pollResult.status === 'IN_PROGRESS' && !markedRunning) {
@@ -3011,14 +3183,15 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
         pipelineId: context.pipelineId,
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Long-video workflow execution failed.'
+      const failureData = buildWorkerFailureCallbackData(error, {
+        message: 'Long-video workflow execution failed.',
+        providerMetadata: { workflowInstanceId: event.instanceId },
+      })
 
       await step.do('mark-pipeline-failed', async () =>
         postLongVideoPipelineUpdate(this.env, context, 'fail', {
-          error: message,
+          error: failureData.error,
+          providerMetadata: failureData.providerMetadata,
         }),
       )
 
@@ -3094,7 +3267,14 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
         )
 
         if (pollResult.status === 'FAILED') {
-          throw new Error('Hyper3D Rodin reported failed status.')
+          throw new WorkerProviderError({
+            message:
+              pollResult.error ?? 'Hyper3D Rodin reported failed status.',
+            provider: context.providerId,
+            phase: 'rodin_poll',
+            errorCode: pollResult.errorCode,
+            providerMetadata: pollResult.providerMetadata,
+          })
         }
 
         if (pollResult.status === 'COMPLETED') {
@@ -3126,14 +3306,13 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
 
       throw new Error('Hyper3D Rodin polling timed out.')
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Workflow execution failed.'
+      const failureData = buildWorkerFailureCallbackData(error, {
+        message: 'Workflow execution failed.',
+        providerMetadata: { workflowInstanceId: event.instanceId },
+      })
 
       await step.do('callback-failure', async () =>
-        emitModel3DCallback(this.env, context, {
-          error: message,
-          providerMetadata: { workflowInstanceId: event.instanceId },
-        }),
+        emitModel3DCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -3186,12 +3365,21 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
           })
 
           if (!response.ok) {
-            throw new Error(
-              `fal.ai 3D queue submit failed with status ${response.status}`,
-            )
+            throw await createProviderResponseError(response, {
+              provider: 'fal',
+              phase: 'model_3d_queue_submit',
+              fallbackMessage: `fal.ai 3D queue submit failed with status ${response.status}`,
+            })
           }
 
           const data = (await response.json()) as Record<string, unknown>
+          const submitFailure = createProviderPayloadError(data, {
+            provider: 'fal',
+            phase: 'model_3d_queue_submit',
+            fallbackMessage: 'fal.ai 3D queue submit reported failure.',
+          })
+          if (submitFailure) throw submitFailure
+
           const requestId = readStringField(data, 'request_id')
           const statusUrl = readStringField(data, 'status_url')
           const responseUrl = readStringField(data, 'response_url')
@@ -3220,9 +3408,12 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
             })
 
             if (!statusResponse.ok) {
-              throw new Error(
-                `fal.ai 3D status poll failed with status ${statusResponse.status}`,
-              )
+              throw await createProviderResponseError(statusResponse, {
+                provider: 'fal',
+                phase: 'model_3d_status_poll',
+                fallbackMessage: `fal.ai 3D status poll failed with status ${statusResponse.status}`,
+                requestId: queue.requestId,
+              })
             }
 
             const statusData = (await statusResponse.json()) as Record<
@@ -3230,9 +3421,35 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
               unknown
             >
             const status = readStringField(statusData, 'status')
+            const statusFailure = createProviderPayloadError(statusData, {
+              provider: 'fal',
+              phase: 'model_3d_status_poll',
+              fallbackMessage: 'fal.ai 3D queue reported failed status.',
+              requestId: queue.requestId,
+              providerMetadata: {
+                statusUrl: queue.statusUrl,
+                responseUrl: queue.responseUrl,
+              },
+            })
 
+            if (statusFailure) {
+              return {
+                status: 'FAILED' as const,
+                error: statusFailure.message,
+                errorCode: statusFailure.errorCode,
+                providerMetadata: statusFailure.providerMetadata,
+              }
+            }
             if (status && isFalQueueFailureStatus(status)) {
-              return { status: 'FAILED' as const }
+              return {
+                status: 'FAILED' as const,
+                error: 'fal.ai 3D queue reported failed status.',
+                providerMetadata: {
+                  requestId: queue.requestId,
+                  statusUrl: queue.statusUrl,
+                  responseUrl: queue.responseUrl,
+                },
+              }
             }
             if (status !== 'COMPLETED') {
               return {
@@ -3247,21 +3464,50 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
             })
 
             if (!resultResponse.ok) {
-              throw new Error(
-                `fal.ai 3D result fetch failed with status ${resultResponse.status}`,
-              )
+              throw await createProviderResponseError(resultResponse, {
+                provider: 'fal',
+                phase: 'model_3d_result_fetch',
+                fallbackMessage: `fal.ai 3D result fetch failed with status ${resultResponse.status}`,
+                requestId: queue.requestId,
+              })
             }
 
             const resultData = (await resultResponse.json()) as Record<
               string,
               unknown
             >
+            const resultFailure = createProviderPayloadError(resultData, {
+              provider: 'fal',
+              phase: 'model_3d_result_fetch',
+              fallbackMessage: 'fal.ai 3D result response reported failure.',
+              requestId: queue.requestId,
+              providerMetadata: {
+                statusUrl: queue.statusUrl,
+                responseUrl: queue.responseUrl,
+              },
+            })
+            if (resultFailure) {
+              return {
+                status: 'FAILED' as const,
+                error: resultFailure.message,
+                errorCode: resultFailure.errorCode,
+                providerMetadata: resultFailure.providerMetadata,
+              }
+            }
+
             const artifact = readFalModel3DResult(resultData)
 
             if (!artifact.artifactUrl) {
-              throw new Error(
-                'fal.ai 3D result did not include a model mesh URL.',
-              )
+              throw createProviderNoOutputError({
+                provider: 'fal',
+                phase: 'model_3d_result_fetch',
+                message: 'fal.ai 3D result did not include a model mesh URL.',
+                requestId: queue.requestId,
+                providerMetadata: {
+                  statusUrl: queue.statusUrl,
+                  responseUrl: queue.responseUrl,
+                },
+              })
             }
 
             return {
@@ -3273,7 +3519,13 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
         )
 
         if (pollResult.status === 'FAILED') {
-          throw new Error('fal.ai 3D reported failed status.')
+          throw new WorkerProviderError({
+            message: pollResult.error ?? 'fal.ai 3D reported failed status.',
+            provider: context.providerId,
+            phase: 'model_3d_poll',
+            errorCode: pollResult.errorCode,
+            providerMetadata: pollResult.providerMetadata,
+          })
         }
 
         if (
@@ -3316,14 +3568,13 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
 
       throw new Error('fal.ai 3D polling timed out.')
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Workflow execution failed.'
+      const failureData = buildWorkerFailureCallbackData(error, {
+        message: 'Workflow execution failed.',
+        providerMetadata: { workflowInstanceId: event.instanceId },
+      })
 
       await step.do('callback-failure', async () =>
-        emitModel3DCallback(this.env, context, {
-          error: message,
-          providerMetadata: { workflowInstanceId: event.instanceId },
-        }),
+        emitModel3DCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -3563,6 +3814,8 @@ interface FalImageResult {
   width?: number
   height?: number
   mimeType?: string
+  error?: string
+  errorCode?: string
   providerMetadata?: Record<string, unknown>
 }
 
@@ -3741,12 +3994,21 @@ async function submitFalImageQueue(
   )
 
   if (!response.ok) {
-    throw new Error(
-      `fal.ai image queue submit failed with status ${response.status}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'fal',
+      phase: 'image_queue_submit',
+      fallbackMessage: `fal.ai image queue submit failed with status ${response.status}`,
+    })
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'fal',
+    phase: 'image_queue_submit',
+    fallbackMessage: 'fal.ai image queue submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
   const requestId = readStringField(data, 'request_id')
   const statusUrl = readStringField(data, 'status_url')
   const responseUrl = readStringField(data, 'response_url')
@@ -3767,17 +4029,43 @@ async function pollFalImageQueue(
   })
 
   if (!statusResponse.ok) {
-    throw new Error(
-      `fal.ai image status poll failed with status ${statusResponse.status}`,
-    )
+    throw await createProviderResponseError(statusResponse, {
+      provider: 'fal',
+      phase: 'image_status_poll',
+      fallbackMessage: `fal.ai image status poll failed with status ${statusResponse.status}`,
+      requestId: queue.requestId,
+    })
   }
 
   const statusData = (await statusResponse.json()) as Record<string, unknown>
   const status = readStringField(statusData, 'status')
+  const statusFailure = createProviderPayloadError(statusData, {
+    provider: 'fal',
+    phase: 'image_status_poll',
+    fallbackMessage: 'fal.ai image queue reported failed status.',
+    requestId: queue.requestId,
+    providerMetadata: {
+      statusUrl: queue.statusUrl,
+      responseUrl: queue.responseUrl,
+    },
+  })
+  if (statusFailure) {
+    return {
+      status: 'FAILED',
+      error: statusFailure.message,
+      errorCode: statusFailure.errorCode,
+      providerMetadata: statusFailure.providerMetadata,
+    }
+  }
   if (status && isFalQueueFailureStatus(status)) {
     return {
       status: 'FAILED',
-      providerMetadata: { requestId: queue.requestId },
+      error: 'fal.ai image queue reported failed status.',
+      providerMetadata: {
+        requestId: queue.requestId,
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
     }
   }
   if (status !== 'COMPLETED') {
@@ -3792,19 +4080,51 @@ async function pollFalImageQueue(
   })
 
   if (!resultResponse.ok) {
-    throw new Error(
-      `fal.ai image result fetch failed with status ${resultResponse.status}`,
-    )
+    throw await createProviderResponseError(resultResponse, {
+      provider: 'fal',
+      phase: 'image_result_fetch',
+      fallbackMessage: `fal.ai image result fetch failed with status ${resultResponse.status}`,
+      requestId: queue.requestId,
+    })
   }
 
   const resultData = (await resultResponse.json()) as Record<string, unknown>
+  const resultFailure = createProviderPayloadError(resultData, {
+    provider: 'fal',
+    phase: 'image_result_fetch',
+    fallbackMessage: 'fal.ai image result response reported failure.',
+    requestId: queue.requestId,
+    providerMetadata: {
+      statusUrl: queue.statusUrl,
+      responseUrl: queue.responseUrl,
+    },
+  })
+  if (resultFailure) {
+    return {
+      status: 'FAILED',
+      error: resultFailure.message,
+      errorCode: resultFailure.errorCode,
+      providerMetadata: resultFailure.providerMetadata,
+    }
+  }
+
   const nsfw = Array.isArray(resultData.has_nsfw_concepts)
     ? resultData.has_nsfw_concepts.some(Boolean)
     : false
   if (nsfw) {
+    const moderationError = new WorkerProviderError({
+      message: 'fal.ai blocked this image result for NSFW concepts.',
+      provider: 'fal',
+      phase: 'image_result_fetch',
+      errorCode: 'content_filtered',
+      requestId: queue.requestId,
+      providerMetadata: { moderation: 'nsfw' },
+    })
     return {
       status: 'FAILED',
-      providerMetadata: { requestId: queue.requestId, moderation: 'nsfw' },
+      error: moderationError.message,
+      errorCode: moderationError.errorCode,
+      providerMetadata: moderationError.providerMetadata,
     }
   }
 
@@ -3812,9 +4132,16 @@ async function pollFalImageQueue(
   const firstImage = images.find(isRecord)
   const imageUrl = firstImage ? readStringField(firstImage, 'url') : null
   if (!imageUrl) {
-    throw new Error(
-      'fal.ai image result response did not include an image URL.',
-    )
+    throw createProviderNoOutputError({
+      provider: 'fal',
+      phase: 'image_result_fetch',
+      message: 'fal.ai image result response did not include an image URL.',
+      requestId: queue.requestId,
+      providerMetadata: {
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
+    })
   }
 
   return {
@@ -4039,10 +4366,11 @@ async function generateGeminiImage(
   )
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new Error(
-      `Gemini image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'gemini',
+      phase: 'generate_image',
+      fallbackMessage: `Gemini image generation failed with status ${response.status}`,
+    })
   }
 
   const payload = (await response.json()) as Record<string, unknown>
@@ -4076,7 +4404,7 @@ async function generateGeminiImage(
     }
   }
 
-  throw new Error('Gemini response did not include inline image data.')
+  throw createGeminiNoImageError(payload)
 }
 
 async function generateHuggingFaceImage(
@@ -4360,9 +4688,11 @@ async function buildReplicatePredictionBody(
     { headers: { Authorization: `Bearer ${apiKey}` } },
   )
   if (!modelResponse.ok) {
-    throw new Error(
-      `Replicate model lookup failed with status ${modelResponse.status}`,
-    )
+    throw await createProviderResponseError(modelResponse, {
+      provider: 'replicate',
+      phase: 'model_lookup',
+      fallbackMessage: `Replicate model lookup failed with status ${modelResponse.status}`,
+    })
   }
   const model = (await modelResponse.json()) as Record<string, unknown>
   const latestVersion = isRecord(model.latest_version)
@@ -4392,10 +4722,11 @@ async function submitReplicateImagePrediction(
   })
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new Error(
-      `Replicate prediction submit failed (${response.status}): ${errBody.slice(0, 200)}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'replicate',
+      phase: 'prediction_submit',
+      fallbackMessage: `Replicate prediction submit failed with status ${response.status}`,
+    })
   }
 
   return readReplicatePrediction(await response.json())
@@ -4412,7 +4743,12 @@ async function pollReplicateImagePrediction(
     },
   )
   if (!response.ok) {
-    throw new Error(`Replicate poll failed with status ${response.status}`)
+    throw await createProviderResponseError(response, {
+      provider: 'replicate',
+      phase: 'prediction_poll',
+      fallbackMessage: `Replicate poll failed with status ${response.status}`,
+      requestId: predictionId,
+    })
   }
   return readReplicatePrediction(await response.json())
 }
@@ -4768,7 +5104,13 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           )
 
           if (pollResult.status === 'FAILED') {
-            throw new Error('fal.ai image generation failed.')
+            throw new WorkerProviderError({
+              message: pollResult.error ?? 'fal.ai image generation failed.',
+              provider: context.providerId,
+              phase: 'image_poll',
+              errorCode: pollResult.errorCode,
+              providerMetadata: pollResult.providerMetadata,
+            })
           }
 
           if (pollResult.status === 'COMPLETED' && pollResult.imageUrl) {
@@ -4856,9 +5198,19 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             pollResult.status === 'failed' ||
             pollResult.status === 'canceled'
           ) {
-            throw new Error(
-              `Replicate image generation failed: ${String(pollResult.error ?? 'unknown')}`,
-            )
+            throw new WorkerProviderError({
+              message: `Replicate image generation failed: ${String(
+                pollResult.error ?? 'unknown',
+              )}`,
+              provider: context.providerId,
+              phase: 'prediction_poll',
+              requestId: pollResult.id,
+              providerMetadata: {
+                predictionId: pollResult.id,
+                status: pollResult.status,
+                providerError: pollResult.error,
+              },
+            })
           }
           if (pollResult.status === 'succeeded') {
             completedPrediction = pollResult
@@ -4973,15 +5325,18 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
 
       return { status: 'COMPLETED', runId: context.runId }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Workflow execution failed.'
+      const failureData = buildWorkerFailureCallbackData(error, {
+        message: 'Workflow execution failed.',
+        providerMetadata: {
+          workflowInstanceId: event.instanceId,
+          ...(error instanceof OpenAIImageError
+            ? { status: error.status }
+            : {}),
+        },
+      })
 
       await step.do('callback-failure', async () =>
-        emitImageCallback(this.env, context, {
-          error: message,
-          status: error instanceof OpenAIImageError ? error.status : undefined,
-          providerMetadata: { workflowInstanceId: event.instanceId },
-        }),
+        emitImageCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }

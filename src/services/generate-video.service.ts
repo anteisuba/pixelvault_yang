@@ -25,6 +25,7 @@ import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
+import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
@@ -358,7 +359,11 @@ export async function checkVideoGenerationStatusForUserId(
 
   // Already failed
   if (job.status === 'FAILED') {
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      ...buildGenerationFailureResponseFields(job),
+    }
   }
 
   if (!job.externalRequestId) {
@@ -391,7 +396,12 @@ export async function checkVideoGenerationStatusForUserId(
     errorMessage:
       'Legacy inline video jobs are no longer supported; video execution must run on the execution worker',
   })
-  return { jobId: job.id, status: 'FAILED' }
+  return {
+    jobId: job.id,
+    status: 'FAILED',
+    error:
+      'Legacy inline video jobs are no longer supported; video execution must run on the execution worker',
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────

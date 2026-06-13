@@ -2,12 +2,14 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import type { ExecutionCallbackPayload } from '@/types'
 import {
   ExecutionCallbackErrorDataSchema,
   ExecutionCallbackResultDataSchema,
 } from '@/types'
 import { db } from '@/lib/db'
+import type { Prisma } from '@/lib/generated/prisma/client'
 import { ApiRequestError, GenerationValidationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import {
@@ -178,6 +180,30 @@ function parseResultData(payload: ExecutionCallbackPayload) {
   return result.data
 }
 
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+}
+
+function buildProviderFailureJson(params: {
+  job: {
+    provider: string
+    modelId: string
+    adapterType: string
+  }
+  error: string
+  errorCode?: string
+  providerMetadata?: Record<string, unknown>
+}): Prisma.InputJsonValue {
+  return toPrismaJson({
+    provider: params.job.provider,
+    modelId: params.job.modelId,
+    adapterType: params.job.adapterType,
+    error: params.error,
+    errorCode: params.errorCode,
+    providerMetadata: params.providerMetadata,
+  })
+}
+
 export async function handleExecutionCallback(
   payload: ExecutionCallbackPayload,
 ): Promise<CallbackResult> {
@@ -297,11 +323,23 @@ async function finalizeExecutionResult(
     await failGenerationJob(job.id, {
       requestCount: errorResult.data.requestCount,
       errorMessage: errorResult.data.error,
+      errorCode: errorResult.data.errorCode,
+      providerFailure: buildProviderFailureJson({
+        job,
+        error: errorResult.data.error,
+        errorCode: errorResult.data.errorCode,
+        providerMetadata: errorResult.data.providerMetadata,
+      }),
     })
 
     logger.error('Execution callback result reported provider failure', {
       runId: job.id,
       previousJobStatus: jobStatus,
+      failureKind: 'provider',
+      error: errorResult.data.error,
+      errorCode: errorResult.data.errorCode,
+      requestCount: errorResult.data.requestCount,
+      providerMetadata: errorResult.data.providerMetadata,
     })
 
     return {
@@ -509,11 +547,19 @@ async function finalizeExecutionResult(
     await failGenerationJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
+      errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+      providerFailure: buildProviderFailureJson({
+        job,
+        error: message,
+        errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+        providerMetadata: resultData.providerMetadata,
+      }),
     })
 
     logger.error('Execution callback result finalization failed', {
       runId: job.id,
       previousJobStatus: jobStatus,
+      failureKind: 'finalization',
       error: message,
     })
 
@@ -543,11 +589,22 @@ async function finalizeModel3DResult(
 ): Promise<CallbackResult> {
   if (!resultData.glbR2Key) {
     const message = 'MODEL_3D callback missing glbR2Key'
-    await failGenerationJob(job.id, { errorMessage: message })
+    await failGenerationJob(job.id, {
+      errorMessage: message,
+      errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+      providerFailure: buildProviderFailureJson({
+        job,
+        error: message,
+        errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+        providerMetadata: resultData.providerMetadata,
+      }),
+    })
     logger.error(
       'Execution callback MODEL_3D finalization failed: missing glbR2Key',
       {
         runId: job.id,
+        failureKind: 'finalization',
+        error: message,
       },
     )
     return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
@@ -675,10 +732,18 @@ async function finalizeModel3DResult(
     await failGenerationJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
+      errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+      providerFailure: buildProviderFailureJson({
+        job,
+        error: message,
+        errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+        providerMetadata: resultData.providerMetadata,
+      }),
     })
 
     logger.error('Execution callback MODEL_3D result finalization failed', {
       runId: job.id,
+      failureKind: 'finalization',
       error: message,
     })
 
@@ -875,10 +940,18 @@ async function finalizeImageResult(
     await failGenerationJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
+      errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+      providerFailure: buildProviderFailureJson({
+        job,
+        error: message,
+        errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
+        providerMetadata: resultData.providerMetadata,
+      }),
     })
 
     logger.error('Execution callback IMAGE result finalization failed', {
       runId: job.id,
+      failureKind: 'finalization',
       error: message,
     })
 

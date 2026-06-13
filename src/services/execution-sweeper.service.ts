@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { EXECUTION_SWEEPER } from '@/constants/execution'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
@@ -39,6 +40,7 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
       status: 'FAILED',
       completedAt: now,
       errorMessage: SWEEP_FAILURE_MESSAGE,
+      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
     },
   })
 

@@ -90,7 +90,11 @@ vi.mock('@/services/video-generation-validation.service', () => ({
   validateVideoGenerationInput: vi.fn(),
 }))
 
-import { submitVideoGeneration } from './generate-video.service'
+import { db } from '@/lib/db'
+import {
+  checkVideoGenerationStatusForUserId,
+  submitVideoGeneration,
+} from './generate-video.service'
 
 const ORIGINAL_ENV = {
   INTERNAL_CALLBACK_SECRET: process.env.INTERNAL_CALLBACK_SECRET,
@@ -347,5 +351,26 @@ describe('generate-video.service worker dispatch', () => {
     })
     expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('returns the stored failure reason for failed video jobs', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-video-1',
+      userId: 'user-1',
+      status: 'FAILED',
+      errorMessage: 'fal.ai video queue failed with status 422',
+      generation: null,
+    } as never)
+
+    const result = await checkVideoGenerationStatusForUserId(
+      'user-1',
+      'job-video-1',
+    )
+
+    expect(result).toEqual({
+      jobId: 'job-video-1',
+      status: 'FAILED',
+      error: 'fal.ai video queue failed with status 422',
+    })
   })
 })

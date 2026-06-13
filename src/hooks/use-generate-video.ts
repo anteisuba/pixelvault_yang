@@ -119,7 +119,7 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
             }
 
             if (status === 'FAILED') {
-              finish(statusResponse.error ?? t('errorFallback'))
+              finish(statusResponse.data.error ?? t('errorFallback'))
               return
             }
 

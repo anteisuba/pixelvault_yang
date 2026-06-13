@@ -232,7 +232,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
             finish(
               getGenerationErrorMessage(
                 tErrors,
-                statusResponse,
+                statusResponse.data,
                 t('errorFallback'),
               ),
             )

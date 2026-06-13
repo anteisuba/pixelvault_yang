@@ -509,6 +509,7 @@ describe('useUnifiedGenerate', () => {
       data: {
         jobId: 'job-audio-failed',
         status: 'FAILED',
+        error: 'Provider reported unsafe input',
       },
     })
 
@@ -530,9 +531,11 @@ describe('useUnifiedGenerate', () => {
 
     await expect(generationPromise).resolves.toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.error).toBe('Provider reported unsafe input')
     expect(result.current.activeRun?.items[0].status).toBe('failed')
-    expect(result.current.activeRun?.items[0].error).toBe('generateFailed')
+    expect(result.current.activeRun?.items[0].error).toBe(
+      'Provider reported unsafe input',
+    )
   })
 
   it('marks audio run failed when async polling times out', async () => {

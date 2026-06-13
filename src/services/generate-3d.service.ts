@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import {
   EXECUTION_INTERNAL,
   EXECUTION_WORKER,
@@ -54,6 +55,7 @@ import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
+import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
@@ -210,6 +212,7 @@ interface Model3DStatusJob {
    * schema change — repurposes the existing nullable text column.
    */
   errorMessage?: string | null
+  errorCode?: string | null
   generation?: {
     id: string
     createdAt: Date
@@ -460,10 +463,12 @@ export async function check3DGenerationStatusForUserId(
   }
 
   if (job.status === 'FAILED') {
+    const cancelled = job.errorMessage === CANCELLED_BY_USER_MARKER
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...(job.errorMessage === CANCELLED_BY_USER_MARKER && { cancelled: true }),
+      ...(cancelled ? { cancelled: true } : {}),
+      ...(!cancelled ? buildGenerationFailureResponseFields(job) : {}),
     }
   }
 
@@ -488,16 +493,23 @@ export async function check3DGenerationStatusForUserId(
       job.status === 'RUNNING' &&
       Date.now() - job.updatedAt.getTime() > MODEL_3D_WORKER_STALE_MS
     ) {
+      const errorMessage =
+        'Worker job timed out without callback (exceeded stale threshold)'
       await failGenerationJob(job.id, {
-        errorMessage:
-          'Worker job timed out without callback (exceeded stale threshold)',
+        errorMessage,
+        errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
       })
       logger.warn('3D worker job marked FAILED by stale sweeper', {
         jobId: job.id,
         userId,
         ageMs: Date.now() - job.updatedAt.getTime(),
       })
-      return { jobId: job.id, status: 'FAILED' }
+      return {
+        jobId: job.id,
+        status: 'FAILED',
+        error: errorMessage,
+        errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+      }
     }
 
     return {
@@ -572,17 +584,31 @@ export async function check3DGenerationStatusForUserId(
   }
 
   if (queueStatus.status === 'FAILED') {
+    const errorMessage = '3D generation failed on provider side'
     await failGenerationJob(job.id, {
-      errorMessage: '3D generation failed on provider side',
+      errorMessage,
+      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
     })
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: errorMessage,
+      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+    }
   }
 
   if (!queueStatus.result) {
+    const errorMessage = 'Provider returned completed but no result'
     await failGenerationJob(job.id, {
-      errorMessage: 'Provider returned completed but no result',
+      errorMessage,
+      errorCode: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
     })
-    return { jobId: job.id, status: 'FAILED' }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: errorMessage,
+      errorCode: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+    }
   }
 
   const finalizingMeta = await storeCompleted3DProviderResult({
@@ -1378,10 +1404,23 @@ async function checkMeshFirst3DGenerationStatus(params: {
       return { jobId: job.id, status: meshStatus.status, stage: 'mesh' }
     }
     if (meshStatus.status === 'FAILED' || !meshStatus.result) {
+      const errorMessage = '3D geometry preview failed on provider side'
       await failGenerationJob(job.id, {
-        errorMessage: '3D geometry preview failed on provider side',
+        errorMessage,
+        errorCode:
+          meshStatus.status === 'FAILED'
+            ? GENERATION_ERROR_CODES.UNKNOWN
+            : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
       })
-      return { jobId: job.id, status: 'FAILED' }
+      return {
+        jobId: job.id,
+        status: 'FAILED',
+        error: errorMessage,
+        errorCode:
+          meshStatus.status === 'FAILED'
+            ? GENERATION_ERROR_CODES.UNKNOWN
+            : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+      }
     }
 
     // PR3-α: in staged mode we stop here and wait for the user. Persist the
@@ -1430,6 +1469,7 @@ async function checkMeshFirst3DGenerationStatus(params: {
           : 'Failed to submit textured 3D generation'
       await failGenerationJob(job.id, {
         errorMessage: message,
+        errorCode: GENERATION_ERROR_CODES.UNKNOWN,
       })
       const status = error instanceof ProviderError ? error.status : 502
       throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
@@ -1502,10 +1542,24 @@ async function checkMeshFirst3DGenerationStatus(params: {
     }
   }
   if (finalStatus.status === 'FAILED' || !finalStatus.result) {
+    const errorMessage = '3D texture generation failed on provider side'
     await failGenerationJob(job.id, {
-      errorMessage: '3D texture generation failed on provider side',
+      errorMessage,
+      errorCode:
+        finalStatus.status === 'FAILED'
+          ? GENERATION_ERROR_CODES.UNKNOWN
+          : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
     })
-    return { jobId: job.id, status: 'FAILED', previewModelUrl }
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      previewModelUrl,
+      error: errorMessage,
+      errorCode:
+        finalStatus.status === 'FAILED'
+          ? GENERATION_ERROR_CODES.UNKNOWN
+          : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+    }
   }
 
   const finalizingMeta = await storeCompleted3DProviderResult({

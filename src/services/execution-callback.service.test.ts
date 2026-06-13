@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import type { ExecutionCallbackPayload } from '@/types'
 import { ApiRequestError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
@@ -595,6 +596,49 @@ describe('execution-callback.service', () => {
     expect(mockFailGenerationJob).not.toHaveBeenCalled()
   })
 
+  it('logs provider failure details from error callbacks', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        error: 'fal.ai request failed with status 422: prompt rejected',
+        providerMetadata: { provider: 'fal', phase: 'poll' },
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'FAILED',
+      action: 'failed',
+    })
+    expect(mockFailGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({
+        requestCount: 1,
+        errorMessage: 'fal.ai request failed with status 422: prompt rejected',
+        providerFailure: expect.objectContaining({
+          provider: 'fal.ai',
+          modelId: 'kling-video',
+          adapterType: 'fal',
+          error: 'fal.ai request failed with status 422: prompt rejected',
+          providerMetadata: { provider: 'fal', phase: 'poll' },
+        }),
+      }),
+    )
+    expect(logger.error).toHaveBeenCalledWith(
+      'Execution callback result reported provider failure',
+      expect.objectContaining({
+        runId: 'job-1',
+        failureKind: 'provider',
+        error: 'fal.ai request failed with status 422: prompt rejected',
+        requestCount: 1,
+        providerMetadata: { provider: 'fal', phase: 'poll' },
+      }),
+    )
+  })
+
   it('marks the job failed when R2 upload fails', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
     mockStreamUploadToR2.mockRejectedValue(new Error('R2 upload failed'))
@@ -615,6 +659,14 @@ describe('execution-callback.service', () => {
     expect(mockFailGenerationJob).toHaveBeenCalledWith('job-1', {
       requestCount: 1,
       errorMessage: 'R2 upload failed',
+      errorCode: 'storage_upload_failed',
+      providerFailure: expect.objectContaining({
+        provider: 'fal.ai',
+        modelId: 'kling-video',
+        adapterType: 'fal',
+        error: 'R2 upload failed',
+        errorCode: 'storage_upload_failed',
+      }),
     })
   })
 

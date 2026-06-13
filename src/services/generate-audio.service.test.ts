@@ -755,6 +755,31 @@ describe('checkAudioGenerationStatus', () => {
     expect(getApiKeyValueById).not.toHaveBeenCalled()
   })
 
+  it('returns the stored failure reason for failed audio jobs', async () => {
+    const failedJob = {
+      ...FAKE_ASYNC_JOB,
+      status: 'FAILED',
+      errorMessage: 'Fish Audio quota exhausted',
+    }
+    const checkAudioQueueStatus = vi.fn()
+    mockGenerationJobFindUnique.mockResolvedValue(failedJob)
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      checkAudioQueueStatus,
+    } as never)
+
+    const result = await checkAudioGenerationStatus('clerk-1', 'job-async-1')
+
+    expect(result).toEqual({
+      jobId: 'job-async-1',
+      status: 'FAILED',
+      error: 'Fish Audio quota exhausted',
+      errorCode: 'provider_insufficient_balance',
+      i18nKey: 'errors.provider.insufficientBalance',
+    })
+    expect(checkAudioQueueStatus).not.toHaveBeenCalled()
+    expect(getApiKeyValueById).not.toHaveBeenCalled()
+  })
+
   it('returns IN_PROGRESS for worker-managed audio jobs without provider polling', async () => {
     const workerManagedJob = {
       ...FAKE_ASYNC_JOB,
@@ -836,11 +861,14 @@ describe('checkAudioGenerationStatus', () => {
     expect(result).toEqual({
       jobId: 'job-async-1',
       status: 'FAILED',
+      error: 'Provider returned completed but no result',
+      errorCode: 'provider_no_output',
     })
     expect(failGenerationJob).toHaveBeenCalledWith(
       'job-async-1',
       expect.objectContaining({
         errorMessage: 'Provider returned completed but no result',
+        errorCode: 'provider_no_output',
       }),
     )
   })

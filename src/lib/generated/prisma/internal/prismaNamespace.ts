@@ -3263,6 +3263,8 @@ export const GenerationJobScalarFieldEnum = {
   requestCount: 'requestCount',
   prompt: 'prompt',
   errorMessage: 'errorMessage',
+  errorCode: 'errorCode',
+  providerFailure: 'providerFailure',
   externalRequestId: 'externalRequestId',
   startedAt: 'startedAt',
   completedAt: 'completedAt',

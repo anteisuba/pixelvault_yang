@@ -3,12 +3,11 @@
 import { X } from 'lucide-react'
 
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { KreaAssetBrowser } from '@/components/business/KreaAssetBrowser'
 import type { GenerationRecord } from '@/types'
 
@@ -47,21 +46,23 @@ interface AssetSelectorDialogProps {
 }
 
 /**
- * AssetSelectorDialog — centred Krea Overlay modal that wraps
- * KreaAssetBrowser. Uses the `dark` className on the inner wrapper to
+ * AssetSelectorDialog — responsive Krea Overlay browser that wraps
+ * KreaAssetBrowser. Desktop uses a centred Dialog; mobile/tablet uses a
+ * bottom Drawer through ResponsiveDialog. The inner wrapper keeps the `dark`
+ * className to
  * flip --sidebar / --background / --foreground tokens to their dark
- * variants (see docs/reference/design-system.md → "Krea Overlay
- * Surface"); the editorial canvas behind the dimmed overlay stays warm
- * off-white so the user keeps their bearings inside the studio.
+ * variants (see docs/design/direction.md and docs/design/system/components.md);
+ * the editorial canvas behind the dimmed overlay stays warm off-white so the
+ * user keeps their bearings inside the studio.
  *
  * Sized to leave the studio chrome visible — Krea-style — rather than
  * taking over the viewport. The `!` overrides on DialogContent unset
  * shadcn's default `sm:max-w-lg`/`p-6`/`gap-4`/`bg-background` so the
  * dark inner surface owns the full content area.
  *
- * Default close button is suppressed because its black-on-white styling
- * disappears against the dark interior; a dark-themed X is rendered
- * inside the wrapper instead.
+ * The default close button is suppressed because its black-on-white styling
+ * disappears against the dark interior; a dark-themed X closes through
+ * onOpenChange so the same control works for both Dialog and Drawer.
  */
 export function AssetSelectorDialog({
   open,
@@ -79,20 +80,27 @@ export function AssetSelectorDialog({
   maxSelection,
 }: AssetSelectorDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent
         showCloseButton={false}
-        className="h-[min(65vh,600px)] w-[calc(100%-2rem)] !max-w-3xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-3xl"
+        className="h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl lg:h-[min(65vh,600px)] lg:w-[calc(100%-2rem)] lg:!max-w-3xl"
+        mobileBodyClassName="px-0 pt-0"
       >
-        <DialogTitle className="sr-only">{title}</DialogTitle>
-        <DialogDescription className="sr-only">{description}</DialogDescription>
+        <ResponsiveDialogTitle className="sr-only">
+          {title}
+        </ResponsiveDialogTitle>
+        <ResponsiveDialogDescription className="sr-only">
+          {description}
+        </ResponsiveDialogDescription>
         <div className="dark relative flex size-full flex-col overflow-hidden rounded-xl bg-sidebar text-sidebar-foreground ring-1 ring-border/40">
-          <DialogClose
+          <button
+            type="button"
             aria-label={title}
+            onClick={() => onOpenChange(false)}
             className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <X className="size-4" />
-          </DialogClose>
+          </button>
           {multiSelect ? (
             <KreaAssetBrowser
               pickerMultiSelect
@@ -123,7 +131,7 @@ export function AssetSelectorDialog({
             />
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

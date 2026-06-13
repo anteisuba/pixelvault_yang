@@ -73,6 +73,7 @@ function ResponsiveDialogTrigger({
 interface ResponsiveDialogContentProps extends React.ComponentProps<
   typeof DialogContent
 > {
+  /** Mobile drawer scroll/body styles. Use for full-bleed browser surfaces. */
   mobileBodyClassName?: string
 }
 

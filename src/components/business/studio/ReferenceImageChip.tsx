@@ -123,6 +123,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
         >
           <div className="space-y-2">
             <ImageSourcePicker
+              variant="row"
               description={t('description')}
               uploadLabel={t('upload')}
               uploadHint={t('uploadHint')}
@@ -149,15 +150,24 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
                 ) : null
               }
             />
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={handleRequestLayerDecompose}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-            >
-              <Layers className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">{t('layerDecompose')}</span>
-            </button>
+            {totalEntries > 0 ? (
+              <div className="border-t border-border/40 pt-1">
+                <button
+                  type="button"
+                  title={t('layerDecompose')}
+                  disabled={disabled}
+                  onClick={handleRequestLayerDecompose}
+                  className="flex min-h-11 w-full items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors duration-base ease-standard hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65">
+                    <Layers className="size-4 shrink-0" aria-hidden />
+                  </span>
+                  <span className="truncate text-left">
+                    {t('layerDecompose')}
+                  </span>
+                </button>
+              </div>
+            ) : null}
           </div>
         </StudioToolPopoverContent>
       </StudioToolSurface>

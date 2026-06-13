@@ -115,7 +115,7 @@ export function XiaoheiGuideCarousel({
     <section
       aria-label={t(`${guideId}.label`)}
       className={cn(
-        'mx-auto w-full max-w-2xl rounded-2xl border border-border/60 bg-background/90 p-3 shadow-sm backdrop-blur sm:p-4',
+        'mx-auto w-full max-w-5xl rounded-2xl border border-border/60 bg-background/90 p-2 shadow-sm backdrop-blur sm:p-3',
         className,
       )}
     >
@@ -124,63 +124,45 @@ export function XiaoheiGuideCarousel({
           src={activeSlide.imageSrc}
           alt={t(`${slideKey}.alt`)}
           fill
-          sizes="(max-width: 768px) 92vw, 42rem"
+          sizes="(max-width: 768px) 92vw, (max-width: 1280px) 72vw, 64rem"
           className="object-contain"
           priority={false}
         />
-      </div>
-      <div className="mt-3 flex items-start justify-between gap-3 sm:mt-4">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">
-            {t('stepCounter', {
-              current: activeIndex + 1,
-              total: slides.length,
-            })}
-          </p>
-          <p className="mt-1 text-sm font-medium text-foreground">
-            {t(`${slideKey}.title`)}
-          </p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {t(`${slideKey}.description`)}
-          </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute left-3 top-1/2 size-9 -translate-y-1/2 rounded-full border border-white/15 bg-neutral-950/60 text-white shadow-sm backdrop-blur transition-colors hover:bg-neutral-950/75 hover:text-white sm:left-4 sm:size-10"
+          onClick={goToPrevious}
+        >
+          <ChevronLeft className="size-4" />
+          <span className="sr-only">{t('previous')}</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-3 top-1/2 size-9 -translate-y-1/2 rounded-full border border-white/15 bg-neutral-950/60 text-white shadow-sm backdrop-blur transition-colors hover:bg-neutral-950/75 hover:text-white sm:right-4 sm:size-10"
+          onClick={goToNext}
+        >
+          <ChevronRight className="size-4" />
+          <span className="sr-only">{t('next')}</span>
+        </Button>
+        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+          {slides.map((slide, index) => (
+            <button
+              key={slide.key}
+              type="button"
+              aria-label={t('goToStep', { step: index + 1 })}
+              aria-current={index === activeIndex}
+              onClick={() => setActiveIndex(index)}
+              className={cn(
+                'size-1.5 rounded-full bg-black/25 ring-1 ring-white/50 transition-colors',
+                index === activeIndex && 'bg-black/70',
+              )}
+            />
+          ))}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-8 rounded-full bg-background/80"
-            onClick={goToPrevious}
-          >
-            <ChevronLeft className="size-4" />
-            <span className="sr-only">{t('previous')}</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-8 rounded-full bg-background/80"
-            onClick={goToNext}
-          >
-            <ChevronRight className="size-4" />
-            <span className="sr-only">{t('next')}</span>
-          </Button>
-        </div>
-      </div>
-      <div className="mt-3 flex justify-center gap-1.5">
-        {slides.map((slide, index) => (
-          <button
-            key={slide.key}
-            type="button"
-            aria-label={t('goToStep', { step: index + 1 })}
-            aria-current={index === activeIndex}
-            onClick={() => setActiveIndex(index)}
-            className={cn(
-              'size-1.5 rounded-full bg-muted-foreground/30 transition-colors',
-              index === activeIndex && 'bg-foreground',
-            )}
-          />
-        ))}
       </div>
     </section>
   )

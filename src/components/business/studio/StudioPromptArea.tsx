@@ -1004,15 +1004,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           <AnimatePresence initial={false}>
             {isComposerExpanded && (
               <motion.div
-                key="composer-quick-controls"
+                key="composer-dock-controls"
                 className="overflow-hidden"
                 initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
                 animate={{ height: 'auto', opacity: 1, y: 0, marginBottom: 8 }}
                 exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
                 transition={motionTransition('slow', reducedMotion)}
               >
-                <div className="flex items-center justify-between gap-2 px-1">
-                  <div className="flex min-w-0 items-center gap-1.5">
+                <div className="studio-dock-control-row flex flex-col gap-2 px-1 md:flex-row md:items-center md:gap-3">
+                  <div className="flex min-w-0 shrink-0 items-center gap-1.5">
                     {state.workflowMode === 'quick' && (
                       <MainModelPicker
                         modality={
@@ -1057,6 +1057,25 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                       }
                       prompt={placeholderDialog.prompt}
                       onApply={applyInspirationPrompt}
+                    />
+                  </div>
+                  <div
+                    aria-hidden="true"
+                    className="hidden h-4 w-px shrink-0 bg-border/60 md:block"
+                  />
+                  <div className="relative min-w-0 md:flex-1">
+                    <div className="overflow-x-auto">
+                      <div className="flex min-w-max items-center">
+                        <StudioToolbarPanels compact />
+                      </div>
+                    </div>
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-background to-transparent md:hidden"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-background to-transparent md:hidden"
                     />
                   </div>
                 </div>
@@ -1160,22 +1179,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 </button>
               </PromptInputActions>
             </div>
-            <AnimatePresence initial={false}>
-              {isComposerExpanded && (
-                <motion.div
-                  key="composer-tools"
-                  className="overflow-hidden"
-                  initial={{ height: 0, opacity: 0, y: -4 }}
-                  animate={{ height: 'auto', opacity: 1, y: 0 }}
-                  exit={{ height: 0, opacity: 0, y: -4 }}
-                  transition={motionTransition('slow', reducedMotion)}
-                >
-                  <div className="mt-2 overflow-x-auto border-t border-neutral-200 pt-2 text-black [&_button]:text-black [&_svg]:text-black">
-                    <StudioToolbarPanels compact />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
           {isAudioMode && (
             <div

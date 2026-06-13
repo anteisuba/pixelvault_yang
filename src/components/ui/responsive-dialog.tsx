@@ -70,19 +70,29 @@ function ResponsiveDialogTrigger({
   return <Component {...props}>{children}</Component>
 }
 
+interface ResponsiveDialogContentProps extends React.ComponentProps<
+  typeof DialogContent
+> {
+  mobileBodyClassName?: string
+}
+
 function ResponsiveDialogContent({
   className,
   children,
   showCloseButton,
   closeLabel,
+  mobileBodyClassName,
   ...props
-}: React.ComponentProps<typeof DialogContent>) {
+}: ResponsiveDialogContentProps) {
   const { isMobile } = React.useContext(ResponsiveDialogContext)
   if (isMobile) {
     return (
       <DrawerContent className={cn('max-h-[95svh]', className)} {...props}>
         <div
-          className="flex-1 overflow-y-auto px-4 pt-2"
+          className={cn(
+            'flex-1 overflow-y-auto px-4 pt-2',
+            mobileBodyClassName,
+          )}
           style={{
             paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)',
           }}

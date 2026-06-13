@@ -9,12 +9,15 @@ import {
   STUDIO_IMAGE_ASPECT_RATIOS,
   STUDIO_VIDEO_ASPECT_RATIOS,
 } from '@/constants/studio'
+import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import { useStudioForm } from '@/contexts/studio-context'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { cn } from '@/lib/utils'
 import {
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
+  studioChipActiveClass,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -62,12 +65,23 @@ export function StudioAspectRatioPopover({
   disabled,
 }: StudioAspectRatioPopoverProps) {
   const { state, dispatch } = useStudioForm()
+  const { selectedModel: videoModel } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
   const t = useTranslations('StudioV2')
   const open = state.panels.aspectRatio
   const ratios =
     state.outputType === 'video'
-      ? STUDIO_VIDEO_ASPECT_RATIOS
+      ? (getVideoModelCapabilities(
+          videoModel?.modelId ?? '',
+        ).supportedAspectRatios?.filter((ratio) =>
+          STUDIO_VIDEO_ASPECT_RATIOS.includes(ratio),
+        ) ?? STUDIO_VIDEO_ASPECT_RATIOS)
       : STUDIO_IMAGE_ASPECT_RATIOS
+
+  if (ratios.length < 2) {
+    return null
+  }
 
   return (
     <StudioToolSurface
@@ -84,10 +98,7 @@ export function StudioAspectRatioPopover({
           type="button"
           disabled={disabled}
           aria-label={t('aspectRatioLabel')}
-          className={cn(
-            studioToolTriggerClass,
-            'data-[state=open]:bg-muted/30 data-[state=open]:text-primary',
-          )}
+          className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
         >
           <RatioIcon className="size-4 shrink-0" />
           <span className="hidden sm:inline">{state.aspectRatio}</span>
@@ -112,9 +123,9 @@ export function StudioAspectRatioPopover({
                   dispatch({ type: 'SET_ASPECT_RATIO', payload: r })
                 }}
                 className={cn(
-                  'inline-flex min-w-14 items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150',
+                  'inline-flex min-w-14 items-center justify-center rounded-full border border-transparent px-3 py-1.5 text-xs font-medium transition-colors duration-150',
                   state.aspectRatio === r
-                    ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
+                    ? studioChipActiveClass
                     : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
                 )}
               >

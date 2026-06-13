@@ -4,6 +4,8 @@
 
 本文档记录用户确认过的产品方向。它不记录实现细节，也不替代代码事实源。
 
+长期开发主线见 `docs/product/mainline.md`。本文档记录产品范围，主线文档记录后续开发时应持续参考的功能分工、媒体方向和取舍顺序。
+
 ## Product Positioning
 
 Personal AI Gallery 的核心定位是：

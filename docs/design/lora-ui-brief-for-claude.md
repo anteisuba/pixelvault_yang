@@ -6,7 +6,7 @@ Use this brief after reading:
 - `docs/screenshots/current-ui-inventory/studio-lora-desktop-1440.png`
 - `docs/screenshots/current-ui-inventory/studio-lora-mobile-390.png`
 - `src/components/business/studio/StudioPromptArea.tsx`
-- `src/components/business/studio/StudioLoraChip.tsx`
+- `src/components/business/studio/prompt-tags/LoraPromptControlButton.tsx`
 - `src/components/business/studio/lora/LoraWorkbench.tsx`
 
 ## Scope

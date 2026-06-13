@@ -66,7 +66,7 @@ PixelVault already has most of the LoRA runtime path:
   - `?style=` URL resolution and sharing
   - active LoRA asset + scale stack
 
-- `src/components/business/studio/StudioLoraChip.tsx`
+- `src/components/business/studio/prompt-tags/LoraPromptControlButton.tsx`
   - in-prompt-toolbar LoRA controls
   - scale, share, trigger insertion, recommended prompt application
   - current model compatibility warnings
@@ -702,7 +702,7 @@ src/hooks/use-prompt-tag-stack.test.tsx
 ```text
 src/app/[locale]/(main)/studio/layout.tsx
 src/components/business/studio/StudioPromptArea.tsx
-src/components/business/studio/StudioLoraChip.tsx
+src/components/business/studio/prompt-tags/LoraPromptControlButton.tsx
 src/components/business/studio/lora/LoraAssetCard.tsx
 src/components/business/studio/lora/LoraWorkbench.tsx
 src/hooks/use-unified-generate.ts

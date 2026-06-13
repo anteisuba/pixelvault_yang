@@ -370,7 +370,7 @@ Current namespace groups include:
 - domains: `GalleryPage`, `AssetsPage`, `PromptLibrary`, `StoryBoard`, `ArenaPage`, `ArenaLeaderboard`, `ArenaHistory`, `ArenaPersonalStats`, `CreatorProfile`, `Projects`;
 - cards and style assets: `CharacterCard`, `BackgroundCard`, `StyleCard`, `CardRecipe`, `CardSlot`, `Cardify`;
 - Node workflow: `StudioNode`, `workflows`, `sceneFeedback`, `sceneProgress`;
-- LoRA/training: `LoraStack`, `StudioLoraChip`, `LoraWorkbench`, `LoraTraining`, `UseLoraButton`.
+- LoRA/training: `LoraStack`, `LoraPromptControl`, `LoraWorkbench`, `LoraTraining`, `UseLoraButton`.
 
 Potential hardcoded user-facing strings found during this pass:
 

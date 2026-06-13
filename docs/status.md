@@ -1,12 +1,14 @@
 # 项目状态
 
-最后更新：2026-06-03
+最后更新：2026-06-13
 
 这是唯一的活跃进度文档。它应该保持短，并随着项目变化覆盖更新。
 
 ## Current Focus
 
 - 第一轮文档重构已完成，`docs/design/` 已调整为结构入口；详细 UI 设计文档先不写，后续一页一页确认。
+- `docs/product/mainline.md` 已成为产品方向主线文档；后续功能、媒体、资源管理和 Studio 相关任务应在 `docs/status.md` 后读取它。
+- 视频方向已确认：`Studio Video` 保持轻量短片入口，`Node workflow` 承担长视频、系列镜头、角色/声音绑定、分镜、参考视频和片段合并等导演式生产能力。
 - 固定后续开发流程：读文档、查代码事实源、必要时核验官方资料、暴露不确定点、确认方向、写 task packet、实现小切片、跑验证、更新必要文档。
 - 当前文档整理阶段不改变产品方向、provider 契约、模型目录、API schema、数据库、认证、积分或存储行为。
 
@@ -39,6 +41,8 @@
 - `docs/README.md` 已定义新的文档分类、默认阅读路径、不确定即停止规则和官方文档核验规则。
 - `AGENTS.md` 已补充新的文档上下文规则，以及 provider/model/API 相关修改前必须查官方资料的要求。
 - `docs/status.md` 已创建为唯一活跃进度文档。
+- `docs/product/mainline.md` 已新增为长期产品主线，记录图片方向、StyleCard 资产化、声音方向、VoiceCard 边界、视频/画布分工、3D 待确认项，以及 Assets / Gallery / Prompts 资源管理边界。
+- （2026-06-13）视频主线已按 owner 确认更新：`Studio Video` 做温和直接的短片生成入口，`Node workflow` 做真正的视频导演台；视频中间 clip 生命周期、服务端 graph execution planner、边语义仍待后续确认。
 - `docs/product/scope.md` 已记录 owner 确认的产品定位、核心用户、第一主路径、功能优先级和短期非目标。
 - `docs/architecture/overview.md` 已记录当前系统分层、架构事实源、边界地图和未决项。
 - `docs/architecture/generation.md` 已记录生成链路的 Current、Target、Unresolved，包括 Studio 主入口、Node workflow 长视频定位、Generation 统一数据层、媒体执行层拆分和 BYOK/platform key 优先级。
@@ -88,6 +92,7 @@
 - `src/i18n/`
 - `prisma/schema.prisma`
 - `docs/product/scope.md`
+- `docs/product/mainline.md`
 - `docs/architecture/overview.md`
 - `docs/architecture/generation.md`
 - `docs/architecture/credits.md`
@@ -109,6 +114,6 @@
 
 ## Last Verified
 
-- Date: 2026-06-03
-- Method: focused code inspection and validation for Worker-only generation migration, long-video pipeline state updates, image provider Worker dispatch, and docs synchronization
+- Date: 2026-06-13
+- Method: focused documentation/code inspection and owner direction confirmation for product mainline; earlier Worker-only generation migration validation remains recorded in history
 - External docs: checked provider-level official documentation for OpenAI, Google Gemini, Hugging Face, FAL, Replicate, Runway, NovelAI, VolcEngine Ark, Fish Audio, Hyper3D Rodin, and DeepSeek for `docs/integrations/providers.md`; rechecked FAL queue/Veo extend, Gemini image generation, Replicate predictions, NovelAI image Swagger entry, VolcEngine Seedream, Hugging Face HF Inference, Fish Audio TTS, and Cloudflare Workers best practices for 2026-06-03 Worker migrations

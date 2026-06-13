@@ -90,10 +90,11 @@ Default reading order:
 1. `AGENTS.md`
 2. `docs/README.md`
 3. `docs/status.md` if it exists
-4. the relevant `docs/domains/*.md`
-5. the relevant `docs/architecture/*.md`
-6. the relevant `docs/integrations/*.md`
-7. the relevant code source of truth
+4. `docs/product/mainline.md`
+5. the relevant `docs/domains/*.md`
+6. the relevant `docs/architecture/*.md`
+7. the relevant `docs/integrations/*.md`
+8. the relevant code source of truth
 
 Do not read the whole `docs/` tree by default. Load the smallest relevant set, then inspect the code source of truth before making changes.
 

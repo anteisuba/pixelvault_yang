@@ -584,16 +584,18 @@ export async function check3DGenerationStatusForUserId(
   }
 
   if (queueStatus.status === 'FAILED') {
-    const errorMessage = '3D generation failed on provider side'
+    const errorMessage =
+      queueStatus.error ?? '3D generation failed on provider side'
+    const errorCode = queueStatus.errorCode ?? GENERATION_ERROR_CODES.UNKNOWN
     await failGenerationJob(job.id, {
       errorMessage,
-      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+      errorCode,
     })
     return {
       jobId: job.id,
       status: 'FAILED',
       error: errorMessage,
-      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+      errorCode,
     }
   }
 
@@ -1404,22 +1406,23 @@ async function checkMeshFirst3DGenerationStatus(params: {
       return { jobId: job.id, status: meshStatus.status, stage: 'mesh' }
     }
     if (meshStatus.status === 'FAILED' || !meshStatus.result) {
-      const errorMessage = '3D geometry preview failed on provider side'
+      const errorMessage =
+        meshStatus.status === 'FAILED'
+          ? (meshStatus.error ?? '3D geometry preview failed on provider side')
+          : '3D geometry preview failed on provider side'
+      const errorCode =
+        meshStatus.status === 'FAILED'
+          ? (meshStatus.errorCode ?? GENERATION_ERROR_CODES.UNKNOWN)
+          : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT
       await failGenerationJob(job.id, {
         errorMessage,
-        errorCode:
-          meshStatus.status === 'FAILED'
-            ? GENERATION_ERROR_CODES.UNKNOWN
-            : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+        errorCode,
       })
       return {
         jobId: job.id,
         status: 'FAILED',
         error: errorMessage,
-        errorCode:
-          meshStatus.status === 'FAILED'
-            ? GENERATION_ERROR_CODES.UNKNOWN
-            : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+        errorCode,
       }
     }
 
@@ -1542,23 +1545,24 @@ async function checkMeshFirst3DGenerationStatus(params: {
     }
   }
   if (finalStatus.status === 'FAILED' || !finalStatus.result) {
-    const errorMessage = '3D texture generation failed on provider side'
+    const errorMessage =
+      finalStatus.status === 'FAILED'
+        ? (finalStatus.error ?? '3D texture generation failed on provider side')
+        : '3D texture generation failed on provider side'
+    const errorCode =
+      finalStatus.status === 'FAILED'
+        ? (finalStatus.errorCode ?? GENERATION_ERROR_CODES.UNKNOWN)
+        : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT
     await failGenerationJob(job.id, {
       errorMessage,
-      errorCode:
-        finalStatus.status === 'FAILED'
-          ? GENERATION_ERROR_CODES.UNKNOWN
-          : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+      errorCode,
     })
     return {
       jobId: job.id,
       status: 'FAILED',
       previewModelUrl,
       error: errorMessage,
-      errorCode:
-        finalStatus.status === 'FAILED'
-          ? GENERATION_ERROR_CODES.UNKNOWN
-          : GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+      errorCode,
     }
   }
 

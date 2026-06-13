@@ -3764,6 +3764,7 @@
       "characterGenerated": "角色图已生成。",
       "mediaGenerated": "节点素材已生成。",
       "mediaGenerationFailed": "节点素材生成失败。",
+      "stillProcessing": "仍在后台生成，请稍后回来查看。",
       "charactersSpawned": "已派生 {count} 个角色图节点。",
       "charactersAlreadySpawned": "所有角色都已派生过节点。",
       "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。",

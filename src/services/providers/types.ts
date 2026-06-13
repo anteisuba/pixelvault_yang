@@ -126,6 +126,8 @@ export interface ProviderQueueStatusInput {
 export interface ProviderQueueStatusResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   result?: ProviderVideoResult
+  error?: string
+  errorCode?: string
 }
 
 // ─── 3D (image-to-3D) Provider Types ─────────────────────────────
@@ -216,6 +218,8 @@ export interface ProviderModel3DResult {
 export interface ProviderModel3DQueueStatusResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   result?: ProviderModel3DResult
+  error?: string
+  errorCode?: string
 }
 
 export interface HealthCheckInput {
@@ -235,12 +239,19 @@ export interface HealthCheckResult {
 export class ProviderError extends Error {
   readonly status: number
   readonly detail: string
+  readonly errorCode?: string
 
-  constructor(provider: string, status: number, detail: string) {
-    super(humanizeProviderError(provider, status, detail))
+  constructor(
+    provider: string,
+    status: number,
+    detail: string,
+    options: { errorCode?: string; message?: string } = {},
+  ) {
+    super(options.message ?? humanizeProviderError(provider, status, detail))
     this.name = 'ProviderError'
     this.status = status
     this.detail = detail
+    this.errorCode = options.errorCode
   }
 }
 
@@ -429,6 +440,8 @@ export interface ProviderAudioResult {
 export interface ProviderAudioQueueStatusResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   result?: ProviderAudioResult
+  error?: string
+  errorCode?: string
 }
 
 // ─── Provider Adapter Interface ──────────────────────────────────

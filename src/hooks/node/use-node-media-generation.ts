@@ -71,6 +71,7 @@ type NodeMediaGenerationResult =
       error: string
       errorCode?: string
       i18nKey?: string
+      pending?: true
     }
 
 interface UseNodeMediaGenerationValue {
@@ -90,85 +91,138 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+type NodeMediaPollOutcome =
+  | {
+      status: 'completed'
+      generation: GenerationRecord
+    }
+  | {
+      status: 'failed'
+      error: string
+      errorCode?: string
+      i18nKey?: string
+    }
+  | {
+      status: 'pending'
+    }
+
 async function waitForVideoGeneration(
   jobId: string,
-): Promise<GenerationRecord | null> {
+): Promise<NodeMediaPollOutcome> {
   for (
     let attempt = 0;
     attempt < VIDEO_GENERATION.MAX_POLL_ATTEMPTS;
     attempt += 1
   ) {
-    const statusResponse = await checkVideoStatusAPI(jobId)
+    let statusResponse: Awaited<ReturnType<typeof checkVideoStatusAPI>>
+    try {
+      statusResponse = await checkVideoStatusAPI(jobId)
+    } catch {
+      return { status: 'pending' }
+    }
+
     if (!statusResponse.success || !statusResponse.data) {
-      return null
+      return { status: 'pending' }
     }
 
     if (statusResponse.data.status === 'COMPLETED') {
-      return statusResponse.data.generation
+      return { status: 'completed', generation: statusResponse.data.generation }
     }
 
     if (statusResponse.data.status === 'FAILED') {
-      return null
+      return {
+        status: 'failed',
+        error:
+          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+        errorCode: statusResponse.data.errorCode,
+        i18nKey: statusResponse.data.i18nKey,
+      }
     }
 
     await delay(VIDEO_GENERATION.POLL_INTERVAL_MS)
   }
 
-  return null
+  return { status: 'pending' }
 }
 
 async function waitForImageGeneration(
   jobId: string,
-): Promise<GenerationRecord | null> {
+): Promise<NodeMediaPollOutcome> {
   for (
     let attempt = 0;
     attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
     attempt += 1
   ) {
-    const statusResponse = await checkImageGenerationStatusAPI(jobId)
+    let statusResponse: Awaited<
+      ReturnType<typeof checkImageGenerationStatusAPI>
+    >
+    try {
+      statusResponse = await checkImageGenerationStatusAPI(jobId)
+    } catch {
+      return { status: 'pending' }
+    }
+
     if (!statusResponse.success || !statusResponse.data) {
-      return null
+      return { status: 'pending' }
     }
 
     if (statusResponse.data.status === 'COMPLETED') {
-      return statusResponse.data.generation
+      return { status: 'completed', generation: statusResponse.data.generation }
     }
 
     if (statusResponse.data.status === 'FAILED') {
-      return null
+      return {
+        status: 'failed',
+        error:
+          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+        errorCode: statusResponse.data.errorCode,
+        i18nKey: statusResponse.data.i18nKey,
+      }
     }
 
     await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
   }
 
-  return null
+  return { status: 'pending' }
 }
 
 async function waitForAudioGeneration(
   jobId: string,
-): Promise<GenerationRecord | null> {
+): Promise<NodeMediaPollOutcome> {
   for (
     let attempt = 0;
     attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
     attempt += 1
   ) {
-    const statusResponse = await checkAudioStatusAPI(jobId)
+    let statusResponse: Awaited<ReturnType<typeof checkAudioStatusAPI>>
+    try {
+      statusResponse = await checkAudioStatusAPI(jobId)
+    } catch {
+      return { status: 'pending' }
+    }
+
     if (!statusResponse.success || !statusResponse.data) {
-      return null
+      return { status: 'pending' }
     }
 
     if (statusResponse.data.status === 'COMPLETED') {
-      return statusResponse.data.generation
+      return { status: 'completed', generation: statusResponse.data.generation }
     }
 
     if (statusResponse.data.status === 'FAILED') {
-      return null
+      return {
+        status: 'failed',
+        error:
+          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+        errorCode: statusResponse.data.errorCode,
+        i18nKey: statusResponse.data.i18nKey,
+      }
     }
 
     await delay(AUDIO_GENERATION.POLL_INTERVAL_MS)
   }
 
-  return null
+  return { status: 'pending' }
 }
 
 export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
@@ -188,6 +242,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
 
       try {
         let generation: GenerationRecord | null = null
+        let pollOutcome: NodeMediaPollOutcome | null = null
 
         if (input.kind === 'image') {
           const response = await studioGenerateAPI({
@@ -211,7 +266,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             }
           }
 
-          generation = await waitForImageGeneration(response.data.jobId)
+          pollOutcome = await waitForImageGeneration(response.data.jobId)
         }
 
         if (input.kind === 'video') {
@@ -236,10 +291,12 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             return {
               success: false,
               error: message,
+              errorCode: response.errorCode,
+              i18nKey: response.i18nKey,
             }
           }
 
-          generation = await waitForVideoGeneration(response.data.jobId)
+          pollOutcome = await waitForVideoGeneration(response.data.jobId)
         }
 
         if (input.kind === 'audio') {
@@ -265,7 +322,30 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           }
 
           if (hasAudioJobId(response.data)) {
-            generation = await waitForAudioGeneration(response.data.jobId)
+            pollOutcome = await waitForAudioGeneration(response.data.jobId)
+          }
+        }
+
+        if (pollOutcome?.status === 'completed') {
+          generation = pollOutcome.generation
+        }
+
+        if (pollOutcome?.status === 'failed') {
+          setError(pollOutcome.error)
+          return {
+            success: false,
+            error: pollOutcome.error,
+            errorCode: pollOutcome.errorCode,
+            i18nKey: pollOutcome.i18nKey,
+          }
+        }
+
+        if (pollOutcome?.status === 'pending') {
+          setError(NODE_MEDIA_GENERATION_FALLBACK_ERROR)
+          return {
+            success: false,
+            error: NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+            pending: true,
           }
         }
 

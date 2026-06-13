@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api-client', () => ({
   checkImageGenerationStatusAPI: vi.fn(),
@@ -46,6 +46,10 @@ beforeEach(() => {
       generation: FAKE_GENERATION,
     },
   })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('useCharacterImageGeneration', () => {
@@ -175,6 +179,99 @@ describe('useCharacterImageGeneration', () => {
       i18nKey: undefined,
     })
     expect(result.current.error).toBe('Character image generation failed')
+  })
+
+  it('passes through FAILED status error fields instead of falling back', async () => {
+    vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image',
+        status: 'FAILED',
+        error: 'Provider blocked this character image request',
+        errorCode: 'content_filtered',
+        i18nKey: 'errors.provider.contentFiltered',
+      },
+    })
+
+    const { result } = renderHook(() => useCharacterImageGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        modelId: FAKE_GENERATION.model,
+        freePrompt: FAKE_GENERATION.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Provider blocked this character image request',
+      errorCode: 'content_filtered',
+      i18nKey: 'errors.provider.contentFiltered',
+    })
+    expect(result.current.error).toBe(
+      'Provider blocked this character image request',
+    )
+    expect(result.current.errorCode).toBe('content_filtered')
+  })
+
+  it('keeps polling exhaustion as pending instead of a provider failure', async () => {
+    vi.useFakeTimers()
+    vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image',
+        status: 'IN_PROGRESS',
+      },
+    })
+
+    const { result } = renderHook(() => useCharacterImageGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      const pendingResponse = result.current.generate({
+        modelId: FAKE_GENERATION.model,
+        freePrompt: FAKE_GENERATION.prompt,
+      })
+      await vi.runAllTimersAsync()
+      response = await pendingResponse
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Character image generation failed',
+      pending: true,
+    })
+    expect(result.current.errorCode).toBeNull()
+    expect(response!).not.toMatchObject({
+      errorCode: 'content_filtered',
+      i18nKey: 'errors.provider.contentFiltered',
+    })
+  })
+
+  it('keeps status API exceptions distinct from FAILED provider results', async () => {
+    vi.mocked(checkImageGenerationStatusAPI).mockRejectedValue(
+      new Error('status service unavailable'),
+    )
+
+    const { result } = renderHook(() => useCharacterImageGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        modelId: FAKE_GENERATION.model,
+        freePrompt: FAKE_GENERATION.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Character image generation failed',
+      pending: true,
+    })
+    expect(response!).not.toHaveProperty('errorCode')
+    expect(response!).not.toHaveProperty('i18nKey')
+    expect(checkImageGenerationStatusAPI).toHaveBeenCalledTimes(1)
   })
 
   it('resets stored error state', async () => {

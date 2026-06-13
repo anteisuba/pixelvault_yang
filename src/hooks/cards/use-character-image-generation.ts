@@ -36,6 +36,7 @@ type CharacterImageGenerationResult =
       error: string
       errorCode?: string
       i18nKey?: string
+      pending?: true
     }
 
 interface UseCharacterImageGenerationValue {
@@ -52,31 +53,61 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+type CharacterImagePollOutcome =
+  | {
+      status: 'completed'
+      generation: GenerationRecord
+    }
+  | {
+      status: 'failed'
+      error: string
+      errorCode?: string
+      i18nKey?: string
+    }
+  | {
+      status: 'pending'
+    }
+
 async function waitForCharacterImageGeneration(
   jobId: string,
-): Promise<GenerationRecord | null> {
+): Promise<CharacterImagePollOutcome> {
   for (
     let attempt = 0;
     attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
     attempt += 1
   ) {
-    const statusResponse = await checkImageGenerationStatusAPI(jobId)
+    let statusResponse: Awaited<
+      ReturnType<typeof checkImageGenerationStatusAPI>
+    >
+    try {
+      statusResponse = await checkImageGenerationStatusAPI(jobId)
+    } catch {
+      return { status: 'pending' }
+    }
+
     if (!statusResponse.success || !statusResponse.data) {
-      return null
+      return { status: 'pending' }
     }
 
     if (statusResponse.data.status === 'COMPLETED') {
-      return statusResponse.data.generation
+      return { status: 'completed', generation: statusResponse.data.generation }
     }
 
     if (statusResponse.data.status === 'FAILED') {
-      return null
+      return {
+        status: 'failed',
+        error:
+          statusResponse.data.error ??
+          CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR,
+        errorCode: statusResponse.data.errorCode,
+        i18nKey: statusResponse.data.i18nKey,
+      }
     }
 
     await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
   }
 
-  return null
+  return { status: 'pending' }
 }
 
 export function useCharacterImageGeneration(): UseCharacterImageGenerationValue {
@@ -108,23 +139,36 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
         })
 
         if (response.success && response.data?.jobId) {
-          const generation = await waitForCharacterImageGeneration(
+          const pollOutcome = await waitForCharacterImageGeneration(
             response.data.jobId,
           )
-          if (!generation) {
+
+          if (pollOutcome.status === 'failed') {
+            setError(pollOutcome.error)
+            setErrorCode(pollOutcome.errorCode ?? null)
+            return {
+              success: false,
+              error: pollOutcome.error,
+              errorCode: pollOutcome.errorCode,
+              i18nKey: pollOutcome.i18nKey,
+            }
+          }
+
+          if (pollOutcome.status === 'pending') {
             const message = CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR
             setError(message)
             setErrorCode(null)
             return {
               success: false,
               error: message,
+              pending: true,
             }
           }
 
           return {
             success: true,
-            generation,
-            imageUrl: generation.url,
+            generation: pollOutcome.generation,
+            imageUrl: pollOutcome.generation.url,
           }
         }
 

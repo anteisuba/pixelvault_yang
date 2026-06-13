@@ -95,12 +95,15 @@ export async function submitVideoAPI(
     })
 
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Video generation failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Video generation failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
 
@@ -227,12 +230,15 @@ export async function submit3DAPI(
     })
 
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `3D generation failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `3D generation failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
 
@@ -827,12 +833,15 @@ export async function submitLongVideoAPI(
     })
 
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Long video generation failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Long video generation failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
 

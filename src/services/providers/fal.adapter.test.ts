@@ -239,7 +239,7 @@ describe('falAdapter.generateImage', () => {
     expect(body.strength).toBeUndefined()
   })
 
-  it('throws ProviderError with content_policy_violation message on policy error', async () => {
+  it('throws ProviderError with content_filtered code on policy error', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -254,9 +254,10 @@ describe('falAdapter.generateImage', () => {
       ),
     )
 
-    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
-      '内容审核',
-    )
+    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toMatchObject({
+      message: 'Policy violated',
+      errorCode: 'content_filtered',
+    })
   })
 
   it('surfaces queue phase when a request times out', async () => {
@@ -312,9 +313,10 @@ describe('falAdapter.generateImage', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
-      '内容审核',
-    )
+    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toMatchObject({
+      message: 'fal.ai returned has_nsfw_concepts for generated image.',
+      errorCode: 'content_filtered',
+    })
   })
 })
 
@@ -396,6 +398,34 @@ describe('falAdapter F5-TTS queue', () => {
       },
     })
   })
+
+  it('maps failed F5-TTS queue status to raw error and errorCode', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'FAILED',
+          error: {
+            type: 'content_policy_violation',
+            msg: 'Policy violated',
+          },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.checkAudioQueueStatus!({
+      statusUrl: 'https://queue.fal.run/status/req-audio-failed',
+      responseUrl: 'https://queue.fal.run/result/req-audio-failed',
+      apiKey: 'fal-test-key',
+    })
+
+    expect(result).toEqual({
+      status: 'FAILED',
+      error: 'Policy violated',
+      errorCode: 'content_filtered',
+    })
+  })
 })
 
 describe('falAdapter image-to-3D queue', () => {
@@ -422,7 +452,38 @@ describe('falAdapter image-to-3D queue', () => {
 
     await expect(
       falAdapter.submitModel3DToQueue!(MODEL_3D_INPUT),
-    ).rejects.toThrow('账户余额不足')
+    ).rejects.toMatchObject({
+      message:
+        'User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.',
+      errorCode: 'provider_insufficient_balance',
+    })
+  })
+
+  it('maps failed 3D queue status to raw error and errorCode', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'FAILED',
+          error: {
+            detail: [{ type: 'no_media_generated', msg: 'No mesh generated' }],
+          },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.checkModel3DQueueStatus!({
+      statusUrl: 'https://queue.fal.run/status/req-3d-failed',
+      responseUrl: 'https://queue.fal.run/result/req-3d-failed',
+      apiKey: 'fal-test-key',
+    })
+
+    expect(result).toEqual({
+      status: 'FAILED',
+      error: 'No mesh generated',
+      errorCode: 'provider_no_output',
+    })
   })
 
   it('submits with input_image_url for Hunyuan3D and returns queue handles', async () => {

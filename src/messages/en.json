@@ -3764,6 +3764,7 @@
       "characterGenerated": "Character image generated.",
       "mediaGenerated": "Node media generated.",
       "mediaGenerationFailed": "Node media generation failed.",
+      "stillProcessing": "Still generating in the background — check back in a moment.",
       "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
       "charactersAlreadySpawned": "All characters already have image nodes.",
       "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images.",

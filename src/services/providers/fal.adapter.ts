@@ -12,60 +12,171 @@ import {
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { HUNYUAN3D_FACE_COUNT } from '@/constants/model-3d-generation'
+import {
+  GENERATION_ERROR_CODES,
+  parseGenerationErrorCode,
+  type GenerationErrorCode,
+} from '@/constants/generation-errors'
 
 import { invertReferenceStrength } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import { injectCivitaiToken } from '@/services/civitai-token.service'
 
 /**
- * Normalize fal.ai error responses into user-friendly messages.
- * fal.ai returns FastAPI validation errors with a `detail: [{ type, msg, ... }]` shape;
- * the most common non-HTTP error is content_policy_violation.
+ * Normalize fal.ai error responses into raw provider detail + project error code.
+ * fal.ai model errors use `detail: [{ type, msg, ... }]`; request errors can
+ * also use `{ detail, error_type }`.
  */
-function formatFalError(status: number, errorBody: string): string {
-  let parsed: unknown = null
-  try {
-    parsed = JSON.parse(errorBody)
-  } catch {
-    // not JSON
-  }
-  const detail =
-    parsed && typeof parsed === 'object' && 'detail' in parsed
-      ? (parsed as { detail: unknown }).detail
-      : undefined
-  const firstError =
-    Array.isArray(detail) && detail.length > 0
-      ? (detail[0] as { type?: unknown; msg?: unknown })
-      : undefined
-  const type =
-    typeof firstError?.type === 'string' ? firstError.type : undefined
-  const msg = typeof firstError?.msg === 'string' ? firstError.msg : undefined
-  const detailText = typeof detail === 'string' ? detail : undefined
-  const normalizedMessage = [type, msg, detailText, errorBody]
-    .filter((part): part is string => typeof part === 'string')
-    .join(' ')
+interface FalErrorDetails {
+  message: string
+  errorCode: GenerationErrorCode
+}
 
-  if (type === 'content_policy_violation') {
-    return 'fal.ai 内容审核拒绝：生成结果被判定为敏感内容。请调整 prompt 或参考图（常见触发：暴力、裸露、真人脸特征、特定角色等）后重试。'
+interface FalErrorParts {
+  messages: string[]
+  types: string[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function pushText(target: string[], value: unknown): void {
+  if (typeof value !== 'string') return
+  const trimmed = value.trim()
+  if (trimmed.length > 0) {
+    target.push(trimmed)
+  }
+}
+
+function collectFalErrorParts(value: unknown, parts: FalErrorParts): void {
+  if (!value) return
+
+  if (typeof value === 'string') {
+    pushText(parts.messages, value)
+    return
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectFalErrorParts(item, parts)
+    }
+    return
+  }
+
+  if (!isRecord(value)) return
+
+  pushText(parts.messages, value.msg)
+  pushText(parts.messages, value.message)
+  pushText(parts.messages, value.reason)
+  pushText(parts.messages, value.detail)
+  pushText(parts.types, value.type)
+  pushText(parts.types, value.error_type)
+  pushText(parts.types, value.errorType)
+
+  if (isRecord(value.error) || Array.isArray(value.error)) {
+    collectFalErrorParts(value.error, parts)
+  } else {
+    pushText(parts.messages, value.error)
+  }
+
+  if (isRecord(value.detail) || Array.isArray(value.detail)) {
+    collectFalErrorParts(value.detail, parts)
+  }
+
+  if (isRecord(value.payload) || Array.isArray(value.payload)) {
+    collectFalErrorParts(value.payload, parts)
+  }
+}
+
+function parseFalJson(errorBody: string): unknown {
+  try {
+    return JSON.parse(errorBody)
+  } catch {
+    return null
+  }
+}
+
+function hasFalBalanceSignal(value: string): boolean {
+  return /user\s+is\s+locked|exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)/i.test(
+    value,
+  )
+}
+
+function classifyFalError(
+  status: number,
+  combinedText: string,
+  types: string[],
+): GenerationErrorCode {
+  const normalizedTypes = new Set(types.map((type) => type.toLowerCase()))
+
+  if (normalizedTypes.has('content_policy_violation')) {
+    return GENERATION_ERROR_CODES.CONTENT_FILTERED
+  }
+  if (normalizedTypes.has('no_media_generated')) {
+    return GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT
   }
   if (
-    /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|余额不足|余额已耗尽|充值/i.test(
-      normalizedMessage,
-    )
+    normalizedTypes.has('image_load_error') ||
+    normalizedTypes.has('file_download_error') ||
+    normalizedTypes.has('invalid_file_mimetype')
   ) {
-    return 'fal.ai 账户余额不足，请前往 fal.ai 控制台充值，或切换到有余额的 API Key 后重试。'
+    return GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE
+  }
+  if (hasFalBalanceSignal(combinedText)) {
+    return GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE
   }
   if (status === 401 || status === 403) {
-    return 'fal.ai API Key 无效或权限不足，请检查 Key 是否正确。'
+    return GENERATION_ERROR_CODES.INVALID_API_KEY
   }
   if (status === 429) {
-    return 'fal.ai 触发限流，请稍后重试。'
+    return GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT
+  }
+  if (
+    status === 408 ||
+    status === 504 ||
+    /request_timeout|startup_timeout|timeout|timed?\s*out/i.test(combinedText)
+  ) {
+    return GENERATION_ERROR_CODES.PROVIDER_TIMEOUT
   }
   if (status === 404) {
-    return 'fal.ai 找不到对应模型或任务。请检查模型 ID。'
+    return GENERATION_ERROR_CODES.MODEL_UNAVAILABLE
   }
-  if (msg) return `fal.ai 错误：${msg}`
-  return `fal.ai 错误 (HTTP ${status})：${errorBody.slice(0, 200)}`
+  if (status >= 500) {
+    return GENERATION_ERROR_CODES.PROVIDER_OVERLOADED
+  }
+
+  return parseGenerationErrorCode(combinedText)
+}
+
+function parseFalError(status: number, errorBody: string): FalErrorDetails {
+  const parsed = parseFalJson(errorBody)
+  const parts: FalErrorParts = { messages: [], types: [] }
+  collectFalErrorParts(parsed ?? errorBody, parts)
+
+  const combinedText = [...parts.types, ...parts.messages, errorBody].join(' ')
+  const errorCode = classifyFalError(status, combinedText, parts.types)
+  const message =
+    parts.messages[0] ??
+    parts.types[0] ??
+    errorBody.slice(0, 200) ??
+    `fal.ai request failed with HTTP ${status}`
+
+  return {
+    message,
+    errorCode,
+  }
+}
+
+function createFalProviderError(
+  status: number,
+  errorBody: string,
+): ProviderError {
+  const parsed = parseFalError(status, errorBody)
+  return new ProviderError('fal.ai', status, parsed.message, {
+    errorCode: parsed.errorCode,
+    message: parsed.message,
+  })
 }
 
 import {
@@ -259,6 +370,32 @@ function stringifyFalQueueError(value: unknown): string | undefined {
   }
 }
 
+function parseFalQueueFailure(
+  statusData: z.infer<typeof FAL_QUEUE_STATUS_SCHEMA>,
+): FalErrorDetails {
+  const fallbackMessage =
+    stringifyFalQueueError(statusData.error) ??
+    stringifyFalQueueError(statusData.detail) ??
+    `Queue request failed with status ${statusData.status}`
+  if (statusData.error == null && statusData.detail == null) {
+    return {
+      message: fallbackMessage,
+      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+    }
+  }
+
+  const body = JSON.stringify({
+    error: statusData.error,
+    detail: statusData.detail,
+  })
+  const parsed = parseFalError(422, body)
+
+  return {
+    message: parsed.message || fallbackMessage,
+    errorCode: parsed.errorCode,
+  }
+}
+
 function isFalQueueFailureStatus(status: string): boolean {
   const normalized = status.toUpperCase()
   return (
@@ -367,11 +504,7 @@ async function submitFalImageQueue(params: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new ProviderError(
-      'fal.ai',
-      response.status,
-      formatFalError(response.status, errorBody),
-    )
+    throw createFalProviderError(response.status, errorBody)
   }
 
   const queue = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -406,11 +539,7 @@ async function pollFalImageQueue(params: {
 
     if (!statusResponse.ok) {
       const errorBody = await statusResponse.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        statusResponse.status,
-        formatFalError(statusResponse.status, errorBody),
-      )
+      throw createFalProviderError(statusResponse.status, errorBody)
     }
 
     const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
@@ -418,11 +547,11 @@ async function pollFalImageQueue(params: {
     )
 
     if (isFalQueueFailureStatus(statusData.status)) {
-      const errorMessage =
-        stringifyFalQueueError(statusData.error) ??
-        stringifyFalQueueError(statusData.detail) ??
-        `Queue request failed with status ${statusData.status}`
-      throw new ProviderError('fal.ai', 502, errorMessage)
+      const failure = parseFalQueueFailure(statusData)
+      throw new ProviderError('fal.ai', 502, failure.message, {
+        errorCode: failure.errorCode,
+        message: failure.message,
+      })
     }
 
     if (statusData.status === 'COMPLETED') {
@@ -443,11 +572,7 @@ async function pollFalImageQueue(params: {
         const errorBody = await resultResponse
           .text()
           .catch(() => 'Unknown error')
-        throw new ProviderError(
-          'fal.ai',
-          resultResponse.status,
-          formatFalError(resultResponse.status, errorBody),
-        )
+        throw createFalProviderError(resultResponse.status, errorBody)
       }
 
       return FAL_RESPONSE_SCHEMA.parse(await resultResponse.json())
@@ -565,17 +690,21 @@ export const falAdapter: ProviderAdapter = {
     })
 
     if (data.has_nsfw_concepts?.some(Boolean)) {
-      throw new ProviderError(
-        'fal.ai',
-        422,
-        'fal.ai 内容审核拒绝：生成结果被判定为敏感内容。请调整 prompt 或参考图（常见触发：暴力、裸露、真人脸特征、特定角色等）后重试。',
-      )
+      const message = 'fal.ai returned has_nsfw_concepts for generated image.'
+      throw new ProviderError('fal.ai', 422, message, {
+        errorCode: GENERATION_ERROR_CODES.CONTENT_FILTERED,
+        message,
+      })
     }
 
     const imageItem = data.images[0]
 
     if (!imageItem) {
-      throw new ProviderError('fal.ai', 502, 'No image data returned')
+      const message = 'No image data returned'
+      throw new ProviderError('fal.ai', 502, message, {
+        errorCode: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+        message,
+      })
     }
 
     return {
@@ -633,11 +762,7 @@ export const falAdapter: ProviderAdapter = {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'Unknown error')
-        throw new ProviderError(
-          'fal.ai',
-          response.status,
-          formatFalError(response.status, errorBody),
-        )
+        throw createFalProviderError(response.status, errorBody)
       }
 
       const data = FAL_VIDEO_RESPONSE_SCHEMA.parse(await response.json())
@@ -707,11 +832,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        response.status,
-        formatFalError(response.status, errorBody),
-      )
+      throw createFalProviderError(response.status, errorBody)
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -753,11 +874,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        response.status,
-        formatFalError(response.status, errorBody),
-      )
+      throw createFalProviderError(response.status, errorBody)
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -786,11 +903,7 @@ export const falAdapter: ProviderAdapter = {
         statusUrl,
         errorBody: errorBody.slice(0, 1000),
       })
-      throw new ProviderError(
-        'fal.ai',
-        statusResponse.status,
-        formatFalError(statusResponse.status, errorBody),
-      )
+      throw createFalProviderError(statusResponse.status, errorBody)
     }
 
     const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
@@ -815,11 +928,7 @@ export const falAdapter: ProviderAdapter = {
         responseUrl,
         errorBody: errorBody.slice(0, 1000),
       })
-      throw new ProviderError(
-        'fal.ai',
-        resultResponse.status,
-        formatFalError(resultResponse.status, errorBody),
-      )
+      throw createFalProviderError(resultResponse.status, errorBody)
     }
 
     const resultData = FAL_VIDEO_RESPONSE_SCHEMA.parse(
@@ -880,11 +989,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        response.status,
-        formatFalError(response.status, errorBody),
-      )
+      throw createFalProviderError(response.status, errorBody)
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -908,11 +1013,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!statusResponse.ok) {
       const errorBody = await statusResponse.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        statusResponse.status,
-        formatFalError(statusResponse.status, errorBody),
-      )
+      throw createFalProviderError(statusResponse.status, errorBody)
     }
 
     const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
@@ -920,7 +1021,12 @@ export const falAdapter: ProviderAdapter = {
     )
 
     if (isFalQueueFailureStatus(statusData.status)) {
-      return { status: 'FAILED' as const }
+      const failure = parseFalQueueFailure(statusData)
+      return {
+        status: 'FAILED' as const,
+        error: failure.message,
+        errorCode: failure.errorCode,
+      }
     }
 
     if (statusData.status !== 'COMPLETED') {
@@ -938,11 +1044,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!resultResponse.ok) {
       const errorBody = await resultResponse.text().catch(() => 'Unknown error')
-      throw new ProviderError(
-        'fal.ai',
-        resultResponse.status,
-        formatFalError(resultResponse.status, errorBody),
-      )
+      throw createFalProviderError(resultResponse.status, errorBody)
     }
 
     const resultData = FAL_AUDIO_RESPONSE_SCHEMA.parse(
@@ -1060,11 +1162,7 @@ export const falAdapter: ProviderAdapter = {
         endpoint,
         errorBody: errorBody.slice(0, 500),
       })
-      throw new ProviderError(
-        'fal.ai',
-        response.status,
-        formatFalError(response.status, errorBody),
-      )
+      throw createFalProviderError(response.status, errorBody)
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -1130,14 +1228,19 @@ export const falAdapter: ProviderAdapter = {
       return { status: statusData.status }
     }
 
-    if (statusData.status === 'FAILED') {
+    if (isFalQueueFailureStatus(statusData.status)) {
+      const failure = parseFalQueueFailure(statusData)
       logger.warn('fal.ai 3D queue failed', {
         statusUrl,
         error: JSON.stringify(
           statusData.error ?? statusData.detail ?? null,
         ).slice(0, 1000),
       })
-      return { status: 'FAILED' as const }
+      return {
+        status: 'FAILED' as const,
+        error: failure.message,
+        errorCode: failure.errorCode,
+      }
     }
 
     if (statusData.status !== 'COMPLETED') {
@@ -1146,7 +1249,12 @@ export const falAdapter: ProviderAdapter = {
         statusUrl,
         body: JSON.stringify(statusJson).slice(0, 1000),
       })
-      return { status: 'FAILED' as const }
+      const message = `Queue request failed with status ${statusData.status}`
+      return {
+        status: 'FAILED' as const,
+        error: message,
+        errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+      }
     }
 
     logger.debug('fal.ai 3D result fetch starting', { responseUrl })
@@ -1289,11 +1397,7 @@ export async function submitFalLoraTraining(input: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new ProviderError(
-      'fal.ai',
-      response.status,
-      formatFalError(response.status, errorBody),
-    )
+    throw createFalProviderError(response.status, errorBody)
   }
 
   const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -1317,11 +1421,7 @@ export async function checkFalLoraTrainingStatus(input: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new ProviderError(
-      'fal.ai',
-      response.status,
-      formatFalError(response.status, errorBody),
-    )
+    throw createFalProviderError(response.status, errorBody)
   }
 
   const data = FAL_QUEUE_STATUS_SCHEMA.parse(await response.json())

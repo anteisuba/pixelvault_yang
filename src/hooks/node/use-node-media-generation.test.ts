@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api-client', () => ({
   checkAudioStatusAPI: vi.fn(),
@@ -62,6 +62,10 @@ const AUDIO_GENERATION_RECORD: GenerationRecord = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('useNodeMediaGeneration', () => {
@@ -189,5 +193,114 @@ describe('useNodeMediaGeneration', () => {
       referenceText: undefined,
     })
     expect(checkAudioStatusAPI).toHaveBeenCalledWith('job-audio')
+  })
+
+  it('passes through FAILED status error fields instead of falling back', async () => {
+    vi.mocked(studioGenerateAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-image', requestId: 'request-image' },
+    })
+    vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image',
+        status: 'FAILED',
+        error: 'Provider safety filter blocked the prompt',
+        errorCode: 'content_filtered',
+        i18nKey: 'errors.provider.contentFiltered',
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        kind: 'image',
+        modelId: IMAGE_GENERATION.model,
+        prompt: IMAGE_GENERATION.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Provider safety filter blocked the prompt',
+      errorCode: 'content_filtered',
+      i18nKey: 'errors.provider.contentFiltered',
+    })
+    expect(response!).not.toMatchObject({
+      error: 'Node media generation failed',
+    })
+  })
+
+  it('keeps polling exhaustion as pending instead of a provider failure', async () => {
+    vi.useFakeTimers()
+    vi.mocked(submitVideoAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        requestId: 'request-video',
+      },
+    })
+    vi.mocked(checkVideoStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        status: 'IN_PROGRESS',
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      const pendingResponse = result.current.generate({
+        kind: 'video',
+        modelId: VIDEO_GENERATION_RECORD.model,
+        prompt: VIDEO_GENERATION_RECORD.prompt,
+      })
+      await vi.runAllTimersAsync()
+      response = await pendingResponse
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Node media generation failed',
+      pending: true,
+    })
+    expect(response!).not.toMatchObject({
+      errorCode: 'content_filtered',
+      i18nKey: 'errors.provider.contentFiltered',
+    })
+  })
+
+  it('keeps status API exceptions distinct from FAILED provider results', async () => {
+    vi.mocked(generateAudioAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-audio', requestId: 'request-audio' },
+    })
+    vi.mocked(checkAudioStatusAPI).mockRejectedValue(
+      new Error('status service unavailable'),
+    )
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        kind: 'audio',
+        modelId: AUDIO_GENERATION_RECORD.model,
+        prompt: AUDIO_GENERATION_RECORD.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: false,
+      error: 'Node media generation failed',
+      pending: true,
+    })
+    expect(response!).not.toHaveProperty('errorCode')
+    expect(response!).not.toHaveProperty('i18nKey')
+    expect(checkAudioStatusAPI).toHaveBeenCalledTimes(1)
   })
 })

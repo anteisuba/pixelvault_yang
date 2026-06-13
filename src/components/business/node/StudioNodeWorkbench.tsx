@@ -649,6 +649,19 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
+      if (result.pending) {
+        workflow.updateNodeData(nodeId, {
+          generationError: undefined,
+          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+          status: NODE_STATUS_IDS.idle,
+        })
+        toast.info(t('toasts.stillProcessing'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
       const failureMessage = getGenerationErrorMessage(
         tErrors,
         result,
@@ -886,6 +899,19 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           status: NODE_STATUS_IDS.done,
         })
         toast.success(t('toasts.mediaGenerated'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      if (result.pending) {
+        workflow.updateNodeData(nodeId, {
+          generationError: undefined,
+          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+          status: NODE_STATUS_IDS.idle,
+        })
+        toast.info(t('toasts.stillProcessing'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
         })

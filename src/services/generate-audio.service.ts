@@ -922,16 +922,18 @@ export async function checkAudioGenerationStatus(
   }
 
   if (pollResult.status === 'FAILED') {
-    const errorMessage = 'Audio generation failed on provider side'
+    const errorMessage =
+      pollResult.error ?? 'Audio generation failed on provider side'
+    const errorCode = pollResult.errorCode ?? GENERATION_ERROR_CODES.UNKNOWN
     await failGenerationJob(job.id, {
       errorMessage,
-      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+      errorCode,
     })
     return {
       jobId: job.id,
       status: 'FAILED',
       error: errorMessage,
-      errorCode: GENERATION_ERROR_CODES.UNKNOWN,
+      errorCode,
     }
   }
 

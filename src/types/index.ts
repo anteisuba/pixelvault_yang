@@ -745,6 +745,8 @@ export interface VideoSubmitResponse {
   success: boolean
   data?: VideoSubmitResponseData
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 export type VideoStatusResponseData = AudioStatusResponseData
@@ -1186,6 +1188,8 @@ export interface Model3DSubmitResponse {
   success: boolean
   data?: Model3DSubmitResponseData
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 export interface Model3DStatusResponse {
@@ -1659,6 +1663,8 @@ export interface LongVideoSubmitResponse {
   success: boolean
   data?: LongVideoSubmitResponseData
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 export interface LongVideoStatusResponse {

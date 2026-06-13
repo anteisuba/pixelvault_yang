@@ -3854,6 +3854,8 @@
       "title": "Generation Failed",
       "retry": "Retry",
       "switchModel": "Switch Model",
+      "configureKey": "Set up API key",
+      "editPrompt": "Edit prompt",
       "viewDetails": "View Details"
     },
     "variantRequests": "Uses {count} credits"

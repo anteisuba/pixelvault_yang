@@ -3854,6 +3854,8 @@
       "title": "生成に失敗しました",
       "retry": "リトライ",
       "switchModel": "モデルを変更",
+      "configureKey": "API キーを設定",
+      "editPrompt": "プロンプトを編集",
       "viewDetails": "詳細を表示"
     },
     "variantRequests": "{count}クレジット使用"

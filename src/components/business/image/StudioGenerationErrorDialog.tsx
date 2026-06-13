@@ -6,11 +6,17 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  KeyRound,
+  Pencil,
   RefreshCw,
   Shuffle,
+  type LucideIcon,
 } from 'lucide-react'
 
-import { parseGenerationErrorCode } from '@/constants/generation-errors'
+import {
+  GENERATION_ERROR_CODES,
+  parseGenerationErrorCode,
+} from '@/constants/generation-errors'
 import type { GenerationErrorCode } from '@/constants/generation-errors'
 import {
   Dialog,
@@ -27,12 +33,141 @@ export interface GenerationErrorInfo {
   code?: GenerationErrorCode
 }
 
+type ErrorAction = 'retry' | 'switchModel' | 'configureKey' | 'editPrompt'
+
+interface ErrorActionPair {
+  primary: ErrorAction
+  secondary: ErrorAction
+}
+
+interface ErrorActionConfig {
+  labelKey: string
+  Icon: LucideIcon
+}
+
+interface OptionalActionHandlers {
+  onConfigureKey?: () => void
+  onEditPrompt?: () => void
+}
+
 interface StudioGenerationErrorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   error: GenerationErrorInfo
   onRetry: () => void
   onSwitchModel: () => void
+  onConfigureKey?: () => void
+  onEditPrompt?: () => void
+}
+
+const DEFAULT_ERROR_ACTIONS: ErrorActionPair = {
+  primary: 'retry',
+  secondary: 'switchModel',
+}
+
+const ERROR_ACTIONS_BY_CODE: Partial<
+  Record<GenerationErrorCode, ErrorActionPair>
+> = {
+  [GENERATION_ERROR_CODES.INVALID_API_KEY]: {
+    primary: 'configureKey',
+    secondary: 'switchModel',
+  },
+  [GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS]: {
+    primary: 'configureKey',
+    secondary: 'switchModel',
+  },
+  [GENERATION_ERROR_CODES.CONTENT_FILTERED]: {
+    primary: 'editPrompt',
+    secondary: 'switchModel',
+  },
+  [GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT]: DEFAULT_ERROR_ACTIONS,
+  [GENERATION_ERROR_CODES.PROVIDER_OVERLOADED]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.MODEL_UNAVAILABLE]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
+  [GENERATION_ERROR_CODES.PROVIDER_TIMEOUT]: DEFAULT_ERROR_ACTIONS,
+  [GENERATION_ERROR_CODES.CALLBACK_TIMEOUT]: DEFAULT_ERROR_ACTIONS,
+  [GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT]: DEFAULT_ERROR_ACTIONS,
+  [GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED]: DEFAULT_ERROR_ACTIONS,
+  [GENERATION_ERROR_CODES.UNKNOWN]: DEFAULT_ERROR_ACTIONS,
+}
+
+const ERROR_ACTION_CONFIGS: Record<ErrorAction, ErrorActionConfig> = {
+  retry: {
+    labelKey: 'generationError.retry',
+    Icon: RefreshCw,
+  },
+  switchModel: {
+    labelKey: 'generationError.switchModel',
+    Icon: Shuffle,
+  },
+  configureKey: {
+    labelKey: 'generationError.configureKey',
+    Icon: KeyRound,
+  },
+  editPrompt: {
+    labelKey: 'generationError.editPrompt',
+    Icon: Pencil,
+  },
+}
+
+function resolveErrorActions(code?: GenerationErrorCode): ErrorActionPair {
+  if (!code) {
+    return DEFAULT_ERROR_ACTIONS
+  }
+  return ERROR_ACTIONS_BY_CODE[code] ?? DEFAULT_ERROR_ACTIONS
+}
+
+function normalizeAction(
+  action: ErrorAction,
+  handlers: OptionalActionHandlers,
+): ErrorAction {
+  if (action === 'configureKey' && !handlers.onConfigureKey) {
+    return 'switchModel'
+  }
+  if (action === 'editPrompt' && !handlers.onEditPrompt) {
+    return 'switchModel'
+  }
+  return action
+}
+
+function resolveAvailableActions(
+  code: GenerationErrorCode | undefined,
+  handlers: OptionalActionHandlers,
+): ErrorAction[] {
+  const actions = resolveErrorActions(code)
+  const primary = normalizeAction(actions.primary, handlers)
+  const secondary = normalizeAction(actions.secondary, handlers)
+
+  return primary === secondary ? [primary] : [primary, secondary]
 }
 
 export function StudioGenerationErrorDialog({
@@ -41,6 +176,8 @@ export function StudioGenerationErrorDialog({
   error,
   onRetry,
   onSwitchModel,
+  onConfigureKey,
+  onEditPrompt,
 }: StudioGenerationErrorDialogProps) {
   const t = useTranslations('StudioV2')
   const tErrors = useTranslations('Errors')
@@ -48,15 +185,21 @@ export function StudioGenerationErrorDialog({
 
   const errorCode = error.code ?? parseGenerationErrorCode(error.message)
   const reasonKey = `generation.${errorCode}` as const
+  const actions = resolveAvailableActions(errorCode, {
+    onConfigureKey,
+    onEditPrompt,
+  })
 
-  const handleRetry = () => {
-    onOpenChange(false)
-    onRetry()
-  }
+  const handleAction = (action: ErrorAction) => {
+    const callbackByAction: Record<ErrorAction, () => void> = {
+      retry: onRetry,
+      switchModel: onSwitchModel,
+      configureKey: onConfigureKey ?? onSwitchModel,
+      editPrompt: onEditPrompt ?? onSwitchModel,
+    }
 
-  const handleSwitchModel = () => {
     onOpenChange(false)
-    onSwitchModel()
+    callbackByAction[action]()
   }
 
   return (
@@ -100,18 +243,20 @@ export function StudioGenerationErrorDialog({
         </div>
 
         <DialogFooter className="mt-4 flex-col gap-2 sm:flex-row">
-          <Button variant="default" onClick={handleRetry} className="gap-2">
-            <RefreshCw className="size-4" />
-            {t('generationError.retry')}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSwitchModel}
-            className="gap-2"
-          >
-            <Shuffle className="size-4" />
-            {t('generationError.switchModel')}
-          </Button>
+          {actions.map((action, index) => {
+            const { Icon, labelKey } = ERROR_ACTION_CONFIGS[action]
+            return (
+              <Button
+                key={action}
+                variant={index === 0 ? 'default' : 'outline'}
+                onClick={() => handleAction(action)}
+                className="gap-2"
+              >
+                <Icon className="size-4" />
+                {t(labelKey)}
+              </Button>
+            )
+          })}
         </DialogFooter>
       </DialogContent>
     </Dialog>

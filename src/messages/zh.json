@@ -3854,6 +3854,8 @@
       "title": "生成失败",
       "retry": "重试",
       "switchModel": "换个模型",
+      "configureKey": "配置 API 密钥",
+      "editPrompt": "修改提示词",
       "viewDetails": "查看详情"
     },
     "variantRequests": "消耗 {count} 积分"

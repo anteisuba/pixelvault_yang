@@ -21,21 +21,67 @@ interface XiaoheiGuideCarouselProps {
   className?: string
 }
 
-const XIAOHEI_GUIDES: Record<XiaoheiGuideId, XiaoheiGuideSlide[]> = {
-  image: [
+const IMAGE_GUIDE_SLIDES_BY_LOCALE = {
+  en: [
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-01-input.webp',
-      key: 'input',
+      imageSrc: '/tutorials/xiaohei-guides/en/studio-image-01-model.webp',
+      key: 'model',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-02-settings.webp',
-      key: 'settings',
+      imageSrc: '/tutorials/xiaohei-guides/en/studio-image-02-prompt.webp',
+      key: 'prompt',
     },
     {
-      imageSrc: '/tutorials/xiaohei-guides/image-03-preview.webp',
-      key: 'preview',
+      imageSrc: '/tutorials/xiaohei-guides/en/studio-image-03-reference.webp',
+      key: 'reference',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/en/studio-image-04-reuse.webp',
+      key: 'reuse',
     },
   ],
+  ja: [
+    {
+      imageSrc: '/tutorials/xiaohei-guides/ja/studio-image-01-model.webp',
+      key: 'model',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/ja/studio-image-02-prompt.webp',
+      key: 'prompt',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/ja/studio-image-03-reference.webp',
+      key: 'reference',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/ja/studio-image-04-reuse.webp',
+      key: 'reuse',
+    },
+  ],
+  zh: [
+    {
+      imageSrc: '/tutorials/xiaohei-guides/zh/studio-image-01-model.webp',
+      key: 'model',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/zh/studio-image-02-prompt.webp',
+      key: 'prompt',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/zh/studio-image-03-reference.webp',
+      key: 'reference',
+    },
+    {
+      imageSrc: '/tutorials/xiaohei-guides/zh/studio-image-04-reuse.webp',
+      key: 'reuse',
+    },
+  ],
+} satisfies Record<AppLocale, XiaoheiGuideSlide[]>
+
+const XIAOHEI_GUIDES: Record<
+  Exclude<XiaoheiGuideId, 'image'>,
+  XiaoheiGuideSlide[]
+> = {
   video: [
     {
       imageSrc: '/tutorials/xiaohei-guides/video-01-input.webp',
@@ -94,17 +140,10 @@ const XIAOHEI_GUIDES: Record<XiaoheiGuideId, XiaoheiGuideSlide[]> = {
   ],
 }
 
-function getLocalizedImageSrc(
-  guideId: XiaoheiGuideId,
-  locale: AppLocale,
-  imageSrc: string,
-) {
-  if (guideId !== 'image' || locale === 'zh') return imageSrc
+function getGuideSlides(guideId: XiaoheiGuideId, locale: AppLocale) {
+  if (guideId === 'image') return IMAGE_GUIDE_SLIDES_BY_LOCALE[locale]
 
-  return imageSrc.replace(
-    '/tutorials/xiaohei-guides/',
-    `/tutorials/xiaohei-guides/${locale}/`,
-  )
+  return XIAOHEI_GUIDES[guideId]
 }
 
 export function XiaoheiGuideCarousel({
@@ -113,15 +152,11 @@ export function XiaoheiGuideCarousel({
 }: XiaoheiGuideCarouselProps) {
   const locale = useLocale() as AppLocale
   const t = useTranslations('XiaoheiGuide')
-  const slides = XIAOHEI_GUIDES[guideId]
+  const slides = getGuideSlides(guideId, locale)
   const [activeIndex, setActiveIndex] = useState(0)
-  const activeSlide = slides[activeIndex]
+  const activeSlideIndex = Math.min(activeIndex, slides.length - 1)
+  const activeSlide = slides[activeSlideIndex]
   const slideKey = `${guideId}.slides.${activeSlide.key}`
-  const activeImageSrc = getLocalizedImageSrc(
-    guideId,
-    locale,
-    activeSlide.imageSrc,
-  )
 
   const goToPrevious = () => {
     setActiveIndex((index) => (index === 0 ? slides.length - 1 : index - 1))
@@ -141,7 +176,7 @@ export function XiaoheiGuideCarousel({
     >
       <div className="relative aspect-video overflow-hidden rounded-xl border border-border/50 bg-white">
         <Image
-          src={activeImageSrc}
+          src={activeSlide.imageSrc}
           alt={t(`${slideKey}.alt`)}
           fill
           sizes="(max-width: 768px) 92vw, (max-width: 1280px) 72vw, 64rem"
@@ -174,7 +209,7 @@ export function XiaoheiGuideCarousel({
               key={slide.key}
               type="button"
               aria-label={t('goToStep', { step: index + 1 })}
-              aria-current={index === activeIndex}
+              aria-current={index === activeSlideIndex}
               onClick={() => setActiveIndex(index)}
               className={cn(
                 'size-1.5 rounded-full bg-black/25 ring-1 ring-white/50 transition-colors',

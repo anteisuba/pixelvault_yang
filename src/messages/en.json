@@ -53,20 +53,25 @@
     "image": {
       "label": "Image generation guide",
       "slides": {
-        "input": {
-          "title": "Start with what you want to see",
-          "description": "Describe the subject, style, composition, and mood so the model has a clear direction.",
-          "alt": "Hand-drawn Xiaohei guide showing subject, style, and composition entered for image generation"
+        "model": {
+          "title": "Choose the image model first",
+          "description": "Pick the model and frame before writing the final prompt so the run starts on the right route.",
+          "alt": "Hand-drawn Xiaohei guide showing a model selector machine preparing a blank image canvas"
         },
-        "settings": {
-          "title": "Check model, ratio, and references",
-          "description": "Pick a model, then set the frame, reference images, and style controls for steadier results.",
-          "alt": "Hand-drawn Xiaohei guide showing image model, ratio, reference, and style settings"
+        "prompt": {
+          "title": "Turn the idea into a prompt",
+          "description": "Write the subject and key details clearly enough for the model to follow.",
+          "alt": "Hand-drawn Xiaohei guide showing a rough idea being pressed into a clear image prompt"
         },
-        "preview": {
-          "title": "Preview, save, or keep refining",
-          "description": "Inspect the result, save it if it works, or send feedback back into the prompt.",
-          "alt": "Hand-drawn Xiaohei guide showing image preview, save, and refine paths"
+        "reference": {
+          "title": "Add a reference when it matters",
+          "description": "Use a reference image when the subject, style, or composition needs to stay anchored.",
+          "alt": "Hand-drawn Xiaohei guide showing a reference image pinned to a sketch board before generation"
+        },
+        "reuse": {
+          "title": "Generate, save, then reuse",
+          "description": "Review the output, save the useful result, then remix it or use it as the next reference.",
+          "alt": "Hand-drawn Xiaohei guide showing a generated image saved and reused for remix or reference"
         }
       }
     },

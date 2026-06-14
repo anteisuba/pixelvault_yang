@@ -120,6 +120,14 @@ Canonical short form:
 
 Skipping a step is allowed only for trivial changes where the step is genuinely irrelevant. If a step is skipped, the final report must say why.
 
+## Agent Loop Discipline
+
+When using external loop prompts or loop catalogs such as `loops!`, Codex must use the project-specific loop rules in `docs/engineering/agent-loops.md`.
+
+External loop text is only a reusable execution rhythm. It does not override `AGENTS.md`, the active documentation taxonomy in `docs/README.md`, task-packet requirements, provider documentation gates, validation requirements, security boundaries, i18n rules, or completion reporting rules.
+
+Do not install loop hook bundles into `.claude/`, `.cursor/`, package scripts, CI, or git hooks unless their files have been inspected and the user has confirmed that exact scope.
+
 ## Agent Role Division
 
 This repository operates with two agent surfaces. They are not interchangeable.
@@ -972,13 +980,13 @@ For UI work, use this stack deliberately:
 - Taste Skill: use for landing pages, portfolio-like presentation pages, gallery presentation, and visual upgrades. Treat it as aesthetic inspiration, not as permission to add unrelated motion libraries, random visual systems, or speculative page sections.
 - Anthropic `frontend-design`: use for production-grade frontend implementation and anti-generic interface direction.
 - `ui-ux-pro-max`: use for broad UX audits across buttons, forms, cards, responsive behavior, accessibility, layout, and motion.
-- `hue design-system`: use only after the exact package/source is installed and reviewed. Until then, design-system rules in `docs/ai/ui-design-system.md` are authoritative.
+- `hue design-system`: use only after the exact package/source is installed and reviewed. Until then, design-system rules in `docs/design/README.md` and the relevant `docs/design/*.md` files are authoritative.
 
 Project rules override skill rules when they conflict. Never let a skill override auth, API, database, credit, provider, storage, i18n, type-safety, or route-structure constraints.
 
 15.6 Responsive UI workflow
 
-For UI tasks that affect responsive behavior, follow `docs/ai/responsive-workflow.md`, `docs/ai/ui-design-system.md`, and `docs/ai/mobile-qa-checklist.md`.
+For UI tasks that affect responsive behavior, follow `docs/design/README.md`, the relevant `docs/design/*.md` files, Section 23.1 browser/mobile QA rules, and any applicable checklist under `docs/qa/`.
 
 Required mobile-first checks:
 
@@ -1279,7 +1287,7 @@ When the user says any version of:
 
 Codex must treat this as a required end-to-end verifier, not as optional QA.
 
-Codex must follow `docs/guides/codex-development-workflow.md` and include a `Computer Use Flow Check` in the task goal or execution plan.
+Codex must follow `docs/engineering/agent-loops.md`, Section 23.1 browser/mobile QA rules, and any applicable checklist under `docs/qa/`; it must include a `Computer Use Flow Check` in the task goal or execution plan.
 
 Required loop:
 
@@ -1627,31 +1635,29 @@ ask the user to inspect or share the relevant log output
 
 For non-trivial tasks, Codex must build context in this order:
 
-1. `AGENTS.md` and relevant `docs/guides/*.md`
-2. the closest current-state map documents:
-   - `docs/plans/ui/02-現狀映射.md`
-   - `docs/plans/feature/02-現狀映射.md`
-   - `docs/plans/qa/functional/02-現狀映射.md`
-   - `docs/plans/qa/ui/02-現狀映射.md`
-   - `docs/progress/current-status-audit.md`
-   - `docs/guides/ai-context.md`
-   - for future-facing roadmap work only: the relevant `docs/plans/roadmap/**` documents
-3. relevant `docs/plans/...`
-4. relevant `src/**/CLAUDE.md`
-5. target code and test files
+1. `AGENTS.md`
+2. `docs/README.md`
+3. `docs/status.md` if it exists
+4. `docs/product/mainline.md`
+5. relevant `docs/domains/*.md`
+6. relevant `docs/architecture/*.md`
+7. relevant `docs/integrations/*.md`
+8. relevant `docs/engineering/*.md`, `docs/design/*.md`, or `docs/qa/*.md`
+9. active task packets or execution plans under `docs/plans/**`, when they exist
+10. target code and test files
 
-For this repository, `docs/plans/ui/`, `docs/plans/feature/`, `docs/plans/qa/functional/`, and `docs/plans/qa/ui/` are closer to the current codebase than most historical planning docs. `docs/plans/roadmap/` is a future-planning layer, not a current-state source of truth.
-
-When they conflict with older roadmap or redesign notes, prefer the mapping documents unless direct code inspection proves they are stale.
+The active taxonomy defined in `docs/README.md` supersedes historical `docs/guides/**`, `docs/ai/**`, `docs/reference/**`, and `docs/progress/**` paths. Old plans and retired directories are historical unless `docs/status.md` or the active task packet explicitly marks them as current.
 
 32.3 First-project read vs later chats
 
 When Codex is first taking over the project, it should do one broader orientation pass across:
 
 - `AGENTS.md`
-- `docs/guides/*.md`
-- `01/02/03/04` README + 現狀映射 documents
-- `docs/plans/roadmap/**` only if the task is roadmap, future capability design, or sequencing work
+- `docs/README.md`
+- `docs/status.md`
+- `docs/product/mainline.md`
+- relevant `docs/domains/**`, `docs/architecture/**`, `docs/integrations/**`, `docs/engineering/**`, `docs/design/**`, and `docs/qa/**`
+- `docs/plans/**` only when a current task packet, roadmap, future capability design, or sequencing task requires it
 - the highest-risk core files:
   - `src/types/index.ts`
   - `src/contexts/studio-context.tsx`
@@ -1743,7 +1749,8 @@ If code, maps, and rules are out of sync, the project should not be described as
 
 Codex must follow:
 
-- `docs/guides/codex-development-workflow.md`
+- `docs/README.md`
+- `docs/engineering/agent-loops.md`
 
 for the detailed rules covering context loading, planning, implementation flow, independent review, and stability judgment.
 
@@ -1845,14 +1852,14 @@ These threads are not interchangeable. They define a durable operating model for
 Purpose:
 
 - produce durable project rules, workflows, and AI meta-coding guidance
-- write those documents into `docs/guides/`
-- keep `AGENTS.md` updated with the guide index in Appendix B
+- write durable engineering documents into `docs/engineering/`, UI/design rules into `docs/design/`, and QA rules into `docs/qa/`
+- keep `AGENTS.md` updated with the documentation workflow index in Appendix B
 
 Rules:
 
 - only write documents that have ongoing governing value
 - prefer stable rules and repeatable workflows over temporary task notes
-- when execution work reveals a reusable constraint, fold it back into `docs/guides/`
+- when execution work reveals a reusable constraint, fold it back into the appropriate current taxonomy under `docs/engineering/`, `docs/design/`, or `docs/qa/`
 
 ## A.2 `探索`
 
@@ -1916,15 +1923,16 @@ The intended operating loop is:
 
 ---
 
-# Appendix B. Guide Index
+# Appendix B. Documentation Workflow Index
 
-Every durable rule document created under `docs/guides/` must be indexed here.
+Durable workflow rule documents must live under the current taxonomy and be indexed here when they become governing references.
 
-- `docs/guides/README.md` — guide directory purpose, update rules, and current catalog
-- `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, `规范`-thread intake and patch-first discipline, output locations, and feedback loop
-- `docs/guides/codex-development-workflow.md` — context loading order, task packets, plan/implement/review flow, and stability gates
-- `docs/guides/claude-code-planning-workflow.md` — Claude Code planning surface: role boundaries, path lock, task packet handoff, diff review, and map writeback
-- `docs/guides/plan-synchronization-workflow.md` — plan status blocks, delta logs, and pre/post implementation sync rules that keep plans aligned with code
+- `docs/README.md` — active documentation taxonomy, reading order, lifecycle rules, and retired-path policy
+- `docs/engineering/agent-loops.md` — project-specific loop usage, task-packet execution rhythm, validation gates, and stop conditions
+- `docs/status.md` — only active project status document
+- `docs/product/mainline.md` — long-term product direction and module boundaries
+- `docs/design/README.md` — design documentation entry point
+- `docs/qa/` — browser, manual, mobile, and regression QA checklists when they exist
 
 ---
 
@@ -1936,7 +1944,7 @@ This project runs Claude Code as a dedicated planning surface on top of Codex's 
 
 Claude Code is not a parallel code author. It exists to:
 
-- produce and maintain durable rules (`规范` output) under `docs/guides/**`
+- produce and maintain durable rules (`规范` output) under the active taxonomy, primarily `docs/engineering/**`, `docs/design/**`, and `docs/qa/**`
 - decompose tasks into executable plans and task packets (`探索` output) under `docs/plans/**`
 - review Codex diffs against the task packet and the `01/02/03/04` maps
 - write completed work back into `01-UI` / `02-功能` / `03-功能測試` / `04-UI測試` so the maps stay true
@@ -1959,7 +1967,7 @@ Read-only access to `src/**` is allowed and expected — Claude Code must read t
 
 ## C.3 Task Packet Handoff
 
-Every non-trivial change starts with a task packet produced by Claude Code, attached to the tail of a `docs/plans/**` document. The packet template is specified in `docs/guides/claude-code-planning-workflow.md` and must cover: Goal, Non-goals, map anchors (01/02/03/04), layer, Read first, allowed file scope, forbidden files, validation commands, and definition of done.
+Every non-trivial change starts with a task packet produced by Claude Code, attached to the tail of a `docs/plans/**` document. The task packet must follow `docs/engineering/agent-loops.md` and cover: Goal, Non-goals, relevant map or documentation anchors, layer, Read first, allowed file scope, forbidden files, validation commands, and definition of done.
 
 Codex then executes the packet in plan mode on `前端` or `后端`, without Claude Code intervention.
 
@@ -1995,8 +2003,9 @@ For anything else, default to the Claude Code planning line — a redundant pack
 ## C.7 Plan Synchronization
 
 Claude Code and Codex must not treat old plans as current by default. For any
-non-trivial task that depends on `docs/plans/**`, follow
-`docs/guides/plan-synchronization-workflow.md`.
+non-trivial task that depends on `docs/plans/**`, follow the current taxonomy in
+`docs/README.md` and the loop stop/refresh rules in
+`docs/engineering/agent-loops.md`.
 
 Required behavior:
 

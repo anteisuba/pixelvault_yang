@@ -19,6 +19,10 @@ vi.mock('sonner', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
+}))
+
 vi.mock('@/i18n/navigation', () => ({
   Link: ({
     children,
@@ -103,26 +107,25 @@ vi.mock('./LoraSourceRecipeStrip', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
-  StudioToolSurface: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
+  StudioChipBadge: ({ children }: { children: ReactNode }) => (
+    <span>{children}</span>
   ),
-  StudioToolSurfaceTrigger: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-  StudioToolPopoverContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
+  studioChipActiveClass: 'studio-chip-active',
+  studioDialogBaseClass: 'studio-dialog-base',
   studioToolTriggerClass: '',
 }))
 
 describe('LoraPromptControlButton', () => {
-  it('exposes training and Civitai token access inside the LoRA panel', () => {
+  it('opens LoRA controls as a dialog and exposes training plus Civitai token access', async () => {
     render(
       <Toolbar.Root>
         <LoraPromptControlButton />
       </Toolbar.Root>,
     )
 
+    fireEvent.click(screen.getByRole('button', { name: 'trigger' }))
+
+    expect(await screen.findByRole('dialog')).toHaveClass('studio-dialog-base')
     const trainLink = screen.getByRole('link', { name: /trainLoraShort/ })
     expect(trainLink).toHaveAttribute('href', '/studio/lora?section=train')
 

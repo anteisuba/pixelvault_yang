@@ -67,12 +67,19 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 import { promptIncludesTrigger } from '@/lib/prompt-text'
 import { cn } from '@/lib/utils'
 import {
-  StudioToolPopoverContent,
-  StudioToolSurface,
-  StudioToolSurfaceTrigger,
+  StudioChipBadge,
+  studioChipActiveClass,
+  studioDialogBaseClass,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { Button } from '@/components/ui/button'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+} from '@/components/ui/responsive-dialog'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -105,7 +112,7 @@ export function LoraPromptControlButton({
 }: LoraPromptControlButtonProps) {
   const t = useTranslations('LoraPromptControl')
   const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<LoraPromptControlTab>('generate')
+  const [activeTab, setActiveTab] = useState<LoraPromptControlTab>('tags')
   const promptTags = usePromptTagStack()
   const loraStack = useActiveLoraStack()
   const { state } = useStudioForm()
@@ -119,7 +126,7 @@ export function LoraPromptControlButton({
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen)
     if (nextOpen) {
-      setActiveTab('generate')
+      setActiveTab('tags')
     }
   }, [])
 
@@ -169,17 +176,13 @@ export function LoraPromptControlButton({
       aria-label={count > 0 ? t('triggerWithCount', { count }) : t('trigger')}
       className={cn(
         studioToolTriggerClass,
-        active ? 'bg-muted/30 text-primary' : 'text-muted-foreground',
+        active && studioChipActiveClass,
         recentlyMounted && 'ring-2 ring-primary/60',
       )}
     >
       <Diamond className="size-4" aria-hidden />
       <span className="hidden sm:inline">{t('label')}</span>
-      {count > 0 ? (
-        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
-          {count}
-        </span>
-      ) : null}
+      {count > 0 ? <StudioChipBadge>{count}</StudioChipBadge> : null}
     </Toolbar.Button>
   )
 
@@ -193,19 +196,24 @@ export function LoraPromptControlButton({
   )
 
   return (
-    <StudioToolSurface open={open} onOpenChange={handleOpenChange}>
-      <StudioToolSurfaceTrigger asChild>{trigger}</StudioToolSurfaceTrigger>
-      <StudioToolPopoverContent
-        side="top"
-        align="end"
-        size="medium"
-        label={t('title')}
-        className="h-[min(680px,82vh)] w-[min(520px,calc(100vw-2rem))] overflow-hidden p-0"
-        mobileClassName="px-0 pt-0"
+    <ResponsiveDialog open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveDialogTrigger asChild>{trigger}</ResponsiveDialogTrigger>
+      <ResponsiveDialogContent
+        className={cn(
+          studioDialogBaseClass,
+          'flex h-[min(680px,82vh)] w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col sm:w-[min(520px,calc(100vw-4rem))] sm:!max-w-[520px]',
+        )}
+        mobileBodyClassName="px-0 pt-0"
       >
+        <ResponsiveDialogTitle className="sr-only">
+          {t('title')}
+        </ResponsiveDialogTitle>
+        <ResponsiveDialogDescription className="sr-only">
+          {t('title')}
+        </ResponsiveDialogDescription>
         {panel}
-      </StudioToolPopoverContent>
-    </StudioToolSurface>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 
@@ -575,8 +583,8 @@ function ModelMatchNotice({
 }: ModelMatchNoticeProps) {
   const t = useTranslations('LoraPromptControl.generate')
   const tone = isCompatible
-    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-    : 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+    ? 'border-primary/30 bg-primary/10 text-primary'
+    : 'border-border/70 bg-muted/40 text-muted-foreground'
   const message = isCompatible
     ? t('modelMatched', { model: modelName })
     : canSwitch
@@ -874,7 +882,7 @@ function LoraGenerateRow({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <Diamond
-              className="size-3.5 shrink-0 fill-current text-violet-600"
+              className="size-3.5 shrink-0 fill-current text-muted-foreground"
               aria-hidden
             />
             <h4 className="truncate text-sm font-semibold text-foreground">
@@ -968,7 +976,7 @@ function LoraGenerateRow({
           </span>
         ) : null}
         {sourceMatchUnavailable ? (
-          <span className="inline-flex h-6 items-center rounded-md px-1.5 text-2xs font-medium text-amber-300/90">
+          <span className="inline-flex h-6 items-center rounded-md px-1.5 text-2xs font-medium text-muted-foreground">
             {t('sourceMatch.unavailable')}
           </span>
         ) : null}

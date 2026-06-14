@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type {
   CreateRecipeFromGenerationRequest,
   CreateRecipeRequest,
+  GenerationRecord,
   RecipeRecord,
 } from '@/types'
 
@@ -144,6 +145,28 @@ export async function updateRecipeAPI(
       headers: { 'Content-Type': 'application/json' },
       body: stringifyRecipeRequest(data),
     })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}
+
+export async function listRecipeGenerationsAPI(
+  id: string,
+): Promise<RecipeApiResponse<GenerationRecord[]>> {
+  try {
+    const response = await fetch(`${getRecipeUrl(id)}/generations`)
 
     if (!response.ok) {
       return {

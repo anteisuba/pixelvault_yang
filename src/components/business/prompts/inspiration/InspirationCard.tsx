@@ -51,7 +51,7 @@ export function InspirationCard({
       const result = await onClone(inspiration.id)
       if (result.success && result.recipe) {
         toast.success(t('inspirationCloneSuccess'))
-        router.push(`${ROUTES.PROMPTS}/${result.recipe.id}`)
+        router.push(ROUTES.PROMPTS)
         router.refresh()
       } else {
         toast.error(result.error ?? t('inspirationCloneFailed'))

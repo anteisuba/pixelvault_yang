@@ -1,22 +1,26 @@
 'use client'
 
-import { useState } from 'react'
-import { Copy, FileText, Pencil, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sparkles, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
-  MediaDetailViewer,
-  toMediaTransitionOrigin,
-  type MediaTransitionOrigin,
-} from '@/components/business/MediaDetailViewer'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ROUTES } from '@/constants/routes'
-import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
-import { Link, useRouter } from '@/i18n/navigation'
+import { deleteRecipeAPI } from '@/lib/api-client/recipes'
 import type { AppLocale } from '@/i18n/routing'
 import type { OutputType } from '@/types'
+import { PromptTemplateDetailDialog } from '@/components/business/prompts/PromptTemplateDetailDialog'
 
 export interface PromptTemplateListItem {
   id: string
@@ -27,6 +31,8 @@ export interface PromptTemplateListItem {
   modelId: string
   version: number
   createdAt: string
+  /** First image generated with this template (cover). Null → text fallback. */
+  coverThumbnailUrl?: string | null
 }
 
 interface PromptTemplateListProps {
@@ -34,20 +40,29 @@ interface PromptTemplateListProps {
   recipes: PromptTemplateListItem[]
 }
 
-function getStudioRoute(outputType: OutputType) {
-  if (outputType === 'VIDEO') return ROUTES.STUDIO_VIDEO
-  if (outputType === 'AUDIO') return ROUTES.STUDIO_AUDIO
-  return ROUTES.STUDIO_IMAGE
-}
-
 export function PromptTemplateList({
   locale,
   recipes,
 }: PromptTemplateListProps) {
+  const [items, setItems] = useState(recipes)
+
+  useEffect(() => {
+    setItems(recipes)
+  }, [recipes])
+
+  const handleDeleted = (id: string) => {
+    setItems((prev) => prev.filter((recipe) => recipe.id !== id))
+  }
+
   return (
-    <section className="grid gap-4 lg:grid-cols-2">
-      {recipes.map((recipe) => (
-        <PromptTemplateCard key={recipe.id} locale={locale} recipe={recipe} />
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {items.map((recipe) => (
+        <PromptTemplateCard
+          key={recipe.id}
+          locale={locale}
+          recipe={recipe}
+          onDeleted={handleDeleted}
+        />
       ))}
     </section>
   )
@@ -56,173 +71,123 @@ export function PromptTemplateList({
 interface PromptTemplateCardProps {
   locale: AppLocale
   recipe: PromptTemplateListItem
+  onDeleted: (id: string) => void
 }
 
-function PromptTemplateCard({ locale, recipe }: PromptTemplateCardProps) {
+function PromptTemplateCard({
+  locale,
+  recipe,
+  onDeleted,
+}: PromptTemplateCardProps) {
   const t = useTranslations('PromptLibrary')
-  const tCommon = useTranslations('Common')
-  const router = useRouter()
   const [detailOpen, setDetailOpen] = useState(false)
-  const [transitionOrigin, setTransitionOrigin] =
-    useState<MediaTransitionOrigin | null>(null)
+  const [imageFailed, setImageFailed] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const title = recipe.name || recipe.modelId
-  const createdAt = new Date(recipe.createdAt)
   const formattedDate = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
-  }).format(createdAt)
-  const detailHref = `${ROUTES.PROMPTS}/${recipe.id}`
+  }).format(new Date(recipe.createdAt))
 
-  const copyPrompt = async () => {
+  const handleDelete = async () => {
+    setIsDeleting(true)
     try {
-      await navigator.clipboard.writeText(recipe.compiledPrompt)
-      toast.success(t('promptCopied'))
-    } catch {
-      toast.error(t('inspirationCloneFailed'))
+      const result = await deleteRecipeAPI(recipe.id)
+      if (result.success) {
+        toast.success(t('deleteSuccess'))
+        onDeleted(recipe.id)
+        return
+      }
+      toast.error(result.error ?? t('deleteFailed'))
+    } finally {
+      setIsDeleting(false)
     }
-  }
-
-  const useInStudio = () => {
-    const prompt = recipe.compiledPrompt.trim()
-    if (!prompt) {
-      toast.error(t('createPromptRequired'))
-      return
-    }
-    window.sessionStorage.setItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY, prompt)
-    router.push(getStudioRoute(recipe.outputType))
   }
 
   return (
     <>
-      <button
-        type="button"
-        aria-label={`${t('viewDetail')}: ${title}`}
-        onClick={(event) => {
-          setTransitionOrigin(
-            toMediaTransitionOrigin(
-              event.currentTarget.getBoundingClientRect(),
-            ),
-          )
-          setDetailOpen(true)
-        }}
-        className="group rounded-2xl border border-border/60 bg-card/80 p-5 text-left transition-colors hover:border-primary/25 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <h2 className="line-clamp-2 font-display text-xl font-medium tracking-tight">
-              {title}
-            </h2>
-            <p className="line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground">
-              {recipe.compiledPrompt}
-            </p>
-          </div>
-          <Sparkles className="size-5 shrink-0 text-primary/70 transition-transform group-hover:scale-105" />
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className="rounded-full">
-            {recipe.outputTypeLabel}
-          </Badge>
-          <span>
-            {t('templateMeta', {
-              model: recipe.modelId,
-              version: recipe.version,
-            })}
-          </span>
-          <span>{formattedDate}</span>
-        </div>
-      </button>
-
-      <MediaDetailViewer
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        title={title}
-        description={recipe.compiledPrompt}
-        closeLabel={tCommon('close')}
-        media={
-          <div className="relative z-10 flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <Badge variant="secondary" className="rounded-full">
-                {recipe.outputTypeLabel}
-              </Badge>
-              <FileText className="size-5 text-primary/70" />
-            </div>
-            <h2 className="font-display text-2xl font-medium leading-tight tracking-tight text-foreground sm:text-3xl">
-              {title}
-            </h2>
-            <p className="mt-4 max-h-72 overflow-y-auto whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
-              {recipe.compiledPrompt}
-            </p>
-          </div>
-        }
-        sideHeader={
-          <div className="space-y-3">
-            <div className="min-w-0">
-              <p className="break-words text-base font-medium text-foreground">
-                {title}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('templateMeta', {
-                  model: recipe.modelId,
-                  version: recipe.version,
-                })}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full">
-                {recipe.outputTypeLabel}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {formattedDate}
-              </span>
-            </div>
-          </div>
-        }
-        sideContent={
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border/60 bg-background/45 p-4">
-              <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-foreground">
+      <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-colors hover:border-primary/25">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('deleteAction')}
+              className="absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground opacity-0 backdrop-blur-sm transition hover:bg-background hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 group-hover:opacity-100"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('deleteConfirmDescription')}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                {t('deleteCancel')}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={() => void handleDelete()}
+              >
+                {t('deleteConfirmAction')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <button
+          type="button"
+          aria-label={`${t('viewDetail')}: ${title}`}
+          onClick={() => setDetailOpen(true)}
+          className="relative aspect-square overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          {recipe.coverThumbnailUrl && !imageFailed ? (
+            // eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives
+            <img
+              src={recipe.coverThumbnailUrl}
+              alt={title}
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+            />
+          ) : (
+            <div className="flex size-full flex-col justify-between p-5">
+              <Sparkles className="size-5 text-primary/55" />
+              <p className="line-clamp-4 whitespace-pre-wrap font-serif text-sm leading-6 text-muted-foreground/85">
                 {recipe.compiledPrompt}
               </p>
             </div>
+          )}
+        </button>
+
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <h2 className="line-clamp-2 font-display text-lg font-medium tracking-tight">
+            {title}
+          </h2>
+          <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="rounded-full">
+              {recipe.outputTypeLabel}
+            </Badge>
+            <span>
+              {t('templateMeta', {
+                model: recipe.modelId,
+                version: recipe.version,
+              })}
+            </span>
+            <span>{formattedDate}</span>
           </div>
-        }
-        footerActions={
-          <div className="grid gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={useInStudio}
-              className="h-10 rounded-full"
-            >
-              <Sparkles className="size-4" />
-              {t('useInStudio')}
-            </Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void copyPrompt()}
-                className="h-10 rounded-full"
-              >
-                <Copy className="size-4" />
-                {t('copyPrompt')}
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
-                className="h-10 rounded-full"
-              >
-                <Link href={detailHref}>
-                  <Pencil className="size-4" />
-                  {t('editAction')}
-                </Link>
-              </Button>
-            </div>
-          </div>
-        }
-        transitionOrigin={transitionOrigin}
+        </div>
+      </article>
+
+      <PromptTemplateDetailDialog
+        recipe={recipe}
+        locale={locale}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onDeleted={onDeleted}
       />
     </>
   )

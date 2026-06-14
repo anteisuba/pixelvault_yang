@@ -60,7 +60,7 @@ export function InspirationGrid() {
           <div className="text-xs text-muted-foreground">
             {t('inspirationResultCount', { count: total })}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {items.map((inspiration) => (
               <InspirationCard
                 key={inspiration.id}

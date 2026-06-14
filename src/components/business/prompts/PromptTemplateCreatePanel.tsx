@@ -152,7 +152,7 @@ export function PromptTemplateCreatePanel({
       const response = await createRecipeAPI(payload)
       if (response.success && response.data) {
         toast.success(t('saveTemplateSuccess'))
-        router.push(`${ROUTES.PROMPTS}/${response.data.id}`)
+        router.push(ROUTES.PROMPTS)
         router.refresh()
         return
       }

@@ -12,6 +12,7 @@ const mockFindFirst = vi.fn()
 const mockUpdate = vi.fn()
 const mockGenerationFindFirst = vi.fn()
 const mockGenerationFindMany = vi.fn()
+const mockQueryRaw = vi.fn()
 const mockUpdatePreferenceOnRecipeSaved = vi.fn()
 
 vi.mock('@/services/user.service', () => ({
@@ -36,6 +37,7 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...args: unknown[]) => mockGenerationFindFirst(...args),
       findMany: (...args: unknown[]) => mockGenerationFindMany(...args),
     },
+    $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
   },
 }))
 
@@ -114,6 +116,13 @@ const FAKE_GENERATION = {
   runGroupType: 'single',
   runGroupIndex: 0,
   isWinner: null,
+}
+
+const FAKE_COVER_GENERATION = {
+  id: 'gen_source',
+  thumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
+  previewUrl: 'https://cdn.example.com/gen.preview.webp',
+  url: 'https://cdn.example.com/gen.png',
 }
 
 const VALID_INPUT = {
@@ -372,12 +381,16 @@ describe('listRecipes', () => {
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
     mockCount.mockResolvedValue(1)
+    mockGenerationFindMany.mockResolvedValue([FAKE_COVER_GENERATION])
   })
 
   it('returns paginated recipes and total count', async () => {
     const result = await listRecipes('clerk_test_user', 1, 20)
     expect(result.recipes).toHaveLength(1)
     expect(result.total).toBe(1)
+    expect(result.recipes[0]?.coverThumbnailUrl).toBe(
+      'https://cdn.example.com/gen.thumbnail.webp',
+    )
   })
 
   it('queries only non-deleted recipes for the user', async () => {
@@ -391,6 +404,34 @@ describe('listRecipes', () => {
       }),
     )
   })
+
+  it('queries parent generation covers in one owner-scoped batch', async () => {
+    await listRecipes('clerk_test_user', 1, 20)
+
+    expect(mockGenerationFindMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'db_user_123',
+        id: { in: ['gen_source'] },
+      },
+      select: {
+        id: true,
+        thumbnailUrl: true,
+        previewUrl: true,
+        url: true,
+      },
+    })
+  })
+
+  it('skips the cover query for text-only recipes without parent generations', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      { ...FAKE_RECIPE, parentGenerationId: null },
+    ])
+
+    const result = await listRecipes('clerk_test_user', 1, 20)
+
+    expect(mockGenerationFindMany).not.toHaveBeenCalled()
+    expect(result.recipes[0]?.coverThumbnailUrl).toBeNull()
+  })
 })
 
 describe('listRecipeSummaries', () => {
@@ -398,12 +439,15 @@ describe('listRecipeSummaries', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
+    mockQueryRaw.mockResolvedValue([])
+    mockGenerationFindMany.mockResolvedValue([])
   })
 
-  it('queries only list fields without counting rows', async () => {
+  it('selects list fields plus the parent generation, without counting rows', async () => {
     const result = await listRecipeSummaries('clerk_test_user', 1, 20)
 
     expect(result).toHaveLength(1)
+    expect(result[0]?.coverThumbnailUrl).toBeNull()
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         select: {
@@ -414,6 +458,7 @@ describe('listRecipeSummaries', () => {
           modelId: true,
           version: true,
           createdAt: true,
+          parentGenerationId: true,
         },
         where: {
           userId: 'db_user_123',
@@ -422,6 +467,43 @@ describe('listRecipeSummaries', () => {
       }),
     )
     expect(mockCount).not.toHaveBeenCalled()
+  })
+
+  it('uses the earliest generated image as the cover', async () => {
+    mockQueryRaw.mockResolvedValue([
+      {
+        recipeId: 'recipe_abc',
+        thumbnailUrl: 'https://cdn.example.com/first.thumb.webp',
+        previewUrl: null,
+        url: 'https://cdn.example.com/first.png',
+      },
+    ])
+
+    const result = await listRecipeSummaries('clerk_test_user', 1, 20)
+
+    expect(result[0]?.coverThumbnailUrl).toBe(
+      'https://cdn.example.com/first.thumb.webp',
+    )
+    // First-generation cover wins → no parent-generation fallback query.
+    expect(mockGenerationFindMany).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the parent generation when nothing was generated with it', async () => {
+    mockQueryRaw.mockResolvedValue([])
+    mockGenerationFindMany.mockResolvedValue([
+      {
+        id: 'gen_source',
+        thumbnailUrl: 'https://cdn.example.com/parent.thumb.webp',
+        previewUrl: null,
+        url: null,
+      },
+    ])
+
+    const result = await listRecipeSummaries('clerk_test_user', 1, 20)
+
+    expect(result[0]?.coverThumbnailUrl).toBe(
+      'https://cdn.example.com/parent.thumb.webp',
+    )
   })
 })
 

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import type { Prisma, Recipe } from '@/lib/generated/prisma/client'
+import { Prisma, type Recipe } from '@/lib/generated/prisma/client'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
@@ -33,6 +33,10 @@ export type RecipeListItem = Pick<
   | 'version'
   | 'createdAt'
 >
+
+export type RecipeSummaryWithCover = RecipeListItem & {
+  coverThumbnailUrl: string | null
+}
 
 const RECIPE_LIST_ITEM_SELECT = {
   id: true,
@@ -341,24 +345,105 @@ export async function listRecipes(
   }
 }
 
+/**
+ * Resolve each recipe's cover thumbnail for list surfaces. Cover precedence:
+ *   1. the FIRST image generated with the recipe — the earliest live generation
+ *      whose recipeSnapshot.recipeId matches (a deleted first image naturally
+ *      falls back to the next-earliest, since only live rows are returned);
+ *   2. the recipe's parent generation (the image it was saved from);
+ *   3. null → caller renders a text/icon fallback.
+ * One JSONB DISTINCT ON query for (1) + one batched fetch for (2) — no
+ * per-recipe fan-out.
+ */
+async function resolveRecipeCovers(
+  userId: string,
+  recipes: Array<{ id: string; parentGenerationId: string | null }>,
+): Promise<Map<string, string | null>> {
+  const coverByRecipeId = new Map<string, string | null>()
+  const recipeIds = recipes.map((recipe) => recipe.id)
+  if (recipeIds.length === 0) return coverByRecipeId
+
+  type FirstGenerationCoverRow = {
+    recipeId: string
+    thumbnailUrl: string | null
+    previewUrl: string | null
+    url: string | null
+  }
+  const firstGenerations = await db.$queryRaw<FirstGenerationCoverRow[]>`
+    SELECT DISTINCT ON ("recipeSnapshot"->>'recipeId')
+      "recipeSnapshot"->>'recipeId' AS "recipeId",
+      "thumbnailUrl",
+      "previewUrl",
+      "url"
+    FROM "Generation"
+    WHERE "userId" = ${userId}
+      AND "recipeSnapshot"->>'recipeId' IN (${Prisma.join(recipeIds)})
+    ORDER BY "recipeSnapshot"->>'recipeId', "createdAt" ASC
+  `
+  for (const row of firstGenerations) {
+    coverByRecipeId.set(row.recipeId, getGenerationCoverThumbnailUrl(row))
+  }
+
+  const parentGenerationIds = recipes
+    .filter((recipe) => !coverByRecipeId.get(recipe.id))
+    .map((recipe) => recipe.parentGenerationId)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+
+  if (parentGenerationIds.length > 0) {
+    const parents = await db.generation.findMany({
+      where: { userId, id: { in: parentGenerationIds } },
+      select: RECIPE_COVER_GENERATION_SELECT,
+    })
+    const parentCoverById = new Map(
+      parents.map((generation) => [
+        generation.id,
+        getGenerationCoverThumbnailUrl(generation),
+      ]),
+    )
+    for (const recipe of recipes) {
+      if (coverByRecipeId.get(recipe.id)) continue
+      if (!recipe.parentGenerationId) continue
+      const cover = parentCoverById.get(recipe.parentGenerationId)
+      if (cover) coverByRecipeId.set(recipe.id, cover)
+    }
+  }
+
+  return coverByRecipeId
+}
+
 export async function listRecipeSummaries(
   clerkId: string,
   page: number,
   limit: number,
-): Promise<RecipeListItem[]> {
+): Promise<RecipeSummaryWithCover[]> {
   const user = await ensureUser(clerkId)
   const skip = (page - 1) * limit
 
-  return db.recipe.findMany({
+  const recipes = await db.recipe.findMany({
     where: {
       userId: user.id,
       isDeleted: false,
     },
-    select: RECIPE_LIST_ITEM_SELECT,
+    select: { ...RECIPE_LIST_ITEM_SELECT, parentGenerationId: true },
     orderBy: { createdAt: 'desc' },
     skip,
     take: limit,
   })
+
+  if (recipes.length === 0) return []
+
+  const coverByRecipeId = await resolveRecipeCovers(user.id, recipes)
+
+  return recipes.map((recipe) => ({
+    id: recipe.id,
+    outputType: recipe.outputType,
+    name: recipe.name,
+    compiledPrompt: recipe.compiledPrompt,
+    modelId: recipe.modelId,
+    version: recipe.version,
+    createdAt: recipe.createdAt,
+    coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
+  }))
 }
 
 export async function createRecipeFromGeneration(

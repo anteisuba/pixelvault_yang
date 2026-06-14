@@ -74,7 +74,7 @@ export default async function PromptsPage({
 
   return (
     <main className="editorial-page">
-      <div className="editorial-container space-y-8">
+      <div className="editorial-container editorial-container--wide">
         <PromptLibraryTabs currentTab={currentTab} />
 
         {currentTab === 'inspiration' ? (
@@ -185,6 +185,7 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
             version: recipe.version,
             createdAt: recipe.createdAt.toISOString(),
             outputTypeLabel: getOutputTypeLabel(recipe.outputType),
+            coverThumbnailUrl: recipe.coverThumbnailUrl,
           }))}
         />
       )}

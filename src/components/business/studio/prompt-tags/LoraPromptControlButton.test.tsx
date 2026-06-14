@@ -116,7 +116,7 @@ vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
 }))
 
 describe('LoraPromptControlButton', () => {
-  it('opens LoRA controls as a dialog and exposes training plus Civitai token access', async () => {
+  it('opens LoRA controls as a dialog without exposing manual Civitai token setup', async () => {
     render(
       <Toolbar.Root>
         <LoraPromptControlButton />
@@ -129,11 +129,8 @@ describe('LoraPromptControlButton', () => {
     const trainLink = screen.getByRole('link', { name: /trainLoraShort/ })
     expect(trainLink).toHaveAttribute('href', '/studio/lora?section=train')
 
-    fireEvent.click(screen.getByRole('button', { name: /civitaiToken/ }))
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'OPEN_PANEL',
-      payload: 'civitai',
-    })
+    expect(
+      screen.queryByRole('button', { name: /civitaiToken/ }),
+    ).not.toBeInTheDocument()
   })
 })

@@ -231,8 +231,6 @@ function LoraPromptControlPanel({
   onClose,
 }: LoraPromptControlPanelProps) {
   const t = useTranslations('LoraPromptControl')
-  const { dispatch } = useStudioForm()
-  const { civitai } = useStudioData()
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -242,11 +240,6 @@ function LoraPromptControlPanel({
     },
     [onActiveTabChange],
   )
-
-  const handleRequestCivitaiToken = useCallback(() => {
-    onClose?.()
-    dispatch({ type: 'OPEN_PANEL', payload: 'civitai' })
-  }, [dispatch, onClose])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -302,22 +295,6 @@ function LoraPromptControlPanel({
           <TagLibrary onClose={onClose} className="h-full" />
         </TabsContent>
       </Tabs>
-      <div className="border-t border-border/60 p-3">
-        <button
-          type="button"
-          onClick={handleRequestCivitaiToken}
-          className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 text-left text-xs transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <span className="font-semibold text-foreground">
-            {t('civitaiToken')}
-          </span>
-          <span className="text-muted-foreground">
-            {civitai.hasToken
-              ? t('civitaiTokenConnected')
-              : t('civitaiTokenMissing')}
-          </span>
-        </button>
-      </div>
     </div>
   )
 }

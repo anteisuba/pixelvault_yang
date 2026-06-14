@@ -7,7 +7,6 @@ import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { getSystemApiKey, getSystemCivitaiToken } from '@/lib/platform-keys'
 import { getApiKeyValueById } from '@/services/apiKey.service'
-import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 
 const TERMINAL_GENERATION_JOB_STATUSES = new Set([
   'COMPLETED',
@@ -52,9 +51,7 @@ export async function resolveExecutionApiKey(
       throwForbidden()
     }
 
-    const civitaiToken =
-      (await getCivitaiTokenByInternalUserId(job.userId)) ??
-      getSystemCivitaiToken()
+    const civitaiToken = getSystemCivitaiToken()
 
     if (!civitaiToken) {
       logger.warn('Execution Civitai token resolve denied; token missing', {
@@ -67,6 +64,7 @@ export async function resolveExecutionApiKey(
     logger.info('Execution Civitai token resolved for worker', {
       runId: request.runId,
       adapterType: job.adapterType,
+      tokenSource: 'system',
     })
 
     return { apiKey: civitaiToken }

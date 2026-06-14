@@ -321,7 +321,7 @@ export function PromptTemplateDetailDialog({
           onChange={(event) => setCompiledPrompt(event.target.value)}
           placeholder={t('createPromptPlaceholder')}
           maxLength={5000}
-          className="min-h-48 resize-y rounded-xl font-serif text-sm leading-7"
+          className="h-48 max-h-[42svh] resize-y overflow-y-auto rounded-xl font-serif text-sm leading-7"
         />
       </div>
       <div className="space-y-2">
@@ -410,7 +410,7 @@ export function PromptTemplateDetailDialog({
       </div>
     </div>
   ) : (
-    <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+    <div className="max-h-[60svh] overflow-y-auto rounded-2xl border border-border/60 bg-card/70 p-4">
       <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-foreground">
         {compiledPrompt}
       </p>
@@ -431,7 +431,7 @@ export function PromptTemplateDetailDialog({
       }}
     >
       <ResponsiveDialogContent
-        className="flex max-h-[88svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+        className="flex max-h-[88svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl lg:min-h-[70svh]"
         mobileBodyClassName="px-0 pt-0"
       >
         <ResponsiveDialogHeader className="shrink-0 space-y-2 border-b border-border/60 px-5 py-4 text-left sm:px-6">

@@ -21,7 +21,7 @@ vi.mock('@/hooks/use-stable-drag-state', () => ({
   }),
 }))
 
-function renderPicker(variant?: 'pill' | 'row') {
+function renderPicker(variant?: 'pill' | 'card') {
   render(
     <ImageSourcePicker
       variant={variant}
@@ -57,26 +57,34 @@ describe('ImageSourcePicker', () => {
     )
   })
 
-  it('renders row actions as full-width left-aligned controls', () => {
-    renderPicker('row')
+  it('renders card actions as equal-width vertical source cards', () => {
+    renderPicker('card')
 
     for (const label of ['Upload', 'Select asset']) {
-      expect(screen.getByRole('button', { name: label })).toHaveClass(
-        'min-h-11',
-        'w-full',
-        'justify-start',
+      const button = screen.getByRole('button', { name: label })
+      expect(button).toHaveClass(
+        'min-h-28',
+        'flex-1',
+        'flex-col',
+        'items-center',
+        'justify-center',
         'rounded-xl',
-        'px-3',
-        'py-2.5',
+        'border-border/50',
+        'text-xs',
         'duration-base',
         'ease-standard',
       )
+      // Icon well: balanced 44px squircle (not the oversized 72px circle), with
+      // an inset hairline so it reads as a raised layer on the card.
+      const well = button.querySelector('.size-11')
+      expect(well).not.toBeNull()
+      expect(well).toHaveClass('rounded-xl', 'ring-inset')
     }
   })
 
   it('uses a non-solid primary drag highlight', () => {
     dragState.isDragging = true
-    renderPicker('row')
+    renderPicker('card')
 
     const upload = screen.getByRole('button', { name: 'Upload' })
     expect(upload).toHaveClass('bg-primary/10', 'ring-2', 'ring-primary/40')

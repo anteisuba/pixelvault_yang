@@ -95,7 +95,7 @@ describe('ReferenceImageChip', () => {
     })
   })
 
-  it('uses row source actions and hides layer decomposition while empty', () => {
+  it('uses card source actions and keeps layer decomposition visible while empty', () => {
     mockImageUpload.referenceEntries = []
     mockImageUpload.referenceImages = []
 
@@ -107,10 +107,12 @@ describe('ReferenceImageChip', () => {
 
     expect(screen.getByTestId('image-source-picker')).toHaveAttribute(
       'data-variant',
-      'row',
+      'card',
     )
-    expect(
-      screen.queryByRole('button', { name: 'layerDecompose' }),
-    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'layerDecompose' })).toHaveClass(
+      'min-h-11',
+      'w-full',
+      'justify-start',
+    )
   })
 })

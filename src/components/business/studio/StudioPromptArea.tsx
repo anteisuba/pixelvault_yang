@@ -26,6 +26,7 @@ import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
 } from '@/constants/sample-prompts'
+import { CARD_RECIPE } from '@/constants/cards/card-types'
 import {
   TTS_ESTIMATED_CHARS_PER_MINUTE,
   TTS_MAX_TEXT_LENGTH,
@@ -144,6 +145,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isAudioMode && audioPromptLength > TTS_MAX_TEXT_LENGTH
   const isAudioPromptNearLimit =
     isAudioMode && audioPromptLength >= TTS_PROMPT_WARNING_LENGTH
+  // Image free-prompt cap mirrors StudioGenerateSchema's
+  // freePrompt.max(FREE_PROMPT_MAX_LENGTH); gate before the request 400s with
+  // a generic VALIDATION_ERROR the user can't act on.
+  const isImageMode = !isAudioMode && !isVideoMode
+  const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
+  const isImagePromptOverLimit =
+    isImageMode && imagePromptLength > CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
   const audioEstimatedMinutesLabel = useMemo(() => {
     const estimatedMinutes =
       audioPromptLength > 0
@@ -370,6 +378,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     (!modelRequiresRef || hasRefImage) &&
     !modelRejectsRefImages &&
     !isAudioPromptOverLimit &&
+    !isImagePromptOverLimit &&
     !isAudioReferenceIncomplete
 
   // ── Reset selectedOptionId when outputType changes ─────────────
@@ -855,6 +864,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           }),
         )
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      } else if (isImagePromptOverLimit) {
+        toast.info(
+          tPromptArea('blocked.promptTooLong', {
+            max: CARD_RECIPE.FREE_PROMPT_MAX_LENGTH,
+          }),
+        )
+        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
       } else if (isAudioReferenceIncomplete) {
         toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
       } else if (modelRequiresRef && !hasRefImage) {
@@ -878,6 +894,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     hasRefImage,
     modelRejectsRefImages,
     isAudioPromptOverLimit,
+    isImagePromptOverLimit,
     isAudioReferenceIncomplete,
     trimmedPrompt,
     hasPromptForImage,
@@ -1132,14 +1149,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     event.stopPropagation()
                     void handleGenerate()
                   }}
-                  disabled={isGenerating || isAudioPromptOverLimit}
+                  disabled={
+                    isGenerating ||
+                    isAudioPromptOverLimit ||
+                    isImagePromptOverLimit
+                  }
                   aria-label={t('generate')}
                   aria-busy={isGenerating}
                   aria-disabled={!canGenerate}
                   className={cn(
                     'flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm transition-[background-color,transform,box-shadow]',
                     'hover:bg-neutral-800 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400',
-                    (isGenerating || isAudioPromptOverLimit) &&
+                    (isGenerating ||
+                      isAudioPromptOverLimit ||
+                      isImagePromptOverLimit) &&
                       'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
                   )}
                   style={{
@@ -1192,6 +1215,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               )}
             >
               {audioPromptMeta}
+            </div>
+          )}
+          {isImagePromptOverLimit && (
+            <div className="flex justify-end px-3 pt-1 text-2xs tabular-nums text-destructive">
+              {`${imagePromptLength}/${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH}`}
             </div>
           )}
         </PromptInput>

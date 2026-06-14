@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
+import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
@@ -568,6 +569,41 @@ describe('StudioPromptArea', () => {
     render(<StudioPromptArea />)
 
     expect(screen.getByText('audioPromptMeta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
+  it('shows the character counter and disables generation when the image prompt exceeds the limit', () => {
+    const imageModel = {
+      optionId: 'image-option',
+      modelId: 'gpt-image-1',
+      keyId: 'openai-key-1',
+      keyLabel: 'OpenAI key',
+      adapterType: 'openai',
+      providerConfig: {
+        label: 'OpenAI',
+        baseUrl: 'https://api.openai.com',
+      },
+      sourceType: 'saved',
+      requestCount: 1,
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: imageModel,
+      modelOptions: [imageModel],
+    })
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: 'image-option',
+      prompt: 'a'.repeat(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1),
+    })
+
+    render(<StudioPromptArea />)
+
+    expect(
+      screen.getByText(
+        `${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1}/${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH}`,
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
     expect(mockGenerate).not.toHaveBeenCalled()
   })

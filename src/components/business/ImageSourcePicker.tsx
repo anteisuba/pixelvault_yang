@@ -9,7 +9,7 @@ import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
-type ImageSourcePickerVariant = 'pill' | 'row'
+type ImageSourcePickerVariant = 'pill' | 'card'
 
 interface ImageSourcePickerProps {
   description: string
@@ -58,7 +58,7 @@ export function ImageSourcePicker({
   } = useStableDragState()
   const inputRef = useRef<HTMLInputElement>(null)
   const isDisabled = disabled || isBusy
-  const isRow = variant === 'row'
+  const isCard = variant === 'card'
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return
@@ -133,12 +133,17 @@ export function ImageSourcePicker({
     .filter(Boolean)
     .join(' ')
   const uploadIcon = isBusy ? (
-    <Loader2 className="size-4 animate-spin" />
+    <Loader2 className={cn(isCard ? 'size-5' : 'size-4', 'animate-spin')} />
   ) : (
-    <UploadCloud className="size-4" />
+    <UploadCloud className={isCard ? 'size-5' : 'size-4'} />
   )
-  const rowButtonClass =
-    'flex min-h-11 w-full items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors duration-base ease-standard hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
+  // Layered source card: faint raised tile (vs the darker popover) whose icon
+  // well + label brighten together on hover, so the card reads as a tactile
+  // surface rather than a flat bordered box.
+  const cardButtonClass =
+    'group/card relative flex min-h-28 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border border-border/50 bg-muted/30 px-3 py-4 text-center text-xs font-medium leading-tight text-foreground transition-colors duration-base ease-standard hover:border-border hover:bg-muted/55 active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
+  const cardWellClass =
+    'flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-base ease-standard group-hover/card:bg-muted group-hover/card:text-foreground group-hover/card:ring-border'
 
   return (
     <>
@@ -168,7 +173,9 @@ export function ImageSourcePicker({
           className="hidden"
           disabled={isDisabled}
         />
-        <div className="space-y-2">
+        <div
+          className={cn(isCard ? 'flex items-stretch gap-2.5' : 'space-y-2')}
+        >
           <button
             type="button"
             aria-describedby={helpId}
@@ -182,20 +189,33 @@ export function ImageSourcePicker({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              isRow
-                ? rowButtonClass
+              isCard
+                ? cardButtonClass
                 : 'flex h-11 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
-              isDragging && 'bg-primary/10 ring-2 ring-primary/40',
+              isDragging &&
+                'border-primary/40 bg-primary/10 ring-2 ring-primary/40 hover:bg-primary/10',
             )}
           >
-            {isRow ? (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65">
+            {isCard ? (
+              <span
+                className={cn(
+                  cardWellClass,
+                  isDragging &&
+                    'bg-primary/15 text-primary ring-primary/30 group-hover/card:bg-primary/15 group-hover/card:text-primary group-hover/card:ring-primary/30',
+                )}
+              >
                 {uploadIcon}
               </span>
             ) : (
               uploadIcon
             )}
-            <span className="truncate text-left">{uploadLabel}</span>
+            <span
+              className={cn(
+                isCard ? 'max-w-full text-balance' : 'truncate text-left',
+              )}
+            >
+              {uploadLabel}
+            </span>
           </button>
           <button
             type="button"
@@ -203,19 +223,25 @@ export function ImageSourcePicker({
             disabled={isDisabled}
             onClick={handleOpenAssetDialog}
             className={
-              isRow
-                ? rowButtonClass
+              isCard
+                ? cardButtonClass
                 : 'flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
             }
           >
-            {isRow ? (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65">
-                <Images className="size-4 shrink-0" />
+            {isCard ? (
+              <span className={cardWellClass}>
+                <Images className="size-5 shrink-0" />
               </span>
             ) : (
               <Images className="size-4 shrink-0" />
             )}
-            <span className="truncate text-left">{selectAssetLabel}</span>
+            <span
+              className={cn(
+                isCard ? 'max-w-full text-balance' : 'truncate text-left',
+              )}
+            >
+              {selectAssetLabel}
+            </span>
           </button>
         </div>
       </div>

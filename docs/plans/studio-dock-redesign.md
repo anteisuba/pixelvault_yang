@@ -353,7 +353,51 @@ C(Prisma 39 换行噪音)→ 丢弃 + `.gitattributes` `generated/** text eol=lf
 
 **禁止改**：`imageUpload` 数据流；`AssetSelectorDialog` 内部；拖拽/粘贴路径（已支持，保留）。
 **验收**：chip → 上拉两项 → 选素材全屏；图像与卡片形成「轻入口→全屏库」对称；
-徽标=附件数且走 `StudioChipBadge`。
+徽标=附件数且走 `StudioChipBadge`。（⚠ 此为 D4 早期 packet，已被下方 finalize 覆盖。）
+
+### D4 finalize（2026-06-13 盘点 workflow + owner 拍板「按推荐走」）
+
+**基线校准**：图像 chip 本体**前期 commit 已基本完成**——上拉 popover(上传/选素材两 pill)+ 拆层入口 +
+选素材二跳全屏 `AssetSelectorDialog` + `StudioChipBadge` 徽标 + 警示态(referenceImages=0)+ 附件预览条**均已是现状**。
+StudioPanelHeader 现状未放（action popover 窄，确认不放）。**真正剩三件**：
+
+1. **stash B（核心）**：`git stash pop stash@{0}` 完成 `AssetSelectorDialog` ResponsiveDialog 化（桌面 Dialog 不变、
+   移动全屏 sheet）+ `responsive-dialog` `mobileBodyClassName` prop（D4/D5 全屏库共用），补回归 → **单独 commit**。
+2. **来源两竖卡 + 拆层横条（owner 2026-06-13 终选——解 i18n + 竖向 + 分组）**：
+   - 来源两竖卡横排(上传/选素材)：`ImageSourcePicker` `variant='card'` 出两竖卡（`flex-1 flex-col items-center`，图标上 `size-18`
+     - label 下 `text-xs`，`rounded-xl border-border/40 hover:bg-muted/55`，触达≥44px，各 ~170px **放得下 ja**）。默认仍 `pill`
+       隔离反推 `ReverseEngineerPanel`；先前 `'row'` 无人用可删。
+   - 处理一横条(拆层)：`ReferenceImageChip` 在两竖卡下接全宽横条（`border-t border-border/40` 分隔，图标+label，全宽 **放得下 ja「画像をレイヤー分解」**）。
+   - 理据：来源(图从哪来) vs 处理(对图做什么)本不同类，**用形态区分**(竖卡 vs 横条)比间距更清晰；竖向落在来源两卡；
+     三语全装下（淘汰三等宽竖卡的 ja 截断）。实现简单：竖卡只两个(ImageSourcePicker)、拆层横条在其外(ReferenceImageChip)，不需三卡同 row 协调。
+3. **拆层常显**（owner 修正：撤销 `totalEntries===0` 隐藏；拆层独立动作、panel 自带图片输入；横条形态本不挤竖卡，常显无碍）。
+4. **清实心**：拖入高亮 `bg-primary` → `bg-primary/10 ring-2 ring-primary/40`。
+
+**执行现状 + 收口（2026-06-13）**：Codex 已做 row（owner 改 card，需调）+ AssetSelectorDialog ResponsiveDialog 化（working tree）+
+responsive-dialog（`b5b85c5b`）。但 working tree 混了**越界 `XiaoheiGuideCarousel` + `public/tutorials/`（= owner 多语言引导，剔出 D4 单独 commit）**、
+临时 `e2e/d4-image-interaction.tmp.spec.ts`（删）、stash B 未 pop（已被 working tree 覆盖 → `drop`）。收口：① AssetSelectorDialog 移动化单独 commit；
+② 图像竖卡横排单独 commit；③ XiaoheiGuide owner 单独 commit；④ LoRA 留 D6；⑤ docs commit。
+
+**不许改**：`ReverseEngineerPanel`（variant 默认 pill）；AssetSelectorDialog 桌面形态；`imageUpload` 数据流。
+**验收**：来源两竖卡等高横排 + 拆层横条、拆层常显、拖入非实心、反推仍 pill、AssetSelectorDialog 移动 sheet；
+**切 ja 看「アップロード/素材を選択」两竖卡内 + 「画像をレイヤー分解」横条内都完整不截**；visual + 交互实跑。
+
+---
+
+## 工具面板列表项语言规范（2026-06-13 盘点 workflow 沉淀，D5/D6 照用）
+
+- **form 规则**：全宽 = **row**（`w-full min-h-11 px-3 py-2.5 rounded-xl` + 左 leading 图标容器 + 左对齐文本，
+  透明底 `hover:bg-muted/55`）；内容 hug = **chip/短标签 pill**（`rounded-full`，宽度随内容）。**两者不混**——
+  全宽别用 rounded-full（会成药丸胖条）。范本 = 模板 recipe 行(`PromptTemplatePicker.tsx:174-184`)。
+- **选中态**：统一 `studioChipActiveClass`（`bg-primary/10 text-primary ring-1 ring-primary/30`，非实心）；
+  一次性动作行无选中态、只 hover 加深。
+- **实心 primary**：只给生成钮；面板内任何主动作/拖入反馈一律非实心。
+- **i18n 宽度**：① 列表项优先 row（全宽固定 → 语言无关宽度）；② hug 元素（chip/短标签）宽度随语言变正常，
+  留弹性 + `min-w` 下限 + 横滚/wrap 兜底；③ 面板固定宽度（action 360 / medium 640 / dialog max-w）；
+  ④ 行内文字 `truncate`/`line-clamp` 兜底；⑤ 三语必测（ja 通常最长）。
+- **盘点点名的债（D5/D6 一并清）**：**cards** 四套选项语言（页签白卡浮起 / 风格 pill / 「无」行 / 卡片条目各自为政，
+  选中态全回归 `studioChipActiveClass`；条目圆角 rounded-lg→rounded-xl）；**LoRA** 实心 primary 泛滥
+  （「套用同款」等 `variant=default` 黑白反相 → 改 muted）+ 选中态四套无一用 `studioChipActiveClass` + 圆角偏小一档。
 
 ---
 
@@ -427,6 +471,28 @@ grep 无 `violet`；徽标=挂载数。
 **禁止改**：`StudioDockPanelArea` 各 Dialog 内部；音频参数侧栏结构（归 VoiceCard 域）。
 **验收**：三模式 toolbar 用同一 trigger/selected/badge 类（snapshot 或 class 断言）；
 音色已选时 chip 文案=音色名。
+
+---
+
+# Service 线（与 dock UI 片并行，走 service 流程）
+
+## R1 — 模板封面图驱动 + row 治素（owner 2026-06-13 授权）
+
+**起因**：owner 看 D3 模板 dialog 觉得"太素"——根因是 recipe 列表全灰文档图标、**内容零发色**（违背"内容发色"基调）。治本 = 给 recipe 配封面图（用最近一次用它生成的图）。
+
+**可行性（已确认）**：`Recipe.parentGenerationId`(schema:392)存在但**无 prisma relation**；`recipe.service.ts:341` 从 generation 存 recipe 时填 `parentGenerationId=generation.id`，`:377` 已有按 parentGenerationId 查 Generation 的现成模式。命中率合理参差：**从作品/结果区存的有封面、从「保存当前提示词」存的回退图标**（从图存的发色、从字存的图标，语义自洽）。
+
+**改动**：
+
+- service(`prompts/recipe.service.ts`)：`listRecipes` 补 `coverThumbnailUrl` —— 收集非空 parentGenerationId →
+  `generation.findMany({ where:{id:{in}}, select:{id,thumbnailUrl} })` → 映射；thumbnailUrl 按现有 generation url rewrite 方式。**不加 relation、不 migrate**（二次批量查，≤20 条性能 OK）。
+- type(`types/index.ts`)：`RecipeRecord` **+optional** `coverThumbnailUrl?: string | null`（只加 optional，333 依赖安全）。
+- UI(`PromptTemplatePicker.tsx`)：recipe row 图驱动（有图 `size-9 rounded-md` 缩略图 / 无图回退 FileText 圆图标）+
+  **副行**（模型短名 · 相对时间，治"素"的信息层次，`modelId`/`createdAt` 已在 RecipeRecord，纯 UI）。统一图驱动 row。
+
+**不碰**：provider/credit/auth；`createRecipe`/`parentGenerationId` 写入逻辑；Recipe schema；inspiration 行(已有图)。
+**按 service 流程**：plan mode + 读 `generation.service` 确认 thumbnailUrl rewrite + grep `listRecipes` 其他调用方(`/prompts` 页)确认 optional 字段不破坏。
+**验收**：有来源 recipe 显缩略图(发色)、无的回退图标；`/prompts` 页不破坏；三语；lint/tsc/vitest/build；visual + 交互实跑。
 
 ---
 

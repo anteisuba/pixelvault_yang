@@ -617,6 +617,17 @@ html:lang(zh) {
     background: var(--background);
   }
 
+  /* Desktop (≥lg = MOBILE_BREAKPOINT): SidebarInset drops all chrome
+     padding (lg:pt-0 lg:pb-0 lg:pl-0) and there is no top navbar — only
+     the left sidebar. The mobile-header reservation above would otherwise
+     leave the layout 3.5rem short of the viewport and dump that band as
+     dead space below the dock, so reclaim the full height here. */
+  @media (min-width: 1024px) {
+    .studio-layout-v2 {
+      min-height: 100svh;
+    }
+  }
+
   /* Canvas — natural height based on content */
   .studio-canvas {
     min-height: 0;

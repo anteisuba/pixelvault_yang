@@ -277,11 +277,14 @@ export const StudioCanvas = memo(function StudioCanvas() {
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
       )}
     >
-      {/* Canvas content scales with viewport: max-w-5xl (1024px) stays
-          tight on mobile/laptop so single-image previews don't bloat,
-          but bumps to 6xl/7xl on 2xl+ so 4K monitors put the Compare
-          and Variant grids to actual use. */}
-      <div className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
+      {/* Content layer = fluid: the canvas fills the full padded width so
+          the empty-state guide card and the Compare/Variant grids use the
+          whole screen instead of floating in a narrow centred column. The
+          "reading layer" (a lone single-image preview) self-bounds inside
+          GenerationPreview — a single square can't fill a wide canvas
+          without overflowing the viewport vertically, so it stays framed
+          and centred rather than stranded in full-bleed dead space. */}
+      <div className="mx-auto w-full">
         {activeRun?.mode === 'compare' ? (
           <CompareGrid
             items={activeRun.items}

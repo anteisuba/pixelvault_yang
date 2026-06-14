@@ -177,16 +177,21 @@ export const GenerationPreview = memo(function GenerationPreview({
     })()
 
     return (
+      // Full-width "stage" card — mirrors the result state's framed surface so
+      // the dashed border fills the column. The inner art box is height-driven
+      // (height comes from the stage), so its width follows the aspect ratio and
+      // is centered: square/portrait previews sit in intentional side matting
+      // instead of bare workbench, while `maxWidth: 100%` letterboxes wide
+      // ratios into the stage rather than overflowing the column.
       <div
-        className="mx-auto overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10"
-        style={{
-          aspectRatio: aspectRatioValue,
-          height: isMobile ? 'min(45vh, 360px)' : 'min(55vh, 520px)',
-          maxWidth: '100%',
-        }}
+        className="mx-auto flex w-full max-w-7xl items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10 2xl:max-w-[88rem]"
+        style={{ height: isMobile ? 'min(45vh, 360px)' : 'min(72vh, 760px)' }}
         aria-live="polite"
       >
-        <div className="studio-reveal-canvas relative h-full w-full overflow-hidden">
+        <div
+          className="studio-reveal-canvas relative h-full overflow-hidden rounded-xl"
+          style={{ aspectRatio: aspectRatioValue, maxWidth: '100%' }}
+        >
           <div className="studio-reveal-shimmer absolute inset-0" />
           <GenerationStatusChrome
             stageLabel={generatingStageLabel}
@@ -284,7 +289,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     >
       <div
         ref={dragRef}
-        className="group relative rounded-2xl border border-dashed border-border/60 bg-muted/10 overflow-hidden"
+        className="group relative mx-auto w-full max-w-7xl overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10 2xl:max-w-[88rem]"
       >
         <TransformComponent
           wrapperClass="!w-full"
@@ -302,7 +307,7 @@ export const GenerationPreview = memo(function GenerationPreview({
             draggable={false}
             className={cn(
               'studio-generation-image mx-auto block max-w-full object-contain',
-              isMobile ? 'max-h-[45vh]' : 'max-h-[60vh]',
+              isMobile ? 'max-h-[45vh]' : 'max-h-[72vh]',
             )}
           />
         </TransformComponent>

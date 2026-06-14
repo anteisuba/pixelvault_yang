@@ -22,12 +22,21 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
 }: StudioFlowLayoutProps) {
   return (
     <div className="flex-1 flex flex-col studio-scroll-area">
-      {/* Canvas + Dock: fills the initial viewport (minus navbar + topbar).
+      {/* Canvas + Dock: fills the initial viewport. On md (tablet) the
+          mobile header + tab bar exist, so reserve 6.5rem; on lg+ (desktop)
+          SidebarInset drops all chrome padding and there is no top navbar,
+          so fill the full viewport (min-h-svh) — otherwise the reserved band
+          falls below the dock as dead space.
           Padding scales up at lg+ so 4K monitors don't run the canvas edge
           flush against the browser chrome. */}
-      <div className="flex min-h-0 flex-col md:min-h-[calc(100svh-6.5rem)]">
-        {/* Canvas — flex-1 pushes dock to the bottom */}
-        <div className="px-2 pt-2 pb-1 sm:px-6 sm:pt-3 md:flex-1 lg:px-8">
+      <div className="flex min-h-0 flex-col md:min-h-[calc(100svh-6.5rem)] lg:min-h-svh">
+        {/* Canvas — image stays anchored at the top. On lg+ (desktop) the
+            canvas is content-sized (lg:flex-none), so the dock is NOT pushed
+            to the viewport bottom: it follows directly beneath the image,
+            rising/falling as the image's height changes, and any vertical
+            slack collapses below the dock. On md (tablet) the dock is sticky,
+            so keep md:flex-1 to hold its bottom position there. */}
+        <div className="px-2 pt-2 pb-1 sm:px-6 sm:pt-3 md:flex-1 lg:flex-none lg:px-8">
           {canvas}
         </div>
 

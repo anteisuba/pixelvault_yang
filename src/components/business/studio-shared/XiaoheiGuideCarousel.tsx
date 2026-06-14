@@ -170,7 +170,7 @@ export function XiaoheiGuideCarousel({
     <section
       aria-label={t(`${guideId}.label`)}
       className={cn(
-        'mx-auto w-full max-w-5xl rounded-2xl border border-border/60 bg-background/90 p-2 shadow-sm backdrop-blur sm:p-3',
+        'mx-auto w-full max-w-7xl rounded-2xl border border-border/60 bg-background/90 p-2 shadow-sm backdrop-blur sm:p-3',
         className,
       )}
     >
@@ -179,7 +179,7 @@ export function XiaoheiGuideCarousel({
           src={activeSlide.imageSrc}
           alt={t(`${slideKey}.alt`)}
           fill
-          sizes="(max-width: 768px) 92vw, (max-width: 1280px) 72vw, 64rem"
+          sizes="(max-width: 768px) 92vw, 80rem"
           className="object-contain"
           priority={false}
         />

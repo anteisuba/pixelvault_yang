@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowUpRight, FileText, Loader2, Save, Sparkles } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,9 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
+import { useStudioGen } from '@/contexts/studio-context'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
 import { useRecipes } from '@/hooks/prompts/use-recipes'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
@@ -43,6 +45,18 @@ const RECENT_TEMPLATE_COUNT = 5
 const DEFAULT_TEMPLATE_OUTPUT_TYPE: OutputType = 'IMAGE'
 const TEMPLATE_NAME_MAX_LENGTH = 48
 const INSPIRATION_PREVIEW_MAX = 160
+
+const RELATIVE_TIME_UNITS: Array<{
+  unit: Intl.RelativeTimeFormatUnit
+  milliseconds: number
+}> = [
+  { unit: 'year', milliseconds: 365 * 24 * 60 * 60 * 1000 },
+  { unit: 'month', milliseconds: 30 * 24 * 60 * 60 * 1000 },
+  { unit: 'week', milliseconds: 7 * 24 * 60 * 60 * 1000 },
+  { unit: 'day', milliseconds: 24 * 60 * 60 * 1000 },
+  { unit: 'hour', milliseconds: 60 * 60 * 1000 },
+  { unit: 'minute', milliseconds: 60 * 1000 },
+]
 
 type PickerTab = 'mine' | 'inspiration'
 
@@ -74,6 +88,20 @@ function getDefaultTemplateName(prompt: string): string {
     : normalized
 }
 
+function getRelativeTemplateTime(createdAt: string, locale: string): string {
+  const timestamp = new Date(createdAt).getTime()
+  if (!Number.isFinite(timestamp)) return ''
+
+  const deltaMs = timestamp - Date.now()
+  const absoluteDeltaMs = Math.abs(deltaMs)
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  const unit =
+    RELATIVE_TIME_UNITS.find((item) => absoluteDeltaMs >= item.milliseconds) ??
+    RELATIVE_TIME_UNITS[RELATIVE_TIME_UNITS.length - 1]
+
+  return formatter.format(Math.round(deltaMs / unit.milliseconds), unit.unit)
+}
+
 export function PromptTemplatePicker({
   currentModelId,
   currentOutputType = DEFAULT_TEMPLATE_OUTPUT_TYPE,
@@ -84,7 +112,10 @@ export function PromptTemplatePicker({
   onApplyInspiration,
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
+  const tModels = useTranslations('Models')
+  const locale = useLocale()
   const router = useRouter()
+  const { lastGeneration } = useStudioGen()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<PickerTab>('mine')
   const [isSavingCurrent, setIsSavingCurrent] = useState(false)
@@ -139,13 +170,28 @@ export function PromptTemplatePicker({
       modelId: currentModelId,
       provider: currentProvider,
       params: currentParams,
+      // Associate the most recent generation so saved templates inherit a cover
+      // thumbnail in listRecipes. Undefined when nothing has been generated yet
+      // → no parentGenerationId → FileText fallback (schema is string-optional).
+      parentGenerationId: lastGeneration?.id,
     }
 
     setIsSavingCurrent(true)
     try {
       const result = await createRecipeAPI(payload)
       if (result.success && result.data) {
-        addRecipe(result.data)
+        // The POST response has no listRecipes cover join, so derive the cover
+        // from the generation we just linked (mirrors the service's
+        // thumbnailUrl ?? previewUrl ?? url). The optimistically-inserted row
+        // shows the cover immediately and stays consistent once listRecipes
+        // refetches; null → FileText fallback when nothing was generated.
+        const optimisticCover =
+          result.data.coverThumbnailUrl ??
+          lastGeneration?.thumbnailUrl ??
+          lastGeneration?.previewUrl ??
+          lastGeneration?.url ??
+          null
+        addRecipe({ ...result.data, coverThumbnailUrl: optimisticCover })
         toast.success(t('saveTemplateSuccess'))
         return
       }
@@ -156,6 +202,8 @@ export function PromptTemplatePicker({
   }
 
   const renderRecipeItem = (recipe: RecipeRecord) => {
+    const modelLabel = getTranslatedModelLabel(tModels, recipe.modelId)
+    const relativeTime = getRelativeTemplateTime(recipe.createdAt, locale)
     const searchValue = [
       recipe.id,
       recipe.name,
@@ -171,14 +219,33 @@ export function PromptTemplatePicker({
         key={recipe.id}
         value={searchValue}
         onSelect={() => runRecipeAction(recipe)}
-        className="group min-h-11 items-center gap-3 px-3 py-2.5"
+        className="group min-h-14 items-center gap-3 px-3 py-2.5"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-          <FileText className="size-3.5" />
-        </span>
+        {recipe.coverThumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized derivatives
+          <img
+            src={recipe.coverThumbnailUrl}
+            alt=""
+            loading="lazy"
+            className="size-9 shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border group-data-[selected=true]:brightness-110 group-data-[selected=true]:ring-border"
+          />
+        ) : (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground group-data-[selected=true]:ring-border">
+            <FileText className="size-3.5" />
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="line-clamp-1 min-w-0 text-sm font-semibold">
             {recipe.name || recipe.modelId}
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="truncate">{modelLabel}</span>
+            {relativeTime && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0">{relativeTime}</span>
+              </>
+            )}
           </span>
         </span>
       </CommandItem>
@@ -420,7 +487,7 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                   type="button"
                   onClick={() => onPick(inspiration)}
                   className={cn(
-                    'flex w-full gap-3 px-3 py-2.5 text-left transition-colors',
+                    'group flex w-full gap-3 px-3 py-2.5 text-left transition-colors duration-fast ease-standard',
                     'hover:bg-muted/55 focus-visible:bg-muted/55',
                     'focus-visible:outline-none',
                   )}
@@ -431,10 +498,10 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                       src={inspiration.imageUrl}
                       alt=""
                       loading="lazy"
-                      className="size-12 shrink-0 rounded-md object-cover"
+                      className="size-12 shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border"
                     />
                   ) : (
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border">
                       <Sparkles className="size-4" />
                     </span>
                   )}

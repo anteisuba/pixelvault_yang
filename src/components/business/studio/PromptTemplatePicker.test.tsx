@@ -10,7 +10,7 @@ import {
 } from 'vitest'
 
 import { ROUTES } from '@/constants/routes'
-import type { InspirationRecord, RecipeRecord } from '@/types'
+import type { GenerationRecord, InspirationRecord, RecipeRecord } from '@/types'
 
 import { PromptTemplatePicker } from './PromptTemplatePicker'
 
@@ -23,8 +23,12 @@ const inspirationState = vi.hoisted(() => ({
   items: [] as InspirationRecord[],
   setQuery: vi.fn(),
 }))
+const studioGenState = vi.hoisted(() => ({
+  lastGeneration: null as GenerationRecord | null,
+}))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
 
@@ -86,6 +90,10 @@ vi.mock('@/hooks/prompts/use-inspirations', () => ({
   }),
 }))
 
+vi.mock('@/contexts/studio-context', () => ({
+  useStudioGen: () => ({ lastGeneration: studioGenState.lastGeneration }),
+}))
+
 class ResizeObserverMock {
   observe() {}
   unobserve() {}
@@ -112,6 +120,29 @@ function makeRecipe(overrides: Partial<RecipeRecord> = {}): RecipeRecord {
     isDeleted: false,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function makeGeneration(
+  overrides: Partial<GenerationRecord> = {},
+): GenerationRecord {
+  return {
+    id: 'generation-1',
+    createdAt: new Date('2026-06-13T00:00:00.000Z'),
+    outputType: 'IMAGE',
+    status: 'COMPLETED',
+    url: 'https://cdn.example.com/generation.webp',
+    storageKey: 'generations/generation-1.webp',
+    mimeType: 'image/webp',
+    width: 1024,
+    height: 1024,
+    prompt: 'recent prompt',
+    model: 'model-a',
+    provider: 'provider-a',
+    requestCount: 1,
+    isPublic: false,
+    isPromptPublic: false,
     ...overrides,
   }
 }
@@ -158,6 +189,7 @@ beforeEach(() => {
   inspirationState.setQuery.mockReset()
   recipeState.recipes = []
   inspirationState.items = []
+  studioGenState.lastGeneration = null
 })
 
 describe('PromptTemplatePicker', () => {
@@ -212,6 +244,75 @@ describe('PromptTemplatePicker', () => {
     ).toBeTruthy()
   })
 
+  it('links the most recent generation as the cover source when saving', async () => {
+    studioGenState.lastGeneration = makeGeneration({
+      id: 'gen-recent',
+      thumbnailUrl: 'https://cdn.example.com/gen-recent.thumb.webp',
+    })
+    createRecipeMock.mockResolvedValue({
+      success: true,
+      data: makeRecipe({
+        id: 'saved',
+        name: 'Saved from generation',
+        parentGenerationId: 'gen-recent',
+      }),
+    })
+
+    render(
+      <PromptTemplatePicker
+        currentModelId="model-a"
+        currentProvider="provider-a"
+        currentPrompt="fresh prompt"
+        onApply={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'saveCurrentPrompt' }),
+    )
+
+    await waitFor(() => expect(createRecipeMock).toHaveBeenCalledTimes(1))
+    expect(createRecipeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ parentGenerationId: 'gen-recent' }),
+    )
+    // Optimistically-inserted row shows the linked generation's cover at once,
+    // without waiting for a listRecipes refetch.
+    await screen.findByText('Saved from generation')
+    expect(
+      document.querySelector(
+        'img[src="https://cdn.example.com/gen-recent.thumb.webp"]',
+      ),
+    ).not.toBeNull()
+  })
+
+  it('omits parentGenerationId when there is no recent generation', async () => {
+    studioGenState.lastGeneration = null
+    createRecipeMock.mockResolvedValue({
+      success: true,
+      data: makeRecipe({ id: 'saved' }),
+    })
+
+    render(
+      <PromptTemplatePicker
+        currentModelId="model-a"
+        currentProvider="provider-a"
+        currentPrompt="fresh prompt"
+        onApply={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'saveCurrentPrompt' }),
+    )
+
+    await waitFor(() => expect(createRecipeMock).toHaveBeenCalledTimes(1))
+    expect(createRecipeMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ parentGenerationId: expect.any(String) }),
+    )
+  })
+
   it('routes to the prompt library from the footer action', () => {
     render(<PromptTemplatePicker onApply={vi.fn()} />)
 
@@ -219,6 +320,59 @@ describe('PromptTemplatePicker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'manageInPrompts' }))
 
     expect(pushMock).toHaveBeenCalledWith(ROUTES.PROMPTS)
+  })
+
+  it('renders recipe covers and keeps the FileText fallback for text-only templates', async () => {
+    recipeState.recipes = [
+      makeRecipe({
+        id: 'with-cover',
+        name: 'Image-backed template',
+        modelId: 'flux-2-pro',
+        parentGenerationId: 'gen-1',
+        coverThumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
+        createdAt: '2026-06-13T00:00:00.000Z',
+      }),
+      makeRecipe({
+        id: 'without-cover',
+        name: 'Text-only template',
+        modelId: 'custom-model',
+        coverThumbnailUrl: null,
+        createdAt: '2026-06-12T00:00:00.000Z',
+      }),
+    ]
+
+    render(<PromptTemplatePicker onApply={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+
+    await screen.findByText('Image-backed template')
+    const cover = document.querySelector(
+      'img[src="https://cdn.example.com/gen.thumbnail.webp"]',
+    )
+    expect(cover).toHaveClass('size-9', 'rounded-md', 'object-cover')
+    // Hover-lift + motion-token polish (canon: duration-fast / ease-standard).
+    expect(cover).toHaveClass(
+      'ring-1',
+      'ring-inset',
+      'duration-fast',
+      'ease-standard',
+      'group-hover:brightness-110',
+    )
+    expect(screen.getByText('flux2Pro.label')).toBeInTheDocument()
+
+    const textOnlyRow = screen
+      .getByText('Text-only template')
+      .closest('[cmdk-item]')
+    expect(textOnlyRow?.querySelector('img')).toBeNull()
+    const fallbackIcon = textOnlyRow?.querySelector('.lucide-file-text')
+    expect(fallbackIcon).not.toBeNull()
+    // Fallback shares the rounded-md image-driven shape (not the old circle).
+    expect(fallbackIcon?.parentElement).toHaveClass(
+      'size-9',
+      'rounded-md',
+      'ring-1',
+    )
+    expect(screen.getByText('custom-model')).toBeInTheDocument()
   })
 
   it('keeps inspiration prompts clamped and removes the external link affordance', async () => {

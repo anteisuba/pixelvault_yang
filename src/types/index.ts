@@ -3986,6 +3986,7 @@ export type RecipeRecord = {
   referenceAssets?: unknown
   seed?: string | number | bigint | null
   parentGenerationId: string | null
+  coverThumbnailUrl?: string | null
   version: number
   evaluationSummary?: unknown
   isDeleted: boolean

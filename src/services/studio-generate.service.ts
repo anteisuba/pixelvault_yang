@@ -1,9 +1,12 @@
 import 'server-only'
 
 import type { ImageSubmitResponseData, StudioGenerateRequest } from '@/types'
+import { CARD_RECIPE } from '@/constants/cards/card-types'
+import { getModelById } from '@/constants/models'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
+import { GenerationValidationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 
 /**
@@ -23,6 +26,18 @@ export async function compileAndGenerate(
 
   // ── Quick mode: modelId direct path ─────────────────────────
   if (input.modelId) {
+    const promptLimit =
+      getModelById(input.modelId)?.maxPromptChars ??
+      CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
+    const freePrompt = input.freePrompt ?? ''
+    if (freePrompt.length > promptLimit) {
+      const message = `提示词超过该模型上限 ${promptLimit} 字符`
+      throw new GenerationValidationError(
+        [{ field: 'freePrompt', message }],
+        message,
+      )
+    }
+
     logger.info('[StudioGenerate] Quick mode — direct generation', {
       userId: dbUser.id,
       modelId: input.modelId,
@@ -38,7 +53,7 @@ export async function compileAndGenerate(
     }
 
     const requestInput = {
-      prompt: input.freePrompt ?? '',
+      prompt: freePrompt,
       modelId: input.modelId,
       apiKeyId: input.apiKeyId,
       aspectRatio: input.aspectRatio ?? '1:1',

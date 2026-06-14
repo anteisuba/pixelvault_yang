@@ -3307,7 +3307,7 @@ export const StudioGenerateSchema = z
     freePrompt: z
       .string()
       .trim()
-      .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+      .max(CARD_RECIPE.FREE_PROMPT_ABSOLUTE_MAX_LENGTH)
       .optional(),
     aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
     projectId: z.string().optional(),

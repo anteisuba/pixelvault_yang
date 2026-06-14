@@ -24,6 +24,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://developers.openai.com/api/docs/models/gpt-image-2',
     qualityTier: 'premium',
     styleTag: 'general',
+    maxPromptChars: 32_000,
   },
   // #2 — Advanced reasoning, up to 14 reference images
   {
@@ -37,6 +38,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://ai.google.dev/models/gemini',
     qualityTier: 'premium',
     styleTag: 'general',
+    maxPromptChars: 8000,
   },
   // #3 — Top FLUX text-to-image endpoint
   {
@@ -50,6 +52,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-pro',
     qualityTier: 'premium',
     styleTag: 'photorealistic',
+    maxPromptChars: 8000,
   },
   // #4 — Cinematic FAL text-to-image endpoint
   {
@@ -142,6 +145,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
     qualityTier: 'standard',
     styleTag: 'general',
+    maxPromptChars: 8000,
   },
   // #8 — Developer-tier FLUX, good quality/price balance
   {
@@ -156,6 +160,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     styleTag: 'photorealistic',
     supportsLora: true,
+    maxPromptChars: 8000,
   },
   // #9 — Fastest FLUX, ideal for previews and iteration
   {
@@ -353,6 +358,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
     qualityTier: 'standard',
     styleTag: 'general',
+    maxPromptChars: 8000,
   },
 
   // FLUX 2 Max — highest quality FLUX model
@@ -367,6 +373,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-max',
     qualityTier: 'premium',
     styleTag: 'photorealistic',
+    maxPromptChars: 8000,
   },
 
   // Recraft V4 Pro — design-focused, logos, vector-style
@@ -381,6 +388,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/recraft/v4/pro/text-to-image',
     qualityTier: 'premium',
     styleTag: 'design',
+    maxPromptChars: 10000,
   },
 
   // FLUX Kontext Pro — single reference image editing/generation

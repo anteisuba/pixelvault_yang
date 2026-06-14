@@ -35,6 +35,8 @@ export const CARD_RECIPE = {
   MAX_RECIPES_PER_USER: 200,
   /** Free prompt max length (action/pose/expression input) */
   FREE_PROMPT_MAX_LENGTH: 2000,
+  /** Absolute request-boundary max; per-model gates decide the real quick-mode cap. */
+  FREE_PROMPT_ABSOLUTE_MAX_LENGTH: 32_000,
   /** Token budget per card prompt sent to LLM fusion (characters) */
   PROMPT_TRUNCATION_LIMIT: 800,
   /** Compiled prompt cache TTL in milliseconds (1 hour) */

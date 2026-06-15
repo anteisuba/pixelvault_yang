@@ -12,6 +12,7 @@ const mockFindFirst = vi.fn()
 const mockUpdate = vi.fn()
 const mockGenerationFindFirst = vi.fn()
 const mockGenerationFindMany = vi.fn()
+const mockInspirationPromptFindMany = vi.fn()
 const mockQueryRaw = vi.fn()
 const mockUpdatePreferenceOnRecipeSaved = vi.fn()
 
@@ -36,6 +37,9 @@ vi.mock('@/lib/db', () => ({
     generation: {
       findFirst: (...args: unknown[]) => mockGenerationFindFirst(...args),
       findMany: (...args: unknown[]) => mockGenerationFindMany(...args),
+    },
+    inspirationPrompt: {
+      findMany: (...args: unknown[]) => mockInspirationPromptFindMany(...args),
     },
     $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
   },
@@ -382,6 +386,8 @@ describe('listRecipes', () => {
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
     mockCount.mockResolvedValue(1)
     mockGenerationFindMany.mockResolvedValue([FAKE_COVER_GENERATION])
+    mockInspirationPromptFindMany.mockResolvedValue([])
+    mockQueryRaw.mockResolvedValue([])
   })
 
   it('returns paginated recipes and total count', async () => {
@@ -422,7 +428,7 @@ describe('listRecipes', () => {
     })
   })
 
-  it('skips the cover query for text-only recipes without parent generations', async () => {
+  it('skips parent and inspiration cover queries for plain text-only recipes', async () => {
     mockFindMany.mockResolvedValueOnce([
       { ...FAKE_RECIPE, parentGenerationId: null },
     ])
@@ -430,7 +436,44 @@ describe('listRecipes', () => {
     const result = await listRecipes('clerk_test_user', 1, 20)
 
     expect(mockGenerationFindMany).not.toHaveBeenCalled()
+    expect(mockInspirationPromptFindMany).not.toHaveBeenCalled()
     expect(result.recipes[0]?.coverThumbnailUrl).toBeNull()
+  })
+
+  it('falls back to the source inspiration image for cloned shared prompts', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      {
+        ...FAKE_RECIPE,
+        parentGenerationId: null,
+        userIntent: {
+          source: 'inspiration',
+          inspirationId: 'insp_1',
+        },
+      },
+    ])
+    mockInspirationPromptFindMany.mockResolvedValueOnce([
+      {
+        id: 'insp_1',
+        imageUrl: 'https://images.meigen.ai/tweets/1/0.jpg',
+      },
+    ])
+
+    const result = await listRecipes('clerk_test_user', 1, 20)
+
+    expect(mockGenerationFindMany).not.toHaveBeenCalled()
+    expect(mockInspirationPromptFindMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['insp_1'] },
+        isPublic: true,
+      },
+      select: {
+        id: true,
+        imageUrl: true,
+      },
+    })
+    expect(result.recipes[0]?.coverThumbnailUrl).toBe(
+      'https://images.meigen.ai/tweets/1/0.jpg',
+    )
   })
 })
 
@@ -441,6 +484,7 @@ describe('listRecipeSummaries', () => {
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
     mockQueryRaw.mockResolvedValue([])
     mockGenerationFindMany.mockResolvedValue([])
+    mockInspirationPromptFindMany.mockResolvedValue([])
   })
 
   it('selects list fields plus the parent generation, without counting rows', async () => {
@@ -459,6 +503,7 @@ describe('listRecipeSummaries', () => {
           version: true,
           createdAt: true,
           parentGenerationId: true,
+          userIntent: true,
         },
         where: {
           userId: 'db_user_123',
@@ -503,6 +548,31 @@ describe('listRecipeSummaries', () => {
 
     expect(result[0]?.coverThumbnailUrl).toBe(
       'https://cdn.example.com/parent.thumb.webp',
+    )
+  })
+
+  it('uses the source inspiration image when no generation cover exists', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      {
+        ...FAKE_RECIPE,
+        parentGenerationId: null,
+        userIntent: {
+          source: 'inspiration',
+          inspirationId: 'insp_1',
+        },
+      },
+    ])
+    mockInspirationPromptFindMany.mockResolvedValueOnce([
+      {
+        id: 'insp_1',
+        imageUrl: 'https://images.meigen.ai/tweets/1/0.jpg',
+      },
+    ])
+
+    const result = await listRecipeSummaries('clerk_test_user', 1, 20)
+
+    expect(result[0]?.coverThumbnailUrl).toBe(
+      'https://images.meigen.ai/tweets/1/0.jpg',
     )
   })
 })

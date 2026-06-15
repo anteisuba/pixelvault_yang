@@ -150,8 +150,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   // a generic VALIDATION_ERROR the user can't act on.
   const isImageMode = !isAudioMode && !isVideoMode
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
+  // Quick mode sends freePrompt straight to the provider, so cap it at the
+  // selected model's real encoder limit; card mode's freePrompt goes through
+  // LLM fusion, so it keeps the card-recipe default.
+  const imagePromptMaxChars =
+    (isImageMode && state.workflowMode === 'quick'
+      ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
+      : undefined) ?? CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
   const isImagePromptOverLimit =
-    isImageMode && imagePromptLength > CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
+    isImageMode && imagePromptLength > imagePromptMaxChars
   const audioEstimatedMinutesLabel = useMemo(() => {
     const estimatedMinutes =
       audioPromptLength > 0
@@ -867,7 +874,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       } else if (isImagePromptOverLimit) {
         toast.info(
           tPromptArea('blocked.promptTooLong', {
-            max: CARD_RECIPE.FREE_PROMPT_MAX_LENGTH,
+            max: imagePromptMaxChars,
           }),
         )
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
@@ -895,6 +902,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     modelRejectsRefImages,
     isAudioPromptOverLimit,
     isImagePromptOverLimit,
+    imagePromptMaxChars,
     isAudioReferenceIncomplete,
     trimmedPrompt,
     hasPromptForImage,
@@ -1012,7 +1020,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           role="group"
           disabled={isGenerating}
           className={cn(
-            'group/input-group relative mx-auto w-full max-w-5xl 2xl:max-w-6xl rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
+            'group/input-group relative mx-auto w-full max-w-7xl 2xl:max-w-[88rem] rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
             isGenerating && 'opacity-100',
             imageUpload.isDragging &&
               'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
@@ -1219,7 +1227,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           )}
           {isImagePromptOverLimit && (
             <div className="flex justify-end px-3 pt-1 text-2xs tabular-nums text-destructive">
-              {`${imagePromptLength}/${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH}`}
+              {`${imagePromptLength}/${imagePromptMaxChars}`}
             </div>
           )}
         </PromptInput>

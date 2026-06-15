@@ -118,6 +118,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://developer.ideogram.ai/ideogram-api/api-overview',
     qualityTier: 'premium',
     styleTag: 'design',
+    // Ideogram V3 effective prompt ≈200 tokens / 150–160 words.
+    maxPromptChars: 1000,
   },
   // #6 — Designer-focused, superior composition & realism
   {
@@ -131,6 +133,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://www.recraft.ai/docs/api-reference/getting-started',
     qualityTier: 'premium',
     styleTag: 'design',
+    // Recraft V3 fal schema enforces maxLength = 1000 chars (API hard limit).
+    maxPromptChars: 1000,
   },
   // #7 — Fast + high quality, great for high-volume generation
   {
@@ -174,6 +178,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux/schnell',
     qualityTier: 'budget',
     styleTag: 'general',
+    // fal-ai/flux/schnell is FLUX.1 schnell — T5 caps at 256 tokens ≈ 1000 chars.
+    maxPromptChars: 1000,
   },
   // #9b — FLUX with LoRA support, the canonical fal-ai/flux-lora endpoint.
   // This is the path Civitai Flux.1 D LoRAs should run on; flux-2-dev
@@ -313,6 +319,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://docs.novelai.net/en/image/models',
     qualityTier: 'budget',
     styleTag: 'anime',
+    // NAI Diffusion V3 hard-truncates at 225 CLIP tokens ≈ 1000 chars.
+    maxPromptChars: 1000,
   },
   // #16 — Classic open-source baseline
   {

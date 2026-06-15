@@ -131,6 +131,22 @@ function getGenerationCoverThumbnailUrl(generation: {
   return generation.thumbnailUrl ?? generation.previewUrl ?? generation.url
 }
 
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getInspirationIdFromUserIntent(userIntent: unknown): string | null {
+  if (!isJsonRecord(userIntent)) return null
+  const source = userIntent.source
+  const inspirationId = userIntent.inspirationId
+  if (source !== 'inspiration' || typeof inspirationId !== 'string') {
+    return null
+  }
+
+  const trimmed = inspirationId.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 function getGenerationReferenceAssets(generation: {
   referenceImageUrl?: string | null
   snapshot?: unknown
@@ -301,45 +317,12 @@ export async function listRecipes(
     db.recipe.count({ where }),
   ])
 
-  const parentGenerationIds = Array.from(
-    new Set(
-      recipes
-        .map((recipe) => recipe.parentGenerationId)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0),
-    ),
-  )
-
-  if (parentGenerationIds.length === 0) {
-    return {
-      recipes: recipes.map((recipe) => ({
-        ...recipe,
-        coverThumbnailUrl: null,
-      })),
-      total,
-    }
-  }
-
-  const coverGenerations = await db.generation.findMany({
-    where: {
-      userId: user.id,
-      id: { in: parentGenerationIds },
-    },
-    select: RECIPE_COVER_GENERATION_SELECT,
-  })
-
-  const coverUrlByGenerationId = new Map(
-    coverGenerations.map((generation) => [
-      generation.id,
-      getGenerationCoverThumbnailUrl(generation),
-    ]),
-  )
+  const coverByRecipeId = await resolveRecipeCovers(user.id, recipes)
 
   return {
     recipes: recipes.map((recipe) => ({
       ...recipe,
-      coverThumbnailUrl: recipe.parentGenerationId
-        ? (coverUrlByGenerationId.get(recipe.parentGenerationId) ?? null)
-        : null,
+      coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
     })),
     total,
   }
@@ -351,13 +334,18 @@ export async function listRecipes(
  *      whose recipeSnapshot.recipeId matches (a deleted first image naturally
  *      falls back to the next-earliest, since only live rows are returned);
  *   2. the recipe's parent generation (the image it was saved from);
- *   3. null → caller renders a text/icon fallback.
- * One JSONB DISTINCT ON query for (1) + one batched fetch for (2) — no
+ *   3. the source InspirationPrompt image for cloned shared prompts;
+ *   4. null → caller renders a text/icon fallback.
+ * One JSONB DISTINCT ON query for (1) + batched fetches for (2)/(3) — no
  * per-recipe fan-out.
  */
 async function resolveRecipeCovers(
   userId: string,
-  recipes: Array<{ id: string; parentGenerationId: string | null }>,
+  recipes: Array<{
+    id: string
+    parentGenerationId: string | null
+    userIntent?: unknown
+  }>,
 ): Promise<Map<string, string | null>> {
   const coverByRecipeId = new Map<string, string | null>()
   const recipeIds = recipes.map((recipe) => recipe.id)
@@ -391,7 +379,7 @@ async function resolveRecipeCovers(
 
   if (parentGenerationIds.length > 0) {
     const parents = await db.generation.findMany({
-      where: { userId, id: { in: parentGenerationIds } },
+      where: { userId, id: { in: Array.from(new Set(parentGenerationIds)) } },
       select: RECIPE_COVER_GENERATION_SELECT,
     })
     const parentCoverById = new Map(
@@ -405,6 +393,42 @@ async function resolveRecipeCovers(
       if (!recipe.parentGenerationId) continue
       const cover = parentCoverById.get(recipe.parentGenerationId)
       if (cover) coverByRecipeId.set(recipe.id, cover)
+    }
+  }
+
+  const inspirationIdByRecipeId = new Map(
+    recipes
+      .filter((recipe) => !coverByRecipeId.get(recipe.id))
+      .map((recipe) => [
+        recipe.id,
+        getInspirationIdFromUserIntent(recipe.userIntent),
+      ])
+      .filter(
+        (entry): entry is [string, string] =>
+          typeof entry[1] === 'string' && entry[1].length > 0,
+      ),
+  )
+  const inspirationIds = Array.from(new Set(inspirationIdByRecipeId.values()))
+
+  if (inspirationIds.length > 0) {
+    const inspirations = await db.inspirationPrompt.findMany({
+      where: {
+        id: { in: inspirationIds },
+        isPublic: true,
+      },
+      select: {
+        id: true,
+        imageUrl: true,
+      },
+    })
+    const inspirationCoverById = new Map(
+      inspirations.map((inspiration) => [inspiration.id, inspiration.imageUrl]),
+    )
+
+    for (const [recipeId, inspirationId] of inspirationIdByRecipeId) {
+      if (coverByRecipeId.get(recipeId)) continue
+      const cover = inspirationCoverById.get(inspirationId)
+      if (cover) coverByRecipeId.set(recipeId, cover)
     }
   }
 
@@ -424,7 +448,11 @@ export async function listRecipeSummaries(
       userId: user.id,
       isDeleted: false,
     },
-    select: { ...RECIPE_LIST_ITEM_SELECT, parentGenerationId: true },
+    select: {
+      ...RECIPE_LIST_ITEM_SELECT,
+      parentGenerationId: true,
+      userIntent: true,
+    },
     orderBy: { createdAt: 'desc' },
     skip,
     take: limit,

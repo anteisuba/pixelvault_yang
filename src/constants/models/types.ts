@@ -54,4 +54,11 @@ export interface ModelOption {
   supportsLora?: boolean
   videoExtension?: VideoExtensionConfig
   requiresReferenceImage?: boolean
+  /**
+   * Max prompt characters the model's text encoder can actually use. The UI
+   * gates quick-mode freePrompt against this; omit to fall back to
+   * CARD_RECIPE.FREE_PROMPT_MAX_LENGTH. Provider limits vary widely — see the
+   * per-model values in image.ts (e.g. FLUX.1 schnell ~256 tok ≈ 1000 chars).
+   */
+  maxPromptChars?: number
 }

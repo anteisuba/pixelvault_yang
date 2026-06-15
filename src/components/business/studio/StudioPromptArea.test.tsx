@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
+import { AI_MODELS } from '@/constants/models'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
@@ -604,6 +605,39 @@ describe('StudioPromptArea', () => {
         `${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1}/${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH}`,
       ),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
+  it('caps the prompt at the model-specific maxPromptChars (FLUX.1 schnell = 1000)', () => {
+    const fluxSchnell = {
+      optionId: 'flux-schnell-option',
+      modelId: AI_MODELS.FLUX_2_SCHNELL,
+      keyId: 'fal-key-1',
+      keyLabel: 'fal key',
+      adapterType: 'fal',
+      providerConfig: {
+        label: 'fal.ai',
+        baseUrl: 'https://fal.run',
+      },
+      sourceType: 'saved',
+      requestCount: 1,
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: fluxSchnell,
+      modelOptions: [fluxSchnell],
+    })
+    // 1001 chars is under the 2000 default but over FLUX.1 schnell's 1000 cap —
+    // proves the gate reads the per-model limit, not the global fallback.
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: 'flux-schnell-option',
+      prompt: 'a'.repeat(1001),
+    })
+
+    render(<StudioPromptArea />)
+
+    expect(screen.getByText('1001/1000')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
     expect(mockGenerate).not.toHaveBeenCalled()
   })

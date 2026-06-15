@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
@@ -79,6 +85,21 @@ import {
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
+
+const SIDEBAR_FOOTER_CLASS =
+  'gap-2 border-t border-sidebar-border/40 p-3 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1 md:p-2'
+
+const subscribeToHydration = () => () => {}
+const getHydratedSnapshot = () => true
+const getServerHydrationSnapshot = () => false
+
+function useHasHydrated() {
+  return useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydrationSnapshot,
+  )
+}
 
 /**
  * AppSidebar — global navigation sidebar (replaces top Navbar).
@@ -437,60 +458,77 @@ function AppSidebarFooter() {
   const t = useTranslations('Navbar')
   const { isLoaded } = useUser()
   const { isMobile } = useSidebar()
-
-  if (!isLoaded) {
-    return <SidebarFooter className="border-t border-sidebar-border/40 gap-2" />
-  }
+  const hasHydrated = useHasHydrated()
 
   return (
-    <SidebarFooter className="gap-2 border-t border-sidebar-border/40 p-3 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1 md:p-2">
-      <SignedIn>
-        {isMobile ? (
-          <>
-            <div className="flex items-center gap-2">
-              <SidebarFooterCreditBadge />
-              <div className="min-w-0 flex-1">
+    <SidebarFooter className={SIDEBAR_FOOTER_CLASS}>
+      {hasHydrated && isLoaded ? (
+        <>
+          <SignedIn>
+            {isMobile ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <SidebarFooterCreditBadge />
+                  <div className="min-w-0 flex-1">
+                    <SidebarFooterFreeQuotaBar />
+                  </div>
+                  <SidebarFooterUserMenu />
+                </div>
+                <LocaleSwitcher
+                  tone="sidebar"
+                  size="compact"
+                  className="w-full"
+                />
+              </>
+            ) : (
+              <>
+                <div className="sidebar-collapsed-locale hidden justify-center group-data-[collapsible=icon]:flex">
+                  <LocaleSwitcher tone="sidebar" orientation="vertical" />
+                </div>
+                <SidebarFooterCreditBadge />
                 <SidebarFooterFreeQuotaBar />
-              </div>
-              <SidebarFooterUserMenu />
-            </div>
-            <LocaleSwitcher tone="sidebar" size="compact" className="w-full" />
-          </>
-        ) : (
-          <>
-            <div className="sidebar-collapsed-locale hidden justify-center group-data-[collapsible=icon]:flex">
-              <LocaleSwitcher tone="sidebar" orientation="vertical" />
-            </div>
-            <SidebarFooterCreditBadge />
-            <SidebarFooterFreeQuotaBar />
-            <SidebarFooterUserMenu />
-            <div className="flex px-1 group-data-[collapsible=icon]:hidden">
-              <LocaleSwitcher
-                tone="sidebar"
-                size="compact"
-                className="w-full"
-              />
-            </div>
-          </>
-        )}
-      </SignedIn>
+                <SidebarFooterUserMenu />
+                <div className="flex px-1 group-data-[collapsible=icon]:hidden">
+                  <LocaleSwitcher
+                    tone="sidebar"
+                    size="compact"
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
+          </SignedIn>
 
-      <SignedOut>
-        <Button
-          asChild
-          size="sm"
-          variant="outline"
-          className="w-full rounded-full border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 group-data-[collapsible=icon]:px-0"
-        >
-          <Link href={ROUTES.SIGN_IN}>
-            <span className="group-data-[collapsible=icon]:hidden">
-              {t('signIn')}
-            </span>
-            <UserCircle className="hidden size-4 group-data-[collapsible=icon]:inline-block" />
-          </Link>
-        </Button>
-      </SignedOut>
+          <SignedOut>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="w-full rounded-full border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 group-data-[collapsible=icon]:px-0"
+            >
+              <Link href={ROUTES.SIGN_IN}>
+                <span className="group-data-[collapsible=icon]:hidden">
+                  {t('signIn')}
+                </span>
+                <UserCircle className="hidden size-4 group-data-[collapsible=icon]:inline-block" />
+              </Link>
+            </Button>
+          </SignedOut>
+        </>
+      ) : (
+        <SidebarFooterLoadingState />
+      )}
     </SidebarFooter>
+  )
+}
+
+function SidebarFooterLoadingState() {
+  return (
+    <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
+      <div className="h-8 rounded-md bg-sidebar-accent/35 group-data-[collapsible=icon]:size-8" />
+      <div className="h-6 rounded-md bg-sidebar-accent/25 group-data-[collapsible=icon]:hidden" />
+      <div className="h-8 rounded-md bg-sidebar-accent/35 group-data-[collapsible=icon]:size-8" />
+    </div>
   )
 }
 

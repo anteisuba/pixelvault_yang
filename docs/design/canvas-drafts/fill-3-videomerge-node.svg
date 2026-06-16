@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="0 0 680 296" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画三 videoMerge 合成节点 顺序拼接尾裁</title>
+<defs>
+<marker id="f3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6F6A63"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画③ · videoMerge 合成节点(顺序拼接 + 尾裁)</text>
+
+<rect x="20" y="46" width="86" height="40" rx="8" fill="#1A1A1A" stroke="#3A3A37"/><text x="63" y="70" text-anchor="middle" font-size="8" fill="#9A988F">镜 1 clip</text>
+<rect x="20" y="98" width="86" height="40" rx="8" fill="#1A1A1A" stroke="#3A3A37"/><text x="63" y="122" text-anchor="middle" font-size="8" fill="#9A988F">镜 2 clip</text>
+<rect x="20" y="150" width="86" height="40" rx="8" fill="#1A1A1A" stroke="#3A3A37"/><text x="63" y="174" text-anchor="middle" font-size="8" fill="#9A988F">镜 3 clip</text>
+<line x1="108" y1="66" x2="168" y2="100" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#f3)"/>
+<line x1="108" y1="118" x2="168" y2="118" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#f3)"/>
+<line x1="108" y1="170" x2="168" y2="136" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#f3)"/>
+
+<rect x="172" y="58" width="240" height="160" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="184" y="78" font-size="9.5" font-weight="700" fill="#C9C7BE">合成 · 顺序拼接</text>
+<text x="400" y="78" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="184" y="86" width="70" height="34" rx="5" fill="#2A2A2A"/><text x="219" y="106" text-anchor="middle" font-size="7.5" fill="#C9C7BE">1 · 镜1</text>
+<rect x="258" y="86" width="70" height="34" rx="5" fill="#2A2A2A"/><text x="293" y="106" text-anchor="middle" font-size="7.5" fill="#C9C7BE">2 · 镜2</text>
+<rect x="332" y="86" width="68" height="34" rx="5" fill="#2A2A2A"/><text x="366" y="106" text-anchor="middle" font-size="7.5" fill="#C9C7BE">3 · 镜3</text>
+<text x="184" y="138" font-size="7.5" fill="#8C8A82">顺序 = 上游连接顺序(可见预览)</text>
+<text x="184" y="158" font-size="7.5" fill="#9A988F">尾裁 endSec</text><line x1="244" y1="155" x2="384" y2="155" stroke="#3A3A37" stroke-width="2"/><circle cx="350" cy="155" r="4" fill="#C9C7BE"/>
+<text x="184" y="176" font-size="7" fill="#6F6A63">startSec(head-trim)不生效 → 收掉/标灰</text>
+<rect x="184" y="184" width="216" height="22" rx="8" fill="#1D9E75"/><text x="292" y="199" text-anchor="middle" font-size="9" font-weight="700" fill="#06281E">合成成片</text>
+
+<line x1="414" y1="138" x2="450" y2="138" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#f3)"/>
+<rect x="454" y="110" width="100" height="56" rx="10" fill="#1A1A1A" stroke="#639922"/><text x="504" y="134" text-anchor="middle" font-size="8.5" font-weight="700" fill="#7FC4A0">成片</text><text x="504" y="150" text-anchor="middle" font-size="7" fill="#5F5E5A">shotKind=final</text>
+
+<text x="20" y="244" font-size="8.5" fill="#A32D2D">· <tspan font-weight="700">原生多镜优先</tspan>(Kling 单次多镜 / Seedance 多镜),videoMerge 明确标为「后备拼接」(次级层级)</text>
+<text x="20" y="262" font-size="8.5" fill="#5F5E5A">· 纯顺序 + 尾裁(无 head-trim);成片落 Generation(final);中间 clip = intermediate(默认不进主 Gallery)</text>
+<text x="20" y="280" font-size="8.5" fill="#0C447C">· 对齐 roadmap VID-UI-8(videoMerge 锁死纯顺序拼接 + 尾裁)</text>
+</svg>

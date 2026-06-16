@@ -1,0 +1,36 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画二 多选框选批量加场景分组</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画② · 多选/框选/批量 + 场景分组(镜归场)</text>
+
+<rect x="20" y="40" width="360" height="234" rx="10" fill="#121212" stroke="#3A3A37"/>
+
+<rect x="36" y="58" width="328" height="92" rx="8" fill="none" stroke="#2C2C2C" stroke-dasharray="2 3"/>
+<text x="44" y="72" font-size="8" fill="#6F6A63">场景一 · 雨夜街</text>
+<rect x="44" y="78" width="96" height="60" rx="8" fill="#1A1A1A" stroke="#85B7EB" stroke-width="1.6"/><text x="92" y="102" text-anchor="middle" font-size="8" fill="#C9C7BE">镜 1</text><rect x="54" y="108" width="76" height="20" rx="4" fill="#2A2A2A"/>
+<rect x="148" y="78" width="96" height="60" rx="8" fill="#1A1A1A" stroke="#85B7EB" stroke-width="1.6"/><text x="196" y="102" text-anchor="middle" font-size="8" fill="#C9C7BE">镜 2</text><rect x="158" y="108" width="76" height="20" rx="4" fill="#2A2A2A"/>
+<rect x="252" y="78" width="96" height="60" rx="8" fill="#1A1A1A" stroke="#85B7EB" stroke-width="1.6"/><text x="300" y="102" text-anchor="middle" font-size="8" fill="#C9C7BE">镜 3</text><rect x="262" y="108" width="76" height="20" rx="4" fill="#2A2A2A"/>
+
+<rect x="40" y="54" width="316" height="98" rx="6" fill="#185FA5" opacity="0.12" stroke="#185FA5" stroke-dasharray="4 3"/>
+
+<rect x="100" y="162" width="200" height="26" rx="13" fill="#242424" stroke="#3A3A37"/>
+<text x="112" y="179" font-size="8" fill="#C9C7BE">3 选中  ·  对齐  分组  改模型  &#10005;删</text>
+
+<rect x="36" y="206" width="156" height="56" rx="8" fill="none" stroke="#2C2C2C" stroke-dasharray="2 3"/>
+<text x="44" y="220" font-size="8" fill="#6F6A63">场景二 · 茶馆</text>
+<rect x="44" y="226" width="68" height="28" rx="6" fill="#1A1A1A" stroke="#3A3A37"/><text x="78" y="244" text-anchor="middle" font-size="7.5" fill="#9A988F">镜 4</text>
+<rect x="120" y="226" width="64" height="28" rx="6" fill="#1A1A1A" stroke="#3A3A37"/><text x="152" y="244" text-anchor="middle" font-size="7.5" fill="#9A988F">镜 5</text>
+
+<text x="400" y="62" font-size="10" font-weight="700" fill="#5F5E5A">要点:</text>
+<text x="400" y="86" font-size="9" fill="#5F5E5A">· 左键空白拖 = <tspan font-weight="700">框选(marquee)</tspan></text>
+<text x="400" y="108" font-size="9" fill="#5F5E5A">· Shift+点 = 加/减选;选中 = 亮描边</text>
+<text x="400" y="130" font-size="9" fill="#5F5E5A">· 批量条:对齐 / 分组 / 改模型 / 删</text>
+<text x="412" y="144" font-size="8" fill="#888780">(改模型 = 一次给多镜换/覆盖)</text>
+<text x="400" y="170" font-size="9" fill="#5F5E5A">· <tspan font-weight="700">场景分组</tspan>:把镜按「场」框起来</text>
+<text x="412" y="184" font-size="8" fill="#888780">虚线 frame · 可折叠 · 可整场操作</text>
+<text x="400" y="208" font-size="9" fill="#0C447C">· 对应 ScriptDoc 的 Scene→Shot 层级</text>
+<text x="412" y="222" font-size="8" fill="#5F5E5A">(自动生成时按场分好组)</text>
+<text x="400" y="248" font-size="9" fill="#A32D2D">· 框/分组 = React Flow selectionMode</text>
+<text x="412" y="262" font-size="8" fill="#888780">+ 父节点/group(向后兼容加)</text>
+</svg>

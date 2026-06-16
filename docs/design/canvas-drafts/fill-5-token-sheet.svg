@@ -1,0 +1,38 @@
+<svg width="100%" viewBox="0 0 680 320" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画五 画布 token 规范实样</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画⑤ · 画布 token 规范实样(色板 / 密度 / 圆角)</text>
+
+<text x="20" y="44" font-size="9.5" font-weight="700" fill="#5F5E5A">node-* 调色板(中性化后 · 待 owner 确认色温)</text>
+<rect x="20" y="50" width="46" height="34" rx="5" fill="#121212" stroke="#3A3A37"/><text x="43" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">canvas</text>
+<rect x="72" y="50" width="46" height="34" rx="5" fill="#1A1A1A" stroke="#3A3A37"/><text x="95" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">panel</text>
+<rect x="124" y="50" width="46" height="34" rx="5" fill="#2A2A2A" stroke="#3A3A37"/><text x="147" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">panel-inner</text>
+<rect x="176" y="50" width="46" height="34" rx="5" fill="#E8E6DE"/><text x="199" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">foreground</text>
+<rect x="228" y="50" width="46" height="34" rx="5" fill="#9A988F"/><text x="251" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">muted</text>
+<rect x="280" y="50" width="46" height="34" rx="5" fill="#6F6A63"/><text x="303" y="98" text-anchor="middle" font-size="6.5" fill="#5F5E5A">subtle</text>
+<rect x="332" y="50" width="46" height="34" rx="5" fill="#1D9E75"/><text x="355" y="98" text-anchor="middle" font-size="6.5" fill="#3B6D11">success(例外)</text>
+<rect x="384" y="50" width="46" height="34" rx="5" fill="#d97757"/><line x1="384" y1="50" x2="430" y2="84" stroke="#E24B4A" stroke-width="2"/><text x="407" y="98" text-anchor="middle" font-size="6.5" fill="#A32D2D">amber 删</text>
+<rect x="436" y="50" width="46" height="34" rx="5" fill="#ca8a04"/><line x1="436" y1="50" x2="482" y2="84" stroke="#E24B4A" stroke-width="2"/><text x="459" y="98" text-anchor="middle" font-size="6.5" fill="#A32D2D">danger 删</text>
+
+<text x="20" y="124" font-size="9.5" font-weight="700" fill="#5F5E5A">端口类型色(极淡 · 功能性)</text>
+<circle cx="34" cy="140" r="7" fill="#6F6A86"/><text x="46" y="143" font-size="7.5" fill="#2C2C2A">角色</text>
+<circle cx="104" cy="140" r="7" fill="#5F7A73"/><text x="116" y="143" font-size="7.5" fill="#2C2C2A">背景</text>
+<circle cx="174" cy="140" r="7" fill="#856A72"/><text x="186" y="143" font-size="7.5" fill="#2C2C2A">声音</text>
+<circle cx="244" cy="140" r="7" fill="#647386"/><text x="256" y="143" font-size="7.5" fill="#2C2C2A">视频</text>
+
+<text x="20" y="170" font-size="9.5" font-weight="700" fill="#5F5E5A">状态色(去黄)</text>
+<rect x="20" y="176" width="60" height="16" rx="8" fill="#2C2C2C"/><text x="50" y="187" text-anchor="middle" font-size="7" fill="#9A988F">idle/排队</text>
+<rect x="86" y="176" width="60" height="16" rx="8" fill="#2A2A2A"/><text x="116" y="187" text-anchor="middle" font-size="7" fill="#C9C7BE">生成中(动效)</text>
+<rect x="152" y="176" width="50" height="16" rx="8" fill="#1F3A2C"/><text x="177" y="187" text-anchor="middle" font-size="7" fill="#7FC4A0">完成</text>
+<rect x="208" y="176" width="50" height="16" rx="8" fill="#3A1E1E"/><text x="233" y="187" text-anchor="middle" font-size="7" fill="#F09595">失败</text>
+
+<line x1="20" y1="204" x2="660" y2="204" stroke="#E5E2D9"/>
+
+<text x="20" y="224" font-size="9.5" font-weight="700" fill="#5F5E5A">密度 token(NODE_SIZING / NODE_SPACING)</text>
+<text x="20" y="244" font-size="8.5" fill="#2C2C2A">· 卡宽 <tspan font-weight="700">400</tspan>(min360/max520) · header/body padding <tspan font-weight="700">px-5 py-4</tspan>(20/16)</text>
+<text x="20" y="262" font-size="8.5" fill="#2C2C2A">· section gap <tspan font-weight="700">space-y-4</tspan>(16) · 内层块 p-4 · icon <tspan font-weight="700">size-8~9</tspan>(32–36) · handle <tspan font-weight="700">size-5</tspan>(20,hover130%)</text>
+<text x="20" y="280" font-size="8.5" fill="#2C2C2A">· 圆角阶梯:面板 <tspan font-weight="700">rounded-2xl</tspan> · 卡片 rounded-xl · 控件 rounded-lg · chip rounded-full</text>
+<text x="20" y="298" font-size="8.5" fill="#2C2C2A">· 点阵网格 gap 28 · elevation 三档(rest/raised/overlay,深面=亮度抬升+描边)</text>
+<text x="20" y="316" font-size="8" fill="#A32D2D">规则:节点尺寸/间距只引用这套 token,禁组件内 inline(防再次散落)。</text>
+</svg>

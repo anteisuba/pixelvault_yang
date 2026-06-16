@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画一 拖拽接线加端口可连高亮</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画① · 拖拽接线 + 端口可连高亮</text>
+
+<rect x="20" y="44" width="150" height="80" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="64" font-size="9" font-weight="700" fill="#C9C7BE">角色 · 林</text>
+<circle cx="42" cy="92" r="16" fill="#2A2A2A"/>
+<text x="70" y="92" font-size="7.5" fill="#9A988F">拖输出口…</text>
+<circle cx="170" cy="84" r="6" fill="#AFA9EC" stroke="#E8E6DE" stroke-width="2"/>
+
+<path d="M176,84 C260,84 300,120 372,118" fill="none" stroke="#AFA9EC" stroke-width="2" stroke-dasharray="5 4"/>
+<circle cx="372" cy="118" r="4" fill="#AFA9EC"/>
+
+<rect x="380" y="60" width="170" height="120" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="392" y="80" font-size="9" font-weight="700" fill="#C9C7BE">镜 1 · 视频</text>
+<circle cx="380" cy="100" r="7" fill="#AFA9EC" stroke="#C9B8F0" stroke-width="2"/><text x="396" y="103" font-size="7.5" fill="#C9B8F0">角色@I1 ← 可连(高亮)</text>
+<circle cx="380" cy="128" r="5" fill="#5DCAA5" opacity="0.4"/><text x="396" y="131" font-size="7.5" fill="#5F5E5A">背景@I2(灰·待空)</text>
+<circle cx="380" cy="156" r="5" fill="#F0997B" opacity="0.4"/><text x="396" y="159" font-size="7.5" fill="#5F5E5A">声音@A1(灰·待空)</text>
+<rect x="392" y="90" width="146" height="20" rx="4" fill="none" stroke="#C9B8F0" stroke-dasharray="3 2"/>
+
+<rect x="560" y="60" width="100" height="120" rx="10" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="572" y="80" font-size="8.5" font-weight="700" fill="#2C2C2A">不兼容</text>
+<circle cx="576" cy="100" r="5" fill="#F0997B"/><text x="586" y="103" font-size="7" fill="#5F5E5A">声音 →</text>
+<circle cx="576" cy="124" r="5" fill="#9A988F"/><text x="586" y="127" font-size="7" fill="#5F5E5A">图像(无音频)</text>
+<text x="572" y="150" font-size="13" font-weight="700" fill="#E24B4A">&#10005;</text><text x="588" y="151" font-size="8" fill="#A32D2D">拒绝/红</text>
+<text x="572" y="170" font-size="7" fill="#888780">不让连</text>
+
+<text x="20" y="210" font-size="8.5" fill="#5F5E5A">· 从输出口拖出 → 类型匹配的输入口<tspan font-weight="700">高亮(亮环+虚框)</tspan>,不匹配的<tspan font-weight="700">变灰</tspan></text>
+<text x="20" y="228" font-size="8.5" fill="#5F5E5A">· 松手即连;松到空白处 → 弹「加节点菜单」(承补②) ,新节点已预连好</text>
+<text x="20" y="246" font-size="8.5" fill="#A32D2D">· 不兼容(如 声音 → 无音频模型/图像)= 拒绝 + 红反馈,不静默连</text>
+<text x="20" y="264" font-size="8.5" fill="#0C447C">· 连线颜色 = 中性灰(端口的极淡类型色只在端点);校验走能力契约</text>
+</svg>

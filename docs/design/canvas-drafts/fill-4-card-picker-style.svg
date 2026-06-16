@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画四 卡片选择加风格挂载</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画④ · 卡片选择 + 风格(StyleCard)挂载</text>
+
+<rect x="20" y="40" width="320" height="244" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="60" font-size="10" font-weight="700" fill="#E8E6DE">选择卡片(route-backed overlay)</text>
+<text x="328" y="60" text-anchor="end" font-size="9" fill="#9A988F">&#10005;</text>
+<rect x="32" y="68" width="62" height="18" rx="9" fill="#E8E6DE"/><text x="63" y="81" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1A1A1A">角色卡</text>
+<rect x="98" y="68" width="62" height="18" rx="9" fill="#242424"/><text x="129" y="81" text-anchor="middle" font-size="7.5" fill="#C9C7BE">声音卡</text>
+<rect x="164" y="68" width="62" height="18" rx="9" fill="#242424"/><text x="195" y="81" text-anchor="middle" font-size="7.5" fill="#C9C7BE">画风卡</text>
+<rect x="230" y="68" width="62" height="18" rx="9" fill="#242424"/><text x="261" y="81" text-anchor="middle" font-size="7.5" fill="#C9C7BE">背景卡</text>
+<rect x="32" y="94" width="86" height="74" rx="8" fill="#2A2A2A" stroke="#185FA5" stroke-width="2"/><text x="75" y="160" text-anchor="middle" font-size="7.5" fill="#C9C7BE">林(选中)</text>
+<rect x="126" y="94" width="86" height="74" rx="8" fill="#2A2A2A"/><text x="169" y="160" text-anchor="middle" font-size="7.5" fill="#9A988F">江</text>
+<rect x="220" y="94" width="86" height="74" rx="8" fill="#2A2A2A"/><text x="263" y="160" text-anchor="middle" font-size="7.5" fill="#9A988F">老者</text>
+<rect x="32" y="178" width="86" height="20" rx="8" fill="#242424"/><text x="75" y="192" text-anchor="middle" font-size="7.5" fill="#C9C7BE">＋ 新建卡</text>
+<rect x="126" y="178" width="120" height="20" rx="8" fill="#242424"/><text x="186" y="192" text-anchor="middle" font-size="7.5" fill="#C9C7BE">从图片创建画风卡</text>
+<rect x="208" y="216" width="120" height="24" rx="8" fill="#E8E6DE"/><text x="268" y="232" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1A1A1A">绑定到节点</text>
+<text x="32" y="258" font-size="7.5" fill="#6F6A63">绑卡 = 节点存 cardId(可恢复) → 注入 prompt/loras/参考图</text>
+
+<rect x="356" y="40" width="304" height="160" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="368" y="60" font-size="9.5" font-weight="700" fill="#C9C7BE">镜 1 · 视频(已挂卡)</text>
+<rect x="368" y="68" width="100" height="56" rx="6" fill="#2A2A2A"/>
+<rect x="368" y="130" width="86" height="16" rx="8" fill="#242424"/><text x="376" y="141" font-size="7.5" fill="#C9B8F0">角色:林</text>
+<rect x="460" y="130" width="100" height="16" rx="8" fill="#1A2438"/><text x="468" y="141" font-size="7.5" fill="#A9C0F0">画风:水墨 &#9662;</text>
+<rect x="368" y="150" width="192" height="16" rx="8" fill="#242424"/><text x="376" y="161" font-size="7.5" fill="#C9C7BE">prompt(已注入卡的风格/触发词)…</text>
+<text x="368" y="186" font-size="7.5" fill="#9A988F">风格 = 卡,挂为 chip(不是独立节点)</text>
+
+<text x="356" y="222" font-size="8.5" fill="#5F5E5A">· 风格走卡(StyleCard):挂在镜头/角色上 = 一个「画风」chip,点开换卡。</text>
+<text x="356" y="240" font-size="8.5" fill="#5F5E5A">· 风格概念收敛到「画风页签」;以图定风格 = 提取风格 → 可存画风卡(风格资产化)。</text>
+<text x="356" y="258" font-size="8.5" fill="#0C447C">· 角色/声音卡同理:选卡 → 绑定 → 注入。卡片管理是独立库,这里是「挂载」入口。</text>
+<text x="356" y="276" font-size="8.5" fill="#888780">· 对齐 direction.md 决议 5(风格并入卡片→画风页签)。</text>
+</svg>

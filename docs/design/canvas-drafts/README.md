@@ -117,3 +117,37 @@ route-backed 预览 + 通过/重试/重生成/存;clip 落 Generation 带血缘;
 
 各类节点的紧凑卡详细长相（角色/背景/声音/镜头/图像/Agent），展开态见 B3。
 ![节点详样](node-types-detail.svg)
+
+---
+
+# 打磨态草稿（「补画」6 张）
+
+## 补画① · 拖拽接线 + 端口高亮
+
+从输出口拖出 → 兼容输入口高亮、不兼容变灰/红✕；松到空白处弹加节点菜单。
+![拖拽接线](fill-1-drag-connect.svg)
+
+## 补画② · 多选/框选/批量 + 场景分组
+
+框选 + Shift 加减 + 批量条（对齐/分组/改模型/删）；镜按「场」分组（对应 Scene→Shot）。
+![多选批量场景分组](fill-2-multiselect-scene-group.svg)
+
+## 补画③ · videoMerge 合成节点
+
+顺序拼接 + 尾裁（无 head-trim）；原生多镜优先、merge 后备；成片落 Generation final。
+![videoMerge 合成](fill-3-videomerge-node.svg)
+
+## 补画④ · 卡片选择 + 风格挂载
+
+选卡 overlay（角色/声音/画风/背景）→ 绑定；风格走卡，挂为「画风」chip。
+![卡片选择风格挂载](fill-4-card-picker-style.svg)
+
+## 补画⑤ · 画布 token 规范实样
+
+node-\* 色板（中性化）+ 端口类型色 + 状态色 + 密度/圆角 token。
+![token 规范实样](fill-5-token-sheet.svg)
+
+## 补画⑥ · 顶栏完整 + 对话管理
+
+项目切换/重命名/保存态/默认模型/排列/添加节点 + 助手多轮对话历史。
+![顶栏对话管理](fill-6-topbar-conversation.svg)

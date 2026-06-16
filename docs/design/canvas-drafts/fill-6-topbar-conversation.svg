@@ -1,0 +1,37 @@
+<svg width="100%" viewBox="0 0 680 296" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画六 顶栏完整加对话管理</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补画⑥ · 顶栏完整 + 对话管理</text>
+
+<rect x="20" y="38" width="640" height="40" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="34" y="62" font-size="11" fill="#9A988F">&#8249;</text>
+<rect x="50" y="48" width="140" height="20" rx="6" fill="#242424"/><text x="60" y="62" font-size="8.5" fill="#C9C7BE">凡人修仙传·二创 &#9662;</text>
+<rect x="280" y="48" width="130" height="20" rx="10" fill="#242424" stroke="#185FA5"/><text x="345" y="62" text-anchor="middle" font-size="8" fill="#C9C7BE">默认模型 · Seedance &#9662;</text>
+<text x="470" y="62" font-size="8.5" fill="#9A988F">排列</text>
+<circle cx="512" cy="58" r="3" fill="#7FC4A0"/><text x="520" y="62" font-size="8.5" fill="#9A988F">已保存</text>
+<rect x="568" y="48" width="80" height="20" rx="8" fill="#E8E6DE"/><text x="608" y="62" text-anchor="middle" font-size="8" font-weight="700" fill="#1A1A1A">＋ 添加节点</text>
+
+<text x="40" y="98" font-size="8" fill="#5F5E5A">项目切换/重命名(不混本地/服务端)</text>
+<text x="300" y="98" font-size="8" fill="#5F5E5A">默认模型(承 §5.1)</text>
+<text x="470" y="98" font-size="8" fill="#5F5E5A">tidy 排列</text>
+<text x="540" y="98" font-size="8" fill="#5F5E5A">保存态:已保存/保存中/本地</text>
+
+<rect x="20" y="116" width="280" height="160" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="136" font-size="9.5" font-weight="700" fill="#E8E6DE">对话管理</text>
+<rect x="232" y="124" width="56" height="18" rx="9" fill="#242424"/><text x="260" y="137" text-anchor="middle" font-size="7.5" fill="#C9C7BE">＋ 新建</text>
+<rect x="32" y="148" width="256" height="26" rx="6" fill="#242424" stroke="#185FA5"/><text x="42" y="165" font-size="8" fill="#C9C7BE">当前 · 雨夜重逢的大纲</text>
+<rect x="32" y="180" width="256" height="22" rx="6" fill="#1E1E1E"/><text x="42" y="195" font-size="8" fill="#9A988F">角色设定讨论(昨天)</text>
+<rect x="32" y="208" width="256" height="22" rx="6" fill="#1E1E1E"/><text x="42" y="223" font-size="8" fill="#9A988F">第一阶段目标(前天)</text>
+<text x="32" y="252" font-size="7.5" fill="#6F6A63">· 助手多轮历史按会话归档,可回看/继续</text>
+<text x="32" y="268" font-size="7.5" fill="#6F6A63">· 每个项目独立的对话线</text>
+
+<rect x="316" y="116" width="344" height="160" rx="11" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="328" y="136" font-size="10" font-weight="700" fill="#2C2C2A">要点</text>
+<text x="328" y="158" font-size="8.5" fill="#5F5E5A">· 项目菜单:切换 / 新建 / 重命名 / 删除(确认)</text>
+<text x="340" y="172" font-size="8" fill="#888780">切换不混 本地 fallback 与服务端项目</text>
+<text x="328" y="194" font-size="8.5" fill="#5F5E5A">· 保存态区分:已保存 · 保存中 · 仅本地(fallback)</text>
+<text x="328" y="216" font-size="8.5" fill="#5F5E5A">· 「排列」= tidy 自动布局(占位动作要诚实标注)</text>
+<text x="328" y="238" font-size="8.5" fill="#5F5E5A">· 默认模型 chip = §5.1 的画布级默认(常驻)</text>
+<text x="328" y="260" font-size="8.5" fill="#0C447C">· 对话管理 = 助手(剧本脑)的多轮历史,项目内独立</text>
+</svg>

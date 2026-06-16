@@ -25,8 +25,8 @@ const FULL_INTENT: ImageIntent = {
 
 // ── Tag-based strategy (NovelAI V4) ─────────────────────────────
 
-describe('compilePrompt — tag-based (nai-diffusion-4-full)', () => {
-  const MODEL = 'nai-diffusion-4-full'
+describe('compilePrompt — tag-based (nai-diffusion-4-5-full)', () => {
+  const MODEL = 'nai-diffusion-4-5-full'
 
   it('starts with quality tags', () => {
     const result = compilePrompt(MINIMAL_INTENT, MODEL)
@@ -123,7 +123,10 @@ describe('compileNegativePrompt', () => {
   })
 
   it('returns quality downgrade tags for tag-based model even with no mustAvoid', () => {
-    const result = compileNegativePrompt(MINIMAL_INTENT, 'nai-diffusion-4-full')
+    const result = compileNegativePrompt(
+      MINIMAL_INTENT,
+      'nai-diffusion-4-5-full',
+    )
     expect(result).toBeDefined()
     expect(result).toContain('worst quality')
   })
@@ -138,7 +141,7 @@ describe('compileNegativePrompt', () => {
   })
 
   it('includes both quality tags and mustAvoid items for tag-based model', () => {
-    const result = compileNegativePrompt(FULL_INTENT, 'nai-diffusion-4-full')
+    const result = compileNegativePrompt(FULL_INTENT, 'nai-diffusion-4-5-full')
     expect(result).toContain('worst quality')
     expect(result).toContain('logo')
   })

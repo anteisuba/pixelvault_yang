@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
-import { MODEL_OPTIONS } from '@/constants/models'
+import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { VideoDefaults } from '@/constants/models'
 import type { ProviderQueueSubmitInput } from '@/services/providers/types'
@@ -180,14 +180,28 @@ describe('buildVolcEngineVideoQueueBody', () => {
     expect(body.resolution).toBe('720p')
   })
 
-  it('does not expose built-in VolcEngine video models after catalog slimdown', () => {
+  it('exposes the direct VolcEngine Seedance video models', () => {
     const volcVideoModels = MODEL_OPTIONS.filter(
       (model) =>
         model.adapterType === AI_ADAPTER_TYPES.VOLCENGINE &&
         model.outputType === 'VIDEO',
     )
 
-    expect(volcVideoModels).toEqual([])
+    const expectedIds = [
+      AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+    ]
+
+    expect(volcVideoModels).toHaveLength(expectedIds.length)
+    expect(new Set(volcVideoModels.map((model) => model.id))).toEqual(
+      new Set(expectedIds),
+    )
+    for (const model of volcVideoModels) {
+      expect(model.outputType).toBe('VIDEO')
+      expect(model.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
+    }
   })
 })
 

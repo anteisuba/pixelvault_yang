@@ -83,7 +83,7 @@ describe('GET /api/images', () => {
   it('supports search/model/type/sort filters', async () => {
     const req = createGET('/api/images', {
       search: 'sunset',
-      model: 'sdxl',
+      model: 'gemini-3.1-flash-image-preview',
       type: 'image',
       sort: 'oldest',
       page: '2',
@@ -97,7 +97,7 @@ describe('GET /api/images', () => {
     expect(mockGetAnonPage).toHaveBeenCalledWith(
       expect.objectContaining({
         search: 'sunset',
-        model: 'sdxl',
+        model: 'gemini-3.1-flash-image-preview',
         type: 'image',
         sort: 'oldest',
         page: 2,

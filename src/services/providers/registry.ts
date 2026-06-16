@@ -2,6 +2,7 @@ import 'server-only'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+import { elevenLabsAdapter } from '@/services/providers/elevenlabs.adapter'
 import { falAdapter } from '@/services/providers/fal.adapter'
 import { fishAudioAdapter } from '@/services/providers/fish-audio.adapter'
 import { geminiAdapter } from '@/services/providers/gemini.adapter'
@@ -23,6 +24,7 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,
+  [AI_ADAPTER_TYPES.ELEVENLABS]: elevenLabsAdapter,
   // HYPER3D_RODIN intentionally absent — dispatched to Cloudflare Worker
   // directly via generate-3d.service.ts → submitWorker3DGeneration.
 }

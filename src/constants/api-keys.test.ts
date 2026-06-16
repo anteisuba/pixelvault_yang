@@ -23,6 +23,10 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.FISH_AUDIO,
       AI_ADAPTER_TYPES.HYPER3D_RODIN,
+      // DashScope (Qwen) is active as an LLM text/vision route; ElevenLabs is
+      // active once its v3 TTS model shipped as an available audio model.
+      AI_ADAPTER_TYPES.DASHSCOPE,
+      AI_ADAPTER_TYPES.ELEVENLABS,
     ])
 
     expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(

@@ -1857,6 +1857,14 @@
       "hyper3d_rodin": {
         "label": "Hyper3D Rodin",
         "description": "公式Hyper3D Rodin Gen-2.5 APIを使用して、最大5枚の参照画像で高品質な画像→3D生成を行います。"
+      },
+      "dashscope": {
+        "label": "Qwen",
+        "description": "Alibaba Qwen（DashScope）のテキスト・ビジョンモデルを使用。中国語の脚本作成、ショット分解、画像解析に対応。シンガポールリージョン。"
+      },
+      "elevenlabs": {
+        "label": "ElevenLabs",
+        "description": "ElevenLabs v3 を使用して、自然で表現豊かな高品質テキスト読み上げを行います。"
       }
     },
     "summary": {
@@ -2436,6 +2444,10 @@
       "label": "Fish Audio S2 Pro",
       "description": "評価トップのTTS、30以上の言語で音声クローニング対応"
     },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "自然で表現豊かな高品質テキスト読み上げ"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "fal.ai ??? Alibaba ??????????????text-to-video?image-to-video ???????"
@@ -2507,6 +2519,22 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Hyper3D公式API — 最大5枚の参照画像、GLB出力、5段階品質ティア。BYOK（Businessサブスクリプション）が必要。"
+    },
+    "qwen3Max": {
+      "label": "Qwen3 Max",
+      "description": "Qwen フラッグシップのテキストモデル — 中国語の脚本作成、ショット分解、レシピ融合に最適。"
+    },
+    "qwenPlus": {
+      "label": "Qwen Plus",
+      "description": "バランス型の100万コンテキスト Qwen モデル — ほとんどのテキストタスクの標準的な主力。"
+    },
+    "qwenFlash": {
+      "label": "Qwen Flash",
+      "description": "キーワード抽出やクイックリライトなど高頻度タスク向けの安価で高速な Qwen モデル。"
+    },
+    "qwen3VlPlus": {
+      "label": "Qwen3 VL Plus",
+      "description": "画像解析や画像内テキストに対応するビジョン対応 Qwen モデル。中国語理解が強力。"
     }
   },
   "PromptPresets": {

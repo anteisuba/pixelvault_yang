@@ -24,6 +24,7 @@ export enum AI_MODELS {
 
   // Audio models
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
+  ELEVENLABS_V3 = 'eleven-v3',
 
   // Video models
   HAPPYHORSE_10 = 'happyhorse-1.0',

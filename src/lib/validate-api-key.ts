@@ -33,6 +33,10 @@ export function validateKeyFormat(
       return trimmed.length >= 16 && /^[a-f0-9-]+$/i.test(trimmed)
         ? 'valid'
         : 'invalid'
+    case AI_ADAPTER_TYPES.DASHSCOPE:
+      return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.ELEVENLABS:
+      return trimmed.startsWith('sk_') ? 'valid' : 'invalid'
     default:
       return 'valid'
   }

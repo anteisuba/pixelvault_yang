@@ -1857,6 +1857,14 @@
       "hyper3d_rodin": {
         "label": "Hyper3D Rodin",
         "description": "Use the official Hyper3D Rodin Gen-2.5 API for high-quality image-to-3D generation with up to 5 reference images."
+      },
+      "dashscope": {
+        "label": "Qwen",
+        "description": "Use Alibaba Qwen (DashScope) text and vision models for Chinese scriptwriting, shot breakdowns, and image analysis. Singapore region."
+      },
+      "elevenlabs": {
+        "label": "ElevenLabs",
+        "description": "Use ElevenLabs v3 for premium, expressive text-to-speech with natural voices."
       }
     },
     "summary": {
@@ -2436,6 +2444,10 @@
       "label": "Fish Audio S2 Pro",
       "description": "Top-ranked TTS, 30+ languages, natural voice cloning"
     },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "Premium expressive text-to-speech with natural, lifelike voices"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
@@ -2507,6 +2519,22 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Hyper3D official API — up to 5 reference images, GLB output, 5 quality tiers. Requires BYOK (Business subscription)."
+    },
+    "qwen3Max": {
+      "label": "Qwen3 Max",
+      "description": "Flagship Qwen text model — best for Chinese scriptwriting, shot breakdowns, and recipe fusion."
+    },
+    "qwenPlus": {
+      "label": "Qwen Plus",
+      "description": "Balanced 1M-context Qwen model — the default workhorse for most text tasks."
+    },
+    "qwenFlash": {
+      "label": "Qwen Flash",
+      "description": "Cheap, fast Qwen model for high-frequency tasks like keyword extraction and quick rewrites."
+    },
+    "qwen3VlPlus": {
+      "label": "Qwen3 VL Plus",
+      "description": "Vision-capable Qwen model for image analysis and text-in-image, with strong Chinese understanding."
     }
   },
   "PromptPresets": {

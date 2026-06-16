@@ -87,6 +87,7 @@ const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.DASHSCOPE,
 ] as const
 
 type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
@@ -99,12 +100,14 @@ const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
+  [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TEXT_MODEL_IDS.QWEN_PLUS,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'Gemini',
   [AI_ADAPTER_TYPES.DEEPSEEK]: 'DeepSeek',
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
+  [AI_ADAPTER_TYPES.DASHSCOPE]: 'Qwen',
 }
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
@@ -155,6 +158,8 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return AI_PROVIDER_ENDPOINTS.DEEPSEEK
+    case AI_ADAPTER_TYPES.DASHSCOPE:
+      return AI_PROVIDER_ENDPOINTS.DASHSCOPE
   }
 }
 
@@ -528,6 +533,89 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 /**
+ * DashScope (Qwen) text completion — OpenAI `/chat/completions` drop-in
+ * compatible. Generalized from `deepseekTextCompletion` with three differences:
+ *  1. Image input is supported — VL models (e.g. qwen3-vl-plus) take images as
+ *     `{ type: 'image_url', image_url: { url } }` content (OpenAI multimodal
+ *     shape), so we do NOT hard-throw on `imageData`.
+ *  2. For structured JSON output, Qwen requires the prompt to literally contain
+ *     the word "json" and `enable_thinking: false` — both handled here.
+ *  3. No grounding / web_search support (compatible-mode has no such tool).
+ */
+async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.useGrounding) {
+    throw new Error(
+      'Qwen (DashScope) text completion does not support grounding.',
+    )
+  }
+
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DASHSCOPE]
+  const baseUrl =
+    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DASHSCOPE
+  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
+
+  const wantsJson = input.responseFormat === 'json_object'
+  // Qwen's JSON mode requires the literal token "json" somewhere in the
+  // messages. If the caller's prompt doesn't already mention it, append a
+  // minimal instruction so structured output doesn't 400.
+  const systemPrompt =
+    wantsJson && !/json/i.test(`${input.systemPrompt} ${input.userPrompt}`)
+      ? `${input.systemPrompt}\n\nRespond with valid JSON.`
+      : input.systemPrompt
+
+  const messages: Array<Record<string, unknown>> = [
+    { role: 'system', content: systemPrompt },
+  ]
+
+  if (input.imageData) {
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    const content: Array<Record<string, unknown>> = images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: img },
+    }))
+    content.push({ type: 'text', text: input.userPrompt })
+    messages.push({ role: 'user', content })
+  } else {
+    messages.push({ role: 'user', content: input.userPrompt })
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages,
+      max_tokens: input.maxTokens ?? 1024,
+      ...(wantsJson
+        ? { response_format: { type: 'json_object' }, enable_thinking: false }
+        : {}),
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+      modelId,
+    })
+  }
+
+  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const content = data.choices[0]?.message?.content
+
+  if (!content) {
+    throw new Error('No text response from Qwen')
+  }
+
+  return content.trim()
+}
+
+/**
  * VolcEngine (豆包) text completion — OpenAI-compatible chat API.
  * Supports vision (image_url in content) and web search via plugin.
  */
@@ -564,6 +652,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return openAiTextCompletion(input)
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return deepseekTextCompletion(input)
+    case AI_ADAPTER_TYPES.DASHSCOPE:
+      return dashscopeTextCompletion(input)
     default:
       throw new Error(
         `LLM text completion not supported for adapter: ${input.adapterType}`,

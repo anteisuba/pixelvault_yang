@@ -12,6 +12,8 @@ export enum AI_ADAPTER_TYPES {
   VOLCENGINE = 'volcengine',
   FISH_AUDIO = 'fish_audio',
   HYPER3D_RODIN = 'hyper3d_rodin',
+  DASHSCOPE = 'dashscope',
+  ELEVENLABS = 'elevenlabs',
 }
 
 export interface ProviderConfig {
@@ -31,6 +33,8 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.VOLCENGINE,
   AI_ADAPTER_TYPES.FISH_AUDIO,
   AI_ADAPTER_TYPES.HYPER3D_RODIN,
+  AI_ADAPTER_TYPES.DASHSCOPE,
+  AI_ADAPTER_TYPES.ELEVENLABS,
 ] as const
 
 export const DEFAULT_PROVIDER_CONFIGS: Record<
@@ -81,6 +85,14 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'Hyper3D Rodin',
     baseUrl: AI_PROVIDER_ENDPOINTS.HYPER3D,
   },
+  [AI_ADAPTER_TYPES.DASHSCOPE]: {
+    label: 'Qwen',
+    baseUrl: AI_PROVIDER_ENDPOINTS.DASHSCOPE,
+  },
+  [AI_ADAPTER_TYPES.ELEVENLABS]: {
+    label: 'ElevenLabs',
+    baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
+  },
 }
 
 export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
@@ -95,6 +107,8 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
+  [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
+  [AI_ADAPTER_TYPES.ELEVENLABS]: 'sk_...',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
@@ -109,6 +123,8 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
+  [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
+  [AI_ADAPTER_TYPES.ELEVENLABS]: 5,
 }
 
 export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
@@ -123,6 +139,8 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
+  [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
+  [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
 }
 
 export const getDefaultProviderConfig = (
@@ -152,6 +170,8 @@ export const ADAPTER_REGION_LABEL: Record<AI_ADAPTER_TYPES, AdapterRegion> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'cn',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'intl',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'intl',
+  [AI_ADAPTER_TYPES.DASHSCOPE]: 'intl',
+  [AI_ADAPTER_TYPES.ELEVENLABS]: 'intl',
 }
 
 export const getAdapterRegion = (
@@ -215,6 +235,15 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
     url: 'https://hyper3d.ai/dashboard',
     steps:
       'Sign in → Dashboard → API Keys → Create key. Business subscription ($120/mo) required for Rodin Gen-2.5.',
+  },
+  [AI_ADAPTER_TYPES.DASHSCOPE]: {
+    url: 'https://dashscope.console.aliyun.com/apiKey',
+    steps:
+      'Sign in (Singapore / International account) → DashScope Console → API-KEY → Create new API key (sk-...). Use the Singapore region — keys are region-locked.',
+  },
+  [AI_ADAPTER_TYPES.ELEVENLABS]: {
+    url: 'https://elevenlabs.io/app/settings/api-keys',
+    steps: 'Sign in → Settings → API Keys → Create API Key (sk_...).',
   },
 }
 

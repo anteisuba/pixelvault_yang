@@ -6,6 +6,7 @@
  */
 
 import { AI_MODELS } from '@/constants/models'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 export interface ModelStrength {
@@ -65,6 +66,8 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
     'Target model: GPT Image. Prefer detailed natural language descriptions with emphasis on composition and mood.',
   [AI_ADAPTER_TYPES.DEEPSEEK]:
     'Target model: DeepSeek text planning. Prefer structured, concrete cinematic writing with clear story beats, scene logic, and production-ready details.',
+  [AI_ADAPTER_TYPES.DASHSCOPE]:
+    'Target model: Qwen (DashScope) text/vision. Prefer concrete natural language; strong at Chinese scriptwriting and shot breakdowns. Return strict JSON when the task asks for structured output.',
   [AI_ADAPTER_TYPES.HUGGINGFACE]:
     'Target model: Stable Diffusion. Prefer comma-separated descriptive phrases with quality modifiers.',
   [AI_ADAPTER_TYPES.REPLICATE]:
@@ -172,6 +175,39 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
 }
 
 /**
+ * Per-text-model strengths for the Qwen (DashScope) LLM line. These models are
+ * not generation models (not in `AI_MODELS`), so they live in a separate map
+ * keyed by their LLM text model id. Surfaced through `getModelEnhanceHint`,
+ * which downstream text services call with the per-call `modelId`.
+ */
+export const TEXT_MODEL_STRENGTHS: Record<string, ModelStrength> = {
+  [LLM_TEXT_MODEL_IDS.QWEN3_MAX]: {
+    bestFor: ['chinese-script', 'storyboard', 'recipe-fusion', 'reasoning'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Flagship Qwen text model — strongest for Chinese scriptwriting, shot breakdowns, and recipe fusion. Prefer rich, concrete natural language; structure output as the requested JSON when asked.',
+  },
+  [LLM_TEXT_MODEL_IDS.QWEN_PLUS]: {
+    bestFor: ['chinese-text', 'long-context', 'storyboard', 'general'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Balanced 1M-context Qwen model — the default workhorse for most text tasks (keywords, storyboard JSON, enhancement). Prefer clear natural language; long source material is fine given the large context window.',
+  },
+  [LLM_TEXT_MODEL_IDS.QWEN_FLASH]: {
+    bestFor: ['keyword-extraction', 'quick-rewrite', 'intent-parse'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Cheap, fast Qwen model for high-frequency near-deterministic tasks (keyword extraction, quick rewrites). Keep instructions concise and the expected output shape explicit.',
+  },
+  [LLM_TEXT_MODEL_IDS.QWEN3_VL_PLUS]: {
+    bestFor: ['image-breakdown', 'vision', 'chinese-text-in-image'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Vision-capable Qwen model — good for reverse-engineering images and reading text-in-image, with strong Chinese understanding. Describe what to extract from the image in plain natural language.',
+  },
+}
+
+/**
  * Get the enhancement hint for a model, falling back to adapter-level hint.
  */
 export function getModelEnhanceHint(
@@ -180,6 +216,8 @@ export function getModelEnhanceHint(
 ): string | null {
   const modelHint = MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint
   if (modelHint) return modelHint
+  const textModelHint = TEXT_MODEL_STRENGTHS[modelId]?.enhanceHint
+  if (textModelHint) return textModelHint
   if (adapterType) return ADAPTER_PROMPT_HINTS[adapterType] ?? null
   return null
 }

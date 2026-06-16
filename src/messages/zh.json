@@ -1857,6 +1857,14 @@
       "hyper3d_rodin": {
         "label": "Hyper3D Rodin",
         "description": "使用 Hyper3D Rodin Gen-2.5 官方 API，支持最多 5 张参考图的高质量图生 3D。"
+      },
+      "dashscope": {
+        "label": "通义千问",
+        "description": "使用阿里通义千问（DashScope）文本与视觉模型，擅长中文剧本、分镜拆解与图片分析。新加坡区域。"
+      },
+      "elevenlabs": {
+        "label": "ElevenLabs",
+        "description": "使用 ElevenLabs v3 进行高品质、富有表现力的文字转语音，声音自然逼真。"
       }
     },
     "summary": {
@@ -2436,6 +2444,10 @@
       "label": "Fish Audio S2 Pro",
       "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"
     },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "高品质、富有表现力的文字转语音，声音自然逼真"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "?? fal.ai ??? Alibaba ??????????????????????"
@@ -2507,6 +2519,22 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Hyper3D 官方 API — 最多 5 张参考图、GLB 输出、5 档质量层级。需要 BYOK（Business 订阅）。"
+    },
+    "qwen3Max": {
+      "label": "通义千问3 Max",
+      "description": "通义千问旗舰文本模型 — 擅长中文剧本、分镜拆解与配方融合。"
+    },
+    "qwenPlus": {
+      "label": "通义千问 Plus",
+      "description": "均衡型百万上下文通义千问模型 — 多数文本任务的默认主力。"
+    },
+    "qwenFlash": {
+      "label": "通义千问 Flash",
+      "description": "廉价、快速的通义千问模型，适合关键词拆解、快速改写等高频任务。"
+    },
+    "qwen3VlPlus": {
+      "label": "通义千问3 VL Plus",
+      "description": "支持视觉的通义千问模型，适合图片反推与图内文字识别，中文理解强。"
     }
   },
   "PromptPresets": {

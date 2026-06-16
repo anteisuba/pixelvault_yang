@@ -163,6 +163,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       capabilities: ['voiceSelection', 'speed', 'sampleRate'],
     },
 
+    [AI_ADAPTER_TYPES.ELEVENLABS]: {
+      capabilities: ['voiceSelection', 'speed'],
+    },
+
+    [AI_ADAPTER_TYPES.DASHSCOPE]: {
+      // Text/vision LLM line — no image-generation parameter controls.
+      capabilities: [],
+    },
+
     [AI_ADAPTER_TYPES.HYPER3D_RODIN]: {
       capabilities: ['seed'] as const,
       maxReferenceImages: 5,

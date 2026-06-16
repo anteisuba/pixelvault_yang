@@ -347,3 +347,111 @@ describe('llmTextCompletion - DeepSeek', () => {
     })
   })
 })
+
+describe('llmTextCompletion - DashScope (Qwen)', () => {
+  it('calls the Qwen chat API and injects json + enable_thinking for JSON mode', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"scenes":[]}' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'Plan a shot breakdown.',
+      userPrompt: 'Write a script outline.',
+      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+      providerConfig: {
+        label: 'Qwen',
+        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      },
+      apiKey: 'sk-qwen',
+      maxTokens: 2048,
+      responseFormat: 'json_object',
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected Qwen request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      model: string
+      max_tokens: number
+      enable_thinking?: boolean
+      response_format?: { type: string }
+      messages: Array<{ role: string; content: unknown }>
+    }
+
+    expect(result).toBe('{"scenes":[]}')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-qwen',
+        }),
+      }),
+    )
+    expect(payload.model).toBe('qwen-plus')
+    expect(payload.max_tokens).toBe(2048)
+    expect(payload.enable_thinking).toBe(false)
+    expect(payload.response_format?.type).toBe('json_object')
+    // Neither prompt mentions "json", so the adapter must append the instruction.
+    expect(JSON.stringify(payload.messages)).toMatch(/json/i)
+  })
+
+  it('forwards image input as OpenAI-style image_url content (VL models)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'image described' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You analyze images.',
+      userPrompt: 'Describe this image.',
+      imageData: 'https://example.com/ref.png',
+      modelId: 'qwen3-vl-plus',
+      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+      providerConfig: {
+        label: 'Qwen',
+        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      },
+      apiKey: 'sk-qwen',
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected Qwen request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      model: string
+      messages: Array<{
+        role: string
+        content: Array<{ type: string; image_url?: { url: string } }> | string
+      }>
+    }
+
+    expect(result).toBe('image described')
+    expect(payload.model).toBe('qwen3-vl-plus')
+    const userMessage = payload.messages.find((m) => m.role === 'user')
+    expect(Array.isArray(userMessage?.content)).toBe(true)
+    const content = userMessage?.content as Array<{
+      type: string
+      image_url?: { url: string }
+    }>
+    expect(content[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'https://example.com/ref.png' },
+    })
+    expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
+  })
+})

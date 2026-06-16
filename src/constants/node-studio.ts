@@ -109,6 +109,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
     label: 'Gemini 3.5 Flash',
   },
+  {
+    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+    modelId: LLM_TEXT_MODEL_IDS.QWEN3_VL_PLUS,
+    label: 'Qwen3 VL Plus',
+  },
 ] as const
 
 export const NODE_STUDIO_DOCK = {

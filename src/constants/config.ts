@@ -400,6 +400,11 @@ export const AI_PROVIDER_ENDPOINTS = {
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
   HYPER3D: 'https://api.hyper3d.com',
+  // DashScope (Qwen) — Singapore / International region. OpenAI-compatible
+  // chat-completions drop-in. Region-locked: intl keys do NOT work against
+  // the CN host (dashscope.aliyuncs.com) and vice versa.
+  DASHSCOPE: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  ELEVENLABS: 'https://api.elevenlabs.io',
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
@@ -407,6 +412,13 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_5_FLASH: 'gemini-3.5-flash',
   OPENAI_GPT_5_4_MINI: 'gpt-5.4-mini',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
+  // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
+  // vision. IDs map to compatible-mode aliases; pin to dated snapshots if
+  // alias drift becomes a problem.
+  QWEN3_MAX: 'qwen3-max',
+  QWEN_PLUS: 'qwen-plus',
+  QWEN_FLASH: 'qwen-flash',
+  QWEN3_VL_PLUS: 'qwen3-vl-plus',
 } as const
 
 export const RUNWAY_API = {

@@ -39,6 +39,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.RECRAFT_V4_PRO]: 'recraftV4Pro',
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'fishAudioS2Pro',
+  [AI_MODELS.ELEVENLABS_V3]: 'elevenV3',
   [AI_MODELS.HAPPYHORSE_10]: 'happyhorse10',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.LTX_23]: 'ltx23',
@@ -118,6 +119,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.HAPPYHORSE_10]: 'HappyHorse',
   [AI_MODELS.LTX_23]: 'LTX',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
+  [AI_MODELS.ELEVENLABS_V3]: 'ElevenLabs',
   [AI_MODELS.HUNYUAN3D_2_1]: 'Hunyuan3D',
   [AI_MODELS.HUNYUAN3D_V3]: 'Hunyuan3D',
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'Hunyuan3D',
@@ -218,6 +220,7 @@ export type ProviderGroup =
   | 'openai'
   | 'google'
   | 'deepseek'
+  | 'dashscope'
   | 'novelai'
   | 'fal'
   | 'runway'
@@ -225,6 +228,7 @@ export type ProviderGroup =
   | 'opensource'
   | 'replicate'
   | 'fish_audio'
+  | 'elevenlabs'
   | 'hyper3d'
 
 /** Display order for provider groups. */
@@ -232,11 +236,13 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'openai',
   'google',
   'deepseek',
+  'dashscope',
   'novelai',
   'fal',
   'runway',
   'volcengine',
   'fish_audio',
+  'elevenlabs',
   'opensource',
   'replicate',
   'hyper3d',
@@ -251,6 +257,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'google'
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return 'deepseek'
+    case AI_ADAPTER_TYPES.DASHSCOPE:
+      return 'dashscope'
     case AI_ADAPTER_TYPES.NOVELAI:
       return 'novelai'
     case AI_ADAPTER_TYPES.FAL:
@@ -265,6 +273,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'replicate'
     case AI_ADAPTER_TYPES.FISH_AUDIO:
       return 'fish_audio'
+    case AI_ADAPTER_TYPES.ELEVENLABS:
+      return 'elevenlabs'
     case AI_ADAPTER_TYPES.HYPER3D_RODIN:
       return 'hyper3d'
   }

@@ -14,6 +14,11 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
     label: 'Gemini 3.1 Flash Lite',
   },
+  {
+    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+    modelId: LLM_TEXT_MODEL_IDS.QWEN_FLASH,
+    label: 'Qwen Flash',
+  },
 ] as const
 
 const ADAPTER_CAPABILITIES: Record<
@@ -23,6 +28,9 @@ const ADAPTER_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner'],
+  // DashScope (Qwen): text planner + cheap enhance, plus assistant (the
+  // qwen3-vl-plus model handles the vision side of the assistant scope).
+  [AI_ADAPTER_TYPES.DASHSCOPE]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
   [AI_ADAPTER_TYPES.HUGGINGFACE]: [],
   [AI_ADAPTER_TYPES.FAL]: [],
@@ -31,6 +39,8 @@ const ADAPTER_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.NOVELAI]: [],
   [AI_ADAPTER_TYPES.FISH_AUDIO]: [],
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: [],
+  // ElevenLabs is TTS-only — no text/LLM capability.
+  [AI_ADAPTER_TYPES.ELEVENLABS]: [],
 }
 
 export function getLLMCapabilityScope(

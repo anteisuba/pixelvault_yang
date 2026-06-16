@@ -118,6 +118,7 @@ describe('models', () => {
   it('keeps supported audio generation models active', () => {
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
+      AI_MODELS.ELEVENLABS_V3,
     ])
   })
 })

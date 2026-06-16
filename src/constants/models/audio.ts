@@ -20,4 +20,17 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     timeoutMs: 60_000,
     qualityTier: 'premium',
   },
+  {
+    id: AI_MODELS.ELEVENLABS_V3,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
+    externalModelId: 'eleven_v3',
+    outputType: 'AUDIO',
+    available: true,
+    officialUrl:
+      'https://elevenlabs.io/docs/api-reference/text-to-speech/convert',
+    timeoutMs: 60_000,
+    qualityTier: 'premium',
+  },
 ]

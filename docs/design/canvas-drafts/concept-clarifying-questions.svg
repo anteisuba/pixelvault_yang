@@ -1,0 +1,62 @@
+<svg width="100%" viewBox="0 0 680 380" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>助手反问式澄清 出题加选项 填 ScriptDoc</title>
+<defs>
+<marker id="e1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">助手反问式澄清:出题 + 跳选项,边问边确认</text>
+<text x="20" y="40" font-size="10" fill="#5F5E5A">助手不只聊天,还能跳选择框让你定方向 —— 每个回答填进 ScriptDoc</text>
+
+<rect x="20" y="54" width="290" height="310" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="34" y="74" font-size="11" font-weight="700" fill="#E8E6DE">助手</text>
+<rect x="34" y="82" width="180" height="20" rx="8" fill="#242424"/>
+<text x="44" y="96" font-size="9" fill="#C9C7BE">先定几个方向</text>
+
+<text x="34" y="124" font-size="9.5" font-weight="700" fill="#C9C7BE">&#9312; 视频多长?</text>
+<rect x="34" y="130" width="40" height="20" rx="10" fill="#2C2C2A"/><text x="54" y="143" text-anchor="middle" font-size="8.5" fill="#C9C7BE">15s</text>
+<rect x="78" y="130" width="40" height="20" rx="10" fill="#E8E6DE"/><text x="98" y="143" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1C1C1A">30s</text>
+<rect x="122" y="130" width="40" height="20" rx="10" fill="#2C2C2A"/><text x="142" y="143" text-anchor="middle" font-size="8.5" fill="#C9C7BE">60s</text>
+<rect x="166" y="130" width="46" height="20" rx="10" fill="#2C2C2A"/><text x="189" y="143" text-anchor="middle" font-size="8.5" fill="#8C8A82">自填</text>
+
+<text x="34" y="174" font-size="9.5" font-weight="700" fill="#C9C7BE">&#9313; 几个角色?</text>
+<rect x="34" y="180" width="30" height="20" rx="10" fill="#2C2C2A"/><text x="49" y="193" text-anchor="middle" font-size="8.5" fill="#C9C7BE">1</text>
+<rect x="68" y="180" width="30" height="20" rx="10" fill="#2C2C2A"/><text x="83" y="193" text-anchor="middle" font-size="8.5" fill="#C9C7BE">2</text>
+<rect x="102" y="180" width="36" height="20" rx="10" fill="#E8E6DE"/><text x="120" y="193" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1C1C1A">3+</text>
+<rect x="142" y="180" width="58" height="20" rx="10" fill="#2C2C2A"/><text x="171" y="193" text-anchor="middle" font-size="8.5" fill="#8C8A82">让AI定</text>
+
+<text x="34" y="224" font-size="9.5" font-weight="700" fill="#C9C7BE">&#9314; 画风?</text>
+<rect x="34" y="230" width="44" height="20" rx="10" fill="#2C2C2A"/><text x="56" y="243" text-anchor="middle" font-size="8.5" fill="#C9C7BE">写实</text>
+<rect x="82" y="230" width="44" height="20" rx="10" fill="#E8E6DE"/><text x="104" y="243" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1C1C1A">动漫</text>
+<rect x="130" y="230" width="44" height="20" rx="10" fill="#2C2C2A"/><text x="152" y="243" text-anchor="middle" font-size="8.5" fill="#C9C7BE">国风</text>
+<rect x="178" y="230" width="44" height="20" rx="10" fill="#2C2C2A"/><text x="200" y="243" text-anchor="middle" font-size="8.5" fill="#8C8A82">自填</text>
+
+<rect x="34" y="282" width="170" height="26" rx="8" fill="#E8E6DE"/>
+<text x="119" y="299" text-anchor="middle" font-size="10" font-weight="700" fill="#1C1C1A">确认 · 开始生成</text>
+<rect x="34" y="326" width="250" height="22" rx="8" fill="#2C2C2A"/>
+<text x="44" y="341" font-size="8.5" fill="#8C8A82">或直接打字…</text>
+
+<line x1="312" y1="120" x2="350" y2="120" stroke="#888780" stroke-width="1.5" marker-end="url(#e1)"/>
+<text x="318" y="113" font-size="8" fill="#5F5E5A">答案</text>
+
+<rect x="352" y="64" width="300" height="108" rx="10" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="366" y="84" font-size="11" font-weight="700" fill="#04342C">ScriptDoc(被回答填充)</text>
+<text x="366" y="104" font-size="9.5" fill="#0F6E56">targetDurationSec = 30</text>
+<text x="366" y="120" font-size="9.5" fill="#0F6E56">characters = 3</text>
+<text x="366" y="136" font-size="9.5" fill="#0F6E56">style = 动漫 · aspect = 16:9</text>
+<text x="366" y="156" font-size="8.5" fill="#0F6E56">(受 profile 约束:≤60s · 3–6 镜)</text>
+
+<path d="M652,118 C672,118 672,210 560,210 L362,210" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#e1)"/>
+<text x="470" y="204" text-anchor="middle" font-size="8.5" fill="#A32D2D">&#8634; 还缺信息 → LLM 继续反问(可分支)</text>
+
+<line x1="502" y1="172" x2="502" y2="226" stroke="#888780" stroke-width="1.5" marker-end="url(#e1)"/>
+<text x="510" y="200" font-size="8.5" fill="#5F5E5A">够了 → 确认</text>
+
+<rect x="352" y="228" width="300" height="62" rx="10" fill="#E6F1FB" stroke="#185FA5"/>
+<text x="366" y="250" font-size="11" font-weight="700" fill="#042C53">投影 spawn(= 自动生成流)</text>
+<text x="366" y="270" font-size="9.5" fill="#185FA5">→ 角色节点 · 声音节点(含台词) · 镜头节点</text>
+
+<text x="352" y="312" font-size="9" fill="#5F5E5A">· 出什么题由 LLM 判断(只问改方向的,能推断的不问)</text>
+<text x="352" y="328" font-size="9" fill="#5F5E5A">· 选项 = 预设 + 自填 + 让AI定;选项内容按上下文生成,非写死</text>
+<text x="352" y="344" font-size="9" fill="#5F5E5A">· 输出结构化 {question, options, multiSelect, allowCustom, allowSkip}</text>
+</svg>

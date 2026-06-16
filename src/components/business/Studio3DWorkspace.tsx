@@ -150,19 +150,19 @@ interface Preset3D {
 const PRESETS_3D: readonly Preset3D[] = [
   {
     id: 'fidelity',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
     enablePbr: true,
     faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
   },
   {
     id: 'detail',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
     enablePbr: true,
     faceCount: HUNYUAN3D_FACE_COUNT.HIGH,
   },
   {
     id: 'fast',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
     enablePbr: false,
     faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
   },

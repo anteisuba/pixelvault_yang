@@ -45,6 +45,7 @@ import {
   STYLE_SHORTCUTS,
 } from '@/hooks/kernel/use-prompt-assistant'
 import { readImageFileAsBase64 } from '@/lib/image-input'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
   GenerationRecord,
@@ -123,6 +124,7 @@ export function PromptAssistantPanel({
   onAppendPrompt,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
+  const tModels = useTranslations('Models')
   const locale = useLocale()
   const { messages, isLoading, error, send, applyPreset, clear } =
     usePromptAssistant()
@@ -153,6 +155,9 @@ export function PromptAssistantPanel({
   }, [messages])
 
   const effectiveReferenceImageData = referenceImage?.data
+  const targetModelLabel = modelId
+    ? getTranslatedModelLabel(tModels, modelId)
+    : null
 
   const sendOpts = useCallback(
     () => ({
@@ -251,10 +256,12 @@ export function PromptAssistantPanel({
       </div>
 
       {/* ── Model badge ── */}
-      {modelId && (
+      {targetModelLabel && (
         <p className="text-2xs text-muted-foreground">
           {t('targetModel')}:{' '}
-          <span className="font-medium text-foreground">{modelId}</span>
+          <span className="font-medium text-foreground">
+            {targetModelLabel}
+          </span>
         </p>
       )}
 

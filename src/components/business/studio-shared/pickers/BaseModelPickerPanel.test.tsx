@@ -36,6 +36,7 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
   return {
     optionId: over.optionId ?? 'opt-1',
     modelId: over.modelId ?? 'model-1',
+    displayLabel: over.displayLabel,
     adapterType: over.adapterType ?? AI_ADAPTER_TYPES.OPENAI,
     providerConfig:
       over.providerConfig ?? getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
@@ -64,9 +65,10 @@ describe('BaseModelPickerPanel', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the selected option label in the trigger', () => {
+  it('shows the selected model label in the trigger by default', () => {
     const opt = makeOption({
       optionId: 'opt-saved',
+      modelId: 'gpt-image-2',
       sourceType: 'saved',
       keyId: 'k1',
       keyLabel: 'My personal key',
@@ -78,7 +80,54 @@ describe('BaseModelPickerPanel', () => {
         onChange={vi.fn()}
       />,
     )
+    expect(screen.getByText(/openaiGptImage2/)).toBeInTheDocument()
+    expect(screen.queryByText('My personal key')).not.toBeInTheDocument()
+  })
+
+  it('can use key label as the primary label when requested', () => {
+    const opt = makeOption({
+      optionId: 'opt-saved',
+      modelId: 'gpt-image-2',
+      sourceType: 'saved',
+      keyId: 'k1',
+      keyLabel: 'My personal key',
+    })
+    render(
+      <BaseModelPickerPanel
+        options={[opt]}
+        value="opt-saved"
+        onChange={vi.fn()}
+        savedOptionLabelMode="key"
+      />,
+    )
     expect(screen.getByText('My personal key')).toBeInTheDocument()
+  })
+
+  it('can use model label as the primary label for saved LLM routes', () => {
+    const opt = makeOption({
+      optionId: 'opt-llm',
+      modelId: 'gpt-5.4-mini',
+      displayLabel: 'OpenAI GPT-5.4 Mini',
+      sourceType: 'saved',
+      keyId: 'k1',
+      keyLabel: 'seeddance-gpt',
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[opt]}
+        value="opt-llm"
+        onChange={vi.fn()}
+        savedOptionLabelMode="model"
+      />,
+    )
+
+    expect(screen.getByText('OpenAI GPT-5.4 Mini')).toBeInTheDocument()
+    expect(screen.queryByText('seeddance-gpt')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('seeddance-gpt · OpenAI')).toBeInTheDocument()
   })
 
   it('shows model label when no keyLabel (workspace/locked option selected)', () => {
@@ -110,7 +159,11 @@ describe('BaseModelPickerPanel', () => {
     expect(screen.getByRole('button')).toBeDisabled()
   })
 
-  it('renders three groups when options span saved / platform / locked', () => {
+  it('shows saved + platform but hides locked in step 2 of a configured provider (select-only)', () => {
+    // All three share the default OPENAI adapter → single provider → the
+    // picker auto-skips step 1 into the provider's model list (step 2). Step 2
+    // is select-only: locked/needs-key models are hidden because the provider
+    // already has a usable (saved) route. Configuring keys happens at step 1.
     const saved = makeOption({
       optionId: 'opt-saved',
       sourceType: 'saved',
@@ -139,7 +192,83 @@ describe('BaseModelPickerPanel', () => {
 
     expect(screen.getByText('QuickSetup.configuredKeys')).toBeInTheDocument()
     expect(screen.getByText('QuickSetup.platformQuota')).toBeInTheDocument()
+    expect(screen.queryByText('QuickSetup.needsKey')).not.toBeInTheDocument()
+  })
+
+  it('falls back to showing locked models when the provider has no usable route', () => {
+    // A single provider whose only model is locked still surfaces it (as a
+    // fallback) so the list is never silently empty.
+    const locked = makeOption({
+      optionId: 'opt-locked',
+      sourceType: 'workspace',
+      freeTier: false,
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[locked]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button'))
+
     expect(screen.getByText('QuickSetup.needsKey')).toBeInTheDocument()
+  })
+
+  it('drills into an unconfigured (needs-key) provider from step 1, showing its locked models', () => {
+    // Two distinct providers → step 1 (provider list) is shown, not auto-skipped.
+    // The DEEPSEEK provider is entirely unconfigured: its only option is neither
+    // a saved key nor a free-tier platform route, so it renders as "needs key".
+    // Clicking that provider row must drill into step 2 and surface its locked
+    // model — not stay on the provider list or dismiss the popover.
+    const configured = makeOption({
+      optionId: 'opt-openai-saved',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+      sourceType: 'saved',
+      keyId: 'k1',
+    })
+    const unconfigured = makeOption({
+      optionId: 'opt-deepseek-locked',
+      modelId: 'deepseek-model',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK),
+      sourceType: 'workspace',
+      freeTier: false,
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[configured, unconfigured]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button'))
+
+    // Step 1: provider rows are shown; the provider's model itself is not yet
+    // listed (the model groups belong to step 2). The provider row carries its
+    // own "needs key" badge, so that text alone doesn't distinguish the steps —
+    // the model id does.
+    const deepseekRow = screen.getByText(
+      getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK).label,
+    )
+    expect(screen.queryByText(/deepseek-model/)).not.toBeInTheDocument()
+
+    // Drill into the unconfigured provider.
+    fireEvent.click(deepseekRow)
+
+    // Step 2: the popover stayed open and now lists the provider's locked model
+    // under the needs-key group (the provider had no usable route). The locked
+    // model id only renders in step 2, so its presence proves the drill-in. The
+    // needs-key *heading* coexists with the exiting step-1 row's own needs-key
+    // badge during the cross-fade (popLayout keeps the outgoing view mounted),
+    // so it can match more than once — assert at least one is present.
+    expect(screen.getAllByText('QuickSetup.needsKey').length).toBeGreaterThan(0)
+    expect(screen.getByText(/deepseek-model/)).toBeInTheDocument()
   })
 
   it('omits a group when its bucket is empty', () => {

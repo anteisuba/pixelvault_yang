@@ -132,9 +132,8 @@ describe('IRON RULE — LLM scope source of truth', () => {
 
   it('a saved key for an adapter that does NOT declare the scope is filtered out', () => {
     // Pure regression guard for the original DeepSeek-in-enhance bug:
-    // DeepSeek doesn't have "enhance" capability (current behavior
-    // preserved by T2), so a DeepSeek key must not surface in the
-    // enhance picker — but it MUST surface in planner + assistant.
+    // DeepSeek only declares "planner", so it must not surface in
+    // enhance or assistant pickers.
     const deepseekKey = makeKey({
       id: 'k-ds',
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
@@ -153,7 +152,7 @@ describe('IRON RULE — LLM scope source of truth', () => {
     const assistant = renderHook(() => useLLMRoutePicker('assistant'))
     expect(
       assistant.result.current.savedRoutes.find((r) => r.apiKeyId === 'k-ds'),
-    ).toBeDefined()
+    ).toBeUndefined()
   })
 
   it('inactive keys are filtered uniformly across all scopes', () => {

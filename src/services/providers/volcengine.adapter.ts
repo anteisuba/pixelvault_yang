@@ -7,7 +7,7 @@ import {
   AI_PROVIDER_ENDPOINTS,
   VIDEO_GENERATION,
 } from '@/constants/config'
-import { AI_MODELS, getExecutionModelId } from '@/constants/models'
+import { getExecutionModelId } from '@/constants/models'
 import { VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -77,6 +77,10 @@ const VOLCENGINE_IMAGE_SIZES: Record<
 }
 
 const VOLCENGINE_MAX_SEED = 2_147_483_647
+const VOLCENGINE_SEEDANCE_20_FAST_MODEL_IDS = new Set([
+  'seedance-2.0-fast-volc',
+  'doubao-seedance-2-0-fast-260128',
+])
 
 // ─── Response Schemas ────────────────────────────────────────────
 
@@ -136,7 +140,10 @@ function resolveVolcEngineVideoResolution(
   videoDefaults: ProviderQueueSubmitInput['videoDefaults'],
 ): string | undefined {
   const requested = resolution ?? videoDefaults?.resolution
-  if (modelId === AI_MODELS.SEEDANCE_20_FAST_VOLC && requested === '1080p') {
+  if (
+    VOLCENGINE_SEEDANCE_20_FAST_MODEL_IDS.has(modelId) &&
+    requested === '1080p'
+  ) {
     return '720p'
   }
   return requested

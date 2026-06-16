@@ -1,17 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Plus,
-  Sparkles,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { getAvailableModels, isBuiltInModel } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
+import { getAvailableModels } from '@/constants/models'
+import {
+  type AdapterRegion,
+  getAdapterRegion,
+  getDefaultProviderConfig,
+  getProviderLabel,
+  isAiAdapterType,
+} from '@/constants/providers'
 import type {
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
@@ -23,13 +23,12 @@ import { ApiKeyRow } from '@/components/business/ApiKeyRow'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { getTranslatedModelLabel } from '@/lib/model-options'
 
 interface ProviderRouteGroup {
-  groupId: string
-  modelId: string
+  adapterType: string
   providerLabel: string
-  isCustom: boolean
+  region: AdapterRegion
+  coverageCount: number
   keys: UserApiKeyRecord[]
 }
 
@@ -45,58 +44,86 @@ function sortRouteRecords(records: UserApiKeyRecord[]): UserApiKeyRecord[] {
   })
 }
 
+function regionOf(adapterType: string): AdapterRegion {
+  return isAiAdapterType(adapterType) ? getAdapterRegion(adapterType) : 'intl'
+}
+
+function labelOf(adapterType: string, sample?: UserApiKeyRecord): string {
+  if (sample) return getProviderLabel(sample.providerConfig)
+  if (isAiAdapterType(adapterType)) {
+    return getProviderLabel(getDefaultProviderConfig(adapterType))
+  }
+  return adapterType
+}
+
 export function ApiKeyManager() {
   const { keys, isLoading, error, healthMap, create, update, remove, verify } =
     useApiKeysContext()
   const t = useTranslations('StudioApiKeys')
-  const tModels = useTranslations('Models')
+  const tCommon = useTranslations('Common')
   const [showAddForm, setShowAddForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showAllBuiltIn, setShowAllBuiltIn] = useState(false)
+  const [showAllProviders, setShowAllProviders] = useState(false)
   const availableModels = getAvailableModels()
   const activeRouteCount = keys.filter((key) => key.isActive).length
 
-  const allBuiltInGroups: ProviderRouteGroup[] = availableModels.map(
-    (model) => ({
-      groupId: model.id,
-      modelId: model.id,
-      providerLabel: getProviderLabel(model.providerConfig),
-      isCustom: false,
-      keys: sortRouteRecords(keys.filter((key) => key.modelId === model.id)),
-    }),
+  // How many built-in models each provider (company) can power — drives the
+  // "covers N models" badge and the discovery list of providers without a key.
+  const coverageByAdapter = new Map<string, number>()
+  for (const model of availableModels) {
+    coverageByAdapter.set(
+      model.adapterType,
+      (coverageByAdapter.get(model.adapterType) ?? 0) + 1,
+    )
+  }
+
+  // Group every saved key by its provider (company) — one card per company,
+  // mirroring step 1 of the model picker. A BYOK key for a company is what
+  // unlocks all of that company's models.
+  const keysByAdapter = new Map<string, UserApiKeyRecord[]>()
+  for (const key of keys) {
+    keysByAdapter.set(key.adapterType, [
+      ...(keysByAdapter.get(key.adapterType) ?? []),
+      key,
+    ])
+  }
+
+  const configuredGroups: ProviderRouteGroup[] = Array.from(
+    keysByAdapter.entries(),
   )
-
-  const savedBuiltInGroups = allBuiltInGroups.filter(
-    (group) => group.keys.length > 0,
-  )
-  const displayedBuiltInGroups = showAllBuiltIn
-    ? allBuiltInGroups
-    : savedBuiltInGroups
-
-  const customGroupMap = new Map<string, UserApiKeyRecord[]>()
-  keys
-    .filter((key) => !isBuiltInModel(key.modelId))
-    .forEach((key) => {
-      const groupId = `${key.adapterType}::${key.modelId}`
-      const existingGroup = customGroupMap.get(groupId) ?? []
-      customGroupMap.set(groupId, [...existingGroup, key])
-    })
-
-  const allCustomGroups: ProviderRouteGroup[] = Array.from(
-    customGroupMap.entries(),
-  ).map(([groupId, groupKeys]) => {
-    const firstKey = groupKeys[0]
-
-    return {
-      groupId,
-      modelId: firstKey?.modelId ?? '',
-      providerLabel: firstKey ? getProviderLabel(firstKey.providerConfig) : '',
-      isCustom: true,
+    .map(([adapterType, groupKeys]) => ({
+      adapterType,
+      providerLabel: labelOf(adapterType, groupKeys[0]),
+      region: regionOf(adapterType),
+      coverageCount: coverageByAdapter.get(adapterType) ?? 0,
       keys: sortRouteRecords(groupKeys),
-    }
-  })
+    }))
+    .sort(
+      (left, right) =>
+        right.keys.length - left.keys.length ||
+        left.providerLabel.localeCompare(right.providerLabel),
+    )
 
-  const displayedRouteGroups = [...displayedBuiltInGroups, ...allCustomGroups]
+  // Providers that can power models but have no key yet — revealed under
+  // "show all" so the user can add one without leaving the panel.
+  const unconfiguredGroups: ProviderRouteGroup[] = Array.from(
+    coverageByAdapter.keys(),
+  )
+    .filter((adapterType) => !keysByAdapter.has(adapterType))
+    .map((adapterType) => ({
+      adapterType,
+      providerLabel: labelOf(adapterType),
+      region: regionOf(adapterType),
+      coverageCount: coverageByAdapter.get(adapterType) ?? 0,
+      keys: [],
+    }))
+    .sort((left, right) =>
+      left.providerLabel.localeCompare(right.providerLabel),
+    )
+
+  const displayedGroups = showAllProviders
+    ? [...configuredGroups, ...unconfiguredGroups]
+    : configuredGroups
 
   const handleAdd = async (data: CreateApiKeyRequest) => {
     setIsSubmitting(true)
@@ -190,43 +217,46 @@ export function ApiKeyManager() {
               </div>
             </div>
 
-            {displayedRouteGroups.length > 0 ? (
+            {displayedGroups.length > 0 ? (
               <div className="space-y-3">
-                {displayedRouteGroups.map((group) => (
+                {displayedGroups.map((group) => (
                   <article
-                    key={group.groupId}
+                    key={group.adapterType}
                     className="rounded-2xl border border-border/70 bg-card/84 p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="font-display text-sm font-medium text-foreground">
-                          {group.isCustom
-                            ? group.modelId
-                            : getTranslatedModelLabel(tModels, group.modelId)}
+                          {group.providerLabel}
                         </h4>
                         <Badge
                           variant="outline"
                           className="rounded-full px-3 py-1"
                         >
-                          {group.providerLabel}
+                          {group.region === 'cn'
+                            ? tCommon('regionCn')
+                            : tCommon('regionIntl')}
                         </Badge>
-                        {group.isCustom ? (
+                        {group.coverageCount > 0 ? (
                           <Badge
                             variant="secondary"
                             className="rounded-full px-3 py-1"
                           >
-                            <Sparkles className="size-3" />
-                            {t('customBadge')}
+                            {tCommon('modelCount', {
+                              count: group.coverageCount,
+                            })}
                           </Badge>
                         ) : null}
-                        <Badge
-                          variant="secondary"
-                          className="rounded-full px-3 py-1"
-                        >
-                          {t('summary.routeCount', {
-                            count: group.keys.length,
-                          })}
-                        </Badge>
+                        {group.keys.length > 0 ? (
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-3 py-1"
+                          >
+                            {t('summary.routeCount', {
+                              count: group.keys.length,
+                            })}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
 
@@ -244,31 +274,26 @@ export function ApiKeyManager() {
                         ))
                       ) : (
                         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-4 text-sm text-muted-foreground">
-                          {t('emptyModel', {
-                            model: getTranslatedModelLabel(
-                              tModels,
-                              group.modelId,
-                            ),
-                          })}
+                          {t('emptyModel', { model: group.providerLabel })}
                         </div>
                       )}
                     </div>
                   </article>
                 ))}
               </div>
-            ) : !showAllBuiltIn ? (
+            ) : !showAllProviders ? (
               <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
                 {t('emptyModel', { model: t('sections.builtInTitle') })}
               </div>
             ) : null}
 
-            {allBuiltInGroups.length > savedBuiltInGroups.length ? (
+            {unconfiguredGroups.length > 0 ? (
               <button
                 type="button"
-                onClick={() => setShowAllBuiltIn((v) => !v)}
+                onClick={() => setShowAllProviders((v) => !v)}
                 className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
               >
-                {showAllBuiltIn ? (
+                {showAllProviders ? (
                   <>
                     <ChevronDown className="size-4" />
                     {t('collapse.hideAll')}
@@ -277,7 +302,7 @@ export function ApiKeyManager() {
                   <>
                     <ChevronRight className="size-4" />
                     {t('collapse.showAll', {
-                      count: allBuiltInGroups.length,
+                      count: unconfiguredGroups.length,
                     })}
                   </>
                 )}

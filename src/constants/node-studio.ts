@@ -102,17 +102,12 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
-    label: 'OpenAI',
+    label: 'OpenAI GPT-5.4 Mini',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
-    label: 'Gemini',
-  },
-  {
-    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-    label: 'DeepSeek',
+    label: 'Gemini 3.5 Flash',
   },
 ] as const
 

@@ -23,7 +23,9 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm, type PanelName } from '@/contexts/studio-context'
+import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
@@ -37,9 +39,19 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   const [open, setOpen] = useState(false)
   const [loraOpen, setLoraOpen] = useState(false)
   const { state, dispatch } = useStudioForm()
-  const { modelOptions } = useImageModelOptions()
+  const { modelOptions: imageModelOptions } = useImageModelOptions()
+  const { modelOptions: videoModelOptions } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
+  const { modelOptions: audioModelOptions } = useAudioModelOptions()
   const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
+  const modelOptions =
+    state.outputType === 'audio'
+      ? audioModelOptions
+      : state.outputType === 'video'
+        ? videoModelOptions
+        : imageModelOptions
 
   // Listen for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -178,21 +190,22 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
           {modelOptions.length > 0 && (
             <CommandGroup heading={t('groups.models')}>
               {modelOptions.map((opt) => {
-                const label =
-                  opt.keyLabel ?? getTranslatedModelLabel(tModels, opt.modelId)
+                const label = getTranslatedModelLabel(tModels, opt.modelId)
                 const provider = getProviderLabel(opt.providerConfig)
                 const isActive = opt.optionId === state.selectedOptionId
                 return (
                   <CommandItem
                     key={opt.optionId}
-                    value={`${label} ${provider}`}
+                    value={`${label} ${opt.keyLabel ?? ''} ${provider}`}
                     onSelect={() => selectModel(opt.optionId)}
                     className="studio-command-item"
                   >
                     <Search className="size-4 text-muted-foreground" />
                     <span>{label}</span>
                     <span className="text-xs text-muted-foreground">
-                      {provider}
+                      {opt.keyLabel
+                        ? `${opt.keyLabel} · ${provider}`
+                        : provider}
                     </span>
                     {isActive && (
                       <span className="ml-auto text-xs text-primary">

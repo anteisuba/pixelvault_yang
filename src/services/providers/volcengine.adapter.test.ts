@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { AI_MODELS, MODEL_OPTIONS, type ModelOption } from '@/constants/models'
+import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { MODEL_OPTIONS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { VideoDefaults } from '@/constants/models'
 import type { ProviderQueueSubmitInput } from '@/services/providers/types'
 
 vi.mock('server-only', () => ({}))
@@ -12,32 +14,66 @@ const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'
 const API_KEY = 'ark-test-key'
 
+interface VolcVideoFixture {
+  id: string
+  externalModelId: string
+  videoDefaults?: VideoDefaults
+}
+
 interface VolcBodyCase {
   label: string
-  modelId: AI_MODELS
+  model: VolcVideoFixture
   referenceImage?: string
   expectedResolution: string
   expectedGenerateAudio?: boolean
 }
 
-function getModel(id: AI_MODELS): ModelOption {
-  const model = MODEL_OPTIONS.find((item) => item.id === id)
-  if (!model) {
-    throw new Error(`Missing model fixture: ${id}`)
-  }
-  return model
-}
+const VOLC_VIDEO_FIXTURES = {
+  seedance20: {
+    id: 'doubao-seedance-2-0-260128',
+    externalModelId: 'doubao-seedance-2-0-260128',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  seedance20Fast: {
+    id: 'doubao-seedance-2-0-fast-260128',
+    externalModelId: 'doubao-seedance-2-0-fast-260128',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  seedance15Pro: {
+    id: 'doubao-seedance-1-5-pro-251215',
+    externalModelId: 'doubao-seedance-1-5-pro-251215',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '1080p',
+    },
+  },
+  seedance10Pro: {
+    id: 'doubao-seedance-1-0-pro-fast-251015',
+    externalModelId: 'doubao-seedance-1-0-pro-fast-251015',
+    videoDefaults: {
+      resolution: '720p',
+    },
+  },
+} satisfies Record<string, VolcVideoFixture>
 
 function buildInput(
-  modelId: AI_MODELS,
+  model: VolcVideoFixture,
   referenceImage?: string,
 ): ProviderQueueSubmitInput {
-  const model = getModel(modelId)
   return {
     prompt: PROMPT,
-    modelId,
+    modelId: model.id,
     aspectRatio: '16:9',
-    providerConfig: model.providerConfig,
+    providerConfig: {
+      label: 'VolcEngine',
+      baseUrl: AI_PROVIDER_ENDPOINTS.VOLCENGINE,
+    },
     apiKey: API_KEY,
     duration: 5,
     referenceImage,
@@ -48,51 +84,51 @@ function buildInput(
 const volcBodyCases: VolcBodyCase[] = [
   {
     label: 'Seedance 2.0 Volc T2V',
-    modelId: AI_MODELS.SEEDANCE_20_VOLC,
+    model: VOLC_VIDEO_FIXTURES.seedance20,
     expectedResolution: '720p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 2.0 Volc I2V',
-    modelId: AI_MODELS.SEEDANCE_20_VOLC,
+    model: VOLC_VIDEO_FIXTURES.seedance20,
     referenceImage: REF,
     expectedResolution: '720p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 2.0 Fast Volc T2V',
-    modelId: AI_MODELS.SEEDANCE_20_FAST_VOLC,
+    model: VOLC_VIDEO_FIXTURES.seedance20Fast,
     expectedResolution: '720p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 2.0 Fast Volc I2V',
-    modelId: AI_MODELS.SEEDANCE_20_FAST_VOLC,
+    model: VOLC_VIDEO_FIXTURES.seedance20Fast,
     referenceImage: REF,
     expectedResolution: '720p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 1.5 Pro T2V',
-    modelId: AI_MODELS.SEEDANCE_15_PRO,
+    model: VOLC_VIDEO_FIXTURES.seedance15Pro,
     expectedResolution: '1080p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 1.5 Pro I2V',
-    modelId: AI_MODELS.SEEDANCE_15_PRO,
+    model: VOLC_VIDEO_FIXTURES.seedance15Pro,
     referenceImage: REF,
     expectedResolution: '1080p',
     expectedGenerateAudio: true,
   },
   {
     label: 'Seedance 1.0 Pro T2V',
-    modelId: AI_MODELS.SEEDANCE_10_PRO,
+    model: VOLC_VIDEO_FIXTURES.seedance10Pro,
     expectedResolution: '720p',
   },
   {
     label: 'Seedance 1.0 Pro I2V',
-    modelId: AI_MODELS.SEEDANCE_10_PRO,
+    model: VOLC_VIDEO_FIXTURES.seedance10Pro,
     referenceImage: REF,
     expectedResolution: '720p',
   },
@@ -100,13 +136,12 @@ const volcBodyCases: VolcBodyCase[] = [
 
 describe('buildVolcEngineVideoQueueBody', () => {
   it.each(volcBodyCases)('builds $label body', (testCase) => {
-    const model = getModel(testCase.modelId)
     const body = buildVolcEngineVideoQueueBody(
-      buildInput(testCase.modelId, testCase.referenceImage),
+      buildInput(testCase.model, testCase.referenceImage),
     )
 
     expect(body).toMatchObject({
-      model: model.externalModelId,
+      model: testCase.model.externalModelId,
       ratio: '16:9',
       duration: 5,
       resolution: testCase.expectedResolution,
@@ -138,24 +173,21 @@ describe('buildVolcEngineVideoQueueBody', () => {
 
   it('filters unsupported 1080p for Seedance 2.0 Fast Volc', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(AI_MODELS.SEEDANCE_20_FAST_VOLC),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20Fast),
       resolution: '1080p',
     })
 
     expect(body.resolution).toBe('720p')
   })
 
-  it('keeps the source-of-truth VolcEngine video model list fully covered', () => {
-    const covered = new Set(volcBodyCases.map((testCase) => testCase.modelId))
+  it('does not expose built-in VolcEngine video models after catalog slimdown', () => {
     const volcVideoModels = MODEL_OPTIONS.filter(
       (model) =>
         model.adapterType === AI_ADAPTER_TYPES.VOLCENGINE &&
         model.outputType === 'VIDEO',
     )
 
-    expect(volcVideoModels.map((model) => model.id).sort()).toEqual(
-      Array.from(covered).sort(),
-    )
+    expect(volcVideoModels).toEqual([])
   })
 })
 
@@ -167,7 +199,7 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
 
   it('sends multiple images as reference_image (not first_frame)', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
       referenceImages: [IMG1, IMG2],
     })
 
@@ -180,7 +212,7 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
 
   it('combines reference image, video and audio entries', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC, IMG1),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
       videoUrls: [VID1],
       audioUrls: [AUD1],
     })
@@ -195,7 +227,7 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
 
   it('keeps a lone first frame as i2v (no reference roles)', () => {
     const body = buildVolcEngineVideoQueueBody(
-      buildInput(AI_MODELS.SEEDANCE_20_VOLC, IMG1),
+      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
     )
 
     expect(body.content).toEqual([
@@ -206,17 +238,16 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
 
   it('drops reference audio when no image or video accompanies it', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
       audioUrls: [AUD1],
     })
 
-    // ark rejects audio-only reference input, so the builder omits it.
     expect(body.content).toEqual([{ type: 'text', text: PROMPT }])
   })
 
   it('caps references at 9 images / 3 videos / 3 audio', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(AI_MODELS.SEEDANCE_20_VOLC),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
       referenceImages: Array.from(
         { length: 12 },
         (_, index) => `https://img/${index}.png`,

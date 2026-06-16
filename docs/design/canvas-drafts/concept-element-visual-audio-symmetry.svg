@@ -1,0 +1,50 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>元素的视觉面加听觉面对称模型</title>
+<defs>
+<marker id="sy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6F6A63"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">元素 = 视觉面 + 听觉面(对称):角色音色集 · 背景环境音</text>
+
+<rect x="20" y="36" width="304" height="116" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="56" font-size="9.5" font-weight="700" fill="#C9C7BE">角色 · 林</text>
+<line x1="172" y1="46" x2="172" y2="146" stroke="#2C2C2C"/>
+<text x="32" y="76" font-size="8.5" fill="#534AB7">视觉</text>
+<circle cx="58" cy="104" r="16" fill="#2A2A2A"/><circle cx="58" cy="100" r="6" fill="#3C3C3C"/>
+<text x="32" y="138" font-size="7.5" fill="#9A988F">参考图集(身份)</text>
+<text x="184" y="76" font-size="8.5" fill="#993C1D">听觉:音色集</text>
+<rect x="184" y="84" width="38" height="16" rx="8" fill="#F0997B"/><text x="203" y="95" text-anchor="middle" font-size="7" font-weight="700" fill="#3A1208">主 &#9662;</text>
+<rect x="226" y="84" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="246" y="95" text-anchor="middle" font-size="7" fill="#9A988F">沉稳</text>
+<rect x="270" y="84" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="290" y="95" text-anchor="middle" font-size="7" fill="#9A988F">愤怒</text>
+<text x="184" y="120" font-size="7.5" fill="#9A988F">可多音色切换(主 + 情绪变体)</text>
+<text x="184" y="138" font-size="7" fill="#6F6A63">声音节点在集内切 · 默认主</text>
+<circle cx="324" cy="92" r="5" fill="#F0997B" stroke="#4A1B0C"/>
+
+<rect x="20" y="162" width="304" height="108" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="182" font-size="9.5" font-weight="700" fill="#C9C7BE">背景 · 雨夜街</text>
+<line x1="172" y1="172" x2="172" y2="262" stroke="#2C2C2C"/>
+<text x="32" y="202" font-size="8.5" fill="#0F6E56">视觉</text>
+<rect x="40" y="210" width="40" height="34" rx="5" fill="#2A2A2A"/>
+<text x="32" y="258" font-size="7.5" fill="#9A988F">场景图(环境)</text>
+<text x="184" y="202" font-size="8.5" fill="#0F6E56">听觉:环境音 / 氛围 <tspan fill="#3B6D11" font-weight="700">(新)</tspan></text>
+<rect x="184" y="210" width="44" height="16" rx="8" fill="#2A2A2A"/><text x="206" y="221" text-anchor="middle" font-size="7" fill="#9A988F">雨声</text>
+<rect x="232" y="210" width="52" height="16" rx="8" fill="#2A2A2A"/><text x="258" y="221" text-anchor="middle" font-size="7" fill="#9A988F">远处车流</text>
+<text x="184" y="244" font-size="7.5" fill="#9A988F">强度 ▢▢▢ · 锁场景氛围一致</text>
+<circle cx="324" cy="216" r="5" fill="#5DCAA5" stroke="#04342C"/>
+
+<path d="M329,92 C342,92 348,100 356,104" fill="none" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#sy)"/>
+<path d="M329,216 C342,216 348,150 356,142" fill="none" stroke="#6F6A63" stroke-width="1.5" marker-end="url(#sy)"/>
+<rect x="358" y="60" width="298" height="178" rx="11" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="370" y="82" font-size="10.5" font-weight="700" fill="#2C2C2A">镜头最终音频 = 混合</text>
+<text x="370" y="102" font-size="9" fill="#2C2C2A">· 角色语音(台词 × 选定音色)</text>
+<text x="370" y="120" font-size="9" fill="#2C2C2A">· 背景环境音(氛围)</text>
+<line x1="370" y1="132" x2="644" y2="132" stroke="#E5E2D9"/>
+<text x="370" y="150" font-size="8.5" font-weight="700" fill="#04342C">按模型能力契约:</text>
+<text x="370" y="167" font-size="8" fill="#0F6E56">native audio(Veo/Kling/LTX/Seedance)→ prompt/自动</text>
+<text x="370" y="184" font-size="8" fill="#0F6E56">donor(Seedance audio_urls)→ 供体轨</text>
+<text x="370" y="201" font-size="8" fill="#A32D2D">无音频(Vidu)→ 整块标灰忽略</text>
+<text x="370" y="224" font-size="8" fill="#888780">默认简单(1 音色 / 基础氛围);多音色 + 氛围细化 = 进阶</text>
+
+<text x="20" y="288" font-size="8.5" fill="#5F5E5A">对称:角色听觉=音色(说话) · 背景听觉=环境音(氛围) → 镜头把两者按模型能力混合;多音色仍绑角色,只是有变化。</text>
+</svg>

@@ -181,10 +181,10 @@ export function QuickSetupDialog({
     setStep('success')
     // Auto-select the newly created key's model option (only when we're
     // inside a Studio provider tree — see useStudioFormOptional above).
-    // The saved route option ID format is `saved:<keyId>`.
+    // The saved route option ID format is `key:<keyId>`.
     studioForm?.dispatch({
       type: 'SET_OPTION_ID',
-      payload: `saved:${keyId}`,
+      payload: `key:${keyId}`,
     })
     void optionId
     onVerified?.(modelId, keyId)

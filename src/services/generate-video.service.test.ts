@@ -107,7 +107,7 @@ function buildVideoRequest(
 ): GenerateVideoRequest {
   return {
     prompt: 'cinematic camera move over a neon city',
-    modelId: AI_MODELS.KLING_VIDEO,
+    modelId: AI_MODELS.KLING_V3_PRO,
     aspectRatio: '16:9',
     duration: 5,
     apiKeyId: 'key-1',
@@ -125,7 +125,7 @@ describe('generate-video.service worker dispatch', () => {
 
     mockEnsureUser.mockResolvedValue({ id: 'user-1' })
     mockResolveGenerationRoute.mockResolvedValue({
-      modelId: AI_MODELS.KLING_VIDEO,
+      modelId: AI_MODELS.KLING_V3_PRO,
       adapterType: 'fal',
       providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
       apiKey: 'plain-key',
@@ -331,7 +331,7 @@ describe('generate-video.service worker dispatch', () => {
 
   it('fails routes without worker-resolvable keys instead of using inline queue', async () => {
     mockResolveGenerationRoute.mockResolvedValueOnce({
-      modelId: AI_MODELS.KLING_VIDEO,
+      modelId: AI_MODELS.KLING_V3_PRO,
       adapterType: 'fal',
       providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
       apiKey: 'plain-key',

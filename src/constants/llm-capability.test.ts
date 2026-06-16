@@ -11,11 +11,7 @@ import { SCRIPT_PLANNER_MODELS } from '@/constants/script-breakdown'
 describe('getLLMCapabilityScope', () => {
   it('returns enhance-capable adapters matching legacy LLM_CAPABLE_ADAPTERS set', () => {
     expect(getLLMCapabilityScope('enhance').sort()).toEqual(
-      [
-        AI_ADAPTER_TYPES.GEMINI,
-        AI_ADAPTER_TYPES.OPENAI,
-        AI_ADAPTER_TYPES.VOLCENGINE,
-      ].sort(),
+      [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI].sort(),
     )
   })
 
@@ -31,11 +27,7 @@ describe('getLLMCapabilityScope', () => {
 
   it('returns assistant-capable adapters matching NODE_STUDIO_ASSISTANT_ROUTE_MODELS adapter set', () => {
     expect(getLLMCapabilityScope('assistant').sort()).toEqual(
-      [
-        AI_ADAPTER_TYPES.DEEPSEEK,
-        AI_ADAPTER_TYPES.GEMINI,
-        AI_ADAPTER_TYPES.OPENAI,
-      ].sort(),
+      [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI].sort(),
     )
   })
 })
@@ -46,9 +38,6 @@ describe('adapterHasCapability', () => {
     expect(adapterHasCapability(AI_ADAPTER_TYPES.DEEPSEEK, 'planner')).toBe(
       true,
     )
-    expect(adapterHasCapability(AI_ADAPTER_TYPES.VOLCENGINE, 'enhance')).toBe(
-      true,
-    )
   })
 
   it('returns false for undeclared capabilities (preserves current behavior)', () => {
@@ -56,6 +45,9 @@ describe('adapterHasCapability', () => {
       false,
     )
     expect(adapterHasCapability(AI_ADAPTER_TYPES.VOLCENGINE, 'planner')).toBe(
+      false,
+    )
+    expect(adapterHasCapability(AI_ADAPTER_TYPES.VOLCENGINE, 'enhance')).toBe(
       false,
     )
     expect(adapterHasCapability(AI_ADAPTER_TYPES.VOLCENGINE, 'assistant')).toBe(

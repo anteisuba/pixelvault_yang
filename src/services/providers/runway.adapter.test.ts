@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
-import { AI_MODELS } from '@/constants/models'
 
 vi.mock('server-only', () => ({}))
 
@@ -11,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 const RUNWAY_INPUT = {
   prompt: 'a cinematic city street at night',
-  modelId: AI_MODELS.RUNWAY_GEN45,
+  modelId: 'gen4.5',
   aspectRatio: '16:9' as const,
   providerConfig: { label: 'Runway', baseUrl: AI_PROVIDER_ENDPOINTS.RUNWAY },
   apiKey: 'runway-test-key',
@@ -92,7 +91,7 @@ describe('runwayAdapter video queue', () => {
     await expect(
       runwayAdapter.submitVideoToQueue!({
         ...RUNWAY_INPUT,
-        modelId: AI_MODELS.RUNWAY_GEN4_TURBO,
+        modelId: 'gen4_turbo',
       }),
     ).rejects.toThrow('requires a reference image')
   })

@@ -1,0 +1,81 @@
+<svg width="100%" viewBox="0 0 680 436" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>每个节点的详样 角色背景声音镜头图像Agent</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">每个节点的详样(紧凑卡 · 详情见 B3 ⤢ 展开)</text>
+
+<!-- 角色 -->
+<rect x="20" y="34" width="206" height="178" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="32" cy="52" r="4" fill="#AFA9EC"/><text x="42" y="56" font-size="9" font-weight="700" fill="#C9C7BE">角色 · 林</text>
+<text x="214" y="56" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="32" y="64" width="34" height="34" rx="5" fill="#2A2A2A"/><rect x="70" y="64" width="34" height="34" rx="5" fill="#2A2A2A"/><rect x="108" y="64" width="34" height="34" rx="5" fill="#222" stroke="#3A3A37" stroke-dasharray="2 2"/><text x="125" y="85" text-anchor="middle" font-size="11" fill="#5F5E5A">＋</text>
+<text x="150" y="80" font-size="7" fill="#6F6A63">参考图集</text>
+<rect x="32" y="106" width="120" height="16" rx="8" fill="#242424"/><text x="40" y="117" font-size="7.5" fill="#C9C7BE">绑 CharacterCard &#9662;</text>
+<rect x="32" y="128" width="120" height="16" rx="8" fill="#2A2438"/><text x="40" y="139" font-size="7.5" fill="#C9B8F0">音色:沉稳(可切集内)</text>
+<text x="32" y="160" font-size="7.5" fill="#9A988F">视觉身份 + 听觉身份</text>
+<text x="32" y="176" font-size="7" fill="#6F6A63">输出:角色参考 · 音色</text>
+<circle cx="226" cy="92" r="5" fill="#AFA9EC"/><circle cx="226" cy="140" r="5" fill="#F0997B"/>
+<text x="32" y="200" font-size="7" fill="#534AB7">&#10530; 展开 = 参考图集 + 音色集 + 卡</text>
+
+<!-- 背景 -->
+<rect x="240" y="34" width="206" height="178" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="252" cy="52" r="4" fill="#5DCAA5"/><text x="262" y="56" font-size="9" font-weight="700" fill="#C9C7BE">背景 · 雨夜街</text>
+<text x="434" y="56" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="252" y="64" width="80" height="40" rx="6" fill="#2A2A2A"/>
+<text x="342" y="78" font-size="7" fill="#6F6A63">场景图</text>
+<rect x="252" y="110" width="120" height="16" rx="8" fill="#242424"/><text x="260" y="121" font-size="7.5" fill="#C9C7BE">绑 BackgroundCard &#9662;</text>
+<rect x="252" y="132" width="120" height="16" rx="8" fill="#1E2E2A"/><text x="260" y="143" font-size="7.5" fill="#9FE1CB">环境音:雨声 + 车流</text>
+<text x="252" y="164" font-size="7.5" fill="#9A988F">视觉 + 环境音/氛围</text>
+<text x="252" y="180" font-size="7" fill="#6F6A63">输出:背景参考 · 环境音</text>
+<circle cx="446" cy="92" r="5" fill="#5DCAA5"/><circle cx="446" cy="140" r="5" fill="#5DCAA5"/>
+<text x="252" y="200" font-size="7" fill="#0F6E56">&#10530; 展开 = 场景图 + 氛围强度</text>
+
+<!-- 声音 -->
+<rect x="460" y="34" width="200" height="178" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="472" cy="52" r="4" fill="#F0997B"/><text x="482" y="56" font-size="9" font-weight="700" fill="#C9C7BE">声音 · 林</text>
+<text x="648" y="56" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="472" y="64" width="176" height="22" rx="6" fill="#2A2A2A"/><text x="480" y="79" font-size="7.5" fill="#C9C7BE">台词「你终于来了」</text>
+<rect x="472" y="92" width="176" height="16" rx="8" fill="#2A2438"/><text x="480" y="103" font-size="7.5" fill="#C9B8F0">音色 ← 继承 角色·林</text>
+<rect x="472" y="114" width="48" height="16" rx="8" fill="#242424"/><text x="496" y="125" text-anchor="middle" font-size="7" fill="#C9C7BE">情绪:无</text>
+<text x="472" y="150" font-size="7.5" fill="#9A988F">台词(镜头)+ 音色(角色)</text>
+<text x="472" y="166" font-size="7" fill="#6F6A63">输出:声音/台词 → @A1</text>
+<circle cx="460" cy="100" r="5" fill="#AFA9EC"/><circle cx="660" cy="100" r="5" fill="#F0997B"/>
+<text x="472" y="190" font-size="7" fill="#993C1D">&#10530; 展开 = 台词 + 音色 + 语速/语调/情绪</text>
+
+<!-- 镜头 视频 -->
+<rect x="20" y="224" width="206" height="194" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="32" cy="242" r="4" fill="#85B7EB"/><text x="42" y="246" font-size="9" font-weight="700" fill="#C9C7BE">镜 1 · 视频</text>
+<text x="214" y="246" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="32" y="254" width="184" height="56" rx="6" fill="#2A2A2A"/><path d="M118,275 l10,7 l-10,7 z" fill="#5F5E5A"/>
+<rect x="32" y="316" width="80" height="16" rx="8" fill="#185FA5"/><text x="72" y="327" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">Seedance &#9662;</text>
+<text x="118" y="327" font-size="7" fill="#6F6A63">720p · 6s · 16:9</text>
+<rect x="32" y="338" width="40" height="16" rx="4" fill="#242424"/><text x="52" y="349" text-anchor="middle" font-size="6.5" fill="#C9B8F0">角色@I1</text>
+<rect x="76" y="338" width="40" height="16" rx="4" fill="#242424"/><text x="96" y="349" text-anchor="middle" font-size="6.5" fill="#9FE1CB">背景@I2</text>
+<rect x="120" y="338" width="40" height="16" rx="4" fill="#242424"/><text x="140" y="349" text-anchor="middle" font-size="6.5" fill="#F5C4B3">声音@A1</text>
+<rect x="32" y="360" width="184" height="22" rx="8" fill="#1D9E75"/><text x="124" y="375" text-anchor="middle" font-size="9" font-weight="700" fill="#06281E">生成</text>
+<circle cx="20" cy="276" r="5" fill="#AFA9EC"/><circle cx="20" cy="300" r="5" fill="#5DCAA5"/><circle cx="20" cy="324" r="5" fill="#F0997B"/><circle cx="226" cy="290" r="5" fill="#85B7EB"/>
+<text x="32" y="400" font-size="7" fill="#185FA5">&#10530; 展开 = 全 composer(B2)</text>
+
+<!-- 图像 -->
+<rect x="240" y="224" width="206" height="194" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="252" cy="242" r="4" fill="#9A988F"/><text x="262" y="246" font-size="9" font-weight="700" fill="#C9C7BE">图像</text>
+<text x="434" y="246" text-anchor="end" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="252" y="254" width="184" height="64" rx="6" fill="#2A2A2A"/><text x="344" y="290" text-anchor="middle" font-size="13" fill="#5F5E5A">&#9635;</text>
+<rect x="252" y="324" width="184" height="20" rx="6" fill="#242424"/><text x="260" y="338" font-size="7.5" fill="#6F6A63">描述画面…</text>
+<rect x="252" y="348" width="86" height="16" rx="8" fill="#242424"/><text x="295" y="359" text-anchor="middle" font-size="7.5" fill="#C9C7BE">SeeDream &#9662;</text>
+<rect x="252" y="368" width="184" height="20" rx="8" fill="#1D9E75"/><text x="344" y="382" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06281E">生成</text>
+<circle cx="446" cy="290" r="5" fill="#9A988F"/>
+<text x="252" y="406" font-size="7" fill="#5F5E5A">主力图像在 Studio;画布图=选素材插入 / 参考</text>
+
+<!-- Agent -->
+<rect x="460" y="224" width="200" height="194" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<circle cx="472" cy="242" r="4" fill="#C9B8F0"/><text x="482" y="246" font-size="9" font-weight="700" fill="#C9C7BE">Agent(剧本脑入画布)</text>
+<rect x="472" y="254" width="176" height="48" rx="6" fill="#2A2A2A"/><text x="560" y="282" text-anchor="middle" font-size="14" fill="#5F5E5A">&#129302;</text>
+<rect x="472" y="308" width="176" height="20" rx="6" fill="#242424"/><text x="480" y="322" font-size="7.5" fill="#6F6A63">在画布上为我创建…</text>
+<rect x="472" y="332" width="60" height="16" rx="8" fill="#242424"/><text x="502" y="343" text-anchor="middle" font-size="7" fill="#C9C7BE">Agent模式</text>
+<rect x="536" y="332" width="52" height="16" rx="8" fill="#242424"/><text x="562" y="343" text-anchor="middle" font-size="7" fill="#C9C7BE">技能库</text>
+<text x="472" y="368" font-size="7.5" fill="#9A988F">= 助手在画布里直接 spawn 节点</text>
+<text x="472" y="384" font-size="7" fill="#6F6A63">(与右栏助手同脑,可在画布上动手)</text>
+<circle cx="660" cy="290" r="5" fill="#C9B8F0"/>
+<text x="472" y="406" font-size="7" fill="#A32D2D">注:主路是右栏助手;Agent 节点是画布内变体</text>
+</svg>

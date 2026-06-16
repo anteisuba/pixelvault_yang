@@ -167,7 +167,7 @@ describe('routeToStudioOption', () => {
       apiKeyId: 'k1',
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       modelId: 'gpt-4o-mini',
-      label: 'OpenAI',
+      label: 'OpenAI GPT-5.4 Mini',
       providerLabel: 'OpenAI',
       maskedKey: 'sk-****1234',
       keyLabel: 'My OpenAI',
@@ -179,6 +179,7 @@ describe('routeToStudioOption', () => {
     expect(result.keyLabel).toBe('My OpenAI')
     expect(result.maskedKey).toBe('sk-****1234')
     expect(result.modelId).toBe('gpt-4o-mini')
+    expect(result.displayLabel).toBe('OpenAI GPT-5.4 Mini')
   })
 
   it('converts a locked LLM route to a "workspace" sourceType StudioModelOption', () => {
@@ -187,7 +188,7 @@ describe('routeToStudioOption', () => {
       apiKeyId: null,
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       modelId: 'gpt-4o',
-      label: 'OpenAI',
+      label: 'OpenAI GPT-5.4 Mini',
       providerLabel: 'OpenAI',
       isSaved: false,
     }
@@ -195,6 +196,7 @@ describe('routeToStudioOption', () => {
     expect(result.sourceType).toBe('workspace')
     expect(result.keyId).toBeUndefined()
     expect(result.freeTier).toBe(false)
+    expect(result.displayLabel).toBe('OpenAI GPT-5.4 Mini')
   })
 
   it('falls back to adapterType when modelId missing (enhance scope)', () => {

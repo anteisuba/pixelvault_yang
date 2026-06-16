@@ -7,7 +7,7 @@ import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import {
-  buildSavedModelOptions,
+  buildSavedModelOptionsForModels,
   findSelectedModel,
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
@@ -34,9 +34,9 @@ export function useAudioModelOptions(): UseAudioModelOptionsReturn {
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptions(
+    const saved = buildSavedModelOptionsForModels(
       keys.filter((k) => k.isActive),
-      (k) => audioModels.some((m) => m.id === k.modelId),
+      audioModels,
     )
     return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, audioModels, keys])

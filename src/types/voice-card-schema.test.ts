@@ -30,7 +30,7 @@ describe('CreateVoiceCardRequestSchema', () => {
     const result = CreateVoiceCardRequestSchema.safeParse({
       name: 'Warm narrator',
       provider: VOICE_CARD_PROVIDER.FAL_F5TTS,
-      modelId: 'fal-f5-tts',
+      modelId: 'legacy-audio-queue',
       voiceId: 'voice_123',
       referenceAudioUrl: 'https://cdn.example.com/voice.mp3',
       gender: 'female',

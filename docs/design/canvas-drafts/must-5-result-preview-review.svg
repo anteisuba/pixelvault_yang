@@ -1,0 +1,32 @@
+<svg width="100%" viewBox="0 0 680 318" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>必画五 成片预览加审阅循环</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">必画⑤ · 成片/clip 预览 + 审阅循环(approve/retry/regenerate)</text>
+
+<rect x="20" y="40" width="380" height="262" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="60" font-size="10" font-weight="700" fill="#E8E6DE">镜 2 · 视频 — 预览</text>
+<text x="388" y="60" text-anchor="end" font-size="9" fill="#9A988F">esc &#10005;</text>
+<rect x="32" y="70" width="356" height="160" rx="8" fill="#2A2A2A"/>
+<circle cx="210" cy="150" r="20" fill="#1A1A1A" opacity="0.55"/><path d="M203,140 l15,10 l-15,10 z" fill="#E8E6DE"/>
+<rect x="40" y="214" width="340" height="8" rx="4" fill="#3A3A37"/><rect x="40" y="214" width="140" height="8" rx="4" fill="#C9C7BE"/>
+<text x="32" y="248" font-size="8" fill="#9A988F">0:02 / 0:06 · 1080p · Seedance · seed 41822</text>
+<rect x="32" y="258" width="86" height="30" rx="8" fill="#1D9E75"/><text x="75" y="277" text-anchor="middle" font-size="10" font-weight="700" fill="#06281E">&#10003; 通过</text>
+<rect x="126" y="258" width="86" height="30" rx="8" fill="#242424"/><text x="169" y="277" text-anchor="middle" font-size="9.5" fill="#C9C7BE">&#8635; 重试</text>
+<rect x="220" y="258" width="100" height="30" rx="8" fill="#242424"/><text x="270" y="277" text-anchor="middle" font-size="9.5" fill="#C9C7BE">&#10227; 重生成</text>
+<rect x="328" y="258" width="52" height="30" rx="8" fill="#242424"/><text x="354" y="277" text-anchor="middle" font-size="9.5" fill="#C9C7BE">&#10515;</text>
+
+<rect x="416" y="40" width="244" height="262" rx="12" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="428" y="62" font-size="10.5" font-weight="700" fill="#2C2C2A">审阅循环(逐镜)</text>
+<text x="428" y="86" font-size="9" fill="#2C2C2A"><tspan font-weight="700">通过 &#10003;</tspan> → shot.status = approved</text>
+<text x="440" y="100" font-size="8" fill="#5F5E5A">该镜锁定,进成片序列</text>
+<text x="428" y="124" font-size="9" fill="#2C2C2A"><tspan font-weight="700">重试 &#8635;</tspan> → 同参数再跑一次</text>
+<text x="428" y="148" font-size="9" fill="#2C2C2A"><tspan font-weight="700">重生成 &#10227;</tspan> → 改参数/prompt 再生成</text>
+<text x="428" y="172" font-size="9" fill="#2C2C2A"><tspan font-weight="700">存 &#10515;</tspan> → 存素材 / 加为参考</text>
+<line x1="428" y1="186" x2="648" y2="186" stroke="#E5E2D9"/>
+<text x="428" y="206" font-size="8.5" fill="#5F5E5A">· 预览 = route-backed overlay(可分享地址)</text>
+<text x="428" y="222" font-size="8.5" fill="#5F5E5A">· 同一组动作 = 节点上常驻 + 选中浮动条(D)</text>
+<text x="428" y="238" font-size="8.5" fill="#5F5E5A">· clip 落 Generation 带 shot 血缘</text>
+<text x="428" y="254" font-size="8.5" fill="#0C447C">· 移动端只读版只留「看片 + 通过/重试」</text>
+<text x="428" y="278" font-size="8.5" fill="#A32D2D">· 全镜 approved → 顺序拼接成片(merge)</text>
+</svg>

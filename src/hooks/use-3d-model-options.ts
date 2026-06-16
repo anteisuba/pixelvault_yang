@@ -6,7 +6,7 @@ import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { getAvailableModel3DModels } from '@/constants/models'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
-  buildSavedModelOptions,
+  buildSavedModelOptionsForModels,
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 
@@ -30,9 +30,9 @@ export function use3DModelOptions(): Use3DModelOptionsReturn {
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptions(
+    const saved = buildSavedModelOptionsForModels(
       keys.filter((k) => k.isActive),
-      (k) => model3DModels.some((m) => m.id === k.modelId),
+      model3DModels,
     )
     return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, model3DModels, keys])

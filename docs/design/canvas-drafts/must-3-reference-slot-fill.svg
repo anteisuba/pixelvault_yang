@@ -1,0 +1,35 @@
+<svg width="100%" viewBox="0 0 680 314" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>必画三 参考槽填充 上传资产库粘贴</title>
+<defs>
+<marker id="r3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">必画③ · 参考槽填充:上传 / 资产库 / 粘贴</text>
+
+<rect x="20" y="40" width="180" height="120" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="60" font-size="8.5" font-weight="700" fill="#C9C7BE">参考素材 1/12</text>
+<rect x="32" y="68" width="36" height="36" rx="6" fill="#2A2A2A"/><text x="50" y="90" text-anchor="middle" font-size="7" fill="#9A988F">@I1</text>
+<rect x="74" y="68" width="36" height="36" rx="6" fill="#222" stroke="#3A3A37" stroke-dasharray="3 2"/><text x="92" y="90" text-anchor="middle" font-size="14" fill="#5F5E5A">＋</text>
+<text x="32" y="124" font-size="7.5" fill="#6F6A63">点空槽 ＋ → 弹三种填法</text>
+<text x="32" y="142" font-size="7.5" fill="#6F6A63">也支持拖拽 / 从角色节点连线</text>
+
+<line x1="204" y1="86" x2="240" y2="86" stroke="#888780" stroke-width="1.5" marker-end="url(#r3)"/>
+
+<rect x="244" y="40" width="170" height="120" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="256" y="60" font-size="9" font-weight="700" fill="#E8E6DE">添加参考</text>
+<rect x="256" y="68" width="146" height="24" rx="6" fill="#242424"/><text x="266" y="84" font-size="8.5" fill="#C9C7BE">&#8593; 上传本地图片</text>
+<rect x="256" y="96" width="146" height="24" rx="6" fill="#242424"/><text x="266" y="112" font-size="8.5" fill="#C9C7BE">&#9635; 从资产库选(库)</text>
+<rect x="256" y="124" width="146" height="24" rx="6" fill="#242424"/><text x="266" y="140" font-size="8.5" fill="#C9C7BE">&#9112; 粘贴(剪贴板 / URL)</text>
+
+<line x1="329" y1="162" x2="329" y2="186" stroke="#888780" stroke-width="1.5" marker-end="url(#r3)"/>
+<text x="338" y="178" font-size="8" fill="#5F5E5A">「从资产库」→ 全屏 overlay 浏览选择</text>
+
+<rect x="120" y="190" width="420" height="92" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="132" y="210" font-size="9" font-weight="700" fill="#E8E6DE">资产库(route-backed overlay)</text>
+<text x="528" y="210" text-anchor="end" font-size="8" fill="#9A988F">esc &#10005;</text>
+<rect x="132" y="218" width="60" height="48" rx="6" fill="#2A2A2A"/><rect x="200" y="218" width="60" height="48" rx="6" fill="#2A2A2A" stroke="#185FA5" stroke-width="2"/><rect x="268" y="218" width="60" height="48" rx="6" fill="#2A2A2A"/><rect x="336" y="218" width="60" height="48" rx="6" fill="#2A2A2A"/>
+<rect x="412" y="232" width="116" height="22" rx="8" fill="#E8E6DE"/><text x="470" y="247" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1A1A1A">插入选中(1)</text>
+
+<text x="20" y="300" font-size="8.5" fill="#5F5E5A">· 三种填法(上传/库/粘贴)· 角色/背景节点连线也会自动填对应槽 · 槽显示 @token + N/12 预算 · 触达 ≥44px</text>
+</svg>

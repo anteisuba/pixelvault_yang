@@ -176,10 +176,9 @@ describe('falAdapter.generateImage', () => {
 
   it.each([
     [AI_MODELS.FLUX_2_PRO, 'fal-ai/flux-2-pro'],
+    [AI_MODELS.FLUX_2_FLASH, 'fal-ai/flux-2/flash'],
     [AI_MODELS.SEEDREAM_45, 'fal-ai/bytedance/seedream/v4.5/text-to-image'],
-    [AI_MODELS.FLUX_2_DEV, 'fal-ai/flux-2'],
-    [AI_MODELS.FLUX_2_SCHNELL, 'fal-ai/flux/schnell'],
-    [AI_MODELS.FLUX_2_MAX, 'fal-ai/flux-2-max'],
+    [AI_MODELS.IDEOGRAM_3, 'ideogram/v4'],
     [AI_MODELS.RECRAFT_V4_PRO, 'fal-ai/recraft/v4/pro/text-to-image'],
   ])(
     'does not send reference images to FAL text-to-image endpoint %s',
@@ -208,7 +207,7 @@ describe('falAdapter.generateImage', () => {
     },
   )
 
-  it('sends Ideogram style references through image_urls', async () => {
+  it('does not send reference images to Ideogram V4', async () => {
     const fetchMock = vi.fn()
     mockFalImageQueue(fetchMock, 'req-ideogram')
     vi.stubGlobal('fetch', fetchMock)
@@ -227,14 +226,10 @@ describe('falAdapter.generateImage', () => {
 
     const [endpoint, init] = fetchMock.mock.calls[0]
     expect(String(endpoint)).toBe(
-      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/ideogram/v3`,
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/ideogram/v4`,
     )
     const body = JSON.parse((init as RequestInit).body as string)
-    expect(body.image_urls).toEqual([
-      'https://cdn.example.com/a.png',
-      'https://cdn.example.com/b.png',
-      'https://cdn.example.com/c.png',
-    ])
+    expect(body.image_urls).toBeUndefined()
     expect(body.image_url).toBeUndefined()
     expect(body.strength).toBeUndefined()
   })
@@ -315,114 +310,6 @@ describe('falAdapter.generateImage', () => {
 
     await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toMatchObject({
       message: 'fal.ai returned has_nsfw_concepts for generated image.',
-      errorCode: 'content_filtered',
-    })
-  })
-})
-
-describe('falAdapter F5-TTS queue', () => {
-  it('submits F5-TTS with reference audio and returns queue handles', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          request_id: 'req-audio-abc',
-          status_url: 'https://queue.fal.run/status/req-audio-abc',
-          response_url: 'https://queue.fal.run/result/req-audio-abc',
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await falAdapter.submitAudioToQueue!({
-      prompt: 'Say hello',
-      modelId: 'fal-f5-tts',
-      providerConfig: { label: 'fal.ai', baseUrl: AI_PROVIDER_ENDPOINTS.FAL },
-      apiKey: 'fal-test-key',
-      referenceAudioUrl: 'https://cdn.example.com/reference.wav',
-      referenceText: 'Reference voice',
-    })
-
-    expect(result.requestId).toBe('req-audio-abc')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [endpoint, init] = fetchMock.mock.calls[0]
-    expect(String(endpoint)).toBe(
-      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/f5-tts`,
-    )
-    const body = JSON.parse((init as RequestInit).body as string)
-    expect(body).toMatchObject({
-      gen_text: 'Say hello',
-      ref_audio_url: 'https://cdn.example.com/reference.wav',
-      ref_text: 'Reference voice',
-      model_type: 'F5-TTS',
-      remove_silence: true,
-    })
-  })
-
-  it('maps completed F5-TTS queue results to ProviderAudioResult', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: 'COMPLETED' }), {
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            audio_url: {
-              url: 'https://fal.media/audio.wav',
-              content_type: 'audio/wav',
-              file_name: 'audio.wav',
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await falAdapter.checkAudioQueueStatus!({
-      statusUrl: 'https://queue.fal.run/status/req-audio-abc',
-      responseUrl: 'https://queue.fal.run/result/req-audio-abc',
-      apiKey: 'fal-test-key',
-    })
-
-    expect(result).toEqual({
-      status: 'COMPLETED',
-      result: {
-        audioUrl: 'https://fal.media/audio.wav',
-        duration: 0,
-        format: 'wav',
-        sampleRate: 44100,
-        requestCount: 1,
-      },
-    })
-  })
-
-  it('maps failed F5-TTS queue status to raw error and errorCode', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          status: 'FAILED',
-          error: {
-            type: 'content_policy_violation',
-            msg: 'Policy violated',
-          },
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await falAdapter.checkAudioQueueStatus!({
-      statusUrl: 'https://queue.fal.run/status/req-audio-failed',
-      responseUrl: 'https://queue.fal.run/result/req-audio-failed',
-      apiKey: 'fal-test-key',
-    })
-
-    expect(result).toEqual({
-      status: 'FAILED',
-      error: 'Policy violated',
       errorCode: 'content_filtered',
     })
   })

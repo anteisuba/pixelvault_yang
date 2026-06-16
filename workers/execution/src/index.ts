@@ -3797,13 +3797,11 @@ const FAL_KONTEXT_SINGLE_IMAGE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
 const FAL_KONTEXT_MULTI_IMAGE_MODELS = new Set([
   'fal-ai/flux-pro/kontext/max/multi',
 ])
-const FAL_IDEOGRAM_MULTI_IMAGE_MODELS = new Set(['fal-ai/ideogram/v3'])
 const FAL_TEXT_TO_IMAGE_ONLY_MODELS = new Set([
   'fal-ai/flux-lora',
   'fal-ai/flux-2-pro',
-  'fal-ai/flux-2',
-  'fal-ai/flux-2-max',
-  'fal-ai/flux/schnell',
+  'fal-ai/flux-2/flash',
+  'ideogram/v4',
   'fal-ai/bytedance/seedream/v4.5/text-to-image',
   'fal-ai/recraft/v4/pro/text-to-image',
 ])
@@ -3949,10 +3947,6 @@ function buildFalImageInput(
   if (FAL_KONTEXT_MULTI_IMAGE_MODELS.has(externalModelId)) {
     if (providerInput.referenceImages?.length) {
       input.image_urls = providerInput.referenceImages
-    }
-  } else if (FAL_IDEOGRAM_MULTI_IMAGE_MODELS.has(externalModelId)) {
-    if (providerInput.referenceImages?.length) {
-      input.image_urls = providerInput.referenceImages.slice(0, 3)
     }
   } else if (FAL_KONTEXT_SINGLE_IMAGE_MODELS.has(externalModelId)) {
     const referenceImage =

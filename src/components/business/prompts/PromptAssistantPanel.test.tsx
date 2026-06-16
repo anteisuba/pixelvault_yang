@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
+import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import type { PromptAssistantMessage } from '@/types'
 
 // ─── Mocks ───────────────────────────────────────────────────────
@@ -76,6 +77,25 @@ describe('PromptAssistantPanel', () => {
     fireEvent.click(screen.getByText('starterA'))
     expect(sendMock).toHaveBeenCalledTimes(1)
     expect(sendMock.mock.calls[0][0]).toBe('starterA')
+  })
+
+  it('shows translated target model label instead of raw model id', () => {
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        modelId={AI_MODELS.OPENAI_GPT_IMAGE_2}
+        onUsePrompt={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText(
+        `${getModelMessageKey(AI_MODELS.OPENAI_GPT_IMAGE_2)}.label`,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(AI_MODELS.OPENAI_GPT_IMAGE_2),
+    ).not.toBeInTheDocument()
   })
 
   it('offers use / append / copy on assistant output', async () => {

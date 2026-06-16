@@ -140,7 +140,7 @@ const FAKE_ASYNC_JOB = {
   id: 'job-async-1',
   userId: 'user-1',
   status: 'RUNNING',
-  modelId: 'fal-f5-tts',
+  modelId: 'legacy-audio-queue',
   adapterType: AI_ADAPTER_TYPES.FAL,
   provider: 'FAL',
   prompt: 'Hello world',
@@ -149,7 +149,7 @@ const FAKE_ASYNC_JOB = {
     statusUrl: 'https://fal.example.com/status',
     responseUrl: 'https://fal.example.com/result',
     route: {
-      modelId: 'fal-f5-tts',
+      modelId: 'legacy-audio-queue',
       adapterType: AI_ADAPTER_TYPES.FAL,
       provider: 'FAL',
       providerConfig: {
@@ -207,7 +207,7 @@ const FAKE_SYNC_ROUTE = {
   creditCost: 1,
 }
 const FAKE_ASYNC_ROUTE = {
-  modelId: 'fal-f5-tts',
+  modelId: 'legacy-audio-queue',
   adapterType: AI_ADAPTER_TYPES.FAL,
   providerConfig: { label: 'FAL', baseUrl: 'https://queue.fal.run' },
   apiKey: 'fal-key-123',
@@ -221,7 +221,7 @@ const BASE_SYNC_REQUEST: GenerateAudioRequest = {
 }
 const BASE_ASYNC_REQUEST: GenerateAudioRequest = {
   prompt: 'Hello world',
-  modelId: 'fal-f5-tts',
+  modelId: 'legacy-audio-queue',
   apiKeyId: 'key-1',
   referenceAudioUrl: 'https://cdn.example.com/reference.wav',
 }
@@ -540,7 +540,7 @@ describe('submitAudioGeneration', () => {
     vi.mocked(generateStorageKey).mockReturnValue('audio/user-1/gen.mp3')
   })
 
-  it('dispatches FAL audio to the execution worker without inline provider submit', async () => {
+  it('enqueues legacy async audio routes in the execution outbox', async () => {
     const submitAudioToQueue = vi.fn()
     vi.mocked(getProviderAdapter).mockReturnValue({
       submitAudioToQueue,
@@ -550,28 +550,28 @@ describe('submitAudioGeneration', () => {
 
     expect(result).toEqual({
       jobId: 'job-async-1',
-      requestId: 'wf-audio-1',
     })
     expect(createGenerationJob).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
-        modelId: 'fal-f5-tts',
+        modelId: 'legacy-audio-queue',
         prompt: 'Hello world',
       }),
+      expect.anything(),
     )
-    expect(createExecutionOutbox).not.toHaveBeenCalled()
-    expect(submitAudioToQueue).not.toHaveBeenCalled()
-    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+    expect(createExecutionOutbox).toHaveBeenCalledWith(
       expect.objectContaining({
-        runId: 'job-async-1',
-        outputType: 'AUDIO',
-        providerId: AI_ADAPTER_TYPES.FAL,
-        apiKeyId: 'key-1',
-        providerInput: expect.objectContaining({
+        generationJobId: 'job-async-1',
+        kind: EXECUTION_OUTBOX_KINDS.AUDIO_QUEUE_SUBMIT,
+        payload: expect.objectContaining({
+          prompt: 'Hello world',
           referenceAudioUrl: 'https://cdn.example.com/reference.wav',
         }),
       }),
+      expect.anything(),
     )
+    expect(submitAudioToQueue).not.toHaveBeenCalled()
+    expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
   })
 
   it('dispatches Fish Audio to the execution worker without requiring queue adapter support', async () => {
@@ -691,7 +691,7 @@ describe('checkAudioGenerationStatus', () => {
     vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
     vi.mocked(getApiKeyValueById).mockResolvedValue({
       id: 'key-1',
-      modelId: 'fal-f5-tts',
+      modelId: 'legacy-audio-queue',
       adapterType: AI_ADAPTER_TYPES.FAL,
       providerConfig: { label: 'FAL', baseUrl: 'https://queue.fal.run' },
       label: 'FAL key',
@@ -788,7 +788,7 @@ describe('checkAudioGenerationStatus', () => {
         outputType: 'AUDIO',
         workflowInstanceId: 'wf-audio-1',
         route: {
-          modelId: 'fal-f5-tts',
+          modelId: 'legacy-audio-queue',
           adapterType: AI_ADAPTER_TYPES.FAL,
           provider: 'FAL',
           providerConfig: {
@@ -902,7 +902,7 @@ describe('checkAudioGenerationStatus', () => {
       expect.objectContaining({
         generationId: 'gen-1',
         generationJobId: 'job-async-1',
-        modelId: 'fal-f5-tts',
+        modelId: 'legacy-audio-queue',
       }),
       expect.anything(),
     )
@@ -924,7 +924,7 @@ describe('checkAudioGenerationStatus', () => {
         statusUrl: 'https://fal.example.com/status',
         responseUrl: 'https://fal.example.com/result',
         route: {
-          modelId: 'fal-f5-tts',
+          modelId: 'legacy-audio-queue',
           adapterType: AI_ADAPTER_TYPES.FAL,
           provider: 'FAL',
           providerConfig: {
@@ -968,7 +968,7 @@ describe('checkAudioGenerationStatus', () => {
       ...FAKE_ASYNC_JOB,
       externalRequestId: JSON.stringify({
         route: {
-          modelId: 'fal-f5-tts',
+          modelId: 'legacy-audio-queue',
           adapterType: AI_ADAPTER_TYPES.FAL,
           provider: 'FAL',
           providerConfig: {
@@ -1029,7 +1029,7 @@ describe('checkAudioGenerationStatus', () => {
       ...FAKE_ASYNC_JOB,
       externalRequestId: JSON.stringify({
         route: {
-          modelId: 'fal-f5-tts',
+          modelId: 'legacy-audio-queue',
           adapterType: AI_ADAPTER_TYPES.FAL,
           provider: 'FAL',
           providerConfig: {
@@ -1070,7 +1070,7 @@ describe('checkAudioGenerationStatus', () => {
       ...FAKE_ASYNC_JOB,
       externalRequestId: JSON.stringify({
         route: {
-          modelId: 'fal-f5-tts',
+          modelId: 'legacy-audio-queue',
           adapterType: AI_ADAPTER_TYPES.FAL,
           provider: 'FAL',
           providerConfig: {

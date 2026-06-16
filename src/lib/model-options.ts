@@ -3,6 +3,7 @@ import {
   getModelById,
   getModelMessageKey,
   isBuiltInModel,
+  type ModelOption,
 } from '@/constants/models'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
@@ -37,6 +38,33 @@ export function buildSavedModelOptions(
     keyLabel: key.label,
     maskedKey: key.maskedKey,
   }))
+}
+
+export function apiKeyMatchesModelOption(
+  key: UserApiKeyRecord,
+  model: ModelOption,
+): boolean {
+  return (
+    model.available &&
+    model.id === key.modelId &&
+    model.adapterType === key.adapterType
+  )
+}
+
+export function apiKeyMatchesAnyModelOption(
+  key: UserApiKeyRecord,
+  models: readonly ModelOption[],
+): boolean {
+  return models.some((model) => apiKeyMatchesModelOption(key, model))
+}
+
+export function buildSavedModelOptionsForModels(
+  keys: UserApiKeyRecord[],
+  models: readonly ModelOption[],
+): StudioModelOption[] {
+  return buildSavedModelOptions(keys, (key) =>
+    apiKeyMatchesAnyModelOption(key, models),
+  )
 }
 
 /**

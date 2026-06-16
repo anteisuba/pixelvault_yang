@@ -1,6 +1,20 @@
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 export type LlmCapabilityScope = 'enhance' | 'planner' | 'assistant'
+
+export const LLM_ENHANCE_ROUTE_MODELS = [
+  {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
+    label: 'OpenAI GPT-5.4 Mini',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
+    label: 'Gemini 3.1 Flash Lite',
+  },
+] as const
 
 const ADAPTER_CAPABILITIES: Record<
   AI_ADAPTER_TYPES,
@@ -8,8 +22,8 @@ const ADAPTER_CAPABILITIES: Record<
 > = {
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
-  [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
-  [AI_ADAPTER_TYPES.VOLCENGINE]: ['enhance'],
+  [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner'],
+  [AI_ADAPTER_TYPES.VOLCENGINE]: [],
   [AI_ADAPTER_TYPES.HUGGINGFACE]: [],
   [AI_ADAPTER_TYPES.FAL]: [],
   [AI_ADAPTER_TYPES.RUNWAY]: [],

@@ -1,0 +1,40 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>必画四 缺 key 路由 QuickSetupDialog</title>
+<defs>
+<marker id="r4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">必画④ · 缺 key → QuickSetupDialog(不禁用 UI · 内联配置)</text>
+
+<rect x="20" y="40" width="190" height="150" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="60" font-size="9" font-weight="700" fill="#C9C7BE">镜 1 · 视频</text>
+<rect x="32" y="68" width="166" height="20" rx="10" fill="#242424"/>
+<rect x="36" y="71" width="70" height="14" rx="7" fill="#534AB7"/><text x="71" y="82" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">Veo 3.1 &#9662;</text>
+<text x="118" y="82" font-size="7.5" fill="#6F6A63">直连 Gemini</text>
+<rect x="32" y="96" width="166" height="34" rx="8" fill="#2A1E1E" stroke="#9A6A33"/>
+<text x="42" y="110" font-size="8" font-weight="700" fill="#E0B060">&#9888; 此模型需要 API key</text>
+<text x="42" y="124" font-size="7.5" fill="#C9A060">未配置 · 但 UI 不禁用</text>
+<rect x="32" y="138" width="166" height="24" rx="8" fill="#E8E6DE"/><text x="115" y="154" text-anchor="middle" font-size="9" font-weight="700" fill="#1A1A1A">去配置 →</text>
+<text x="32" y="180" font-size="7.5" fill="#A32D2D">硬规则:缺 key 不灰按钮,路由配置</text>
+
+<line x1="214" y1="115" x2="252" y2="115" stroke="#888780" stroke-width="1.5" marker-end="url(#r4)"/>
+<text x="220" y="107" font-size="8" fill="#5F5E5A">点「去配置」</text>
+
+<rect x="256" y="40" width="404" height="226" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="272" y="62" font-size="10.5" font-weight="700" fill="#E8E6DE">快速配置 · QuickSetupDialog</text>
+<text x="646" y="62" text-anchor="end" font-size="9" fill="#9A988F">&#10005;</text>
+<line x1="272" y1="70" x2="644" y2="70" stroke="#2C2C2C"/>
+<text x="272" y="90" font-size="9" fill="#C9C7BE">Veo 3.1 走 Google Gemini —— 贴一个 API key 就能用:</text>
+
+<text x="272" y="116" font-size="8" fill="#8C8A82">Provider</text>
+<rect x="272" y="120" width="180" height="22" rx="6" fill="#242424" stroke="#3A3A37"/><text x="282" y="135" font-size="8.5" fill="#C9C7BE">Google Gemini &#9662;</text>
+<text x="272" y="160" font-size="8" fill="#8C8A82">API Key</text>
+<rect x="272" y="164" width="372" height="22" rx="6" fill="#242424" stroke="#3A3A37"/><text x="282" y="179" font-size="8.5" fill="#6F6A63">粘贴 key(仅本人可见 · 加密存)</text>
+<text x="272" y="204" font-size="7.5" fill="#6F6A63">· 也支持「用平台额度(free-tier)」/「BYOK 自带 key」二选一</text>
+<text x="272" y="218" font-size="7.5" fill="#6F6A63">· 显式 BYOK 不静默回退平台 key(失败大声暴露)</text>
+<rect x="272" y="230" width="120" height="26" rx="8" fill="#1D9E75"/><text x="332" y="247" text-anchor="middle" font-size="9.5" font-weight="700" fill="#06281E">保存并继续</text>
+<rect x="400" y="230" width="110" height="26" rx="8" fill="#242424"/><text x="455" y="247" text-anchor="middle" font-size="9" fill="#C9C7BE">用平台额度</text>
+
+<text x="20" y="288" font-size="8.5" fill="#5F5E5A">· 对齐 CLAUDE.md 硬规则 8:缺 key 不禁用、内联 QuickSetupDialog · 配完原地回到刚才那个节点继续生成。</text>
+</svg>

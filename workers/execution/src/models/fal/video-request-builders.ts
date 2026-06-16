@@ -52,26 +52,18 @@ export interface FalWorkerVideoQueueRequest {
 }
 
 const FAL_VIDEO_MODEL_IDS = {
-  KLING_VIDEO: 'kling-video',
   KLING_V3_PRO: 'kling-v3-pro',
-  MINIMAX_VIDEO: 'minimax-video',
-  LUMA_RAY_2: 'luma-ray-2',
-  WAN_VIDEO: 'wan-video',
-  HUNYUAN_VIDEO: 'hunyuan-video',
+  HAPPYHORSE_10: 'happyhorse-1.0',
+  LTX_23: 'ltx-2.3',
   SEEDANCE_20: 'seedance-2.0',
   SEEDANCE_20_FAST: 'seedance-2.0-fast',
   SEEDANCE_20_REFERENCE: 'seedance-2.0-reference',
   SEEDANCE_20_FAST_REFERENCE: 'seedance-2.0-fast-reference',
-  SEEDANCE_PRO: 'seedance-pro',
   VEO_31: 'veo-3.1',
-  VIDU_Q3_PRO: 'vidu-q3-pro',
-  PIKA_V25: 'pika-v2.5',
-  RUNWAY_GEN3: 'runway-gen3',
 } as const
 
 const FAL_VIDEO_MODEL_ID_ALIASES: Record<string, string> = {
   'veo-3': FAL_VIDEO_MODEL_IDS.VEO_31,
-  'pika-v2.2': FAL_VIDEO_MODEL_IDS.PIKA_V25,
 }
 
 const FAL_VIDEO_DURATION_DEFAULT = 5
@@ -84,9 +76,8 @@ const FAL_EXTENDED_ASPECT_RATIOS = [
   '3:4',
   '9:16',
 ] as const
-const WAN_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
-const HUNYUAN_ASPECT_RATIOS = ['16:9', '9:16'] as const
-const VIDU_Q3_ASPECT_RATIOS = ['16:9', '9:16', '4:3', '3:4', '1:1'] as const
+const HAPPYHORSE_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
+const LTX_ASPECT_RATIOS = ['16:9', '9:16'] as const
 
 function pickString(
   value: string | undefined,
@@ -149,11 +140,6 @@ function pickVeoDuration(duration: number | undefined): string {
   return '8s'
 }
 
-function pickLumaDuration(duration: number | undefined): string {
-  const value = duration ?? FAL_VIDEO_DURATION_DEFAULT
-  return value >= 9 ? '9s' : '5s'
-}
-
 function readDefaultString(
   defaults: FalWorkerVideoDefaults | undefined,
   key: keyof FalWorkerVideoDefaults,
@@ -214,24 +200,8 @@ function applyCfgScale(
   }
 }
 
-function applyPromptOptimizer(
-  body: Record<string, unknown>,
-  context: FalWorkerVideoRequestContext,
-): void {
-  const value = readDefaultBoolean(
-    context.providerInput.videoDefaults,
-    'enablePromptOptimizer',
-  )
-  if (value !== undefined) {
-    body.prompt_optimizer = value
-  }
-}
-
 function getMode(context: FalWorkerVideoRequestContext): FalWorkerVideoMode {
   const { providerInput } = context
-  if (providerInput.modelId === FAL_VIDEO_MODEL_IDS.RUNWAY_GEN3) {
-    return 'image-to-video'
-  }
   return providerInput.referenceImage && providerInput.i2vModelId
     ? 'image-to-video'
     : 'text-to-video'
@@ -333,26 +303,60 @@ function buildVeo31(
   return body
 }
 
-function buildViduQ3Pro(
+function buildHappyHorse10(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
 ): Record<string, unknown> {
   const { providerInput } = context
   const body: Record<string, unknown> = {
     prompt: providerInput.prompt,
+    resolution:
+      pickResolution(
+        providerInput.resolution,
+        providerInput.videoDefaults,
+        ['720p', '1080p'],
+        '720p',
+      ) ?? '720p',
     duration: pickClampedNumberDuration(
       asNumericDuration(providerInput.duration),
-      1,
-      16,
+      3,
+      15,
+    ),
+  }
+
+  if (mode === 'image-to-video') {
+    body.image_url = requireReferenceImage(context)
+  } else {
+    body.aspect_ratio = pickString(
+      providerInput.aspectRatio,
+      HAPPYHORSE_ASPECT_RATIOS,
+      '16:9',
+    )
+  }
+
+  return body
+}
+
+function buildLtx23(
+  context: FalWorkerVideoRequestContext,
+  mode: FalWorkerVideoMode,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const body: Record<string, unknown> = {
+    prompt: providerInput.prompt,
+    duration: pickStringDuration(
+      asNumericDuration(providerInput.duration),
+      [6, 8, 10],
+      6,
     ),
     resolution:
       pickResolution(
         providerInput.resolution,
         providerInput.videoDefaults,
-        ['360p', '540p', '720p', '1080p'],
-        '720p',
-      ) ?? '720p',
-    audio:
+        ['1080p'],
+        '1080p',
+      ) ?? '1080p',
+    generate_audio:
       readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
   }
 
@@ -361,7 +365,7 @@ function buildViduQ3Pro(
   } else {
     body.aspect_ratio = pickString(
       providerInput.aspectRatio,
-      VIDU_Q3_ASPECT_RATIOS,
+      LTX_ASPECT_RATIOS,
       '16:9',
     )
   }
@@ -515,232 +519,6 @@ function buildSeedanceReference(
   return body
 }
 
-function buildSeedanceProV1(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    duration: pickStringDuration(
-      asNumericDuration(providerInput.duration),
-      [5, 10],
-      5,
-    ),
-  }
-
-  const resolution = pickResolution(
-    providerInput.resolution,
-    providerInput.videoDefaults,
-    ['480p', '720p', '1080p'],
-  )
-  if (resolution) {
-    body.resolution = resolution
-  }
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-  } else {
-    body.aspect_ratio = pickString(
-      providerInput.aspectRatio,
-      FAL_EXTENDED_ASPECT_RATIOS,
-      '16:9',
-    )
-  }
-
-  return body
-}
-
-function buildMiniMaxHailuo23(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    duration: pickStringDuration(
-      asNumericDuration(providerInput.duration),
-      [6, 10],
-      6,
-    ),
-  }
-  applyPromptOptimizer(body, context)
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-  }
-
-  return body
-}
-
-function buildLumaRay2(
-  context: FalWorkerVideoRequestContext,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    aspect_ratio: pickString(
-      providerInput.aspectRatio,
-      FAL_EXTENDED_ASPECT_RATIOS,
-      '16:9',
-    ),
-    duration: pickLumaDuration(asNumericDuration(providerInput.duration)),
-  }
-
-  const resolution = pickResolution(
-    providerInput.resolution,
-    providerInput.videoDefaults,
-    ['540p', '720p', '1080p', '4k'],
-    '720p',
-  )
-  if (resolution) {
-    body.resolution = resolution
-  }
-
-  return body
-}
-
-function buildPika25(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    duration: pickNumberDuration(
-      asNumericDuration(providerInput.duration),
-      [5, 10],
-      5,
-    ),
-  }
-
-  const resolution = pickResolution(
-    providerInput.resolution,
-    providerInput.videoDefaults,
-    ['480p', '720p', '1080p'],
-  )
-  if (resolution) {
-    body.resolution = resolution
-  }
-
-  applyNegativePrompt(body, context)
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-  }
-
-  return body
-}
-
-function buildKlingV21Master(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    duration: pickStringDuration(
-      asNumericDuration(providerInput.duration),
-      [5, 10],
-      5,
-    ),
-  }
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-  } else {
-    body.aspect_ratio = pickString(
-      providerInput.aspectRatio,
-      FAL_TEXT_ASPECT_RATIOS,
-      '16:9',
-    )
-  }
-
-  applyNegativePrompt(body, context)
-  applyCfgScale(body, context)
-  return body
-}
-
-function buildRunwayGen3(
-  context: FalWorkerVideoRequestContext,
-): Record<string, unknown> {
-  const { providerInput } = context
-  // TODO(video-payload-audit): exact fal.ai Runway Gen-3 Turbo schema page
-  // currently returns 404. Preserve the legacy body while logging it at submit.
-  return {
-    prompt: providerInput.prompt,
-    image_url: requireReferenceImage(context),
-    aspect_ratio: providerInput.aspectRatio,
-    duration: String(providerInput.duration ?? FAL_VIDEO_DURATION_DEFAULT),
-  }
-}
-
-function buildWan26(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    resolution:
-      pickResolution(
-        providerInput.resolution,
-        providerInput.videoDefaults,
-        ['720p', '1080p'],
-        '720p',
-      ) ?? '720p',
-    duration: pickStringDuration(
-      asNumericDuration(providerInput.duration),
-      [5, 10, 15],
-      5,
-    ),
-  }
-
-  applyNegativePrompt(body, context)
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-  } else {
-    body.aspect_ratio = pickString(
-      providerInput.aspectRatio,
-      WAN_ASPECT_RATIOS,
-      '16:9',
-    )
-  }
-
-  return body
-}
-
-function buildHunyuanVideo(
-  context: FalWorkerVideoRequestContext,
-  mode: FalWorkerVideoMode,
-): Record<string, unknown> {
-  const { providerInput } = context
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    aspect_ratio: pickString(
-      providerInput.aspectRatio,
-      HUNYUAN_ASPECT_RATIOS,
-      '16:9',
-    ),
-  }
-
-  if (mode === 'image-to-video') {
-    body.image_url = requireReferenceImage(context)
-    const resolution = pickResolution(
-      providerInput.resolution,
-      providerInput.videoDefaults,
-      ['720p', '1080p'],
-      '720p',
-    )
-    if (resolution) {
-      body.resolution = resolution
-    }
-  }
-
-  return body
-}
-
 function buildBody(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
@@ -750,8 +528,10 @@ function buildBody(
       return buildKlingV3Pro(context, mode)
     case FAL_VIDEO_MODEL_IDS.VEO_31:
       return buildVeo31(context, mode)
-    case FAL_VIDEO_MODEL_IDS.VIDU_Q3_PRO:
-      return buildViduQ3Pro(context, mode)
+    case FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10:
+      return buildHappyHorse10(context, mode)
+    case FAL_VIDEO_MODEL_IDS.LTX_23:
+      return buildLtx23(context, mode)
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20:
       return buildSeedance20(context, mode, ['480p', '720p', '1080p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST:
@@ -760,22 +540,6 @@ function buildBody(
       return buildSeedanceReference(context, ['480p', '720p', '1080p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE:
       return buildSeedanceReference(context, ['480p', '720p'])
-    case FAL_VIDEO_MODEL_IDS.SEEDANCE_PRO:
-      return buildSeedanceProV1(context, mode)
-    case FAL_VIDEO_MODEL_IDS.MINIMAX_VIDEO:
-      return buildMiniMaxHailuo23(context, mode)
-    case FAL_VIDEO_MODEL_IDS.LUMA_RAY_2:
-      return buildLumaRay2(context)
-    case FAL_VIDEO_MODEL_IDS.PIKA_V25:
-      return buildPika25(context, mode)
-    case FAL_VIDEO_MODEL_IDS.KLING_VIDEO:
-      return buildKlingV21Master(context, mode)
-    case FAL_VIDEO_MODEL_IDS.RUNWAY_GEN3:
-      return buildRunwayGen3(context)
-    case FAL_VIDEO_MODEL_IDS.WAN_VIDEO:
-      return buildWan26(context, mode)
-    case FAL_VIDEO_MODEL_IDS.HUNYUAN_VIDEO:
-      return buildHunyuanVideo(context, mode)
     default:
       throw new Error(
         `Unsupported FAL video model for queue body construction: ${context.providerInput.modelId}`,
@@ -794,7 +558,6 @@ export function buildFalWorkerQueueRequest(
     endpointModelId,
     input: body,
     mode,
-    isDocumentationVerified:
-      context.providerInput.modelId !== FAL_VIDEO_MODEL_IDS.RUNWAY_GEN3,
+    isDocumentationVerified: true,
   }
 }

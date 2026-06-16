@@ -31,7 +31,7 @@ const VALID_SYNC_BODY = {
 
 const VALID_ASYNC_BODY = {
   prompt: 'Hello world',
-  modelId: 'fal-f5-tts',
+  modelId: 'legacy-audio-queue',
 }
 
 describe('POST /api/generate-audio', () => {

@@ -265,6 +265,7 @@ describe('CanvasRoutePicker LLM variant — UI behavior', () => {
       apiKeyId: 'k1',
       keyLabel: 'My OpenAI',
       modelId: 'gpt-4o-mini',
+      label: 'OpenAI GPT-5.4 Mini',
     })
     vi.mocked(useLLMRoutePicker).mockReturnValue({
       savedRoutes: [saved],
@@ -277,7 +278,8 @@ describe('CanvasRoutePicker LLM variant — UI behavior', () => {
       <CanvasRoutePicker variant="planner" value={null} onChange={onChange} />,
     )
     fireEvent.click(screen.getByRole('button'))
-    fireEvent.click(screen.getByText('My OpenAI'))
+    expect(screen.getByText('My OpenAI · OpenAI')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('OpenAI GPT-5.4 Mini'))
     expect(onChange).toHaveBeenCalledTimes(1)
     const arg = onChange.mock.calls[0][0]
     expect(arg.optionId).toBe('llm-route:planner:key:k1')

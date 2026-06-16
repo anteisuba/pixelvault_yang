@@ -33,8 +33,8 @@ export interface LlmTextInput {
    * provider:
    *  - Gemini: requires inline base64, so any http(s) URL is fetched
    *    server-side via `fetchAsBuffer` (which guards against SSRF).
-   *  - OpenAI / VolcEngine: their chat APIs accept both forms in
-   *    `image_url.url`, so the value is forwarded as-is.
+   *  - OpenAI: its chat API accepts both forms in `image_url.url`, so the
+   *    value is forwarded as-is.
    */
   imageData?: string | string[]
   adapterType: AI_ADAPTER_TYPES
@@ -87,7 +87,6 @@ const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.VOLCENGINE,
 ] as const
 
 type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
@@ -100,15 +99,12 @@ const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
-  [AI_ADAPTER_TYPES.VOLCENGINE]:
-    LLM_TEXT_MODEL_IDS.VOLCENGINE_DOUBAO_1_5_PRO_32K,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'Gemini',
   [AI_ADAPTER_TYPES.DEEPSEEK]: 'DeepSeek',
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
-  [AI_ADAPTER_TYPES.VOLCENGINE]: 'VolcEngine',
 }
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
@@ -159,8 +155,6 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return AI_PROVIDER_ENDPOINTS.DEEPSEEK
-    case AI_ADAPTER_TYPES.VOLCENGINE:
-      return AI_PROVIDER_ENDPOINTS.VOLCENGINE
   }
 }
 
@@ -537,73 +531,6 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  * VolcEngine (豆包) text completion — OpenAI-compatible chat API.
  * Supports vision (image_url in content) and web search via plugin.
  */
-async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
-  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.VOLCENGINE]
-  const baseUrl =
-    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.VOLCENGINE
-  const endpoint = `${baseUrl}/chat/completions`
-
-  const messages: Array<Record<string, unknown>> = [
-    { role: 'system', content: input.systemPrompt },
-  ]
-
-  if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
-    const content: Array<Record<string, unknown>> = images.map((img) => ({
-      type: 'image_url',
-      image_url: { url: img },
-    }))
-    content.push({ type: 'text', text: input.userPrompt })
-    messages.push({ role: 'user', content })
-  } else {
-    messages.push({ role: 'user', content: input.userPrompt })
-  }
-
-  const body: Record<string, unknown> = {
-    model: modelId,
-    messages,
-    max_tokens: input.maxTokens ?? 1024,
-  }
-
-  // VolcEngine web search: use built-in web_search plugin
-  if (input.useGrounding) {
-    body.tools = [
-      {
-        type: 'web_search',
-        web_search: { enable: true, search_query: input.userPrompt },
-      },
-    ]
-  }
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
-      modelId,
-    })
-  }
-
-  const data = OpenAiChatResponseSchema.parse(await response.json())
-  const content = data.choices[0]?.message?.content
-
-  if (!content) {
-    throw new Error('No text response from VolcEngine')
-  }
-
-  return content.trim()
-}
-
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
@@ -637,8 +564,6 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return openAiTextCompletion(input)
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return deepseekTextCompletion(input)
-    case AI_ADAPTER_TYPES.VOLCENGINE:
-      return volcengineTextCompletion(input)
     default:
       throw new Error(
         `LLM text completion not supported for adapter: ${input.adapterType}`,

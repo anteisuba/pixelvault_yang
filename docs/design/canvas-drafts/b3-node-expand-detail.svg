@@ -1,0 +1,55 @@
+<svg width="100%" viewBox="0 0 680 344" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>B3 节点放大详情编辑</title>
+<defs>
+<marker id="b3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">B3 · 节点 &#10530; 放大 → 详情编辑(每个节点都有)</text>
+
+<rect x="20" y="50" width="172" height="96" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="70" font-size="9" font-weight="700" fill="#C9C7BE">声音节点 · 林</text>
+<rect x="166" y="58" width="16" height="16" rx="4" fill="#242424" stroke="#185FA5"/><text x="174" y="70" text-anchor="middle" font-size="9" fill="#85B7EB">&#10530;</text>
+<rect x="32" y="80" width="148" height="20" rx="5" fill="#2A2A2A"/><text x="40" y="94" font-size="8" fill="#C9C7BE">台词「你终于来了」</text>
+<text x="32" y="120" font-size="8" fill="#9A988F">音色 ← 角色·林</text>
+<text x="32" y="136" font-size="8" fill="#6F6A63">紧凑卡(轻编辑留这)</text>
+<text x="20" y="168" font-size="8.5" fill="#5F5E5A">画布上 = 紧凑卡 + &#10530; 放大键</text>
+
+<line x1="198" y1="98" x2="268" y2="98" stroke="#888780" stroke-width="1.6" marker-end="url(#b3)"/>
+<text x="206" y="90" font-size="8" fill="#5F5E5A">&#10530; 点击</text>
+
+<rect x="276" y="38" width="384" height="298" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="290" y="60" font-size="10.5" font-weight="700" fill="#E8E6DE">声音节点 · 林 — 详情</text>
+<text x="646" y="60" text-anchor="end" font-size="9" fill="#9A988F">&#10529; 收起</text>
+<line x1="290" y1="68" x2="646" y2="68" stroke="#2C2C2C"/>
+
+<text x="290" y="84" font-size="8" fill="#8C8A82">台词</text>
+<rect x="290" y="88" width="356" height="30" rx="6" fill="#222222"/><text x="300" y="106" font-size="8.5" fill="#C9C7BE">你终于来了…</text>
+
+<text x="290" y="136" font-size="8" fill="#8C8A82">音色 ← 继承自 角色·林(可低调覆盖)</text>
+<rect x="290" y="140" width="64" height="16" rx="8" fill="#E8E6DE"/><text x="322" y="151" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1A1A1A">系统音色</text>
+<rect x="358" y="140" width="56" height="16" rx="8" fill="#2A2A2A"/><text x="386" y="151" text-anchor="middle" font-size="7.5" fill="#9A988F">我的音色</text>
+<rect x="290" y="162" width="300" height="20" rx="6" fill="#242424" stroke="#3A3A37"/><text x="300" y="176" font-size="8" fill="#C9C7BE">中文男声 &#9662;</text>
+<circle cx="618" cy="172" r="11" fill="#2A2A2A"/><text x="618" y="176" text-anchor="middle" font-size="9" fill="#C9C7BE">&#9658;</text>
+
+<text x="290" y="202" font-size="8" fill="#8C8A82">基础调节</text>
+<text x="290" y="216" font-size="8" fill="#9A988F">语速</text><line x1="330" y1="213" x2="600" y2="213" stroke="#3A3A37" stroke-width="2"/><circle cx="440" cy="213" r="5" fill="#C9C7BE"/><text x="624" y="216" font-size="8" fill="#9A988F">1.0</text>
+<text x="290" y="234" font-size="8" fill="#9A988F">语调</text><line x1="330" y1="231" x2="600" y2="231" stroke="#3A3A37" stroke-width="2"/><circle cx="465" cy="231" r="5" fill="#C9C7BE"/><text x="624" y="234" font-size="8" fill="#9A988F">0</text>
+<text x="290" y="252" font-size="8" fill="#9A988F">音量</text><line x1="330" y1="249" x2="600" y2="249" stroke="#3A3A37" stroke-width="2"/><circle cx="410" cy="249" r="5" fill="#C9C7BE"/><text x="624" y="252" font-size="8" fill="#9A988F">1.0</text>
+
+<text x="290" y="276" font-size="8" fill="#8C8A82">情绪(角色音色集 + 情绪)</text>
+<rect x="290" y="280" width="34" height="16" rx="8" fill="#E8E6DE"/><text x="307" y="291" text-anchor="middle" font-size="7" font-weight="700" fill="#1A1A1A">无</text>
+<rect x="328" y="280" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="348" y="291" text-anchor="middle" font-size="7" fill="#9A988F">沉稳</text>
+<rect x="372" y="280" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="392" y="291" text-anchor="middle" font-size="7" fill="#9A988F">愤怒</text>
+<rect x="416" y="280" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="436" y="291" text-anchor="middle" font-size="7" fill="#9A988F">悲伤</text>
+<rect x="460" y="280" width="40" height="16" rx="8" fill="#2A2A2A"/><text x="480" y="291" text-anchor="middle" font-size="7" fill="#9A988F">惊讶</text>
+<rect x="540" y="278" width="106" height="22" rx="8" fill="#1D9E75"/><text x="593" y="293" text-anchor="middle" font-size="9" font-weight="700" fill="#06281E">生成</text>
+
+<text x="20" y="206" font-size="8.5" fill="#5F5E5A">每种节点一套展开:</text>
+<text x="20" y="222" font-size="8" fill="#5F5E5A">· 镜头 = 全 composer(全参数+参考+高级)</text>
+<text x="20" y="238" font-size="8" fill="#5F5E5A">· 角色 = 参考图集 + 音色集 + 卡绑定</text>
+<text x="20" y="254" font-size="8" fill="#5F5E5A">· 背景 = 场景图 + 环境音/氛围</text>
+<text x="20" y="270" font-size="8" fill="#5F5E5A">· 声音 = 台词 + 音色 + 情绪(本图)</text>
+<text x="20" y="292" font-size="8" fill="#0C447C">轻编辑留卡上 · 重编辑进展开(不挤画布)</text>
+<text x="20" y="308" font-size="8" fill="#A32D2D">= 对上 updream 的音频展开面板</text>
+</svg>

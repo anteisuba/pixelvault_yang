@@ -1,0 +1,39 @@
+<svg width="100%" viewBox="0 0 680 318" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>必画二 加节点菜单 节点面板</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">必画② · 加节点菜单 / 节点面板(分类 · 点 ＋ 或右键)</text>
+
+<rect x="20" y="36" width="300" height="262" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="32" y="48" width="276" height="22" rx="8" fill="#242424"/><text x="42" y="63" font-size="8.5" fill="#6F6A63">搜索节点 / 输入名称…</text>
+
+<text x="32" y="92" font-size="8.5" font-weight="700" fill="#85B7EB">元素(可被自动生成 · spawn)</text>
+<rect x="32" y="98" width="64" height="40" rx="8" fill="#242424"/><text x="64" y="116" text-anchor="middle" font-size="13" fill="#AFA9EC">&#9823;</text><text x="64" y="131" text-anchor="middle" font-size="7.5" fill="#C9C7BE">角色</text>
+<rect x="104" y="98" width="64" height="40" rx="8" fill="#242424"/><text x="136" y="116" text-anchor="middle" font-size="12" fill="#5DCAA5">&#9968;</text><text x="136" y="131" text-anchor="middle" font-size="7.5" fill="#C9C7BE">背景</text>
+<rect x="176" y="98" width="64" height="40" rx="8" fill="#242424"/><text x="208" y="116" text-anchor="middle" font-size="12" fill="#F0997B">&#9836;</text><text x="208" y="131" text-anchor="middle" font-size="7.5" fill="#C9C7BE">声音</text>
+<rect x="248" y="98" width="60" height="40" rx="8" fill="#242424"/><text x="278" y="116" text-anchor="middle" font-size="12" fill="#C9C7BE">&#9650;</text><text x="278" y="131" text-anchor="middle" font-size="7.5" fill="#C9C7BE">风格(卡)</text>
+
+<text x="32" y="162" font-size="8.5" font-weight="700" fill="#7FC4A0">生成</text>
+<rect x="32" y="168" width="84" height="40" rx="8" fill="#242424"/><text x="74" y="186" text-anchor="middle" font-size="12" fill="#C9C7BE">&#9635;</text><text x="74" y="201" text-anchor="middle" font-size="7.5" fill="#C9C7BE">图像</text>
+<rect x="124" y="168" width="84" height="40" rx="8" fill="#242424" stroke="#185FA5"/><text x="166" y="186" text-anchor="middle" font-size="12" fill="#85B7EB">&#9654;</text><text x="166" y="201" text-anchor="middle" font-size="7.5" fill="#C9C7BE">视频(镜头)</text>
+<rect x="216" y="168" width="92" height="40" rx="8" fill="#242424"/><text x="262" y="186" text-anchor="middle" font-size="12" fill="#C9C7BE">&#9834;</text><text x="262" y="201" text-anchor="middle" font-size="7.5" fill="#C9C7BE">音频(语音)</text>
+
+<text x="32" y="232" font-size="8.5" font-weight="700" fill="#C9B8F0">编排</text>
+<rect x="32" y="238" width="60" height="36" rx="8" fill="#242424"/><text x="62" y="259" text-anchor="middle" font-size="7.5" fill="#C9C7BE">Agent</text>
+<rect x="100" y="238" width="60" height="36" rx="8" fill="#242424"/><text x="130" y="259" text-anchor="middle" font-size="7.5" fill="#C9C7BE">文本/分镜</text>
+<rect x="168" y="238" width="60" height="36" rx="8" fill="#242424"/><text x="198" y="259" text-anchor="middle" font-size="7.5" fill="#C9C7BE">合成 merge</text>
+<rect x="236" y="238" width="72" height="36" rx="8" fill="#242424"/><text x="272" y="259" text-anchor="middle" font-size="7.5" fill="#C9C7BE">视频参考</text>
+
+<text x="340" y="58" font-size="10" font-weight="700" fill="#5F5E5A">要点:</text>
+<text x="340" y="82" font-size="9" fill="#5F5E5A">· 触发:顶栏「＋添加节点」/ 画布空白右键 /</text>
+<text x="352" y="96" font-size="9" fill="#5F5E5A">连线拖到空白处「松手即建」</text>
+<text x="340" y="120" font-size="9" fill="#5F5E5A">· 分类:元素 / 生成 / 编排(对应节点目录)</text>
+<text x="340" y="144" font-size="9" fill="#5F5E5A">· 搜索 + 图标 + 极淡类型色(同端口语义)</text>
+<text x="340" y="168" font-size="9" fill="#5F5E5A">· 在画布点击位置落点(位置有意义)</text>
+<text x="340" y="192" font-size="9" fill="#A32D2D">· 多数节点平时由「自动生成」铺,手动加</text>
+<text x="352" y="206" font-size="9" fill="#A32D2D">是补充/编辑路径,不抢主路</text>
+<line x1="340" y1="224" x2="656" y2="224" stroke="#D3D1C7"/>
+<text x="340" y="244" font-size="8.5" fill="#888780">风格 = 卡(StyleCard),不是独立生成节点;</text>
+<text x="340" y="258" font-size="8.5" fill="#888780">选它 = 给镜头/角色挂一张画风卡。</text>
+<text x="340" y="282" font-size="8.5" fill="#0C447C">去黄无彩 · 圆角 rounded-lg · 44px 触达。</text>
+</svg>

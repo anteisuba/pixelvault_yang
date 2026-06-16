@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
+import { ACTIVE_API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { getAvailableModels, getModelMessageKey } from '@/constants/models'
 import {
   ADAPTER_KEY_HINTS,
@@ -40,6 +40,9 @@ import { validateKeyFormat } from '@/lib/validate-api-key'
 
 type EntryMode = 'preset' | 'custom'
 
+const DEFAULT_API_KEY_ADAPTER =
+  ACTIVE_API_KEY_ADAPTER_OPTIONS[0] ?? AI_ADAPTER_TYPES.OPENAI
+
 interface ApiKeyFormProps {
   onAdd: (data: CreateApiKeyRequest) => Promise<void>
   onCancel: () => void
@@ -51,7 +54,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
   const tModels = useTranslations('Models')
   const availableModels = getAvailableModels()
   const [adapterType, setAdapterType] = useState<AI_ADAPTER_TYPES>(
-    AI_ADAPTER_TYPES.HUGGINGFACE,
+    DEFAULT_API_KEY_ADAPTER,
   )
   const [entryMode, setEntryMode] = useState<EntryMode>('preset')
   const modelsForAdapter = availableModels.filter(
@@ -160,7 +163,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
           {t('addForm.adapterLabel')}
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {API_KEY_ADAPTER_OPTIONS.map((option) => (
+          {ACTIVE_API_KEY_ADAPTER_OPTIONS.map((option) => (
             <button
               key={option}
               type="button"

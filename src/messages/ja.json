@@ -40,8 +40,13 @@
     "sidebarDescription": "モバイル用サイドバーを表示します。",
     "toggleSidebar": "サイドバーを切り替え",
     "selectModel": "モデルを選択",
-    "searchModels": "モデルを検索...",
+    "searchModels": "モデル・プロバイダーを検索...",
     "noModelsFound": "モデルが見つかりません",
+    "regionCn": "国内",
+    "regionIntl": "海外",
+    "savedKey": "自分のキー",
+    "modelCount": "{count, plural, other {# モデル}}",
+    "backToProviders": "プロバイダー",
     "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト"
   },
@@ -1883,7 +1888,7 @@
       "unknown": "未検証"
     },
     "collapse": {
-      "showAll": "全モデルを表示（{count}）",
+      "showAll": "すべてのプロバイダーを表示（{count}）",
       "hideAll": "折りたたむ"
     },
     "tutorial": {
@@ -2367,14 +2372,6 @@
     }
   },
   "Models": {
-    "sdxl": {
-      "label": "Stable Diffusion XL",
-      "description": "高解像度でディテールに優れた画像生成。"
-    },
-    "animagineXl4": {
-      "label": "Animagine XL 4.0",
-      "description": "高品質なアニメ調画像の生成。"
-    },
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Googleの最新世代モデルによる高速な画像探索。"
@@ -2387,13 +2384,9 @@
       "label": "Flux 2 Pro",
       "description": "Black Forest Labs による最高品質の画像生成モデル。"
     },
-    "flux2Dev": {
-      "label": "Flux 2 Dev",
-      "description": "Flux 2 のコスト効率の良い開発・反復向けバリアント。"
-    },
-    "flux2Schnell": {
-      "label": "Flux 2 Schnell",
-      "description": "Flux 2 の最速バリアント。素早いプロトタイピングに最適。"
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "fal.ai ???????? FLUX 2??????????????????"
     },
     "fluxLora": {
       "label": "FLUX LoRA",
@@ -2404,32 +2397,16 @@
       "description": "Google のプレミアム画像モデル。スタジオ品質の4Kビジュアル。"
     },
     "ideogram3": {
-      "label": "Ideogram V3",
-      "description": "画像内テキスト描画で最高クラス。4秒の高速生成。"
-    },
-    "recraftV3": {
-      "label": "Recraft V3",
-      "description": "デザイン特化の画像モデル。ブランド・スタイルシステムに対応。"
+      "label": "Ideogram V4",
+      "description": "???????????????????????????????"
     },
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
     },
-    "seedream50Lite": {
-      "label": "Seedream 5.0 Lite",
-      "description": "ByteDanceの最新軽量モデル。VolcEngine経由で品質と速度の最適バランス。"
-    },
-    "seedream40": {
-      "label": "Seedream 4.0",
-      "description": "ByteDanceの中位モデル。VolcEngine経由で品質向上、4K対応。"
-    },
-    "seedream30": {
-      "label": "Seedream 3.0",
-      "description": "ByteDanceのエントリーモデル。VolcEngine経由で高速かつ低コスト。"
-    },
-    "sd35Large": {
-      "label": "Stable Diffusion 3.5 Large",
-      "description": "オープンソースの旗艦モデル。80億パラメータMMDiTアーキテクチャ、構図とディテールに優れる。"
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由の Seedream 4.5 — 中国リージョン。"
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -2439,14 +2416,6 @@
       "label": "NovelAI Diffusion V4.5 Curated",
       "description": "厳選データセットで訓練されたバリアント。制御しやすく、安定した品質を実現。"
     },
-    "novelaiV4Full": {
-      "label": "NovelAI Diffusion V4 Full",
-      "description": "前世代のNovelAIオリジナルモデル。幅広いデータセットをカバー。"
-    },
-    "novelaiV3": {
-      "label": "NovelAI Diffusion Anime V3",
-      "description": "SDXLベースのアニメ特化モデル。タグ優先プロンプトシステム搭載。"
-    },
     "illustriousXl": {
       "label": "Illustrious XL",
       "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
@@ -2455,41 +2424,29 @@
       "label": "Anima Base LoRA",
       "description": "Civitai の Anima 系 LoRA は、ホスティング対応のない Cosmos 系モデル向けです。生成は Civitai 側で行ってください。"
     },
-    "gemini25FlashImage": {
-      "label": "Gemini 2.5 Flash",
-      "description": "Google製。高速・低コスト。テキスト描画とプロンプト理解に優れる。"
-    },
-    "flux2Max": {
-      "label": "FLUX 2 Max",
-      "description": "Black Forest Labsの最高品質FLUXモデル。卓越なディテールと一貫性。"
-    },
     "recraftV4Pro": {
       "label": "Recraft V4 Pro",
       "description": "デザイン特化モデル。ロゴ、アイコン、ブランド品質の画像に最適。"
-    },
-    "fluxKontextPro": {
-      "label": "FLUX Kontext Pro",
-      "description": "参照画像ベースの編集生成。画像をアップロードしてプロンプトで変更を指示。"
     },
     "fluxKontextMax": {
       "label": "FLUX Kontext Max",
       "description": "マルチ参照編集。最大4枚の参照画像を組み合わせて一貫性のある生成。"
     },
-    "playgroundV25": {
-      "label": "Playground v2.5",
-      "description": "美的品質に特化した生成モデル。ポートレートやアート構図に優れています。"
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "評価トップのTTS、30以上の言語で音声クローニング対応"
     },
-    "veo31": {
-      "label": "Veo 3.1",
-      "description": "Google最新 — 4K、ネイティブ音声、対話同期"
-    },
-    "viduQ3Pro": {
-      "label": "Vidu Q3 Pro",
-      "description": "API で接続できる最新の Vidu Q3 モデル。ネイティブ音声付き動画、text-to-video、image-to-video に対応します。"
+    "happyhorse10": {
+      "label": "HappyHorse 1.0",
+      "description": "fal.ai ??? Alibaba ??????????????text-to-video?image-to-video ???????"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
       "description": "マルチショット絵コンテ、ネイティブ音声、キャラ一貫性"
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "?? 1080p ??????????? fal.ai ??????????????????"
     },
     "seedance20": {
       "label": "Seedance 2.0",
@@ -2507,69 +2464,25 @@
       "label": "Seedance 2.0 Fast（リファレンス）",
       "description": "reference-to-video 高速版 — ボイスクローニング対応"
     },
-    "seedance20Volc": {
-      "label": "Seedance 2.0（火山引擎）",
-      "description": "火山引擎 — 音声+リップシンク、監督レベルのカメラ"
+    "seedance20Volcengine": {
+      "label": "Seedance 2.0（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由 — 中国リージョン、音声付き、4-15秒"
     },
-    "seedance20FastVolc": {
-      "label": "Seedance 2.0 Fast（火山引擎）",
-      "description": "火山引擎 — 高速版、音声付き"
+    "seedance20FastVolcengine": {
+      "label": "Seedance 2.0 Fast（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由の高速版 — 中国リージョン、音声付き"
     },
-    "seedancePro": {
-      "label": "Seedance Pro",
-      "description": "ByteDance — 音声付き、映画的カメラコントロール"
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 リファレンス（火山エンジン）",
+      "description": "reference-to-video 火山エンジン（Ark）直接 — 中国リージョン、ボイスクローニング対応"
     },
-    "seedance15Pro": {
-      "label": "Seedance 1.5 Pro",
-      "description": "VolcEngine — 音声付き、先頭/末尾フレーム、ドラフトモード"
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast リファレンス（火山エンジン）",
+      "description": "reference-to-video 高速版 火山エンジン（Ark）直接 — 中国リージョン"
     },
-    "seedance10Pro": {
-      "label": "Seedance 1.0 Pro",
-      "description": "VolcEngine — 先頭/末尾フレーム制御、安定した品質"
-    },
-    "klingVideo": {
-      "label": "Kling V2.1",
-      "description": "安定した映画的動画、モーション対応、I2V対応"
-    },
-    "minimaxVideo": {
-      "label": "MiniMax Hailuo 2.3",
-      "description": "リアリティ向上、カメラ制御、微表情強化"
-    },
-    "lumaRay2": {
-      "label": "Luma Ray 2",
-      "description": "最大1080p、ループ対応、二画像補間"
-    },
-    "pikaV25": {
-      "label": "Pika V2.5",
-      "description": "鮮明な映像、滑らかな動き、1080p生成"
-    },
-    "wanVideo": {
-      "label": "Wan 2.6",
-      "description": "マルチモーダル音声対応、最大1080p、高コスパ"
-    },
-    "hunyuanVideo": {
-      "label": "Hunyuan Video",
-      "description": "テンセントオープンソース、8.3Bパラメータ、I2V対応"
-    },
-    "runwayGen45": {
-      "label": "Runway Gen-4.5",
-      "description": "Runway の現行フラッグシップ動画モデル。text-to-video と image-to-video に対応"
-    },
-    "runwayGen4Turbo": {
-      "label": "Runway Gen-4 Turbo",
-      "description": "高速でコスト効率の高い Runway image-to-video モデル"
-    },
-    "runwayGen3": {
-      "label": "Runway Gen-3 Turbo",
-      "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
-    },
-    "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "評価トップのTTS、30以上の言語で音声クローニング対応"
-    },
-    "falF5Tts": {
-      "label": "F5-TTS",
-      "description": "オープンソースのゼロショット音声クローニング（fal.ai）"
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google最新 — 4K、ネイティブ音声、対話同期"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3843,7 +3756,6 @@
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "レイヤー分解",
     "civitaiToken": "Civitai Token",
-    "advanced": "詳細",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
     "tokenPlaceholder": "Civitai API Tokenを入力",

@@ -10,9 +10,7 @@ export const AUDIO_ASSET_PREVIEW_IMAGES_BY_VOICE_ID: Readonly<
 
 export const AUDIO_ASSET_PREVIEW_IMAGES_BY_MODEL: Readonly<
   Record<string, string>
-> = {
-  [AI_MODELS.FAL_F5_TTS]: '/asset-previews/audio-f5-tts.svg',
-}
+> = {}
 
 export function getAudioAssetPreviewImage(
   modelId: string,

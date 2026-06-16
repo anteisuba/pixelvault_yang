@@ -5,10 +5,15 @@ import { useMemo } from 'react'
 import {
   adapterHasCapability,
   getLLMCapabilityScope,
+  LLM_ENHANCE_ROUTE_MODELS,
   type LlmCapabilityScope,
 } from '@/constants/llm-capability'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { type AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import {
+  getDefaultProviderConfig,
+  getProviderLabel,
+  type AI_ADAPTER_TYPES,
+} from '@/constants/providers'
 import { SCRIPT_PLANNER_MODELS } from '@/constants/script-breakdown'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import type { ApiKeyHealthStatus } from '@/types'
@@ -49,8 +54,12 @@ function getRegistryEntry(
       )
       return entry ? { modelId: entry.modelId, label: entry.label } : null
     }
-    case 'enhance':
-      return null
+    case 'enhance': {
+      const entry = LLM_ENHANCE_ROUTE_MODELS.find(
+        (m) => m.adapterType === adapterType,
+      )
+      return entry ? { modelId: entry.modelId, label: entry.label } : null
+    }
   }
 }
 
@@ -89,7 +98,7 @@ export function useLLMRoutePicker(
         adapterType,
         modelId: registry?.modelId,
         label: registry?.label ?? adapterType,
-        providerLabel: registry?.label ?? adapterType,
+        providerLabel: getProviderLabel(getDefaultProviderConfig(adapterType)),
         isSaved: false,
       }
     })

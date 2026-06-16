@@ -6,7 +6,7 @@ import { getAvailableVideoModels } from '@/constants/models'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
-  buildSavedModelOptions,
+  buildSavedModelOptionsForModels,
   findSelectedModel,
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
@@ -40,9 +40,9 @@ export function useVideoModelOptions(
       isBuiltIn: true,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptions(
+    const saved = buildSavedModelOptionsForModels(
       keys.filter((k) => k.isActive),
-      (k) => videoModels.some((m) => m.id === k.modelId),
+      videoModels,
     )
     return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, videoModels, keys])

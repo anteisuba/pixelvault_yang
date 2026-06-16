@@ -321,25 +321,8 @@ function canSubmitAudioViaExecutionWorker(route: {
   if (!hasWorkerResolvableKey) return false
 
   return (
-    (route.adapterType === AI_ADAPTER_TYPES.FAL &&
-      route.modelId === AI_MODELS.FAL_F5_TTS) ||
-    (route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO &&
-      route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO)
-  )
-}
-
-function assertReferenceAudioUrl(
-  request: GenerateAudioRequest,
-  modelId: string,
-): string {
-  if (request.referenceAudioUrl) {
-    return request.referenceAudioUrl
-  }
-
-  throw new GenerateImageServiceError(
-    'VALIDATION_ERROR',
-    `${modelId} requires a reference audio URL`,
-    400,
+    route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO &&
+    route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO
   )
 }
 
@@ -677,11 +660,6 @@ async function submitAudioWorkerRun(params: {
     modelConfig,
     timer,
   } = params
-  const referenceAudioUrl =
-    route.adapterType === AI_ADAPTER_TYPES.FAL
-      ? assertReferenceAudioUrl(request, route.modelId)
-      : request.referenceAudioUrl
-
   if (route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO) {
     assertFishAudioVoiceInput(request)
   }
@@ -737,7 +715,7 @@ async function submitAudioWorkerRun(params: {
       prompt: providerPrompt,
       modelId: route.modelId,
       externalModelId: getExecutionModelId(route.modelId),
-      referenceAudioUrl,
+      referenceAudioUrl: request.referenceAudioUrl,
       referenceText: request.referenceText,
       voiceId: request.voiceId,
       speakerVoiceIds: request.speakerVoiceIds,

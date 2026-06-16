@@ -1,0 +1,64 @@
+<svg width="100%" viewBox="0 0 680 430" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>A1 画布整体布局定调草稿</title>
+<defs>
+<pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#2E2E2E"/></pattern>
+<marker id="ae" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6F6A63"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="14.5" font-weight="700" fill="#2C2C2A">A1 · 画布整体布局(定调草稿)— 首批模型:Seedance · Kling · Veo 3.1 · Vidu Q2</text>
+
+<rect x="18" y="38" width="644" height="294" rx="10" fill="#121212" stroke="#3A3A37"/>
+<rect x="18" y="38" width="42" height="294" rx="10" fill="#1A1A1A"/>
+<rect x="30" y="58" width="18" height="13" rx="3" fill="#2C2C2C"/><rect x="30" y="80" width="18" height="13" rx="3" fill="#2C2C2C"/><rect x="30" y="102" width="18" height="13" rx="3" fill="#2C2C2C"/><rect x="30" y="124" width="18" height="13" rx="3" fill="#2C2C2C"/><rect x="30" y="146" width="18" height="13" rx="3" fill="#2C2C2C"/><rect x="30" y="168" width="18" height="13" rx="3" fill="#2C2C2C"/>
+<rect x="60" y="38" width="602" height="24" fill="#1A1A1A"/>
+<text x="70" y="54" font-size="9" fill="#C9C7BE">Untitled · 节点工作流</text>
+<rect x="270" y="42" width="140" height="16" rx="8" fill="#242424" stroke="#185FA5"/><text x="340" y="54" text-anchor="middle" font-size="8" fill="#C9C7BE">默认模型 · Seedance ▾</text>
+<text x="650" y="54" text-anchor="end" font-size="9" fill="#C9C7BE">＋ 添加节点</text>
+
+<rect x="60" y="62" width="426" height="270" fill="#121212"/>
+<rect x="60" y="62" width="426" height="270" fill="url(#dots)"/>
+
+<path d="M144,212 C190,205 210,190 252,172" fill="none" stroke="#6F6A63" stroke-width="2" marker-end="url(#ae)"/>
+<rect x="84" y="210" width="120" height="60" rx="10" fill="#1E1E1E" stroke="#3A3A37"/>
+<text x="96" y="228" font-size="8.5" fill="#C9C7BE">角色节点</text>
+<rect x="96" y="234" width="96" height="28" rx="5" fill="#2A2A2A"/>
+
+<rect x="250" y="86" width="176" height="152" rx="12" fill="#1E1E1E" stroke="#3A3A37"/>
+<text x="262" y="104" font-size="8.5" font-weight="700" fill="#C9C7BE">视频 · Seedance</text>
+<rect x="262" y="110" width="152" height="70" rx="6" fill="#2A2A2A"/>
+<text x="338" y="150" text-anchor="middle" font-size="16" fill="#5F5E5A">&#9658;</text>
+<rect x="262" y="190" width="152" height="40" rx="8" fill="#242424"/>
+<rect x="270" y="198" width="74" height="16" rx="8" fill="#185FA5"/><text x="307" y="210" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">Seedance &#9662;</text>
+<text x="352" y="210" font-size="7" fill="#8C8A82">720p·6s</text>
+<circle cx="404" cy="210" r="9" fill="#1D9E75"/><text x="404" y="213" text-anchor="middle" font-size="9" font-weight="700" fill="#06281E">&#8593;</text>
+
+<rect x="70" y="286" width="86" height="40" rx="6" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="80" y="296" width="30" height="12" rx="2" fill="#2E2E2E"/><rect x="100" y="306" width="34" height="12" rx="2" fill="#2E2E2E"/>
+
+<rect x="216" y="300" width="180" height="24" rx="12" fill="#242424" stroke="#3A3A37"/>
+<text x="306" y="316" text-anchor="middle" font-size="9" fill="#C9C7BE" letter-spacing="2">&#8982;  &#9995;  &#9101;  &#9986;  ·  137%  &#65291; &#8722;</text>
+
+<rect x="494" y="70" width="160" height="254" rx="8" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="504" y="88" font-size="9.5" font-weight="700" fill="#E8E6DE">助手</text>
+<rect x="504" y="94" width="140" height="30" rx="6" fill="#242424"/>
+<rect x="504" y="134" width="120" height="16" rx="8" fill="#2A2A2A"/><rect x="504" y="156" width="120" height="16" rx="8" fill="#2A2A2A"/><rect x="504" y="178" width="120" height="16" rx="8" fill="#2A2A2A"/>
+<rect x="504" y="298" width="140" height="18" rx="6" fill="#2A2A2A"/>
+
+<circle cx="118" cy="150" r="9" fill="#185FA5"/><text x="118" y="153.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">1</text>
+<circle cx="250" cy="86" r="9" fill="#185FA5"/><text x="250" y="89.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">2</text>
+<circle cx="196" cy="192" r="9" fill="#185FA5"/><text x="196" y="195.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">3</text>
+<circle cx="262" cy="190" r="9" fill="#185FA5"/><text x="262" y="193.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">4</text>
+<circle cx="494" cy="70" r="9" fill="#185FA5"/><text x="494" y="73.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">5</text>
+<circle cx="216" cy="300" r="9" fill="#185FA5"/><text x="216" y="303.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">6</text>
+<circle cx="70" cy="286" r="9" fill="#185FA5"/><text x="70" y="289.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">7</text>
+
+<text x="24" y="354" font-size="9.5" fill="#5F5E5A">&#9312; 近黑·中性灰阶(去暖)+ 点阵网格</text>
+<text x="24" y="372" font-size="9.5" fill="#5F5E5A">&#9313; 节点放大 + 留白(密度做成 token)</text>
+<text x="24" y="390" font-size="9.5" fill="#5F5E5A">&#9314; 连线中性灰(全去黄橙)</text>
+<text x="24" y="408" font-size="9.5" fill="#5F5E5A">&#9315; 节点自带 composer + 模型切换器(绿=生成例外)</text>
+<text x="360" y="354" font-size="9.5" fill="#5F5E5A">&#9316; 右栏固定 = 纯助手(参数不进右栏)</text>
+<text x="360" y="372" font-size="9.5" fill="#5F5E5A">&#9317; 底部工具条 · 中键平移 · 光标语义</text>
+<text x="360" y="390" font-size="9.5" fill="#5F5E5A">&#9318; minimap 放大 · 可交互</text>
+<text x="360" y="408" font-size="9" fill="#A32D2D">注:Wan/Hunyuan 在切换器显示「敬请期待」</text>
+</svg>

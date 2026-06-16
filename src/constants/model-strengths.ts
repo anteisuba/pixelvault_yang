@@ -85,28 +85,16 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.92,
     },
   },
-  [AI_MODELS.FLUX_2_DEV]: {
-    bestFor: ['creative', 'concept', 'artistic'],
-    promptStyle: 'natural-language',
-    enhanceHint:
-      'This model is versatile for creative and conceptual imagery. Use vivid descriptive language with emphasis on composition, mood, and artistic direction.',
-    routerWeights: {
-      referenceFit: 0.7,
-      costEfficiency: 0.8,
-      latency: 0.75,
-      health: 0.86,
-    },
-  },
-  [AI_MODELS.FLUX_2_SCHNELL]: {
+  [AI_MODELS.FLUX_2_FLASH]: {
     bestFor: ['quick-iteration', 'draft', 'general'],
     promptStyle: 'natural-language',
     enhanceHint:
-      'This is a fast model for quick iterations. Keep prompts concise but descriptive. Focus on the key visual elements rather than excessive detail.',
+      'This fast FLUX.2 model is best for quick iterations and budget previews. Keep prompts concise but specific, with the core subject, composition, and lighting up front.',
     routerWeights: {
       referenceFit: 0.35,
       costEfficiency: 1,
-      latency: 1,
-      health: 0.82,
+      latency: 0.95,
+      health: 0.86,
     },
   },
   [AI_MODELS.GEMINI_FLASH_IMAGE]: {
@@ -131,18 +119,6 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       costEfficiency: 0.45,
       latency: 0.6,
       health: 0.95,
-    },
-  },
-  [AI_MODELS.NOVELAI_V4_FULL]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'This model specializes in anime/illustration. Use danbooru-style tags: quality tags first (masterpiece, best quality), then character features (hair, eyes, clothing), then scene tags. Avoid photographic terminology.',
-    routerWeights: {
-      referenceFit: 0.65,
-      costEfficiency: 0.7,
-      latency: 0.55,
-      health: 0.78,
     },
   },
   [AI_MODELS.NOVELAI_V45_FULL]: {

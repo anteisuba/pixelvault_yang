@@ -1,0 +1,37 @@
+<svg width="100%" viewBox="0 0 680 358" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>E1 助手 dock 精简版</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">E1 · 助手 dock(精简版 · 默认安静)</text>
+
+<rect x="20" y="34" width="300" height="312" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="34" y="56" font-size="10" font-weight="700" fill="#E8E6DE">助手</text>
+<rect x="72" y="46" width="74" height="16" rx="8" fill="#242424" stroke="#3A3A37"/><text x="109" y="57" text-anchor="middle" font-size="7.5" fill="#C9C7BE">自动路由 &#9662;</text>
+<text x="282" y="57" font-size="10" fill="#9A988F">&#9998;</text><text x="304" y="57" font-size="10" fill="#9A988F">»</text>
+<line x1="34" y1="66" x2="306" y2="66" stroke="#2C2C2C"/>
+
+<circle cx="44" cy="92" r="9" fill="#242424"/><text x="44" y="96" text-anchor="middle" font-size="9" fill="#85B7EB">&#10022;</text>
+<rect x="60" y="80" width="226" height="26" rx="9" fill="#242424"/><text x="72" y="97" font-size="8.5" fill="#C9C7BE">看了你的画布。先聊故事大纲?</text>
+
+<rect x="34" y="118" width="70" height="20" rx="10" fill="#2A2A2A"/><text x="69" y="132" text-anchor="middle" font-size="8" fill="#C9C7BE">剧本大纲</text>
+<rect x="110" y="118" width="86" height="20" rx="10" fill="#2A2A2A"/><text x="153" y="132" text-anchor="middle" font-size="8" fill="#C9C7BE">角色与画风</text>
+<rect x="202" y="118" width="84" height="20" rx="10" fill="#2A2A2A"/><text x="244" y="132" text-anchor="middle" font-size="8" fill="#C9C7BE">第一阶段</text>
+
+<text x="170" y="222" text-anchor="middle" font-size="8.5" fill="#4A4A47">对话从这里展开…</text>
+
+<rect x="34" y="306" width="252" height="28" rx="8" fill="#242424"/>
+<text x="44" y="324" font-size="8" fill="#6F6A63">/ 技能 · @ 素材…</text>
+<circle cx="268" cy="320" r="10" fill="#E8E6DE"/><text x="268" y="324" text-anchor="middle" font-size="9" font-weight="700" fill="#1A1A1A">&#8593;</text>
+
+<text x="340" y="56" font-size="9.5" font-weight="700" fill="#5F5E5A">精简版要点</text>
+<text x="340" y="82" font-size="8.5" fill="#5F5E5A">· 默认只 1 句起手 + 3 短 chips</text>
+<text x="340" y="106" font-size="8.5" fill="#5F5E5A">· 反问澄清卡 → 对话中<tspan font-weight="700">按需浮现</tspan>,不常驻</text>
+<text x="340" y="130" font-size="8.5" fill="#5F5E5A">· 输入精简:<tspan font-weight="700">/</tspan> 技能 · <tspan font-weight="700">@</tspan> 素材(媒体引用收进 +)</text>
+<text x="340" y="154" font-size="8.5" fill="#5F5E5A">· 大留白 = 从容,对话从此展开</text>
+<text x="340" y="178" font-size="8.5" fill="#5F5E5A">· 多 LLM 自动路由 · 参数不进右栏</text>
+<line x1="340" y1="196" x2="656" y2="196" stroke="#D3D1C7"/>
+<text x="340" y="218" font-size="8" fill="#A32D2D">上版的毛病:常驻反问卡 + 4 个长建议 + 3 媒体图标</text>
+<text x="340" y="234" font-size="8" fill="#A32D2D">全堆一屏 → 太满。现在按需展开、短标签、留白。</text>
+<text x="340" y="262" font-size="8" fill="#5F5E5A">同理:节点卡也是「轻在卡上 / 重进 &#10530; 展开」,</text>
+<text x="340" y="278" font-size="8" fill="#5F5E5A">助手也是「默认安静 / 用时展开」—— 一致的克制。</text>
+</svg>

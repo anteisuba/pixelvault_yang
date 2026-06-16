@@ -1,0 +1,42 @@
+<svg width="100%" viewBox="0 0 680 296" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>助手 dock 展开态</title>
+<defs>
+<marker id="ex" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">助手 dock 也能展开(&#10530;):对话 + 剧本/大纲工作区</text>
+
+<rect x="20" y="40" width="150" height="216" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="60" font-size="9" font-weight="700" fill="#E8E6DE">助手</text>
+<rect x="120" y="50" width="16" height="14" rx="4" fill="#242424" stroke="#185FA5"/><text x="128" y="61" text-anchor="middle" font-size="8" fill="#85B7EB">&#10530;</text>
+<text x="142" y="61" font-size="9" fill="#6F6A63">»</text>
+<rect x="32" y="72" width="106" height="20" rx="6" fill="#242424"/>
+<rect x="32" y="100" width="50" height="14" rx="7" fill="#2A2A2A"/><rect x="88" y="100" width="50" height="14" rx="7" fill="#2A2A2A"/>
+<rect x="32" y="226" width="106" height="20" rx="6" fill="#242424"/>
+<text x="85" y="166" text-anchor="middle" font-size="7.5" fill="#4A4A47">默认 · 窄 dock</text>
+
+<line x1="178" y1="148" x2="214" y2="148" stroke="#888780" stroke-width="1.6" marker-end="url(#ex)"/>
+<text x="184" y="140" font-size="8" fill="#5F5E5A">&#10530;</text>
+
+<rect x="222" y="40" width="438" height="216" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="236" y="60" font-size="9.5" font-weight="700" fill="#E8E6DE">助手 — 展开</text>
+<text x="646" y="60" text-anchor="end" font-size="8.5" fill="#9A988F">&#10529; 收起</text>
+<line x1="236" y1="68" x2="646" y2="68" stroke="#2C2C2C"/>
+<line x1="438" y1="74" x2="438" y2="244" stroke="#2C2C2C"/>
+
+<text x="248" y="86" font-size="8" fill="#8C8A82">对话</text>
+<rect x="248" y="92" width="170" height="22" rx="8" fill="#242424"/><text x="258" y="106" font-size="7.5" fill="#C9C7BE">先聊大纲?这故事讲什么…</text>
+<rect x="288" y="120" width="130" height="20" rx="8" fill="#2A2438"/><text x="298" y="133" font-size="7.5" fill="#C9B8F0">三幕 · 雨夜重逢…</text>
+<rect x="248" y="146" width="170" height="22" rx="8" fill="#242424"/><text x="258" y="160" font-size="7.5" fill="#C9C7BE">需要 3 个角色,要生成吗?</text>
+<rect x="248" y="220" width="170" height="20" rx="6" fill="#242424"/><text x="258" y="233" font-size="7.5" fill="#6F6A63">/ 技能 · @ 素材…</text>
+
+<text x="452" y="86" font-size="8" fill="#0F6E56">剧本 / 大纲(ScriptDoc 成形)</text>
+<rect x="452" y="92" width="194" height="22" rx="6" fill="#212121"/><text x="460" y="106" font-size="7.5" fill="#C9C7BE">幕一 · 雨夜街 · 重逢</text>
+<rect x="460" y="120" width="186" height="16" rx="4" fill="#1E1E1E"/><text x="468" y="132" font-size="7" fill="#9A988F">镜1 推近 · 镜2 对视 · 镜3…</text>
+<rect x="452" y="142" width="194" height="22" rx="6" fill="#212121"/><text x="460" y="156" font-size="7.5" fill="#C9C7BE">角色:林 · 江 · 老者</text>
+<rect x="452" y="170" width="194" height="22" rx="6" fill="#212121"/><text x="460" y="184" font-size="7.5" fill="#C9C7BE">背景:雨夜街 · 茶馆</text>
+<text x="452" y="214" font-size="7.5" fill="#6F6A63">确认 → 自动生成对应节点</text>
+
+<text x="20" y="280" font-size="8.5" fill="#5F5E5A">三态:折叠 <tspan font-weight="700">»</tspan> / 默认 dock / 展开 <tspan font-weight="700">&#10530;</tspan> · 展开 = 边聊边看剧本成形(对话 + 大纲工作区),深度梳理时用。</text>
+</svg>

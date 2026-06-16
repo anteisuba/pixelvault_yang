@@ -8,7 +8,7 @@ describe('video-generation-validation.service', () => {
   it('accepts default product-supported options for built-in video models', () => {
     expect(() =>
       validateVideoGenerationInput({
-        modelId: AI_MODELS.WAN_VIDEO,
+        modelId: AI_MODELS.SEEDANCE_20,
         aspectRatio: '16:9',
         duration: 5,
         resolution: '720p',
@@ -19,7 +19,7 @@ describe('video-generation-validation.service', () => {
   it('rejects durations outside the current product-supported set', () => {
     expect(() =>
       validateVideoGenerationInput({
-        modelId: AI_MODELS.WAN_VIDEO,
+        modelId: AI_MODELS.LTX_23,
         aspectRatio: '16:9',
         duration: 4,
         resolution: '720p',
@@ -30,27 +30,7 @@ describe('video-generation-validation.service', () => {
   it('requires a reference image for image-to-video-only models', () => {
     expect(() =>
       validateVideoGenerationInput({
-        modelId: AI_MODELS.RUNWAY_GEN3,
-        aspectRatio: '16:9',
-        duration: 5,
-      }),
-    ).toThrowError(GenerateImageServiceError)
-  })
-
-  it('requires a reference image for Runway Gen-4 Turbo', () => {
-    expect(() =>
-      validateVideoGenerationInput({
-        modelId: AI_MODELS.RUNWAY_GEN4_TURBO,
-        aspectRatio: '16:9',
-        duration: 5,
-      }),
-    ).toThrowError(GenerateImageServiceError)
-  })
-
-  it('limits Runway Gen-4.5 text-to-video to landscape or portrait', () => {
-    expect(() =>
-      validateVideoGenerationInput({
-        modelId: AI_MODELS.RUNWAY_GEN45,
+        modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
         aspectRatio: '1:1',
         duration: 5,
       }),
@@ -84,7 +64,7 @@ describe('video-generation-validation.service', () => {
         validateVideoGenerationInput({
           modelId: AI_MODELS.VEO_31,
           aspectRatio: '16:9',
-          duration: 5,
+          duration: 6,
           referenceImages: ['a', 'b', 'c'],
         }),
       ).not.toThrow()
@@ -95,7 +75,7 @@ describe('video-generation-validation.service', () => {
         validateVideoGenerationInput({
           modelId: AI_MODELS.VEO_31,
           aspectRatio: '16:9',
-          duration: 5,
+          duration: 6,
           referenceImages: ['a', 'b', 'c', 'd'],
         })
         throw new Error('expected validation to throw')

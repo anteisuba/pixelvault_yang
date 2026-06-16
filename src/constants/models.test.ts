@@ -24,30 +24,31 @@ describe('models', () => {
     const modelIds = MODEL_OPTIONS.map((model) => model.id)
 
     expect(modelIds).toContain(AI_MODELS.VEO_31)
-    expect(modelIds).toContain(AI_MODELS.PIKA_V25)
+    expect(modelIds).toContain(AI_MODELS.HAPPYHORSE_10)
+    expect(modelIds).toContain(AI_MODELS.LTX_23)
     expect(modelIds).not.toContain('veo-3')
-    expect(modelIds).not.toContain('pika-v2.2')
   })
 
-  it('resolves legacy video IDs to canonical model configs', () => {
+  it('resolves supported model aliases to canonical model configs', () => {
     expect(normalizeModelId('veo-3')).toBe(AI_MODELS.VEO_31)
-    expect(normalizeModelId('pika-v2.2')).toBe(AI_MODELS.PIKA_V25)
+    expect(normalizeModelId('gemini-3.1-flash-image')).toBe(
+      AI_MODELS.GEMINI_FLASH_IMAGE,
+    )
 
     expect(getModelById('veo-3')?.id).toBe(AI_MODELS.VEO_31)
-    expect(getModelById('pika-v2.2')?.id).toBe(AI_MODELS.PIKA_V25)
+    expect(getModelById('gemini-3.1-flash-image')?.id).toBe(
+      AI_MODELS.GEMINI_FLASH_IMAGE,
+    )
     expect(getExecutionModelId('veo-3')).toBe('fal-ai/veo3.1')
-    expect(getExecutionModelId('pika-v2.2')).toBe(
-      'fal-ai/pika/v2.5/text-to-video',
+    expect(getExecutionModelId('gemini-3.1-flash-image')).toBe(
+      'gemini-3.1-flash-image',
     )
   })
 
   it('resolves legacy video IDs for labels and family grouping', () => {
     expect(isBuiltInModel('veo-3')).toBe(true)
-    expect(isBuiltInModel('pika-v2.2')).toBe(true)
     expect(getModelMessageKey('veo-3')).toBe('veo31')
-    expect(getModelMessageKey('pika-v2.2')).toBe('pikaV25')
     expect(getModelFamily('veo-3')).toBe('Veo')
-    expect(getModelFamily('pika-v2.2')).toBe('Pika')
   })
 
   it('resolves 3D model IDs for i18n labels', () => {
@@ -80,8 +81,8 @@ describe('models', () => {
       }
     }
 
-    expect(getModelMessageKey(AI_MODELS.RECRAFT_V3)).toBe('recraftV3')
-    expect(getModelFamily(AI_MODELS.RECRAFT_V3)).toBe('Recraft')
+    expect(getModelMessageKey(AI_MODELS.ANIMA_PENCIL_XL)).toBe('animaPencilXl')
+    expect(getModelFamily(AI_MODELS.ANIMA_PENCIL_XL)).toBe('Anima')
   })
 
   it('keeps every unavailable catalog model in the retired ID list', () => {
@@ -109,9 +110,9 @@ describe('models', () => {
     }
   })
 
-  it('does not treat retired free-tier models as active free-tier options', () => {
-    expect(isFreeTierModel(AI_MODELS.GEMINI_25_FLASH_IMAGE)).toBe(false)
-    expect(isFreeTierModel(AI_MODELS.FAL_F5_TTS)).toBe(false)
+  it('does not treat retired models as active free-tier options', () => {
+    expect(isFreeTierModel(AI_MODELS.ANIMA_PENCIL_XL)).toBe(false)
+    expect(isFreeTierModel(AI_MODELS.HUNYUAN3D_2_1)).toBe(false)
   })
 
   it('keeps supported audio generation models active', () => {

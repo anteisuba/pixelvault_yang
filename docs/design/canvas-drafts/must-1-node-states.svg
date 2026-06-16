@@ -1,0 +1,42 @@
+<svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>必画一 节点态实样 生成中失败完成</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">必画① · 节点态实样:生成中 / 失败+重试 / 完成</text>
+
+<rect x="20" y="36" width="200" height="206" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="56" font-size="9" font-weight="700" fill="#C9C7BE">镜 2 · 视频</text>
+<rect x="150" y="46" width="60" height="16" rx="8" fill="#2C2C2C"/><circle cx="160" cy="54" r="3" fill="#C9C7BE"/><text x="168" y="58" font-size="7.5" fill="#C9C7BE">生成中</text>
+<rect x="32" y="68" width="156" height="86" rx="6" fill="#222"/>
+<circle cx="110" cy="106" r="13" fill="none" stroke="#3A3A37" stroke-width="3"/><path d="M110,93 a13,13 0 0,1 11,7" fill="none" stroke="#C9C7BE" stroke-width="3"/>
+<rect x="40" y="140" width="140" height="6" rx="3" fill="#3A3A37"/><rect x="40" y="140" width="90" height="6" rx="3" fill="#C9C7BE"/>
+<text x="32" y="174" font-size="9" fill="#9A988F">生成中 · 64%</text>
+<text x="32" y="190" font-size="7.5" fill="#6F6A63">编辑/参数 暂禁(灰)</text>
+<text x="32" y="206" font-size="7.5" fill="#6F6A63">进度呈现在节点上</text>
+<text x="32" y="228" font-size="7.5" fill="#5F5E5A">中性动效 · 不用黄</text>
+
+<rect x="240" y="36" width="200" height="206" rx="11" fill="#1A1A1A" stroke="#E24B4A" stroke-width="1.6"/>
+<text x="252" y="56" font-size="9" font-weight="700" fill="#C9C7BE">镜 3 · 视频</text>
+<rect x="376" y="46" width="56" height="16" rx="8" fill="#3A1E1E"/><text x="404" y="58" text-anchor="middle" font-size="7.5" fill="#F09595">失败 !</text>
+<rect x="252" y="68" width="156" height="86" rx="6" fill="#222"/>
+<text x="330" y="116" text-anchor="middle" font-size="20" fill="#A33">&#9888;</text>
+<text x="252" y="174" font-size="8" fill="#F09595">provider 超时(504)</text>
+<rect x="252" y="184" width="74" height="22" rx="8" fill="#2A2A2A" stroke="#E24B4A"/><text x="289" y="199" text-anchor="middle" font-size="8.5" font-weight="700" fill="#F09595">&#8635; 重试</text>
+<rect x="332" y="184" width="76" height="22" rx="8" fill="#242424"/><text x="370" y="199" text-anchor="middle" font-size="8" fill="#9A988F">看日志</text>
+<text x="252" y="228" font-size="7.5" fill="#A32D2D">失败大声暴露 · 红描边 + 文案 + 重试</text>
+
+<rect x="460" y="36" width="200" height="206" rx="11" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="472" y="56" font-size="9" font-weight="700" fill="#C9C7BE">镜 1 · 视频</text>
+<rect x="600" y="46" width="52" height="16" rx="8" fill="#1F3A2C"/><text x="626" y="58" text-anchor="middle" font-size="7.5" fill="#7FC4A0">完成 &#10003;</text>
+<rect x="472" y="68" width="156" height="86" rx="6" fill="#2A2A2A"/>
+<circle cx="550" cy="111" r="14" fill="#1A1A1A" opacity="0.6"/><path d="M545,104 l10,7 l-10,7 z" fill="#E8E6DE"/>
+<text x="472" y="174" font-size="8" fill="#C9C7BE">6s · 1080p · clip 已落 Generation</text>
+<rect x="472" y="182" width="36" height="22" rx="8" fill="#1D9E75"/><text x="490" y="197" text-anchor="middle" font-size="9" fill="#06281E">&#10003;</text>
+<rect x="512" y="182" width="36" height="22" rx="8" fill="#242424"/><text x="530" y="197" text-anchor="middle" font-size="9" fill="#C9C7BE">&#8635;</text>
+<rect x="552" y="182" width="36" height="22" rx="8" fill="#242424"/><text x="570" y="197" text-anchor="middle" font-size="9" fill="#C9C7BE">&#10227;</text>
+<rect x="592" y="182" width="36" height="22" rx="8" fill="#242424"/><text x="610" y="197" text-anchor="middle" font-size="9" fill="#C9C7BE">&#10515;</text>
+<text x="472" y="228" font-size="7.5" fill="#173404">审阅 &#10003; / 重试 &#8635; / 重生成 &#10227; / 存 &#10515;</text>
+
+<text x="20" y="262" font-size="8.5" fill="#5F5E5A">· 三态都「进度/结果呈现在节点上」· 去黄(生成中=中性动效,只有失败用红)· 完成=克制 + 审阅循环动作</text>
+<text x="20" y="278" font-size="8.5" fill="#0C447C">· 每个 clip 落 Generation 带 shot 血缘;审阅动作 = D 的浮动工具条在节点上的常驻版</text>
+</svg>

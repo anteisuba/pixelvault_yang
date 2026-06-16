@@ -40,8 +40,13 @@
     "sidebarDescription": "Displays the mobile sidebar.",
     "toggleSidebar": "Toggle sidebar",
     "selectModel": "Select model",
-    "searchModels": "Search models...",
+    "searchModels": "Search models or providers...",
     "noModelsFound": "No models found",
+    "regionCn": "CN",
+    "regionIntl": "Global",
+    "savedKey": "Your key",
+    "modelCount": "{count, plural, one {# model} other {# models}}",
+    "backToProviders": "Providers",
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
@@ -1883,7 +1888,7 @@
       "unknown": "Not verified"
     },
     "collapse": {
-      "showAll": "Show all models ({count})",
+      "showAll": "Show all providers ({count})",
       "hideAll": "Collapse"
     },
     "tutorial": {
@@ -2367,14 +2372,6 @@
     }
   },
   "Models": {
-    "sdxl": {
-      "label": "Stable Diffusion XL",
-      "description": "High-resolution image generation with excellent detail."
-    },
-    "animagineXl4": {
-      "label": "Animagine XL 4.0",
-      "description": "High-quality anime-style image generation."
-    },
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Fast image exploration powered by Google's latest generation model."
@@ -2387,13 +2384,9 @@
       "label": "Flux 2 Pro",
       "description": "Top-ranked image model by Black Forest Labs with exceptional quality."
     },
-    "flux2Dev": {
-      "label": "Flux 2 Dev",
-      "description": "Cost-effective variant of Flux 2 for development and iteration."
-    },
-    "flux2Schnell": {
-      "label": "Flux 2 Schnell",
-      "description": "Fastest Flux 2 variant for rapid prototyping and quick generation."
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "Low-cost FLUX 2 route for quick drafts and iteration through fal.ai."
     },
     "fluxLora": {
       "label": "FLUX LoRA",
@@ -2404,32 +2397,16 @@
       "description": "Google's premium image model with studio-quality 4K visuals."
     },
     "ideogram3": {
-      "label": "Ideogram V3",
-      "description": "Best-in-class text rendering in images with fast 4-second generation."
-    },
-    "recraftV3": {
-      "label": "Recraft V3",
-      "description": "Design-focused image model with strong brand and style system support."
+      "label": "Ideogram V4",
+      "description": "Design-focused image model with strong typography and graphic composition."
     },
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "ByteDance's unified generation and editing model with up to 4MP output."
     },
-    "seedream50Lite": {
-      "label": "Seedream 5.0 Lite",
-      "description": "ByteDance's latest lightweight model via VolcEngine. Best quality-to-speed ratio."
-    },
-    "seedream40": {
-      "label": "Seedream 4.0",
-      "description": "ByteDance's mid-tier model via VolcEngine with improved quality and 4K support."
-    },
-    "seedream30": {
-      "label": "Seedream 3.0",
-      "description": "ByteDance's entry-level model via VolcEngine. Fast and cost-effective."
-    },
-    "sd35Large": {
-      "label": "Stable Diffusion 3.5 Large",
-      "description": "Open-source flagship with 8B MMDiT architecture, strong composition and detail."
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5 (VolcEngine)",
+      "description": "Seedream 4.5 via VolcEngine (Ark) direct API — China region."
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -2439,14 +2416,6 @@
       "label": "NovelAI Diffusion V4.5 Curated",
       "description": "Curated variant trained on cleaner data — easier to steer, ideal for consistent quality."
     },
-    "novelaiV4Full": {
-      "label": "NovelAI Diffusion V4 Full",
-      "description": "Previous-gen NovelAI original model with broad dataset coverage."
-    },
-    "novelaiV3": {
-      "label": "NovelAI Diffusion Anime V3",
-      "description": "SDXL-based anime specialist with tag-priority prompting system."
-    },
     "illustriousXl": {
       "label": "Illustrious XL",
       "description": "Anime/illustration-specialized model with the largest LoRA ecosystem on Civitai. Supports dual LoRA."
@@ -2455,41 +2424,29 @@
       "label": "Anima Base LoRA",
       "description": "Civitai Anima-family LoRAs target a Cosmos-based model with no hosted endpoint — open them on Civitai to generate."
     },
-    "gemini25FlashImage": {
-      "label": "Gemini 2.5 Flash",
-      "description": "Fast and cost-effective by Google. Good text rendering and prompt understanding."
-    },
-    "flux2Max": {
-      "label": "FLUX 2 Max",
-      "description": "Highest quality FLUX model by Black Forest Labs. Exceptional detail and coherence."
-    },
     "recraftV4Pro": {
       "label": "Recraft V4 Pro",
       "description": "Design-focused model for logos, icons, and brand-quality imagery."
-    },
-    "fluxKontextPro": {
-      "label": "FLUX Kontext Pro",
-      "description": "Reference-based editing. Upload an image and describe changes with a prompt."
     },
     "fluxKontextMax": {
       "label": "FLUX Kontext Max",
       "description": "Multi-reference editing. Combine up to 4 reference images for consistent generation."
     },
-    "playgroundV25": {
-      "label": "Playground v2.5",
-      "description": "Aesthetic-focused generation, excels at portraits and artistic compositions."
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "Top-ranked TTS, 30+ languages, natural voice cloning"
     },
-    "veo31": {
-      "label": "Veo 3.1",
-      "description": "Google's latest — 4K, native audio, dialogue sync"
-    },
-    "viduQ3Pro": {
-      "label": "Vidu Q3 Pro",
-      "description": "Latest API-accessible Vidu Q3 model with native audio-video output, text-to-video, and image-to-video."
+    "happyhorse10": {
+      "label": "HappyHorse 1.0",
+      "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
       "description": "Multi-shot storyboarding, native audio, character consistency"
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "Efficient fal.ai video model for quick 1080p clips with optional generated audio."
     },
     "seedance20": {
       "label": "Seedance 2.0",
@@ -2507,69 +2464,25 @@
       "label": "Seedance 2.0 Fast (Reference)",
       "description": "Reference-to-video, faster variant — supports voice cloning"
     },
-    "seedance20Volc": {
+    "seedance20Volcengine": {
       "label": "Seedance 2.0 (VolcEngine)",
-      "description": "VolcEngine — native audio + lipsync, director-level camera"
+      "description": "Seedance 2.0 via VolcEngine (Ark) direct API — China region, native audio, 4-15s"
     },
-    "seedance20FastVolc": {
+    "seedance20FastVolcengine": {
       "label": "Seedance 2.0 Fast (VolcEngine)",
-      "description": "VolcEngine — faster variant, native audio"
+      "description": "Faster Seedance 2.0 via VolcEngine (Ark) direct API — China region, native audio"
     },
-    "seedancePro": {
-      "label": "Seedance Pro",
-      "description": "ByteDance — native audio, cinematic camera controls"
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 (Reference, VolcEngine)",
+      "description": "Reference-to-video via VolcEngine (Ark) — China region, supports voice cloning"
     },
-    "seedance15Pro": {
-      "label": "Seedance 1.5 Pro",
-      "description": "VolcEngine — native audio, first/last frame, draft mode"
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast (Reference, VolcEngine)",
+      "description": "Reference-to-video, faster variant via VolcEngine (Ark) — China region"
     },
-    "seedance10Pro": {
-      "label": "Seedance 1.0 Pro",
-      "description": "VolcEngine — first/last frame control, reliable quality"
-    },
-    "klingVideo": {
-      "label": "Kling V2.1",
-      "description": "Reliable cinematic video, motion-aware, I2V support"
-    },
-    "minimaxVideo": {
-      "label": "MiniMax Hailuo 2.3",
-      "description": "Improved realism, camera control, micro-expressions"
-    },
-    "lumaRay2": {
-      "label": "Luma Ray 2",
-      "description": "Up to 1080p, loop support, dual-image interpolation"
-    },
-    "pikaV25": {
-      "label": "Pika V2.5",
-      "description": "Sharper visuals, smoother motion, 1080p generation"
-    },
-    "wanVideo": {
-      "label": "Wan 2.6",
-      "description": "Multi-modal with native audio, up to 1080p, great value"
-    },
-    "hunyuanVideo": {
-      "label": "Hunyuan Video",
-      "description": "Tencent open-source, 8.3B params, 720p, I2V support"
-    },
-    "runwayGen45": {
-      "label": "Runway Gen-4.5",
-      "description": "Current flagship Runway video model with text-to-video and image-to-video"
-    },
-    "runwayGen4Turbo": {
-      "label": "Runway Gen-4 Turbo",
-      "description": "Fast, cost-efficient Runway image-to-video model"
-    },
-    "runwayGen3": {
-      "label": "Runway Gen-3 Turbo",
-      "description": "Industry-standard cinematic video, image-to-video on fal.ai"
-    },
-    "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "Top-ranked TTS, 30+ languages, natural voice cloning"
-    },
-    "falF5Tts": {
-      "label": "F5-TTS",
-      "description": "Open-source zero-shot voice cloning on fal.ai"
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google's latest — 4K, native audio, dialogue sync"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3851,7 +3764,6 @@
     "referenceFormats": "JPG, PNG, WebP",
     "layerDecompose": "Layers",
     "civitaiToken": "Civitai Token",
-    "advanced": "Advanced",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
     "tokenPlaceholder": "Enter Civitai API token",

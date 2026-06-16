@@ -1,0 +1,77 @@
+<svg width="100%" viewBox="0 0 680 446" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>B2 模型感知 composer</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">B2 · model-aware composer(节点自带 · 选模型换面板)</text>
+
+<rect x="20" y="32" width="384" height="402" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="392" y="48" text-anchor="end" font-size="8" fill="#6F6A63">继承默认 &#10003;</text>
+
+<rect x="32" y="44" width="300" height="24" rx="12" fill="#242424"/>
+<rect x="35" y="47" width="78" height="18" rx="9" fill="#185FA5"/><text x="74" y="60" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">Seedance &#10003;</text>
+<text x="138" y="60" font-size="8.5" fill="#9A988F">Kling</text>
+<text x="184" y="60" font-size="8.5" fill="#9A988F">Veo</text>
+<text x="226" y="60" font-size="8.5" fill="#9A988F">Vidu</text>
+<text x="300" y="60" font-size="8.5" fill="#9A988F">＋更多</text>
+
+<rect x="32" y="76" width="220" height="22" rx="6" fill="#242424" stroke="#3A3A37"/><text x="42" y="91" font-size="8.5" fill="#C9C7BE">Seedance 2.0 Reference &#9662;</text><text x="262" y="91" font-size="7.5" fill="#6F6A63">1080p·premium</text>
+<line x1="32" y1="106" x2="392" y2="106" stroke="#2C2C2C"/>
+
+<text x="32" y="120" font-size="7.5" fill="#8C8A82">Prompt(运镜也写这里)</text>
+<rect x="32" y="124" width="360" height="38" rx="6" fill="#222222"/><text x="40" y="140" font-size="8" fill="#6F6A63">雨夜推近,霓虹… slow dolly-in</text>
+
+<text x="32" y="178" font-size="7.5" fill="#8C8A82">参考素材  3 / 12(跨模态共享)</text>
+<rect x="32" y="182" width="44" height="30" rx="5" fill="#2A2A2A"/><text x="54" y="200" text-anchor="middle" font-size="7" fill="#9A988F">图 @I1</text>
+<rect x="82" y="182" width="44" height="30" rx="5" fill="#2A2A2A"/><text x="104" y="200" text-anchor="middle" font-size="7" fill="#9A988F">图 @I2</text>
+<rect x="132" y="182" width="48" height="30" rx="5" fill="#2A2A2A"/><text x="156" y="200" text-anchor="middle" font-size="7" fill="#9A988F">视频@V1</text>
+<rect x="186" y="182" width="48" height="30" rx="5" fill="#2A2A2A"/><text x="210" y="200" text-anchor="middle" font-size="7" fill="#9A988F">音频@A1</text>
+<rect x="240" y="182" width="30" height="30" rx="5" fill="#222222" stroke="#3A3A37" stroke-dasharray="3 2"/><text x="255" y="201" text-anchor="middle" font-size="11" fill="#5F5E5A">＋</text>
+
+<text x="32" y="234" font-size="7.5" fill="#8C8A82">分辨率</text>
+<rect x="78" y="224" width="34" height="15" rx="7" fill="#2A2A2A"/><text x="95" y="235" text-anchor="middle" font-size="7.5" fill="#9A988F">480</text>
+<rect x="116" y="224" width="34" height="15" rx="7" fill="#E8E6DE"/><text x="133" y="235" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1A1A1A">720</text>
+<rect x="154" y="224" width="38" height="15" rx="7" fill="#2A2A2A"/><text x="173" y="235" text-anchor="middle" font-size="7.5" fill="#9A988F">1080</text>
+
+<text x="32" y="260" font-size="7.5" fill="#8C8A82">比例</text>
+<rect x="78" y="250" width="34" height="15" rx="7" fill="#E8E6DE"/><text x="95" y="261" text-anchor="middle" font-size="7" font-weight="700" fill="#1A1A1A">16:9</text>
+<rect x="116" y="250" width="34" height="15" rx="7" fill="#2A2A2A"/><text x="133" y="261" text-anchor="middle" font-size="7" fill="#9A988F">9:16</text>
+<rect x="154" y="250" width="28" height="15" rx="7" fill="#2A2A2A"/><text x="168" y="261" text-anchor="middle" font-size="7" fill="#9A988F">1:1</text>
+<rect x="186" y="250" width="28" height="15" rx="7" fill="#2A2A2A"/><text x="200" y="261" text-anchor="middle" font-size="7" fill="#9A988F">4:3</text>
+<rect x="218" y="250" width="28" height="15" rx="7" fill="#2A2A2A"/><text x="232" y="261" text-anchor="middle" font-size="7" fill="#9A988F">3:4</text>
+<rect x="250" y="250" width="34" height="15" rx="7" fill="#2A2A2A"/><text x="267" y="261" text-anchor="middle" font-size="7" fill="#9A988F">21:9</text>
+
+<text x="32" y="286" font-size="7.5" fill="#8C8A82">时长</text>
+<line x1="78" y1="282" x2="300" y2="282" stroke="#3A3A37" stroke-width="3"/><circle cx="150" cy="282" r="5" fill="#C9C7BE"/><text x="312" y="285" font-size="7.5" fill="#9A988F">6s</text>
+<rect x="338" y="275" width="40" height="15" rx="7" fill="#2A2A2A"/><text x="358" y="286" text-anchor="middle" font-size="7.5" fill="#9A988F">auto</text>
+
+<rect x="32" y="300" width="36" height="16" rx="8" fill="#1D9E75"/><circle cx="61" cy="308" r="6" fill="#fff"/>
+<text x="76" y="312" font-size="8" fill="#C9C7BE">generate_audio</text>
+<text x="190" y="312" font-size="7.5" fill="#6F6A63">运镜无独立参数 · 走 prompt</text>
+
+<text x="32" y="338" font-size="8" fill="#6F6A63">&#9656; 高级:seed</text>
+
+<rect x="32" y="350" width="360" height="30" rx="8" fill="#1D9E75"/><text x="212" y="370" text-anchor="middle" font-size="11" font-weight="700" fill="#06281E">生成</text>
+<text x="212" y="398" text-anchor="middle" font-size="7.5" fill="#6F6A63">绿色生成 = 无彩基调的已批准例外(D5)</text>
+<text x="212" y="414" text-anchor="middle" font-size="7.5" fill="#6F6A63">&#8943; 覆盖为其他模型(低调入口·二级)</text>
+
+<rect x="416" y="32" width="244" height="402" rx="10" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="428" y="54" font-size="11" font-weight="700" fill="#2C2C2A">若切到 Vidu Q2 →</text>
+<text x="428" y="70" font-size="8.5" fill="#5F5E5A">面板 + 绑定按契约重映射:</text>
+<text x="428" y="94" font-size="9" fill="#173404">&#9312; 参考 → 7 图多主体(无 @token)</text>
+<text x="440" y="108" font-size="8" fill="#3B6D11">去掉视频 / 音频参考槽</text>
+<text x="428" y="130" font-size="9" font-weight="700" fill="#791F1F">&#9313; 声音节点绑定 → &#9888; 忽略</text>
+<text x="440" y="144" font-size="8" fill="#A32D2D">Vidu 无配音 → 标灰 + 提示</text>
+<text x="428" y="166" font-size="9" fill="#2C2C2A">&#9314; 分辨率 → 360 / 520 / 720 / 1080</text>
+<text x="428" y="186" font-size="9" fill="#2C2C2A">&#9315; 时长 → 1–8s(无 auto)</text>
+<text x="428" y="206" font-size="9" fill="#2C2C2A">&#9316; 负面 / seed → 去掉(Vidu 无)</text>
+<text x="428" y="226" font-size="9" fill="#2C2C2A">&#9317; 新增 movement(标实验)</text>
+<text x="428" y="246" font-size="9" fill="#173404">&#9318; 生成键 → 仍绿(例外)</text>
+<line x1="428" y1="262" x2="648" y2="262" stroke="#E5E2D9"/>
+<rect x="428" y="272" width="220" height="40" rx="8" fill="#E6F1FB" stroke="#185FA5"/>
+<text x="438" y="290" font-size="8.5" font-weight="700" fill="#042C53">切换前弹预览:</text>
+<text x="438" y="304" font-size="8" fill="#185FA5">「将映射 &#10003; / 将忽略 &#9888;」清单</text>
+<text x="428" y="332" font-size="8" fill="#5F5E5A">= 上一轮的「能力契约重映射」</text>
+<text x="428" y="352" font-size="8" fill="#5F5E5A">→ 选模型换面板,绑定不静默丢</text>
+<text x="428" y="378" font-size="8" fill="#888780">品牌换整张面板;变体(Ref/Fast)</text>
+<text x="428" y="392" font-size="8" fill="#888780">同面板收窄(Fast 灰 1080p)</text>
+</svg>

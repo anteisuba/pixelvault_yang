@@ -15,7 +15,7 @@ import {
 } from '@/constants/node-types'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
-  buildSavedModelOptions,
+  buildSavedModelOptionsForModels,
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 import type {
@@ -58,13 +58,9 @@ export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
         freeTier: model.freeTier,
         sourceType: 'workspace' as const,
       }))
-      const savedOptions = buildSavedModelOptions(
+      const savedOptions = buildSavedModelOptionsForModels(
         keys.filter((key) => key.isActive),
-        (key) =>
-          models.some(
-            (model) =>
-              model.id === key.modelId && model.adapterType === key.adapterType,
-          ),
+        models,
       )
       const mergedOptions = mergeModelOptionsWithPreferredSavedRoutes(
         savedOptions,

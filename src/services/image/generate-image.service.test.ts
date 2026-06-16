@@ -298,7 +298,7 @@ describe('resolveGenerationRoute', () => {
   it('throws UNSUPPORTED_MODEL for retired built-in models before route lookup', async () => {
     await expect(
       resolveGenerationRoute('user-1', {
-        modelId: AI_MODELS.GEMINI_25_FLASH_IMAGE,
+        modelId: AI_MODELS.ANIMA_PENCIL_XL,
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'UNSUPPORTED_MODEL' }))
 

@@ -1,0 +1,57 @@
+<svg width="100%" viewBox="0 0 680 410" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>元素节点组 角色背景声音接进镜头</title>
+<defs>
+<marker id="en" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6F6A63"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">元素节点组(B4/5/6/7):角色 · 背景 · 声音 → 镜头</text>
+
+<rect x="20" y="40" width="200" height="92" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="58" font-size="9" font-weight="700" fill="#C9C7BE">角色节点 · 林</text>
+<text x="208" y="58" text-anchor="end" font-size="7" fill="#6F6A63">绑 CharacterCard</text>
+<circle cx="56" cy="98" r="22" fill="#2A2A2A"/><circle cx="56" cy="92" r="7" fill="#3C3C3C"/><rect x="46" y="100" width="20" height="14" rx="6" fill="#3C3C3C"/>
+<text x="92" y="92" font-size="8" fill="#9A988F">视觉身份</text>
+<text x="92" y="106" font-size="7.5" fill="#6F6A63">可复用 · 可恢复</text>
+<text x="92" y="120" font-size="7" fill="#534AB7">&#9656; 角色参考(输出)</text>
+<circle cx="220" cy="86" r="5" fill="#AFA9EC" stroke="#26215C"/>
+
+<rect x="20" y="146" width="200" height="92" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="164" font-size="9" font-weight="700" fill="#C9C7BE">背景节点 · 雨夜街</text>
+<text x="208" y="164" text-anchor="end" font-size="7" fill="#6F6A63">绑 BackgroundCard</text>
+<rect x="34" y="178" width="44" height="44" rx="6" fill="#2A2A2A"/><rect x="34" y="206" width="44" height="16" fill="#333"/>
+<text x="92" y="196" font-size="8" fill="#9A988F">场景 / 环境</text>
+<text x="92" y="210" font-size="7.5" fill="#6F6A63">锁环境一致</text>
+<text x="92" y="224" font-size="7" fill="#0F6E56">&#9656; 背景参考(输出)</text>
+<circle cx="220" cy="192" r="5" fill="#5DCAA5" stroke="#04342C"/>
+
+<rect x="20" y="252" width="200" height="92" rx="10" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="32" y="270" font-size="9" font-weight="700" fill="#C9C7BE">声音节点 · 林</text>
+<text x="208" y="270" text-anchor="end" font-size="7" fill="#6F6A63">绑 VoiceCard 音色</text>
+<rect x="34" y="282" width="156" height="22" rx="6" fill="#2A2A2A"/><text x="42" y="297" font-size="8" fill="#C9C7BE">台词「你终于来了」</text>
+<text x="34" y="320" font-size="7.5" fill="#6F6A63">台词 + 角色音色</text>
+<text x="34" y="334" font-size="7" fill="#993C1D">&#9656; 声音 / 台词(输出)</text>
+<circle cx="220" cy="298" r="5" fill="#F0997B" stroke="#4A1B0C"/>
+
+<path d="M225,86 C300,90 320,140 396,158" fill="none" stroke="#6F6A63" stroke-width="1.6" marker-end="url(#en)"/>
+<path d="M225,192 C300,192 330,193 396,193" fill="none" stroke="#6F6A63" stroke-width="1.6" marker-end="url(#en)"/>
+<path d="M225,298 C300,294 326,250 396,228" fill="none" stroke="#6F6A63" stroke-width="1.6" marker-end="url(#en)"/>
+<text x="300" y="120" font-size="7" fill="#888780">角色参考 → @I1</text>
+<text x="300" y="186" font-size="7" fill="#888780">背景参考 → @I2</text>
+<text x="300" y="262" font-size="7" fill="#888780">声音/台词 → @A1</text>
+
+<rect x="398" y="120" width="256" height="178" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="412" y="142" font-size="9.5" font-weight="700" fill="#C9C7BE">镜 1 · 视频 · Seedance &#9662;</text>
+<circle cx="398" cy="158" r="5" fill="#AFA9EC"/><circle cx="398" cy="193" r="5" fill="#5DCAA5"/><circle cx="398" cy="228" r="5" fill="#F0997B"/>
+<text x="412" y="162" font-size="7.5" fill="#8C8A82">参考槽 3/12:</text>
+<rect x="412" y="168" width="72" height="22" rx="6" fill="#2A2A2A"/><text x="448" y="183" text-anchor="middle" font-size="7.5" fill="#C9B8F0">角色 @I1</text>
+<rect x="490" y="168" width="72" height="22" rx="6" fill="#2A2A2A"/><text x="526" y="183" text-anchor="middle" font-size="7.5" fill="#9FE1CB">背景 @I2</text>
+<rect x="412" y="196" width="72" height="22" rx="6" fill="#2A2A2A"/><text x="448" y="211" text-anchor="middle" font-size="7.5" fill="#F5C4B3">声音 @A1</text>
+<text x="496" y="211" font-size="7.5" fill="#6F6A63">&#8593; 即 B2 的 composer</text>
+<rect x="412" y="228" width="160" height="20" rx="8" fill="#242424"/><text x="420" y="242" font-size="7.5" fill="#9A988F">prompt · 参数(随模型)…</text>
+<rect x="412" y="256" width="230" height="26" rx="8" fill="#1D9E75"/><text x="527" y="273" text-anchor="middle" font-size="10" font-weight="700" fill="#06281E">生成</text>
+
+<text x="20" y="362" font-size="8.5" fill="#5F5E5A">· 每个元素 = 可复用卡 · 输出是【类型化绑定】(与模型无关) · 落进参考槽 → 按当前模型契约映射字段</text>
+<text x="20" y="378" font-size="8.5" fill="#A32D2D">· &#9888; 切到无配音模型(Vidu)→ 声音 @A1 绑定标灰忽略并提示(契约重映射,不静默丢)</text>
+<text x="20" y="394" font-size="8.5" fill="#0C447C">· 这三类 + 镜头节点由【自动生成】从大纲 spawn:角色数 → 角色/背景节点;台词 → 声音节点</text>
+</svg>

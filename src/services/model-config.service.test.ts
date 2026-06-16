@@ -83,21 +83,21 @@ describe('getResolvedModelOptions', () => {
     mockFindMany.mockResolvedValue([
       {
         ...FAKE_ROW,
-        modelId: AI_MODELS.RECRAFT_V3,
-        externalModelId: 'custom/recraft-v3',
+        modelId: AI_MODELS.ANIMA_PENCIL_XL,
+        externalModelId: 'custom/anima',
         available: true,
       },
     ])
 
     const result = await getResolvedModelOptions()
-    const recraftRows = result.filter(
-      (model) => model.id === AI_MODELS.RECRAFT_V3,
+    const animaRows = result.filter(
+      (model) => model.id === AI_MODELS.ANIMA_PENCIL_XL,
     )
 
-    expect(recraftRows).toHaveLength(1)
-    expect(recraftRows[0]).toMatchObject({
+    expect(animaRows).toHaveLength(1)
+    expect(animaRows[0]).toMatchObject({
       available: false,
-      externalModelId: 'fal-ai/recraft/v3/text-to-image',
+      externalModelId: 'lucataco/animapencil-xl-v4',
     })
   })
 })

@@ -132,6 +132,32 @@ export const getDefaultProviderConfig = (
 export const getProviderLabel = (providerConfig: ProviderConfig): string =>
   providerConfig.label
 
+/**
+ * Region of each provider, for a pure-display 国内/海外 label in the model
+ * picker (§4.2). Display only — does NOT drive any runtime routing.
+ * VolcEngine (Ark, cn-beijing) is the only CN-region provider today; every
+ * other adapter is served from an international endpoint.
+ */
+export type AdapterRegion = 'cn' | 'intl'
+
+export const ADAPTER_REGION_LABEL: Record<AI_ADAPTER_TYPES, AdapterRegion> = {
+  [AI_ADAPTER_TYPES.HUGGINGFACE]: 'intl',
+  [AI_ADAPTER_TYPES.GEMINI]: 'intl',
+  [AI_ADAPTER_TYPES.OPENAI]: 'intl',
+  [AI_ADAPTER_TYPES.DEEPSEEK]: 'intl',
+  [AI_ADAPTER_TYPES.FAL]: 'intl',
+  [AI_ADAPTER_TYPES.RUNWAY]: 'intl',
+  [AI_ADAPTER_TYPES.REPLICATE]: 'intl',
+  [AI_ADAPTER_TYPES.NOVELAI]: 'intl',
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'cn',
+  [AI_ADAPTER_TYPES.FISH_AUDIO]: 'intl',
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'intl',
+}
+
+export const getAdapterRegion = (
+  adapterType: AI_ADAPTER_TYPES,
+): AdapterRegion => ADAPTER_REGION_LABEL[adapterType] ?? 'intl'
+
 export const getAdapterKeyHint = (adapterType: AI_ADAPTER_TYPES): string =>
   ADAPTER_KEY_HINTS[adapterType]
 
@@ -215,11 +241,12 @@ export const PROVIDER_FALLBACK_MAP: Partial<Record<string, string>> = {
   // Image model fallbacks (cross-provider)
   // Pro is currently capacity-constrained (frequent 503); fall back to
   // the more reliable Flash before crossing providers.
-  'gemini-3-pro-image-preview': 'gemini-3.1-flash-image-preview',
+  'gemini-3-pro-image-preview': 'gemini-3.1-flash-image',
   'gemini-3.1-flash-image-preview': 'gpt-image-2',
-  'gpt-image-2': 'gemini-3.1-flash-image-preview',
-  'flux-2-pro': 'gemini-3.1-flash-image-preview',
-  'flux-2-dev': 'flux-2-schnell',
-  'ideogram-3': 'gemini-3.1-flash-image-preview',
-  'recraft-v4-pro': 'gemini-3.1-flash-image-preview',
+  'gemini-3.1-flash-image': 'gpt-image-2',
+  'gpt-image-2': 'gemini-3.1-flash-image',
+  'flux-2-pro': 'gemini-3.1-flash-image',
+  'flux-2-flash': 'gemini-3.1-flash-image',
+  'ideogram-3': 'gemini-3.1-flash-image',
+  'recraft-v4-pro': 'gemini-3.1-flash-image',
 }

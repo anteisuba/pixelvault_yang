@@ -270,10 +270,12 @@ function CanvasRouteLLMPicker({
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-node-foreground">
-                        {route.keyLabel ?? route.label}
+                        {route.label}
                       </span>
                       <span className="mt-0.5 block truncate text-xs text-node-muted">
-                        {route.providerLabel}
+                        {route.keyLabel
+                          ? `${route.keyLabel} · ${route.providerLabel}`
+                          : route.providerLabel}
                         {route.maskedKey ? ` · ${route.maskedKey}` : ''}
                       </span>
                     </span>

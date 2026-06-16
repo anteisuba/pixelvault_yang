@@ -86,7 +86,7 @@ export function getImageReferenceCapability(
  *
  * Most video models accept a single i2v "starting frame", so the default of
  * `{max: 1}` is right for them. Models listed here have richer endpoints that
- * really do accept more — the previous code wrapped a single image in `[x]`,
+ * really do accept more - the previous code wrapped a single image in `[x]`,
  * hiding the underlying capability.
  */
 const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
@@ -128,18 +128,17 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
-  // Volc Seedance shares fal's 9-image reference ceiling — the ark API takes up
-  // to 9 reference_image entries in content[] (same underlying ByteDance model).
-  [AI_MODELS.SEEDANCE_20_VOLC]: {
+  // VolcEngine (火山方舟) reference variants mirror the fal counterparts above.
+  [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: {
     kind: 'flexible',
-    min: 0,
+    min: 1,
     max: 9,
     defaultRole: 'subject',
     mode: 'native',
   },
-  [AI_MODELS.SEEDANCE_20_FAST_VOLC]: {
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: {
     kind: 'flexible',
-    min: 0,
+    min: 1,
     max: 9,
     defaultRole: 'subject',
     mode: 'native',
@@ -148,7 +147,7 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
 
 /**
  * Video surface: most models take one i2v reference frame. Per-model overrides
- * (see VIDEO_MODEL_REFERENCE_OVERRIDES) expose richer endpoints — Veo 3.1
+ * (see VIDEO_MODEL_REFERENCE_OVERRIDES) expose richer endpoints - Veo 3.1
  * accepts up to 3 subject references, etc.
  */
 export function getVideoReferenceCapability(

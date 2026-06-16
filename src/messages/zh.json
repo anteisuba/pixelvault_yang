@@ -40,8 +40,13 @@
     "sidebarDescription": "显示移动端侧边栏。",
     "toggleSidebar": "切换侧边栏",
     "selectModel": "选择模型",
-    "searchModels": "搜索模型...",
+    "searchModels": "搜索模型或厂商...",
     "noModelsFound": "未找到模型",
+    "regionCn": "国内",
+    "regionIntl": "海外",
+    "savedKey": "你的 key",
+    "modelCount": "{count, plural, other {# 个模型}}",
+    "backToProviders": "厂商",
     "skipToMainContent": "跳到主内容",
     "requestCount": "{count} 次请求"
   },
@@ -1883,7 +1888,7 @@
       "unknown": "未验证"
     },
     "collapse": {
-      "showAll": "展开全部模型（{count}）",
+      "showAll": "展开全部厂商（{count}）",
       "hideAll": "收起"
     },
     "tutorial": {
@@ -2367,14 +2372,6 @@
     }
   },
   "Models": {
-    "sdxl": {
-      "label": "Stable Diffusion XL",
-      "description": "高分辨率且细节丰富的图像生成。"
-    },
-    "animagineXl4": {
-      "label": "Animagine XL 4.0",
-      "description": "高质量动漫风图像生成。"
-    },
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "由 Google 最新一代模型驱动的快速图像探索。"
@@ -2387,13 +2384,9 @@
       "label": "Flux 2 Pro",
       "description": "Black Forest Labs 出品的顶级图像模型，质量排名第一。"
     },
-    "flux2Dev": {
-      "label": "Flux 2 Dev",
-      "description": "Flux 2 的高性价比版本，适合开发和快速迭代。"
-    },
-    "flux2Schnell": {
-      "label": "Flux 2 Schnell",
-      "description": "Flux 2 的极速版本，适合快速原型和即时生成。"
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "?? fal.ai ?????? FLUX 2 ?????????????"
     },
     "fluxLora": {
       "label": "FLUX LoRA",
@@ -2404,32 +2397,16 @@
       "description": "Google 旗舰级图像模型，工作室品质 4K 视觉效果。"
     },
     "ideogram3": {
-      "label": "Ideogram V3",
-      "description": "图像文字渲染最强，4 秒快速生成。"
-    },
-    "recraftV3": {
-      "label": "Recraft V3",
-      "description": "设计导向图像模型，支持品牌与风格系统。"
+      "label": "Ideogram V4",
+      "description": "?????????????????????"
     },
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
     },
-    "seedream50Lite": {
-      "label": "Seedream 5.0 Lite",
-      "description": "字节跳动最新轻量级模型，通过火山引擎直连。质量与速度最优平衡。"
-    },
-    "seedream40": {
-      "label": "Seedream 4.0",
-      "description": "字节跳动中端生成模型，通过火山引擎直连。画质更优，支持 4K。"
-    },
-    "seedream30": {
-      "label": "Seedream 3.0",
-      "description": "字节跳动入门级生成模型，通过火山引擎直连。快速且经济。"
-    },
-    "sd35Large": {
-      "label": "Stable Diffusion 3.5 Large",
-      "description": "开源旗舰，80亿参数 MMDiT 架构，构图与细节出色。"
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5（国内·火山）",
+      "description": "经火山方舟（Ark）直连 API 调用的 Seedream 4.5 — 国内区域。"
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -2439,14 +2416,6 @@
       "label": "NovelAI Diffusion V4.5 Curated",
       "description": "精选数据集训练的变体，更易控制，适合稳定出图。"
     },
-    "novelaiV4Full": {
-      "label": "NovelAI Diffusion V4 Full",
-      "description": "上一代 NovelAI 原创模型，数据集覆盖广泛。"
-    },
-    "novelaiV3": {
-      "label": "NovelAI Diffusion Anime V3",
-      "description": "基于 SDXL 的动漫专精模型，支持标签优先提示系统。"
-    },
     "illustriousXl": {
       "label": "Illustrious XL",
       "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
@@ -2455,41 +2424,29 @@
       "label": "Anima Base LoRA",
       "description": "Civitai 的 Anima 系 LoRA 针对的是无托管端点的 Cosmos 系模型，请在 Civitai 上生成。"
     },
-    "gemini25FlashImage": {
-      "label": "Gemini 2.5 Flash",
-      "description": "Google 出品，快速低成本。擅长文字渲染和提示词理解。"
-    },
-    "flux2Max": {
-      "label": "FLUX 2 Max",
-      "description": "Black Forest Labs 最高品质 FLUX 模型。细节和连贯性卓越。"
-    },
     "recraftV4Pro": {
       "label": "Recraft V4 Pro",
       "description": "设计专用模型，适合 Logo、图标和品牌级图像。"
-    },
-    "fluxKontextPro": {
-      "label": "FLUX Kontext Pro",
-      "description": "基于参考图的编辑生成。上传图片后用提示词描述修改内容。"
     },
     "fluxKontextMax": {
       "label": "FLUX Kontext Max",
       "description": "多参考图编辑。最多组合 4 张参考图实现一致性生成。"
     },
-    "playgroundV25": {
-      "label": "Playground v2.5",
-      "description": "专注美学质量的生成模型，擅长人像和艺术构图。"
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"
     },
-    "veo31": {
-      "label": "Veo 3.1",
-      "description": "Google 最新 — 4K、原生音频、对话同步"
-    },
-    "viduQ3Pro": {
-      "label": "Vidu Q3 Pro",
-      "description": "当前可通过 API 接入的最新 Vidu Q3 模型，支持原生音画同出、文生视频和图生视频。"
+    "happyhorse10": {
+      "label": "HappyHorse 1.0",
+      "description": "?? fal.ai ??? Alibaba ??????????????????????"
     },
     "klingV3Pro": {
       "label": "可灵 3.0 Pro",
       "description": "多镜头分镜、原生音频、角色一致性"
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "??? fal.ai ??????????? 1080p ??????????"
     },
     "seedance20": {
       "label": "Seedance 2.0",
@@ -2507,69 +2464,25 @@
       "label": "Seedance 2.0 Fast（参考端点）",
       "description": "reference-to-video 快速版 — 支持声音克隆"
     },
-    "seedance20Volc": {
-      "label": "Seedance 2.0（火山引擎）",
-      "description": "火山引擎 — 原生音频+口型同步、导演级镜头"
+    "seedance20Volcengine": {
+      "label": "Seedance 2.0（国内·火山）",
+      "description": "经火山方舟（Ark）直连 API 调用 — 国内区域，原生音频、4-15秒"
     },
-    "seedance20FastVolc": {
-      "label": "Seedance 2.0 Fast（火山引擎）",
-      "description": "火山引擎 — 快速版、原生音频"
+    "seedance20FastVolcengine": {
+      "label": "Seedance 2.0 Fast（国内·火山）",
+      "description": "经火山方舟（Ark）直连 API 调用的快速版 — 国内区域，原生音频"
     },
-    "seedancePro": {
-      "label": "Seedance Pro",
-      "description": "字节跳动 — 原生音频、电影级镜头控制"
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 参考（国内·火山）",
+      "description": "reference-to-video 经火山方舟（Ark）直连 — 国内区域，支持声音克隆"
     },
-    "seedance15Pro": {
-      "label": "Seedance 1.5 Pro",
-      "description": "火山引擎 — 有声视频、首尾帧控制、样片模式"
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast 参考（国内·火山）",
+      "description": "reference-to-video 快速版经火山方舟（Ark）直连 — 国内区域"
     },
-    "seedance10Pro": {
-      "label": "Seedance 1.0 Pro",
-      "description": "火山引擎 — 首尾帧控制、稳定画质"
-    },
-    "klingVideo": {
-      "label": "可灵 V2.1",
-      "description": "稳定的电影级视频，运动感知，支持图生视频"
-    },
-    "minimaxVideo": {
-      "label": "MiniMax Hailuo 2.3",
-      "description": "更真实的画面、镜头控制、微表情增强"
-    },
-    "lumaRay2": {
-      "label": "Luma Ray 2",
-      "description": "最高1080p，循环视频，双图插值"
-    },
-    "pikaV25": {
-      "label": "Pika V2.5",
-      "description": "更清晰画面、更流畅运动、1080p 生成"
-    },
-    "wanVideo": {
-      "label": "万象 2.6",
-      "description": "多模态原生音频，最高 1080p，超高性价比"
-    },
-    "hunyuanVideo": {
-      "label": "混元视频",
-      "description": "腾讯开源，83亿参数，支持图生视频"
-    },
-    "runwayGen45": {
-      "label": "Runway Gen-4.5",
-      "description": "Runway 当前旗舰视频模型，支持文生视频和图生视频"
-    },
-    "runwayGen4Turbo": {
-      "label": "Runway Gen-4 Turbo",
-      "description": "更快、更省成本的 Runway 图生视频模型"
-    },
-    "runwayGen3": {
-      "label": "Runway Gen-3 Turbo",
-      "description": "行业标杆级电影视频，fal.ai 图生视频"
-    },
-    "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"
-    },
-    "falF5Tts": {
-      "label": "F5-TTS",
-      "description": "开源零样本语音克隆，基于 fal.ai"
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google 最新 — 4K、原生音频、对话同步"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3851,7 +3764,6 @@
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "图层分解",
     "civitaiToken": "Civitai Token",
-    "advanced": "高级",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
     "tokenPlaceholder": "输入 Civitai API Token",

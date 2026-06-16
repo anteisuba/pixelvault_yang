@@ -9,8 +9,8 @@ import {
 } from '@/constants/video-model-capabilities'
 
 describe('video-model-capabilities', () => {
-  it('provides default capabilities for built-in video models', () => {
-    const capabilities = getVideoModelCapabilities(AI_MODELS.WAN_VIDEO)
+  it('provides default capabilities for custom video models', () => {
+    const capabilities = getVideoModelCapabilities('custom-video-model')
 
     expect(capabilities.supportedDurations).toEqual(
       DEFAULT_VIDEO_MODEL_CAPABILITIES.supportedDurations,
@@ -24,12 +24,11 @@ describe('video-model-capabilities', () => {
   })
 
   it('applies model-specific overrides on top of the defaults', () => {
-    const capabilities = getVideoModelCapabilities(AI_MODELS.RUNWAY_GEN3)
+    const capabilities = getVideoModelCapabilities(AI_MODELS.LTX_23)
 
-    expect(capabilities.requiresReferenceImage).toBe(true)
-    expect(capabilities.supportedDurations).toEqual(
-      DEFAULT_VIDEO_MODEL_CAPABILITIES.supportedDurations,
-    )
+    expect(capabilities.requiresReferenceImage).toBe(false)
+    expect(capabilities.supportedDurations).toEqual([6, 8, 10])
+    expect(capabilities.supportedResolutions).toEqual(['1080p'])
   })
 
   it('only declares overrides for built-in video models', () => {
@@ -50,6 +49,8 @@ describe('getVideoAudioCapability', () => {
     )
     expect(getVideoAudioCapability(AI_MODELS.VEO_31).mode).toBe('auto')
     expect(getVideoAudioCapability(AI_MODELS.KLING_V3_PRO).mode).toBe('auto')
+    expect(getVideoAudioCapability(AI_MODELS.HAPPYHORSE_10).mode).toBe('auto')
+    expect(getVideoAudioCapability(AI_MODELS.LTX_23).mode).toBe('auto')
   })
 
   it('returns reference + maxReferences for Seedance Reference endpoints', () => {

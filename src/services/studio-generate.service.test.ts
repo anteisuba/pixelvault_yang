@@ -26,7 +26,7 @@ import { ensureUser } from '@/services/user.service'
 import { compileAndGenerate } from '@/services/studio-generate.service'
 
 const QUICK_INPUT: StudioGenerateRequest = {
-  modelId: AI_MODELS.FLUX_2_DEV,
+  modelId: AI_MODELS.FLUX_2_FLASH,
   freePrompt: 'A studio portrait',
   aspectRatio: '1:1',
 }
@@ -40,7 +40,7 @@ beforeEach(() => {
   })
   vi.mocked(compileRecipe).mockResolvedValue({
     compiledPrompt: 'compiled prompt',
-    modelId: AI_MODELS.FLUX_2_DEV,
+    modelId: AI_MODELS.FLUX_2_FLASH,
     adapterType: 'fal',
     referenceImages: [],
     advancedParams: undefined,
@@ -79,7 +79,7 @@ describe('compileAndGenerate prompt limits', () => {
       'clerk-1',
       expect.objectContaining({
         prompt: 'a'.repeat(8000),
-        modelId: AI_MODELS.FLUX_2_DEV,
+        modelId: AI_MODELS.FLUX_2_FLASH,
       }),
       {},
       expect.any(Object),
@@ -103,7 +103,7 @@ describe('compileAndGenerate prompt limits', () => {
       'clerk-1',
       expect.objectContaining({
         prompt: 'compiled prompt',
-        modelId: AI_MODELS.FLUX_2_DEV,
+        modelId: AI_MODELS.FLUX_2_FLASH,
       }),
       {},
       expect.objectContaining({

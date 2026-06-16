@@ -12,7 +12,9 @@ import {
   ResponsiveDialogTrigger,
 } from '@/components/ui/responsive-dialog'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { adapterHasCapability } from '@/constants/llm-capability'
 import { cn } from '@/lib/utils'
@@ -54,7 +56,11 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, styles, promptEnhance } = useStudioData()
   const t = useTranslations('StudioV2')
-  const { selectedModel } = useImageModelOptions()
+  const { selectedModel: imageSelectedModel } = useImageModelOptions()
+  const { selectedModel: videoSelectedModel } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
+  const { selectedModel: audioSelectedModel } = useAudioModelOptions()
   const { keys: apiKeys } = useApiKeysContext()
 
   const llmApiKeys = apiKeys
@@ -62,6 +68,12 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
     .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
 
   const selectedStyleCard = styles.activeCard
+  const selectedModel =
+    state.outputType === 'audio'
+      ? audioSelectedModel
+      : state.outputType === 'video'
+        ? videoSelectedModel
+        : imageSelectedModel
   const modelId =
     state.workflowMode === 'quick' && selectedModel
       ? selectedModel.modelId

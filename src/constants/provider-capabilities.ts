@@ -31,7 +31,6 @@ export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
 export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
 export const VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES = 14
-export const IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES = 3
 export const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
 export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
   1 + FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX
@@ -189,45 +188,28 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: 0,
   },
   [AI_MODELS.IDEOGRAM_3]: {
-    maxReferenceImages: IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES,
-    referenceImageMode: 'native' as const,
-  },
-  [AI_MODELS.RECRAFT_V3]: {
     maxReferenceImages: 0,
   },
-  [AI_MODELS.SEEDREAM_50_LITE]: {
-    maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
-  },
-  [AI_MODELS.SEEDREAM_40]: {
-    maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
-  },
-  [AI_MODELS.FLUX_2_DEV]: {
-    maxReferenceImages: 0,
-  },
-  [AI_MODELS.FLUX_2_SCHNELL]: {
+  [AI_MODELS.FLUX_2_FLASH]: {
     maxReferenceImages: 0,
   },
   [AI_MODELS.FLUX_LORA]: {
     maxReferenceImages: 0,
   },
-  [AI_MODELS.FLUX_2_MAX]: {
-    maxReferenceImages: 0,
-  },
   [AI_MODELS.RECRAFT_V4_PRO]: {
     maxReferenceImages: 0,
-  },
-  // Kontext: seed + lora, native reference image handling
-  [AI_MODELS.FLUX_KONTEXT_PRO]: {
-    capabilities: ['seed', 'lora'] as const,
-    maxReferenceImages: 1,
-    maxLoras: 5,
-    referenceImageMode: 'native' as const,
   },
   [AI_MODELS.FLUX_KONTEXT_MAX]: {
     capabilities: ['seed', 'lora'] as const,
     maxReferenceImages: 4,
     maxLoras: 5,
     referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.ANIMA_PENCIL_XL]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.ILLUSTRIOUS_XL]: {
+    maxReferenceImages: 0,
   },
   // 3D models: image-to-3D — only `seed` from the generic capability set
   // applies. Per-model 3D-specific params (textured_mesh, octree_resolution,

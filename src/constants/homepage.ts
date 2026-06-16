@@ -46,27 +46,22 @@ export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   [AI_MODELS.GEMINI_PRO_IMAGE]: { amount: 0.039, unit: 'image' },
   [AI_MODELS.GEMINI_FLASH_IMAGE]: { amount: 0.039, unit: 'image' },
   [AI_MODELS.FLUX_2_PRO]: { amount: 0.04, unit: 'image' },
-  [AI_MODELS.FLUX_2_DEV]: { amount: 0.025, unit: 'image' },
-  [AI_MODELS.FLUX_2_SCHNELL]: { amount: 0.003, unit: 'image' },
-  [AI_MODELS.FLUX_2_MAX]: { amount: 0.06, unit: 'image' },
-  [AI_MODELS.FLUX_KONTEXT_PRO]: { amount: 0.04, unit: 'image' },
+  [AI_MODELS.FLUX_2_FLASH]: { amount: 0.005, unit: 'image' },
   [AI_MODELS.FLUX_KONTEXT_MAX]: { amount: 0.08, unit: 'image' },
   [AI_MODELS.IDEOGRAM_3]: { amount: 0.06, unit: 'image' },
   [AI_MODELS.RECRAFT_V4_PRO]: { amount: 0.06, unit: 'image' },
   [AI_MODELS.SEEDREAM_45]: { amount: 0.04, unit: 'image' },
-  [AI_MODELS.SEEDREAM_50_LITE]: { amount: 0.012, unit: 'image' },
-  [AI_MODELS.SEEDREAM_40]: { amount: 0.011, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
-  [AI_MODELS.SD_35_LARGE]: { amount: 0.025, unit: 'image' },
-  [AI_MODELS.ANIMAGINE_XL_4]: { amount: 0.003, unit: 'image' },
   [AI_MODELS.KLING_V3_PRO]: { amount: 0.3, unit: 'second' },
   [AI_MODELS.VEO_31]: { amount: 0.2, unit: 'second' },
   [AI_MODELS.SEEDANCE_20]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_FAST]: { amount: 0.06, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_REFERENCE]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: { amount: 0.06, unit: 'second' },
+  [AI_MODELS.HAPPYHORSE_10]: { amount: 0.14, unit: 'second' },
+  [AI_MODELS.LTX_23]: { amount: 0.06, unit: 'second' },
   [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
 }
 
@@ -217,13 +212,13 @@ export const HOMEPAGE_SHOWCASE = [
   {
     id: 'sdxlRealism',
     src: '/showcase/showcase-01.webp',
-    model: 'SDXL',
+    model: 'GPT Image',
     tone: 'dawn',
   },
   {
     id: 'animagineAnime',
     src: '/showcase/showcase-02.webp',
-    model: 'Animagine',
+    model: 'NovelAI',
     tone: 'forest',
   },
   {
@@ -235,7 +230,7 @@ export const HOMEPAGE_SHOWCASE = [
   {
     id: 'dalleCreative',
     src: '/showcase/showcase-04.webp',
-    model: 'DALL-E',
+    model: 'GPT Image',
     tone: 'sky',
   },
   {
@@ -292,7 +287,7 @@ export const HOMEPAGE_MADE_WITH_ANTEI_ITEMS = [
   {
     id: 'summerAnime',
     src: '/showcase/showcase-02.webp',
-    model: 'SDXL',
+    model: 'Illustrious XL',
     column: 'middle',
     variant: 'standard',
   },
@@ -306,7 +301,7 @@ export const HOMEPAGE_MADE_WITH_ANTEI_ITEMS = [
   {
     id: 'softPortrait',
     src: '/showcase/showcase-01.webp',
-    model: 'SDXL',
+    model: 'GPT Image',
     column: 'right',
     variant: 'standard',
   },

@@ -94,7 +94,13 @@ function MainModelPickerLLM({ scope, ...rest }: LLMSubProps) {
     [allRoutes],
   )
 
-  return <BaseModelPickerPanel options={options} {...rest} />
+  return (
+    <BaseModelPickerPanel
+      options={options}
+      savedOptionLabelMode="model"
+      {...rest}
+    />
+  )
 }
 
 /** Exported for unit-testing the conversion from LLM scope → picker shape. */
@@ -102,6 +108,7 @@ export function routeToStudioOption(route: LLMRouteOption): StudioModelOption {
   return {
     optionId: route.optionId,
     modelId: route.modelId ?? route.adapterType,
+    displayLabel: route.label,
     adapterType: route.adapterType,
     providerConfig: { label: route.providerLabel, baseUrl: '' },
     requestCount: 0,

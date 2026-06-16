@@ -313,7 +313,7 @@ describe('execution-callback.service', () => {
   it('finalizes worker-managed audio result callbacks as AUDIO generations', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),
-      modelId: 'fal-f5-tts',
+      modelId: 'legacy-audio-queue',
       prompt: 'audio prompt',
       externalRequestId: JSON.stringify({
         outputType: 'AUDIO',
@@ -695,7 +695,7 @@ describe('execution-callback.service', () => {
     )
   })
 
-  describe('finalize — transaction atomicity', () => {
+  describe('finalize - transaction atomicity', () => {
     it('rolls back when createApiUsageEntry fails after createGeneration succeeds', async () => {
       mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
       mockStreamUploadToR2.mockResolvedValue({
@@ -786,7 +786,7 @@ describe('execution-callback.service', () => {
       // No double-write: Generation + ApiUsageLedger must NOT be created.
       expect(mockCreateGeneration).not.toHaveBeenCalled()
       expect(mockCreateApiUsageEntry).not.toHaveBeenCalled()
-      // And the job must NOT be marked FAILED — it was already finalized.
+      // And the job must NOT be marked FAILED - it was already finalized.
       expect(mockFailGenerationJob).not.toHaveBeenCalled()
     })
   })

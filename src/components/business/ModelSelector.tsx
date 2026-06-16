@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 export interface StudioModelOption {
   optionId: string
   modelId: string
+  displayLabel?: string
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   requestCount: number

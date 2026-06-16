@@ -609,10 +609,10 @@ describe('StudioPromptArea', () => {
     expect(mockGenerate).not.toHaveBeenCalled()
   })
 
-  it('caps the prompt at the model-specific maxPromptChars (FLUX.1 schnell = 1000)', () => {
-    const fluxSchnell = {
-      optionId: 'flux-schnell-option',
-      modelId: AI_MODELS.FLUX_2_SCHNELL,
+  it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {
+    const ideogram = {
+      optionId: 'ideogram-option',
+      modelId: AI_MODELS.IDEOGRAM_3,
       keyId: 'fal-key-1',
       keyLabel: 'fal key',
       adapterType: 'fal',
@@ -624,14 +624,13 @@ describe('StudioPromptArea', () => {
       requestCount: 1,
     }
     mockUseImageModelOptions.mockReturnValue({
-      selectedModel: fluxSchnell,
-      modelOptions: [fluxSchnell],
+      selectedModel: ideogram,
+      modelOptions: [ideogram],
     })
-    // 1001 chars is under the 2000 default but over FLUX.1 schnell's 1000 cap —
-    // proves the gate reads the per-model limit, not the global fallback.
+    // 1001 chars is under the 2000 default but over Ideogram's 1000 cap.
     setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
       outputType: 'image',
-      selectedOptionId: 'flux-schnell-option',
+      selectedOptionId: 'ideogram-option',
       prompt: 'a'.repeat(1001),
     })
 

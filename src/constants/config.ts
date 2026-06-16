@@ -406,8 +406,6 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
   GEMINI_3_5_FLASH: 'gemini-3.5-flash',
   OPENAI_GPT_5_4_MINI: 'gpt-5.4-mini',
-  VOLCENGINE_DOUBAO_1_5_PRO_32K: 'doubao-1.5-pro-32k',
-  DEEPSEEK_V4_FLASH: 'deepseek-v4-flash',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
 } as const
 

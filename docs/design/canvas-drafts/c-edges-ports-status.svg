@@ -1,0 +1,51 @@
+<svg width="100%" viewBox="0 0 680 418" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>C 连线端口状态的无彩视觉语言</title>
+<defs><style>text{font-family:system-ui,sans-serif}</style></defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">C · 连线 + 端口 + 状态(去黄 / 无彩的视觉语言)</text>
+
+<rect x="20" y="32" width="640" height="106" rx="9" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="32" y="52" font-size="11" font-weight="700" fill="#2C2C2A">&#9312; 端口:图标 + 极低饱和类型色(功能性 · 连接配对)</text>
+<text x="32" y="70" font-size="8.5" fill="#5F5E5A">输出 = 实心 &#9679; · 输入 = 描边 &#9675; · 类型靠「图标 + 极淡色」区分(不靠高饱和)</text>
+
+<circle cx="48" cy="98" r="8" fill="#6F6A86"/><circle cx="44" cy="95" r="3" fill="#D8D4E4"/><rect x="42" y="99" width="12" height="6" rx="3" fill="#D8D4E4"/>
+<text x="64" y="95" font-size="9" font-weight="700" fill="#2C2C2A">角色</text><text x="64" y="108" font-size="7.5" fill="#5F5E5A">visual+音色</text>
+<circle cx="190" cy="98" r="8" fill="#5F7A73"/><path d="M184,102 l4,-6 l3,4 l3,-5 l4,7 z" fill="#CFE3DD"/>
+<text x="206" y="95" font-size="9" font-weight="700" fill="#2C2C2A">背景</text><text x="206" y="108" font-size="7.5" fill="#5F5E5A">visual+环境音</text>
+<circle cx="332" cy="98" r="8" fill="#856A72"/><path d="M327,98 q2,-5 5,0 q3,5 5,0" fill="none" stroke="#E6D4DA" stroke-width="1.4"/>
+<text x="348" y="95" font-size="9" font-weight="700" fill="#2C2C2A">声音</text><text x="348" y="108" font-size="7.5" fill="#5F5E5A">台词+音色</text>
+<circle cx="474" cy="98" r="8" fill="#647386"/><path d="M471,94 l6,4 l-6,4 z" fill="#D2DAE6"/>
+<text x="490" y="95" font-size="9" font-weight="700" fill="#2C2C2A">视频</text><text x="490" y="108" font-size="7.5" fill="#5F5E5A">参考片段</text>
+
+<text x="32" y="130" font-size="8" fill="#A32D2D">连接配对:同类型才连,不匹配 → 拒绝/标灰。极淡色调 = 无彩的功能性例外(同绿生成键)。</text>
+
+<rect x="20" y="148" width="640" height="106" rx="9" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="32" y="168" font-size="11" font-weight="700" fill="#2C2C2A">&#9313; 连线:全中性灰 + 明度(去橙 / 去 lime)</text>
+
+<line x1="40" y1="192" x2="150" y2="192" stroke="#6F6A63" stroke-width="1.5"/><text x="160" y="196" font-size="8.5" fill="#2C2C2A">default 默认(中性细灰)</text>
+<line x1="360" y1="192" x2="470" y2="192" stroke="#9A988F" stroke-width="2"/><text x="480" y="196" font-size="8.5" fill="#2C2C2A">hover 提亮(同色更亮)</text>
+<line x1="40" y1="220" x2="150" y2="220" stroke="#E8E6DE" stroke-width="3"/><text x="160" y="224" font-size="8.5" fill="#2C2C2A">选中(最亮 + 略粗)</text>
+<line x1="360" y1="220" x2="470" y2="220" stroke="#9A988F" stroke-width="2" stroke-dasharray="5 4"/><text x="480" y="224" font-size="8.5" fill="#2C2C2A">进行中(中性脉冲动效)</text>
+<line x1="40" y1="244" x2="150" y2="244" stroke="#E24B4A" stroke-width="2" stroke-dasharray="5 4"/><text x="120" y="240" font-size="10" font-weight="700" fill="#E24B4A">&#10005;</text><text x="160" y="248" font-size="8.5" fill="#A32D2D">非法(唯一用红)</text>
+
+<rect x="20" y="264" width="640" height="140" rx="9" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="32" y="284" font-size="11" font-weight="700" fill="#2C2C2A">&#9314; 节点状态:去黄 · 进行中=中性动效 · 进度呈现在节点上</text>
+
+<rect x="34" y="296" width="116" height="76" rx="8" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="44" y="306" width="96" height="36" rx="4" fill="#2A2A2A"/>
+<rect x="44" y="350" width="42" height="14" rx="7" fill="#2C2C2C"/><text x="65" y="360" text-anchor="middle" font-size="7.5" fill="#9A988F">idle</text>
+<rect x="160" y="296" width="116" height="76" rx="8" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="170" y="306" width="96" height="36" rx="4" fill="#2A2A2A"/>
+<rect x="170" y="350" width="46" height="14" rx="7" fill="#2C2C2C"/><text x="193" y="360" text-anchor="middle" font-size="7.5" fill="#9A988F">排队(中性,非 amber)</text>
+<rect x="286" y="296" width="116" height="76" rx="8" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="296" y="306" width="96" height="36" rx="4" fill="#2A2A2A"/>
+<rect x="296" y="334" width="96" height="5" rx="2.5" fill="#3A3A37"/><rect x="296" y="334" width="58" height="5" rx="2.5" fill="#C9C7BE"/>
+<rect x="296" y="350" width="50" height="14" rx="7" fill="#2C2C2C"/><text x="321" y="360" text-anchor="middle" font-size="7.5" fill="#C9C7BE">生成中 &#9680;</text>
+<rect x="412" y="296" width="116" height="76" rx="8" fill="#1A1A1A" stroke="#3A3A37"/>
+<rect x="422" y="306" width="96" height="36" rx="4" fill="#2A2A2A"/>
+<rect x="422" y="350" width="42" height="14" rx="7" fill="#1F3A2C"/><text x="443" y="360" text-anchor="middle" font-size="7.5" fill="#7FC4A0">完成 &#10003;</text>
+<rect x="538" y="296" width="116" height="76" rx="8" fill="#1A1A1A" stroke="#E24B4A"/>
+<rect x="548" y="306" width="96" height="36" rx="4" fill="#2A2A2A"/>
+<rect x="548" y="350" width="42" height="14" rx="7" fill="#3A1E1E"/><text x="569" y="360" text-anchor="middle" font-size="7.5" fill="#F09595">失败 !</text>
+<text x="32" y="390" font-size="8" fill="#5F5E5A">去黄:排队不再 amber;进行中=中性脉冲 + 进度条在节点上;完成=克制(中性勾/极淡绿);仅 失败用红。</text>
+</svg>

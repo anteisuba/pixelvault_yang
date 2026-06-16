@@ -31,7 +31,7 @@ export function getImageModelLoraFamilyBucket(
   if (!modelId) return null
   const option = IMAGE_MODEL_OPTIONS.find((model) => model.id === modelId)
   if (!option?.supportsLora) return 'other'
-  if (option.id === AI_MODELS.FLUX_2_DEV || option.id === AI_MODELS.FLUX_LORA) {
+  if (option.id === AI_MODELS.FLUX_LORA) {
     return 'flux'
   }
   if (option.id === AI_MODELS.ILLUSTRIOUS_XL) return 'sdxl'

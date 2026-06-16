@@ -42,17 +42,17 @@ export const SCRIPT_PLANNER_MODELS = {
   gemini: {
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    label: 'Gemini',
+    label: 'Gemini 3.5 Flash',
   },
   deepseek: {
     modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    label: 'DeepSeek',
+    label: 'DeepSeek V4 Pro',
   },
   openai: {
     modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI',
+    label: 'OpenAI GPT-5.4 Mini',
   },
 } as const
 

@@ -159,7 +159,6 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
 > = {
   [WORKFLOW_IDS.ANIME_ILLUSTRATION]: {
     recommendedModelIds: [
-      AI_MODELS.ANIMAGINE_XL_4,
       AI_MODELS.ILLUSTRIOUS_XL,
       // ANIMA_PENCIL_XL omitted: model is currently disabled pending a real
       // endpoint. Re-add when an Anima checkpoint mirror is wired up.
@@ -174,7 +173,6 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.IMAGE_EDIT_REMIX]: {
     openPanel: 'refImage',
     recommendedModelIds: [
-      AI_MODELS.FLUX_KONTEXT_PRO,
       AI_MODELS.FLUX_KONTEXT_MAX,
       AI_MODELS.GEMINI_PRO_IMAGE,
     ],

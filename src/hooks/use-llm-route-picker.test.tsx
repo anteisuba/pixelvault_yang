@@ -41,7 +41,7 @@ function mockApiKeys(
 
 describe('useLLMRoutePicker', () => {
   describe('enhance scope', () => {
-    it('returns saved routes for enhance-capable keys (OPENAI/GEMINI/VOLCENGINE)', () => {
+    it('returns saved routes for enhance-capable text keys (OPENAI/GEMINI)', () => {
       mockApiKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.GEMINI }),
@@ -51,7 +51,6 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
-        'k3',
       ])
     })
 
@@ -76,19 +75,17 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.savedRoutes).toEqual([])
     })
 
-    it('locked routes list enhance-capable adapters even without registry modelId', () => {
+    it('locked routes list enhance-capable text models with registry modelIds', () => {
       mockApiKeys([])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
       const adapters = result.current.lockedRoutes.map((r) => r.adapterType)
       expect(adapters.sort()).toEqual(
-        [
-          AI_ADAPTER_TYPES.GEMINI,
-          AI_ADAPTER_TYPES.OPENAI,
-          AI_ADAPTER_TYPES.VOLCENGINE,
-        ].sort(),
+        [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI].sort(),
       )
-      // enhance scope has no registry — modelId undefined
-      expect(result.current.lockedRoutes.every((r) => !r.modelId)).toBe(true)
+      expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
+      expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
+        ['Gemini 3.1 Flash Lite', 'OpenAI GPT-5.4 Mini'].sort(),
+      )
     })
   })
 
@@ -110,7 +107,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.4 Mini')
     })
 
     it('locked routes list all planner-capable adapters with registry data', () => {
@@ -122,7 +119,7 @@ describe('useLLMRoutePicker', () => {
   })
 
   describe('assistant scope', () => {
-    it('returns saved routes for assistant-capable keys (OPENAI/GEMINI/DEEPSEEK)', () => {
+    it('returns saved routes for assistant-capable text keys (OPENAI/GEMINI)', () => {
       mockApiKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.OPENAI }),
@@ -139,7 +136,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI })])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('Gemini')
+      expect(result.current.savedRoutes[0].label).toBe('Gemini 3.5 Flash')
     })
   })
 

@@ -1,0 +1,50 @@
+<svg width="100%" viewBox="0 0 680 408" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>UI 并进开发路线 + 自动生成节点放哪</title>
+<defs>
+<marker id="m1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="22" font-size="16" font-weight="700" fill="#2C2C2A">UI 并进开发路线 +「自动生成节点」放哪</text>
+<text x="20" y="40" font-size="10.5" fill="#5F5E5A">你的判断对:助手 = 剧本脑。缺的那块 = ScriptDoc → Graph 的投影层。</text>
+
+<rect x="200" y="50" width="280" height="44" rx="11" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="340" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="#26215C">&#9312; 助手(右栏固定)= 剧本脑</text>
+<text x="340" y="86" text-anchor="middle" font-size="9" fill="#3C3489">大纲 · 角色 · 台词 —— 在对话里生成</text>
+<line x1="340" y1="94" x2="340" y2="108" stroke="#888780" stroke-width="1.5" marker-end="url(#m1)"/>
+<text x="348" y="105" font-size="8.5" fill="#5F5E5A">写入</text>
+
+<rect x="200" y="110" width="280" height="48" rx="11" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="340" y="130" text-anchor="middle" font-size="12" font-weight="700" fill="#04342C">&#9313; ScriptDoc(唯一事实模型)</text>
+<text x="340" y="146" text-anchor="middle" font-size="9" fill="#0F6E56">大纲 · 角色[] · 场景→镜头→台词(speakerRoleId)</text>
+<line x1="340" y1="158" x2="340" y2="172" stroke="#888780" stroke-width="1.5" marker-end="url(#m1)"/>
+<text x="348" y="169" font-size="8.5" fill="#5F5E5A">确认后投影</text>
+
+<rect x="200" y="174" width="280" height="52" rx="11" fill="#E6F1FB" stroke="#185FA5"/>
+<text x="340" y="194" text-anchor="middle" font-size="12" font-weight="700" fill="#042C53">&#9314;「自动生成节点」= 投影</text>
+<text x="340" y="210" text-anchor="middle" font-size="9" fill="#185FA5">scriptDocToGraph · 按 roleId/Shot.id 幂等</text>
+<text x="340" y="221" text-anchor="middle" font-size="8.5" fill="#185FA5">复用现有 spawnFullWorkflowFromAgent</text>
+<text x="486" y="196" font-size="9" font-weight="700" fill="#A32D2D">← 你说</text>
+<text x="486" y="209" font-size="9" font-weight="700" fill="#A32D2D">「没想好放哪」</text>
+<text x="486" y="222" font-size="9" font-weight="700" fill="#A32D2D">就是这一层</text>
+<line x1="340" y1="226" x2="340" y2="240" stroke="#888780" stroke-width="1.5" marker-end="url(#m1)"/>
+<text x="348" y="237" font-size="8.5" fill="#5F5E5A">spawn</text>
+
+<text x="340" y="252" text-anchor="middle" font-size="9.5" font-weight="700" fill="#5F5E5A">&#9315; 自动生成的节点(= Node Graph 视图,每个节点自带 composer 调参)</text>
+<rect x="60" y="258" width="172" height="52" rx="10" fill="#F1EFE8" stroke="#888780"/>
+<text x="146" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#2C2C2A">角色节点 ×N</text>
+<text x="146" y="295" text-anchor="middle" font-size="9" fill="#5F5E5A">每个角色一个</text>
+<rect x="254" y="258" width="172" height="52" rx="10" fill="#F1EFE8" stroke="#888780"/>
+<text x="340" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#2C2C2A">声音节点 ×M</text>
+<text x="340" y="295" text-anchor="middle" font-size="9" fill="#5F5E5A">含台词 + 角色音色</text>
+<rect x="448" y="258" width="172" height="52" rx="10" fill="#F1EFE8" stroke="#888780"/>
+<text x="534" y="278" text-anchor="middle" font-size="11" font-weight="700" fill="#2C2C2A">镜头节点</text>
+<text x="534" y="295" text-anchor="middle" font-size="9" fill="#5F5E5A">每镜一个</text>
+<line x1="340" y1="310" x2="340" y2="326" stroke="#888780" stroke-width="1.5" marker-end="url(#m1)"/>
+
+<rect x="200" y="328" width="280" height="44" rx="11" fill="#FAECE7" stroke="#993C1D"/>
+<text x="340" y="348" text-anchor="middle" font-size="12" font-weight="700" fill="#4A1B0C">&#9316; Planner → Clip Queue → Generation</text>
+<text x="340" y="364" text-anchor="middle" font-size="9" fill="#993C1D">确定性编译 → 逐镜生成 → 落库带血缘</text>
+
+<text x="340" y="392" text-anchor="middle" font-size="9.5" fill="#5F5E5A">关键:助手只改 ScriptDoc(事实),投影层负责生成节点 —— 助手不直接戳节点</text>
+</svg>

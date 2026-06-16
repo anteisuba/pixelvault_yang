@@ -40,7 +40,7 @@ const MultiViewJobMetadataSchema = z.object({
 type MultiViewJobMetadata = z.infer<typeof MultiViewJobMetadataSchema>
 
 function resolveMultiViewModelId(modelId?: string): string {
-  const resolved = modelId ?? AI_MODELS.FLUX_KONTEXT_PRO
+  const resolved = modelId ?? AI_MODELS.FLUX_KONTEXT_MAX
   const isSupported = MODEL_3D_MULTIVIEW_MODEL_IDS.some(
     (candidate) => candidate === resolved,
   )

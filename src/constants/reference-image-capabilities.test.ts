@@ -22,10 +22,9 @@ describe('reference-image-capabilities', () => {
 
     it.each([
       AI_MODELS.FLUX_2_PRO,
+      AI_MODELS.FLUX_2_FLASH,
       AI_MODELS.SEEDREAM_45,
-      AI_MODELS.FLUX_2_DEV,
-      AI_MODELS.FLUX_2_SCHNELL,
-      AI_MODELS.FLUX_2_MAX,
+      AI_MODELS.IDEOGRAM_3,
       AI_MODELS.RECRAFT_V4_PRO,
     ])('returns kind:none for FAL text-to-image endpoint %s', (modelId) => {
       const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.FAL, modelId)
@@ -51,24 +50,12 @@ describe('reference-image-capabilities', () => {
       expect(cap.mode).toBe('native')
     })
 
-    it('honours VolcEngine Seedream official multi-reference limit', () => {
-      const cap = getImageReferenceCapability(
-        AI_ADAPTER_TYPES.VOLCENGINE,
-        AI_MODELS.SEEDREAM_50_LITE,
-      )
-      if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.max).toBe(14)
-      expect(cap.mode).toBe('native')
-    })
-
-    it('uses Ideogram style reference image_urls limit', () => {
+    it('keeps Ideogram V4 text-to-image without style reference slots', () => {
       const cap = getImageReferenceCapability(
         AI_ADAPTER_TYPES.FAL,
         AI_MODELS.IDEOGRAM_3,
       )
-      if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.max).toBe(3)
-      expect(cap.mode).toBe('native')
+      expect(cap.kind).toBe('none')
     })
 
     it('honours per-model override for FLUX_KONTEXT_MAX (max=4, native mode)', () => {
@@ -97,24 +84,11 @@ describe('reference-image-capabilities', () => {
 
   describe('getVideoReferenceCapability', () => {
     it('default video model is optional (min=0, max=1)', () => {
-      const cap = getVideoReferenceCapability(AI_MODELS.WAN_VIDEO)
+      const cap = getVideoReferenceCapability(AI_MODELS.HAPPYHORSE_10)
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
       expect(cap.min).toBe(0)
       expect(cap.max).toBe(1)
       expect(cap.defaultRole).toBe('general')
-    })
-
-    it('Runway Gen4 Turbo requires a reference image (min=1)', () => {
-      const cap = getVideoReferenceCapability(AI_MODELS.RUNWAY_GEN4_TURBO)
-      if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.min).toBe(1)
-      expect(cap.max).toBe(1)
-    })
-
-    it('Runway Gen3 requires a reference image', () => {
-      const cap = getVideoReferenceCapability(AI_MODELS.RUNWAY_GEN3)
-      if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.min).toBe(1)
     })
 
     it('Veo 3.1 reference-to-video exposes 3 subject reference slots', () => {
@@ -159,10 +133,10 @@ describe('reference-image-capabilities', () => {
       const cap = getReferenceCapability(
         'video',
         AI_ADAPTER_TYPES.FAL,
-        AI_MODELS.RUNWAY_GEN4_TURBO,
+        AI_MODELS.LTX_23,
       )
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.min).toBe(1)
+      expect(cap.min).toBe(0)
       expect(cap.max).toBe(1)
     })
 

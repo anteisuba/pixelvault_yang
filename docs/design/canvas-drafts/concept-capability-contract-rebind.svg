@@ -1,0 +1,51 @@
+<svg width="100%" viewBox="0 0 680 318" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>能力契约与类型化绑定接住模型切换</title>
+<defs>
+<marker id="cc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">切换怎么接住 —— 能力契约 + 类型化绑定</text>
+
+<rect x="20" y="36" width="190" height="200" rx="10" fill="#EAF3DE" stroke="#3B6D11"/>
+<text x="32" y="56" font-size="10.5" font-weight="700" fill="#173404">类型化绑定(挂图上)</text>
+<text x="32" y="71" font-size="8" fill="#3B6D11">与模型无关 · 可恢复</text>
+<rect x="32" y="80" width="166" height="26" rx="6" fill="#fff" stroke="#9FE1CB"/><text x="42" y="97" font-size="9" fill="#173404">角色参考(character)</text>
+<rect x="32" y="112" width="166" height="26" rx="6" fill="#fff" stroke="#9FE1CB"/><text x="42" y="129" font-size="9" fill="#173404">背景参考(background)</text>
+<rect x="32" y="144" width="166" height="26" rx="6" fill="#fff" stroke="#9FE1CB"/><text x="42" y="161" font-size="9" fill="#173404">声音 · 台词(voice)</text>
+<rect x="32" y="176" width="166" height="26" rx="6" fill="#fff" stroke="#9FE1CB"/><text x="42" y="193" font-size="9" fill="#173404">视频参考(video)</text>
+<text x="32" y="222" font-size="8" fill="#3B6D11">= Cards = Elements 的落地</text>
+
+<line x1="212" y1="136" x2="248" y2="136" stroke="#888780" stroke-width="1.4" marker-end="url(#cc)"/>
+
+<rect x="250" y="36" width="180" height="200" rx="10" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="262" y="56" font-size="10.5" font-weight="700" fill="#04342C">模型能力契约</text>
+<text x="262" y="71" font-size="8" fill="#0F6E56">每个模型声明一份</text>
+<text x="262" y="92" font-size="9" fill="#0F6E56">· 收哪些绑定 · 各几个</text>
+<text x="262" y="110" font-size="9" fill="#0F6E56">· 映射到哪个字段</text>
+<text x="274" y="125" font-size="7.5" fill="#0F6E56">角色→image_urls@Image / reference_image_urls…</text>
+<text x="262" y="144" font-size="9" fill="#0F6E56">· 音频 / 时长 / 分辨率 / 比例 集</text>
+<text x="262" y="162" font-size="9" fill="#0F6E56">· 是否单次多镜</text>
+<text x="262" y="186" font-size="8.5" fill="#04342C">composer 面板也读它</text>
+<text x="262" y="202" font-size="8.5" fill="#04342C">(= 不硬绑模型)</text>
+
+<line x1="432" y1="136" x2="468" y2="136" stroke="#888780" stroke-width="1.4" marker-end="url(#cc)"/>
+
+<rect x="470" y="36" width="190" height="200" rx="10" fill="#E6F1FB" stroke="#185FA5"/>
+<text x="482" y="56" font-size="10.5" font-weight="700" fill="#042C53">切换模型 → 重映射</text>
+<rect x="482" y="68" width="166" height="40" rx="6" fill="#EAF3DE" stroke="#3B6D11"/>
+<text x="490" y="84" font-size="9" font-weight="700" fill="#173404">&#10003; 兼容 → 自动映射</text>
+<text x="490" y="100" font-size="8" fill="#3B6D11">角色参考 → 各模型对应字段</text>
+<rect x="482" y="114" width="166" height="46" rx="6" fill="#FCEBEB" stroke="#E24B4A"/>
+<text x="490" y="130" font-size="9" font-weight="700" fill="#791F1F">&#9888; 不兼容 → 标灰 + 提示</text>
+<text x="490" y="145" font-size="8" fill="#A32D2D">不静默丢。例:声音 → Vidu</text>
+<text x="490" y="156" font-size="8" fill="#A32D2D">(Vidu 无配音 → 此绑定忽略)</text>
+<rect x="482" y="166" width="166" height="34" rx="6" fill="#F7F6F1" stroke="#B4B2A9"/>
+<text x="490" y="182" font-size="9" font-weight="700" fill="#2C2C2A">参数 → 最近合法值</text>
+<text x="490" y="195" font-size="8" fill="#5F5E5A">res/比例/时长 自动夹到新模型集</text>
+<text x="482" y="222" font-size="8" fill="#185FA5">切换前可预览「将丢什么」</text>
+
+<rect x="20" y="248" width="640" height="56" rx="9" fill="#FAF9F5" stroke="#D3D1C7"/>
+<text x="32" y="270" font-size="9.5" fill="#2C2C2A">所以「切换安全」= <tspan font-weight="700">同一套类型化绑定 + 模型契约</tspan> → 自动重映射 + 不兼容<tspan font-weight="700">大声提示</tspan>。</text>
+<text x="32" y="290" font-size="9.5" fill="#0C447C">这正是 roadmap 里「字段按能力契约设计·不硬绑 Seedance」+「Cards=Elements 类型化绑定」的合体落地。</text>
+</svg>

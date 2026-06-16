@@ -426,7 +426,10 @@ describe('i18n completeness', () => {
         (item) => `${item.filePath}:${item.line} ${item.key} via ${item.usage}`,
       ),
     ).toEqual([])
-  })
+    // Walks the entire src/ tree (one read+scan per file), which exceeds the
+    // default 15s under parallel suite load / a concurrent dev server. Give the
+    // filesystem walk realistic headroom — assertion is unchanged.
+  }, 60_000)
 
   it('every AI_MODELS entry has a Models.<messageKey>.label translation', () => {
     const models = Object.values(AI_MODELS)

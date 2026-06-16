@@ -181,6 +181,10 @@ export function MobileCollapsedRail() {
   const t = useTranslations('Navbar')
   const tTools = useTranslations('StudioTools')
   const { openMobile, toggleSidebar } = useSidebar()
+  // Wait for Clerk before rendering the auth-conditional account control —
+  // same hydration guard as MobileTabBar. Without it, SSR (auth unresolved)
+  // and the hydrated client (signed-in) disagree on the SignedIn subtree.
+  const { isLoaded } = useUser()
 
   if (openMobile) return null
 
@@ -303,12 +307,16 @@ export function MobileCollapsedRail() {
 
       <div className="flex shrink-0 flex-col items-center gap-1 border-t border-sidebar-border/40 py-1">
         <LocaleSwitcher tone="sidebar" orientation="vertical" />
-        <SignedIn>
-          <MobileRailAccountButton />
-        </SignedIn>
-        <SignedOut>
-          <MobileRailSignedOutLink />
-        </SignedOut>
+        {isLoaded && (
+          <>
+            <SignedIn>
+              <MobileRailAccountButton />
+            </SignedIn>
+            <SignedOut>
+              <MobileRailSignedOutLink />
+            </SignedOut>
+          </>
+        )}
       </div>
     </aside>
   )

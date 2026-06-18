@@ -6,8 +6,6 @@ import { useTranslations } from 'next-intl'
 
 import { getAvailableModels } from '@/constants/models'
 import {
-  type AdapterRegion,
-  getAdapterRegion,
   getDefaultProviderConfig,
   getProviderLabel,
   isAiAdapterType,
@@ -27,7 +25,6 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 interface ProviderRouteGroup {
   adapterType: string
   providerLabel: string
-  region: AdapterRegion
   coverageCount: number
   keys: UserApiKeyRecord[]
 }
@@ -42,10 +39,6 @@ function sortRouteRecords(records: UserApiKeyRecord[]): UserApiKeyRecord[] {
 
     return left.isActive ? -1 : 1
   })
-}
-
-function regionOf(adapterType: string): AdapterRegion {
-  return isAiAdapterType(adapterType) ? getAdapterRegion(adapterType) : 'intl'
 }
 
 function labelOf(adapterType: string, sample?: UserApiKeyRecord): string {
@@ -94,7 +87,6 @@ export function ApiKeyManager() {
     .map(([adapterType, groupKeys]) => ({
       adapterType,
       providerLabel: labelOf(adapterType, groupKeys[0]),
-      region: regionOf(adapterType),
       coverageCount: coverageByAdapter.get(adapterType) ?? 0,
       keys: sortRouteRecords(groupKeys),
     }))
@@ -113,7 +105,6 @@ export function ApiKeyManager() {
     .map((adapterType) => ({
       adapterType,
       providerLabel: labelOf(adapterType),
-      region: regionOf(adapterType),
       coverageCount: coverageByAdapter.get(adapterType) ?? 0,
       keys: [],
     }))
@@ -229,14 +220,6 @@ export function ApiKeyManager() {
                         <h4 className="font-display text-sm font-medium text-foreground">
                           {group.providerLabel}
                         </h4>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full px-3 py-1"
-                        >
-                          {group.region === 'cn'
-                            ? tCommon('regionCn')
-                            : tCommon('regionIntl')}
-                        </Badge>
                         {group.coverageCount > 0 ? (
                           <Badge
                             variant="secondary"

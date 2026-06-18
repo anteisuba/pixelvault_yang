@@ -42,8 +42,6 @@
     "selectModel": "モデルを選択",
     "searchModels": "モデル・プロバイダーを検索...",
     "noModelsFound": "モデルが見つかりません",
-    "regionCn": "国内",
-    "regionIntl": "海外",
     "savedKey": "自分のキー",
     "modelCount": "{count, plural, other {# モデル}}",
     "backToProviders": "プロバイダー",

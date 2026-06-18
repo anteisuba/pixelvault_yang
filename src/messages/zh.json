@@ -42,8 +42,6 @@
     "selectModel": "选择模型",
     "searchModels": "搜索模型或厂商...",
     "noModelsFound": "未找到模型",
-    "regionCn": "国内",
-    "regionIntl": "海外",
     "savedKey": "你的 key",
     "modelCount": "{count, plural, other {# 个模型}}",
     "backToProviders": "厂商",
@@ -2413,7 +2411,7 @@
       "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
     },
     "seedream45Volcengine": {
-      "label": "Seedream 4.5（国内·火山）",
+      "label": "Seedream 4.5（火山引擎）",
       "description": "经火山方舟（Ark）直连 API 调用的 Seedream 4.5 — 国内区域。"
     },
     "novelaiV45Full": {
@@ -2477,19 +2475,19 @@
       "description": "reference-to-video 快速版 — 支持声音克隆"
     },
     "seedance20Volcengine": {
-      "label": "Seedance 2.0（国内·火山）",
+      "label": "Seedance 2.0（火山引擎）",
       "description": "经火山方舟（Ark）直连 API 调用 — 国内区域，原生音频、4-15秒"
     },
     "seedance20FastVolcengine": {
-      "label": "Seedance 2.0 Fast（国内·火山）",
+      "label": "Seedance 2.0 Fast（火山引擎）",
       "description": "经火山方舟（Ark）直连 API 调用的快速版 — 国内区域，原生音频"
     },
     "seedance20ReferenceVolcengine": {
-      "label": "Seedance 2.0 参考（国内·火山）",
+      "label": "Seedance 2.0 参考（火山引擎）",
       "description": "reference-to-video 经火山方舟（Ark）直连 — 国内区域，支持声音克隆"
     },
     "seedance20FastReferenceVolcengine": {
-      "label": "Seedance 2.0 Fast 参考（国内·火山）",
+      "label": "Seedance 2.0 Fast 参考（火山引擎）",
       "description": "reference-to-video 快速版经火山方舟（Ark）直连 — 国内区域"
     },
     "veo31": {

@@ -26,11 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  getAdapterRegion,
-  getProviderLabel,
-  type AI_ADAPTER_TYPES,
-} from '@/constants/providers'
+import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
 import { motionTransition } from '@/constants/motion'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useSplitModelOptions } from '@/hooks/use-split-model-options'
@@ -225,20 +221,6 @@ export function BaseModelPickerPanel({
     setView('models')
   }
 
-  const renderRegionTag = (adapterType: AI_ADAPTER_TYPES) => {
-    const region = getAdapterRegion(adapterType)
-    return (
-      <span
-        className={cn(
-          'shrink-0 text-2xs font-medium',
-          region === 'cn' ? 'text-sky-500' : 'text-muted-foreground/55',
-        )}
-      >
-        {tCommon(region === 'cn' ? 'regionCn' : 'regionIntl')}
-      </span>
-    )
-  }
-
   const renderProviderRow = ({
     adapterType,
     opts,
@@ -266,7 +248,6 @@ export function BaseModelPickerPanel({
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-semibold">{label}</span>
-            {renderRegionTag(adapterType)}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
             {tCommon('modelCount', { count: opts.length })}
@@ -477,7 +458,6 @@ export function BaseModelPickerPanel({
             >
               <ArrowLeft className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">{activeProviderLabel}</span>
-              {activeAdapter ? renderRegionTag(activeAdapter) : null}
             </button>
           )}
           <CommandList className="min-h-0 max-h-none overflow-x-clip overflow-y-visible">

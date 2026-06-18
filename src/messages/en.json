@@ -42,8 +42,6 @@
     "selectModel": "Select model",
     "searchModels": "Search models or providers...",
     "noModelsFound": "No models found",
-    "regionCn": "CN",
-    "regionIntl": "Global",
     "savedKey": "Your key",
     "modelCount": "{count, plural, one {# model} other {# models}}",
     "backToProviders": "Providers",

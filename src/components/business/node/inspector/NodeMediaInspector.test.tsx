@@ -82,6 +82,7 @@ vi.mock('@/hooks/node/use-node-reference-upload', () => ({
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_TOOL_MODE_IDS,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
 import {
@@ -143,7 +144,14 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   setScriptDoc: vi.fn(),
   applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
+  deleteEdge: vi.fn(),
+  undo: vi.fn(),
+  redo: vi.fn(),
+  canUndo: false,
+  canRedo: false,
   generateMediaNode,
+  toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
+  setToolMode: vi.fn(),
   modelOptionsByType: {
     [NODE_TYPE_IDS.shot]: [IMAGE_OPTION],
     [NODE_TYPE_IDS.backgroundImage]: [IMAGE_OPTION],

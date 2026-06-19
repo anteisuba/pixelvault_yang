@@ -1,14 +1,11 @@
 /**
- * ScriptDoc → graph projection (the autospawn engine).
+ * ScriptDoc -> graph projection.
  *
  * Pure, idempotent, React-free so it tests in isolation. Given a confirmed
- * ScriptDoc and the current graph, it returns the nodes + edges to ADD to
- * spawn character / voice / shot(seedance) / videoMerge nodes. Re-projecting
- * the same doc is a no-op (add-only idempotency): entities that already have a
- * node — matched by `scriptRef` (or a character's `character.characterId`, so
- * the legacy Agent path stays interoperable) — are reused for wiring and never
- * duplicated or clobbered. The assistant only edits the ScriptDoc; THIS is the
- * layer that touches the graph.
+ * ScriptDoc and the current graph, it returns the nodes, node patches, and
+ * edges needed to keep the canvas aligned with that doc. Entities are matched
+ * by `scriptRef` or, for legacy Agent-created characters, by
+ * `character.characterId`.
  */
 
 import {
@@ -40,25 +37,26 @@ import type {
 import type { ScriptDoc } from '@/types/script-doc'
 
 export interface ProjectScriptDocOptions {
-  /** Injected id factory (the hook passes its `createWorkflowId`). */
   makeId(prefix: string): string
-  /** Absolute origin for the spawned pipeline (ScriptDoc has no node anchor). */
   anchor: { x: number; y: number }
+}
+
+export interface NodeWorkflowNodeDataUpdate {
+  id: string
+  data: Partial<NodeWorkflowNodeData>
 }
 
 export interface ProjectScriptDocResult {
   nodesToAdd: NodeWorkflowNode[]
+  nodesToUpdate: NodeWorkflowNodeDataUpdate[]
   edgesToAdd: NodeWorkflowEdge[]
-  /** New nodes spawned this projection. */
+  edgesToRemove: NodeWorkflowEdge[]
   created: number
-  /** Entities that already had a node (reused, untouched). */
+  updated: number
   skipped: number
+  removedEdges: number
 }
 
-/**
- * Build a canvas edge with the standard neutral visuals. Mirrors the edge
- * shape the hook's `onConnect` / `spawnCharactersFromBreakdown` produce.
- */
 export function createWorkflowEdge(
   id: string,
   source: string,
@@ -89,6 +87,33 @@ function refKey(kind: ScriptDocRefKind, sourceId: string): string {
   return `${kind}:${sourceId}`
 }
 
+function stableValue(value: unknown): string {
+  return JSON.stringify(value)
+}
+
+function hasDataChanges(
+  current: NodeWorkflowNodeData,
+  patch: Partial<NodeWorkflowNodeData>,
+): boolean {
+  const keys = Object.keys(patch) as Array<keyof NodeWorkflowNodeData>
+  return keys.some(
+    (key) => stableValue(current[key]) !== stableValue(patch[key]),
+  )
+}
+
+function queueNodeUpdate(
+  updates: NodeWorkflowNodeDataUpdate[],
+  node: NodeWorkflowNode,
+  patch: Partial<NodeWorkflowNodeData>,
+): boolean {
+  if (!hasDataChanges(node.data, patch)) {
+    return false
+  }
+
+  updates.push({ id: node.id, data: patch })
+  return true
+}
+
 export function projectScriptDocToGraph(
   scriptDoc: ScriptDoc,
   existingState: NodeWorkflowState,
@@ -96,15 +121,15 @@ export function projectScriptDocToGraph(
 ): ProjectScriptDocResult {
   const placement = NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn
 
-  // refKey -> existing nodeId. Characters get an extra alias key off
-  // `character.characterId` so nodes spawned by the Agent path are reused
-  // (not re-created) by this projection.
   const existingByKey = new Map<string, string>()
+  const existingNodeById = new Map<string, NodeWorkflowNode>()
   for (const node of existingState.nodes) {
+    existingNodeById.set(node.id, node)
     const ref = node.data.scriptRef
     if (ref) {
       existingByKey.set(refKey(ref.kind, ref.sourceId), node.id)
     }
+
     if (node.type === NODE_TYPE_IDS.characterImage) {
       const characterId = node.data.character?.characterId
       if (typeof characterId === 'string' && characterId.length > 0) {
@@ -122,22 +147,35 @@ export function projectScriptDocToGraph(
   }
 
   const nodesToAdd: NodeWorkflowNode[] = []
+  const nodesToUpdate: NodeWorkflowNodeDataUpdate[] = []
   const edgesToAdd: NodeWorkflowEdge[] = []
+  const edgesToRemove: NodeWorkflowEdge[] = []
   const spawnedByKey = new Map<string, string>()
+  const desiredEdgePairs = new Set<string>()
   let created = 0
+  let updated = 0
   let skipped = 0
 
   function resolveNode(
     kind: ScriptDocRefKind,
     sourceId: string,
     build: (id: string) => NodeWorkflowNode,
+    buildUpdate: () => Partial<NodeWorkflowNodeData>,
   ): string {
     const key = refKey(kind, sourceId)
     const existing = existingByKey.get(key) ?? spawnedByKey.get(key)
     if (existing) {
       skipped += 1
+      const existingNode = existingNodeById.get(existing)
+      if (
+        existingNode &&
+        queueNodeUpdate(nodesToUpdate, existingNode, buildUpdate())
+      ) {
+        updated += 1
+      }
       return existing
     }
+
     const id = makeId(NODE_STUDIO_ID_PREFIXES.node)
     nodesToAdd.push(build(id))
     spawnedByKey.set(key, id)
@@ -145,11 +183,13 @@ export function projectScriptDocToGraph(
     return id
   }
 
-  function addEdge(source: string, target: string): void {
+  function addDesiredEdge(source: string, target: string): void {
     const pair = `${source}->${target}`
+    desiredEdgePairs.add(pair)
     if (edgePairs.has(pair)) {
       return
     }
+
     edgePairs.add(pair)
     edgesToAdd.push(
       createWorkflowEdge(makeId(NODE_STUDIO_ID_PREFIXES.edge), source, target),
@@ -160,10 +200,37 @@ export function projectScriptDocToGraph(
     scriptDoc.roles.map((role) => [role.id, role.name] as const),
   )
 
-  // ── Characters (one per role) ────────────────────────────────────────
   const roleNodeId = new Map<string, string>()
   scriptDoc.roles.forEach((role, index) => {
     const visualSeed = role.description || role.name
+    const createData: NodeWorkflowNodeData = {
+      prompt: visualSeed,
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
+      referenceAssets: [],
+      loras: [],
+      characterName: role.name,
+      character: {
+        characterId: role.id,
+        name: role.name,
+        visualSeed,
+      },
+      scriptRef: {
+        kind: SCRIPT_DOC_REF_KIND_IDS.character,
+        sourceId: role.id,
+      },
+    }
+    const updateData: Partial<NodeWorkflowNodeData> = {
+      prompt: visualSeed,
+      characterName: role.name,
+      character: {
+        characterId: role.id,
+        name: role.name,
+        visualSeed,
+      },
+      scriptRef: createData.scriptRef,
+    }
     const nodeId = resolveNode(
       SCRIPT_DOC_REF_KIND_IDS.character,
       role.id,
@@ -174,34 +241,35 @@ export function projectScriptDocToGraph(
           x: anchor.x + placement.characterOffsetX,
           y: anchor.y + index * placement.characterRowOffsetY,
         },
-        data: {
-          prompt: visualSeed,
-          status: NODE_STATUS_IDS.idle,
-          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
-          referenceAssets: [],
-          loras: [],
-          characterName: role.name,
-          character: {
-            characterId: role.id,
-            name: role.name,
-            visualSeed,
-          },
-          scriptRef: {
-            kind: SCRIPT_DOC_REF_KIND_IDS.character,
-            sourceId: role.id,
-          },
-        } as NodeWorkflowNodeData,
+        data: createData,
       }),
+      () => updateData,
     )
     roleNodeId.set(role.id, nodeId)
   })
 
-  // ── Shots (shotText + seedance, with character + voice wiring) ────────
   const seedanceNodeIds: string[] = []
   scriptDoc.shots.forEach((shot, shotIndex) => {
     const rowY = anchor.y + shotIndex * placement.shotRowOffsetY
-
+    const shotTextData: NodeWorkflowNodeData = {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.text,
+      [NODE_WORKFLOW_FIELD_IDS.action]: shot.summary,
+      [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: '',
+      [NODE_WORKFLOW_FIELD_IDS.scene]: shot.sceneLabel ?? '',
+      scriptRef: {
+        kind: SCRIPT_DOC_REF_KIND_IDS.shotText,
+        sourceId: shot.id,
+      },
+    }
+    const shotTextUpdate: Partial<NodeWorkflowNodeData> = {
+      [NODE_WORKFLOW_FIELD_IDS.action]: shot.summary,
+      [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+      [NODE_WORKFLOW_FIELD_IDS.scene]: shot.sceneLabel ?? '',
+      scriptRef: shotTextData.scriptRef,
+    }
     const shotTextId = resolveNode(
       SCRIPT_DOC_REF_KIND_IDS.shotText,
       shot.id,
@@ -209,22 +277,29 @@ export function projectScriptDocToGraph(
         id,
         type: NODE_TYPE_IDS.shotText,
         position: { x: anchor.x + placement.shotTextOffsetX, y: rowY },
-        data: {
-          prompt: '',
-          status: NODE_STATUS_IDS.idle,
-          mediaKind: NODE_MEDIA_KIND_IDS.text,
-          [NODE_WORKFLOW_FIELD_IDS.action]: shot.summary,
-          [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
-          [NODE_WORKFLOW_FIELD_IDS.composition]: '',
-          [NODE_WORKFLOW_FIELD_IDS.scene]: shot.sceneLabel ?? '',
-          scriptRef: {
-            kind: SCRIPT_DOC_REF_KIND_IDS.shotText,
-            sourceId: shot.id,
-          },
-        } as NodeWorkflowNodeData,
+        data: shotTextData,
       }),
+      () => shotTextUpdate,
     )
 
+    const seedanceData: NodeWorkflowNodeData = {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.video,
+      [NODE_WORKFLOW_FIELD_IDS.audioIntent]: '',
+      [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+      [NODE_WORKFLOW_FIELD_IDS.duration]: '',
+      [NODE_WORKFLOW_FIELD_IDS.motion]: '',
+      scriptRef: {
+        kind: SCRIPT_DOC_REF_KIND_IDS.seedance,
+        sourceId: shot.id,
+      },
+    }
+    const seedanceUpdate: Partial<NodeWorkflowNodeData> = {
+      [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+      scriptRef: seedanceData.scriptRef,
+    }
     const seedanceId = resolveNode(
       SCRIPT_DOC_REF_KIND_IDS.seedance,
       shot.id,
@@ -232,34 +307,46 @@ export function projectScriptDocToGraph(
         id,
         type: NODE_TYPE_IDS.seedance,
         position: { x: anchor.x + placement.seedanceOffsetX, y: rowY },
-        data: {
-          prompt: '',
-          status: NODE_STATUS_IDS.idle,
-          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          mediaKind: NODE_MEDIA_KIND_IDS.video,
-          [NODE_WORKFLOW_FIELD_IDS.audioIntent]: '',
-          [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
-          [NODE_WORKFLOW_FIELD_IDS.duration]: '',
-          [NODE_WORKFLOW_FIELD_IDS.motion]: '',
-          scriptRef: {
-            kind: SCRIPT_DOC_REF_KIND_IDS.seedance,
-            sourceId: shot.id,
-          },
-        } as NodeWorkflowNodeData,
+        data: seedanceData,
       }),
+      () => seedanceUpdate,
     )
     seedanceNodeIds.push(seedanceId)
 
-    addEdge(shotTextId, seedanceId)
+    addDesiredEdge(shotTextId, seedanceId)
 
     for (const roleId of shot.roleIds) {
       const characterNodeId = roleNodeId.get(roleId)
       if (characterNodeId) {
-        addEdge(characterNodeId, seedanceId)
+        addDesiredEdge(characterNodeId, seedanceId)
       }
     }
 
     shot.dialogue.forEach((line, lineIndex) => {
+      const voiceName = roleNameById.get(line.speakerRoleId) ?? ''
+      const voiceData: NodeWorkflowNodeData = {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+        generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+        mediaKind: NODE_MEDIA_KIND_IDS.audio,
+        voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.manual,
+        [NODE_WORKFLOW_FIELD_IDS.voiceId]: '',
+        [NODE_WORKFLOW_FIELD_IDS.voiceName]: voiceName,
+        [NODE_WORKFLOW_FIELD_IDS.voiceProvider]:
+          NODE_STUDIO_VOICE_PROFILE.providerDefault,
+        [NODE_WORKFLOW_FIELD_IDS.voiceEmotion]: '',
+        [NODE_WORKFLOW_FIELD_IDS.voiceStyle]: '',
+        [NODE_WORKFLOW_FIELD_IDS.dialogue]: line.line,
+        scriptRef: {
+          kind: SCRIPT_DOC_REF_KIND_IDS.voice,
+          sourceId: line.id,
+        },
+      }
+      const voiceUpdate: Partial<NodeWorkflowNodeData> = {
+        [NODE_WORKFLOW_FIELD_IDS.voiceName]: voiceName,
+        [NODE_WORKFLOW_FIELD_IDS.dialogue]: line.line,
+        scriptRef: voiceData.scriptRef,
+      }
       const voiceId = resolveNode(
         SCRIPT_DOC_REF_KIND_IDS.voice,
         line.id,
@@ -270,33 +357,25 @@ export function projectScriptDocToGraph(
             x: anchor.x + placement.voiceOffsetX,
             y: rowY + lineIndex * placement.voiceRowOffsetY,
           },
-          data: {
-            prompt: '',
-            status: NODE_STATUS_IDS.idle,
-            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-            mediaKind: NODE_MEDIA_KIND_IDS.audio,
-            voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.manual,
-            [NODE_WORKFLOW_FIELD_IDS.voiceId]: '',
-            [NODE_WORKFLOW_FIELD_IDS.voiceName]:
-              roleNameById.get(line.speakerRoleId) ?? '',
-            [NODE_WORKFLOW_FIELD_IDS.voiceProvider]:
-              NODE_STUDIO_VOICE_PROFILE.providerDefault,
-            [NODE_WORKFLOW_FIELD_IDS.voiceEmotion]: '',
-            [NODE_WORKFLOW_FIELD_IDS.voiceStyle]: '',
-            [NODE_WORKFLOW_FIELD_IDS.dialogue]: line.line,
-            scriptRef: {
-              kind: SCRIPT_DOC_REF_KIND_IDS.voice,
-              sourceId: line.id,
-            },
-          } as NodeWorkflowNodeData,
+          data: voiceData,
         }),
+        () => voiceUpdate,
       )
-      addEdge(voiceId, seedanceId)
+      addDesiredEdge(voiceId, seedanceId)
     })
   })
 
-  // ── videoMerge (single, only with ≥2 shots) ──────────────────────────
   if (seedanceNodeIds.length >= 2) {
+    const mergeData: NodeWorkflowNodeData = {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.video,
+      scriptRef: {
+        kind: SCRIPT_DOC_REF_KIND_IDS.merge,
+        sourceId: SCRIPT_DOC_MERGE_SOURCE_ID,
+      },
+    }
     const mergeId = resolveNode(
       SCRIPT_DOC_REF_KIND_IDS.merge,
       SCRIPT_DOC_MERGE_SOURCE_ID,
@@ -304,22 +383,35 @@ export function projectScriptDocToGraph(
         id,
         type: NODE_TYPE_IDS.videoMerge,
         position: { x: anchor.x + placement.videoMergeOffsetX, y: anchor.y },
-        data: {
-          prompt: '',
-          status: NODE_STATUS_IDS.idle,
-          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          mediaKind: NODE_MEDIA_KIND_IDS.video,
-          scriptRef: {
-            kind: SCRIPT_DOC_REF_KIND_IDS.merge,
-            sourceId: SCRIPT_DOC_MERGE_SOURCE_ID,
-          },
-        } as NodeWorkflowNodeData,
+        data: mergeData,
       }),
+      () => ({ scriptRef: mergeData.scriptRef }),
     )
     for (const seedanceId of seedanceNodeIds) {
-      addEdge(seedanceId, mergeId)
+      addDesiredEdge(seedanceId, mergeId)
     }
   }
 
-  return { nodesToAdd, edgesToAdd, created, skipped }
+  const managedNodeIds = new Set<string>(existingByKey.values())
+  for (const edge of existingState.edges) {
+    const pair = `${edge.source}->${edge.target}`
+    if (
+      managedNodeIds.has(edge.source) &&
+      managedNodeIds.has(edge.target) &&
+      !desiredEdgePairs.has(pair)
+    ) {
+      edgesToRemove.push(edge)
+    }
+  }
+
+  return {
+    nodesToAdd,
+    nodesToUpdate,
+    edgesToAdd,
+    edgesToRemove,
+    created,
+    updated,
+    skipped,
+    removedEdges: edgesToRemove.length,
+  }
 }

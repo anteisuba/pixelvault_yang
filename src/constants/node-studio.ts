@@ -34,11 +34,18 @@ export const NODE_STUDIO_ADD_MENU = {
   minAvailableHeightPx: 240,
 } as const
 
+export const NODE_STUDIO_TOOL_MODE_IDS = {
+  pointer: 'pointer',
+  hand: 'hand',
+  connect: 'connect',
+  cut: 'cut',
+} as const
+
 export const NODE_STUDIO_TOOL_MODES = [
-  'pointer',
-  'hand',
-  'connect',
-  'cut',
+  NODE_STUDIO_TOOL_MODE_IDS.pointer,
+  NODE_STUDIO_TOOL_MODE_IDS.hand,
+  NODE_STUDIO_TOOL_MODE_IDS.connect,
+  NODE_STUDIO_TOOL_MODE_IDS.cut,
 ] as const
 
 export type NodeStudioToolMode = (typeof NODE_STUDIO_TOOL_MODES)[number]

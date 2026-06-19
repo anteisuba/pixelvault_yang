@@ -104,6 +104,11 @@ export interface NodeWorkflowActions {
   /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
   applyScriptDocToGraph(): ApplyScriptDocResult
   deleteNode(id: string): void
+  deleteEdge(id: string): void
+  undo(): void
+  redo(): void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 export interface SpawnCharactersResult {
@@ -125,8 +130,12 @@ export interface ApplySeedancePromptPlanResult {
 export interface ApplyScriptDocResult {
   /** New nodes spawned this projection. */
   created: number
+  /** Existing nodes whose ScriptDoc-owned fields changed. */
+  updated: number
   /** Entities that already had a node (idempotent reuse). */
   skipped: number
+  /** ScriptDoc-managed edges removed because the outline changed. */
+  removedEdges: number
   refusal: 'noScriptDoc' | 'emptyScriptDoc' | null
 }
 
@@ -596,6 +605,26 @@ export function useNodeWorkflow({
   // clerkId-change effect below can reset them on account switch.
   const hasServerHydrated = useRef(false)
   const hasServerMigrationAttempted = useRef(false)
+  const workflowHistory = useRef<{
+    past: NodeWorkflowState[]
+    future: NodeWorkflowState[]
+  }>({
+    past: [],
+    future: [],
+  })
+  const historyProjectId = useRef<string | null>(null)
+  const isRestoringHistory = useRef(false)
+  const [historyAvailability, setHistoryAvailability] = useState({
+    canUndo: false,
+    canRedo: false,
+  })
+
+  const publishHistoryAvailability = useCallback(() => {
+    setHistoryAvailability({
+      canUndo: workflowHistory.current.past.length > 0,
+      canRedo: workflowHistory.current.future.length > 0,
+    })
+  }, [])
 
   const setWorkflowStorage = useCallback(
     (
@@ -613,6 +642,34 @@ export function useNodeWorkflow({
     },
     [],
   )
+
+  const recordCurrentProjectHistory = useCallback(() => {
+    const currentProjectForHistory = getCurrentProject(
+      storageRef.current,
+      defaultProjectName,
+    )
+    if (historyProjectId.current !== currentProjectForHistory.id) {
+      historyProjectId.current = currentProjectForHistory.id
+      workflowHistory.current = {
+        past: [],
+        future: [],
+      }
+      publishHistoryAvailability()
+    }
+
+    const previousState = currentProjectForHistory.state
+    const lastState =
+      workflowHistory.current.past[workflowHistory.current.past.length - 1]
+    if (lastState === previousState) {
+      return
+    }
+
+    workflowHistory.current = {
+      past: [...workflowHistory.current.past.slice(-49), previousState],
+      future: [],
+    }
+    publishHistoryAvailability()
+  }, [defaultProjectName, publishHistoryAvailability])
 
   // One-shot legacy wipe — runs once per browser session regardless of
   // who's signed in. Safe to call repeatedly; removeItem on a missing
@@ -822,6 +879,29 @@ export function useNodeWorkflow({
     [storageState.projects],
   )
 
+  useEffect(() => {
+    if (historyProjectId.current === currentProject.id) {
+      return
+    }
+
+    historyProjectId.current = currentProject.id
+    workflowHistory.current = {
+      past: [],
+      future: [],
+    }
+    publishHistoryAvailability()
+  }, [currentProject.id, publishHistoryAvailability])
+
+  const commitCurrentProjectState = useCallback(
+    (updater: (currentState: NodeWorkflowState) => NodeWorkflowState) => {
+      recordCurrentProjectHistory()
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(currentStorage, defaultProjectName, updater),
+      )
+    },
+    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
+  )
+
   const addNode = useCallback(
     (type: NodeWorkflowNodeType, position: XYPosition) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
@@ -832,20 +912,14 @@ export function useNodeWorkflow({
         data: createDefaultNodeData(type),
       }
 
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            nodes: [...currentState.nodes, nextNode],
-          }),
-        ),
-      )
+      commitCurrentProjectState((currentState) => ({
+        ...currentState,
+        nodes: [...currentState.nodes, nextNode],
+      }))
 
       return nodeId
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitCurrentProjectState],
   )
 
   // Gate every server-side effect on (a) Clerk having loaded a user
@@ -1043,20 +1117,32 @@ export function useNodeWorkflow({
 
   const deleteNode = useCallback(
     (id: string) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            nodes: currentState.nodes.filter((node) => node.id !== id),
-            edges: currentState.edges.filter(
-              (edge) => edge.source !== id && edge.target !== id,
-            ),
-          }),
+      commitCurrentProjectState((currentState) => ({
+        nodes: currentState.nodes.filter((node) => node.id !== id),
+        edges: currentState.edges.filter(
+          (edge) => edge.source !== id && edge.target !== id,
         ),
-      )
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitCurrentProjectState],
+  )
+
+  const deleteEdge = useCallback(
+    (id: string) => {
+      const currentState = getCurrentProject(
+        storageRef.current,
+        defaultProjectName,
+      ).state
+      if (!currentState.edges.some((edge) => edge.id === id)) {
+        return
+      }
+
+      commitCurrentProjectState((latestState) => ({
+        ...latestState,
+        edges: latestState.edges.filter((edge) => edge.id !== id),
+      }))
+    },
+    [commitCurrentProjectState, defaultProjectName],
   )
 
   const updateScriptBreakdown = useCallback(
@@ -1220,24 +1306,18 @@ export function useNodeWorkflow({
         }
       }
 
-      setWorkflowStorage((latestStorage) =>
-        patchCurrentProjectState(
-          latestStorage,
-          defaultProjectName,
-          (latestState) => ({
-            ...latestState,
-            nodes: [...latestState.nodes, ...createdNodes],
-            edges: [...latestState.edges, ...createdEdges],
-          }),
-        ),
-      )
+      commitCurrentProjectState((latestState) => ({
+        ...latestState,
+        nodes: [...latestState.nodes, ...createdNodes],
+        edges: [...latestState.edges, ...createdEdges],
+      }))
 
       return {
         createdNodeIds: createdNodes.map((node) => node.id),
         skippedCharacterIds,
       }
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitCurrentProjectState, defaultProjectName],
   )
 
   /**
@@ -1450,17 +1530,11 @@ export function useNodeWorkflow({
         }
       }
 
-      setWorkflowStorage((latestStorage) =>
-        patchCurrentProjectState(
-          latestStorage,
-          defaultProjectName,
-          (latestState) => ({
-            ...latestState,
-            nodes: [...latestState.nodes, ...createdNodes],
-            edges: [...latestState.edges, ...createdEdges],
-          }),
-        ),
-      )
+      commitCurrentProjectState((latestState) => ({
+        ...latestState,
+        nodes: [...latestState.nodes, ...createdNodes],
+        edges: [...latestState.edges, ...createdEdges],
+      }))
 
       return {
         createdNodeIds: createdNodes.map((node) => node.id),
@@ -1468,7 +1542,7 @@ export function useNodeWorkflow({
         refusal: null,
       }
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitCurrentProjectState, defaultProjectName],
   )
 
   const setScriptDoc = useCallback(
@@ -1500,10 +1574,22 @@ export function useNodeWorkflow({
     ).state
     const scriptDoc = currentState.scriptDoc
     if (!scriptDoc) {
-      return { created: 0, skipped: 0, refusal: 'noScriptDoc' }
+      return {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        removedEdges: 0,
+        refusal: 'noScriptDoc',
+      }
     }
     if (scriptDoc.roles.length === 0 && scriptDoc.shots.length === 0) {
-      return { created: 0, skipped: 0, refusal: 'emptyScriptDoc' }
+      return {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        removedEdges: 0,
+        refusal: 'emptyScriptDoc',
+      }
     }
 
     const result = projectScriptDocToGraph(scriptDoc, currentState, {
@@ -1511,24 +1597,58 @@ export function useNodeWorkflow({
       anchor: NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn.origin,
     })
 
-    if (result.nodesToAdd.length === 0 && result.edgesToAdd.length === 0) {
-      return { created: 0, skipped: result.skipped, refusal: null }
+    if (
+      result.nodesToAdd.length === 0 &&
+      result.nodesToUpdate.length === 0 &&
+      result.edgesToAdd.length === 0 &&
+      result.edgesToRemove.length === 0
+    ) {
+      return {
+        created: 0,
+        updated: 0,
+        skipped: result.skipped,
+        removedEdges: 0,
+        refusal: null,
+      }
     }
 
-    setWorkflowStorage((latestStorage) =>
-      patchCurrentProjectState(
-        latestStorage,
-        defaultProjectName,
-        (latestState) => ({
-          ...latestState,
-          nodes: [...latestState.nodes, ...result.nodesToAdd],
-          edges: [...latestState.edges, ...result.edgesToAdd],
-        }),
-      ),
-    )
+    commitCurrentProjectState((latestState) => {
+      const updatesById = new Map(
+        result.nodesToUpdate.map((update) => [update.id, update.data]),
+      )
+      const removeEdgeIds = new Set(result.edgesToRemove.map((edge) => edge.id))
 
-    return { created: result.created, skipped: result.skipped, refusal: null }
-  }, [defaultProjectName, setWorkflowStorage])
+      return {
+        ...latestState,
+        nodes: [
+          ...latestState.nodes.map((node) => {
+            const patch = updatesById.get(node.id)
+            if (!patch) return node
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                ...patch,
+              },
+            }
+          }),
+          ...result.nodesToAdd,
+        ],
+        edges: [
+          ...latestState.edges.filter((edge) => !removeEdgeIds.has(edge.id)),
+          ...result.edgesToAdd,
+        ],
+      }
+    })
+
+    return {
+      created: result.created,
+      updated: result.updated,
+      skipped: result.skipped,
+      removedEdges: result.removedEdges,
+      refusal: null,
+    }
+  }, [commitCurrentProjectState, defaultProjectName])
 
   const getOutgoingTargetByType = useCallback(
     (sourceId: string, targetType: NodeWorkflowNodeType) => {
@@ -1623,6 +1743,13 @@ export function useNodeWorkflow({
 
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
     (changes) => {
+      const shouldRecordHistory = changes.some(
+        (change) => change.type !== 'select' && change.type !== 'dimensions',
+      )
+      if (shouldRecordHistory && !isRestoringHistory.current) {
+        recordCurrentProjectHistory()
+      }
+
       setWorkflowStorage((currentStorage) =>
         patchCurrentProjectState(
           currentStorage,
@@ -1634,11 +1761,18 @@ export function useNodeWorkflow({
         ),
       )
     },
-    [defaultProjectName, setWorkflowStorage],
+    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
   )
 
   const onEdgesChange = useCallback<OnEdgesChange<NodeWorkflowEdge>>(
     (changes) => {
+      const shouldRecordHistory = changes.some(
+        (change) => change.type !== 'select',
+      )
+      if (shouldRecordHistory && !isRestoringHistory.current) {
+        recordCurrentProjectHistory()
+      }
+
       setWorkflowStorage((currentStorage) =>
         patchCurrentProjectState(
           currentStorage,
@@ -1650,7 +1784,7 @@ export function useNodeWorkflow({
         ),
       )
     },
-    [defaultProjectName, setWorkflowStorage],
+    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
   )
 
   const saveNow = useCallback(async (): Promise<boolean> => {
@@ -1666,54 +1800,99 @@ export function useNodeWorkflow({
   }, [canCallServerNow])
 
   const tidyLayout = useCallback(() => {
-    setWorkflowStorage((currentStorage) =>
-      patchCurrentProjectState(
-        currentStorage,
-        defaultProjectName,
-        (currentState) => ({
-          ...currentState,
-          nodes: applyDagreLayout(currentState.nodes, currentState.edges),
-        }),
-      ),
-    )
-  }, [defaultProjectName, setWorkflowStorage])
+    commitCurrentProjectState((currentState) => ({
+      ...currentState,
+      nodes: applyDagreLayout(currentState.nodes, currentState.edges),
+    }))
+  }, [commitCurrentProjectState])
 
   const onConnect = useCallback(
     (connection: Connection) => {
       const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            edges: addEdge(
-              {
-                ...connection,
-                id: edgeId,
-                type: NODE_STUDIO_EDGE_VISUALS.type,
-                interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
-                markerEnd: {
-                  type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
-                  color: NODE_STUDIO_EDGE_VISUALS.color,
-                  width: NODE_STUDIO_EDGE_VISUALS.markerSize,
-                  height: NODE_STUDIO_EDGE_VISUALS.markerSize,
-                  strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
-                },
-                style: {
-                  stroke: NODE_STUDIO_EDGE_VISUALS.color,
-                  strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
-                  filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
-                },
-              },
-              currentState.edges,
-            ),
-          }),
+      commitCurrentProjectState((currentState) => ({
+        ...currentState,
+        edges: addEdge(
+          {
+            ...connection,
+            id: edgeId,
+            type: NODE_STUDIO_EDGE_VISUALS.type,
+            interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+            markerEnd: {
+              type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+              color: NODE_STUDIO_EDGE_VISUALS.color,
+              width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+              height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+              strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+            },
+            style: {
+              stroke: NODE_STUDIO_EDGE_VISUALS.color,
+              strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+              filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
+            },
+          },
+          currentState.edges,
         ),
-      )
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitCurrentProjectState],
   )
+
+  const undo = useCallback(() => {
+    const previousState =
+      workflowHistory.current.past[workflowHistory.current.past.length - 1]
+    if (!previousState) {
+      return
+    }
+
+    const currentState = getCurrentProject(
+      storageRef.current,
+      defaultProjectName,
+    ).state
+    workflowHistory.current = {
+      past: workflowHistory.current.past.slice(0, -1),
+      future: [currentState, ...workflowHistory.current.future.slice(0, 49)],
+    }
+    isRestoringHistory.current = true
+    publishHistoryAvailability()
+    setWorkflowStorage((currentStorage) =>
+      patchCurrentProjectState(
+        currentStorage,
+        defaultProjectName,
+        () => previousState,
+      ),
+    )
+    window.setTimeout(() => {
+      isRestoringHistory.current = false
+    }, 300)
+  }, [defaultProjectName, publishHistoryAvailability, setWorkflowStorage])
+
+  const redo = useCallback(() => {
+    const [nextState, ...remainingFuture] = workflowHistory.current.future
+    if (!nextState) {
+      return
+    }
+
+    const currentState = getCurrentProject(
+      storageRef.current,
+      defaultProjectName,
+    ).state
+    workflowHistory.current = {
+      past: [...workflowHistory.current.past.slice(-49), currentState],
+      future: remainingFuture,
+    }
+    isRestoringHistory.current = true
+    publishHistoryAvailability()
+    setWorkflowStorage((currentStorage) =>
+      patchCurrentProjectState(
+        currentStorage,
+        defaultProjectName,
+        () => nextState,
+      ),
+    )
+    window.setTimeout(() => {
+      isRestoringHistory.current = false
+    }, 300)
+  }, [defaultProjectName, publishHistoryAvailability, setWorkflowStorage])
 
   return useMemo(
     () => ({
@@ -1738,6 +1917,11 @@ export function useNodeWorkflow({
       setScriptDoc,
       applyScriptDocToGraph,
       deleteNode,
+      deleteEdge,
+      undo,
+      redo,
+      canUndo: historyAvailability.canUndo,
+      canRedo: historyAvailability.canRedo,
       getOutgoingTargetByType,
       onNodesChange,
       onEdgesChange,
@@ -1752,13 +1936,17 @@ export function useNodeWorkflow({
       createProject,
       currentProject.id,
       currentProject.name,
+      deleteEdge,
       deleteNode,
       deleteProject,
       getOutgoingTargetByType,
+      historyAvailability.canRedo,
+      historyAvailability.canUndo,
       onConnect,
       onEdgesChange,
       onNodesChange,
       projects,
+      redo,
       renameCurrentProject,
       saveNow,
       setScriptDoc,
@@ -1767,6 +1955,7 @@ export function useNodeWorkflow({
       spawnFullWorkflowFromAgent,
       switchProject,
       tidyLayout,
+      undo,
       updateScriptBreakdown,
       updateSeedancePromptPlan,
       updateNodeData,

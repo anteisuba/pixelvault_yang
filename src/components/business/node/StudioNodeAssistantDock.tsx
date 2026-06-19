@@ -12,14 +12,11 @@ import {
 } from 'react'
 import {
   Bot,
-  GripHorizontal,
   GripVertical,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
   PanelRightClose,
-  Sparkles,
-  Users,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -39,21 +36,11 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
-import { ScriptDocWorkspace } from './ScriptDocWorkspace'
 import {
   CanvasAssistantRouteSelector,
   type NodeAssistantRouteSelection,
 } from './CanvasAssistantRouteSelector'
-import { AgentInspector } from './inspector/AgentInspector'
-import { BackgroundImageInspector } from './inspector/BackgroundImageInspector'
-import { CharacterImageInspector } from './inspector/CharacterImageInspector'
-import { ComposerInspector } from './inspector/ComposerInspector'
-import { FrameImageInspector } from './inspector/FrameImageInspector'
-import { ShotInspector } from './inspector/ShotInspector'
-import { ShotTextInspector } from './inspector/ShotTextInspector'
-import { VideoMergeInspector } from './inspector/VideoMergeInspector'
-import { VideoReferenceInspector } from './inspector/VideoReferenceInspector'
-import { VoiceInspector } from './inspector/VoiceInspector'
+import { ScriptDocWorkspace } from './ScriptDocWorkspace'
 
 interface StudioNodeAssistantDockProps {
   open: boolean
@@ -67,10 +54,21 @@ interface StudioNodeAssistantDockProps {
   onFocusNode(nodeId: string): void
 }
 
+interface DockLayout {
+  widthPx: number
+}
+
+const DEFAULT_DOCK_LAYOUT: DockLayout = {
+  widthPx: NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
+}
+
+let storedLayout: DockLayout | null = null
+const layoutListeners = new Set<() => void>()
+
 function truncateNodeText(value: string, maxLength: number): string {
   const trimmed = value.trim()
   return trimmed.length > maxLength
-    ? `${trimmed.slice(0, maxLength - 1)}…`
+    ? `${trimmed.slice(0, Math.max(0, maxLength - 3))}...`
     : trimmed
 }
 
@@ -106,184 +104,34 @@ function getNodeSummary(node: NodeWorkflowNode): string | undefined {
   return node.data.prompt
 }
 
-function InspectorPanel({
-  selection,
-}: {
-  selection: ReturnType<typeof useNodeSelection>
-}) {
-  const t = useTranslations('StudioNode.inspector')
-
-  if (selection.mode === 'none') {
-    return <WelcomeView />
-  }
-
-  if (selection.mode === 'multi') {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-start gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-4">
-          <Users className="mt-0.5 size-5 shrink-0 text-node-amber" />
-          <div>
-            <p className="text-sm font-semibold text-node-foreground">
-              {t('multiTitle', { count: selection.nodes.length })}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-node-muted">
-              {t('multiDescription')}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const primary = selection.primary
-  if (!primary) {
-    return <WelcomeView />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.composer) {
-    return <ComposerInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.agent) {
-    return <AgentInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.shotText) {
-    return <ShotTextInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.shot) {
-    return <ShotInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.characterImage) {
-    return <CharacterImageInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.backgroundImage) {
-    return <BackgroundImageInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.frameImage) {
-    return <FrameImageInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.voice) {
-    return <VoiceInspector node={primary} />
-  }
-
-  // Video (seedance) params live on the node card now (B2/B3 on-node composer +
-  // ⤢ expand), so a single video node routes to the pure assistant instead of
-  // an inspector here — see the dock render gate below. This branch is only
-  // reachable as part of a multi-selection fallthrough.
-
-  if (primary.type === NODE_TYPE_IDS.videoReference) {
-    return <VideoReferenceInspector node={primary} />
-  }
-
-  if (primary.type === NODE_TYPE_IDS.videoMerge) {
-    return <VideoMergeInspector node={primary} />
-  }
-
-  return (
-    <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-4 text-sm text-node-muted">
-      {t('unsupported')}
-    </div>
-  )
-}
-
-function WelcomeView() {
-  const t = useTranslations('StudioNode.dock')
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
-            <Sparkles className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-node-foreground">
-              {t('welcomeTitle')}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-node-muted">
-              {t('welcomeDescription')}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-2">
-        {(
-          [
-            'welcomeSkillScript',
-            'welcomeSkillRoute',
-            'welcomeSkillGenerate',
-          ] as const
-        ).map((key) => (
-          <div
-            key={key}
-            className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs leading-5 text-node-muted"
-          >
-            {t(key)}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-interface DockLayout {
-  widthPx: number
-  inspectorRatio: number
-}
-
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
   if (value > max) return max
   return value
 }
 
-const DEFAULT_DOCK_LAYOUT: DockLayout = {
-  widthPx: NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
-  inspectorRatio: NODE_STUDIO_DOCK_RESIZE.defaultInspectorRatio,
+function readWidthPx(value: unknown): number | undefined {
+  if (typeof value !== 'object' || value === null || !('widthPx' in value)) {
+    return undefined
+  }
+  const candidate = value as { widthPx?: unknown }
+  return typeof candidate.widthPx === 'number' ? candidate.widthPx : undefined
 }
-
-/**
- * Module-level layout store backing `useSyncExternalStore`. We deliberately
- * avoid an effect-based read because lint forbids `setState` inside
- * `useEffect`; instead we expose:
- *  - `subscribe(cb)`     — listener registration
- *  - `getSnapshot()`     — client read (localStorage, cached)
- *  - `getServerSnapshot()` — SSR + first-paint default (avoids hydration mismatch)
- *  - `setStoredLayout()` — mutator that persists + notifies
- * The cache (`storedLayout`) keeps `getSnapshot` stable between renders so
- * React's tearing detection stays happy.
- */
-let storedLayout: DockLayout | null = null
-const layoutListeners = new Set<() => void>()
 
 function readStoredDockLayout(): DockLayout {
   if (typeof window === 'undefined') {
     return DEFAULT_DOCK_LAYOUT
   }
+
   try {
     const raw = window.localStorage.getItem(NODE_STUDIO_DOCK_RESIZE.storageKey)
     if (!raw) return DEFAULT_DOCK_LAYOUT
-    const parsed = JSON.parse(raw) as Partial<DockLayout>
+    const widthPx = readWidthPx(JSON.parse(raw))
     return {
       widthPx: clamp(
-        typeof parsed.widthPx === 'number'
-          ? parsed.widthPx
-          : NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
+        widthPx ?? NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
         NODE_STUDIO_DOCK_RESIZE.minWidthPx,
         NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
-      ),
-      inspectorRatio: clamp(
-        typeof parsed.inspectorRatio === 'number'
-          ? parsed.inspectorRatio
-          : NODE_STUDIO_DOCK_RESIZE.defaultInspectorRatio,
-        NODE_STUDIO_DOCK_RESIZE.minInspectorRatio,
-        NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio,
       ),
     }
   } catch {
@@ -311,15 +159,10 @@ function subscribeLayout(listener: () => void): () => void {
 
 function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
   const next = updater(getLayoutSnapshot())
-  // Bail if nothing actually changed — `useSyncExternalStore` re-reads on every
-  // listener notify, so emitting unchanged snapshots wastes work.
-  if (
-    storedLayout &&
-    storedLayout.widthPx === next.widthPx &&
-    storedLayout.inspectorRatio === next.inspectorRatio
-  ) {
+  if (storedLayout && storedLayout.widthPx === next.widthPx) {
     return
   }
+
   storedLayout = next
   if (typeof window !== 'undefined') {
     try {
@@ -328,8 +171,7 @@ function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
         JSON.stringify(next),
       )
     } catch {
-      // localStorage may be unavailable (private mode, quota). Session-only is
-      // an acceptable fallback for a UI preference.
+      // Session-only fallback is acceptable for a UI preference.
     }
   }
   for (const listener of layoutListeners) {
@@ -337,34 +179,17 @@ function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
   }
 }
 
-/**
- * Owns the dock's draggable width + inspector/assistant vertical split.
- * Persists to localStorage on every change (cheap — just two numbers).
- * Returns pointer + keyboard handlers ready to bind to the two resize
- * handles. Pointer captures avoid losing the drag when the cursor leaves
- * the handle, which matters because the panel is narrow and users often
- * drag past it.
- */
 function useDockLayout() {
   const layout = useSyncExternalStore(
     subscribeLayout,
     getLayoutSnapshot,
     getServerLayoutSnapshot,
   )
-  // True only while the width handle is being dragged. The dock's width
-  // transition is suppressed during the drag (data-resizing) so the panel
-  // tracks the cursor 1:1, then re-enabled for the expand/collapse morph.
   const [isResizing, setIsResizing] = useState(false)
-  const splitContainerRef = useRef<HTMLDivElement | null>(null)
   const widthDragRef = useRef<{
     pointerId: number
     startX: number
     startWidth: number
-  } | null>(null)
-  const splitDragRef = useRef<{
-    pointerId: number
-    containerTop: number
-    containerHeight: number
   } | null>(null)
 
   const setWidth = useCallback((next: number) => {
@@ -374,17 +199,6 @@ function useDockLayout() {
         next,
         NODE_STUDIO_DOCK_RESIZE.minWidthPx,
         NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
-      ),
-    }))
-  }, [])
-
-  const setInspectorRatio = useCallback((next: number) => {
-    setStoredLayout((prev) => ({
-      ...prev,
-      inspectorRatio: clamp(
-        next,
-        NODE_STUDIO_DOCK_RESIZE.minInspectorRatio,
-        NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio,
       ),
     }))
   }, [])
@@ -400,18 +214,16 @@ function useDockLayout() {
         startWidth: layout.widthPx,
       }
     },
-    [layout.widthPx],
+    [layout.widthPx, widthDragRef],
   )
 
   const handleWidthPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const drag = widthDragRef.current
       if (!drag || drag.pointerId !== event.pointerId) return
-      // Dock is anchored to the right edge — dragging the left handle left
-      // (decreasing clientX) should grow the panel.
       setWidth(drag.startWidth + (drag.startX - event.clientX))
     },
-    [setWidth],
+    [setWidth, widthDragRef],
   )
 
   const handleWidthPointerUp = useCallback(
@@ -422,13 +234,11 @@ function useDockLayout() {
       }
       setIsResizing(false)
     },
-    [],
+    [widthDragRef],
   )
 
   const handleWidthKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      // Match the visual orientation: left arrow grows the panel (dock is
-      // pinned to the right), right arrow shrinks it.
       if (event.key === 'ArrowLeft') {
         event.preventDefault()
         setWidth(layout.widthPx + NODE_STUDIO_DOCK_RESIZE.widthStepPx)
@@ -446,83 +256,15 @@ function useDockLayout() {
     [layout.widthPx, setWidth],
   )
 
-  const handleSplitPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const container = splitContainerRef.current
-      if (!container) return
-      event.preventDefault()
-      event.currentTarget.setPointerCapture(event.pointerId)
-      const rect = container.getBoundingClientRect()
-      splitDragRef.current = {
-        pointerId: event.pointerId,
-        containerTop: rect.top,
-        containerHeight: rect.height,
-      }
-    },
-    [],
-  )
-
-  const handleSplitPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = splitDragRef.current
-      if (!drag || drag.pointerId !== event.pointerId) return
-      if (drag.containerHeight <= 0) return
-      const localY = event.clientY - drag.containerTop
-      setInspectorRatio(localY / drag.containerHeight)
-    },
-    [setInspectorRatio],
-  )
-
-  const handleSplitPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (splitDragRef.current?.pointerId === event.pointerId) {
-        splitDragRef.current = null
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }
-    },
-    [],
-  )
-
-  const handleSplitKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        setInspectorRatio(
-          layout.inspectorRatio - NODE_STUDIO_DOCK_RESIZE.ratioStep,
-        )
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        setInspectorRatio(
-          layout.inspectorRatio + NODE_STUDIO_DOCK_RESIZE.ratioStep,
-        )
-      } else if (event.key === 'Home') {
-        event.preventDefault()
-        setInspectorRatio(NODE_STUDIO_DOCK_RESIZE.minInspectorRatio)
-      } else if (event.key === 'End') {
-        event.preventDefault()
-        setInspectorRatio(NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio)
-      }
-    },
-    [layout.inspectorRatio, setInspectorRatio],
-  )
-
   return {
     layout,
     isResizing,
-    splitContainerRef,
     widthHandlers: {
       onPointerDown: handleWidthPointerDown,
       onPointerMove: handleWidthPointerMove,
       onPointerUp: handleWidthPointerUp,
       onPointerCancel: handleWidthPointerUp,
       onKeyDown: handleWidthKeyDown,
-    },
-    splitHandlers: {
-      onPointerDown: handleSplitPointerDown,
-      onPointerMove: handleSplitPointerMove,
-      onPointerUp: handleSplitPointerUp,
-      onPointerCancel: handleSplitPointerUp,
-      onKeyDown: handleSplitKeyDown,
     },
   }
 }
@@ -542,28 +284,14 @@ export function StudioNodeAssistantDock({
   const tAssistant = useTranslations('StudioNode.assistant')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const selection = useNodeSelection()
-  // A single selected video node owns its params on the card (composer + ⤢),
-  // so the right rail stays a pure assistant instead of showing an inspector.
-  const isVideoNodeSelected =
-    selection.mode === 'single' &&
-    selection.primary?.type === NODE_TYPE_IDS.seedance
   const conversation = useAssistantConversation()
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
-  const {
-    layout,
-    isResizing,
-    splitContainerRef,
-    widthHandlers,
-    splitHandlers,
-  } = useDockLayout()
+  const { layout, isResizing, widthHandlers } = useDockLayout()
   const isMobile = useIsMobile()
-  // Mobile uses the bottom-sheet layout (`inset-x-0 h-[65vh]`), so the
-  // persisted desktop width would conflict with the full-bleed sheet —
-  // skip the inline width when on phone-portrait. The localStorage value
-  // is preserved untouched for when the user returns to desktop.
+
   const dockStyle = useMemo<CSSProperties>(
     () =>
       isMobile
@@ -576,8 +304,6 @@ export function StudioNodeAssistantDock({
           : { width: `${layout.widthPx}px` },
     [expanded, isMobile, layout.widthPx],
   )
-  const inspectorPercent = Math.round(layout.inspectorRatio * 100)
-  const assistantPercent = 100 - inspectorPercent
 
   const nodeContexts = useMemo<NodeAssistantNodeContext[]>(
     () =>
@@ -638,8 +364,6 @@ export function StudioNodeAssistantDock({
     [nodeContexts],
   )
 
-  // E1 starter chips for the lean default (no node selected): clicking prefills
-  // the draft with a localized opener prompt — assistant = script brain.
   const dockStarters = useMemo(
     () => [
       {
@@ -668,27 +392,20 @@ export function StudioNodeAssistantDock({
         onClick={() => onOpenChange(true)}
         aria-label={tAssistant('toggle')}
         title={tAssistant('toggle')}
-        className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner md:bottom-auto md:right-6 md:top-24 md:size-auto md:h-10 md:rounded-xl md:px-3 md:text-xs md:font-semibold"
+        className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-edge hover:bg-node-panel-inner md:bottom-auto md:right-6 md:top-24 md:size-auto md:h-10 md:rounded-xl md:px-3 md:text-xs md:font-semibold"
       >
-        <Bot className="size-5 text-node-amber md:size-4" />
+        <Bot className="size-5 text-node-muted md:size-4" />
         <span className="hidden md:inline">{tAssistant('toggle')}</span>
       </button>
     )
   }
 
-  // Mobile: bottom-sheet pattern. The dock anchors to the section bottom and
-  // takes ~65vh so the canvas stays visible in the top ~35vh — opening the
-  // assistant no longer hides every node on the workflow. The inline
-  // `width: 448px` from dockStyle is ignored because `inset-x-0` pins both
-  // edges; md+ uses the original right-anchored full-height panel.
   return (
     <aside
       style={dockStyle}
       data-resizing={isResizing ? 'true' : undefined}
       className="node-canvas-panel-motion pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b"
     >
-      {/* Grip indicator at the top of the bottom-sheet. Visual affordance
-          only — tapping it toggles closed for a quick dismiss. */}
       <button
         type="button"
         onClick={() => onOpenChange(false)}
@@ -700,9 +417,7 @@ export function StudioNodeAssistantDock({
           aria-hidden
         />
       </button>
-      {/* Left-edge handle: drag horizontally to resize the whole dock.
-          Hidden on mobile — the dock is full-width and resizing makes
-          no sense at that breakpoint. */}
+
       <div
         role="separator"
         aria-orientation="vertical"
@@ -715,7 +430,7 @@ export function StudioNodeAssistantDock({
         title={t('resize.widthLabel')}
         className="group absolute inset-y-0 left-0 z-10 hidden w-2.5 cursor-col-resize items-center justify-center focus:outline-none md:flex"
       >
-        <span className="flex h-14 w-1.5 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
+        <span className="flex h-14 w-1.5 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-edge group-hover:text-node-canvas group-focus-visible:bg-node-edge-active group-focus-visible:text-node-canvas">
           <GripVertical className="size-3" />
         </span>
       </div>
@@ -772,9 +487,6 @@ export function StudioNodeAssistantDock({
       </div>
 
       {expanded && !isMobile ? (
-        // E1b expanded ⤢: two-pane — left conversation + right ScriptDoc/outline
-        // workspace. The workspace is a labelled STUB until the engine lands
-        // (ScriptDoc model + scriptDocToGraph autospawn = VID-UI-1/DIR-DATA-01).
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col border-r border-node-panel-inner">
             <AssistantConversation
@@ -798,11 +510,7 @@ export function StudioNodeAssistantDock({
             />
           </div>
         </div>
-      ) : selection.mode === 'none' || isVideoNodeSelected ? (
-        // E1a — pure lean assistant: no node selected, OR a single video node
-        // (its params live on the card composer + ⤢ expand, D4). Other node
-        // types still fall through to the inspector below until they too own
-        // their params on the card.
+      ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <AssistantConversation
             messages={conversation.messages}
@@ -815,52 +523,6 @@ export function StudioNodeAssistantDock({
             emptyHint={t('leanOpener')}
             starters={dockStarters}
           />
-        </div>
-      ) : (
-        <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col">
-          <div
-            style={{ flexBasis: `${inspectorPercent}%` }}
-            className="min-h-0 shrink grow overflow-y-auto px-3 py-3 md:px-4 md:py-4"
-          >
-            <InspectorPanel selection={selection} />
-          </div>
-
-          {/* Horizontal handle between Inspector and Assistant conversation. */}
-          <div
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label={t('resize.splitLabel')}
-            aria-valuemin={Math.round(
-              NODE_STUDIO_DOCK_RESIZE.minInspectorRatio * 100,
-            )}
-            aria-valuemax={Math.round(
-              NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio * 100,
-            )}
-            aria-valuenow={inspectorPercent}
-            tabIndex={0}
-            {...splitHandlers}
-            title={t('resize.splitLabel')}
-            className="group relative flex h-2.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
-          >
-            <span className="flex h-1.5 w-14 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
-              <GripHorizontal className="size-3" />
-            </span>
-          </div>
-
-          <div
-            style={{ flexBasis: `${assistantPercent}%` }}
-            className="flex min-h-0 shrink grow flex-col"
-          >
-            <AssistantConversation
-              messages={conversation.messages}
-              isLoading={conversation.isLoading}
-              error={conversation.error}
-              onSend={handleSend}
-              onRetry={handleRetry}
-              onFocusNode={onFocusNode}
-              getNodeLabel={getNodeLabel}
-            />
-          </div>
         </div>
       )}
     </aside>

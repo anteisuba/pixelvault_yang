@@ -1,16 +1,25 @@
 'use client'
 
+import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { IdCard, Mic2, Music2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { cn } from '@/lib/utils'
 
 import { NodeShell } from './NodeShell'
+import {
+  getDefaultEditorFields,
+  NodeExpandButton,
+  NodeFieldEditor,
+  NodeModelSelector,
+} from './NodeCardControls'
 
 export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
-  const { data, selected } = props
+  const { id, data, selected } = props
+  const [expanded, setExpanded] = useState(false)
   const t = useTranslations('StudioNode.voiceProfile')
   const hasVoiceProfile = Boolean(
     data.voiceName ||
@@ -30,11 +39,24 @@ export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
       selected={selected}
       status={status}
       showTargetHandle={false}
+      className={cn(
+        'node-canvas-panel-motion',
+        expanded && 'z-10 w-node-card-expanded',
+      )}
     >
-      <NodeShell.Header type={NODE_TYPE_IDS.voice} status={status} />
+      <NodeShell.Header
+        type={NODE_TYPE_IDS.voice}
+        status={status}
+        action={
+          <NodeExpandButton
+            expanded={expanded}
+            onToggle={() => setExpanded((value) => !value)}
+          />
+        }
+      />
       <NodeShell.Body className="space-y-3">
         <div className="flex min-h-28 flex-col items-center justify-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-node-amber/15 text-node-amber">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-node-port-voice/15 text-node-port-voice">
             <Mic2 className="size-5" />
           </span>
           <div className="min-w-0">
@@ -76,12 +98,26 @@ export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
             ) : null}
           </div>
         ) : null}
+        {expanded ? (
+          <>
+            <NodeModelSelector
+              nodeId={id}
+              type={NODE_TYPE_IDS.voice}
+              data={data}
+            />
+            <NodeFieldEditor
+              nodeId={id}
+              data={data}
+              fields={getDefaultEditorFields(NODE_TYPE_IDS.voice)}
+            />
+          </>
+        ) : null}
       </NodeShell.Body>
       <NodeShell.Footer>
         <p className="truncate text-2xs font-medium text-node-subtle">
           {hasVoiceProfile ? t('footerReady') : t('footerEmpty')}
         </p>
-        <span className="flex size-8 items-center justify-center rounded-xl bg-node-panel-inner text-node-amber">
+        <span className="flex size-8 items-center justify-center rounded-xl bg-node-panel-inner text-node-port-voice">
           {data.voiceId ? (
             <IdCard className="size-4" />
           ) : (

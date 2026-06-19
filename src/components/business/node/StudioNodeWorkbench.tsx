@@ -37,6 +37,8 @@ import {
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
+  NODE_STUDIO_TOOL_MODE_IDS,
+  type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -190,6 +192,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
   // E1b three states: collapsed (!open) / dock (open) / expanded (open+expanded).
   const [assistantExpanded, setAssistantExpanded] = useState(false)
+  const [toolMode, setToolMode] = useState<NodeStudioToolMode>(
+    NODE_STUDIO_TOOL_MODE_IDS.pointer,
+  )
   const [topbarOpen, setTopbarOpen] = useState(true)
   const [projectDialogMode, setProjectDialogMode] = useState<
     'create' | 'rename' | null
@@ -973,6 +978,49 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [fitView, workflow],
   )
 
+  const handleFocusGeneratedNodes = useCallback(() => {
+    if (workflow.nodes.length === 0) return
+    window.setTimeout(() => {
+      void fitView({
+        duration: NODE_STUDIO_DOCK.focusDurationMs,
+        maxZoom: NODE_STUDIO_DOCK.focusZoom,
+        padding: 0.16,
+      })
+    }, 0)
+  }, [fitView, workflow.nodes.length])
+
+  const defaultModelOption = useMemo(
+    () =>
+      modelOptionsByType[NODE_TYPE_IDS.characterImage]?.[0] ??
+      modelOptionsByType[NODE_TYPE_IDS.shot]?.[0] ??
+      modelOptionsByType[NODE_TYPE_IDS.seedance]?.[0],
+    [modelOptionsByType],
+  )
+
+  const panOnDrag = useMemo(
+    () =>
+      toolMode === NODE_STUDIO_TOOL_MODE_IDS.hand
+        ? true
+        : [...NODE_STUDIO_CANVAS.panOnDragButtons],
+    [toolMode],
+  )
+
+  const handleEdgeClick = useCallback(
+    (event: ReactMouseEvent, edge: NodeWorkflowEdge) => {
+      if (toolMode !== NODE_STUDIO_TOOL_MODE_IDS.cut) {
+        return
+      }
+
+      event.stopPropagation()
+      workflow.deleteEdge(edge.id)
+      toast.success(t('toasts.edgeDeleted'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [t, toolMode, workflow],
+  )
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
@@ -985,22 +1033,38 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       setScriptDoc: workflow.setScriptDoc,
       applyScriptDocToGraph: workflow.applyScriptDocToGraph,
       deleteNode: workflow.deleteNode,
+      deleteEdge: workflow.deleteEdge,
+      undo: workflow.undo,
+      redo: workflow.redo,
+      canUndo: workflow.canUndo,
+      canRedo: workflow.canRedo,
       sendFromComposer: handleSendFromComposer,
       generateCharacterImage: handleGenerateCharacterImage,
       generateMediaNode: handleGenerateMediaNode,
+      focusGeneratedNodes: handleFocusGeneratedNodes,
+      toolMode,
+      setToolMode,
       modelOptionsByType,
     }),
     [
+      handleFocusGeneratedNodes,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
       handleSendFromComposer,
       modelOptionsByType,
+      setToolMode,
+      toolMode,
+      workflow.canRedo,
+      workflow.canUndo,
+      workflow.deleteEdge,
       workflow.deleteNode,
       workflow.applySeedancePromptPlanToSeedance,
+      workflow.redo,
       workflow.setScriptDoc,
       workflow.applyScriptDocToGraph,
       workflow.spawnCharactersFromBreakdown,
       workflow.spawnFullWorkflowFromAgent,
+      workflow.undo,
       workflow.updateNodeData,
       workflow.updateScriptBreakdown,
       workflow.updateSeedancePromptPlan,
@@ -1017,6 +1081,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           onNodesChange={workflow.onNodesChange}
           onEdgesChange={workflow.onEdgesChange}
           onConnect={workflow.onConnect}
+          onEdgeClick={handleEdgeClick}
           onPaneClick={closeAddMenu}
           onPaneContextMenu={handlePaneContextMenu}
           onNodesDelete={handleNodesDelete}
@@ -1029,7 +1094,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           nodesDraggable
           nodesConnectable
           elementsSelectable
-          panOnDrag={[...NODE_STUDIO_CANVAS.panOnDragButtons]}
+          panOnDrag={panOnDrag}
           panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
           selectionOnDrag
           selectionMode={SelectionMode.Partial}
@@ -1048,7 +1113,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         {workflow.nodes.length === 0 && (
           <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
             <NodeCanvasEmptyGuide
-              onChatOutline={() => setAssistantDockOpen(true)}
+              onChatOutline={() => {
+                setAssistantDockOpen(true)
+                setAssistantExpanded(true)
+              }}
               onAddNode={handleTopbarAddClick}
             />
           </div>
@@ -1060,6 +1128,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               projectName={workflow.currentProjectName}
               projects={workflow.projects}
               currentProjectId={workflow.currentProjectId}
+              defaultModelLabel={defaultModelOption?.modelId}
+              defaultModelMeta={defaultModelOption?.providerConfig.label}
               onAddClick={handleTopbarAddClick}
               onArrange={handleTidyLayout}
               onSave={handleSaveNow}
@@ -1076,9 +1146,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               aria-label={t('topbar.expand')}
               title={t('topbar.expand')}
               onClick={() => setTopbarOpen(true)}
-              className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner md:left-6"
+              className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-focus-ring/40 hover:bg-node-panel-inner md:left-6"
             >
-              <PanelTopOpen className="size-4 text-node-amber" />
+              <PanelTopOpen className="size-4 text-node-foreground" />
               <span className="truncate">{workflow.currentProjectName}</span>
             </button>
           )}
@@ -1093,7 +1163,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             onExpandedChange={setAssistantExpanded}
             onFocusNode={handleFocusNode}
           />
-          <CanvasBottomDock />
+          <CanvasBottomDock
+            activeMode={toolMode}
+            canUndo={workflow.canUndo}
+            canRedo={workflow.canRedo}
+            onModeChange={setToolMode}
+            onUndo={workflow.undo}
+            onRedo={workflow.redo}
+          />
           <CanvasAddMenu
             open={Boolean(addMenu)}
             screenPosition={addMenu?.menuPosition ?? null}

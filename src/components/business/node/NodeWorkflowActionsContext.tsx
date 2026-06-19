@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
+import type { NodeStudioToolMode } from '@/constants/node-studio'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
 import type { NodeWorkflowModelOptionsByType } from '@/types/node-workflow'
 
@@ -9,6 +10,9 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   sendFromComposer?(composerNodeId: string): Promise<void>
   generateCharacterImage?(nodeId: string): Promise<void>
   generateMediaNode?(nodeId: string): Promise<void>
+  focusGeneratedNodes?(): void
+  toolMode: NodeStudioToolMode
+  setToolMode(mode: NodeStudioToolMode): void
   modelOptionsByType: NodeWorkflowModelOptionsByType
 }
 

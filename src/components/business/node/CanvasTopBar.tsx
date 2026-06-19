@@ -5,6 +5,7 @@ import {
   Archive,
   Check,
   ChevronDown,
+  Clock3,
   FolderOpen,
   FolderPlus,
   LayoutTemplate,
@@ -13,6 +14,7 @@ import {
   Pencil,
   Plus,
   Save,
+  Sparkles,
   Trash2,
   Workflow,
 } from 'lucide-react'
@@ -37,6 +39,8 @@ interface CanvasTopBarProps {
   projectName: string
   projects: NodeWorkflowProjectSummary[]
   currentProjectId: string
+  defaultModelLabel?: string
+  defaultModelMeta?: string
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   onArrange?: () => void
   onSave?: () => void
@@ -54,6 +58,8 @@ export function CanvasTopBar({
   projectName,
   projects,
   currentProjectId,
+  defaultModelLabel,
+  defaultModelMeta,
   onAddClick,
   onArrange,
   onSave,
@@ -66,9 +72,17 @@ export function CanvasTopBar({
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
+  const currentProject = projects.find(
+    (project) => project.id === currentProjectId,
+  )
   const otherProjects = projects.filter(
     (project) => project.id !== currentProjectId,
   )
+  const updatedLabel = currentProject
+    ? t('projectMenu.updatedAt', {
+        time: new Date(currentProject.updatedAt).toLocaleString(),
+      })
+    : t('projectMenu.unsaved')
 
   const showPlaceholderToast = () => {
     toast.info(t('toasts.notImplemented'), {
@@ -85,7 +99,7 @@ export function CanvasTopBar({
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
           <Workflow className="size-4" />
         </span>
         <div className="min-w-0">
@@ -98,9 +112,19 @@ export function CanvasTopBar({
                 <button
                   type="button"
                   aria-label={t('projectMenu.triggerLabel')}
-                  className="group flex min-w-0 items-center gap-1 rounded-lg text-left font-display text-sm font-semibold text-node-foreground outline-none transition hover:text-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/70"
+                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-2 py-1 text-left outline-none transition hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/70"
                 >
-                  <span className="truncate">{projectName}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-display text-sm font-semibold text-node-foreground">
+                      {projectName}
+                    </span>
+                    <span
+                      suppressHydrationWarning
+                      className="block truncate text-2xs font-medium text-node-muted"
+                    >
+                      {isSaving ? t('projectMenu.saving') : updatedLabel}
+                    </span>
+                  </span>
                   <ChevronDown className="size-3.5 shrink-0 text-node-muted transition group-data-[state=open]:rotate-180" />
                 </button>
               </DropdownMenuTrigger>
@@ -114,16 +138,27 @@ export function CanvasTopBar({
                 <DropdownMenuLabel className="text-2xs uppercase tracking-nav-dense text-node-muted">
                   {t('projectMenu.current')}
                 </DropdownMenuLabel>
-                <DropdownMenuItem
-                  disabled
-                  className="flex items-center gap-2 text-node-foreground opacity-100"
-                >
-                  <Check className="size-4 text-node-amber" />
-                  <span className="min-w-0 flex-1 truncate">{projectName}</span>
-                  <span className="shrink-0 text-2xs text-node-muted">
-                    {t('nodeCount', { count: nodeCount })}
-                  </span>
-                </DropdownMenuItem>
+                <div className="mx-1 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-foreground">
+                      <Check className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-node-foreground">
+                        {projectName}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1 text-2xs font-medium text-node-muted">
+                        <Clock3 className="size-3" />
+                        <span suppressHydrationWarning className="truncate">
+                          {isSaving ? t('projectMenu.saving') : updatedLabel}
+                        </span>
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-lg bg-node-panel-inner px-2 py-1 text-2xs font-semibold text-node-muted">
+                      {t('nodeCount', { count: nodeCount })}
+                    </span>
+                  </div>
+                </div>
                 <DropdownMenuItem
                   onClick={onRenameProject}
                   className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
@@ -166,7 +201,7 @@ export function CanvasTopBar({
                   onClick={onCreateProject}
                   className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
                 >
-                  <FolderPlus className="size-4 text-node-amber" />
+                  <FolderPlus className="size-4 text-node-foreground" />
                   {t('projectMenu.create')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -175,6 +210,18 @@ export function CanvasTopBar({
               <Archive className="size-3" />
               {t('nodeCount', { count: nodeCount })}
             </span>
+            {defaultModelLabel ? (
+              <span className="hidden max-w-56 items-center gap-1.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2 py-1 text-2xs font-medium text-node-muted lg:inline-flex">
+                <Sparkles className="size-3 text-node-foreground" />
+                <span className="shrink-0">{t('topbar.defaultModel')}</span>
+                <span className="truncate text-node-foreground">
+                  {defaultModelLabel}
+                </span>
+                {defaultModelMeta ? (
+                  <span className="truncate">{defaultModelMeta}</span>
+                ) : null}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

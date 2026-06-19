@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { AlertCircle, Bot, Film, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -8,10 +9,17 @@ import { NODE_STUDIO_AGENT_MODE_IDS } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { SCRIPT_BREAKDOWN_SUMMARY_FIELDS } from '@/constants/script-breakdown'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { cn } from '@/lib/utils'
 
 import { NodeShell } from './NodeShell'
+import {
+  getDefaultEditorFields,
+  NodeExpandButton,
+  NodeFieldEditor,
+} from './NodeCardControls'
 
-export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
+export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
+  const [expanded, setExpanded] = useState(false)
   const t = useTranslations('StudioNode.agent')
   const breakdown = data.breakdown
   const seedancePromptPlan = data.seedancePromptPlan
@@ -26,8 +34,21 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
       type={NODE_TYPE_IDS.agent}
       selected={selected}
       status={data.status}
+      className={cn(
+        'node-canvas-panel-motion',
+        expanded && 'z-10 w-node-card-expanded',
+      )}
     >
-      <NodeShell.Header type={NODE_TYPE_IDS.agent} status={data.status} />
+      <NodeShell.Header
+        type={NODE_TYPE_IDS.agent}
+        status={data.status}
+        action={
+          <NodeExpandButton
+            expanded={expanded}
+            onToggle={() => setExpanded((value) => !value)}
+          />
+        }
+      />
       <NodeShell.Body className="space-y-3">
         {isRunning ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
@@ -148,6 +169,35 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
                 </p>
               </div>
             </div>
+          </>
+        ) : null}
+        {expanded ? (
+          <>
+            <NodeFieldEditor
+              nodeId={id}
+              data={data}
+              fields={getDefaultEditorFields(NODE_TYPE_IDS.agent)}
+            />
+            {breakdown ? (
+              <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+                <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {t('logline')}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-node-foreground">
+                  {breakdown.logline}
+                </p>
+              </div>
+            ) : null}
+            {seedancePromptPlan ? (
+              <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+                <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {t('seedance.finalPrompt')}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-node-foreground">
+                  {seedancePromptPlan.finalPrompt}
+                </p>
+              </div>
+            ) : null}
           </>
         ) : null}
       </NodeShell.Body>

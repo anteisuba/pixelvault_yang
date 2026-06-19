@@ -107,7 +107,7 @@ export function AssistantConversation({
                         key={reference.nodeId}
                         type="button"
                         onClick={() => onFocusNode(reference.nodeId)}
-                        className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+                        className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground"
                       >
                         {getNodeLabel(reference.nodeId)}
                       </button>
@@ -143,7 +143,7 @@ export function AssistantConversation({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={t('placeholder')}
-          className="min-h-20 resize-none rounded-3xl border-node-panel-inner bg-node-panel-soft px-3 py-2.5 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30 md:min-h-28 md:px-4 md:py-3"
+          className="min-h-20 resize-none rounded-3xl border-node-panel-inner bg-node-panel-soft px-3 py-2.5 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-node-focus-ring/30 md:min-h-28 md:px-4 md:py-3"
         />
         <div className="mt-2 flex items-center justify-between gap-2 md:mt-3 md:gap-3">
           <span className="hidden h-8 min-w-0 items-center truncate rounded-full border border-node-panel-inner bg-node-panel-soft px-3 text-2xs font-medium text-node-subtle sm:inline-flex">

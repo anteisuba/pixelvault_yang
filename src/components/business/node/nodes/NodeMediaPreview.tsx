@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import {
   AlertCircle,
@@ -28,8 +29,17 @@ import {
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { cn } from '@/lib/utils'
 
 import { NodeShell } from './NodeShell'
+import {
+  getDefaultEditorFields,
+  NodeActionButton,
+  NodeExpandButton,
+  NodeFieldEditor,
+  NodeModelSelector,
+} from './NodeCardControls'
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
   type: NodeWorkflowNodeType
@@ -69,16 +79,20 @@ function getSummaryFields(
 }
 
 export function NodeMediaPreview({
+  id,
   type,
   kind,
   data,
   selected,
 }: NodeMediaPreviewProps) {
+  const [expanded, setExpanded] = useState(false)
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
+  const { generateMediaNode } = useNodeWorkflowActions()
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const summaryFields = getSummaryFields(type)
+  const editorFields = getDefaultEditorFields(type)
   const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
   const generationStatus =
     data.generationStatus ??
@@ -93,8 +107,25 @@ export function NodeMediaPreview({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
 
   return (
-    <NodeShell type={type} selected={selected} status={data.status}>
-      <NodeShell.Header type={type} status={data.status} />
+    <NodeShell
+      type={type}
+      selected={selected}
+      status={data.status}
+      className={cn(
+        'node-canvas-panel-motion',
+        expanded && 'z-10 w-node-card-expanded',
+      )}
+    >
+      <NodeShell.Header
+        type={type}
+        status={data.status}
+        action={
+          <NodeExpandButton
+            expanded={expanded}
+            onToggle={() => setExpanded((value) => !value)}
+          />
+        }
+      />
       <NodeShell.Body className="space-y-3">
         <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
@@ -157,6 +188,22 @@ export function NodeMediaPreview({
             )
           })}
         </div>
+
+        {expanded ? (
+          <>
+            <NodeModelSelector nodeId={id} type={type} data={data} />
+            <NodeFieldEditor nodeId={id} data={data} fields={editorFields} />
+            {kind === NODE_MEDIA_KIND_IDS.image ? (
+              <NodeActionButton
+                disabled={!hasWorkflowPrompt || isPending}
+                onClick={() => generateMediaNode?.(id)}
+              >
+                <WandSparkles className="mr-1.5 size-4" />
+                {t(mediaUrl ? 'regenerate' : 'generate')}
+              </NodeActionButton>
+            ) : null}
+          </>
+        ) : null}
 
         {isError ? (
           <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">

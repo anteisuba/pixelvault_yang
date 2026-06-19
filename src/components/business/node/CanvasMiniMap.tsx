@@ -1,10 +1,15 @@
 'use client'
 
-import { MiniMap } from '@xyflow/react'
+import { MiniMap, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 export function CanvasMiniMap() {
   const t = useTranslations('StudioNode')
+  const nodes = useNodes()
+
+  if (nodes.length === 0) {
+    return null
+  }
 
   return (
     <MiniMap

@@ -2876,6 +2876,15 @@
     "projectNewDefaultName": "未命名项目 {n}",
     "nodeCount": "{count} 个节点",
     "addMenuTitle": "添加节点",
+    "addMenuSearchPlaceholder": "搜索节点...",
+    "addMenuCategoryLabel": "节点分类",
+    "addMenuCategories": {
+      "all": "全部",
+      "elements": "元素",
+      "generation": "生成",
+      "orchestration": "编排"
+    },
+    "addMenuEmpty": "没有匹配的节点。",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3593,6 +3602,7 @@
       "save": "保存",
       "collapse": "收起顶栏，展开画布",
       "expand": "展开顶栏",
+      "defaultModel": "默认",
       "createProjectPrompt": "项目名称",
       "renameProjectPrompt": "重命名项目",
       "deleteProjectConfirm": "确定删除「{name}」吗？这个项目的本地节点画布会被移除。"
@@ -3603,7 +3613,10 @@
       "switch": "切换项目",
       "create": "新建项目",
       "rename": "重命名",
-      "delete": "删除当前项目"
+      "delete": "删除当前项目",
+      "updatedAt": "更新于 {time}",
+      "unsaved": "尚未保存",
+      "saving": "保存中..."
     },
     "projectDialog": {
       "createTitle": "新建项目",
@@ -3619,6 +3632,13 @@
       "hand": "拖动画布",
       "connect": "连接",
       "cut": "剪切",
+      "modeLabel": "工具",
+      "modeStatus": {
+        "pointer": "选择和移动",
+        "hand": "平移画布",
+        "connect": "从端口拖拽",
+        "cut": "点击连线"
+      },
       "zoomLevel": "{percent}%",
       "undo": "撤销",
       "redo": "重做"
@@ -3640,7 +3660,7 @@
       "scriptDocNeedChat": "先和助手聊几句你的故事。",
       "scriptDocRolesLabel": "角色 · {count}",
       "scriptDocShotsLabel": "镜头 · {count}",
-      "scriptDocApplyResult": "已在画布生成 {created} 个新节点。",
+      "scriptDocApplyResult": "画布已同步：新增 {created} 个，更新 {updated} 个，复用 {skipped} 个。",
       "scriptDocApplyNothing": "画布已与大纲一致，没有新节点要生成。",
       "scriptDocApplyEmpty": "请先在大纲里添加角色或镜头。",
       "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
@@ -3732,6 +3752,7 @@
         "emptyShots": "镜头列表为空，请先添加至少一个镜头。"
       },
       "timelineCannotDeleteLast": "至少保留一个镜头段。",
+      "edgeDeleted": "连线已移除。",
       "projectCreated": "项目「{name}」已创建。",
       "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。"

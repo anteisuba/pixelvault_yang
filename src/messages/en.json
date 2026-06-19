@@ -2876,6 +2876,15 @@
     "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
     "addMenuTitle": "Add node",
+    "addMenuSearchPlaceholder": "Search nodes...",
+    "addMenuCategoryLabel": "Node categories",
+    "addMenuCategories": {
+      "all": "All",
+      "elements": "Elements",
+      "generation": "Generation",
+      "orchestration": "Orchestration"
+    },
+    "addMenuEmpty": "No nodes match that search.",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3593,6 +3602,7 @@
       "save": "Save",
       "collapse": "Collapse topbar to show the full canvas",
       "expand": "Expand topbar",
+      "defaultModel": "Default",
       "createProjectPrompt": "Project name",
       "renameProjectPrompt": "Rename project",
       "deleteProjectConfirm": "Delete \"{name}\"? This removes its local Node Studio canvas."
@@ -3603,7 +3613,10 @@
       "switch": "Switch project",
       "create": "New project",
       "rename": "Rename",
-      "delete": "Delete current project"
+      "delete": "Delete current project",
+      "updatedAt": "Updated {time}",
+      "unsaved": "Not saved yet",
+      "saving": "Saving..."
     },
     "projectDialog": {
       "createTitle": "New project",
@@ -3619,6 +3632,13 @@
       "hand": "Hand",
       "connect": "Connect",
       "cut": "Cut",
+      "modeLabel": "Tool",
+      "modeStatus": {
+        "pointer": "Select and move",
+        "hand": "Pan canvas",
+        "connect": "Drag from ports",
+        "cut": "Click an edge"
+      },
       "zoomLevel": "{percent}%",
       "undo": "Undo",
       "redo": "Redo"
@@ -3640,7 +3660,7 @@
       "scriptDocNeedChat": "Say a few words about your story first.",
       "scriptDocRolesLabel": "Roles · {count}",
       "scriptDocShotsLabel": "Shots · {count}",
-      "scriptDocApplyResult": "Spawned {created} new node(s) on the canvas.",
+      "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {skipped} reused.",
       "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
       "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
@@ -3732,6 +3752,7 @@
         "emptyShots": "Shot list is empty — add at least one shot."
       },
       "timelineCannotDeleteLast": "At least one segment must remain.",
+      "edgeDeleted": "Connection removed.",
       "projectCreated": "Project \"{name}\" created.",
       "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted."

@@ -89,9 +89,117 @@ describe('projectScriptDocToGraph', () => {
     })
 
     expect(second.created).toBe(0)
+    expect(second.updated).toBe(0)
     expect(second.nodesToAdd).toHaveLength(0)
+    expect(second.nodesToUpdate).toHaveLength(0)
     expect(second.edgesToAdd).toHaveLength(0)
     expect(second.skipped).toBeGreaterThan(0)
+  })
+
+  it('updates existing ScriptDoc-owned node fields when the outline changes', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+    const revised: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      roles: [
+        {
+          ...TWO_SHOT_DOC.roles[0],
+          name: 'Mira Vale',
+          description: 'a botanist in a silver raincoat',
+        },
+        TWO_SHOT_DOC.roles[1],
+      ],
+      shots: [
+        {
+          ...TWO_SHOT_DOC.shots[0],
+          summary: 'Mira studies glowing flowers in heavy rain',
+          camera: 'slow push-in',
+          dialogue: [
+            {
+              ...TWO_SHOT_DOC.shots[0].dialogue[0],
+              line: 'The petals are listening.',
+            },
+          ],
+        },
+        TWO_SHOT_DOC.shots[1],
+      ],
+    }
+
+    const result = projectScriptDocToGraph(revised, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+    })
+
+    expect(result.created).toBe(0)
+    expect(result.updated).toBeGreaterThanOrEqual(3)
+    expect(result.nodesToUpdate).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            characterName: 'Mira Vale',
+            prompt: 'a botanist in a silver raincoat',
+          }),
+        }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'Mira studies glowing flowers in heavy rain',
+            camera: 'slow push-in',
+          }),
+        }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dialogue: 'The petals are listening.',
+            voiceName: 'Mira Vale',
+          }),
+        }),
+      ]),
+    )
+  })
+
+  it('removes stale ScriptDoc-managed edges when role or merge wiring changes', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+    const oneShotWithoutRoles: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      shots: [
+        {
+          ...TWO_SHOT_DOC.shots[0],
+          roleIds: [],
+          dialogue: [],
+        },
+      ],
+    }
+
+    const result = projectScriptDocToGraph(oneShotWithoutRoles, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+    })
+
+    expect(result.created).toBe(0)
+    expect(result.edgesToAdd).toHaveLength(0)
+    expect(result.removedEdges).toBeGreaterThan(0)
+    expect(result.edgesToRemove).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: expect.any(String),
+          target: expect.any(String),
+        }),
+      ]),
+    )
   })
 
   it('omits the videoMerge for a single-shot doc', () => {

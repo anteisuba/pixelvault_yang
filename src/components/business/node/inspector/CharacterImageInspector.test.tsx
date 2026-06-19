@@ -52,6 +52,7 @@ vi.mock('@/hooks/node/use-node-reference-upload', () => ({
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_TOOL_MODE_IDS,
 } from '@/constants/node-studio'
 import {
   AI_ADAPTER_TYPES,
@@ -128,7 +129,14 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
       setScriptDoc: vi.fn(),
       applyScriptDocToGraph: vi.fn(),
       deleteNode: vi.fn(),
+      deleteEdge: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      canUndo: false,
+      canRedo: false,
       generateCharacterImage,
+      toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
+      setToolMode: vi.fn(),
       modelOptionsByType: {
         [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
       },
@@ -164,7 +172,14 @@ function renderStatic(children: ReactNode) {
           setScriptDoc: vi.fn(),
           applyScriptDocToGraph: vi.fn(),
           deleteNode: vi.fn(),
+          deleteEdge: vi.fn(),
+          undo: vi.fn(),
+          redo: vi.fn(),
+          canUndo: false,
+          canRedo: false,
           generateCharacterImage,
+          toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
+          setToolMode: vi.fn(),
           modelOptionsByType: {
             [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
           },

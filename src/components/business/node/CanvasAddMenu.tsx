@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from 'react'
 import {
   Bot,
   Clapperboard,
@@ -10,6 +17,7 @@ import {
   Layers,
   Mic2,
   PanelsTopLeft,
+  Search,
   Video,
   Wallpaper,
   MessageSquarePlus,
@@ -23,6 +31,7 @@ import {
 } from '@/constants/node-types'
 import { NODE_STUDIO_ADD_MENU } from '@/constants/node-studio'
 import { NODE_ACCENTS } from '@/constants/node-tokens'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 interface CanvasAddMenuProps {
@@ -40,6 +49,91 @@ interface CanvasAddMenuLayout {
   maxHeight: number
 }
 
+const ADD_MENU_CATEGORY_IDS = {
+  all: 'all',
+  elements: 'elements',
+  generation: 'generation',
+  orchestration: 'orchestration',
+} as const
+
+type AddMenuCategoryId =
+  (typeof ADD_MENU_CATEGORY_IDS)[keyof typeof ADD_MENU_CATEGORY_IDS]
+
+interface CanvasAddMenuItem {
+  type: NodeWorkflowNodeType
+  category: Exclude<AddMenuCategoryId, 'all'>
+  Icon: ComponentType<{ className?: string }>
+}
+
+const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
+  {
+    type: NODE_TYPE_IDS.composer,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: MessageSquarePlus,
+  },
+  {
+    type: NODE_TYPE_IDS.shotText,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: FileText,
+  },
+  {
+    type: NODE_TYPE_IDS.characterImage,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: ImagePlus,
+  },
+  {
+    type: NODE_TYPE_IDS.backgroundImage,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: Wallpaper,
+  },
+  {
+    type: NODE_TYPE_IDS.frameImage,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: PanelsTopLeft,
+  },
+  {
+    type: NODE_TYPE_IDS.voice,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: Mic2,
+  },
+  {
+    type: NODE_TYPE_IDS.shot,
+    category: ADD_MENU_CATEGORY_IDS.generation,
+    Icon: Clapperboard,
+  },
+  {
+    type: NODE_TYPE_IDS.seedance,
+    category: ADD_MENU_CATEGORY_IDS.generation,
+    Icon: Video,
+  },
+  {
+    type: NODE_TYPE_IDS.videoReference,
+    category: ADD_MENU_CATEGORY_IDS.generation,
+    Icon: Film,
+  },
+  {
+    type: NODE_TYPE_IDS.agent,
+    category: ADD_MENU_CATEGORY_IDS.orchestration,
+    Icon: Bot,
+  },
+  {
+    type: NODE_TYPE_IDS.videoMerge,
+    category: ADD_MENU_CATEGORY_IDS.orchestration,
+    Icon: Layers,
+  },
+] as const
+
+const ADD_MENU_CATEGORIES = [
+  ADD_MENU_CATEGORY_IDS.all,
+  ADD_MENU_CATEGORY_IDS.elements,
+  ADD_MENU_CATEGORY_IDS.generation,
+  ADD_MENU_CATEGORY_IDS.orchestration,
+] as const
+
+function normalizeSearch(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 export function CanvasAddMenu({
   open,
   screenPosition,
@@ -49,6 +143,10 @@ export function CanvasAddMenu({
   const t = useTranslations('StudioNode')
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [layout, setLayout] = useState<CanvasAddMenuLayout | null>(null)
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<AddMenuCategoryId>(
+    ADD_MENU_CATEGORY_IDS.all,
+  )
 
   useEffect(() => {
     if (!open) {
@@ -139,6 +237,33 @@ export function CanvasAddMenu({
     }
   }, [open, screenPosition])
 
+  const filteredItems = useMemo(() => {
+    const query = normalizeSearch(search)
+
+    return CANVAS_ADD_MENU_ITEMS.filter((item) => {
+      if (
+        category !== ADD_MENU_CATEGORY_IDS.all &&
+        item.category !== category
+      ) {
+        return false
+      }
+
+      if (!query) {
+        return true
+      }
+
+      const haystack = [
+        item.type,
+        t(`nodeTypes.${item.type}`),
+        t(`addMenuHelpers.${item.type}`),
+      ]
+        .join(' ')
+        .toLowerCase()
+
+      return haystack.includes(query)
+    })
+  }, [category, search, t])
+
   if (!open || !screenPosition) {
     return null
   }
@@ -153,313 +278,99 @@ export function CanvasAddMenu({
       ref={menuRef}
       role="menu"
       aria-label={t('addMenuTitle')}
-      className="pointer-events-auto absolute z-20 w-72 overflow-y-auto overscroll-contain rounded-3xl border border-node-panel-inner/80 bg-node-panel/95 p-2 text-node-foreground shadow-node-panel backdrop-blur-xl"
+      className="pointer-events-auto absolute z-20 w-80 overflow-y-auto overscroll-contain rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 p-2 text-node-foreground shadow-node-panel backdrop-blur-xl"
       style={{
         left: activeLayout?.left ?? screenPosition.x,
         top: activeLayout?.top ?? screenPosition.y,
         maxHeight: activeLayout?.maxHeight,
       }}
     >
-      <div className="px-3 py-2 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-        {t('addMenuTitle')}
+      <div className="px-2 py-2">
+        <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+          {t('addMenuTitle')}
+        </p>
+        <label className="relative mt-2 block">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-node-subtle" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('addMenuSearchPlaceholder')}
+            aria-label={t('addMenuSearchPlaceholder')}
+            className="h-9 rounded-xl border-node-panel-inner bg-node-panel-soft pl-8 text-sm text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-node-focus-ring/20"
+          />
+        </label>
       </div>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.composer)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
+
+      <div
+        role="group"
+        aria-label={t('addMenuCategoryLabel')}
+        className="flex gap-1 overflow-x-auto px-2 pb-2"
       >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.composer].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.composer].iconText,
-          )}
-        >
-          <MessageSquarePlus className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.composer')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.composer')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.shotText)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+        {ADD_MENU_CATEGORIES.map((categoryId) => {
+          const selected = category === categoryId
+
+          return (
+            <button
+              key={categoryId}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setCategory(categoryId)}
+              className={cn(
+                'shrink-0 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                selected
+                  ? 'bg-node-foreground text-node-canvas'
+                  : 'text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
+              )}
+            >
+              {t(`addMenuCategories.${categoryId}`)}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="space-y-1">
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item) => {
+            const accent = NODE_ACCENTS[item.type]
+            const Icon = item.Icon
+
+            return (
+              <button
+                key={item.type}
+                type="button"
+                role="menuitem"
+                onClick={() => onSelect(item.type)}
+                className={cn(
+                  'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
+                  'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+                    accent.iconPlate,
+                    accent.iconText,
+                  )}
+                >
+                  <Icon className="size-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-node-foreground">
+                    {t(`nodeTypes.${item.type}`)}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-node-muted">
+                    {t(`addMenuHelpers.${item.type}`)}
+                  </span>
+                </span>
+              </button>
+            )
+          })
+        ) : (
+          <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-4 text-sm text-node-muted">
+            {t('addMenuEmpty')}
+          </div>
         )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.shotText].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.shotText].iconText,
-          )}
-        >
-          <FileText className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.shotText')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.shotText')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.shot)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.shot].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.shot].iconText,
-          )}
-        >
-          <Clapperboard className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.shot')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.shot')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.agent)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.agent].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.agent].iconText,
-          )}
-        >
-          <Bot className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.agent')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.agent')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.characterImage)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.characterImage].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.characterImage].iconText,
-          )}
-        >
-          <ImagePlus className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.characterImage')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.characterImage')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.backgroundImage)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.backgroundImage].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.backgroundImage].iconText,
-          )}
-        >
-          <Wallpaper className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.backgroundImage')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.backgroundImage')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.frameImage)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.frameImage].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.frameImage].iconText,
-          )}
-        >
-          <PanelsTopLeft className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.frameImage')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.frameImage')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.voice)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.voice].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.voice].iconText,
-          )}
-        >
-          <Mic2 className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.voice')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.voice')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.seedance)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.seedance].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.seedance].iconText,
-          )}
-        >
-          <Video className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.seedance')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.seedance')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.videoReference)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.videoReference].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.videoReference].iconText,
-          )}
-        >
-          <Film className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.videoReference')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.videoReference')}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => onSelect(NODE_TYPE_IDS.videoMerge)}
-        className={cn(
-          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-            NODE_ACCENTS[NODE_TYPE_IDS.videoMerge].iconPlate,
-            NODE_ACCENTS[NODE_TYPE_IDS.videoMerge].iconText,
-          )}
-        >
-          <Layers className="size-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-node-foreground">
-            {t('nodeTypes.videoMerge')}
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-node-muted">
-            {t('addMenuHelpers.videoMerge')}
-          </span>
-        </span>
-      </button>
+      </div>
     </div>
   )
 }

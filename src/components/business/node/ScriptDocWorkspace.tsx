@@ -50,7 +50,8 @@ export function ScriptDocWorkspace({
   apiKeyId,
 }: ScriptDocWorkspaceProps) {
   const t = useTranslations('StudioNode.dock')
-  const { setScriptDoc, applyScriptDocToGraph } = useNodeWorkflowActions()
+  const { setScriptDoc, applyScriptDocToGraph, focusGeneratedNodes } =
+    useNodeWorkflowActions()
   const { draft, isDrafting, error } = useNodeScriptDoc()
 
   // Only non-empty turns are worth sending; the streaming placeholder carries
@@ -90,15 +91,24 @@ export function ScriptDocWorkspace({
       toast.info(t('scriptDocApplyEmpty'), TOAST_OPTIONS)
       return
     }
-    if (result.created === 0) {
+    if (
+      result.created === 0 &&
+      result.updated === 0 &&
+      result.removedEdges === 0
+    ) {
       toast.info(t('scriptDocApplyNothing'), TOAST_OPTIONS)
       return
     }
+    focusGeneratedNodes?.()
     toast.success(
-      t('scriptDocApplyResult', { created: result.created }),
+      t('scriptDocApplyResult', {
+        created: result.created,
+        updated: result.updated,
+        skipped: result.skipped,
+      }),
       TOAST_OPTIONS,
     )
-  }, [applyScriptDocToGraph, t])
+  }, [applyScriptDocToGraph, focusGeneratedNodes, t])
 
   const hasContent = Boolean(
     scriptDoc && (scriptDoc.roles.length > 0 || scriptDoc.shots.length > 0),

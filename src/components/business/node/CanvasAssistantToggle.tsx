@@ -32,7 +32,7 @@ export function CanvasAssistantToggle() {
             }
             className="pointer-events-auto absolute right-4 top-24 h-10 rounded-2xl border border-node-panel-inner/80 bg-node-panel px-3 text-node-foreground shadow-node-panel hover:bg-node-panel-inner md:right-6"
           >
-            <BotMessageSquare className="size-4 text-node-amber" />
+            <BotMessageSquare className="size-4 text-node-foreground" />
             <span className="hidden text-xs font-semibold sm:inline">
               {t('assistant.toggle')}
             </span>

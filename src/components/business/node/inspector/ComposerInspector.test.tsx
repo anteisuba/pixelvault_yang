@@ -32,6 +32,7 @@ vi.mock('@/components/business/node/CanvasPlannerRouteSelector', () => ({
 }))
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
 import { ComposerInspector } from '@/components/business/node/inspector/ComposerInspector'
 import type { NodeWorkflowCanvasActions } from '@/components/business/node/NodeWorkflowActionsContext'
@@ -54,8 +55,15 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   setScriptDoc: vi.fn(),
   applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
+  deleteEdge: vi.fn(),
+  undo: vi.fn(),
+  redo: vi.fn(),
+  canUndo: false,
+  canRedo: false,
   sendFromComposer,
   generateCharacterImage: vi.fn(),
+  toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
+  setToolMode: vi.fn(),
   modelOptionsByType: {},
 }
 

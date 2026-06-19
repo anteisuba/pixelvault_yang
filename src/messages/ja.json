@@ -2876,6 +2876,15 @@
     "projectNewDefaultName": "無題のプロジェクト {n}",
     "nodeCount": "{count} 個のノード",
     "addMenuTitle": "ノードを追加",
+    "addMenuSearchPlaceholder": "ノードを検索...",
+    "addMenuCategoryLabel": "ノードカテゴリ",
+    "addMenuCategories": {
+      "all": "すべて",
+      "elements": "要素",
+      "generation": "生成",
+      "orchestration": "編成"
+    },
+    "addMenuEmpty": "一致するノードがありません。",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3593,6 +3602,7 @@
       "save": "保存",
       "collapse": "トップバーを閉じてキャンバスを広げる",
       "expand": "トップバーを開く",
+      "defaultModel": "既定",
       "createProjectPrompt": "プロジェクト名",
       "renameProjectPrompt": "プロジェクト名を変更",
       "deleteProjectConfirm": "「{name}」を削除しますか？このプロジェクトのローカル Node Studio キャンバスが削除されます。"
@@ -3603,7 +3613,10 @@
       "switch": "プロジェクトを切り替え",
       "create": "新規プロジェクト",
       "rename": "名前を変更",
-      "delete": "現在のプロジェクトを削除"
+      "delete": "現在のプロジェクトを削除",
+      "updatedAt": "{time} 更新",
+      "unsaved": "未保存",
+      "saving": "保存中..."
     },
     "projectDialog": {
       "createTitle": "新規プロジェクト",
@@ -3619,6 +3632,13 @@
       "hand": "キャンバス移動",
       "connect": "接続",
       "cut": "カット",
+      "modeLabel": "ツール",
+      "modeStatus": {
+        "pointer": "選択と移動",
+        "hand": "キャンバスを移動",
+        "connect": "ポートからドラッグ",
+        "cut": "エッジをクリック"
+      },
       "zoomLevel": "{percent}%",
       "undo": "元に戻す",
       "redo": "やり直す"
@@ -3640,7 +3660,7 @@
       "scriptDocNeedChat": "まずはストーリーについて少し話してください。",
       "scriptDocRolesLabel": "キャラクター · {count}",
       "scriptDocShotsLabel": "ショット · {count}",
-      "scriptDocApplyResult": "キャンバスに {created} 個の新規ノードを生成しました。",
+      "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、再利用 {skipped}。",
       "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
       "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
@@ -3732,6 +3752,7 @@
         "emptyShots": "ショット一覧が空です。最低 1 つのショットを追加してください。"
       },
       "timelineCannotDeleteLast": "少なくとも 1 つのセグメントを残してください。",
+      "edgeDeleted": "接続を削除しました。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",
       "projectRenamed": "プロジェクト名を「{name}」に変更しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。"

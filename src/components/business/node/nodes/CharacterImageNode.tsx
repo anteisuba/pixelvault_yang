@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { AlertCircle, ImageIcon, Loader2, WandSparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -10,16 +11,28 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELD_IDS,
 } from '@/constants/node-types'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { cn } from '@/lib/utils'
 
 import { NodeShell } from './NodeShell'
+import {
+  NodeActionButton,
+  NodeExpandButton,
+  NodeFieldEditor,
+  NodeModelSelector,
+} from './NodeCardControls'
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 
 export function CharacterImageNode({
+  id,
   data,
   selected,
 }: NodeProps<NodeWorkflowNode>) {
+  const [expanded, setExpanded] = useState(false)
   const t = useTranslations('StudioNode.characterImage')
+  const { generateCharacterImage } = useNodeWorkflowActions()
   const imageUrl = typeof data.imageUrl === 'string' ? data.imageUrl : null
   const imageSource =
     data.imageSource ??
@@ -63,11 +76,21 @@ export function CharacterImageNode({
       type={NODE_TYPE_IDS.characterImage}
       selected={selected}
       status={data.status}
+      className={cn(
+        'node-canvas-panel-motion',
+        expanded && 'z-10 w-node-card-expanded',
+      )}
     >
       <NodeShell.Header
         type={NODE_TYPE_IDS.characterImage}
         status={data.status}
         title={headerTitle}
+        action={
+          <NodeExpandButton
+            expanded={expanded}
+            onToggle={() => setExpanded((value) => !value)}
+          />
+        }
       />
       <NodeShell.Body className="space-y-3">
         <div className="relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
@@ -123,6 +146,27 @@ export function CharacterImageNode({
               {data.generationError}
             </p>
           </div>
+        ) : null}
+        {expanded ? (
+          <>
+            <NodeModelSelector
+              nodeId={id}
+              type={NODE_TYPE_IDS.characterImage}
+              data={data}
+            />
+            <NodeFieldEditor
+              nodeId={id}
+              data={data}
+              fields={[NODE_WORKFLOW_FIELD_IDS.prompt]}
+            />
+            <NodeActionButton
+              disabled={!data.prompt.trim() || isPending}
+              onClick={() => generateCharacterImage?.(id)}
+            >
+              <WandSparkles className="mr-1.5 size-4" />
+              {imageUrl ? t('regenerate') : t('generate')}
+            </NodeActionButton>
+          </>
         ) : null}
       </NodeShell.Body>
       <NodeShell.Footer>

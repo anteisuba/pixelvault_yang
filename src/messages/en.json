@@ -356,22 +356,20 @@
       "soon": "Soon"
     },
     "capabilityMatrix": {
-      "eyebrow": "Connected tools",
-      "title": "More ways to create, one place to save",
-      "description": "Voice, 3D, workflows, rankings, and gallery discovery stay tied to the work you save, so projects do not scatter across separate tools."
+      "eyebrow": "Around the work",
+      "title": "Beyond generating, the work has a home",
+      "description": "A blind arena helps you pick the stronger take, every generation is archived with its prompt, model, and seed, and a public gallery lets the work be seen — all without leaving ANTEI."
     },
     "mediaLabels": {
+      "image": {
+        "compare": "Side by side"
+      },
       "video": {
-        "storyboard": "Storyboard · 4f"
+        "storyboard": "Clip"
       },
       "lora": {
-        "trainingSet": "Training set · 4 images",
-        "model": "LoRA · v1.2"
-      },
-      "upscale": {
-        "before": "512px",
-        "after": "2048px · 4×",
-        "scale": "4×"
+        "trainingSet": "Reference · 4 images",
+        "model": "Same character"
       },
       "tts": {
         "label": "Fish Audio S2 Pro",
@@ -383,11 +381,11 @@
         "turntable": "Turntable · 360°"
       },
       "workflow": {
-        "imageNode": "image · flux",
-        "upscaleNode": "upscale · 4×",
-        "videoNode": "i2v · veo3",
-        "deployNode": "deploy →",
-        "status": "Coming soon"
+        "imageNode": "script",
+        "upscaleNode": "image",
+        "videoNode": "audio",
+        "deployNode": "video",
+        "status": "Auto-wired"
       },
       "arena": {
         "winner": "WIN",
@@ -420,41 +418,41 @@
       "copyright": "© {year} ANTEI · BYOK, forever archived"
     },
     "featureSections": {
+      "image": {
+        "eyebrow": "Multi-model images",
+        "title": "Image Generation",
+        "description": "Send one prompt to Flux, Gemini, GPT Image, and NovelAI at once, compare them side by side, and keep the best. Bring your own API keys — every result is archived with its model and settings.",
+        "cta": "Start generating"
+      },
       "video": {
-        "eyebrow": "{count} video models",
+        "eyebrow": "Multi-model video",
         "title": "Video Generation",
         "description": "Kling, Veo, and Seedance live in one studio. Create from text, an image, or reference footage, then save the clip with the prompt that made it.",
         "cta": "Generate video"
       },
       "lora": {
-        "eyebrow": "fal.ai + Replicate",
-        "title": "LoRA Training",
-        "description": "Upload a training set, start a LoRA run, and keep the result in your library. Use it later to keep a character or style consistent across new generations.",
-        "cta": "Train a LoRA"
-      },
-      "upscale": {
-        "eyebrow": "4× through fal.ai",
-        "title": "Upscale & Cleanup",
-        "description": "Upscale images, remove backgrounds, and run quick cleanup passes from the same studio. No separate tool to learn.",
-        "cta": "Edit an image"
+        "eyebrow": "Character & style consistency",
+        "title": "LoRA",
+        "description": "Lock a character, product, or art style so it stays recognizable across generations. Clone the look from a single reference, or pin the identity and let only the variables move.",
+        "cta": "Stay consistent"
       },
       "tts": {
-        "eyebrow": "Fish Audio TTS",
-        "title": "Text to Speech",
+        "eyebrow": "Text to speech",
+        "title": "Audio Generation",
         "description": "Turn text into natural voice clips with public or saved voices. Choose a voice and pace, then keep the audio beside the images and prompts that inspired it.",
         "cta": "Generate audio"
       },
       "model3d": {
-        "eyebrow": "{count} image-to-3D models",
+        "eyebrow": "Reusable 3D assets",
         "title": "Image-to-3D Models",
         "description": "Turn a saved image into a 3D asset you can preview and reuse. The source image, prompt, and final model stay together in your archive.",
         "cta": "Generate 3D"
       },
       "workflow": {
-        "eyebrow": "In development",
-        "title": "Build reusable workflows",
-        "description": "Build a simple chain: generate an image, upscale it, turn it into video, or run a batch. Save the workflow once and reuse the steps later.",
-        "cta": "Get notified"
+        "eyebrow": "Visual canvas",
+        "title": "Canvas",
+        "description": "Wire your ideas into one flow on an infinite canvas: the assistant reads your script and lays out image, video, and audio nodes, then connects them into a reusable pipeline.",
+        "cta": "Open the canvas"
       },
       "arena": {
         "eyebrow": "Blind model ranking",

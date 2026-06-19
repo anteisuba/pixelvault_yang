@@ -356,22 +356,20 @@
       "soon": "近日公開"
     },
     "capabilityMatrix": {
-      "eyebrow": "つながった制作ツール",
-      "title": "作り方は増えても、保存先はひとつ",
-      "description": "音声、3D、ワークフロー、ランキング、ギャラリー発見まで。保存した作品と一緒に残るので、別々のツールで文脈を探し直す必要がありません。"
+      "eyebrow": "作品をささえる層",
+      "title": "生成のその先で、作品に居場所を",
+      "description": "ブラインドのアリーナで強い 1 枚を選び、すべての生成をプロンプト・モデル・シードごと永久保存し、公開ギャラリーで作品を届ける——どれも ANTEI の中で完結します。"
     },
     "mediaLabels": {
+      "image": {
+        "compare": "並べて比較"
+      },
       "video": {
-        "storyboard": "ストーリーボード · 4f"
+        "storyboard": "クリップ"
       },
       "lora": {
-        "trainingSet": "学習セット · 4 枚",
-        "model": "LoRA · v1.2"
-      },
-      "upscale": {
-        "before": "512px",
-        "after": "2048px · 4×",
-        "scale": "4×"
+        "trainingSet": "参照 · 4 枚",
+        "model": "同じキャラ"
       },
       "tts": {
         "label": "Fish Audio S2 Pro",
@@ -383,11 +381,11 @@
         "turntable": "ターンテーブル · 360°"
       },
       "workflow": {
-        "imageNode": "画像 · flux",
-        "upscaleNode": "拡大 · 4×",
-        "videoNode": "i2v · veo3",
-        "deployNode": "deploy →",
-        "status": "近日公開"
+        "imageNode": "脚本",
+        "upscaleNode": "画像",
+        "videoNode": "音声",
+        "deployNode": "動画",
+        "status": "自動接続"
       },
       "arena": {
         "winner": "勝利",
@@ -420,41 +418,41 @@
       "copyright": "© {year} ANTEI · BYOK、永久アーカイブ"
     },
     "featureSections": {
+      "image": {
+        "eyebrow": "マルチモデル画像",
+        "title": "画像生成",
+        "description": "同じプロンプトを Flux・Gemini・GPT Image・NovelAI へ一度に送り、横に並べて比較してベストを選ぶ。自分の API キーで動かし、結果はモデルと設定ごとアーカイブに残ります。",
+        "cta": "生成をはじめる"
+      },
       "video": {
-        "eyebrow": "{count} の動画モデル",
+        "eyebrow": "マルチモデル動画",
         "title": "動画生成",
         "description": "Kling、Veo、Seedance を 1 つのスタジオに集約。テキスト、画像、参考動画から作り、完成したクリップはプロンプトと一緒に保存できます。",
         "cta": "動画を生成"
       },
       "lora": {
-        "eyebrow": "fal.ai + Replicate",
-        "title": "LoRA トレーニング",
-        "description": "学習セットをアップロードして LoRA を作成。完成した結果はライブラリに残り、次の生成でキャラクターやスタイルを揃えやすくなります。",
-        "cta": "LoRA を訓練"
-      },
-      "upscale": {
-        "eyebrow": "fal.ai で 4 倍",
-        "title": "アップスケール & 整理",
-        "description": "画像の拡大、背景除去、軽いクリーンアップを同じスタジオで完了。別ツールを覚える必要はありません。",
-        "cta": "画像を編集"
+        "eyebrow": "キャラ・スタイルの一貫性",
+        "title": "LoRA",
+        "description": "キャラクター・商品・画風をロックして、何度生成しても同じ見た目を保つ。1 枚の参照画像から同じものを再現したり、アイデンティティを固定して可変部分だけを動かせます。",
+        "cta": "一貫性を保つ"
       },
       "tts": {
-        "eyebrow": "Fish Audio TTS",
-        "title": "Text to Speech",
+        "eyebrow": "テキスト読み上げ",
+        "title": "音声生成",
         "description": "テキストを自然な音声に変換。公開ボイスや保存済みボイスを選び、速度を調整すると、音声も関連する画像やプロンプトと一緒に残ります。",
         "cta": "音声を生成"
       },
       "model3d": {
-        "eyebrow": "{count} 件の画像→3Dモデル",
+        "eyebrow": "再利用できる3D資産",
         "title": "画像→3Dモデル",
         "description": "保存済み画像を、プレビューして再利用できる 3D アセットに変換。元画像、プロンプト、完成したモデルを同じアーカイブに残せます。",
         "cta": "3Dを生成"
       },
       "workflow": {
-        "eyebrow": "開発中",
-        "title": "再利用できるワークフロー",
-        "description": "画像を生成し、拡大し、動画化する。いくつかの手順をつないで保存すれば、次から同じ流れをそのまま使えます。",
-        "cta": "公開時に通知"
+        "eyebrow": "ビジュアルキャンバス",
+        "title": "キャンバス",
+        "description": "無限キャンバスでアイデアを 1 本の制作ラインに。アシスタントが脚本を読み取り、画像・動画・音声のノードを自動配置して、再利用できるフローにつなげます。",
+        "cta": "キャンバスを開く"
       },
       "arena": {
         "eyebrow": "モデルのブラインド比較",

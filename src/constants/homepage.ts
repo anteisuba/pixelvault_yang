@@ -75,6 +75,9 @@ export const HOMEPAGE_FEATURE_TRANSLATION_VALUES: Record<
   string,
   Record<string, number>
 > = {
+  image: {
+    count: HOMEPAGE_MODEL_COUNTS.image,
+  },
   video: {
     count: HOMEPAGE_MODEL_COUNTS.video,
   },
@@ -121,19 +124,60 @@ export type HomepageFeatureMedia =
 
 export type HomepageFeatureRhythm = 'feature' | 'compact'
 
-/** Krea-style feature sections — left-image / right-text alternating */
+/**
+ * Feature sections — left-image / right-text, alternating. Covers the six
+ * real product pillars; 图片生成 + 画布 carry the `feature` rhythm (large),
+ * the rest are `compact`. The two big rows sit at positions 1 and 4 so the
+ * page breathes instead of front-loading both.
+ *
+ * `id: 'workflow'` is the **画布 / canvas** feature — it reuses the existing
+ * node-graph fallback renderer and `featureSections.workflow` / `mediaLabels.
+ * workflow` i18n keys, and links to the live canvas route.
+ */
 export const HOMEPAGE_FEATURE_SECTIONS = [
+  {
+    id: 'image',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'dawn',
+    reverse: false,
+    rhythm: 'feature',
+    showEyebrow: true,
+    showCta: true,
+    // Multi-model contact sheet: one prompt across Flux / Gemini / GPT Image
+    // / NovelAI, each tile chipped with its model name, full colour.
+    media: undefined as HomepageFeatureMedia | undefined,
+  },
   {
     id: 'video',
     ctaHref: ROUTES.STUDIO,
     tone: 'forest',
     reverse: true,
+    rhythm: 'compact',
+    showEyebrow: true,
+    showCta: true,
+    // Film-strip storyboard, 4 cinematic frames with frame numbers.
+    media: undefined as HomepageFeatureMedia | undefined,
+  },
+  {
+    id: 'tts',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'sky',
+    reverse: false,
+    rhythm: 'compact',
+    showEyebrow: true,
+    showCta: true,
+    // SVG TTS player (HomepageTtsPlayer) — pure renderer, no asset.
+    media: undefined as HomepageFeatureMedia | undefined,
+  },
+  {
+    id: 'workflow',
+    ctaHref: ROUTES.STUDIO_NODE,
+    tone: 'ink',
+    reverse: true,
     rhythm: 'feature',
     showEyebrow: true,
     showCta: true,
-    // Prompt: a film-strip storyboard with 4 cinematic frames of a
-    // dragon swooping over mountains, golden-hour lighting, frame
-    // numbers along the top, 16:10.
+    // Canvas node-graph: 剧本 → (图像, 音频) → 视频 — the autospawn shape.
     media: undefined as HomepageFeatureMedia | undefined,
   },
   {
@@ -141,25 +185,21 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'amber',
     reverse: false,
-    rhythm: 'feature',
-    showEyebrow: false,
-    showCta: false,
-    // Prompt: a contact sheet of training images on the left + the
-    // resulting consistent character on the right, "before / after"
-    // label, soft warm light, 16:10.
+    rhythm: 'compact',
+    showEyebrow: true,
+    showCta: true,
+    // Contact sheet of reference images + the consistent result.
     media: undefined as HomepageFeatureMedia | undefined,
   },
   {
-    id: 'upscale',
+    id: 'model3d',
     ctaHref: ROUTES.STUDIO,
-    tone: 'dawn',
+    tone: 'earth',
     reverse: true,
-    rhythm: 'feature',
-    showEyebrow: false,
-    showCta: false,
-    // Prompt: a single image split vertically — left half blurry low-res,
-    // right half tack-sharp 4× upscale, magnifier loupe over the seam,
-    // 16:10.
+    rhythm: 'compact',
+    showEyebrow: true,
+    showCta: true,
+    // Turntable: a saved image lifted onto a 360° 3D stage.
     media: undefined as HomepageFeatureMedia | undefined,
   },
 ] as const satisfies ReadonlyArray<{
@@ -177,10 +217,10 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
 export type HomepageFeatureSectionTone =
   (typeof HOMEPAGE_FEATURE_SECTIONS)[number]['tone']
 
+// tts / model3d / workflow were promoted to full feature sections above, so
+// the capability strip now carries only the platform layer (compare / archive
+// / share) — no duplicate rendering of the same i18n keys.
 export const HOMEPAGE_CAPABILITY_ITEMS = [
-  { id: 'tts', comingSoon: false },
-  { id: 'model3d', comingSoon: false },
-  { id: 'workflow', comingSoon: true },
   { id: 'arena', comingSoon: false },
   { id: 'archive', comingSoon: false },
   { id: 'social', comingSoon: false },

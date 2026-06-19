@@ -17,11 +17,15 @@ const SHOWCASE = HOMEPAGE_SHOWCASE.map((s) => s.src)
  * workflow) intentionally rely on pure-SVG renderers below.
  */
 const SECTION_ASSETS: Record<string, readonly string[]> = {
+  // Storyboard frames — 4 distinct, bright showcase shots so the strip reads
+  // as varied cinematic frames instead of one dark blur. The original
+  // /homepage/video/0X.webp stills were too dark + too similar; drop real
+  // bright video stills back in there and re-point here when available.
   video: [
-    '/homepage/video/01.webp',
-    '/homepage/video/02.webp',
-    '/homepage/video/03.webp',
-    '/homepage/video/04.webp',
+    '/showcase/showcase-05.webp',
+    '/showcase/showcase-06.webp',
+    '/showcase/showcase-07.webp',
+    '/showcase/showcase-08.webp',
   ],
   lora: [
     '/homepage/lora/01.png',
@@ -29,7 +33,6 @@ const SECTION_ASSETS: Record<string, readonly string[]> = {
     '/homepage/lora/03.png',
     '/homepage/lora/04.png',
   ],
-  upscale: ['/homepage/upscale/01.png'],
   model3d: ['/homepage/model3d/01.png'],
   arena: [
     '/homepage/arena/01-flux.webp',
@@ -63,6 +66,8 @@ export function HomepageFeatureMediaFallback({
   const t = useTranslations('Homepage.mediaLabels')
 
   switch (id) {
+    case 'image':
+      return <FallbackImage compareLabel={t('image.compare')} />
     case 'video':
       return <FallbackVideoStrip storyboardLabel={t('video.storyboard')} />
     case 'lora':
@@ -70,14 +75,6 @@ export function HomepageFeatureMediaFallback({
         <FallbackLoraSheet
           trainingSetLabel={t('lora.trainingSet')}
           modelLabel={t('lora.model')}
-        />
-      )
-    case 'upscale':
-      return (
-        <FallbackUpscale
-          beforeLabel={t('upscale.before')}
-          afterLabel={t('upscale.after')}
-          scaleLabel={t('upscale.scale')}
         />
       )
     case 'tts':
@@ -167,16 +164,26 @@ interface FallbackVideoStripProps {
 
 function FallbackVideoStrip({ storyboardLabel }: FallbackVideoStripProps) {
   return (
-    <div className="absolute inset-0 flex">
-      {[0, 1, 2, 3].map((idx) => (
-        <div key={idx} className="relative flex-1 overflow-hidden">
-          <FbImg src={pick('video', idx, idx)} alt="" sizes="15vw" />
-          <span className="absolute left-1.5 top-1.5 z-[2] rounded bg-black/65 px-1.5 py-0.5 font-mono text-[9px] text-white">
-            {String(idx + 1).padStart(2, '0')}
-          </span>
-        </div>
-      ))}
-      <FbLabel className="bottom-3 right-3">{storyboardLabel}</FbLabel>
+    <div className="absolute inset-0">
+      <FbImg src={pick('video', 0, 4)} alt="" />
+      <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent" />
+      <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/45 backdrop-blur-sm">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-7 w-7 fill-white"
+          aria-hidden="true"
+        >
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </span>
+      <div className="absolute inset-x-4 bottom-4 z-[2] flex items-center gap-3">
+        <span className="font-mono text-[11px] text-white/85">0:03</span>
+        <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/25">
+          <span className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-white" />
+        </span>
+        <span className="font-mono text-[11px] text-white/60">0:08</span>
+      </div>
+      <FbLabel className="left-3 top-3">{storyboardLabel}</FbLabel>
     </div>
   )
 }
@@ -191,9 +198,9 @@ function FallbackLoraSheet({
   modelLabel,
 }: FallbackLoraSheetProps) {
   return (
-    <div className="absolute inset-0 grid grid-cols-2">
+    <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2 p-2">
       {[0, 1, 2, 3].map((idx) => (
-        <div key={idx} className="relative overflow-hidden">
+        <div key={idx} className="relative overflow-hidden rounded-lg">
           <FbImg src={pick('lora', idx, idx)} alt="" sizes="20vw" />
         </div>
       ))}
@@ -203,35 +210,26 @@ function FallbackLoraSheet({
   )
 }
 
-interface FallbackUpscaleProps {
-  beforeLabel: string
-  afterLabel: string
-  scaleLabel: string
+interface FallbackImageProps {
+  compareLabel: string
 }
 
-function FallbackUpscale({
-  beforeLabel,
-  afterLabel,
-  scaleLabel,
-}: FallbackUpscaleProps) {
+/**
+ * Flagship 图片生成 tile: the same idea rendered by several models, each cell
+ * chipped with its model name — the BYOK multi-model compare in one glance.
+ */
+function FallbackImage({ compareLabel }: FallbackImageProps) {
   return (
-    <div className="absolute inset-0">
-      <div className="absolute inset-0">
-        <FbImg src={pick('upscale', 0, 2)} alt="" />
-      </div>
-      <div
-        className="absolute inset-0"
-        style={{
-          backdropFilter: 'blur(14px)',
-          clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
-        }}
-      />
-      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/70 mix-blend-overlay" />
-      <FbLabel className="left-3 top-3">{beforeLabel}</FbLabel>
-      <FbLabel className="right-3 top-3">{afterLabel}</FbLabel>
-      <div className="absolute left-1/2 top-1/2 z-[2] flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/30 backdrop-blur-sm">
-        <span className="font-mono text-[10px] text-white">{scaleLabel}</span>
-      </div>
+    <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2 p-2">
+      {HOMEPAGE_SHOWCASE.slice(0, 4).map((shot) => (
+        <div key={shot.id} className="relative overflow-hidden rounded-lg">
+          <FbImg src={shot.src} alt="" sizes="20vw" />
+          <span className="absolute left-2 top-2 z-[2] rounded bg-black/60 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white/85">
+            {shot.model}
+          </span>
+        </div>
+      ))}
+      <FbLabel className="bottom-3 right-3">{compareLabel}</FbLabel>
     </div>
   )
 }
@@ -306,90 +304,125 @@ interface FallbackWorkflowProps {
 }
 
 function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
-  const workflowNodes = [
-    { x: 40, y: 70, label: nodes[0] },
-    { x: 250, y: 40, label: nodes[1] },
-    { x: 250, y: 140, label: nodes[2] },
-    { x: 460, y: 100, label: nodes[3] },
-  ] as const
-
+  // 剧本 → (图像, 音频) → 视频 — the canvas autospawn shape, with real
+  // generated media inside the visual nodes so it reads as produced work
+  // rather than an abstract diagram. Connectors live on a 0–100 viewBox
+  // stretched to fill, so their endpoints track the percentage-positioned
+  // HTML nodes at any tile size.
   return (
-    <div className="absolute inset-0 p-6">
-      <svg viewBox="0 0 600 320" className="h-full w-full" aria-hidden="true">
-        <defs>
-          <pattern
-            id="wf-grid"
-            x="0"
-            y="0"
-            width="28"
-            height="28"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 28 0 L 0 0 0 28"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="0.5"
-              className="text-white/10"
-            />
-          </pattern>
-        </defs>
-        <rect width="600" height="320" fill="url(#wf-grid)" />
-        {workflowNodes.map((n, i) => (
-          <g key={i}>
-            <rect
-              x={n.x}
-              y={n.y}
-              width={110}
-              height={44}
-              rx={8}
-              fill="rgba(255,255,255,0.08)"
-              stroke="rgba(255,255,255,0.4)"
-            />
-            <text
-              x={n.x + 10}
-              y={n.y + 27}
-              fill="white"
-              fontSize="11"
-              fontFamily="ui-monospace, monospace"
-            >
-              {n.label}
-            </text>
-          </g>
-        ))}
+    <div className="absolute inset-0">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '22px 22px',
+        }}
+      />
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="absolute inset-0 h-full w-full"
+        aria-hidden="true"
+      >
         <path
-          d="M 150 92 C 200 92, 200 62, 250 62"
+          d="M16 50 C30 50 30 28 45 28"
           fill="none"
-          stroke="white"
-          strokeOpacity="0.55"
-          strokeWidth="1.5"
+          stroke="rgba(255,255,255,0.32)"
+          strokeWidth="0.6"
         />
         <path
-          d="M 150 92 C 200 92, 200 162, 250 162"
+          d="M16 50 C30 50 30 72 45 72"
           fill="none"
-          stroke="white"
-          strokeOpacity="0.55"
-          strokeWidth="1.5"
+          stroke="rgba(255,255,255,0.32)"
+          strokeWidth="0.6"
         />
         <path
-          d="M 360 62 C 410 62, 410 122, 460 122"
+          d="M45 28 C66 28 64 50 84 50"
           fill="none"
-          stroke="white"
-          strokeOpacity="0.7"
-          strokeWidth="1.5"
-          strokeDasharray="4 3"
+          stroke="rgba(255,255,255,0.5)"
+          strokeWidth="0.6"
+          strokeDasharray="2 2"
         />
         <path
-          d="M 360 162 C 410 162, 410 122, 460 122"
+          d="M45 72 C66 72 64 50 84 50"
           fill="none"
-          stroke="white"
-          strokeOpacity="0.7"
-          strokeWidth="1.5"
-          strokeDasharray="4 3"
+          stroke="rgba(255,255,255,0.5)"
+          strokeWidth="0.6"
+          strokeDasharray="2 2"
         />
-        <circle cx="460" cy="122" r="6" fill="rgb(34,197,94)" />
       </svg>
+
+      <WorkflowNode left="16%" top="50%" label={nodes[0]}>
+        <div className="flex h-full w-full flex-col justify-center gap-1.5 px-3">
+          <span className="h-1 w-3/4 rounded-full bg-white/45" />
+          <span className="h-1 w-full rounded-full bg-white/25" />
+          <span className="h-1 w-2/3 rounded-full bg-white/25" />
+        </div>
+      </WorkflowNode>
+
+      <WorkflowNode left="45%" top="28%" label={nodes[1]} media>
+        <FbImg src={SHOWCASE[2]} alt="" sizes="12vw" />
+      </WorkflowNode>
+
+      <WorkflowNode left="45%" top="72%" label={nodes[2]}>
+        <div className="flex h-full w-full items-center justify-center gap-[3px]">
+          {[12, 20, 28, 16, 24, 12, 22, 14].map((h, i) => (
+            <span
+              key={i}
+              className="w-[3px] rounded-full bg-white/55"
+              style={{ height: `${h}px` }}
+            />
+          ))}
+        </div>
+      </WorkflowNode>
+
+      <WorkflowNode left="84%" top="50%" label={nodes[3]} media>
+        <FbImg src={pick('video', 0, 4)} alt="" sizes="12vw" />
+        <span className="absolute left-1/2 top-1/2 z-[2] flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3 w-3 fill-white"
+            aria-hidden="true"
+          >
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      </WorkflowNode>
+
       <FbLabel className="bottom-4 right-4">{statusLabel}</FbLabel>
+    </div>
+  )
+}
+
+function WorkflowNode({
+  left,
+  top,
+  label,
+  media = false,
+  children,
+}: {
+  left: string
+  top: string
+  label: string
+  media?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
+      style={{ left, top }}
+    >
+      <div
+        className={`relative h-16 w-24 overflow-hidden rounded-xl border lg:h-24 lg:w-36 ${
+          media ? 'border-white/25' : 'border-white/15 bg-white/[0.05]'
+        }`}
+      >
+        {children}
+      </div>
+      <span className="font-mono text-[10px] tracking-wide text-white/70">
+        {label}
+      </span>
     </div>
   )
 }

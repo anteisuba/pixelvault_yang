@@ -74,6 +74,7 @@ function HomepageStandardFeatureSection({
     <section
       id={id}
       data-homepage-reveal
+      data-reverse={reverse ? 'true' : undefined}
       className={cn(
         'homepage-feature-section scroll-mt-24 grid items-center gap-10 lg:gap-16',
         rhythm === 'compact' && 'homepage-feature-section-compact',

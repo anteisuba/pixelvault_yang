@@ -356,22 +356,20 @@
       "soon": "即将上线"
     },
     "capabilityMatrix": {
-      "eyebrow": "创作工具已串好",
-      "title": "更多创作方式，统一保存",
-      "description": "语音、3D、工作流、排行和画廊发现都跟着作品走，不必在一堆分散工具里找回上下文。"
+      "eyebrow": "作品的底座",
+      "title": "生成之外，作品自有归宿",
+      "description": "盲测擂台帮你选出更强的一版，每次生成连同 prompt、模型和 seed 永久归档，公共画廊让作品被看见——都不必离开 ANTEI。"
     },
     "mediaLabels": {
+      "image": {
+        "compare": "多模型对比"
+      },
       "video": {
-        "storyboard": "分镜 · 4 帧"
+        "storyboard": "片段"
       },
       "lora": {
-        "trainingSet": "训练集 · 4 张",
-        "model": "LoRA · v1.2"
-      },
-      "upscale": {
-        "before": "512px",
-        "after": "2048px · 4×",
-        "scale": "4×"
+        "trainingSet": "参考 · 4 张",
+        "model": "同款角色"
       },
       "tts": {
         "label": "Fish Audio S2 Pro",
@@ -383,11 +381,11 @@
         "turntable": "转台 · 360°"
       },
       "workflow": {
-        "imageNode": "图像 · flux",
-        "upscaleNode": "放大 · 4×",
-        "videoNode": "图生视频 · veo3",
-        "deployNode": "部署 →",
-        "status": "即将上线"
+        "imageNode": "剧本",
+        "upscaleNode": "图像",
+        "videoNode": "音频",
+        "deployNode": "视频",
+        "status": "自动连线"
       },
       "arena": {
         "winner": "胜出",
@@ -420,41 +418,41 @@
       "copyright": "© {year} ANTEI · BYOK，永久归档"
     },
     "featureSections": {
+      "image": {
+        "eyebrow": "多模型图像",
+        "title": "图片生成",
+        "description": "把同一句 prompt 一次发给 Flux、Gemini、GPT Image、NovelAI，横向比较再挑出最好的一张。用你自己的 API key，每张结果都连同模型和参数一起存进档案。",
+        "cta": "开始生成"
+      },
       "video": {
-        "eyebrow": "{count} 个视频模型",
+        "eyebrow": "多模型视频",
         "title": "视频生成",
         "description": "Kling、Veo 和 Seedance 都在同一个工作台里。可以从文字、图片或参考视频开始，生成后和对应 prompt 一起保存。",
         "cta": "生成视频"
       },
       "lora": {
-        "eyebrow": "fal.ai + Replicate",
-        "title": "LoRA 训练",
-        "description": "上传训练集，启动 LoRA 训练，结果会进入你的素材库。之后继续用它保持角色、产品或风格的一致性。",
-        "cta": "训练 LoRA"
-      },
-      "upscale": {
-        "eyebrow": "fal.ai 4× 放大",
-        "title": "图像增强 / 清理",
-        "description": "放大图片、去背景、做轻量清理都在同一个工作台里完成，不用在多个工具之间来回切。",
-        "cta": "编辑图像"
+        "eyebrow": "角色 / 风格一致性",
+        "title": "LoRA",
+        "description": "锁定一个角色、产品或画风，让它在多次生成里保持同一种长相。从一张参考图复刻同款，或锁住身份、只放开可变的部分。",
+        "cta": "保持一致"
       },
       "tts": {
-        "eyebrow": "Fish Audio TTS",
-        "title": "文字转语音",
+        "eyebrow": "文字转语音",
+        "title": "音频生成",
         "description": "把文字变成自然语音，选择公开或已保存的音色，再调整语速。音频会和相关图像、prompt 放在一起。",
         "cta": "生成语音"
       },
       "model3d": {
-        "eyebrow": "{count} 个图生 3D 模型",
+        "eyebrow": "可复用 3D 资产",
         "title": "图生 3D 模型",
         "description": "把已保存的图片转成可预览、可复用的 3D 资产。原图、prompt 和生成结果会留在同一个档案里。",
         "cta": "生成 3D"
       },
       "workflow": {
-        "eyebrow": "开发中",
-        "title": "搭建可复用工作流",
-        "description": "把几个步骤串起来：先生成图像，再放大、转视频，或批量处理。保存一次，之后直接复用这套流程。",
-        "cta": "上线后通知我"
+        "eyebrow": "可视化画布",
+        "title": "画布",
+        "description": "在无限画布上把想法连成一条创作线：助手读懂你的剧本，自动铺开图像、视频、音频节点，再连成可复用的流程。",
+        "cta": "打开画布"
       },
       "arena": {
         "eyebrow": "模型盲测排行",

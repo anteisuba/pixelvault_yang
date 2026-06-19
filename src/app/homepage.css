@@ -1,4 +1,18 @@
 .homepage {
+  /* 批4: ivory page — the white gallery hall. The hero window and the
+     capability panel keep their own dark palettes as the only dark accents;
+     everything else (feature rows, model lineup, bottom CTA, footer, header)
+     inherits this light palette. */
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.5% 0 0);
+  --card: oklch(100% 0 0);
+  --secondary: oklch(97% 0 0);
+  --muted: oklch(97% 0 0);
+  --muted-foreground: oklch(55.6% 0 0);
+  --border: oklch(92.2% 0 0);
+  --primary: oklch(0% 0 0);
+  --primary-foreground: oklch(100% 0 0);
+
   --home-border: color-mix(in oklab, var(--border) 72%, transparent);
   --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
   --home-surface: color-mix(in oklab, var(--card) 94%, var(--background));
@@ -7,6 +21,11 @@
     var(--secondary) 72%,
     var(--background)
   );
+  /* P3: shared editorial serif for all display headings (hero + section
+     titles) — Latin uses loaded Fraunces, CJK falls to a Song/Mincho stack */
+  --home-serif:
+    var(--font-editorial), 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC',
+    'Songti TC', 'SimSun', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
@@ -33,39 +52,6 @@
   transform: translateY(0);
   outline: 2px solid color-mix(in oklab, var(--foreground) 50%, transparent);
   outline-offset: 2px;
-}
-
-.homepage-showcase-card {
-  position: relative;
-}
-.homepage-showcase-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--primary);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 2;
-}
-.homepage-showcase-card:hover::before {
-  transform: scaleX(1);
-}
-
-.homepage-scene-dawn {
-  box-shadow: inset 0 3px 0
-    color-mix(in oklab, var(--chart-1) 55%, var(--background));
-}
-.homepage-scene-forest {
-  box-shadow: inset 0 3px 0
-    color-mix(in oklab, var(--chart-3) 48%, var(--background));
-}
-.homepage-scene-ink {
-  box-shadow: inset 0 3px 0
-    color-mix(in oklab, var(--chart-2) 45%, var(--background));
 }
 
 .homepage .homepage-primary-btn {
@@ -126,89 +112,57 @@
   outline-offset: 2px;
 }
 
-.homepage-utility-btn {
-  border-color: var(--home-border);
-  background: color-mix(in oklab, var(--background) 92%, transparent);
-  transition: border-color 200ms ease;
-}
-.homepage-utility-btn:hover {
-  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
-}
-.homepage-utility-btn:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
-  outline-offset: 2px;
-}
-
-.homepage-warm {
-  margin-inline: calc(-1 * clamp(1rem, 3vw, 2rem));
-  padding-inline: clamp(1rem, 3vw, 2rem);
-  padding-block: clamp(2rem, 3.5vw, 3rem);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in oklab, var(--primary) 3%, var(--background));
-}
-
-.homepage-warm .homepage-section {
-  border-top: none;
-  padding-top: 0;
-}
-
-.homepage-showcase-card:hover {
-  transform: translateY(-6px);
-  box-shadow:
-    0 8px 24px color-mix(in oklab, var(--foreground) 7%, transparent),
-    0 20px 48px color-mix(in oklab, var(--foreground) 4%, transparent);
-}
-
-.homepage-value-icon {
-  background: color-mix(in oklab, var(--primary) 10%, var(--background));
-}
-
-.homepage-feature-icon {
-  background: color-mix(in oklab, var(--primary) 10%, var(--background));
-}
-
-.homepage-model-compact:hover {
-  background: color-mix(in oklab, var(--primary) 2%, transparent);
-}
-
-.homepage-provider-tag {
-  background: color-mix(in oklab, var(--secondary) 72%, var(--background));
-}
-.homepage-cost-tag {
-  background: color-mix(in oklab, var(--primary) 8%, var(--background));
-  color: var(--primary);
-}
-
-.homepage-pill {
-  background: color-mix(in oklab, var(--primary) 8%, var(--background));
-}
-
-.homepage-stepper-number {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.homepage-stepper-line {
-  background: color-mix(in oklab, var(--primary) 45%, transparent);
-}
-
-.homepage-border-top {
-  border-top: 1px solid var(--home-border);
-}
-
-.homepage-item-border {
-  border-top: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
-}
-
-.homepage-model-border {
-  border-bottom: 1px solid var(--home-border);
-}
-
 .homepage-header {
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--home-border);
   background: color-mix(in oklab, var(--background) 86%, transparent);
   backdrop-filter: blur(14px);
   box-shadow: none;
+  transition:
+    background 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    color 240ms ease;
+}
+
+/* over the dark hero: header goes solid dark (same tone as the hero) so the
+   two read as one continuous dark zone — it "melts" into the hero; flips to
+   the light bar once the hero scrolls past. No-JS fallback = the light bar
+   above (the data attribute is only set by HomepageHeaderMotion). */
+.homepage-header[data-header-state='hero'] {
+  --foreground: oklch(98% 0 0);
+  --background: oklch(8% 0.012 240);
+  --home-border: color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-bottom-color: transparent;
+  background: var(--background);
+  backdrop-filter: none;
+}
+
+/* persistent header CTA — auto-reverses with the header state palette */
+.homepage-header-cta {
+  background: var(--foreground);
+  color: var(--background);
+  transition:
+    background 200ms ease,
+    color 200ms ease,
+    transform 150ms ease;
+}
+.homepage-header-cta:hover {
+  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  transform: translateY(-1px);
+}
+.homepage-header-cta:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 55%, transparent);
+  outline-offset: 2px;
+}
+.homepage-header-cta-placeholder {
+  display: inline-block;
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-header,
+  .homepage-header-cta {
+    transition: none;
+  }
 }
 
 .homepage-brand-mark {
@@ -326,7 +280,9 @@
   display: flex;
   flex-direction: column;
   gap: clamp(3rem, 5vw, 4.5rem);
-  padding-block: clamp(2rem, 4vw, 4.25rem) clamp(3rem, 5vw, 4rem);
+  /* no bottom padding — the full-bleed dark footer is the page's bottom slab,
+     so nothing should leave white below it */
+  padding-block: clamp(2rem, 4vw, 4.25rem) 0;
 }
 
 @media (max-width: 640px) {
@@ -375,211 +331,94 @@
   .homepage-header-actions {
     gap: 0.4rem;
   }
-
-  .homepage-auth-actions {
-    gap: 0.25rem;
-  }
 }
 
-.homepage-nav-login {
-  background: color-mix(in oklab, var(--foreground) 3%, transparent);
-  color: var(--home-muted);
-  border: 1px solid color-mix(in oklab, var(--foreground) 22%, transparent);
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease;
-}
-
-.homepage-nav-login:hover {
-  background: color-mix(in oklab, var(--foreground) 8%, transparent);
-  color: var(--foreground);
-  border-color: color-mix(in oklab, var(--foreground) 42%, transparent);
-}
-
-.homepage-nav-login:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
-  outline-offset: 2px;
-}
-
-.homepage-nav-register {
-  border: 1px solid var(--foreground);
-  background: var(--foreground);
-  color: var(--background);
-  box-shadow:
-    0 1px 2px color-mix(in oklab, var(--foreground) 18%, transparent),
-    0 10px 24px color-mix(in oklab, var(--foreground) 10%, transparent);
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
-}
-
-.homepage-nav-register:hover {
-  border-color: color-mix(in oklab, var(--foreground) 86%, var(--background));
-  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
-  color: var(--background);
-  box-shadow:
-    0 2px 5px color-mix(in oklab, var(--foreground) 22%, transparent),
-    0 14px 32px color-mix(in oklab, var(--foreground) 14%, transparent);
-  transform: translateY(-1px);
-}
-
-.homepage-nav-workspace {
-  border: 1px solid var(--foreground);
-  background: var(--foreground);
-  color: var(--background);
-  box-shadow:
-    0 1px 2px color-mix(in oklab, var(--foreground) 18%, transparent),
-    0 10px 24px color-mix(in oklab, var(--foreground) 10%, transparent);
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
-}
-
-.homepage-nav-workspace:hover {
-  border-color: color-mix(in oklab, var(--foreground) 86%, var(--background));
-  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
-  color: var(--background);
-  box-shadow:
-    0 2px 5px color-mix(in oklab, var(--foreground) 22%, transparent),
-    0 14px 32px color-mix(in oklab, var(--foreground) 14%, transparent);
-  transform: translateY(-1px);
-}
-
-.homepage-nav-register:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
-  outline-offset: 2px;
-}
-
-.homepage-nav-workspace:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
-  outline-offset: 2px;
-}
-
-.homepage-auth-placeholder {
-  display: block;
-  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-}
-
-.homepage-locale-switcher {
-  gap: 0.125rem;
-  border-color: color-mix(in oklab, var(--foreground) 18%, transparent);
-  background: color-mix(in oklab, var(--background) 82%, transparent);
-  padding: 0.1875rem;
-}
-
-.homepage-locale-switcher .locale-switcher-option {
-  display: inline-flex;
-  min-width: 2.35rem;
-  min-height: 2.25rem;
+/* — Hero: a self-contained dark "darkroom window" hung in the page.
+   It owns its own palette so it reads as a deliberate dark window whether
+   the surrounding band is dark (today) or ivory (later). — */
+.homepage-hero-window {
+  position: relative;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 0.6rem;
-  font-size: 0.76rem;
-  letter-spacing: 0.14em;
+  justify-content: flex-start;
+  min-height: clamp(28rem, 46vw, 36rem);
+  /* full-bleed: span the viewport edge-to-edge, but keep the headline aligned
+     to the content column so it lines up with the sections below */
+  margin-inline: calc(50% - 50vw);
+  /* pull up to sit directly under the header (cancels .homepage-main top
+     padding) so there's no floating white strip between header and hero */
+  margin-top: calc(-1 * clamp(2rem, 4vw, 4.25rem));
+  padding-block: clamp(2.75rem, 5vw, 4.75rem);
+  padding-inline: max(1.5rem, calc(50vw - 37.5rem));
+  overflow: clip;
+  isolation: isolate;
+
+  --background: oklch(8% 0.012 240);
+  --foreground: oklch(98% 0 0);
+  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 60%, var(--background));
+  background: var(--background);
+  color: var(--foreground);
 }
 
-.homepage-locale-switcher .locale-switcher-indicator {
-  inset: 0.125rem;
-  background: color-mix(in oklab, var(--foreground) 92%, var(--background));
+.homepage-hero-wall {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 4px;
 }
 
-@media (min-width: 768px) and (pointer: coarse) {
-  .homepage-locale-switcher .locale-switcher-option {
-    min-width: 2.5rem;
-    min-height: 2.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .homepage-nav-login {
-    border-color: transparent;
-    background: transparent;
-    color: color-mix(in oklab, var(--foreground) 72%, var(--background));
-  }
-
-  .homepage-nav-login:hover {
-    border-color: transparent;
-    background: color-mix(in oklab, var(--foreground) 7%, transparent);
-    color: var(--foreground);
-  }
-
-  .homepage-nav-register,
-  .homepage-nav-workspace {
-    box-shadow:
-      0 1px 2px color-mix(in oklab, var(--foreground) 16%, transparent),
-      0 6px 16px color-mix(in oklab, var(--foreground) 10%, transparent);
-  }
-
-  .homepage-locale-switcher .locale-switcher-option {
-    min-width: 1.6rem;
-    min-height: 2rem;
-    padding: 0 0.28rem;
-    font-size: 0.64rem;
-    letter-spacing: 0.08em;
-  }
-}
-
-.homepage-showcase-surface {
-  background: var(--home-surface);
-  border: 1px solid var(--home-border);
-}
-
-.homepage-scene-card {
-  border: 1px solid var(--home-border);
+.homepage-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* left-anchored legibility scrim: dark behind the headline (left), fading
+     out so the work-wall stays fully visible on the right (works 发色) */
   background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--background) 86%, var(--card)),
-    color-mix(in oklab, var(--secondary) 28%, var(--background))
+    90deg,
+    var(--background) 0%,
+    color-mix(in oklab, var(--background) 90%, transparent) 28%,
+    color-mix(in oklab, var(--background) 45%, transparent) 52%,
+    transparent 74%
   );
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 3%, transparent);
-}
-.homepage-scene-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 2px 4px color-mix(in oklab, var(--foreground) 4%, transparent),
-    0 8px 20px color-mix(in oklab, var(--foreground) 3%, transparent);
 }
 
-.homepage-scene-tag {
-  background: color-mix(in oklab, var(--background) 92%, transparent);
+.homepage-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: min(58%, 42rem);
+  text-align: left;
 }
 
-.homepage-hero-card {
-  box-shadow:
-    0 4px 16px color-mix(in oklab, var(--foreground) 8%, transparent),
-    0 20px 48px color-mix(in oklab, var(--foreground) 6%, transparent);
-  border: 1px solid var(--home-border);
+.homepage-hero-window .homepage-secondary-btn {
+  border-color: color-mix(in oklab, var(--foreground) 46%, transparent);
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--foreground);
 }
-
-.homepage-hero-label {
-  background: color-mix(in oklab, var(--background) 92%, transparent);
-}
-
-.homepage-hero-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  min-height: clamp(20rem, 36vw, 26rem);
-  padding-block: clamp(2.5rem, 5vw, 4.5rem) clamp(2rem, 4vw, 3rem);
+.homepage-hero-window .homepage-secondary-btn:hover {
+  border-color: color-mix(in oklab, var(--foreground) 70%, transparent);
+  background: color-mix(in oklab, var(--foreground) 16%, transparent);
 }
 
 .homepage-hero-title {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.04em;
-  max-width: 13ch;
-  font-size: 4rem;
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: 0;
+  align-items: flex-start;
+  gap: 0.06em;
+  max-width: 14ch;
+  /* editorial serif signature (shared via --home-serif, see .homepage) */
+  font-family: var(--home-serif);
+  font-size: clamp(2.6rem, 5.5vw, 4.8rem);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
 }
 
 .homepage-hero-title-main {
@@ -588,48 +427,60 @@
 
 .homepage-hero-title-platform {
   display: block;
-  font-size: 0.72em;
-  font-weight: 500;
+  font-size: 0.58em;
+  font-weight: 400;
   letter-spacing: 0;
-  color: color-mix(in oklab, var(--foreground) 64%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 58%, var(--background));
 }
 
 html:lang(zh) .homepage .homepage-hero-title {
-  max-width: 12.5ch;
-  font-size: 3.62rem;
-  font-weight: 640;
-  line-height: 1.08;
+  max-width: 11ch;
+  font-size: clamp(2.4rem, 5.2vw, 4.3rem);
+  font-weight: 500;
+  line-height: 1.06;
 }
 
 html:lang(zh) .homepage .homepage-hero-title-platform {
-  font-weight: 500;
+  font-weight: 400;
 }
 
-.homepage-hero-mosaic {
-  display: grid;
-  position: relative;
-  left: 50%;
-  width: min(calc(100vw - 2.5rem), 74rem);
-  transform: translateX(-50%);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  isolation: isolate;
+/* Regeneration beat: a few tiles cross-fade into a different result on a
+   long, staggered cycle so the wall looks alive without churning. */
+.homepage-hero-tile-image-next {
+  opacity: 0;
 }
 
-@media (max-width: 768px) {
-  .homepage-hero-mosaic {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.625rem;
+.homepage-hero-tile-regen .homepage-hero-tile-image-next {
+  animation: homepage-hero-regen 9s ease-in-out infinite;
+}
+
+.homepage-hero-tile:nth-child(2) .homepage-hero-tile-image-next {
+  animation-delay: 1.2s;
+}
+.homepage-hero-tile:nth-child(5) .homepage-hero-tile-image-next {
+  animation-delay: 4.2s;
+}
+.homepage-hero-tile:nth-child(7) .homepage-hero-tile-image-next {
+  animation-delay: 7.2s;
+}
+
+@keyframes homepage-hero-regen {
+  0%,
+  34% {
+    opacity: 0;
+  }
+  46%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
 .homepage-hero-tile {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 4 / 5;
-  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
-  border-radius: 0.5rem;
-  background: var(--home-surface);
   opacity: 0;
   animation: homepage-hero-tile-in 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
@@ -681,11 +532,10 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
     opacity: 1 !important;
     transform: none !important;
   }
-}
-
-.homepage-hero-pill {
-  background: color-mix(in oklab, var(--secondary) 50%, var(--background));
-  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  .homepage-hero-tile-image-next {
+    animation: none !important;
+    opacity: 0 !important;
+  }
 }
 
 .homepage-hero-cta {
@@ -734,280 +584,6 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
 
   background: var(--background);
   color: var(--foreground);
-}
-
-.homepage-made-section {
-  margin-inline: calc(50% - 50vw);
-  padding-inline: max(1.5rem, calc(50vw - 38rem));
-  padding-block: 3.25rem 2.75rem;
-  --background: oklch(7.5% 0.01 220);
-  --foreground: oklch(98% 0 0);
-  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
-  --home-muted: color-mix(in oklab, var(--foreground) 56%, var(--background));
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--background) 94%, black),
-    var(--background)
-  );
-  color: var(--foreground);
-}
-
-.homepage-made-grid {
-  display: grid;
-  grid-template-columns: minmax(18rem, 0.95fr) minmax(15rem, 0.75fr) minmax(
-      18rem,
-      0.95fr
-    );
-  gap: 1rem;
-  align-items: start;
-}
-
-.homepage-made-column {
-  display: grid;
-  gap: 1rem;
-}
-
-.homepage-made-intro {
-  padding-block: 0.1rem 0.7rem;
-}
-
-.homepage-made-title {
-  font-size: 2.25rem;
-  line-height: 1.04;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.homepage-made-title-brand {
-  color: oklch(84% 0.04 72);
-}
-
-.homepage-made-copy {
-  margin-top: 1rem;
-  max-width: 20rem;
-  color: var(--home-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.homepage-made-submit {
-  margin-top: 0.95rem;
-  color: color-mix(in oklab, var(--foreground) 88%, var(--background));
-  transition: color 0.18s ease;
-}
-
-.homepage-made-submit:hover,
-.homepage-made-submit:focus-visible {
-  color: var(--foreground);
-}
-
-.homepage-made-card {
-  overflow: hidden;
-  border: 1px solid var(--home-border);
-  border-radius: 0.5rem;
-  background: color-mix(in oklab, var(--foreground) 5%, var(--background));
-}
-
-.homepage-made-media {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  background: color-mix(in oklab, var(--foreground) 7%, var(--background));
-}
-
-.homepage-made-card-featured .homepage-made-media {
-  aspect-ratio: 1 / 1.02;
-}
-
-.homepage-made-card-video .homepage-made-media {
-  aspect-ratio: 16 / 9;
-}
-
-.homepage-made-card-meta {
-  display: flex;
-  min-height: 3.25rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 0.75rem 0.8rem;
-  color: var(--home-muted);
-  font-size: 0.75rem;
-  line-height: 1.35;
-}
-
-.homepage-made-card-meta p {
-  min-width: 0;
-}
-
-.homepage-made-card-meta span {
-  flex: none;
-  border: 1px solid var(--home-border);
-  border-radius: 0.35rem;
-  padding: 0.2rem 0.55rem;
-  color: color-mix(in oklab, var(--foreground) 76%, var(--background));
-}
-
-.homepage-made-heart {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  display: inline-flex;
-  width: 2rem;
-  height: 2rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid color-mix(in oklab, var(--foreground) 16%, transparent);
-  border-radius: 999px;
-  background: color-mix(in oklab, black 48%, transparent);
-  color: var(--foreground);
-}
-
-.homepage-made-remix {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: color-mix(in oklab, var(--foreground) 96%, white);
-  color: var(--background);
-  box-shadow: 0 10px 30px color-mix(in oklab, black 28%, transparent);
-  transition:
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-
-.homepage-made-remix:hover,
-.homepage-made-remix:focus-visible {
-  background: var(--foreground);
-  transform: translate(-50%, -50%) scale(1.03);
-}
-
-.homepage-made-duration {
-  position: absolute;
-  top: 0.8rem;
-  left: 0.8rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--foreground);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.homepage-made-footer {
-  display: flex;
-  justify-content: center;
-  padding-top: 2rem;
-}
-
-.homepage-made-explore {
-  border-color: var(--home-border);
-  background: color-mix(in oklab, var(--foreground) 3%, transparent);
-  color: var(--foreground);
-}
-
-.homepage-made-explore:hover {
-  border-color: color-mix(in oklab, var(--foreground) 26%, transparent);
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-  color: var(--foreground);
-}
-
-@media (max-width: 1023px) {
-  .homepage-made-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 767px) {
-  .homepage-made-section {
-    padding-inline: 1.25rem;
-    padding-block: 2.25rem 2rem;
-  }
-
-  .homepage-made-grid {
-    display: flex;
-    gap: 0.75rem;
-    margin-inline: -1.25rem;
-    overflow-x: auto;
-    padding-inline: 1.25rem;
-    padding-bottom: 0.35rem;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-
-  .homepage-made-grid::-webkit-scrollbar {
-    display: none;
-  }
-
-  .homepage-made-column {
-    display: contents;
-  }
-
-  .homepage-made-intro {
-    flex: 0 0 min(16.5rem, 74vw);
-    padding-block: 0.2rem;
-    scroll-snap-align: start;
-  }
-
-  .homepage-made-title {
-    max-width: 12ch;
-    font-size: 2rem;
-    white-space: normal;
-  }
-
-  .homepage-made-copy {
-    margin-top: 0.75rem;
-    display: -webkit-box;
-    overflow: hidden;
-    font-size: 0.9rem;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .homepage-made-submit {
-    display: none;
-  }
-
-  .homepage-made-card {
-    flex: 0 0 min(17rem, 78vw);
-    scroll-snap-align: start;
-  }
-
-  .homepage-made-card-featured .homepage-made-media,
-  .homepage-made-media,
-  .homepage-made-card-video .homepage-made-media {
-    aspect-ratio: 4 / 3;
-  }
-
-  .homepage-made-card-meta {
-    min-height: 2.7rem;
-    padding: 0.6rem 0.65rem;
-  }
-
-  .homepage-made-card-meta p {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-  }
-
-  .homepage-made-remix {
-    display: none;
-  }
-
-  .homepage-made-heart {
-    width: 1.85rem;
-    height: 1.85rem;
-  }
-
-  .homepage-made-footer {
-    justify-content: flex-start;
-    padding-top: 1.15rem;
-  }
-
-  .homepage-made-explore {
-    width: 100%;
-    justify-content: center;
-  }
 }
 
 .homepage-feature-stack {
@@ -1189,9 +765,11 @@ html:lang(zh) .homepage .homepage-hero-title-platform {
 }
 
 .homepage-feature-title {
+  font-family: var(--home-serif);
+  font-weight: 500;
   font-size: clamp(2.5rem, 4.2vw, 3.75rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
 }
 
 .homepage-feature-section-compact .homepage-feature-title {
@@ -1313,9 +891,11 @@ html.homepage-motion-ready
 
 .homepage-capability-title {
   margin-top: 1rem;
+  font-family: var(--home-serif);
+  font-weight: 500;
   font-size: clamp(2rem, 3.8vw, 3.5rem);
-  line-height: 1.04;
-  letter-spacing: -0.04em;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
 }
 
 .homepage-capability-copy {
@@ -1427,60 +1007,82 @@ html.homepage-motion-ready
 }
 
 .homepage-model-lineup {
-  padding-top: clamp(2rem, 4vw, 4rem);
+  /* lives inside the ivory feature band now, so it inherits the white
+     gallery palette — only needs rhythm spacing from the capability card */
+  padding-top: clamp(3rem, 5vw, 4.5rem);
+}
+
+/* The expand toggle keeps a faint surface so it reads as a control. */
+.homepage-model-lineup .homepage-model-toggle {
+  background: color-mix(in oklab, var(--foreground) 4%, var(--background));
+}
+.homepage-model-lineup .homepage-model-toggle:hover {
+  background: color-mix(in oklab, var(--foreground) 7%, var(--background));
 }
 
 .homepage-model-group-label {
   color: color-mix(in oklab, var(--foreground) 55%, var(--background));
 }
 
-.homepage-model-card {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  border: 1px solid var(--home-border);
-  background: color-mix(in oklab, var(--background) 92%, var(--card));
-  border-radius: 1rem;
-  padding: 0.85rem 1rem;
-  transition:
-    border-color 200ms ease,
-    background 200ms ease,
-    transform 200ms ease;
+/* Editorial index: no cards — typographic rows with hairline dividers,
+   two columns on desktop, the model name leading and provider/price as
+   quiet inline meta. */
+.homepage-model-rows {
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
-.homepage-model-card:hover {
-  border-color: color-mix(in oklab, var(--foreground) 22%, var(--home-border));
-  background: color-mix(in oklab, var(--background) 96%, var(--card));
-  transform: translateY(-1px);
+@media (min-width: 768px) {
+  .homepage-model-rows {
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(2rem, 4vw, 3.5rem);
+  }
+}
+
+.homepage-model-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--home-border);
+}
+
+.homepage-model-row-main {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.homepage-model-row-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homepage-model-row-provider {
+  flex: none;
+  color: color-mix(in oklab, var(--foreground) 55%, var(--background));
+  font-size: 0.75rem;
 }
 
 @media (max-width: 767px) {
   .homepage-model-lineup[data-expanded='false']
-    .homepage-model-card:nth-child(n + 3) {
+    .homepage-model-row:nth-child(n + 3) {
     display: none;
   }
 }
 
-.homepage-model-card-name {
-  color: var(--foreground);
-  display: -webkit-box;
-  font-size: 0.95rem;
-  line-height: 1.25;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.homepage-model-card-provider {
-  color: color-mix(in oklab, var(--foreground) 55%, var(--background));
-  margin-top: 0.125rem;
-}
-
 .homepage-model-price {
-  background: color-mix(in oklab, var(--foreground) 92%, var(--background));
-  color: var(--background);
+  flex: none;
+  color: color-mix(in oklab, var(--foreground) 60%, var(--background));
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .homepage-model-toggle {
@@ -1507,118 +1109,29 @@ html.homepage-motion-ready
   border-top: 1px solid var(--home-border);
 }
 
-.homepage-model-rail {
-  border-top: 1px solid var(--home-border);
-}
-
-.homepage-footer-border {
-  border-top: 1px solid var(--home-border);
-}
-
-/* — Showcase rail (rhythm break) — */
-.homepage-showcase-rail {
-  padding-block: clamp(1rem, 2vw, 1.5rem);
-}
-
-.homepage-rail-title {
-  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-}
-
-.homepage-rail-viewport {
-  position: relative;
-  max-width: 100%;
-  overflow: clip;
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    black 4%,
-    black 96%,
-    transparent 100%
-  );
-}
-
-.homepage-rail-track {
-  display: flex;
-  gap: 1rem;
-  padding-inline: clamp(1rem, 3vw, 2rem);
-  width: max-content;
-  animation: homepage-rail-scroll 56s linear infinite;
-}
-
-.homepage-rail-viewport:hover .homepage-rail-track {
-  animation-play-state: paused;
-}
-
-.homepage-rail-card {
-  width: clamp(14rem, 22vw, 19rem);
-  height: clamp(18rem, 27vw, 24rem);
-  border: 1px solid var(--home-border);
-  background: var(--home-surface);
-  transition:
-    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 280ms ease;
-}
-
-.homepage-rail-card:hover {
-  transform: translateY(-4px) scale(1.015);
-  box-shadow:
-    0 6px 18px color-mix(in oklab, var(--foreground) 14%, transparent),
-    0 18px 40px color-mix(in oklab, var(--foreground) 10%, transparent);
-}
-
-.homepage-rail-fade-l,
-.homepage-rail-fade-r {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 4rem;
-  pointer-events: none;
-  z-index: 2;
-}
-.homepage-rail-fade-l {
-  left: 0;
-  background: linear-gradient(90deg, var(--background) 0%, transparent 100%);
-}
-.homepage-rail-fade-r {
-  right: 0;
-  background: linear-gradient(270deg, var(--background) 0%, transparent 100%);
-}
-
-@keyframes homepage-rail-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .homepage-rail-track {
-    animation: none !important;
-  }
-}
-
 /* — Bottom CTA — */
 .homepage-bottom-cta {
+  /* 批3: final CTA as a lifted ivory panel — owns its palette so it reads
+     light on the still-dark interim page (批5 page-flip makes this redundant).
+     The reversed black pill (.homepage-primary-btn) sits on the light surface. */
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.5% 0 0);
+  --card: oklch(100% 0 0);
+  --secondary: oklch(97% 0 0);
+  --muted: oklch(97% 0 0);
+  --muted-foreground: oklch(55.6% 0 0);
+  --border: oklch(92.2% 0 0);
+  --primary: oklch(0% 0 0);
+  --primary-foreground: oklch(100% 0 0);
+  --home-border: color-mix(in oklab, var(--border) 72%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
+
   border: 1px solid var(--home-border);
-  contain: paint;
-  isolation: isolate;
   overflow: clip;
-  background:
-    radial-gradient(
-      circle at 30% 20%,
-      color-mix(in oklab, var(--primary) 22%, var(--background)) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 75% 80%,
-      color-mix(in oklab, var(--chart-3) 18%, var(--background)) 0%,
-      transparent 55%
-    ),
-    color-mix(in oklab, var(--background) 92%, var(--card));
+  background: var(--background);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, oklch(14.5% 0 0) 6%, transparent),
+    0 20px 48px color-mix(in oklab, oklch(14.5% 0 0) 8%, transparent);
 }
 
 .homepage-bottom-cta-content {
@@ -1626,23 +1139,26 @@ html.homepage-motion-ready
   z-index: 2;
 }
 
-.homepage-bottom-cta-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in oklab, var(--primary) 14%, transparent) 0%,
-    transparent 55%
-  );
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(60px);
-}
-
 /* — Footer — */
 .homepage-footer {
-  border-top: 1px solid var(--home-border);
-  padding-bottom: clamp(2rem, 3vw, 3rem);
+  /* dark footer band — book-ends the dark hero so the white hall opens and
+     closes dark (restores the black/white reversal); full-bleed edge-to-edge,
+     same near-black tone as the hero window. */
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(1rem, calc(50vw - 37.5rem));
+  /* tighten the gap from the content above so the dark footer reads as the
+     resolved bottom slab rather than a band floating below a white void */
+  margin-top: calc(-1 * clamp(1.5rem, 2.5vw, 2.25rem));
+  padding-top: clamp(3rem, 4vw, 4rem);
+  padding-bottom: clamp(2.5rem, 4vw, 3.5rem);
+
+  --background: oklch(8% 0.012 240);
+  --foreground: oklch(98% 0 0);
+  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 56%, var(--background));
+
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .homepage-footer-link {
@@ -1658,91 +1174,31 @@ html.homepage-motion-ready
   border-top: 1px solid var(--home-border);
 }
 
-.homepage-value-prop-grid > *:nth-child(-n + 2) .homepage-value-icon {
-  width: 3rem;
-  height: 3rem;
-  background: color-mix(in oklab, var(--primary) 15%, var(--background));
-}
-.homepage-value-prop-grid > *:nth-child(-n + 2) .homepage-value-title {
-  font-size: clamp(1.25rem, 1.8vw, 1.5rem);
-}
-
-@media (max-width: 1023px) {
-  .homepage-hero-grid {
-    min-height: auto;
+@media (max-width: 900px) {
+  /* below the split threshold: headline spans full width and the scrim covers
+     the whole wall so the left-aligned text stays legible over any tile */
+  .homepage-hero-content {
+    max-width: 100%;
   }
 
-  .homepage-hero-title {
-    font-size: 4rem;
-  }
-
-  .homepage-hero-mosaic {
-    order: 2;
-  }
-}
-
-@media (max-width: 768px) {
-  .homepage-hero-title {
-    font-size: 3.25rem;
-  }
-
-  html:lang(zh) .homepage .homepage-hero-title {
-    font-size: 3rem;
+  .homepage-hero-scrim {
+    background: color-mix(in oklab, var(--background) 72%, transparent);
   }
 }
 
 @media (max-width: 640px) {
-  .homepage-hero-grid {
-    row-gap: 2rem;
+  .homepage-hero-window {
+    min-height: clamp(22rem, 72vw, 28rem);
+    padding: clamp(1.25rem, 6vw, 2rem);
   }
 
-  .homepage-hero-title {
-    font-size: 2.65rem;
-    line-height: 1;
-  }
-
-  html:lang(zh) .homepage .homepage-hero-title {
-    font-size: 2.45rem;
-    line-height: 1.04;
-  }
-
-  .homepage-hero-brand {
-    font-size: 0.9rem;
-    letter-spacing: 0.34em;
-    margin-inline-end: -0.34em;
-  }
-
-  .homepage-hero-pill {
-    margin-bottom: 1rem;
-    padding: 0.45rem 0.85rem;
-    font-size: 0.8125rem;
-    line-height: 1.35;
-  }
-
-  .homepage-hero-mosaic {
-    height: auto;
+  .homepage-hero-wall {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .homepage-hero-tile {
-    min-height: 0;
   }
 }
 
 @media (max-width: 360px) {
   .homepage-main {
     padding-top: 2rem;
-  }
-
-  .homepage-hero-grid {
-    row-gap: 1.75rem;
-  }
-
-  .homepage-hero-title {
-    font-size: 2.25rem;
-  }
-
-  .homepage-hero-mosaic {
-    height: auto;
   }
 }

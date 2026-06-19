@@ -75,9 +75,6 @@ export const HOMEPAGE_FEATURE_TRANSLATION_VALUES: Record<
   string,
   Record<string, number>
 > = {
-  imageEditing: {
-    imageCount: HOMEPAGE_MODEL_COUNTS.image,
-  },
   video: {
     count: HOMEPAGE_MODEL_COUNTS.video,
   },
@@ -124,23 +121,8 @@ export type HomepageFeatureMedia =
 
 export type HomepageFeatureRhythm = 'feature' | 'compact'
 
-export const HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID = 'imageEditing'
-
 /** Krea-style feature sections — left-image / right-text alternating */
 export const HOMEPAGE_FEATURE_SECTIONS = [
-  {
-    id: HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID,
-    ctaHref: ROUTES.STUDIO,
-    tone: 'sky',
-    reverse: false,
-    rhythm: 'feature',
-    showEyebrow: true,
-    showCta: true,
-    // Prompt: a portrait of a young woman on the left + 3 stylised
-    // re-renders (Ghibli / oil / watercolor) tiled on the right, soft
-    // editorial layout, plenty of negative space, 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
   {
     id: 'video',
     ctaHref: ROUTES.STUDIO,
@@ -259,72 +241,20 @@ export const HOMEPAGE_SHOWCASE = [
   },
 ] as const
 
-export type HomepageMadeWithAnteiColumn = 'left' | 'middle' | 'right'
-export type HomepageMadeWithAnteiVariant = 'featured' | 'standard' | 'video'
-
-export const HOMEPAGE_MADE_WITH_ANTEI_ITEMS = [
-  {
-    id: 'storybookForest',
-    src: '/showcase/showcase-06.webp',
-    model: 'Flux',
-    column: 'left',
-    variant: 'featured',
-  },
-  {
-    id: 'goldenGlass',
-    src: '/showcase/showcase-05.webp',
-    model: 'Gemini',
-    column: 'left',
-    variant: 'standard',
-  },
-  {
-    id: 'quietArchitecture',
-    src: '/showcase/showcase-03.webp',
-    model: 'Flux',
-    column: 'middle',
-    variant: 'standard',
-  },
-  {
-    id: 'summerAnime',
-    src: '/showcase/showcase-02.webp',
-    model: 'Illustrious XL',
-    column: 'middle',
-    variant: 'standard',
-  },
-  {
-    id: 'atelierRoom',
-    src: '/showcase/showcase-08.webp',
-    model: 'Flux',
-    column: 'middle',
-    variant: 'standard',
-  },
-  {
-    id: 'softPortrait',
-    src: '/showcase/showcase-01.webp',
-    model: 'GPT Image',
-    column: 'right',
-    variant: 'standard',
-  },
-  {
-    id: 'mangaPanel',
-    src: '/showcase/showcase-07.webp',
-    model: 'Flux',
-    column: 'right',
-    variant: 'standard',
-  },
-  {
-    id: 'spaceExplorer',
-    src: '/showcase/showcase-04.webp',
-    model: 'Gemini',
-    column: 'right',
-    variant: 'video',
-    duration: '0:06',
-  },
-] as const satisfies ReadonlyArray<{
-  id: string
-  src: string
-  model: string
-  column: HomepageMadeWithAnteiColumn
-  variant: HomepageMadeWithAnteiVariant
-  duration?: string
-}>
+/**
+ * Image set for the hero "darkroom window" wall. Deliberately disjoint from
+ * the Made-with-ANTEI gallery below (which uses `/showcase/*`) so the hero
+ * reads as an ambient backdrop instead of duplicating the gallery's pieces.
+ * Pulls from the diverse `archive` set plus two stylized edits — none of which
+ * appear in the adjacent gallery.
+ */
+export const HOMEPAGE_HERO_WALL = [
+  { id: 'heroPortrait', src: '/homepage/archive/portrait.webp' },
+  { id: 'heroLandscape', src: '/homepage/archive/landscape.webp' },
+  { id: 'heroAnimal', src: '/homepage/archive/animal.webp' },
+  { id: 'heroConcept', src: '/homepage/archive/concept.webp' },
+  { id: 'heroStillLife', src: '/homepage/archive/stilllife.webp' },
+  { id: 'heroAbstract', src: '/homepage/archive/abstract.webp' },
+  { id: 'heroGhibli', src: '/homepage/imageEditing/02-ghibli.webp' },
+  { id: 'heroWatercolor', src: '/homepage/imageEditing/04-watercolor.webp' },
+] as const

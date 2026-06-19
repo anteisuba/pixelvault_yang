@@ -59,7 +59,11 @@ export function CharacterImageNode({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
 
   return (
-    <NodeShell type={NODE_TYPE_IDS.characterImage} selected={selected}>
+    <NodeShell
+      type={NODE_TYPE_IDS.characterImage}
+      selected={selected}
+      status={data.status}
+    >
       <NodeShell.Header
         type={NODE_TYPE_IDS.characterImage}
         status={data.status}
@@ -83,7 +87,7 @@ export function CharacterImageNode({
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              <ImageIcon className="size-8 text-rose-200" />
+              <ImageIcon className="size-8 text-node-port-character" />
               <div>
                 <p className="text-sm font-semibold text-node-foreground">
                   {characterName}
@@ -97,7 +101,7 @@ export function CharacterImageNode({
 
           {isPending ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Loader2 className="size-5 animate-spin text-rose-200" />
+              <Loader2 className="size-5 animate-spin text-node-port-character" />
               <span className="text-xs font-semibold">{t('generating')}</span>
             </div>
           ) : null}
@@ -113,9 +117,9 @@ export function CharacterImageNode({
         </div>
 
         {isError ? (
-          <div className="flex gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
+          <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <p className="line-clamp-3 text-xs leading-5 text-red-100/80">
+            <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
               {data.generationError}
             </p>
           </div>
@@ -131,7 +135,7 @@ export function CharacterImageNode({
                 : 'statusIdle',
           )}
         </p>
-        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-rose-200">
+        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-port-character">
           <WandSparkles className="size-4" />
         </span>
       </NodeShell.Footer>

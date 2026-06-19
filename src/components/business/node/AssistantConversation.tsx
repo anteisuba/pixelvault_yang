@@ -17,6 +17,11 @@ interface AssistantConversationProps {
   onRetry(): Promise<void>
   onFocusNode(nodeId: string): void
   getNodeLabel(nodeId: string): string
+  /** Optional override for the empty-state opener line (E1 lean front door). */
+  emptyHint?: string
+  /** Optional starter chips shown in the empty state; clicking prefills the
+   *  draft so the user can review before sending (E1 「1 句起手 + 3 短 chips」). */
+  starters?: { id: string; label: string; prompt: string }[]
 }
 
 export function AssistantConversation({
@@ -27,6 +32,8 @@ export function AssistantConversation({
   onRetry,
   onFocusNode,
   getNodeLabel,
+  emptyHint,
+  starters,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
   const [draft, setDraft] = useState('')
@@ -46,11 +53,27 @@ export function AssistantConversation({
   )
 
   return (
-    <div className="flex min-h-56 shrink-0 flex-col bg-node-panel/70 md:min-h-72">
-      <div className="max-h-32 min-h-16 space-y-3 overflow-y-auto px-3 py-2 md:max-h-40 md:px-4 md:py-3">
+    <div className="flex min-h-0 flex-1 flex-col bg-node-panel/70">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2 md:px-4 md:py-3">
         {messages.length === 0 ? (
-          <div className="flex min-h-14 flex-col justify-center text-sm leading-6 text-node-muted">
-            {t('empty')}
+          <div className="flex min-h-14 flex-col gap-3 py-1">
+            <p className="text-sm leading-6 text-node-muted">
+              {emptyHint ?? t('empty')}
+            </p>
+            {starters && starters.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {starters.map((starter) => (
+                  <button
+                    key={starter.id}
+                    type="button"
+                    onClick={() => setDraft(starter.prompt)}
+                    className="rounded-full border border-node-panel-inner bg-node-panel-soft px-3 py-1 text-2xs font-medium text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+                  >
+                    {starter.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           messages.map((message) => (

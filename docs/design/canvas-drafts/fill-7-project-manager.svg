@@ -1,0 +1,54 @@
+<svg width="100%" viewBox="0 0 680 318" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>补画 项目管理 顶栏切换项目</title>
+<defs>
+<pattern id="pm" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="#2A2A2A"/></pattern>
+<marker id="pa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888780"/></marker>
+<style>text{font-family:system-ui,sans-serif}</style>
+</defs>
+
+<text x="20" y="20" font-size="15" font-weight="700" fill="#2C2C2A">补 · 项目管理(点顶栏项目名 → 切换 / 新建 / 管理)</text>
+
+<rect x="20" y="34" width="180" height="22" rx="6" fill="#242424" stroke="#185FA5"/><text x="30" y="49" font-size="8.5" fill="#C9C7BE">凡人修仙传·二创 &#9662;</text>
+<line x1="60" y1="56" x2="60" y2="74" stroke="#888780" stroke-width="1.4" marker-end="url(#pa)"/>
+
+<rect x="20" y="76" width="430" height="228" rx="12" fill="#1A1A1A" stroke="#3A3A37"/>
+<text x="34" y="96" font-size="10" font-weight="700" fill="#E8E6DE">项目</text>
+<rect x="120" y="84" width="180" height="18" rx="9" fill="#242424"/><text x="130" y="97" font-size="7.5" fill="#6F6A63">搜索项目…</text>
+<text x="370" y="97" font-size="8" fill="#9A988F">排序:最近 &#9662;</text>
+
+<rect x="34" y="110" width="196" height="84" rx="9" fill="#1E1E1E" stroke="#185FA5" stroke-width="1.6"/>
+<rect x="44" y="120" width="70" height="50" rx="5" fill="#121212"/><rect x="44" y="120" width="70" height="50" rx="5" fill="url(#pm)"/>
+<text x="124" y="134" font-size="8.5" font-weight="700" fill="#C9C7BE">凡人修仙传·二创</text>
+<rect x="124" y="140" width="40" height="14" rx="7" fill="#1F3A2C"/><text x="144" y="151" text-anchor="middle" font-size="6.5" fill="#7FC4A0">当前</text>
+<text x="124" y="170" font-size="7" fill="#9A988F">21 节点 · 刚刚</text>
+<text x="124" y="184" font-size="7" fill="#7FC4A0">&#9729; 已同步</text>
+
+<rect x="238" y="110" width="196" height="84" rx="9" fill="#1E1E1E" stroke="#3A3A37"/>
+<rect x="248" y="120" width="70" height="50" rx="5" fill="#121212"/><rect x="248" y="120" width="70" height="50" rx="5" fill="url(#pm)"/>
+<text x="328" y="134" font-size="8.5" font-weight="700" fill="#C9C7BE">武侠短片</text>
+<text x="328" y="170" font-size="7" fill="#9A988F">12 节点 · 昨天</text>
+<text x="328" y="184" font-size="7" fill="#7FC4A0">&#9729; 已同步</text>
+<text x="424" y="130" text-anchor="end" font-size="9" fill="#6F6A63">&#8943;</text>
+
+<rect x="34" y="202" width="196" height="84" rx="9" fill="#1E1E1E" stroke="#3A3A37"/>
+<rect x="44" y="212" width="70" height="50" rx="5" fill="#121212"/><rect x="44" y="212" width="70" height="50" rx="5" fill="url(#pm)"/>
+<text x="124" y="226" font-size="8.5" font-weight="700" fill="#C9C7BE">测试·赛博</text>
+<text x="124" y="262" font-size="7" fill="#9A988F">5 节点 · 3 天前</text>
+<rect x="124" y="268" width="48" height="14" rx="7" fill="#242424"/><text x="148" y="279" text-anchor="middle" font-size="6.5" fill="#9A988F">&#8962; 仅本地</text>
+<text x="220" y="222" text-anchor="end" font-size="9" fill="#6F6A63">&#8943;</text>
+
+<rect x="238" y="202" width="196" height="84" rx="9" fill="#161616" stroke="#3A3A37" stroke-dasharray="5 4"/>
+<text x="336" y="244" text-anchor="middle" font-size="16" fill="#5F5E5A">＋</text>
+<text x="336" y="264" text-anchor="middle" font-size="8.5" fill="#9A988F">新建项目</text>
+
+<text x="466" y="96" font-size="10" font-weight="700" fill="#5F5E5A">要点</text>
+<text x="466" y="118" font-size="8.5" fill="#5F5E5A">· 卡 = 迷你画布缩略 + 名称 +</text>
+<text x="478" y="131" font-size="8.5" fill="#5F5E5A">节点数 + 最后编辑 + 同步态</text>
+<text x="466" y="153" font-size="8.5" fill="#5F5E5A">· 悬停卡 → &#8943; 重命名/复制/删除</text>
+<text x="466" y="175" font-size="8.5" fill="#A32D2D">· 切换不混 本地 / 服务端项目</text>
+<text x="466" y="197" font-size="8.5" fill="#5F5E5A">· 新建立即本地,有网再同步</text>
+<text x="466" y="219" font-size="8.5" fill="#5F5E5A">· 「仅本地」明确标记(未上云)</text>
+<text x="466" y="241" font-size="8.5" fill="#5F5E5A">· 删除 = 二次确认(破坏性)</text>
+<text x="466" y="263" font-size="8.5" fill="#0C447C">· 重命名不触发画布 reset</text>
+<text x="466" y="285" font-size="8" fill="#888780">· 去黄无彩;同步态用图标+中性</text>
+</svg>

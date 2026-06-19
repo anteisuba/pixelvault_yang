@@ -21,7 +21,7 @@ export function HomepageHeroCta() {
   if (!isLoaded) {
     return (
       <span
-        className="homepage-hero-cta-placeholder h-11 w-40 rounded-full"
+        className="homepage-hero-cta-placeholder h-12 w-40 rounded-full"
         aria-hidden="true"
       />
     )
@@ -33,7 +33,7 @@ export function HomepageHeroCta() {
     <Button
       asChild
       size="lg"
-      className="homepage-hero-cta h-11 rounded-full px-6 text-sm font-semibold sm:px-7"
+      className="homepage-hero-cta h-12 rounded-full px-7 text-sm font-semibold sm:px-8"
     >
       <Link href={href} className="inline-flex items-center gap-2">
         {t('startCreating')}

@@ -167,7 +167,7 @@ export function VideoReferenceInspector({
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-red-500/15 text-red-200">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-node-port-video/20 text-node-port-video">
               <Video className="size-5" />
             </span>
             <p className="text-xs leading-5 text-node-muted">

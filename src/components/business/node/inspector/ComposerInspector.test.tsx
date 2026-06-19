@@ -51,6 +51,8 @@ const ACTIONS: NodeWorkflowCanvasActions = {
     refusal: null,
   })),
   applySeedancePromptPlanToSeedance: vi.fn(),
+  setScriptDoc: vi.fn(),
+  applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
   sendFromComposer,
   generateCharacterImage: vi.fn(),

@@ -27,6 +27,17 @@
   --color-node-danger: var(--node-danger);
   --color-node-success: var(--node-success);
   --color-node-lipsync: var(--node-lipsync);
+  --color-node-edge: var(--node-edge);
+  --color-node-edge-active: var(--node-edge-active);
+  --color-node-focus-ring: var(--node-focus-ring);
+  --color-node-port-character: var(--node-port-character);
+  --color-node-port-background: var(--node-port-background);
+  --color-node-port-voice: var(--node-port-voice);
+  --color-node-port-video: var(--node-port-video);
+  --color-node-status-done: var(--node-status-done);
+  --color-node-status-done-fg: var(--node-status-done-fg);
+  --color-node-status-failed: var(--node-status-failed);
+  --color-node-status-failed-fg: var(--node-status-failed-fg);
   --shadow-node-panel: 0 20px 60px var(--node-shadow);
   --font-sans: var(--font-app-sans);
   --font-display: var(--font-app-display);
@@ -43,6 +54,10 @@
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;
   --width-studio-sidebar: 13rem;
+  /* 画布节点卡密度（baseline §3 / 草稿 fill-5）：默认 400px。 */
+  --width-node-card: 25rem;
+  /* 节点 ⤢ 就地展开宽度（B3）：紧凑卡放大成自带全参数面板。 */
+  --width-node-card-expanded: 38rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -252,18 +267,36 @@
   --surface-composer: oklch(96% 0.008 95);
   --surface-composer-foreground: oklch(20% 0 0);
 
+  /* 画布近黑工作台（direction.md 双面模式·工作面）。grays 中性化（去暖/锈调）
+     依据 canvas-baseline.md §2.2 + 草稿 fill-5；canvas/success 按 §2.1 显式「保留」。 */
   --node-canvas: #0b0b0a;
-  --node-panel: #181716;
-  --node-panel-inner: #2d2b28;
-  --node-panel-soft: #22211f;
-  --node-foreground: #f4f1ea;
-  --node-muted: #a6a098;
+  --node-panel: #1a1a1a;
+  --node-panel-inner: #2a2a2a;
+  --node-panel-soft: #202020;
+  --node-foreground: #e8e6de;
+  --node-muted: #9a988f;
   --node-subtle: #6f6a63;
-  --node-amber: #d97757;
-  --node-danger: #ca8a04;
-  --node-success: #10b981;
-  --node-lipsync: #9c77f6;
+  /* DEPRECATED（D1 去黄）：amber/danger 已 repoint 到中性/红，token 名暂留——201 处
+     引用随逐组件重建改名为 --node-edge/-focus-ring/-status-* 后删除。勿在新代码引用。 */
+  --node-amber: #8c8a82; /* 旧锈橙强调 → 中性 mid-gray */
+  --node-danger: #e5484d; /* 旧 amber-yellow「danger」→ 真红（语义对齐 §6 failed=红） */
+  --node-success: #10b981; /* §2.1/D5 保留：仅生成按钮的已批准例外 */
+  --node-lipsync: #9c77f6; /* §10 待 owner：lipsync 语义紫，暂留 */
   --node-shadow: rgb(0 0 0 / 0.5);
+  /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相 */
+  --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
+  --node-edge-active: #e8e6de; /* = foreground，流动/hover/选中提亮 */
+  --node-focus-ring: rgba(232, 230, 222, 0.4); /* foreground 40% 焦点环 */
+  /* 端口类型色（极淡·功能性例外 · 草稿 fill-5 §2.3）：靠图标 + 低饱和类型色配对 */
+  --node-port-character: #6f6a86;
+  --node-port-background: #5f7a73;
+  --node-port-voice: #856a72;
+  --node-port-video: #647386;
+  /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红 */
+  --node-status-done: #1f3a2c;
+  --node-status-done-fg: #7fc4a0;
+  --node-status-failed: #3a1e1e;
+  --node-status-failed-fg: #f09595;
 }
 
 html:lang(ja) {
@@ -1110,6 +1143,22 @@ html:lang(zh) {
       grid-template-columns: minmax(0, 1.2fr) minmax(17rem, 0.8fr);
     }
   }
+}
+
+/* ── Canvas (Node 导演台) motion standard ─────────────────────────────
+   Size morphs of canvas panels (the assistant dock expand⤢↔dock, etc.) ride
+   the global motion canon — --ease-standard + --duration-slow (the canon's
+   "面板展开折叠" tier; see src/constants/motion.ts). Continuous pointer drags
+   set data-resizing='true' to suppress the transition so the panel tracks the
+   cursor 1:1 instead of lagging behind it. Reduced motion is neutralised by the
+   global prefers-reduced-motion block above. New canvas components that morph
+   size should reuse this class; transform/opacity morphs compose the Tailwind
+   `duration-slow ease-standard` utilities instead. */
+.node-canvas-panel-motion {
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+.node-canvas-panel-motion[data-resizing='true'] {
+  transition: none;
 }
 
 /* ── Studio generating reveal — Krea-style shimmer ─────────────── */

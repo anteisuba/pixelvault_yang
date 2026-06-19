@@ -355,52 +355,12 @@
     "badges": {
       "soon": "即将上线"
     },
-    "madeWithAntei": {
-      "titlePrefix": "用",
-      "titleBrand": "ANTEI 创作",
-      "description": "探索社区里的精彩作品，每一张都由 ANTEI 的多模型能力生成。",
-      "submit": "提交你的作品",
-      "remix": "Remix",
-      "explore": "查看更多作品",
-      "items": {
-        "storybookForest": {
-          "caption": "森林炼金术士，故事书光影"
-        },
-        "goldenGlass": {
-          "caption": "金色酒杯，雨夜吧台光"
-        },
-        "quietArchitecture": {
-          "caption": "超现实建筑，极简，安静"
-        },
-        "summerAnime": {
-          "caption": "动漫少女，风，夏日天空"
-        },
-        "atelierRoom": {
-          "caption": "安静工作室，温暖午后"
-        },
-        "softPortrait": {
-          "caption": "电影感肖像，柔光，85mm"
-        },
-        "mangaPanel": {
-          "caption": "黑白恋爱漫画分镜"
-        },
-        "spaceExplorer": {
-          "caption": "电影镜头，太空探索者"
-        }
-      }
-    },
     "capabilityMatrix": {
       "eyebrow": "创作工具已串好",
       "title": "更多创作方式，统一保存",
       "description": "语音、3D、工作流、排行和画廊发现都跟着作品走，不必在一堆分散工具里找回上下文。"
     },
     "mediaLabels": {
-      "imageEditing": {
-        "original": "原图",
-        "styleOne": "吉卜力",
-        "styleTwo": "油画",
-        "styleThree": "水彩"
-      },
       "video": {
         "storyboard": "分镜 · 4 帧"
       },
@@ -460,12 +420,6 @@
       "copyright": "© {year} ANTEI · BYOK，永久归档"
     },
     "featureSections": {
-      "imageEditing": {
-        "eyebrow": "参考图编辑",
-        "title": "参考图编辑",
-        "description": "上传参考图，按目标选择合适路径：Gemini 做组合构图，Flux Kontext 做定向修改，其他图像模型负责风格和清理。",
-        "cta": "试试编辑"
-      },
       "video": {
         "eyebrow": "{count} 个视频模型",
         "title": "视频生成",
@@ -2911,6 +2865,12 @@
     }
   },
   "StudioNode": {
+    "emptyGuide": {
+      "title": "空画布 — 从这里开始",
+      "subtitle": "聊聊故事，助手帮你把节点铺上。",
+      "chatOutline": "跟助手聊大纲",
+      "addNode": "手动加节点（角色 / 背景 / 镜头 / 图像…）"
+    },
     "eyebrow": "节点工作流",
     "projectUntitled": "未命名项目",
     "projectNewDefaultName": "未命名项目 {n}",
@@ -3502,6 +3462,21 @@
       "statusError": "生成失败",
       "statusTextReady": "文本会作为下游节点输入"
     },
+    "videoComposer": {
+      "variant": {
+        "standard": "标准",
+        "fast": "快速"
+      },
+      "variantAriaLabel": "模型变体",
+      "provider": {
+        "fal": "fal",
+        "volcengine": "火山方舟"
+      },
+      "providerAriaLabel": "提供方",
+      "referenceModeOn": "已连接参考输入，自动使用参考模型。",
+      "expandCard": "展开卡片",
+      "collapseCard": "收起卡片"
+    },
     "workflowFields": {
       "prompt": {
         "label": "生成提示词",
@@ -3654,6 +3629,35 @@
     },
     "dock": {
       "title": "助手面板",
+      "expand": "展开剧本工作区",
+      "restore": "收回 dock",
+      "scriptDoc": "剧本 / 大纲",
+      "scriptDocDraft": "按对话生成大纲",
+      "scriptDocUpdate": "按对话更新大纲",
+      "scriptDocApply": "生成到画布",
+      "scriptDocEmptyTitle": "还没有大纲",
+      "scriptDocEmptyHint": "在左侧把大纲聊定，再在这里生成；确认后会自动创建对应节点。",
+      "scriptDocNeedChat": "先和助手聊几句你的故事。",
+      "scriptDocRolesLabel": "角色 · {count}",
+      "scriptDocShotsLabel": "镜头 · {count}",
+      "scriptDocApplyResult": "已在画布生成 {created} 个新节点。",
+      "scriptDocApplyNothing": "画布已与大纲一致，没有新节点要生成。",
+      "scriptDocApplyEmpty": "请先在大纲里添加角色或镜头。",
+      "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
+      "starters": {
+        "scriptOutline": {
+          "label": "剧本大纲",
+          "prompt": "帮我先聊聊这个故事的大纲。"
+        },
+        "castStyle": {
+          "label": "角色与画风",
+          "prompt": "聊聊有哪些角色、整体画风是什么。"
+        },
+        "firstPhase": {
+          "label": "第一阶段",
+          "prompt": "先规划第一阶段——一组短镜头（≤60 秒）。"
+        }
+      },
       "welcomeTitle": "选择节点查看检查器",
       "welcomeDescription": "我可以帮你检查画布、收紧提示词，并建议下一步运行哪个节点。",
       "welcomeSkillScript": "把 Composer 想法拆成可执行的制作步骤。",

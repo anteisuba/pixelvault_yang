@@ -355,52 +355,12 @@
     "badges": {
       "soon": "Soon"
     },
-    "madeWithAntei": {
-      "titlePrefix": "Made with",
-      "titleBrand": "ANTEI",
-      "description": "Explore stunning creations from the community, made with the power of ANTEI.",
-      "submit": "Submit your creation",
-      "remix": "Remix",
-      "explore": "Explore more creations",
-      "items": {
-        "storybookForest": {
-          "caption": "Forest alchemist, storybook light"
-        },
-        "goldenGlass": {
-          "caption": "Golden glass, rainy bar light"
-        },
-        "quietArchitecture": {
-          "caption": "Surreal architecture, minimal, calm"
-        },
-        "summerAnime": {
-          "caption": "Anime girl, wind, summer sky"
-        },
-        "atelierRoom": {
-          "caption": "Quiet atelier, warm afternoon"
-        },
-        "softPortrait": {
-          "caption": "Cinematic portrait, soft light, 85mm"
-        },
-        "mangaPanel": {
-          "caption": "Monochrome romance panel"
-        },
-        "spaceExplorer": {
-          "caption": "Cinematic shot, space explorer"
-        }
-      }
-    },
     "capabilityMatrix": {
       "eyebrow": "Connected tools",
       "title": "More ways to create, one place to save",
       "description": "Voice, 3D, workflows, rankings, and gallery discovery stay tied to the work you save, so projects do not scatter across separate tools."
     },
     "mediaLabels": {
-      "imageEditing": {
-        "original": "Original",
-        "styleOne": "Ghibli",
-        "styleTwo": "Oil",
-        "styleThree": "Watercolor"
-      },
       "video": {
         "storyboard": "Storyboard · 4f"
       },
@@ -460,12 +420,6 @@
       "copyright": "© {year} ANTEI · BYOK, forever archived"
     },
     "featureSections": {
-      "imageEditing": {
-        "eyebrow": "Reference image editing",
-        "title": "Edit with references",
-        "description": "Drop in a reference image and choose the path that fits: compose with Gemini, make directed edits with Flux Kontext, or use a specialist image model for style and cleanup.",
-        "cta": "Try editing"
-      },
       "video": {
         "eyebrow": "{count} video models",
         "title": "Video Generation",
@@ -2911,6 +2865,12 @@
     }
   },
   "StudioNode": {
+    "emptyGuide": {
+      "title": "Empty canvas — start here",
+      "subtitle": "Tell me the story and the assistant lays the nodes out for you.",
+      "chatOutline": "Chat the outline with the assistant",
+      "addNode": "Add a node manually (character / background / shot / image…)"
+    },
     "eyebrow": "Node workflow",
     "projectUntitled": "Untitled project",
     "projectNewDefaultName": "Untitled project {n}",
@@ -3502,6 +3462,21 @@
       "statusError": "Generation failed",
       "statusTextReady": "Text will feed downstream nodes"
     },
+    "videoComposer": {
+      "variant": {
+        "standard": "Standard",
+        "fast": "Fast"
+      },
+      "variantAriaLabel": "Model variant",
+      "provider": {
+        "fal": "fal",
+        "volcengine": "VolcEngine"
+      },
+      "providerAriaLabel": "Provider",
+      "referenceModeOn": "Reference inputs connected — using the reference model.",
+      "expandCard": "Expand card",
+      "collapseCard": "Collapse card"
+    },
     "workflowFields": {
       "prompt": {
         "label": "Generation prompt",
@@ -3654,6 +3629,35 @@
     },
     "dock": {
       "title": "Assistant dock",
+      "expand": "Expand to outline workspace",
+      "restore": "Back to dock",
+      "scriptDoc": "Script / outline",
+      "scriptDocDraft": "Draft outline from chat",
+      "scriptDocUpdate": "Update outline from chat",
+      "scriptDocApply": "Generate nodes",
+      "scriptDocEmptyTitle": "No outline yet",
+      "scriptDocEmptyHint": "Talk the outline through on the left, then draft it here — confirming spawns the matching nodes.",
+      "scriptDocNeedChat": "Say a few words about your story first.",
+      "scriptDocRolesLabel": "Roles · {count}",
+      "scriptDocShotsLabel": "Shots · {count}",
+      "scriptDocApplyResult": "Spawned {created} new node(s) on the canvas.",
+      "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
+      "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
+      "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
+      "starters": {
+        "scriptOutline": {
+          "label": "Story outline",
+          "prompt": "Let's start with this story's outline."
+        },
+        "castStyle": {
+          "label": "Cast & style",
+          "prompt": "Let's talk about the characters and the overall visual style."
+        },
+        "firstPhase": {
+          "label": "First phase",
+          "prompt": "Let's plan the first phase — a short series of shots (≤60s)."
+        }
+      },
       "welcomeTitle": "Select a node to inspect it",
       "welcomeDescription": "I can help review the canvas, tighten prompts, and suggest the next node to run.",
       "welcomeSkillScript": "Break down a Composer idea into production steps.",

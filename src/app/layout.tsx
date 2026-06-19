@@ -7,6 +7,7 @@ import {
   appSans,
   chineseSans,
   displayFont,
+  editorialSerif,
   geistMono,
   japaneseSans,
   serifFont,
@@ -37,7 +38,7 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body
-        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
+        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
       >
         {children}
         {showVercelToolbar && <VercelToolbar />}

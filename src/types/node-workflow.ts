@@ -36,6 +36,7 @@ import {
   SeedancePromptPlanResultSchema,
   SeedancePromptTimelineItemSchema,
 } from '@/types/seedance-prompt-plan'
+import { ScriptDocSchema, ScriptRefSchema } from '@/types/script-doc'
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -204,6 +205,12 @@ export const NodeWorkflowNodeDataSchema = z
     cardId: z.string().trim().min(1).max(160).optional(),
     referenceAssets: z.array(NodeWorkflowReferenceAssetSchema).optional(),
     loras: z.array(NodeWorkflowLoraSelectionSchema).optional(),
+    /**
+     * Idempotency tag stamped by the ScriptDoc projection
+     * (`projectScriptDocToGraph`). Lets a re-projection update this node in
+     * place instead of spawning a duplicate. Absent on hand-added nodes.
+     */
+    scriptRef: ScriptRefSchema.optional(),
   })
   .passthrough()
 
@@ -236,6 +243,14 @@ export const NodeWorkflowEdgeSchema = z
 export const NodeWorkflowStateDataSchema = z.object({
   nodes: z.array(NodeWorkflowNodeSchema),
   edges: z.array(NodeWorkflowEdgeSchema),
+  /**
+   * The assistant's ScriptDoc fact model, persisted alongside the graph so
+   * "chat → outline → spawn" survives reloads. `.catch(undefined)` is a
+   * seatbelt: a malformed persisted doc degrades to undefined instead of
+   * failing the whole-state parse — which the server's `validateState`
+   * coerces to an EMPTY state, wiping the user's nodes/edges.
+   */
+  scriptDoc: ScriptDocSchema.optional().catch(undefined),
 })
 
 export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({

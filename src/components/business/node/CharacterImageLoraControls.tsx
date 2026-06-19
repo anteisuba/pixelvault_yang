@@ -211,8 +211,8 @@ export function CharacterImageLoraControls({
               className={cn(
                 'nodrag nopan nowheel flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
                 selected
-                  ? 'border-node-amber/45 bg-amber-500/10'
-                  : 'border-node-panel-inner bg-node-panel-soft hover:border-node-amber/35 hover:bg-node-panel-inner',
+                  ? 'border-node-port-character/50 bg-node-port-character/10'
+                  : 'border-node-panel-inner bg-node-panel-soft hover:border-node-port-character/40 hover:bg-node-panel-inner',
               )}
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-amber">
@@ -230,7 +230,7 @@ export function CharacterImageLoraControls({
                 </span>
               </span>
               {selected ? (
-                <span className="rounded-full bg-lime-500/15 px-2 py-1 text-2xs font-semibold text-lime-300">
+                <span className="rounded-full bg-node-port-character/15 px-2 py-1 text-2xs font-semibold text-node-port-character">
                   {t('selected')}
                 </span>
               ) : null}
@@ -370,7 +370,7 @@ export function CharacterImageLoraControls({
                     updateScale(lora.assetId, Number(event.target.value))
                   }
                   aria-label={t('scaleLabel')}
-                  className="nodrag nopan nowheel min-w-0 flex-1 accent-amber-500"
+                  className="nodrag nopan nowheel min-w-0 flex-1 accent-node-edge-active"
                 />
                 <span className="w-8 text-right text-xs font-semibold text-node-foreground">
                   {lora.scale.toFixed(2)}
@@ -380,7 +380,7 @@ export function CharacterImageLoraControls({
                 <button
                   type="button"
                   onClick={() => onInsertTrigger(lora.triggerWord ?? '')}
-                  className="nodrag nopan nowheel mt-2 rounded-full border border-node-amber/30 bg-amber-500/10 px-2.5 py-1 text-2xs font-semibold text-node-amber hover:bg-amber-500/15"
+                  className="nodrag nopan nowheel mt-2 rounded-full border border-node-port-character/30 bg-node-port-character/10 px-2.5 py-1 text-2xs font-semibold text-node-port-character hover:bg-node-port-character/15"
                 >
                   {t('insertTrigger')}
                 </button>

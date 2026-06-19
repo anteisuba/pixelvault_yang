@@ -1,12 +1,8 @@
 import Image from 'next/image'
-import { ArrowRight, ArrowUpRight, Heart, Play, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
-  HOMEPAGE_MADE_WITH_ANTEI_ITEMS,
-  HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID,
   HOMEPAGE_FEATURE_TRANSLATION_VALUES,
-  HOMEPAGE_ROUTES,
   type HomepageFeatureMedia,
   type HomepageFeatureRhythm,
 } from '@/constants/homepage'
@@ -15,10 +11,6 @@ import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 import { HomepageFeatureMediaFallback } from './HomepageFeatureMediaFallback'
-
-const MADE_WITH_ANTEI_COLUMNS = ['left', 'middle', 'right'] as const
-
-type HomepageMadeWithAnteiItem = (typeof HOMEPAGE_MADE_WITH_ANTEI_ITEMS)[number]
 
 interface HomepageFeatureSectionProps {
   id: string
@@ -47,10 +39,6 @@ export function HomepageFeatureSection({
   comingSoon,
   media,
 }: HomepageFeatureSectionProps) {
-  if (id === HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID) {
-    return <HomepageMadeWithAnteiSection />
-  }
-
   return (
     <HomepageStandardFeatureSection
       id={id}
@@ -170,125 +158,6 @@ function HomepageStandardFeatureSection({
   )
 }
 
-function HomepageMadeWithAnteiSection() {
-  const t = useTranslations('Homepage.madeWithAntei')
-
-  return (
-    <section
-      id={HOMEPAGE_MADE_WITH_ANTEI_SECTION_ID}
-      data-homepage-reveal
-      className="homepage-made-section scroll-mt-24"
-      aria-labelledby="homepage-made-with-antei-title"
-    >
-      <div className="homepage-made-grid">
-        {MADE_WITH_ANTEI_COLUMNS.map((column) => (
-          <div key={column} className="homepage-made-column">
-            {column === 'left' && (
-              <div className="homepage-made-intro">
-                <h2
-                  id="homepage-made-with-antei-title"
-                  className="homepage-made-title font-display font-bold"
-                >
-                  {t('titlePrefix')}{' '}
-                  <span className="homepage-made-title-brand">
-                    {t('titleBrand')}
-                  </span>
-                </h2>
-                <p className="homepage-made-copy">{t('description')}</p>
-                <Link
-                  href={HOMEPAGE_ROUTES.studio}
-                  className="homepage-made-submit inline-flex items-center gap-1.5 text-sm font-medium"
-                >
-                  {t('submit')}
-                  <ArrowUpRight className="size-4" aria-hidden="true" />
-                </Link>
-              </div>
-            )}
-
-            {HOMEPAGE_MADE_WITH_ANTEI_ITEMS.filter(
-              (item) => item.column === column,
-            ).map((item, index) => (
-              <HomepageMadeWithAnteiCard
-                key={item.id}
-                item={item}
-                priority={column === 'left' && index < 2}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="homepage-made-footer">
-        <Button
-          asChild
-          variant="outline"
-          size="lg"
-          className="homepage-made-explore h-12 rounded-full px-7 text-sm font-semibold"
-        >
-          <Link
-            href={HOMEPAGE_ROUTES.gallery}
-            className="inline-flex items-center gap-2"
-          >
-            {t('explore')}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </Button>
-      </div>
-    </section>
-  )
-}
-
-function HomepageMadeWithAnteiCard({
-  item,
-  priority = false,
-}: {
-  item: HomepageMadeWithAnteiItem
-  priority?: boolean
-}) {
-  const t = useTranslations('Homepage.madeWithAntei')
-  const caption = t(`items.${item.id}.caption`)
-
-  return (
-    <article
-      className={cn('homepage-made-card', `homepage-made-card-${item.variant}`)}
-    >
-      <div className="homepage-made-media">
-        <Image
-          src={item.src}
-          alt={caption}
-          fill
-          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
-          className="object-cover"
-          priority={priority}
-        />
-
-        {item.variant === 'featured' && (
-          <>
-            <span className="homepage-made-heart" aria-hidden="true">
-              <Heart className="size-4" />
-            </span>
-            <Link
-              href={HOMEPAGE_ROUTES.studio}
-              className="homepage-made-remix inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold"
-            >
-              <Sparkles className="size-4" aria-hidden="true" />
-              {t('remix')}
-            </Link>
-          </>
-        )}
-
-        {item.variant === 'video' && 'duration' in item && item.duration && (
-          <span className="homepage-made-duration">
-            <Play className="size-3" aria-hidden="true" />
-            {item.duration}
-          </span>
-        )}
-      </div>
-
-      <div className="homepage-made-card-meta">
-        <p>{caption}</p>
-        <span>{item.model}</span>
-      </div>
-    </article>
-  )
-}
+// "用 ANTEI 创作" community gallery removed 2026-06-19 (redundant with the hero
+// work-wall + it was static, not real community data). Bring back as a real
+// gallery/multi-model showcase when there's data.

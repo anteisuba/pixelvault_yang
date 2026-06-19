@@ -15,6 +15,7 @@ import {
   ConnectionLineType,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   useReactFlow,
   type DefaultEdgeOptions,
   type NodeChange,
@@ -81,12 +82,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
+import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { ProjectNameDialog } from './ProjectNameDialog'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
@@ -187,6 +188,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
+  // E1b three states: collapsed (!open) / dock (open) / expanded (open+expanded).
+  const [assistantExpanded, setAssistantExpanded] = useState(false)
   const [topbarOpen, setTopbarOpen] = useState(true)
   const [projectDialogMode, setProjectDialogMode] = useState<
     'create' | 'rename' | null
@@ -200,6 +203,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     if (typeof window === 'undefined') return
     if (window.matchMedia('(max-width: 767px)').matches) {
       setAssistantDockOpen(false)
+      setAssistantExpanded(false)
     }
   }, [])
 
@@ -978,6 +982,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       spawnFullWorkflowFromAgent: workflow.spawnFullWorkflowFromAgent,
       applySeedancePromptPlanToSeedance:
         workflow.applySeedancePromptPlanToSeedance,
+      setScriptDoc: workflow.setScriptDoc,
+      applyScriptDocToGraph: workflow.applyScriptDocToGraph,
       deleteNode: workflow.deleteNode,
       sendFromComposer: handleSendFromComposer,
       generateCharacterImage: handleGenerateCharacterImage,
@@ -991,6 +997,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       modelOptionsByType,
       workflow.deleteNode,
       workflow.applySeedancePromptPlanToSeedance,
+      workflow.setScriptDoc,
+      workflow.applyScriptDocToGraph,
       workflow.spawnCharactersFromBreakdown,
       workflow.spawnFullWorkflowFromAgent,
       workflow.updateNodeData,
@@ -1021,7 +1029,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           nodesDraggable
           nodesConnectable
           elementsSelectable
-          panOnScroll
+          panOnDrag={[...NODE_STUDIO_CANVAS.panOnDragButtons]}
+          panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
+          selectionOnDrag
+          selectionMode={SelectionMode.Partial}
+          zoomOnScroll
           fitView={false}
           className="bg-node-canvas"
         >
@@ -1035,9 +1047,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         </ReactFlow>
         {workflow.nodes.length === 0 && (
           <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
-            <XiaoheiGuideCarousel
-              guideId="node"
-              className="pointer-events-auto max-w-3xl"
+            <NodeCanvasEmptyGuide
+              onChatOutline={() => setAssistantDockOpen(true)}
+              onAddNode={handleTopbarAddClick}
             />
           </div>
         )}
@@ -1072,10 +1084,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           )}
           <StudioNodeAssistantDock
             open={assistantDockOpen}
+            expanded={assistantExpanded}
             projectName={workflow.currentProjectName}
             nodes={workflow.nodes}
+            scriptDoc={workflow.scriptDoc}
             locale={appLocale}
             onOpenChange={setAssistantDockOpen}
+            onExpandedChange={setAssistantExpanded}
             onFocusNode={handleFocusNode}
           />
           <CanvasBottomDock />

@@ -355,52 +355,12 @@
     "badges": {
       "soon": "近日公開"
     },
-    "madeWithAntei": {
-      "titlePrefix": "Made with",
-      "titleBrand": "ANTEI",
-      "description": "コミュニティの美しい作品を探索。ANTEI の力で作られたクリエーションです。",
-      "submit": "作品を投稿",
-      "remix": "Remix",
-      "explore": "もっと見る",
-      "items": {
-        "storybookForest": {
-          "caption": "森の錬金術師、物語の光"
-        },
-        "goldenGlass": {
-          "caption": "金色のグラス、雨のバーライト"
-        },
-        "quietArchitecture": {
-          "caption": "超現実建築、ミニマル、静寂"
-        },
-        "summerAnime": {
-          "caption": "アニメ少女、風、夏空"
-        },
-        "atelierRoom": {
-          "caption": "静かなアトリエ、暖かな午後"
-        },
-        "softPortrait": {
-          "caption": "映画的ポートレート、柔らかな光、85mm"
-        },
-        "mangaPanel": {
-          "caption": "モノクロ恋愛マンガのコマ"
-        },
-        "spaceExplorer": {
-          "caption": "映画的ショット、宇宙探検家"
-        }
-      }
-    },
     "capabilityMatrix": {
       "eyebrow": "つながった制作ツール",
       "title": "作り方は増えても、保存先はひとつ",
       "description": "音声、3D、ワークフロー、ランキング、ギャラリー発見まで。保存した作品と一緒に残るので、別々のツールで文脈を探し直す必要がありません。"
     },
     "mediaLabels": {
-      "imageEditing": {
-        "original": "元画像",
-        "styleOne": "ジブリ",
-        "styleTwo": "油彩",
-        "styleThree": "水彩"
-      },
       "video": {
         "storyboard": "ストーリーボード · 4f"
       },
@@ -460,12 +420,6 @@
       "copyright": "© {year} ANTEI · BYOK、永久アーカイブ"
     },
     "featureSections": {
-      "imageEditing": {
-        "eyebrow": "リファレンス画像編集",
-        "title": "リファレンス編集",
-        "description": "リファレンス画像を入れて、目的に合う経路を選べます。Gemini で構図を組み、Flux Kontext で指示編集し、専用モデルでスタイルや整理まで。",
-        "cta": "編集してみる"
-      },
       "video": {
         "eyebrow": "{count} の動画モデル",
         "title": "動画生成",
@@ -2911,6 +2865,12 @@
     }
   },
   "StudioNode": {
+    "emptyGuide": {
+      "title": "空のキャンバス — ここから",
+      "subtitle": "物語を聞かせてください。アシスタントがノードを並べます。",
+      "chatOutline": "アシスタントと構成を相談",
+      "addNode": "ノードを手動で追加（キャラ / 背景 / ショット / 画像…）"
+    },
     "eyebrow": "ノードワークフロー",
     "projectUntitled": "無題のプロジェクト",
     "projectNewDefaultName": "無題のプロジェクト {n}",
@@ -3502,6 +3462,21 @@
       "statusError": "生成に失敗しました",
       "statusTextReady": "このテキストは下流ノードの入力になります"
     },
+    "videoComposer": {
+      "variant": {
+        "standard": "標準",
+        "fast": "高速"
+      },
+      "variantAriaLabel": "モデルのバリアント",
+      "provider": {
+        "fal": "fal",
+        "volcengine": "VolcEngine"
+      },
+      "providerAriaLabel": "プロバイダー",
+      "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
+      "expandCard": "カードを展開",
+      "collapseCard": "カードを折りたたむ"
+    },
     "workflowFields": {
       "prompt": {
         "label": "生成プロンプト",
@@ -3654,6 +3629,35 @@
     },
     "dock": {
       "title": "アシスタントドック",
+      "expand": "構成ワークスペースを展開",
+      "restore": "ドックに戻す",
+      "scriptDoc": "構成 / あらすじ",
+      "scriptDocDraft": "会話から構成を作成",
+      "scriptDocUpdate": "会話から構成を更新",
+      "scriptDocApply": "ノードを生成",
+      "scriptDocEmptyTitle": "まだ構成がありません",
+      "scriptDocEmptyHint": "左で構成をまとめてから、ここで作成します。確定すると対応ノードが生成されます。",
+      "scriptDocNeedChat": "まずはストーリーについて少し話してください。",
+      "scriptDocRolesLabel": "キャラクター · {count}",
+      "scriptDocShotsLabel": "ショット · {count}",
+      "scriptDocApplyResult": "キャンバスに {created} 個の新規ノードを生成しました。",
+      "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
+      "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
+      "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
+      "starters": {
+        "scriptOutline": {
+          "label": "構成・あらすじ",
+          "prompt": "まずこの物語の構成を相談させてください。"
+        },
+        "castStyle": {
+          "label": "キャラと画風",
+          "prompt": "登場するキャラクターと全体の画風について話しましょう。"
+        },
+        "firstPhase": {
+          "label": "第一段階",
+          "prompt": "第一段階——短いショット群（60秒以内）を計画しましょう。"
+        }
+      },
       "welcomeTitle": "ノードを選択して検査",
       "welcomeDescription": "キャンバスの確認、プロンプト調整、次に実行するノードの提案を手伝います。",
       "welcomeSkillScript": "Composer のアイデアを実行可能な制作ステップに分解します。",

@@ -39,7 +39,7 @@ export function HomepageFooter() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="homepage-footer mt-12 px-1 pt-12">
+    <footer className="homepage-footer">
       <div className="grid gap-10 sm:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <div>
           <div className="mb-3 flex items-center gap-2">

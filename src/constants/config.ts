@@ -117,6 +117,8 @@ export const API_ENDPOINTS = {
   SEEDANCE_PROMPT_PLAN: '/api/studio/seedance-prompt-plan',
   /** Node Studio assistant conversation */
   NODE_ASSISTANT: '/api/studio/node-assistant',
+  /** Node Studio structured ScriptDoc draft (assistant → outline) */
+  NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
@@ -532,6 +534,7 @@ export const RATE_LIMIT_CONFIGS = {
   scriptBreakdown: { limit: 12, windowSeconds: 60 },
   seedancePromptPlan: { limit: 12, windowSeconds: 60 },
   nodeAssistant: { limit: 30, windowSeconds: 60 },
+  nodeScriptDoc: { limit: 12, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────
   /** Authenticated list/read endpoints (cards, recipes, history) */

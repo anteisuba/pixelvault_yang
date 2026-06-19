@@ -17,12 +17,6 @@ const SHOWCASE = HOMEPAGE_SHOWCASE.map((s) => s.src)
  * workflow) intentionally rely on pure-SVG renderers below.
  */
 const SECTION_ASSETS: Record<string, readonly string[]> = {
-  imageEditing: [
-    '/homepage/imageEditing/01-original.webp',
-    '/homepage/imageEditing/02-ghibli.webp',
-    '/homepage/imageEditing/03-oil.webp',
-    '/homepage/imageEditing/04-watercolor.webp',
-  ],
   video: [
     '/homepage/video/01.webp',
     '/homepage/video/02.webp',
@@ -69,17 +63,6 @@ export function HomepageFeatureMediaFallback({
   const t = useTranslations('Homepage.mediaLabels')
 
   switch (id) {
-    case 'imageEditing':
-      return (
-        <FallbackImageEditing
-          originalLabel={t('imageEditing.original')}
-          styleLabels={[
-            t('imageEditing.styleOne'),
-            t('imageEditing.styleTwo'),
-            t('imageEditing.styleThree'),
-          ]}
-        />
-      )
     case 'video':
       return <FallbackVideoStrip storyboardLabel={t('video.storyboard')} />
     case 'lora':
@@ -175,33 +158,6 @@ function FbLabel({
     >
       {children}
     </span>
-  )
-}
-
-interface FallbackImageEditingProps {
-  originalLabel: string
-  styleLabels: readonly string[]
-}
-
-function FallbackImageEditing({
-  originalLabel,
-  styleLabels,
-}: FallbackImageEditingProps) {
-  return (
-    <div className="absolute inset-0 grid grid-cols-2">
-      <div className="relative overflow-hidden">
-        <FbImg src={pick('imageEditing', 0, 0)} alt="" eager />
-        <FbLabel className="left-3 top-3">{originalLabel}</FbLabel>
-      </div>
-      <div className="grid grid-rows-3">
-        {[1, 2, 3].map((idx, i) => (
-          <div key={idx} className="relative overflow-hidden">
-            <FbImg src={pick('imageEditing', idx, idx)} alt="" sizes="20vw" />
-            <FbLabel className="left-2 top-2">{styleLabels[i]}</FbLabel>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 

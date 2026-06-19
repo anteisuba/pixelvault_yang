@@ -1,6 +1,6 @@
 # Agent Loops Workflow
 
-Last updated: 2026-06-14
+Last updated: 2026-06-18
 
 This document defines how Personal AI Gallery uses reusable agent loops.
 External loop libraries are useful as workflow inspiration, but they do not
@@ -13,15 +13,17 @@ override this repository's rules.
 - `docs/status.md`
 - `docs/product/mainline.md`
 - `package.json`
+- `docs/engineering/matt-pocock-skills.md`
 - https://loops.elorm.xyz/
 - https://loops.elorm.xyz/install
 - https://loops.elorm.xyz/loops/spec-first-ship
+- https://github.com/mattpocock/skills
 
 ## Last Verified
 
-- Date: 2026-06-14
-- Method: official loops website inspection, `AGENTS.md` inspection, and
-  `package.json` script inspection
+- Date: 2026-06-18
+- Method: official loops website inspection, `mattpocock/skills` repository
+  inspection, `AGENTS.md` inspection, and `package.json` script inspection
 
 ## Position
 
@@ -37,9 +39,11 @@ For this repository, a loop is a bounded cycle with:
 - a completion report
 
 The external `loops!` catalog provides generic kickoff prompts and optional
-agent hook bundles. Personal AI Gallery uses those prompts only after adapting
-them to this repository's task-packet workflow, validation commands, security
-boundaries, and documentation taxonomy.
+agent hook bundles. The selected `mattpocock/skills` entries provide reusable
+engineering loops such as diagnosing, TDD, grilling, and issue splitting.
+Personal AI Gallery uses these prompts only after adapting them to this
+repository's task-packet workflow, validation commands, security boundaries,
+and documentation taxonomy.
 
 ## Hard Rules
 
@@ -89,6 +93,21 @@ success.
 ```
 
 ## Specialized Loops
+
+### Matt Pocock Skills
+
+Use the imported Matt Pocock skills as named execution loops when they match a
+task:
+
+- `grill-with-docs`: sharpen unclear plans before implementation.
+- `diagnosing-bugs`: create a tight red/green feedback loop before patching.
+- `tdd`: drive feature or fix work through one behavior test at a time.
+- `to-prd` and `to-issues`: synthesize or split settled plans.
+- `improve-codebase-architecture`: surface architecture deepening candidates.
+
+See `docs/engineering/matt-pocock-skills.md` for the installed list and the
+PixelVault adapter rules. These skills are installed in both `.agents/skills`
+and `.claude/skills`.
 
 ### Validation Until Green
 

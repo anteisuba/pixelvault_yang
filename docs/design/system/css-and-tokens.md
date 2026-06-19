@@ -108,10 +108,9 @@ Homepage-local systems currently include:
 - skip link;
 - header/nav/locale switcher;
 - primary and secondary CTA treatments;
-- hero and mosaic;
+- hero window and work-wall;
 - feature sections;
 - model lineup;
-- showcase rail;
 - bottom CTA and footer;
 - reveal motion and reduced-motion handling;
 - responsive rules.
@@ -143,7 +142,7 @@ It is a fact map, not a refactor plan.
 
 | Surface / page family               | Current CSS / token language                                               | Page-private or domain-specific facts                                                                                       | Arbitrary value categories observed                                                                             | Current quality read                                                               |
 | ----------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Public home                         | `src/app/homepage.css`, `.homepage`, `homepage-*`, `--home-*`              | large page-local system for header, hero, feature bands, model lineup, showcase rail, footer, reveal motion, and light band | label tracking such as `tracking-[0.18em]`, footer tracking, homepage grid ratios                               | keep page-local until another page needs the same pattern                          |
+| Public home                         | `src/app/homepage.css`, `.homepage`, `homepage-*`, `--home-*`              | large page-local system for header, hero, feature bands, model lineup, footer, reveal motion, and light band                | label tracking such as `tracking-[0.18em]`, footer tracking, homepage grid ratios                               | keep page-local until another page needs the same pattern                          |
 | Main app shell                      | `sidebar-*`, `bg-background`, `text-foreground`, `border-border`           | `AppSidebar`, `MobileTabBar`, locale switcher, account menu, and sidebar primitives own shell tokens                        | mobile bar transition `duration-[180ms]`, label width caps such as `max-w-[4.5rem]`                             | valid shell token family; not a generic page surface                               |
 | Studio Image / Video / Audio        | `.studio-layout-v2`, `.studio-canvas`, `.studio-dock`, shadcn primitives   | shared mounted workspace; prompt root owns local `--studio-prompt-max-h`; generation reveal classes live in global CSS      | prompt max-height vars, generated media max heights, popover widths, drawer/dialog max heights                  | valid domain hooks, but some `studio-*` global classes appear legacy or unused     |
 | Studio Edit                         | shadcn semantic tokens and direct Tailwind layout utilities                | no edit-specific token family; source shell and task pages use `bg-card`, `bg-muted`, `border-border`, task-specific panels | `2xl:max-w-[88rem]`, `lg:grid-cols-[minmax(0,1fr)_360px]`, source image `max-h-[70svh]`, provider `text-[11px]` | page doc should own edit direction before tokens are extracted                     |
@@ -214,8 +213,8 @@ Page-local or do-not-promote findings:
   (`--background`, `--foreground`, `--card`, `--secondary`, `--muted`,
   `--border`, `--primary`) to create a light contrast band inside the dark
   homepage. This is a page-local theme island, not a global token model.
-- `homepage-feature-tone-*`, `homepage-hero-*`, `homepage-rail-*`, and
-  `homepage-bottom-cta-*` are page-specific presentation classes. Do not move
+- `homepage-feature-tone-*`, `homepage-hero-*`, and `homepage-bottom-cta-*`
+  are page-specific presentation classes. Do not move
   them into `globals.css` or shared components without a second use case.
 - `EditWorkspaceShell` does not currently introduce an edit-specific token
   family. The visible `EditShellInner` uses shadcn semantic tokens and direct

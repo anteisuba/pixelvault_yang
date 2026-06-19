@@ -40,118 +40,94 @@ interface NodeAccentToken {
   iconPlate: string
   iconText: string
   selectedRing: string
+  /** Output handle (solid filled dot) — background fill in the type color. */
   dot: string
+  /** Input handle (outline ring dot) — border in the type color, hollow fill. */
+  dotRing: string
+}
+
+/**
+ * D1 去黄 + §2.3 端口类型色：节点强调色去掉满屏彩虹（amber/lime/sky/rose/...）。
+ * 4 个视频导演元素（角色/背景/声音/视频族）保留「极淡功能性类型色」（fill-5），
+ * 其余通用节点（composer/agent/shot/text/image/audio/frame）一律中性。
+ */
+const NEUTRAL_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-foreground/10',
+  iconText: 'text-node-foreground',
+  selectedRing: 'ring-node-foreground/40',
+  dot: '!bg-node-muted',
+  dotRing: '!border-node-muted',
+}
+
+const CHARACTER_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-port-character/20',
+  iconText: 'text-node-port-character',
+  selectedRing: 'ring-node-port-character/60',
+  dot: '!bg-node-port-character',
+  dotRing: '!border-node-port-character',
+}
+
+const BACKGROUND_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-port-background/20',
+  iconText: 'text-node-port-background',
+  selectedRing: 'ring-node-port-background/60',
+  dot: '!bg-node-port-background',
+  dotRing: '!border-node-port-background',
+}
+
+const VOICE_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-port-voice/20',
+  iconText: 'text-node-port-voice',
+  selectedRing: 'ring-node-port-voice/60',
+  dot: '!bg-node-port-voice',
+  dotRing: '!border-node-port-voice',
+}
+
+const VIDEO_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-port-video/20',
+  iconText: 'text-node-port-video',
+  selectedRing: 'ring-node-port-video/60',
+  dot: '!bg-node-port-video',
+  dotRing: '!border-node-port-video',
 }
 
 export const NODE_ACCENTS = {
-  composer: {
-    iconPlate: 'bg-amber-500/15',
-    iconText: 'text-amber-200',
-    selectedRing: 'ring-amber-400/70',
-    dot: '!bg-amber-300',
-  },
-  agent: {
-    iconPlate: 'bg-lime-500/15',
-    iconText: 'text-lime-200',
-    selectedRing: 'ring-lime-400/70',
-    dot: '!bg-lime-300',
-  },
-  shotText: {
-    iconPlate: 'bg-stone-300/10',
-    iconText: 'text-stone-100',
-    selectedRing: 'ring-stone-200/60',
-    dot: '!bg-stone-200',
-  },
-  shot: {
-    iconPlate: 'bg-sky-500/15',
-    iconText: 'text-sky-200',
-    selectedRing: 'ring-sky-400/70',
-    dot: '!bg-sky-300',
-  },
-  characterImage: {
-    iconPlate: 'bg-rose-500/15',
-    iconText: 'text-rose-200',
-    selectedRing: 'ring-rose-400/70',
-    dot: '!bg-rose-300',
-  },
-  backgroundImage: {
-    iconPlate: 'bg-emerald-500/15',
-    iconText: 'text-emerald-200',
-    selectedRing: 'ring-emerald-400/70',
-    dot: '!bg-emerald-300',
-  },
-  frameImage: {
-    iconPlate: 'bg-orange-500/15',
-    iconText: 'text-orange-200',
-    selectedRing: 'ring-orange-400/70',
-    dot: '!bg-orange-300',
-  },
-  voice: {
-    iconPlate: 'bg-node-amber/15',
-    iconText: 'text-node-amber',
-    selectedRing: 'ring-node-amber/70',
-    dot: '!bg-node-amber',
-  },
-  seedance: {
-    iconPlate: 'bg-node-amber/15',
-    iconText: 'text-node-amber',
-    selectedRing: 'ring-node-amber/70',
-    dot: '!bg-node-amber',
-  },
-  videoReference: {
-    iconPlate: 'bg-red-500/15',
-    iconText: 'text-red-200',
-    selectedRing: 'ring-red-400/70',
-    dot: '!bg-red-300',
-  },
-  videoMerge: {
-    iconPlate: 'bg-purple-500/15',
-    iconText: 'text-purple-200',
-    selectedRing: 'ring-purple-400/70',
-    dot: '!bg-purple-300',
-  },
-  text: {
-    iconPlate: 'bg-zinc-300/10',
-    iconText: 'text-zinc-100',
-    selectedRing: 'ring-zinc-200/60',
-    dot: '!bg-zinc-200',
-  },
-  image: {
-    iconPlate: 'bg-cyan-500/15',
-    iconText: 'text-cyan-200',
-    selectedRing: 'ring-cyan-400/70',
-    dot: '!bg-cyan-300',
-  },
-  video: {
-    iconPlate: 'bg-red-500/15',
-    iconText: 'text-red-200',
-    selectedRing: 'ring-red-400/70',
-    dot: '!bg-red-300',
-  },
-  audio: {
-    iconPlate: 'bg-violet-500/15',
-    iconText: 'text-violet-200',
-    selectedRing: 'ring-violet-400/70',
-    dot: '!bg-violet-300',
-  },
+  composer: NEUTRAL_ACCENT,
+  agent: NEUTRAL_ACCENT,
+  shotText: NEUTRAL_ACCENT,
+  shot: NEUTRAL_ACCENT,
+  characterImage: CHARACTER_ACCENT,
+  backgroundImage: BACKGROUND_ACCENT,
+  frameImage: NEUTRAL_ACCENT,
+  voice: VOICE_ACCENT,
+  seedance: VIDEO_ACCENT,
+  videoReference: VIDEO_ACCENT,
+  videoMerge: VIDEO_ACCENT,
+  text: NEUTRAL_ACCENT,
+  image: NEUTRAL_ACCENT,
+  video: VIDEO_ACCENT,
+  audio: NEUTRAL_ACCENT,
 } satisfies Record<NodeTokenType, NodeAccentToken>
 
+// §6 去黄：排队不再 amber，进行中靠动效（组件加脉冲）不靠色，完成克制，仅失败用红。
 export const STATUS_COLORS = {
   idle: 'bg-node-panel-inner text-node-muted',
-  queued: 'bg-amber-500/15 text-amber-200',
-  ready: 'bg-lime-500/15 text-lime-200',
-  running: 'bg-sky-500/15 text-sky-200',
-  done: 'bg-emerald-500/15 text-emerald-200',
-  failed: 'bg-red-500/15 text-red-200',
-  stale: 'bg-stone-300/10 text-stone-300',
+  queued: 'bg-node-panel-inner text-node-muted',
+  ready: 'bg-node-panel-inner text-node-foreground',
+  running: 'bg-node-panel-inner text-node-foreground',
+  done: 'bg-node-status-done text-node-status-done-fg',
+  failed: 'bg-node-status-failed text-node-status-failed-fg',
+  stale: 'bg-node-panel-soft text-node-subtle',
   disabled: 'bg-node-panel-soft text-node-subtle',
 } as const
 
+// §2.3 连线全中性灰，default/hover/选中/进行中靠明度（--node-edge ↔ -edge-active），
+// 仅非法连接用红（唯一语义色）。
 export const EDGE_COLORS = {
-  default: 'stroke-node-muted',
-  flowing: 'stroke-amber-300',
-  hover: 'stroke-node-foreground',
-  selected: 'stroke-amber-400',
-  connecting: 'stroke-lime-300',
+  default: 'stroke-node-edge',
+  flowing: 'stroke-node-edge-active',
+  hover: 'stroke-node-edge-active',
+  selected: 'stroke-node-edge-active',
+  connecting: 'stroke-node-edge-active',
   invalid: 'stroke-red-400',
 } as const

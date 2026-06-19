@@ -39,13 +39,13 @@ interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
 function getEmptyIcon(kind: NodeWorkflowMediaKind) {
   switch (kind) {
     case NODE_MEDIA_KIND_IDS.video:
-      return <Video className="size-8 text-teal-200" />
+      return <Video className="size-8 text-node-port-video" />
     case NODE_MEDIA_KIND_IDS.audio:
-      return <Mic2 className="size-8 text-fuchsia-200" />
+      return <Mic2 className="size-8 text-node-port-voice" />
     case NODE_MEDIA_KIND_IDS.text:
-      return <FileText className="size-8 text-stone-100" />
+      return <FileText className="size-8 text-node-foreground" />
     default:
-      return <ImageIcon className="size-8 text-node-amber" />
+      return <ImageIcon className="size-8 text-node-foreground" />
   }
 }
 
@@ -93,7 +93,7 @@ export function NodeMediaPreview({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
 
   return (
-    <NodeShell type={type} selected={selected}>
+    <NodeShell type={type} selected={selected} status={data.status}>
       <NodeShell.Header type={type} status={data.status} />
       <NodeShell.Body className="space-y-3">
         <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
@@ -119,7 +119,7 @@ export function NodeMediaPreview({
 
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-              <Mic2 className="size-8 text-fuchsia-200" />
+              <Mic2 className="size-8 text-node-port-voice" />
               <audio src={mediaUrl} controls className="w-full" />
             </div>
           ) : null}
@@ -135,7 +135,7 @@ export function NodeMediaPreview({
 
           {isPending ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Loader2 className="size-5 animate-spin text-node-amber" />
+              <Loader2 className="size-5 animate-spin text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
             </div>
           ) : null}
@@ -159,9 +159,9 @@ export function NodeMediaPreview({
         </div>
 
         {isError ? (
-          <div className="flex gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
+          <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <p className="line-clamp-3 text-xs leading-5 text-red-100/80">
+            <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
               {data.generationError}
             </p>
           </div>
@@ -173,7 +173,7 @@ export function NodeMediaPreview({
             ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
             : tWorkflows(`${type}.footerEmpty`)}
         </p>
-        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
           <WandSparkles className="size-4" />
         </span>
       </NodeShell.Footer>

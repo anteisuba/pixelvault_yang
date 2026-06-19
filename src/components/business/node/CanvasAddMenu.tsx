@@ -22,6 +22,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_STUDIO_ADD_MENU } from '@/constants/node-studio'
+import { NODE_ACCENTS } from '@/constants/node-tokens'
 import { cn } from '@/lib/utils'
 
 interface CanvasAddMenuProps {
@@ -171,7 +172,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.composer].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.composer].iconText,
+          )}
+        >
           <MessageSquarePlus className="size-4" />
         </span>
         <span className="min-w-0">
@@ -192,7 +199,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-stone-300/10 text-stone-100">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.shotText].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.shotText].iconText,
+          )}
+        >
           <FileText className="size-4" />
         </span>
         <span className="min-w-0">
@@ -213,7 +226,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.shot].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.shot].iconText,
+          )}
+        >
           <Clapperboard className="size-4" />
         </span>
         <span className="min-w-0">
@@ -234,7 +253,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-lime-500/15 text-lime-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.agent].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.agent].iconText,
+          )}
+        >
           <Bot className="size-4" />
         </span>
         <span className="min-w-0">
@@ -255,7 +280,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.characterImage].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.characterImage].iconText,
+          )}
+        >
           <ImagePlus className="size-4" />
         </span>
         <span className="min-w-0">
@@ -276,7 +307,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.backgroundImage].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.backgroundImage].iconText,
+          )}
+        >
           <Wallpaper className="size-4" />
         </span>
         <span className="min-w-0">
@@ -297,7 +334,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.frameImage].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.frameImage].iconText,
+          )}
+        >
           <PanelsTopLeft className="size-4" />
         </span>
         <span className="min-w-0">
@@ -318,7 +361,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-fuchsia-500/15 text-fuchsia-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.voice].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.voice].iconText,
+          )}
+        >
           <Mic2 className="size-4" />
         </span>
         <span className="min-w-0">
@@ -339,7 +388,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-teal-500/15 text-teal-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.seedance].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.seedance].iconText,
+          )}
+        >
           <Video className="size-4" />
         </span>
         <span className="min-w-0">
@@ -360,7 +415,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-red-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.videoReference].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.videoReference].iconText,
+          )}
+        >
           <Film className="size-4" />
         </span>
         <span className="min-w-0">
@@ -381,7 +442,13 @@ export function CanvasAddMenu({
           'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-purple-500/15 text-purple-200">
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-2xl',
+            NODE_ACCENTS[NODE_TYPE_IDS.videoMerge].iconPlate,
+            NODE_ACCENTS[NODE_TYPE_IDS.videoMerge].iconText,
+          )}
+        >
           <Layers className="size-4" />
         </span>
         <span className="min-w-0">

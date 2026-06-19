@@ -6,6 +6,14 @@
 > 范围：**面向目标导演台（Shot Board 主视图 + Node Graph 高级视图），但先落到今天能跑的 Node Graph**。Board 的视觉规范随 `ScriptDoc` 地基跟上后补（§8 占位）。
 > 配套阅读：[`pages/node-workflow.md`](pages/node-workflow.md)（现状事实）、[`system/css-and-tokens.md`](system/css-and-tokens.md)（token 现状）。
 
+> **🟢 新 chat 从这开始（续接入口）**
+>
+> 1. 读本文件全文（决策 §1、模型切换器/作用域/契约 §5.1、元素视觉+听觉 §5、状态 §6、草稿清单 §13、进度+续接 §14）。
+> 2. 看视觉稿：[`canvas-drafts/README.md`](canvas-drafts/README.md)（**28 张**草稿,分 5 区:UI 9 / 原理 6 / 必画 5 / 节点详样 1 / 补画 7）。
+> 3. 引擎路线：[`docs/plans/execution-roadmap-2026-06.md`](../plans/execution-roadmap-2026-06.md)。memory：`project-canvas-ui-baseline` / `project-video-systems-convergence`。
+> 4. 现状：**草稿阶段已闭环**。下一步 = Step 3 视觉快照基准（需 dev server）**或** 按草稿落地（起点建议:去黄 token + 中键平移,走 UI 契约 §14）。
+> 5. 分工(`feedback-ui-on-claude`):UI 走 Claude;引擎(ScriptDoc/Planner/契约/lineage)= Codex,清单见 §14。
+
 ---
 
 ## 0. 继承声明
@@ -16,6 +24,7 @@
 - **反相 CTA**：最高优先级控件用黑/白反相丸。**例外见 §1**。
 - **手感即品质**：Figma 级交互细节（焦点环 / 键盘可达 / 44px 触达 / 光标语义），画布尤甚。
 - **动效三用途**：只为状态澄清 / 空间连续性 / 操作反馈；缓动 `cubic-bezier(0.22,1,0.36,1)`，时长刻度 fast120/base200/slow320，接 `useReducedMotion`。
+  - **画布动效标准（实现落地 · 2026-06-19）**：尺寸/位置形变**复用全站动效 canon**，不自造数值——缓动 `var(--ease-standard)`，时长 `var(--duration-*)`（token 在 `globals.css @theme`，常量在 `src/constants/motion.ts`；**面板展开折叠用 `slow` / 320ms**）。画布面板的尺寸形变统一挂工具类 **`.node-canvas-panel-motion`**（`globals.css`，只过渡 `width`）；**连续拖拽**（如 dock 宽度把手、分栏把手）时置 `data-resizing="true"` 关闭过渡，让面板/把手 1:1 贴住光标——拖拽要瞬时、切换才动画。`transform`/`opacity` 形变改用 Tailwind `duration-slow ease-standard` 工具类（v4 由 `@theme` 自动生成，勿用 `transition-[...]` 任意值）。reduced-motion 由 `globals.css` 全局 `@media (prefers-reduced-motion)` 兜底，无需逐组件处理。**首落地** = 助手 dock 展开⤢↔dock 宽度形变（修「切大小很僵硬」）。**待补**（同标准逐步推）：dock open/close（需 `AnimatePresence` 出入场）、顶栏展开/收起、加节点菜单 open/close、minimap、节点 hover/选中。
 - **圆角阶梯**：面板 `rounded-2xl` · 卡片 `rounded-xl` · 控件 `rounded-lg` · chip `rounded-full`。
 
 画布参考集（`direction.md` 已锁定）：**ComfyUI**（端口/连线语义）· **Figma**（交互金标准）· **Flora**（节点卡）。本基准新增 **updream** 作为「信息密度 + 右栏 IA」的对照样例。
@@ -227,7 +236,7 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 ## 13. 草稿清单（视觉稿速查 · 文字规格）
 
-> 这些是会话里逐张确认过的视觉稿（SVG mockup）。**视觉稿文件 = [`canvas-drafts/`](canvas-drafts/README.md)（可在 VS Code/浏览器直接打开看图，索引 `canvas-drafts/README.md`）**；下表是文字规格（稿子丢了可据此重画）。状态：✅=已确认。
+> 这些是会话里逐张确认过的视觉稿（SVG mockup）。**视觉稿文件 = [`canvas-drafts/`](canvas-drafts/README.md)（共 28 张,5 区:UI 9 / 原理 6 / 必画 5 / 节点详样 1 / 补画 7;VS Code 打开 README 预览一次看全）**；下表是核心几张的文字规格（稿子丢了可据此重画）。**实操态(必画:节点态/加节点/参考填充/缺key引导/成片审阅)、节点详样、打磨态(补画:接线/批量分组/合成/风格挂载/token实样/顶栏对话/项目管理)详见 `canvas-drafts/README.md`。** 状态：✅=已确认。
 
 - **A1 · 整体布局** ✅：近黑去暖 + 点阵网格；左轨 = 全站共享 app 侧栏（现状，瘦身属 app-shell 决定，超画布范围）；顶栏 = 项目名 + **默认模型 chip** + 添加节点；中区 = 节点 + 自带 composer + 中性连线；右栏 = 固定纯助手；底部工具条（中键平移）；左下 minimap 放大。
 - **A2 · 空画布引导** ✅：空态不留死白 = 一句引导 +「🗨 跟助手聊大纲」**反相白丸**（主）+「＋ 手动加节点」（次）；助手 dock 默认开、起手「看了你的画布，还空着。先聊大纲?」呼应。默认走助手（剧本脑）。
@@ -247,7 +256,7 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 ## 14. 进度 · 下一步 · 续接指南
 
-**进度**：Step 1 代码层审查 ✅ · Step 2 基准文档 + 全套视觉草稿 ✅（本文档）· **Step 3 视觉快照基准（待，需起 dev server）** · 落地实现（待，一次一个组件，走 UI 契约）。
+**进度**：Step 1 代码层审查 ✅ · Step 2 基准文档（本文档）+ **全套视觉草稿 28 张 ✅（`canvas-drafts/`）—— 草稿阶段已闭环** · **Step 3 视觉快照基准（待，需起 dev server）** · 落地实现（待，一次一个组件，走 UI 契约）。仅剩延后 3 张（Board 主视图 / 移动端只读 Board / 角色多音色集管理）依赖未建的 ScriptDoc 地基。
 
 **续接（换一个 chat 继续）——读这三处即可接上**：
 

@@ -12,6 +12,8 @@ import { HomepageBottomCta } from './HomepageBottomCta'
 import { HomepageCapabilityMatrix } from './HomepageCapabilityMatrix'
 import { HomepageFeatureSection } from './HomepageFeatureSection'
 import { HomepageFooter } from './HomepageFooter'
+import { HomepageHeaderCta } from './HomepageHeaderCta'
+import { HomepageHeaderMotion } from './HomepageHeaderMotion'
 import { HomepageHero } from './HomepageHero'
 import { HomepageMenu } from './HomepageMenu'
 import { HomepageModelLineup } from './HomepageModelLineup'
@@ -25,6 +27,7 @@ export function HomepageShell() {
   return (
     <div className="homepage relative">
       <HomepageRevealMotion />
+      <HomepageHeaderMotion />
       <a href="#homepage-main" className="homepage-skip-link">
         {t('skipToContent')}
       </a>
@@ -47,6 +50,7 @@ export function HomepageShell() {
             >
               {tNavbar('signIn')}
             </Link>
+            <HomepageHeaderCta />
             <HomepageMenu />
           </div>
         </div>
@@ -76,9 +80,9 @@ export function HomepageShell() {
               ))}
               <HomepageCapabilityMatrix />
             </div>
-          </div>
 
-          <HomepageModelLineup />
+            <HomepageModelLineup />
+          </div>
 
           <HomepageBottomCta />
 

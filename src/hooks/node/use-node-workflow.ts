@@ -52,6 +52,8 @@ import {
   activateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
+import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
+import type { ScriptDoc } from '@/types/script-doc'
 import type {
   ScriptBreakdownPlanner,
   ScriptBreakdownResult,
@@ -97,6 +99,10 @@ export interface NodeWorkflowActions {
   applySeedancePromptPlanToSeedance(
     agentNodeId: string,
   ): ApplySeedancePromptPlanResult
+  /** Persist the assistant's ScriptDoc fact model on the current project. */
+  setScriptDoc(scriptDoc: ScriptDoc | undefined): void
+  /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
+  applyScriptDocToGraph(): ApplyScriptDocResult
   deleteNode(id: string): void
 }
 
@@ -116,8 +122,17 @@ export interface ApplySeedancePromptPlanResult {
   reason?: 'missingAgent' | 'missingPlan' | 'missingSeedanceTarget'
 }
 
+export interface ApplyScriptDocResult {
+  /** New nodes spawned this projection. */
+  created: number
+  /** Entities that already had a node (idempotent reuse). */
+  skipped: number
+  refusal: 'noScriptDoc' | 'emptyScriptDoc' | null
+}
+
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
   state: NodeWorkflowState
+  scriptDoc: ScriptDoc | undefined
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   projects: NodeWorkflowProjectSummary[]
@@ -1456,6 +1471,65 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  const setScriptDoc = useCallback(
+    (scriptDoc: ScriptDoc | undefined) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({
+            ...currentState,
+            scriptDoc,
+          }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  /**
+   * Project the current project's ScriptDoc into the graph. Reads the latest
+   * state off `storageRef` (never a stale closure), runs the pure idempotent
+   * projection, and appends only genuinely new nodes/edges inside a single
+   * `patchCurrentProjectState`. Re-running with the same doc is a no-op.
+   */
+  const applyScriptDocToGraph = useCallback((): ApplyScriptDocResult => {
+    const currentState = getCurrentProject(
+      storageRef.current,
+      defaultProjectName,
+    ).state
+    const scriptDoc = currentState.scriptDoc
+    if (!scriptDoc) {
+      return { created: 0, skipped: 0, refusal: 'noScriptDoc' }
+    }
+    if (scriptDoc.roles.length === 0 && scriptDoc.shots.length === 0) {
+      return { created: 0, skipped: 0, refusal: 'emptyScriptDoc' }
+    }
+
+    const result = projectScriptDocToGraph(scriptDoc, currentState, {
+      makeId: createWorkflowId,
+      anchor: NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn.origin,
+    })
+
+    if (result.nodesToAdd.length === 0 && result.edgesToAdd.length === 0) {
+      return { created: 0, skipped: result.skipped, refusal: null }
+    }
+
+    setWorkflowStorage((latestStorage) =>
+      patchCurrentProjectState(
+        latestStorage,
+        defaultProjectName,
+        (latestState) => ({
+          ...latestState,
+          nodes: [...latestState.nodes, ...result.nodesToAdd],
+          edges: [...latestState.edges, ...result.edgesToAdd],
+        }),
+      ),
+    )
+
+    return { created: result.created, skipped: result.skipped, refusal: null }
+  }, [defaultProjectName, setWorkflowStorage])
+
   const getOutgoingTargetByType = useCallback(
     (sourceId: string, targetType: NodeWorkflowNodeType) => {
       const currentState = getCurrentProject(
@@ -1644,6 +1718,7 @@ export function useNodeWorkflow({
   return useMemo(
     () => ({
       state,
+      scriptDoc: state.scriptDoc,
       nodes: state.nodes,
       edges: state.edges,
       projects,
@@ -1660,6 +1735,8 @@ export function useNodeWorkflow({
       spawnCharactersFromBreakdown,
       spawnFullWorkflowFromAgent,
       applySeedancePromptPlanToSeedance,
+      setScriptDoc,
+      applyScriptDocToGraph,
       deleteNode,
       getOutgoingTargetByType,
       onNodesChange,
@@ -1671,6 +1748,7 @@ export function useNodeWorkflow({
     [
       addNode,
       applySeedancePromptPlanToSeedance,
+      applyScriptDocToGraph,
       createProject,
       currentProject.id,
       currentProject.name,
@@ -1683,6 +1761,7 @@ export function useNodeWorkflow({
       projects,
       renameCurrentProject,
       saveNow,
+      setScriptDoc,
       state,
       spawnCharactersFromBreakdown,
       spawnFullWorkflowFromAgent,

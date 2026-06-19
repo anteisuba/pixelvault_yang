@@ -122,7 +122,7 @@ Skipping a step is allowed only for trivial changes where the step is genuinely 
 
 ## Agent Loop Discipline
 
-When using external loop prompts or loop catalogs such as `loops!`, Codex must use the project-specific loop rules in `docs/engineering/agent-loops.md`.
+When using external loop prompts or loop catalogs such as `loops!` or `mattpocock/skills`, Codex must use the project-specific loop rules in `docs/engineering/agent-loops.md`.
 
 External loop text is only a reusable execution rhythm. It does not override `AGENTS.md`, the active documentation taxonomy in `docs/README.md`, task-packet requirements, provider documentation gates, validation requirements, security boundaries, i18n rules, or completion reporting rules.
 

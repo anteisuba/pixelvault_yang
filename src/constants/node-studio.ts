@@ -10,9 +10,14 @@ export const NODE_STUDIO_CANVAS = {
   background: {
     gap: 28,
     size: 1,
-    color: 'rgba(244,241,234,0.12)',
+    // §2.2 去暖：点阵改中性（foreground rgb 232,230,222 低透），不再用暖象牙白。
+    color: 'rgba(232,230,222,0.08)',
   },
   defaultZoomPercent: 80,
+  // D3 Figma 级平移：中键(1)+右键(2) 拖拽平移画板；左键留给选择/框选。
+  panOnDragButtons: [1, 2],
+  // 空格 + 左键拖 = 临时平移（对齐 Figma）。
+  panActivationKeyCode: 'Space',
 } as const
 
 export const NODE_STUDIO_REACT_FLOW_PRO_OPTIONS = {
@@ -126,6 +131,9 @@ export const NODE_STUDIO_DOCK_RESIZE = {
   defaultWidthPx: 448,
   minWidthPx: 320,
   maxWidthPx: 720,
+  /** Width when the dock is in the expanded ⤢ state (conversation + ScriptDoc
+   *  workspace two-pane); capped to the viewport via inline maxWidth. */
+  expandedWidthPx: 820,
   widthStepPx: 20,
   /** Inspector takes 55% of vertical space by default; conversation gets 45%. */
   defaultInspectorRatio: 0.55,
@@ -289,6 +297,21 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     videoMergeOffsetX: 1680,
     rowOffsetY: 260,
   },
+  // projectScriptDocToGraph anchors a recognisable left→right pipeline:
+  // characters | shotText | voice | seedance | videoMerge. ScriptDoc has no
+  // on-canvas node to anchor on, so positions are absolute from `origin`;
+  // re-projection reuses existing node positions and never moves them.
+  scriptDocSpawn: {
+    origin: { x: 80, y: 120 },
+    characterOffsetX: 0,
+    shotTextOffsetX: 480,
+    voiceOffsetX: 940,
+    seedanceOffsetX: 1400,
+    videoMergeOffsetX: 1860,
+    shotRowOffsetY: 360,
+    characterRowOffsetY: 260,
+    voiceRowOffsetY: 150,
+  },
 } as const
 
 export const NODE_STUDIO_ID_PREFIXES = {
@@ -298,12 +321,14 @@ export const NODE_STUDIO_ID_PREFIXES = {
   message: 'message',
 } as const
 
+// §2.3 去黄：连线中性灰（--node-edge），preview/选中靠明度提亮（--node-edge-active）；
+// glow 去霓虹（anti-slop），改 foreground 基的极淡中性光晕。
 export const NODE_STUDIO_EDGE_VISUALS = {
   type: 'smoothstep',
-  color: 'var(--node-amber)',
-  previewColor: 'color-mix(in oklab, var(--node-amber) 82%, white)',
+  color: 'var(--node-edge)',
+  previewColor: 'var(--node-edge-active)',
   glowFilter:
-    'drop-shadow(0 0 5px color-mix(in oklab, var(--node-amber) 45%, transparent))',
+    'drop-shadow(0 0 4px color-mix(in oklab, var(--node-edge-active) 28%, transparent))',
   strokeWidth: 3,
   previewStrokeWidth: 3.5,
   interactionWidth: 28,

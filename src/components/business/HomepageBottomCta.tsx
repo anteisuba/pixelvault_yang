@@ -13,7 +13,7 @@ export function HomepageBottomCta() {
   return (
     <section
       data-homepage-reveal
-      className="homepage-bottom-cta relative overflow-hidden rounded-3xl px-8 py-14 sm:px-14 sm:py-20"
+      className="homepage-bottom-cta relative overflow-hidden rounded-2xl px-8 py-14 sm:px-14 sm:py-20"
       aria-labelledby="homepage-bottom-cta-title"
     >
       <div className="homepage-bottom-cta-content mx-auto flex max-w-3xl flex-col items-center text-center">
@@ -37,7 +37,6 @@ export function HomepageBottomCta() {
           <Link href={HOMEPAGE_ROUTES.signUp}>{t('primary')}</Link>
         </Button>
       </div>
-      <div className="homepage-bottom-cta-glow" aria-hidden="true" />
     </section>
   )
 }

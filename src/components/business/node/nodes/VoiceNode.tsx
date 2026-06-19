@@ -28,6 +28,7 @@ export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
     <NodeShell
       type={NODE_TYPE_IDS.voice}
       selected={selected}
+      status={status}
       showTargetHandle={false}
     >
       <NodeShell.Header type={NODE_TYPE_IDS.voice} status={status} />

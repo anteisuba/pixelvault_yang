@@ -98,7 +98,6 @@ import {
 import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
 import { BackgroundImageInspector } from '@/components/business/node/inspector/BackgroundImageInspector'
 import { FrameImageInspector } from '@/components/business/node/inspector/FrameImageInspector'
-import { SeedanceInspector } from '@/components/business/node/inspector/SeedanceInspector'
 import { ShotInspector } from '@/components/business/node/inspector/ShotInspector'
 import { ShotTextInspector } from '@/components/business/node/inspector/ShotTextInspector'
 import { VoiceInspector } from '@/components/business/node/inspector/VoiceInspector'
@@ -141,6 +140,8 @@ const ACTIONS: NodeWorkflowCanvasActions = {
     refusal: null,
   })),
   applySeedancePromptPlanToSeedance: vi.fn(),
+  setScriptDoc: vi.fn(),
+  applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
   generateMediaNode,
   modelOptionsByType: {
@@ -284,7 +285,6 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.shot, ShotInspector],
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
-    [NODE_TYPE_IDS.seedance, SeedanceInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
     'selects a model and generates %s nodes',
     (type, Inspector) => {

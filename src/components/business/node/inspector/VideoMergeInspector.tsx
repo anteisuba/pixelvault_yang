@@ -208,7 +208,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-purple-500/15 text-purple-200">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-node-port-video/20 text-node-port-video">
               <Layers className="size-5" />
             </span>
             <p className="text-xs leading-5 text-node-muted">
@@ -227,7 +227,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
       <div className="space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-3">
         <div className="flex items-center justify-between gap-2 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
           <span className="flex items-center gap-2">
-            <Video className="size-3.5 text-purple-200" />
+            <Video className="size-3.5 text-node-port-video" />
             {t('upstreamHeader')}
           </span>
           <span className="rounded-full border border-node-panel-inner bg-node-panel px-2 py-0.5 normal-case tracking-normal">
@@ -256,7 +256,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
                   className="space-y-2 rounded-lg border border-node-panel-inner bg-node-panel px-2 py-2 text-xs text-node-foreground"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-purple-500/20 text-2xs font-semibold text-purple-200">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-node-port-video/20 text-2xs font-semibold text-node-port-video">
                       {index + 1}
                     </span>
                     <span className="flex-1 truncate text-node-muted">
@@ -333,7 +333,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
           type="button"
           onClick={() => void handleMerge()}
           disabled={!canMerge}
-          className="bg-purple-500 text-white hover:bg-purple-500/90"
+          className="bg-node-success text-node-canvas hover:bg-node-success/90"
         >
           <Sparkles className="mr-2 size-4" />
           {mediaUrl ? t('merge.regenerate') : t('merge.run')}

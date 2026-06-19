@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="3280" viewBox="0 0 1440 3280" role="img" aria-labelledby="title desc">
+  <title id="title">ANTEI home grayscale wireframe</title>
+  <desc id="desc">Low-fidelity grayscale homepage wireframe for ANTEI, focused on layout, hierarchy, and section rhythm without decorative AI visual styling.</desc>
+  <defs>
+    <style>
+      .page { fill: #f4f4f1; }
+      .ink { fill: #121212; }
+      .paper { fill: #ffffff; }
+      .soft { fill: #e6e6e1; }
+      .mid { fill: #c8c8c1; }
+      .line { fill: none; stroke: #222222; stroke-width: 2; }
+      .hair { fill: none; stroke: #8f8f86; stroke-width: 1.5; }
+      .dash { fill: none; stroke: #77776f; stroke-width: 1.5; stroke-dasharray: 8 8; }
+      .dark-line { fill: none; stroke: #f1f1ec; stroke-width: 2; }
+      .dark-hair { fill: none; stroke: #77776f; stroke-width: 1.4; }
+      .label { fill: #202020; font: 600 24px Arial, sans-serif; letter-spacing: 0; }
+      .small { fill: #55554e; font: 400 17px Arial, sans-serif; letter-spacing: 0; }
+      .tiny { fill: #6d6d65; font: 400 14px Arial, sans-serif; letter-spacing: 0; }
+      .dark-label { fill: #f7f7f2; font: 600 24px Arial, sans-serif; letter-spacing: 0; }
+      .dark-small { fill: #cfcfc8; font: 400 17px Arial, sans-serif; letter-spacing: 0; }
+      .hero-title { fill: #111111; font: 700 72px Arial, sans-serif; letter-spacing: 0; }
+      .section-title { fill: #151515; font: 700 48px Arial, sans-serif; letter-spacing: 0; }
+      .dark-section-title { fill: #f8f8f2; font: 700 48px Arial, sans-serif; letter-spacing: 0; }
+      .note { fill: #222222; font: 400 18px Arial, sans-serif; letter-spacing: 0; }
+      .note-strong { fill: #111111; font: 700 18px Arial, sans-serif; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect class="page" width="1440" height="3280"/>
+
+  <!-- Frame labels -->
+  <text x="72" y="48" class="tiny">灰度线框 / 不定义最终视觉，仅定义首页结构、层级、比例</text>
+  <text x="1128" y="48" class="tiny">desktop draft 1440px</text>
+
+  <!-- Header -->
+  <rect x="0" y="72" width="1440" height="88" class="paper"/>
+  <line x1="0" y1="160" x2="1440" y2="160" class="hair"/>
+  <text x="72" y="126" class="label">ANTEI</text>
+  <text x="798" y="122" class="small">画廊</text>
+  <text x="864" y="122" class="small">模型</text>
+  <text x="930" y="122" class="small">价格</text>
+  <text x="996" y="122" class="small">文档</text>
+  <rect x="1156" y="96" width="82" height="36" rx="18" class="soft"/>
+  <text x="1180" y="120" class="tiny">登录</text>
+  <rect x="1254" y="94" width="114" height="40" rx="20" class="ink"/>
+  <text x="1280" y="121" class="dark-small">开始创作</text>
+
+  <!-- Hero -->
+  <rect x="0" y="160" width="1440" height="640" class="paper"/>
+  <line x1="720" y1="230" x2="720" y2="720" class="dash"/>
+  <text x="72" y="268" class="tiny">首屏目标：2 秒内说明“生成 + 保存 + 复用”，而不是只放 slogan</text>
+  <text x="72" y="354" class="hero-title">每一次生成，</text>
+  <text x="72" y="438" class="hero-title">都回到你的档案里</text>
+  <text x="76" y="492" class="small">多模型创作工作台。图片、视频、音频和 prompt 一起保存，之后可以检索、复用、公开展示。</text>
+  <rect x="72" y="536" width="520" height="104" rx="12" class="paper"/>
+  <rect x="72" y="536" width="520" height="104" rx="12" class="line"/>
+  <text x="96" y="576" class="tiny">prompt 输入框</text>
+  <line x1="96" y1="596" x2="440" y2="596" class="hair"/>
+  <line x1="96" y1="618" x2="388" y2="618" class="hair"/>
+  <rect x="96" y="664" width="112" height="34" rx="17" class="soft"/>
+  <text x="120" y="687" class="tiny">GPT Image</text>
+  <rect x="220" y="664" width="88" height="34" rx="17" class="soft"/>
+  <text x="244" y="687" class="tiny">Flux</text>
+  <rect x="434" y="656" width="132" height="48" rx="24" class="ink"/>
+  <text x="466" y="687" class="dark-small">生成</text>
+  <rect x="72" y="664" width="320" height="104" rx="12" class="soft" opacity="0.42"/>
+  <text x="96" y="724" class="tiny">保存线索：结果、seed、模型、prompt 自动归档</text>
+
+  <!-- Hero product panel -->
+  <rect x="774" y="238" width="528" height="470" rx="18" class="soft"/>
+  <rect x="802" y="266" width="228" height="308" rx="8" class="paper"/>
+  <rect x="1050" y="266" width="224" height="144" rx="8" class="mid"/>
+  <rect x="1050" y="430" width="224" height="144" rx="8" class="paper"/>
+  <rect x="802" y="594" width="472" height="82" rx="10" class="paper"/>
+  <text x="826" y="630" class="tiny">最近保存的生成结果</text>
+  <line x1="826" y1="650" x2="1138" y2="650" class="hair"/>
+  <rect x="1160" y="618" width="86" height="34" rx="17" class="soft"/>
+  <text x="1184" y="641" class="tiny">复用</text>
+  <text x="816" y="742" class="tiny">右侧不是装饰图，而是“产品正在工作”的证据</text>
+
+  <!-- Gallery section -->
+  <rect x="0" y="800" width="1440" height="760" class="ink"/>
+  <text x="72" y="896" class="dark-section-title">先看作品，再进入工具</text>
+  <text x="76" y="942" class="dark-small">公开画廊作为首页的第一组证据：作品、模型、作者、Remix 行为同时出现。</text>
+  <rect x="72" y="996" width="268" height="392" rx="8" class="soft"/>
+  <rect x="368" y="956" width="268" height="286" rx="8" class="paper"/>
+  <rect x="664" y="996" width="268" height="392" rx="8" class="mid"/>
+  <rect x="960" y="956" width="336" height="286" rx="8" class="paper"/>
+  <rect x="368" y="1270" width="268" height="176" rx="8" class="soft"/>
+  <rect x="960" y="1270" width="336" height="176" rx="8" class="mid"/>
+  <g>
+    <rect x="92" y="1340" width="92" height="30" rx="15" class="ink"/>
+    <rect x="92" y="1340" width="92" height="30" rx="15" class="dark-line"/>
+    <text x="114" y="1361" class="tiny" fill="#f8f8f2">Remix</text>
+    <rect x="194" y="1340" width="84" height="30" rx="15" class="ink"/>
+    <rect x="194" y="1340" width="84" height="30" rx="15" class="dark-line"/>
+    <text x="214" y="1361" class="tiny" fill="#f8f8f2">模型</text>
+  </g>
+  <line x1="72" y1="1490" x2="1296" y2="1490" class="dark-hair"/>
+  <text x="72" y="1528" class="dark-small">布局意图：作品大小有主次，卡片信息固定在底部，避免普通瀑布流的散乱感。</text>
+
+  <!-- Capabilities, light editorial band -->
+  <rect x="0" y="1560" width="1440" height="760" class="page"/>
+  <text x="72" y="1654" class="section-title">三种能力，统一成一个工作流</text>
+  <text x="76" y="1700" class="small">不要把每个功能都做成独立广告块。改成一个轻量能力目录，强调“生成后的资产都回到同一套档案”。</text>
+  <line x1="72" y1="1748" x2="1296" y2="1748" class="hair"/>
+
+  <rect x="72" y="1810" width="380" height="340" rx="8" class="paper"/>
+  <rect x="96" y="1834" width="332" height="190" rx="6" class="soft"/>
+  <text x="96" y="2070" class="label">视频生成</text>
+  <text x="96" y="2104" class="small">文字 / 图生视频 / 参考视频</text>
+
+  <rect x="530" y="1810" width="380" height="340" rx="8" class="paper"/>
+  <rect x="554" y="1834" width="332" height="190" rx="6" class="soft"/>
+  <text x="554" y="2070" class="label">LoRA 训练</text>
+  <text x="554" y="2104" class="small">角色、风格、素材复用</text>
+
+  <rect x="988" y="1810" width="308" height="340" rx="8" class="paper"/>
+  <rect x="1012" y="1834" width="260" height="190" rx="6" class="soft"/>
+  <text x="1012" y="2070" class="label">图像编辑</text>
+  <text x="1012" y="2104" class="small">增强、清理、扩图</text>
+
+  <rect x="72" y="2200" width="1224" height="72" rx="10" class="paper"/>
+  <text x="100" y="2245" class="note-strong">设计原则：</text>
+  <text x="210" y="2245" class="note">三块能力并列，但文案都指向同一个价值：生成不是一次性输出，而是可复用资产。</text>
+
+  <!-- Archive value section -->
+  <rect x="0" y="2320" width="1440" height="500" class="paper"/>
+  <text x="72" y="2420" class="section-title">不只是生成器，是个人创作档案</text>
+  <text x="76" y="2466" class="small">这块替代现在偏普通的“更多创作方式”。它应该解释 ANTEI 和其他生成站的差异。</text>
+  <rect x="72" y="2528" width="280" height="180" rx="8" class="soft"/>
+  <text x="100" y="2596" class="label">保存上下文</text>
+  <text x="100" y="2630" class="small">模型、参数、prompt</text>
+  <rect x="396" y="2528" width="280" height="180" rx="8" class="soft"/>
+  <text x="424" y="2596" class="label">复用作品</text>
+  <text x="424" y="2630" class="small">Remix、二次编辑</text>
+  <rect x="720" y="2528" width="280" height="180" rx="8" class="soft"/>
+  <text x="748" y="2596" class="label">管理素材</text>
+  <text x="748" y="2630" class="small">项目、卡片、集合</text>
+  <rect x="1044" y="2528" width="252" height="180" rx="8" class="soft"/>
+  <text x="1072" y="2596" class="label">选择公开</text>
+  <text x="1072" y="2630" class="small">画廊和主页</text>
+
+  <!-- Models -->
+  <rect x="0" y="2820" width="1440" height="300" class="ink"/>
+  <text x="72" y="2908" class="dark-section-title">模型阵容不要铺满整屏</text>
+  <text x="76" y="2954" class="dark-small">默认只显示代表模型 + 分类数量。完整目录折叠展开，降低首页认知负担。</text>
+  <rect x="72" y="3006" width="250" height="54" rx="27" class="paper"/>
+  <text x="104" y="3041" class="small">图像模型 22</text>
+  <rect x="348" y="3006" width="250" height="54" rx="27" class="paper"/>
+  <text x="380" y="3041" class="small">视频模型 14</text>
+  <rect x="624" y="3006" width="250" height="54" rx="27" class="paper"/>
+  <text x="656" y="3041" class="small">音频模型 2</text>
+  <rect x="900" y="3006" width="250" height="54" rx="27" class="paper"/>
+  <text x="932" y="3041" class="small">3D / 工作流</text>
+  <rect x="1174" y="3006" width="122" height="54" rx="27" class="ink"/>
+  <rect x="1174" y="3006" width="122" height="54" rx="27" class="dark-line"/>
+  <text x="1205" y="3041" class="dark-small">查看全部</text>
+
+  <!-- CTA / Footer -->
+  <rect x="0" y="3120" width="1440" height="160" class="paper"/>
+  <text x="72" y="3190" class="label">CTA：开始创作，但不要做成发光横幅</text>
+  <text x="72" y="3224" class="small">一行承诺 + 一个主按钮 + 一个次级画廊入口。底部 footer 保持安静。</text>
+  <rect x="1114" y="3160" width="182" height="52" rx="26" class="ink"/>
+  <text x="1160" y="3195" class="dark-small">开始创作</text>
+  <rect x="910" y="3160" width="170" height="52" rx="26" class="paper"/>
+  <rect x="910" y="3160" width="170" height="52" rx="26" class="line"/>
+  <text x="956" y="3195" class="small">浏览画廊</text>
+</svg>

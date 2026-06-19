@@ -22,12 +22,16 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
     data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError)
 
   return (
-    <NodeShell type={NODE_TYPE_IDS.agent} selected={selected}>
+    <NodeShell
+      type={NODE_TYPE_IDS.agent}
+      selected={selected}
+      status={data.status}
+    >
       <NodeShell.Header type={NODE_TYPE_IDS.agent} status={data.status} />
       <NodeShell.Body className="space-y-3">
         {isRunning ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
-            <Loader2 className="size-5 animate-spin text-lime-200" />
+            <Loader2 className="size-5 animate-spin text-node-foreground" />
             <div>
               <p className="text-sm font-semibold text-node-foreground">
                 {isSeedancePromptMode
@@ -44,11 +48,11 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
         ) : null}
 
         {!isRunning && isFailed ? (
-          <div className="flex gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
+          <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
               <p className="font-semibold">{t('failedTitle')}</p>
-              <p className="mt-1 line-clamp-3 text-xs leading-5 text-red-100/80">
+              <p className="mt-1 line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
                 {data.generationError}
               </p>
             </div>
@@ -57,7 +61,7 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
 
         {!isRunning && !isFailed && !isSeedancePromptMode && !breakdown ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
-            <Bot className="size-6 text-lime-200" />
+            <Bot className="size-6 text-node-foreground" />
             <div>
               <p className="text-sm font-semibold text-node-foreground">
                 {t('emptyTitle')}
@@ -74,7 +78,7 @@ export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
         isSeedancePromptMode &&
         !seedancePromptPlan ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
-            <Film className="size-6 text-node-amber" />
+            <Film className="size-6 text-node-foreground" />
             <div>
               <p className="text-sm font-semibold text-node-foreground">
                 {t('seedance.emptyTitle')}

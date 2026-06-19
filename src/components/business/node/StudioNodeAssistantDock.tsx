@@ -14,7 +14,9 @@ import {
   Bot,
   GripHorizontal,
   GripVertical,
+  Maximize2,
   MessageSquarePlus,
+  Minimize2,
   PanelRightClose,
   Sparkles,
   Users,
@@ -34,8 +36,10 @@ import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import type { AppLocale } from '@/i18n/routing'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
+import { ScriptDocWorkspace } from './ScriptDocWorkspace'
 import {
   CanvasAssistantRouteSelector,
   type NodeAssistantRouteSelection,
@@ -45,7 +49,6 @@ import { BackgroundImageInspector } from './inspector/BackgroundImageInspector'
 import { CharacterImageInspector } from './inspector/CharacterImageInspector'
 import { ComposerInspector } from './inspector/ComposerInspector'
 import { FrameImageInspector } from './inspector/FrameImageInspector'
-import { SeedanceInspector } from './inspector/SeedanceInspector'
 import { ShotInspector } from './inspector/ShotInspector'
 import { ShotTextInspector } from './inspector/ShotTextInspector'
 import { VideoMergeInspector } from './inspector/VideoMergeInspector'
@@ -54,10 +57,13 @@ import { VoiceInspector } from './inspector/VoiceInspector'
 
 interface StudioNodeAssistantDockProps {
   open: boolean
+  expanded: boolean
   projectName: string
   nodes: NodeWorkflowNode[]
+  scriptDoc: ScriptDoc | undefined
   locale: AppLocale
   onOpenChange(open: boolean): void
+  onExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
 }
 
@@ -166,9 +172,10 @@ function InspectorPanel({
     return <VoiceInspector node={primary} />
   }
 
-  if (primary.type === NODE_TYPE_IDS.seedance) {
-    return <SeedanceInspector node={primary} />
-  }
+  // Video (seedance) params live on the node card now (B2/B3 on-node composer +
+  // ⤢ expand), so a single video node routes to the pure assistant instead of
+  // an inspector here — see the dock render gate below. This branch is only
+  // reachable as part of a multi-selection fallthrough.
 
   if (primary.type === NODE_TYPE_IDS.videoReference) {
     return <VideoReferenceInspector node={primary} />
@@ -344,6 +351,10 @@ function useDockLayout() {
     getLayoutSnapshot,
     getServerLayoutSnapshot,
   )
+  // True only while the width handle is being dragged. The dock's width
+  // transition is suppressed during the drag (data-resizing) so the panel
+  // tracks the cursor 1:1, then re-enabled for the expand/collapse morph.
+  const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement | null>(null)
   const widthDragRef = useRef<{
     pointerId: number
@@ -382,6 +393,7 @@ function useDockLayout() {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault()
       event.currentTarget.setPointerCapture(event.pointerId)
+      setIsResizing(true)
       widthDragRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -408,6 +420,7 @@ function useDockLayout() {
         widthDragRef.current = null
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
+      setIsResizing(false)
     },
     [],
   )
@@ -495,6 +508,7 @@ function useDockLayout() {
 
   return {
     layout,
+    isResizing,
     splitContainerRef,
     widthHandlers: {
       onPointerDown: handleWidthPointerDown,
@@ -515,31 +529,52 @@ function useDockLayout() {
 
 export function StudioNodeAssistantDock({
   open,
+  expanded,
   projectName,
   nodes,
+  scriptDoc,
   locale,
   onOpenChange,
+  onExpandedChange,
   onFocusNode,
 }: StudioNodeAssistantDockProps) {
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const selection = useNodeSelection()
+  // A single selected video node owns its params on the card (composer + ⤢),
+  // so the right rail stays a pure assistant instead of showing an inspector.
+  const isVideoNodeSelected =
+    selection.mode === 'single' &&
+    selection.primary?.type === NODE_TYPE_IDS.seedance
   const conversation = useAssistantConversation()
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
-  const { layout, splitContainerRef, widthHandlers, splitHandlers } =
-    useDockLayout()
+  const {
+    layout,
+    isResizing,
+    splitContainerRef,
+    widthHandlers,
+    splitHandlers,
+  } = useDockLayout()
   const isMobile = useIsMobile()
   // Mobile uses the bottom-sheet layout (`inset-x-0 h-[65vh]`), so the
   // persisted desktop width would conflict with the full-bleed sheet —
   // skip the inline width when on phone-portrait. The localStorage value
   // is preserved untouched for when the user returns to desktop.
   const dockStyle = useMemo<CSSProperties>(
-    () => (isMobile ? {} : { width: `${layout.widthPx}px` }),
-    [isMobile, layout.widthPx],
+    () =>
+      isMobile
+        ? {}
+        : expanded
+          ? {
+              width: `${NODE_STUDIO_DOCK_RESIZE.expandedWidthPx}px`,
+              maxWidth: 'calc(100vw - 6rem)',
+            }
+          : { width: `${layout.widthPx}px` },
+    [expanded, isMobile, layout.widthPx],
   )
   const inspectorPercent = Math.round(layout.inspectorRatio * 100)
   const assistantPercent = 100 - inspectorPercent
@@ -603,6 +638,29 @@ export function StudioNodeAssistantDock({
     [nodeContexts],
   )
 
+  // E1 starter chips for the lean default (no node selected): clicking prefills
+  // the draft with a localized opener prompt — assistant = script brain.
+  const dockStarters = useMemo(
+    () => [
+      {
+        id: 'scriptOutline',
+        label: t('starters.scriptOutline.label'),
+        prompt: t('starters.scriptOutline.prompt'),
+      },
+      {
+        id: 'castStyle',
+        label: t('starters.castStyle.label'),
+        prompt: t('starters.castStyle.prompt'),
+      },
+      {
+        id: 'firstPhase',
+        label: t('starters.firstPhase.label'),
+        prompt: t('starters.firstPhase.prompt'),
+      },
+    ],
+    [t],
+  )
+
   if (!open) {
     return (
       <button
@@ -626,7 +684,8 @@ export function StudioNodeAssistantDock({
   return (
     <aside
       style={dockStyle}
-      className="pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b"
+      data-resizing={isResizing ? 'true' : undefined}
+      className="node-canvas-panel-motion pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b"
     >
       {/* Grip indicator at the top of the bottom-sheet. Visual affordance
           only — tapping it toggles closed for a quick dismiss. */}
@@ -689,6 +748,20 @@ export function StudioNodeAssistantDock({
             type="button"
             size="icon-sm"
             variant="ghost"
+            aria-label={expanded ? t('restore') : t('expand')}
+            onClick={() => onExpandedChange(!expanded)}
+            className="hidden rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground md:inline-flex"
+          >
+            {expanded ? (
+              <Minimize2 className="size-4" />
+            ) : (
+              <Maximize2 className="size-4" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
             aria-label={t('collapse')}
             onClick={() => onOpenChange(false)}
             className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
@@ -698,40 +771,39 @@ export function StudioNodeAssistantDock({
         </div>
       </div>
 
-      <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col">
-        <div
-          style={{ flexBasis: `${inspectorPercent}%` }}
-          className="min-h-0 shrink grow overflow-y-auto px-3 py-3 md:px-4 md:py-4"
-        >
-          <InspectorPanel selection={selection} />
+      {expanded && !isMobile ? (
+        // E1b expanded ⤢: two-pane — left conversation + right ScriptDoc/outline
+        // workspace. The workspace is a labelled STUB until the engine lands
+        // (ScriptDoc model + scriptDocToGraph autospawn = VID-UI-1/DIR-DATA-01).
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 flex-col border-r border-node-panel-inner">
+            <AssistantConversation
+              messages={conversation.messages}
+              isLoading={conversation.isLoading}
+              error={conversation.error}
+              onSend={handleSend}
+              onRetry={handleRetry}
+              onFocusNode={onFocusNode}
+              getNodeLabel={getNodeLabel}
+              emptyHint={t('leanOpener')}
+              starters={dockStarters}
+            />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ScriptDocWorkspace
+              scriptDoc={scriptDoc}
+              messages={conversation.messages}
+              locale={locale}
+              apiKeyId={assistantRoute.apiKeyId}
+            />
+          </div>
         </div>
-
-        {/* Horizontal handle between Inspector and Assistant conversation. */}
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label={t('resize.splitLabel')}
-          aria-valuemin={Math.round(
-            NODE_STUDIO_DOCK_RESIZE.minInspectorRatio * 100,
-          )}
-          aria-valuemax={Math.round(
-            NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio * 100,
-          )}
-          aria-valuenow={inspectorPercent}
-          tabIndex={0}
-          {...splitHandlers}
-          title={t('resize.splitLabel')}
-          className="group relative flex h-2.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
-        >
-          <span className="flex h-1.5 w-14 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
-            <GripHorizontal className="size-3" />
-          </span>
-        </div>
-
-        <div
-          style={{ flexBasis: `${assistantPercent}%` }}
-          className="flex min-h-0 shrink grow flex-col"
-        >
+      ) : selection.mode === 'none' || isVideoNodeSelected ? (
+        // E1a — pure lean assistant: no node selected, OR a single video node
+        // (its params live on the card composer + ⤢ expand, D4). Other node
+        // types still fall through to the inspector below until they too own
+        // their params on the card.
+        <div className="flex min-h-0 flex-1 flex-col">
           <AssistantConversation
             messages={conversation.messages}
             isLoading={conversation.isLoading}
@@ -740,9 +812,57 @@ export function StudioNodeAssistantDock({
             onRetry={handleRetry}
             onFocusNode={onFocusNode}
             getNodeLabel={getNodeLabel}
+            emptyHint={t('leanOpener')}
+            starters={dockStarters}
           />
         </div>
-      </div>
+      ) : (
+        <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col">
+          <div
+            style={{ flexBasis: `${inspectorPercent}%` }}
+            className="min-h-0 shrink grow overflow-y-auto px-3 py-3 md:px-4 md:py-4"
+          >
+            <InspectorPanel selection={selection} />
+          </div>
+
+          {/* Horizontal handle between Inspector and Assistant conversation. */}
+          <div
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label={t('resize.splitLabel')}
+            aria-valuemin={Math.round(
+              NODE_STUDIO_DOCK_RESIZE.minInspectorRatio * 100,
+            )}
+            aria-valuemax={Math.round(
+              NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio * 100,
+            )}
+            aria-valuenow={inspectorPercent}
+            tabIndex={0}
+            {...splitHandlers}
+            title={t('resize.splitLabel')}
+            className="group relative flex h-2.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
+          >
+            <span className="flex h-1.5 w-14 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
+              <GripHorizontal className="size-3" />
+            </span>
+          </div>
+
+          <div
+            style={{ flexBasis: `${assistantPercent}%` }}
+            className="flex min-h-0 shrink grow flex-col"
+          >
+            <AssistantConversation
+              messages={conversation.messages}
+              isLoading={conversation.isLoading}
+              error={conversation.error}
+              onSend={handleSend}
+              onRetry={handleRetry}
+              onFocusNode={onFocusNode}
+              getNodeLabel={getNodeLabel}
+            />
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

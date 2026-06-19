@@ -39,11 +39,7 @@ function PriceTag({ model, formatPrice }: PriceTagProps) {
   const price = HOMEPAGE_MODEL_REFERENCE_PRICES[model.id]
   if (!price) return null
 
-  return (
-    <span className="homepage-model-price shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold">
-      {formatPrice(price)}
-    </span>
-  )
+  return <span className="homepage-model-price">{formatPrice(price)}</span>
 }
 
 interface ModelGroupProps {
@@ -70,19 +66,17 @@ function ModelGroup({
       <p className="homepage-model-group-label mb-4 text-xs font-semibold uppercase tracking-[0.18em]">
         {label}
       </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="homepage-model-rows">
         {shown.map((model) => {
           const provider = getProviderLabel(model.providerConfig)
           return (
-            <div key={model.id} className="homepage-model-card">
-              <div className="min-w-0 flex-1">
-                <p className="homepage-model-card-name font-display font-semibold">
+            <div key={model.id} className="homepage-model-row">
+              <span className="homepage-model-row-main">
+                <span className="homepage-model-row-name font-display font-medium">
                   {resolveModelLabel(model, tModels)}
-                </p>
-                <p className="homepage-model-card-provider truncate text-xs">
-                  {provider}
-                </p>
-              </div>
+                </span>
+                <span className="homepage-model-row-provider">{provider}</span>
+              </span>
               <PriceTag model={model} formatPrice={formatPrice} />
             </div>
           )

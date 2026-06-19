@@ -252,7 +252,7 @@ export function CharacterImageReferenceControls({
             className={cn(
               'nodrag nopan nowheel inline-flex h-8 min-w-0 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle',
               references.length > 0 &&
-                'border-node-amber/40 bg-amber-500/10 text-node-amber',
+                'border-node-port-character/45 bg-node-port-character/10 text-node-port-character',
             )}
           >
             <ImagePlus className="size-3.5 shrink-0" />
@@ -406,7 +406,7 @@ export function CharacterImageReferenceControls({
                       })
                     }
                     aria-label={t('weightLabel')}
-                    className="nodrag nopan nowheel w-full accent-amber-500"
+                    className="nodrag nopan nowheel w-full accent-node-edge-active"
                   />
                 </div>
                 <button

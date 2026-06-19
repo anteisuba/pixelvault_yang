@@ -125,6 +125,8 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
         refusal: null,
       })),
       applySeedancePromptPlanToSeedance: vi.fn(),
+      setScriptDoc: vi.fn(),
+      applyScriptDocToGraph: vi.fn(),
       deleteNode: vi.fn(),
       generateCharacterImage,
       modelOptionsByType: {
@@ -159,6 +161,8 @@ function renderStatic(children: ReactNode) {
             refusal: null,
           })),
           applySeedancePromptPlanToSeedance: vi.fn(),
+          setScriptDoc: vi.fn(),
+          applyScriptDocToGraph: vi.fn(),
           deleteNode: vi.fn(),
           generateCharacterImage,
           modelOptionsByType: {

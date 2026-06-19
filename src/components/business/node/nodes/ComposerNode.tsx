@@ -14,7 +14,11 @@ export function ComposerNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
   const prompt = data.prompt.trim()
 
   return (
-    <NodeShell type={NODE_TYPE_IDS.composer} selected={selected}>
+    <NodeShell
+      type={NODE_TYPE_IDS.composer}
+      selected={selected}
+      status={data.status}
+    >
       <NodeShell.Header type={NODE_TYPE_IDS.composer} status={data.status} />
       <NodeShell.Body className="space-y-3">
         <div className="min-h-32 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
@@ -30,7 +34,7 @@ export function ComposerNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
         <p className="truncate text-2xs font-medium text-node-subtle">
           {t('readyHint')}
         </p>
-        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
           <SendHorizontal className="size-4" />
         </span>
       </NodeShell.Footer>

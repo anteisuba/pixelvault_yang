@@ -18,6 +18,17 @@ Personal AI Gallery — multi-model AI image generation + permanent archive.
 - **命令输出按字节限制** — 输出未知大小的命令默认用 `COMMAND 2>&1 | head -c 4000`。
 - **只把 LLM 用于判断型任务** — 路由、重试、状态码、确定性转换全交给代码。
 
+## Agent Skills
+
+Matt Pocock engineering skills are installed under `.claude/skills/` and can be
+invoked directly by name, including `grill-with-docs`, `diagnosing-bugs`,
+`tdd`, `to-prd`, `to-issues`, `triage`, and `improve-codebase-architecture`.
+
+Use them as execution loops only. Project rules in this file, `AGENTS.md`,
+`docs/README.md`, and `docs/engineering/agent-loops.md` still win. See
+`docs/engineering/matt-pocock-skills.md` for the installed list and adapter
+rules.
+
 ## Hard Rules
 
 1. **No magic values** — 用 `src/constants/`，不要硬编码字符串/数字

@@ -1194,9 +1194,12 @@ async function submitRodinJob(
   if (providerInput.geometryFileFormat) {
     form.append('geometry_file_format', providerInput.geometryFileFormat)
   }
-  // addons: array of strings. Only 'HighPack' is supported per docs.
+  // addons: array of strings sent as repeated multipart fields (not a JSON
+  // string). Only 'HighPack' is supported per docs — official curl uses
+  // `-F "addons=HighPack"`. JSON.stringify here yields the literal `["HighPack"]`
+  // which fails Rodin's per-element validation.
   if (providerInput.highPack) {
-    form.append('addons', JSON.stringify(['HighPack']))
+    form.append('addons', 'HighPack')
   }
   if (providerInput.taPose != null) {
     form.append('TAPose', String(providerInput.taPose))

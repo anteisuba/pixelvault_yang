@@ -33,9 +33,9 @@ describe('getHealthDotClass', () => {
     expect(getHealthDotClass('unknown')).toBe('bg-muted-foreground/40')
   })
 
-  it('node theme matches CanvasPlannerRouteSelector / CanvasAssistantRouteSelector contract', () => {
+  it('node theme matches CanvasAssistantRouteSelector contract', () => {
     // 守护：node theme must stay byte-identical with the local
-    // getHealthDotClass implementations these two pickers used to carry.
+    // getHealthDotClass implementation CanvasAssistantRouteSelector used to carry.
     expect(getHealthDotClass('available', 'node')).toBe('bg-emerald-400')
     expect(getHealthDotClass('no_key', 'node')).toBe('bg-amber-400')
     expect(getHealthDotClass('failed', 'node')).toBe('bg-red-400')

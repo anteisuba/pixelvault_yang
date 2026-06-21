@@ -43,6 +43,7 @@ import {
   type NodeWorkflowProjectSummary,
   type NodeWorkflowState,
   type NodeWorkflowStorageSnapshot,
+  type VideoDefaultModel,
 } from '@/types/node-workflow'
 import {
   createNodeWorkflowProjectAPI,
@@ -52,16 +53,9 @@ import {
   activateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
+import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
 import type { ScriptDoc } from '@/types/script-doc'
-import type {
-  ScriptBreakdownPlanner,
-  ScriptBreakdownResult,
-} from '@/types/script-breakdown'
-import type {
-  SeedancePromptPlanPlanner,
-  SeedancePromptPlanResult,
-} from '@/types/seedance-prompt-plan'
 
 export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
   nodes: [],
@@ -84,23 +78,10 @@ export interface UseNodeWorkflowOptions {
 
 export interface NodeWorkflowActions {
   updateNodeData(id: string, patch: Partial<NodeWorkflowNodeData>): void
-  updateScriptBreakdown(
-    nodeId: string,
-    breakdown: ScriptBreakdownResult,
-    planner: ScriptBreakdownPlanner,
-  ): void
-  updateSeedancePromptPlan(
-    nodeId: string,
-    plan: SeedancePromptPlanResult,
-    planner: SeedancePromptPlanPlanner,
-  ): void
-  spawnCharactersFromBreakdown(agentNodeId: string): SpawnCharactersResult
-  spawnFullWorkflowFromAgent(agentNodeId: string): SpawnFullWorkflowResult
-  applySeedancePromptPlanToSeedance(
-    agentNodeId: string,
-  ): ApplySeedancePromptPlanResult
   /** Persist the assistant's ScriptDoc fact model on the current project. */
   setScriptDoc(scriptDoc: ScriptDoc | undefined): void
+  /** Persist the canvas-default video model on the current project. */
+  setDefaultVideoModel(value: VideoDefaultModel | undefined): void
   /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
   applyScriptDocToGraph(): ApplyScriptDocResult
   deleteNode(id: string): void
@@ -109,22 +90,6 @@ export interface NodeWorkflowActions {
   redo(): void
   canUndo: boolean
   canRedo: boolean
-}
-
-export interface SpawnCharactersResult {
-  createdNodeIds: string[]
-  skippedCharacterIds: string[]
-}
-
-export interface SpawnFullWorkflowResult {
-  createdNodeIds: string[]
-  shotCount: number
-  refusal: 'noBreakdown' | 'notAgent' | 'emptyShots' | null
-}
-
-export interface ApplySeedancePromptPlanResult {
-  appliedNodeId: string | null
-  reason?: 'missingAgent' | 'missingPlan' | 'missingSeedanceTarget'
 }
 
 export interface ApplyScriptDocResult {
@@ -142,6 +107,7 @@ export interface ApplyScriptDocResult {
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
   state: NodeWorkflowState
   scriptDoc: ScriptDoc | undefined
+  defaultVideoModel: VideoDefaultModel | undefined
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   projects: NodeWorkflowProjectSummary[]
@@ -531,8 +497,29 @@ function projectFromServerRecord(
     name: record.name,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    state: record.state,
+    // Retire legacy Composer/Agent planner nodes on hydration (idempotent —
+    // see node-workflow-migrate-planner.ts). The migrated state is held in
+    // memory and persisted back on the next write.
+    state: migrateRetirePlanner(record.state),
   }
+}
+
+/**
+ * Apply the planner-retirement migration to every project in a storage
+ * snapshot. Preserves the snapshot/project reference when nothing changed
+ * (migration is idempotent) so an already-migrated load doesn't churn state.
+ */
+function migrateStorageProjects(
+  storage: NodeWorkflowStorageSnapshot,
+): NodeWorkflowStorageSnapshot {
+  let changed = false
+  const projects = storage.projects.map((project) => {
+    const migratedState = migrateRetirePlanner(project.state)
+    if (migratedState === project.state) return project
+    changed = true
+    return { ...project, state: migratedState }
+  })
+  return changed ? { ...storage, projects } : storage
 }
 
 function writeWorkflowStorageToStorage(
@@ -724,9 +711,8 @@ export function useNodeWorkflow({
         return
       }
 
-      const hydratedStorage = readWorkflowStorageFromStorage(
-        defaultProjectName,
-        clerkId,
+      const hydratedStorage = migrateStorageProjects(
+        readWorkflowStorageFromStorage(defaultProjectName, clerkId),
       )
       storageRef.current = hydratedStorage
       setStorageState(hydratedStorage)
@@ -1145,406 +1131,6 @@ export function useNodeWorkflow({
     [commitCurrentProjectState, defaultProjectName],
   )
 
-  const updateScriptBreakdown = useCallback(
-    (
-      nodeId: string,
-      breakdown: ScriptBreakdownResult,
-      planner: ScriptBreakdownPlanner,
-    ) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            nodes: currentState.nodes.map((node) =>
-              node.id === nodeId
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      breakdown,
-                      seedancePromptPlan: undefined,
-                      planner,
-                      plannerLabel: planner.label,
-                      plannerModelId: planner.modelId,
-                      generationError: undefined,
-                      status: NODE_STATUS_IDS.done,
-                    },
-                  }
-                : node,
-            ),
-          }),
-        ),
-      )
-    },
-    [defaultProjectName, setWorkflowStorage],
-  )
-
-  const updateSeedancePromptPlan = useCallback(
-    (
-      nodeId: string,
-      plan: SeedancePromptPlanResult,
-      planner: SeedancePromptPlanPlanner,
-    ) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            nodes: currentState.nodes.map((node) =>
-              node.id === nodeId
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      breakdown: undefined,
-                      agentMode: NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt,
-                      seedancePromptPlan: plan,
-                      planner,
-                      plannerLabel: planner.label,
-                      plannerModelId: planner.modelId,
-                      generationError: undefined,
-                      status: NODE_STATUS_IDS.done,
-                    },
-                  }
-                : node,
-            ),
-          }),
-        ),
-      )
-    },
-    [defaultProjectName, setWorkflowStorage],
-  )
-
-  const spawnCharactersFromBreakdown = useCallback(
-    (agentNodeId: string): SpawnCharactersResult => {
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
-      const agentNode = currentState.nodes.find(
-        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
-      )
-      const breakdown = agentNode?.data.breakdown
-
-      if (!agentNode || !breakdown) {
-        return {
-          createdNodeIds: [],
-          skippedCharacterIds: [],
-        }
-      }
-
-      const existingCharacterIds = new Set(
-        currentState.nodes
-          .filter((node) => node.type === NODE_TYPE_IDS.characterImage)
-          .map((node) => node.data.character?.characterId)
-          .filter((characterId): characterId is string => Boolean(characterId)),
-      )
-      const skippedCharacterIds: string[] = []
-      const createdNodes: NodeWorkflowNode[] = []
-      const createdEdges: NodeWorkflowEdge[] = []
-      const { offsetX, offsetY } = NODE_STUDIO_NODE_PLACEMENT.characterSpawn
-      const firstY =
-        agentNode.position.y - ((breakdown.characters.length - 1) * offsetY) / 2
-
-      breakdown.characters.forEach((character, characterIndex) => {
-        if (existingCharacterIds.has(character.id)) {
-          skippedCharacterIds.push(character.id)
-          return
-        }
-
-        const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-        const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
-        createdNodes.push({
-          id: nodeId,
-          type: NODE_TYPE_IDS.characterImage,
-          position: {
-            x: agentNode.position.x + offsetX,
-            y: firstY + characterIndex * offsetY,
-          },
-          data: {
-            prompt: character.visualSeed,
-            status: NODE_STATUS_IDS.idle,
-            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-            imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
-            referenceAssets: [],
-            loras: [],
-            character: {
-              characterId: character.id,
-              name: character.nameSuggestion || character.label,
-              visualSeed: character.visualSeed,
-            },
-          },
-        })
-        createdEdges.push({
-          id: edgeId,
-          source: agentNodeId,
-          target: nodeId,
-          type: NODE_STUDIO_EDGE_VISUALS.type,
-          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
-          markerEnd: {
-            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
-            color: NODE_STUDIO_EDGE_VISUALS.color,
-            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
-          },
-          style: {
-            stroke: NODE_STUDIO_EDGE_VISUALS.color,
-            strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
-            filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
-          },
-        })
-      })
-
-      if (createdNodes.length === 0) {
-        return {
-          createdNodeIds: [],
-          skippedCharacterIds,
-        }
-      }
-
-      commitCurrentProjectState((latestState) => ({
-        ...latestState,
-        nodes: [...latestState.nodes, ...createdNodes],
-        edges: [...latestState.edges, ...createdEdges],
-      }))
-
-      return {
-        createdNodeIds: createdNodes.map((node) => node.id),
-        skippedCharacterIds,
-      }
-    },
-    [commitCurrentProjectState, defaultProjectName],
-  )
-
-  /**
-   * Materialise the Agent's curated shot list into a runnable subgraph:
-   *   - one shotText node per shot, prefilled with action + camera
-   *   - one Seedance node per shot, duration derived from start/endSec
-   *   - per-shot edges: shotText → seedance, plus each bound character /
-   *     background node → seedance (skipped silently when the user
-   *     hasn't spawned the matching node yet)
-   *   - a single videoMerge node fed by every Seedance when ≥2 shots
-   *
-   * Bindings reference breakdown character / scene IDs and are translated
-   * via the maps below to actual on-canvas node ids. The function does
-   * NOT spawn characters — pair with spawnCharactersFromBreakdown for
-   * the full chain.
-   *
-   * Works in both storyBreakdown (uses breakdown.shots) and
-   * seedancePrompt (uses seedancePromptPlan.timeline) modes — the agent
-   * mode field decides which list drives the spawn.
-   */
-  const spawnFullWorkflowFromAgent = useCallback(
-    (agentNodeId: string): SpawnFullWorkflowResult => {
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
-      const agentNode = currentState.nodes.find(
-        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
-      )
-      if (!agentNode) {
-        return { createdNodeIds: [], shotCount: 0, refusal: 'notAgent' }
-      }
-
-      const breakdown = agentNode.data.breakdown
-      const plan = agentNode.data.seedancePromptPlan
-      const usingBreakdown =
-        agentNode.data.agentMode === NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
-          ? Boolean(breakdown)
-          : false
-      const usingPlan = !usingBreakdown && Boolean(plan)
-      if (!usingBreakdown && !usingPlan) {
-        return { createdNodeIds: [], shotCount: 0, refusal: 'noBreakdown' }
-      }
-
-      interface ShotInput {
-        action: string
-        camera: string
-        startSecond?: number
-        endSecond?: number
-        characterIds?: string[]
-        backgroundIds?: string[]
-        maxReferences?: number
-      }
-      const shots: ShotInput[] = usingBreakdown
-        ? (breakdown?.shots ?? []).map((shot) => ({
-            action: shot.promptSeed,
-            camera: shot.camera,
-            startSecond: shot.startSecond,
-            endSecond: shot.endSecond,
-            characterIds: shot.characterIds,
-            backgroundIds: shot.backgroundIds,
-            maxReferences: shot.maxReferences,
-          }))
-        : (plan?.timeline ?? []).map((item) => ({
-            action: item.action,
-            camera: item.camera,
-            startSecond: item.startSecond,
-            endSecond: item.endSecond,
-            characterIds: item.characterIds,
-            backgroundIds: item.backgroundIds,
-            maxReferences: item.maxReferences,
-          }))
-
-      if (shots.length === 0) {
-        return { createdNodeIds: [], shotCount: 0, refusal: 'emptyShots' }
-      }
-
-      // characterDraftId -> on-canvas characterImage node id. Only nodes
-      // already spawned are included — missing characters quietly drop
-      // out of the binding map and the user can rerun spawnCharacters
-      // then this action again to fill them in.
-      const characterDraftToNodeId = new Map<string, string>()
-      for (const node of currentState.nodes) {
-        if (node.type !== NODE_TYPE_IDS.characterImage) continue
-        const draftId = node.data.character?.characterId
-        if (typeof draftId === 'string' && draftId.length > 0) {
-          characterDraftToNodeId.set(draftId, node.id)
-        }
-      }
-      // backgroundDraftId (scene id) -> on-canvas backgroundImage node.
-      // backgroundImage nodes don't ship with a draft-id field yet, so
-      // for now the map is best-effort: nodes whose data carries a
-      // `sceneId` property will be linked, others silently skipped.
-      const backgroundDraftToNodeId = new Map<string, string>()
-      for (const node of currentState.nodes) {
-        if (node.type !== NODE_TYPE_IDS.backgroundImage) continue
-        const sceneId =
-          'sceneId' in node.data && typeof node.data.sceneId === 'string'
-            ? node.data.sceneId
-            : undefined
-        if (sceneId) backgroundDraftToNodeId.set(sceneId, node.id)
-      }
-
-      const {
-        shotTextOffsetX,
-        seedanceOffsetX,
-        videoMergeOffsetX,
-        rowOffsetY,
-      } = NODE_STUDIO_NODE_PLACEMENT.workflowSpawn
-      const firstY =
-        agentNode.position.y - ((shots.length - 1) * rowOffsetY) / 2
-
-      const createdNodes: NodeWorkflowNode[] = []
-      const createdEdges: NodeWorkflowEdge[] = []
-      const seedanceNodeIds: string[] = []
-
-      const pushEdge = (sourceId: string, targetId: string) => {
-        createdEdges.push({
-          id: createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge),
-          source: sourceId,
-          target: targetId,
-          type: NODE_STUDIO_EDGE_VISUALS.type,
-          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
-          markerEnd: {
-            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
-            color: NODE_STUDIO_EDGE_VISUALS.color,
-            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
-          },
-        })
-      }
-
-      shots.forEach((shot, index) => {
-        const rowY = firstY + index * rowOffsetY
-
-        const shotTextNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-        createdNodes.push({
-          id: shotTextNodeId,
-          type: NODE_TYPE_IDS.shotText,
-          position: {
-            x: agentNode.position.x + shotTextOffsetX,
-            y: rowY,
-          },
-          data: {
-            prompt: '',
-            status: NODE_STATUS_IDS.idle,
-            action: shot.action.trim() || undefined,
-            camera: shot.camera.trim() || undefined,
-          },
-        })
-
-        const seedanceNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-        const durationSec =
-          typeof shot.startSecond === 'number' &&
-          typeof shot.endSecond === 'number'
-            ? Math.max(0.1, shot.endSecond - shot.startSecond)
-            : undefined
-        createdNodes.push({
-          id: seedanceNodeId,
-          type: NODE_TYPE_IDS.seedance,
-          position: {
-            x: agentNode.position.x + seedanceOffsetX,
-            y: rowY,
-          },
-          data: {
-            prompt: '',
-            status: NODE_STATUS_IDS.idle,
-            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-            // duration is stored as a string on the node (text-input
-            // legacy); the workbench parses it back to a number for the
-            // generate call.
-            ...(typeof durationSec === 'number'
-              ? { duration: String(Math.round(durationSec)) }
-              : {}),
-          },
-        })
-        seedanceNodeIds.push(seedanceNodeId)
-
-        pushEdge(shotTextNodeId, seedanceNodeId)
-
-        for (const characterDraftId of shot.characterIds ?? []) {
-          const target = characterDraftToNodeId.get(characterDraftId)
-          if (target) pushEdge(target, seedanceNodeId)
-        }
-        for (const backgroundDraftId of shot.backgroundIds ?? []) {
-          const target = backgroundDraftToNodeId.get(backgroundDraftId)
-          if (target) pushEdge(target, seedanceNodeId)
-        }
-      })
-
-      // videoMerge: only meaningful with 2+ clips.
-      if (seedanceNodeIds.length >= 2) {
-        const mergeNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-        createdNodes.push({
-          id: mergeNodeId,
-          type: NODE_TYPE_IDS.videoMerge,
-          position: {
-            x: agentNode.position.x + videoMergeOffsetX,
-            y: agentNode.position.y,
-          },
-          data: {
-            prompt: '',
-            status: NODE_STATUS_IDS.idle,
-            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          },
-        })
-        for (const seedanceId of seedanceNodeIds) {
-          pushEdge(seedanceId, mergeNodeId)
-        }
-      }
-
-      commitCurrentProjectState((latestState) => ({
-        ...latestState,
-        nodes: [...latestState.nodes, ...createdNodes],
-        edges: [...latestState.edges, ...createdEdges],
-      }))
-
-      return {
-        createdNodeIds: createdNodes.map((node) => node.id),
-        shotCount: shots.length,
-        refusal: null,
-      }
-    },
-    [commitCurrentProjectState, defaultProjectName],
-  )
-
   const setScriptDoc = useCallback(
     (scriptDoc: ScriptDoc | undefined) => {
       setWorkflowStorage((currentStorage) =>
@@ -1554,6 +1140,22 @@ export function useNodeWorkflow({
           (currentState) => ({
             ...currentState,
             scriptDoc,
+          }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  const setDefaultVideoModel = useCallback(
+    (value: VideoDefaultModel | undefined) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({
+            ...currentState,
+            defaultVideoModel: value,
           }),
         ),
       )
@@ -1673,72 +1275,6 @@ export function useNodeWorkflow({
       return null
     },
     [defaultProjectName],
-  )
-
-  const applySeedancePromptPlanToSeedance = useCallback(
-    (agentNodeId: string): ApplySeedancePromptPlanResult => {
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
-      const agentNode = currentState.nodes.find(
-        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
-      )
-
-      if (!agentNode) {
-        return { appliedNodeId: null, reason: 'missingAgent' }
-      }
-
-      const plan = agentNode.data.seedancePromptPlan
-      if (!plan) {
-        return { appliedNodeId: null, reason: 'missingPlan' }
-      }
-
-      const targetSeedanceNode = currentState.edges
-        .filter((edge) => edge.source === agentNodeId)
-        .map((edge) =>
-          currentState.nodes.find(
-            (node) =>
-              node.id === edge.target && node.type === NODE_TYPE_IDS.seedance,
-          ),
-        )
-        .find((node): node is NodeWorkflowNode => Boolean(node))
-
-      if (!targetSeedanceNode) {
-        return { appliedNodeId: null, reason: 'missingSeedanceTarget' }
-      }
-
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (latestState) => ({
-            ...latestState,
-            nodes: latestState.nodes.map((node) =>
-              node.id === targetSeedanceNode.id
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      [NODE_WORKFLOW_FIELD_IDS.motion]: plan.motion,
-                      [NODE_WORKFLOW_FIELD_IDS.camera]: plan.camera,
-                      [NODE_WORKFLOW_FIELD_IDS.duration]: plan.duration,
-                      [NODE_WORKFLOW_FIELD_IDS.audioIntent]: plan.audioIntent,
-                      prompt: plan.finalPrompt,
-                      timeline: plan.timeline,
-                      generationError: undefined,
-                      status: NODE_STATUS_IDS.ready,
-                    },
-                  }
-                : node,
-            ),
-          }),
-        ),
-      )
-
-      return { appliedNodeId: targetSeedanceNode.id }
-    },
-    [defaultProjectName, setWorkflowStorage],
   )
 
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
@@ -1898,6 +1434,7 @@ export function useNodeWorkflow({
     () => ({
       state,
       scriptDoc: state.scriptDoc,
+      defaultVideoModel: state.defaultVideoModel,
       nodes: state.nodes,
       edges: state.edges,
       projects,
@@ -1909,12 +1446,8 @@ export function useNodeWorkflow({
       renameCurrentProject,
       deleteProject,
       updateNodeData,
-      updateScriptBreakdown,
-      updateSeedancePromptPlan,
-      spawnCharactersFromBreakdown,
-      spawnFullWorkflowFromAgent,
-      applySeedancePromptPlanToSeedance,
       setScriptDoc,
+      setDefaultVideoModel,
       applyScriptDocToGraph,
       deleteNode,
       deleteEdge,
@@ -1931,7 +1464,6 @@ export function useNodeWorkflow({
     }),
     [
       addNode,
-      applySeedancePromptPlanToSeedance,
       applyScriptDocToGraph,
       createProject,
       currentProject.id,
@@ -1950,14 +1482,11 @@ export function useNodeWorkflow({
       renameCurrentProject,
       saveNow,
       setScriptDoc,
+      setDefaultVideoModel,
       state,
-      spawnCharactersFromBreakdown,
-      spawnFullWorkflowFromAgent,
       switchProject,
       tidyLayout,
       undo,
-      updateScriptBreakdown,
-      updateSeedancePromptPlan,
       updateNodeData,
     ],
   )

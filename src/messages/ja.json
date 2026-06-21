@@ -2926,27 +2926,7 @@
       "sendDisabledTooltip": "送信はステージ 3 で Agent に接続します。",
       "stageHint": "ステージ 2 のドラフトノード",
       "readyHint": "Agent に接続して送信",
-      "generatingHint": "Agent に問い合わせ中...",
-      "noTargetTip": "先にこの Composer を Agent ノードへ接続してください。",
-      "noPlannerRouteTip": "先に対象の Agent ノードでプランナーモデルを選択してください。",
-      "emptyPromptTip": "送信前にアイデアを入力してください。"
-    },
-    "plannerRoute": {
-      "triggerLabel": "プランナーモデルを選択",
-      "fieldLabel": "プランナールート",
-      "scopeLabel": "Agent 別キー",
-      "scopeDescription": "このルートの変更は、選択中の Agent ノードにのみ反映されます。",
-      "setupGemini": "Gemini",
-      "setupDeepSeek": "DeepSeek",
-      "setupChatGpt": "ChatGPT",
-      "searchPlaceholder": "プランナーモデルを検索...",
-      "routeMeta": "{model} · {provider}",
-      "configured": "設定済み",
-      "addKey": "APIキーを追加",
-      "chooseProvider": "プロバイダーを選択",
-      "addKeyDescription": "横幅いっぱいの行で、プロバイダー名を読みやすくします。",
-      "configureProvider": "{provider} を設定",
-      "savedMeta": "{model} · {key}"
+      "generatingHint": "Agent に問い合わせ中..."
     },
     "workflowModelPicker": {
       "labels": {
@@ -2973,88 +2953,7 @@
       "generatingTitle": "脚本を分解中",
       "generatingDescription": "プランナーがキャラクター、シーン、ビート、ショットを構成しています。",
       "failedTitle": "分解に失敗しました",
-      "modeLabel": "Agent モード",
-      "modes": {
-        "storyBreakdown": {
-          "label": "ストーリー分解",
-          "description": "キャラクター、シーン、ビート、ショット。"
-        },
-        "seedancePrompt": {
-          "label": "Seedance プロンプト",
-          "description": "動画向けプロンプト、時間軸、カメラ、音声。"
-        }
-      },
       "logline": "ログライン",
-      "breakdownFields": {
-        "title": {
-          "label": "ストーリータイトル",
-          "placeholder": "このストーリーの名前…"
-        },
-        "logline": {
-          "label": "ログライン",
-          "placeholder": "ストーリーを一文で…"
-        },
-        "referenceIntent": {
-          "label": "リファレンス意図",
-          "placeholder": "スタイル参考、ビジュアル方向…"
-        }
-      },
-      "breakdownCharactersLabel": "キャラクター一覧",
-      "breakdownScenesLabel": "シーン一覧",
-      "characterFields": {
-        "nameSuggestion": {
-          "label": "推奨名",
-          "placeholder": "キャラクター名…"
-        },
-        "role": {
-          "label": "役割",
-          "placeholder": "主役 / 助演 / 敵役 / ナレーター…"
-        },
-        "functionInStory": {
-          "label": "物語上の役割",
-          "placeholder": "物語の中で何を担うか…"
-        },
-        "personality": {
-          "label": "性格",
-          "placeholder": "性格、口調、癖…"
-        },
-        "visualSeed": {
-          "label": "ビジュアル・シード",
-          "placeholder": "外見、衣装、スタイルキーワード…"
-        },
-        "goal": {
-          "label": "目標 / 動機",
-          "placeholder": "このキャラクターが望むもの…"
-        }
-      },
-      "sceneFields": {
-        "label": {
-          "label": "シーン名",
-          "placeholder": "短いシーン名…"
-        },
-        "summary": {
-          "label": "シーン概要",
-          "placeholder": "このシーンで起きること…"
-        },
-        "location": {
-          "label": "場所",
-          "placeholder": "シーンが起きる空間や環境…"
-        },
-        "timeOfDay": {
-          "label": "時間帯",
-          "placeholder": "朝、夜、夕暮れ…"
-        },
-        "mood": {
-          "label": "雰囲気",
-          "placeholder": "感情、トーン、テンポ…"
-        }
-      },
-      "copyRisk": "コピーリスク：{risk}",
-      "copyRiskLevels": {
-        "low": "低",
-        "medium": "中",
-        "high": "高"
-      },
       "counts": {
         "characters": "人物",
         "scenes": "場面",
@@ -3090,31 +2989,6 @@
         "timelineCameraPlaceholder": "カメラ表現（例：寄り、俯瞰）…",
         "timelineAdd": "セグメントを追加",
         "applyToVideo": "接続した動画ノードへ適用"
-      },
-      "spawnCharacters": "キャラクター画像を派生 ({count})",
-      "spawnCharactersTooltip": "分解結果の各キャラクターに Character Image ノードを作成します。",
-      "spawnFullWorkflow": "⭐ 完全ワークフローを派生 ({count} ショット)",
-      "breakdownShotsLabel": "ショット一覧",
-      "breakdownShotsAdd": "ショットを追加",
-      "shotEditor": {
-        "header": "ショット {n}",
-        "action": "アクション",
-        "actionPlaceholder": "このショットで起きること…",
-        "camera": "カメラ",
-        "cameraPlaceholder": "例：寄り、俯瞰、クローズアップ…",
-        "startSec": "開始（秒）",
-        "startSecPlaceholder": "0",
-        "endSec": "終了（秒）",
-        "endSecPlaceholder": "—",
-        "rangeWarning": "終了秒は開始秒より大きくしてください。",
-        "characters": "登場キャラクター",
-        "background": "背景",
-        "backgroundNone": "なし",
-        "maxRefs": "参考画像上限",
-        "maxRefsPlaceholder": "モデル既定",
-        "moveUp": "上へ",
-        "moveDown": "下へ",
-        "delete": "ショットを削除"
       }
     },
     "characterImage": {
@@ -3287,6 +3161,7 @@
       },
       "emptyPreview": "動画はまだ生成されていません",
       "generating": "動画を生成中...",
+      "overrideHint": "キャンバスの既定モデルを上書きしています — 他のショットと不一致になる可能性があります。",
       "motionLabel": "動き",
       "cameraLabel": "カメラ",
       "durationLabel": "長さ",
@@ -3482,7 +3357,55 @@
       "providerAriaLabel": "プロバイダー",
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
       "expandCard": "カードを展開",
-      "collapseCard": "カードを折りたたむ"
+      "collapseCard": "カードを折りたたむ",
+      "pickModel": "モデルを選択",
+      "refKind": {
+        "character": "キャラクター",
+        "background": "背景",
+        "voice": "ボイス"
+      },
+      "references": {
+        "label": "参照素材",
+        "empty": "キャラクター / 背景 / ボイスのノードを接続して参照を追加"
+      },
+      "motionHint": "カメラワークもここに記述",
+      "generateAudioLabel": "音声を生成",
+      "seedLabel": "シード",
+      "seedRandom": "毎回ランダム",
+      "seedRandomize": "シードをランダム化",
+      "lastSeedLabel": "前回のシード",
+      "seedLock": "ロック",
+      "enhancePrompt": "AI でプロンプトを強化",
+      "enhancing": "強化中…",
+      "enhanceEmptyTip": "まずプロンプトを入力してから AI に構成させてください。",
+      "rebind": {
+        "title": "{brand} に切り替えますか？",
+        "map": "引き継がれます",
+        "ignore": "無視されます",
+        "confirm": "切り替える",
+        "cancel": "キャンセル"
+      }
+    },
+    "nodeDetail": {
+      "close": "折りたたむ",
+      "detailSuffix": "{type} · 詳細",
+      "generate": "生成"
+    },
+    "voiceDetail": {
+      "paramsLabel": "基本調整",
+      "speedLabel": "速度",
+      "volumeLabel": "音量",
+      "timbreLabel": "音色",
+      "sourceSystem": "システム音色",
+      "sourceMine": "マイ音色",
+      "emotionLabel": "感情",
+      "emotions": {
+        "none": "なし",
+        "calm": "落ち着き",
+        "angry": "怒り",
+        "sad": "悲しみ",
+        "surprised": "驚き"
+      }
     },
     "workflowFields": {
       "prompt": {
@@ -3726,8 +3649,6 @@
       "workflowSaved": "ワークフローをクラウドに保存しました。",
       "workflowSaveFailed": "保存に失敗しました。後でもう一度お試しください。",
       "nodesDeleted": "{count} 個のノードを削除しました。",
-      "generated": "Agent の分解を生成しました。",
-      "scriptBreakdownFailed": "Agent の分解に失敗しました。",
       "seedancePromptPlanned": "Seedance プロンプトを生成しました。",
       "seedancePromptPlanFailed": "Seedance プロンプト設計に失敗しました。",
       "seedancePromptApplied": "接続した動画ノードへ適用しました。",

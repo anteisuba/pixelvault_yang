@@ -9,7 +9,6 @@ import {
   type ComponentType,
 } from 'react'
 import {
-  Bot,
   Clapperboard,
   FileText,
   Film,
@@ -20,7 +19,6 @@ import {
   Search,
   Video,
   Wallpaper,
-  MessageSquarePlus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
@@ -67,11 +65,6 @@ interface CanvasAddMenuItem {
 
 const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
   {
-    type: NODE_TYPE_IDS.composer,
-    category: ADD_MENU_CATEGORY_IDS.elements,
-    Icon: MessageSquarePlus,
-  },
-  {
     type: NODE_TYPE_IDS.shotText,
     category: ADD_MENU_CATEGORY_IDS.elements,
     Icon: FileText,
@@ -110,11 +103,6 @@ const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
     type: NODE_TYPE_IDS.videoReference,
     category: ADD_MENU_CATEGORY_IDS.generation,
     Icon: Film,
-  },
-  {
-    type: NODE_TYPE_IDS.agent,
-    category: ADD_MENU_CATEGORY_IDS.orchestration,
-    Icon: Bot,
   },
   {
     type: NODE_TYPE_IDS.videoMerge,

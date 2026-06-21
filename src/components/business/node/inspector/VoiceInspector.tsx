@@ -308,7 +308,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
     <>
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-node-amber/15 text-node-amber">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted">
             <Mic2 className="size-5" />
           </span>
           <div className="min-w-0">
@@ -330,7 +330,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
             <InspectorField
               key={fieldId}
               label={tFields(`${fieldId}.label`)}
-              statusDotClassName="bg-node-amber"
+              statusDotClassName="bg-node-muted"
             >
               <IMEAwareInput
                 value={
@@ -341,7 +341,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
                 onValueChange={(next) => handleFieldChange(fieldId, next)}
                 aria-label={tFields(`${fieldId}.label`)}
                 placeholder={tFields(`${fieldId}.placeholder`)}
-                className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               />
             </InspectorField>
           ))}
@@ -350,7 +350,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
             <Button
               type="button"
               onClick={() => setLibraryOpen(true)}
-              className="h-10 rounded-xl bg-node-amber text-node-canvas hover:bg-node-amber/90"
+              className="h-10 rounded-xl bg-node-foreground text-node-canvas hover:bg-node-foreground/90"
             >
               <IdCard className="size-3.5" />
               {t('chooseVoice')}
@@ -394,7 +394,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
                   disabled={isGeneratingReference || isUploading}
                   aria-label={t('generateReferenceAudio')}
                   title={t('generateReferenceAudio')}
-                  className="rounded-xl border-node-panel-inner bg-node-panel text-node-muted hover:bg-node-panel-inner hover:text-node-amber disabled:opacity-60"
+                  className="rounded-xl border-node-panel-inner bg-node-panel text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-60"
                 >
                   {isGeneratingReference ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -426,7 +426,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
           {node.data.voiceReferenceAudioUrl ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel p-2">
-                <Music2 className="size-4 shrink-0 text-node-amber" />
+                <Music2 className="size-4 shrink-0 text-node-muted" />
                 <p className="min-w-0 flex-1 truncate text-xs font-semibold text-node-foreground">
                   {node.data.voiceReferenceAudioName ??
                     t('referenceAudioFallback')}
@@ -450,9 +450,9 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-node-panel-inner bg-node-panel px-3 text-center text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+              className="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-node-panel-inner bg-node-panel px-3 text-center text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
             >
-              <Upload className="size-4 text-node-amber" />
+              <Upload className="size-4 text-node-muted" />
               <span className="text-xs font-semibold">{t('uploadAudio')}</span>
               <span className="text-2xs">{t('uploadAudioMeta')}</span>
             </button>
@@ -467,7 +467,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
             <InspectorField
               key={fieldId}
               label={tFields(`${fieldId}.label`)}
-              statusDotClassName="bg-node-amber"
+              statusDotClassName="bg-node-muted"
             >
               <IMEAwareTextarea
                 value={
@@ -478,13 +478,13 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
                 onValueChange={(next) => handleFieldChange(fieldId, next)}
                 aria-label={tFields(`${fieldId}.label`)}
                 placeholder={tFields(`${fieldId}.placeholder`)}
-                className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               />
             </InspectorField>
           ))}
         </div>
 
-        <div className="rounded-xl border border-node-amber/30 bg-node-amber/10 p-3 text-xs leading-5 text-node-foreground">
+        <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-foreground">
           {t('outputHint')}
         </div>
       </div>

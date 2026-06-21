@@ -24,8 +24,7 @@ import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 
 interface NodeExpandButtonProps {
-  expanded: boolean
-  onToggle(): void
+  nodeId: string
 }
 
 interface NodeFieldEditorProps {
@@ -50,16 +49,15 @@ function stopCanvasKeyboardEvent(event: ReactKeyboardEvent<HTMLElement>): void {
   event.stopPropagation()
 }
 
-export function NodeExpandButton({
-  expanded,
-  onToggle,
-}: NodeExpandButtonProps) {
+export function NodeExpandButton({ nodeId }: NodeExpandButtonProps) {
   const t = useTranslations('StudioNode.videoComposer')
+  const { expandedNodeId, setExpandedNodeId } = useNodeWorkflowActions()
+  const expanded = expandedNodeId === nodeId
 
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => setExpandedNodeId(expanded ? null : nodeId)}
       onKeyDownCapture={stopCanvasKeyboardEvent}
       aria-label={expanded ? t('collapseCard') : t('expandCard')}
       title={expanded ? t('collapseCard') : t('expandCard')}

@@ -117,16 +117,9 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
           },
         }))
       },
-      updateScriptBreakdown: vi.fn(),
-      updateSeedancePromptPlan: vi.fn(),
-      spawnCharactersFromBreakdown: vi.fn(),
-      spawnFullWorkflowFromAgent: vi.fn(() => ({
-        createdNodeIds: [],
-        shotCount: 0,
-        refusal: null,
-      })),
-      applySeedancePromptPlanToSeedance: vi.fn(),
       setScriptDoc: vi.fn(),
+      setDefaultVideoModel: vi.fn(),
+      defaultVideoModel: undefined,
       applyScriptDocToGraph: vi.fn(),
       deleteNode: vi.fn(),
       deleteEdge: vi.fn(),
@@ -137,6 +130,8 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
       generateCharacterImage,
       toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
       setToolMode: vi.fn(),
+      expandedNodeId: null,
+      setExpandedNodeId: vi.fn(),
       modelOptionsByType: {
         [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
       },
@@ -160,16 +155,9 @@ function renderStatic(children: ReactNode) {
       <NodeWorkflowActionsProvider
         value={{
           updateNodeData,
-          updateScriptBreakdown: vi.fn(),
-          updateSeedancePromptPlan: vi.fn(),
-          spawnCharactersFromBreakdown: vi.fn(),
-          spawnFullWorkflowFromAgent: vi.fn(() => ({
-            createdNodeIds: [],
-            shotCount: 0,
-            refusal: null,
-          })),
-          applySeedancePromptPlanToSeedance: vi.fn(),
           setScriptDoc: vi.fn(),
+          setDefaultVideoModel: vi.fn(),
+          defaultVideoModel: undefined,
           applyScriptDocToGraph: vi.fn(),
           deleteNode: vi.fn(),
           deleteEdge: vi.fn(),
@@ -180,6 +168,8 @@ function renderStatic(children: ReactNode) {
           generateCharacterImage,
           toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
           setToolMode: vi.fn(),
+          expandedNodeId: null,
+          setExpandedNodeId: vi.fn(),
           modelOptionsByType: {
             [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
           },

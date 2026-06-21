@@ -2,13 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Connection } from '@xyflow/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getNodeStudioWorkflowStorageKey,
   NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
-  NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
@@ -16,18 +14,10 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
-  NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
-import type {
-  ScriptBreakdownPlanner,
-  ScriptBreakdownResult,
-} from '@/types/script-breakdown'
-import type {
-  SeedancePromptPlanPlanner,
-  SeedancePromptPlanResult,
-} from '@/types/seedance-prompt-plan'
+import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 
 import { useNodeWorkflow } from './use-node-workflow'
 
@@ -104,39 +94,6 @@ const FAKE_BREAKDOWN: ScriptBreakdownResult = {
       promptSeed: 'wide lunar ridge at dawn with amber light',
     },
   ],
-}
-
-const FAKE_PLANNER: ScriptBreakdownPlanner = {
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  modelId: 'gemini-3.1-flash-lite',
-  label: 'Gemini',
-}
-
-const FAKE_SEEDANCE_PLAN: SeedancePromptPlanResult = {
-  title: 'Quiet Orbit Prompt',
-  visualDescription: 'A cartographer crosses a silent lunar ridge at dawn.',
-  timeline: [
-    {
-      startSecond: 0,
-      endSecond: 4,
-      action: 'The cartographer steps across glowing moon dust.',
-      camera: 'Wide lateral tracking shot.',
-      composition: 'Tiny figure against a broad glowing horizon.',
-    },
-  ],
-  motion: 'Slow lateral walk, drifting dust, subtle sunrise glow.',
-  camera: 'Wide cinematic tracking shot with a slow push-in.',
-  duration: '8s',
-  audioIntent: 'Low wind, soft suit movement, no music.',
-  finalPrompt:
-    'A cartographer crosses a silent lunar ridge at dawn. 0-4s: wide lateral tracking shot, drifting dust, sunrise glow. Background audio: low wind.',
-  copyRisk: 'low',
-}
-
-const FAKE_SEEDANCE_PLANNER: SeedancePromptPlanPlanner = {
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  modelId: 'gemini-3.5-flash',
-  label: 'Gemini',
 }
 
 function renderNodeWorkflowHook(clerkId: string | null = TEST_CLERK_ID) {
@@ -447,260 +404,6 @@ describe('useNodeWorkflow', () => {
     ).toBeNull()
   })
 
-  it('stores script breakdown data on an agent node', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      result.current.updateScriptBreakdown(
-        agentId,
-        FAKE_BREAKDOWN,
-        FAKE_PLANNER,
-      )
-    })
-
-    expect(result.current.nodes[0]?.data).toMatchObject({
-      breakdown: FAKE_BREAKDOWN,
-      plannerLabel: FAKE_PLANNER.label,
-      plannerModelId: FAKE_PLANNER.modelId,
-      status: NODE_STATUS_IDS.done,
-    })
-  })
-
-  it('stores Seedance prompt plan data on an agent node', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      result.current.updateSeedancePromptPlan(
-        agentId,
-        FAKE_SEEDANCE_PLAN,
-        FAKE_SEEDANCE_PLANNER,
-      )
-    })
-
-    expect(result.current.nodes[0]?.data).toMatchObject({
-      agentMode: NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt,
-      seedancePromptPlan: FAKE_SEEDANCE_PLAN,
-      plannerLabel: FAKE_SEEDANCE_PLANNER.label,
-      plannerModelId: FAKE_SEEDANCE_PLANNER.modelId,
-      status: NODE_STATUS_IDS.done,
-    })
-  })
-
-  it('applies a Seedance prompt plan to a connected video node', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let seedanceId = ''
-    let applyResult: ReturnType<
-      typeof result.current.applySeedancePromptPlanToSeedance
-    >
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, FIRST_POSITION)
-      seedanceId = result.current.addNode(
-        NODE_TYPE_IDS.seedance,
-        SECOND_POSITION,
-      )
-      result.current.updateSeedancePromptPlan(
-        agentId,
-        FAKE_SEEDANCE_PLAN,
-        FAKE_SEEDANCE_PLANNER,
-      )
-      result.current.onConnect({
-        source: agentId,
-        target: seedanceId,
-        sourceHandle: null,
-        targetHandle: null,
-      })
-      applyResult = result.current.applySeedancePromptPlanToSeedance(agentId)
-    })
-
-    const seedanceNode = result.current.nodes.find(
-      (node) => node.id === seedanceId,
-    )
-
-    expect(applyResult!).toEqual({ appliedNodeId: seedanceId })
-    expect(seedanceNode?.data).toMatchObject({
-      prompt: FAKE_SEEDANCE_PLAN.finalPrompt,
-      [NODE_WORKFLOW_FIELD_IDS.motion]: FAKE_SEEDANCE_PLAN.motion,
-      [NODE_WORKFLOW_FIELD_IDS.camera]: FAKE_SEEDANCE_PLAN.camera,
-      [NODE_WORKFLOW_FIELD_IDS.duration]: FAKE_SEEDANCE_PLAN.duration,
-      [NODE_WORKFLOW_FIELD_IDS.audioIntent]: FAKE_SEEDANCE_PLAN.audioIntent,
-      timeline: FAKE_SEEDANCE_PLAN.timeline,
-      status: NODE_STATUS_IDS.ready,
-    })
-  })
-
-  it('does not apply a Seedance prompt plan without a connected video node', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let applyResult: ReturnType<
-      typeof result.current.applySeedancePromptPlanToSeedance
-    >
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, FIRST_POSITION)
-      result.current.updateSeedancePromptPlan(
-        agentId,
-        FAKE_SEEDANCE_PLAN,
-        FAKE_SEEDANCE_PLANNER,
-      )
-      applyResult = result.current.applySeedancePromptPlanToSeedance(agentId)
-    })
-
-    expect(applyResult!).toEqual({
-      appliedNodeId: null,
-      reason: 'missingSeedanceTarget',
-    })
-  })
-
-  it('spawns character image nodes from an agent breakdown', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let spawnResult: ReturnType<
-      typeof result.current.spawnCharactersFromBreakdown
-    >
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      result.current.updateScriptBreakdown(
-        agentId,
-        FAKE_BREAKDOWN,
-        FAKE_PLANNER,
-      )
-      spawnResult = result.current.spawnCharactersFromBreakdown(agentId)
-    })
-
-    const characterNodes = result.current.nodes.filter(
-      (node) => node.type === NODE_TYPE_IDS.characterImage,
-    )
-    const firstY =
-      SECOND_POSITION.y -
-      ((FAKE_BREAKDOWN.characters.length - 1) *
-        NODE_STUDIO_NODE_PLACEMENT.characterSpawn.offsetY) /
-        2
-
-    expect(spawnResult!.createdNodeIds).toHaveLength(2)
-    expect(spawnResult!.skippedCharacterIds).toEqual([])
-    expect(characterNodes).toHaveLength(2)
-    expect(characterNodes[0]).toMatchObject({
-      type: NODE_TYPE_IDS.characterImage,
-      position: {
-        x:
-          SECOND_POSITION.x + NODE_STUDIO_NODE_PLACEMENT.characterSpawn.offsetX,
-        y: firstY,
-      },
-      data: {
-        prompt: FAKE_BREAKDOWN.characters[0]?.visualSeed,
-        status: NODE_STATUS_IDS.idle,
-        generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-        character: {
-          characterId: 'char-1',
-          name: 'Mira',
-        },
-      },
-    })
-    expect(result.current.edges).toHaveLength(2)
-    expect(result.current.edges[0]).toMatchObject({
-      source: agentId,
-      target: characterNodes[0]?.id,
-    })
-  })
-
-  it('does not spawn characters when the agent is missing or has no breakdown', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let missingResult: ReturnType<
-      typeof result.current.spawnCharactersFromBreakdown
-    >
-    let emptyAgentResult: ReturnType<
-      typeof result.current.spawnCharactersFromBreakdown
-    >
-    act(() => {
-      missingResult = result.current.spawnCharactersFromBreakdown('missing')
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      emptyAgentResult = result.current.spawnCharactersFromBreakdown(agentId)
-    })
-
-    expect(missingResult!).toEqual({
-      createdNodeIds: [],
-      skippedCharacterIds: [],
-    })
-    expect(emptyAgentResult!).toEqual({
-      createdNodeIds: [],
-      skippedCharacterIds: [],
-    })
-    expect(
-      result.current.nodes.filter(
-        (node) => node.type === NODE_TYPE_IDS.characterImage,
-      ),
-    ).toEqual([])
-  })
-
-  it('keeps character spawning idempotent', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let secondSpawn: ReturnType<
-      typeof result.current.spawnCharactersFromBreakdown
-    >
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      result.current.updateScriptBreakdown(
-        agentId,
-        FAKE_BREAKDOWN,
-        FAKE_PLANNER,
-      )
-      result.current.spawnCharactersFromBreakdown(agentId)
-      secondSpawn = result.current.spawnCharactersFromBreakdown(agentId)
-    })
-
-    expect(secondSpawn!).toEqual({
-      createdNodeIds: [],
-      skippedCharacterIds: ['char-1', 'char-2'],
-    })
-    expect(
-      result.current.nodes.filter(
-        (node) => node.type === NODE_TYPE_IDS.characterImage,
-      ),
-    ).toHaveLength(2)
-  })
-
-  it('recreates only missing character image nodes', () => {
-    const { result } = renderNodeWorkflowHook()
-
-    let agentId = ''
-    let deletedCharacterId = ''
-    let respawn: ReturnType<typeof result.current.spawnCharactersFromBreakdown>
-    act(() => {
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
-      result.current.updateScriptBreakdown(
-        agentId,
-        FAKE_BREAKDOWN,
-        FAKE_PLANNER,
-      )
-      const firstSpawn = result.current.spawnCharactersFromBreakdown(agentId)
-      deletedCharacterId = firstSpawn.createdNodeIds[0] ?? ''
-      result.current.deleteNode(deletedCharacterId)
-      respawn = result.current.spawnCharactersFromBreakdown(agentId)
-    })
-
-    const characterNodes = result.current.nodes.filter(
-      (node) => node.type === NODE_TYPE_IDS.characterImage,
-    )
-
-    expect(deletedCharacterId).not.toBe('')
-    expect(respawn!.createdNodeIds).toHaveLength(1)
-    expect(respawn!.skippedCharacterIds).toEqual(['char-2'])
-    expect(
-      characterNodes.map((node) => node.data.character?.characterId),
-    ).toEqual(['char-2', 'char-1'])
-  })
-
   it('creates a new project and keeps workflow state isolated', () => {
     const { result } = renderNodeWorkflowHook()
 
@@ -846,7 +549,7 @@ describe('useNodeWorkflow', () => {
               nodes: [
                 {
                   id: 'node-hydrated',
-                  type: NODE_TYPE_IDS.composer,
+                  type: NODE_TYPE_IDS.shotText,
                   position: FIRST_POSITION,
                   data: {
                     prompt: 'Hydrated prompt',
@@ -870,6 +573,88 @@ describe('useNodeWorkflow', () => {
     expect(result.current.projects).toHaveLength(2)
   })
 
+  it('persists the canvas default video model', async () => {
+    const { result } = renderNodeWorkflowHook()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.setDefaultVideoModel({
+        brand: 'Seedance',
+        variant: 'standard',
+      })
+    })
+
+    expect(result.current.defaultVideoModel).toEqual({
+      brand: 'Seedance',
+      variant: 'standard',
+    })
+  })
+
+  it('retires composer/agent nodes and folds the breakdown into a ScriptDoc on hydration', async () => {
+    window.localStorage.setItem(
+      TEST_STORAGE_KEY,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: TEST_CLERK_ID,
+        currentProjectId: 'project-legacy',
+        projects: [
+          {
+            id: 'project-legacy',
+            name: 'Legacy planner',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            state: {
+              nodes: [
+                {
+                  id: 'composer-1',
+                  type: NODE_TYPE_IDS.composer,
+                  position: FIRST_POSITION,
+                  data: { prompt: 'idea', status: NODE_STATUS_IDS.idle },
+                },
+                {
+                  id: 'agent-1',
+                  type: NODE_TYPE_IDS.agent,
+                  position: SECOND_POSITION,
+                  data: {
+                    prompt: '',
+                    status: NODE_STATUS_IDS.done,
+                    breakdown: FAKE_BREAKDOWN,
+                  },
+                },
+                {
+                  id: 'shot-keep',
+                  type: NODE_TYPE_IDS.shotText,
+                  position: MOVED_POSITION,
+                  data: { prompt: 'keep me', status: NODE_STATUS_IDS.idle },
+                },
+              ],
+              edges: [
+                { id: 'edge-1', source: 'composer-1', target: 'agent-1' },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const { result } = renderNodeWorkflowHook()
+
+    await waitFor(() => {
+      expect(result.current.currentProjectName).toBe('Legacy planner')
+    })
+    // composer + agent stripped; only the surviving shotText node remains.
+    expect(result.current.nodes.map((node) => node.type)).toEqual([
+      NODE_TYPE_IDS.shotText,
+    ])
+    // the dangling composer→agent edge is removed with its nodes.
+    expect(result.current.edges).toHaveLength(0)
+    // the agent breakdown is folded into the ScriptDoc fact model.
+    expect(result.current.scriptDoc?.title).toBe(FAKE_BREAKDOWN.title)
+    expect(result.current.scriptDoc?.roles).toHaveLength(2)
+  })
+
   it('hydrates nodes, edges, and prompt data from a valid snapshot', async () => {
     window.localStorage.setItem(
       TEST_STORAGE_KEY,
@@ -878,7 +663,7 @@ describe('useNodeWorkflow', () => {
         nodes: [
           {
             id: 'node-existing',
-            type: NODE_TYPE_IDS.composer,
+            type: NODE_TYPE_IDS.shotText,
             position: FIRST_POSITION,
             data: {
               prompt: 'Stored prompt',

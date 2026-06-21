@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
-import { Film, Maximize2, Minimize2, Video } from 'lucide-react'
+import { AlertTriangle, Film, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -10,20 +9,17 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { cn } from '@/lib/utils'
+import { deriveSwitcherStateFromModel } from '@/lib/video-model-resolver'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { NodeExpandButton } from './NodeCardControls'
 import { NodeShell } from './NodeShell'
 
 export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
   const { id, data, selected } = props
   const t = useTranslations('StudioNode.videoGeneration')
-  const tc = useTranslations('StudioNode.videoComposer')
-  // ⤢ expands the card IN PLACE (B3): compact card shows only the essentials,
-  // expanded grows the same card to host the full composer. Ephemeral per node.
-  const [expanded, setExpanded] = useState(false)
-
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const generationStatus =
     data.generationStatus ??
@@ -34,34 +30,36 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     data.status === NODE_STATUS_IDS.running
 
+  // §5.1 shot override: this node's model brand differs from the canvas default
+  // → flag it (⚠ badge + dashed border) so cross-shot drift is scannable.
+  const { defaultVideoModel } = useNodeWorkflowActions()
+  const nodeBrand = deriveSwitcherStateFromModel(data.model).brand
+  const isOverridden = Boolean(
+    defaultVideoModel && nodeBrand && nodeBrand !== defaultVideoModel.brand,
+  )
+
   return (
     <NodeShell
       type={NODE_TYPE_IDS.seedance}
       selected={selected}
       status={data.status}
-      className={cn(
-        'node-canvas-panel-motion',
-        expanded && 'z-10 w-node-card-expanded',
-      )}
+      overridden={isOverridden}
     >
       <NodeShell.Header
         type={NODE_TYPE_IDS.seedance}
         status={data.status}
         action={
-          <button
-            type="button"
-            onClick={() => setExpanded((value) => !value)}
-            onKeyDownCapture={(event) => event.stopPropagation()}
-            aria-label={expanded ? tc('collapseCard') : tc('expandCard')}
-            title={expanded ? tc('collapseCard') : tc('expandCard')}
-            className="nodrag flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-          >
-            {expanded ? (
-              <Minimize2 className="size-4" />
-            ) : (
-              <Maximize2 className="size-4" />
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            {isOverridden ? (
+              <span
+                title={t('overrideHint')}
+                className="flex size-6 items-center justify-center rounded-lg border border-node-muted/50 bg-node-panel-inner text-node-foreground"
+              >
+                <AlertTriangle className="size-3.5" />
+              </span>
+            ) : null}
+            <NodeExpandButton nodeId={id} />
+          </div>
         }
       />
       <NodeShell.Body className="space-y-3">
@@ -92,13 +90,10 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
           ) : null}
         </div>
 
-        {/* B2/B3: model-aware composer on the node. Compact card = essentials;
-            ⤢ grows the card to the full param set. Right rail stays assistant. */}
-        <VideoComposer
-          id={id}
-          data={data}
-          density={expanded ? 'expand' : 'card'}
-        />
+        {/* B2/B3: compact composer (model chip + summary + generate). ⤢ opens
+            the shared detail panel with the full B2 params — the card never
+            grows in place. */}
+        <VideoComposer id={id} data={data} density="card" />
       </NodeShell.Body>
       <NodeShell.Footer>
         <p className="truncate text-2xs font-medium text-node-subtle">

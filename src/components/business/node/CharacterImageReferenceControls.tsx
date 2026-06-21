@@ -250,7 +250,7 @@ export function CharacterImageReferenceControls({
             type="button"
             disabled={disabled}
             className={cn(
-              'nodrag nopan nowheel inline-flex h-8 min-w-0 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle',
+              'nodrag nopan nowheel inline-flex h-8 min-w-0 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle',
               references.length > 0 &&
                 'border-node-port-character/45 bg-node-port-character/10 text-node-port-character',
             )}
@@ -303,12 +303,12 @@ export function CharacterImageReferenceControls({
                 type="button"
                 disabled={disabled || isFull || isUploading}
                 onClick={() => inputRef.current?.click()}
-                className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle"
+                className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle"
               >
                 {isUploading ? (
-                  <Loader2 className="size-5 animate-spin text-node-amber" />
+                  <Loader2 className="size-5 animate-spin text-node-muted" />
                 ) : (
-                  <Upload className="size-5 text-node-amber" />
+                  <Upload className="size-5 text-node-muted" />
                 )}
                 <span className="text-xs font-semibold">
                   {isFull ? t('maxReached') : t('uploadTitle')}
@@ -329,9 +329,9 @@ export function CharacterImageReferenceControls({
                 type="button"
                 disabled={disabled || isFull}
                 onClick={() => setAssetDialogOpen(true)}
-                className="nodrag nopan nowheel h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground hover:border-node-amber/40 hover:bg-node-panel-inner disabled:text-node-subtle"
+                className="nodrag nopan nowheel h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground hover:border-node-edge hover:bg-node-panel-inner disabled:text-node-subtle"
               >
-                <Library className="mr-2 size-4 text-node-amber" />
+                <Library className="mr-2 size-4 text-node-muted" />
                 {isFull ? t('maxReached') : t('selectAsset')}
               </Button>
             </TabsContent>
@@ -342,12 +342,12 @@ export function CharacterImageReferenceControls({
                 tabIndex={0}
                 onClick={() => pasteTargetRef.current?.focus()}
                 onPaste={handlePaste}
-                className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted outline-none transition-colors hover:border-node-amber/40 hover:text-node-foreground focus-visible:border-node-amber/60 focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               >
                 {isUploading ? (
-                  <Loader2 className="size-5 animate-spin text-node-amber" />
+                  <Loader2 className="size-5 animate-spin text-node-muted" />
                 ) : (
-                  <Clipboard className="size-5 text-node-amber" />
+                  <Clipboard className="size-5 text-node-muted" />
                 )}
                 <span className="text-xs font-semibold">
                   {isFull ? t('maxReached') : t('pasteTitle')}

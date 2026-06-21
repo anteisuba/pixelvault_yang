@@ -177,7 +177,7 @@ export function VideoReferenceInspector({
         )}
         {isUploading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Loader2 className="size-5 animate-spin text-node-amber" />
+            <Loader2 className="size-5 animate-spin text-node-muted" />
             <span className="text-xs font-semibold">{t('uploading')}</span>
           </div>
         ) : null}
@@ -201,7 +201,7 @@ export function VideoReferenceInspector({
           type="button"
           onClick={openFilePicker}
           disabled={isUploading}
-          className="bg-node-amber text-node-canvas hover:bg-node-amber/90"
+          className="bg-node-foreground text-node-canvas hover:bg-node-foreground/90"
         >
           <Upload className="mr-2 size-4" />
           {mediaUrl ? t('replace') : t('upload')}

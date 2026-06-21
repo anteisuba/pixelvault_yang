@@ -203,7 +203,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
   const SUSPECT_FILES = [
     'src/components/business/studio/StudioEnhanceButton.tsx',
     'src/components/business/prompts/PromptAssistantPanel.tsx',
-    'src/components/business/node/CanvasPlannerRouteSelector.tsx',
     'src/components/business/node/CanvasAssistantRouteSelector.tsx',
     'src/components/business/node/WorkflowModelPicker.tsx',
     'src/components/business/studio-shared/pickers/CanvasRoutePicker.tsx',
@@ -233,7 +232,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
      */
     const ENTRY_POINTS_USING_LLM = [
       'src/components/business/studio/StudioEnhanceButton.tsx',
-      'src/components/business/node/CanvasPlannerRouteSelector.tsx',
       'src/components/business/node/CanvasAssistantRouteSelector.tsx',
       'src/components/business/studio-shared/pickers/CanvasRoutePicker.tsx',
       'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
@@ -246,7 +244,7 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
      *                             CanvasRoutePicker (variant planner / assistant
      *                             both call useLLMRoutePicker), MainModelPicker
      *                             (modality llm_assist calls useLLMRoutePicker)
-     * Wrappers like CanvasPlannerRouteSelector use CanvasRoutePicker — that
+     * Wrappers like CanvasAssistantRouteSelector use CanvasRoutePicker — that
      * still satisfies the contract because the actual LLM list resolution
      * happens via the sanctioned component.
      */

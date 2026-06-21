@@ -27,6 +27,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import { VIDEO_VARIANTS } from '@/constants/video-brands'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import {
   ScriptBreakdownPlannerSchema,
@@ -131,6 +132,8 @@ export const NodeWorkflowNodeDataSchema = z
     voiceId: z.string().optional(),
     voiceStyle: z.string().optional(),
     voiceEmotion: z.string().optional(),
+    voiceSpeed: z.number().min(0.5).max(2).optional(),
+    voiceVolume: z.number().min(-20).max(20).optional(),
     voiceSource: z.enum(NODE_STUDIO_VOICE_PROFILE_SOURCES).optional(),
     voiceReferenceAudioUrl: z.string().trim().min(1).optional(),
     voiceReferenceAudioName: z.string().trim().min(1).max(160).optional(),
@@ -166,6 +169,10 @@ export const NodeWorkflowNodeDataSchema = z
       .enum(Object.keys(IMAGE_SIZES) as [string, ...string[]])
       .optional(),
     negativePrompt: z.string().trim().min(1).max(1000).optional(),
+    generateAudio: z.boolean().optional(),
+    seed: z.number().int().min(0).max(2147483647).optional(),
+    /** 上次生成实际用的 seed（provider 回写）— 用于展示 +「锁定」回填 seed。 */
+    lastSeed: z.number().int().min(0).max(2147483647).optional(),
     audioIntent: z.string().optional(),
     status: NodeStatusSchema.default('idle'),
     breakdown: ScriptBreakdownResultSchema.optional(),
@@ -240,6 +247,18 @@ export const NodeWorkflowEdgeSchema = z
   })
   .passthrough()
 
+/**
+ * Canvas-default video model (two-tier switcher taxonomy). Persisted per
+ * project so new video nodes inherit a consistent cross-shot baseline; the
+ * topbar chip reads/sets it and the autospawn effect resolves a concrete model
+ * from it. Provider + reference-ness are resolved per node at spawn time.
+ */
+export const VideoDefaultModelSchema = z.object({
+  brand: z.string().trim().min(1).max(40),
+  variant: z.enum(VIDEO_VARIANTS),
+})
+export type VideoDefaultModel = z.infer<typeof VideoDefaultModelSchema>
+
 export const NodeWorkflowStateDataSchema = z.object({
   nodes: z.array(NodeWorkflowNodeSchema),
   edges: z.array(NodeWorkflowEdgeSchema),
@@ -251,6 +270,11 @@ export const NodeWorkflowStateDataSchema = z.object({
    * coerces to an EMPTY state, wiping the user's nodes/edges.
    */
   scriptDoc: ScriptDocSchema.optional().catch(undefined),
+  /**
+   * Canvas-default video model. `.catch(undefined)` mirrors scriptDoc's
+   * seatbelt so a malformed value never fails the whole-state parse.
+   */
+  defaultVideoModel: VideoDefaultModelSchema.optional().catch(undefined),
 })
 
 export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({

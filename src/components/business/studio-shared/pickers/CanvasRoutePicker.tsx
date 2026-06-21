@@ -105,9 +105,9 @@ function CanvasRouteLLMPicker({
 
   const triggerIcon =
     scope === 'planner' ? (
-      <Sparkles className="size-4 text-node-amber" />
+      <Sparkles className="size-4 text-node-muted" />
     ) : (
-      <Bot className="size-4 text-node-amber" />
+      <Bot className="size-4 text-node-muted" />
     )
 
   const badgeToneClass =
@@ -136,13 +136,13 @@ function CanvasRouteLLMPicker({
           aria-expanded={open}
           aria-label={triggerLabel}
           className={cn(
-            'group flex h-11 w-full min-w-0 items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-left text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-amber/35 data-[state=open]:border-node-amber/70 data-[state=open]:bg-node-panel-inner',
+            'group flex h-11 w-full min-w-0 items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-left text-node-muted transition-colors hover:border-node-edge hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 data-[state=open]:border-node-panel-inner data-[state=open]:bg-node-panel-inner',
             'disabled:pointer-events-none disabled:opacity-50',
-            selectedRoute && 'border-node-amber/70',
+            selectedRoute && 'border-node-panel-inner',
             className,
           )}
         >
-          <span className="relative flex size-6 shrink-0 items-center justify-center text-node-amber">
+          <span className="relative flex size-6 shrink-0 items-center justify-center text-node-muted">
             {triggerIcon}
             {selectedRoute?.apiKeyId ? (
               <span className="absolute -right-0.5 top-0 size-1.5 rounded-full ring-1 ring-node-panel">
@@ -225,12 +225,12 @@ function CanvasRouteLLMPicker({
               className={cn(
                 'group relative mb-1 flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
                 topOption.isSelected
-                  ? 'border-node-amber/25 bg-node-panel-soft'
+                  ? 'border-node-panel-inner bg-node-panel-soft'
                   : 'border-transparent bg-node-panel hover:border-node-panel-inner hover:bg-node-panel-inner',
               )}
             >
               {topOption.isSelected && (
-                <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-amber" />
+                <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-foreground" />
               )}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-node-foreground">
@@ -261,12 +261,12 @@ function CanvasRouteLLMPicker({
                     className={cn(
                       'group relative flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
                       isSelected
-                        ? 'border-node-amber/25 bg-node-panel-soft'
+                        ? 'border-node-panel-inner bg-node-panel-soft'
                         : 'border-transparent bg-node-panel hover:border-node-panel-inner hover:bg-node-panel-inner',
                     )}
                   >
                     {isSelected && (
-                      <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-amber" />
+                      <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-foreground" />
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-node-foreground">
@@ -304,9 +304,9 @@ function CanvasRouteLLMPicker({
                     key={route.optionId}
                     type="button"
                     onClick={() => handleSelectLocked(route)}
-                    className="group flex min-h-11 w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left transition-colors hover:border-node-amber/35 hover:bg-node-panel-inner"
+                    className="group flex min-h-11 w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
                   >
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-amber">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-foreground">
                       <Plus className="size-3.5" />
                     </span>
                     <span className="min-w-0">

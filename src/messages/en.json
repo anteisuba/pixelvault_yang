@@ -2926,27 +2926,7 @@
       "sendDisabledTooltip": "Send connects to Agent in stage 3.",
       "stageHint": "Stage 2 draft node",
       "readyHint": "Connect to an Agent and send",
-      "generatingHint": "Asking Agent...",
-      "noTargetTip": "Connect this Composer to an Agent node first.",
-      "noPlannerRouteTip": "Select a planner model on the target Agent node first.",
-      "emptyPromptTip": "Write an idea before sending."
-    },
-    "plannerRoute": {
-      "triggerLabel": "Select planner model",
-      "fieldLabel": "Planner route",
-      "scopeLabel": "Per-Agent key",
-      "scopeDescription": "Changing this route only affects the selected Agent node.",
-      "setupGemini": "Gemini",
-      "setupDeepSeek": "DeepSeek",
-      "setupChatGpt": "ChatGPT",
-      "searchPlaceholder": "Search planner models...",
-      "routeMeta": "{model} · {provider}",
-      "configured": "Configured",
-      "addKey": "Add API Key",
-      "chooseProvider": "Choose provider",
-      "addKeyDescription": "Full-width rows keep provider names readable.",
-      "configureProvider": "Set up {provider}",
-      "savedMeta": "{model} · {key}"
+      "generatingHint": "Asking Agent..."
     },
     "workflowModelPicker": {
       "labels": {
@@ -2973,88 +2953,7 @@
       "generatingTitle": "Breaking down script",
       "generatingDescription": "The planner is building characters, scenes, beats, and shots.",
       "failedTitle": "Breakdown failed",
-      "modeLabel": "Agent mode",
-      "modes": {
-        "storyBreakdown": {
-          "label": "Story breakdown",
-          "description": "Characters, scenes, beats, and shots."
-        },
-        "seedancePrompt": {
-          "label": "Seedance prompt",
-          "description": "Video-ready prompt, timeline, camera, and audio."
-        }
-      },
       "logline": "Logline",
-      "breakdownFields": {
-        "title": {
-          "label": "Story title",
-          "placeholder": "Give this story a name…"
-        },
-        "logline": {
-          "label": "Logline",
-          "placeholder": "Tell the story in one line…"
-        },
-        "referenceIntent": {
-          "label": "Reference intent",
-          "placeholder": "Style references, inspirations, visual direction…"
-        }
-      },
-      "breakdownCharactersLabel": "Characters",
-      "breakdownScenesLabel": "Scenes",
-      "characterFields": {
-        "nameSuggestion": {
-          "label": "Suggested name",
-          "placeholder": "Character's name…"
-        },
-        "role": {
-          "label": "Role",
-          "placeholder": "Protagonist / supporting / antagonist / narrator…"
-        },
-        "functionInStory": {
-          "label": "Function in story",
-          "placeholder": "What they do for the plot…"
-        },
-        "personality": {
-          "label": "Personality",
-          "placeholder": "Traits, voice, habits…"
-        },
-        "visualSeed": {
-          "label": "Visual seed",
-          "placeholder": "Looks, wardrobe, style keywords…"
-        },
-        "goal": {
-          "label": "Goal / motivation",
-          "placeholder": "What this character wants…"
-        }
-      },
-      "sceneFields": {
-        "label": {
-          "label": "Scene title",
-          "placeholder": "Short scene name…"
-        },
-        "summary": {
-          "label": "Scene summary",
-          "placeholder": "What happens in this beat…"
-        },
-        "location": {
-          "label": "Location",
-          "placeholder": "Where the scene takes place…"
-        },
-        "timeOfDay": {
-          "label": "Time of day",
-          "placeholder": "Morning, night, dusk…"
-        },
-        "mood": {
-          "label": "Mood",
-          "placeholder": "Emotion, tone, pacing…"
-        }
-      },
-      "copyRisk": "Copy risk: {risk}",
-      "copyRiskLevels": {
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High"
-      },
       "counts": {
         "characters": "Chars",
         "scenes": "Scenes",
@@ -3090,31 +2989,6 @@
         "timelineCameraPlaceholder": "Camera language, e.g. push-in, overhead…",
         "timelineAdd": "Add segment",
         "applyToVideo": "Apply to connected video node"
-      },
-      "spawnCharacters": "Spawn character images ({count})",
-      "spawnCharactersTooltip": "Create one Character Image node for each breakdown character.",
-      "spawnFullWorkflow": "⭐ Spawn full workflow ({count} shots)",
-      "breakdownShotsLabel": "Shot list",
-      "breakdownShotsAdd": "Add shot",
-      "shotEditor": {
-        "header": "Shot {n}",
-        "action": "Action",
-        "actionPlaceholder": "What happens in this beat…",
-        "camera": "Camera",
-        "cameraPlaceholder": "e.g. push-in, overhead, close-up…",
-        "startSec": "Start (s)",
-        "startSecPlaceholder": "0",
-        "endSec": "End (s)",
-        "endSecPlaceholder": "—",
-        "rangeWarning": "End second must be greater than start.",
-        "characters": "Characters in shot",
-        "background": "Background",
-        "backgroundNone": "None",
-        "maxRefs": "Max references",
-        "maxRefsPlaceholder": "Model default",
-        "moveUp": "Move up",
-        "moveDown": "Move down",
-        "delete": "Delete shot"
       }
     },
     "characterImage": {
@@ -3287,6 +3161,7 @@
       },
       "emptyPreview": "No video generated yet",
       "generating": "Generating video...",
+      "overrideHint": "Overrides the canvas default model — may be inconsistent with other shots.",
       "motionLabel": "Motion",
       "cameraLabel": "Camera",
       "durationLabel": "Duration",
@@ -3482,7 +3357,55 @@
       "providerAriaLabel": "Provider",
       "referenceModeOn": "Reference inputs connected — using the reference model.",
       "expandCard": "Expand card",
-      "collapseCard": "Collapse card"
+      "collapseCard": "Collapse card",
+      "pickModel": "Pick a model",
+      "refKind": {
+        "character": "Character",
+        "background": "Background",
+        "voice": "Voice"
+      },
+      "references": {
+        "label": "References",
+        "empty": "Wire character / background / voice nodes to add references"
+      },
+      "motionHint": "Camera & motion go here too",
+      "generateAudioLabel": "Generate audio",
+      "seedLabel": "Seed",
+      "seedRandom": "Random each run",
+      "seedRandomize": "Randomize seed",
+      "lastSeedLabel": "Last seed",
+      "seedLock": "Lock",
+      "enhancePrompt": "Enhance prompt with AI",
+      "enhancing": "Enhancing…",
+      "enhanceEmptyTip": "Write a prompt first, then let AI orchestrate it.",
+      "rebind": {
+        "title": "Switch to {brand}?",
+        "map": "will map",
+        "ignore": "will be ignored",
+        "confirm": "Switch",
+        "cancel": "Cancel"
+      }
+    },
+    "nodeDetail": {
+      "close": "Collapse",
+      "detailSuffix": "{type} · Details",
+      "generate": "Generate"
+    },
+    "voiceDetail": {
+      "paramsLabel": "Adjustments",
+      "speedLabel": "Speed",
+      "volumeLabel": "Volume",
+      "timbreLabel": "Timbre",
+      "sourceSystem": "System voice",
+      "sourceMine": "My voice",
+      "emotionLabel": "Emotion",
+      "emotions": {
+        "none": "None",
+        "calm": "Calm",
+        "angry": "Angry",
+        "sad": "Sad",
+        "surprised": "Surprised"
+      }
     },
     "workflowFields": {
       "prompt": {
@@ -3726,8 +3649,6 @@
       "workflowSaved": "Workflow saved to the cloud.",
       "workflowSaveFailed": "Save failed. Try again.",
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
-      "generated": "Agent breakdown generated.",
-      "scriptBreakdownFailed": "Agent breakdown failed.",
       "seedancePromptPlanned": "Seedance prompt generated.",
       "seedancePromptPlanFailed": "Seedance prompt planning failed.",
       "seedancePromptApplied": "Seedance prompt applied to the connected video node.",

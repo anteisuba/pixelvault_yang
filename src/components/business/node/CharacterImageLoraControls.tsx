@@ -215,7 +215,7 @@ export function CharacterImageLoraControls({
                   : 'border-node-panel-inner bg-node-panel-soft hover:border-node-port-character/40 hover:bg-node-panel-inner',
               )}
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-amber">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-muted">
                 <SlidersHorizontal className="size-4" />
               </span>
               <span className="min-w-0 flex-1">
@@ -248,7 +248,7 @@ export function CharacterImageLoraControls({
           type="button"
           disabled={!supportsLora}
           className={cn(
-            'nodrag nopan nowheel inline-flex h-8 min-w-0 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle',
+            'nodrag nopan nowheel inline-flex h-8 min-w-0 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle',
             selectedLoras.length > 0 && 'text-node-foreground',
           )}
           title={
@@ -346,7 +346,7 @@ export function CharacterImageLoraControls({
               className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-2"
             >
               <div className="flex items-center gap-2">
-                <KeyRound className="size-3.5 shrink-0 text-node-amber" />
+                <KeyRound className="size-3.5 shrink-0 text-node-muted" />
                 <p className="min-w-0 flex-1 truncate text-xs font-semibold text-node-foreground">
                   {lora.name}
                 </p>

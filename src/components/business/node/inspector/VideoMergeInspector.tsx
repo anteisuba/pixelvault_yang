@@ -218,7 +218,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         )}
         {isMerging ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Loader2 className="size-5 animate-spin text-node-amber" />
+            <Loader2 className="size-5 animate-spin text-node-muted" />
             <span className="text-xs font-semibold">{t('merging')}</span>
           </div>
         ) : null}
@@ -278,7 +278,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
                         }
                         aria-label={t('trim.startLabelA11y', { n: index + 1 })}
                         className={cn(
-                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20',
                           rangeInvalid
                             ? 'border-node-danger/60'
                             : 'border-node-panel-inner',
@@ -299,7 +299,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
                         }
                         aria-label={t('trim.endLabelA11y', { n: index + 1 })}
                         className={cn(
-                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20',
                           rangeInvalid
                             ? 'border-node-danger/60'
                             : 'border-node-panel-inner',

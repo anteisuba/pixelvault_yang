@@ -2926,27 +2926,7 @@
       "sendDisabledTooltip": "发送会在阶段 3 接入 Agent。",
       "stageHint": "阶段 2 草稿节点",
       "readyHint": "连接到 Agent 后发送",
-      "generatingHint": "正在请求 Agent...",
-      "noTargetTip": "请先把这个 Composer 连接到一个 Agent 节点。",
-      "noPlannerRouteTip": "请先在目标 Agent 节点选择规划模型。",
-      "emptyPromptTip": "发送前请先写下想法。"
-    },
-    "plannerRoute": {
-      "triggerLabel": "选择规划模型",
-      "fieldLabel": "规划路由",
-      "scopeLabel": "单 Agent Key",
-      "scopeDescription": "更改此路由只会影响当前 Agent 节点。",
-      "setupGemini": "Gemini",
-      "setupDeepSeek": "DeepSeek",
-      "setupChatGpt": "ChatGPT",
-      "searchPlaceholder": "搜索规划模型...",
-      "routeMeta": "{model} · {provider}",
-      "configured": "已配置",
-      "addKey": "添加 API Key",
-      "chooseProvider": "选择提供商",
-      "addKeyDescription": "整行显示，避免窄按钮挤压。",
-      "configureProvider": "配置 {provider}",
-      "savedMeta": "{model} · {key}"
+      "generatingHint": "正在请求 Agent..."
     },
     "workflowModelPicker": {
       "labels": {
@@ -2973,88 +2953,7 @@
       "generatingTitle": "正在拆解剧本",
       "generatingDescription": "规划器正在生成角色、场景、节拍和镜头。",
       "failedTitle": "拆解失败",
-      "modeLabel": "Agent 模式",
-      "modes": {
-        "storyBreakdown": {
-          "label": "故事拆解",
-          "description": "角色、场景、节拍和镜头结构。"
-        },
-        "seedancePrompt": {
-          "label": "Seedance 提示词",
-          "description": "视频可用提示词、时间轴、镜头和音频。"
-        }
-      },
       "logline": "梗概",
-      "breakdownFields": {
-        "title": {
-          "label": "故事标题",
-          "placeholder": "为这个故事起个名字…"
-        },
-        "logline": {
-          "label": "梗概",
-          "placeholder": "一句话讲清楚这个故事…"
-        },
-        "referenceIntent": {
-          "label": "参考意图",
-          "placeholder": "希望参考的风格、参照作品或视觉方向…"
-        }
-      },
-      "breakdownCharactersLabel": "角色清单",
-      "breakdownScenesLabel": "场景清单",
-      "characterFields": {
-        "nameSuggestion": {
-          "label": "建议姓名",
-          "placeholder": "角色姓名…"
-        },
-        "role": {
-          "label": "角色定位",
-          "placeholder": "主角 / 配角 / 反派 / 旁白…"
-        },
-        "functionInStory": {
-          "label": "故事职能",
-          "placeholder": "在故事里承担的功能…"
-        },
-        "personality": {
-          "label": "性格",
-          "placeholder": "性格特征、语气、习惯…"
-        },
-        "visualSeed": {
-          "label": "视觉种子",
-          "placeholder": "外观特征、服装、风格关键词…"
-        },
-        "goal": {
-          "label": "动机 / 目标",
-          "placeholder": "这个角色想要什么…"
-        }
-      },
-      "sceneFields": {
-        "label": {
-          "label": "场景标题",
-          "placeholder": "简短场景名…"
-        },
-        "summary": {
-          "label": "场景概要",
-          "placeholder": "这一幕发生了什么…"
-        },
-        "location": {
-          "label": "地点",
-          "placeholder": "场景所在的空间或环境…"
-        },
-        "timeOfDay": {
-          "label": "时间",
-          "placeholder": "清晨、夜晚、黄昏…"
-        },
-        "mood": {
-          "label": "氛围",
-          "placeholder": "情绪、色调、节奏…"
-        }
-      },
-      "copyRisk": "版权风险：{risk}",
-      "copyRiskLevels": {
-        "low": "低",
-        "medium": "中",
-        "high": "高"
-      },
       "counts": {
         "characters": "角色",
         "scenes": "场景",
@@ -3090,31 +2989,6 @@
         "timelineCameraPlaceholder": "镜头语言，如：推近、俯拍…",
         "timelineAdd": "新增镜头段",
         "applyToVideo": "写入已连接的视频节点"
-      },
-      "spawnCharacters": "派生角色图 ({count})",
-      "spawnCharactersTooltip": "为拆解结果里的每个角色创建一个角色图节点。",
-      "spawnFullWorkflow": "⭐ 派生完整工作流 ({count} 镜头)",
-      "breakdownShotsLabel": "镜头清单",
-      "breakdownShotsAdd": "新增镜头",
-      "shotEditor": {
-        "header": "镜头 {n}",
-        "action": "动作描述",
-        "actionPlaceholder": "这一段画面里在发生什么…",
-        "camera": "镜头语言",
-        "cameraPlaceholder": "如：推近、俯拍、特写…",
-        "startSec": "起始秒",
-        "startSecPlaceholder": "0",
-        "endSec": "结束秒",
-        "endSecPlaceholder": "—",
-        "rangeWarning": "结束秒应大于起始秒。",
-        "characters": "出场角色",
-        "background": "场景背景",
-        "backgroundNone": "无",
-        "maxRefs": "参考图上限",
-        "maxRefsPlaceholder": "默认按模型上限",
-        "moveUp": "上移",
-        "moveDown": "下移",
-        "delete": "删除该镜头"
       }
     },
     "characterImage": {
@@ -3287,6 +3161,7 @@
       },
       "emptyPreview": "还没有生成视频",
       "generating": "正在生成视频...",
+      "overrideHint": "覆盖了画布默认模型 — 可能与其它镜不一致。",
       "motionLabel": "运动",
       "cameraLabel": "镜头",
       "durationLabel": "时长",
@@ -3482,7 +3357,55 @@
       "providerAriaLabel": "提供方",
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
       "expandCard": "展开卡片",
-      "collapseCard": "收起卡片"
+      "collapseCard": "收起卡片",
+      "pickModel": "选择模型",
+      "refKind": {
+        "character": "角色",
+        "background": "背景",
+        "voice": "声音"
+      },
+      "references": {
+        "label": "参考素材",
+        "empty": "连接角色 / 背景 / 声音节点以添加参考"
+      },
+      "motionHint": "运镜也写这里",
+      "generateAudioLabel": "生成音频",
+      "seedLabel": "种子(seed)",
+      "seedRandom": "每次随机",
+      "seedRandomize": "随机种子",
+      "lastSeedLabel": "本次 seed",
+      "seedLock": "锁定",
+      "enhancePrompt": "用 AI 增强提示词",
+      "enhancing": "增强中…",
+      "enhanceEmptyTip": "先写一句提示词，再让 AI 编排。",
+      "rebind": {
+        "title": "切换到 {brand}？",
+        "map": "将映射",
+        "ignore": "将忽略",
+        "confirm": "切换",
+        "cancel": "取消"
+      }
+    },
+    "nodeDetail": {
+      "close": "收起",
+      "detailSuffix": "{type} · 详情",
+      "generate": "生成"
+    },
+    "voiceDetail": {
+      "paramsLabel": "基础调节",
+      "speedLabel": "语速",
+      "volumeLabel": "音量",
+      "timbreLabel": "音色",
+      "sourceSystem": "系统音色",
+      "sourceMine": "我的音色",
+      "emotionLabel": "情绪",
+      "emotions": {
+        "none": "无",
+        "calm": "沉稳",
+        "angry": "愤怒",
+        "sad": "悲伤",
+        "surprised": "惊讶"
+      }
     },
     "workflowFields": {
       "prompt": {
@@ -3726,8 +3649,6 @@
       "workflowSaved": "工作流已保存到云端。",
       "workflowSaveFailed": "保存失败，请稍后重试。",
       "nodesDeleted": "已删除 {count} 个节点。",
-      "generated": "Agent 拆解已生成。",
-      "scriptBreakdownFailed": "Agent 拆解失败。",
       "seedancePromptPlanned": "Seedance 提示词已生成。",
       "seedancePromptPlanFailed": "Seedance 提示词规划失败。",
       "seedancePromptApplied": "已写入连接的视频节点。",

@@ -23,7 +23,6 @@
   --color-node-foreground: var(--node-foreground);
   --color-node-muted: var(--node-muted);
   --color-node-subtle: var(--node-subtle);
-  --color-node-amber: var(--node-amber);
   --color-node-danger: var(--node-danger);
   --color-node-success: var(--node-success);
   --color-node-lipsync: var(--node-lipsync);
@@ -56,8 +55,10 @@
   --width-studio-sidebar: 13rem;
   /* 画布节点卡密度（baseline §3 / 草稿 fill-5）：默认 400px。 */
   --width-node-card: 25rem;
-  /* 节点 ⤢ 就地展开宽度（B3）：紧凑卡放大成自带全参数面板。 */
+  /* 节点 ⤢ 就地展开宽度（B3·旧·待清理）。 */
   --width-node-card-expanded: 38rem;
+  /* 节点 ⤢「详情」浮层面板宽度（B3：不挤画布，独立大面板）。 */
+  --width-node-detail-panel: 34rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -276,9 +277,9 @@
   --node-foreground: #e8e6de;
   --node-muted: #9a988f;
   --node-subtle: #6f6a63;
-  /* DEPRECATED（D1 去黄）：amber/danger 已 repoint 到中性/红，token 名暂留——201 处
-     引用随逐组件重建改名为 --node-edge/-focus-ring/-status-* 后删除。勿在新代码引用。 */
-  --node-amber: #8c8a82; /* 旧锈橙强调 → 中性 mid-gray */
+  /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
+     panel-inner）并于 2026-06-20 删除。node-danger 仍是 strangler 别名（已
+     repoint 真红），待改名 --node-status-failed。勿在新代码引用 node-danger。 */
   --node-danger: #e5484d; /* 旧 amber-yellow「danger」→ 真红（语义对齐 §6 failed=红） */
   --node-success: #10b981; /* §2.1/D5 保留：仅生成按钮的已批准例外 */
   --node-lipsync: #9c77f6; /* §10 待 owner：lipsync 语义紫，暂留 */
@@ -1159,6 +1160,22 @@ html:lang(zh) {
 }
 .node-canvas-panel-motion[data-resizing='true'] {
   transition: none;
+}
+
+/* §2.3 edge "running" state — neutral pulse (brightness via stroke-opacity, never
+   hue). Applied by NodeWorkflowStatusEdge when the target node is generating; the
+   global prefers-reduced-motion block disables it automatically. */
+@keyframes node-canvas-edge-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.4;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+.node-canvas-edge-running {
+  animation: node-canvas-edge-pulse 1.4s ease-in-out infinite;
 }
 
 /* ── Studio generating reveal — Krea-style shimmer ─────────────── */

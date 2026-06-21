@@ -514,21 +514,21 @@ export function CharacterImageInspector({
         <button
           type="button"
           onClick={() => existingImageInputRef.current?.click()}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge hover:bg-node-panel-inner"
         >
           {isExistingImageUploading ? (
-            <Loader2 className="size-4 animate-spin text-node-amber" />
+            <Loader2 className="size-4 animate-spin text-node-muted" />
           ) : (
-            <Upload className="size-4 text-node-amber" />
+            <Upload className="size-4 text-node-muted" />
           )}
           {t('existing.upload')}
         </button>
         <button
           type="button"
           onClick={() => setAssetDialogOpen(true)}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge hover:bg-node-panel-inner"
         >
-          <Library className="size-4 text-node-amber" />
+          <Library className="size-4 text-node-muted" />
           {t('existing.asset')}
         </button>
         <div
@@ -537,9 +537,9 @@ export function CharacterImageInspector({
           tabIndex={0}
           onClick={() => existingPasteTargetRef.current?.focus()}
           onPaste={handleExistingPaste}
-          className="flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted outline-none transition-colors hover:border-node-amber/40 hover:text-node-foreground focus-visible:border-node-amber/60 focus-visible:ring-2 focus-visible:ring-node-amber/20"
+          className="flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
         >
-          <Clipboard className="size-4 text-node-amber" />
+          <Clipboard className="size-4 text-node-muted" />
           <span className="text-xs font-semibold">{t('existing.paste')}</span>
           <span className="text-2xs">{t('existing.pasteMeta')}</span>
         </div>
@@ -578,13 +578,13 @@ export function CharacterImageInspector({
             setCardPickerQuery(event.target.value)
           }
           placeholder={t('cardLibrary.searchPlaceholder')}
-          className="mt-2 h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs leading-4 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+          className="mt-2 h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs leading-4 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
         />
       </div>
       <div className="max-h-72 overflow-y-auto p-2">
         {isLoadingCards ? (
           <div className="flex h-24 items-center justify-center gap-2 text-xs text-node-muted">
-            <Loader2 className="size-4 animate-spin text-node-amber" />
+            <Loader2 className="size-4 animate-spin text-node-muted" />
             {t('cardLibrary.loading')}
           </div>
         ) : cardSearchResults.length === 0 ? (
@@ -602,7 +602,7 @@ export function CharacterImageInspector({
                   <button
                     type="button"
                     onClick={() => handleApplyCard(card)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                    className="flex w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
                   >
                     <span className="relative flex size-12 shrink-0 overflow-hidden rounded-lg bg-node-panel">
                       {card.sourceImageUrl ? (
@@ -708,7 +708,7 @@ export function CharacterImageInspector({
                 onValueChange={handleCharacterNameChange}
                 aria-label={t('nameLabel')}
                 placeholder={t('namePrefix')}
-                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               />
             </InspectorField>
 
@@ -726,7 +726,7 @@ export function CharacterImageInspector({
             ) : null}
 
             {boundCard ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-node-amber/30 bg-node-amber/10 px-3 py-2 text-xs leading-5 text-node-amber">
+              <div className="flex items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs leading-5 text-node-muted">
                 <Library className="size-3.5 shrink-0" />
                 <span className="flex-1 truncate">
                   {t('cardLibrary.bound', { name: boundCard.name })}
@@ -742,7 +742,7 @@ export function CharacterImageInspector({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-rose-200">
                     <Images className="size-4" />
@@ -767,9 +767,9 @@ export function CharacterImageInspector({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-muted">
                     <Library className="size-4" />
                   </span>
                   <span className="min-w-0">
@@ -788,9 +788,9 @@ export function CharacterImageInspector({
             <button
               type="button"
               onClick={handleChooseAiMode}
-              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-amber/35 bg-node-amber/10 p-3 text-left transition-colors hover:border-node-amber/60 hover:bg-node-amber/15"
+              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-amber/15 text-node-amber">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-muted">
                 <WandSparkles className="size-4" />
               </span>
               <span className="min-w-0">
@@ -806,7 +806,7 @@ export function CharacterImageInspector({
             <button
               type="button"
               onClick={handleOpenImageStudio}
-              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
                 <ExternalLink className="size-4" />
@@ -852,7 +852,7 @@ export function CharacterImageInspector({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
                   >
                     <Images className="size-3.5" />
                     {imageUrl ? t('replaceImage') : t('selectExistingShort')}
@@ -864,7 +864,7 @@ export function CharacterImageInspector({
                 type="button"
                 onClick={handleUseExistingAsReference}
                 disabled={!imageUrl}
-                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground disabled:text-node-subtle"
+                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:bg-node-panel-inner hover:text-node-foreground disabled:text-node-subtle"
               >
                 <WandSparkles className="size-3.5" />
                 {t('useExistingAsReference')}
@@ -875,8 +875,8 @@ export function CharacterImageInspector({
 
         {isAiMode ? (
           <>
-            <div className="flex items-start gap-3 rounded-2xl border border-node-amber/25 bg-node-amber/10 p-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-amber/15 text-node-amber">
+            <div className="flex items-start gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-muted">
                 <WandSparkles className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
@@ -903,7 +903,7 @@ export function CharacterImageInspector({
                 onValueChange={handlePromptChange}
                 aria-label={t('promptLabel')}
                 placeholder={t('promptPlaceholder')}
-                className="min-h-28 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                className="min-h-28 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               />
             </InspectorField>
 

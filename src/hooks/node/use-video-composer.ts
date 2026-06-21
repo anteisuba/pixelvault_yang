@@ -61,7 +61,8 @@ function toSelection(
 export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
-  const { modelOptionsByType, updateNodeData } = useNodeWorkflowActions()
+  const { modelOptionsByType, updateNodeData, defaultVideoModel } =
+    useNodeWorkflowActions()
 
   const options = useMemo(
     () => modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
@@ -93,6 +94,20 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         isVisualReferenceNode(node) &&
         getUpstreamNodes(node.id, edges, nodes).some(isVoiceProfileNode),
     )
+  }, [edges, nodes, nodeId])
+
+  // Which upstream reference families are bound — drives the compact card's
+  // read-only ref chips (角色/背景/声音).
+  const referenceKinds = useMemo(() => {
+    const incoming = getUpstreamNodes(nodeId, edges, nodes)
+    const kinds = new Set<'character' | 'background' | 'voice'>()
+    for (const node of incoming) {
+      if (node.type === NODE_TYPE_IDS.characterImage) kinds.add('character')
+      else if (node.type === NODE_TYPE_IDS.backgroundImage)
+        kinds.add('background')
+      else if (isVoiceProfileNode(node)) kinds.add('voice')
+    }
+    return Array.from(kinds)
   }, [edges, nodes, nodeId])
 
   const state = useMemo(
@@ -164,21 +179,65 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     [applySelection, state.brand, state.variant],
   )
 
+  // Resolve the model id `selectBrand(brand)` WOULD apply, without applying it —
+  // lets the composer preview the capability rebind (将映射/将忽略) before the
+  // switch commits. Mirrors selectBrand's variant/provider resolution.
+  const previewBrandModelId = useCallback(
+    (brand: string): string | undefined => {
+      const brandVariants = getBrandVariants(brand)
+      const variant =
+        (state.variant && brandVariants.includes(state.variant)
+          ? state.variant
+          : brandVariants[0]) ?? VIDEO_VARIANT_IDS.fast
+      return resolveVideoModelId(
+        {
+          brand,
+          variant,
+          provider: pickDefaultProvider(brand, options),
+          hasReferenceInputs,
+        },
+        options,
+      )?.modelId
+    },
+    [hasReferenceInputs, options, state.variant],
+  )
+
   useEffect(() => {
     if (data.model) return
     if (options.length === 0) return
-    const provider = pickDefaultProvider(VIDEO_BRAND_IDS.seedance, options)
-    const resolved = resolveVideoModelId(
-      {
-        brand: VIDEO_BRAND_IDS.seedance,
-        variant: VIDEO_VARIANT_IDS.fast,
-        provider,
-        hasReferenceInputs,
-      },
-      options,
-    )
+    // Inherit the canvas-default model (topbar chip); fall back to Seedance Fast
+    // when unset or when the default can't resolve, so a spawned node always
+    // gets a runnable model even if never selected.
+    const brand = defaultVideoModel?.brand ?? VIDEO_BRAND_IDS.seedance
+    const variant = defaultVideoModel?.variant ?? VIDEO_VARIANT_IDS.fast
+    const resolved =
+      resolveVideoModelId(
+        {
+          brand,
+          variant,
+          provider: pickDefaultProvider(brand, options),
+          hasReferenceInputs,
+        },
+        options,
+      ) ??
+      resolveVideoModelId(
+        {
+          brand: VIDEO_BRAND_IDS.seedance,
+          variant: VIDEO_VARIANT_IDS.fast,
+          provider: pickDefaultProvider(VIDEO_BRAND_IDS.seedance, options),
+          hasReferenceInputs,
+        },
+        options,
+      )
     if (resolved) updateNodeData(nodeId, { model: toSelection(resolved) })
-  }, [data.model, hasReferenceInputs, nodeId, options, updateNodeData])
+  }, [
+    data.model,
+    defaultVideoModel,
+    hasReferenceInputs,
+    nodeId,
+    options,
+    updateNodeData,
+  ])
 
   return {
     options,
@@ -188,8 +247,10 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     isDualProvider,
     hasReferenceInputs,
     hasUpstreamInputs,
+    referenceKinds,
     selectBrand,
     selectVariant,
     selectProvider,
+    previewBrandModelId,
   }
 }

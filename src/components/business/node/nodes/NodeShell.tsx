@@ -33,6 +33,9 @@ interface NodeShellRootProps {
   children: ReactNode
   showSourceHandle?: boolean
   showTargetHandle?: boolean
+  /** Shot-override signal (§5.1): the node's model differs from the canvas
+   *  default → a neutral dashed border (no amber, per D1) so it's scannable. */
+  overridden?: boolean
   /** Extra classes on the card root — e.g. an override width when expanded. */
   className?: string
 }
@@ -81,6 +84,7 @@ function NodeShellRoot({
   children,
   showSourceHandle = true,
   showTargetHandle = true,
+  overridden = false,
   className,
 }: NodeShellRootProps) {
   const accent = NODE_ACCENTS[type]
@@ -95,7 +99,9 @@ function NodeShellRoot({
           ? cn('border-node-foreground/70 ring-2', accent.selectedRing)
           : isFailed
             ? 'border-node-status-failed'
-            : 'border-node-panel-inner/80 hover:border-node-muted/70',
+            : overridden
+              ? 'border-dashed border-node-muted/70 hover:border-node-muted'
+              : 'border-node-panel-inner/80 hover:border-node-muted/70',
         className,
       )}
     >

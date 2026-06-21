@@ -209,6 +209,30 @@ export const NODE_STUDIO_VOICE_PROFILE = {
   referenceSampleName: 'voice-clone-sample.mp3',
 } as const
 
+/**
+ * Voice-node emotion presets for the detail panel's 情绪 chip row (b3 draft).
+ * The selected id is stored as a code on `voiceEmotion`; `none` clears it.
+ * Metadata only for now — the voice TTS path speaks the dialogue line and does
+ * not yet consume emotion as a structured parameter.
+ */
+export const NODE_STUDIO_VOICE_EMOTION_IDS = {
+  none: 'none',
+  calm: 'calm',
+  angry: 'angry',
+  sad: 'sad',
+  surprised: 'surprised',
+} as const
+
+export const NODE_STUDIO_VOICE_EMOTIONS = [
+  NODE_STUDIO_VOICE_EMOTION_IDS.none,
+  NODE_STUDIO_VOICE_EMOTION_IDS.calm,
+  NODE_STUDIO_VOICE_EMOTION_IDS.angry,
+  NODE_STUDIO_VOICE_EMOTION_IDS.sad,
+  NODE_STUDIO_VOICE_EMOTION_IDS.surprised,
+] as const
+
+export type NodeStudioVoiceEmotion = (typeof NODE_STUDIO_VOICE_EMOTIONS)[number]
+
 export const NODE_STUDIO_VIDEO_PROMPT = {
   maxItemLength: 220,
   maxPromptLength: 4000,

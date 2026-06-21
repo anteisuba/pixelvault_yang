@@ -19,7 +19,7 @@ interface VideoModelSwitcherProps {
 
 // Stop on the LEAF (not a wrapper) so the control still receives the key but it
 // never bubbles to ReactFlow (Space=pan, Backspace/Delete=delete node). Mirrors
-// the proven `stopCanvasKeyboardEvent` pattern in ComposerInspector.
+// the proven keyboard-isolation pattern used across the node composers.
 function stopCanvasKey(event: KeyboardEvent<HTMLElement>) {
   event.stopPropagation()
 }

@@ -17,7 +17,9 @@ import {
   ReactFlowProvider,
   SelectionMode,
   useReactFlow,
+  type Connection,
   type DefaultEdgeOptions,
+  type EdgeTypes,
   type NodeChange,
   type NodeTypes,
   type XYPosition,
@@ -28,7 +30,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
-  NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_DOCK,
@@ -49,6 +50,8 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
+import { AUDIO_EMOTIONS, type AudioEmotion } from '@/constants/voice-cards'
 import {
   getCapabilityConfig,
   getMaxReferenceImages,
@@ -59,7 +62,6 @@ import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import { useNodeWorkflow } from '@/hooks/node/use-node-workflow'
-import { useScriptBreakdown } from '@/hooks/node/use-script-breakdown'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
@@ -74,6 +76,11 @@ import {
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import {
+  getBrandVariants,
+  getSurfacedVideoBrands,
+} from '@/lib/video-model-resolver'
+import { canConnectNodeTypes } from '@/lib/node-connection-rules'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,6 +100,7 @@ import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { ProjectNameDialog } from './ProjectNameDialog'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
+import { NodeDetailPanel } from './node-detail/NodeDetailPanel'
 import { AgentNode } from './nodes/AgentNode'
 import { BackgroundImageNode } from './nodes/BackgroundImageNode'
 import { CharacterImageNode } from './nodes/CharacterImageNode'
@@ -104,6 +112,7 @@ import { ShotTextNode } from './nodes/ShotTextNode'
 import { VideoMergeNode } from './nodes/VideoMergeNode'
 import { VideoReferenceNode } from './nodes/VideoReferenceNode'
 import { VoiceNode } from './nodes/VoiceNode'
+import { NodeWorkflowStatusEdge } from './edges/NodeWorkflowStatusEdge'
 
 const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.composer]: ComposerNode,
@@ -117,6 +126,13 @@ const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.seedance]: SeedanceNode,
   [NODE_TYPE_IDS.videoReference]: VideoReferenceNode,
   [NODE_TYPE_IDS.videoMerge]: VideoMergeNode,
+}
+
+// Override the built-in `smoothstep` so every canvas edge renders with the
+// §2.3 four-state visual (default/hover/selected/running). All canvas edges use
+// this type, so no per-edge type change or migration is needed.
+const NODE_EDGE_COMPONENTS: EdgeTypes = {
+  [NODE_STUDIO_EDGE_VISUALS.type]: NodeWorkflowStatusEdge,
 }
 
 const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -179,7 +195,6 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     defaultProjectName: t('projectUntitled'),
     clerkId: isLoaded ? userId : null,
   })
-  const scriptBreakdown = useScriptBreakdown()
   const seedancePromptPlan = useSeedancePromptPlan()
   const characterImageGeneration = useCharacterImageGeneration()
   const nodeMediaGeneration = useNodeMediaGeneration()
@@ -192,6 +207,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
   // E1b three states: collapsed (!open) / dock (open) / expanded (open+expanded).
   const [assistantExpanded, setAssistantExpanded] = useState(false)
+  // The node whose ⤢ detail panel is open (B3 shared floating panel). One id
+  // because a single shared panel renders the one expanded node.
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [toolMode, setToolMode] = useState<NodeStudioToolMode>(
     NODE_STUDIO_TOOL_MODE_IDS.pointer,
   )
@@ -390,153 +408,64 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [workflow],
   )
 
-  const handleSendFromComposer = useCallback(
-    async (composerNodeId: string) => {
-      const composerNode = workflow.nodes.find(
-        (node) => node.id === composerNodeId,
+  // AI-enhance a Seedance node's prompt in place. This is the home of the
+  // retired Agent `seedancePrompt` mode (canvas-baseline §13 B2): instead of a
+  // separate planner node, the planner runs against the node's own prompt +
+  // upstream references and writes the orchestrated plan back onto the node.
+  // Uses the assistant's auto LLM route (no apiKeyId → server default planner +
+  // platform credits), keeping a single text route on the canvas.
+  const handleEnhanceSeedancePrompt = useCallback(
+    async (seedanceNodeId: string) => {
+      const seedanceNode = workflow.nodes.find(
+        (node) => node.id === seedanceNodeId,
       )
-      const idea = composerNode?.data.prompt.trim() ?? ''
+      const idea = seedanceNode?.data.prompt?.trim() ?? ''
 
       if (!idea) {
-        toast.info(t('composer.emptyPromptTip'), {
+        toast.info(t('videoComposer.enhanceEmptyTip'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
         })
         return
       }
 
-      const targetAgent = workflow.getOutgoingTargetByType(
-        composerNodeId,
-        NODE_TYPE_IDS.agent,
+      const referenceSummary = summarizeUpstreamSeedanceReferences(
+        seedanceNodeId,
+        workflow.edges,
+        workflow.nodes,
       )
+      const references =
+        referenceSummary.imageCount > 0 ||
+        referenceSummary.videoCount > 0 ||
+        referenceSummary.audio.length > 0
+          ? referenceSummary
+          : undefined
 
-      if (!targetAgent) {
-        toast.info(t('composer.noTargetTip'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      const plannerProvider =
-        composerNode?.data.plannerProvider ?? targetAgent.data.plannerProvider
-      const plannerApiKeyId =
-        composerNode?.data.plannerApiKeyId ?? targetAgent.data.plannerApiKeyId
-      const plannerRouteOptionId =
-        composerNode?.data.plannerRouteOptionId ??
-        targetAgent.data.plannerRouteOptionId
-
-      if (!plannerProvider || !plannerApiKeyId) {
-        toast.info(t('composer.noPlannerRouteTip'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      workflow.updateNodeData(composerNodeId, {
-        status: NODE_STATUS_IDS.running,
-      })
-      workflow.updateNodeData(targetAgent.id, {
-        agentMode:
-          targetAgent.data.agentMode ??
-          NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown,
+      workflow.updateNodeData(seedanceNodeId, {
         generationError: undefined,
-        plannerApiKeyId,
-        plannerProvider,
-        plannerRouteOptionId,
         status: NODE_STATUS_IDS.running,
       })
 
-      const agentMode =
-        targetAgent.data.agentMode ?? NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
-
-      if (agentMode === NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt) {
-        // Surface the reference assets already wired into the downstream
-        // Seedance node so the planner can orchestrate @VideoN / @AudioN
-        // tokens with intent. Best-effort: undefined when nothing is wired.
-        const targetSeedance = workflow.getOutgoingTargetByType(
-          targetAgent.id,
-          NODE_TYPE_IDS.seedance,
-        )
-        const referenceSummary = targetSeedance
-          ? summarizeUpstreamSeedanceReferences(
-              targetSeedance.id,
-              workflow.edges,
-              workflow.nodes,
-            )
-          : null
-        const references =
-          referenceSummary &&
-          (referenceSummary.imageCount > 0 ||
-            referenceSummary.videoCount > 0 ||
-            referenceSummary.audio.length > 0)
-            ? referenceSummary
-            : undefined
-
-        const result = await seedancePromptPlan.generate({
-          idea,
-          plannerProvider,
-          apiKeyId: plannerApiKeyId,
-          locale: appLocale,
-          references,
-        })
-
-        if (result.success) {
-          workflow.updateSeedancePromptPlan(
-            targetAgent.id,
-            result.data.plan,
-            result.data.planner,
-          )
-          workflow.updateNodeData(composerNodeId, {
-            status: NODE_STATUS_IDS.done,
-          })
-          toast.success(t('toasts.seedancePromptPlanned'), {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          })
-          return
-        }
-
-        const failureMessage = getGenerationErrorMessage(
-          tErrors,
-          result,
-          t('toasts.seedancePromptPlanFailed'),
-        )
-
-        workflow.updateNodeData(composerNodeId, {
-          status: NODE_STATUS_IDS.failed,
-        })
-        workflow.updateNodeData(targetAgent.id, {
-          generationError: failureMessage,
-          status: NODE_STATUS_IDS.failed,
-        })
-
-        toast.error(t('toasts.seedancePromptPlanFailed'), {
-          description: failureMessage,
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      const result = await scriptBreakdown.generate({
+      const result = await seedancePromptPlan.generate({
         idea,
-        plannerProvider,
-        apiKeyId: plannerApiKeyId,
+        plannerProvider: DEFAULT_SCRIPT_PLANNER_PROVIDER,
         locale: appLocale,
+        references,
       })
 
       if (result.success) {
-        workflow.updateScriptBreakdown(
-          targetAgent.id,
-          result.data.breakdown,
-          result.data.planner,
-        )
-        workflow.updateNodeData(composerNodeId, {
-          status: NODE_STATUS_IDS.done,
+        const plan = result.data.plan
+        workflow.updateNodeData(seedanceNodeId, {
+          motion: plan.motion,
+          camera: plan.camera,
+          duration: plan.duration,
+          audioIntent: plan.audioIntent,
+          prompt: plan.finalPrompt,
+          timeline: plan.timeline,
+          generationError: undefined,
+          status: NODE_STATUS_IDS.ready,
         })
-        toast.success(t('toasts.generated'), {
+        toast.success(t('toasts.seedancePromptPlanned'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
         })
@@ -546,24 +475,19 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const failureMessage = getGenerationErrorMessage(
         tErrors,
         result,
-        t('toasts.scriptBreakdownFailed'),
+        t('toasts.seedancePromptPlanFailed'),
       )
-
-      workflow.updateNodeData(composerNodeId, {
-        status: NODE_STATUS_IDS.failed,
-      })
-      workflow.updateNodeData(targetAgent.id, {
+      workflow.updateNodeData(seedanceNodeId, {
         generationError: failureMessage,
         status: NODE_STATUS_IDS.failed,
       })
-
-      toast.error(t('toasts.scriptBreakdownFailed'), {
+      toast.error(t('toasts.seedancePromptPlanFailed'), {
         description: failureMessage,
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, scriptBreakdown, seedancePromptPlan, t, tErrors, workflow],
+    [appLocale, seedancePromptPlan, t, tErrors, workflow],
   )
 
   const handleGenerateCharacterImage = useCallback(
@@ -823,13 +747,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         isVideoMediaNode && typeof node.data.negativePrompt === 'string'
           ? node.data.negativePrompt.trim() || undefined
           : undefined
-      const advancedParams: AdvancedParams | undefined =
-        loras.length > 0 || negativePrompt
-          ? {
-              ...(loras.length > 0 ? { loras } : {}),
-              ...(negativePrompt ? { negativePrompt } : {}),
-            }
+      const videoGenerateAudio =
+        isVideoMediaNode && typeof node.data.generateAudio === 'boolean'
+          ? node.data.generateAudio
           : undefined
+      const videoSeed =
+        isVideoMediaNode && typeof node.data.seed === 'number'
+          ? node.data.seed
+          : undefined
+      // Video negativePrompt now rides a flat field (the hook forwards it to
+      // submitVideoAPI); advancedParams stays image-only (loras).
+      const advancedParams: AdvancedParams | undefined =
+        loras.length > 0 ? { loras } : undefined
 
       // Bridge: duration is stored as a string in node.data (text-input
       // legacy). The wire format accepts either a 4-15 integer or the
@@ -870,6 +799,20 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         isAudioMediaNode && typeof node.data.voiceId === 'string'
           ? node.data.voiceId.trim() || undefined
           : undefined
+      const audioSpeed =
+        isAudioMediaNode && typeof node.data.voiceSpeed === 'number'
+          ? node.data.voiceSpeed
+          : undefined
+      const audioVolume =
+        isAudioMediaNode && typeof node.data.voiceVolume === 'number'
+          ? node.data.voiceVolume
+          : undefined
+      const audioEmotion: AudioEmotion | undefined =
+        isAudioMediaNode &&
+        typeof node.data.voiceEmotion === 'string' &&
+        (AUDIO_EMOTIONS as readonly string[]).includes(node.data.voiceEmotion)
+          ? (node.data.voiceEmotion as AudioEmotion)
+          : undefined
 
       const result = await nodeMediaGeneration.generate({
         kind,
@@ -886,6 +829,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           upstreamAudioBindings.length > 0 ? upstreamAudioBindings : undefined,
         videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
         voiceId: audioVoiceId,
+        speed: audioSpeed,
+        volume: audioVolume,
+        emotion: audioEmotion,
+        negativePrompt,
+        generateAudio: videoGenerateAudio,
+        seed: videoSeed,
         advancedParams,
       })
 
@@ -905,6 +854,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
           mediaLabel: result.generation.model,
+          // seed 复现闭环：回写 provider 实际用的 seed 供前端展示 +「锁定」。
+          lastSeed:
+            typeof result.generation.seed === 'number'
+              ? result.generation.seed
+              : undefined,
           status: NODE_STATUS_IDS.done,
         })
         toast.success(t('toasts.mediaGenerated'), {
@@ -989,11 +943,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     }, 0)
   }, [fitView, workflow.nodes.length])
 
-  const defaultModelOption = useMemo(
+  // Surfaced video brands + their variants drive the topbar default-model
+  // chip's dropdown. Only brands with available model options show up.
+  const videoBrandOptions = useMemo(
     () =>
-      modelOptionsByType[NODE_TYPE_IDS.characterImage]?.[0] ??
-      modelOptionsByType[NODE_TYPE_IDS.shot]?.[0] ??
-      modelOptionsByType[NODE_TYPE_IDS.seedance]?.[0],
+      getSurfacedVideoBrands(
+        modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
+      ).map((brand) => ({ brand, variants: getBrandVariants(brand) })),
     [modelOptionsByType],
   )
 
@@ -1003,6 +959,21 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         ? true
         : [...NODE_STUDIO_CANVAS.panOnDragButtons],
     [toolMode],
+  )
+
+  // §6 connection contract: reject self-loops and any (source→target) node-type
+  // pair the strict matrix doesn't allow. Existing edges aren't affected — this
+  // only gates new connection attempts.
+  const isValidConnection = useCallback(
+    (connection: Connection | NodeWorkflowEdge): boolean => {
+      const { source, target } = connection
+      if (!source || !target || source === target) return false
+      const sourceType = workflow.nodes.find((node) => node.id === source)?.type
+      const targetType = workflow.nodes.find((node) => node.id === target)?.type
+      if (!sourceType || !targetType) return false
+      return canConnectNodeTypes(sourceType, targetType)
+    },
+    [workflow.nodes],
   )
 
   const handleEdgeClick = useCallback(
@@ -1024,13 +995,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
-      updateScriptBreakdown: workflow.updateScriptBreakdown,
-      updateSeedancePromptPlan: workflow.updateSeedancePromptPlan,
-      spawnCharactersFromBreakdown: workflow.spawnCharactersFromBreakdown,
-      spawnFullWorkflowFromAgent: workflow.spawnFullWorkflowFromAgent,
-      applySeedancePromptPlanToSeedance:
-        workflow.applySeedancePromptPlanToSeedance,
       setScriptDoc: workflow.setScriptDoc,
+      setDefaultVideoModel: workflow.setDefaultVideoModel,
       applyScriptDocToGraph: workflow.applyScriptDocToGraph,
       deleteNode: workflow.deleteNode,
       deleteEdge: workflow.deleteEdge,
@@ -1038,19 +1004,23 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       redo: workflow.redo,
       canUndo: workflow.canUndo,
       canRedo: workflow.canRedo,
-      sendFromComposer: handleSendFromComposer,
       generateCharacterImage: handleGenerateCharacterImage,
       generateMediaNode: handleGenerateMediaNode,
+      enhanceSeedancePrompt: handleEnhanceSeedancePrompt,
       focusGeneratedNodes: handleFocusGeneratedNodes,
       toolMode,
       setToolMode,
+      expandedNodeId,
+      setExpandedNodeId,
       modelOptionsByType,
+      defaultVideoModel: workflow.defaultVideoModel,
     }),
     [
+      expandedNodeId,
+      handleEnhanceSeedancePrompt,
       handleFocusGeneratedNodes,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
-      handleSendFromComposer,
       modelOptionsByType,
       setToolMode,
       toolMode,
@@ -1058,16 +1028,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.canUndo,
       workflow.deleteEdge,
       workflow.deleteNode,
-      workflow.applySeedancePromptPlanToSeedance,
       workflow.redo,
       workflow.setScriptDoc,
+      workflow.setDefaultVideoModel,
+      workflow.defaultVideoModel,
       workflow.applyScriptDocToGraph,
-      workflow.spawnCharactersFromBreakdown,
-      workflow.spawnFullWorkflowFromAgent,
       workflow.undo,
       workflow.updateNodeData,
-      workflow.updateScriptBreakdown,
-      workflow.updateSeedancePromptPlan,
     ],
   )
 
@@ -1078,9 +1045,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           nodes={workflow.nodes}
           edges={workflow.edges}
           nodeTypes={NODE_COMPONENTS}
+          edgeTypes={NODE_EDGE_COMPONENTS}
           onNodesChange={workflow.onNodesChange}
           onEdgesChange={workflow.onEdgesChange}
           onConnect={workflow.onConnect}
+          isValidConnection={isValidConnection}
           onEdgeClick={handleEdgeClick}
           onPaneClick={closeAddMenu}
           onPaneContextMenu={handlePaneContextMenu}
@@ -1128,8 +1097,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               projectName={workflow.currentProjectName}
               projects={workflow.projects}
               currentProjectId={workflow.currentProjectId}
-              defaultModelLabel={defaultModelOption?.modelId}
-              defaultModelMeta={defaultModelOption?.providerConfig.label}
+              videoBrandOptions={videoBrandOptions}
+              defaultVideoModel={workflow.defaultVideoModel}
+              onChangeDefaultVideoModel={workflow.setDefaultVideoModel}
               onAddClick={handleTopbarAddClick}
               onArrange={handleTidyLayout}
               onSave={handleSaveNow}
@@ -1176,6 +1146,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             screenPosition={addMenu?.menuPosition ?? null}
             onSelect={handleAddNode}
             onClose={closeAddMenu}
+          />
+          <NodeDetailPanel
+            expandedNodeId={expandedNodeId}
+            onClose={() => setExpandedNodeId(null)}
           />
         </div>
         <ProjectNameDialog

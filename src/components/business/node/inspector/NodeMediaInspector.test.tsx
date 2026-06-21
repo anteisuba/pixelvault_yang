@@ -132,16 +132,9 @@ const VIDEO_OPTION: NodeWorkflowModelOption = {
 
 const ACTIONS: NodeWorkflowCanvasActions = {
   updateNodeData,
-  updateScriptBreakdown: vi.fn(),
-  updateSeedancePromptPlan: vi.fn(),
-  spawnCharactersFromBreakdown: vi.fn(),
-  spawnFullWorkflowFromAgent: vi.fn(() => ({
-    createdNodeIds: [],
-    shotCount: 0,
-    refusal: null,
-  })),
-  applySeedancePromptPlanToSeedance: vi.fn(),
   setScriptDoc: vi.fn(),
+  setDefaultVideoModel: vi.fn(),
+  defaultVideoModel: undefined,
   applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
   deleteEdge: vi.fn(),
@@ -152,6 +145,8 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   generateMediaNode,
   toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
   setToolMode: vi.fn(),
+  expandedNodeId: null,
+  setExpandedNodeId: vi.fn(),
   modelOptionsByType: {
     [NODE_TYPE_IDS.shot]: [IMAGE_OPTION],
     [NODE_TYPE_IDS.backgroundImage]: [IMAGE_OPTION],

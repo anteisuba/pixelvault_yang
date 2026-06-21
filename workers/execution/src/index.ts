@@ -117,6 +117,8 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     /** Reference video clips for Seedance reference-to-video. */
     videoUrls?: string[]
     negativePrompt?: string
+    generateAudio?: boolean
+    seed?: number
     resolution?: string
     i2vModelId?: string
     videoDefaults?: Record<string, unknown>
@@ -304,6 +306,9 @@ interface FalQueueStatusResult {
   artifactUrl?: string
   thumbnailUrl?: string
   mimeType?: string
+  /** Actual seed the provider used (fal output schema returns it) — for the
+   *  reproducibility loop. Written back to Generation.seed via the callback. */
+  seed?: number
   error?: string
   errorCode?: string
   providerMetadata?: Record<string, unknown>
@@ -755,6 +760,9 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
         : undefined,
       negativePrompt:
         readStringField(providerInput, 'negativePrompt') ?? undefined,
+      generateAudio:
+        readBooleanField(providerInput, 'generateAudio') ?? undefined,
+      seed: readNumberField(providerInput, 'seed') ?? undefined,
       resolution: readStringField(providerInput, 'resolution') ?? undefined,
       i2vModelId: readStringField(providerInput, 'i2vModelId') ?? undefined,
       videoDefaults: isRecord(providerInput.videoDefaults)
@@ -2627,6 +2635,7 @@ async function pollFalQueue(
     status: 'COMPLETED',
     artifactUrl,
     thumbnailUrl: thumbnailUrl ?? undefined,
+    seed: readNumberField(resultData, 'seed') ?? undefined,
     providerMetadata: {
       requestId: queue.requestId,
       statusUrl: queue.statusUrl,
@@ -2833,6 +2842,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
                   ? context.providerInput.duration
                   : undefined,
               requestCount: 1,
+              seed: pollResult.seed,
               mimeType:
                 pollResult.mimeType ??
                 (context.outputType === 'VIDEO' ? 'video/mp4' : 'audio/wav'),

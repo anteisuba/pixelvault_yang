@@ -18,6 +18,7 @@ import {
   studioGenerateAPI,
   submitVideoAPI,
 } from '@/lib/api-client'
+import type { AudioEmotion } from '@/constants/voice-cards'
 import type { AdvancedParams, GenerationRecord } from '@/types'
 import type { NodeWorkflowMediaKind } from '@/types/node-workflow'
 
@@ -57,6 +58,17 @@ interface NodeMediaGenerationInput {
   voiceId?: string
   referenceAudioUrl?: string
   referenceText?: string
+  /** Fish TTS prosody — only consumed by audio kind. */
+  speed?: number
+  volume?: number
+  /** Reading emotion → prompt prefix — only consumed by audio kind. */
+  emotion?: AudioEmotion
+  /** Negative prompt — only consumed by video kind. */
+  negativePrompt?: string
+  /** Per-node generate_audio override — only consumed by video kind. */
+  generateAudio?: boolean
+  /** Reproducibility seed — only consumed by video kind (seed-capable endpoints). */
+  seed?: number
   advancedParams?: AdvancedParams
 }
 
@@ -282,6 +294,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             audioUrls: input.audioUrls,
             audioBindings: input.audioBindings,
             videoUrls: input.videoUrls,
+            negativePrompt: input.negativePrompt,
+            generateAudio: input.generateAudio,
+            seed: input.seed,
           })
 
           if (!response.success || !response.data) {
@@ -307,6 +322,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             voiceId: input.voiceId,
             referenceAudioUrl: input.referenceAudioUrl,
             referenceText: input.referenceText,
+            speed: input.speed,
+            volume: input.volume,
+            emotion: input.emotion,
           })
 
           if (!response.success || !response.data) {

@@ -18,6 +18,31 @@ export interface VideoAudioCapability {
   maxReferences?: number
 }
 
+/**
+ * seed 支持矩阵（spike 2026-06-20，fal 一手 OpenAPI + volcengine 镜像）：
+ * Seedance 全族（fal + 火山）+ Veo base(text-to-video) 接受 `seed`；
+ * Veo reference-to-video（hasReferenceInputs）/ Kling V3 Pro / LTX 2.3 不接受。
+ * 驱动 VideoComposer seed 控件的显隐；worker builder 另有同口径的安全网。
+ */
+const SEED_CAPABLE_SEEDANCE: ReadonlySet<string> = new Set([
+  AI_MODELS.SEEDANCE_20,
+  AI_MODELS.SEEDANCE_20_FAST,
+  AI_MODELS.SEEDANCE_20_REFERENCE,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+  AI_MODELS.SEEDANCE_20_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+])
+
+export function videoModelSupportsSeed(
+  modelId: string,
+  hasReferenceInputs: boolean,
+): boolean {
+  if (modelId === AI_MODELS.VEO_31) return !hasReferenceInputs
+  return SEED_CAPABLE_SEEDANCE.has(modelId)
+}
+
 export interface VideoModelCapabilities {
   supportedDurations?: readonly number[]
   supportedResolutions?: readonly VideoResolution[]

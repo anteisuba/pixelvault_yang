@@ -71,9 +71,35 @@ export const AUDIO_STYLE_PROMPTS = {
   [AUDIO_STYLE.DIALOGUE]: 'natural character dialogue',
 } as const satisfies Record<AudioStyle, string | null>
 
-export const AUDIO_EMOTION = AUDIO_STYLE
-export const AUDIO_EMOTIONS = AUDIO_STYLES
-export type AudioEmotion = AudioStyle
+/**
+ * Voice emotion = the reading styles plus three true emotions (b3 canvas
+ * draft: 愤怒/悲伤/惊讶). Kept SEPARATE from AUDIO_STYLE so the Studio reading-
+ * style chips (STYLE_OPTIONS, 6 values) and the audio-feedback cycle stay
+ * unchanged, while the voice node's emotion picker can use the wider set. Fish
+ * has no structured emotion field, so each maps to a prompt prefix below.
+ */
+export const AUDIO_EMOTION = {
+  ...AUDIO_STYLE,
+  ANGRY: 'angry',
+  SAD: 'sad',
+  SURPRISED: 'surprised',
+} as const
+
+export const AUDIO_EMOTIONS = [
+  ...AUDIO_STYLES,
+  AUDIO_EMOTION.ANGRY,
+  AUDIO_EMOTION.SAD,
+  AUDIO_EMOTION.SURPRISED,
+] as const
+
+export type AudioEmotion = (typeof AUDIO_EMOTIONS)[number]
+
+export const AUDIO_EMOTION_PROMPTS = {
+  ...AUDIO_STYLE_PROMPTS,
+  [AUDIO_EMOTION.ANGRY]: 'angry and intense',
+  [AUDIO_EMOTION.SAD]: 'sad and sorrowful',
+  [AUDIO_EMOTION.SURPRISED]: 'surprised and startled',
+} as const satisfies Record<AudioEmotion, string | null>
 
 export const AUDIO_PACE = {
   SLOW: 'slow',

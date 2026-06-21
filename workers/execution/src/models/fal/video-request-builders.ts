@@ -38,6 +38,8 @@ export interface FalWorkerVideoRequestContext {
     /** Reference video clips for Seedance reference-to-video. */
     videoUrls?: string[]
     negativePrompt?: string
+    generateAudio?: boolean
+    seed?: number
     resolution?: string
     i2vModelId?: string
     videoDefaults?: FalWorkerVideoDefaults
@@ -245,7 +247,9 @@ function buildKlingV3Pro(
       15,
     ),
     generate_audio:
-      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
   }
 
   if (mode === 'image-to-video') {
@@ -284,7 +288,9 @@ function buildVeo31(
         '720p',
       ) ?? '720p',
     generate_audio:
-      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
   }
 
   applyNegativePrompt(body, context)
@@ -357,7 +363,9 @@ function buildLtx23(
         '1080p',
       ) ?? '1080p',
     generate_audio:
-      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
   }
 
   if (mode === 'image-to-video') {
@@ -404,7 +412,9 @@ function buildSeedance20(
       '16:9',
     ),
     generate_audio:
-      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
   }
 
   if (mode === 'image-to-video') {
@@ -507,7 +517,9 @@ function buildSeedanceReference(
       '16:9',
     ),
     generate_audio:
-      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
   }
   body.image_urls = imageUrls
   if (videoUrls.length > 0) {
@@ -547,12 +559,37 @@ function buildBody(
   }
 }
 
+/**
+ * seed 支持矩阵（spike 2026-06-20，fal 一手 OpenAPI）：Seedance 全族 + Veo
+ * base(text-to-video) 接受 `seed`；Veo reference(image-to-video) / Kling V3 Pro
+ * / LTX 2.3 的 input schema 无 seed → 不发，避免 fal 400。
+ */
+function applySeedIfSupported(
+  body: Record<string, unknown>,
+  context: FalWorkerVideoRequestContext,
+  mode: FalWorkerVideoMode,
+): void {
+  const seed = context.providerInput.seed
+  if (typeof seed !== 'number' || seed < 0) return
+  const modelId = normalizeWorkerModelId(context.providerInput.modelId)
+  const supportsSeed =
+    modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20 ||
+    modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST ||
+    modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE ||
+    modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE ||
+    (modelId === FAL_VIDEO_MODEL_IDS.VEO_31 && mode === 'text-to-video')
+  if (supportsSeed) {
+    body.seed = seed
+  }
+}
+
 export function buildFalWorkerQueueRequest(
   context: FalWorkerVideoRequestContext,
 ): FalWorkerVideoQueueRequest {
   const mode = getMode(context)
   const endpointModelId = getEndpointModelId(context, mode)
   const body = buildBody(context, mode)
+  applySeedIfSupported(body, context, mode)
 
   return {
     endpointModelId,

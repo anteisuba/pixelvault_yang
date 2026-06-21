@@ -268,6 +268,8 @@ async function submitFalVideoWorkerRun(params: {
           ? input.videoUrls
           : undefined,
       negativePrompt: input.negativePrompt,
+      generateAudio: input.generateAudio,
+      seed: input.seed,
       resolution: input.resolution,
       i2vModelId: modelConfig.i2vModelId,
       videoDefaults: modelConfig.videoDefaults,
@@ -429,6 +431,7 @@ function mapGenerationToRecord(gen: {
   isPublic: boolean
   isPromptPublic: boolean
   userId?: string | null
+  seed?: bigint | string | number | null
 }): GenerationRecord {
   return {
     id: gen.id,
@@ -453,5 +456,9 @@ function mapGenerationToRecord(gen: {
     isPublic: gen.isPublic,
     isPromptPublic: gen.isPromptPublic,
     userId: gen.userId,
+    // Generation.seed is a prisma BigInt — coerce to number for JSON-safe
+    // serialization in the video status API (seed ≤ 2^31, Number is exact).
+    // Without this, JSON.stringify throws "Do not know how to serialize a BigInt".
+    seed: gen.seed != null ? Number(gen.seed) : null,
   }
 }

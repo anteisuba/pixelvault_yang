@@ -14,7 +14,10 @@ import {
   getExecutionModelId,
   getModelById,
 } from '@/constants/models'
-import { AUDIO_PACE_SPEED, AUDIO_STYLE_PROMPTS } from '@/constants/voice-cards'
+import {
+  AUDIO_EMOTION_PROMPTS,
+  AUDIO_PACE_SPEED,
+} from '@/constants/voice-cards'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -269,7 +272,7 @@ function applyAudioStylePrompt(prompt: string, emotion?: string): string {
   }
 
   const stylePrompt =
-    AUDIO_STYLE_PROMPTS[emotion as keyof typeof AUDIO_STYLE_PROMPTS]
+    AUDIO_EMOTION_PROMPTS[emotion as keyof typeof AUDIO_EMOTION_PROMPTS]
   if (!stylePrompt) {
     return prompt
   }

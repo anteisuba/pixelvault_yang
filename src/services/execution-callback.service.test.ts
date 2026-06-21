@@ -289,6 +289,7 @@ describe('execution-callback.service', () => {
         duration: 5,
         requestCount: 1,
         mimeType: 'video/mp4',
+        seed: 999,
       },
     })
 
@@ -305,6 +306,7 @@ describe('execution-callback.service', () => {
         url: 'https://cdn.example.com/video-from-worker.mp4',
         storageKey: 'generations/user-1/video/worker.mp4',
         mimeType: 'video/mp4',
+        seed: BigInt(999),
       }),
       expect.anything(),
     )

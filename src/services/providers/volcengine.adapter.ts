@@ -160,6 +160,7 @@ export function buildVolcEngineVideoQueueBody({
   audioUrls,
   resolution,
   videoDefaults,
+  seed,
 }: ProviderQueueSubmitInput): Record<string, unknown> {
   const externalModelId = getExecutionModelId(modelId)
 
@@ -247,6 +248,13 @@ export function buildVolcEngineVideoQueueBody({
 
   if (videoDefaults?.generateAudio != null) {
     body.generate_audio = videoDefaults.generateAudio
+  }
+
+  // Ark Seedance 顶层 seed（复现）。⚠ 证据来自第三方镜像（官方文档页 CSR、
+  // 抓不到一手 schema），待一次真实生成确认；且当前 volcengine video 路径未
+  // 迁移到 execution worker（service 走 worker-only，dead），此处为铺未来线。
+  if (typeof seed === 'number' && seed >= 0) {
+    body.seed = Math.min(seed, VOLCENGINE_MAX_SEED)
   }
 
   body.return_last_frame = true

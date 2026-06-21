@@ -109,6 +109,7 @@ export interface ProviderQueueSubmitInput {
   resolution?: VideoResolution
   i2vModelId?: string
   videoDefaults?: VideoDefaults
+  seed?: number
 }
 
 export interface ProviderQueueSubmitResult {

@@ -274,6 +274,38 @@ describe('generate-video.service worker dispatch', () => {
     })
   })
 
+  it('forwards generateAudio to the worker dispatch providerInput', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
+      creditCost: 4,
+    })
+
+    await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
+        referenceImage: 'data:image/png;base64,cmVm',
+        generateAudio: false,
+        seed: 42,
+      }),
+    )
+
+    const dispatchBody = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as { body: string }).body,
+    ) as { providerInput: Record<string, unknown> }
+
+    expect(dispatchBody.providerInput).toMatchObject({
+      generateAudio: false,
+      seed: 42,
+    })
+  })
+
   it('omits videoUrls from the worker dispatch when none are supplied', async () => {
     mockResolveGenerationRoute.mockResolvedValueOnce({
       modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,

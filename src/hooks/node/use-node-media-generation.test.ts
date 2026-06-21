@@ -303,4 +303,71 @@ describe('useNodeMediaGeneration', () => {
     expect(response!).not.toHaveProperty('i18nKey')
     expect(checkAudioStatusAPI).toHaveBeenCalledTimes(1)
   })
+
+  it('forwards prosody and emotion to generateAudioAPI', async () => {
+    vi.mocked(generateAudioAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-audio', requestId: 'request-audio' },
+    })
+    vi.mocked(checkAudioStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio',
+        status: 'COMPLETED',
+        generation: AUDIO_GENERATION_RECORD,
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    await act(async () => {
+      await result.current.generate({
+        kind: 'audio',
+        modelId: AUDIO_GENERATION_RECORD.model,
+        prompt: AUDIO_GENERATION_RECORD.prompt,
+        voiceId: 'fish-voice-test',
+        speed: 1.4,
+        volume: -3,
+        emotion: 'angry',
+      })
+    })
+
+    expect(generateAudioAPI).toHaveBeenCalledWith(
+      expect.objectContaining({ speed: 1.4, volume: -3, emotion: 'angry' }),
+    )
+  })
+
+  it('forwards the negative prompt and generateAudio to submitVideoAPI', async () => {
+    vi.mocked(submitVideoAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-video', requestId: 'request-video' },
+    })
+    vi.mocked(checkVideoStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        status: 'COMPLETED',
+        generation: VIDEO_GENERATION_RECORD,
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    await act(async () => {
+      await result.current.generate({
+        kind: 'video',
+        modelId: VIDEO_GENERATION_RECORD.model,
+        prompt: VIDEO_GENERATION_RECORD.prompt,
+        negativePrompt: 'blurry, low quality',
+        generateAudio: false,
+        seed: 12345,
+      })
+    })
+
+    expect(submitVideoAPI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        negativePrompt: 'blurry, low quality',
+        generateAudio: false,
+        seed: 12345,
+      }),
+    )
+  })
 })

@@ -459,6 +459,7 @@ async function finalizeExecutionResult(
             model: job.modelId,
             provider: job.provider,
             requestCount: resultData.requestCount ?? 1,
+            seed: resultData.seed != null ? BigInt(resultData.seed) : undefined,
             outputType,
             userId: job.userId,
             characterCardIds:

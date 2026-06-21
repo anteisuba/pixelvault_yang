@@ -6,7 +6,34 @@ import {
   VIDEO_MODEL_CAPABILITIES,
   getVideoAudioCapability,
   getVideoModelCapabilities,
+  videoModelSupportsSeed,
 } from '@/constants/video-model-capabilities'
+
+describe('videoModelSupportsSeed', () => {
+  it('supports seed for all Seedance variants (regardless of reference)', () => {
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_FAST,
+      AI_MODELS.SEEDANCE_20_REFERENCE,
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+    ]) {
+      expect(videoModelSupportsSeed(modelId, false)).toBe(true)
+      expect(videoModelSupportsSeed(modelId, true)).toBe(true)
+    }
+  })
+
+  it('supports seed for Veo base (t2v) but NOT reference (i2v)', () => {
+    expect(videoModelSupportsSeed(AI_MODELS.VEO_31, false)).toBe(true)
+    expect(videoModelSupportsSeed(AI_MODELS.VEO_31, true)).toBe(false)
+  })
+
+  it('rejects seed for Kling and LTX', () => {
+    expect(videoModelSupportsSeed(AI_MODELS.KLING_V3_PRO, false)).toBe(false)
+    expect(videoModelSupportsSeed(AI_MODELS.LTX_23, false)).toBe(false)
+  })
+})
 
 describe('video-model-capabilities', () => {
   it('provides default capabilities for custom video models', () => {

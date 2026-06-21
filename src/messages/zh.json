@@ -2922,11 +2922,7 @@
     "composer": {
       "promptLabel": "Composer 提示词",
       "placeholder": "写下故事想法或视觉需求...",
-      "send": "发送",
-      "sendDisabledTooltip": "发送会在阶段 3 接入 Agent。",
-      "stageHint": "阶段 2 草稿节点",
-      "readyHint": "连接到 Agent 后发送",
-      "generatingHint": "正在请求 Agent..."
+      "readyHint": "连接到 Agent 后发送"
     },
     "workflowModelPicker": {
       "labels": {
@@ -3629,7 +3625,6 @@
       "savedMeta": "{provider} · {key}"
     },
     "inspector": {
-      "plannerRoute": "规划模型",
       "multiTitle": "已选择 {count} 个节点",
       "multiDescription": "批量编辑暂时受保护。在破坏性确认弹窗落地前，请一次编辑一个节点。",
       "unsupported": "这个节点类型暂时还没有检查器。"
@@ -3651,25 +3646,10 @@
       "nodesDeleted": "已删除 {count} 个节点。",
       "seedancePromptPlanned": "Seedance 提示词已生成。",
       "seedancePromptPlanFailed": "Seedance 提示词规划失败。",
-      "seedancePromptApplied": "已写入连接的视频节点。",
-      "seedancePromptApply": {
-        "missingAgent": "请选择带 Seedance 提示词计划的 Agent 节点。",
-        "missingPlan": "请先生成 Seedance 提示词计划。",
-        "missingSeedanceTarget": "请先把这个 Agent 连接到视频生成节点。"
-      },
       "characterGenerated": "角色图已生成。",
       "mediaGenerated": "节点素材已生成。",
       "mediaGenerationFailed": "节点素材生成失败。",
       "stillProcessing": "仍在后台生成，请稍后回来查看。",
-      "charactersSpawned": "已派生 {count} 个角色图节点。",
-      "charactersAlreadySpawned": "所有角色都已派生过节点。",
-      "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。",
-      "spawnFullWorkflowSuccess": "已派生 {count} 个镜头的完整工作流。",
-      "spawnFullWorkflow": {
-        "noBreakdown": "请先生成 Agent 拆解或 Seedance 提示词，再派生工作流。",
-        "notAgent": "请选择 Agent 节点。",
-        "emptyShots": "镜头列表为空，请先添加至少一个镜头。"
-      },
       "timelineCannotDeleteLast": "至少保留一个镜头段。",
       "edgeDeleted": "连线已移除。",
       "projectCreated": "项目「{name}」已创建。",

@@ -2922,11 +2922,7 @@
     "composer": {
       "promptLabel": "Composer プロンプト",
       "placeholder": "物語のアイデアやビジュアル要件を書く...",
-      "send": "送信",
-      "sendDisabledTooltip": "送信はステージ 3 で Agent に接続します。",
-      "stageHint": "ステージ 2 のドラフトノード",
-      "readyHint": "Agent に接続して送信",
-      "generatingHint": "Agent に問い合わせ中..."
+      "readyHint": "Agent に接続して送信"
     },
     "workflowModelPicker": {
       "labels": {
@@ -3629,7 +3625,6 @@
       "savedMeta": "{provider} · {key}"
     },
     "inspector": {
-      "plannerRoute": "プランナーモデル",
       "multiTitle": "{count} 件のノードを選択中",
       "multiDescription": "一括編集はまだ保護されています。破壊的操作の確認ダイアログが入るまでは、1 件ずつ編集してください。",
       "unsupported": "このノードタイプの Inspector はまだありません。"
@@ -3651,25 +3646,10 @@
       "nodesDeleted": "{count} 個のノードを削除しました。",
       "seedancePromptPlanned": "Seedance プロンプトを生成しました。",
       "seedancePromptPlanFailed": "Seedance プロンプト設計に失敗しました。",
-      "seedancePromptApplied": "接続した動画ノードへ適用しました。",
-      "seedancePromptApply": {
-        "missingAgent": "Seedance プロンプト計画を持つ Agent ノードを選択してください。",
-        "missingPlan": "先に Seedance プロンプト計画を生成してください。",
-        "missingSeedanceTarget": "この Agent を動画生成ノードへ接続してください。"
-      },
       "characterGenerated": "キャラクター画像を生成しました。",
       "mediaGenerated": "ノード素材を生成しました。",
       "mediaGenerationFailed": "ノード素材の生成に失敗しました。",
       "stillProcessing": "バックグラウンドで生成を続けています。少し後でもう一度確認してください。",
-      "charactersSpawned": "{count} 個のキャラクター画像ノードを派生しました。",
-      "charactersAlreadySpawned": "すべてのキャラクターは既にノード化されています。",
-      "charactersSpawnNoBreakdown": "キャラクター画像を派生する前に Agent の分解を生成してください。",
-      "spawnFullWorkflowSuccess": "{count} ショット分の完全ワークフローを派生しました。",
-      "spawnFullWorkflow": {
-        "noBreakdown": "先に Agent の分解または Seedance プロンプトを生成してください。",
-        "notAgent": "Agent ノードを選択してください。",
-        "emptyShots": "ショット一覧が空です。最低 1 つのショットを追加してください。"
-      },
       "timelineCannotDeleteLast": "少なくとも 1 つのセグメントを残してください。",
       "edgeDeleted": "接続を削除しました。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",

@@ -314,20 +314,6 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     x: 16,
     y: 16,
   },
-  characterSpawn: {
-    offsetX: 420,
-    offsetY: 260,
-  },
-  // spawnFullWorkflowFromAgent lays per-shot rows in three columns to the
-  // right of the Agent: shotText, Seedance, then a single videoMerge.
-  // tidyLayout will dagre-pack things later, but sane initial positions
-  // mean the user sees a recognisable structure before re-arranging.
-  workflowSpawn: {
-    shotTextOffsetX: 840,
-    seedanceOffsetX: 1260,
-    videoMergeOffsetX: 1680,
-    rowOffsetY: 260,
-  },
   // projectScriptDocToGraph anchors a recognisable left→right pipeline:
   // characters | shotText | voice | seedance | videoMerge. ScriptDoc has no
   // on-canvas node to anchor on, so positions are absolute from `origin`;

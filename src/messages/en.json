@@ -2922,11 +2922,7 @@
     "composer": {
       "promptLabel": "Composer prompt",
       "placeholder": "Write the story idea or visual brief...",
-      "send": "Send",
-      "sendDisabledTooltip": "Send connects to Agent in stage 3.",
-      "stageHint": "Stage 2 draft node",
-      "readyHint": "Connect to an Agent and send",
-      "generatingHint": "Asking Agent..."
+      "readyHint": "Connect to an Agent and send"
     },
     "workflowModelPicker": {
       "labels": {
@@ -3629,7 +3625,6 @@
       "savedMeta": "{provider} · {key}"
     },
     "inspector": {
-      "plannerRoute": "Planner model",
       "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",
       "multiDescription": "Batch editing is guarded for now. Edit one node at a time until destructive confirmations land.",
       "unsupported": "This node type does not have an Inspector yet."
@@ -3651,25 +3646,10 @@
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
       "seedancePromptPlanned": "Seedance prompt generated.",
       "seedancePromptPlanFailed": "Seedance prompt planning failed.",
-      "seedancePromptApplied": "Seedance prompt applied to the connected video node.",
-      "seedancePromptApply": {
-        "missingAgent": "Select the Agent node with a Seedance prompt plan.",
-        "missingPlan": "Generate a Seedance prompt plan first.",
-        "missingSeedanceTarget": "Connect this Agent to a video generation node first."
-      },
       "characterGenerated": "Character image generated.",
       "mediaGenerated": "Node media generated.",
       "mediaGenerationFailed": "Node media generation failed.",
       "stillProcessing": "Still generating in the background — check back in a moment.",
-      "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
-      "charactersAlreadySpawned": "All characters already have image nodes.",
-      "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images.",
-      "spawnFullWorkflowSuccess": "Spawned a full workflow with {count} shots.",
-      "spawnFullWorkflow": {
-        "noBreakdown": "Generate an Agent breakdown or Seedance plan first.",
-        "notAgent": "Pick an Agent node first.",
-        "emptyShots": "Shot list is empty — add at least one shot."
-      },
       "timelineCannotDeleteLast": "At least one segment must remain.",
       "edgeDeleted": "Connection removed.",
       "projectCreated": "Project \"{name}\" created.",

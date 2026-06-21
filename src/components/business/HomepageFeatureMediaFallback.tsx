@@ -224,7 +224,7 @@ function FallbackImage({ compareLabel }: FallbackImageProps) {
       {HOMEPAGE_SHOWCASE.slice(0, 4).map((shot) => (
         <div key={shot.id} className="relative overflow-hidden rounded-lg">
           <FbImg src={shot.src} alt="" sizes="20vw" />
-          <span className="absolute left-2 top-2 z-[2] rounded bg-black/60 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white/85">
+          <span className="absolute left-2 top-2 z-[2] rounded-full bg-black/55 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-white/85">
             {shot.model}
           </span>
         </div>
@@ -267,9 +267,10 @@ function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
       <div className="absolute inset-0 overflow-hidden">
         <FbImg src={pick('model3d', 0, 1)} alt="" />
       </div>
+      <div className="absolute inset-x-0 bottom-0 z-[1] h-1/2 bg-gradient-to-t from-black/55 to-transparent" />
       <svg
         viewBox="0 0 200 200"
-        className="relative z-[2] h-56 w-56 opacity-90"
+        className="relative z-[2] h-56 w-56 opacity-95"
         aria-hidden="true"
       >
         <ellipse
@@ -279,7 +280,8 @@ function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
           ry="14"
           fill="none"
           stroke="white"
-          strokeOpacity="0.55"
+          strokeOpacity="0.7"
+          strokeWidth="1.5"
           strokeDasharray="3 4"
         />
         <ellipse
@@ -289,7 +291,8 @@ function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
           ry="8"
           fill="none"
           stroke="white"
-          strokeOpacity="0.35"
+          strokeOpacity="0.5"
+          strokeWidth="1.5"
           strokeDasharray="2 3"
         />
       </svg>
@@ -326,30 +329,32 @@ function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
         aria-hidden="true"
       >
         <path
+          className="homepage-canvas-wire"
           d="M16 50 C30 50 30 28 45 28"
           fill="none"
           stroke="rgba(255,255,255,0.32)"
           strokeWidth="0.6"
         />
         <path
+          className="homepage-canvas-wire"
           d="M16 50 C30 50 30 72 45 72"
           fill="none"
           stroke="rgba(255,255,255,0.32)"
           strokeWidth="0.6"
         />
         <path
+          className="homepage-canvas-wire"
           d="M45 28 C66 28 64 50 84 50"
           fill="none"
           stroke="rgba(255,255,255,0.5)"
           strokeWidth="0.6"
-          strokeDasharray="2 2"
         />
         <path
+          className="homepage-canvas-wire"
           d="M45 72 C66 72 64 50 84 50"
           fill="none"
           stroke="rgba(255,255,255,0.5)"
           strokeWidth="0.6"
-          strokeDasharray="2 2"
         />
       </svg>
 
@@ -366,11 +371,13 @@ function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
       </WorkflowNode>
 
       <WorkflowNode left="45%" top="72%" label={nodes[2]}>
-        <div className="flex h-full w-full items-center justify-center gap-[3px]">
-          {[12, 20, 28, 16, 24, 12, 22, 14].map((h, i) => (
+        <div className="flex h-full w-full items-center justify-center gap-[2px]">
+          {Array.from({ length: 16 }, (_, i) =>
+            Math.round(6 + 22 * Math.abs(Math.sin(i * 0.7))),
+          ).map((h, i) => (
             <span
               key={i}
-              className="w-[3px] rounded-full bg-white/55"
+              className="w-[2px] rounded-full bg-white/70"
               style={{ height: `${h}px` }}
             />
           ))}
@@ -414,7 +421,7 @@ function WorkflowNode({
       style={{ left, top }}
     >
       <div
-        className={`relative h-16 w-24 overflow-hidden rounded-xl border lg:h-24 lg:w-36 ${
+        className={`relative h-14 w-20 overflow-hidden rounded-xl border lg:h-24 lg:w-36 ${
           media ? 'border-white/25' : 'border-white/15 bg-white/[0.05]'
         }`}
       >
@@ -443,16 +450,16 @@ function FallbackArena({ winnerLabel, voteLabel }: FallbackArenaProps) {
           <div
             key={idx}
             className={`relative overflow-hidden ${
-              winner ? 'ring-2 ring-inset ring-amber-300' : 'opacity-80'
+              winner ? 'ring-2 ring-inset ring-white/80' : 'opacity-80'
             }`}
           >
             <FbImg src={pick('arena', idx, idx)} alt="" sizes="20vw" />
-            <span className="absolute right-2 top-2 z-[2] rounded bg-black/60 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white/85">
+            <span className="absolute right-2 top-2 z-[2] rounded-full bg-black/55 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-white/85">
               {models[idx]}
             </span>
             {winner && (
-              <span className="absolute left-2 top-2 z-[2] rounded bg-amber-300 px-2 py-0.5 font-mono text-[10px] font-bold text-black">
-                ELO 1547 · {winnerLabel}
+              <span className="absolute left-2 top-2 z-[2] rounded-full bg-white px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-black">
+                {winnerLabel}
               </span>
             )}
           </div>
@@ -472,11 +479,7 @@ function FallbackArchive() {
   return (
     <div className="absolute inset-0 grid grid-cols-3 grid-rows-2">
       {[0, 1, 2, 3, 4, 5].map((idx) => (
-        <div
-          key={idx}
-          className="relative overflow-hidden"
-          style={{ filter: 'grayscale(0.55) brightness(0.9)' }}
-        >
+        <div key={idx} className="relative overflow-hidden">
           <FbImg src={pick('archive', idx, idx)} alt="" sizes="14vw" />
         </div>
       ))}

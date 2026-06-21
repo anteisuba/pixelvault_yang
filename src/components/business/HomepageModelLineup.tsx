@@ -114,7 +114,7 @@ export function HomepageModelLineup() {
       className="homepage-model-lineup scroll-mt-24"
       aria-labelledby="homepage-model-lineup-title"
     >
-      <div className="mx-auto max-w-2xl text-center">
+      <div className="max-w-2xl text-left">
         <h2
           id="homepage-model-lineup-title"
           className="homepage-feature-title font-display font-bold text-foreground text-balance"

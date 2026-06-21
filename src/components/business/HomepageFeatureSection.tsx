@@ -124,7 +124,7 @@ function HomepageStandardFeatureSection({
         {showMeta && (
           <div className="mb-5 flex flex-wrap items-center gap-2">
             {showEyebrow && (
-              <span className="homepage-feature-pill rounded-full px-4 py-2 text-sm font-semibold">
+              <span className="homepage-feature-pill">
                 {t('eyebrow', translationValues)}
               </span>
             )}

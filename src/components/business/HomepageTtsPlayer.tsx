@@ -123,7 +123,7 @@ export function HomepageTtsPlayer({
       <svg
         viewBox={`0 0 ${BAR_COUNT * 6} 200`}
         preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-x-0 top-1/2 z-[2] h-[70%] w-full -translate-y-1/2 opacity-95"
+        className="pointer-events-none absolute inset-x-0 top-1/2 z-[2] h-[84%] w-full -translate-y-1/2 opacity-95"
         aria-hidden="true"
       >
         {BAR_GEOMETRY.map((bar, i) => {
@@ -140,7 +140,7 @@ export function HomepageTtsPlayer({
               className={
                 active
                   ? 'text-white transition-colors duration-150'
-                  : 'text-white/35 transition-colors duration-150'
+                  : 'text-white/45 transition-colors duration-150'
               }
             />
           )

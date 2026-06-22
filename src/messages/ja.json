@@ -2874,15 +2874,6 @@
     "projectNewDefaultName": "無題のプロジェクト {n}",
     "nodeCount": "{count} 個のノード",
     "addMenuTitle": "ノードを追加",
-    "addMenuSearchPlaceholder": "ノードを検索...",
-    "addMenuCategoryLabel": "ノードカテゴリ",
-    "addMenuCategories": {
-      "all": "すべて",
-      "elements": "要素",
-      "generation": "生成",
-      "orchestration": "編成"
-    },
-    "addMenuEmpty": "一致するノードがありません。",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3606,6 +3597,7 @@
       "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
       "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
+      "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
       "starters": {
         "scriptOutline": {
           "label": "構成・あらすじ",

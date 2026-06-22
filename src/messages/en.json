@@ -2874,15 +2874,6 @@
     "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
     "addMenuTitle": "Add node",
-    "addMenuSearchPlaceholder": "Search nodes...",
-    "addMenuCategoryLabel": "Node categories",
-    "addMenuCategories": {
-      "all": "All",
-      "elements": "Elements",
-      "generation": "Generation",
-      "orchestration": "Orchestration"
-    },
-    "addMenuEmpty": "No nodes match that search.",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3606,6 +3597,7 @@
       "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
       "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
+      "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {
         "scriptOutline": {
           "label": "Story outline",

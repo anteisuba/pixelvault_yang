@@ -33,6 +33,7 @@
   --color-node-port-background: var(--node-port-background);
   --color-node-port-voice: var(--node-port-voice);
   --color-node-port-video: var(--node-port-video);
+  --color-node-port-image: var(--node-port-image);
   --color-node-status-done: var(--node-status-done);
   --color-node-status-done-fg: var(--node-status-done-fg);
   --color-node-status-failed: var(--node-status-failed);
@@ -295,6 +296,7 @@
   --node-port-background: #5f7a73;
   --node-port-voice: #856a72;
   --node-port-video: #647386;
+  --node-port-image: #6f6a86; /* image 模态色（统一图片节点）— 与角色同属图片族紫 */
   /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红 */
   --node-status-done: #1f3a2c;
   --node-status-done-fg: #7fc4a0;

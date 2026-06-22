@@ -91,20 +91,31 @@ const VIDEO_ACCENT: NodeAccentToken = {
   dotRing: '!border-node-port-video',
 }
 
+// Image-modality accent (low-sat violet). The unified `image` node and its
+// non-character roles (shot / frame) use it so the most-used "create an image"
+// surface isn't a colorless grey. character / background keep their own tint.
+const IMAGE_ACCENT: NodeAccentToken = {
+  iconPlate: 'bg-node-port-image/20',
+  iconText: 'text-node-port-image',
+  selectedRing: 'ring-node-port-image/60',
+  dot: '!bg-node-port-image',
+  dotRing: '!border-node-port-image',
+}
+
 export const NODE_ACCENTS = {
   composer: NEUTRAL_ACCENT,
   agent: NEUTRAL_ACCENT,
   shotText: NEUTRAL_ACCENT,
-  shot: NEUTRAL_ACCENT,
+  shot: IMAGE_ACCENT,
   characterImage: CHARACTER_ACCENT,
   backgroundImage: BACKGROUND_ACCENT,
-  frameImage: NEUTRAL_ACCENT,
+  frameImage: IMAGE_ACCENT,
   voice: VOICE_ACCENT,
   seedance: VIDEO_ACCENT,
   videoReference: VIDEO_ACCENT,
   videoMerge: VIDEO_ACCENT,
   text: NEUTRAL_ACCENT,
-  image: NEUTRAL_ACCENT,
+  image: IMAGE_ACCENT,
   video: VIDEO_ACCENT,
   audio: NEUTRAL_ACCENT,
 } satisfies Record<NodeTokenType, NodeAccentToken>

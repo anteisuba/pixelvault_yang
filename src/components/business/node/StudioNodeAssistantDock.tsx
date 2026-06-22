@@ -385,6 +385,12 @@ export function StudioNodeAssistantDock({
     [t],
   )
 
+  // The opener line must reflect canvas state — claiming "still empty" while the
+  // user has nodes (or an outline) reads as a bug. Switch to an active opener
+  // once there's anything on the canvas.
+  const opener =
+    nodes.length > 0 || scriptDoc ? t('leanOpenerActive') : t('leanOpener')
+
   if (!open) {
     return (
       <button
@@ -497,7 +503,7 @@ export function StudioNodeAssistantDock({
               onRetry={handleRetry}
               onFocusNode={onFocusNode}
               getNodeLabel={getNodeLabel}
-              emptyHint={t('leanOpener')}
+              emptyHint={opener}
               starters={dockStarters}
             />
           </div>
@@ -520,7 +526,7 @@ export function StudioNodeAssistantDock({
             onRetry={handleRetry}
             onFocusNode={onFocusNode}
             getNodeLabel={getNodeLabel}
-            emptyHint={t('leanOpener')}
+            emptyHint={opener}
             starters={dockStarters}
           />
         </div>

@@ -53,6 +53,8 @@ export function ImageRolePicker({
       type={NODE_TYPE_IDS.image}
       selected={selected}
       status={status}
+      showSourceHandle={false}
+      showTargetHandle={false}
     >
       <NodeShell.Header type={NODE_TYPE_IDS.image} status={status} />
       <NodeShell.Body className="space-y-3">

@@ -54,6 +54,7 @@ import {
 } from '@/lib/api-client'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
+import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
 import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -304,7 +305,7 @@ function patchCurrentProjectState(
   )
 }
 
-function createDefaultNodeData(
+export function createDefaultNodeData(
   type: NodeWorkflowNodeType,
 ): NodeWorkflowNodeData {
   if (type === NODE_TYPE_IDS.composer) {
@@ -497,24 +498,25 @@ function projectFromServerRecord(
     name: record.name,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    // Retire legacy Composer/Agent planner nodes on hydration (idempotent —
-    // see node-workflow-migrate-planner.ts). The migrated state is held in
-    // memory and persisted back on the next write.
-    state: migrateRetirePlanner(record.state),
+    // Hydration migrations (idempotent): retire legacy Composer/Agent planner
+    // nodes, then fold legacy per-role image types into image + role. The
+    // migrated state is held in memory and persisted back on the next write.
+    state: migrateImageRoles(migrateRetirePlanner(record.state)),
   }
 }
 
 /**
- * Apply the planner-retirement migration to every project in a storage
- * snapshot. Preserves the snapshot/project reference when nothing changed
- * (migration is idempotent) so an already-migrated load doesn't churn state.
+ * Apply the hydration migrations (planner retirement + image-role folding) to
+ * every project in a storage snapshot. Preserves the snapshot/project reference
+ * when nothing changed (both migrations are idempotent) so an already-migrated
+ * load doesn't churn state.
  */
 function migrateStorageProjects(
   storage: NodeWorkflowStorageSnapshot,
 ): NodeWorkflowStorageSnapshot {
   let changed = false
   const projects = storage.projects.map((project) => {
-    const migratedState = migrateRetirePlanner(project.state)
+    const migratedState = migrateImageRoles(migrateRetirePlanner(project.state))
     if (migratedState === project.state) return project
     changed = true
     return { ...project, state: migratedState }

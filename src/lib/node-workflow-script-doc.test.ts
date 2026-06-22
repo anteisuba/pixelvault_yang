@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 import type {
   NodeWorkflowNodeData,
   NodeWorkflowState,
@@ -60,7 +64,13 @@ describe('projectScriptDocToGraph', () => {
     // 2 characters + 2 shotText + 2 seedance + 1 voice + 1 merge = 8
     expect(result.created).toBe(8)
     expect(result.nodesToAdd).toHaveLength(8)
-    expect(countType(result, NODE_TYPE_IDS.characterImage)).toBe(2)
+    // Projected role nodes are unified image nodes (option B) with role=character.
+    expect(countType(result, NODE_TYPE_IDS.image)).toBe(2)
+    expect(
+      result.nodesToAdd
+        .filter((node) => node.type === NODE_TYPE_IDS.image)
+        .every((node) => node.data.role === NODE_IMAGE_ROLE_IDS.character),
+    ).toBe(true)
     expect(countType(result, NODE_TYPE_IDS.shotText)).toBe(2)
     expect(countType(result, NODE_TYPE_IDS.seedance)).toBe(2)
     expect(countType(result, NODE_TYPE_IDS.voice)).toBe(1)
@@ -264,8 +274,10 @@ describe('projectScriptDocToGraph', () => {
     })
 
     // role-1 reuses the existing node — only role-2 gets a new character node.
+    // The new node is a unified image node (option B); the existing legacy
+    // characterImage node is still matched + reused by character.characterId.
     const newCharacters = result.nodesToAdd.filter(
-      (node) => node.type === NODE_TYPE_IDS.characterImage,
+      (node) => node.type === NODE_TYPE_IDS.image,
     )
     expect(newCharacters).toHaveLength(1)
     expect(newCharacters[0]?.data.character?.characterId).toBe('role-2')

@@ -20,6 +20,7 @@ export function ComposerNode({
 
   return (
     <NodeShell
+      nodeId={id}
       type={NODE_TYPE_IDS.composer}
       selected={selected}
       status={data.status}

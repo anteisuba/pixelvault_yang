@@ -62,6 +62,7 @@ export function CharacterImageNode({
 
   return (
     <NodeShell
+      nodeId={id}
       type={NODE_TYPE_IDS.characterImage}
       selected={selected}
       status={data.status}

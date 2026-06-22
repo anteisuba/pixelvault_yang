@@ -20,6 +20,7 @@ import {
 import { IMAGE_SIZES } from '@/constants/config'
 import {
   NODE_GENERATION_STATUSES,
+  NODE_IMAGE_ROLES,
   NODE_WORKFLOW_FIELDS,
   NODE_MEDIA_KINDS,
   NODE_STATUSES,
@@ -189,6 +190,13 @@ export const NodeWorkflowNodeDataSchema = z
     plannerModelId: z.string().optional(),
     planner: ScriptBreakdownPlannerSchema.optional(),
     model: NodeWorkflowModelSelectionSchema.optional(),
+    /**
+     * Role of a unified `image` node (node-consolidation step 2 / option B):
+     * character / background / shot / frame. Drives field set, accent,
+     * empty-state, and seedance-harvest treatment. Absent on non-image nodes
+     * and on legacy per-type image nodes (until the role migration runs).
+     */
+    role: z.enum(NODE_IMAGE_ROLES).optional(),
     imageMode: NodeWorkflowCharacterImageModeSchema.optional(),
     imageSource: NodeWorkflowImageOutputSourceSchema.optional(),
     imageUrl: z.string().trim().min(1).optional(),
@@ -202,6 +210,9 @@ export const NodeWorkflowNodeDataSchema = z
     sourceGenerationId: z.string().trim().min(1).max(160).optional(),
     sourceLabel: z.string().trim().min(1).max(160).optional(),
     characterName: z.string().trim().min(1).max(160).optional(),
+    /** User-given name for a background node — mirrors characterName so the
+     *  background can be referenced by name (e.g. @夜晚街道) in video prompts. */
+    backgroundName: z.string().trim().min(1).max(160).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
     /**
      * Library card binding — set when the character image node was hydrated

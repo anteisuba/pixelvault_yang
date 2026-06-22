@@ -18,6 +18,7 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
@@ -130,7 +131,15 @@ export function projectScriptDocToGraph(
       existingByKey.set(refKey(ref.kind, ref.sourceId), node.id)
     }
 
-    if (node.type === NODE_TYPE_IDS.characterImage) {
+    // Legacy Agent-path characters lack a scriptRef and are matched by
+    // character.characterId instead. Recognize both the legacy characterImage
+    // type and the unified image node with role=character (post-migration), so
+    // re-projection reuses the node instead of spawning a duplicate.
+    const isCharacterNode =
+      node.type === NODE_TYPE_IDS.characterImage ||
+      (node.type === NODE_TYPE_IDS.image &&
+        node.data.role === NODE_IMAGE_ROLE_IDS.character)
+    if (isCharacterNode) {
       const characterId = node.data.character?.characterId
       if (typeof characterId === 'string' && characterId.length > 0) {
         existingByKey.set(
@@ -207,6 +216,9 @@ export function projectScriptDocToGraph(
       prompt: visualSeed,
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      // Unified image node (option B): a projected role is an image with
+      // role=character (was the standalone characterImage type pre-consolidation).
+      role: NODE_IMAGE_ROLE_IDS.character,
       imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
       referenceAssets: [],
       loras: [],
@@ -236,7 +248,7 @@ export function projectScriptDocToGraph(
       role.id,
       (id) => ({
         id,
-        type: NODE_TYPE_IDS.characterImage,
+        type: NODE_TYPE_IDS.image,
         position: {
           x: anchor.x + placement.characterOffsetX,
           y: anchor.y + index * placement.characterRowOffsetY,

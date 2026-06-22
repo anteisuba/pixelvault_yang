@@ -4,6 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AI_MODELS } from '@/constants/models'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
+// jsdom lacks ResizeObserver, which the radix Slider in the duration control
+// calls on mount.
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+)
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
@@ -44,8 +55,9 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
   }),
 }))
 
-vi.mock('./VideoModelSwitcher', () => ({ VideoModelSwitcher: () => null }))
-vi.mock('./VideoProviderPicker', () => ({ VideoProviderPicker: () => null }))
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: () => null,
+}))
 
 import { VideoComposer } from './VideoComposer'
 

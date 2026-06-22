@@ -106,6 +106,7 @@ import { BackgroundImageNode } from './nodes/BackgroundImageNode'
 import { CharacterImageNode } from './nodes/CharacterImageNode'
 import { ComposerNode } from './nodes/ComposerNode'
 import { FrameImageNode } from './nodes/FrameImageNode'
+import { ImageNode } from './nodes/ImageNode'
 import { SeedanceNode } from './nodes/SeedanceNode'
 import { ShotNode } from './nodes/ShotNode'
 import { ShotTextNode } from './nodes/ShotTextNode'
@@ -122,6 +123,7 @@ const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.characterImage]: CharacterImageNode,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundImageNode,
   [NODE_TYPE_IDS.frameImage]: FrameImageNode,
+  [NODE_TYPE_IDS.image]: ImageNode,
   [NODE_TYPE_IDS.voice]: VoiceNode,
   [NODE_TYPE_IDS.seedance]: SeedanceNode,
   [NODE_TYPE_IDS.videoReference]: VideoReferenceNode,
@@ -969,9 +971,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const { source, target } = connection
       if (!source || !target || source === target) return false
       const sourceType = workflow.nodes.find((node) => node.id === source)?.type
-      const targetType = workflow.nodes.find((node) => node.id === target)?.type
-      if (!sourceType || !targetType) return false
-      return canConnectNodeTypes(sourceType, targetType)
+      const targetNode = workflow.nodes.find((node) => node.id === target)
+      if (!sourceType || !targetNode) return false
+      return canConnectNodeTypes(
+        sourceType,
+        targetNode.type,
+        targetNode.data.role,
+      )
     },
     [workflow.nodes],
   )

@@ -6,6 +6,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VIDEO_BRAND_IDS, VIDEO_VARIANT_IDS } from '@/constants/video-brands'
 import {
   deriveSwitcherStateFromModel,
+  getBrandKeyStatus,
   getSurfacedVideoBrands,
   isDualProviderBrand,
   pickDefaultProvider,
@@ -199,6 +200,38 @@ describe('deriveSwitcherStateFromModel', () => {
       brand: null,
       variant: null,
       provider: null,
+    })
+  })
+})
+
+describe('getBrandKeyStatus', () => {
+  it('marks a brand ready when it has a saved key, exposing the key label', () => {
+    const withSavedSeedance = [
+      { ...opt(AI_MODELS.SEEDANCE_20_FAST, 'saved'), keyLabel: 'my fal key' },
+      ...SEEDANCE_IDS.filter((id) => id !== AI_MODELS.SEEDANCE_20_FAST).map(
+        (id) => opt(id),
+      ),
+      opt(AI_MODELS.KLING_V3_PRO),
+    ]
+    const status = getBrandKeyStatus(
+      VIDEO_BRAND_IDS.seedance,
+      withSavedSeedance,
+    )
+    expect(status.ready).toBe(true)
+    expect(status.keyLabel).toBe('my fal key')
+  })
+
+  it('marks a brand needs-key when only workspace options exist, but still returns a setup option', () => {
+    const status = getBrandKeyStatus(VIDEO_BRAND_IDS.kling, ALL_OPTIONS)
+    expect(status.ready).toBe(false)
+    expect(status.setupOption?.modelId).toBe(AI_MODELS.KLING_V3_PRO)
+  })
+
+  it('returns no setup option for a brand with no options at all', () => {
+    expect(getBrandKeyStatus(VIDEO_BRAND_IDS.veo, [])).toEqual({
+      ready: false,
+      setupOption: null,
+      keyLabel: undefined,
     })
   })
 })

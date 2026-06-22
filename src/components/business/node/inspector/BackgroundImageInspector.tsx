@@ -25,6 +25,8 @@ import type {
 } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { IMEAwareInput } from './IMEAwareField'
+import { InspectorField } from './InspectorField'
 import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface BackgroundImageInspectorProps {
@@ -42,8 +44,18 @@ export function BackgroundImageInspector({
   node,
 }: BackgroundImageInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes.cardLibrary')
+  const tBg = useTranslations('StudioNode.workflowNodes.backgroundImage')
   const { cards, isLoading } = useBackgroundCards()
   const { updateNodeData } = useNodeWorkflowActions()
+
+  const backgroundName =
+    typeof node.data.backgroundName === 'string' ? node.data.backgroundName : ''
+  const handleNameChange = useCallback(
+    (next: string) => {
+      updateNodeData(node.id, { backgroundName: next })
+    },
+    [node.id, updateNodeData],
+  )
 
   // Resolve the currently-bound background card. Drives the "📇 来自背景卡：x"
   // hint on the existing-mode pane. Background cards are flat (no variants),
@@ -137,16 +149,27 @@ export function BackgroundImageInspector({
   )
 
   return (
-    <NodeMediaInspector
-      node={node}
-      type={NODE_TYPE_IDS.backgroundImage}
-      kind={NODE_MEDIA_KIND_IDS.image}
-      cardLibrary={{
-        cards: slotCards,
-        isLoading,
-        boundCard,
-        onApply: handleApplyById,
-      }}
-    />
+    <div className="space-y-4">
+      <InspectorField label={tBg('nameLabel')}>
+        <IMEAwareInput
+          value={backgroundName}
+          onValueChange={handleNameChange}
+          aria-label={tBg('nameLabel')}
+          placeholder={tBg('namePlaceholder')}
+          className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+        />
+      </InspectorField>
+      <NodeMediaInspector
+        node={node}
+        type={NODE_TYPE_IDS.backgroundImage}
+        kind={NODE_MEDIA_KIND_IDS.image}
+        cardLibrary={{
+          cards: slotCards,
+          isLoading,
+          boundCard,
+          onApply: handleApplyById,
+        }}
+      />
+    </div>
   )
 }

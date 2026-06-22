@@ -40,6 +40,7 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
 
   return (
     <NodeShell
+      nodeId={id}
       type={NODE_TYPE_IDS.seedance}
       selected={selected}
       status={data.status}
@@ -86,6 +87,7 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
               <Film className="size-5 animate-pulse text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
+              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-panel-inner" />
             </div>
           ) : null}
         </div>

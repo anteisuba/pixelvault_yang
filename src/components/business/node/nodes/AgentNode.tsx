@@ -24,6 +24,7 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
 
   return (
     <NodeShell
+      nodeId={id}
       type={NODE_TYPE_IDS.agent}
       selected={selected}
       status={data.status}

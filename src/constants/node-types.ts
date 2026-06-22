@@ -6,6 +6,15 @@ export const NODE_TYPE_IDS = {
   characterImage: 'characterImage',
   backgroundImage: 'backgroundImage',
   frameImage: 'frameImage',
+  /**
+   * Unified image node (node-consolidation step 2 / option B). Its
+   * `data.role` (character / background / shot / frame) carries the intent
+   * that the legacy per-role types (characterImage / backgroundImage /
+   * frameImage / shot) used to encode at the type level. The legacy types
+   * are kept in the enum for backward-compatible parse of saved projects;
+   * a data-level migration folds them into `image` + role on load.
+   */
+  image: 'image',
   voice: 'voice',
   seedance: 'seedance',
   videoReference: 'videoReference',
@@ -20,6 +29,7 @@ export const NODE_TYPES = [
   NODE_TYPE_IDS.characterImage,
   NODE_TYPE_IDS.backgroundImage,
   NODE_TYPE_IDS.frameImage,
+  NODE_TYPE_IDS.image,
   NODE_TYPE_IDS.voice,
   NODE_TYPE_IDS.seedance,
   NODE_TYPE_IDS.videoReference,
@@ -35,7 +45,46 @@ export const NODE_IMAGE_MODEL_NODE_TYPES = [
   NODE_TYPE_IDS.shot,
   NODE_TYPE_IDS.backgroundImage,
   NODE_TYPE_IDS.frameImage,
+  NODE_TYPE_IDS.image,
 ] as const
+
+/**
+ * Roles for the unified `image` node (node-consolidation step 2 / option B).
+ * Each role maps 1:1 onto a legacy per-role image type and drives the node's
+ * default field set, empty-state copy, accent, and seedance-harvest treatment
+ * (character/background/shot → visual reference, frame → keyframe).
+ */
+export const NODE_IMAGE_ROLE_IDS = {
+  character: 'character',
+  background: 'background',
+  shot: 'shot',
+  frame: 'frame',
+} as const
+
+export const NODE_IMAGE_ROLES = [
+  NODE_IMAGE_ROLE_IDS.character,
+  NODE_IMAGE_ROLE_IDS.background,
+  NODE_IMAGE_ROLE_IDS.shot,
+  NODE_IMAGE_ROLE_IDS.frame,
+] as const
+
+export type NodeImageRole = (typeof NODE_IMAGE_ROLES)[number]
+
+/**
+ * Each image role maps 1:1 onto the legacy per-role type it replaced. Used for
+ * PRESENTATION (badge / accent / i18n label / detail body / inspector / card
+ * render) so a unified image node reuses all the existing per-type UI unchanged
+ * — see `resolveNodePresentationType` and `ImageNode`.
+ */
+export const NODE_IMAGE_ROLE_TO_LEGACY_TYPE: Record<
+  NodeImageRole,
+  NodeWorkflowNodeType
+> = {
+  [NODE_IMAGE_ROLE_IDS.character]: NODE_TYPE_IDS.characterImage,
+  [NODE_IMAGE_ROLE_IDS.background]: NODE_TYPE_IDS.backgroundImage,
+  [NODE_IMAGE_ROLE_IDS.shot]: NODE_TYPE_IDS.shot,
+  [NODE_IMAGE_ROLE_IDS.frame]: NODE_TYPE_IDS.frameImage,
+}
 
 export const NODE_VIDEO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.seedance] as const
 
@@ -161,6 +210,37 @@ export const NODE_WORKFLOW_FIELDS_BY_NODE_TYPE: Partial<
   ],
 } as const
 
+/**
+ * Default field set for the unified `image` node, keyed by `data.role`. Mirrors
+ * the legacy per-type field sets above so a migrated node shows the same
+ * Inspector fields it had before consolidation. The node component resolves
+ * fields via this map (by role) instead of `NODE_WORKFLOW_FIELDS_BY_NODE_TYPE`.
+ */
+export const NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE: Record<
+  NodeImageRole,
+  readonly NodeWorkflowFieldId[]
+> = {
+  [NODE_IMAGE_ROLE_IDS.character]: [NODE_WORKFLOW_FIELD_IDS.prompt],
+  [NODE_IMAGE_ROLE_IDS.background]: [
+    NODE_WORKFLOW_FIELD_IDS.location,
+    NODE_WORKFLOW_FIELD_IDS.mood,
+    NODE_WORKFLOW_FIELD_IDS.lighting,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ],
+  [NODE_IMAGE_ROLE_IDS.shot]: [
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.composition,
+    NODE_WORKFLOW_FIELD_IDS.action,
+  ],
+  [NODE_IMAGE_ROLE_IDS.frame]: [
+    NODE_WORKFLOW_FIELD_IDS.frameIntent,
+    NODE_WORKFLOW_FIELD_IDS.composition,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ],
+} as const
+
 export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.composer]: undefined,
   [NODE_TYPE_IDS.agent]: undefined,
@@ -169,6 +249,7 @@ export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.characterImage]: NODE_MEDIA_KIND_IDS.image,
   [NODE_TYPE_IDS.backgroundImage]: NODE_MEDIA_KIND_IDS.image,
   [NODE_TYPE_IDS.frameImage]: NODE_MEDIA_KIND_IDS.image,
+  [NODE_TYPE_IDS.image]: NODE_MEDIA_KIND_IDS.image,
   [NODE_TYPE_IDS.voice]: NODE_MEDIA_KIND_IDS.audio,
   [NODE_TYPE_IDS.seedance]: NODE_MEDIA_KIND_IDS.video,
   [NODE_TYPE_IDS.videoReference]: NODE_MEDIA_KIND_IDS.video,

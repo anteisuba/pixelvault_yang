@@ -9,16 +9,13 @@ import {
   type ComponentType,
 } from 'react'
 import {
-  Clapperboard,
   FileText,
   Film,
   ImagePlus,
   Layers,
   Mic2,
-  PanelsTopLeft,
   Search,
   Video,
-  Wallpaper,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
@@ -70,19 +67,11 @@ const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
     Icon: FileText,
   },
   {
-    type: NODE_TYPE_IDS.characterImage,
+    // Unified image node (option B): one menu entry; role (character /
+    // background / shot) is chosen in the node's empty-state picker.
+    type: NODE_TYPE_IDS.image,
     category: ADD_MENU_CATEGORY_IDS.elements,
     Icon: ImagePlus,
-  },
-  {
-    type: NODE_TYPE_IDS.backgroundImage,
-    category: ADD_MENU_CATEGORY_IDS.elements,
-    Icon: Wallpaper,
-  },
-  {
-    type: NODE_TYPE_IDS.frameImage,
-    category: ADD_MENU_CATEGORY_IDS.elements,
-    Icon: PanelsTopLeft,
   },
   {
     type: NODE_TYPE_IDS.voice,
@@ -90,19 +79,14 @@ const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
     Icon: Mic2,
   },
   {
-    type: NODE_TYPE_IDS.shot,
-    category: ADD_MENU_CATEGORY_IDS.generation,
-    Icon: Clapperboard,
+    type: NODE_TYPE_IDS.videoReference,
+    category: ADD_MENU_CATEGORY_IDS.elements,
+    Icon: Film,
   },
   {
     type: NODE_TYPE_IDS.seedance,
     category: ADD_MENU_CATEGORY_IDS.generation,
     Icon: Video,
-  },
-  {
-    type: NODE_TYPE_IDS.videoReference,
-    category: ADD_MENU_CATEGORY_IDS.generation,
-    Icon: Film,
   },
   {
     type: NODE_TYPE_IDS.videoMerge,

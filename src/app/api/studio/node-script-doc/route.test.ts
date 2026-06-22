@@ -18,6 +18,7 @@ import type { NodeScriptDocResponseData } from '@/types/script-doc'
 import { POST } from './route'
 
 const RESPONSE: NodeScriptDocResponseData = {
+  kind: 'scriptDoc',
   scriptDoc: {
     title: 'Night Garden Signal',
     logline: 'A botanist chases a signal through a garden.',

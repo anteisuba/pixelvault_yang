@@ -2891,10 +2891,17 @@
       "characterImage": "Character Image",
       "backgroundImage": "Background Image",
       "frameImage": "Frame Image",
+      "image": "Image",
       "voice": "Voice Profile",
       "seedance": "Video Generation",
       "videoReference": "Reference Video",
       "videoMerge": "Merge Videos"
+    },
+    "imageRolePicker": {
+      "title": "What's this image for?",
+      "character": "Character",
+      "background": "Background",
+      "shot": "Shot"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
@@ -2904,6 +2911,7 @@
       "characterImage": "Generate a portrait or design pass from a character prompt.",
       "backgroundImage": "Generate a scene background and atmosphere plate.",
       "frameImage": "Generate a keyframe image before video creation.",
+      "image": "Generate a character, background, or shot image — pick the role after adding.",
       "voice": "Select or upload a voice profile for video character voices.",
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
       "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
@@ -3345,13 +3353,16 @@
         "standard": "Standard",
         "fast": "Fast"
       },
-      "variantAriaLabel": "Model variant",
       "provider": {
         "fal": "fal",
         "volcengine": "VolcEngine"
       },
-      "providerAriaLabel": "Provider",
       "referenceModeOn": "Reference inputs connected — using the reference model.",
+      "modelRail": {
+        "label": "Model",
+        "ready": "Your key",
+        "needsKey": "Set up key"
+      },
       "expandCard": "Expand card",
       "collapseCard": "Collapse card",
       "pickModel": "Pick a model",
@@ -3381,6 +3392,10 @@
         "confirm": "Switch",
         "cancel": "Cancel"
       }
+    },
+    "nodeToolbar": {
+      "expand": "Expand",
+      "delete": "Delete"
     },
     "nodeDetail": {
       "close": "Collapse",
@@ -3490,7 +3505,9 @@
       },
       "backgroundImage": {
         "emptyPreview": "Define location, mood, and lighting for a reusable background.",
-        "footerEmpty": "Waiting for background setup"
+        "footerEmpty": "Waiting for background setup",
+        "nameLabel": "Background name",
+        "namePlaceholder": "e.g. Night street"
       },
       "frameImage": {
         "emptyPreview": "Combine characters, background, and shot intent into a video keyframe.",
@@ -3575,6 +3592,14 @@
       "scriptDocEmptyTitle": "No outline yet",
       "scriptDocEmptyHint": "Talk the outline through on the left, then draft it here — confirming spawns the matching nodes.",
       "scriptDocNeedChat": "Say a few words about your story first.",
+      "clarify": {
+        "title": "A few quick questions",
+        "customPlaceholder": "Or type your own…",
+        "skip": "Skip",
+        "submit": "Send answers",
+        "skipped": "skipped",
+        "answerPrefix": "My answers:"
+      },
       "scriptDocRolesLabel": "Roles · {count}",
       "scriptDocShotsLabel": "Shots · {count}",
       "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {skipped} reused.",

@@ -108,9 +108,40 @@ export const NodeScriptDocRequestSchema = z.object({
   apiKeyId: z.string().trim().min(1).max(160).optional(),
 })
 
-export const NodeScriptDocResponseDataSchema = z.object({
-  scriptDoc: ScriptDocSchema,
+// ─── Clarifying questions (反问澄清卡) ────────────────────────────────────
+// The drafting step may return structured questions instead of an outline when
+// it needs creative direction. Chips backfill the next draft; never hue-coded.
+
+export const ScriptDocClarifyingOptionSchema = z.object({
+  id: ScriptDocIdSchema,
+  label: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
 })
+
+export const ScriptDocClarifyingQuestionSchema = z.object({
+  id: ScriptDocIdSchema,
+  question: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
+  options: z
+    .array(ScriptDocClarifyingOptionSchema)
+    .min(1)
+    .max(SCRIPT_DOC_LIMITS.maxClarifyOptions),
+  multiSelect: z.boolean().default(false),
+  allowCustom: z.boolean().default(true),
+  allowSkip: z.boolean().default(true),
+})
+
+// Drafting returns EITHER the outline OR clarifying questions (discriminated by
+// `kind`). Keeps a single round-trip; the workspace renders the question card
+// and folds answers back into the next draft.
+export const NodeScriptDocResponseDataSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('scriptDoc'), scriptDoc: ScriptDocSchema }),
+  z.object({
+    kind: z.literal('questions'),
+    questions: z
+      .array(ScriptDocClarifyingQuestionSchema)
+      .min(1)
+      .max(SCRIPT_DOC_LIMITS.maxClarifyQuestions),
+  }),
+])
 
 export const NodeScriptDocApiSuccessResponseSchema = z.object({
   success: z.literal(true),
@@ -122,6 +153,12 @@ export type ScriptDocRole = z.infer<typeof ScriptDocRoleSchema>
 export type ScriptDocDialogueLine = z.infer<typeof ScriptDocDialogueLineSchema>
 export type ScriptDocShot = z.infer<typeof ScriptDocShotSchema>
 export type ScriptDoc = z.infer<typeof ScriptDocSchema>
+export type ScriptDocClarifyingOption = z.infer<
+  typeof ScriptDocClarifyingOptionSchema
+>
+export type ScriptDocClarifyingQuestion = z.infer<
+  typeof ScriptDocClarifyingQuestionSchema
+>
 export type NodeScriptDocRequest = z.infer<typeof NodeScriptDocRequestSchema>
 export type NodeScriptDocResponseData = z.infer<
   typeof NodeScriptDocResponseDataSchema

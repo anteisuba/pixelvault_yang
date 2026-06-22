@@ -3,7 +3,7 @@
  *
  * Tier 1 = brand (these strings MUST match the `MODEL_FAMILIES` labels in
  * `models.ts`). Tier 2 = variant (speed tier). Provider (fal / VolcEngine) is a
- * SEPARATE low-key control, not a switcher tier — see `VideoProviderPicker`.
+ * SEPARATE low-key control, not a switcher tier.
  * Reference-ness is mode-by-input (auto), never a tier. Only the brands listed
  * here are surfaced in the canvas switcher; other wired video families
  * (LTX / HappyHorse) stay hidden.

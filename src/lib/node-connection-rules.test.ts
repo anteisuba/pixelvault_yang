@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 
 import { canConnectNodeTypes } from './node-connection-rules'
 
@@ -25,6 +25,35 @@ describe('canConnectNodeTypes', () => {
     expect(
       canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.characterImage),
     ).toBe(true)
+  })
+
+  it('routes the unified image node by role', () => {
+    // image (any role) → seedance reference, mirroring the legacy image types.
+    expect(
+      canConnectNodeTypes(NODE_TYPE_IDS.image, NODE_TYPE_IDS.seedance),
+    ).toBe(true)
+    // voice → image[character] = the character audio-binding hop.
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.voice,
+        NODE_TYPE_IDS.image,
+        NODE_IMAGE_ROLE_IDS.character,
+      ),
+    ).toBe(true)
+    // voice → image[shot|background|frame] → no (only character accepts voice).
+    for (const role of [
+      NODE_IMAGE_ROLE_IDS.shot,
+      NODE_IMAGE_ROLE_IDS.background,
+      NODE_IMAGE_ROLE_IDS.frame,
+    ]) {
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image, role),
+      ).toBe(false)
+    }
+    // image target with no role → accepts nothing.
+    expect(canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image)).toBe(
+      false,
+    )
   })
 
   it('allows all reference families + video chains into seedance', () => {

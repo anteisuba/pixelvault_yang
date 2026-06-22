@@ -27,6 +27,7 @@ export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
 
   return (
     <NodeShell
+      nodeId={id}
       type={NODE_TYPE_IDS.voice}
       selected={selected}
       status={status}

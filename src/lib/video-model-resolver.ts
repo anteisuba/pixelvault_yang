@@ -98,6 +98,36 @@ export function isDualProviderBrand(
   return getBrandProviders(brand, options).length > 1
 }
 
+export interface BrandKeyStatus {
+  /** True when the user has a saved (BYOK) key for this brand → runnable now. */
+  ready: boolean
+  /** Representative option to drive QuickSetupDialog when a key is missing. */
+  setupOption: NodeWorkflowModelOption | null
+  /** Saved key's label / masked value, shown next to a ready brand. */
+  keyLabel?: string
+}
+
+/**
+ * Per-brand key status for the model rail. There is no platform/free tier in
+ * this deployment — a brand is either backed by the user's own saved key
+ * ("ready") or it needs one (route the click through QuickSetupDialog, Hard
+ * Rule #8), never disabled.
+ */
+export function getBrandKeyStatus(
+  brand: string,
+  options: NodeWorkflowModelOption[],
+): BrandKeyStatus {
+  const brandOptions = options.filter(
+    (option) => optionFamily(option) === brand,
+  )
+  const saved = brandOptions.find((option) => option.sourceType === 'saved')
+  return {
+    ready: Boolean(saved),
+    setupOption: pickBest(brandOptions),
+    keyLabel: saved?.keyLabel ?? saved?.maskedKey,
+  }
+}
+
 /** Default provider: one with a saved key, else any available, else FAL. */
 export function pickDefaultProvider(
   brand: string,

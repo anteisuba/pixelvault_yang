@@ -1,19 +1,22 @@
 'use client'
 
-import { useCallback, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useState, type KeyboardEvent } from 'react'
 import {
   AlertTriangle,
   Check,
   ChevronDown,
   Dices,
   Film,
+  KeyRound,
   Loader2,
   Lock,
   Sparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import type { AspectRatio } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -38,19 +41,23 @@ import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
-import { getBrandProviders } from '@/lib/video-model-resolver'
+import {
+  getBrandKeyStatus,
+  getBrandProviders,
+} from '@/lib/video-model-resolver'
 import {
   computeVideoRebindPreview,
   hasIgnoredRebindings,
   type VideoRebindPreviewItem,
 } from '@/lib/video-rebind-preview'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowNodeData } from '@/types/node-workflow'
+import type {
+  NodeWorkflowModelOption,
+  NodeWorkflowNodeData,
+} from '@/types/node-workflow'
 
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { VideoModelSwitcher } from './VideoModelSwitcher'
-import { VideoProviderPicker } from './VideoProviderPicker'
 
 interface VideoComposerProps {
   id: string
@@ -60,22 +67,10 @@ interface VideoComposerProps {
   density: 'card' | 'detail'
 }
 
-// fal Seedance duration enum: 'auto' or 4..15 seconds.
-const DURATION_OPTIONS = [
-  'auto',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  '11',
-  '12',
-  '13',
-  '14',
-  '15',
-] as const
+// fal Seedance duration enum: 'auto' or 4..15 seconds. The slider walks the
+// model's supported seconds by index; this is the fallback set when a model
+// doesn't declare `supportedDurations`.
+const DURATION_SECONDS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
 
 // Draft b2: a single prompt field — camera/motion ("运镜") go in the prompt,
 // not separate fields. This keeps the detail panel compact, not a long scroll.
@@ -138,6 +133,18 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     brand: string
     preview: VideoRebindPreviewItem[]
   } | null>(null)
+  // Brand awaiting an API key via QuickSetupDialog (Hard Rule #8): a needs-key
+  // brand opens the dialog instead of going disabled.
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    brand: string
+    option: NodeWorkflowModelOption
+  } | null>(null)
+  // The options list refreshes async after a key is verified; select the brand
+  // once it actually becomes ready.
+  const [pendingSetupBrand, setPendingSetupBrand] = useState<string | null>(
+    null,
+  )
 
   const handleEnhance = useCallback(async () => {
     if (!enhanceSeedancePrompt || isEnhancing) return
@@ -176,6 +183,33 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   }, [composer])
 
   const cancelPendingBrand = useCallback(() => setPendingBrand(null), [])
+
+  // Brand row click: a ready brand selects (with rebind preview); a needs-key
+  // brand opens QuickSetupDialog for its provider instead of disabling the row.
+  const handleBrandClick = useCallback(
+    (brand: string, status: ReturnType<typeof getBrandKeyStatus>) => {
+      if (!status.ready) {
+        if (status.setupOption) {
+          setQuickSetup({ open: true, brand, option: status.setupOption })
+        }
+        return
+      }
+      handleSelectBrand(brand)
+    },
+    [handleSelectBrand],
+  )
+
+  // After QuickSetupDialog verifies a key, the option list refreshes a tick
+  // later; apply the brand selection once it shows up as ready.
+  const { options: composerOptions, selectBrand: composerSelectBrand } =
+    composer
+  useEffect(() => {
+    if (!pendingSetupBrand) return
+    if (getBrandKeyStatus(pendingSetupBrand, composerOptions).ready) {
+      composerSelectBrand(pendingSetupBrand)
+      setPendingSetupBrand(null)
+    }
+  }, [pendingSetupBrand, composerOptions, composerSelectBrand])
 
   const providers = composer.state.brand
     ? getBrandProviders(composer.state.brand, composer.options)
@@ -258,6 +292,48 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     [id, updateNodeData],
   )
 
+  // Duration: a draggable slider that walks the model's supported seconds by
+  // index (snaps to valid values, works for non-contiguous sets like Veo 4/6/8),
+  // plus an 自动 toggle that hands duration back to the provider ('auto').
+  const durationOptions = capabilities?.supportedDurations ?? DURATION_SECONDS
+  const currentDurationRaw = getNodeWorkflowFieldValue(
+    data,
+    NODE_WORKFLOW_FIELD_IDS.duration,
+  )
+  const isAutoDuration =
+    currentDurationRaw === '' || currentDurationRaw === 'auto'
+  const parsedDuration = Number(currentDurationRaw)
+  const currentDurationSeconds =
+    !isAutoDuration && durationOptions.includes(parsedDuration)
+      ? parsedDuration
+      : (durationOptions[Math.floor(durationOptions.length / 2)] ??
+        durationOptions[0] ??
+        6)
+  const durationIndex = Math.max(
+    0,
+    durationOptions.indexOf(currentDurationSeconds),
+  )
+
+  const handleDurationAuto = useCallback(
+    (auto: boolean) => {
+      handleFieldChange(
+        NODE_WORKFLOW_FIELD_IDS.duration,
+        auto ? 'auto' : String(currentDurationSeconds),
+      )
+    },
+    [handleFieldChange, currentDurationSeconds],
+  )
+
+  const handleDurationSlide = useCallback(
+    (index: number) => {
+      const value = durationOptions[index]
+      if (value !== undefined) {
+        handleFieldChange(NODE_WORKFLOW_FIELD_IDS.duration, String(value))
+      }
+    },
+    [durationOptions, handleFieldChange],
+  )
+
   const handleGenerate = useCallback(() => {
     void generateMediaNode?.(id)
   }, [generateMediaNode, id])
@@ -270,7 +346,6 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
         ? t('noInput')
         : null
   const generateLabel = hasMedia ? t('regenerate') : t('generate')
-  const isExpand = density === 'detail'
 
   const generateButton = (
     <Button
@@ -343,31 +418,110 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   }
 
   return (
-    <div className="nodrag space-y-3">
-      <div className="space-y-1.5 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
-        <VideoModelSwitcher
-          brands={composer.brands}
-          currentBrand={composer.state.brand}
-          brandLabel={(brand) => brand}
-          variants={isExpand ? composer.variants : []}
-          currentVariant={composer.state.variant}
-          variantLabel={(variant) => tc(`variant.${variant}`)}
-          variantAriaLabel={tc('variantAriaLabel')}
-          onSelectBrand={handleSelectBrand}
-          onSelectVariant={composer.selectVariant}
-        />
-        {isExpand && composer.isDualProvider ? (
-          <VideoProviderPicker
-            providers={providers}
-            currentProvider={composer.state.provider}
-            providerLabel={(provider) =>
-              tc(`provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`)
-            }
-            ariaLabel={tc('providerAriaLabel')}
-            onSelectProvider={composer.selectProvider}
-          />
-        ) : null}
-        {isExpand && composer.hasReferenceInputs ? (
+    <div className="nodrag space-y-4">
+      <div className="space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
+        <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+          {tc('modelRail.label')}
+        </span>
+        <div className="space-y-1">
+          {composer.brands.map((brand) => {
+            const isCurrent = composer.state.brand === brand
+            const status = getBrandKeyStatus(brand, composer.options)
+            return (
+              <div
+                key={brand}
+                className={cn(
+                  'overflow-hidden rounded-lg border transition-colors',
+                  isCurrent
+                    ? 'border-node-edge bg-node-panel'
+                    : 'border-node-panel-inner',
+                )}
+              >
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  onClick={() => handleBrandClick(brand, status)}
+                  className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
+                >
+                  <span
+                    className={cn(
+                      'text-xs font-semibold',
+                      isCurrent ? 'text-node-foreground' : 'text-node-muted',
+                    )}
+                  >
+                    {brand}
+                  </span>
+                  {status.ready ? (
+                    <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
+                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                      <span className="max-w-24 truncate">
+                        {status.keyLabel ?? tc('modelRail.ready')}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
+                      <KeyRound className="size-3 shrink-0" />
+                      {tc('modelRail.needsKey')}
+                    </span>
+                  )}
+                </button>
+                {isCurrent && status.ready ? (
+                  <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
+                    {composer.variants.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {composer.variants.map((variant) => {
+                          const on = composer.state.variant === variant
+                          return (
+                            <button
+                              key={variant}
+                              type="button"
+                              {...KEY_GUARD}
+                              onClick={() => composer.selectVariant(variant)}
+                              className={cn(
+                                'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                on
+                                  ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                  : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                              )}
+                            >
+                              {tc(`variant.${variant}`)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                    {composer.isDualProvider ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {providers.map((provider) => {
+                          const on = composer.state.provider === provider
+                          return (
+                            <button
+                              key={provider}
+                              type="button"
+                              {...KEY_GUARD}
+                              onClick={() => composer.selectProvider(provider)}
+                              className={cn(
+                                'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                on
+                                  ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                  : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                              )}
+                            >
+                              {tc(
+                                `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        {composer.hasReferenceInputs ? (
           <p className="px-0.5 text-2xs leading-4 text-node-subtle">
             {tc('referenceModeOn')}
           </p>
@@ -419,8 +573,8 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
         </div>
       ) : null}
 
-      {isExpand ? (
-        <>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="space-y-3 lg:col-span-3">
           {enhanceSeedancePrompt ? (
             <button
               type="button"
@@ -453,7 +607,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
                     aria-label={tFields(`${fieldId}.label`)}
                     placeholder={tFields(`${fieldId}.placeholder`)}
                     {...KEY_GUARD}
-                    className="min-h-16 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                    className="min-h-44 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
                   />
                 ) : (
                   <IMEAwareInput
@@ -494,41 +648,44 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               </p>
             )}
           </div>
+        </div>
 
+        <div className="space-y-3 lg:col-span-2">
           <ComposerField label={tFields('duration.label')}>
-            <select
-              value={
-                DURATION_OPTIONS.includes(
-                  getNodeWorkflowFieldValue(
-                    data,
-                    NODE_WORKFLOW_FIELD_IDS.duration,
-                  ) as (typeof DURATION_OPTIONS)[number],
-                )
-                  ? getNodeWorkflowFieldValue(
-                      data,
-                      NODE_WORKFLOW_FIELD_IDS.duration,
-                    )
-                  : 'auto'
-              }
-              aria-label={tFields('duration.label')}
-              {...KEY_GUARD}
-              onChange={(event) =>
-                handleFieldChange(
-                  NODE_WORKFLOW_FIELD_IDS.duration,
-                  event.target.value,
-                )
-              }
-              className="h-9 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none focus-visible:border-node-edge"
-            >
-              <option value="auto">{tFields('duration.auto')}</option>
-              {DURATION_OPTIONS.filter((option) => option !== 'auto').map(
-                (option) => (
-                  <option key={option} value={option}>
-                    {tFields('duration.seconds', { value: option })}
-                  </option>
-                ),
-              )}
-            </select>
+            <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold tabular-nums text-node-foreground">
+                  {isAutoDuration
+                    ? tFields('duration.auto')
+                    : tFields('duration.seconds', {
+                        value: String(currentDurationSeconds),
+                      })}
+                </span>
+                <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
+                  {tFields('duration.auto')}
+                  <Switch
+                    checked={isAutoDuration}
+                    onCheckedChange={handleDurationAuto}
+                    aria-label={tFields('duration.auto')}
+                  />
+                </label>
+              </div>
+              <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
+                <Slider
+                  min={0}
+                  max={Math.max(0, durationOptions.length - 1)}
+                  step={1}
+                  value={[durationIndex]}
+                  onValueChange={(vals) => handleDurationSlide(vals[0] ?? 0)}
+                  disabled={isAutoDuration}
+                  aria-label={tFields('duration.label')}
+                />
+              </div>
+              <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
+                <span>{durationOptions[0]}</span>
+                <span>{durationOptions[durationOptions.length - 1]}</span>
+              </div>
+            </div>
           </ComposerField>
 
           <ComposerField label={t('resolutionLabel')}>
@@ -664,8 +821,8 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               ) : null}
             </ComposerField>
           ) : null}
-        </>
-      ) : null}
+        </div>
+      </div>
 
       {data.generationError ? (
         <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-2.5 text-2xs leading-4 text-red-100">
@@ -674,6 +831,23 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       ) : null}
 
       {generateButton}
+
+      {quickSetup ? (
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(open) =>
+            setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+          }
+          modelId={quickSetup.option.modelId}
+          modelLabel={quickSetup.brand}
+          adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
+          optionId={quickSetup.option.optionId}
+          onVerified={() => {
+            setPendingSetupBrand(quickSetup.brand)
+            setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
+          }}
+        />
+      ) : null}
     </div>
   )
 }

@@ -17,6 +17,9 @@ export const SCRIPT_DOC_LIMITS = {
   maxShots: 24,
   /** Dialogue lines per shot — keeps a single shot's voice fan-out sane. */
   maxDialoguePerShot: 6,
+  /** Clarifying questions the assistant may ask before drafting an outline. */
+  maxClarifyQuestions: 4,
+  maxClarifyOptions: 6,
   titleMaxLength: 120,
   loglineMaxLength: 400,
   styleNoteMaxLength: 400,
@@ -69,14 +72,27 @@ Return only valid JSON. Do not include markdown fences, commentary, or extra key
 Keep names original and avoid copyrighted franchise references unless the user explicitly supplied them.
 Use concise, concrete visual language that downstream image, voice, and video nodes can execute.
 Every shot's dialogue line must reference a role by its exact id via "speakerRoleId".
-When an existing ScriptDoc is provided, REVISE it in place: keep every existing id (role ids, shot ids, dialogue line ids) stable and reuse them. Only add, edit, or remove entries as the latest conversation requires. Never renumber or regenerate ids that already exist.`
+When an existing ScriptDoc is provided, REVISE it in place: keep every existing id (role ids, shot ids, dialogue line ids) stable and reuse them. Only add, edit, or remove entries as the latest conversation requires. Never renumber or regenerate ids that already exist.
 
-export const SCRIPT_DOC_OUTPUT_CONTRACT = `Required JSON shape:
+If the conversation lacks the creative direction needed to draft a useful outline (e.g. genre/tone, target length, number of characters, visual style), FIRST return clarifying questions instead of an outline. Ask only what changes the outline's direction (a few at most). Offer concrete, context-specific options; always allow a custom answer and a skip. Once the user has answered or skipped, return the ScriptDoc. When an existing ScriptDoc is provided, prefer revising it over asking more questions.`
+
+export const SCRIPT_DOC_OUTPUT_CONTRACT = `Return exactly ONE of these two JSON shapes:
+
+(A) Clarifying questions — when you need direction before drafting:
 {
-  "title": "short original title",
-  "logline": "one or two sentence premise",
-  "styleNote": "overall visual style and tone (optional)",
-  "roles": [{"id":"role-1","name":"...","description":"visual identity seed","voiceHint":"optional voice or tone"}],
-  "shots": [{"id":"shot-1","sceneLabel":"optional scene name","summary":"what happens — concrete and visual","camera":"optional camera note","roleIds":["role-1"],"dialogue":[{"id":"line-1","speakerRoleId":"role-1","line":"the spoken line"}]}]
+  "kind": "questions",
+  "questions": [{"id":"q-1","question":"...","options":[{"id":"o-1","label":"..."}],"multiSelect":false,"allowCustom":true,"allowSkip":true}]
 }
-Use ids of the form role-N / shot-N / line-N. Keep all ids stable across revisions.`
+
+(B) The outline — when you have enough to draft or revise:
+{
+  "kind": "scriptDoc",
+  "scriptDoc": {
+    "title": "short original title",
+    "logline": "one or two sentence premise",
+    "styleNote": "overall visual style and tone (optional)",
+    "roles": [{"id":"role-1","name":"...","description":"visual identity seed","voiceHint":"optional voice or tone"}],
+    "shots": [{"id":"shot-1","sceneLabel":"optional scene name","summary":"what happens — concrete and visual","camera":"optional camera note","roleIds":["role-1"],"dialogue":[{"id":"line-1","speakerRoleId":"role-1","line":"the spoken line"}]}]
+  }
+}
+Use ids of the form role-N / shot-N / line-N / q-N / o-N. Keep all ScriptDoc ids stable across revisions.`

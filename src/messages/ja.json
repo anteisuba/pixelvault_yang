@@ -2891,10 +2891,17 @@
       "characterImage": "キャラクター画像",
       "backgroundImage": "背景画像",
       "frameImage": "キーフレーム",
+      "image": "画像",
       "voice": "音色",
       "seedance": "動画生成",
       "videoReference": "参考動画",
       "videoMerge": "動画結合"
+    },
+    "imageRolePicker": {
+      "title": "この画像の用途は？",
+      "character": "キャラクター",
+      "background": "背景",
+      "shot": "ショット"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
@@ -2904,6 +2911,7 @@
       "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。",
       "backgroundImage": "シーン背景と空気感のある画像を生成します。",
       "frameImage": "動画生成前のキーフレーム画像を生成します。",
+      "image": "キャラクター・背景・ショット画像を生成——追加後に用途を選びます。",
       "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
       "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。",
       "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。",
@@ -3345,13 +3353,16 @@
         "standard": "標準",
         "fast": "高速"
       },
-      "variantAriaLabel": "モデルのバリアント",
       "provider": {
         "fal": "fal",
         "volcengine": "VolcEngine"
       },
-      "providerAriaLabel": "プロバイダー",
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
+      "modelRail": {
+        "label": "モデル",
+        "ready": "自分のキー",
+        "needsKey": "キー設定"
+      },
       "expandCard": "カードを展開",
       "collapseCard": "カードを折りたたむ",
       "pickModel": "モデルを選択",
@@ -3381,6 +3392,10 @@
         "confirm": "切り替える",
         "cancel": "キャンセル"
       }
+    },
+    "nodeToolbar": {
+      "expand": "拡大",
+      "delete": "削除"
     },
     "nodeDetail": {
       "close": "折りたたむ",
@@ -3490,7 +3505,9 @@
       },
       "backgroundImage": {
         "emptyPreview": "場所、ムード、光を定義して再利用できる背景を生成します。",
-        "footerEmpty": "背景設定を待機中"
+        "footerEmpty": "背景設定を待機中",
+        "nameLabel": "背景名",
+        "namePlaceholder": "例：夜の街"
       },
       "frameImage": {
         "emptyPreview": "キャラクター、背景、ショット意図を合わせて動画キーフレームにします。",
@@ -3575,6 +3592,14 @@
       "scriptDocEmptyTitle": "まだ構成がありません",
       "scriptDocEmptyHint": "左で構成をまとめてから、ここで作成します。確定すると対応ノードが生成されます。",
       "scriptDocNeedChat": "まずはストーリーについて少し話してください。",
+      "clarify": {
+        "title": "いくつか確認させてください",
+        "customPlaceholder": "自由に入力…",
+        "skip": "スキップ",
+        "submit": "回答を送る",
+        "skipped": "スキップ",
+        "answerPrefix": "回答:"
+      },
       "scriptDocRolesLabel": "キャラクター · {count}",
       "scriptDocShotsLabel": "ショット · {count}",
       "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、再利用 {skipped}。",

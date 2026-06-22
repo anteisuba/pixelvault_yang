@@ -84,6 +84,8 @@ describe('createNodeScriptDoc', () => {
       locale: 'en',
     })
 
+    expect(result.kind).toBe('scriptDoc')
+    if (result.kind !== 'scriptDoc') throw new Error('expected a scriptDoc')
     expect(result.scriptDoc.title).toBe(VALID_SCRIPT_DOC.title)
     expect(result.scriptDoc.shots[0]?.dialogue[0]?.speakerRoleId).toBe('role-1')
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(
@@ -93,6 +95,35 @@ describe('createNodeScriptDoc', () => {
         responseFormat: 'json_object',
       }),
     )
+  })
+
+  it('returns clarifying questions when the model asks for direction', async () => {
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        kind: 'questions',
+        questions: [
+          {
+            id: 'q-1',
+            question: 'How long should it be?',
+            options: [
+              { id: 'o-1', label: '15s' },
+              { id: 'o-2', label: '30s' },
+            ],
+          },
+        ],
+      }),
+    )
+
+    const result = await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      locale: 'en',
+    })
+
+    expect(result.kind).toBe('questions')
+    if (result.kind !== 'questions') throw new Error('expected questions')
+    expect(result.questions).toHaveLength(1)
+    expect(result.questions[0]?.options).toHaveLength(2)
+    expect(result.questions[0]?.allowCustom).toBe(true)
   })
 
   it('feeds the existing ScriptDoc into the prompt so ids are preserved on update', async () => {

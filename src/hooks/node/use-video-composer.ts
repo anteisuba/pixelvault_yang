@@ -14,6 +14,7 @@ import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowA
 import {
   getNodeMediaUrl,
   getUpstreamNodes,
+  harvestUpstreamAudioBindings,
   isKeyframeNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
@@ -108,6 +109,63 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       else if (isVoiceProfileNode(node)) kinds.add('voice')
     }
     return Array.from(kinds)
+  }, [edges, nodes, nodeId])
+
+  // Per-reference tokens for the detail panel's clickable @token chips. Visual
+  // refs (character/background) carry their user-given name → @name (natural
+  // language; the image itself still rides image_urls). Voices come from the
+  // same harvest the generate path uses, so @AudioN order matches the fal
+  // builder's audio_urls slots exactly. An empty `token` = unnamed → the chip
+  // is a non-insertable indicator until the node is named.
+  const referenceTokens = useMemo<
+    Array<{
+      id: string
+      kind: 'character' | 'background' | 'voice'
+      label: string
+      token: string
+    }>
+  >(() => {
+    const incoming = getUpstreamNodes(nodeId, edges, nodes)
+    const tokens: Array<{
+      id: string
+      kind: 'character' | 'background' | 'voice'
+      label: string
+      token: string
+    }> = []
+    for (const node of incoming) {
+      if (node.type === NODE_TYPE_IDS.characterImage) {
+        const name =
+          typeof node.data.characterName === 'string'
+            ? node.data.characterName.trim()
+            : ''
+        tokens.push({
+          id: node.id,
+          kind: 'character',
+          label: name,
+          token: name ? `@${name}` : '',
+        })
+      } else if (node.type === NODE_TYPE_IDS.backgroundImage) {
+        const name =
+          typeof node.data.backgroundName === 'string'
+            ? node.data.backgroundName.trim()
+            : ''
+        tokens.push({
+          id: node.id,
+          kind: 'background',
+          label: name,
+          token: name ? `@${name}` : '',
+        })
+      }
+    }
+    harvestUpstreamAudioBindings(nodeId, edges, nodes).forEach((binding, i) => {
+      tokens.push({
+        id: `audio-${i}`,
+        kind: 'voice',
+        label: binding.characterName ?? '',
+        token: `@Audio${i + 1}`,
+      })
+    })
+    return tokens
   }, [edges, nodes, nodeId])
 
   const state = useMemo(
@@ -248,6 +306,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     hasReferenceInputs,
     hasUpstreamInputs,
     referenceKinds,
+    referenceTokens,
     selectBrand,
     selectVariant,
     selectProvider,

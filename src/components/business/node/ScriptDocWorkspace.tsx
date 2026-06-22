@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   AlertCircle,
   Film,
@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/button'
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AppLocale } from '@/i18n/routing'
-import type { ScriptDoc } from '@/types/script-doc'
+import type { ScriptDoc, ScriptDocClarifyingQuestion } from '@/types/script-doc'
 
+import { ClarifyingQuestionCard } from './ClarifyingQuestionCard'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 
 interface ScriptDocWorkspaceProps {
@@ -69,21 +70,56 @@ export function ScriptDocWorkspace({
     [scriptDoc],
   )
 
+  const [pendingQuestions, setPendingQuestions] = useState<
+    ScriptDocClarifyingQuestion[] | null
+  >(null)
+  const [answerTurns, setAnswerTurns] = useState<
+    { role: 'user'; content: string }[]
+  >([])
+
+  // One draft round: send the conversation + any accumulated clarification
+  // answers; the LLM returns either the outline (→ setScriptDoc) or more
+  // questions (→ render the card).
+  const runDraft = useCallback(
+    async (extraTurns: { role: 'user'; content: string }[]) => {
+      const result = await draft({
+        messages: [...apiMessages, ...extraTurns],
+        scriptDoc,
+        locale,
+        apiKeyId,
+      })
+      if (!result) return
+      if (result.kind === 'questions') {
+        setPendingQuestions(result.questions)
+        return
+      }
+      setPendingQuestions(null)
+      setScriptDoc(result.scriptDoc)
+    },
+    [apiKeyId, apiMessages, draft, locale, scriptDoc, setScriptDoc],
+  )
+
   const handleDraft = useCallback(async () => {
     if (apiMessages.length === 0) {
       toast.info(t('scriptDocNeedChat'), TOAST_OPTIONS)
       return
     }
-    const next = await draft({
-      messages: apiMessages,
-      scriptDoc,
-      locale,
-      apiKeyId,
-    })
-    if (next) {
-      setScriptDoc(next)
-    }
-  }, [apiKeyId, apiMessages, draft, locale, scriptDoc, setScriptDoc, t])
+    setAnswerTurns([])
+    await runDraft([])
+  }, [apiMessages.length, runDraft, t])
+
+  const handleSubmitAnswers = useCallback(
+    async (summary: string) => {
+      const nextTurns = [
+        ...answerTurns,
+        { role: 'user' as const, content: summary },
+      ]
+      setAnswerTurns(nextTurns)
+      setPendingQuestions(null)
+      await runDraft(nextTurns)
+    },
+    [answerTurns, runDraft],
+  )
 
   const handleApply = useCallback(() => {
     const result = applyScriptDocToGraph()
@@ -123,7 +159,13 @@ export function ScriptDocWorkspace({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {scriptDoc ? (
+        {pendingQuestions ? (
+          <ClarifyingQuestionCard
+            questions={pendingQuestions}
+            isSubmitting={isDrafting}
+            onSubmit={handleSubmitAnswers}
+          />
+        ) : scriptDoc ? (
           <div className="space-y-4">
             <div>
               <p className="text-base font-semibold leading-6 text-node-foreground">

@@ -1,4 +1,5 @@
 import {
+  NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
@@ -12,7 +13,21 @@ import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 
+/** Unified image roles that feed Seedance as a plain visual reference (vs the
+ *  keyframe role, which pins temporal structure and is harvested first). */
+const VISUAL_REFERENCE_IMAGE_ROLES: ReadonlySet<string> = new Set([
+  NODE_IMAGE_ROLE_IDS.character,
+  NODE_IMAGE_ROLE_IDS.shot,
+  NODE_IMAGE_ROLE_IDS.background,
+])
+
 export function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
+  if (node.type === NODE_TYPE_IDS.image) {
+    return VISUAL_REFERENCE_IMAGE_ROLES.has(
+      node.data.role ?? NODE_IMAGE_ROLE_IDS.shot,
+    )
+  }
+  // Legacy per-type image nodes (pre role-migration).
   return (
     node.type === NODE_TYPE_IDS.characterImage ||
     node.type === NODE_TYPE_IDS.shot ||
@@ -21,6 +36,11 @@ export function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
 }
 
 export function isKeyframeNode(node: NodeWorkflowNode): boolean {
+  if (node.type === NODE_TYPE_IDS.image) {
+    return (
+      (node.data.role ?? NODE_IMAGE_ROLE_IDS.shot) === NODE_IMAGE_ROLE_IDS.frame
+    )
+  }
   return node.type === NODE_TYPE_IDS.frameImage
 }
 

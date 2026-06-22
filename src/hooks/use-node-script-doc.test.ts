@@ -8,7 +8,11 @@ vi.mock('@/lib/api-client/node-script-doc', () => ({
 }))
 
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
-import type { NodeScriptDocRequest, ScriptDoc } from '@/types/script-doc'
+import type {
+  NodeScriptDocRequest,
+  NodeScriptDocResponseData,
+  ScriptDoc,
+} from '@/types/script-doc'
 
 const REQUEST: NodeScriptDocRequest = {
   messages: [{ role: 'user', content: 'a botanist finds a signal' }],
@@ -27,20 +31,20 @@ describe('useNodeScriptDoc', () => {
     vi.clearAllMocks()
   })
 
-  it('returns the ScriptDoc and clears error on success', async () => {
+  it('returns the draft result and clears error on success', async () => {
     mockCreateNodeScriptDocAPI.mockResolvedValue({
       success: true,
-      data: { scriptDoc: DOC },
+      data: { kind: 'scriptDoc', scriptDoc: DOC },
     })
 
     const { result } = renderHook(() => useNodeScriptDoc())
 
-    let returned: ScriptDoc | null = null
+    let returned: NodeScriptDocResponseData | null = null
     await act(async () => {
       returned = await result.current.draft(REQUEST)
     })
 
-    expect(returned).toEqual(DOC)
+    expect(returned).toEqual({ kind: 'scriptDoc', scriptDoc: DOC })
     expect(result.current.error).toBeNull()
     expect(result.current.isDrafting).toBe(false)
   })
@@ -53,7 +57,10 @@ describe('useNodeScriptDoc', () => {
 
     const { result } = renderHook(() => useNodeScriptDoc())
 
-    let returned: ScriptDoc | null = DOC
+    let returned: NodeScriptDocResponseData | null = {
+      kind: 'scriptDoc',
+      scriptDoc: DOC,
+    }
     await act(async () => {
       returned = await result.current.draft(REQUEST)
     })

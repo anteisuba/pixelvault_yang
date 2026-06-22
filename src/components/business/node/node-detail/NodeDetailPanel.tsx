@@ -8,8 +8,12 @@ import { useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
 import { NODE_ACCENTS, NODE_TOKEN_BADGE_LABELS } from '@/constants/node-tokens'
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_TYPE_IDS,
+  type NodeWorkflowNodeType,
+} from '@/constants/node-types'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
 
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
@@ -21,16 +25,23 @@ interface NodeDetailPanelProps {
   onClose(): void
 }
 
-function getNodeName(node: NodeWorkflowNode, fallback: string): string {
-  if (node.type === NODE_TYPE_IDS.characterImage) {
+function getNodeName(
+  node: NodeWorkflowNode,
+  presentationType: NodeWorkflowNodeType,
+  fallback: string,
+): string {
+  if (presentationType === NODE_TYPE_IDS.characterImage) {
     return (
       node.data.characterName?.trim() ||
       node.data.character?.name?.trim() ||
       fallback
     )
   }
-  if (node.type === NODE_TYPE_IDS.voice) {
+  if (presentationType === NODE_TYPE_IDS.voice) {
     return node.data.voiceName?.trim() || node.data.voiceId?.trim() || fallback
+  }
+  if (presentationType === NODE_TYPE_IDS.backgroundImage) {
+    return node.data.backgroundName?.trim() || fallback
   }
   return fallback
 }
@@ -56,6 +67,9 @@ export function NodeDetailPanel({
   const node = expandedNodeId
     ? (nodes.find((candidate) => candidate.id === expandedNodeId) ?? null)
     : null
+  // Image nodes (option B) present as their legacy per-role type — reuses the
+  // existing badge / accent / i18n label / detail body for that role.
+  const presentationType = node ? resolveNodePresentationType(node) : null
 
   useEffect(() => {
     if (!node) return
@@ -70,7 +84,7 @@ export function NodeDetailPanel({
 
   return (
     <AnimatePresence>
-      {node ? (
+      {node && presentationType ? (
         <motion.div
           key={node.id}
           initial={{ opacity: 0 }}
@@ -91,26 +105,35 @@ export function NodeDetailPanel({
             exit={{ scale: 0.97 }}
             transition={transition}
             style={{ maxWidth: 'calc(100vw - 2rem)' }}
-            className="relative flex max-h-[80svh] w-node-detail-panel flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl"
+            className={cn(
+              'relative flex max-h-[80svh] flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl',
+              node.type === NODE_TYPE_IDS.seedance
+                ? 'w-node-detail-panel-wide'
+                : 'w-node-detail-panel',
+            )}
           >
             <header className="flex items-center justify-between gap-3 border-b border-node-panel-inner px-5 py-4">
               <div className="flex min-w-0 items-center gap-2">
                 <span
                   className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
-                    NODE_ACCENTS[node.type].iconPlate,
-                    NODE_ACCENTS[node.type].iconText,
+                    NODE_ACCENTS[presentationType].iconPlate,
+                    NODE_ACCENTS[presentationType].iconText,
                   )}
                   aria-hidden
                 >
-                  {NODE_TOKEN_BADGE_LABELS[node.type]}
+                  {NODE_TOKEN_BADGE_LABELS[presentationType]}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-node-foreground">
-                    {getNodeName(node, tTypes(node.type))}
+                    {getNodeName(
+                      node,
+                      presentationType,
+                      tTypes(presentationType),
+                    )}
                   </p>
                   <p className="truncate text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {t('detailSuffix', { type: tTypes(node.type) })}
+                    {t('detailSuffix', { type: tTypes(presentationType) })}
                   </p>
                 </div>
               </div>
@@ -130,9 +153,13 @@ export function NodeDetailPanel({
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
               {(() => {
                 const Body =
-                  NODE_DETAIL_REGISTRY[node.type] ?? GenericDetailBody
+                  NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
                 return (
-                  <Body nodeId={node.id} type={node.type} data={node.data} />
+                  <Body
+                    nodeId={node.id}
+                    type={presentationType}
+                    data={node.data}
+                  />
                 )
               })()}
             </div>

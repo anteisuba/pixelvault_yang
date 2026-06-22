@@ -21,7 +21,9 @@
  */
 
 import {
+  NODE_IMAGE_ROLE_IDS,
   NODE_TYPE_IDS,
+  type NodeImageRole,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 
@@ -35,6 +37,9 @@ export const NODE_CONNECTION_RULES: Partial<
     NODE_TYPE_IDS.backgroundImage,
     NODE_TYPE_IDS.frameImage,
     NODE_TYPE_IDS.shot,
+    // Unified image node (any role) — seedance accepts it as a reference, the
+    // same way it accepts the legacy per-role image types above.
+    NODE_TYPE_IDS.image,
     NODE_TYPE_IDS.voice,
     NODE_TYPE_IDS.seedance,
     NODE_TYPE_IDS.videoReference,
@@ -57,6 +62,16 @@ export const NODE_CONNECTION_RULES: Partial<
 export function canConnectNodeTypes(
   source: NodeWorkflowNodeType,
   target: NodeWorkflowNodeType,
+  targetRole?: NodeImageRole,
 ): boolean {
+  // Unified image node: only role=character accepts an input (voice), mirroring
+  // the legacy characterImage rule; every other role is a leaf/source. The
+  // static matrix can't see role, so image targets are resolved here.
+  if (target === NODE_TYPE_IDS.image) {
+    return (
+      targetRole === NODE_IMAGE_ROLE_IDS.character &&
+      source === NODE_TYPE_IDS.voice
+    )
+  }
   return NODE_CONNECTION_RULES[target]?.includes(source) ?? false
 }

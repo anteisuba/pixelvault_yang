@@ -95,7 +95,7 @@ export function NodeMediaPreview({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
 
   return (
-    <NodeShell type={type} selected={selected} status={data.status}>
+    <NodeShell nodeId={id} type={type} selected={selected} status={data.status}>
       <NodeShell.Header
         type={type}
         status={data.status}
@@ -143,6 +143,7 @@ export function NodeMediaPreview({
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
               <Loader2 className="size-5 animate-spin text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
+              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-panel-inner" />
             </div>
           ) : null}
         </div>

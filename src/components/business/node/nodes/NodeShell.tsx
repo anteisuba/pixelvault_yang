@@ -1,11 +1,13 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Handle, Position } from '@xyflow/react'
+import { Handle, NodeToolbar, Position } from '@xyflow/react'
 import {
   AudioWaveform,
+  Maximize2,
   Mountain,
   Play,
+  Trash2,
   UserRound,
   type LucideIcon,
 } from 'lucide-react'
@@ -22,10 +24,13 @@ import {
 } from '@/constants/node-types'
 import { cn } from '@/lib/utils'
 
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './NodeStatusBadge'
 
 interface NodeShellRootProps {
   type: NodeTokenType
+  /** When set, a Figma-style floating toolbar (⤢ / delete) shows on select. */
+  nodeId?: string
   selected?: boolean
   /** When `failed`, the card gets a red border (must-1 失败态). Optional so
    *  existing callers are unaffected; node cards pass their `data.status`. */
@@ -79,6 +84,7 @@ const HANDLE_BASE =
 
 function NodeShellRoot({
   type,
+  nodeId,
   selected,
   status,
   children,
@@ -87,6 +93,8 @@ function NodeShellRoot({
   overridden = false,
   className,
 }: NodeShellRootProps) {
+  const t = useTranslations('StudioNode.nodeToolbar')
+  const { setExpandedNodeId, deleteNode } = useNodeWorkflowActions()
   const accent = NODE_ACCENTS[type]
   const Glyph = PORT_GLYPHS[type]
   const isFailed = status === NODE_STATUS_IDS.failed
@@ -105,6 +113,35 @@ function NodeShellRoot({
         className,
       )}
     >
+      {nodeId ? (
+        <NodeToolbar
+          nodeId={nodeId}
+          isVisible={Boolean(selected)}
+          position={Position.Top}
+          offset={8}
+        >
+          <div className="flex items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 shadow-node-panel backdrop-blur">
+            <button
+              type="button"
+              onClick={() => setExpandedNodeId(nodeId)}
+              aria-label={t('expand')}
+              title={t('expand')}
+              className="flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+            >
+              <Maximize2 className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteNode(nodeId)}
+              aria-label={t('delete')}
+              title={t('delete')}
+              className="flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-status-failed/40 hover:text-node-status-failed-fg"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        </NodeToolbar>
+      ) : null}
       {showTargetHandle ? (
         <Handle
           type="target"

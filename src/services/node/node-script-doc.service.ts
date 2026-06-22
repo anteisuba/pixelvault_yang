@@ -17,6 +17,7 @@ import {
 } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import {
+  NodeScriptDocResponseDataSchema,
   ScriptDocSchema,
   type NodeScriptDocRequest,
   type NodeScriptDocResponseData,
@@ -48,11 +49,11 @@ function buildUserPrompt(request: NodeScriptDocRequest): string {
 
   return [
     SCRIPT_DOC_OUTPUT_CONTRACT,
-    `Limits: max ${SCRIPT_DOC_LIMITS.maxRoles} roles, ${SCRIPT_DOC_LIMITS.maxShots} shots, ${SCRIPT_DOC_LIMITS.maxDialoguePerShot} dialogue lines per shot.`,
+    `Limits: max ${SCRIPT_DOC_LIMITS.maxRoles} roles, ${SCRIPT_DOC_LIMITS.maxShots} shots, ${SCRIPT_DOC_LIMITS.maxDialoguePerShot} dialogue lines per shot, ${SCRIPT_DOC_LIMITS.maxClarifyQuestions} clarifying questions.`,
     `Human-readable text language: ${language}. Keep JSON keys in English; content may match the user's language.`,
     existing,
     `CONVERSATION:\n${buildConversation(request.messages)}`,
-    'Return the complete, updated ScriptDoc as a single JSON object.',
+    'Return either clarifying questions or the complete ScriptDoc (per the output contract) as a single JSON object.',
   ].join('\n\n')
 }
 
@@ -83,17 +84,26 @@ function parseJsonObject(raw: string): unknown {
   }
 }
 
-function validateScriptDocOutput(rawOutput: string) {
-  const validation = validateLlmStructuredOutput(
-    parseJsonObject(rawOutput),
-    ScriptDocSchema,
-  )
+function validateDraftOutput(rawOutput: string): NodeScriptDocResponseData {
+  const parsed = parseJsonObject(rawOutput)
 
-  if (!validation.usable || !validation.data) {
-    throw createInvalidOutputError()
+  // Preferred: the discriminated {kind:'scriptDoc'|'questions'} shape.
+  const union = validateLlmStructuredOutput(
+    parsed,
+    NodeScriptDocResponseDataSchema,
+  )
+  if (union.usable && union.data) {
+    return union.data
   }
 
-  return validation.data
+  // Lenient fallback: a bare ScriptDoc object (no `kind` wrapper) — keeps older
+  // model behaviour working and degrades gracefully if the model forgets to wrap.
+  const bare = validateLlmStructuredOutput(parsed, ScriptDocSchema)
+  if (bare.usable && bare.data) {
+    return { kind: 'scriptDoc', scriptDoc: bare.data }
+  }
+
+  throw createInvalidOutputError()
 }
 
 function isScriptDocRetryable(error: unknown): boolean {
@@ -145,7 +155,7 @@ export async function createNodeScriptDoc(
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, params.apiKeyId)
 
-  const scriptDoc = await withRetry(
+  const result = await withRetry(
     async () => {
       const rawOutput = await withScriptDocTimeout(
         llmTextCompletion({
@@ -159,7 +169,7 @@ export async function createNodeScriptDoc(
         }),
       )
 
-      return validateScriptDocOutput(rawOutput)
+      return validateDraftOutput(rawOutput)
     },
     {
       maxAttempts: 2,
@@ -169,11 +179,16 @@ export async function createNodeScriptDoc(
     },
   )
 
-  logger.info('Node ScriptDoc generated', {
+  logger.info('Node ScriptDoc drafted', {
     adapterType: route.adapterType,
-    roleCount: scriptDoc.roles.length,
-    shotCount: scriptDoc.shots.length,
+    kind: result.kind,
+    ...(result.kind === 'scriptDoc'
+      ? {
+          roleCount: result.scriptDoc.roles.length,
+          shotCount: result.scriptDoc.shots.length,
+        }
+      : { questionCount: result.questions.length }),
   })
 
-  return { scriptDoc }
+  return result
 }

@@ -59,6 +59,8 @@
   --width-node-card-expanded: 38rem;
   /* 节点 ⤢「详情」浮层面板宽度（B3：不挤画布，独立大面板）。 */
   --width-node-detail-panel: 34rem;
+  /* 视频详情用宽版 = 双栏（左创作 / 右参数）。其它节点体保持窄版单列。 */
+  --width-node-detail-panel-wide: 48rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -1176,6 +1178,46 @@ html:lang(zh) {
 }
 .node-canvas-edge-running {
   animation: node-canvas-edge-pulse 1.4s ease-in-out infinite;
+}
+
+/* must-1 「进度在节点」: an indeterminate generating bar on the node card. A real
+   percentage needs backend progress events; this neutral sweep at least shows
+   work-in-progress on the card itself. reduced-motion disabled globally. */
+@keyframes node-canvas-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+.node-canvas-progress-track {
+  position: relative;
+  overflow: hidden;
+}
+.node-canvas-progress-track::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--node-foreground);
+  animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
+}
+
+/* Neutralise the shared radix Slider inside the video detail panel (去黄橙 D1):
+   the default uses --primary/--muted; here the duration slider is pure neutral. */
+.node-duration-slider [data-slot='slider-track'] {
+  background: var(--node-panel-inner);
+}
+.node-duration-slider [data-slot='slider-range'] {
+  background: var(--node-foreground);
+}
+.node-duration-slider [data-slot='slider-thumb'] {
+  background: var(--node-foreground);
+  border-color: var(--node-foreground);
 }
 
 /* ── Studio generating reveal — Krea-style shimmer ─────────────── */

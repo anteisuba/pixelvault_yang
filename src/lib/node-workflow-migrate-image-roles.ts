@@ -65,7 +65,8 @@ export function migrateImageRoles(state: NodeWorkflowState): NodeWorkflowState {
     if (!isImageRole) return node
 
     // Normalize the result field to mediaUrl + drop the ignored imageMode gate.
-    const { imageMode: _ignoredImageMode, ...restData } = node.data
+    const restData = { ...node.data }
+    delete restData.imageMode
     const mediaUrl =
       typeof restData.mediaUrl === 'string'
         ? restData.mediaUrl

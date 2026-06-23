@@ -129,15 +129,6 @@ const TRELLIS_DECIMATION_OPTIONS = [
   { value: TRELLIS_2_DECIMATION_TARGET.MAX, label: '2M' },
 ]
 
-type Preset3DId = 'fidelity' | 'detail' | 'fast'
-
-interface Preset3D {
-  id: Preset3DId
-  multiViewModelId: string
-  enablePbr: boolean
-  faceCount: number
-}
-
 // PR1-A2: opinionated 3D parameter bundles for Hunyuan3D v3 / v3.1 Pro.
 // `fidelity` is the default — 500k faces stays sharper than 1M/1.5M because
 // texel density holds up, and Flux Kontext preserves pose for the side views.
@@ -147,33 +138,6 @@ interface Preset3D {
 // Gemini's reference-edit was both less stable on anime/figurine subjects
 // and prone to 60s timeouts that tripped the per-provider circuit breaker
 // once 5 concurrent angle calls fanned out.
-const PRESETS_3D: readonly Preset3D[] = [
-  {
-    id: 'fidelity',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
-    enablePbr: true,
-    faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
-  },
-  {
-    id: 'detail',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
-    enablePbr: true,
-    faceCount: HUNYUAN3D_FACE_COUNT.HIGH,
-  },
-  {
-    id: 'fast',
-    multiViewModelId: AI_MODELS.FLUX_KONTEXT_MAX,
-    enablePbr: false,
-    faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
-  },
-] as const
-
-const PRESET_I18N: Record<Preset3DId, { label: string; hint: string }> = {
-  fidelity: { label: 'presetFidelityLabel', hint: 'presetFidelityHint' },
-  detail: { label: 'presetDetailLabel', hint: 'presetDetailHint' },
-  fast: { label: 'presetFastLabel', hint: 'presetFastHint' },
-}
-
 type GeneratedSideView = (typeof GENERATED_VIEW_ANGLES)[number]
 type ManualMultiViewImages = Partial<
   Record<GeneratedSideView, MultiViewImageRecord>
@@ -453,25 +417,6 @@ export function Studio3DWorkspace({
     useState<GeneratedSideView | null>(null)
   const [multiViewLightboxIndex, setMultiViewLightboxIndex] = useState(-1)
 
-  // PR1-A2: derived from the three knobs the preset bundles touch. Highlights
-  // the matching chip when the user's current settings happen to match a
-  // preset; goes null the moment they hand-tune anything off-preset.
-  const activePresetId = useMemo<Preset3DId | null>(() => {
-    const match = PRESETS_3D.find(
-      (p) =>
-        p.multiViewModelId === selectedMultiViewModelId &&
-        p.enablePbr === enablePbr &&
-        p.faceCount === faceCount,
-    )
-    return match?.id ?? null
-  }, [selectedMultiViewModelId, enablePbr, faceCount])
-
-  const applyPreset = (preset: Preset3D) => {
-    setSelectedMultiViewModelId(preset.multiViewModelId)
-    setEnablePbr(preset.enablePbr)
-    setFaceCount(preset.faceCount)
-  }
-
   const {
     isGenerating,
     stage,
@@ -480,7 +425,6 @@ export function Studio3DWorkspace({
     provisionalModelUrl,
     uploadProgress,
     generatedGeneration,
-    jobId: activeJobId,
     generate,
     reset,
   } = useGenerate3D()

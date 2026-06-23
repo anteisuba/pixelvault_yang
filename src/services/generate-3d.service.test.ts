@@ -123,10 +123,7 @@ import {
   streamUploadToR2,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
-import {
-  dispatchHunyuan3DWorkerRun,
-  dispatchHyper3DRodinWorkerRun,
-} from '@/services/execution-worker.service'
+import { dispatchHunyuan3DWorkerRun } from '@/services/execution-worker.service'
 
 const mockFindJob = vi.mocked(db.generationJob.findUnique)
 const mockUpdateJob = vi.mocked(db.generationJob.update)
@@ -145,7 +142,6 @@ const mockGenerateStorageKey = vi.mocked(generateStorageKey)
 const mockStreamUploadToR2 = vi.mocked(streamUploadToR2)
 const mockUploadBufferedHttpToR2 = vi.mocked(uploadBufferedHttpToR2)
 const mockDispatchHunyuan3D = vi.mocked(dispatchHunyuan3DWorkerRun)
-const mockDispatchHyper3DRodin = vi.mocked(dispatchHyper3DRodinWorkerRun)
 
 const RUNNING_JOB = {
   id: 'job-1',

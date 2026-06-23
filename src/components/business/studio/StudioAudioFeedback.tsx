@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, type ComponentType } from 'react'
+import { useCallback, useMemo, useState, type ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   AudioLines,
@@ -62,8 +62,10 @@ export function StudioAudioFeedback({
     generationId: string
     tags: AudioFeedbackTag[]
   }>({ generationId, tags: [] })
-  const selectedTags =
-    selection.generationId === generationId ? selection.tags : []
+  const selectedTags = useMemo(
+    () => (selection.generationId === generationId ? selection.tags : []),
+    [generationId, selection.generationId, selection.tags],
+  )
 
   const handleToggle = useCallback(
     (tag: AudioFeedbackTag) => {

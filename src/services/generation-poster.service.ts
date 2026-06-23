@@ -31,6 +31,8 @@ export async function uploadGenerationPoster(
   // fast-reject.
   _claimedMimeType: string,
 ): Promise<GenerationRecord> {
+  void _claimedMimeType
+
   if (posterBuffer.byteLength === 0) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',

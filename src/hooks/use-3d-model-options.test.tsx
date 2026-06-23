@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 
-import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { use3DModelOptions } from '@/hooks/use-3d-model-options'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
@@ -10,23 +9,6 @@ vi.mock('@/contexts/api-keys-context', () => ({
 }))
 
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-
-function makeKey(overrides: Partial<UserApiKeyRecord>): UserApiKeyRecord {
-  const providerConfig: ProviderConfig = {
-    label: `${overrides.adapterType ?? 'fal'}-label`,
-    baseUrl: 'https://example.com',
-  }
-  return {
-    id: overrides.id ?? 'key-1',
-    modelId: overrides.modelId ?? 'fal-ai/hunyuan3d-v2',
-    adapterType: overrides.adapterType ?? AI_ADAPTER_TYPES.FAL,
-    providerConfig,
-    label: overrides.label ?? 'My FAL key',
-    maskedKey: overrides.maskedKey ?? 'fal-****1234',
-    isActive: overrides.isActive ?? true,
-    createdAt: overrides.createdAt ?? new Date('2026-01-01'),
-  }
-}
 
 function mockApiKeys(
   keys: UserApiKeyRecord[],

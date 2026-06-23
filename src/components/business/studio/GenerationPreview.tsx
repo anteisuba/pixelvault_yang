@@ -300,6 +300,7 @@ export const GenerationPreview = memo(function GenerationPreview({
               lives in the input below, so the footer is redundant noise AND
               its layout pushes the image past max-h, cropping it.
               `object-contain` + max-h on the img itself = always full picture. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={generation.id}
             src={generation.url}

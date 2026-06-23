@@ -412,13 +412,6 @@ function SpeakerVoiceIdsField({
 const REFERENCE_AUDIO_MAX_MB = 25
 const REFERENCE_AUDIO_MAX_BYTES = REFERENCE_AUDIO_MAX_MB * 1024 * 1024
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const kb = bytes / 1024
-  if (kb < 1024) return `${kb.toFixed(1)} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
-
 interface ReferenceAudioFieldProps {
   url: string | null
   fileName: string | null

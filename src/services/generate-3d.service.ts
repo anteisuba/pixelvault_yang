@@ -288,8 +288,6 @@ export async function submit3DGenerationForUserId(
       400,
     )
   }
-  const inputImageUrl = input.imageUrl
-
   let sourceQualityReport: Awaited<
     ReturnType<typeof inspect3DSourceImageQuality>
   >

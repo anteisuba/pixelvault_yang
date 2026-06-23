@@ -181,6 +181,8 @@ export const NODE_STUDIO_AUDIO_INPUT = {
   accept: 'audio/*,.mp3,.wav,.webm,.ogg,.mp4,.m4a,.flac',
   mimePrefix: 'audio/',
   fileExtensions: ['.mp3', '.wav', '.webm', '.ogg', '.mp4', '.m4a', '.flac'],
+  /** MIME assumed for a generated audio clip picked from the asset library. */
+  assetMimeType: 'audio/mpeg',
 } as const
 
 export const NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS = {

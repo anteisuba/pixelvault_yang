@@ -17,17 +17,22 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowFieldId,
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowNode,
+  NodeWorkflowNodeData,
+} from '@/types/node-workflow'
 
 import { NodeShell } from './NodeShell'
 import { NodeExpandButton } from './NodeCardControls'
@@ -35,9 +40,12 @@ import { NodeExpandButton } from './NodeCardControls'
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
   type: NodeWorkflowNodeType
   kind: NodeWorkflowMediaKind
+  /** Unified image nodes pass this to re-open the role chooser from the card
+   *  (返回图片). Absent on standalone / legacy nodes, which have no chooser. */
+  onReChoose?: () => void
 }
 
-function getEmptyIcon(kind: NodeWorkflowMediaKind) {
+function getEmptyIcon(kind: NodeWorkflowMediaKind, type: NodeWorkflowNodeType) {
   switch (kind) {
     case NODE_MEDIA_KIND_IDS.video:
       return <Video className="size-8 text-node-port-video" />
@@ -46,8 +54,36 @@ function getEmptyIcon(kind: NodeWorkflowMediaKind) {
     case NODE_MEDIA_KIND_IDS.text:
       return <FileText className="size-8 text-node-foreground" />
     default:
-      return <ImageIcon className="size-8 text-node-foreground" />
+      return (
+        <ImageIcon
+          className={
+            type === NODE_TYPE_IDS.characterImage
+              ? 'size-8 text-node-port-character'
+              : 'size-8 text-node-foreground'
+          }
+        />
+      )
   }
+}
+
+/**
+ * Per-role header title — nodes with a user-editable identity (character name,
+ * background name) show it on the card so renames in the Inspector track here;
+ * other roles fall back to the localized type label inside NodeShell.Header.
+ */
+function getHeaderTitle(
+  type: NodeWorkflowNodeType,
+  data: NodeWorkflowNodeData,
+): string | undefined {
+  if (type === NODE_TYPE_IDS.characterImage) {
+    return (
+      data.characterName?.trim() || data.character?.name?.trim() || undefined
+    )
+  }
+  if (type === NODE_TYPE_IDS.backgroundImage) {
+    return data.backgroundName?.trim() || undefined
+  }
+  return undefined
 }
 
 function getMediaStatusLabelKey(
@@ -75,10 +111,13 @@ export function NodeMediaPreview({
   kind,
   data,
   selected,
+  onReChoose,
 }: NodeMediaPreviewProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
+  const tTypes = useTranslations('StudioNode.nodeTypes')
+  const tPicker = useTranslations('StudioNode.imageRolePicker')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const summaryFields = getSummaryFields(type)
   const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
@@ -99,19 +138,46 @@ export function NodeMediaPreview({
       <NodeShell.Header
         type={type}
         status={data.status}
+        title={getHeaderTitle(type, data)}
+        titleCrumb={
+          onReChoose ? (
+            <>
+              <button
+                type="button"
+                onClick={onReChoose}
+                aria-label={tPicker('reChoose')}
+                title={tPicker('reChoose')}
+                className="nodrag shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+              >
+                {tTypes(NODE_TYPE_IDS.image)}
+              </button>
+              <span aria-hidden className="shrink-0 text-node-subtle">
+                /
+              </span>
+            </>
+          ) : null
+        }
         action={<NodeExpandButton nodeId={id} />}
       />
       <NodeShell.Body className="space-y-3">
         <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
-            <Image
-              src={mediaUrl}
-              alt={t('imageAlt')}
-              fill
-              sizes="320px"
-              className="object-cover"
-              unoptimized
-            />
+            <>
+              <Image
+                src={mediaUrl}
+                alt={t('imageAlt')}
+                fill
+                sizes="320px"
+                className="object-cover"
+                unoptimized
+              />
+              <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                {data.imageSource ===
+                NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
+                  ? t('sourceExisting')
+                  : t('sourceGenerated')}
+              </span>
+            </>
           ) : null}
 
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
@@ -132,7 +198,7 @@ export function NodeMediaPreview({
 
           {kind === NODE_MEDIA_KIND_IDS.text || !mediaUrl ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              {getEmptyIcon(kind)}
+              {getEmptyIcon(kind, type)}
               <p className="text-xs leading-5 text-node-muted">
                 {tWorkflows(`${type}.emptyPreview`)}
               </p>

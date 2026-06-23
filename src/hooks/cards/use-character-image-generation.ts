@@ -11,6 +11,7 @@ import {
   checkImageGenerationStatusAPI,
   studioGenerateAPI,
 } from '@/lib/api-client'
+import { pollGenerationStatus } from '@/lib/poll-generation-status'
 import type { AdvancedParams, GenerationRecord } from '@/types'
 
 const CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR =
@@ -25,6 +26,15 @@ interface CharacterImageGenerationInput {
   advancedParams?: AdvancedParams
 }
 
+interface CharacterImageGenerationOptions {
+  /**
+   * Fired once the async job is created (jobId known), before polling begins.
+   * The caller persists this id so a reload or poll-window timeout mid-flight
+   * stays reconcilable instead of silently dropping the in-flight result.
+   */
+  onJobCreated?(jobId: string): void
+}
+
 type CharacterImageGenerationResult =
   | {
       success: true
@@ -37,77 +47,23 @@ type CharacterImageGenerationResult =
       errorCode?: string
       i18nKey?: string
       pending?: true
+      /**
+       * The submitted job's id, present when `pending` — the poll window closed
+       * but the job is still running server-side. The caller persists this so a
+       * later reconcile pass can backfill the result by jobId.
+       */
+      jobId?: string
     }
 
 interface UseCharacterImageGenerationValue {
   generate(
     input: CharacterImageGenerationInput,
+    options?: CharacterImageGenerationOptions,
   ): Promise<CharacterImageGenerationResult>
   isLoading: boolean
   error: string | null
   errorCode: string | null
   reset(): void
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-type CharacterImagePollOutcome =
-  | {
-      status: 'completed'
-      generation: GenerationRecord
-    }
-  | {
-      status: 'failed'
-      error: string
-      errorCode?: string
-      i18nKey?: string
-    }
-  | {
-      status: 'pending'
-    }
-
-async function waitForCharacterImageGeneration(
-  jobId: string,
-): Promise<CharacterImagePollOutcome> {
-  for (
-    let attempt = 0;
-    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
-    attempt += 1
-  ) {
-    let statusResponse: Awaited<
-      ReturnType<typeof checkImageGenerationStatusAPI>
-    >
-    try {
-      statusResponse = await checkImageGenerationStatusAPI(jobId)
-    } catch {
-      return { status: 'pending' }
-    }
-
-    if (!statusResponse.success || !statusResponse.data) {
-      return { status: 'pending' }
-    }
-
-    if (statusResponse.data.status === 'COMPLETED') {
-      return { status: 'completed', generation: statusResponse.data.generation }
-    }
-
-    if (statusResponse.data.status === 'FAILED') {
-      return {
-        status: 'failed',
-        error:
-          statusResponse.data.error ??
-          CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR,
-        errorCode: statusResponse.data.errorCode,
-        i18nKey: statusResponse.data.i18nKey,
-      }
-    }
-
-    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
-  }
-
-  return { status: 'pending' }
 }
 
 export function useCharacterImageGeneration(): UseCharacterImageGenerationValue {
@@ -123,6 +79,7 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
   const generate = useCallback(
     async (
       input: CharacterImageGenerationInput,
+      options?: CharacterImageGenerationOptions,
     ): Promise<CharacterImageGenerationResult> => {
       setIsLoading(true)
       setError(null)
@@ -139,8 +96,16 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
         })
 
         if (response.success && response.data?.jobId) {
-          const pollOutcome = await waitForCharacterImageGeneration(
-            response.data.jobId,
+          const jobId = response.data.jobId
+          options?.onJobCreated?.(jobId)
+          const pollOutcome = await pollGenerationStatus(
+            jobId,
+            checkImageGenerationStatusAPI,
+            {
+              maxAttempts: IMAGE_GENERATION.MAX_POLL_ATTEMPTS,
+              intervalMs: IMAGE_GENERATION.POLL_INTERVAL_MS,
+              fallbackError: CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR,
+            },
           )
 
           if (pollOutcome.status === 'failed') {
@@ -162,6 +127,7 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
               success: false,
               error: message,
               pending: true,
+              jobId,
             }
           }
 

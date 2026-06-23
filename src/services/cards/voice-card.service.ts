@@ -107,6 +107,7 @@ export async function createVoiceCard(
       provider: data.provider,
       modelId: data.modelId ?? null,
       voiceId: data.voiceId ?? null,
+      coverImage: data.coverImage ?? null,
       referenceAudioUrl: data.referenceAudioUrl ?? null,
       gender: data.gender ?? null,
       age: data.age ?? null,
@@ -214,6 +215,7 @@ export async function updateVoiceCard(
   if (data.provider !== undefined) updateData.provider = data.provider
   if (data.modelId !== undefined) updateData.modelId = data.modelId
   if (data.voiceId !== undefined) updateData.voiceId = data.voiceId
+  if (data.coverImage !== undefined) updateData.coverImage = data.coverImage
   if (data.referenceAudioUrl !== undefined) {
     updateData.referenceAudioUrl = data.referenceAudioUrl
   }

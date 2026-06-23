@@ -535,6 +535,10 @@
     "workspaceTitle": "制作開始",
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
     "skipToPrompt": "プロンプトへスキップ",
+    "nodeHandoffBanner": "キャンバスノード用に生成中 — 完了したらノードへ反映できます。",
+    "nodeHandoffAttach": "ノードへ反映",
+    "nodeHandoffNeedResult": "先に画像を生成してから反映してください。",
+    "nodeHandoffCancel": "キャンセル",
     "workflowEmptyHint": "ワークフローを選んで制作を始める",
     "modeLabel": "生成モード",
     "modeImage": "画像",
@@ -1519,7 +1523,12 @@
     "densityLabel": "グリッド密度",
     "densityComfortable": "ゆったり",
     "densityNormal": "標準",
-    "densityCompact": "コンパクト"
+    "densityCompact": "コンパクト",
+    "detailSetCover": "カバーを設定",
+    "detailCoverDialogTitle": "カバー画像を選択",
+    "detailCoverDialogDescription": "素材ライブラリから画像を選んでこの音声のカバーにします。",
+    "detailCoverSet": "カバーを更新しました。",
+    "detailCoverSetFailed": "カバーの更新に失敗しました。"
   },
   "PromptLibrary": {
     "title": "プロンプト設計",
@@ -2890,6 +2899,7 @@
     },
     "imageRolePicker": {
       "title": "この画像の用途は？",
+      "reChoose": "画像の用途に戻る",
       "character": "キャラクター",
       "background": "背景",
       "shot": "ショット"
@@ -3143,8 +3153,16 @@
         "referenceGenerateNoVoice": "先に Fish Audio の音色を選択してください。",
         "referenceGenerateFailed": "参考音声の生成に失敗しました。再度お試しください。",
         "unsupportedAudio": "音声ファイルをアップロードしてください。",
-        "uploadFailed": "参考音声のアップロードに失敗しました。"
-      }
+        "uploadFailed": "参考音声のアップロードに失敗しました。",
+        "sampleGenerated": "音声サンプルを生成しました。",
+        "savedToAssets": "素材に保存しました。",
+        "saveToAssetsFailed": "素材への保存に失敗しました。",
+        "alreadySaved": "すでに素材にあります。",
+        "coverSynced": "カバーを素材に同期しました。"
+      },
+      "referenceFromAssets": "素材から選択",
+      "referenceDialogTitle": "参考音声を選択",
+      "referenceDialogDescription": "素材ライブラリから生成済みの音声を選んで参考音声にします。"
     },
     "videoGeneration": {
       "timeline": {
@@ -3312,6 +3330,9 @@
       "useExistingAsReference": "参照として生成",
       "replaceImage": "画像を置き換え",
       "selectExistingShort": "画像を選択",
+      "changeSourceExisting": "既存を使う",
+      "changeSourceAi": "AI生成",
+      "changeSourceStudio": "Studio",
       "clearImage": "画像をクリア",
       "generateFromExisting": "参照から生成",
       "existingAssetDialogTitle": "ノード画像を選択",
@@ -3364,17 +3385,18 @@
       },
       "references": {
         "label": "参照素材",
-        "empty": "キャラクター / 背景 / ボイスのノードを接続して参照を追加"
+        "empty": "キャラクター / 背景 / ボイスのノードを接続して参照を追加",
+        "insertHint": "タグをクリックしてプロンプトに挿入",
+        "unnamed": "要命名",
+        "unnamedHint": "ノードに名前を付けるとタグとして挿入できます"
       },
-      "motionHint": "カメラワークもここに記述",
+      "aspectAuto": "自動",
       "generateAudioLabel": "音声を生成",
       "seedLabel": "シード",
       "seedRandom": "毎回ランダム",
       "seedRandomize": "シードをランダム化",
       "lastSeedLabel": "前回のシード",
       "seedLock": "ロック",
-      "enhancePrompt": "AI でプロンプトを強化",
-      "enhancing": "強化中…",
       "enhanceEmptyTip": "まずプロンプトを入力してから AI に構成させてください。",
       "rebind": {
         "title": "{brand} に切り替えますか？",
@@ -3389,8 +3411,10 @@
       "delete": "削除"
     },
     "nodeDetail": {
+      "backToCanvas": "キャンバスに戻る",
+      "backToRolePicker": "用途の選択に戻る",
+      "canvasCrumb": "キャンバス",
       "close": "折りたたむ",
-      "detailSuffix": "{type} · 詳細",
       "generate": "生成"
     },
     "voiceDetail": {
@@ -3407,7 +3431,12 @@
         "angry": "怒り",
         "sad": "悲しみ",
         "surprised": "驚き"
-      }
+      },
+      "sampleLabel": "音声サンプル",
+      "generateSample": "サンプルを生成",
+      "saveToAssets": "素材に保存",
+      "savedToAssets": "素材に保存済み",
+      "syncCoverToAssets": "カバーを素材に同期"
     },
     "workflowFields": {
       "prompt": {
@@ -3489,6 +3518,10 @@
       "shotText": {
         "emptyPreview": "シーン、動き、カメラ、構図を実行可能なショット文に整理します。",
         "footerEmpty": "ショット文を待機中"
+      },
+      "characterImage": {
+        "emptyPreview": "キャラクター画像はまだありません — 生成するか既存画像を選択してください。",
+        "footerEmpty": "キャラクター設定待ち"
       },
       "shot": {
         "emptyPreview": "ショット文とキャラクター/背景参考から単一ショット画像を生成します。",
@@ -3667,6 +3700,7 @@
       "mediaGenerated": "ノード素材を生成しました。",
       "mediaGenerationFailed": "ノード素材の生成に失敗しました。",
       "stillProcessing": "バックグラウンドで生成を続けています。少し後でもう一度確認してください。",
+      "studioResultAttached": "Studio で生成した画像をノードへ反映しました。",
       "timelineCannotDeleteLast": "少なくとも 1 つのセグメントを残してください。",
       "edgeDeleted": "接続を削除しました。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",

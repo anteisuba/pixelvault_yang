@@ -63,6 +63,7 @@ const FAKE_VOICE_CARD = {
   provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
   modelId: 'fish-audio-s2-pro',
   voiceId: 'voice_123',
+  coverImage: null,
   referenceAudioUrl: null,
   referenceAudioStorageKey: null,
   gender: null,
@@ -111,6 +112,19 @@ describe('createVoiceCard', () => {
         name: 'Narrator',
         provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
         voiceId: 'voice_123',
+      }),
+    })
+  })
+
+  it('persists the cover image when provided', async () => {
+    await createVoiceCard('clerk_test_user', {
+      ...VALID_INPUT,
+      coverImage: 'https://cdn.example.com/cover.png',
+    })
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        coverImage: 'https://cdn.example.com/cover.png',
       }),
     })
   })

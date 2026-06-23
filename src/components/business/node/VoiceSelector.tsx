@@ -71,11 +71,24 @@ interface VoiceAsset {
   sourceLabelKey: string
 }
 
+/**
+ * Payload handed to consumers when a voice is picked. Carries the display name
+ * and cover image alongside the id so downstream nodes/cards can show a real
+ * label + preview instead of the raw voiceId. `coverImage` is null when the
+ * source (a cloned voice, or a favorite saved before covers were persisted)
+ * has none.
+ */
+export interface SelectedVoice {
+  voiceId: string
+  name: string
+  coverImage: string | null
+}
+
 interface VoiceSelectorProps {
   className?: string
   onSelectComplete?: () => void
   selectedVoiceId?: string | null
-  onSelectVoiceId?: (voiceId: string) => void
+  onSelectVoiceId?: (voice: SelectedVoice) => void
 }
 
 function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
@@ -279,6 +292,7 @@ export const VoiceSelector = memo(function VoiceSelector({
           provider: asset.provider,
           modelId: asset.modelId,
           voiceId: asset.voiceId,
+          coverImage: asset.coverImage ?? undefined,
           tone: [],
           pace: VOICE_CARD_DEFAULT_PACE,
           pronunciationDictionary: {},
@@ -300,7 +314,11 @@ export const VoiceSelector = memo(function VoiceSelector({
   const handleSelectVoiceCard = (card: VoiceCardRecord) => {
     if (onSelectVoiceId) {
       if (!card.voiceId) return
-      onSelectVoiceId(card.voiceId)
+      onSelectVoiceId({
+        voiceId: card.voiceId,
+        name: card.name,
+        coverImage: card.coverImage,
+      })
       onSelectComplete?.()
       return
     }
@@ -352,7 +370,11 @@ export const VoiceSelector = memo(function VoiceSelector({
 
   const handleSelectAsset = (asset: VoiceAsset) => {
     if (onSelectVoiceId) {
-      onSelectVoiceId(asset.voiceId)
+      onSelectVoiceId({
+        voiceId: asset.voiceId,
+        name: asset.title,
+        coverImage: asset.coverImage,
+      })
       onSelectComplete?.()
       return
     }
@@ -580,6 +602,8 @@ export const VoiceSelector = memo(function VoiceSelector({
                 ? activeVoiceId === card.voiceId
                 : state.voiceCardId === card.id
               const isPending = pendingVoiceCardId === card.id
+              const hasCardCover =
+                Boolean(card.coverImage) && !failedCoverIds.has(card.id)
               const providerLabel = t(
                 getVoiceCardProviderLabelKey(card.provider),
               )
@@ -601,7 +625,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   >
                     <div
                       className={cn(
-                        'flex size-9 shrink-0 items-center justify-center rounded-full',
+                        'flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full',
                         isSelected
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/60 text-muted-foreground',
@@ -609,6 +633,17 @@ export const VoiceSelector = memo(function VoiceSelector({
                     >
                       {isSelected ? (
                         <Check className="size-4" />
+                      ) : hasCardCover && card.coverImage ? (
+                        <>
+                          {/* Third-party cover images can come from arbitrary hosts; keep raw img fallback here. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={card.coverImage}
+                            alt=""
+                            className="size-full object-cover"
+                            onError={() => handleCoverError(card.id)}
+                          />
+                        </>
                       ) : (
                         <Mic className="size-4" />
                       )}
@@ -632,21 +667,70 @@ export const VoiceSelector = memo(function VoiceSelector({
                     </div>
                   </button>
 
-                  {tab === 'cloned' && (
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => void handleDeleteVoiceCard(card)}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      {isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-3.5" />
-                      )}
-                      <span className="sr-only">{t('voiceDelete')}</span>
-                    </button>
-                  )}
+                  {/* Cloned voices carry their own reference clip — give them the
+                      same audition control as the public list for consistency. */}
+                  {tab === 'cloned' && card.referenceAudioUrl ? (
+                    <>
+                      <audio
+                        ref={(element) => {
+                          audioRefs.current[card.id] = element
+                        }}
+                        src={card.referenceAudioUrl}
+                        preload="none"
+                        className="hidden"
+                        onEnded={() => setPlayingVoiceId(null)}
+                        onPause={() => {
+                          if (playingVoiceId === card.id) {
+                            setPlayingVoiceId(null)
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSampleToggle(card.id)}
+                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      >
+                        {playingVoiceId === card.id ? (
+                          <Pause className="size-3.5" />
+                        ) : (
+                          <Play className="size-3.5" />
+                        )}
+                        <span className="sr-only">
+                          {playingVoiceId === card.id
+                            ? t('voicePauseSample')
+                            : t('voicePlaySample')}
+                        </span>
+                      </button>
+                    </>
+                  ) : null}
+
+                  {/* Removal: cloned voices get a destructive trash (deletes the
+                      clone); favorites get a filled star that un-favorites in
+                      place — both call the same delete handler. */}
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => void handleDeleteVoiceCard(card)}
+                    className={cn(
+                      'shrink-0 rounded-md p-1 disabled:pointer-events-none disabled:opacity-50',
+                      tab === 'cloned'
+                        ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+                        : 'text-primary hover:bg-muted/60',
+                    )}
+                  >
+                    {isPending ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : tab === 'cloned' ? (
+                      <Trash2 className="size-3.5" />
+                    ) : (
+                      <Star className="size-3.5 fill-current" />
+                    )}
+                    <span className="sr-only">
+                      {tab === 'cloned'
+                        ? t('voiceDelete')
+                        : t('voiceUnfavorite')}
+                    </span>
+                  </button>
                 </div>
               )
             })

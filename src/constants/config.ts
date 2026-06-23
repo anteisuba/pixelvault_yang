@@ -478,6 +478,24 @@ export const IMAGE_GENERATION = {
   MAX_POLL_ATTEMPTS: 330,
 } as const
 
+/**
+ * Shared resilience knobs for the async generation status pollers
+ * (image / video / audio). A status-endpoint blip — a thrown fetch or a
+ * non-success envelope — is transient, not terminal: the poller backs off and
+ * retries instead of abandoning a still-running job on the first hiccup. Only
+ * after TRANSIENT_TOLERANCE *consecutive* transient failures does it give up to
+ * a `pending` outcome, which the caller persists by jobId for later
+ * reconciliation rather than dropping the in-flight result.
+ */
+export const GENERATION_POLL = {
+  /** Consecutive transient status failures tolerated before bailing to pending. */
+  TRANSIENT_TOLERANCE: 4,
+  /** First transient-retry backoff; doubles on each consecutive failure. */
+  BACKOFF_BASE_MS: 1000,
+  /** Upper bound for the exponential transient-retry backoff. */
+  BACKOFF_MAX_MS: 15_000,
+} as const
+
 /** Health check configuration */
 export const HEALTH_CHECK = {
   CACHE_TTL_MS: 300_000,

@@ -535,6 +535,10 @@
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
     "skipToPrompt": "Skip to prompt",
+    "nodeHandoffBanner": "Generating for a canvas node — attach the result back when it's ready.",
+    "nodeHandoffAttach": "Attach to node",
+    "nodeHandoffNeedResult": "Generate an image first, then attach it.",
+    "nodeHandoffCancel": "Cancel",
     "workflowEmptyHint": "Choose a workflow to start creating",
     "modeLabel": "Generation mode",
     "modeImage": "Image",
@@ -1519,7 +1523,12 @@
     "densityLabel": "Grid density",
     "densityComfortable": "Comfortable",
     "densityNormal": "Normal",
-    "densityCompact": "Compact"
+    "densityCompact": "Compact",
+    "detailSetCover": "Set cover",
+    "detailCoverDialogTitle": "Choose cover image",
+    "detailCoverDialogDescription": "Pick an image from your library to use as this audio cover.",
+    "detailCoverSet": "Cover updated.",
+    "detailCoverSetFailed": "Could not update cover."
   },
   "PromptLibrary": {
     "title": "Prompt Engineering",
@@ -2890,6 +2899,7 @@
     },
     "imageRolePicker": {
       "title": "What's this image for?",
+      "reChoose": "Back to image roles",
       "character": "Character",
       "background": "Background",
       "shot": "Shot"
@@ -3143,8 +3153,16 @@
         "referenceGenerateNoVoice": "Pick a Fish Audio voice first.",
         "referenceGenerateFailed": "Could not generate reference audio. Try again.",
         "unsupportedAudio": "Upload an audio file.",
-        "uploadFailed": "Reference audio upload failed."
-      }
+        "uploadFailed": "Reference audio upload failed.",
+        "sampleGenerated": "Voice sample ready.",
+        "savedToAssets": "Saved to your library.",
+        "saveToAssetsFailed": "Could not save to library. Try again.",
+        "alreadySaved": "Already in your library.",
+        "coverSynced": "Cover synced to library."
+      },
+      "referenceFromAssets": "Choose from library",
+      "referenceDialogTitle": "Choose reference audio",
+      "referenceDialogDescription": "Pick a generated voice clip from your library to use as reference audio."
     },
     "videoGeneration": {
       "timeline": {
@@ -3312,6 +3330,9 @@
       "useExistingAsReference": "Use as reference",
       "replaceImage": "Replace image",
       "selectExistingShort": "Choose image",
+      "changeSourceExisting": "Use existing",
+      "changeSourceAi": "AI generate",
+      "changeSourceStudio": "Studio",
       "clearImage": "Clear image",
       "generateFromExisting": "Generate from reference",
       "existingAssetDialogTitle": "Choose node image",
@@ -3364,17 +3385,18 @@
       },
       "references": {
         "label": "References",
-        "empty": "Wire character / background / voice nodes to add references"
+        "empty": "Wire character / background / voice nodes to add references",
+        "insertHint": "Click a tag to insert it into the prompt",
+        "unnamed": "needs a name",
+        "unnamedHint": "Name this node to use it as an insertable tag"
       },
-      "motionHint": "Camera & motion go here too",
+      "aspectAuto": "Auto",
       "generateAudioLabel": "Generate audio",
       "seedLabel": "Seed",
       "seedRandom": "Random each run",
       "seedRandomize": "Randomize seed",
       "lastSeedLabel": "Last seed",
       "seedLock": "Lock",
-      "enhancePrompt": "Enhance prompt with AI",
-      "enhancing": "Enhancing…",
       "enhanceEmptyTip": "Write a prompt first, then let AI orchestrate it.",
       "rebind": {
         "title": "Switch to {brand}?",
@@ -3389,8 +3411,10 @@
       "delete": "Delete"
     },
     "nodeDetail": {
+      "backToCanvas": "Back to canvas",
+      "backToRolePicker": "Back to image role",
+      "canvasCrumb": "Canvas",
       "close": "Collapse",
-      "detailSuffix": "{type} · Details",
       "generate": "Generate"
     },
     "voiceDetail": {
@@ -3407,7 +3431,12 @@
         "angry": "Angry",
         "sad": "Sad",
         "surprised": "Surprised"
-      }
+      },
+      "sampleLabel": "Voice sample",
+      "generateSample": "Generate sample",
+      "saveToAssets": "Save to library",
+      "savedToAssets": "In your library",
+      "syncCoverToAssets": "Sync cover to library"
     },
     "workflowFields": {
       "prompt": {
@@ -3489,6 +3518,10 @@
       "shotText": {
         "emptyPreview": "Turn scene, action, camera, and composition into executable shot text.",
         "footerEmpty": "Waiting for shot text"
+      },
+      "characterImage": {
+        "emptyPreview": "No character image yet — generate one or pick an existing image.",
+        "footerEmpty": "Waiting for character setup"
       },
       "shot": {
         "emptyPreview": "Generate a single shot image from shot text and character/background references.",
@@ -3667,6 +3700,7 @@
       "mediaGenerated": "Node media generated.",
       "mediaGenerationFailed": "Node media generation failed.",
       "stillProcessing": "Still generating in the background — check back in a moment.",
+      "studioResultAttached": "Studio image attached to the node.",
       "timelineCannotDeleteLast": "At least one segment must remain.",
       "edgeDeleted": "Connection removed.",
       "projectCreated": "Project \"{name}\" created.",

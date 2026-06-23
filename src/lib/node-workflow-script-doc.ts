@@ -336,6 +336,12 @@ export function projectScriptDocToGraph(
 
     shot.dialogue.forEach((line, lineIndex) => {
       const voiceName = roleNameById.get(line.speakerRoleId) ?? ''
+      // Voice nodes are pure timbre / 音色身份 donors (剧本后置): the spoken line
+      // is deliberately NOT projected onto the node. It lives in the ScriptDoc
+      // (shot.dialogue) and the shot / Seedance prompt; the node↔line link is
+      // carried by `scriptRef.sourceId = line.id`. VoiceNode / VoiceDetailBody are
+      // identity-driven and never read `dialogue`, so writing it here would only
+      // create write-only orphan state.
       const voiceData: NodeWorkflowNodeData = {
         prompt: '',
         status: NODE_STATUS_IDS.idle,
@@ -348,7 +354,6 @@ export function projectScriptDocToGraph(
           NODE_STUDIO_VOICE_PROFILE.providerDefault,
         [NODE_WORKFLOW_FIELD_IDS.voiceEmotion]: '',
         [NODE_WORKFLOW_FIELD_IDS.voiceStyle]: '',
-        [NODE_WORKFLOW_FIELD_IDS.dialogue]: line.line,
         scriptRef: {
           kind: SCRIPT_DOC_REF_KIND_IDS.voice,
           sourceId: line.id,
@@ -356,7 +361,6 @@ export function projectScriptDocToGraph(
       }
       const voiceUpdate: Partial<NodeWorkflowNodeData> = {
         [NODE_WORKFLOW_FIELD_IDS.voiceName]: voiceName,
-        [NODE_WORKFLOW_FIELD_IDS.dialogue]: line.line,
         scriptRef: voiceData.scriptRef,
       }
       const voiceId = resolveNode(

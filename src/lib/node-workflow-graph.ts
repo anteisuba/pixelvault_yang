@@ -53,6 +53,36 @@ export function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
 }
 
 /**
+ * The named reference family a node contributes to a downstream Seedance node's
+ * reference panel (角色 / 背景 / 声音). Resolves the unified `image` node via
+ * `data.role` AND the legacy per-type character/background image nodes, plus
+ * voice nodes. Returns null for nodes that still feed generation but aren't
+ * surfaced as a named family chip (shot / frame images, text, video…).
+ *
+ * Centralizing this here keeps the composer's reference chips in lock-step with
+ * the role migration — matching on raw `node.type` alone silently dropped every
+ * unified image node (type === 'image') from the chips after consolidation.
+ */
+export type SeedanceReferenceKind = 'character' | 'background' | 'voice'
+
+export function getSeedanceReferenceKind(
+  node: NodeWorkflowNode,
+): SeedanceReferenceKind | null {
+  if (isVoiceProfileNode(node)) return 'voice'
+  const role =
+    node.type === NODE_TYPE_IDS.image
+      ? node.data.role
+      : node.type === NODE_TYPE_IDS.characterImage
+        ? NODE_IMAGE_ROLE_IDS.character
+        : node.type === NODE_TYPE_IDS.backgroundImage
+          ? NODE_IMAGE_ROLE_IDS.background
+          : undefined
+  if (role === NODE_IMAGE_ROLE_IDS.character) return 'character'
+  if (role === NODE_IMAGE_ROLE_IDS.background) return 'background'
+  return null
+}
+
+/**
  * A node that produces video output (currently Seedance variants). Used as a
  * reference video source for downstream Seedance reference-to-video nodes.
  */

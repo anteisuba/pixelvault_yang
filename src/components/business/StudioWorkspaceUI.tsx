@@ -1,18 +1,31 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
+import { ROUTES } from '@/constants/routes'
 import {
   StudioCanvas,
   StudioBottomDock,
   StudioFlowLayout,
   StudioCommandPalette,
 } from '@/components/business/studio'
+import { Button } from '@/components/ui/button'
 
-import { useStudioForm } from '@/contexts/studio-context'
+import {
+  useStudioData,
+  useStudioForm,
+  useStudioGen,
+} from '@/contexts/studio-context'
+import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
+import {
+  clearStudioNodeHandoff,
+  readStudioNodeHandoff,
+  writeStudioNodeResult,
+  type StudioNodeHandoff,
+} from '@/lib/studio-node-handoff'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
 
@@ -29,6 +42,10 @@ const STUDIO_MODE_KEY = 'studio-workflow-mode'
 export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
+  const { imageUpload } = useStudioData()
+  const { lastGeneration } = useStudioGen()
+  const router = useRouter()
+  const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
   // the URL on mount when the user arrived via "Use this image" replay.
@@ -63,10 +80,57 @@ export function StudioWorkspaceUI() {
     }
   }, [dispatch])
 
+  // Open-Image-Studio round-trip: a canvas image node navigated here with a
+  // handoff. Prefill prompt + reference images, and keep the handoff live so
+  // the user can attach the generated result back to the origin node. Runs
+  // once on mount (the handoff is consumed on attach/cancel).
+  const didReadHandoffRef = useRef(false)
+  useEffect(() => {
+    if (didReadHandoffRef.current) return
+    didReadHandoffRef.current = true
+    const handoff = readStudioNodeHandoff()
+    if (!handoff) return
+    // One-time sessionStorage hydration is an external browser sync on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNodeHandoff(handoff)
+    if (handoff.prompt) {
+      dispatch({ type: 'SET_PROMPT', payload: handoff.prompt })
+    }
+    for (const url of handoff.referenceUrls) {
+      void imageUpload.addFromUrl(url)
+    }
+    window.requestAnimationFrame(() => {
+      document.getElementById('studio-prompt')?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      })
+    })
+  }, [dispatch, imageUpload])
+
   // Persist workflow mode changes
   useEffect(() => {
     localStorage.setItem(STUDIO_MODE_KEY, state.workflowMode)
   }, [state.workflowMode])
+
+  const canAttach = Boolean(lastGeneration?.url)
+
+  const handleAttachToNode = useCallback(() => {
+    if (!nodeHandoff || !lastGeneration?.url) return
+    writeStudioNodeResult({
+      originNodeId: nodeHandoff.originNodeId,
+      url: lastGeneration.url,
+      generationId: lastGeneration.id,
+      label: nodeHandoff.characterName ?? lastGeneration.model ?? undefined,
+    })
+    clearStudioNodeHandoff()
+    setNodeHandoff(null)
+    router.push(ROUTES.STUDIO_NODE)
+  }, [lastGeneration, nodeHandoff, router])
+
+  const handleCancelHandoff = useCallback(() => {
+    clearStudioNodeHandoff()
+    setNodeHandoff(null)
+  }, [])
 
   return (
     <>
@@ -76,6 +140,32 @@ export function StudioWorkspaceUI() {
       >
         {t('skipToPrompt')}
       </a>
+
+      {nodeHandoff ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
+          <span className="flex-1 text-foreground">
+            {t('nodeHandoffBanner')}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={handleCancelHandoff}
+          >
+            {t('nodeHandoffCancel')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canAttach}
+            onClick={handleAttachToNode}
+            title={canAttach ? undefined : t('nodeHandoffNeedResult')}
+          >
+            {t('nodeHandoffAttach')}
+          </Button>
+        </div>
+      ) : null}
+
       <div
         role="tabpanel"
         id={`studio-panel-${state.outputType}`}

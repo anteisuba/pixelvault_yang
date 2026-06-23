@@ -76,6 +76,14 @@ describe('projectScriptDocToGraph', () => {
     expect(countType(result, NODE_TYPE_IDS.voice)).toBe(1)
     expect(countType(result, NODE_TYPE_IDS.videoMerge)).toBe(1)
 
+    // Voice nodes are pure timbre donors (剧本后置): the spoken line is NOT
+    // projected onto the node — it stays in the ScriptDoc + shot prompt, linked
+    // by scriptRef. Lock that contract so the write-only orphan never returns.
+    const voiceNode = result.nodesToAdd.find(
+      (node) => node.type === NODE_TYPE_IDS.voice,
+    )
+    expect(voiceNode?.data.dialogue).toBeUndefined()
+
     // shotText→seedance (2) + character→seedance (2) + voice→seedance (1)
     // + seedance→merge (2) = 7
     expect(result.edgesToAdd).toHaveLength(7)
@@ -165,7 +173,6 @@ describe('projectScriptDocToGraph', () => {
         }),
         expect.objectContaining({
           data: expect.objectContaining({
-            dialogue: 'The petals are listening.',
             voiceName: 'Mira Vale',
           }),
         }),

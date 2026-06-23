@@ -79,6 +79,7 @@ const FAKE_VOICE_CARD = {
   provider: 'fish_audio',
   modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
   voiceId: 'voice_123',
+  coverImage: null,
   referenceAudioUrl: null,
   referenceAudioStorageKey: null,
   gender: null,

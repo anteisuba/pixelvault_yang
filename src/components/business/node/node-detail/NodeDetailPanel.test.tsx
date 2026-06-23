@@ -65,16 +65,26 @@ vi.mock('./GenericDetailBody', () => ({
   ),
 }))
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+vi.mock('../nodes/ImageRolePicker', () => ({
+  ImageRolePickerBody: ({ nodeId }: { nodeId: string }) => (
+    <div>role-picker-{nodeId}</div>
+  ),
+}))
+
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 
 import { NodeDetailPanel } from './NodeDetailPanel'
 
-function makeNode(id: string, type: string) {
+function makeNode(
+  id: string,
+  type: string,
+  extraData: Record<string, unknown> = {},
+) {
   return {
     id,
     type,
     position: { x: 0, y: 0 },
-    data: { prompt: '', status: 'idle' },
+    data: { prompt: '', status: 'idle', ...extraData },
   }
 }
 
@@ -109,6 +119,48 @@ describe('NodeDetailPanel', () => {
     nodesState.nodes = [makeNode('n2', NODE_TYPE_IDS.composer)]
     render(<NodeDetailPanel expandedNodeId="n2" onClose={vi.fn()} />)
     expect(screen.getByText('generic-body-n2')).toBeInTheDocument()
+  })
+
+  it('shows the role picker (not a default form) for a role-less image node', () => {
+    // Regression: a freshly-added image node with no role must offer the role
+    // chooser when expanded, instead of falling through to the shot form.
+    nodesState.nodes = [makeNode('img1', NODE_TYPE_IDS.image)]
+    render(<NodeDetailPanel expandedNodeId="img1" onClose={vi.fn()} />)
+    expect(screen.getByText('role-picker-img1')).toBeInTheDocument()
+    expect(screen.queryByText('generic-body-img1')).not.toBeInTheDocument()
+  })
+
+  it('returns to the canvas from a normal node breadcrumb crumb', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    const onClose = vi.fn()
+    render(<NodeDetailPanel expandedNodeId="n1" onClose={onClose} />)
+
+    // A non-image node's parent crumb is the canvas — clicking it closes.
+    fireEvent.click(screen.getByLabelText('backToCanvas'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('navigates an image role detail back up to the chooser, not the canvas', () => {
+    // Image nodes are a two-step flow (pick role → edit detail). From a role's
+    // detail the breadcrumb returns UP to the chooser (返回上一层), keeping the
+    // panel open, instead of closing back to the canvas.
+    nodesState.nodes = [
+      makeNode('img1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.shot,
+      }),
+    ]
+    const onClose = vi.fn()
+    render(<NodeDetailPanel expandedNodeId="img1" onClose={onClose} />)
+
+    // Role detail shows (generic body), not the chooser.
+    expect(screen.getByText('generic-body-img1')).toBeInTheDocument()
+    expect(screen.queryByText('role-picker-img1')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('backToCanvas')).not.toBeInTheDocument()
+
+    // The parent crumb returns to the chooser without closing the panel.
+    fireEvent.click(screen.getByLabelText('backToRolePicker'))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('role-picker-img1')).toBeInTheDocument()
   })
 
   it('closes on backdrop click and Escape', () => {

@@ -31,6 +31,7 @@ export type VoiceCardMinAggregateOutputType = {
   provider: string | null
   modelId: string | null
   voiceId: string | null
+  coverImage: string | null
   referenceAudioUrl: string | null
   referenceAudioStorageKey: string | null
   gender: string | null
@@ -50,6 +51,7 @@ export type VoiceCardMaxAggregateOutputType = {
   provider: string | null
   modelId: string | null
   voiceId: string | null
+  coverImage: string | null
   referenceAudioUrl: string | null
   referenceAudioStorageKey: string | null
   gender: string | null
@@ -69,6 +71,7 @@ export type VoiceCardCountAggregateOutputType = {
   provider: number
   modelId: number
   voiceId: number
+  coverImage: number
   referenceAudioUrl: number
   referenceAudioStorageKey: number
   gender: number
@@ -92,6 +95,7 @@ export type VoiceCardMinAggregateInputType = {
   provider?: true
   modelId?: true
   voiceId?: true
+  coverImage?: true
   referenceAudioUrl?: true
   referenceAudioStorageKey?: true
   gender?: true
@@ -111,6 +115,7 @@ export type VoiceCardMaxAggregateInputType = {
   provider?: true
   modelId?: true
   voiceId?: true
+  coverImage?: true
   referenceAudioUrl?: true
   referenceAudioStorageKey?: true
   gender?: true
@@ -130,6 +135,7 @@ export type VoiceCardCountAggregateInputType = {
   provider?: true
   modelId?: true
   voiceId?: true
+  coverImage?: true
   referenceAudioUrl?: true
   referenceAudioStorageKey?: true
   gender?: true
@@ -224,6 +230,7 @@ export type VoiceCardGroupByOutputType = {
   provider: string
   modelId: string | null
   voiceId: string | null
+  coverImage: string | null
   referenceAudioUrl: string | null
   referenceAudioStorageKey: string | null
   gender: string | null
@@ -266,6 +273,7 @@ export type VoiceCardWhereInput = {
   provider?: Prisma.StringFilter<"VoiceCard"> | string
   modelId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   voiceId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
+  coverImage?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioStorageKey?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   gender?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
@@ -288,6 +296,7 @@ export type VoiceCardOrderByWithRelationInput = {
   provider?: Prisma.SortOrder
   modelId?: Prisma.SortOrderInput | Prisma.SortOrder
   voiceId?: Prisma.SortOrderInput | Prisma.SortOrder
+  coverImage?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceAudioUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceAudioStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   gender?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -313,6 +322,7 @@ export type VoiceCardWhereUniqueInput = Prisma.AtLeast<{
   provider?: Prisma.StringFilter<"VoiceCard"> | string
   modelId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   voiceId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
+  coverImage?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioStorageKey?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   gender?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
@@ -335,6 +345,7 @@ export type VoiceCardOrderByWithAggregationInput = {
   provider?: Prisma.SortOrder
   modelId?: Prisma.SortOrderInput | Prisma.SortOrder
   voiceId?: Prisma.SortOrderInput | Prisma.SortOrder
+  coverImage?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceAudioUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceAudioStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   gender?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -362,6 +373,7 @@ export type VoiceCardScalarWhereWithAggregatesInput = {
   provider?: Prisma.StringWithAggregatesFilter<"VoiceCard"> | string
   modelId?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   voiceId?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
+  coverImage?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   referenceAudioUrl?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   referenceAudioStorageKey?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   gender?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
@@ -382,6 +394,7 @@ export type VoiceCardCreateInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -404,6 +417,7 @@ export type VoiceCardUncheckedCreateInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -424,6 +438,7 @@ export type VoiceCardUpdateInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -446,6 +461,7 @@ export type VoiceCardUncheckedUpdateInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -467,6 +483,7 @@ export type VoiceCardCreateManyInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -487,6 +504,7 @@ export type VoiceCardUpdateManyMutationInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -508,6 +526,7 @@ export type VoiceCardUncheckedUpdateManyInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -539,6 +558,7 @@ export type VoiceCardCountOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
   voiceId?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   referenceAudioUrl?: Prisma.SortOrder
   referenceAudioStorageKey?: Prisma.SortOrder
   gender?: Prisma.SortOrder
@@ -560,6 +580,7 @@ export type VoiceCardMaxOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
   voiceId?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   referenceAudioUrl?: Prisma.SortOrder
   referenceAudioStorageKey?: Prisma.SortOrder
   gender?: Prisma.SortOrder
@@ -579,6 +600,7 @@ export type VoiceCardMinOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
   voiceId?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   referenceAudioUrl?: Prisma.SortOrder
   referenceAudioStorageKey?: Prisma.SortOrder
   gender?: Prisma.SortOrder
@@ -639,6 +661,7 @@ export type VoiceCardCreateWithoutUserInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -659,6 +682,7 @@ export type VoiceCardUncheckedCreateWithoutUserInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -709,6 +733,7 @@ export type VoiceCardScalarWhereInput = {
   provider?: Prisma.StringFilter<"VoiceCard"> | string
   modelId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   voiceId?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
+  coverImage?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   referenceAudioStorageKey?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   gender?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
@@ -729,6 +754,7 @@ export type VoiceCardCreateManyUserInput = {
   provider?: string
   modelId?: string | null
   voiceId?: string | null
+  coverImage?: string | null
   referenceAudioUrl?: string | null
   referenceAudioStorageKey?: string | null
   gender?: string | null
@@ -749,6 +775,7 @@ export type VoiceCardUpdateWithoutUserInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -769,6 +796,7 @@ export type VoiceCardUncheckedUpdateWithoutUserInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -789,6 +817,7 @@ export type VoiceCardUncheckedUpdateManyWithoutUserInput = {
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -812,6 +841,7 @@ export type VoiceCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   provider?: boolean
   modelId?: boolean
   voiceId?: boolean
+  coverImage?: boolean
   referenceAudioUrl?: boolean
   referenceAudioStorageKey?: boolean
   gender?: boolean
@@ -834,6 +864,7 @@ export type VoiceCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   provider?: boolean
   modelId?: boolean
   voiceId?: boolean
+  coverImage?: boolean
   referenceAudioUrl?: boolean
   referenceAudioStorageKey?: boolean
   gender?: boolean
@@ -856,6 +887,7 @@ export type VoiceCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   provider?: boolean
   modelId?: boolean
   voiceId?: boolean
+  coverImage?: boolean
   referenceAudioUrl?: boolean
   referenceAudioStorageKey?: boolean
   gender?: boolean
@@ -878,6 +910,7 @@ export type VoiceCardSelectScalar = {
   provider?: boolean
   modelId?: boolean
   voiceId?: boolean
+  coverImage?: boolean
   referenceAudioUrl?: boolean
   referenceAudioStorageKey?: boolean
   gender?: boolean
@@ -892,7 +925,7 @@ export type VoiceCardSelectScalar = {
   updatedAt?: boolean
 }
 
-export type VoiceCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "provider" | "modelId" | "voiceId" | "referenceAudioUrl" | "referenceAudioStorageKey" | "gender" | "age" | "tone" | "pace" | "pitch" | "pronunciationDictionary" | "sampleText" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceCard"]>
+export type VoiceCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "provider" | "modelId" | "voiceId" | "coverImage" | "referenceAudioUrl" | "referenceAudioStorageKey" | "gender" | "age" | "tone" | "pace" | "pitch" | "pronunciationDictionary" | "sampleText" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceCard"]>
 export type VoiceCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -915,6 +948,7 @@ export type $VoiceCardPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     provider: string
     modelId: string | null
     voiceId: string | null
+    coverImage: string | null
     referenceAudioUrl: string | null
     referenceAudioStorageKey: string | null
     gender: string | null
@@ -1357,6 +1391,7 @@ export interface VoiceCardFieldRefs {
   readonly provider: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly modelId: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly voiceId: Prisma.FieldRef<"VoiceCard", 'String'>
+  readonly coverImage: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly referenceAudioUrl: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly referenceAudioStorageKey: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly gender: Prisma.FieldRef<"VoiceCard", 'String'>

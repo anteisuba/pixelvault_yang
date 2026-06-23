@@ -10,6 +10,7 @@ import {
   Globe,
   GlobeLock,
   Heart,
+  ImagePlus,
   Loader2,
   Mic,
   Sparkles,
@@ -48,9 +49,11 @@ import {
   createRecipeFromGenerationAPI,
   deleteGenerationAPI,
   downloadRemoteAsset,
+  setAudioCoverAPI,
   setGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
@@ -145,6 +148,8 @@ export function AssetDetailSheet({
   const [isSavingRecipe, setIsSavingRecipe] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
+  const [isSettingCover, setIsSettingCover] = useState(false)
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false)
 
   const open = generation !== null
   const currentPublishScope: PublishScope = !generation?.isPublic
@@ -324,7 +329,29 @@ export function AssetDetailSheet({
     openExternalAsset(getDownloadTarget(generation))
   }
 
+  const applyCover = async (coverImageUrl: string) => {
+    if (!generation || isSettingCover) return
+    setCoverPickerOpen(false)
+    setIsSettingCover(true)
+    try {
+      const response = await setAudioCoverAPI(generation.id, coverImageUrl)
+      if (response.success) {
+        // Cover is stored in previewUrl, which the asset browser reads back.
+        onUpdated?.(generation.id, { previewUrl: coverImageUrl })
+        toast.success(t('detailCoverSet'))
+      } else {
+        toast.error(response.error ?? t('detailCoverSetFailed'))
+      }
+    } catch {
+      toast.error(t('detailCoverSetFailed'))
+    } finally {
+      setIsSettingCover(false)
+    }
+  }
+
   if (!generation) return null
+
+  const isAudioAsset = generation.outputType === 'AUDIO'
 
   const previewUrl = getGenerationPreviewUrl(generation)
   const toolbarActions = (
@@ -500,6 +527,22 @@ export function AssetDetailSheet({
           )}
           {tPrompts('saveAsTemplate')}
         </Button>
+        {isAudioAsset && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setCoverPickerOpen(true)}
+            disabled={isSettingCover}
+          >
+            {isSettingCover ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ImagePlus className="size-4" />
+            )}
+            {t('detailSetCover')}
+          </Button>
+        )}
         <ConfirmDialog
           title={t('detailDeleteConfirmTitle')}
           description={t('detailDeleteConfirmDescription')}
@@ -547,6 +590,16 @@ export function AssetDetailSheet({
         transitionImageSrc={previewUrl}
         transitionImageAlt={generation.prompt || generation.id}
       />
+      {isAudioAsset && (
+        <AssetSelectorDialog
+          open={coverPickerOpen}
+          onOpenChange={setCoverPickerOpen}
+          title={t('detailCoverDialogTitle')}
+          description={t('detailCoverDialogDescription')}
+          mediaType="image"
+          onSelect={(image) => void applyCover(image.url)}
+        />
+      )}
       <Sheet
         open={isPublishScopeOpen}
         onOpenChange={(nextOpen) => {

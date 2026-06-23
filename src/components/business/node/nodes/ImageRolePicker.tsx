@@ -37,16 +37,71 @@ interface ImageRolePickerProps {
   nodeId: string
   selected?: boolean
   status: NodeWorkflowStatus
+  /** The node's existing role when this is a re-choose (vs a fresh role-less
+   *  node). Re-picking it is a no-op so the card's image/data survive. */
+  currentRole?: NodeImageRole
+  /** Fired once a role is chosen — lets a re-choosing card exit the chooser. */
+  onPicked?: () => void
+}
+
+/**
+ * The role-choosing content (title + 3 role buttons), without any card chrome.
+ * Shared by the canvas card (`ImageRolePicker`) and the expand/detail panel so a
+ * role-less image node offers the SAME choice whether collapsed or expanded —
+ * expanding it must never fall through to a default (shot) editing form.
+ */
+export function ImageRolePickerBody({
+  nodeId,
+  currentRole,
+  onPicked,
+}: {
+  nodeId: string
+  currentRole?: NodeImageRole
+  onPicked?: () => void
+}) {
+  const t = useTranslations('StudioNode.imageRolePicker')
+  const { updateNodeData } = useNodeWorkflowActions()
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-medium text-node-muted">{t('title')}</p>
+      <div className="space-y-2">
+        {ROLE_OPTIONS.map(({ role, Icon }) => (
+          <button
+            key={role}
+            type="button"
+            onClick={() => {
+              // Re-picking the current role is a no-op — the non-destructive
+              // "back" from a re-choose keeps the image/data. A different role
+              // (or a fresh role-less node) resets to that role's blank template.
+              if (role !== currentRole) {
+                updateNodeData(nodeId, {
+                  ...createDefaultNodeData(
+                    NODE_IMAGE_ROLE_TO_LEGACY_TYPE[role],
+                  ),
+                  role,
+                })
+              }
+              onPicked?.()
+            }}
+            className="nodrag flex w-full items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-sm text-node-foreground transition-colors hover:border-node-muted/70 hover:bg-node-panel-inner"
+          >
+            <Icon className="size-4 text-node-muted" />
+            {t(role)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function ImageRolePicker({
   nodeId,
   selected,
   status,
+  currentRole,
+  onPicked,
 }: ImageRolePickerProps) {
-  const t = useTranslations('StudioNode.imageRolePicker')
-  const { updateNodeData } = useNodeWorkflowActions()
-
   return (
     <NodeShell
       nodeId={nodeId}
@@ -57,28 +112,12 @@ export function ImageRolePicker({
       showTargetHandle={false}
     >
       <NodeShell.Header type={NODE_TYPE_IDS.image} status={status} />
-      <NodeShell.Body className="space-y-3">
-        <p className="text-xs font-medium text-node-muted">{t('title')}</p>
-        <div className="space-y-2">
-          {ROLE_OPTIONS.map(({ role, Icon }) => (
-            <button
-              key={role}
-              type="button"
-              onClick={() =>
-                updateNodeData(nodeId, {
-                  ...createDefaultNodeData(
-                    NODE_IMAGE_ROLE_TO_LEGACY_TYPE[role],
-                  ),
-                  role,
-                })
-              }
-              className="nodrag flex w-full items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-sm text-node-foreground transition-colors hover:border-node-muted/70 hover:bg-node-panel-inner"
-            >
-              <Icon className="size-4 text-node-muted" />
-              {t(role)}
-            </button>
-          ))}
-        </div>
+      <NodeShell.Body>
+        <ImageRolePickerBody
+          nodeId={nodeId}
+          currentRole={currentRole}
+          onPicked={onPicked}
+        />
       </NodeShell.Body>
     </NodeShell>
   )

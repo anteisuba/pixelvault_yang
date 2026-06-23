@@ -13,6 +13,7 @@ import {
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import {
   getNodeMediaUrl,
+  getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
   isKeyframeNode,
@@ -98,15 +99,16 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   }, [edges, nodes, nodeId])
 
   // Which upstream reference families are bound — drives the compact card's
-  // read-only ref chips (角色/背景/声音).
+  // read-only ref chips (角色/背景/声音). Resolves each node via the shared
+  // role-aware classifier so the unified `image` node (type === 'image' +
+  // data.role) surfaces as character/background, not just the legacy per-type
+  // nodes.
   const referenceKinds = useMemo(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
     const kinds = new Set<'character' | 'background' | 'voice'>()
     for (const node of incoming) {
-      if (node.type === NODE_TYPE_IDS.characterImage) kinds.add('character')
-      else if (node.type === NODE_TYPE_IDS.backgroundImage)
-        kinds.add('background')
-      else if (isVoiceProfileNode(node)) kinds.add('voice')
+      const kind = getSeedanceReferenceKind(node)
+      if (kind) kinds.add(kind)
     }
     return Array.from(kinds)
   }, [edges, nodes, nodeId])
@@ -133,25 +135,26 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       token: string
     }> = []
     for (const node of incoming) {
-      if (node.type === NODE_TYPE_IDS.characterImage) {
+      const kind = getSeedanceReferenceKind(node)
+      if (kind === 'character') {
         const name =
           typeof node.data.characterName === 'string'
             ? node.data.characterName.trim()
             : ''
         tokens.push({
           id: node.id,
-          kind: 'character',
+          kind,
           label: name,
           token: name ? `@${name}` : '',
         })
-      } else if (node.type === NODE_TYPE_IDS.backgroundImage) {
+      } else if (kind === 'background') {
         const name =
           typeof node.data.backgroundName === 'string'
             ? node.data.backgroundName.trim()
             : ''
         tokens.push({
           id: node.id,
-          kind: 'background',
+          kind,
           label: name,
           token: name ? `@${name}` : '',
         })

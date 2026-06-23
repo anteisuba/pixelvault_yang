@@ -20,7 +20,11 @@ vi.mock('./VoiceSelector', () => ({
     className?: string
     onSelectComplete?: () => void
     selectedVoiceId?: string | null
-    onSelectVoiceId?: (voiceId: string) => void
+    onSelectVoiceId?: (voice: {
+      voiceId: string
+      name: string
+      coverImage: string | null
+    }) => void
   }) => (
     <div data-testid="voice-selector" className={className}>
       <span>selected:{selectedVoiceId ?? 'none'}</span>
@@ -29,7 +33,13 @@ vi.mock('./VoiceSelector', () => ({
       </button>
       <button
         type="button"
-        onClick={() => onSelectVoiceId?.('voice-from-dialog')}
+        onClick={() =>
+          onSelectVoiceId?.({
+            voiceId: 'voice-from-dialog',
+            name: 'Voice From Dialog',
+            coverImage: null,
+          })
+        }
       >
         select-voice-id
       </button>
@@ -71,7 +81,11 @@ describe('FishVoiceLibraryDialog', () => {
     expect(screen.getByText('selected:speaker-a')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('select-voice-id'))
-    expect(onSelectVoiceId).toHaveBeenCalledWith('voice-from-dialog')
+    expect(onSelectVoiceId).toHaveBeenCalledWith({
+      voiceId: 'voice-from-dialog',
+      name: 'Voice From Dialog',
+      coverImage: null,
+    })
 
     fireEvent.click(screen.getByText('select-voice'))
     expect(onVoiceSelectComplete).toHaveBeenCalled()

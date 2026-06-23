@@ -20,10 +20,12 @@ export function buildNodeWorkflowPrompt(
   type: NodeWorkflowNodeType,
   data: NodeWorkflowNodeData,
 ): string {
-  // Voice nodes synthesize speech from their dialogue line — the other voice
-  // fields (voiceId / voiceStyle / voiceEmotion) are timbre metadata, not text
-  // to be spoken. Without this branch the TTS prompt would be the metadata
-  // blob instead of the 台词.
+  // Voice nodes are timbre donors — spoken lines live in the script / downstream
+  // video nodes (剧本后置), not on the voice node UI (which has no 台词 input).
+  // The ScriptDoc projection no longer writes `dialogue` onto voice nodes, so this
+  // branch only yields a value for legacy/persisted graphs whose voice nodes still
+  // carry one; no live UI path drives voice TTS from it. Kept as a backward-
+  // compatible reader for that legacy graph-prompt shape.
   if (type === NODE_TYPE_IDS.voice) {
     return getNodeWorkflowFieldValue(
       data,

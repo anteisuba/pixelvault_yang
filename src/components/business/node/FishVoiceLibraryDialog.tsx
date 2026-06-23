@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-import { VoiceSelector } from './VoiceSelector'
+import { VoiceSelector, type SelectedVoice } from './VoiceSelector'
 
 interface FishVoiceLibraryDialogProps {
   open: boolean
@@ -20,7 +20,7 @@ interface FishVoiceLibraryDialogProps {
   sidePanel?: ReactNode
   onVoiceSelectComplete?: () => void
   selectedVoiceId?: string | null
-  onSelectVoiceId?: (voiceId: string) => void
+  onSelectVoiceId?: (voice: SelectedVoice) => void
 }
 
 export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({

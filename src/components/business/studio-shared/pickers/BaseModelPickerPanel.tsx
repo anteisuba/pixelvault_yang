@@ -433,7 +433,7 @@ export function BaseModelPickerPanel({
         // it open on focus-out; real outside clicks still close via
         // onPointerDownOutside.
         onFocusOutside={(event) => event.preventDefault()}
-        className="origin-bottom max-h-[min(24rem,calc(var(--radix-popover-content-available-height)-0.5rem))] w-96 max-w-[calc(100vw-2rem)] touch-pan-y overflow-y-auto overscroll-y-contain rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] data-[side=top]:slide-in-from-bottom-2"
+        className="studio-scrollbar origin-bottom max-h-[min(24rem,calc(var(--radix-popover-content-available-height)-0.5rem))] w-96 max-w-[calc(100vw-2rem)] touch-pan-y overflow-y-auto overscroll-y-contain rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] data-[side=top]:slide-in-from-bottom-2"
       >
         <Command
           shouldFilter={false}

@@ -407,6 +407,7 @@ model VoiceCard {
   provider                 String   @default("fish_audio")
   modelId                  String?
   voiceId                  String?
+  coverImage               String?  @db.Text
   referenceAudioUrl        String?  @db.Text
   referenceAudioStorageKey String?
   gender                   String?

@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState, type KeyboardEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import {
   AlertTriangle,
   Check,
@@ -10,7 +16,7 @@ import {
   KeyRound,
   Loader2,
   Lock,
-  Sparkles,
+  Wand2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -72,6 +78,18 @@ interface VideoComposerProps {
 // doesn't declare `supportedDurations`.
 const DURATION_SECONDS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
 
+// Aspect-ratio picker tiles render each option as a proportional preview rect
+// (≤26px on the long edge) instead of a bare text pill — see the visual ratio
+// picker in must-3 / fig4. Falls back to a square for a malformed ratio string.
+function aspectBoxStyle(ratio: string): { width: number; height: number } {
+  const [w, h] = ratio.split(':').map(Number)
+  const max = 26
+  if (!w || !h) return { width: max, height: max }
+  return w >= h
+    ? { width: max, height: Math.round((max * h) / w) }
+    : { width: Math.round((max * w) / h), height: max }
+}
+
 // Draft b2: a single prompt field — camera/motion ("运镜") go in the prompt,
 // not separate fields. This keeps the detail panel compact, not a long scroll.
 const EXPAND_TEXT_FIELDS: readonly NodeWorkflowFieldId[] = [
@@ -119,14 +137,16 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const t = useTranslations('StudioNode.videoGeneration')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tc = useTranslations('StudioNode.videoComposer')
-  const {
-    updateNodeData,
-    generateMediaNode,
-    enhanceSeedancePrompt,
-    setExpandedNodeId,
-  } = useNodeWorkflowActions()
+  const { updateNodeData, generateMediaNode, setExpandedNodeId } =
+    useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
-  const [isEnhancing, setIsEnhancing] = useState(false)
+  // Ref to the prompt textarea so clickable @reference chips can splice their
+  // token in at the caret (not just append) — see `insertReferenceToken`.
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  // In-composer disclosure for the compact model picker (detail mode). Default
+  // open only when no brand is committed yet, so first-run users see the list;
+  // it collapses after a brand is committed (ready-key click or rebind confirm).
+  const [pickerOpen, setPickerOpen] = useState(() => !composer.state.brand)
   // Pending brand switch awaiting confirmation because it would ignore a bound
   // reference under the new model's capability contract (§5.1 不静默丢).
   const [pendingBrand, setPendingBrand] = useState<{
@@ -145,16 +165,6 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const [pendingSetupBrand, setPendingSetupBrand] = useState<string | null>(
     null,
   )
-
-  const handleEnhance = useCallback(async () => {
-    if (!enhanceSeedancePrompt || isEnhancing) return
-    setIsEnhancing(true)
-    try {
-      await enhanceSeedancePrompt(id)
-    } finally {
-      setIsEnhancing(false)
-    }
-  }, [enhanceSeedancePrompt, id, isEnhancing])
 
   // Switch brand directly when every binding maps; otherwise stage a confirm
   // callout that previews 将映射 ✓ / 将忽略 ⚠ before committing.
@@ -180,6 +190,9 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       if (pending) composer.selectBrand(pending.brand)
       return null
     })
+    // Collapse the compact picker on a confirmed rebind, matching the
+    // ready-key brand-pick path (so every commit route collapses).
+    setPickerOpen(false)
   }, [composer])
 
   const cancelPendingBrand = useCallback(() => setPendingBrand(null), [])
@@ -207,6 +220,9 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     if (!pendingSetupBrand) return
     if (getBrandKeyStatus(pendingSetupBrand, composerOptions).ready) {
       composerSelectBrand(pendingSetupBrand)
+      // One-shot reset: consume the pending signal exactly once when the
+      // async-refreshed options report the brand ready (not a render-cascade).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingSetupBrand(null)
     }
   }, [pendingSetupBrand, composerOptions, composerSelectBrand])
@@ -214,6 +230,17 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const providers = composer.state.brand
     ? getBrandProviders(composer.state.brand, composer.options)
     : []
+
+  // Collapsed-picker summary: "brand · variant" (or just brand), falling back to
+  // the pick-model prompt; plus the key status for the inline dot/needs-key icon.
+  const pickerLabel = composer.state.brand
+    ? composer.state.variant
+      ? `${composer.state.brand} · ${tc(`variant.${composer.state.variant}`)}`
+      : composer.state.brand
+    : tc('pickModel')
+  const pickerStatus = composer.state.brand
+    ? getBrandKeyStatus(composer.state.brand, composer.options)
+    : null
 
   const selectedModelId = data.model?.modelId
   const capabilities = selectedModelId
@@ -262,6 +289,43 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       })
     },
     [data, id, updateNodeData],
+  )
+
+  // Splice a reference @token into the prompt at the caret (falls back to the
+  // end when the textarea isn't focused), padding so it doesn't fuse with
+  // adjacent words, then restore the caret just past the inserted token once the
+  // controlled value has flowed back in. Connected character/background/voice
+  // nodes surface as clickable chips that call this — the inserted name lets
+  // Seedance tie "@角色A" in the prompt to that node's reference image/audio.
+  const insertReferenceToken = useCallback(
+    (token: string) => {
+      if (!token) return
+      const el = promptRef.current
+      const current = el
+        ? el.value
+        : getNodeWorkflowFieldValue(data, NODE_WORKFLOW_FIELD_IDS.prompt)
+      const start = el ? el.selectionStart : current.length
+      const end = el ? el.selectionEnd : current.length
+      const before = current.slice(0, start)
+      const after = current.slice(end)
+      const lead = before && !/\s$/.test(before) ? ' ' : ''
+      const trail = after && !/^\s/.test(after) ? ' ' : ''
+      const fragment = `${lead}${token}${trail}`
+      handleFieldChange(
+        NODE_WORKFLOW_FIELD_IDS.prompt,
+        `${before}${fragment}${after}`,
+      )
+      const caret = start + fragment.length
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          const node = promptRef.current
+          if (!node) return
+          node.focus()
+          node.setSelectionRange(caret, caret)
+        })
+      }
+    },
+    [data, handleFieldChange],
   )
 
   const handleResolutionToggle = useCallback(
@@ -314,25 +378,22 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     durationOptions.indexOf(currentDurationSeconds),
   )
 
-  const handleDurationAuto = useCallback(
-    (auto: boolean) => {
-      handleFieldChange(
-        NODE_WORKFLOW_FIELD_IDS.duration,
-        auto ? 'auto' : String(currentDurationSeconds),
-      )
-    },
-    [handleFieldChange, currentDurationSeconds],
-  )
+  // Plain handlers (not useCallback): under the current hook graph the React
+  // Compiler can't preserve a manual memoization that closes over the derived
+  // `currentDurationSeconds` / `durationOptions`, so it memoizes these for us.
+  const handleDurationAuto = (auto: boolean) => {
+    handleFieldChange(
+      NODE_WORKFLOW_FIELD_IDS.duration,
+      auto ? 'auto' : String(currentDurationSeconds),
+    )
+  }
 
-  const handleDurationSlide = useCallback(
-    (index: number) => {
-      const value = durationOptions[index]
-      if (value !== undefined) {
-        handleFieldChange(NODE_WORKFLOW_FIELD_IDS.duration, String(value))
-      }
-    },
-    [durationOptions, handleFieldChange],
-  )
+  const handleDurationSlide = (index: number) => {
+    const value = durationOptions[index]
+    if (value !== undefined) {
+      handleFieldChange(NODE_WORKFLOW_FIELD_IDS.duration, String(value))
+    }
+  }
 
   const handleGenerate = useCallback(() => {
     void generateMediaNode?.(id)
@@ -419,408 +480,518 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
 
   return (
     <div className="nodrag space-y-4">
-      <div className="space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
-        <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-          {tc('modelRail.label')}
-        </span>
-        <div className="space-y-1">
-          {composer.brands.map((brand) => {
-            const isCurrent = composer.state.brand === brand
-            const status = getBrandKeyStatus(brand, composer.options)
-            return (
-              <div
-                key={brand}
-                className={cn(
-                  'overflow-hidden rounded-lg border transition-colors',
-                  isCurrent
-                    ? 'border-node-edge bg-node-panel'
-                    : 'border-node-panel-inner',
-                )}
-              >
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  onClick={() => handleBrandClick(brand, status)}
-                  className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
-                >
-                  <span
-                    className={cn(
-                      'text-xs font-semibold',
-                      isCurrent ? 'text-node-foreground' : 'text-node-muted',
-                    )}
-                  >
-                    {brand}
-                  </span>
-                  {status.ready ? (
-                    <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
-                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                      <span className="max-w-24 truncate">
-                        {status.keyLabel ?? tc('modelRail.ready')}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
-                      <KeyRound className="size-3 shrink-0" />
-                      {tc('modelRail.needsKey')}
-                    </span>
-                  )}
-                </button>
-                {isCurrent && status.ready ? (
-                  <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
-                    {composer.variants.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {composer.variants.map((variant) => {
-                          const on = composer.state.variant === variant
-                          return (
-                            <button
-                              key={variant}
-                              type="button"
-                              {...KEY_GUARD}
-                              onClick={() => composer.selectVariant(variant)}
-                              className={cn(
-                                'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                on
-                                  ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                  : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                              )}
-                            >
-                              {tc(`variant.${variant}`)}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : null}
-                    {composer.isDualProvider ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {providers.map((provider) => {
-                          const on = composer.state.provider === provider
-                          return (
-                            <button
-                              key={provider}
-                              type="button"
-                              {...KEY_GUARD}
-                              onClick={() => composer.selectProvider(provider)}
-                              className={cn(
-                                'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                on
-                                  ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                  : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                              )}
-                            >
-                              {tc(
-                                `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
-                              )}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : null}
+      {/* Two-pane layout: left = text inputs (references + prompt + negative),
+          right = model + render settings. The @container collapses to one column
+          when the panel narrows; the generate button spans full width below. */}
+      <div className="@container">
+        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
+          <div className="space-y-3">
+            {/* References — clickable @token chips, sitting right above the
+                prompt they insert into. */}
+            <div className="space-y-1">
+              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tc('references.label')}
+              </span>
+              {composer.referenceTokens.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    {composer.referenceTokens.map((refToken) => {
+                      if (!refToken.token) {
+                        return (
+                          <span
+                            key={refToken.id}
+                            title={tc('references.unnamedHint')}
+                            className="rounded-md border border-dashed border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-subtle"
+                          >
+                            {tc(`refKind.${refToken.kind}`)} ·{' '}
+                            {tc('references.unnamed')}
+                          </span>
+                        )
+                      }
+                      const insertText =
+                        refToken.kind === 'voice' && refToken.label
+                          ? `${refToken.label} (${refToken.token})`
+                          : refToken.token
+                      const display =
+                        refToken.kind === 'voice'
+                          ? refToken.label || refToken.token
+                          : refToken.token
+                      return (
+                        <button
+                          key={refToken.id}
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() => insertReferenceToken(insertText)}
+                          title={tc('references.insertHint')}
+                          className="rounded-md border border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+                        >
+                          {display}
+                        </button>
+                      )
+                    })}
                   </div>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-        {composer.hasReferenceInputs ? (
-          <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-            {tc('referenceModeOn')}
-          </p>
-        ) : null}
-      </div>
-
-      {pendingBrand ? (
-        <div className="space-y-2 rounded-lg border border-node-muted/50 bg-node-panel-soft p-2.5">
-          <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
-            <AlertTriangle className="size-3.5 shrink-0" />
-            {tc('rebind.title', { brand: pendingBrand.brand })}
-          </p>
-          <ul className="space-y-1">
-            {pendingBrand.preview.map((item) => (
-              <li
-                key={item.kind}
-                className="flex items-center gap-1.5 text-2xs text-node-muted"
-              >
-                {item.status === 'map' ? (
-                  <Check className="size-3 shrink-0 text-node-foreground" />
-                ) : (
-                  <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
-                )}
-                <span className="text-node-foreground">
-                  {tc(`refKind.${item.kind}`)}
-                </span>
-                <span>{tc(`rebind.${item.status}`)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              {...KEY_GUARD}
-              onClick={confirmPendingBrand}
-              className="flex-1 rounded-lg bg-node-foreground px-2 py-1.5 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
-            >
-              {tc('rebind.confirm')}
-            </button>
-            <button
-              type="button"
-              {...KEY_GUARD}
-              onClick={cancelPendingBrand}
-              className="flex-1 rounded-lg border border-node-panel-inner px-2 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:text-node-foreground"
-            >
-              {tc('rebind.cancel')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="space-y-3 lg:col-span-3">
-          {enhanceSeedancePrompt ? (
-            <button
-              type="button"
-              {...KEY_GUARD}
-              onClick={handleEnhance}
-              disabled={isEnhancing}
-              className="nodrag flex w-full items-center justify-center gap-1.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge disabled:opacity-50"
-            >
-              {isEnhancing ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                  <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+                    {tc('references.insertHint')}
+                  </p>
+                </>
               ) : (
-                <Sparkles className="size-3.5" />
+                <p className="text-2xs leading-4 text-node-subtle">
+                  {tc('references.empty')}
+                </p>
               )}
-              {isEnhancing ? tc('enhancing') : tc('enhancePrompt')}
-            </button>
-          ) : null}
-
-          {EXPAND_TEXT_FIELDS.map((fieldId) => {
-            const value = getNodeWorkflowFieldValue(data, fieldId)
-            const isLong =
-              fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
-              fieldId === NODE_WORKFLOW_FIELD_IDS.motion ||
-              fieldId === NODE_WORKFLOW_FIELD_IDS.audioIntent
-            return (
-              <ComposerField key={fieldId} label={tFields(`${fieldId}.label`)}>
-                {isLong ? (
-                  <IMEAwareTextarea
-                    value={value}
-                    onValueChange={(next) => handleFieldChange(fieldId, next)}
-                    aria-label={tFields(`${fieldId}.label`)}
-                    placeholder={tFields(`${fieldId}.placeholder`)}
-                    {...KEY_GUARD}
-                    className="min-h-44 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                  />
-                ) : (
-                  <IMEAwareInput
-                    value={value}
-                    onValueChange={(next) => handleFieldChange(fieldId, next)}
-                    aria-label={tFields(`${fieldId}.label`)}
-                    placeholder={tFields(`${fieldId}.placeholder`)}
-                    {...KEY_GUARD}
-                    className="h-9 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                  />
-                )}
-              </ComposerField>
-            )
-          })}
-
-          <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-            {tc('motionHint')}
-          </p>
-
-          <div className="space-y-1">
-            <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-              {tc('references.label')}
-            </span>
-            {composer.referenceKinds.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {composer.referenceKinds.map((kind) => (
-                  <span
-                    key={kind}
-                    className="rounded-md border border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-muted"
-                  >
-                    {tc(`refKind.${kind}`)}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-2xs leading-4 text-node-subtle">
-                {tc('references.empty')}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-3 lg:col-span-2">
-          <ComposerField label={tFields('duration.label')}>
-            <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold tabular-nums text-node-foreground">
-                  {isAutoDuration
-                    ? tFields('duration.auto')
-                    : tFields('duration.seconds', {
-                        value: String(currentDurationSeconds),
-                      })}
-                </span>
-                <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
-                  {tFields('duration.auto')}
-                  <Switch
-                    checked={isAutoDuration}
-                    onCheckedChange={handleDurationAuto}
-                    aria-label={tFields('duration.auto')}
-                  />
-                </label>
-              </div>
-              <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
-                <Slider
-                  min={0}
-                  max={Math.max(0, durationOptions.length - 1)}
-                  step={1}
-                  value={[durationIndex]}
-                  onValueChange={(vals) => handleDurationSlide(vals[0] ?? 0)}
-                  disabled={isAutoDuration}
-                  aria-label={tFields('duration.label')}
-                />
-              </div>
-              <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
-                <span>{durationOptions[0]}</span>
-                <span>{durationOptions[durationOptions.length - 1]}</span>
-              </div>
-            </div>
-          </ComposerField>
-
-          <ComposerField label={t('resolutionLabel')}>
-            <div className="flex flex-wrap gap-1.5">
-              {resolutionOptions.map((option) => {
-                const isSelected = currentResolution === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={() => handleResolutionToggle(option)}
-                    className={cn(
-                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                      isSelected
-                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                    )}
-                  >
-                    {option}
-                  </button>
-                )
-              })}
-            </div>
-          </ComposerField>
-
-          <ComposerField label={t('aspectRatioLabel')}>
-            <div className="flex flex-wrap gap-1.5">
-              {aspectOptions.map((option) => {
-                const isSelected = currentAspect === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={() => handleAspectToggle(option)}
-                    className={cn(
-                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                      isSelected
-                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                    )}
-                  >
-                    {option}
-                  </button>
-                )
-              })}
-            </div>
-          </ComposerField>
-
-          <ComposerField label={t('negativePromptLabel')}>
-            <IMEAwareTextarea
-              value={currentNegative}
-              onValueChange={handleNegativeChange}
-              aria-label={t('negativePromptLabel')}
-              placeholder={t('negativePromptPlaceholder')}
-              {...KEY_GUARD}
-              className="min-h-16 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-            />
-          </ComposerField>
-
-          <div
-            className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
-            {...KEY_GUARD}
-          >
-            <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-              {tc('generateAudioLabel')}
-            </span>
-            <Switch
-              checked={
-                typeof data.generateAudio === 'boolean'
-                  ? data.generateAudio
-                  : true
-              }
-              onCheckedChange={(checked) =>
-                updateNodeData(id, { generateAudio: checked })
-              }
-              aria-label={tc('generateAudioLabel')}
-            />
-          </div>
-
-          {supportsSeed ? (
-            <ComposerField label={tc('seedLabel')}>
-              <div className="flex items-center gap-1.5">
-                <IMEAwareInput
-                  value={typeof data.seed === 'number' ? String(data.seed) : ''}
-                  onValueChange={(next) => {
-                    const trimmed = next.trim()
-                    const parsed = Number(trimmed)
-                    updateNodeData(id, {
-                      seed:
-                        trimmed && Number.isInteger(parsed) && parsed >= 0
-                          ? Math.min(parsed, 2147483647)
-                          : undefined,
-                    })
-                  }}
-                  inputMode="numeric"
-                  aria-label={tc('seedLabel')}
-                  placeholder={tc('seedRandom')}
-                  {...KEY_GUARD}
-                  className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                />
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  onClick={() =>
-                    updateNodeData(id, {
-                      seed: Math.floor(Math.random() * 2147483647),
-                    })
-                  }
-                  aria-label={tc('seedRandomize')}
-                  title={tc('seedRandomize')}
-                  className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
-                >
-                  <Dices className="size-4" />
-                </button>
-              </div>
-              {hasMedia && typeof data.lastSeed === 'number' ? (
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  onClick={() => updateNodeData(id, { seed: data.lastSeed })}
-                  className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
-                >
-                  <span>
-                    {tc('lastSeedLabel')}: {data.lastSeed}
-                  </span>
-                  <span className="flex items-center gap-1 text-node-foreground">
-                    <Lock className="size-3" />
-                    {tc('seedLock')}
-                  </span>
-                </button>
+              {composer.hasReferenceInputs ? (
+                <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+                  {tc('referenceModeOn')}
+                </p>
               ) : null}
+            </div>
+
+            {/* Prompt — the composer's hero field. */}
+            {EXPAND_TEXT_FIELDS.map((fieldId) => {
+              const value = getNodeWorkflowFieldValue(data, fieldId)
+              const isLong =
+                fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
+                fieldId === NODE_WORKFLOW_FIELD_IDS.motion ||
+                fieldId === NODE_WORKFLOW_FIELD_IDS.audioIntent
+              return (
+                <ComposerField
+                  key={fieldId}
+                  label={tFields(`${fieldId}.label`)}
+                >
+                  {isLong ? (
+                    <IMEAwareTextarea
+                      value={value}
+                      onValueChange={(next) => handleFieldChange(fieldId, next)}
+                      textareaRef={
+                        fieldId === NODE_WORKFLOW_FIELD_IDS.prompt
+                          ? promptRef
+                          : undefined
+                      }
+                      aria-label={tFields(`${fieldId}.label`)}
+                      placeholder={tFields(`${fieldId}.placeholder`)}
+                      {...KEY_GUARD}
+                      className="min-h-52 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                    />
+                  ) : (
+                    <IMEAwareInput
+                      value={value}
+                      onValueChange={(next) => handleFieldChange(fieldId, next)}
+                      aria-label={tFields(`${fieldId}.label`)}
+                      placeholder={tFields(`${fieldId}.placeholder`)}
+                      {...KEY_GUARD}
+                      className="h-9 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                    />
+                  )}
+                </ComposerField>
+              )
+            })}
+
+            {/* Negative prompt — grouped with the other text inputs. */}
+            <ComposerField label={t('negativePromptLabel')}>
+              <IMEAwareTextarea
+                value={currentNegative}
+                onValueChange={handleNegativeChange}
+                aria-label={t('negativePromptLabel')}
+                placeholder={t('negativePromptPlaceholder')}
+                {...KEY_GUARD}
+                className="min-h-16 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+              />
             </ComposerField>
-          ) : null}
+          </div>
+
+          <div className="space-y-3">
+            {/* Compact model picker — collapsed chip below the prompt; expands the
+          full brand/variant/provider rail and collapses again after a commit. */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                {...KEY_GUARD}
+                onClick={() => setPickerOpen((open) => !open)}
+                aria-expanded={pickerOpen}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {pickerStatus ? (
+                    pickerStatus.ready ? (
+                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    ) : (
+                      <KeyRound className="size-3 shrink-0 text-node-muted" />
+                    )
+                  ) : null}
+                  <span className="truncate">{pickerLabel}</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    'size-3.5 shrink-0 text-node-muted transition-transform',
+                    pickerOpen && 'rotate-180',
+                  )}
+                />
+              </button>
+
+              <div
+                className="node-collapsible"
+                data-open={pickerOpen || undefined}
+              >
+                <div>
+                  <div className="mt-2 space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
+                    <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {tc('modelRail.label')}
+                    </span>
+                    <div className="space-y-1">
+                      {composer.brands.map((brand) => {
+                        const isCurrent = composer.state.brand === brand
+                        const status = getBrandKeyStatus(
+                          brand,
+                          composer.options,
+                        )
+                        return (
+                          <div
+                            key={brand}
+                            className={cn(
+                              'overflow-hidden rounded-lg border transition-colors',
+                              isCurrent
+                                ? 'border-node-edge bg-node-panel'
+                                : 'border-node-panel-inner',
+                            )}
+                          >
+                            <button
+                              type="button"
+                              {...KEY_GUARD}
+                              onClick={() => {
+                                handleBrandClick(brand, status)
+                                if (status.ready) setPickerOpen(false)
+                              }}
+                              className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
+                            >
+                              <span
+                                className={cn(
+                                  'text-xs font-semibold',
+                                  isCurrent
+                                    ? 'text-node-foreground'
+                                    : 'text-node-muted',
+                                )}
+                              >
+                                {brand}
+                              </span>
+                              {status.ready ? (
+                                <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
+                                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                  <span className="max-w-24 truncate">
+                                    {status.keyLabel ?? tc('modelRail.ready')}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
+                                  <KeyRound className="size-3 shrink-0" />
+                                  {tc('modelRail.needsKey')}
+                                </span>
+                              )}
+                            </button>
+                            {isCurrent && status.ready ? (
+                              <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
+                                {composer.variants.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {composer.variants.map((variant) => {
+                                      const on =
+                                        composer.state.variant === variant
+                                      return (
+                                        <button
+                                          key={variant}
+                                          type="button"
+                                          {...KEY_GUARD}
+                                          onClick={() =>
+                                            composer.selectVariant(variant)
+                                          }
+                                          className={cn(
+                                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                            on
+                                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                          )}
+                                        >
+                                          {tc(`variant.${variant}`)}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                ) : null}
+                                {composer.isDualProvider ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {providers.map((provider) => {
+                                      const on =
+                                        composer.state.provider === provider
+                                      return (
+                                        <button
+                                          key={provider}
+                                          type="button"
+                                          {...KEY_GUARD}
+                                          onClick={() =>
+                                            composer.selectProvider(provider)
+                                          }
+                                          className={cn(
+                                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                            on
+                                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                          )}
+                                        >
+                                          {tc(
+                                            `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
+                                          )}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {pendingBrand ? (
+              <div className="space-y-2 rounded-lg border border-node-muted/50 bg-node-panel-soft p-2.5">
+                <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  {tc('rebind.title', { brand: pendingBrand.brand })}
+                </p>
+                <ul className="space-y-1">
+                  {pendingBrand.preview.map((item) => (
+                    <li
+                      key={item.kind}
+                      className="flex items-center gap-1.5 text-2xs text-node-muted"
+                    >
+                      {item.status === 'map' ? (
+                        <Check className="size-3 shrink-0 text-node-foreground" />
+                      ) : (
+                        <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
+                      )}
+                      <span className="text-node-foreground">
+                        {tc(`refKind.${item.kind}`)}
+                      </span>
+                      <span>{tc(`rebind.${item.status}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={confirmPendingBrand}
+                    className="flex-1 rounded-lg bg-node-foreground px-2 py-1.5 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
+                  >
+                    {tc('rebind.confirm')}
+                  </button>
+                  <button
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={cancelPendingBrand}
+                    className="flex-1 rounded-lg border border-node-panel-inner px-2 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:text-node-foreground"
+                  >
+                    {tc('rebind.cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <ComposerField label={tFields('duration.label')}>
+              <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold tabular-nums text-node-foreground">
+                    {isAutoDuration
+                      ? tFields('duration.auto')
+                      : tFields('duration.seconds', {
+                          value: String(currentDurationSeconds),
+                        })}
+                  </span>
+                  <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
+                    {tFields('duration.auto')}
+                    <Switch
+                      checked={isAutoDuration}
+                      onCheckedChange={handleDurationAuto}
+                      aria-label={tFields('duration.auto')}
+                    />
+                  </label>
+                </div>
+                <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
+                  <Slider
+                    min={0}
+                    max={Math.max(0, durationOptions.length - 1)}
+                    step={1}
+                    value={[durationIndex]}
+                    onValueChange={(vals) => handleDurationSlide(vals[0] ?? 0)}
+                    disabled={isAutoDuration}
+                    aria-label={tFields('duration.label')}
+                  />
+                </div>
+                <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
+                  <span>{durationOptions[0]}</span>
+                  <span>{durationOptions[durationOptions.length - 1]}</span>
+                </div>
+              </div>
+            </ComposerField>
+
+            <ComposerField label={t('resolutionLabel')}>
+              <div className="flex flex-wrap gap-1.5">
+                {resolutionOptions.map((option) => {
+                  const isSelected = currentResolution === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={() => handleResolutionToggle(option)}
+                      className={cn(
+                        'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                        isSelected
+                          ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                      )}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            </ComposerField>
+
+            <ComposerField label={t('aspectRatioLabel')}>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  onClick={() => updateNodeData(id, { aspectRatio: undefined })}
+                  aria-pressed={currentAspect === undefined}
+                  className={cn(
+                    'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                    currentAspect === undefined
+                      ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                      : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                  )}
+                >
+                  <Wand2 className="size-4" />
+                  <span className="text-2xs font-semibold">
+                    {tc('aspectAuto')}
+                  </span>
+                </button>
+                {aspectOptions.map((option) => {
+                  const isSelected = currentAspect === option
+                  const box = aspectBoxStyle(option)
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={() => handleAspectToggle(option)}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                        isSelected
+                          ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        style={{ width: box.width, height: box.height }}
+                        className={cn(
+                          'rounded-sm border',
+                          isSelected
+                            ? 'border-node-foreground'
+                            : 'border-node-muted',
+                        )}
+                      />
+                      <span className="text-2xs font-semibold tabular-nums">
+                        {option}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </ComposerField>
+
+            <div
+              className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
+              {...KEY_GUARD}
+            >
+              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tc('generateAudioLabel')}
+              </span>
+              <Switch
+                checked={
+                  typeof data.generateAudio === 'boolean'
+                    ? data.generateAudio
+                    : true
+                }
+                onCheckedChange={(checked) =>
+                  updateNodeData(id, { generateAudio: checked })
+                }
+                aria-label={tc('generateAudioLabel')}
+              />
+            </div>
+
+            {supportsSeed ? (
+              <ComposerField label={tc('seedLabel')}>
+                <div className="flex items-center gap-1.5">
+                  <IMEAwareInput
+                    value={
+                      typeof data.seed === 'number' ? String(data.seed) : ''
+                    }
+                    onValueChange={(next) => {
+                      const trimmed = next.trim()
+                      const parsed = Number(trimmed)
+                      updateNodeData(id, {
+                        seed:
+                          trimmed && Number.isInteger(parsed) && parsed >= 0
+                            ? Math.min(parsed, 2147483647)
+                            : undefined,
+                      })
+                    }}
+                    inputMode="numeric"
+                    aria-label={tc('seedLabel')}
+                    placeholder={tc('seedRandom')}
+                    {...KEY_GUARD}
+                    className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                  />
+                  <button
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={() =>
+                      updateNodeData(id, {
+                        seed: Math.floor(Math.random() * 2147483647),
+                      })
+                    }
+                    aria-label={tc('seedRandomize')}
+                    title={tc('seedRandomize')}
+                    className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
+                  >
+                    <Dices className="size-4" />
+                  </button>
+                </div>
+                {hasMedia && typeof data.lastSeed === 'number' ? (
+                  <button
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={() => updateNodeData(id, { seed: data.lastSeed })}
+                    className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
+                  >
+                    <span>
+                      {tc('lastSeedLabel')}: {data.lastSeed}
+                    </span>
+                    <span className="flex items-center gap-1 text-node-foreground">
+                      <Lock className="size-3" />
+                      {tc('seedLock')}
+                    </span>
+                  </button>
+                ) : null}
+              </ComposerField>
+            ) : null}
+          </div>
         </div>
       </div>
 

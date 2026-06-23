@@ -4,6 +4,20 @@ export const STUDIO_PROMPT_TEXTAREA_ID = 'studio-prompt-textarea' as const
 export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
   'pixelvault:studio-prefill-prompt' as const
 
+/**
+ * Open-Image-Studio round-trip (canvas node ↔ Studio). The node writes a
+ * HANDOFF (origin node id + prompt + reference images) before navigating to
+ * Studio; Studio prefills from it and, on "回填", writes a RESULT (origin node
+ * id + generated image url) and navigates back to the canvas, which applies it
+ * to the origin node. Replaces the old one-way navigate-away dead-end.
+ */
+export const STUDIO_NODE_HANDOFF_STORAGE_KEY =
+  'pixelvault:studio-node-handoff' as const
+export const STUDIO_NODE_RESULT_STORAGE_KEY =
+  'pixelvault:studio-node-result' as const
+/** Cap reference images carried into Studio from a node handoff. */
+export const STUDIO_NODE_HANDOFF_MAX_REFERENCES = 4 as const
+
 export const STUDIO_IMAGE_ASPECT_RATIOS = [
   '1:1',
   '16:9',

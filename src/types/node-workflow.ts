@@ -131,6 +131,12 @@ export const NodeWorkflowNodeDataSchema = z
     voiceName: z.string().optional(),
     voiceProvider: z.string().optional(),
     voiceId: z.string().optional(),
+    voiceCoverImage: z.string().trim().min(1).optional(),
+    // Cover for the "my voice" (reference audio) source, kept separate from the
+    // system-voice `voiceCoverImage` so switching sources doesn't clobber the
+    // other's cover. Follows the picked audio asset's cover (set in the library).
+    voiceReferenceCoverImage: z.string().trim().min(1).optional(),
+    voiceSampleUrl: z.string().trim().min(1).optional(),
     voiceStyle: z.string().optional(),
     voiceEmotion: z.string().optional(),
     voiceSpeed: z.number().min(0.5).max(2).optional(),

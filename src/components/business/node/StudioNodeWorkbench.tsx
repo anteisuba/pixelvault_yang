@@ -60,6 +60,7 @@ import {
 import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
+import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import { useNodeWorkflow } from '@/hooks/node/use-node-workflow'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
@@ -76,6 +77,10 @@ import {
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import {
+  clearStudioNodeResult,
+  readStudioNodeResult,
+} from '@/lib/studio-node-handoff'
 import {
   getBrandVariants,
   getSurfacedVideoBrands,
@@ -172,6 +177,13 @@ export function StudioNodeWorkbench() {
   return (
     <section
       ref={canvasRef}
+      // The canvas is a dark surface, but `.dark` only remaps color tokens — it
+      // doesn't set `color-scheme`, so native UI (scrollbars, form controls)
+      // inside it fell back to the OS light scheme and painted a white scrollbar
+      // down dark scroll areas like the node detail panel. Scope the dark scheme
+      // here (not globally — `<html>` is `dark` while most pages render light)
+      // so every in-canvas scroll area gets a matching dark scrollbar.
+      style={{ colorScheme: 'dark' }}
       className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground"
     >
       <ReactFlowProvider>
@@ -201,6 +213,22 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const characterImageGeneration = useCharacterImageGeneration()
   const nodeMediaGeneration = useNodeMediaGeneration()
   const modelOptionsByType = useWorkflowModelOptions()
+  // Backfill in-flight generations whose foreground poll timed out (or whose
+  // tab reloaded mid-run) by re-querying their persisted jobId on mount/focus.
+  const reconcileFormatError = useCallback(
+    (failure: { error?: string; errorCode?: string; i18nKey?: string }) =>
+      getGenerationErrorMessage(
+        tErrors,
+        failure,
+        t('mediaNodes.fallbackError'),
+      ),
+    [t, tErrors],
+  )
+  useNodeGenerationReconcile({
+    nodes: workflow.nodes,
+    updateNodeData: workflow.updateNodeData,
+    formatError: reconcileFormatError,
+  })
   const { fitView, screenToFlowPosition } = useReactFlow<
     NodeWorkflowNode,
     NodeWorkflowEdge
@@ -555,15 +583,23 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const advancedParams: AdvancedParams | undefined =
         loras.length > 0 ? { loras } : undefined
 
-      const result = await characterImageGeneration.generate({
-        modelId: model.modelId,
-        apiKeyId: model.apiKeyId,
-        freePrompt: prompt,
-        aspectRatio: DEFAULT_ASPECT_RATIO,
-        referenceImages:
-          referenceImages.length > 0 ? referenceImages : undefined,
-        advancedParams,
-      })
+      const result = await characterImageGeneration.generate(
+        {
+          modelId: model.modelId,
+          apiKeyId: model.apiKeyId,
+          freePrompt: prompt,
+          aspectRatio: DEFAULT_ASPECT_RATIO,
+          referenceImages:
+            referenceImages.length > 0 ? referenceImages : undefined,
+          advancedParams,
+        },
+        {
+          // Persist the jobId the moment it exists so a reload or poll-window
+          // timeout mid-flight stays reconcilable (see reconcile hook).
+          onJobCreated: (jobId) =>
+            workflow.updateNodeData(nodeId, { mediaJobId: jobId }),
+        },
+      )
 
       if (result.success) {
         workflow.updateNodeData(nodeId, {
@@ -573,6 +609,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
           imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
           imageUrl: result.imageUrl,
+          mediaJobId: undefined,
           sourceGenerationId: undefined,
           sourceLabel: undefined,
           status: NODE_STATUS_IDS.done,
@@ -585,10 +622,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       }
 
       if (result.pending) {
+        // The poll window closed but the job is still running server-side.
+        // Hold the node in `pending` (not idle) with its jobId persisted so the
+        // reconcile pass backfills the result instead of dropping it.
         workflow.updateNodeData(nodeId, {
           generationError: undefined,
-          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          status: NODE_STATUS_IDS.idle,
+          generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+          mediaJobId: result.jobId,
+          status: NODE_STATUS_IDS.running,
         })
         toast.info(t('toasts.stillProcessing'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
@@ -608,6 +649,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         generationStatus: NODE_GENERATION_STATUS_IDS.error,
         imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
         imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+        mediaJobId: undefined,
         status: NODE_STATUS_IDS.failed,
       })
       toast.error(t('characterImage.failedTitle'), {
@@ -816,29 +858,41 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           ? (node.data.voiceEmotion as AudioEmotion)
           : undefined
 
-      const result = await nodeMediaGeneration.generate({
-        kind,
-        modelId: model.modelId,
-        apiKeyId: model.apiKeyId,
-        prompt: mergedPrompt,
-        duration: videoDuration,
-        resolution: videoResolution,
-        aspectRatio: videoAspectRatio,
-        referenceImages:
-          referenceImages.length > 0 ? referenceImages : undefined,
-        audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
-        audioBindings:
-          upstreamAudioBindings.length > 0 ? upstreamAudioBindings : undefined,
-        videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
-        voiceId: audioVoiceId,
-        speed: audioSpeed,
-        volume: audioVolume,
-        emotion: audioEmotion,
-        negativePrompt,
-        generateAudio: videoGenerateAudio,
-        seed: videoSeed,
-        advancedParams,
-      })
+      const result = await nodeMediaGeneration.generate(
+        {
+          kind,
+          modelId: model.modelId,
+          apiKeyId: model.apiKeyId,
+          prompt: mergedPrompt,
+          duration: videoDuration,
+          resolution: videoResolution,
+          aspectRatio: videoAspectRatio,
+          referenceImages:
+            referenceImages.length > 0 ? referenceImages : undefined,
+          audioUrls:
+            upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
+          audioBindings:
+            upstreamAudioBindings.length > 0
+              ? upstreamAudioBindings
+              : undefined,
+          videoUrls:
+            upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
+          voiceId: audioVoiceId,
+          speed: audioSpeed,
+          volume: audioVolume,
+          emotion: audioEmotion,
+          negativePrompt,
+          generateAudio: videoGenerateAudio,
+          seed: videoSeed,
+          advancedParams,
+        },
+        {
+          // Persist the jobId the moment it exists so a reload or poll-window
+          // timeout mid-flight stays reconcilable (see reconcile hook).
+          onJobCreated: (jobId) =>
+            workflow.updateNodeData(nodeId, { mediaJobId: jobId }),
+        },
+      )
 
       if (result.success) {
         workflow.updateNodeData(nodeId, {
@@ -853,6 +907,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
                 sourceLabel: undefined,
               }
             : {}),
+          mediaJobId: undefined,
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
           mediaLabel: result.generation.model,
@@ -871,10 +926,15 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       }
 
       if (result.pending) {
+        // The poll window closed but the job is still running server-side.
+        // Hold the node in `pending` (not idle) with its jobId persisted so the
+        // reconcile pass backfills the result instead of dropping it.
         workflow.updateNodeData(nodeId, {
           generationError: undefined,
-          generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-          status: NODE_STATUS_IDS.idle,
+          generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+          mediaJobId: result.jobId,
+          mediaKind: kind,
+          status: NODE_STATUS_IDS.running,
         })
         toast.info(t('toasts.stillProcessing'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
@@ -898,6 +958,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
             }
           : {}),
+        mediaJobId: undefined,
         mediaKind: kind,
         status: NODE_STATUS_IDS.failed,
       })
@@ -944,6 +1005,43 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       })
     }, 0)
   }, [fitView, workflow.nodes.length])
+
+  // Open-Image-Studio return: the user generated in Studio and tapped "回填".
+  // Apply the result to the origin node once the graph (and that node) has
+  // loaded, then clear the handoff. The ref guards against re-applying; when a
+  // result exists but the node hasn't loaded yet we leave the ref unset so the
+  // effect retries as `workflow.nodes` populates.
+  const appliedStudioReturnRef = useRef(false)
+  useEffect(() => {
+    if (appliedStudioReturnRef.current) return
+    const result = readStudioNodeResult()
+    if (!result) {
+      appliedStudioReturnRef.current = true
+      return
+    }
+    const target = workflow.nodes.find(
+      (node) => node.id === result.originNodeId,
+    )
+    if (!target) return
+    appliedStudioReturnRef.current = true
+    workflow.updateNodeData(result.originNodeId, {
+      generationError: undefined,
+      generationId: result.generationId,
+      generationStatus: NODE_GENERATION_STATUS_IDS.success,
+      imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+      mediaKind: NODE_MEDIA_KIND_IDS.image,
+      mediaUrl: result.url,
+      mediaLabel: result.label,
+      sourceGenerationId: result.generationId,
+      sourceLabel: result.label,
+      status: NODE_STATUS_IDS.done,
+    })
+    clearStudioNodeResult()
+    toast.success(t('toasts.studioResultAttached'), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [t, workflow])
 
   // Surfaced video brands + their variants drive the topbar default-model
   // chip's dropdown. Only brands with available model options show up.

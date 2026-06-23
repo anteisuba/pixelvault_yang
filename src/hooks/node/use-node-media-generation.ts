@@ -18,6 +18,10 @@ import {
   studioGenerateAPI,
   submitVideoAPI,
 } from '@/lib/api-client'
+import {
+  pollGenerationStatus,
+  type GenerationPollOutcome,
+} from '@/lib/poll-generation-status'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type { AdvancedParams, GenerationRecord } from '@/types'
 import type { NodeWorkflowMediaKind } from '@/types/node-workflow'
@@ -84,10 +88,28 @@ type NodeMediaGenerationResult =
       errorCode?: string
       i18nKey?: string
       pending?: true
+      /**
+       * The submitted job's id, present when `pending` — the poll window closed
+       * but the job is still running server-side. The caller persists this so a
+       * later reconcile pass can backfill the result by jobId.
+       */
+      jobId?: string
     }
 
+interface NodeMediaGenerationOptions {
+  /**
+   * Fired once the async job is created (jobId known), before polling begins.
+   * The caller persists this id so a reload or poll-window timeout mid-flight
+   * stays reconcilable instead of silently dropping the in-flight result.
+   */
+  onJobCreated?(jobId: string): void
+}
+
 interface UseNodeMediaGenerationValue {
-  generate(input: NodeMediaGenerationInput): Promise<NodeMediaGenerationResult>
+  generate(
+    input: NodeMediaGenerationInput,
+    options?: NodeMediaGenerationOptions,
+  ): Promise<NodeMediaGenerationResult>
   isLoading: boolean
   error: string | null
   reset(): void
@@ -97,144 +119,6 @@ function hasAudioJobId(
   data: { jobId?: string } | undefined,
 ): data is { jobId: string } {
   return Boolean(data && 'jobId' in data && data.jobId)
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-type NodeMediaPollOutcome =
-  | {
-      status: 'completed'
-      generation: GenerationRecord
-    }
-  | {
-      status: 'failed'
-      error: string
-      errorCode?: string
-      i18nKey?: string
-    }
-  | {
-      status: 'pending'
-    }
-
-async function waitForVideoGeneration(
-  jobId: string,
-): Promise<NodeMediaPollOutcome> {
-  for (
-    let attempt = 0;
-    attempt < VIDEO_GENERATION.MAX_POLL_ATTEMPTS;
-    attempt += 1
-  ) {
-    let statusResponse: Awaited<ReturnType<typeof checkVideoStatusAPI>>
-    try {
-      statusResponse = await checkVideoStatusAPI(jobId)
-    } catch {
-      return { status: 'pending' }
-    }
-
-    if (!statusResponse.success || !statusResponse.data) {
-      return { status: 'pending' }
-    }
-
-    if (statusResponse.data.status === 'COMPLETED') {
-      return { status: 'completed', generation: statusResponse.data.generation }
-    }
-
-    if (statusResponse.data.status === 'FAILED') {
-      return {
-        status: 'failed',
-        error:
-          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
-        errorCode: statusResponse.data.errorCode,
-        i18nKey: statusResponse.data.i18nKey,
-      }
-    }
-
-    await delay(VIDEO_GENERATION.POLL_INTERVAL_MS)
-  }
-
-  return { status: 'pending' }
-}
-
-async function waitForImageGeneration(
-  jobId: string,
-): Promise<NodeMediaPollOutcome> {
-  for (
-    let attempt = 0;
-    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
-    attempt += 1
-  ) {
-    let statusResponse: Awaited<
-      ReturnType<typeof checkImageGenerationStatusAPI>
-    >
-    try {
-      statusResponse = await checkImageGenerationStatusAPI(jobId)
-    } catch {
-      return { status: 'pending' }
-    }
-
-    if (!statusResponse.success || !statusResponse.data) {
-      return { status: 'pending' }
-    }
-
-    if (statusResponse.data.status === 'COMPLETED') {
-      return { status: 'completed', generation: statusResponse.data.generation }
-    }
-
-    if (statusResponse.data.status === 'FAILED') {
-      return {
-        status: 'failed',
-        error:
-          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
-        errorCode: statusResponse.data.errorCode,
-        i18nKey: statusResponse.data.i18nKey,
-      }
-    }
-
-    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
-  }
-
-  return { status: 'pending' }
-}
-
-async function waitForAudioGeneration(
-  jobId: string,
-): Promise<NodeMediaPollOutcome> {
-  for (
-    let attempt = 0;
-    attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
-    attempt += 1
-  ) {
-    let statusResponse: Awaited<ReturnType<typeof checkAudioStatusAPI>>
-    try {
-      statusResponse = await checkAudioStatusAPI(jobId)
-    } catch {
-      return { status: 'pending' }
-    }
-
-    if (!statusResponse.success || !statusResponse.data) {
-      return { status: 'pending' }
-    }
-
-    if (statusResponse.data.status === 'COMPLETED') {
-      return { status: 'completed', generation: statusResponse.data.generation }
-    }
-
-    if (statusResponse.data.status === 'FAILED') {
-      return {
-        status: 'failed',
-        error:
-          statusResponse.data.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR,
-        errorCode: statusResponse.data.errorCode,
-        i18nKey: statusResponse.data.i18nKey,
-      }
-    }
-
-    await delay(AUDIO_GENERATION.POLL_INTERVAL_MS)
-  }
-
-  return { status: 'pending' }
 }
 
 export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
@@ -248,13 +132,17 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
   const generate = useCallback(
     async (
       input: NodeMediaGenerationInput,
+      options?: NodeMediaGenerationOptions,
     ): Promise<NodeMediaGenerationResult> => {
       setIsLoading(true)
       setError(null)
 
       try {
         let generation: GenerationRecord | null = null
-        let pollOutcome: NodeMediaPollOutcome | null = null
+        let pollOutcome: GenerationPollOutcome | null = null
+        // Captured so a poll-window timeout can hand the still-running job's id
+        // back to the caller, which persists it for later reconciliation.
+        let pendingJobId: string | null = null
 
         if (input.kind === 'image') {
           const response = await studioGenerateAPI({
@@ -278,7 +166,17 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             }
           }
 
-          pollOutcome = await waitForImageGeneration(response.data.jobId)
+          pendingJobId = response.data.jobId
+          options?.onJobCreated?.(response.data.jobId)
+          pollOutcome = await pollGenerationStatus(
+            response.data.jobId,
+            checkImageGenerationStatusAPI,
+            {
+              maxAttempts: IMAGE_GENERATION.MAX_POLL_ATTEMPTS,
+              intervalMs: IMAGE_GENERATION.POLL_INTERVAL_MS,
+              fallbackError: NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+            },
+          )
         }
 
         if (input.kind === 'video') {
@@ -311,7 +209,17 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             }
           }
 
-          pollOutcome = await waitForVideoGeneration(response.data.jobId)
+          pendingJobId = response.data.jobId
+          options?.onJobCreated?.(response.data.jobId)
+          pollOutcome = await pollGenerationStatus(
+            response.data.jobId,
+            checkVideoStatusAPI,
+            {
+              maxAttempts: VIDEO_GENERATION.MAX_POLL_ATTEMPTS,
+              intervalMs: VIDEO_GENERATION.POLL_INTERVAL_MS,
+              fallbackError: NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+            },
+          )
         }
 
         if (input.kind === 'audio') {
@@ -340,7 +248,17 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           }
 
           if (hasAudioJobId(response.data)) {
-            pollOutcome = await waitForAudioGeneration(response.data.jobId)
+            pendingJobId = response.data.jobId
+            options?.onJobCreated?.(response.data.jobId)
+            pollOutcome = await pollGenerationStatus(
+              response.data.jobId,
+              checkAudioStatusAPI,
+              {
+                maxAttempts: AUDIO_GENERATION.MAX_POLL_ATTEMPTS,
+                intervalMs: AUDIO_GENERATION.POLL_INTERVAL_MS,
+                fallbackError: NODE_MEDIA_GENERATION_FALLBACK_ERROR,
+              },
+            )
           }
         }
 
@@ -364,6 +282,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             success: false,
             error: NODE_MEDIA_GENERATION_FALLBACK_ERROR,
             pending: true,
+            jobId: pendingJobId ?? undefined,
           }
         }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNodes } from '@xyflow/react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Minimize2 } from 'lucide-react'
@@ -16,6 +16,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
 
+import { ImageRolePickerBody } from '../nodes/ImageRolePicker'
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
 import { GenericDetailBody } from './GenericDetailBody'
 import { NODE_DETAIL_REGISTRY } from './registry'
@@ -64,12 +65,56 @@ export function NodeDetailPanel({
   const t = useTranslations('StudioNode.nodeDetail')
   const reducedMotion = useReducedMotion()
 
+  // Image nodes (option B) are a two-step flow: pick a role (角色/背景/镜头),
+  // then edit that role's detail. `showRolePicker` lets the role-detail view
+  // navigate back UP to the chooser via the breadcrumb (返回上一层) without
+  // leaving the panel — it's view state, not node data, so going back doesn't
+  // discard the role.
+  const [showRolePicker, setShowRolePicker] = useState(false)
+  // Reset the chooser view when the expanded node changes — the adjust-state-
+  // during-render pattern (no effect, no cascading render).
+  const [trackedNodeId, setTrackedNodeId] = useState(expandedNodeId)
+  if (trackedNodeId !== expandedNodeId) {
+    setTrackedNodeId(expandedNodeId)
+    setShowRolePicker(false)
+  }
+
   const node = expandedNodeId
     ? (nodes.find((candidate) => candidate.id === expandedNodeId) ?? null)
     : null
-  // Image nodes (option B) present as their legacy per-role type — reuses the
-  // existing badge / accent / i18n label / detail body for that role.
-  const presentationType = node ? resolveNodePresentationType(node) : null
+  const isImageNode = node?.type === NODE_TYPE_IDS.image
+  // Show the role chooser when a freshly-added image node has no role yet OR the
+  // user navigated back up to it from a role's detail — NOT fall through to
+  // resolveNodePresentationType's `shot` default. Non-image nodes never show it.
+  const showPickerBody = Boolean(
+    isImageNode && (!node?.data.role || showRolePicker),
+  )
+  // A role's detail view has the chooser as its PARENT layer, so its breadcrumb
+  // returns there (返回上一层) instead of straight to the canvas.
+  const inImageRoleDetail = Boolean(
+    isImageNode && node?.data.role && !showRolePicker,
+  )
+  // Image nodes present as their legacy per-role type — reuses the existing
+  // badge / accent / i18n label / detail body for that role. While the chooser
+  // is shown the node presents as the neutral `image` type.
+  const presentationType = node
+    ? showPickerBody
+      ? NODE_TYPE_IDS.image
+      : resolveNodePresentationType(node)
+    : null
+  // Breadcrumb parent crumb: each layer returns to the one above it. A role
+  // detail's parent is the image chooser; everything else returns to the canvas.
+  const parentCrumb = inImageRoleDetail
+    ? {
+        label: tTypes(NODE_TYPE_IDS.image),
+        title: t('backToRolePicker'),
+        onClick: () => setShowRolePicker(true),
+      }
+    : {
+        label: t('canvasCrumb'),
+        title: t('backToCanvas'),
+        onClick: onClose,
+      }
 
   useEffect(() => {
     if (!node) return
@@ -124,17 +169,26 @@ export function NodeDetailPanel({
                 >
                   {NODE_TOKEN_BADGE_LABELS[presentationType]}
                 </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-node-foreground">
+                <div className="flex min-w-0 items-center gap-1.5 text-sm">
+                  <button
+                    type="button"
+                    onClick={parentCrumb.onClick}
+                    aria-label={parentCrumb.title}
+                    title={parentCrumb.title}
+                    className="shrink-0 rounded-md px-1.5 py-0.5 font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+                  >
+                    {parentCrumb.label}
+                  </button>
+                  <span aria-hidden className="shrink-0 text-node-subtle">
+                    /
+                  </span>
+                  <span className="truncate font-semibold text-node-foreground">
                     {getNodeName(
                       node,
                       presentationType,
                       tTypes(presentationType),
                     )}
-                  </p>
-                  <p className="truncate text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {t('detailSuffix', { type: tTypes(presentationType) })}
-                  </p>
+                  </span>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -151,17 +205,24 @@ export function NodeDetailPanel({
               </div>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {(() => {
-                const Body =
-                  NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
-                return (
-                  <Body
-                    nodeId={node.id}
-                    type={presentationType}
-                    data={node.data}
-                  />
-                )
-              })()}
+              {showPickerBody ? (
+                <ImageRolePickerBody
+                  nodeId={node.id}
+                  onPicked={() => setShowRolePicker(false)}
+                />
+              ) : (
+                (() => {
+                  const Body =
+                    NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
+                  return (
+                    <Body
+                      nodeId={node.id}
+                      type={presentationType}
+                      data={node.data}
+                    />
+                  )
+                })()
+              )}
             </div>
           </motion.div>
         </motion.div>

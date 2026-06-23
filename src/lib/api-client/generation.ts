@@ -506,6 +506,38 @@ export async function setGenerationVisibility(
   }
 }
 
+export async function setAudioCoverAPI(
+  id: string,
+  coverImageUrl: string,
+): Promise<{
+  success: boolean
+  data?: { id: string; previewUrl: string | null }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}/cover`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coverImageUrl }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function enhancePromptAPI(
   params: EnhancePromptRequest,
 ): Promise<EnhancePromptResponse> {

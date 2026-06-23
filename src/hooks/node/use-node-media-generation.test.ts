@@ -10,7 +10,11 @@ vi.mock('@/lib/api-client', () => ({
   submitVideoAPI: vi.fn(),
 }))
 
-import { DEFAULT_ASPECT_RATIO, VIDEO_GENERATION } from '@/constants/config'
+import {
+  DEFAULT_ASPECT_RATIO,
+  GENERATION_POLL,
+  VIDEO_GENERATION,
+} from '@/constants/config'
 import {
   checkAudioStatusAPI,
   checkImageGenerationStatusAPI,
@@ -267,6 +271,7 @@ describe('useNodeMediaGeneration', () => {
       success: false,
       error: 'Node media generation failed',
       pending: true,
+      jobId: 'job-video',
     })
     expect(response!).not.toMatchObject({
       errorCode: 'content_filtered',
@@ -274,11 +279,15 @@ describe('useNodeMediaGeneration', () => {
     })
   })
 
-  it('keeps status API exceptions distinct from FAILED provider results', async () => {
+  it('retries transient status failures before giving up to pending', async () => {
+    vi.useFakeTimers()
     vi.mocked(generateAudioAPI).mockResolvedValue({
       success: true,
       data: { jobId: 'job-audio', requestId: 'request-audio' },
     })
+    // A persistently-throwing status endpoint is transient, not terminal: the
+    // poller backs off and retries up to the tolerance, then hands the still-
+    // running job back as pending (with its jobId) for later reconciliation.
     vi.mocked(checkAudioStatusAPI).mockRejectedValue(
       new Error('status service unavailable'),
     )
@@ -287,21 +296,26 @@ describe('useNodeMediaGeneration', () => {
     let response: Awaited<ReturnType<typeof result.current.generate>>
 
     await act(async () => {
-      response = await result.current.generate({
+      const pendingResponse = result.current.generate({
         kind: 'audio',
         modelId: AUDIO_GENERATION_RECORD.model,
         prompt: AUDIO_GENERATION_RECORD.prompt,
       })
+      await vi.runAllTimersAsync()
+      response = await pendingResponse
     })
 
     expect(response!).toEqual({
       success: false,
       error: 'Node media generation failed',
       pending: true,
+      jobId: 'job-audio',
     })
     expect(response!).not.toHaveProperty('errorCode')
     expect(response!).not.toHaveProperty('i18nKey')
-    expect(checkAudioStatusAPI).toHaveBeenCalledTimes(1)
+    expect(checkAudioStatusAPI).toHaveBeenCalledTimes(
+      GENERATION_POLL.TRANSIENT_TOLERANCE,
+    )
   })
 
   it('forwards prosody and emotion to generateAudioAPI', async () => {

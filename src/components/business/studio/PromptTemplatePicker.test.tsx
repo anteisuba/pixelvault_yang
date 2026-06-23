@@ -26,6 +26,7 @@ const inspirationState = vi.hoisted(() => ({
 const studioGenState = vi.hoisted(() => ({
   lastGeneration: null as GenerationRecord | null,
 }))
+const mobileState = vi.hoisted(() => ({ isMobile: false }))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -40,7 +41,7 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mobileState.isMobile,
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -176,6 +177,18 @@ function makeInspiration(
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverMock)
   Element.prototype.scrollIntoView = vi.fn()
+  if (typeof window.matchMedia !== 'function') {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }))
+  }
 })
 
 afterAll(() => {
@@ -190,9 +203,21 @@ beforeEach(() => {
   recipeState.recipes = []
   inspirationState.items = []
   studioGenState.lastGeneration = null
+  mobileState.isMobile = false
 })
 
 describe('PromptTemplatePicker', () => {
+  it('uses the Studio scrollbar treatment for the mobile drawer body', () => {
+    mobileState.isMobile = true
+    render(<PromptTemplatePicker onApply={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+
+    expect(
+      screen.getByRole('dialog').querySelector(':scope > .studio-scrollbar'),
+    ).not.toBeNull()
+  })
+
   it('saves without closing and inserts the new recipe at the top of recent', async () => {
     const existing = makeRecipe({
       id: 'old',
@@ -222,7 +247,9 @@ describe('PromptTemplatePicker', () => {
     const saveButton = await screen.findByRole('button', {
       name: 'saveCurrentPrompt',
     })
-    expect(screen.getByRole('dialog')).toHaveClass('rounded-2xl')
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveClass('rounded-2xl')
+    expect(dialog.querySelector('.studio-scrollbar')).not.toBeNull()
     expect(saveButton).toHaveClass(
       'min-h-11',
       'bg-muted/65',

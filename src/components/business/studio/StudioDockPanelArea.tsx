@@ -27,6 +27,7 @@ import {
   studioDialogBaseClass,
   studioDialogBodyClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
 
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
@@ -184,14 +185,14 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   // (`SET_AUDIO_SPEAKER_VOICE_IDS`), so this handler stays focused on append
   // vs. replace semantics and trusts the reducer for de-dup / cap / trim.
   const handleSpeakerVoiceSelect = useCallback(
-    (voiceId: string) => {
+    (voice: SelectedVoice) => {
       if (!speakerVoiceSelectionTarget) return
 
       const nextSpeakerVoiceIds = [...state.audioSpeakerVoiceIds]
       if (speakerVoiceSelectionTarget.mode === 'append') {
-        nextSpeakerVoiceIds.push(voiceId)
+        nextSpeakerVoiceIds.push(voice.voiceId)
       } else {
-        nextSpeakerVoiceIds[speakerVoiceSelectionTarget.index] = voiceId
+        nextSpeakerVoiceIds[speakerVoiceSelectionTarget.index] = voice.voiceId
       }
 
       dispatch({

@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type CompositionEvent as ReactCompositionEvent,
   type InputHTMLAttributes,
+  type Ref,
   type TextareaHTMLAttributes,
 } from 'react'
 
@@ -101,13 +102,23 @@ export type IMEAwareTextareaProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
   'value' | 'onChange'
 > &
-  IMEControlledProps<string>
+  IMEControlledProps<string> & {
+    /**
+     * Optional ref to the underlying `<textarea>`. Exposed so callers can read
+     * the live caret / insert text at the cursor from outside the field (e.g.
+     * the video composer's clickable @reference tokens). React 19 won't forward
+     * a bare `ref` through this component's typed props, so it rides an explicit
+     * prop instead.
+     */
+    textareaRef?: Ref<HTMLTextAreaElement>
+  }
 
 export function IMEAwareTextarea({
   value,
   onValueChange,
   onCompositionStart,
   onCompositionEnd,
+  textareaRef,
   ...props
 }: IMEAwareTextareaProps) {
   const [local, setLocal] = useState(value)
@@ -152,6 +163,7 @@ export function IMEAwareTextarea({
   return (
     <textarea
       {...props}
+      ref={textareaRef}
       value={local}
       onChange={handleChange}
       onCompositionStart={handleCompositionStart}

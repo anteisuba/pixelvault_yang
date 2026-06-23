@@ -535,6 +535,10 @@
     "workspaceTitle": "开始创作",
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
     "skipToPrompt": "跳到提示词输入区",
+    "nodeHandoffBanner": "正在为画布节点生成 — 完成后可回填到该节点。",
+    "nodeHandoffAttach": "回填到节点",
+    "nodeHandoffNeedResult": "先生成一张图，再回填。",
+    "nodeHandoffCancel": "取消",
     "workflowEmptyHint": "选择一个工作流开始创作",
     "modeLabel": "生成模式",
     "modeImage": "图片",
@@ -1519,7 +1523,12 @@
     "densityLabel": "网格密度",
     "densityComfortable": "宽松",
     "densityNormal": "标准",
-    "densityCompact": "紧凑"
+    "densityCompact": "紧凑",
+    "detailSetCover": "设封面",
+    "detailCoverDialogTitle": "选择封面图片",
+    "detailCoverDialogDescription": "从素材库中选择一张图片作为该音频的封面。",
+    "detailCoverSet": "封面已更新。",
+    "detailCoverSetFailed": "封面更新失败，请重试。"
   },
   "PromptLibrary": {
     "title": "提示词工程",
@@ -2890,6 +2899,7 @@
     },
     "imageRolePicker": {
       "title": "这张图做什么用？",
+      "reChoose": "返回图片",
       "character": "角色",
       "background": "背景",
       "shot": "镜头"
@@ -3143,8 +3153,16 @@
         "referenceGenerateNoVoice": "请先选择 Fish Audio 音色。",
         "referenceGenerateFailed": "参考音频生成失败，请稍后重试。",
         "unsupportedAudio": "请上传音频文件。",
-        "uploadFailed": "参考音频上传失败。"
-      }
+        "uploadFailed": "参考音频上传失败。",
+        "sampleGenerated": "代表音频已生成。",
+        "savedToAssets": "已收藏进素材库。",
+        "saveToAssetsFailed": "收藏失败，请稍后重试。",
+        "alreadySaved": "已在素材库中。",
+        "coverSynced": "封面已同步到素材库。"
+      },
+      "referenceFromAssets": "从素材选择",
+      "referenceDialogTitle": "选择参考音频",
+      "referenceDialogDescription": "从素材库中选择一段生成的语音作为参考音频。"
     },
     "videoGeneration": {
       "timeline": {
@@ -3312,6 +3330,9 @@
       "useExistingAsReference": "作为参考生成",
       "replaceImage": "替换图片",
       "selectExistingShort": "选择已有图",
+      "changeSourceExisting": "改用已有",
+      "changeSourceAi": "AI 生成",
+      "changeSourceStudio": "Studio",
       "clearImage": "清除图片",
       "generateFromExisting": "按参考生成",
       "existingAssetDialogTitle": "选择节点图片",
@@ -3364,17 +3385,18 @@
       },
       "references": {
         "label": "参考素材",
-        "empty": "连接角色 / 背景 / 声音节点以添加参考"
+        "empty": "连接角色 / 背景 / 声音节点以添加参考",
+        "insertHint": "点击标签插入到提示词",
+        "unnamed": "需命名",
+        "unnamedHint": "给该节点命名后即可作为标签插入"
       },
-      "motionHint": "运镜也写这里",
+      "aspectAuto": "自动",
       "generateAudioLabel": "生成音频",
       "seedLabel": "种子(seed)",
       "seedRandom": "每次随机",
       "seedRandomize": "随机种子",
       "lastSeedLabel": "本次 seed",
       "seedLock": "锁定",
-      "enhancePrompt": "用 AI 增强提示词",
-      "enhancing": "增强中…",
       "enhanceEmptyTip": "先写一句提示词，再让 AI 编排。",
       "rebind": {
         "title": "切换到 {brand}？",
@@ -3389,8 +3411,10 @@
       "delete": "删除"
     },
     "nodeDetail": {
+      "backToCanvas": "返回画布",
+      "backToRolePicker": "返回选用途",
+      "canvasCrumb": "画布",
       "close": "收起",
-      "detailSuffix": "{type} · 详情",
       "generate": "生成"
     },
     "voiceDetail": {
@@ -3407,7 +3431,12 @@
         "angry": "愤怒",
         "sad": "悲伤",
         "surprised": "惊讶"
-      }
+      },
+      "sampleLabel": "代表音频",
+      "generateSample": "生成试听",
+      "saveToAssets": "收藏进素材",
+      "savedToAssets": "已在素材库",
+      "syncCoverToAssets": "更新封面到素材"
     },
     "workflowFields": {
       "prompt": {
@@ -3489,6 +3518,10 @@
       "shotText": {
         "emptyPreview": "把场景、动作、镜头和构图整理成可执行镜头文本。",
         "footerEmpty": "等待镜头文本"
+      },
+      "characterImage": {
+        "emptyPreview": "还没有角色图——生成或选择一张已有图。",
+        "footerEmpty": "等待角色设置"
       },
       "shot": {
         "emptyPreview": "从镜头文本和角色/背景参考生成单张镜头图。",
@@ -3667,6 +3700,7 @@
       "mediaGenerated": "节点素材已生成。",
       "mediaGenerationFailed": "节点素材生成失败。",
       "stillProcessing": "仍在后台生成，请稍后回来查看。",
+      "studioResultAttached": "已将 Studio 生成图回填到节点。",
       "timelineCannotDeleteLast": "至少保留一个镜头段。",
       "edgeDeleted": "连线已移除。",
       "projectCreated": "项目「{name}」已创建。",

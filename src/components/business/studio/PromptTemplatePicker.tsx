@@ -276,7 +276,7 @@ export function PromptTemplatePicker({
           studioDialogBaseClass,
           'flex w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col sm:w-[min(640px,calc(100vw-4rem))] sm:!max-w-xl',
         )}
-        mobileBodyClassName="px-0 pt-0"
+        mobileBodyClassName="studio-scrollbar px-0 pt-0"
       >
         <StudioPanelHeader icon={<FileText className="size-3.5" />}>
           {t('templatePickerTitle')}
@@ -287,7 +287,7 @@ export function PromptTemplatePicker({
         <div
           className={cn(
             studioDialogBodyClass,
-            'flex min-h-0 flex-1 flex-col pt-3',
+            'studio-scrollbar flex min-h-0 flex-1 flex-col pt-3',
           )}
         >
           {showInspiration ? (

@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { FishVoiceLibraryDialog } from '@/components/business/node/FishVoiceLibraryDialog'
+import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import { AUDIO_GENERATION } from '@/constants/config'
@@ -122,10 +123,18 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isGeneratingReference, setIsGeneratingReference] = useState(false)
+  // Track the failed cover URL (not a boolean) so picking a new voice with a
+  // valid cover recovers instead of staying stuck on the icon fallback.
+  const [erroredCover, setErroredCover] = useState<string | null>(null)
   const { updateNodeData } = useNodeWorkflowActions()
   const hasReferenceAudio = Boolean(node.data.voiceReferenceAudioUrl)
   const hasFishVoiceId =
     typeof node.data.voiceId === 'string' && node.data.voiceId.length > 0
+  const coverImage =
+    typeof node.data.voiceCoverImage === 'string'
+      ? node.data.voiceCoverImage
+      : null
+  const showCover = Boolean(coverImage) && erroredCover !== coverImage
 
   const handleFieldChange = useCallback(
     (fieldId: NodeWorkflowFieldId, value: string) => {
@@ -143,16 +152,20 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
   )
 
   const handleSelectVoiceId = useCallback(
-    (voiceId: string) => {
+    (voice: SelectedVoice) => {
       const nextData = {
         ...node.data,
-        voiceId,
+        voiceId: voice.voiceId,
+        voiceName: voice.name,
+        voiceCoverImage: voice.coverImage ?? undefined,
         voiceProvider:
           node.data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
       }
 
       updateNodeData(node.id, {
-        voiceId,
+        voiceId: voice.voiceId,
+        voiceName: voice.name,
+        voiceCoverImage: voice.coverImage ?? undefined,
         voiceProvider: nextData.voiceProvider,
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
         status: getVoiceStatus(nextData),
@@ -308,8 +321,21 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
     <>
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted">
-            <Mic2 className="size-5" />
+          <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-node-panel-inner text-node-muted">
+            {showCover && coverImage ? (
+              <>
+                {/* Third-party cover images come from arbitrary hosts; raw img with icon fallback. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImage}
+                  alt=""
+                  className="size-full object-cover"
+                  onError={() => setErroredCover(coverImage)}
+                />
+              </>
+            ) : (
+              <Mic2 className="size-5" />
+            )}
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-node-foreground">

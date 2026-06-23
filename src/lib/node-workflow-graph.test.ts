@@ -5,6 +5,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
   getNodeMediaUrl,
+  getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
   harvestUpstreamImageUrls,
@@ -71,6 +72,51 @@ describe('node-workflow-graph predicates', () => {
     expect(isVoiceProfileNode(makeNode('f', NODE_TYPE_IDS.shotText))).toBe(
       false,
     )
+  })
+})
+
+describe('getSeedanceReferenceKind', () => {
+  it('resolves unified image nodes by role', () => {
+    expect(
+      getSeedanceReferenceKind(
+        makeNode('a', NODE_TYPE_IDS.image, { role: 'character' }),
+      ),
+    ).toBe('character')
+    expect(
+      getSeedanceReferenceKind(
+        makeNode('b', NODE_TYPE_IDS.image, { role: 'background' }),
+      ),
+    ).toBe('background')
+    // shot / frame images feed generation but aren't surfaced as a named chip.
+    expect(
+      getSeedanceReferenceKind(
+        makeNode('c', NODE_TYPE_IDS.image, { role: 'shot' }),
+      ),
+    ).toBeNull()
+    expect(
+      getSeedanceReferenceKind(
+        makeNode('d', NODE_TYPE_IDS.image, { role: 'frame' }),
+      ),
+    ).toBeNull()
+    // A role-less image (freshly added) is not a named reference yet.
+    expect(
+      getSeedanceReferenceKind(makeNode('e', NODE_TYPE_IDS.image)),
+    ).toBeNull()
+  })
+
+  it('resolves legacy per-type + voice nodes', () => {
+    expect(
+      getSeedanceReferenceKind(makeNode('a', NODE_TYPE_IDS.characterImage)),
+    ).toBe('character')
+    expect(
+      getSeedanceReferenceKind(makeNode('b', NODE_TYPE_IDS.backgroundImage)),
+    ).toBe('background')
+    expect(getSeedanceReferenceKind(makeNode('c', NODE_TYPE_IDS.voice))).toBe(
+      'voice',
+    )
+    expect(
+      getSeedanceReferenceKind(makeNode('d', NODE_TYPE_IDS.shotText)),
+    ).toBeNull()
   })
 })
 

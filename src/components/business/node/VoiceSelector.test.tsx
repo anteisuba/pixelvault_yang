@@ -1,12 +1,22 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { VoiceCardRecord } from '@/types'
+
 import { VoiceSelector } from './VoiceSelector'
 
-const { dispatchMock, refreshMock, listVoicesAPIMock } = vi.hoisted(() => ({
+const {
+  dispatchMock,
+  refreshMock,
+  listVoicesAPIMock,
+  deleteVoiceCardAPIMock,
+  voiceCardsRef,
+} = vi.hoisted(() => ({
   dispatchMock: vi.fn(),
   refreshMock: vi.fn(),
   listVoicesAPIMock: vi.fn(),
+  deleteVoiceCardAPIMock: vi.fn(),
+  voiceCardsRef: { cards: [] as VoiceCardRecord[] },
 }))
 
 vi.mock('next-intl', () => ({
@@ -35,7 +45,7 @@ vi.mock('@/contexts/studio-context', () => ({
 
 vi.mock('@/hooks/cards/use-voice-cards', () => ({
   useVoiceCards: () => ({
-    cards: [],
+    cards: voiceCardsRef.cards,
     isLoading: false,
     error: null,
     findCard: () => null,
@@ -45,14 +55,39 @@ vi.mock('@/hooks/cards/use-voice-cards', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   createVoiceCardAPI: vi.fn(),
-  deleteVoiceCardAPI: vi.fn(),
+  deleteVoiceCardAPI: deleteVoiceCardAPIMock,
   listVoicesAPI: listVoicesAPIMock,
 }))
+
+const FAVORITE_CARD: VoiceCardRecord = {
+  id: 'fav-card-1',
+  userId: 'user-1',
+  name: '男漂泊者',
+  provider: 'fish_audio',
+  modelId: 'fish-audio-s2-pro',
+  voiceId: 'voice-fav-1',
+  coverImage: null,
+  referenceAudioUrl: null,
+  referenceAudioStorageKey: null,
+  gender: null,
+  age: null,
+  tone: [],
+  pace: 'normal',
+  pitch: null,
+  pronunciationDictionary: {},
+  sampleText: null,
+  isDeleted: false,
+  createdAt: '2026-06-01T00:00:00.000Z',
+  updatedAt: '2026-06-01T00:00:00.000Z',
+}
 
 describe('VoiceSelector', () => {
   beforeEach(() => {
     dispatchMock.mockClear()
     refreshMock.mockClear()
+    voiceCardsRef.cards = []
+    deleteVoiceCardAPIMock.mockReset()
+    deleteVoiceCardAPIMock.mockResolvedValue({ success: true })
     listVoicesAPIMock.mockReset()
     listVoicesAPIMock.mockResolvedValue({
       success: true,
@@ -105,6 +140,20 @@ describe('VoiceSelector', () => {
         type: 'SET_OPTION_ID',
         payload: 'workspace:fish-audio-s2-pro',
       })
+    })
+  })
+
+  it('removes a saved voice from the favorites tab', async () => {
+    voiceCardsRef.cards = [FAVORITE_CARD]
+    render(<VoiceSelector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'voiceFavorites' }))
+    expect(await screen.findByText('男漂泊者')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'voiceUnfavorite' }))
+
+    await waitFor(() => {
+      expect(deleteVoiceCardAPIMock).toHaveBeenCalledWith('fav-card-1')
     })
   })
 })

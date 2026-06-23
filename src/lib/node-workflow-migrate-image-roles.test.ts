@@ -56,6 +56,34 @@ describe('migrateImageRoles', () => {
     expect(next.nodes[0]?.data.characterName).toBe('Mira')
   })
 
+  it('normalizes legacy imageUrl → mediaUrl and drops the ignored imageMode gate', () => {
+    const state: NodeWorkflowState = {
+      nodes: [
+        // Legacy character node: result in imageUrl, stale imageMode='choice'.
+        makeNode('c', NODE_TYPE_IDS.characterImage, {
+          imageUrl: 'https://cdn.test/x.png',
+          imageMode: 'choice',
+          imageSource: 'existing',
+        }),
+        // Already-image node (previously migrated) still carrying imageUrl-only.
+        makeNode('i', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.character,
+          imageUrl: 'https://cdn.test/y.png',
+          imageMode: 'choice',
+        }),
+      ],
+      edges: [],
+    }
+
+    const next = migrateImageRoles(state)
+
+    expect(next.nodes[0]?.type).toBe(NODE_TYPE_IDS.image)
+    expect(next.nodes[0]?.data.mediaUrl).toBe('https://cdn.test/x.png')
+    expect(next.nodes[0]?.data.imageMode).toBeUndefined()
+    expect(next.nodes[1]?.data.mediaUrl).toBe('https://cdn.test/y.png')
+    expect(next.nodes[1]?.data.imageMode).toBeUndefined()
+  })
+
   it('leaves non-image nodes + edges untouched (same reference)', () => {
     const state: NodeWorkflowState = {
       nodes: [

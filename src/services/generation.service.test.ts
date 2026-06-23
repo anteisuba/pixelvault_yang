@@ -62,6 +62,7 @@ import {
   getPublicGenerations,
   getUserGenerations,
   selectVariantWinner,
+  setAudioCoverImage,
   setGenerationVisibility,
   toggleGenerationVisibility,
 } from './generation.service'
@@ -650,6 +651,65 @@ describe('generation.service', () => {
 
       expect(result).toEqual({ error: 'MAX_FEATURED_EXCEEDED' })
       expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setAudioCoverImage', () => {
+    it('returns null when the audio asset is not owned by the user', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'other-user',
+        outputType: 'AUDIO',
+      })
+
+      await expect(
+        setAudioCoverImage('gen-1', 'user-1', 'https://cdn.example.com/c.png'),
+      ).resolves.toBeNull()
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+
+    it('returns null for a non-audio asset', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        outputType: 'IMAGE',
+      })
+
+      await expect(
+        setAudioCoverImage('gen-1', 'user-1', 'https://cdn.example.com/c.png'),
+      ).resolves.toBeNull()
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+
+    it('stores the cover in previewUrl for an owned audio asset', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        outputType: 'AUDIO',
+      })
+      mockGenerationUpdate.mockResolvedValue({
+        id: 'gen-1',
+        previewUrl: 'https://cdn.example.com/c.png',
+      })
+
+      const result = await setAudioCoverImage(
+        'gen-1',
+        'user-1',
+        'https://cdn.example.com/c.png',
+      )
+
+      expect(result).toEqual({
+        id: 'gen-1',
+        previewUrl: 'https://cdn.example.com/c.png',
+      })
+      expect(mockGenerationUpdate).toHaveBeenCalledWith({
+        where: { id: 'gen-1' },
+        data: {
+          previewUrl: 'https://cdn.example.com/c.png',
+          previewStorageKey: null,
+        },
+        select: { id: true, previewUrl: true },
+      })
     })
   })
 

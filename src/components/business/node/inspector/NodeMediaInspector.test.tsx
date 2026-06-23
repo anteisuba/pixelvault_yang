@@ -42,9 +42,22 @@ vi.mock('@/components/business/node/FishVoiceLibraryDialog', () => ({
   FishVoiceLibraryDialog: ({
     onSelectVoiceId,
   }: {
-    onSelectVoiceId: (voiceId: string) => void
+    onSelectVoiceId: (voice: {
+      voiceId: string
+      name: string
+      coverImage: string | null
+    }) => void
   }) => (
-    <button type="button" onClick={() => onSelectVoiceId('fish-voice-test')}>
+    <button
+      type="button"
+      onClick={() =>
+        onSelectVoiceId({
+          voiceId: 'fish-voice-test',
+          name: 'Fish Voice Test',
+          coverImage: null,
+        })
+      }
+    >
       fishVoiceDialog
     </button>
   ),
@@ -244,23 +257,57 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
-    'starts idle image node %s with three source choices',
+    'starts idle image node %s form-first with a slim import row',
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
 
-      expect(screen.queryByText(`${type}.emptyPreview`)).not.toBeInTheDocument()
-      expect(screen.getByText('modeExistingTitle')).toBeInTheDocument()
-      expect(screen.getByText('modeAiTitle')).toBeInTheDocument()
-      expect(screen.getByText('modeStudioTitle')).toBeInTheDocument()
-      expect(screen.queryByLabelText('prompt.label')).not.toBeInTheDocument()
+      // Form-first: the generate form (model picker + prompt) shows directly —
+      // no heavy full-takeover chooser.
+      expect(screen.getByText('modelPicker')).toBeInTheDocument()
+      expect(screen.getByLabelText('prompt.label')).toBeInTheDocument()
+      // Alternative sources live in a slim import row, not big option cards.
+      expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
+      expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
+      expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
     },
   )
+
+  it('shows the preview for a node with media even when persisted imageMode is choice', () => {
+    // Regression for the "扩大后没有预览图" bug: the preview must key off media
+    // presence, never the persisted imageMode (which legacy/migrated nodes can
+    // hold as 'choice' alongside a real image).
+    renderMediaInspector(
+      BackgroundImageInspector,
+      createNode(NODE_TYPE_IDS.backgroundImage, {
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        mediaUrl: 'https://cdn.test/background.png',
+      }),
+    )
+
+    expect(screen.getByAltText('imageAlt').getAttribute('src')).toBe(
+      'https://cdn.test/background.png',
+    )
+    // The chooser must NOT take over a node that already has a result.
+    expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
+  })
+
+  it('surfaces a generation error even in the empty state', () => {
+    renderMediaInspector(
+      BackgroundImageInspector,
+      createNode(NODE_TYPE_IDS.backgroundImage, {
+        generationError: 'Provider exploded',
+      }),
+    )
+
+    // Top-level error block (with its AlertCircle icon) renders in every state.
+    expect(screen.getByText('Provider exploded')).toBeInTheDocument()
+  })
 
   it('can turn an existing image node result into an AI reference', () => {
     renderMediaInspector(
       BackgroundImageInspector,
       createNode(NODE_TYPE_IDS.backgroundImage, {
-        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
         imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
         mediaUrl: 'https://cdn.test/background.png',
         sourceGenerationId: 'generation-background',
@@ -268,12 +315,14 @@ describe('Node media inspectors', () => {
       }),
     )
 
+    // Open the "use existing" editing target via the change-source control,
+    // then turn the current image into an AI reference.
+    fireEvent.click(screen.getByText('changeSourceExisting'))
     fireEvent.click(screen.getByText('useExistingAsReference'))
 
     expect(updateNodeData).toHaveBeenCalledWith(
       'node-backgroundImage',
       expect.objectContaining({
-        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
         referenceAssets: expect.arrayContaining([
           expect.objectContaining({
             url: 'https://cdn.test/background.png',
@@ -293,14 +342,8 @@ describe('Node media inspectors', () => {
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
 
-      if (
-        type === NODE_TYPE_IDS.shot ||
-        type === NODE_TYPE_IDS.backgroundImage ||
-        type === NODE_TYPE_IDS.frameImage
-      ) {
-        fireEvent.click(screen.getByText('modeAiTitle'))
-      }
-
+      // Form-first: the model picker + generate are shown immediately, no
+      // chooser step required.
       fireEvent.click(screen.getByText('modelPicker'))
       fireEvent.click(screen.getByText('generate'))
 

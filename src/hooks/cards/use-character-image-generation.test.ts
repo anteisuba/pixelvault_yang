@@ -6,7 +6,7 @@ vi.mock('@/lib/api-client', () => ({
   studioGenerateAPI: vi.fn(),
 }))
 
-import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import { DEFAULT_ASPECT_RATIO, GENERATION_POLL } from '@/constants/config'
 import {
   checkImageGenerationStatusAPI,
   studioGenerateAPI,
@@ -241,6 +241,7 @@ describe('useCharacterImageGeneration', () => {
       success: false,
       error: 'Character image generation failed',
       pending: true,
+      jobId: 'job-image',
     })
     expect(result.current.errorCode).toBeNull()
     expect(response!).not.toMatchObject({
@@ -249,7 +250,12 @@ describe('useCharacterImageGeneration', () => {
     })
   })
 
-  it('keeps status API exceptions distinct from FAILED provider results', async () => {
+  it('retries transient status failures before giving up to pending', async () => {
+    vi.useFakeTimers()
+    // A persistently-throwing status endpoint is transient, not terminal: the
+    // poller backs off and retries up to the tolerance, then hands the still-
+    // running job back as pending (with its jobId) for later reconciliation —
+    // it does NOT abandon the generation on the first network hiccup.
     vi.mocked(checkImageGenerationStatusAPI).mockRejectedValue(
       new Error('status service unavailable'),
     )
@@ -258,20 +264,25 @@ describe('useCharacterImageGeneration', () => {
     let response: Awaited<ReturnType<typeof result.current.generate>>
 
     await act(async () => {
-      response = await result.current.generate({
+      const pendingResponse = result.current.generate({
         modelId: FAKE_GENERATION.model,
         freePrompt: FAKE_GENERATION.prompt,
       })
+      await vi.runAllTimersAsync()
+      response = await pendingResponse
     })
 
     expect(response!).toEqual({
       success: false,
       error: 'Character image generation failed',
       pending: true,
+      jobId: 'job-image',
     })
     expect(response!).not.toHaveProperty('errorCode')
     expect(response!).not.toHaveProperty('i18nKey')
-    expect(checkImageGenerationStatusAPI).toHaveBeenCalledTimes(1)
+    expect(checkImageGenerationStatusAPI).toHaveBeenCalledTimes(
+      GENERATION_POLL.TRANSIENT_TOLERANCE,
+    )
   })
 
   it('resets stored error state', async () => {

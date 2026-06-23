@@ -319,6 +319,7 @@ export const VoiceCardScalarFieldEnum = {
   provider: 'provider',
   modelId: 'modelId',
   voiceId: 'voiceId',
+  coverImage: 'coverImage',
   referenceAudioUrl: 'referenceAudioUrl',
   referenceAudioStorageKey: 'referenceAudioStorageKey',
   gender: 'gender',

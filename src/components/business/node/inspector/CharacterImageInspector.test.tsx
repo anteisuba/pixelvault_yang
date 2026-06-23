@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 
-import type { ImgHTMLAttributes, ReactNode } from 'react'
+import type { ImgHTMLAttributes } from 'react'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
@@ -21,9 +21,7 @@ vi.mock('next/image', () => ({
 }))
 
 vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
@@ -49,6 +47,11 @@ vi.mock('@/hooks/node/use-node-reference-upload', () => ({
   }),
 }))
 
+const useCharacterCardsMock = vi.fn()
+vi.mock('@/hooks/cards/use-character-cards', () => ({
+  useCharacterCards: () => useCharacterCardsMock(),
+}))
+
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -72,7 +75,7 @@ import type {
 } from '@/types/node-workflow'
 
 const updateNodeData = vi.fn()
-const generateCharacterImage = vi.fn()
+const generateMediaNode = vi.fn()
 
 const IMAGE_OPTION: NodeWorkflowModelOption = {
   optionId: 'saved:image',
@@ -95,7 +98,6 @@ function createCharacterNode(
       prompt: 'character prompt',
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
-      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
       referenceAssets: [],
       loras: [],
       ...patch,
@@ -103,18 +105,15 @@ function createCharacterNode(
   }
 }
 
-function renderWithActions(initialNode: NodeWorkflowNode) {
-  function CharacterInspectorHarness() {
+function renderInspector(initialNode: NodeWorkflowNode) {
+  function Harness() {
     const [node, setNode] = useState(initialNode)
     const actions: NodeWorkflowCanvasActions = {
       updateNodeData: (nodeId, patch) => {
         updateNodeData(nodeId, patch)
-        setNode((currentNode) => ({
-          ...currentNode,
-          data: {
-            ...currentNode.data,
-            ...patch,
-          },
+        setNode((current) => ({
+          ...current,
+          data: { ...current.data, ...patch },
         }))
       },
       setScriptDoc: vi.fn(),
@@ -127,7 +126,8 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
       redo: vi.fn(),
       canUndo: false,
       canRedo: false,
-      generateCharacterImage,
+      generateMediaNode,
+      generateCharacterImage: vi.fn(),
       toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
       setToolMode: vi.fn(),
       expandedNodeId: null,
@@ -146,105 +146,58 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
     )
   }
 
-  return render(<CharacterInspectorHarness />)
-}
-
-function renderStatic(children: ReactNode) {
-  return render(
-    <ReactFlowProvider>
-      <NodeWorkflowActionsProvider
-        value={{
-          updateNodeData,
-          setScriptDoc: vi.fn(),
-          setDefaultVideoModel: vi.fn(),
-          defaultVideoModel: undefined,
-          applyScriptDocToGraph: vi.fn(),
-          deleteNode: vi.fn(),
-          deleteEdge: vi.fn(),
-          undo: vi.fn(),
-          redo: vi.fn(),
-          canUndo: false,
-          canRedo: false,
-          generateCharacterImage,
-          toolMode: NODE_STUDIO_TOOL_MODE_IDS.pointer,
-          setToolMode: vi.fn(),
-          expandedNodeId: null,
-          setExpandedNodeId: vi.fn(),
-          modelOptionsByType: {
-            [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
-          },
-        }}
-      >
-        {children}
-      </NodeWorkflowActionsProvider>
-    </ReactFlowProvider>,
-  )
+  return render(<Harness />)
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  useCharacterCardsMock.mockReturnValue({
+    cards: [],
+    isLoading: false,
+    findCard: () => null,
+  })
 })
 
-describe('CharacterImageInspector', () => {
-  it('starts with three clear source choices before showing AI controls', () => {
-    renderWithActions(createCharacterNode())
+describe('CharacterImageInspector (unified wrapper)', () => {
+  it('is form-first with name field + slim import row on an empty node', () => {
+    renderInspector(createCharacterNode())
 
-    expect(screen.getByText('modeExistingTitle')).toBeInTheDocument()
-    expect(screen.getByText('modeAiTitle')).toBeInTheDocument()
-    expect(screen.getByText('modeStudioTitle')).toBeInTheDocument()
-    expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
-    expect(screen.queryByText('emptyPreview')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('modeAiTitle'))
-
-    expect(screen.getByText('activeAiTitle')).toBeInTheDocument()
-    expect(screen.getByText('emptyPreview')).toBeInTheDocument()
+    // Identity: the character name field is always visible, even pre-image.
+    expect(screen.getByLabelText('nameLabel')).toBeInTheDocument()
+    // Form-first: the generate form shows directly (no heavy chooser).
     expect(screen.getByText('modelPicker')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('backToChoice'))
-
-    expect(screen.getByText('modeExistingTitle')).toBeInTheDocument()
+    // Alternative sources live in a slim import row, incl. the character card.
+    expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
+    expect(screen.getByText('cardLibrary.title')).toBeInTheDocument()
+    expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
+    expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
   })
 
-  it('can turn an existing image into an AI reference', () => {
-    renderWithActions(
+  it('writes the character name', () => {
+    renderInspector(createCharacterNode())
+
+    fireEvent.change(screen.getByLabelText('nameLabel'), {
+      target: { value: 'Aria' },
+    })
+
+    expect(updateNodeData).toHaveBeenCalledWith('node-character', {
+      characterName: 'Aria',
+    })
+  })
+
+  it('shows the preview for a node with media even when legacy imageMode is choice', () => {
+    renderInspector(
       createCharacterNode({
-        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
         imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
-        imageUrl: 'https://cdn.test/existing.png',
-        sourceGenerationId: 'generation-existing',
-        sourceLabel: 'Existing character',
+        mediaUrl: 'https://cdn.test/character.png',
       }),
     )
 
-    fireEvent.click(screen.getByText('useExistingAsReference'))
-
-    expect(updateNodeData).toHaveBeenCalledWith(
-      'node-character',
-      expect.objectContaining({
-        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
-        referenceAssets: expect.arrayContaining([
-          expect.objectContaining({
-            url: 'https://cdn.test/existing.png',
-            sourceId: 'generation-existing',
-          }),
-        ]),
-      }),
+    expect(screen.getByAltText('imageAlt').getAttribute('src')).toBe(
+      'https://cdn.test/character.png',
     )
-  })
-
-  it('keeps existing controls visible when rendered statically', () => {
-    renderStatic(
-      <CharacterImageInspector
-        node={createCharacterNode({
-          imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
-          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
-          imageUrl: 'https://cdn.test/existing.png',
-        })}
-      />,
-    )
-
-    expect(screen.getByText('activeExistingTitle')).toBeInTheDocument()
-    expect(screen.getByText('useExistingAsReference')).toBeInTheDocument()
+    // The chooser must not take over a node that already has a result.
+    expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
   })
 })

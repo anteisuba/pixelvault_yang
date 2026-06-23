@@ -51,6 +51,21 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
 }
 
 describe('BaseModelPickerPanel', () => {
+  it('uses the Studio scrollbar treatment for the model list', () => {
+    render(
+      <BaseModelPickerPanel
+        options={[]}
+        value={null}
+        onChange={vi.fn()}
+        triggerEmptyLabel="Pick a model"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a model' }))
+
+    expect(screen.getByRole('dialog')).toHaveClass('studio-scrollbar')
+  })
+
   it('renders trigger with custom empty label when nothing selected', () => {
     render(
       <BaseModelPickerPanel

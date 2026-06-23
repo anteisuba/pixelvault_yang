@@ -4059,6 +4059,7 @@ const VoiceCardRequestShape = {
   provider: z.enum(VOICE_CARD_PROVIDERS),
   modelId: z.string().optional(),
   voiceId: z.string().trim().min(1).max(200).optional(),
+  coverImage: z.string().url().optional(),
   referenceAudioUrl: z.string().url().optional(),
   gender: z.enum(VOICE_CARD_GENDERS).optional(),
   age: z.enum(VOICE_CARD_AGES).optional(),
@@ -4104,6 +4105,7 @@ export type VoiceCardRecord = {
   provider: (typeof VOICE_CARD_PROVIDERS)[number]
   modelId: string | null
   voiceId: string | null
+  coverImage: string | null
   referenceAudioUrl: string | null
   referenceAudioStorageKey: string | null
   gender: (typeof VOICE_CARD_GENDERS)[number] | null

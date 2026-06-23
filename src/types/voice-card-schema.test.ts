@@ -32,6 +32,7 @@ describe('CreateVoiceCardRequestSchema', () => {
       provider: VOICE_CARD_PROVIDER.FAL_F5TTS,
       modelId: 'legacy-audio-queue',
       voiceId: 'voice_123',
+      coverImage: 'https://cdn.example.com/cover.png',
       referenceAudioUrl: 'https://cdn.example.com/voice.mp3',
       gender: 'female',
       age: 'adult',
@@ -66,6 +67,15 @@ describe('CreateVoiceCardRequestSchema', () => {
       CreateVoiceCardRequestSchema.safeParse({
         name: 'Narrator',
         provider: 'unknown',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects invalid cover image URLs', () => {
+    expect(
+      CreateVoiceCardRequestSchema.safeParse({
+        name: 'Narrator',
+        coverImage: 'not-a-url',
       }).success,
     ).toBe(false)
   })

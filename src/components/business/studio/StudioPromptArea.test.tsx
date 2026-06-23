@@ -480,6 +480,7 @@ describe('StudioPromptArea', () => {
       provider: 'fish_audio',
       modelId: 'fish-audio-s2-pro',
       voiceId: 'fish-voice-1',
+      coverImage: null,
       referenceAudioUrl: null,
       referenceAudioStorageKey: null,
       gender: null,

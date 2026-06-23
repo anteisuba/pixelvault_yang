@@ -61,7 +61,7 @@
   /* 节点 ⤢「详情」浮层面板宽度（B3：不挤画布，独立大面板）。 */
   --width-node-detail-panel: 34rem;
   /* 视频详情用宽版 = 双栏（左创作 / 右参数）。其它节点体保持窄版单列。 */
-  --width-node-detail-panel-wide: 48rem;
+  --width-node-detail-panel-wide: 56rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -678,6 +678,37 @@ html:lang(zh) {
       transparent;
   }
 
+  .studio-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--muted-foreground) 45%,
+        transparent
+      )
+      transparent;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent)
+      padding-box;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 65%, transparent)
+      padding-box;
+  }
+
   /* Bottom dock — fixed at bottom, always visible */
   .studio-dock {
     border-top: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
@@ -1220,6 +1251,22 @@ html:lang(zh) {
 .node-duration-slider [data-slot='slider-thumb'] {
   background: var(--node-foreground);
   border-color: var(--node-foreground);
+}
+
+/* Collapsible disclosure (video composer model picker) — animate open/close via
+   grid-template-rows 0fr↔1fr so it eases height without measuring. The child
+   must clip + allow 0 min-height for the 0fr track to actually collapse. */
+.node-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 180ms ease;
+}
+.node-collapsible[data-open] {
+  grid-template-rows: 1fr;
+}
+.node-collapsible > div {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── Studio generating reveal — Krea-style shimmer ─────────────── */

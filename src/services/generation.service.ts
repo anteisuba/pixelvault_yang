@@ -889,6 +889,42 @@ export async function setGenerationVisibility(
 }
 
 /**
+ * Set (or replace) the cover image of an AUDIO asset. The cover is stored in
+ * the existing `previewUrl` column — audio rows don't otherwise use it, and the
+ * asset browser already reads `previewUrl` as the audio preview/cover (see
+ * `getAudioPreviewCandidates`). Ownership-checked; only AUDIO generations are
+ * eligible. Returns null when the row is missing, not owned, or not audio so
+ * the route surfaces a not-found.
+ */
+export async function setAudioCoverImage(
+  id: string,
+  userId: string,
+  coverImageUrl: string,
+): Promise<Pick<GenerationRecord, 'id' | 'previewUrl'> | null> {
+  const generation = await db.generation.findUnique({
+    where: { id },
+    select: { id: true, userId: true, outputType: true },
+  })
+
+  if (
+    !generation ||
+    generation.userId !== userId ||
+    generation.outputType !== 'AUDIO'
+  ) {
+    return null
+  }
+
+  const updated = await db.generation.update({
+    where: { id },
+    // The cover is an external R2/image URL, so there is no paired storage key.
+    data: { previewUrl: coverImageUrl, previewStorageKey: null },
+    select: { id: true, previewUrl: true },
+  })
+
+  return updated
+}
+
+/**
  * Count total public generations (for pagination hasMore calculation)
  * When userId is provided, counts that user's own generations.
  */

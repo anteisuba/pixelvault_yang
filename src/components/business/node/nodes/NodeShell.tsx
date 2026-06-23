@@ -56,6 +56,9 @@ interface NodeShellHeaderProps {
    * in the Inspector.
    */
   title?: string
+  /** Optional clickable breadcrumb crumb rendered before the title (e.g. a
+   *  "图片 /" link on image cards that returns to the role chooser). */
+  titleCrumb?: ReactNode
   /** Optional control rendered next to the status badge (e.g. a ⤢ toggle). */
   action?: ReactNode
 }
@@ -183,6 +186,7 @@ function NodeShellHeader({
   type,
   status,
   title,
+  titleCrumb,
   action,
 }: NodeShellHeaderProps) {
   const t = useTranslations('StudioNode.nodeTypes')
@@ -204,12 +208,15 @@ function NodeShellHeader({
         >
           {NODE_TOKEN_BADGE_LABELS[type]}
         </span>
-        <span
-          className="truncate text-sm font-semibold text-node-foreground"
-          title={displayTitle}
-        >
-          {displayTitle}
-        </span>
+        <div className="flex min-w-0 items-center gap-1.5 text-sm">
+          {titleCrumb}
+          <span
+            className="truncate font-semibold text-node-foreground"
+            title={displayTitle}
+          >
+            {displayTitle}
+          </span>
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {action}

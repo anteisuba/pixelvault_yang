@@ -39,6 +39,7 @@ const FAKE_VOICE_CARD = {
   provider: VOICE_CARD_DEFAULT_PROVIDER,
   modelId: 'fish-audio-s2-pro',
   voiceId: 'voice_123',
+  coverImage: null,
   referenceAudioUrl: null,
   referenceAudioStorageKey: null,
   gender: null,

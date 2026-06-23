@@ -51,6 +51,12 @@ describe('ImageRolePickerBody', () => {
     expect(onPicked).toHaveBeenCalledTimes(1)
   })
 
+  it('offers the shot image role inside the image node picker', () => {
+    render(<ImageRolePickerBody nodeId="n1" />)
+
+    expect(screen.getByText(NODE_IMAGE_ROLE_IDS.shot)).toBeInTheDocument()
+  })
+
   it('treats re-picking the current role as a non-destructive no-op', () => {
     const onPicked = vi.fn()
     render(

@@ -7,7 +7,7 @@ import {
   useState,
   type ComponentType,
 } from 'react'
-import { FileText, Film, ImagePlus, Layers, Mic2, Video } from 'lucide-react'
+import { Film, ImagePlus, Layers, Mic2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
 
@@ -43,7 +43,6 @@ interface CanvasAddMenuItem {
 // tabs were dropped — search covers find-by-name without the overflowing
 // tab row. Order = elements first, then generators, then orchestration.
 const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
-  { type: NODE_TYPE_IDS.shotText, Icon: FileText },
   {
     // Unified image node (option B): one menu entry; role (character /
     // background / shot) is chosen in the node's empty-state picker.

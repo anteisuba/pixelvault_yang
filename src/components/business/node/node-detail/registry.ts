@@ -9,6 +9,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { BackgroundDetailBody } from './BackgroundDetailBody'
 import { CharacterDetailBody } from './CharacterDetailBody'
 import { VideoDetailBody } from './VideoDetailBody'
+import { VideoReferenceDetailBody } from './VideoReferenceDetailBody'
 import { VoiceDetailBody } from './VoiceDetailBody'
 
 export interface NodeDetailBodyProps {
@@ -27,6 +28,7 @@ export const NODE_DETAIL_REGISTRY: Partial<
   Record<NodeWorkflowNodeType, ComponentType<NodeDetailBodyProps>>
 > = {
   [NODE_TYPE_IDS.seedance]: VideoDetailBody,
+  [NODE_TYPE_IDS.videoReference]: VideoReferenceDetailBody,
   [NODE_TYPE_IDS.voice]: VoiceDetailBody,
   [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,

@@ -3,7 +3,6 @@
 import { memo, useCallback } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
-import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -28,19 +27,8 @@ function buildRefinePrompt(
   return trimmedBase ? `${trimmedBase}. ${suffix}` : suffix
 }
 
-/**
- * StudioBottomDock — single-column dock that hosts the cards row, prompt
- * area, and toolbar pills. Toolbar panels (advanced, refImage, video
- * params, script, voice selector, voice trainer, layer decompose,
- * civitai) all open as Krea-style centred dialogs via StudioDockPanelArea;
- * the dock no longer splits into a 60/40 grid, and the mobile-only Drawer
- * is gone — one consistent floating-panel surface across breakpoints.
- */
 export const StudioBottomDock = memo(function StudioBottomDock() {
   const { state, dispatch } = useStudioForm()
-  // 软键盘弹起时把 sticky dock 抬到键盘上方（审查 C1）。无键盘时为 0，
-  // 不产生 transform。
-  const keyboardInset = useKeyboardInset()
 
   const handleKeepChangeSubmit = useCallback(
     (keepTags: string[], changeTags: string[], freeText: string) => {
@@ -60,14 +48,7 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
 
   return (
     <>
-      <div
-        className="studio-dock"
-        style={
-          keyboardInset > 0
-            ? { transform: `translateY(-${keyboardInset}px)` }
-            : undefined
-        }
-      >
+      <div className="studio-dock">
         <div className="space-y-2">
           {state.workflowMode === 'card' && state.outputType !== 'audio' && (
             <StudioCardSection />

@@ -21,10 +21,10 @@ vi.mock('next-intl', () => ({
 
 const { composerState } = vi.hoisted(() => ({
   composerState: {
-    referenceKinds: [] as Array<'character' | 'background' | 'voice'>,
+    referenceKinds: [] as Array<'character' | 'background' | 'shot' | 'voice'>,
     referenceTokens: [] as Array<{
       id: string
-      kind: 'character' | 'background' | 'voice'
+      kind: 'character' | 'background' | 'shot' | 'voice'
       label: string
       token: string
     }>,
@@ -119,6 +119,18 @@ describe('VideoComposer references row (detail)', () => {
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
       expect.objectContaining({ prompt: '@角色A' }),
+    )
+  })
+
+  it('renders + inserts a shot @token', () => {
+    composerState.referenceTokens = [
+      { id: 's1', kind: 'shot', label: '开场远景', token: '@开场远景' },
+    ]
+    renderDetail()
+    fireEvent.click(screen.getByText('@开场远景'))
+    expect(updateNodeData).toHaveBeenCalledWith(
+      'v1',
+      expect.objectContaining({ prompt: '@开场远景' }),
     )
   })
 

@@ -56,6 +56,7 @@ import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
 import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
+import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { ScriptDoc } from '@/types/script-doc'
 
 export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
@@ -83,6 +84,10 @@ export interface NodeWorkflowActions {
   setScriptDoc(scriptDoc: ScriptDoc | undefined): void
   /** Persist the canvas-default video model on the current project. */
   setDefaultVideoModel(value: VideoDefaultModel | undefined): void
+  /** Persist the right-rail drafting stage / depth / manual-edit locks. */
+  setScriptDocStage(value: ScriptDocStage): void
+  setScriptDocDepth(value: ScriptDocDepth): void
+  setScriptDocLocks(value: string[]): void
   /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
   applyScriptDocToGraph(): ApplyScriptDocResult
   deleteNode(id: string): void
@@ -100,6 +105,8 @@ export interface ApplyScriptDocResult {
   updated: number
   /** Entities that already had a node (idempotent reuse). */
   skipped: number
+  /** Nodes removed because their role/shot/line was deleted from the outline. */
+  removed: number
   /** ScriptDoc-managed edges removed because the outline changed. */
   removedEdges: number
   refusal: 'noScriptDoc' | 'emptyScriptDoc' | null
@@ -109,6 +116,9 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   state: NodeWorkflowState
   scriptDoc: ScriptDoc | undefined
   defaultVideoModel: VideoDefaultModel | undefined
+  scriptDocStage: ScriptDocStage | undefined
+  scriptDocDepth: ScriptDocDepth | undefined
+  scriptDocLocks: string[] | undefined
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   projects: NodeWorkflowProjectSummary[]
@@ -1165,6 +1175,45 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  const setScriptDocStage = useCallback(
+    (value: ScriptDocStage) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({ ...currentState, scriptDocStage: value }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  const setScriptDocDepth = useCallback(
+    (value: ScriptDocDepth) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({ ...currentState, scriptDocDepth: value }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  const setScriptDocLocks = useCallback(
+    (value: string[]) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({ ...currentState, scriptDocLocks: value }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
   /**
    * Project the current project's ScriptDoc into the graph. Reads the latest
    * state off `storageRef` (never a stale closure), runs the pure idempotent
@@ -1182,6 +1231,7 @@ export function useNodeWorkflow({
         created: 0,
         updated: 0,
         skipped: 0,
+        removed: 0,
         removedEdges: 0,
         refusal: 'noScriptDoc',
       }
@@ -1191,6 +1241,7 @@ export function useNodeWorkflow({
         created: 0,
         updated: 0,
         skipped: 0,
+        removed: 0,
         removedEdges: 0,
         refusal: 'emptyScriptDoc',
       }
@@ -1204,6 +1255,7 @@ export function useNodeWorkflow({
     if (
       result.nodesToAdd.length === 0 &&
       result.nodesToUpdate.length === 0 &&
+      result.nodesToRemove.length === 0 &&
       result.edgesToAdd.length === 0 &&
       result.edgesToRemove.length === 0
     ) {
@@ -1211,6 +1263,7 @@ export function useNodeWorkflow({
         created: 0,
         updated: 0,
         skipped: result.skipped,
+        removed: 0,
         removedEdges: 0,
         refusal: null,
       }
@@ -1221,21 +1274,24 @@ export function useNodeWorkflow({
         result.nodesToUpdate.map((update) => [update.id, update.data]),
       )
       const removeEdgeIds = new Set(result.edgesToRemove.map((edge) => edge.id))
+      const removeNodeIds = new Set(result.nodesToRemove.map((node) => node.id))
 
       return {
         ...latestState,
         nodes: [
-          ...latestState.nodes.map((node) => {
-            const patch = updatesById.get(node.id)
-            if (!patch) return node
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                ...patch,
-              },
-            }
-          }),
+          ...latestState.nodes
+            .filter((node) => !removeNodeIds.has(node.id))
+            .map((node) => {
+              const patch = updatesById.get(node.id)
+              if (!patch) return node
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  ...patch,
+                },
+              }
+            }),
           ...result.nodesToAdd,
         ],
         edges: [
@@ -1249,6 +1305,7 @@ export function useNodeWorkflow({
       created: result.created,
       updated: result.updated,
       skipped: result.skipped,
+      removed: result.removed,
       removedEdges: result.removedEdges,
       refusal: null,
     }
@@ -1437,6 +1494,9 @@ export function useNodeWorkflow({
       state,
       scriptDoc: state.scriptDoc,
       defaultVideoModel: state.defaultVideoModel,
+      scriptDocStage: state.scriptDocStage,
+      scriptDocDepth: state.scriptDocDepth,
+      scriptDocLocks: state.scriptDocLocks,
       nodes: state.nodes,
       edges: state.edges,
       projects,
@@ -1450,6 +1510,9 @@ export function useNodeWorkflow({
       updateNodeData,
       setScriptDoc,
       setDefaultVideoModel,
+      setScriptDocStage,
+      setScriptDocDepth,
+      setScriptDocLocks,
       applyScriptDocToGraph,
       deleteNode,
       deleteEdge,
@@ -1485,6 +1548,9 @@ export function useNodeWorkflow({
       saveNow,
       setScriptDoc,
       setDefaultVideoModel,
+      setScriptDocStage,
+      setScriptDocDepth,
+      setScriptDocLocks,
       state,
       switchProject,
       tidyLayout,

@@ -373,8 +373,8 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t('mobileNavigation')}
-      className="fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="keyboard-hidden-while-open fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden"
+      style={{ paddingBottom: 'var(--keyboard-safe-area-bottom, 0px)' }}
     >
       <div className="h-12">
         {isLoaded && (

@@ -34,6 +34,7 @@ describe('getLLMCapabilityScope', () => {
     expect(getLLMCapabilityScope('assistant').sort()).toEqual(
       [
         AI_ADAPTER_TYPES.DASHSCOPE,
+        AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
       ].sort(),

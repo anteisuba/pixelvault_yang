@@ -738,6 +738,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           apiKeyId: selectedModel.keyId,
           freePrompt: state.prompt || undefined,
           voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+          // The voice card's avatar rides along BY REFERENCE so the generated
+          // clip carries a cover into 素材库. Only a valid http URL — a malformed
+          // cover must never 400 the generation.
+          coverImageUrl:
+            typeof selectedVoiceCard?.coverImage === 'string' &&
+            selectedVoiceCard.coverImage.startsWith('http')
+              ? selectedVoiceCard.coverImage
+              : undefined,
           // Preset reference (from a saved voice card) wins; otherwise fall
           // back to whatever ad-hoc clip the user uploaded for this run.
           // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
@@ -837,6 +845,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     state.audioReferenceText,
     state.workflowMode,
     selectedVoiceCard?.voiceId,
+    selectedVoiceCard?.coverImage,
     selectedVoiceCard?.referenceAudioUrl,
     selectedVoiceCard?.sampleText,
     audioPronunciationDictionary,

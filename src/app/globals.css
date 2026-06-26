@@ -211,6 +211,8 @@
   --font-hero:
     var(--font-app-display), 'Geist', ui-sans-serif, system-ui, sans-serif;
   --radius: 0.625rem;
+  --keyboard-inset: 0px;
+  --keyboard-safe-area-bottom: env(safe-area-inset-bottom, 0px);
 
   /* ── Light palette — Krea light tokens ──────────────────────────────── */
   --background: oklch(100% 0 0);
@@ -380,12 +382,18 @@ html:lang(zh) {
 
   html {
     scroll-behavior: smooth;
+    scroll-padding-bottom: calc(
+      var(--keyboard-inset, 0px) + var(--keyboard-safe-area-bottom, 0px) + 1rem
+    );
   }
 
   body {
     @apply bg-background text-foreground;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
+    scroll-padding-bottom: calc(
+      var(--keyboard-inset, 0px) + var(--keyboard-safe-area-bottom, 0px) + 1rem
+    );
   }
 
   ::selection {
@@ -395,6 +403,27 @@ html:lang(zh) {
 }
 
 @layer components {
+  .keyboard-aware-bottom-padding {
+    padding-bottom: calc(
+      max(var(--keyboard-safe-area-bottom, 0px), 1rem) +
+        var(--keyboard-inset, 0px)
+    );
+  }
+
+  .keyboard-hidden-while-open {
+    transition:
+      transform var(--duration-base) var(--ease-standard),
+      opacity var(--duration-base) var(--ease-standard);
+  }
+
+  @media (max-width: 1023.98px) {
+    html[data-keyboard-open='true'] .keyboard-hidden-while-open {
+      transform: translate3d(0, calc(100% + 1rem), 0);
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
   /* ── Editorial page system ─────────────────────────────────────────────── */
 
   .editorial-page {
@@ -725,7 +754,10 @@ html:lang(zh) {
       position: sticky;
       bottom: 0;
       padding: 0.5rem 0.75rem;
-      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+      padding-bottom: calc(0.5rem + var(--keyboard-safe-area-bottom, 0px));
+      transform: translateY(calc(var(--keyboard-inset, 0px) * -1));
+      transition: transform var(--duration-base) var(--ease-standard);
+      will-change: transform;
     }
   }
 

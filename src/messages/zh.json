@@ -3154,11 +3154,7 @@
         "referenceGenerateFailed": "参考音频生成失败，请稍后重试。",
         "unsupportedAudio": "请上传音频文件。",
         "uploadFailed": "参考音频上传失败。",
-        "sampleGenerated": "代表音频已生成。",
-        "savedToAssets": "已收藏进素材库。",
-        "saveToAssetsFailed": "收藏失败，请稍后重试。",
-        "alreadySaved": "已在素材库中。",
-        "coverSynced": "封面已同步到素材库。"
+        "sampleGenerated": "代表音频已生成。"
       },
       "referenceFromAssets": "从素材选择",
       "referenceDialogTitle": "选择参考音频",
@@ -3330,9 +3326,13 @@
       "useExistingAsReference": "作为参考生成",
       "replaceImage": "替换图片",
       "selectExistingShort": "选择已有图",
-      "changeSourceExisting": "改用已有",
+      "changeSourceExisting": "素材库",
       "changeSourceAi": "AI 生成",
       "changeSourceStudio": "Studio",
+      "dropzoneHint": "点击 / 拖拽 / 粘贴 (Ctrl+V)",
+      "upstreamRefsHint": "上游参考 · 点击插入名字",
+      "removeUpstreamRef": "断开连接",
+      "unnamedRef": "未命名",
       "clearImage": "清除图片",
       "generateFromExisting": "按参考生成",
       "existingAssetDialogTitle": "选择节点图片",
@@ -3381,6 +3381,7 @@
       "refKind": {
         "character": "角色",
         "background": "背景",
+        "shot": "镜头",
         "voice": "声音"
       },
       "references": {
@@ -3433,10 +3434,7 @@
         "surprised": "惊讶"
       },
       "sampleLabel": "代表音频",
-      "generateSample": "生成试听",
-      "saveToAssets": "收藏进素材",
-      "savedToAssets": "已在素材库",
-      "syncCoverToAssets": "更新封面到素材"
+      "generateSample": "生成试听"
     },
     "workflowFields": {
       "prompt": {
@@ -3525,7 +3523,9 @@
       },
       "shot": {
         "emptyPreview": "从镜头文本和角色/背景参考生成单张镜头图。",
-        "footerEmpty": "等待镜头提示"
+        "footerEmpty": "等待镜头提示",
+        "nameLabel": "镜头名称",
+        "namePlaceholder": "如：开场远景"
       },
       "backgroundImage": {
         "emptyPreview": "定义地点、氛围和光线，生成可复用背景图。",
@@ -3626,9 +3626,51 @@
       },
       "scriptDocRolesLabel": "角色 · {count}",
       "scriptDocShotsLabel": "镜头 · {count}",
-      "scriptDocApplyResult": "画布已同步：新增 {created} 个，更新 {updated} 个，复用 {skipped} 个。",
+      "scriptDocApplyResult": "画布已同步：新增 {created} 个，更新 {updated} 个，删除 {removed} 个，复用 {skipped} 个。",
       "scriptDocApplyNothing": "画布已与大纲一致，没有新节点要生成。",
       "scriptDocApplyEmpty": "请先在大纲里添加角色或镜头。",
+      "scriptDocStepOutline": "大纲",
+      "scriptDocStepShots": "镜头",
+      "scriptDocStepNodes": "节点",
+      "scriptDocConfirmOutline": "确认大纲",
+      "scriptDocBreakShots": "拆镜头",
+      "scriptDocRebreakShots": "重拆镜头",
+      "scriptDocConfirmShots": "确认镜头",
+      "scriptDocBackToOutline": "返回大纲",
+      "scriptDocBackgroundLabel": "背景",
+      "scriptDocDepthSimple": "精简",
+      "scriptDocDepthStandard": "标准",
+      "scriptDocDepthCinematic": "完整",
+      "scriptDocDepthSimpleHint": "只要角色 + 台词",
+      "scriptDocDepthStandardHint": "+ 情感 · 时长 · 风格",
+      "scriptDocDepthCinematicHint": "+ 背景 · 性格 · 电影级镜头",
+      "scriptDocNewRole": "新角色",
+      "scriptDocNewShot": "新镜头",
+      "scriptDocNewLine": "新台词",
+      "scriptDocAddRole": "加角色",
+      "scriptDocAddShot": "加镜头",
+      "scriptDocAddLine": "加台词",
+      "scriptDocDelete": "删除",
+      "scriptDocLockHint": "已手改 · 点击允许 AI 覆盖",
+      "scriptDocFieldTitle": "标题",
+      "scriptDocFieldLogline": "一句话简介",
+      "scriptDocFieldStyle": "风格",
+      "scriptDocFieldDuration": "时长",
+      "scriptDocFieldRoleName": "角色名",
+      "scriptDocFieldRoleDescription": "外观",
+      "scriptDocFieldRolePersonality": "性格",
+      "scriptDocFieldRoleGoal": "目标",
+      "scriptDocFieldShotSummary": "镜头内容",
+      "scriptDocFieldShotEmotion": "情感",
+      "scriptDocFieldShotCamera": "镜头语言",
+      "scriptDocFieldLine": "台词",
+      "scriptDocFieldSpeaker": "说话人",
+      "scriptDocViewEdit": "编辑",
+      "scriptDocViewRead": "通读",
+      "scriptDocFocusButton": "让 AI 改这块",
+      "scriptDocFocusPlaceholder": "这里想怎么改？",
+      "scriptDocFocusSend": "应用",
+      "scriptDocFocusCancel": "取消",
       "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
       "leanOpenerActive": "画布上已经有节点了——要我帮你把它们捋成故事大纲吗？",
       "starters": {
@@ -3659,20 +3701,11 @@
       }
     },
     "assistantRoute": {
-      "triggerLabel": "选择画布助手路由",
       "fieldLabel": "助手路由",
-      "title": "画布助手路由",
-      "description": "选择本次对话使用的文本模型 Key。自动路由会优先使用 AI Gateway，否则使用工作区默认文本路由。",
-      "autoLabel": "自动路由",
-      "autoDescription": "AI Gateway 或默认 BYOK 路由",
-      "configured": "已配置",
-      "emptyConfigured": "还没有可用的 OpenAI、Gemini 或 DeepSeek 文本 Key。",
-      "addKey": "添加文本 Key",
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "savedTrigger": "{provider} · {key}",
-      "savedMeta": "{provider} · {key}"
+      "setupQwen": "Qwen"
     },
     "inspector": {
       "multiTitle": "已选择 {count} 个节点",
@@ -3685,6 +3718,8 @@
       "retry": "重试",
       "placeholder": "询问画布助手...",
       "modeHint": "应用前先询问",
+      "research": "参考作品",
+      "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
       "send": "发送"
     },
     "minimapTitle": "小地图",

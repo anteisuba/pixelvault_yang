@@ -47,11 +47,6 @@ vi.mock('@/hooks/node/use-node-reference-upload', () => ({
   }),
 }))
 
-const useCharacterCardsMock = vi.fn()
-vi.mock('@/hooks/cards/use-character-cards', () => ({
-  useCharacterCards: () => useCharacterCardsMock(),
-}))
-
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -119,6 +114,12 @@ function renderInspector(initialNode: NodeWorkflowNode) {
       setScriptDoc: vi.fn(),
       setDefaultVideoModel: vi.fn(),
       defaultVideoModel: undefined,
+      setScriptDocStage: vi.fn(),
+      setScriptDocDepth: vi.fn(),
+      setScriptDocLocks: vi.fn(),
+      scriptDocStage: undefined,
+      scriptDocDepth: undefined,
+      scriptDocLocks: undefined,
       applyScriptDocToGraph: vi.fn(),
       deleteNode: vi.fn(),
       deleteEdge: vi.fn(),
@@ -151,26 +152,25 @@ function renderInspector(initialNode: NodeWorkflowNode) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useCharacterCardsMock.mockReturnValue({
-    cards: [],
-    isLoading: false,
-    findCard: () => null,
-  })
 })
 
 describe('CharacterImageInspector (unified wrapper)', () => {
-  it('is form-first with name field + slim import row on an empty node', () => {
+  it('shows the name field with an upload dropzone behind a unified source row on an empty node', () => {
     renderInspector(createCharacterNode())
 
     // Identity: the character name field is always visible, even pre-image.
     expect(screen.getByLabelText('nameLabel')).toBeInTheDocument()
-    // Form-first: the generate form shows directly (no heavy chooser).
-    expect(screen.getByText('modelPicker')).toBeInTheDocument()
-    // Alternative sources live in a slim import row, incl. the character card.
+    // Empty image = upload / paste / drop dropzone, not a form.
+    expect(screen.getByText('existing.upload')).toBeInTheDocument()
+    expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
+    // Unified source row: 素材库 / AI 生成 / Studio (no dedicated card library).
     expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
-    expect(screen.getByText('cardLibrary.title')).toBeInTheDocument()
     expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
-    expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
+    expect(screen.queryByText('cardLibrary.title')).not.toBeInTheDocument()
+
+    // Opening "AI 生成" reveals the form.
+    fireEvent.click(screen.getByText('changeSourceAi'))
+    expect(screen.getByText('modelPicker')).toBeInTheDocument()
   })
 
   it('writes the character name', () => {

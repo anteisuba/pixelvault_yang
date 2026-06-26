@@ -83,19 +83,28 @@ function ResponsiveDialogContent({
   showCloseButton,
   closeLabel,
   mobileBodyClassName,
+  style,
   ...props
 }: ResponsiveDialogContentProps) {
   const { isMobile } = React.useContext(ResponsiveDialogContext)
   if (isMobile) {
     return (
-      <DrawerContent className={cn('max-h-[95svh]', className)} {...props}>
+      <DrawerContent
+        className={cn('max-h-[95svh]', className)}
+        style={{
+          maxHeight:
+            'min(95svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+          ...style,
+        }}
+        {...props}
+      >
         <div
           className={cn(
             'flex-1 overflow-y-auto px-4 pt-2',
             mobileBodyClassName,
           )}
           style={{
-            paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)',
+            paddingBottom: 'max(var(--keyboard-safe-area-bottom, 0px), 1.5rem)',
           }}
         >
           {children}
@@ -108,6 +117,7 @@ function ResponsiveDialogContent({
       className={className}
       showCloseButton={showCloseButton}
       closeLabel={closeLabel}
+      style={style}
       {...props}
     >
       {children}

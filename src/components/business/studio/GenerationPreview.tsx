@@ -530,7 +530,13 @@ export const GenerationPreview = memo(function GenerationPreview({
 
         {/* Tool drawer — swipe up for full tools */}
         <Drawer open={toolDrawerOpen} onOpenChange={setToolDrawerOpen}>
-          <DrawerContent className="max-h-[70vh]">
+          <DrawerContent
+            className="max-h-[70vh]"
+            style={{
+              maxHeight:
+                'min(70vh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+            }}
+          >
             <DrawerHeader>
               <DrawerTitle className="font-display text-base">
                 {t('toolDrawerTitle')}

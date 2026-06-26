@@ -51,6 +51,7 @@ function SheetContent({
   side = 'right',
   showCloseButton = true,
   closeLabel,
+  style,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
@@ -77,6 +78,15 @@ function SheetContent({
             'inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
           className,
         )}
+        style={
+          side === 'bottom'
+            ? {
+                bottom: 'var(--keyboard-inset, 0px)',
+                maxHeight: 'calc(100svh - var(--keyboard-inset, 0px))',
+                ...style,
+              }
+            : style
+        }
         {...props}
       >
         {children}

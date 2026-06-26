@@ -1080,7 +1080,14 @@ function CivitaiCommunityBranch({
             missing Description, but the drawer body already contains all the
             details and a verbose description would just be noise for screen
             readers. */}
-        <DrawerContent aria-describedby={undefined} className="max-h-[85vh]">
+        <DrawerContent
+          aria-describedby={undefined}
+          className="max-h-[85vh]"
+          style={{
+            maxHeight:
+              'min(85vh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+          }}
+        >
           <DrawerTitle className="sr-only">
             {library.selectedItem?.name ?? ''}
           </DrawerTitle>

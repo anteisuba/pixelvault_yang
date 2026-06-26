@@ -44,6 +44,9 @@ function getNodeName(
   if (presentationType === NODE_TYPE_IDS.backgroundImage) {
     return node.data.backgroundName?.trim() || fallback
   }
+  if (presentationType === NODE_TYPE_IDS.shot) {
+    return node.data.shotName?.trim() || fallback
+  }
   return fallback
 }
 

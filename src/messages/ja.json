@@ -3154,11 +3154,7 @@
         "referenceGenerateFailed": "参考音声の生成に失敗しました。再度お試しください。",
         "unsupportedAudio": "音声ファイルをアップロードしてください。",
         "uploadFailed": "参考音声のアップロードに失敗しました。",
-        "sampleGenerated": "音声サンプルを生成しました。",
-        "savedToAssets": "素材に保存しました。",
-        "saveToAssetsFailed": "素材への保存に失敗しました。",
-        "alreadySaved": "すでに素材にあります。",
-        "coverSynced": "カバーを素材に同期しました。"
+        "sampleGenerated": "音声サンプルを生成しました。"
       },
       "referenceFromAssets": "素材から選択",
       "referenceDialogTitle": "参考音声を選択",
@@ -3330,9 +3326,13 @@
       "useExistingAsReference": "参照として生成",
       "replaceImage": "画像を置き換え",
       "selectExistingShort": "画像を選択",
-      "changeSourceExisting": "既存を使う",
+      "changeSourceExisting": "素材ライブラリ",
       "changeSourceAi": "AI生成",
       "changeSourceStudio": "Studio",
+      "dropzoneHint": "クリック / ドロップ / 貼り付け (Ctrl+V)",
+      "upstreamRefsHint": "上流参照 · クリックで名前を挿入",
+      "removeUpstreamRef": "接続を解除",
+      "unnamedRef": "名称未設定",
       "clearImage": "画像をクリア",
       "generateFromExisting": "参照から生成",
       "existingAssetDialogTitle": "ノード画像を選択",
@@ -3381,6 +3381,7 @@
       "refKind": {
         "character": "キャラクター",
         "background": "背景",
+        "shot": "ショット",
         "voice": "ボイス"
       },
       "references": {
@@ -3433,10 +3434,7 @@
         "surprised": "驚き"
       },
       "sampleLabel": "音声サンプル",
-      "generateSample": "サンプルを生成",
-      "saveToAssets": "素材に保存",
-      "savedToAssets": "素材に保存済み",
-      "syncCoverToAssets": "カバーを素材に同期"
+      "generateSample": "サンプルを生成"
     },
     "workflowFields": {
       "prompt": {
@@ -3525,7 +3523,9 @@
       },
       "shot": {
         "emptyPreview": "ショット文とキャラクター/背景参考から単一ショット画像を生成します。",
-        "footerEmpty": "ショットプロンプトを待機中"
+        "footerEmpty": "ショットプロンプトを待機中",
+        "nameLabel": "ショット名",
+        "namePlaceholder": "例：オープニングの引き画"
       },
       "backgroundImage": {
         "emptyPreview": "場所、ムード、光を定義して再利用できる背景を生成します。",
@@ -3626,9 +3626,51 @@
       },
       "scriptDocRolesLabel": "キャラクター · {count}",
       "scriptDocShotsLabel": "ショット · {count}",
-      "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、再利用 {skipped}。",
+      "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、削除 {removed}、再利用 {skipped}。",
       "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
       "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
+      "scriptDocStepOutline": "構成",
+      "scriptDocStepShots": "ショット",
+      "scriptDocStepNodes": "ノード",
+      "scriptDocConfirmOutline": "構成を確定",
+      "scriptDocBreakShots": "ショットに分解",
+      "scriptDocRebreakShots": "ショットを再分解",
+      "scriptDocConfirmShots": "ショットを確定",
+      "scriptDocBackToOutline": "構成へ戻る",
+      "scriptDocBackgroundLabel": "背景",
+      "scriptDocDepthSimple": "簡易",
+      "scriptDocDepthStandard": "標準",
+      "scriptDocDepthCinematic": "フル",
+      "scriptDocDepthSimpleHint": "キャラと台詞のみ",
+      "scriptDocDepthStandardHint": "+ 感情・尺・スタイル",
+      "scriptDocDepthCinematicHint": "+ 背景・心理・シネマ級ショット",
+      "scriptDocNewRole": "新キャラ",
+      "scriptDocNewShot": "新ショット",
+      "scriptDocNewLine": "新台詞",
+      "scriptDocAddRole": "キャラ追加",
+      "scriptDocAddShot": "ショット追加",
+      "scriptDocAddLine": "台詞追加",
+      "scriptDocDelete": "削除",
+      "scriptDocLockHint": "手動編集 · クリックでAI上書き許可",
+      "scriptDocFieldTitle": "タイトル",
+      "scriptDocFieldLogline": "ログライン",
+      "scriptDocFieldStyle": "スタイル",
+      "scriptDocFieldDuration": "尺",
+      "scriptDocFieldRoleName": "キャラ名",
+      "scriptDocFieldRoleDescription": "外見",
+      "scriptDocFieldRolePersonality": "性格",
+      "scriptDocFieldRoleGoal": "目的",
+      "scriptDocFieldShotSummary": "ショット内容",
+      "scriptDocFieldShotEmotion": "感情",
+      "scriptDocFieldShotCamera": "カメラ",
+      "scriptDocFieldLine": "台詞",
+      "scriptDocFieldSpeaker": "話者",
+      "scriptDocViewEdit": "編集",
+      "scriptDocViewRead": "通読",
+      "scriptDocFocusButton": "AIで修正",
+      "scriptDocFocusPlaceholder": "ここをどう変える？",
+      "scriptDocFocusSend": "適用",
+      "scriptDocFocusCancel": "キャンセル",
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
       "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
       "starters": {
@@ -3659,20 +3701,11 @@
       }
     },
     "assistantRoute": {
-      "triggerLabel": "キャンバス助手のルートを選択",
       "fieldLabel": "助手ルート",
-      "title": "キャンバス助手ルート",
-      "description": "この会話で使うテキストモデル Key を選択します。自動ルートは AI Gateway を優先し、なければワークスペース既定の BYOK テキストルートを使います。",
-      "autoLabel": "自動ルート",
-      "autoDescription": "AI Gateway または既定の BYOK ルート",
-      "configured": "設定済み",
-      "emptyConfigured": "利用可能な OpenAI、Gemini、DeepSeek のテキスト Key はまだありません。",
-      "addKey": "テキスト Key を追加",
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "savedTrigger": "{provider} · {key}",
-      "savedMeta": "{provider} · {key}"
+      "setupQwen": "Qwen"
     },
     "inspector": {
       "multiTitle": "{count} 件のノードを選択中",
@@ -3685,6 +3718,8 @@
       "retry": "再試行",
       "placeholder": "キャンバス助手に質問...",
       "modeHint": "適用前に確認",
+      "research": "参考作品",
+      "researchHint": "映画/アニメ/短編をWeb検索し、オリジナル脚本のアイデアに変換（Gemini/OpenAIルート）",
       "send": "送信"
     },
     "minimapTitle": "ミニマップ",

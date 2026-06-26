@@ -52,9 +52,9 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'DeepSeek V4 Pro',
   },
   openai: {
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI GPT-5.4 Mini',
+    label: 'OpenAI GPT-5.5',
   },
   dashscope: {
     modelId: LLM_TEXT_MODEL_IDS.QWEN3_MAX,

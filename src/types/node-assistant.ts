@@ -53,6 +53,13 @@ export const NodeAssistantRequestSchema = z.object({
     .default([]),
   locale: z.enum(LOCALES),
   apiKeyId: z.string().trim().min(1).max(160).optional(),
+  /**
+   * Reference-research turn: study an existing film/anime/short and return
+   * structural analysis + original script suggestions + prompt seeds. Routed
+   * through a grounding-capable provider (Gemini/OpenAI) when one is available,
+   * otherwise degrades to the model's own knowledge.
+   */
+  research: z.boolean().optional(),
 })
 
 export type NodeAssistantMessageRole = z.infer<

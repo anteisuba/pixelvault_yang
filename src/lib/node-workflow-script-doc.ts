@@ -50,11 +50,14 @@ export interface NodeWorkflowNodeDataUpdate {
 export interface ProjectScriptDocResult {
   nodesToAdd: NodeWorkflowNode[]
   nodesToUpdate: NodeWorkflowNodeDataUpdate[]
+  /** Projection-owned nodes whose role/shot/line was deleted from the doc. */
+  nodesToRemove: NodeWorkflowNode[]
   edgesToAdd: NodeWorkflowEdge[]
   edgesToRemove: NodeWorkflowEdge[]
   created: number
   updated: number
   skipped: number
+  removed: number
   removedEdges: number
 }
 
@@ -161,6 +164,9 @@ export function projectScriptDocToGraph(
   const edgesToRemove: NodeWorkflowEdge[] = []
   const spawnedByKey = new Map<string, string>()
   const desiredEdgePairs = new Set<string>()
+  // Every refKey the current doc wants a node for — the inverse identifies the
+  // orphans (deleted roles/shots/lines) to remove.
+  const desiredKeys = new Set<string>()
   let created = 0
   let updated = 0
   let skipped = 0
@@ -172,6 +178,7 @@ export function projectScriptDocToGraph(
     buildUpdate: () => Partial<NodeWorkflowNodeData>,
   ): string {
     const key = refKey(kind, sourceId)
+    desiredKeys.add(key)
     const existing = existingByKey.get(key) ?? spawnedByKey.get(key)
     if (existing) {
       skipped += 1
@@ -408,14 +415,39 @@ export function projectScriptDocToGraph(
     }
   }
 
+  // Orphans: nodes this projection OWNS (carry a scriptRef) whose source is no
+  // longer in the ScriptDoc — i.e. the creator deleted that role / shot / line.
+  // Legacy characterId-matched nodes (no scriptRef) are deliberately left alone.
+  const removedNodeIds = new Set<string>()
+  const nodesToRemove: NodeWorkflowNode[] = []
+  for (const node of existingState.nodes) {
+    const ref = node.data.scriptRef
+    if (ref && !desiredKeys.has(refKey(ref.kind, ref.sourceId))) {
+      nodesToRemove.push(node)
+      removedNodeIds.add(node.id)
+    }
+  }
+
   const managedNodeIds = new Set<string>(existingByKey.values())
+  const removedEdgeIds = new Set<string>()
   for (const edge of existingState.edges) {
+    if (removedEdgeIds.has(edge.id)) continue
+
+    // An edge touching a removed node goes with it.
+    if (removedNodeIds.has(edge.source) || removedNodeIds.has(edge.target)) {
+      removedEdgeIds.add(edge.id)
+      edgesToRemove.push(edge)
+      continue
+    }
+
+    // Stale ScriptDoc-managed wiring: both ends managed, link no longer desired.
     const pair = `${edge.source}->${edge.target}`
     if (
       managedNodeIds.has(edge.source) &&
       managedNodeIds.has(edge.target) &&
       !desiredEdgePairs.has(pair)
     ) {
+      removedEdgeIds.add(edge.id)
       edgesToRemove.push(edge)
     }
   }
@@ -423,11 +455,13 @@ export function projectScriptDocToGraph(
   return {
     nodesToAdd,
     nodesToUpdate,
+    nodesToRemove,
     edgesToAdd,
     edgesToRemove,
     created,
     updated,
     skipped,
+    removed: nodesToRemove.length,
     removedEdges: edgesToRemove.length,
   }
 }

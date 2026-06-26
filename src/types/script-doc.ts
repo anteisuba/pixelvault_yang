@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-import { SCRIPT_DOC_LIMITS, SCRIPT_DOC_REF_KINDS } from '@/constants/script-doc'
+import {
+  SCRIPT_DOC_DEPTHS,
+  SCRIPT_DOC_FOCUS_KINDS,
+  SCRIPT_DOC_LIMITS,
+  SCRIPT_DOC_REF_KINDS,
+  SCRIPT_DOC_STAGES,
+} from '@/constants/script-doc'
 import { NODE_STUDIO_ASSISTANT_MESSAGE_ROLES } from '@/constants/node-studio'
 import { LOCALES } from '@/i18n/routing'
 
@@ -30,6 +36,14 @@ export const ScriptDocRoleSchema = z.object({
     .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
     .default(''),
   voiceHint: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
+  /** Optional — sharpens dialogue voice (filled per depth). */
+  personality: z
+    .string()
+    .trim()
+    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
+    .optional(),
+  /** Optional — what the role wants, drives motivation (filled per depth). */
+  goal: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
 })
 
 export const ScriptDocDialogueLineSchema = z.object({
@@ -46,6 +60,8 @@ export const ScriptDocShotSchema = z.object({
     .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
     .optional(),
   summary: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
+  /** Optional dual-emotion tag (surface · undercurrent), filled per depth. */
+  emotion: z.string().trim().max(SCRIPT_DOC_LIMITS.emotionMaxLength).optional(),
   camera: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
   /** Role bindings (character node → seedance edges). */
   roleIds: z
@@ -77,6 +93,18 @@ export const ScriptDocSchema = z.object({
     .trim()
     .max(SCRIPT_DOC_LIMITS.styleNoteMaxLength)
     .optional(),
+  /** Optional world / setting / backstory (filled per depth). */
+  background: z
+    .string()
+    .trim()
+    .max(SCRIPT_DOC_LIMITS.backgroundMaxLength)
+    .optional(),
+  /** Optional target duration hint, e.g. "8s" / "12-15s" (filled per depth). */
+  targetDuration: z
+    .string()
+    .trim()
+    .max(SCRIPT_DOC_LIMITS.targetDurationMaxLength)
+    .optional(),
   roles: z
     .array(ScriptDocRoleSchema)
     .max(SCRIPT_DOC_LIMITS.maxRoles)
@@ -97,6 +125,12 @@ const ScriptDocMessageSchema = z.object({
   content: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.maxMessageLength),
 })
 
+/** A targeted-edit scope: the whole cast (`roles`) or a single shot (`shot` + id). */
+export const ScriptDocFocusSchema = z.object({
+  kind: z.enum(SCRIPT_DOC_FOCUS_KINDS),
+  id: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.idMaxLength).optional(),
+})
+
 export const NodeScriptDocRequestSchema = z.object({
   messages: z
     .array(ScriptDocMessageSchema)
@@ -104,6 +138,23 @@ export const NodeScriptDocRequestSchema = z.object({
     .max(SCRIPT_DOC_LIMITS.maxMessages),
   /** Current doc, passed on "update outline" so the LLM preserves ids. */
   scriptDoc: ScriptDocSchema.optional(),
+  /**
+   * Drafting stage. `outline` locks the story (default, back-compat); `shots`
+   * enriches the confirmed doc with camera language. Optional so existing
+   * callers keep working without passing it.
+   */
+  stage: z.enum(SCRIPT_DOC_STAGES).optional(),
+  /**
+   * Adaptive depth — how much optional content the script brain fills. Optional
+   * so existing callers default to standard server-side.
+   */
+  depth: z.enum(SCRIPT_DOC_DEPTHS).optional(),
+  /**
+   * Targeted edit — restrict the change to one module (the cast, or a single
+   * shot by id). The instruction rides as the latest user message. Omitted for
+   * whole-doc drafts.
+   */
+  focus: ScriptDocFocusSchema.optional(),
   locale: z.enum(LOCALES),
   apiKeyId: z.string().trim().min(1).max(160).optional(),
 })
@@ -159,6 +210,7 @@ export type ScriptDocClarifyingOption = z.infer<
 export type ScriptDocClarifyingQuestion = z.infer<
   typeof ScriptDocClarifyingQuestionSchema
 >
+export type ScriptDocFocus = z.infer<typeof ScriptDocFocusSchema>
 export type NodeScriptDocRequest = z.infer<typeof NodeScriptDocRequestSchema>
 export type NodeScriptDocResponseData = z.infer<
   typeof NodeScriptDocResponseDataSchema

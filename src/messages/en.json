@@ -3154,11 +3154,7 @@
         "referenceGenerateFailed": "Could not generate reference audio. Try again.",
         "unsupportedAudio": "Upload an audio file.",
         "uploadFailed": "Reference audio upload failed.",
-        "sampleGenerated": "Voice sample ready.",
-        "savedToAssets": "Saved to your library.",
-        "saveToAssetsFailed": "Could not save to library. Try again.",
-        "alreadySaved": "Already in your library.",
-        "coverSynced": "Cover synced to library."
+        "sampleGenerated": "Voice sample ready."
       },
       "referenceFromAssets": "Choose from library",
       "referenceDialogTitle": "Choose reference audio",
@@ -3330,9 +3326,13 @@
       "useExistingAsReference": "Use as reference",
       "replaceImage": "Replace image",
       "selectExistingShort": "Choose image",
-      "changeSourceExisting": "Use existing",
+      "changeSourceExisting": "Asset library",
       "changeSourceAi": "AI generate",
       "changeSourceStudio": "Studio",
+      "dropzoneHint": "Click / drop / paste (Ctrl+V)",
+      "upstreamRefsHint": "Upstream refs · click to insert name",
+      "removeUpstreamRef": "Disconnect",
+      "unnamedRef": "Unnamed",
       "clearImage": "Clear image",
       "generateFromExisting": "Generate from reference",
       "existingAssetDialogTitle": "Choose node image",
@@ -3381,6 +3381,7 @@
       "refKind": {
         "character": "Character",
         "background": "Background",
+        "shot": "Shot",
         "voice": "Voice"
       },
       "references": {
@@ -3433,10 +3434,7 @@
         "surprised": "Surprised"
       },
       "sampleLabel": "Voice sample",
-      "generateSample": "Generate sample",
-      "saveToAssets": "Save to library",
-      "savedToAssets": "In your library",
-      "syncCoverToAssets": "Sync cover to library"
+      "generateSample": "Generate sample"
     },
     "workflowFields": {
       "prompt": {
@@ -3525,7 +3523,9 @@
       },
       "shot": {
         "emptyPreview": "Generate a single shot image from shot text and character/background references.",
-        "footerEmpty": "Waiting for shot prompt"
+        "footerEmpty": "Waiting for shot prompt",
+        "nameLabel": "Shot name",
+        "namePlaceholder": "e.g. opening wide shot"
       },
       "backgroundImage": {
         "emptyPreview": "Define location, mood, and lighting for a reusable background.",
@@ -3626,9 +3626,51 @@
       },
       "scriptDocRolesLabel": "Roles · {count}",
       "scriptDocShotsLabel": "Shots · {count}",
-      "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {skipped} reused.",
+      "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {removed} removed, {skipped} reused.",
       "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
       "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
+      "scriptDocStepOutline": "Outline",
+      "scriptDocStepShots": "Shots",
+      "scriptDocStepNodes": "Nodes",
+      "scriptDocConfirmOutline": "Confirm outline",
+      "scriptDocBreakShots": "Break into shots",
+      "scriptDocRebreakShots": "Re-break shots",
+      "scriptDocConfirmShots": "Confirm shots",
+      "scriptDocBackToOutline": "Back to outline",
+      "scriptDocBackgroundLabel": "Background",
+      "scriptDocDepthSimple": "Lean",
+      "scriptDocDepthStandard": "Standard",
+      "scriptDocDepthCinematic": "Full",
+      "scriptDocDepthSimpleHint": "Roles + dialogue only",
+      "scriptDocDepthStandardHint": "+ emotion, length, style",
+      "scriptDocDepthCinematicHint": "+ world, psychology, cinematic shots",
+      "scriptDocNewRole": "New role",
+      "scriptDocNewShot": "New shot",
+      "scriptDocNewLine": "New line",
+      "scriptDocAddRole": "Add role",
+      "scriptDocAddShot": "Add shot",
+      "scriptDocAddLine": "Add line",
+      "scriptDocDelete": "Delete",
+      "scriptDocLockHint": "Hand-edited — click to let AI overwrite",
+      "scriptDocFieldTitle": "Title",
+      "scriptDocFieldLogline": "Logline",
+      "scriptDocFieldStyle": "Style",
+      "scriptDocFieldDuration": "Duration",
+      "scriptDocFieldRoleName": "Role name",
+      "scriptDocFieldRoleDescription": "Look",
+      "scriptDocFieldRolePersonality": "Personality",
+      "scriptDocFieldRoleGoal": "Goal",
+      "scriptDocFieldShotSummary": "Shot",
+      "scriptDocFieldShotEmotion": "Emotion",
+      "scriptDocFieldShotCamera": "Camera",
+      "scriptDocFieldLine": "Line",
+      "scriptDocFieldSpeaker": "Speaker",
+      "scriptDocViewEdit": "Edit",
+      "scriptDocViewRead": "Read",
+      "scriptDocFocusButton": "Ask AI to change this",
+      "scriptDocFocusPlaceholder": "What should change here?",
+      "scriptDocFocusSend": "Apply",
+      "scriptDocFocusCancel": "Cancel",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
       "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {
@@ -3659,20 +3701,11 @@
       }
     },
     "assistantRoute": {
-      "triggerLabel": "Select canvas assistant route",
       "fieldLabel": "Assistant route",
-      "title": "Canvas assistant route",
-      "description": "Choose the text-model key for this conversation. Auto route uses AI Gateway first, then the workspace BYOK text route.",
-      "autoLabel": "Auto route",
-      "autoDescription": "AI Gateway or default BYOK route",
-      "configured": "Configured",
-      "emptyConfigured": "No OpenAI, Gemini, or DeepSeek text key is available yet.",
-      "addKey": "Add text key",
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "savedTrigger": "{provider} · {key}",
-      "savedMeta": "{provider} · {key}"
+      "setupQwen": "Qwen"
     },
     "inspector": {
       "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",
@@ -3685,6 +3718,8 @@
       "retry": "Retry",
       "placeholder": "Ask the canvas assistant...",
       "modeHint": "Ask before applying",
+      "research": "Reference work",
+      "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
       "send": "Send"
     },
     "minimapTitle": "Minimap",

@@ -65,6 +65,9 @@ export interface AudioGenerateInput {
   apiKeyId?: string
   freePrompt?: string
   voiceId?: string
+  /** Audio cover image (by reference) → the generation's previewUrl, so the
+   *  clip carries the voice's avatar into 素材库. No R2 copy. */
+  coverImageUrl?: string
   referenceAudioUrl?: string
   referenceText?: string
   emotion?: string
@@ -1008,6 +1011,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           modelId: input.modelId,
           apiKeyId: input.apiKeyId,
           voiceId: input.voiceId,
+          coverImageUrl: input.coverImageUrl,
           referenceAudioUrl: input.referenceAudioUrl,
           referenceText: input.referenceText,
           emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,

@@ -148,6 +148,12 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   setScriptDoc: vi.fn(),
   setDefaultVideoModel: vi.fn(),
   defaultVideoModel: undefined,
+  setScriptDocStage: vi.fn(),
+  setScriptDocDepth: vi.fn(),
+  setScriptDocLocks: vi.fn(),
+  scriptDocStage: undefined,
+  scriptDocDepth: undefined,
+  scriptDocLocks: undefined,
   applyScriptDocToGraph: vi.fn(),
   deleteNode: vi.fn(),
   deleteEdge: vi.fn(),
@@ -257,18 +263,25 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
-    'starts idle image node %s form-first with a slim import row',
+    'starts idle image node %s with an upload dropzone behind a unified source row',
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
 
-      // Form-first: the generate form (model picker + prompt) shows directly —
-      // no heavy full-takeover chooser.
+      // Empty image = upload / paste / drop dropzone, not a form.
+      expect(screen.getByText('existing.upload')).toBeInTheDocument()
+      expect(screen.getByText('dropzoneHint')).toBeInTheDocument()
+      // Unified source row: 素材库 / AI 生成 / Studio.
+      expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
+      expect(screen.getByText('changeSourceAi')).toBeInTheDocument()
+      expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
+      // The generate form stays behind "AI 生成".
+      expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('prompt.label')).not.toBeInTheDocument()
+
+      // Opening "AI 生成" reveals the form.
+      fireEvent.click(screen.getByText('changeSourceAi'))
       expect(screen.getByText('modelPicker')).toBeInTheDocument()
       expect(screen.getByLabelText('prompt.label')).toBeInTheDocument()
-      // Alternative sources live in a slim import row, not big option cards.
-      expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
-      expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
-      expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
     },
   )
 
@@ -304,35 +317,6 @@ describe('Node media inspectors', () => {
     expect(screen.getByText('Provider exploded')).toBeInTheDocument()
   })
 
-  it('can turn an existing image node result into an AI reference', () => {
-    renderMediaInspector(
-      BackgroundImageInspector,
-      createNode(NODE_TYPE_IDS.backgroundImage, {
-        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
-        mediaUrl: 'https://cdn.test/background.png',
-        sourceGenerationId: 'generation-background',
-        sourceLabel: 'Existing background',
-      }),
-    )
-
-    // Open the "use existing" editing target via the change-source control,
-    // then turn the current image into an AI reference.
-    fireEvent.click(screen.getByText('changeSourceExisting'))
-    fireEvent.click(screen.getByText('useExistingAsReference'))
-
-    expect(updateNodeData).toHaveBeenCalledWith(
-      'node-backgroundImage',
-      expect.objectContaining({
-        referenceAssets: expect.arrayContaining([
-          expect.objectContaining({
-            url: 'https://cdn.test/background.png',
-            sourceId: 'generation-background',
-          }),
-        ]),
-      }),
-    )
-  })
-
   it.each([
     [NODE_TYPE_IDS.shot, ShotInspector],
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
@@ -342,8 +326,8 @@ describe('Node media inspectors', () => {
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
 
-      // Form-first: the model picker + generate are shown immediately, no
-      // chooser step required.
+      // Empty image is dropzone-first — reveal the form via "AI 生成" first.
+      fireEvent.click(screen.getByText('changeSourceAi'))
       fireEvent.click(screen.getByText('modelPicker'))
       fireEvent.click(screen.getByText('generate'))
 

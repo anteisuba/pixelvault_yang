@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeStudioToolMode } from '@/constants/node-studio'
+import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
 import type {
   NodeWorkflowModelOptionsByType,
@@ -34,6 +35,11 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   /** Canvas-default video model (two-tier {brand,variant}); new video nodes
    *  inherit it via the autospawn effect. Set from the topbar chip. */
   defaultVideoModel: VideoDefaultModel | undefined
+  /** Right-rail workspace UI state, persisted on the project so it survives a
+   *  reload. The ScriptDoc workspace reads + writes these through the context. */
+  scriptDocStage: ScriptDocStage | undefined
+  scriptDocDepth: ScriptDocDepth | undefined
+  scriptDocLocks: string[] | undefined
 }
 
 const NodeWorkflowActionsContext =

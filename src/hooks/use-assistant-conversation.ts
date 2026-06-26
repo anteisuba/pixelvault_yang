@@ -28,6 +28,8 @@ export interface AssistantConversationContext {
   selectedNodeIds: string[]
   locale: AppLocale
   apiKeyId?: string
+  /** Reference-research turn (study a film/anime/short → original suggestions). */
+  research?: boolean
 }
 
 interface UseAssistantConversationValue {
@@ -162,6 +164,7 @@ export function useAssistantConversation(): UseAssistantConversationValue {
         selectedNodeIds: context.selectedNodeIds,
         locale: context.locale,
         apiKeyId: context.apiKeyId,
+        research: context.research,
       }
 
       const response = await streamNodeAssistantAPI(request)

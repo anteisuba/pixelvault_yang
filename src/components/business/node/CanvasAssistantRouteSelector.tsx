@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type { StudioModelOption } from '@/components/business/ModelSelector'
-import { CanvasRoutePicker } from '@/components/business/studio-shared/pickers'
+import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -25,12 +25,14 @@ export function getAssistantRouteKeyOptionId(keyId: string): string {
 
 function getSetupLabelKey(
   adapterType: AI_ADAPTER_TYPES,
-): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' {
+): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' | 'setupQwen' {
   switch (adapterType) {
     case AI_ADAPTER_TYPES.OPENAI:
       return 'setupChatGpt'
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return 'setupDeepSeek'
+    case AI_ADAPTER_TYPES.DASHSCOPE:
+      return 'setupQwen'
     default:
       return 'setupGemini'
   }
@@ -45,20 +47,24 @@ interface QuickSetupState {
 }
 
 /**
- * Thin wrapper that adapts the new shared CanvasRoutePicker (T9) to the
- * legacy NodeAssistantRouteSelection contract used by the assistant
- * dock. The wrapper:
- *   - exposes the "auto route" (no apiKeyId) via CanvasRoutePicker's
- *     topOption slot — preserves pre-T10 behavior where the Auto entry
- *     sits above the saved-key list
- *   - maps NodeAssistantRouteSelection.apiKeyId →
- *     `llm-route:assistant:key:${keyId}` for CanvasRoutePicker.value
- *   - converts StudioModelOption back into NodeAssistantRouteSelection
- *     using legacy getAssistantRouteKeyOptionId — keeps node.data
- *     plannerRouteOptionId byte-equivalent
- *   - owns the QuickSetupDialog locally (unchanged behavior)
+ * Adapts the shared two-step MainModelPicker (厂商 → 模型 — the same picker the
+ * canvas image/video/audio nodes use) to the NodeAssistantRouteSelection
+ * contract. `modality="llm_assist"` + `llmCapability="assistant"` feeds the
+ * assistant-scoped LLM text routes (NODE_STUDIO_ASSISTANT_ROUTE_MODELS) through
+ * the picker, so the script selector matches the media pickers exactly — only
+ * the model set differs.
  *
- * Cutover commit T10 (spec §6 Step 7).
+ * No "auto route" entry: selection is always an explicit 厂商 → 模型 pick
+ * (parity with the image picker). Leaving the picker untouched keeps apiKeyId
+ * undefined, which the assistant service still resolves via its own
+ * gateway/platform fallback — so zero-config sending is unaffected.
+ *
+ * The wrapper:
+ *   - maps NodeAssistantRouteSelection.apiKeyId →
+ *     `llm-route:assistant:key:${keyId}` for the picker value
+ *   - converts the picked StudioModelOption back into
+ *     NodeAssistantRouteSelection via getAssistantRouteKeyOptionId
+ *   - routes needs-key providers to the locally-owned QuickSetupDialog
  */
 export function CanvasAssistantRouteSelector({
   value,
@@ -72,10 +78,6 @@ export function CanvasAssistantRouteSelector({
     modelId: '',
     modelLabel: '',
   })
-
-  const handleSelectAuto = useCallback(() => {
-    onChange({ optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto })
-  }, [onChange])
 
   const handleSelect = useCallback(
     (option: StudioModelOption) => {
@@ -117,24 +119,16 @@ export function CanvasAssistantRouteSelector({
 
   return (
     <>
-      <CanvasRoutePicker
-        variant="assistant"
+      <MainModelPicker
+        modality="llm_assist"
+        llmCapability="assistant"
         value={
           value.apiKeyId ? `llm-route:assistant:key:${value.apiKeyId}` : null
         }
         onChange={handleSelect}
         onRequestSetup={handleRequestSetup}
-        triggerLabel={t('fieldLabel')}
-        badge={{ text: t('autoLabel'), tone: 'sky' }}
-        noticeDescription={t('autoDescription')}
-        addKeyLabel={t('addKey')}
-        emptyLabel={t('triggerLabel')}
-        topOption={{
-          label: t('autoLabel'),
-          description: t('autoDescription'),
-          isSelected: !value.apiKeyId,
-          onSelect: handleSelectAuto,
-        }}
+        triggerEmptyLabel={t('fieldLabel')}
+        size="compact"
       />
 
       <QuickSetupDialog

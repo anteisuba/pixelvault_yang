@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS } from '@/constants/node-studio'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
-import type { VoiceCardRecord } from '@/types'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -14,40 +13,17 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }))
 
-const {
-  uploadReferenceAudioAPI,
-  generateAudioAPI,
-  checkAudioStatusAPI,
-  createVoiceCardAPI,
-  updateVoiceCardAPI,
-  voiceCardsRefresh,
-  voiceCardsRef,
-} = vi.hoisted(() => ({
-  uploadReferenceAudioAPI: vi.fn(),
-  generateAudioAPI: vi.fn(),
-  checkAudioStatusAPI: vi.fn(),
-  createVoiceCardAPI: vi.fn(),
-  updateVoiceCardAPI: vi.fn(),
-  voiceCardsRefresh: vi.fn(),
-  voiceCardsRef: { cards: [] as VoiceCardRecord[] },
-}))
+const { uploadReferenceAudioAPI, generateAudioAPI, checkAudioStatusAPI } =
+  vi.hoisted(() => ({
+    uploadReferenceAudioAPI: vi.fn(),
+    generateAudioAPI: vi.fn(),
+    checkAudioStatusAPI: vi.fn(),
+  }))
 
 vi.mock('@/lib/api-client', () => ({
   uploadReferenceAudioAPI,
   generateAudioAPI,
   checkAudioStatusAPI,
-  createVoiceCardAPI,
-  updateVoiceCardAPI,
-}))
-
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
-  useVoiceCards: () => ({
-    cards: voiceCardsRef.cards,
-    isLoading: false,
-    error: null,
-    findCard: () => null,
-    refresh: voiceCardsRefresh,
-  }),
 }))
 
 vi.mock('@/components/ui/param-slider', () => ({
@@ -82,24 +58,6 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
 
 vi.mock('../nodes/NodeCardControls', () => ({
   NodeModelSelector: () => null,
-  NodeActionButton: ({
-    children,
-    disabled,
-    onClick,
-  }: {
-    children: React.ReactNode
-    disabled?: boolean
-    onClick: () => void
-  }) => (
-    <button
-      type="button"
-      data-testid="save-to-assets"
-      disabled={disabled}
-      onClick={() => onClick()}
-    >
-      {children}
-    </button>
-  ),
 }))
 
 vi.mock('../FishVoiceLibraryDialog', () => ({
@@ -162,28 +120,6 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
 
 import { VoiceDetailBody } from './VoiceDetailBody'
 
-const SAVED_CARD: VoiceCardRecord = {
-  id: 'vc-1',
-  userId: 'user-1',
-  name: '流萤',
-  provider: 'fish_audio',
-  modelId: 'fish-audio-s2-pro',
-  voiceId: 'voice-123',
-  coverImage: null,
-  referenceAudioUrl: null,
-  referenceAudioStorageKey: null,
-  gender: null,
-  age: null,
-  tone: [],
-  pace: 'normal',
-  pitch: null,
-  pronunciationDictionary: {},
-  sampleText: null,
-  isDeleted: false,
-  createdAt: '2026-06-01T00:00:00.000Z',
-  updatedAt: '2026-06-01T00:00:00.000Z',
-}
-
 function makeData(overrides: Partial<NodeWorkflowNodeData> = {}) {
   return {
     prompt: '',
@@ -201,11 +137,6 @@ function renderBody(data: NodeWorkflowNodeData) {
 describe('VoiceDetailBody', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    voiceCardsRef.cards = []
-    updateVoiceCardAPI.mockResolvedValue({
-      success: true,
-      data: { id: 'vc-1' },
-    })
     generateAudioAPI.mockResolvedValue({
       success: true,
       data: { jobId: 'job-1' },
@@ -217,11 +148,6 @@ describe('VoiceDetailBody', () => {
         generation: { url: 'https://cdn.example.com/sample.mp3' },
       },
     })
-    createVoiceCardAPI.mockResolvedValue({
-      success: true,
-      data: { id: 'vc-1' },
-    })
-    voiceCardsRefresh.mockResolvedValue(undefined)
   })
 
   it('does not render a 台词 input — lines belong to the script', () => {
@@ -266,14 +192,24 @@ describe('VoiceDetailBody', () => {
     expect(screen.getByText('uploadAudio')).toBeInTheDocument()
   })
 
-  it('generates one representative sample for the picked voice', async () => {
-    renderBody(makeData({ voiceId: 'voice-123', voiceName: 'Narrator One' }))
+  it('generates a sample for the picked voice and carries its cover into 素材', async () => {
+    renderBody(
+      makeData({
+        voiceId: 'voice-123',
+        voiceName: 'Narrator One',
+        voiceCoverImage: 'https://cdn.example.com/cover.png',
+      }),
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'generateSample' }))
 
     await waitFor(() => {
+      // The voice's avatar rides along BY REFERENCE so the gallery clip shows it.
       expect(generateAudioAPI).toHaveBeenCalledWith(
-        expect.objectContaining({ voiceId: 'voice-123' }),
+        expect.objectContaining({
+          voiceId: 'voice-123',
+          coverImageUrl: 'https://cdn.example.com/cover.png',
+        }),
       )
       expect(updateNodeData).toHaveBeenCalledWith(
         'voice-1',
@@ -355,44 +291,6 @@ describe('VoiceDetailBody', () => {
     expect(
       screen.queryByRole('button', { name: 'uploadCover' }),
     ).not.toBeInTheDocument()
-  })
-
-  it('syncs the node cover into an already-saved library card', async () => {
-    voiceCardsRef.cards = [{ ...SAVED_CARD, coverImage: null }]
-    renderBody(
-      makeData({
-        voiceId: 'voice-123',
-        voiceName: '流萤',
-        voiceCoverImage: 'https://cdn.example.com/honkai.png',
-      }),
-    )
-
-    // Already saved but the card has no cover → the button stays actionable.
-    fireEvent.click(screen.getByTestId('save-to-assets'))
-
-    await waitFor(() => {
-      expect(updateVoiceCardAPI).toHaveBeenCalledWith('vc-1', {
-        coverImage: 'https://cdn.example.com/honkai.png',
-      })
-      expect(voiceCardsRefresh).toHaveBeenCalled()
-    })
-    expect(createVoiceCardAPI).not.toHaveBeenCalled()
-  })
-
-  it('saves the voice profile into the library (素材)', async () => {
-    renderBody(makeData({ voiceId: 'voice-123', voiceName: 'Narrator One' }))
-
-    fireEvent.click(screen.getByTestId('save-to-assets'))
-
-    await waitFor(() => {
-      expect(createVoiceCardAPI).toHaveBeenCalledWith(
-        expect.objectContaining({
-          voiceId: 'voice-123',
-          name: 'Narrator One',
-        }),
-      )
-      expect(voiceCardsRefresh).toHaveBeenCalled()
-    })
   })
 
   it('writes voiceSpeed from the speed slider', () => {

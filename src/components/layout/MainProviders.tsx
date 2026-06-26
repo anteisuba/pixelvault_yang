@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { ROUTES } from '@/constants/routes'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { usePathname } from '@/i18n/navigation'
+import { KeyboardInsetBridge } from '@/components/layout/KeyboardInsetBridge'
 
 /**
  * MainProviders — client-side providers shared across all `(main)` pages.
@@ -22,6 +23,9 @@ export function MainProviders({ children }: { children: ReactNode }) {
     pathname.startsWith(`${ROUTES.STORYBOARD}/`)
 
   return (
-    <ApiKeysProvider autoLoad={shouldLoadApiKeys}>{children}</ApiKeysProvider>
+    <>
+      <KeyboardInsetBridge />
+      <ApiKeysProvider autoLoad={shouldLoadApiKeys}>{children}</ApiKeysProvider>
+    </>
   )
 }

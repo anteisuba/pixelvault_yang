@@ -3,10 +3,6 @@
 import Image from 'next/image'
 import {
   AlertCircle,
-  Clipboard,
-  ExternalLink,
-  Images,
-  Library,
   Loader2,
   Mic2,
   Trash2,
@@ -21,6 +17,7 @@ import {
   useState,
   type ChangeEvent,
   type ClipboardEvent,
+  type DragEvent,
   type ReactNode,
 } from 'react'
 import { useRouter } from '@/i18n/navigation'
@@ -33,7 +30,6 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
-  NODE_STUDIO_REFERENCE_SOURCE_IDS,
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -49,15 +45,11 @@ import { ROUTES } from '@/constants/routes'
 import { STUDIO_NODE_HANDOFF_MAX_REFERENCES } from '@/constants/studio'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { writeStudioNodeHandoff } from '@/lib/studio-node-handoff'
+import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { CharacterImageLoraControls } from '@/components/business/node/CharacterImageLoraControls'
 import { CharacterImageReferenceControls } from '@/components/business/node/CharacterImageReferenceControls'
 import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import {
   Tooltip,
@@ -77,56 +69,22 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { InspectorField } from './InspectorField'
 
-/**
- * Optional card library slot — when provided, NodeMediaInspector adds a
- * "from card library" choice in the image-choice block and renders a
- * "bound card" hint when the node is currently sourced from a card.
- * BackgroundImageInspector populates this slot using useBackgroundCards;
- * other media node types (frameImage, shotText, etc.) leave it absent
- * and see no behavioral change. All copy lives under the inspector's
- * existing i18n namespace (StudioNode.mediaNodes.cardLibrary.*).
- */
-interface NodeMediaCardLibrarySlot {
-  cards: ReadonlyArray<{
-    id: string
-    name: string
-    description: string | null
-    sourceImageUrl: string | null
-    tags?: string[]
-  }>
-  isLoading: boolean
-  /**
-   * Currently bound card (typically resolved by the caller from
-   * node.data.cardId). Drives the "📇 来自背景卡：xxx" hint.
-   */
-  boundCard: { id: string; name: string } | null
-  onApply: (cardId: string) => void
-  /**
-   * Per-role copy override. Background leaves this absent and falls back to the
-   * generic mediaNodes.cardLibrary.* copy; character passes its own
-   * (characterImage.cardLibrary.*) so the wording reads "character card", not
-   * "background card".
-   */
-  labels?: {
-    modeTitle: string
-    modeDescription: string
-    title: string
-    hint: string
-    empty: string
-  }
-}
-
 interface NodeMediaInspectorProps {
   node: NodeWorkflowNode
   type: NodeWorkflowNodeType
   kind: NodeWorkflowMediaKind
-  cardLibrary?: NodeMediaCardLibrarySlot
   /**
    * Role-specific extras rendered in the identity region (below the preview,
-   * above the change-source control) — e.g. a character node's always-visible
-   * name field + bound-voice hint. Background/shot/frame leave it absent.
+   * above the source control) — e.g. a character node's always-visible name
+   * field + bound-voice hint. Background/shot/frame leave it absent.
    */
   roleExtras?: ReactNode
+  /**
+   * Reference chips rendered at the top of the AI generate form — e.g. a shot
+   * node's connected character/background nodes (click to insert the name into
+   * the prompt, × to drop the edge). Only shot passes this today.
+   */
+  referenceChips?: ReactNode
 }
 
 function getStatusLabelKey(
@@ -170,40 +128,21 @@ export function NodeMediaInspector({
   node,
   type,
   kind,
-  cardLibrary,
   roleExtras,
+  referenceChips,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
   const router = useRouter()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
-  const [cardPickerOpen, setCardPickerOpen] = useState(false)
-  const [cardPickerQuery, setCardPickerQuery] = useState('')
-  // Ephemeral editing target — NEVER persisted. Drives which controls show
-  // BELOW the always-on preview. null = default "result" view (preview + a
-  // change-source control, no form). Because it is component-local state, no
-  // persisted field can ever hide an existing image (the root cause of the
-  // old imageMode/imageUrl divergence).
-  const [editTarget, setEditTarget] = useState<'ai' | 'existing' | null>(null)
+  // Ephemeral editing target — NEVER persisted. `'ai'` reveals the generate
+  // form below the preview; `null` is the default result/empty view (preview or
+  // upload dropzone + the source row, no form). Because it is component-local
+  // state, no persisted field can ever hide an existing image.
+  const [editTarget, setEditTarget] = useState<'ai' | null>(null)
   const existingImageInputRef = useRef<HTMLInputElement>(null)
-  const existingPasteTargetRef = useRef<HTMLDivElement>(null)
 
-  // Filter the card library by free-form query (matches name, description,
-  // tags). Cards array is empty when no slot was provided, so the filter
-  // short-circuits without rebuilding the array.
-  const cardSearchResults = useMemo(() => {
-    if (!cardLibrary) return []
-    const query = cardPickerQuery.trim().toLowerCase()
-    if (query.length === 0) return cardLibrary.cards
-    return cardLibrary.cards.filter((card) => {
-      if (card.name.toLowerCase().includes(query)) return true
-      if (card.description?.toLowerCase().includes(query)) return true
-      if (card.tags?.some((tag) => tag.toLowerCase().includes(query)))
-        return true
-      return false
-    })
-  }, [cardLibrary, cardPickerQuery])
   const { generateMediaNode, modelOptionsByType, updateNodeData } =
     useNodeWorkflowActions()
   const { uploadFile, isUploading: isExistingImageUploading } =
@@ -241,17 +180,15 @@ export function NodeMediaInspector({
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     node.data.status === NODE_STATUS_IDS.running
   const isTextNode = kind === NODE_MEDIA_KIND_IDS.text
-  // Empty image nodes are FORM-FIRST (clean + consistent with video/audio/text
-  // nodes): the generate form shows by default with a slim "import instead" row
-  // — NOT a heavy full-takeover chooser. With media: preview + a change-source
-  // segmented control, and editing controls coexist BELOW the preview.
-  const isEmptyImage = isImageNode && !hasMedia
-  const showPreviewHero = isImageNode ? hasMedia : true
-  const showAiForm = isImageNode ? !hasMedia || editTarget === 'ai' : true
-  const showExistingControls =
-    isImageNode && hasMedia && editTarget === 'existing'
-  const showChangeSource = isImageNode && hasMedia
-  const showEmptyImportRow = isEmptyImage
+  // Unified image layout (角色/背景/镜头 share one shell):
+  //   - empty  → the preview block becomes an upload / paste / drop dropzone
+  //   - filled → the image preview (与 collapsed card 一致)
+  //   - source row (素材库 / AI 生成 / Studio) always shows for image nodes
+  //   - the generate form only opens behind "AI 生成" (editTarget === 'ai')
+  // Non-image nodes (e.g. shotText) keep their form-always behavior.
+  const showUploadDropzone = isImageNode && !hasMedia
+  const showSourceRow = isImageNode
+  const showAiForm = isImageNode ? editTarget === 'ai' : true
   const disabledReason = isPending
     ? t('generating')
     : !node.data.model && !isTextNode
@@ -270,16 +207,6 @@ export function NodeMediaInspector({
       : mediaUrl
         ? t('regenerate')
         : t('generate')
-  // Card-library copy, with optional per-role overrides (character vs the
-  // generic background wording). Falls back to the shared mediaNodes copy.
-  const cardCopy = {
-    modeTitle: cardLibrary?.labels?.modeTitle ?? t('modeCardTitle'),
-    modeDescription:
-      cardLibrary?.labels?.modeDescription ?? t('modeCardDescription'),
-    title: cardLibrary?.labels?.title ?? t('cardLibrary.title'),
-    hint: cardLibrary?.labels?.hint ?? t('cardLibrary.hint'),
-    empty: cardLibrary?.labels?.empty ?? t('cardLibrary.empty'),
-  }
 
   const handleFieldChange = useCallback(
     (fieldId: NodeWorkflowFieldId, value: string) => {
@@ -298,11 +225,10 @@ export function NodeMediaInspector({
     [node.data, node.id, type, updateNodeData],
   )
 
-  // Switch which editing controls show below the preview. Purely ephemeral —
-  // it replaces the old persisted-imageMode "back to chooser" that stranded a
-  // visible image. `null` collapses back to the plain result view.
-  const handleChangeSource = useCallback((target: 'ai' | 'existing' | null) => {
-    setEditTarget(target)
+  // Toggle the AI generate form. Purely ephemeral — never persists a field
+  // that could hide the preview above.
+  const toggleAiForm = useCallback(() => {
+    setEditTarget((current) => (current === 'ai' ? null : 'ai'))
   }, [])
 
   const applyExistingImage = useCallback(
@@ -403,6 +329,20 @@ export function NodeMediaInspector({
     [handleUploadExistingImage, t],
   )
 
+  const handleDropExistingImage = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      const file = Array.from(event.dataTransfer.files).find((entry) =>
+        entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
+      )
+      if (!file) {
+        return
+      }
+      void handleUploadExistingImage(file)
+    },
+    [handleUploadExistingImage],
+  )
+
   const handleClearImage = useCallback(() => {
     updateNodeData(node.id, {
       generationError: undefined,
@@ -417,40 +357,6 @@ export function NodeMediaInspector({
     })
     setEditTarget(null)
   }, [node.id, updateNodeData])
-
-  const handleUseExistingAsReference = useCallback(() => {
-    if (!mediaUrl) {
-      return
-    }
-
-    const existingReference = {
-      id: node.data.sourceGenerationId ?? `existing-${node.id}`,
-      url: mediaUrl,
-      role: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
-      weight: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight,
-      source: NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
-      sourceId: node.data.sourceGenerationId,
-      name: node.data.sourceLabel ?? t('sourceExisting'),
-    }
-    const nextReferences = [
-      existingReference,
-      ...referenceAssets.filter((reference) => reference.url !== mediaUrl),
-    ].slice(0, maxReferenceImages)
-
-    updateNodeData(node.id, {
-      referenceAssets: nextReferences,
-    })
-    setEditTarget('ai')
-  }, [
-    maxReferenceImages,
-    mediaUrl,
-    node.data.sourceGenerationId,
-    node.data.sourceLabel,
-    node.id,
-    referenceAssets,
-    t,
-    updateNodeData,
-  ])
 
   const handleGenerate = useCallback(() => {
     // Stay in the AI view after generating so the preview + the prompt that
@@ -537,216 +443,118 @@ export function NodeMediaInspector({
     )
   }
 
-  const existingImagePickerContent = (
-    <PopoverContent
-      align="center"
-      sideOffset={8}
-      collisionPadding={12}
-      onPaste={handleExistingPaste}
-      className="w-72 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
-    >
-      <div className="border-b border-node-panel-inner px-4 py-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {t('existing.title')}
-        </p>
-        <p className="mt-1 text-xs leading-5 text-node-muted">
-          {t('existing.hint')}
-        </p>
-      </div>
-      <div className="space-y-2 p-3">
-        <button
-          type="button"
-          onClick={() => existingImageInputRef.current?.click()}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge hover:bg-node-panel-inner"
-        >
-          {isExistingImageUploading ? (
-            <Loader2 className="size-4 animate-spin text-node-muted" />
-          ) : (
-            <Upload className="size-4 text-node-muted" />
-          )}
-          {t('existing.upload')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setAssetDialogOpen(true)}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge hover:bg-node-panel-inner"
-        >
-          <Library className="size-4 text-node-muted" />
-          {t('existing.asset')}
-        </button>
-        <div
-          ref={existingPasteTargetRef}
-          role="button"
-          tabIndex={0}
-          onClick={() => existingPasteTargetRef.current?.focus()}
-          onPaste={handleExistingPaste}
-          className="flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        >
-          <Clipboard className="size-4 text-node-muted" />
-          <span className="text-xs font-semibold">{t('existing.paste')}</span>
-          <span className="text-2xs">{t('existing.pasteMeta')}</span>
-        </div>
-      </div>
-      <input
-        ref={existingImageInputRef}
-        type="file"
-        accept={NODE_STUDIO_IMAGE_INPUT.accept}
-        className="hidden"
-        onChange={handleExistingFileInputChange}
-      />
-    </PopoverContent>
-  )
-
-  // Card library picker — only rendered when the parent supplies the slot.
-  // The popover state stays local because each node instance keeps its own
-  // search + scroll position.
-  const cardLibraryPickerContent = cardLibrary ? (
-    <PopoverContent
-      align="center"
-      sideOffset={8}
-      collisionPadding={12}
-      className="w-80 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
-    >
-      <div className="border-b border-node-panel-inner px-4 py-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {cardCopy.title}
-        </p>
-        <p className="mt-1 text-xs leading-5 text-node-muted">
-          {cardCopy.hint}
-        </p>
-        <input
-          type="search"
-          value={cardPickerQuery}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            setCardPickerQuery(event.target.value)
-          }
-          placeholder={t('cardLibrary.searchPlaceholder')}
-          className="mt-2 h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs leading-4 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        />
-      </div>
-      <div className="max-h-72 overflow-y-auto p-2">
-        {cardLibrary.isLoading ? (
-          <div className="flex h-24 items-center justify-center gap-2 text-xs text-node-muted">
-            <Loader2 className="size-4 animate-spin text-node-muted" />
-            {t('cardLibrary.loading')}
-          </div>
-        ) : cardSearchResults.length === 0 ? (
-          <p className="px-3 py-6 text-center text-xs leading-5 text-node-subtle">
-            {cardLibrary.cards.length === 0
-              ? cardCopy.empty
-              : t('cardLibrary.noMatch')}
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {cardSearchResults.map((card) => (
-              <li key={card.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    cardLibrary.onApply(card.id)
-                    setCardPickerOpen(false)
-                    setCardPickerQuery('')
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2 text-left transition-colors hover:border-node-edge hover:bg-node-panel-inner"
-                >
-                  <span className="relative flex size-12 shrink-0 overflow-hidden rounded-lg bg-node-panel">
-                    {card.sourceImageUrl ? (
-                      <Image
-                        src={card.sourceImageUrl}
-                        alt={card.name}
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <Images className="m-auto size-4 text-node-subtle" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-semibold text-node-foreground">
-                      {card.name}
-                    </span>
-                    {card.description ? (
-                      <span className="mt-0.5 line-clamp-2 block text-2xs leading-4 text-node-muted">
-                        {card.description}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </PopoverContent>
-  ) : null
-
   return (
     <>
       <div className="space-y-4">
-        {showPreviewHero ? (
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
-            {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
-              <>
-                <Image
-                  src={mediaUrl}
-                  alt={t('imageAlt')}
-                  fill
-                  sizes="360px"
-                  className="object-cover"
-                  unoptimized
-                />
-                <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
-                  {isExistingImage ? t('sourceExisting') : t('sourceGenerated')}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleClearImage}
-                  aria-label={t('clearImage')}
-                  className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </>
-            ) : null}
-
-            {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
-              <video
-                src={mediaUrl}
-                className="h-full w-full object-cover"
-                controls
-                muted
+        <div
+          className={cn(
+            'relative aspect-video overflow-hidden rounded-2xl border bg-node-panel-soft',
+            showUploadDropzone
+              ? 'border-dashed border-node-edge'
+              : 'border-node-panel-inner',
+          )}
+        >
+          {showUploadDropzone ? (
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={t('existing.upload')}
+              onClick={() => existingImageInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  existingImageInputRef.current?.click()
+                }
+              }}
+              onPaste={handleExistingPaste}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDropExistingImage}
+              className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+            >
+              {isExistingImageUploading ? (
+                <Loader2 className="size-7 animate-spin text-node-muted" />
+              ) : (
+                <Upload className="size-7 text-node-muted" />
+              )}
+              <span className="text-sm font-semibold text-node-foreground">
+                {t('existing.upload')}
+              </span>
+              <span className="text-2xs leading-4 text-node-muted">
+                {t('dropzoneHint')}
+              </span>
+              <input
+                ref={existingImageInputRef}
+                type="file"
+                accept={NODE_STUDIO_IMAGE_INPUT.accept}
+                className="hidden"
+                onChange={handleExistingFileInputChange}
               />
-            ) : null}
+            </div>
+          ) : (
+            <>
+              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
+                <>
+                  <Image
+                    src={mediaUrl}
+                    alt={t('imageAlt')}
+                    fill
+                    sizes="360px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                    {isExistingImage
+                      ? t('sourceExisting')
+                      : t('sourceGenerated')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearImage}
+                    aria-label={t('clearImage')}
+                    className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              ) : null}
 
-            {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-                <Mic2 className="size-8 text-node-port-voice" />
-                <audio src={mediaUrl} controls className="w-full" />
-              </div>
-            ) : null}
+              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
+                <video
+                  src={mediaUrl}
+                  className="h-full w-full object-cover"
+                  controls
+                  muted
+                />
+              ) : null}
 
-            {!mediaUrl ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                {getEmptyPreviewIcon(kind)}
-                <p className="text-xs leading-5 text-node-muted">
-                  {tWorkflows(`${type}.emptyPreview`)}
-                </p>
-              </div>
-            ) : null}
+              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+                  <Mic2 className="size-8 text-node-port-voice" />
+                  <audio src={mediaUrl} controls className="w-full" />
+                </div>
+              ) : null}
 
-            {isPending ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-                <Loader2 className="size-5 animate-spin text-node-muted" />
-                <span className="text-xs font-semibold">{t('generating')}</span>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              {!mediaUrl ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                  {getEmptyPreviewIcon(kind)}
+                  <p className="text-xs leading-5 text-node-muted">
+                    {tWorkflows(`${type}.emptyPreview`)}
+                  </p>
+                </div>
+              ) : null}
+            </>
+          )}
+
+          {isPending ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+              <Loader2 className="size-5 animate-spin text-node-muted" />
+              <span className="text-xs font-semibold">{t('generating')}</span>
+            </div>
+          ) : null}
+        </div>
 
         {/* Generation error — TOP-LEVEL so it surfaces in every view (result,
-            editing, chooser), not only inside the AI form. */}
+            empty, editing), not only inside the AI form. */}
         {node.data.generationError ? (
           <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -759,36 +567,20 @@ export function NodeMediaInspector({
         {/* Role-specific identity extras (e.g. character name + bound voice). */}
         {roleExtras}
 
-        {/* Bound-card hint — shown whenever a result is sourced from a card,
-            regardless of which editing target is open. */}
-        {isImageNode && hasMedia && cardLibrary?.boundCard ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs leading-5 text-node-muted">
-            <Library className="size-3.5 shrink-0" />
-            <span className="flex-1 truncate">
-              {t('cardLibrary.bound', { name: cardLibrary.boundCard.name })}
-            </span>
-          </div>
-        ) : null}
-
-        {/* Change-source segmented control — REPLACES the old back-arrow. It
-            flips the ephemeral editTarget only; it never persists a field that
-            could hide the preview above. */}
-        {showChangeSource ? (
+        {/* Unified source row — 素材库 opens the asset dialog directly, AI 生成
+            toggles the generate form, Studio hands off to the image studio. */}
+        {showSourceRow ? (
           <div className="flex gap-1 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-1">
             <button
               type="button"
-              onClick={() => handleChangeSource('existing')}
-              className={`flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 ${
-                editTarget === 'existing'
-                  ? 'bg-node-foreground text-node-canvas'
-                  : 'text-node-muted hover:text-node-foreground'
-              }`}
+              onClick={() => setAssetDialogOpen(true)}
+              className="flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
             >
               {t('changeSourceExisting')}
             </button>
             <button
               type="button"
-              onClick={() => handleChangeSource('ai')}
+              onClick={toggleAiForm}
               className={`flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 ${
                 editTarget === 'ai'
                   ? 'bg-node-foreground text-node-canvas'
@@ -807,78 +599,9 @@ export function NodeMediaInspector({
           </div>
         ) : null}
 
-        {/* Empty image node = FORM-FIRST. A slim "import instead" row offers the
-            alternative sources (existing image · card library · Studio) without
-            a heavy full-takeover chooser. The generate form renders below. */}
-        {showEmptyImportRow ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                >
-                  <Images className="size-3.5" />
-                  {t('changeSourceExisting')}
-                </button>
-              </PopoverTrigger>
-              {existingImagePickerContent}
-            </Popover>
-
-            {cardLibrary ? (
-              <Popover open={cardPickerOpen} onOpenChange={setCardPickerOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                  >
-                    <Library className="size-3.5" />
-                    {cardCopy.title}
-                  </button>
-                </PopoverTrigger>
-                {cardLibraryPickerContent}
-              </Popover>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={handleOpenImageStudio}
-              className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-            >
-              <ExternalLink className="size-3.5" />
-              {t('changeSourceStudio')}
-            </button>
-          </div>
-        ) : null}
-
-        {showExistingControls ? (
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                >
-                  <Images className="size-3.5" />
-                  {mediaUrl ? t('replaceImage') : t('selectExistingShort')}
-                </button>
-              </PopoverTrigger>
-              {existingImagePickerContent}
-            </Popover>
-            <button
-              type="button"
-              onClick={handleUseExistingAsReference}
-              disabled={!mediaUrl}
-              className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:border-node-edge hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 disabled:text-node-subtle"
-            >
-              <WandSparkles className="size-3.5" />
-              {t('useExistingAsReference')}
-            </button>
-          </div>
-        ) : null}
-
         {showAiForm ? (
           <>
+            {referenceChips}
             <div className="space-y-3">
               {fields.map((fieldId) => renderField(fieldId))}
             </div>

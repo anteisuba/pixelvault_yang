@@ -4,21 +4,25 @@ import { NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
+  buildShotReferenceLegend,
   getNodeMediaUrl,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoUrls,
   harvestUpstreamVoiceAudioUrls,
   isKeyframeNode,
+  isShotNode,
   isShotTextNode,
   isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
+  type UpstreamImageReference,
 } from './node-workflow-graph'
 
 function makeNode(
@@ -87,12 +91,12 @@ describe('getSeedanceReferenceKind', () => {
         makeNode('b', NODE_TYPE_IDS.image, { role: 'background' }),
       ),
     ).toBe('background')
-    // shot / frame images feed generation but aren't surfaced as a named chip.
+    // shot is a named reference (镜头); frame is not surfaced as a chip.
     expect(
       getSeedanceReferenceKind(
         makeNode('c', NODE_TYPE_IDS.image, { role: 'shot' }),
       ),
-    ).toBeNull()
+    ).toBe('shot')
     expect(
       getSeedanceReferenceKind(
         makeNode('d', NODE_TYPE_IDS.image, { role: 'frame' }),
@@ -111,6 +115,9 @@ describe('getSeedanceReferenceKind', () => {
     expect(
       getSeedanceReferenceKind(makeNode('b', NODE_TYPE_IDS.backgroundImage)),
     ).toBe('background')
+    expect(getSeedanceReferenceKind(makeNode('shot', NODE_TYPE_IDS.shot))).toBe(
+      'shot',
+    )
     expect(getSeedanceReferenceKind(makeNode('c', NODE_TYPE_IDS.voice))).toBe(
       'voice',
     )
@@ -218,6 +225,129 @@ describe('harvestUpstreamImageUrls', () => {
       makeNode('t', NODE_TYPE_IDS.shotText, { status: 'idle' }),
     ]
     expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+  })
+})
+
+describe('isShotNode', () => {
+  it('matches the legacy shot type and unified image role=shot', () => {
+    expect(isShotNode(makeNode('a', NODE_TYPE_IDS.shot))).toBe(true)
+    expect(
+      isShotNode(makeNode('b', NODE_TYPE_IDS.image, { role: 'shot' })),
+    ).toBe(true)
+    // A role-less image defaults to shot (mirrors isVisualReferenceNode).
+    expect(isShotNode(makeNode('c', NODE_TYPE_IDS.image))).toBe(true)
+    expect(
+      isShotNode(makeNode('d', NODE_TYPE_IDS.image, { role: 'character' })),
+    ).toBe(false)
+    expect(isShotNode(makeNode('e', NODE_TYPE_IDS.backgroundImage))).toBe(false)
+  })
+})
+
+describe('harvestUpstreamImageReferences', () => {
+  it('pairs character/background images with their subject name', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+      }),
+      makeNode('bg', NODE_TYPE_IDS.backgroundImage, {
+        imageUrl: 'https://cdn/bg.png',
+        backgroundName: '拉海洛',
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
+      { url: 'https://cdn/bg.png', kind: 'background', name: '拉海洛' },
+    ])
+  })
+
+  it('resolves unified image nodes by role and falls back to character.name', () => {
+    const upstream = [
+      makeNode('c', NODE_TYPE_IDS.image, {
+        role: 'character',
+        mediaUrl: 'https://cdn/c.png',
+        character: {
+          characterId: 'x',
+          name: 'Charlie',
+          visualSeed: 'soft-cyan-haired explorer',
+        },
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/c.png', kind: 'character', name: 'Charlie' },
+    ])
+  })
+
+  it('skips shot/frame/voice upstream + media-less nodes and dedupes by URL', () => {
+    const upstream = [
+      makeNode('shot', NODE_TYPE_IDS.shot, {
+        mediaUrl: 'https://cdn/shot.png',
+      }),
+      makeNode('frame', NODE_TYPE_IDS.frameImage, {
+        mediaUrl: 'https://cdn/frame.png',
+      }),
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+      }),
+      makeNode('charNoMedia', NODE_TYPE_IDS.characterImage, {
+        characterName: 'NoPic',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/dup.png',
+        characterName: 'A',
+      }),
+      makeNode('char2', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/dup.png',
+        characterName: 'B',
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/dup.png', kind: 'character', name: 'A' },
+    ])
+  })
+
+  it('leaves name undefined when the node has none', () => {
+    const upstream = [
+      makeNode('bg', NODE_TYPE_IDS.backgroundImage, {
+        mediaUrl: 'https://cdn/bg.png',
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/bg.png', kind: 'background', name: undefined },
+    ])
+  })
+})
+
+describe('buildShotReferenceLegend', () => {
+  it('labels each named reference by its final 1-based position', () => {
+    const refByUrl = new Map<string, UpstreamImageReference>([
+      [
+        'https://cdn/char.png',
+        { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
+      ],
+      [
+        'https://cdn/bg.png',
+        { url: 'https://cdn/bg.png', kind: 'background', name: '拉海洛' },
+      ],
+    ])
+    const legend = buildShotReferenceLegend(
+      ['https://cdn/manual.png', 'https://cdn/char.png', 'https://cdn/bg.png'],
+      refByUrl,
+    )
+    expect(legend).toBe(
+      '参考图说明：\n图2：角色「yangyang」\n图3：背景「拉海洛」',
+    )
+  })
+
+  it('returns empty when no reference image has a known name', () => {
+    expect(buildShotReferenceLegend(['https://cdn/x.png'], new Map())).toBe('')
+    const refByUrl = new Map<string, UpstreamImageReference>([
+      [
+        'https://cdn/x.png',
+        { url: 'https://cdn/x.png', kind: 'background', name: undefined },
+      ],
+    ])
+    expect(buildShotReferenceLegend(['https://cdn/x.png'], refByUrl)).toBe('')
   })
 })
 

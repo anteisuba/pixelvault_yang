@@ -66,13 +66,17 @@ import { useNodeWorkflow } from '@/hooks/node/use-node-workflow'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
+  buildShotReferenceLegend,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoUrls,
+  isShotNode,
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
+  type UpstreamImageReference,
 } from '@/lib/node-workflow-graph'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -184,7 +188,7 @@ export function StudioNodeWorkbench() {
       // here (not globally — `<html>` is `dark` while most pages render light)
       // so every in-canvas scroll area gets a matching dark scrollbar.
       style={{ colorScheme: 'dark' }}
-      className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground"
+      className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground lg:h-svh"
     >
       <ReactFlowProvider>
         <StudioNodeCanvas canvasRef={canvasRef} />
@@ -685,14 +689,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const isImageMediaNode = kind === NODE_MEDIA_KIND_IDS.image
       const isVideoMediaNode = kind === NODE_MEDIA_KIND_IDS.video
       const isAudioMediaNode = kind === NODE_MEDIA_KIND_IDS.audio
+      // Shot image nodes are the one image-gen type that reads the graph: they
+      // harvest upstream character/background images as named references.
+      const isShotImageNode = isImageMediaNode && isShotNode(node)
 
-      // Video nodes are graph-aware: they read prompt fragments from upstream
-      // shotText nodes, reference images from upstream visual + keyframe nodes,
-      // and reference audio from upstream voice nodes. Image / audio nodes
-      // ignore upstream content — they only use their own Inspector inputs.
-      const upstreamNodes = isVideoMediaNode
-        ? getUpstreamNodes(nodeId, workflow.edges, workflow.nodes)
-        : []
+      // Graph-aware harvests: video nodes read upstream shotText prompts,
+      // visual + keyframe reference images, and voice audio; shot image nodes
+      // read upstream character/background images. Other image / audio nodes
+      // use only their own Inspector inputs.
+      const upstreamNodes =
+        isVideoMediaNode || isShotImageNode
+          ? getUpstreamNodes(nodeId, workflow.edges, workflow.nodes)
+          : []
       const upstreamTextPrompt = isVideoMediaNode
         ? harvestUpstreamShotTextPrompt(upstreamNodes)
         : ''
@@ -716,6 +724,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       // the builder enforces against image_urls.
       const upstreamVideoUrls = isVideoMediaNode
         ? harvestUpstreamVideoUrls(upstreamNodes).slice(0, 3)
+        : []
+      // Named character/background references for a shot node — URL + subject
+      // name, so each can be passed as a reference image AND labeled in the
+      // prompt legend below.
+      const upstreamImageReferences = isShotImageNode
+        ? harvestUpstreamImageReferences(upstreamNodes)
         : []
 
       const mergedPrompt = mergePromptWithUpstreamText(
@@ -768,10 +782,24 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       for (const url of upstreamImageUrls) {
         pushReference(url)
       }
+      for (const reference of upstreamImageReferences) {
+        pushReference(reference.url)
+      }
       const referenceImages = dedupedReferenceImages.slice(
         0,
         maxReferenceImages,
       )
+      // Map harvested references by URL so the legend labels each by its FINAL
+      // position in referenceImages (after dedup + cap).
+      const referenceByUrl = new Map<string, UpstreamImageReference>(
+        upstreamImageReferences.map((reference) => [reference.url, reference]),
+      )
+      const referenceLegend = isShotImageNode
+        ? buildShotReferenceLegend(referenceImages, referenceByUrl)
+        : ''
+      const finalPrompt = referenceLegend
+        ? `${referenceLegend}\n\n${mergedPrompt}`
+        : mergedPrompt
       const supportsLora =
         isImageMediaNode &&
         hasCapability(model.adapterType, 'lora', model.modelId)
@@ -863,7 +891,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           kind,
           modelId: model.modelId,
           apiKeyId: model.apiKeyId,
-          prompt: mergedPrompt,
+          prompt: finalPrompt,
           duration: videoDuration,
           resolution: videoResolution,
           aspectRatio: videoAspectRatio,
@@ -1068,13 +1096,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     (connection: Connection | NodeWorkflowEdge): boolean => {
       const { source, target } = connection
       if (!source || !target || source === target) return false
-      const sourceType = workflow.nodes.find((node) => node.id === source)?.type
+      const sourceNode = workflow.nodes.find((node) => node.id === source)
       const targetNode = workflow.nodes.find((node) => node.id === target)
-      if (!sourceType || !targetNode) return false
+      if (!sourceNode || !targetNode) return false
       return canConnectNodeTypes(
-        sourceType,
+        sourceNode.type,
         targetNode.type,
         targetNode.data.role,
+        sourceNode.data.role,
       )
     },
     [workflow.nodes],
@@ -1101,6 +1130,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       updateNodeData: workflow.updateNodeData,
       setScriptDoc: workflow.setScriptDoc,
       setDefaultVideoModel: workflow.setDefaultVideoModel,
+      setScriptDocStage: workflow.setScriptDocStage,
+      setScriptDocDepth: workflow.setScriptDocDepth,
+      setScriptDocLocks: workflow.setScriptDocLocks,
       applyScriptDocToGraph: workflow.applyScriptDocToGraph,
       deleteNode: workflow.deleteNode,
       deleteEdge: workflow.deleteEdge,
@@ -1118,6 +1150,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       setExpandedNodeId,
       modelOptionsByType,
       defaultVideoModel: workflow.defaultVideoModel,
+      scriptDocStage: workflow.scriptDocStage,
+      scriptDocDepth: workflow.scriptDocDepth,
+      scriptDocLocks: workflow.scriptDocLocks,
     }),
     [
       expandedNodeId,
@@ -1135,7 +1170,13 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.redo,
       workflow.setScriptDoc,
       workflow.setDefaultVideoModel,
+      workflow.setScriptDocStage,
+      workflow.setScriptDocDepth,
+      workflow.setScriptDocLocks,
       workflow.defaultVideoModel,
+      workflow.scriptDocStage,
+      workflow.scriptDocDepth,
+      workflow.scriptDocLocks,
       workflow.applyScriptDocToGraph,
       workflow.undo,
       workflow.updateNodeData,
@@ -1241,6 +1282,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             activeMode={toolMode}
             canUndo={workflow.canUndo}
             canRedo={workflow.canRedo}
+            assistantDockOpen={assistantDockOpen}
+            assistantExpanded={assistantExpanded}
             onModeChange={setToolMode}
             onUndo={workflow.undo}
             onRedo={workflow.redo}

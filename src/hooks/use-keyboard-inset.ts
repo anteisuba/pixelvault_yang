@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
+const KEYBOARD_INSET_THRESHOLD_PX = 80
+
 /**
  * useKeyboardInset — 软键盘在视口底部遮挡的高度（px）。
  *
@@ -19,7 +21,8 @@ export function useKeyboardInset(): number {
 
     const update = () => {
       const occluded = window.innerHeight - viewport.height - viewport.offsetTop
-      setInset(Math.max(0, Math.round(occluded)))
+      const nextInset = Math.max(0, Math.round(occluded))
+      setInset(nextInset >= KEYBOARD_INSET_THRESHOLD_PX ? nextInset : 0)
     }
 
     update()

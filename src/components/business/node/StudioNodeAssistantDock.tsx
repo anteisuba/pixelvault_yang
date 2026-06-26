@@ -12,6 +12,7 @@ import {
 } from 'react'
 import {
   Bot,
+  Globe,
   GripVertical,
   Maximize2,
   MessageSquarePlus,
@@ -27,6 +28,7 @@ import {
 } from '@/constants/node-studio'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
@@ -283,19 +285,26 @@ export function StudioNodeAssistantDock({
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
+  const tConversation = useTranslations('StudioNode.conversation')
   const selection = useNodeSelection()
   const conversation = useAssistantConversation()
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
+  const [researchEnabled, setResearchEnabled] = useState(false)
   const { layout, isResizing, widthHandlers } = useDockLayout()
   const isMobile = useIsMobile()
 
   const dockStyle = useMemo<CSSProperties>(
     () =>
       isMobile
-        ? {}
+        ? {
+            bottom: 'var(--keyboard-inset, 0px)',
+            height:
+              'min(65svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+            maxHeight: 'calc(100svh - var(--keyboard-inset, 0px) - 0.75rem)',
+          }
         : expanded
           ? {
               width: `${NODE_STUDIO_DOCK_RESIZE.expandedWidthPx}px`,
@@ -341,8 +350,15 @@ export function StudioNodeAssistantDock({
       selectedNodeIds,
       locale,
       apiKeyId: assistantRoute.apiKeyId,
+      research: researchEnabled,
     }),
-    [assistantRoute.apiKeyId, locale, nodeContexts, selectedNodeIds],
+    [
+      assistantRoute.apiKeyId,
+      locale,
+      nodeContexts,
+      researchEnabled,
+      selectedNodeIds,
+    ],
   )
 
   const handleSend = useCallback(
@@ -398,6 +414,11 @@ export function StudioNodeAssistantDock({
         onClick={() => onOpenChange(true)}
         aria-label={tAssistant('toggle')}
         title={tAssistant('toggle')}
+        style={
+          isMobile
+            ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
+            : undefined
+        }
         className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-edge hover:bg-node-panel-inner md:bottom-auto md:right-6 md:top-24 md:size-auto md:h-10 md:rounded-xl md:px-3 md:text-xs md:font-semibold"
       >
         <Bot className="size-5 text-node-muted md:size-4" />
@@ -460,6 +481,22 @@ export function StudioNodeAssistantDock({
             className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
           >
             <MessageSquarePlus className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={tConversation('research')}
+            aria-pressed={researchEnabled}
+            title={tConversation('researchHint')}
+            onClick={() => setResearchEnabled((prev) => !prev)}
+            className={cn(
+              'rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
+              researchEnabled &&
+                'bg-node-foreground text-node-canvas hover:bg-node-foreground hover:text-node-canvas',
+            )}
+          >
+            <Globe className="size-4" />
           </Button>
           <CanvasAssistantRouteSelector
             value={assistantRoute}

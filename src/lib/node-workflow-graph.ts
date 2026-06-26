@@ -1,3 +1,4 @@
+import { NODE_STUDIO_SHOT_REFERENCE_LEGEND } from '@/constants/node-studio'
 import {
   NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
@@ -54,16 +55,21 @@ export function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
 
 /**
  * The named reference family a node contributes to a downstream Seedance node's
- * reference panel (角色 / 背景 / 声音). Resolves the unified `image` node via
- * `data.role` AND the legacy per-type character/background image nodes, plus
- * voice nodes. Returns null for nodes that still feed generation but aren't
- * surfaced as a named family chip (shot / frame images, text, video…).
+ * reference panel (角色 / 背景 / 镜头 / 声音). Resolves the unified `image` node
+ * via `data.role` AND the legacy per-type character/background/shot image nodes,
+ * plus voice nodes. Returns null for nodes that feed generation but aren't
+ * surfaced as a named family chip (frame images, text, video…) and for role-less
+ * (unconfigured) image nodes.
  *
  * Centralizing this here keeps the composer's reference chips in lock-step with
  * the role migration — matching on raw `node.type` alone silently dropped every
  * unified image node (type === 'image') from the chips after consolidation.
  */
-export type SeedanceReferenceKind = 'character' | 'background' | 'voice'
+export type SeedanceReferenceKind =
+  | 'character'
+  | 'background'
+  | 'shot'
+  | 'voice'
 
 export function getSeedanceReferenceKind(
   node: NodeWorkflowNode,
@@ -76,9 +82,12 @@ export function getSeedanceReferenceKind(
         ? NODE_IMAGE_ROLE_IDS.character
         : node.type === NODE_TYPE_IDS.backgroundImage
           ? NODE_IMAGE_ROLE_IDS.background
-          : undefined
+          : node.type === NODE_TYPE_IDS.shot
+            ? NODE_IMAGE_ROLE_IDS.shot
+            : undefined
   if (role === NODE_IMAGE_ROLE_IDS.character) return 'character'
   if (role === NODE_IMAGE_ROLE_IDS.background) return 'background'
+  if (role === NODE_IMAGE_ROLE_IDS.shot) return 'shot'
   return null
 }
 
@@ -143,6 +152,89 @@ export function harvestUpstreamImageUrls(
   }
 
   return result
+}
+
+/**
+ * A shot-image node (镜头) — legacy `shot` type OR a unified `image` node whose
+ * role is shot (role-less defaults to shot, mirroring isVisualReferenceNode).
+ * Shot nodes are the only image-gen nodes that read the graph: they harvest
+ * upstream character/background images as named references.
+ */
+export function isShotNode(node: NodeWorkflowNode): boolean {
+  if (node.type === NODE_TYPE_IDS.image) {
+    return (
+      (node.data.role ?? NODE_IMAGE_ROLE_IDS.shot) === NODE_IMAGE_ROLE_IDS.shot
+    )
+  }
+  return node.type === NODE_TYPE_IDS.shot
+}
+
+/**
+ * A character/background image reference feeding a shot node, carrying the
+ * subject name so the shot generator can label it in the prompt legend
+ * ("图1：角色「yangyang」"). shot/frame images are leaf outputs, never refs.
+ */
+export interface UpstreamImageReference {
+  url: string
+  kind: 'character' | 'background'
+  name?: string
+}
+
+function readBackgroundName(node: NodeWorkflowNode): string | undefined {
+  const name =
+    typeof node.data.backgroundName === 'string'
+      ? node.data.backgroundName.trim()
+      : ''
+  return name || undefined
+}
+
+/**
+ * Harvest named character/background image references from a shot node's
+ * upstream nodes. Each entry pairs the reference URL with its subject name so
+ * the caller can both pass the URL to the image model AND label it in the
+ * prompt legend. Empty media and duplicate URLs are dropped; edge/graph order
+ * is preserved so the legend numbering is stable.
+ */
+export function harvestUpstreamImageReferences(
+  upstreamNodes: readonly NodeWorkflowNode[],
+): UpstreamImageReference[] {
+  const result: UpstreamImageReference[] = []
+  const seen = new Set<string>()
+
+  for (const node of upstreamNodes) {
+    const kind = getSeedanceReferenceKind(node)
+    if (kind !== 'character' && kind !== 'background') continue
+    const url = getNodeMediaUrl(node.data)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    const name =
+      kind === 'character' ? readCharacterName(node) : readBackgroundName(node)
+    result.push({ url, kind, name })
+  }
+
+  return result
+}
+
+/**
+ * Build the prompt legend that maps each named reference image (by its final
+ * 1-based position in `referenceImages`) to its subject, so the image model
+ * binds the name used in the prompt to the right reference picture. References
+ * without a known name (e.g. manual uploads) are skipped. Returns '' when no
+ * named reference made the cut.
+ */
+export function buildShotReferenceLegend(
+  referenceImages: readonly string[],
+  referenceByUrl: ReadonlyMap<string, UpstreamImageReference>,
+): string {
+  const lines: string[] = []
+  referenceImages.forEach((url, index) => {
+    const ref = referenceByUrl.get(url)
+    if (!ref?.name) return
+    const kindLabel = NODE_STUDIO_SHOT_REFERENCE_LEGEND.kindLabel[ref.kind]
+    lines.push(`图${index + 1}：${kindLabel}「${ref.name}」`)
+  })
+  if (lines.length === 0) return ''
+  return `${NODE_STUDIO_SHOT_REFERENCE_LEGEND.title}\n${lines.join('\n')}`
 }
 
 /**

@@ -34,6 +34,11 @@ export const NODE_STUDIO_ADD_MENU = {
   minAvailableHeightPx: 240,
 } as const
 
+export const NODE_STUDIO_BOTTOM_DOCK = {
+  canvasInsetPx: 16,
+  assistantGapPx: 16,
+} as const
+
 export const NODE_STUDIO_TOOL_MODE_IDS = {
   pointer: 'pointer',
   hand: 'hand',
@@ -97,10 +102,13 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   maxSelectedNodes: 12,
   maxReferences: 8,
   maxOutputTokens: 900,
+  // Research turns return analysis + suggestions + prompt seeds + sources, so
+  // they need a larger budget than a normal canvas reply.
+  maxResearchOutputTokens: 2000,
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {
-  gatewayModelId: 'openai/gpt-5.4',
+  gatewayModelId: 'openai/gpt-5.5',
   fallbackModelLabel: 'Workspace BYOK route',
 } as const
 
@@ -113,8 +121,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
-    label: 'OpenAI GPT-5.4 Mini',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+    label: 'OpenAI GPT-5.5',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -122,9 +130,18 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'Gemini 3.5 Flash',
   },
   {
+    // The canvas assistant is text-only today (it sends node context + chat,
+    // never images), so the DashScope route uses the text flagship Qwen3 Max
+    // rather than the VL model. Swap to qwen3-vl-plus here when the assistant
+    // gains an image-reverse turn that needs vision.
     adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-    modelId: LLM_TEXT_MODEL_IDS.QWEN3_VL_PLUS,
-    label: 'Qwen3 VL Plus',
+    modelId: LLM_TEXT_MODEL_IDS.QWEN3_MAX,
+    label: 'Qwen3 Max',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    label: 'DeepSeek V4 Pro',
   },
 ] as const
 
@@ -296,6 +313,21 @@ export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
 export const NODE_STUDIO_MEDIA_IMAGE_OUTPUT = {
   maxSourceLabelLength: 160,
   uploadNote: 'Node Studio image node output',
+} as const
+
+/**
+ * Prompt legend prepended to a shot generation when upstream character /
+ * background nodes are wired in. It maps each named reference image to its
+ * subject so the image model binds the name used in the prompt ("让 yangyang…")
+ * to the right reference picture. Model-facing text — kept in the project's
+ * primary language (zh); names are user content injected at build time.
+ */
+export const NODE_STUDIO_SHOT_REFERENCE_LEGEND = {
+  title: '参考图说明：',
+  kindLabel: {
+    character: '角色',
+    background: '背景',
+  },
 } as const
 
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {

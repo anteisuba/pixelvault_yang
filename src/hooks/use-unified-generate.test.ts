@@ -383,6 +383,47 @@ describe('useUnifiedGenerate', () => {
     )
   })
 
+  it('forwards the voice cover by reference to generateAudioAPI', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-audio-cover' },
+    })
+    mockCheckAudioStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-cover',
+        status: 'COMPLETED',
+        generation: FAKE_GENERATION,
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: {
+          ...AUDIO_INPUT,
+          coverImageUrl: 'https://cdn.example.com/voice-cover.png',
+        },
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    await generationPromise!
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coverImageUrl: 'https://cdn.example.com/voice-cover.png',
+      }),
+    )
+  })
+
   it('polls async audio submit until generation is available', async () => {
     vi.useFakeTimers()
     mockGenerateAudio.mockResolvedValue({

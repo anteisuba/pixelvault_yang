@@ -412,7 +412,7 @@ export const AI_PROVIDER_ENDPOINTS = {
 export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
   GEMINI_3_5_FLASH: 'gemini-3.5-flash',
-  OPENAI_GPT_5_4_MINI: 'gpt-5.4-mini',
+  OPENAI_GPT_5_5: 'gpt-5.5',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
   // vision. IDs map to compatible-mode aliases; pin to dated snapshots if

@@ -2675,7 +2675,10 @@ export function Studio3DWorkspace({
               bottom of the scrollable aside. */}
           <div
             className="sticky mt-auto pt-1 md:static md:pt-0"
-            style={{ bottom: 'env(safe-area-inset-bottom)' }}
+            style={{
+              bottom:
+                'calc(var(--keyboard-safe-area-bottom, 0px) + var(--keyboard-inset, 0px))',
+            }}
           >
             <Button
               type="button"

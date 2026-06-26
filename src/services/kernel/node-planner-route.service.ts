@@ -95,7 +95,8 @@ export async function resolveNodePlannerRoute(
     if (
       route.adapterType !== AI_ADAPTER_TYPES.GEMINI &&
       route.adapterType !== AI_ADAPTER_TYPES.DEEPSEEK &&
-      route.adapterType !== AI_ADAPTER_TYPES.OPENAI
+      route.adapterType !== AI_ADAPTER_TYPES.OPENAI &&
+      route.adapterType !== AI_ADAPTER_TYPES.DASHSCOPE
     ) {
       throw new ApiKeyError(
         'invalid',
@@ -108,7 +109,9 @@ export async function resolveNodePlannerRoute(
         ? SCRIPT_PLANNER_MODELS.openai
         : route.adapterType === AI_ADAPTER_TYPES.DEEPSEEK
           ? SCRIPT_PLANNER_MODELS.deepseek
-          : SCRIPT_PLANNER_MODELS.gemini
+          : route.adapterType === AI_ADAPTER_TYPES.DASHSCOPE
+            ? SCRIPT_PLANNER_MODELS.dashscope
+            : SCRIPT_PLANNER_MODELS.gemini
 
     return {
       ...route,
@@ -121,6 +124,7 @@ export async function resolveNodePlannerRoute(
     SCRIPT_PLANNER_PROVIDER_IDS.gemini,
     SCRIPT_PLANNER_PROVIDER_IDS.deepseek,
     SCRIPT_PLANNER_PROVIDER_IDS.openai,
+    SCRIPT_PLANNER_PROVIDER_IDS.dashscope,
   ] as const
   const routeErrors: unknown[] = []
 
@@ -139,7 +143,7 @@ export async function resolveNodePlannerRoute(
   if (routeErrors.every((error) => error instanceof ApiKeyError)) {
     throw new ApiKeyError(
       'missing',
-      'Please add a Gemini, DeepSeek, or OpenAI API key to use Node Studio planning.',
+      'Please add a Gemini, DeepSeek, OpenAI, or Qwen API key to use Node Studio planning.',
     )
   }
 

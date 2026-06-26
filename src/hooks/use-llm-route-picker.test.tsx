@@ -88,7 +88,7 @@ describe('useLLMRoutePicker', () => {
       )
       expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
       expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
-        ['Gemini 3.1 Flash Lite', 'OpenAI GPT-5.4 Mini', 'Qwen Flash'].sort(),
+        ['Gemini 3.1 Flash Lite', 'OpenAI GPT-5.5', 'Qwen Flash'].sort(),
       )
     })
   })
@@ -111,7 +111,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.4 Mini')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.5')
     })
 
     it('locked routes list all planner-capable adapters with registry data', () => {

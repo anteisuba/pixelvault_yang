@@ -30,6 +30,7 @@ import {
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import { VIDEO_VARIANTS } from '@/constants/video-brands'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
+import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
 import {
   ScriptBreakdownPlannerSchema,
   ScriptBreakdownResultSchema,
@@ -219,6 +220,9 @@ export const NodeWorkflowNodeDataSchema = z
     /** User-given name for a background node — mirrors characterName so the
      *  background can be referenced by name (e.g. @夜晚街道) in video prompts. */
     backgroundName: z.string().trim().min(1).max(160).optional(),
+    /** User-given name for a shot node — mirrors character/background names so
+     *  the shot can be referenced by name (e.g. @镜头1) in video prompts. */
+    shotName: z.string().trim().min(1).max(160).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
     /**
      * Library card binding — set when the character image node was hydrated
@@ -292,6 +296,14 @@ export const NodeWorkflowStateDataSchema = z.object({
    * seatbelt so a malformed value never fails the whole-state parse.
    */
   defaultVideoModel: VideoDefaultModelSchema.optional().catch(undefined),
+  /**
+   * Right-rail workspace UI state — drafting stage, depth preset, and the
+   * manual-edit lock keys — persisted so they survive a reload. Each `.catch`
+   * to the seatbelt default; a malformed value degrades instead of wiping state.
+   */
+  scriptDocStage: z.enum(SCRIPT_DOC_STAGES).optional().catch(undefined),
+  scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
+  scriptDocLocks: z.array(z.string()).optional().catch(undefined),
 })
 
 export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({

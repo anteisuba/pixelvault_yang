@@ -467,6 +467,10 @@ export async function generateAudioForUser(
           url: permanentUrl,
           storageKey,
           mimeType,
+          // Cover follows BY REFERENCE — store the URL on previewUrl with no
+          // storage key (no R2 copy). The asset browser reads previewUrl as the
+          // audio cover; an absent cover stays editable in the asset library.
+          previewUrl: request.coverImageUrl,
           width: 0,
           height: 0,
           duration: result.duration,

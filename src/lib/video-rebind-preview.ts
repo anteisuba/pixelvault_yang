@@ -9,12 +9,12 @@
  * Today the only capability-dependent binding is voice (audio): a model whose
  * audio mode is `reference` accepts voice cloning; an `auto` model generates its
  * own audio and ignores the voice binding. Image references (character /
- * background) map on every surfaced video model, so they are always 'map'.
+ * background / shot) map on every surfaced video model, so they are always 'map'.
  */
 
 import { getVideoAudioCapability } from '@/constants/video-model-capabilities'
 
-export type VideoReferenceKind = 'character' | 'background' | 'voice'
+export type VideoReferenceKind = 'character' | 'background' | 'shot' | 'voice'
 export type VideoRebindStatus = 'map' | 'ignore'
 
 export interface VideoRebindPreviewItem {

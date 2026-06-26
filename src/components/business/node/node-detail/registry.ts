@@ -8,6 +8,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 import { BackgroundDetailBody } from './BackgroundDetailBody'
 import { CharacterDetailBody } from './CharacterDetailBody'
+import { ShotDetailBody } from './ShotDetailBody'
 import { VideoDetailBody } from './VideoDetailBody'
 import { VideoReferenceDetailBody } from './VideoReferenceDetailBody'
 import { VoiceDetailBody } from './VoiceDetailBody'
@@ -32,4 +33,5 @@ export const NODE_DETAIL_REGISTRY: Partial<
   [NODE_TYPE_IDS.voice]: VoiceDetailBody,
   [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
+  [NODE_TYPE_IDS.shot]: ShotDetailBody,
 }

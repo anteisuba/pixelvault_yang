@@ -1729,7 +1729,8 @@ export function KreaAssetBrowser({
         <div
           className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 md:pb-6"
           style={{
-            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+            paddingBottom:
+              'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
           }}
         >
           <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
@@ -1780,7 +1781,8 @@ export function KreaAssetBrowser({
         <div
           className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 md:pb-6"
           style={{
-            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+            paddingBottom:
+              'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
           }}
         >
           <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">

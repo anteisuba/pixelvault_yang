@@ -67,6 +67,9 @@ interface NodeMediaGenerationInput {
   volume?: number
   /** Reading emotion → prompt prefix — only consumed by audio kind. */
   emotion?: AudioEmotion
+  /** Audio cover image (by reference) — only consumed by audio kind; lands on
+   *  the generation's previewUrl so the clip carries a cover into 素材库. */
+  coverImageUrl?: string
   /** Negative prompt — only consumed by video kind. */
   negativePrompt?: string
   /** Per-node generate_audio override — only consumed by video kind. */
@@ -233,6 +236,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             speed: input.speed,
             volume: input.volume,
             emotion: input.emotion,
+            coverImageUrl: input.coverImageUrl,
           })
 
           if (!response.success || !response.data) {

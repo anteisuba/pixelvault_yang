@@ -10,6 +10,10 @@ vi.mock('./CharacterDetailBody', () => ({
   CharacterDetailBody: () => null,
 }))
 
+vi.mock('./ShotDetailBody', () => ({
+  ShotDetailBody: () => null,
+}))
+
 vi.mock('./VideoDetailBody', () => ({
   VideoDetailBody: () => null,
 }))

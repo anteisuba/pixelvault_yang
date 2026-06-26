@@ -50,7 +50,7 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 const DrawerContent = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, style, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -59,6 +59,10 @@ const DrawerContent = React.forwardRef<
         'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border bg-background',
         className,
       )}
+      style={{
+        bottom: 'var(--keyboard-inset, 0px)',
+        ...style,
+      }}
       {...props}
     >
       <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-muted" />

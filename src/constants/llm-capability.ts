@@ -6,8 +6,8 @@ export type LlmCapabilityScope = 'enhance' | 'planner' | 'assistant'
 export const LLM_ENHANCE_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
-    label: 'OpenAI GPT-5.4 Mini',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+    label: 'OpenAI GPT-5.5',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -27,9 +27,13 @@ const ADAPTER_CAPABILITIES: Record<
 > = {
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
-  [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner'],
-  // DashScope (Qwen): text planner + cheap enhance, plus assistant (the
-  // qwen3-vl-plus model handles the vision side of the assistant scope).
+  // DeepSeek is text-only (no vision). It stays the strongest planner for
+  // Chinese scriptwriting / shot breakdowns and now also serves the canvas
+  // assistant, which is text-only today (node context + chat, no images).
+  [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
+  // DashScope (Qwen): cheap enhance + text planner + assistant. The assistant
+  // route runs the text flagship (qwen3-max); image-reverse vision turns route
+  // to Gemini/GPT/qwen3-vl-plus instead.
   [AI_ADAPTER_TYPES.DASHSCOPE]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
   [AI_ADAPTER_TYPES.HUGGINGFACE]: [],

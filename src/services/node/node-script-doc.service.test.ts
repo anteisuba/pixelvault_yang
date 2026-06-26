@@ -97,6 +97,120 @@ describe('createNodeScriptDoc', () => {
     )
   })
 
+  it('defaults to the OUTLINE stage (story + emotion grammar, no camera mechanics)', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      systemPrompt: string
+    }
+    expect(callArg.systemPrompt).toContain('OUTLINE stage')
+    expect(callArg.systemPrompt).toContain('EMOTIONAL ARCHITECTURE')
+    expect(callArg.systemPrompt).not.toContain('Z-AXIS DEPTH')
+  })
+
+  it('uses the SHOT-BREAKDOWN stage prompt (shot grammar, never asks questions)', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      scriptDoc: VALID_SCRIPT_DOC,
+      stage: 'shots',
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      systemPrompt: string
+      userPrompt: string
+    }
+    expect(callArg.systemPrompt).toContain('SHOT-BREAKDOWN stage')
+    expect(callArg.systemPrompt).toContain('Z-AXIS DEPTH')
+    expect(callArg.userPrompt).toContain('Do not return clarifying questions')
+  })
+
+  it('defaults to the standard depth directive', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+    }
+    expect(callArg.userPrompt).toContain('DEPTH = standard')
+  })
+
+  it('keeps a simple skit light (no world-building / emotion fields)', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      depth: 'simple',
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+    }
+    expect(callArg.userPrompt).toContain('DEPTH = simple skit')
+    expect(callArg.userPrompt).toContain('EMPTY')
+  })
+
+  it('opens every field on cinematic depth', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      depth: 'cinematic',
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+    }
+    expect(callArg.userPrompt).toContain('DEPTH = cinematic')
+  })
+
+  it('injects a FOCUS directive scoped to a single shot', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: [{ role: 'user', content: 'make shot 1 more tense' }],
+      scriptDoc: VALID_SCRIPT_DOC,
+      focus: { kind: 'shot', id: 'shot-1' },
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+    }
+    expect(callArg.userPrompt).toContain('FOCUS EDIT')
+    expect(callArg.userPrompt).toContain('shot with id "shot-1"')
+    expect(callArg.userPrompt).toContain('Do not return clarifying questions')
+  })
+
+  it('injects a FOCUS directive scoped to the cast for a roles edit', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: [{ role: 'user', content: 'I want three characters' }],
+      scriptDoc: VALID_SCRIPT_DOC,
+      focus: { kind: 'roles' },
+      locale: 'en',
+    })
+
+    const callArg = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+    }
+    expect(callArg.userPrompt).toContain('ONLY to the roles/cast')
+  })
+
   it('returns clarifying questions when the model asks for direction', async () => {
     mockLlmTextCompletion.mockResolvedValue(
       JSON.stringify({

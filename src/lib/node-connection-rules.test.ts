@@ -69,6 +69,63 @@ describe('canConnectNodeTypes', () => {
     }
   })
 
+  it('allows character + background image references into shot', () => {
+    // Legacy per-role types.
+    expect(
+      canConnectNodeTypes(NODE_TYPE_IDS.characterImage, NODE_TYPE_IDS.shot),
+    ).toBe(true)
+    expect(
+      canConnectNodeTypes(NODE_TYPE_IDS.backgroundImage, NODE_TYPE_IDS.shot),
+    ).toBe(true)
+    // Unified image source, resolved by sourceRole (4th arg).
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.shot,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.character,
+      ),
+    ).toBe(true)
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.shot,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.background,
+      ),
+    ).toBe(true)
+    // Same edges land on a unified image target with role=shot.
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.characterImage,
+        NODE_TYPE_IDS.image,
+        NODE_IMAGE_ROLE_IDS.shot,
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects non-reference sources into shot', () => {
+    // shot/frame images are leaf outputs, not references → nothing to consume.
+    expect(canConnectNodeTypes(NODE_TYPE_IDS.shot, NODE_TYPE_IDS.shot)).toBe(
+      false,
+    )
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.shot,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.shot,
+      ),
+    ).toBe(false)
+    // Non-image sources never feed a shot.
+    expect(canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.shot)).toBe(
+      false,
+    )
+    expect(
+      canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.shot),
+    ).toBe(false)
+  })
+
   it('allows video sources into videoMerge', () => {
     expect(
       canConnectNodeTypes(
@@ -90,14 +147,11 @@ describe('canConnectNodeTypes', () => {
     expect(
       canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.characterImage),
     ).toBe(false)
-    // anything into a leaf/source node (shotText/shot/voice/videoReference) → no.
+    // anything into a leaf/source node (shotText/voice/videoReference) → no.
     expect(
       canConnectNodeTypes(NODE_TYPE_IDS.seedance, NODE_TYPE_IDS.shotText),
     ).toBe(false)
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.characterImage, NODE_TYPE_IDS.shot),
-    ).toBe(false)
-    // image-gen nodes don't read the graph → no image refs into shot/frame.
+    // frameImage doesn't read the graph → no image refs into it (shot does).
     expect(
       canConnectNodeTypes(
         NODE_TYPE_IDS.characterImage,

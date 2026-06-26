@@ -105,7 +105,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // nodes.
   const referenceKinds = useMemo(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
-    const kinds = new Set<'character' | 'background' | 'voice'>()
+    const kinds = new Set<'character' | 'background' | 'shot' | 'voice'>()
     for (const node of incoming) {
       const kind = getSeedanceReferenceKind(node)
       if (kind) kinds.add(kind)
@@ -122,7 +122,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   const referenceTokens = useMemo<
     Array<{
       id: string
-      kind: 'character' | 'background' | 'voice'
+      kind: 'character' | 'background' | 'shot' | 'voice'
       label: string
       token: string
     }>
@@ -130,7 +130,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
     const tokens: Array<{
       id: string
-      kind: 'character' | 'background' | 'voice'
+      kind: 'character' | 'background' | 'shot' | 'voice'
       label: string
       token: string
     }> = []
@@ -151,6 +151,17 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         const name =
           typeof node.data.backgroundName === 'string'
             ? node.data.backgroundName.trim()
+            : ''
+        tokens.push({
+          id: node.id,
+          kind,
+          label: name,
+          token: name ? `@${name}` : '',
+        })
+      } else if (kind === 'shot') {
+        const name =
+          typeof node.data.shotName === 'string'
+            ? node.data.shotName.trim()
             : ''
         tokens.push({
           id: node.id,

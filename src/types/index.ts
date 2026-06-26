@@ -482,6 +482,14 @@ export const GenerateAudioRequestSchema = z
     referenceAudioUrl: z.string().url().optional(),
     referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
     apiKeyId: z.string().trim().min(1).optional(),
+    /**
+     * Optional cover image for the generated audio — stored BY REFERENCE on the
+     * generation's `previewUrl` (no R2 copy, no storage key). The asset browser
+     * reads `previewUrl` as the audio cover, so the clip shows the voice's
+     * avatar in 素材库; an absent cover stays editable there. Memory-free: a URL
+     * pointer, never duplicated bytes.
+     */
+    coverImageUrl: z.string().url().optional(),
   })
   .refine(
     (data) => {

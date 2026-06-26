@@ -46,6 +46,17 @@ describe('useKeyboardInset', () => {
     expect(result.current).toBe(0)
   })
 
+  it('ignores small visual viewport chrome changes', () => {
+    const { result } = renderHook(() => useKeyboardInset())
+
+    act(() => {
+      viewport.height = 790
+      viewport.dispatchEvent(new Event('resize'))
+    })
+
+    expect(result.current).toBe(0)
+  })
+
   it('accounts for visual viewport scroll offset (iOS)', () => {
     const { result } = renderHook(() => useKeyboardInset())
 

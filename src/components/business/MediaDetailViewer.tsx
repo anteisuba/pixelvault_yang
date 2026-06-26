@@ -225,7 +225,7 @@ export function MediaDetailViewer({
               className="shrink-0 border-t border-border/70 bg-card/98 px-5 py-4 sm:px-6"
               style={{
                 paddingBottom:
-                  'max(env(safe-area-inset-bottom), var(--spacing) * 4)',
+                  'calc(max(var(--keyboard-safe-area-bottom, 0px), var(--spacing) * 4) + var(--keyboard-inset, 0px))',
               }}
             >
               {footerActions}

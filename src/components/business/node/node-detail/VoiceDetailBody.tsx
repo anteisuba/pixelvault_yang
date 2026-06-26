@@ -9,8 +9,6 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import {
-  Bookmark,
-  Check,
   IdCard,
   Library,
   Loader2,
@@ -36,18 +34,11 @@ import { AUDIO_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { NODE_STATUS_IDS } from '@/constants/node-types'
 import {
-  VOICE_CARD_DEFAULT_PACE,
-  VOICE_CARD_PROVIDER,
-} from '@/constants/voice-cards'
-import {
   checkAudioStatusAPI,
-  createVoiceCardAPI,
   generateAudioAPI,
-  updateVoiceCardAPI,
   uploadReferenceAudioAPI,
 } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ParamSlider } from '@/components/ui/param-slider'
 import type { GenerationRecord } from '@/types'
@@ -56,7 +47,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
 import type { SelectedVoice } from '../VoiceSelector'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeActionButton, NodeModelSelector } from '../nodes/NodeCardControls'
+import { NodeModelSelector } from '../nodes/NodeCardControls'
 import type { NodeDetailBodyProps } from './registry'
 
 function stopCanvasKeyboardEvent(event: ReactKeyboardEvent<HTMLElement>): void {
@@ -119,7 +110,6 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   const t = useTranslations('StudioNode.voiceDetail')
   const tVoice = useTranslations('StudioNode.voiceProfile')
   const { updateNodeData } = useNodeWorkflowActions()
-  const voiceCards = useVoiceCards()
 
   const inputRef = useRef<HTMLInputElement>(null)
   // Tracks the currently-selected voice so an in-flight audition (the poll can
@@ -134,7 +124,6 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   const [audioAssetDialogOpen, setAudioAssetDialogOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isGeneratingSample, setIsGeneratingSample] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   // Track the failed cover URL (not a boolean) so picking a new voice with a
   // valid cover recovers instead of staying stuck on the icon fallback.
   const [erroredCover, setErroredCover] = useState<string | null>(null)
@@ -264,6 +253,13 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       modelId: data.model?.modelId ?? AI_MODELS.FISH_AUDIO_S2_PRO,
       voiceId: requestedVoiceId,
       apiKeyId: data.model?.apiKeyId,
+      // Carry the voice's avatar into 素材库 BY REFERENCE (previewUrl). Only a
+      // valid absolute URL — a malformed cover must never 400 the generation.
+      coverImageUrl:
+        typeof data.voiceCoverImage === 'string' &&
+        data.voiceCoverImage.startsWith('http')
+          ? data.voiceCoverImage
+          : undefined,
     })
     if (!response.success || !response.data) {
       setIsGeneratingSample(false)
@@ -290,7 +286,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
       position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
     })
-  }, [data.voiceId, data.model, applyPatch, tVoice])
+  }, [data.voiceId, data.voiceCoverImage, data.model, applyPatch, tVoice])
 
   const selectedEmotion = (
     NODE_STUDIO_VOICE_EMOTIONS as readonly string[]
@@ -314,84 +310,6 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
     ? data.voiceCoverImage
     : data.voiceReferenceCoverImage
   const showVoiceCover = Boolean(activeCover) && erroredCover !== activeCover
-  const savedCard = voiceCards.cards.find(
-    (card) =>
-      card.voiceId === data.voiceId &&
-      card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO,
-  )
-  // Whether the saved card's cover already matches the node's. Drives the save
-  // button between "in library" (idle) and "sync cover" (actionable) so a cover
-  // set after favoriting still carries over to 素材.
-  const coverInSync =
-    !data.voiceCoverImage || savedCard?.coverImage === data.voiceCoverImage
-
-  const handleSaveToAssets = useCallback(async () => {
-    if (!data.voiceId) return
-    // Already in the library → sync the cover into the existing card when it
-    // changed, so the picture set on the node carries over to 素材 (Bug: a
-    // saved favorite never received the node's cover).
-    if (savedCard) {
-      if (
-        data.voiceCoverImage &&
-        savedCard.coverImage !== data.voiceCoverImage
-      ) {
-        setIsSaving(true)
-        const updated = await updateVoiceCardAPI(savedCard.id, {
-          coverImage: data.voiceCoverImage,
-        })
-        setIsSaving(false)
-        if (!updated.success) {
-          toast.error(updated.error ?? tVoice('toasts.saveToAssetsFailed'), {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          })
-          return
-        }
-        await voiceCards.refresh()
-        toast.success(tVoice('toasts.coverSynced'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-      } else {
-        toast.success(tVoice('toasts.alreadySaved'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-      }
-      return
-    }
-    setIsSaving(true)
-    const result = await createVoiceCardAPI({
-      name: selectedVoiceName,
-      provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
-      modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
-      voiceId: data.voiceId,
-      coverImage: data.voiceCoverImage ?? undefined,
-      tone: [],
-      pace: VOICE_CARD_DEFAULT_PACE,
-      pronunciationDictionary: {},
-    })
-    setIsSaving(false)
-    if (!result.success) {
-      toast.error(result.error ?? tVoice('toasts.saveToAssetsFailed'), {
-        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-      })
-      return
-    }
-    await voiceCards.refresh()
-    toast.success(tVoice('toasts.savedToAssets'), {
-      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-    })
-  }, [
-    data.voiceId,
-    data.voiceCoverImage,
-    savedCard,
-    selectedVoiceName,
-    voiceCards,
-    tVoice,
-  ])
 
   // Read-only cover thumbnail. The cover belongs to the source — a Fish voice's
   // built-in cover, or the picked audio asset's cover (configured in the asset
@@ -648,27 +566,6 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       <p className="text-2xs leading-5 text-node-subtle">
         {tVoice('outputHint')}
       </p>
-
-      {/* §E 收藏进素材 — save this profile as a reusable VoiceCard. */}
-      {isFishSource && data.voiceId ? (
-        <NodeActionButton
-          disabled={isSaving || (Boolean(savedCard) && coverInSync)}
-          onClick={() => void handleSaveToAssets()}
-        >
-          {isSaving ? (
-            <Loader2 className="mr-1.5 size-4 animate-spin" />
-          ) : savedCard && coverInSync ? (
-            <Check className="mr-1.5 size-4" />
-          ) : (
-            <Bookmark className="mr-1.5 size-4" />
-          )}
-          {savedCard
-            ? coverInSync
-              ? t('savedToAssets')
-              : t('syncCoverToAssets')
-            : t('saveToAssets')}
-        </NodeActionButton>
-      ) : null}
 
       <FishVoiceLibraryDialog
         open={libraryOpen}

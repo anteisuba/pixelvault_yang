@@ -73,17 +73,25 @@ function ResponsivePopoverContent({
   className,
   mobileClassName,
   children,
+  style,
   ...props
 }: ResponsivePopoverContentProps) {
   const { isMobile } = React.useContext(ResponsivePopoverContext)
   if (isMobile) {
     return (
-      <DrawerContent className="max-h-[85svh]">
+      <DrawerContent
+        className="max-h-[85svh]"
+        style={{
+          maxHeight:
+            'min(85svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+          ...style,
+        }}
+      >
         <DrawerTitle className="sr-only">{label}</DrawerTitle>
         <div
           className={cn('flex-1 overflow-y-auto px-4 pt-2', mobileClassName)}
           style={{
-            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+            paddingBottom: 'max(var(--keyboard-safe-area-bottom, 0px), 1rem)',
           }}
         >
           {children}
@@ -92,7 +100,12 @@ function ResponsivePopoverContent({
     )
   }
   return (
-    <PopoverContent aria-label={label} className={className} {...props}>
+    <PopoverContent
+      aria-label={label}
+      className={className}
+      style={style}
+      {...props}
+    >
       {children}
     </PopoverContent>
   )

@@ -277,6 +277,31 @@ describe('generateAudioForUser', () => {
     )
   })
 
+  it('stores the cover image BY REFERENCE on previewUrl', async () => {
+    setupSyncHappyPath()
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      coverImageUrl: 'https://cdn.example.com/voice-cover.png',
+    })
+
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previewUrl: 'https://cdn.example.com/voice-cover.png',
+      }),
+    )
+  })
+
+  it('leaves previewUrl unset when no cover image is provided', async () => {
+    setupSyncHappyPath()
+
+    await generateAudioForUser('clerk-1', BASE_SYNC_REQUEST)
+
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ previewUrl: undefined }),
+    )
+  })
+
   it('forwards sampleRate to adapter', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({
       audioUrl: 'https://provider.example.com/audio.mp3',

@@ -83,6 +83,9 @@ function getHeaderTitle(
   if (type === NODE_TYPE_IDS.backgroundImage) {
     return data.backgroundName?.trim() || undefined
   }
+  if (type === NODE_TYPE_IDS.shot) {
+    return data.shotName?.trim() || undefined
+  }
   return undefined
 }
 

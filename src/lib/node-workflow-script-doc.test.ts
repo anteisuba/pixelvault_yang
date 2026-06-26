@@ -219,6 +219,50 @@ describe('projectScriptDocToGraph', () => {
     )
   })
 
+  it('removes orphaned nodes + their edges when a role/shot is deleted from the outline', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+
+    // Delete shot-2 and role-2 entirely; keep shot-1 + role-1.
+    const trimmed: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      roles: [TWO_SHOT_DOC.roles[0]],
+      shots: [TWO_SHOT_DOC.shots[0]],
+    }
+    const result = projectScriptDocToGraph(trimmed, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+    })
+
+    expect(result.created).toBe(0)
+    expect(result.removed).toBeGreaterThan(0)
+
+    const removedRefs = result.nodesToRemove.map(
+      (node) => `${node.data.scriptRef?.kind}:${node.data.scriptRef?.sourceId}`,
+    )
+    // role-2 char + shot-2's shotText/seedance + the merge (now a single shot).
+    expect(removedRefs).toEqual(
+      expect.arrayContaining([
+        'character:role-2',
+        'shotText:shot-2',
+        'seedance:shot-2',
+        'merge:merge',
+      ]),
+    )
+    // shot-1's nodes survive.
+    expect(removedRefs).not.toContain('shotText:shot-1')
+    expect(removedRefs).not.toContain('character:role-1')
+    // Edges into the removed nodes are torn down too.
+    expect(result.removedEdges).toBeGreaterThan(0)
+  })
+
   it('omits the videoMerge for a single-shot doc', () => {
     const oneShot: ScriptDoc = {
       ...TWO_SHOT_DOC,

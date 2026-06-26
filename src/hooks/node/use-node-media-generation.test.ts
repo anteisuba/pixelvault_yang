@@ -342,11 +342,17 @@ describe('useNodeMediaGeneration', () => {
         speed: 1.4,
         volume: -3,
         emotion: 'angry',
+        coverImageUrl: 'https://cdn.example.com/cover.png',
       })
     })
 
     expect(generateAudioAPI).toHaveBeenCalledWith(
-      expect.objectContaining({ speed: 1.4, volume: -3, emotion: 'angry' }),
+      expect.objectContaining({
+        speed: 1.4,
+        volume: -3,
+        emotion: 'angry',
+        coverImageUrl: 'https://cdn.example.com/cover.png',
+      }),
     )
   })
 

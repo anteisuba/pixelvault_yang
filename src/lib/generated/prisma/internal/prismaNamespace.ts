@@ -3240,6 +3240,8 @@ export const GenerationScalarFieldEnum = {
   characterCardId: 'characterCardId',
   cardRecipeId: 'cardRecipeId',
   recipeSnapshot: 'recipeSnapshot',
+  sourceSurface: 'sourceSurface',
+  loraLineage: 'loraLineage',
   snapshot: 'snapshot',
   evaluation: 'evaluation',
   runGroupId: 'runGroupId',
@@ -3343,7 +3345,15 @@ export const RecipeScalarFieldEnum = {
   evaluationSummary: 'evaluationSummary',
   isDeleted: 'isDeleted',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  coverGenerationId: 'coverGenerationId',
+  coverImageUrl: 'coverImageUrl',
+  favoriteCount: 'favoriteCount',
+  lastUsedAt: 'lastUsedAt',
+  remixSourceRecipeId: 'remixSourceRecipeId',
+  tags: 'tags',
+  usageCount: 'usageCount',
+  visibility: 'visibility'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
@@ -3984,6 +3994,20 @@ export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, '
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+/**
+ * Reference to a field of type 'GenerationSourceSurface'
+ */
+export type EnumGenerationSourceSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationSourceSurface'>
+    
+
+
+/**
+ * Reference to a field of type 'GenerationSourceSurface[]'
+ */
+export type ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationSourceSurface[]'>
     
 
 

@@ -234,6 +234,13 @@ export type JsonNullableFilterBase<$PrismaModel = never> = {
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
 }
 
+export type EnumGenerationSourceSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.GenerationSourceSurface | Prisma.EnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel> | $Enums.GenerationSourceSurface
+}
+
 export type BigIntNullableFilter<$PrismaModel = never> = {
   equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
   in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
@@ -322,6 +329,16 @@ export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedJsonNullableFilter<$PrismaModel>
   _max?: Prisma.NestedJsonNullableFilter<$PrismaModel>
+}
+
+export type EnumGenerationSourceSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.GenerationSourceSurface | Prisma.EnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGenerationSourceSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.GenerationSourceSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel>
 }
 
 export type BigIntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -726,6 +743,13 @@ export type NestedFloatNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedFloatNullableFilter<$PrismaModel> | number | null
 }
 
+export type NestedEnumGenerationSourceSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.GenerationSourceSurface | Prisma.EnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel> | $Enums.GenerationSourceSurface
+}
+
 export type NestedBigIntNullableFilter<$PrismaModel = never> = {
   equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
   in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
@@ -822,6 +846,16 @@ export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type NestedEnumGenerationSourceSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.GenerationSourceSurface | Prisma.EnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GenerationSourceSurface[] | Prisma.ListEnumGenerationSourceSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGenerationSourceSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.GenerationSourceSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumGenerationSourceSurfaceFilter<$PrismaModel>
 }
 
 export type NestedBigIntNullableWithAggregatesFilter<$PrismaModel = never> = {

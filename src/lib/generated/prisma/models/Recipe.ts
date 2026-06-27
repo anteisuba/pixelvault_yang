@@ -29,11 +29,15 @@ export type AggregateRecipe = {
 export type RecipeAvgAggregateOutputType = {
   seed: number | null
   version: number | null
+  favoriteCount: number | null
+  usageCount: number | null
 }
 
 export type RecipeSumAggregateOutputType = {
   seed: bigint | null
   version: number | null
+  favoriteCount: number | null
+  usageCount: number | null
 }
 
 export type RecipeMinAggregateOutputType = {
@@ -51,6 +55,13 @@ export type RecipeMinAggregateOutputType = {
   isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  coverGenerationId: string | null
+  coverImageUrl: string | null
+  favoriteCount: number | null
+  lastUsedAt: Date | null
+  remixSourceRecipeId: string | null
+  usageCount: number | null
+  visibility: string | null
 }
 
 export type RecipeMaxAggregateOutputType = {
@@ -68,6 +79,13 @@ export type RecipeMaxAggregateOutputType = {
   isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  coverGenerationId: string | null
+  coverImageUrl: string | null
+  favoriteCount: number | null
+  lastUsedAt: Date | null
+  remixSourceRecipeId: string | null
+  usageCount: number | null
+  visibility: string | null
 }
 
 export type RecipeCountAggregateOutputType = {
@@ -89,6 +107,14 @@ export type RecipeCountAggregateOutputType = {
   isDeleted: number
   createdAt: number
   updatedAt: number
+  coverGenerationId: number
+  coverImageUrl: number
+  favoriteCount: number
+  lastUsedAt: number
+  remixSourceRecipeId: number
+  tags: number
+  usageCount: number
+  visibility: number
   _all: number
 }
 
@@ -96,11 +122,15 @@ export type RecipeCountAggregateOutputType = {
 export type RecipeAvgAggregateInputType = {
   seed?: true
   version?: true
+  favoriteCount?: true
+  usageCount?: true
 }
 
 export type RecipeSumAggregateInputType = {
   seed?: true
   version?: true
+  favoriteCount?: true
+  usageCount?: true
 }
 
 export type RecipeMinAggregateInputType = {
@@ -118,6 +148,13 @@ export type RecipeMinAggregateInputType = {
   isDeleted?: true
   createdAt?: true
   updatedAt?: true
+  coverGenerationId?: true
+  coverImageUrl?: true
+  favoriteCount?: true
+  lastUsedAt?: true
+  remixSourceRecipeId?: true
+  usageCount?: true
+  visibility?: true
 }
 
 export type RecipeMaxAggregateInputType = {
@@ -135,6 +172,13 @@ export type RecipeMaxAggregateInputType = {
   isDeleted?: true
   createdAt?: true
   updatedAt?: true
+  coverGenerationId?: true
+  coverImageUrl?: true
+  favoriteCount?: true
+  lastUsedAt?: true
+  remixSourceRecipeId?: true
+  usageCount?: true
+  visibility?: true
 }
 
 export type RecipeCountAggregateInputType = {
@@ -156,6 +200,14 @@ export type RecipeCountAggregateInputType = {
   isDeleted?: true
   createdAt?: true
   updatedAt?: true
+  coverGenerationId?: true
+  coverImageUrl?: true
+  favoriteCount?: true
+  lastUsedAt?: true
+  remixSourceRecipeId?: true
+  tags?: true
+  usageCount?: true
+  visibility?: true
   _all?: true
 }
 
@@ -264,6 +316,14 @@ export type RecipeGroupByOutputType = {
   isDeleted: boolean
   createdAt: Date
   updatedAt: Date
+  coverGenerationId: string | null
+  coverImageUrl: string | null
+  favoriteCount: number
+  lastUsedAt: Date | null
+  remixSourceRecipeId: string | null
+  tags: string[]
+  usageCount: number
+  visibility: string
   _count: RecipeCountAggregateOutputType | null
   _avg: RecipeAvgAggregateOutputType | null
   _sum: RecipeSumAggregateOutputType | null
@@ -308,6 +368,14 @@ export type RecipeWhereInput = {
   isDeleted?: Prisma.BoolFilter<"Recipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
+  coverGenerationId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  coverImageUrl?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  favoriteCount?: Prisma.IntFilter<"Recipe"> | number
+  lastUsedAt?: Prisma.DateTimeNullableFilter<"Recipe"> | Date | string | null
+  remixSourceRecipeId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  tags?: Prisma.StringNullableListFilter<"Recipe">
+  usageCount?: Prisma.IntFilter<"Recipe"> | number
+  visibility?: Prisma.StringFilter<"Recipe"> | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
 
@@ -330,6 +398,14 @@ export type RecipeOrderByWithRelationInput = {
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  coverGenerationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  coverImageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  lastUsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  remixSourceRecipeId?: Prisma.SortOrderInput | Prisma.SortOrder
+  tags?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
+  visibility?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
 }
 
@@ -355,6 +431,14 @@ export type RecipeWhereUniqueInput = Prisma.AtLeast<{
   isDeleted?: Prisma.BoolFilter<"Recipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
+  coverGenerationId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  coverImageUrl?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  favoriteCount?: Prisma.IntFilter<"Recipe"> | number
+  lastUsedAt?: Prisma.DateTimeNullableFilter<"Recipe"> | Date | string | null
+  remixSourceRecipeId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  tags?: Prisma.StringNullableListFilter<"Recipe">
+  usageCount?: Prisma.IntFilter<"Recipe"> | number
+  visibility?: Prisma.StringFilter<"Recipe"> | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "id">
 
@@ -377,6 +461,14 @@ export type RecipeOrderByWithAggregationInput = {
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  coverGenerationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  coverImageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  lastUsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  remixSourceRecipeId?: Prisma.SortOrderInput | Prisma.SortOrder
+  tags?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
+  visibility?: Prisma.SortOrder
   _count?: Prisma.RecipeCountOrderByAggregateInput
   _avg?: Prisma.RecipeAvgOrderByAggregateInput
   _max?: Prisma.RecipeMaxOrderByAggregateInput
@@ -406,6 +498,14 @@ export type RecipeScalarWhereWithAggregatesInput = {
   isDeleted?: Prisma.BoolWithAggregatesFilter<"Recipe"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Recipe"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Recipe"> | Date | string
+  coverGenerationId?: Prisma.StringNullableWithAggregatesFilter<"Recipe"> | string | null
+  coverImageUrl?: Prisma.StringNullableWithAggregatesFilter<"Recipe"> | string | null
+  favoriteCount?: Prisma.IntWithAggregatesFilter<"Recipe"> | number
+  lastUsedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Recipe"> | Date | string | null
+  remixSourceRecipeId?: Prisma.StringNullableWithAggregatesFilter<"Recipe"> | string | null
+  tags?: Prisma.StringNullableListFilter<"Recipe">
+  usageCount?: Prisma.IntWithAggregatesFilter<"Recipe"> | number
+  visibility?: Prisma.StringWithAggregatesFilter<"Recipe"> | string
 }
 
 export type RecipeCreateInput = {
@@ -426,6 +526,14 @@ export type RecipeCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
   user: Prisma.UserCreateNestedOneWithoutRecipesInput
 }
 
@@ -448,6 +556,14 @@ export type RecipeUncheckedCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
 }
 
 export type RecipeUpdateInput = {
@@ -468,6 +584,14 @@ export type RecipeUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
   user?: Prisma.UserUpdateOneRequiredWithoutRecipesNestedInput
 }
 
@@ -490,6 +614,14 @@ export type RecipeUncheckedUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeCreateManyInput = {
@@ -511,6 +643,14 @@ export type RecipeCreateManyInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
 }
 
 export type RecipeUpdateManyMutationInput = {
@@ -531,6 +671,14 @@ export type RecipeUpdateManyMutationInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeUncheckedUpdateManyInput = {
@@ -552,6 +700,14 @@ export type RecipeUncheckedUpdateManyInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeListRelationFilter = {
@@ -562,6 +718,14 @@ export type RecipeListRelationFilter = {
 
 export type RecipeOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type StringNullableListFilter<$PrismaModel = never> = {
+  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
+  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
+  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  isEmpty?: boolean
 }
 
 export type RecipeCountOrderByAggregateInput = {
@@ -583,11 +747,21 @@ export type RecipeCountOrderByAggregateInput = {
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  coverGenerationId?: Prisma.SortOrder
+  coverImageUrl?: Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  lastUsedAt?: Prisma.SortOrder
+  remixSourceRecipeId?: Prisma.SortOrder
+  tags?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
+  visibility?: Prisma.SortOrder
 }
 
 export type RecipeAvgOrderByAggregateInput = {
   seed?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
 }
 
 export type RecipeMaxOrderByAggregateInput = {
@@ -605,6 +779,13 @@ export type RecipeMaxOrderByAggregateInput = {
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  coverGenerationId?: Prisma.SortOrder
+  coverImageUrl?: Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  lastUsedAt?: Prisma.SortOrder
+  remixSourceRecipeId?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
+  visibility?: Prisma.SortOrder
 }
 
 export type RecipeMinOrderByAggregateInput = {
@@ -622,11 +803,20 @@ export type RecipeMinOrderByAggregateInput = {
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  coverGenerationId?: Prisma.SortOrder
+  coverImageUrl?: Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  lastUsedAt?: Prisma.SortOrder
+  remixSourceRecipeId?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
+  visibility?: Prisma.SortOrder
 }
 
 export type RecipeSumOrderByAggregateInput = {
   seed?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  favoriteCount?: Prisma.SortOrder
+  usageCount?: Prisma.SortOrder
 }
 
 export type RecipeCreateNestedManyWithoutUserInput = {
@@ -671,6 +861,15 @@ export type RecipeUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.RecipeScalarWhereInput | Prisma.RecipeScalarWhereInput[]
 }
 
+export type RecipeCreatetagsInput = {
+  set: string[]
+}
+
+export type RecipeUpdatetagsInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
 export type RecipeCreateWithoutUserInput = {
   id?: string
   outputType?: $Enums.OutputType
@@ -689,6 +888,14 @@ export type RecipeCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
 }
 
 export type RecipeUncheckedCreateWithoutUserInput = {
@@ -709,6 +916,14 @@ export type RecipeUncheckedCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
 }
 
 export type RecipeCreateOrConnectWithoutUserInput = {
@@ -759,6 +974,14 @@ export type RecipeScalarWhereInput = {
   isDeleted?: Prisma.BoolFilter<"Recipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Recipe"> | Date | string
+  coverGenerationId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  coverImageUrl?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  favoriteCount?: Prisma.IntFilter<"Recipe"> | number
+  lastUsedAt?: Prisma.DateTimeNullableFilter<"Recipe"> | Date | string | null
+  remixSourceRecipeId?: Prisma.StringNullableFilter<"Recipe"> | string | null
+  tags?: Prisma.StringNullableListFilter<"Recipe">
+  usageCount?: Prisma.IntFilter<"Recipe"> | number
+  visibility?: Prisma.StringFilter<"Recipe"> | string
 }
 
 export type RecipeCreateManyUserInput = {
@@ -779,6 +1002,14 @@ export type RecipeCreateManyUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  coverGenerationId?: string | null
+  coverImageUrl?: string | null
+  favoriteCount?: number
+  lastUsedAt?: Date | string | null
+  remixSourceRecipeId?: string | null
+  tags?: Prisma.RecipeCreatetagsInput | string[]
+  usageCount?: number
+  visibility?: string
 }
 
 export type RecipeUpdateWithoutUserInput = {
@@ -799,6 +1030,14 @@ export type RecipeUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeUncheckedUpdateWithoutUserInput = {
@@ -819,6 +1058,14 @@ export type RecipeUncheckedUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeUncheckedUpdateManyWithoutUserInput = {
@@ -839,6 +1086,14 @@ export type RecipeUncheckedUpdateManyWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  coverGenerationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remixSourceRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tags?: Prisma.RecipeUpdatetagsInput | string[]
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  visibility?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -862,6 +1117,14 @@ export type RecipeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  coverGenerationId?: boolean
+  coverImageUrl?: boolean
+  favoriteCount?: boolean
+  lastUsedAt?: boolean
+  remixSourceRecipeId?: boolean
+  tags?: boolean
+  usageCount?: boolean
+  visibility?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipe"]>
 
@@ -884,6 +1147,14 @@ export type RecipeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  coverGenerationId?: boolean
+  coverImageUrl?: boolean
+  favoriteCount?: boolean
+  lastUsedAt?: boolean
+  remixSourceRecipeId?: boolean
+  tags?: boolean
+  usageCount?: boolean
+  visibility?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipe"]>
 
@@ -906,6 +1177,14 @@ export type RecipeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  coverGenerationId?: boolean
+  coverImageUrl?: boolean
+  favoriteCount?: boolean
+  lastUsedAt?: boolean
+  remixSourceRecipeId?: boolean
+  tags?: boolean
+  usageCount?: boolean
+  visibility?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipe"]>
 
@@ -928,9 +1207,17 @@ export type RecipeSelectScalar = {
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  coverGenerationId?: boolean
+  coverImageUrl?: boolean
+  favoriteCount?: boolean
+  lastUsedAt?: boolean
+  remixSourceRecipeId?: boolean
+  tags?: boolean
+  usageCount?: boolean
+  visibility?: boolean
 }
 
-export type RecipeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "outputType" | "name" | "userIntent" | "compiledPrompt" | "negativePrompt" | "modelId" | "provider" | "params" | "referenceAssets" | "seed" | "parentGenerationId" | "version" | "evaluationSummary" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["recipe"]>
+export type RecipeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "outputType" | "name" | "userIntent" | "compiledPrompt" | "negativePrompt" | "modelId" | "provider" | "params" | "referenceAssets" | "seed" | "parentGenerationId" | "version" | "evaluationSummary" | "isDeleted" | "createdAt" | "updatedAt" | "coverGenerationId" | "coverImageUrl" | "favoriteCount" | "lastUsedAt" | "remixSourceRecipeId" | "tags" | "usageCount" | "visibility", ExtArgs["result"]["recipe"]>
 export type RecipeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -965,6 +1252,14 @@ export type $RecipePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     isDeleted: boolean
     createdAt: Date
     updatedAt: Date
+    coverGenerationId: string | null
+    coverImageUrl: string | null
+    favoriteCount: number
+    lastUsedAt: Date | null
+    remixSourceRecipeId: string | null
+    tags: string[]
+    usageCount: number
+    visibility: string
   }, ExtArgs["result"]["recipe"]>
   composites: {}
 }
@@ -1407,6 +1702,14 @@ export interface RecipeFieldRefs {
   readonly isDeleted: Prisma.FieldRef<"Recipe", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Recipe", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Recipe", 'DateTime'>
+  readonly coverGenerationId: Prisma.FieldRef<"Recipe", 'String'>
+  readonly coverImageUrl: Prisma.FieldRef<"Recipe", 'String'>
+  readonly favoriteCount: Prisma.FieldRef<"Recipe", 'Int'>
+  readonly lastUsedAt: Prisma.FieldRef<"Recipe", 'DateTime'>
+  readonly remixSourceRecipeId: Prisma.FieldRef<"Recipe", 'String'>
+  readonly tags: Prisma.FieldRef<"Recipe", 'String[]'>
+  readonly usageCount: Prisma.FieldRef<"Recipe", 'Int'>
+  readonly visibility: Prisma.FieldRef<"Recipe", 'String'>
 }
     
 

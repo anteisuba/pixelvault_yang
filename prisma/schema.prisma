@@ -22,6 +22,15 @@ enum GenerationStatus {
   FAILED
 }
 
+// 产物来源 surface — 拆 surface 不拆 engine：Image 与 LoRA 域共用执行引擎，
+// 用本字段区分入口（素材/画廊可按来源筛、统计 LoRA 域产出）。
+enum GenerationSourceSurface {
+  IMAGE_STUDIO
+  LORA_WORKBENCH
+  CANVAS
+  EDIT
+}
+
 enum GenerationJobStatus {
   QUEUED
   RUNNING
@@ -263,6 +272,12 @@ model Generation {
   cardRecipe      CardRecipe?               @relation(fields: [cardRecipeId], references: [id], onDelete: SetNull)
   recipeSnapshot  Json?
 
+  // ── 来源血缘 ──────────────────────────────────────────────────
+  // sourceSurface 是顶层可查询列（默认 IMAGE_STUDIO；存量不回填）。
+  // loraLineage 记录 LoRA 域生成用到的 loraAssetId / scale / recipe 来源（变长，不索引）。
+  sourceSurface GenerationSourceSurface @default(IMAGE_STUDIO)
+  loraLineage   Json?
+
   // ── B0: Generation Snapshot ────────────────────────────────────
   snapshot      Json? // Full input parameter snapshot
   evaluation    Json? // GenerationEvaluation — written by generation-evaluator.service
@@ -287,6 +302,7 @@ model Generation {
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
   @@index([userId, isPublic, createdAt(sort: Desc)])
+  @@index([userId, sourceSurface, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
   @@index([userId, projectId, createdAt(sort: Desc)])
   @@index([characterCardId, createdAt(sort: Desc)])
@@ -396,7 +412,19 @@ model Recipe {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  // ── 与线上 DB 对齐：孤儿 migration 20260531090000_prompt_core_recipe_assets
+  //    已应用到 DB 但从未提交进 git，故此处按 DB 实际列手动补齐（见 lora-domain-split 备注）。
+  coverGenerationId   String?
+  coverImageUrl       String?
+  favoriteCount       Int        @default(0)
+  lastUsedAt          DateTime?
+  remixSourceRecipeId String?
+  tags                String[]   @default([])
+  usageCount          Int        @default(0)
+  visibility          String     @default("PRIVATE")
+
   @@index([userId, isDeleted, createdAt(sort: Desc)])
+  @@index([visibility, isDeleted, createdAt(sort: Desc)])
 }
 
 model VoiceCard {

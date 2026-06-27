@@ -28,6 +28,16 @@ export const GenerationStatus = {
 export type GenerationStatus = (typeof GenerationStatus)[keyof typeof GenerationStatus]
 
 
+export const GenerationSourceSurface = {
+  IMAGE_STUDIO: 'IMAGE_STUDIO',
+  LORA_WORKBENCH: 'LORA_WORKBENCH',
+  CANVAS: 'CANVAS',
+  EDIT: 'EDIT'
+} as const
+
+export type GenerationSourceSurface = (typeof GenerationSourceSurface)[keyof typeof GenerationSourceSurface]
+
+
 export const GenerationJobStatus = {
   QUEUED: 'QUEUED',
   RUNNING: 'RUNNING',

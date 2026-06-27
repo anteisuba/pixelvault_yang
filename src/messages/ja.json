@@ -1255,9 +1255,24 @@
   },
   "LoraWorkbench": {
     "tabs": {
+      "generate": "生成",
+      "library": "ライブラリ",
       "mine": "マイ",
       "train": "学習",
       "community": "LoRA ライブラリ"
+    },
+    "library": {
+      "public": "公開"
+    },
+    "generate": {
+      "placeholderTitle": "LoRA 生成（近日公開）",
+      "placeholderBody": "「ライブラリ」でLoRAを選ぶと、ここで忠実な再現とカスタム生成ができるようになります。"
+    },
+    "spine": {
+      "currentLora": "現在のLoRA",
+      "baseModel": "ベースモデル",
+      "baseModelPending": "LoRAに追従（近日公開）",
+      "empty": "LoRA未選択 — ライブラリで選んでください"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",

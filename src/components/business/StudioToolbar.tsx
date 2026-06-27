@@ -8,7 +8,6 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
-import { LoraPromptControlButton } from '@/components/business/studio/prompt-tags/LoraPromptControlButton'
 
 interface StudioToolbarProps {
   disabled?: boolean
@@ -17,8 +16,11 @@ interface StudioToolbarProps {
 
 /**
  * Studio toolbar — uses Radix Toolbar for roving tabindex keyboard navigation.
- * Image quick/card modes render the same five dock chips:
- * Assistant / Image / Cards / LoRA / Aspect ratio.
+ * Image quick/card modes render four dock chips:
+ * Assistant / Image / Cards / Aspect ratio.
+ *
+ * LoRA is no longer an Image Studio concern — it lives in its own domain
+ * (/studio/lora). See docs/plans/lora-domain-split-2026-06.md.
  */
 export function StudioToolbar({ disabled, compact }: StudioToolbarProps) {
   const t = useTranslations('StudioV2')
@@ -36,7 +38,6 @@ export function StudioToolbar({ disabled, compact }: StudioToolbarProps) {
       <StudioEnhanceButton disabled={disabled} />
       <ReferenceImageChip disabled={disabled} />
       <StudioCardsButton disabled={disabled} />
-      <LoraPromptControlButton disabled={disabled} />
       <StudioAspectRatioPopover disabled={disabled} />
     </Toolbar.Root>
   )

@@ -19,25 +19,18 @@ vi.mock('@/components/business/studio/StudioCardsButton', () => ({
   StudioCardsButton: () => <button type="button">cards</button>,
 }))
 
-vi.mock(
-  '@/components/business/studio/prompt-tags/LoraPromptControlButton',
-  () => ({
-    LoraPromptControlButton: () => <button type="button">lora</button>,
-  }),
-)
-
 vi.mock('@/components/business/studio/StudioAspectRatioPopover', () => ({
   StudioAspectRatioPopover: () => <button type="button">aspect</button>,
 }))
 
 describe('StudioToolbar', () => {
-  it('renders the fixed five-chip image toolbar without separators', () => {
+  it('renders the fixed four-chip image toolbar without separators', () => {
     render(<StudioToolbar />)
 
-    expect(screen.getAllByRole('button')).toHaveLength(5)
+    expect(screen.getAllByRole('button')).toHaveLength(4)
     expect(screen.queryAllByRole('separator')).toHaveLength(0)
     expect(
       screen.getAllByRole('button').map((button) => button.textContent),
-    ).toEqual(['assistant', 'image', 'cards', 'lora', 'aspect'])
+    ).toEqual(['assistant', 'image', 'cards', 'aspect'])
   })
 })

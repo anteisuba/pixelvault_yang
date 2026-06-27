@@ -153,16 +153,33 @@ export function LoraWorkbench() {
     [setActiveSection],
   )
 
+  // 「库」tab 同时覆盖 community(公开)/mine(我的) 两个子态：tabValue 把 mine
+  // 折回 community，使 community trigger 在两态下都高亮。
+  const tabValue =
+    activeSection === LORA_WORKBENCH_SECTIONS.MINE
+      ? LORA_WORKBENCH_SECTIONS.COMMUNITY
+      : activeSection
+  const isLibrary =
+    activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
+    activeSection === LORA_WORKBENCH_SECTIONS.MINE
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-      <Tabs value={activeSection} onValueChange={handleTabChange}>
+      <Tabs value={tabValue} onValueChange={handleTabChange}>
         <TabsList className="grid h-9 w-full grid-cols-3 bg-muted/40 sm:inline-grid sm:w-auto">
+          <TabsTrigger
+            value={LORA_WORKBENCH_SECTIONS.GENERATE}
+            className="h-7 px-3 text-xs"
+          >
+            <Sparkles className="size-3.5" aria-hidden />
+            {t('tabs.generate')}
+          </TabsTrigger>
           <TabsTrigger
             value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
             className="h-7 px-3 text-xs"
           >
             <Compass className="size-3.5" aria-hidden />
-            {t('tabs.community')}
+            {t('tabs.library')}
           </TabsTrigger>
           <TabsTrigger
             value={LORA_WORKBENCH_SECTIONS.TRAIN}
@@ -171,41 +188,131 @@ export function LoraWorkbench() {
             <GraduationCap className="size-3.5" aria-hidden />
             {t('tabs.train')}
           </TabsTrigger>
-          <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.MINE}
-            className="h-7 px-3 text-xs"
-          >
-            <Library className="size-3.5" aria-hidden />
-            {t('tabs.mine')}
-          </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
+        <GenerateBranch />
+      ) : null}
+
+      {isLibrary ? (
+        <section className="space-y-4">
+          <div className="inline-flex gap-1 rounded-lg bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
+              }
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
+                  ? 'bg-background font-medium text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Compass className="size-3.5" aria-hidden />
+              {t('library.public')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection(LORA_WORKBENCH_SECTIONS.MINE)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                activeSection === LORA_WORKBENCH_SECTIONS.MINE
+                  ? 'bg-background font-medium text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Library className="size-3.5" aria-hidden />
+              {t('tabs.mine')}
+            </button>
+          </div>
+
+          {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
+            <MyLoraBranch
+              trained={trainedAssets}
+              favorites={favoriteAssets}
+              isLoading={isLoadingMine}
+              error={errorMine}
+              onRefresh={refresh}
+              onSwitchSection={setActiveSection}
+              onVisibilityChange={setVisibility}
+              onUnfavorite={unfavoriteAsset}
+              onDelete={deleteAsset}
+            />
+          ) : (
+            <CivitaiCommunityBranch
+              onFavorite={favoriteCivitaiLora}
+              onUnfavoriteByUrl={unfavoriteByUrl}
+              isFavorited={isFavorited}
+            />
+          )}
+        </section>
+      ) : null}
 
       {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
         <TrainingBranch />
       ) : null}
+    </div>
+  )
+}
 
-      {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
-        <MyLoraBranch
-          trained={trainedAssets}
-          favorites={favoriteAssets}
-          isLoading={isLoadingMine}
-          error={errorMine}
-          onRefresh={refresh}
-          onSwitchSection={setActiveSection}
-          onVisibilityChange={setVisibility}
-          onUnfavorite={unfavoriteAsset}
-          onDelete={deleteAsset}
-        />
-      ) : null}
+// ── 生成分支（壳占位）──────────────────────────────────────────────
+// LoRA 域新一等 surface。当前是壳：脊柱条（当前 LoRA / 底模）+ 占位说明。
+// recipe 源图 / 模式 / ivory 提示词纸 / 出图 + 底模扁平选择器 为后续增量。
+function GenerateBranch() {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <section className="space-y-4">
+      <LoraSpineBar />
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
+        <Sparkles className="size-7 text-muted-foreground" aria-hidden />
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">
+            {t('generate.placeholderTitle')}
+          </h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            {t('generate.placeholderBody')}
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-      {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-        <CivitaiCommunityBranch
-          onFavorite={favoriteCivitaiLora}
-          onUnfavoriteByUrl={unfavoriteByUrl}
-          isFavorited={isFavorited}
-        />
-      ) : null}
+// 常驻脊柱条：当前 LoRA stack + 底模占位（底模扁平选择器为下一增量）。
+function LoraSpineBar() {
+  const t = useTranslations('LoraWorkbench')
+  const stack = useActiveLoraStack()
+  return (
+    <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+        {t('spine.currentLora')}
+      </span>
+      {stack.items.length > 0 ? (
+        stack.items.map((item) => (
+          <span
+            key={item.asset.id}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-xs"
+          >
+            {item.asset.name}
+            <span className="text-muted-foreground">
+              ×{(item.scale ?? item.asset.defaultScale).toFixed(1)}
+            </span>
+          </span>
+        ))
+      ) : (
+        <span className="text-xs text-muted-foreground">
+          {t('spine.empty')}
+        </span>
+      )}
+      <span className="grow" />
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+        {t('spine.baseModel')}
+      </span>
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
+        {t('spine.baseModelPending')}
+      </span>
     </div>
   )
 }

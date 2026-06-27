@@ -46,8 +46,6 @@ import {
   generateAudioAPI,
 } from '@/lib/api-client'
 import { useRouter } from '@/i18n/navigation'
-import { mergeStackLoras } from '@/lib/merge-stack-loras'
-import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -224,12 +222,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [router, tStudio],
   )
-
-  // Active LoRA stack — read at generate() time via a ref so the
-  // useCallback identity stays stable across stack edits.
-  const loraStack = useActiveLoraStack()
-  const loraStackRef = useRef(loraStack)
-  loraStackRef.current = loraStack
 
   // ── Timer/polling lifecycle ────────────────────────────────────
 
@@ -1140,18 +1132,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (input: UnifiedGenerateInput): Promise<GenerationRecord | null> => {
       lastRequestRef.current = input
       if (input.mode === 'image' && input.image) {
-        const stack = loraStackRef.current
-        const mergedAdvancedParams = mergeStackLoras(
-          input.image.advancedParams,
-          stack.toActiveLoras(),
-          (assetId) =>
-            stack.items.find((entry) => entry.asset.id === assetId)?.asset
-              .loraUrl,
-        )
-        const image: StudioGenerateRequest =
-          mergedAdvancedParams === input.image.advancedParams
-            ? input.image
-            : { ...input.image, advancedParams: mergedAdvancedParams }
+        // Image Studio no longer consumes LoRA — the LoRA domain owns its own
+        // generation surface and injects loras there (see lora-domain-split).
+        const image = input.image
 
         if (input.runMode === 'variant') {
           return generateVariants(image)

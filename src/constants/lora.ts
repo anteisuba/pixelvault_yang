@@ -1,4 +1,7 @@
 export const LORA_WORKBENCH_SECTIONS = {
+  // GENERATE 是新一等 surface（LoRA 域拥有生成，见 lora-domain-split）。
+  // mine/community 保留为「库」tab 的两个子态（公开/我的），深链不破坏。
+  GENERATE: 'generate',
   MINE: 'mine',
   TRAIN: 'train',
   COMMUNITY: 'community',

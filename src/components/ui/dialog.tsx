@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 import { Button } from '@/components/ui/button'
 
 function Dialog({
@@ -53,6 +54,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   closeLabel,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -70,6 +72,16 @@ function DialogContent({
           'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=open]:ease-[cubic-bezier(0.16,1,0.3,1)] sm:max-w-lg',
           className,
         )}
+        onOpenAutoFocus={(event) => {
+          // Touch: cancel the open-time autofocus so opening a dialog with a
+          // text field doesn't pop the on-screen keyboard. The user can tap a
+          // field to type. Desktop keeps the caller's autofocus behaviour.
+          if (isTouchPrimary()) {
+            event.preventDefault()
+            return
+          }
+          onOpenAutoFocus?.(event)
+        }}
         {...props}
       >
         {children}

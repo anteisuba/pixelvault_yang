@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { isTouchPrimary } from '@/lib/touch'
 import {
   applyPlaceholders,
   extractPlaceholders,
@@ -98,7 +99,7 @@ export function PlaceholderFillDialog({
                   }
                   placeholder={t('placeholderInputPlaceholder', { name })}
                   maxLength={200}
-                  autoFocus={placeholders[0] === name}
+                  autoFocus={!isTouchPrimary() && placeholders[0] === name}
                 />
               </div>
             ))}

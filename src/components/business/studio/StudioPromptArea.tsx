@@ -53,6 +53,7 @@ import {
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
+import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { getStylePresetById } from '@/constants/style-presets'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
@@ -872,27 +873,27 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         !(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)
       ) {
         toast.info(tPromptArea('blocked.promptRequired'))
-        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+        focusStudioPrompt()
       } else if (isAudioPromptOverLimit) {
         toast.info(
           tPromptArea('blocked.audioPromptTooLong', {
             max: TTS_MAX_TEXT_LENGTH,
           }),
         )
-        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+        focusStudioPrompt()
       } else if (isImagePromptOverLimit) {
         toast.info(
           tPromptArea('blocked.promptTooLong', {
             max: imagePromptMaxChars,
           }),
         )
-        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+        focusStudioPrompt()
       } else if (isAudioReferenceIncomplete) {
         toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
         requestAnimationFrame(() => {
-          document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+          focusStudioPrompt()
         })
       } else if (modelRejectsRefImages) {
         toast.info(tPromptArea('blocked.referenceUnsupported'))
@@ -965,7 +966,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const handlePromptDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       void imageUpload.handleDrop(event).then(() => {
-        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+        focusStudioPrompt()
       })
     },
     [imageUpload],

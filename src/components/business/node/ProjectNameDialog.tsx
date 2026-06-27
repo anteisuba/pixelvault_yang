@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { isTouchPrimary } from '@/lib/touch'
 
 interface ProjectNameDialogProps {
   open: boolean
@@ -96,7 +97,7 @@ function ProjectNameForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
-        autoFocus
+        autoFocus={!isTouchPrimary()}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}

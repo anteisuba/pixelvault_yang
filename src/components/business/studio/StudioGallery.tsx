@@ -14,7 +14,7 @@ import { StudioLightbox } from '@/components/business/studio-shared/chrome/Studi
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useLike } from '@/hooks/use-like'
 import { batchGetLikesAPI } from '@/lib/api-client/profile'
-import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -144,7 +144,7 @@ export const StudioGallery = memo(function StudioGallery() {
   const handleUseAsRef = useCallback(
     async (url: string) => {
       await imageUpload.addFromUrl(url)
-      document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      focusStudioPrompt()
     },
     [imageUpload],
   )
@@ -176,10 +176,7 @@ export const StudioGallery = memo(function StudioGallery() {
           payload: preset.advancedParams,
         })
       }
-      const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-      if (promptField instanceof HTMLTextAreaElement) {
-        promptField.focus()
-      }
+      focusStudioPrompt()
     },
     [dispatch, modelOptions],
   )

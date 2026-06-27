@@ -82,6 +82,7 @@ import {
 } from '@/lib/gallery-cache'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
+import { focusUnlessTouch } from '@/lib/touch'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -2260,8 +2261,7 @@ function ProjectRenameTreeContent(props: ProjectRenameSidebarItemProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    inputRef.current?.focus()
-    inputRef.current?.select()
+    focusUnlessTouch(inputRef.current, { select: true })
   }, [])
 
   return (

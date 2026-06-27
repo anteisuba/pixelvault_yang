@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 
 interface ApiKeyRowProps {
   record: UserApiKeyRecord
@@ -116,7 +117,7 @@ export function ApiKeyRow({
               onChange={(e) => setEditValue(e.target.value)}
               placeholder={t('editKeyPlaceholder')}
               className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-xs focus:border-primary/40 focus:outline-none"
-              autoFocus
+              autoFocus={!isTouchPrimary()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void handleSaveKey()
                 if (e.key === 'Escape') {

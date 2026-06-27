@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 
 const Drawer = ({
   shouldScaleBackground = true,
@@ -50,7 +51,7 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 const DrawerContent = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, style, ...props }, ref) => (
+>(({ className, children, style, onOpenAutoFocus, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -62,6 +63,15 @@ const DrawerContent = React.forwardRef<
       style={{
         bottom: 'var(--keyboard-inset, 0px)',
         ...style,
+      }}
+      onOpenAutoFocus={(event) => {
+        // Touch: cancel open-time autofocus so opening a drawer with a text
+        // field doesn't pop the keyboard. Desktop keeps caller behaviour.
+        if (isTouchPrimary()) {
+          event.preventDefault()
+          return
+        }
+        onOpenAutoFocus?.(event)
       }}
       {...props}
     >

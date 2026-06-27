@@ -57,6 +57,7 @@ import {
 } from '@/lib/script-doc-edit'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AppLocale } from '@/i18n/routing'
@@ -1259,7 +1260,7 @@ function FocusBox({
   return (
     <div className="flex items-start gap-1 rounded-xl border border-node-edge bg-node-panel-soft p-1.5">
       <textarea
-        autoFocus
+        autoFocus={!isTouchPrimary()}
         value={text}
         rows={1}
         placeholder={placeholder}

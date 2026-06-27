@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Dialog as SheetPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -52,6 +53,7 @@ function SheetContent({
   showCloseButton = true,
   closeLabel,
   style,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
@@ -87,6 +89,15 @@ function SheetContent({
               }
             : style
         }
+        onOpenAutoFocus={(event) => {
+          // Touch: cancel open-time autofocus so opening a sheet with a text
+          // field doesn't pop the keyboard. Desktop keeps caller behaviour.
+          if (isTouchPrimary()) {
+            event.preventDefault()
+            return
+          }
+          onOpenAutoFocus?.(event)
+        }}
         {...props}
       >
         {children}

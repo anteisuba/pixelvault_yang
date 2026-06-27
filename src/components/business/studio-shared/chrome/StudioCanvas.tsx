@@ -25,7 +25,7 @@ import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
-import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { cn } from '@/lib/utils'
 import {
   applyAudioFeedbackTags,
@@ -159,7 +159,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
         const url = source.data.url as string
         if (url) {
           void imageUpload.addFromUrl(url).then(() => {
-            document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+            focusStudioPrompt()
           })
         }
       },
@@ -169,7 +169,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const handleUseAsReference = useCallback(
     async (url: string) => {
       await imageUpload.addFromUrl(url)
-      document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      focusStudioPrompt()
     },
     [imageUpload],
   )
@@ -201,10 +201,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
           payload: preset.advancedParams,
         })
       }
-      const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-      if (promptField instanceof HTMLTextAreaElement) {
-        promptField.focus()
-      }
+      focusStudioPrompt()
     },
     [dispatch, modelOptions],
   )

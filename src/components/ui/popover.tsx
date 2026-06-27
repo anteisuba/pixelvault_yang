@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 
 interface PopoverInteractionGuard {
   markInternalInteraction: () => void
@@ -101,6 +102,7 @@ function PopoverContent({
   onFocusOutside,
   onInteractOutside,
   onPointerDownOutside,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   const guard = React.useContext(PopoverInteractionGuardContext)
@@ -164,6 +166,15 @@ function PopoverContent({
         onPointerDownOutside={(event) => {
           if (keepOpenForInternalOutsideEvent(event)) return
           onPointerDownOutside?.(event)
+        }}
+        onOpenAutoFocus={(event) => {
+          // Touch: cancel open-time autofocus so opening a popover with a
+          // search/text field doesn't pop the keyboard. Desktop unchanged.
+          if (isTouchPrimary()) {
+            event.preventDefault()
+            return
+          }
+          onOpenAutoFocus?.(event)
         }}
         {...props}
       />

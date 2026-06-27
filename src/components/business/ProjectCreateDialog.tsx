@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { isTouchPrimary } from '@/lib/touch'
 import { createProjectAPI } from '@/lib/api-client'
 import type { ProjectRecord } from '@/types'
 
@@ -96,7 +97,7 @@ export function ProjectCreateDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Input
-              autoFocus
+              autoFocus={!isTouchPrimary()}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('projectNamePlaceholder')}

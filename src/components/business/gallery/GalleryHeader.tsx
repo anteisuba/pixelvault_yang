@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import type {
   GallerySortOption,
@@ -200,7 +201,7 @@ export const GalleryHeader = memo(function GalleryHeader({
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder={t('searchPlaceholder')}
                 className="w-40 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                autoFocus
+                autoFocus={!isTouchPrimary()}
               />
               {searchInput && (
                 <button

@@ -12,6 +12,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   GenerateRequest,
   GenerationRecord,
+  GenerationSourceSurface,
   ImageStatusResponseData,
   ImageSubmitResponseData,
   MultiViewGeneratedAngle,
@@ -69,6 +70,8 @@ export interface ImageQueueMetadata {
   multiViewBatchId?: string
   multiViewAngle?: MultiViewGeneratedAngle
   sourceGenerationId?: string
+  /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省 IMAGE_STUDIO）。 */
+  sourceSurface?: GenerationSourceSurface
   studioSnapshot?: {
     freePrompt?: string
     characterCardId?: string
@@ -94,6 +97,7 @@ export async function submitImageGeneration(
     | 'multiViewBatchId'
     | 'multiViewAngle'
     | 'sourceGenerationId'
+    | 'sourceSurface'
     | 'studioSnapshot'
   > = {},
 ): Promise<ImageSubmitResponseData> {
@@ -165,6 +169,7 @@ export async function submitImageGeneration(
     multiViewBatchId: queueMetadataInput.multiViewBatchId,
     multiViewAngle: queueMetadataInput.multiViewAngle,
     sourceGenerationId: queueMetadataInput.sourceGenerationId,
+    sourceSurface: queueMetadataInput.sourceSurface,
     studioSnapshot: queueMetadataInput.studioSnapshot,
   }
 

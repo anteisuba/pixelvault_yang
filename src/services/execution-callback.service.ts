@@ -7,6 +7,7 @@ import type { ExecutionCallbackPayload } from '@/types'
 import {
   ExecutionCallbackErrorDataSchema,
   ExecutionCallbackResultDataSchema,
+  GenerationSourceSurfaceSchema,
 } from '@/types'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
@@ -108,6 +109,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     multiViewBatchId: z.string().min(1).optional(),
     multiViewAngle: z.enum(['back', 'left', 'right']).optional(),
     sourceGenerationId: z.string().min(1).optional(),
+    sourceSurface: GenerationSourceSurfaceSchema.optional(),
     studioSnapshot: z
       .object({
         freePrompt: z.string().optional(),
@@ -841,6 +843,7 @@ async function finalizeImageResult(
             runGroupId: metadata.runGroupId,
             runGroupType: metadata.runGroupType,
             runGroupIndex: metadata.runGroupIndex,
+            sourceSurface: metadata.sourceSurface,
             snapshot: withGenerationObservability(
               {
                 ...metadata.studioSnapshot,

@@ -3308,6 +3308,17 @@ export interface CivitaiTokenStatusResponse {
 
 // ── Studio V2 Generate ──────────────────────────────────────────
 
+/** 产物来源 surface（与 prisma GenerationSourceSurface 对齐；拆 surface 不拆 engine）。 */
+export const GenerationSourceSurfaceSchema = z.enum([
+  'IMAGE_STUDIO',
+  'LORA_WORKBENCH',
+  'CANVAS',
+  'EDIT',
+])
+export type GenerationSourceSurface = z.infer<
+  typeof GenerationSourceSurfaceSchema
+>
+
 export const StudioGenerateSchema = z
   .object({
     /** Quick mode: direct model selection */
@@ -3339,6 +3350,8 @@ export const StudioGenerateSchema = z
     runGroupIndex: z.number().int().min(0).optional(),
     /** Prompt template usage metadata for generation lineage */
     recipeUsage: RecipeUsageSchema.optional(),
+    /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省走 DB 默认 IMAGE_STUDIO）。 */
+    sourceSurface: GenerationSourceSurfaceSchema.optional(),
   })
   .refine((data) => !!(data.modelId || data.styleCardId), {
     message: 'Either modelId or styleCardId is required',

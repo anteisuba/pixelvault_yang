@@ -924,7 +924,10 @@ function CivitaiCommunityBranch({
       }
       stack.push(item)
       toast.success(t('addedToStack', { name: item.name }))
-      router.push(ROUTES.STUDIO_IMAGE)
+      // 去生成：切到 LoRA 域生成 tab（Image Studio 已不消费 LoRA）。
+      router.push(
+        `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
+      )
     },
     [router, stack, t],
   )

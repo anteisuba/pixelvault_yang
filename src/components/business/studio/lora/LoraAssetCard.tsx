@@ -17,8 +17,12 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { API_ENDPOINTS } from '@/constants/config'
+import {
+  LORA_WORKBENCH_SEARCH_PARAM,
+  LORA_WORKBENCH_SECTIONS,
+} from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import {
@@ -92,9 +96,7 @@ export function LoraAssetCard({
   onDelete,
 }: LoraAssetCardProps) {
   const t = useTranslations('LoraWorkbench')
-  const tStack = useTranslations('LoraStack')
   const router = useRouter()
-  const pathname = usePathname()
   const stack = useActiveLoraStack()
   const [isToggling, setIsToggling] = useState(false)
   // Delete is a two-step (menu → confirm) flow with the dialog mounted
@@ -117,15 +119,13 @@ export function LoraAssetCard({
     if (!alreadyInStack) {
       stack.push(asset)
     }
-    // Already on the image canvas? Don't yank focus — just confirm.
-    // The stack is now hot and the next generate will pick it up.
-    if (pathname === ROUTES.STUDIO_IMAGE) {
-      toast.success(tStack('alreadyHere', { name: asset.name }))
-      return
-    }
+    // 去生成：把 LoRA 喂进脊柱条并切到 LoRA 域的生成 tab
+    // （Image Studio 已解耦、不再消费 LoRA）。
     toast.success(t('addedToStack', { name: asset.name }))
-    router.push(ROUTES.STUDIO_IMAGE)
-  }, [alreadyInStack, asset, pathname, stack, router, t, tStack])
+    router.push(
+      `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
+    )
+  }, [alreadyInStack, asset, stack, router, t])
 
   const handleCopyCode = useCallback(async () => {
     try {

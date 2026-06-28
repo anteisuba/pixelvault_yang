@@ -14,6 +14,7 @@ import type {
   GenerationRecord,
   GallerySortOption,
   GalleryTimeRange,
+  GenerationSourceSurface,
   OutputType,
   OutputTypeFilter,
 } from '@/types'
@@ -91,6 +92,8 @@ export interface CreateGenerationInput {
   runGroupType?: string
   /** B0: Position within run group */
   runGroupIndex?: number
+  /** 产物来源 surface（缺省 IMAGE_STUDIO）。 */
+  sourceSurface?: GenerationSourceSurface
 }
 
 export interface ListGenerationsOptions {
@@ -406,6 +409,7 @@ export async function createGeneration(
       runGroupId: input.runGroupId,
       runGroupType: input.runGroupType ?? 'single',
       runGroupIndex: input.runGroupIndex ?? 0,
+      sourceSurface: input.sourceSurface ?? 'IMAGE_STUDIO',
     },
   })
 

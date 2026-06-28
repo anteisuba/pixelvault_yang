@@ -49,6 +49,11 @@ import {
   type LoraWorkbenchSection,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
+import {
+  getCompatibleBases,
+  getDefaultBase,
+  type LoraBaseModel,
+} from '@/constants/lora-base-models'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type {
   CivitaiLoraLibraryItem,
@@ -280,10 +285,23 @@ function GenerateBranch() {
   )
 }
 
-// 常驻脊柱条：当前 LoRA stack + 底模占位（底模扁平选择器为下一增量）。
+// 常驻脊柱条：当前 LoRA stack + 被 LoRA 家族约束的底模扁平选择器。
 function LoraSpineBar() {
   const t = useTranslations('LoraWorkbench')
   const stack = useActiveLoraStack()
+
+  // 底模被当前 LoRA（stack[0]）的家族约束；空栈时无家族、显示占位。
+  const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
+  const compatibleBases = loraFamily ? getCompatibleBases(loraFamily) : []
+  const defaultBase = loraFamily ? getDefaultBase(loraFamily) : null
+  const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
+  // selectedBaseId 可能残留自上一个家族 → 不在当前兼容集就回落默认。
+  const selectedBase =
+    compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
+
+  const fidelityLabel = (b: LoraBaseModel) =>
+    b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
+
   return (
     <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -310,9 +328,32 @@ function LoraSpineBar() {
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {t('spine.baseModel')}
       </span>
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
-        {t('spine.baseModelPending')}
-      </span>
+      {compatibleBases.length > 0 ? (
+        <Select
+          value={selectedBase?.id}
+          onValueChange={(value) => setSelectedBaseId(value)}
+        >
+          <SelectTrigger className="h-7 w-auto gap-1.5 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {compatibleBases.map((base) => (
+              <SelectItem
+                key={base.id}
+                value={base.id}
+                disabled={!base.available}
+              >
+                {base.displayName} · {fidelityLabel(base)}
+                {base.available ? '' : ` · ${t('spine.comingSoon')}`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
+          {t('spine.baseModelPending')}
+        </span>
+      )}
     </div>
   )
 }

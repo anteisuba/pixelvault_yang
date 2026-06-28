@@ -1272,7 +1272,10 @@
       "currentLora": "Current LoRA",
       "baseModel": "Base model",
       "baseModelPending": "Follows your LoRA (coming soon)",
-      "empty": "No LoRA selected — pick one in Library"
+      "empty": "No LoRA selected — pick one in Library",
+      "fast": "Fast",
+      "faithful": "Faithful",
+      "comingSoon": "Coming soon"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",

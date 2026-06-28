@@ -1272,7 +1272,10 @@
       "currentLora": "当前 LoRA",
       "baseModel": "底模",
       "baseModelPending": "随 LoRA 选择（即将）",
-      "empty": "还没选 LoRA，去「库」挑一个"
+      "empty": "还没选 LoRA，去「库」挑一个",
+      "fast": "快",
+      "faithful": "忠实",
+      "comingSoon": "即将"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",

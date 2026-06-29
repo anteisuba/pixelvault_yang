@@ -1265,8 +1265,11 @@
       "public": "公開"
     },
     "generate": {
-      "placeholderTitle": "LoRA 生成（近日公開）",
-      "placeholderBody": "「ライブラリ」でLoRAを選ぶと、ここで忠実な再現とカスタム生成ができるようになります。"
+      "placeholderTitle": "まず LoRA を選択",
+      "placeholderBody": "「ライブラリ」で LoRA を選ぶと、ここで生成できます。",
+      "run": "生成",
+      "promptPlaceholder": "生成したい画像を入力…",
+      "restore": "忠実再現"
     },
     "spine": {
       "currentLora": "現在のLoRA",

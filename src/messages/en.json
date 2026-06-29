@@ -1265,8 +1265,11 @@
       "public": "Public"
     },
     "generate": {
-      "placeholderTitle": "LoRA generation (coming soon)",
-      "placeholderBody": "Pick a LoRA in Library — faithful restore and custom generation land here soon."
+      "placeholderTitle": "Pick a LoRA first",
+      "placeholderBody": "Choose a LoRA in Library, then come back here to generate.",
+      "run": "Generate",
+      "promptPlaceholder": "Describe the image you want…",
+      "restore": "Faithful restore"
     },
     "spine": {
       "currentLora": "Current LoRA",

@@ -61,6 +61,7 @@ import type {
   LoraAssetRecord,
 } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
@@ -106,6 +107,7 @@ import {
   recordSearchTerm,
 } from '@/lib/civitai-search-history'
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
+import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 
@@ -262,42 +264,191 @@ export function LoraWorkbench() {
   )
 }
 
-// ── 生成分支（壳占位）──────────────────────────────────────────────
-// LoRA 域新一等 surface。当前是壳：脊柱条（当前 LoRA / 底模）+ 占位说明。
-// recipe 源图 / 模式 / ivory 提示词纸 / 出图 + 底模扁平选择器 为后续增量。
+// ── 生成分支（3b-ii-a 最小出图核心）──────────────────────────────────
+// 脊柱条（当前 LoRA / 底模）+ ivory 提示词纸 + 出图：把脊柱条的 LoRA 注入
+// advancedParams.loras、选中底模的 providerModelId 作 modelId、打
+// sourceSurface=LORA_WORKBENCH，复用 useUnifiedGenerate 发图 → 落素材。
+// recipe 源图/模式 + 暗房视觉为后续增量。
 function GenerateBranch() {
   const t = useTranslations('LoraWorkbench')
-  return (
-    <section className="space-y-4">
-      <LoraSpineBar />
-      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
-        <Sparkles className="size-7 text-muted-foreground" aria-hidden />
-        <div className="space-y-1">
-          <h2 className="text-base font-medium">
-            {t('generate.placeholderTitle')}
-          </h2>
-          <p className="max-w-md text-sm text-muted-foreground">
-            {t('generate.placeholderBody')}
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// 常驻脊柱条：当前 LoRA stack + 被 LoRA 家族约束的底模扁平选择器。
-function LoraSpineBar() {
-  const t = useTranslations('LoraWorkbench')
+  const router = useRouter()
   const stack = useActiveLoraStack()
+  const { generate, isGenerating, lastGeneration } = useUnifiedGenerate()
 
-  // 底模被当前 LoRA（stack[0]）的家族约束；空栈时无家族、显示占位。
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
   const compatibleBases = loraFamily ? getCompatibleBases(loraFamily) : []
   const defaultBase = loraFamily ? getDefaultBase(loraFamily) : null
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
-  // selectedBaseId 可能残留自上一个家族 → 不在当前兼容集就回落默认。
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
+
+  // 提示词默认填当前 LoRA 触发词（保证 LoRA 被激活）；切 LoRA 时更新。
+  // 用 render 时条件 setState（React 推荐的"随 prop 重置 state"），避免 effect 级联。
+  const loraId = stack.items[0]?.asset.id ?? null
+  const loraTrigger = stack.items[0]?.asset.triggerWord ?? ''
+  const [prompt, setPrompt] = useState('')
+  const [promptLoraId, setPromptLoraId] = useState<string | null>(null)
+  if (promptLoraId !== loraId) {
+    setPromptLoraId(loraId)
+    setPrompt(loraTrigger)
+  }
+
+  // 忠实还原：用 LoRA 的推荐/源图匹配提示词一键填充 + 套用推荐 scale + 负向。
+  const activeAsset = stack.items[0]?.asset ?? null
+  const [negativePrompt, setNegativePrompt] = useState('')
+  const handleRestore = useCallback(() => {
+    if (!activeAsset) return
+    const matched = buildSourceMatchedLoraPrompt(activeAsset)
+    setPrompt(matched.prompt)
+    setNegativePrompt(matched.negativePrompt)
+    stack.setScale(activeAsset.id, matched.scale)
+  }, [activeAsset, stack])
+
+  const hasLora = stack.items.length > 0
+  const canGenerate =
+    hasLora &&
+    !!selectedBase?.available &&
+    !!selectedBase.providerModelId &&
+    prompt.trim().length > 0 &&
+    !isGenerating
+
+  const handleGenerate = useCallback(async () => {
+    const providerModelId = selectedBase?.providerModelId
+    if (!providerModelId) return
+    const loras = stack.items.map((entry) => ({
+      url: entry.asset.loraUrl,
+      scale: entry.scale ?? entry.asset.defaultScale,
+    }))
+    const advanced: Record<string, unknown> = {}
+    if (loras.length > 0) advanced.loras = loras
+    if (negativePrompt.trim()) advanced.negativePrompt = negativePrompt.trim()
+    await generate({
+      mode: 'image',
+      image: {
+        modelId: providerModelId,
+        freePrompt: prompt,
+        aspectRatio: '1:1',
+        advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
+        sourceSurface: 'LORA_WORKBENCH',
+      },
+    })
+  }, [generate, negativePrompt, prompt, selectedBase, stack])
+
+  return (
+    <section className="space-y-4">
+      <LoraSpineBar
+        compatibleBases={compatibleBases}
+        selectedBase={selectedBase}
+        onSelectBase={setSelectedBaseId}
+      />
+
+      {!hasLora ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
+          <Sparkles className="size-7 text-muted-foreground" aria-hidden />
+          <div className="space-y-1">
+            <h2 className="text-base font-medium">
+              {t('generate.placeholderTitle')}
+            </h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              {t('generate.placeholderBody')}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              router.push(
+                `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
+              )
+            }
+          >
+            <Compass className="size-3.5" aria-hidden />
+            {t('tabs.library')}
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div
+            className="aspect-square w-full max-w-md rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
+            style={
+              lastGeneration
+                ? { backgroundImage: `url(${lastGeneration.url})` }
+                : undefined
+            }
+          >
+            {isGenerating ? (
+              <div className="flex size-full items-center justify-center">
+                <Loader2
+                  className="size-6 animate-spin text-muted-foreground"
+                  aria-hidden
+                />
+              </div>
+            ) : !lastGeneration ? (
+              <div className="flex size-full items-center justify-center">
+                <Sparkles
+                  className="size-7 text-muted-foreground/40"
+                  aria-hidden
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-2 rounded-2xl bg-surface-composer p-3 text-surface-composer-foreground">
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder={loraTrigger || t('generate.promptPlaceholder')}
+              rows={3}
+              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!activeAsset || isGenerating}
+                onClick={handleRestore}
+              >
+                <Wand2 className="size-3.5" aria-hidden />
+                {t('generate.restore')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!canGenerate}
+                onClick={handleGenerate}
+              >
+                {isGenerating ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden />
+                )}
+                {t('generate.run')}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+interface LoraSpineBarProps {
+  compatibleBases: LoraBaseModel[]
+  selectedBase: LoraBaseModel | null
+  onSelectBase: (id: string) => void
+}
+
+// 常驻脊柱条：当前 LoRA stack（自取）+ 被 LoRA 家族约束的底模扁平选择器。
+// 选中态由 GenerateBranch 持有（受控），便于出图读取。
+function LoraSpineBar({
+  compatibleBases,
+  selectedBase,
+  onSelectBase,
+}: LoraSpineBarProps) {
+  const t = useTranslations('LoraWorkbench')
+  const stack = useActiveLoraStack()
 
   const fidelityLabel = (b: LoraBaseModel) =>
     b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
@@ -329,10 +480,7 @@ function LoraSpineBar() {
         {t('spine.baseModel')}
       </span>
       {compatibleBases.length > 0 ? (
-        <Select
-          value={selectedBase?.id}
-          onValueChange={(value) => setSelectedBaseId(value)}
-        >
+        <Select value={selectedBase?.id} onValueChange={onSelectBase}>
           <SelectTrigger className="h-7 w-auto gap-1.5 text-xs">
             <SelectValue />
           </SelectTrigger>

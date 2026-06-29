@@ -1265,8 +1265,11 @@
       "public": "公开"
     },
     "generate": {
-      "placeholderTitle": "LoRA 生成（即将上线）",
-      "placeholderBody": "先在「库」选一个 LoRA，这里很快就能做忠实还原与定制生成。"
+      "placeholderTitle": "先选一个 LoRA",
+      "placeholderBody": "去「库」挑一个 LoRA，回到这里就能出图。",
+      "run": "出图",
+      "promptPlaceholder": "描述你想要的画面…",
+      "restore": "忠实还原"
     },
     "spine": {
       "currentLora": "当前 LoRA",

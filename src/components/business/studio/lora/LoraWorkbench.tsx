@@ -55,12 +55,17 @@ import {
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
 import { usePathname, useRouter } from '@/i18n/navigation'
+import type { AspectRatio } from '@/constants/config'
 import type {
+  CivitaiImageRecipe,
   CivitaiLoraLibraryItem,
   CivitaiMinedPromptsResult,
   LoraAssetRecord,
 } from '@/types'
-import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import {
+  LORA_STACK_MAX,
+  useActiveLoraStack,
+} from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
@@ -108,6 +113,8 @@ import {
 } from '@/lib/civitai-search-history'
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
+import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
+import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 
@@ -304,6 +311,34 @@ function GenerateBranch() {
     stack.setScale(activeAsset.id, matched.scale)
   }, [activeAsset, stack])
 
+  // 源图配方：按当前 LoRA 的 Civitai provenance 取源图，点某张「一键同款」。
+  const mined = useCivitaiMinedPrompts(
+    activeAsset
+      ? {
+          modelId: activeAsset.modelId,
+          modelVersionId: activeAsset.modelVersionId,
+          fileHashAutoV3: activeAsset.fileHashAutoV3,
+        }
+      : null,
+  )
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+  const [includeSeed, setIncludeSeed] = useState(false)
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
+  const [seed, setSeed] = useState<number | undefined>(undefined)
+  const handleApplyRecipe = useCallback(
+    (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
+      const plan = buildCivitaiRecipeGenerationPlan(recipe)
+      setPrompt(plan.prompt)
+      setNegativePrompt(plan.advancedParams?.negativePrompt ?? '')
+      if (plan.aspectRatio) setAspectRatio(plan.aspectRatio)
+      if (plan.loraScale != null && activeAsset) {
+        stack.setScale(activeAsset.id, plan.loraScale)
+      }
+      setSeed(options.includeSeed ? plan.advancedParams?.seed : undefined)
+    },
+    [activeAsset, stack],
+  )
+
   const hasLora = stack.items.length > 0
   const canGenerate =
     hasLora &&
@@ -327,12 +362,13 @@ function GenerateBranch() {
       image: {
         modelId: providerModelId,
         freePrompt: prompt,
-        aspectRatio: '1:1',
+        aspectRatio,
+        seed,
         advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
         sourceSurface: 'LORA_WORKBENCH',
       },
     })
-  }, [generate, negativePrompt, prompt, selectedBase, stack])
+  }, [aspectRatio, generate, negativePrompt, prompt, seed, selectedBase, stack])
 
   return (
     <section className="space-y-4">
@@ -369,6 +405,20 @@ function GenerateBranch() {
         </div>
       ) : (
         <>
+          {mined.recipes.length > 0 ? (
+            <LoraSourceRecipeStrip
+              assetName={activeAsset?.name ?? ''}
+              recipes={mined.recipes}
+              selectedImageUrl={selectedImageUrl}
+              includeSeed={includeSeed}
+              extraMountStatusByKey={{}}
+              extraStackFull={stack.items.length >= LORA_STACK_MAX}
+              onSelectedImageUrlChange={setSelectedImageUrl}
+              onIncludeSeedChange={setIncludeSeed}
+              onMountExtraLora={() => undefined}
+              onApplyRecipe={handleApplyRecipe}
+            />
+          ) : null}
           <div
             className="aspect-square w-full max-w-md rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
             style={

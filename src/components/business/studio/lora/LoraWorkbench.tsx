@@ -1733,35 +1733,28 @@ function CivitaiCommunityBranch({
   )
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-3 sm:p-5">
-      {/* Mobile: title + refresh on the same row so the section header doesn't
-          eat ~88px of vertical space before any content shows. sm+ gets the
-          original taller layout with refresh aligned to the bottom-right. */}
-      <header className="flex flex-row items-center justify-between gap-2 border-b border-border/60 pb-3 sm:items-end sm:pb-4">
-        <h2 className="font-display text-lg font-semibold tracking-tight sm:text-xl">
-          {t('communityTitle')}
-        </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => void library.refresh()}
-          aria-label={t('refresh')}
-          className="shrink-0"
-        >
-          <RefreshCw className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">{t('refresh')}</span>
-        </Button>
-      </header>
-
-      {/* 库模块重做：详情从常驻第三栏改成按需抽屉后，这里不再需要
-          lg:grid-cols-3 split——封面网格本身就该占满整个宽度。 */}
-      <div className="flex min-h-0 flex-col gap-3 pt-4">
-        <div className="flex min-w-0 flex-col gap-3">
-          <BaseModelChipRow
-            value={library.baseModel}
-            onChange={handleBaseModelChange}
-          />
+    <section className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+      {/* 用户反馈：标题栏（含"LoRA 库"大标题 + 独立 border-bottom 一整行）
+          跟外层公开/我的切换重复，还有筛选提示句都在挤占竖向空间。收成
+          一行：家族 chip 靠左，刷新图标钉在最右，没有独立标题行了。 */}
+      <div className="flex min-h-0 flex-col gap-2.5">
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <div className="flex items-start gap-2">
+            <BaseModelChipRow
+              value={library.baseModel}
+              onChange={handleBaseModelChange}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void library.refresh()}
+              aria-label={t('refresh')}
+              className="ml-auto shrink-0"
+            >
+              <RefreshCw className="size-3.5" aria-hidden />
+            </Button>
+          </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <div ref={searchWrapperRef} className="relative min-w-0 flex-1">
@@ -2814,25 +2807,20 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
   }
 
   return (
-    <div className="space-y-1.5">
-      <div
-        role="radiogroup"
-        aria-label={t('baseModelFilterLabel')}
-        // `max-w-full` + explicit `w-full` ensures the row's intrinsic width
-        // never exceeds the parent column, so flex-wrap activates instead of
-        // silently overflowing the section card on narrow viewports.
-        className="flex w-full max-w-full flex-wrap items-center gap-1.5"
-      >
-        {renderChip('all')}
-        {generatableChips.map(renderChip)}
-        {externalChips.length > 0 ? (
-          <span className="mx-1 h-4 w-px shrink-0 bg-border/60" aria-hidden />
-        ) : null}
-        {externalChips.map(renderChip)}
-      </div>
-      <p className="px-1 text-2xs text-muted-foreground">
-        {t('baseModelFilterHint')}
-      </p>
+    <div
+      role="radiogroup"
+      aria-label={t('baseModelFilterLabel')}
+      // `min-w-0` lets this shrink inside the flex row next to the refresh
+      // button; `flex-wrap` still activates instead of overflowing on
+      // narrow viewports.
+      className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
+    >
+      {renderChip('all')}
+      {generatableChips.map(renderChip)}
+      {externalChips.length > 0 ? (
+        <span className="mx-1 h-4 w-px shrink-0 bg-border/60" aria-hidden />
+      ) : null}
+      {externalChips.map(renderChip)}
     </div>
   )
 }

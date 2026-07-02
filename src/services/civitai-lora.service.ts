@@ -1133,12 +1133,17 @@ export async function listCivitaiLoras({
   url.searchParams.set('limit', String(upstreamLimit))
   url.searchParams.set('sort', sort)
   url.searchParams.set('nsfw', 'false')
+  // 分页 bug：以前不管走 page 还是 cursor 模式都会把 nextPageCursor 一起
+  // 带上——page 模式下这是两套分页信号同时发给 Civitai（page=N +
+  // cursor=<上一页存的值>），到底谁生效不确定，很容易导致"翻页翻不动 /
+  // 翻回重复项"这类症状。cursor 只在 query 模式下才有意义（query 模式本来
+  // 就不发 page），page 模式自己够用，不该带 cursor。
   if (normalizedSearch) {
     url.searchParams.set('query', normalizedSearch)
+    if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   } else {
     url.searchParams.set('page', String(page))
   }
-  if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   if (baseModel !== 'all') {
     appendBaseModelFamilyParams(url, baseModel)
   }

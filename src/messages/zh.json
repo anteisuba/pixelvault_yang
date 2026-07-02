@@ -1274,7 +1274,8 @@
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",
       "resultEmptyTitle": "还没有生成结果",
-      "resultEmptyHint": "选好配方后点「出图」"
+      "resultEmptyHint": "选好配方后点「出图」",
+      "resultPreviewLabel": "放大查看生成结果"
     },
     "spine": {
       "currentLora": "当前 LoRA",

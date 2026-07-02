@@ -1274,7 +1274,8 @@
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",
       "resultEmptyTitle": "No result yet",
-      "resultEmptyHint": "Pick a recipe, then hit Generate"
+      "resultEmptyHint": "Pick a recipe, then hit Generate",
+      "resultPreviewLabel": "Enlarge generation result"
     },
     "spine": {
       "currentLora": "Current LoRA",

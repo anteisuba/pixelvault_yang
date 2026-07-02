@@ -431,6 +431,7 @@ function GenerateBranch() {
   const [includeSeed, setIncludeSeed] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [seed, setSeed] = useState<number | undefined>(undefined)
+  const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
@@ -504,6 +505,38 @@ function GenerateBranch() {
         />
       )}
 
+      <Dialog
+        open={resultPreviewOpen && !!lastGeneration}
+        onOpenChange={setResultPreviewOpen}
+      >
+        <DialogContent
+          className="left-0 top-0 h-svh max-h-svh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-auto sm:max-w-[min(90vw,72rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-0"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">
+            {t('generate.resultPreviewLabel')}
+          </DialogTitle>
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:hidden"
+              aria-label={t('coverPreviewBack')}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              <span>{t('coverPreviewBack')}</span>
+            </button>
+          </DialogClose>
+          {lastGeneration ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lastGeneration.url}
+              alt={t('generate.resultPreviewLabel')}
+              className="block max-h-full max-w-full rounded-xl object-contain sm:max-h-[90svh] sm:max-w-[90vw]"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <LoraSpineBar
         compatibleBases={compatibleBases}
         selectedBase={selectedBase}
@@ -569,7 +602,7 @@ function GenerateBranch() {
             )}
           >
             <div
-              className="aspect-square w-full rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
+              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
               style={
                 lastGeneration
                   ? { backgroundImage: `url(${lastGeneration.url})` }
@@ -596,7 +629,14 @@ function GenerateBranch() {
                     {t('generate.resultEmptyHint')}
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setResultPreviewOpen(true)}
+                  aria-label={t('generate.resultPreviewLabel')}
+                  className="absolute inset-0 cursor-zoom-in"
+                />
+              )}
             </div>
 
             <div className="space-y-2 rounded-2xl bg-surface-composer p-3 text-surface-composer-foreground">

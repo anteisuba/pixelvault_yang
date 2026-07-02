@@ -1274,7 +1274,8 @@
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",
       "resultEmptyTitle": "まだ生成結果がありません",
-      "resultEmptyHint": "レシピを選んで「生成」を押してください"
+      "resultEmptyHint": "レシピを選んで「生成」を押してください",
+      "resultPreviewLabel": "生成結果を拡大表示"
     },
     "spine": {
       "currentLora": "現在のLoRA",

@@ -84,11 +84,14 @@ vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: mockUseApiKeysContext,
 }))
 
+let mockLastGeneration: { url: string } | null = null
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
     generate: mockGenerate,
     isGenerating: false,
-    lastGeneration: null,
+    get lastGeneration() {
+      return mockLastGeneration
+    },
   }),
 }))
 
@@ -146,6 +149,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   beforeEach(() => {
     mockGenerate.mockReset()
     quickSetupSpy.mockReset()
+    mockLastGeneration = null
   })
 
   it('shows a needs-key badge in the spine bar that opens QuickSetupDialog, without touching Generate', () => {
@@ -219,5 +223,31 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
+  })
+
+  it('opens a picture-frame preview when clicking the generated result image', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockLastGeneration = { url: 'https://example.com/result.png' }
+
+    render(<LoraWorkbench />)
+
+    const resultTrigger = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.resultPreviewLabel/,
+    })
+    fireEvent.click(resultTrigger)
+
+    const dialogImage = screen.getByRole('img', {
+      name: /LoraWorkbench:generate\.resultPreviewLabel/,
+    })
+    expect(dialogImage).toHaveAttribute('src', 'https://example.com/result.png')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:coverPreviewBack/ }),
+    )
+    expect(
+      screen.queryByRole('img', {
+        name: /LoraWorkbench:generate\.resultPreviewLabel/,
+      }),
+    ).not.toBeInTheDocument()
   })
 })

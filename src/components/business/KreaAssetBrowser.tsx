@@ -1257,9 +1257,9 @@ export function KreaAssetBrowser({
     >
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
-        <main className="flex-1 min-w-0 overflow-y-auto py-4">
+        <main className="studio-scrollbar flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4">
           <div className="mb-4 rounded-xl border border-border/70 bg-card/75 p-1.5 shadow-sm">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 items-center px-1.5">
                   <div className="flex min-w-0 items-center gap-1.5">
@@ -1287,7 +1287,7 @@ export function KreaAssetBrowser({
                 )}
               </div>
 
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:shrink-0">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:shrink-0">
                 {!isPickerMode && (
                   <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
                     {section.kind === 'uploads' && (
@@ -1543,8 +1543,8 @@ export function KreaAssetBrowser({
         </main>
 
         {/* ─── Right sidebar ─────────────────────────────────────── */}
-        <aside className="hidden w-72 shrink-0 overflow-y-auto py-4 lg:block">
-          <div className="grid gap-4 rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
+        <aside className="studio-scrollbar hidden min-w-0 w-72 shrink-0 overflow-x-hidden overflow-y-auto py-4 lg:block">
+          <div className="grid min-w-0 gap-4 overflow-hidden rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
             <SidebarSection label={t('sidebarViews')}>
               <SidebarItem
                 active={section.kind === 'all'}
@@ -1606,7 +1606,7 @@ export function KreaAssetBrowser({
                 onNodeClick={handleFolderTreeNodeClick}
                 showLines
                 animateExpand
-                className="-mx-1"
+                className="min-w-0 max-w-full overflow-hidden"
                 renderNodeContent={(node, state) => {
                   const data = node.data
                   const count = data?.count
@@ -2024,7 +2024,7 @@ function MediaTypeToggle({ label, options }: MediaTypeToggleProps) {
         nextOption?.onClick()
       }}
       aria-label={label}
-      className="max-w-full flex-nowrap gap-0 overflow-x-auto rounded-xl border-border/70 bg-background/80 p-0 shadow-sm"
+      className="max-w-full flex-nowrap gap-0 overflow-hidden rounded-xl border-border/70 bg-background/80 p-0 shadow-sm"
     >
       {options.map((option, index) => (
         <ToggleGroupItem
@@ -2035,7 +2035,7 @@ function MediaTypeToggle({ label, options }: MediaTypeToggleProps) {
           onMouseEnter={option.onPrefetch}
           onFocus={option.onPrefetch}
           className={cn(
-            'inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-none border-r border-border/70 px-0 text-sm first:rounded-l-xl last:rounded-r-xl last:border-r-0',
+            'inline-flex h-10 w-11 shrink-0 items-center justify-center rounded-none border-r border-border/70 px-0 text-sm first:rounded-l-xl last:rounded-r-xl last:border-r-0',
             'hover:bg-muted/50 hover:text-foreground',
             'data-[state=on]:z-10 data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm',
             index > 0 && '-ml-px',

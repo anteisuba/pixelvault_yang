@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import type { NodeProps } from '@xyflow/react'
 import {
@@ -116,6 +117,7 @@ export function NodeMediaPreview({
   selected,
   onReChoose,
 }: NodeMediaPreviewProps) {
+  const [videoAspect, setVideoAspect] = useState<number | null>(null)
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
@@ -163,7 +165,14 @@ export function NodeMediaPreview({
         action={<NodeExpandButton nodeId={id} />}
       />
       <NodeShell.Body className="space-y-3">
-        <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+        <div
+          className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft"
+          style={
+            kind === NODE_MEDIA_KIND_IDS.video && videoAspect
+              ? { aspectRatio: videoAspect }
+              : undefined
+          }
+        >
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
             <>
               <Image
@@ -186,9 +195,15 @@ export function NodeMediaPreview({
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
             <video
               src={mediaUrl}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               controls
               muted
+              onLoadedMetadata={(event) => {
+                const { videoWidth, videoHeight } = event.currentTarget
+                if (videoWidth > 0 && videoHeight > 0) {
+                  setVideoAspect(videoWidth / videoHeight)
+                }
+              }}
             />
           ) : null}
 

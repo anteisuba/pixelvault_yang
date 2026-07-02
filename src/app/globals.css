@@ -329,6 +329,8 @@ html:lang(zh) {
 }
 
 .dark {
+  color-scheme: dark;
+
   /* ── Dark palette — Krea dark tokens ────────────────────────────────── */
   --background: oklch(14.5% 0 0);
   --foreground: oklch(98.5% 0 0);
@@ -378,6 +380,35 @@ html:lang(zh) {
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--muted-foreground) 58%,
+        transparent
+      )
+      var(--background);
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid var(--background);
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--muted-foreground) 58%, transparent)
+      padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 78%, transparent)
+      padding-box;
   }
 
   html {

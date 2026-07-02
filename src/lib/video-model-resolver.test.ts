@@ -10,6 +10,7 @@ import {
   getSurfacedVideoBrands,
   isDualProviderBrand,
   pickDefaultProvider,
+  resolveEffectiveVideoModelOption,
   resolveVideoModelId,
 } from '@/lib/video-model-resolver'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
@@ -124,6 +125,76 @@ describe('resolveVideoModelId — unavailable combo', () => {
           hasReferenceInputs: false,
         },
         falOnly,
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('resolveEffectiveVideoModelOption — generate-time reference re-resolve', () => {
+  function effectiveId(
+    modelId: string,
+    hasReferenceInputs: boolean,
+    options = ALL_OPTIONS,
+  ): string | null {
+    const model = getModelById(modelId)
+    return (
+      resolveEffectiveVideoModelOption(
+        { modelId, adapterType: model?.adapterType ?? FAL },
+        hasReferenceInputs,
+        options,
+      )?.modelId ?? null
+    )
+  }
+
+  it('upgrades a stale non-reference id to its _REFERENCE sibling when refs are bound', () => {
+    // The exact bug: node defaulted to SEEDANCE_20_FAST, reference video +
+    // character wired afterwards → must become SEEDANCE_20_FAST_REFERENCE so the
+    // worker keeps video_urls instead of routing to buildSeedance20.
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_FAST, true)).toBe(
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_20, true)).toBe(
+      AI_MODELS.SEEDANCE_20_REFERENCE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE, true)).toBe(
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+    )
+  })
+
+  it('downgrades a reference id back to base when no refs remain (avoids requireReferenceImage throw)', () => {
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, false)).toBe(
+      AI_MODELS.SEEDANCE_20_FAST,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_REFERENCE, false)).toBe(
+      AI_MODELS.SEEDANCE_20,
+    )
+  })
+
+  it('is idempotent when the persisted id already matches the input mode', () => {
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_FAST, false)).toBe(
+      AI_MODELS.SEEDANCE_20_FAST,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, true)).toBe(
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+    )
+  })
+
+  it('preserves the chosen provider when flipping reference-ness', () => {
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_VOLCENGINE, true)).toBe(
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+    )
+  })
+
+  it('returns null for single-variant brands (Kling/Veo signal reference at build time)', () => {
+    const model = getModelById(AI_MODELS.KLING_V3_PRO)
+    expect(
+      resolveEffectiveVideoModelOption(
+        {
+          modelId: AI_MODELS.KLING_V3_PRO,
+          adapterType: model?.adapterType ?? FAL,
+        },
+        true,
+        ALL_OPTIONS,
       ),
     ).toBeNull()
   })

@@ -85,10 +85,7 @@ import {
   clearStudioNodeResult,
   readStudioNodeResult,
 } from '@/lib/studio-node-handoff'
-import {
-  getBrandVariants,
-  getSurfacedVideoBrands,
-} from '@/lib/video-model-resolver'
+import { resolveEffectiveVideoModelOption } from '@/lib/video-model-resolver'
 import { canConnectNodeTypes } from '@/lib/node-connection-rules'
 import {
   AlertDialog,
@@ -886,11 +883,32 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           ? (node.data.voiceEmotion as AudioEmotion)
           : undefined
 
+      // Reference-ness is mode-by-input: resolve it HERE from the actual
+      // harvested inputs, not from the persisted (possibly stale) data.model. A
+      // video node defaulted to a non-reference Seedance id keeps that id even
+      // after reference edges (character image / reference video / voice) are
+      // wired — `useVideoComposer` resolves the model only once — and the worker
+      // then routes it to `buildSeedance20`, which silently drops video_urls /
+      // audio_urls. Re-resolving at submit keeps the reference clip alive.
+      const videoHasReferenceInputs =
+        referenceImages.length > 0 ||
+        upstreamVideoUrls.length > 0 ||
+        upstreamAudioUrls.length > 0
+      const effectiveVideoModel = isVideoMediaNode
+        ? resolveEffectiveVideoModelOption(
+            model,
+            videoHasReferenceInputs,
+            modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
+          )
+        : null
+      const submitModelId = effectiveVideoModel?.modelId ?? model.modelId
+      const submitApiKeyId = effectiveVideoModel?.apiKeyId ?? model.apiKeyId
+
       const result = await nodeMediaGeneration.generate(
         {
           kind,
-          modelId: model.modelId,
-          apiKeyId: model.apiKeyId,
+          modelId: submitModelId,
+          apiKeyId: submitApiKeyId,
           prompt: finalPrompt,
           duration: videoDuration,
           resolution: videoResolution,
@@ -996,7 +1014,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [nodeMediaGeneration, t, tErrors, workflow],
+    [modelOptionsByType, nodeMediaGeneration, t, tErrors, workflow],
   )
 
   const handleFocusNode = useCallback(
@@ -1070,16 +1088,6 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
     })
   }, [t, workflow])
-
-  // Surfaced video brands + their variants drive the topbar default-model
-  // chip's dropdown. Only brands with available model options show up.
-  const videoBrandOptions = useMemo(
-    () =>
-      getSurfacedVideoBrands(
-        modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
-      ).map((brand) => ({ brand, variants: getBrandVariants(brand) })),
-    [modelOptionsByType],
-  )
 
   const panOnDrag = useMemo(
     () =>
@@ -1242,9 +1250,6 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               projectName={workflow.currentProjectName}
               projects={workflow.projects}
               currentProjectId={workflow.currentProjectId}
-              videoBrandOptions={videoBrandOptions}
-              defaultVideoModel={workflow.defaultVideoModel}
-              onChangeDefaultVideoModel={workflow.setDefaultVideoModel}
               onAddClick={handleTopbarAddClick}
               onArrange={handleTidyLayout}
               onSave={handleSaveNow}

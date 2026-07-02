@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { focusUnlessTouch } from '@/lib/touch'
 import React, { createContext, useContext, useRef, useState } from 'react'
 
 type PromptInputContextType = {
@@ -67,7 +68,11 @@ function PromptInput({
   }
 
   const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
-    if (!disabled) textareaRef.current?.focus()
+    // Expand the tap target to the whole composer padding on desktop. On touch
+    // this is skipped: a bubbled click from a toolbar chip / model picker / any
+    // child control must NOT focus the textarea (that pops the keyboard). The
+    // user can still tap the textarea directly — native focus handles that.
+    if (!disabled) focusUnlessTouch(textareaRef.current)
     onClick?.(e)
   }
 

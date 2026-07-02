@@ -14,7 +14,6 @@ import {
   Pencil,
   Plus,
   Save,
-  Sparkles,
   Trash2,
   Workflow,
 } from 'lucide-react'
@@ -22,10 +21,6 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
-import {
-  VIDEO_VARIANT_IDS,
-  type VideoVariantId,
-} from '@/constants/video-brands'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -36,20 +31,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import type {
-  NodeWorkflowProjectSummary,
-  VideoDefaultModel,
-} from '@/types/node-workflow'
+import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 interface CanvasTopBarProps {
   nodeCount: number
   projectName: string
   projects: NodeWorkflowProjectSummary[]
   currentProjectId: string
-  /** Surfaced video brands + their speed-tier variants for the default chip. */
-  videoBrandOptions: { brand: string; variants: readonly VideoVariantId[] }[]
-  defaultVideoModel?: VideoDefaultModel
-  onChangeDefaultVideoModel: (value: VideoDefaultModel) => void
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   onArrange?: () => void
   onSave?: () => void
@@ -67,9 +55,6 @@ export function CanvasTopBar({
   projectName,
   projects,
   currentProjectId,
-  videoBrandOptions,
-  defaultVideoModel,
-  onChangeDefaultVideoModel,
   onAddClick,
   onArrange,
   onSave,
@@ -82,40 +67,6 @@ export function CanvasTopBar({
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
-  const tVariant = useTranslations('StudioNode.videoComposer')
-
-  // Flatten brands × variants into pickable {brand, variant} default choices.
-  const defaultModelChoices = videoBrandOptions.flatMap(
-    ({ brand, variants }) =>
-      variants.length > 0
-        ? variants.map((variant) => ({
-            brand,
-            variant,
-            key: `${brand}:${variant}`,
-            label: `${brand} · ${tVariant(`variant.${variant}`)}`,
-          }))
-        : [
-            {
-              brand,
-              variant: VIDEO_VARIANT_IDS.fast,
-              key: brand,
-              label: brand,
-            },
-          ],
-  )
-  // Effective default = explicit setting, else the first surfaced brand/variant
-  // (= the autospawn fallback). Drives the chip label even before the user picks.
-  const effectiveDefaultModel: VideoDefaultModel | undefined =
-    defaultVideoModel ??
-    (videoBrandOptions[0]
-      ? {
-          brand: videoBrandOptions[0].brand,
-          variant: videoBrandOptions[0].variants[0] ?? VIDEO_VARIANT_IDS.fast,
-        }
-      : undefined)
-  const effectiveBrandHasVariants =
-    (videoBrandOptions.find((o) => o.brand === effectiveDefaultModel?.brand)
-      ?.variants.length ?? 0) > 0
 
   const currentProject = projects.find(
     (project) => project.id === currentProjectId,
@@ -255,58 +206,6 @@ export function CanvasTopBar({
               <Archive className="size-3" />
               {t('nodeCount', { count: nodeCount })}
             </span>
-            {effectiveDefaultModel ? (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t('topbar.defaultModel')}
-                    className="group hidden max-w-64 items-center gap-1.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2 py-1 text-2xs font-medium text-node-muted outline-none transition hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/70 lg:inline-flex"
-                  >
-                    <Sparkles className="size-3 text-node-foreground" />
-                    <span className="shrink-0">{t('topbar.defaultModel')}</span>
-                    <span className="truncate text-node-foreground">
-                      {effectiveBrandHasVariants
-                        ? `${effectiveDefaultModel.brand} · ${tVariant(`variant.${effectiveDefaultModel.variant}`)}`
-                        : effectiveDefaultModel.brand}
-                    </span>
-                    <ChevronDown className="size-3 shrink-0 transition group-data-[state=open]:rotate-180" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-52 border-node-panel-inner bg-node-panel text-node-foreground shadow-node-panel"
-                >
-                  <DropdownMenuLabel className="text-2xs uppercase tracking-nav-dense text-node-muted">
-                    {t('topbar.defaultModel')}
-                  </DropdownMenuLabel>
-                  {defaultModelChoices.map((choice) => {
-                    const selected =
-                      effectiveDefaultModel.brand === choice.brand &&
-                      effectiveDefaultModel.variant === choice.variant
-                    return (
-                      <DropdownMenuItem
-                        key={choice.key}
-                        onClick={() =>
-                          onChangeDefaultVideoModel({
-                            brand: choice.brand,
-                            variant: choice.variant,
-                          })
-                        }
-                        className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          {choice.label}
-                        </span>
-                        {selected ? (
-                          <Check className="size-3.5 shrink-0 text-node-foreground" />
-                        ) : null}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
           </div>
         </div>
       </div>

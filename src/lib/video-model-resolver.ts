@@ -168,6 +168,48 @@ export function resolveVideoModelId(
   return pickBest(matches)
 }
 
+/**
+ * Generate-time source of truth for Seedance reference-ness.
+ *
+ * The persisted `data.model` only captures the user's brand/variant/provider
+ * choice; whether a run hits the `_REFERENCE` endpoint is mode-by-input and
+ * must be derived from the ACTUAL harvested inputs at submit time — NOT from a
+ * possibly-stale model id. A node can gain reference edges (character image,
+ * reference video, voice) AFTER its model was first resolved, and
+ * `useVideoComposer`'s autospawn effect resolves the model only once
+ * (`if (data.model) return`). Without this re-resolve, a node defaulted to
+ * `SEEDANCE_20_FAST` keeps that id even once references are wired, so the worker
+ * routes it to `buildSeedance20` which silently drops `video_urls` /
+ * `audio_urls` — the reference clip never reaches the provider.
+ *
+ * Returns the option whose reference-ness matches `hasReferenceInputs` for the
+ * same brand/variant/provider, or null when nothing better resolves (caller
+ * keeps the original model). Single-variant brands (Kling/Veo) signal reference
+ * at build time and have no sibling id → returns null.
+ */
+export function resolveEffectiveVideoModelOption(
+  model: { modelId: string; adapterType: string },
+  hasReferenceInputs: boolean,
+  options: NodeWorkflowModelOption[],
+): NodeWorkflowModelOption | null {
+  const state = deriveSwitcherStateFromModel(model)
+  if (!state.brand || !state.variant) return null
+  // Single-variant brands have no separate _REFERENCE id; leave them be.
+  if (getBrandVariants(state.brand).length === 0) return null
+  const provider =
+    (state.provider as AI_ADAPTER_TYPES | null) ??
+    pickDefaultProvider(state.brand, options)
+  return resolveVideoModelId(
+    {
+      brand: state.brand,
+      variant: state.variant,
+      provider,
+      hasReferenceInputs,
+    },
+    options,
+  )
+}
+
 /** Inverse: a stored model selection → switcher display state. */
 export function deriveSwitcherStateFromModel(
   model: { modelId: string; adapterType: string } | undefined,

@@ -13,11 +13,7 @@ import {
   unfavoriteLoraAPI,
 } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type {
-  CivitaiLoraLibraryItem,
-  FavoriteLoraRequest,
-  LoraAssetRecord,
-} from '@/types'
+import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 
 export interface UseLoraAssetsReturn {
   myAssets: LoraAssetRecord[]
@@ -30,7 +26,7 @@ export interface UseLoraAssetsReturn {
   refresh: () => Promise<void>
   setVisibility: (assetId: string, isPublic: boolean) => Promise<boolean>
   favoriteCivitaiLora: (
-    item: CivitaiLoraLibraryItem,
+    item: LoraAssetRecord,
   ) => Promise<LoraAssetRecord | null>
   unfavoriteAsset: (assetId: string) => Promise<boolean>
   unfavoriteByUrl: (loraUrl: string) => Promise<boolean>
@@ -111,8 +107,11 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   )
   const favoriteAssets = myAssets.filter((a) => a.source === 'imported')
 
+  // 参数类型放宽到 LoraAssetRecord —— CivitaiLoraLibraryItem（公开库卡片）
+  // 和 discoverAssets 里的记录（我的页「推荐你收藏」条）结构上都满足
+  // FavoriteLoraRequest 所需字段，两处收藏入口共用同一个实现。
   const favoriteCivitaiLora = useCallback(
-    async (item: CivitaiLoraLibraryItem): Promise<LoraAssetRecord | null> => {
+    async (item: LoraAssetRecord): Promise<LoraAssetRecord | null> => {
       const payload: FavoriteLoraRequest = {
         name: item.name,
         triggerWord: item.triggerWord,

@@ -146,6 +146,7 @@ export function LoraWorkbench() {
   const {
     trainedAssets,
     favoriteAssets,
+    discoverAssets,
     isLoadingMine,
     errorMine,
     refresh,
@@ -266,6 +267,7 @@ export function LoraWorkbench() {
             <MyLoraBranch
               trained={trainedAssets}
               favorites={favoriteAssets}
+              discoverAssets={discoverAssets}
               isLoading={isLoadingMine}
               error={errorMine}
               onRefresh={refresh}
@@ -273,6 +275,8 @@ export function LoraWorkbench() {
               onVisibilityChange={setVisibility}
               onUnfavorite={unfavoriteAsset}
               onDelete={deleteAsset}
+              onFavoriteDiscover={favoriteCivitaiLora}
+              isFavorited={isFavorited}
             />
           ) : (
             <CivitaiCommunityBranch
@@ -1083,6 +1087,7 @@ type MineSection = 'trained' | 'favorites'
 interface MyLoraBranchProps {
   trained: LoraAssetRecord[]
   favorites: LoraAssetRecord[]
+  discoverAssets: LoraAssetRecord[]
   isLoading: boolean
   error: string | null
   onRefresh: () => Promise<void>
@@ -1090,11 +1095,17 @@ interface MyLoraBranchProps {
   onVisibilityChange: (assetId: string, isPublic: boolean) => Promise<boolean>
   onUnfavorite: (assetId: string) => Promise<boolean>
   onDelete: (assetId: string) => Promise<boolean>
+  onFavoriteDiscover: (item: LoraAssetRecord) => Promise<LoraAssetRecord | null>
+  isFavorited: (loraUrl: string) => boolean
 }
+
+// 推荐行最多展示几张 —— 对齐 wireframes §5 的 5 列网格。
+const RECOMMEND_FAVORITE_LIMIT = 5
 
 function MyLoraBranch({
   trained,
   favorites,
+  discoverAssets,
   isLoading,
   error,
   onRefresh,
@@ -1102,6 +1113,8 @@ function MyLoraBranch({
   onVisibilityChange,
   onUnfavorite,
   onDelete,
+  onFavoriteDiscover,
+  isFavorited,
 }: MyLoraBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const [query, setQuery] = useState('')
@@ -1153,6 +1166,16 @@ function MyLoraBranch({
       ? 'myLorasTrainedSectionEmpty'
       : 'myLorasFavoritesSectionEmpty'
 
+  // discoverAssets 已经在收藏里的条目要滤掉，否则「推荐你收藏」会推荐
+  // 用户已经收藏过的 LoRA —— 对齐 wireframes §5「推荐你收藏」条的用途。
+  const recommendedAssets = useMemo(
+    () =>
+      discoverAssets
+        .filter((a) => !isFavorited(a.loraUrl))
+        .slice(0, RECOMMEND_FAVORITE_LIMIT),
+    [discoverAssets, isFavorited],
+  )
+
   return (
     <section className="space-y-6">
       <MineHeader
@@ -1166,7 +1189,16 @@ function MyLoraBranch({
       ) : isLoading ? (
         <SkeletonGrid />
       ) : totalCount === 0 ? (
-        <EmptyHero onSwitchSection={onSwitchSection} />
+        <>
+          <EmptyHero onSwitchSection={onSwitchSection} />
+          {recommendedAssets.length > 0 ? (
+            <RecommendFavoritesRow
+              assets={recommendedAssets}
+              onFavorite={onFavoriteDiscover}
+              onSwitchSection={onSwitchSection}
+            />
+          ) : null}
+        </>
       ) : (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1219,9 +1251,107 @@ function MyLoraBranch({
               </AssetGrid>
             )}
           </div>
+
+          {recommendedAssets.length > 0 ? (
+            <RecommendFavoritesRow
+              assets={recommendedAssets}
+              onFavorite={onFavoriteDiscover}
+              onSwitchSection={onSwitchSection}
+            />
+          ) : null}
         </div>
       )}
     </section>
+  )
+}
+
+interface RecommendFavoritesRowProps {
+  assets: LoraAssetRecord[]
+  onFavorite: (item: LoraAssetRecord) => Promise<LoraAssetRecord | null>
+  onSwitchSection: (section: LoraWorkbenchSection) => void
+}
+
+/**
+ * 「推荐你收藏」回填条（wireframes §5）—— 封面 + 悬浮心形图标，点击
+ * 直接收藏，不是完整的 LoraAssetCard（那个卡片承载太多我的页专属操作，
+ * 这里只是引流到公开库的轻量预览）。
+ */
+function RecommendFavoritesRow({
+  assets,
+  onFavorite,
+  onSwitchSection,
+}: RecommendFavoritesRowProps) {
+  const t = useTranslations('LoraWorkbench')
+  const [favoritingId, setFavoritingId] = useState<string | null>(null)
+
+  const handleFavorite = useCallback(
+    async (asset: LoraAssetRecord) => {
+      if (favoritingId) return
+      setFavoritingId(asset.id)
+      try {
+        await onFavorite(asset)
+      } finally {
+        setFavoritingId(null)
+      }
+    },
+    [favoritingId, onFavorite],
+  )
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2.5">
+        <span className="text-xs text-muted-foreground">
+          {t('recommendFavoriteTitle')}
+        </span>
+        <span className="h-px flex-1 bg-border/60" aria-hidden />
+        <button
+          type="button"
+          onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
+          className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {t('recommendFavoriteGoLibrary')}
+          <ArrowUpRight className="size-3" aria-hidden />
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
+        {assets.map((asset) => (
+          <button
+            key={asset.id}
+            type="button"
+            onClick={() => void handleFavorite(asset)}
+            disabled={favoritingId === asset.id}
+            className="group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted disabled:cursor-wait"
+            aria-label={t('recommendFavoriteAction', { name: asset.name })}
+            title={asset.name}
+          >
+            {asset.coverImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={asset.coverImageUrl}
+                alt={asset.name}
+                className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/60 text-muted-foreground">
+                <Sparkles className="size-8 opacity-30" strokeWidth={1.25} />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            {favoritingId === asset.id ? (
+              <Loader2
+                className="absolute right-1.5 top-1.5 size-3.5 animate-spin text-white drop-shadow"
+                aria-hidden
+              />
+            ) : (
+              <Heart
+                className="absolute right-1.5 top-1.5 size-3.5 text-white drop-shadow transition-transform group-hover:scale-110"
+                aria-hidden
+              />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

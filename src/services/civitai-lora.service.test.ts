@@ -100,7 +100,8 @@ describe('listCivitaiLoras', () => {
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('types')).toBe('LORA')
-    expect(requestUrl.searchParams.get('page')).toBe('2')
+    // cursor 优先——一旦有 cursor 就不发 page，两套分页信号不同时出现。
+    expect(requestUrl.searchParams.get('page')).toBeNull()
     expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
     expect(requestUrl.searchParams.get('query')).toBeNull()
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
@@ -333,7 +334,7 @@ describe('listCivitaiLoras', () => {
     expect(item?.thumbImageUrl).not.toContain('anim=false')
   })
 
-  it('passes cursor for non-search library pagination', async () => {
+  it('prefers cursor over page for non-search library pagination once a cursor exists', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [],
@@ -348,7 +349,8 @@ describe('listCivitaiLoras', () => {
     })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
-    expect(requestUrl.searchParams.get('page')).toBe('3')
+    // cursor 优先——page=3 不再发送，避免和 cursor 同时出现在请求里。
+    expect(requestUrl.searchParams.get('page')).toBeNull()
     expect(requestUrl.searchParams.get('query')).toBeNull()
     expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual(['Anima'])
@@ -398,6 +400,9 @@ describe('listCivitaiLoras', () => {
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('limit')).toBe('10')
+    // 没有 cursor 的第一页请求——page 模式的 fallback 分支仍然要发 page。
+    expect(requestUrl.searchParams.get('page')).toBe('1')
+    expect(requestUrl.searchParams.get('cursor')).toBeNull()
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
       'Illustrious',
       'NoobAI',

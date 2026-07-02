@@ -1133,18 +1133,21 @@ export async function listCivitaiLoras({
   url.searchParams.set('limit', String(upstreamLimit))
   url.searchParams.set('sort', sort)
   url.searchParams.set('nsfw', 'false')
-  // 2026-07-02 撤销记录：这里曾经改成"page 模式不发 cursor"（理由是同时发
-  // page+cursor 是反模式），但用户实测反馈默认无搜索时翻页直接失效——
-  // Civitai 的 /api/v1/models 对纯 page 参数翻页本来就不可靠（官方更推荐
-  // cursor），之前"不管 page 还是 query 模式都带上 cursor"大概率是刻意的
-  // workaround，不是意外。没有办法直接打 Civitai 真实接口验证，加上有实测
-  // 反馈说明原行为是必要的，先改回去，别在没证据的情况下咬定自己是对的。
   if (normalizedSearch) {
     url.searchParams.set('query', normalizedSearch)
-  } else {
+  }
+  // 2026-07-02 第二轮修复（第一轮"page 模式不发 cursor"和撤销前的"page+cursor
+  // 都发"两个版本都被用户实测证伪——页码在客户端正确变了，但 Civitai 返回的
+  // 还是第 1 页那批数据）。这次反过来：cursor 存在就优先用 cursor、不发
+  // page；只有第一页（没有 cursor）才用 page。Civitai 官方文档推荐 cursor
+  // 分页，猜测 page 参数在他们那边基本不生效——之前两种"都发"或"只发
+  // page"都会让 upstream 落回 page1 等价的结果。这轮也没法直接打真实接口
+  // 验证，需要用户再测一遍确认。
+  if (nextPageCursor) {
+    url.searchParams.set('cursor', nextPageCursor)
+  } else if (!normalizedSearch) {
     url.searchParams.set('page', String(page))
   }
-  if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   if (baseModel !== 'all') {
     appendBaseModelFamilyParams(url, baseModel)
   }

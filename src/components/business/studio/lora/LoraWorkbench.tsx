@@ -2659,23 +2659,11 @@ function PresetRailPanel({
 }
 
 function TrainingBranch() {
-  // Three-column page layout (xl+): training history rail · main form ·
-  // preset rail. Presets used to sit above the form, which dragged the
-  // main column off-screen and left the history rail mostly empty —
-  // splitting them across siblings balances the columns and keeps the
-  // form short.
-  //
-  // Breakpoint history: 3-col used to trigger at lg (1024px) but the
-  // outer LoraWorkbench wrapper caps at max-w-6xl, and Studio pages
-  // also reserve space for the left site sidebar. In the lg..xl- band
-  // the form column was getting squeezed under ~280px, which forced
-  // the training-type radio labels into vertical CJK columns and
-  // generally made the form unusable. Now 3-col only fires at xl+
-  // where the form column actually has 400px+ of breathing room.
-  //
-  // md..xl-: 2-col (history + form), preset folds below both columns
-  // as a wide panel (not a thin rail) to use the horizontal space.
-  // sm-: form moves into a Vaul bottom-sheet with both rails stacked.
+  // 训练页对稿（lora-domain-wireframes.md §6）：稿子是两栏——左表单，右
+  // 提交卡+训练任务列表，没有独立的历史/预设侧栏。以前是三栏（历史 240px·
+  // 表单·预设 280px，xl 才三栏，md..xl- 退成两栏+预设折下面），现在统一
+  // 收成两栏：左表单，右边把预设 + 训练任务列表堆在一起——功能都留着，
+  // 只是不再各占一条独立的常驻侧栏。
   const isMobile = useIsMobile()
   const [presetId, setPresetId] = useState<LoraTrainingPresetId | null>(null)
 
@@ -2689,12 +2677,6 @@ function TrainingBranch() {
   const handleClearPreset = useCallback(() => {
     setPresetId(null)
   }, [])
-
-  const historyRail = (
-    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100svh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
-      <LoraTrainingHistorySidebar />
-    </aside>
-  )
 
   // Form column is just the form. EmptyState + the page heading both
   // got cut — the preset rail next to the form is its own empty state,
@@ -2710,46 +2692,35 @@ function TrainingBranch() {
     </div>
   )
 
+  const sideColumn = (
+    <div className="flex flex-col gap-4">
+      <PresetRailPanel
+        presetId={presetId}
+        onSelect={handleSelectPreset}
+        variant="panel"
+      />
+      <aside className="rounded-2xl border border-border bg-card p-4">
+        <LoraTrainingHistorySidebar />
+      </aside>
+    </div>
+  )
+
   if (isMobile) {
-    // Mobile: history + presets stack above; form lives in a Vaul sheet
+    // Mobile: presets + history stack above; form lives in a Vaul sheet
     // triggered by the floating FAB.
     return (
       <section className="mx-auto max-w-5xl space-y-4 pb-24">
-        {historyRail}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <PresetGrid
-            layout="wide"
-            selectedId={presetId}
-            onSelect={handleSelectPreset}
-          />
-        </div>
+        {sideColumn}
         <MobileTrainingSheet>{formColumn}</MobileTrainingSheet>
       </section>
     )
   }
 
-  // Desktop: 3-col at xl+ (rail preset), 2-col at md..xl- (wide preset
-  // panel folded below). Two preset panels are rendered, toggled with
-  // CSS hidden — keeps the JSX flat and lets Tailwind pick the variant
-  // based on viewport without a JS resize listener.
+  // Desktop: always 2 columns from md+ — form 7fr, presets+history 5fr.
   return (
-    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_280px]">
-      {historyRail}
-      {formColumn}
-      <div className="hidden xl:block">
-        <PresetRailPanel
-          presetId={presetId}
-          onSelect={handleSelectPreset}
-          variant="rail"
-        />
-      </div>
-      <div className="md:col-span-2 xl:hidden">
-        <PresetRailPanel
-          presetId={presetId}
-          onSelect={handleSelectPreset}
-          variant="panel"
-        />
-      </div>
+    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-12 md:items-start">
+      <div className="md:col-span-7">{formColumn}</div>
+      <div className="md:col-span-5">{sideColumn}</div>
     </section>
   )
 }

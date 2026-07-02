@@ -108,6 +108,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   clearSearchHistory,
@@ -1585,11 +1586,10 @@ function CivitaiCommunityBranch({
   } | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
-  // Phone-portrait pattern: tapping a LoRA row opens a bottom drawer with the
-  // inspector. Without this, the inspector stacks below the list on mobile
-  // (lg:grid-cols-3 collapses to 1 col) which forced a long scroll just to see
-  // details / hit the "Use in Studio" button.
-  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false)
+  // 库模块重做（lora-domain-wireframes.md §4）：详情从常驻的第三栏改成
+  // 按需抽屉——桌面端右侧滑入 Sheet，手机端底部 Drawer（Vaul），两者共用
+  // 同一个 open 状态，点卡才出现，不占网格空间。
+  const [inspectorOpen, setInspectorOpen] = useState(false)
   const searchWrapperRef = useRef<HTMLDivElement>(null)
   // Clerk scopes the history slot so A's searches never surface in B's
   // dropdown after a sign-out / sign-in on the same browser.
@@ -1664,14 +1664,11 @@ function CivitaiCommunityBranch({
   const handleSelectItem = useCallback(
     (item: CivitaiLoraLibraryItem) => {
       library.selectItem(item)
-      // On phone-portrait, tapping a row should *go somewhere* — open the
-      // bottom drawer with the inspector. On desktop the inline inspector
-      // already updates, so no drawer is needed.
-      if (isMobile) {
-        setMobileInspectorOpen(true)
-      }
+      // 网格卡片点了就该打开详情——桌面/手机都是按需抽屉了，不再有常驻的
+      // 桌面第三栏。
+      setInspectorOpen(true)
     },
-    [isMobile, library],
+    [library],
   )
 
   const handleSortChange = useCallback(
@@ -1757,15 +1754,10 @@ function CivitaiCommunityBranch({
         </Button>
       </header>
 
-      {/* `grid-cols-1` matters even though there's only one mobile child —
-          Tailwind's `grid-cols-1` resolves to `minmax(0, 1fr)`, which lets the
-          single column shrink to the section's content box. Without it, the
-          implicit grid track sizes to min-content, and any long unbreakable
-          string inside a row (e.g. a Civitai trigger word) blows the section
-          past the viewport edge. Repro: viewport <lg, search a LoRA whose
-          trigger word is one long token. */}
-      <div className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-3">
-        <div className="flex min-h-0 flex-col gap-3 lg:col-span-2">
+      {/* 库模块重做：详情从常驻第三栏改成按需抽屉后，这里不再需要
+          lg:grid-cols-3 split——封面网格本身就该占满整个宽度。 */}
+      <div className="flex min-h-0 flex-col gap-3 pt-4">
+        <div className="flex min-w-0 flex-col gap-3">
           <BaseModelChipRow
             value={library.baseModel}
             onChange={handleBaseModelChange}
@@ -1851,7 +1843,7 @@ function CivitaiCommunityBranch({
 
           <div
             className={cn(
-              'min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 transition-opacity',
+              'min-h-0 transition-opacity',
               // Dim stale items slightly while a background fetch is running
               // so the spinner in the search input has a visual partner. Keep
               // them rendered (no `display: none`) — the whole point is that
@@ -1876,20 +1868,18 @@ function CivitaiCommunityBranch({
                 {t('communityEmpty')}
               </div>
             ) : (
-              library.items.map((item) => (
-                <CivitaiLoraRow
-                  key={item.id}
-                  item={item}
-                  isSelected={library.selectedItem?.id === item.id}
-                  isActive={stack.items.some(
-                    (entry) => entry.asset.id === item.id,
-                  )}
-                  isFavorited={isFavorited(item.loraUrl)}
-                  onSelect={handleSelectItem}
-                  onUse={handleUse}
-                  onFavorite={handleFavoriteToggle}
-                />
-              ))
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                {library.items.map((item) => (
+                  <CivitaiLoraCard
+                    key={item.id}
+                    item={item}
+                    isSelected={library.selectedItem?.id === item.id}
+                    isFavorited={isFavorited(item.loraUrl)}
+                    onSelect={handleSelectItem}
+                    onFavorite={handleFavoriteToggle}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
@@ -1902,48 +1892,14 @@ function CivitaiCommunityBranch({
             onNextPage={library.nextPage}
           />
         </div>
-
-        {/* Desktop: inline right-column inspector. Hidden on phone-portrait —
-            the drawer below takes over so the user doesn't have to scroll past
-            a full list to see a selected LoRA's details. */}
-        <div className="hidden lg:block">
-          <CivitaiLoraInspector
-            // key forces a remount when the selected LoRA changes, which
-            // resets the inspector's outfit-picker state to index 0 without
-            // any setState-in-render or effect dance.
-            key={library.selectedItem?.id ?? 'empty'}
-            item={library.selectedItem}
-            isFavorited={
-              library.selectedItem
-                ? isFavorited(library.selectedItem.loraUrl)
-                : false
-            }
-            onUse={handleUse}
-            onFavorite={handleFavoriteToggle}
-            onCopyTryPrompt={handleCopyTryPrompt}
-            onCopyTrigger={handleCopyTrigger}
-            minedOutfits={minedPrompts.outfits}
-            minedTotalSampled={minedPrompts.totalSampled}
-            minedIsLoading={minedPrompts.isLoading}
-            onPreviewCover={(item) => {
-              // 放大对话框需要原图：inspector 的 coverImageUrl 已经被 service
-              // 层 rewrite 成 640px，放大到 max-w-4xl (≥896px) 会糊。回退到
-              // rewrite 后的 cover 是兜底。
-              const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
-              if (fullUrl) {
-                setCoverPreview({ url: fullUrl, name: item.name })
-              }
-            }}
-          />
-        </div>
       </div>
 
-      {/* Mobile-only bottom drawer for inspector. Vaul-backed so it gets the
-          native iOS swipe-to-dismiss + scaled-background feel. Triggered by
-          handleSelectItem, dismissed by drag, overlay tap, or the X button. */}
+      {/* 详情按需抽屉——手机端 Vaul 底部 Drawer，桌面端右侧滑入 Sheet
+          （lora-domain-wireframes.md §4.5 动效规范：320ms 滑入 + scrim，
+          网格不被推开）。两者共用 inspectorOpen，按 isMobile 二选一挂载。 */}
       <Drawer
-        open={isMobile && mobileInspectorOpen && !!library.selectedItem}
-        onOpenChange={setMobileInspectorOpen}
+        open={isMobile && inspectorOpen && !!library.selectedItem}
+        onOpenChange={setInspectorOpen}
       >
         {/* aria-describedby explicitly unset — Radix otherwise warns about a
             missing Description, but the drawer body already contains all the
@@ -1972,7 +1928,7 @@ function CivitaiCommunityBranch({
               }
               onUse={(item) => {
                 handleUse(item)
-                setMobileInspectorOpen(false)
+                setInspectorOpen(false)
               }}
               onFavorite={handleFavoriteToggle}
               onCopyTryPrompt={handleCopyTryPrompt}
@@ -1990,6 +1946,47 @@ function CivitaiCommunityBranch({
           </div>
         </DrawerContent>
       </Drawer>
+
+      <Sheet
+        open={!isMobile && inspectorOpen && !!library.selectedItem}
+        onOpenChange={setInspectorOpen}
+      >
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-sm"
+        >
+          <SheetTitle className="sr-only">
+            {library.selectedItem?.name ?? ''}
+          </SheetTitle>
+          <div className="px-4 pb-6 pt-2">
+            <CivitaiLoraInspector
+              key={library.selectedItem?.id ?? 'empty'}
+              item={library.selectedItem}
+              isFavorited={
+                library.selectedItem
+                  ? isFavorited(library.selectedItem.loraUrl)
+                  : false
+              }
+              onUse={(item) => {
+                handleUse(item)
+                setInspectorOpen(false)
+              }}
+              onFavorite={handleFavoriteToggle}
+              onCopyTryPrompt={handleCopyTryPrompt}
+              onCopyTrigger={handleCopyTrigger}
+              onPreviewCover={(item) => {
+                const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
+                if (fullUrl) {
+                  setCoverPreview({ url: fullUrl, name: item.name })
+                }
+              }}
+              minedOutfits={minedPrompts.outfits}
+              minedTotalSampled={minedPrompts.totalSampled}
+              minedIsLoading={minedPrompts.isLoading}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog
         open={coverPreview !== null}
@@ -2089,149 +2086,91 @@ function CommunityPagination({
   )
 }
 
-interface CivitaiLoraRowProps {
+interface CivitaiLoraCardProps {
   item: CivitaiLoraLibraryItem
   isSelected: boolean
-  isActive: boolean
   isFavorited: boolean
   onSelect: (item: CivitaiLoraLibraryItem) => void
-  onUse: (item: CivitaiLoraLibraryItem) => void
   onFavorite: (item: CivitaiLoraLibraryItem) => void
 }
 
-function CivitaiLoraRow({
+// 封面优先密集网格卡片（lora-domain-wireframes.md §4）：取代旧的
+// CivitaiLoraRow 行列表。「去生成」不再放卡片上——按文档，主行动移进详情
+// 抽屉，卡片只留家族角标 + 收藏，点开才看配方/触发词/去生成。
+function CivitaiLoraCard({
   item,
   isSelected,
-  isActive,
   isFavorited,
   onSelect,
-  onUse,
   onFavorite,
-}: CivitaiLoraRowProps) {
+}: CivitaiLoraCardProps) {
   const t = useTranslations('LoraWorkbench')
   const isGeneratable = isCivitaiBaseModelGeneratable(item.baseModelFamily)
-
-  return (
-    <div
-      className={cn(
-        // Tighter horizontal padding + gap on phone keeps the 2 trailing icon
-        // buttons (heart + use) inside the card and gives the LoRA name an
-        // extra ~12-16px before it truncates.
-        'flex w-full items-center gap-1.5 rounded-lg border px-2 py-2 text-left transition-all sm:gap-3 sm:px-3 sm:py-2.5',
-        isSelected
-          ? 'border-primary/30 bg-primary/10'
-          : 'border-transparent hover:bg-muted/30',
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => onSelect(item)}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-3"
-      >
-        <LoraThumb item={item} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="truncate text-sm font-medium text-foreground">
-              {item.name}
-            </span>
-            <span
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs',
-                isGeneratable
-                  ? 'bg-muted/60 text-muted-foreground'
-                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-              )}
-              title={isGeneratable ? undefined : t('externalBadgeHint')}
-            >
-              {!isGeneratable ? (
-                <ExternalLink className="size-3" aria-hidden />
-              ) : null}
-              {item.baseModelFamily}
-            </span>
-          </div>
-          <span className="block truncate text-2xs text-muted-foreground">
-            {item.creatorName ?? t('communityUnknownCreator')}
-          </span>
-          <span
-            className="block truncate font-mono text-2xs text-muted-foreground/70"
-            title={item.triggerWord}
-          >
-            {item.triggerWord}
-          </span>
-        </div>
-      </button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => onFavorite(item)}
-        aria-label={isFavorited ? t('unfavorite') : t('favorite')}
-        title={isFavorited ? t('unfavorite') : t('favorite')}
-      >
-        <Heart
-          className={cn(
-            'size-3.5',
-            isFavorited && 'fill-rose-500 text-rose-500',
-          )}
-          aria-hidden
-        />
-      </Button>
-      <Button
-        type="button"
-        variant={isActive && isGeneratable ? 'secondary' : 'ghost'}
-        size="icon-sm"
-        onClick={() => onUse(item)}
-        aria-label={
-          !isGeneratable
-            ? t('useExternal')
-            : isActive
-              ? t('alreadyInUse')
-              : t('use')
-        }
-        title={
-          !isGeneratable
-            ? t('useExternal')
-            : isActive
-              ? t('alreadyInUse')
-              : t('use')
-        }
-      >
-        {!isGeneratable ? (
-          <ExternalLink className="size-3.5" aria-hidden />
-        ) : (
-          <Sparkles className="size-3.5" aria-hidden />
-        )}
-      </Button>
-    </div>
-  )
-}
-
-interface LoraThumbProps {
-  item: CivitaiLoraLibraryItem
-}
-
-function LoraThumb({ item }: LoraThumbProps) {
-  // Prefer the 96px-wide CDN transform; fall back to the 640px cover if for
-  // any reason the thumb URL is missing (e.g. Civitai returned a non-standard
-  // URL the rewriter couldn't recognise). Both come from the service layer
-  // already sized — never load the 1–5 MB original here.
+  // 96px CDN transform 优先，缺失才退回 640px cover——网格缩略图不用加载
+  // 1-5MB 原图。
   const src = item.thumbImageUrl ?? item.coverImageUrl
+
   return (
-    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt=""
-          width={40}
-          height={40}
-          className="size-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <Sparkles className="size-4" aria-hidden />
-      )}
+    <div className="min-w-0">
+      <div
+        className={cn(
+          'group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted',
+          isSelected &&
+            'ring-2 ring-primary ring-offset-2 ring-offset-background',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onSelect(item)}
+          aria-label={item.name}
+          className="absolute inset-0"
+        >
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex size-full items-center justify-center text-muted-foreground">
+              <Sparkles className="size-6" aria-hidden />
+            </div>
+          )}
+        </button>
+        <span
+          className={cn(
+            'pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs',
+            isGeneratable
+              ? 'bg-black/55 text-white'
+              : 'bg-amber-500/80 text-white',
+          )}
+          title={isGeneratable ? undefined : t('externalBadgeHint')}
+        >
+          {!isGeneratable ? (
+            <ExternalLink className="size-3" aria-hidden />
+          ) : null}
+          {item.baseModelFamily}
+        </span>
+        <button
+          type="button"
+          onClick={() => onFavorite(item)}
+          aria-label={isFavorited ? t('unfavorite') : t('favorite')}
+          title={isFavorited ? t('unfavorite') : t('favorite')}
+          className="absolute right-1.5 top-1.5 text-white drop-shadow transition-transform hover:scale-110"
+        >
+          <Heart
+            className={cn(
+              'size-4',
+              isFavorited ? 'fill-rose-500 text-rose-500' : 'fill-black/25',
+            )}
+            aria-hidden
+          />
+        </button>
+      </div>
+      <p className="mt-1.5 truncate text-xs text-foreground">{item.name}</p>
     </div>
   )
 }

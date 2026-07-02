@@ -131,6 +131,32 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBe('cursor-3')
   })
 
+  it('falls back to extracting cursor from metadata.nextPage when nextCursor is absent (the actual pagination bug)', async () => {
+    // Real suspected root cause: for a plain browse request (no query),
+    // Civitai's response only carries metadata.nextPage (a full next-page
+    // URL) — no top-level nextCursor field at all. Without this fallback,
+    // parseNextCursor() always returned null, cursorByPageRef never got a
+    // real cursor, and every "next page" click resent the same
+    // page-only/cursor-less request — which is why every prior attempt at
+    // this fix (page-only, page+cursor, cursor-priority) looked identical:
+    // there was never a cursor to send in the first place.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [],
+        metadata: {
+          totalItems: 500,
+          nextPage:
+            'https://civitai.com/api/v1/models?limit=20&page=2&cursor=abc123',
+        },
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.nextCursor).toBe('abc123')
+    expect(result.hasNextPage).toBe(true)
+  })
+
   it('extracts a clean primary trigger + alternates + author-recommended prompt from Civitai trainedWords', async () => {
     // The exact wuthering-waves case that surfaced the original bug: author
     // left trainedWords empty so the trigger has to be inferred from the

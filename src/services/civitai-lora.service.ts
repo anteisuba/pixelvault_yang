@@ -971,12 +971,30 @@ export async function resolveCivitaiModelPageUrlByVersion(
   return `https://civitai.com/models/${modelId}?modelVersionId=${modelVersionId}`
 }
 
+// 2026-07-02 定位到真正的分页 bug：schema 里 metadata.nextPage（下一页完整
+// URL）一直存在，但这里只读 metadata.nextCursor——如果 Civitai 对纯浏览
+// （无 query）请求只在 nextPage 里带 cursor、不单独给 nextCursor 字段（这类
+// API 很常见），我们就永远拿不到真 cursor，之前几轮"page/cursor 参数怎么
+// 组合"全都无效，因为 cursorByPageRef 里存的其实一直是 null——不管发不发
+// page，实际发出去的都是同一个"没有 cursor"的请求，Civitai 自然一直吐同一
+// 页。这里补上从 nextPage URL 里回抠 cursor 参数的兜底。
 function parseNextCursor(
   metadata: z.infer<typeof CivitaiModelsResponseSchema>['metadata'],
 ): string | null {
-  return metadata?.nextCursor === undefined || metadata.nextCursor === null
-    ? null
-    : String(metadata.nextCursor)
+  if (metadata?.nextCursor !== undefined && metadata.nextCursor !== null) {
+    return String(metadata.nextCursor)
+  }
+  if (metadata?.nextPage) {
+    try {
+      const cursorFromNextPage = new URL(metadata.nextPage).searchParams.get(
+        'cursor',
+      )
+      if (cursorFromNextPage) return cursorFromNextPage
+    } catch {
+      // metadata.nextPage 不是合法 URL——极少见，忽略走 null。
+    }
+  }
+  return null
 }
 
 function filterByBaseModelFamily(

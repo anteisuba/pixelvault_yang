@@ -1275,7 +1275,10 @@
       "promptModeSelfBuild": "Build your own",
       "recommendEmpty": "No source-image recipe for this LoRA yet — try Build your own.",
       "tagPickerHint": "English tokens, search in any language",
-      "tagPickerCategoryAll": "All"
+      "tagPickerCategoryAll": "All",
+      "negativePromptLabel": "Negative prompt",
+      "negativePromptPlaceholder": "What you don't want, e.g. bad hands, blurry…",
+      "negativePromptAdd": "Add negative prompt"
     },
     "spine": {
       "currentLora": "Current LoRA",

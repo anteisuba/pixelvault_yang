@@ -137,9 +137,12 @@ vi.mock('@/hooks/use-civitai-lora-library', () => ({
   }),
 }))
 
+let mockMinedRecipes: unknown[] = []
 vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   useCivitaiMinedPrompts: () => ({
-    recipes: [],
+    get recipes() {
+      return mockMinedRecipes
+    },
     outfits: [],
     totalSampled: 0,
     isLoading: false,
@@ -323,5 +326,76 @@ describe('LoraWorkbench GenerateBranch — 自己搭配 tag picker', () => {
     expect(
       screen.queryByRole('button', { name: /Masterpiece/ }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    mockLastGeneration = null
+    mockMinedRecipes = []
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  it('reveals the negative prompt field after applying a recipe that has one', () => {
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'masterpiece, best quality',
+        negativePrompt: 'bad hands, blurry',
+      },
+    ]
+
+    render(<LoraWorkbench />)
+
+    // No negative field until something actually needs it — matches the
+    // rest of the composer's "don't show empty chrome" convention.
+    expect(
+      screen.queryByPlaceholderText(
+        'LoraWorkbench:generate.negativePromptPlaceholder',
+      ),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+      }),
+    )
+    // Clicking the thumbnail both selects the recipe and opens the
+    // picture-frame lightbox (Dialog) — Radix marks the rest of the page
+    // aria-hidden while it's open, same as real screen-reader/interaction
+    // behavior, so close it before reaching for the recipe card underneath.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:sourceImagePreviewClose/,
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    )
+
+    const negativeField = screen.getByPlaceholderText(
+      'LoraWorkbench:generate.negativePromptPlaceholder',
+    )
+    expect(negativeField).toHaveValue('bad hands, blurry')
+  })
+
+  it('manually reveals an empty negative prompt field on request', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.negativePromptAdd',
+      }),
+    )
+
+    expect(
+      screen.getByPlaceholderText(
+        'LoraWorkbench:generate.negativePromptPlaceholder',
+      ),
+    ).toBeInTheDocument()
   })
 })

@@ -1275,7 +1275,10 @@
       "promptModeSelfBuild": "自分で組む",
       "recommendEmpty": "このLoRAにはまだ参照可能な元画像レシピがありません。「自分で組む」をお試しください。",
       "tagPickerHint": "英語トークンで登録 · 多言語検索対応",
-      "tagPickerCategoryAll": "すべて"
+      "tagPickerCategoryAll": "すべて",
+      "negativePromptLabel": "ネガティブプロンプト",
+      "negativePromptPlaceholder": "望まない要素、例: bad hands, blurry…",
+      "negativePromptAdd": "ネガティブプロンプトを追加"
     },
     "spine": {
       "currentLora": "現在のLoRA",

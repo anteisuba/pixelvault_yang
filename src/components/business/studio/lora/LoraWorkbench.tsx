@@ -435,6 +435,10 @@ function GenerateBranch() {
   // 忠实还原：用 LoRA 的推荐/源图匹配提示词一键填充 + 套用推荐 scale + 负向。
   const activeAsset = stack.items[0]?.asset ?? null
   const [negativePrompt, setNegativePrompt] = useState('')
+  // 用户反馈：一键同款/忠实还原/URL 回放都会把负面 prompt 写进这个 state，
+  // 但 composer 之前只有一个正向文本框——负面词悄悄生效但用户看不见、改不了。
+  // 默认折叠，一旦有内容（无论是手动展开还是套用配方带出来的）就一直显示。
+  const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
   const handleRestore = useCallback(() => {
     if (!activeAsset) return
     const matched = buildSourceMatchedLoraPrompt(activeAsset)
@@ -755,6 +759,29 @@ function GenerateBranch() {
                 rows={3}
                 className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
               />
+              {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
+                <div className="space-y-1 border-t border-surface-composer-foreground/10 pt-2">
+                  <p className="text-2xs font-medium uppercase tracking-wide text-surface-composer-foreground/50">
+                    {t('generate.negativePromptLabel')}
+                  </p>
+                  <textarea
+                    value={negativePrompt}
+                    onChange={(event) => setNegativePrompt(event.target.value)}
+                    placeholder={t('generate.negativePromptPlaceholder')}
+                    rows={2}
+                    className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-surface-composer-foreground/40"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNegativePromptExpanded(true)}
+                  className="inline-flex items-center gap-1 text-2xs text-surface-composer-foreground/50 transition-colors hover:text-surface-composer-foreground"
+                >
+                  <Plus className="size-3" aria-hidden />
+                  {t('generate.negativePromptAdd')}
+                </button>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <Button
                   type="button"

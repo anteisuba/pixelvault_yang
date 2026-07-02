@@ -1275,7 +1275,10 @@
       "promptModeSelfBuild": "自己搭配",
       "recommendEmpty": "这个 LoRA 还没有可用的来源图配方，切到「自己搭配」补词",
       "tagPickerHint": "规范英文入库 · 中文检索",
-      "tagPickerCategoryAll": "全部"
+      "tagPickerCategoryAll": "全部",
+      "negativePromptLabel": "负面 Prompt",
+      "negativePromptPlaceholder": "不想要的元素，比如 bad hands, blurry…",
+      "negativePromptAdd": "添加负面 Prompt"
     },
     "spine": {
       "currentLora": "当前 LoRA",

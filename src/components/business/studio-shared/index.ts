@@ -17,7 +17,6 @@
  */
 
 // chrome — workbench shell components
-export * from './chrome/ActiveLoraBar'
 export * from './chrome/StudioBottomDock'
 export * from './chrome/StudioCanvas'
 export * from './chrome/StudioCommandPalette'

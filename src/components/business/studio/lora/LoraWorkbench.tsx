@@ -23,6 +23,7 @@ import {
   Heart,
   History,
   Info,
+  Key,
   Library,
   Loader2,
   RefreshCw,
@@ -66,6 +67,7 @@ import {
   LORA_STACK_MAX,
   useActiveLoraStack,
 } from '@/hooks/use-active-lora-stack'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
@@ -115,7 +117,10 @@ import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 export function LoraWorkbench() {
@@ -278,9 +283,12 @@ export function LoraWorkbench() {
 // recipe 源图/模式 + 暗房视觉为后续增量。
 function GenerateBranch() {
   const t = useTranslations('LoraWorkbench')
+  const tModels = useTranslations('Models')
+  const tSetup = useTranslations('QuickSetup')
   const router = useRouter()
   const stack = useActiveLoraStack()
   const { generate, isGenerating, lastGeneration } = useUnifiedGenerate()
+  const { modelOptions } = useImageModelOptions()
 
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
   const compatibleBases = loraFamily ? getCompatibleBases(loraFamily) : []
@@ -288,6 +296,34 @@ function GenerateBranch() {
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
+
+  // Issue 2 (Hard Rule 8): 缺 key 时不禁用出图按钮，改路由到 QuickSetupDialog。
+  // useImageModelOptions 已经把「built-in workspace 路由 + 用户保存的 key 路由」
+  // 合并成同一份 StudioModelOption[]（含 freeTier / sourceType 标记），复用它
+  // 而不是重新拼一份 hasKey 判断。
+  const baseModelId = selectedBase?.providerModelId ?? null
+  const baseModelOptions = useMemo(
+    () =>
+      baseModelId
+        ? modelOptions.filter((option) => option.modelId === baseModelId)
+        : [],
+    [modelOptions, baseModelId],
+  )
+  const hasUsableRoute = baseModelOptions.some(
+    (option) => option.freeTier || option.sourceType === 'saved',
+  )
+  const needsKeySetup = !!baseModelId && !hasUsableRoute
+  const workspaceOptionForBase =
+    baseModelOptions.find((option) => option.sourceType === 'workspace') ??
+    baseModelOptions[0]
+
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    modelId: string
+    modelLabel: string
+    adapterType: AI_ADAPTER_TYPES
+    optionId: string
+  } | null>(null)
 
   // 提示词默认填当前 LoRA 触发词（保证 LoRA 被激活）；切 LoRA 时更新。
   // 用 render 时条件 setState（React 推荐的"随 prop 重置 state"），避免 effect 级联。
@@ -344,8 +380,10 @@ function GenerateBranch() {
     hasLora &&
     !!selectedBase?.available &&
     !!selectedBase.providerModelId &&
-    prompt.trim().length > 0 &&
-    !isGenerating
+    !isGenerating &&
+    // 缺 key 时按钮仍可点——点击路由到 QuickSetupDialog（Hard Rule 8），
+    // 不强求先填提示词。
+    (needsKeySetup || prompt.trim().length > 0)
 
   const handleGenerate = useCallback(async () => {
     const providerModelId = selectedBase?.providerModelId
@@ -370,8 +408,40 @@ function GenerateBranch() {
     })
   }, [aspectRatio, generate, negativePrompt, prompt, seed, selectedBase, stack])
 
+  const handleGenerateClick = useCallback(() => {
+    if (needsKeySetup) {
+      if (workspaceOptionForBase) {
+        setQuickSetup({
+          open: true,
+          modelId: workspaceOptionForBase.modelId,
+          modelLabel: getTranslatedModelLabel(
+            tModels,
+            workspaceOptionForBase.modelId,
+          ),
+          adapterType: workspaceOptionForBase.adapterType,
+          optionId: workspaceOptionForBase.optionId,
+        })
+      }
+      return
+    }
+    void handleGenerate()
+  }, [handleGenerate, needsKeySetup, tModels, workspaceOptionForBase])
+
   return (
     <section className="space-y-4">
+      {quickSetup && (
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(open) =>
+            setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+          }
+          modelId={quickSetup.modelId}
+          modelLabel={quickSetup.modelLabel}
+          adapterType={quickSetup.adapterType}
+          optionId={quickSetup.optionId}
+        />
+      )}
+
       <LoraSpineBar
         compatibleBases={compatibleBases}
         selectedBase={selectedBase}
@@ -480,14 +550,16 @@ function GenerateBranch() {
                   type="button"
                   size="sm"
                   disabled={!canGenerate}
-                  onClick={handleGenerate}
+                  onClick={handleGenerateClick}
                 >
                   {isGenerating ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : needsKeySetup ? (
+                    <Key className="size-3.5" aria-hidden />
                   ) : (
                     <Sparkles className="size-3.5" aria-hidden />
                   )}
-                  {t('generate.run')}
+                  {needsKeySetup ? tSetup('needsKey') : t('generate.run')}
                 </Button>
               </div>
             </div>

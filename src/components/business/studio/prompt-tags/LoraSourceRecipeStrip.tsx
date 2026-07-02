@@ -282,7 +282,11 @@ export function LoraSourceRecipeStrip({
       >
         <DialogContent
           closeLabel={t('sourceImagePreviewClose')}
-          className="flex h-dvh w-dvw max-w-none items-center justify-center rounded-none border-0 bg-black/95 p-4 text-white shadow-none sm:max-w-none"
+          // 画中框：不再撑满视口（h-dvh/w-dvw）——那样会让内容本身盖住整个
+          // 遮罩，Radix 默认的"点击外部关闭"就点不到了。收成贴合图片的卡片，
+          // 四周露出真正可点击的 DialogOverlay，点空白处关闭是 Radix 免费
+          // 自带的行为，不用额外接逻辑。
+          className="w-auto max-w-[min(92vw,720px)] gap-0 rounded-2xl border-border/60 bg-background/95 p-3 shadow-2xl backdrop-blur-md sm:max-w-[min(92vw,720px)]"
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             previewTriggerRef.current?.focus()
@@ -297,7 +301,7 @@ export function LoraSourceRecipeStrip({
             <img
               src={preview.url}
               alt={preview.label}
-              className="max-h-full max-w-full object-contain"
+              className="max-h-[75vh] max-w-full rounded-lg object-contain"
             />
           ) : null}
         </DialogContent>

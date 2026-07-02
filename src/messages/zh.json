@@ -1272,7 +1272,9 @@
       "placeholderBody": "去「库」挑一个 LoRA，回到这里就能出图。",
       "run": "出图",
       "promptPlaceholder": "描述你想要的画面…",
-      "restore": "忠实还原"
+      "restore": "忠实还原",
+      "resultEmptyTitle": "还没有生成结果",
+      "resultEmptyHint": "选好配方后点「出图」"
     },
     "spine": {
       "currentLora": "当前 LoRA",
@@ -1281,7 +1283,8 @@
       "empty": "还没选 LoRA，去「库」挑一个",
       "fast": "快",
       "faithful": "忠实",
-      "comingSoon": "即将"
+      "comingSoon": "即将",
+      "removeLora": "移除 {name}"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",

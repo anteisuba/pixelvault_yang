@@ -546,11 +546,17 @@ function GenerateBranch() {
                   />
                 </div>
               ) : !lastGeneration ? (
-                <div className="flex size-full items-center justify-center">
+                <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
                   <Sparkles
                     className="size-7 text-muted-foreground/40"
                     aria-hidden
                   />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {t('generate.resultEmptyTitle')}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    {t('generate.resultEmptyHint')}
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -626,12 +632,20 @@ function LoraSpineBar({
         stack.items.map((item) => (
           <span
             key={item.asset.id}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-xs"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background py-1 pl-2.5 pr-1 text-xs"
           >
             {item.asset.name}
             <span className="text-muted-foreground">
               ×{(item.scale ?? item.asset.defaultScale).toFixed(1)}
             </span>
+            <button
+              type="button"
+              onClick={() => stack.remove(item.asset.id)}
+              aria-label={t('spine.removeLora', { name: item.asset.name })}
+              className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-3" aria-hidden />
+            </button>
           </span>
         ))
       ) : (

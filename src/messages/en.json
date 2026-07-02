@@ -1272,7 +1272,9 @@
       "placeholderBody": "Choose a LoRA in Library, then come back here to generate.",
       "run": "Generate",
       "promptPlaceholder": "Describe the image you want…",
-      "restore": "Faithful restore"
+      "restore": "Faithful restore",
+      "resultEmptyTitle": "No result yet",
+      "resultEmptyHint": "Pick a recipe, then hit Generate"
     },
     "spine": {
       "currentLora": "Current LoRA",
@@ -1281,7 +1283,8 @@
       "empty": "No LoRA selected — pick one in Library",
       "fast": "Fast",
       "faithful": "Faithful",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "removeLora": "Remove {name}"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",

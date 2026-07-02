@@ -186,7 +186,7 @@ export function LoraSourceRecipeStrip({
                 })}
                 alt=""
                 loading="lazy"
-                className="h-16 w-12 object-cover"
+                className="h-24 w-20 object-cover"
               />
             </button>
           )

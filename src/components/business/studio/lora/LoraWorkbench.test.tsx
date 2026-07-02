@@ -6,7 +6,9 @@ import { AI_MODELS } from '@/constants/models'
 
 import { LoraWorkbench } from './LoraWorkbench'
 
-// ── Issue 2 (Hard Rule 8): 生成分支缺 API key 时按钮不禁用，要路由到
+// ── Issue 2 (Hard Rule 8) + 用户反馈迭代：API key 配置入口挂在「选底模」
+// 这一步（LoraSpineBar 的 needsKey 徽章），不挂在出图按钮上——出图按钮
+// 始终显示「出图」，只在用户从没碰过底模选择器时兜底路由到
 // QuickSetupDialog。这里只覆盖 GenerateBranch 的 key-gate 分支，其余
 // tab（库/训练）保持未测（既有 god-component，无先例覆盖），不在本次
 // 改动范围内新增。
@@ -146,15 +148,37 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     quickSetupSpy.mockReset()
   })
 
-  it('routes to QuickSetupDialog instead of generating when the selected base model has no usable key route', () => {
+  it('shows a needs-key badge in the spine bar that opens QuickSetupDialog, without touching Generate', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+
+    render(<LoraWorkbench />)
+
+    // Primary entry point is now the spine bar's badge next to the base
+    // model selector — not the Generate button.
+    const keyBadge = screen.getByRole('button', {
+      name: /QuickSetup:needsKey/,
+    })
+    fireEvent.click(keyBadge)
+
+    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(screen.getByTestId('quick-setup-dialog')).toHaveTextContent(
+      `${AI_ADAPTER_TYPES.REPLICATE}:${AI_MODELS.ILLUSTRIOUS_XL}`,
+    )
+
+    // Generate button never swaps its own label/icon for the key state.
+    expect(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    ).not.toBeDisabled()
+  })
+
+  it('falls back to QuickSetupDialog if Generate is clicked while the base model still lacks a key', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
 
     render(<LoraWorkbench />)
 
     const generateButton = screen.getByRole('button', {
-      name: /QuickSetup:needsKey/,
+      name: /LoraWorkbench:generate\.run/,
     })
-    expect(generateButton).not.toBeDisabled()
 
     fireEvent.click(generateButton)
 
@@ -182,6 +206,10 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     })
 
     render(<LoraWorkbench />)
+
+    expect(
+      screen.queryByRole('button', { name: /QuickSetup:needsKey/ }),
+    ).not.toBeInTheDocument()
 
     const generateButton = screen.getByRole('button', {
       name: /LoraWorkbench:generate\.run/,

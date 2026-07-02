@@ -282,6 +282,27 @@ export function LoraWorkbench() {
   )
 }
 
+/**
+ * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key
+ * 或 freeTier 平台额度）。纯函数——GenerateBranch 用它算当前选中底模的状态，
+ * handleSelectBase 用它算"即将切换到的底模"的状态，避免两处各写一份。
+ */
+function resolveBaseKeySetup(
+  modelId: string | null,
+  modelOptions: StudioModelOption[],
+): { needsKeySetup: boolean; workspaceOption?: StudioModelOption } {
+  if (!modelId) return { needsKeySetup: false }
+  const options = modelOptions.filter((option) => option.modelId === modelId)
+  const hasUsableRoute = options.some(
+    (option) => option.freeTier || option.sourceType === 'saved',
+  )
+  return {
+    needsKeySetup: !hasUsableRoute,
+    workspaceOption:
+      options.find((option) => option.sourceType === 'workspace') ?? options[0],
+  }
+}
+
 // ── 生成分支（3b-ii-a 最小出图核心）──────────────────────────────────
 // 脊柱条（当前 LoRA / 底模）+ ivory 提示词纸 + 出图：把脊柱条的 LoRA 注入
 // advancedParams.loras、选中底模的 providerModelId 作 modelId、打
@@ -290,7 +311,6 @@ export function LoraWorkbench() {
 function GenerateBranch() {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
-  const tSetup = useTranslations('QuickSetup')
   const router = useRouter()
   const stack = useActiveLoraStack()
   const { generate, isGenerating, lastGeneration } = useUnifiedGenerate()
@@ -323,27 +343,20 @@ function GenerateBranch() {
   }, [healthMap, imageModels, keys])
 
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
-  const compatibleBases = loraFamily ? getCompatibleBases(loraFamily) : []
+  const compatibleBases = useMemo(
+    () => (loraFamily ? getCompatibleBases(loraFamily) : []),
+    [loraFamily],
+  )
   const defaultBase = loraFamily ? getDefaultBase(loraFamily) : null
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
 
   const baseModelId = selectedBase?.providerModelId ?? null
-  const baseModelOptions = useMemo(
-    () =>
-      baseModelId
-        ? modelOptions.filter((option) => option.modelId === baseModelId)
-        : [],
-    [modelOptions, baseModelId],
+  const { needsKeySetup, workspaceOption: workspaceOptionForBase } = useMemo(
+    () => resolveBaseKeySetup(baseModelId, modelOptions),
+    [baseModelId, modelOptions],
   )
-  const hasUsableRoute = baseModelOptions.some(
-    (option) => option.freeTier || option.sourceType === 'saved',
-  )
-  const needsKeySetup = !!baseModelId && !hasUsableRoute
-  const workspaceOptionForBase =
-    baseModelOptions.find((option) => option.sourceType === 'workspace') ??
-    baseModelOptions[0]
 
   const [quickSetup, setQuickSetup] = useState<{
     open: boolean
@@ -352,6 +365,35 @@ function GenerateBranch() {
     adapterType: AI_ADAPTER_TYPES
     optionId: string
   } | null>(null)
+
+  const openKeySetupFor = useCallback(
+    (option: StudioModelOption) => {
+      setQuickSetup({
+        open: true,
+        modelId: option.modelId,
+        modelLabel: getTranslatedModelLabel(tModels, option.modelId),
+        adapterType: option.adapterType,
+        optionId: option.optionId,
+      })
+    },
+    [tModels],
+  )
+
+  // API key 配置入口挂在「选底模」这一步（用户反馈：不该挂在出图按钮上）：
+  // 切换底模时立即检查新底模是否有可用 key 路由，没有就弹 QuickSetupDialog——
+  // 这是用户自己触发的选择动作，不是无来由的自动弹窗。
+  const handleSelectBase = useCallback(
+    (id: string) => {
+      setSelectedBaseId(id)
+      const base = compatibleBases.find((b) => b.id === id)
+      const { needsKeySetup: nextNeedsSetup, workspaceOption } =
+        resolveBaseKeySetup(base?.providerModelId ?? null, modelOptions)
+      if (nextNeedsSetup && workspaceOption) {
+        openKeySetupFor(workspaceOption)
+      }
+    },
+    [compatibleBases, modelOptions, openKeySetupFor],
+  )
 
   // 提示词默认填当前 LoRA 触发词（保证 LoRA 被激活）；切 LoRA 时更新。
   // 用 render 时条件 setState（React 推荐的"随 prop 重置 state"），避免 effect 级联。
@@ -436,24 +478,16 @@ function GenerateBranch() {
     })
   }, [aspectRatio, generate, negativePrompt, prompt, seed, selectedBase, stack])
 
+  // 主入口已经挪到「选底模」（见 handleSelectBase）。这里只是兜底：万一用户
+  // 从没碰过底模选择器（比如默认底模本来就缺 key），点出图不能直接静默失败
+  // ——但按钮外观不再随 needsKeySetup 变化，保持一直是「出图」。
   const handleGenerateClick = useCallback(() => {
-    if (needsKeySetup) {
-      if (workspaceOptionForBase) {
-        setQuickSetup({
-          open: true,
-          modelId: workspaceOptionForBase.modelId,
-          modelLabel: getTranslatedModelLabel(
-            tModels,
-            workspaceOptionForBase.modelId,
-          ),
-          adapterType: workspaceOptionForBase.adapterType,
-          optionId: workspaceOptionForBase.optionId,
-        })
-      }
+    if (needsKeySetup && workspaceOptionForBase) {
+      openKeySetupFor(workspaceOptionForBase)
       return
     }
     void handleGenerate()
-  }, [handleGenerate, needsKeySetup, tModels, workspaceOptionForBase])
+  }, [handleGenerate, needsKeySetup, openKeySetupFor, workspaceOptionForBase])
 
   return (
     <section className="space-y-4">
@@ -473,7 +507,11 @@ function GenerateBranch() {
       <LoraSpineBar
         compatibleBases={compatibleBases}
         selectedBase={selectedBase}
-        onSelectBase={setSelectedBaseId}
+        onSelectBase={handleSelectBase}
+        needsKeySetup={needsKeySetup}
+        onRequestKeySetup={() =>
+          workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
+        }
       />
 
       {!hasLora ? (
@@ -509,7 +547,7 @@ function GenerateBranch() {
           )}
         >
           {mined.recipes.length > 0 ? (
-            <div className="min-w-0 md:col-span-5">
+            <div className="min-w-0 md:col-span-6">
               <LoraSourceRecipeStrip
                 assetName={activeAsset?.name ?? ''}
                 recipes={mined.recipes}
@@ -526,8 +564,8 @@ function GenerateBranch() {
           ) : null}
           <div
             className={cn(
-              'min-w-0 space-y-3',
-              mined.recipes.length > 0 && 'md:col-span-7',
+              'mx-auto w-full min-w-0 max-w-md space-y-3',
+              mined.recipes.length > 0 && 'md:col-span-6',
             )}
           >
             <div
@@ -588,12 +626,10 @@ function GenerateBranch() {
                 >
                   {isGenerating ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : needsKeySetup ? (
-                    <Key className="size-3.5" aria-hidden />
                   ) : (
                     <Sparkles className="size-3.5" aria-hidden />
                   )}
-                  {needsKeySetup ? tSetup('needsKey') : t('generate.run')}
+                  {t('generate.run')}
                 </Button>
               </div>
             </div>
@@ -608,6 +644,10 @@ interface LoraSpineBarProps {
   compatibleBases: LoraBaseModel[]
   selectedBase: LoraBaseModel | null
   onSelectBase: (id: string) => void
+  /** 当前选中底模缺可用 API key 路由——用户反馈：配置入口该挂在选底模这一步，
+   *  不该挂在出图按钮上。 */
+  needsKeySetup: boolean
+  onRequestKeySetup: () => void
 }
 
 // 常驻脊柱条：当前 LoRA stack（自取）+ 被 LoRA 家族约束的底模扁平选择器。
@@ -616,8 +656,11 @@ function LoraSpineBar({
   compatibleBases,
   selectedBase,
   onSelectBase,
+  needsKeySetup,
+  onRequestKeySetup,
 }: LoraSpineBarProps) {
   const t = useTranslations('LoraWorkbench')
+  const tSetup = useTranslations('QuickSetup')
   const stack = useActiveLoraStack()
 
   const fidelityLabel = (b: LoraBaseModel) =>
@@ -658,23 +701,35 @@ function LoraSpineBar({
         {t('spine.baseModel')}
       </span>
       {compatibleBases.length > 0 ? (
-        <Select value={selectedBase?.id} onValueChange={onSelectBase}>
-          <SelectTrigger className="h-7 w-auto gap-1.5 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {compatibleBases.map((base) => (
-              <SelectItem
-                key={base.id}
-                value={base.id}
-                disabled={!base.available}
-              >
-                {base.displayName} · {fidelityLabel(base)}
-                {base.available ? '' : ` · ${t('spine.comingSoon')}`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <>
+          <Select value={selectedBase?.id} onValueChange={onSelectBase}>
+            <SelectTrigger className="h-7 w-auto gap-1.5 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {compatibleBases.map((base) => (
+                <SelectItem
+                  key={base.id}
+                  value={base.id}
+                  disabled={!base.available}
+                >
+                  {base.displayName} · {fidelityLabel(base)}
+                  {base.available ? '' : ` · ${t('spine.comingSoon')}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {needsKeySetup ? (
+            <button
+              type="button"
+              onClick={onRequestKeySetup}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+            >
+              <Key className="size-3" aria-hidden />
+              {tSetup('needsKey')}
+            </button>
+          ) : null}
+        </>
       ) : (
         <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
           {t('spine.baseModelPending')}

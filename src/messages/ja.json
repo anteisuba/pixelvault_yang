@@ -1199,6 +1199,9 @@
     "generate": {
       "sourceImagesLabel": "サンプル画像（{count}）",
       "sourceImageAlt": "{name} のサンプル画像 {n}",
+      "sourceImagePreviewLabel": "{name} のサンプル画像 {n} を拡大表示",
+      "sourceImagePreviewClose": "サンプル画像のプレビューを閉じる",
+      "sourceImagePreviewDescription": "サンプル画像を拡大表示しています。Escape キーまたは閉じるボタンで戻れます。",
       "recipeApply": "このレシピを使う",
       "recipeUseSeed": "元画像のseedを使う",
       "recipeApplied": "サンプルのレシピを適用しました",

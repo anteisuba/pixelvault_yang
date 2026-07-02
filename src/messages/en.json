@@ -1199,6 +1199,9 @@
     "generate": {
       "sourceImagesLabel": "Source images ({count})",
       "sourceImageAlt": "{name} source image {n}",
+      "sourceImagePreviewLabel": "Preview {name} source image {n}",
+      "sourceImagePreviewClose": "Close source image preview",
+      "sourceImagePreviewDescription": "Expanded source image preview. Press Escape or use the close button to return.",
       "recipeApply": "Use this recipe",
       "recipeUseSeed": "Use source seed",
       "recipeApplied": "Source recipe applied",

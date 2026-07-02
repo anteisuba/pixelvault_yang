@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -28,6 +28,12 @@ import {
 } from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 /**
@@ -65,6 +71,11 @@ interface LoraSourceRecipeStripProps {
   inferenceError?: string | null
 }
 
+interface SourceImagePreview {
+  url: string
+  label: string
+}
+
 export function LoraSourceRecipeStrip({
   assetName,
   recipes,
@@ -82,6 +93,8 @@ export function LoraSourceRecipeStrip({
   inferenceError,
 }: LoraSourceRecipeStripProps) {
   const t = useTranslations('LoraPromptControl.generate')
+  const [preview, setPreview] = useState<SourceImagePreview | null>(null)
+  const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const selected = selectedImageUrl
     ? (recipes.find((recipe) => recipe.imageUrl === selectedImageUrl) ?? null)
@@ -139,18 +152,28 @@ export function LoraSourceRecipeStrip({
       <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
         {recipes.map((recipe, idx) => {
           const isSelected = recipe.imageUrl === selectedImageUrl
+          const imageLabel = t('sourceImageAlt', {
+            name: assetName,
+            n: idx + 1,
+          })
+          const previewLabel = t('sourceImagePreviewLabel', {
+            name: assetName,
+            n: idx + 1,
+          })
           return (
             <button
               key={recipe.imageUrl}
               type="button"
               disabled={disabled}
-              onClick={() =>
-                onSelectedImageUrlChange(isSelected ? null : recipe.imageUrl)
-              }
+              onClick={(event) => {
+                previewTriggerRef.current = event.currentTarget
+                onSelectedImageUrlChange(recipe.imageUrl)
+                setPreview({ url: recipe.imageUrl, label: imageLabel })
+              }}
               aria-pressed={isSelected}
-              aria-label={t('sourceImageAlt', { name: assetName, n: idx + 1 })}
+              aria-label={previewLabel}
               className={cn(
-                'shrink-0 overflow-hidden rounded-md border transition-shadow',
+                'shrink-0 cursor-zoom-in overflow-hidden rounded-md border outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 isSelected
                   ? 'border-primary ring-2 ring-primary/50'
                   : 'border-border/60 hover:border-primary/40',
@@ -250,6 +273,35 @@ export function LoraSourceRecipeStrip({
           </div>
         </div>
       ) : null}
+
+      <Dialog
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null)
+        }}
+      >
+        <DialogContent
+          closeLabel={t('sourceImagePreviewClose')}
+          className="flex h-dvh w-dvw max-w-none items-center justify-center rounded-none border-0 bg-black/95 p-4 text-white shadow-none sm:max-w-none"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            previewTriggerRef.current?.focus()
+          }}
+        >
+          <DialogTitle className="sr-only">{preview?.label ?? ''}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t('sourceImagePreviewDescription')}
+          </DialogDescription>
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={preview.url}
+              alt={preview.label}
+              className="max-h-full max-w-full object-contain"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

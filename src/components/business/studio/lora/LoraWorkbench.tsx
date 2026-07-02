@@ -404,81 +404,95 @@ function GenerateBranch() {
           </Button>
         </div>
       ) : (
-        <>
+        <div
+          className={cn(
+            'grid min-w-0 gap-4 md:items-start',
+            mined.recipes.length > 0 && 'md:grid-cols-12',
+          )}
+        >
           {mined.recipes.length > 0 ? (
-            <LoraSourceRecipeStrip
-              assetName={activeAsset?.name ?? ''}
-              recipes={mined.recipes}
-              selectedImageUrl={selectedImageUrl}
-              includeSeed={includeSeed}
-              extraMountStatusByKey={{}}
-              extraStackFull={stack.items.length >= LORA_STACK_MAX}
-              onSelectedImageUrlChange={setSelectedImageUrl}
-              onIncludeSeedChange={setIncludeSeed}
-              onMountExtraLora={() => undefined}
-              onApplyRecipe={handleApplyRecipe}
-            />
+            <div className="min-w-0 md:col-span-5">
+              <LoraSourceRecipeStrip
+                assetName={activeAsset?.name ?? ''}
+                recipes={mined.recipes}
+                selectedImageUrl={selectedImageUrl}
+                includeSeed={includeSeed}
+                extraMountStatusByKey={{}}
+                extraStackFull={stack.items.length >= LORA_STACK_MAX}
+                onSelectedImageUrlChange={setSelectedImageUrl}
+                onIncludeSeedChange={setIncludeSeed}
+                onMountExtraLora={() => undefined}
+                onApplyRecipe={handleApplyRecipe}
+              />
+            </div>
           ) : null}
           <div
-            className="aspect-square w-full max-w-md rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
-            style={
-              lastGeneration
-                ? { backgroundImage: `url(${lastGeneration.url})` }
-                : undefined
-            }
+            className={cn(
+              'min-w-0 space-y-3',
+              mined.recipes.length > 0 && 'md:col-span-7',
+            )}
           >
-            {isGenerating ? (
-              <div className="flex size-full items-center justify-center">
-                <Loader2
-                  className="size-6 animate-spin text-muted-foreground"
-                  aria-hidden
-                />
-              </div>
-            ) : !lastGeneration ? (
-              <div className="flex size-full items-center justify-center">
-                <Sparkles
-                  className="size-7 text-muted-foreground/40"
-                  aria-hidden
-                />
-              </div>
-            ) : null}
-          </div>
+            <div
+              className="aspect-square w-full rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
+              style={
+                lastGeneration
+                  ? { backgroundImage: `url(${lastGeneration.url})` }
+                  : undefined
+              }
+            >
+              {isGenerating ? (
+                <div className="flex size-full items-center justify-center">
+                  <Loader2
+                    className="size-6 animate-spin text-muted-foreground"
+                    aria-hidden
+                  />
+                </div>
+              ) : !lastGeneration ? (
+                <div className="flex size-full items-center justify-center">
+                  <Sparkles
+                    className="size-7 text-muted-foreground/40"
+                    aria-hidden
+                  />
+                </div>
+              ) : null}
+            </div>
 
-          <div className="space-y-2 rounded-2xl bg-surface-composer p-3 text-surface-composer-foreground">
-            <textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder={loraTrigger || t('generate.promptPlaceholder')}
-              rows={3}
-              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
-            />
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!activeAsset || isGenerating}
-                onClick={handleRestore}
-              >
-                <Wand2 className="size-3.5" aria-hidden />
-                {t('generate.restore')}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!canGenerate}
-                onClick={handleGenerate}
-              >
-                {isGenerating ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Sparkles className="size-3.5" aria-hidden />
-                )}
-                {t('generate.run')}
-              </Button>
+            <div className="space-y-2 rounded-2xl bg-surface-composer p-3 text-surface-composer-foreground">
+              <textarea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder={loraTrigger || t('generate.promptPlaceholder')}
+                rows={3}
+                className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!activeAsset || isGenerating}
+                  onClick={handleRestore}
+                >
+                  <Wand2 className="size-3.5" aria-hidden />
+                  {t('generate.restore')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!canGenerate}
+                  onClick={handleGenerate}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="size-3.5" aria-hidden />
+                  )}
+                  {t('generate.run')}
+                </Button>
+              </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </section>
   )

@@ -1199,6 +1199,9 @@
     "generate": {
       "sourceImagesLabel": "来源图（{count}）",
       "sourceImageAlt": "{name} 来源图 {n}",
+      "sourceImagePreviewLabel": "放大查看 {name} 来源图 {n}",
+      "sourceImagePreviewClose": "关闭来源图预览",
+      "sourceImagePreviewDescription": "来源图已放大。按 Escape 键或使用关闭按钮返回。",
       "recipeApply": "一键同款",
       "recipeUseSeed": "使用原图 seed",
       "recipeApplied": "已应用来源图配方",

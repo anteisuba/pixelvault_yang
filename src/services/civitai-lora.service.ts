@@ -1133,17 +1133,18 @@ export async function listCivitaiLoras({
   url.searchParams.set('limit', String(upstreamLimit))
   url.searchParams.set('sort', sort)
   url.searchParams.set('nsfw', 'false')
-  // 分页 bug：以前不管走 page 还是 cursor 模式都会把 nextPageCursor 一起
-  // 带上——page 模式下这是两套分页信号同时发给 Civitai（page=N +
-  // cursor=<上一页存的值>），到底谁生效不确定，很容易导致"翻页翻不动 /
-  // 翻回重复项"这类症状。cursor 只在 query 模式下才有意义（query 模式本来
-  // 就不发 page），page 模式自己够用，不该带 cursor。
+  // 2026-07-02 撤销记录：这里曾经改成"page 模式不发 cursor"（理由是同时发
+  // page+cursor 是反模式），但用户实测反馈默认无搜索时翻页直接失效——
+  // Civitai 的 /api/v1/models 对纯 page 参数翻页本来就不可靠（官方更推荐
+  // cursor），之前"不管 page 还是 query 模式都带上 cursor"大概率是刻意的
+  // workaround，不是意外。没有办法直接打 Civitai 真实接口验证，加上有实测
+  // 反馈说明原行为是必要的，先改回去，别在没证据的情况下咬定自己是对的。
   if (normalizedSearch) {
     url.searchParams.set('query', normalizedSearch)
-    if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   } else {
     url.searchParams.set('page', String(page))
   }
+  if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   if (baseModel !== 'all') {
     appendBaseModelFamilyParams(url, baseModel)
   }

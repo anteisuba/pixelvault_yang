@@ -101,11 +101,7 @@ describe('listCivitaiLoras', () => {
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('types')).toBe('LORA')
     expect(requestUrl.searchParams.get('page')).toBe('2')
-    // Pagination bug fix: page-mode requests must not also carry a leftover
-    // cursor from a previous page — sending both pagination signals to
-    // Civitai at once is undefined behavior. cursor is meaningful only in
-    // the query (search) branch, which omits `page` entirely.
-    expect(requestUrl.searchParams.get('cursor')).toBeNull()
+    expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
     expect(requestUrl.searchParams.get('query')).toBeNull()
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
       'SDXL 1.0',
@@ -337,7 +333,7 @@ describe('listCivitaiLoras', () => {
     expect(item?.thumbImageUrl).not.toContain('anim=false')
   })
 
-  it('keeps page pagination for non-search library requests and never leaks a stale cursor', async () => {
+  it('passes cursor for non-search library pagination', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [],
@@ -354,7 +350,7 @@ describe('listCivitaiLoras', () => {
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('page')).toBe('3')
     expect(requestUrl.searchParams.get('query')).toBeNull()
-    expect(requestUrl.searchParams.get('cursor')).toBeNull()
+    expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual(['Anima'])
     expect(result.nextCursor).toBeNull()
   })

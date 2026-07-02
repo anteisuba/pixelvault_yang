@@ -12,7 +12,7 @@ import { LoraWorkbench } from './LoraWorkbench'
 // 改动范围内新增。
 
 const mockGenerate = vi.hoisted(() => vi.fn())
-const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
+const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -78,8 +78,8 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: mockUseImageModelOptions,
+vi.mock('@/contexts/api-keys-context', () => ({
+  useApiKeysContext: mockUseApiKeysContext,
 }))
 
 vi.mock('@/hooks/use-unified-generate', () => ({
@@ -147,21 +147,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   })
 
   it('routes to QuickSetupDialog instead of generating when the selected base model has no usable key route', () => {
-    mockUseImageModelOptions.mockReturnValue({
-      modelOptions: [
-        {
-          optionId: `workspace:${AI_MODELS.ILLUSTRIOUS_XL}`,
-          modelId: AI_MODELS.ILLUSTRIOUS_XL,
-          adapterType: AI_ADAPTER_TYPES.REPLICATE,
-          providerConfig: { label: 'Replicate', baseUrl: '' },
-          requestCount: 2,
-          isBuiltIn: true,
-          freeTier: false,
-          sourceType: 'workspace',
-        },
-      ],
-      selectedModel: undefined,
-    })
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
 
     render(<LoraWorkbench />)
 
@@ -179,31 +165,20 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   })
 
   it('generates directly when the selected base model already has a saved key route', () => {
-    mockUseImageModelOptions.mockReturnValue({
-      modelOptions: [
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
         {
-          optionId: `workspace:${AI_MODELS.ILLUSTRIOUS_XL}`,
+          id: 'key-1',
           modelId: AI_MODELS.ILLUSTRIOUS_XL,
           adapterType: AI_ADAPTER_TYPES.REPLICATE,
           providerConfig: { label: 'Replicate', baseUrl: '' },
-          requestCount: 2,
-          isBuiltIn: true,
-          freeTier: false,
-          sourceType: 'workspace',
-        },
-        {
-          optionId: 'key:key-1',
-          modelId: AI_MODELS.ILLUSTRIOUS_XL,
-          adapterType: AI_ADAPTER_TYPES.REPLICATE,
-          providerConfig: { label: 'Replicate', baseUrl: '' },
-          requestCount: 2,
-          isBuiltIn: false,
-          freeTier: false,
-          sourceType: 'saved',
-          keyId: 'key-1',
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
         },
       ],
-      selectedModel: undefined,
+      healthMap: { 'key-1': 'available' },
     })
 
     render(<LoraWorkbench />)

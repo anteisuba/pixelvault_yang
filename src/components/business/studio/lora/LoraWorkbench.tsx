@@ -67,7 +67,6 @@ import {
   LORA_STACK_MAX,
   useActiveLoraStack,
 } from '@/hooks/use-active-lora-stack'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
@@ -119,8 +118,15 @@ import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-genera
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getAvailableImageModels } from '@/constants/models'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import { getTranslatedModelLabel } from '@/lib/model-options'
+import {
+  buildSavedModelOptionsForModels,
+  getTranslatedModelLabel,
+  mergeModelOptionsWithPreferredSavedRoutes,
+} from '@/lib/model-options'
+import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { cn } from '@/lib/utils'
 
 export function LoraWorkbench() {
@@ -288,7 +294,33 @@ function GenerateBranch() {
   const router = useRouter()
   const stack = useActiveLoraStack()
   const { generate, isGenerating, lastGeneration } = useUnifiedGenerate()
-  const { modelOptions } = useImageModelOptions()
+
+  // Issue 2 (Hard Rule 8): 缺 key 时不禁用出图按钮，改路由到 QuickSetupDialog。
+  // 不能借用 useImageModelOptions() —— 它内部调 useStudioForm()，而
+  // /studio/lora 页面故意不挂 <StudioProvider>（QuickSetupDialog 的 JSDoc
+  // 也是这么说的），会直接抛 "useStudioForm must be used within
+  // <StudioProvider>"。这里只需要它的合并逻辑，不需要 selectedOptionId
+  // 解析，所以直接复用底层的 buildSavedModelOptionsForModels /
+  // mergeModelOptionsWithPreferredSavedRoutes，跳过 StudioForm 依赖。
+  const { keys, healthMap } = useApiKeysContext()
+  const imageModels = useMemo(() => getAvailableImageModels(), [])
+  const modelOptions = useMemo<StudioModelOption[]>(() => {
+    const builtIn: StudioModelOption[] = imageModels.map((model) => ({
+      optionId: `workspace:${model.id}`,
+      modelId: model.id,
+      adapterType: model.adapterType,
+      providerConfig: model.providerConfig,
+      requestCount: model.cost,
+      isBuiltIn: true,
+      freeTier: model.freeTier,
+      sourceType: 'workspace',
+    }))
+    const saved = buildSavedModelOptionsForModels(
+      keys.filter((k) => k.isActive),
+      imageModels,
+    )
+    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
+  }, [healthMap, imageModels, keys])
 
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
   const compatibleBases = loraFamily ? getCompatibleBases(loraFamily) : []
@@ -297,10 +329,6 @@ function GenerateBranch() {
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
 
-  // Issue 2 (Hard Rule 8): 缺 key 时不禁用出图按钮，改路由到 QuickSetupDialog。
-  // useImageModelOptions 已经把「built-in workspace 路由 + 用户保存的 key 路由」
-  // 合并成同一份 StudioModelOption[]（含 freeTier / sourceType 标记），复用它
-  // 而不是重新拼一份 hasKey 判断。
   const baseModelId = selectedBase?.providerModelId ?? null
   const baseModelOptions = useMemo(
     () =>

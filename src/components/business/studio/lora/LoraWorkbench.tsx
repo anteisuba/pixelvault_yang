@@ -26,6 +26,8 @@ import {
   Key,
   Library,
   Loader2,
+  Minus,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -116,10 +118,13 @@ import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
+import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getAvailableImageModels } from '@/constants/models'
+import { PROMPT_TAG_DEFINITIONS } from '@/constants/prompt-tags'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import {
   buildSavedModelOptionsForModels,
@@ -127,6 +132,9 @@ import {
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
+import { compilePromptTags } from '@/lib/prompt-tag-compiler'
+import { searchPromptTags } from '@/lib/prompt-tag-search'
+import type { PromptPolarity } from '@/types/prompt-tags'
 import { cn } from '@/lib/utils'
 
 export function LoraWorkbench() {
@@ -324,6 +332,14 @@ function GenerateBranch() {
   const router = useRouter()
   const stack = useActiveLoraStack()
   const { generate, isGenerating, lastGeneration } = useUnifiedGenerate()
+  // 「自己搭配」词库（docs/design/pages/lora-domain-wireframes.md §3）读写的就是
+  // 这份共享的 prompt-tag stack——引擎（compiler/search/stack）本来就是
+  // 全域共享的，只是此前唯一的宿主 UI（TagLibrary）被删了，这里是词库导入后
+  // 第一个真正接上的消费端。
+  const promptTags = usePromptTagStack()
+  const [promptMode, setPromptMode] = useState<'recommend' | 'selfBuild'>(
+    'recommend',
+  )
 
   // Issue 2 (Hard Rule 8): 缺 key 时不禁用出图按钮，改路由到 QuickSetupDialog。
   // 不能借用 useImageModelOptions() —— 它内部调 useStudioForm()，而
@@ -509,21 +525,39 @@ function GenerateBranch() {
       url: entry.asset.loraUrl,
       scale: entry.scale ?? entry.asset.defaultScale,
     }))
+    // 「自己搭配」选中的标签在这里并入最终 prompt——compiler 只读不写
+    // selections，负向标签走 compiledNegativePrompt，和已有的
+    // negativePrompt 文本框合并去重，不互相覆盖。
+    const compiled = compilePromptTags({
+      freePrompt: prompt,
+      selectedTags: promptTags.allSelections(),
+      existingNegativePrompt: negativePrompt,
+    })
     const advanced: Record<string, unknown> = {}
     if (loras.length > 0) advanced.loras = loras
-    if (negativePrompt.trim()) advanced.negativePrompt = negativePrompt.trim()
+    if (compiled.negativePrompt)
+      advanced.negativePrompt = compiled.negativePrompt
     await generate({
       mode: 'image',
       image: {
         modelId: providerModelId,
-        freePrompt: prompt,
+        freePrompt: compiled.freePrompt ?? prompt,
         aspectRatio,
         seed,
         advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
         sourceSurface: 'LORA_WORKBENCH',
       },
     })
-  }, [aspectRatio, generate, negativePrompt, prompt, seed, selectedBase, stack])
+  }, [
+    aspectRatio,
+    generate,
+    negativePrompt,
+    prompt,
+    promptTags,
+    seed,
+    selectedBase,
+    stack,
+  ])
 
   // 主入口已经挪到「选底模」（见 handleSelectBase）。这里只是兜底：万一用户
   // 从没碰过底模选择器（比如默认底模本来就缺 key），点出图不能直接静默失败
@@ -619,34 +653,62 @@ function GenerateBranch() {
           </Button>
         </div>
       ) : (
-        <div
-          className={cn(
-            'grid min-w-0 gap-4 md:items-start',
-            mined.recipes.length > 0 && 'md:grid-cols-12',
-          )}
-        >
-          {mined.recipes.length > 0 ? (
-            <div className="min-w-0 md:col-span-6">
-              <LoraSourceRecipeStrip
-                assetName={activeAsset?.name ?? ''}
-                recipes={mined.recipes}
-                selectedImageUrl={selectedImageUrl}
-                includeSeed={includeSeed}
-                extraMountStatusByKey={{}}
-                extraStackFull={stack.items.length >= LORA_STACK_MAX}
-                onSelectedImageUrlChange={setSelectedImageUrl}
-                onIncludeSeedChange={setIncludeSeed}
-                onMountExtraLora={() => undefined}
-                onApplyRecipe={handleApplyRecipe}
-              />
+        <div className="grid min-w-0 gap-4 md:grid-cols-12 md:items-start">
+          <div className="min-w-0 md:col-span-6">
+            {/* 推荐/自己搭配（lora-domain-wireframes.md §3）：推荐=既有来源图
+                配方 strip，自己搭配=词库导入后第一个真正接上的浏览/检索
+                入口。两者共用左栏空间，之前没有配方时左栏整个不渲染，现在
+                自己搭配 tab 总有内容可显示。 */}
+            <div className="mb-2.5 inline-flex h-8 items-center gap-0.5 rounded-full bg-muted/40 p-1">
+              <button
+                type="button"
+                onClick={() => setPromptMode('recommend')}
+                className={cn(
+                  'h-6 rounded-full px-3 text-xs font-medium transition-colors',
+                  promptMode === 'recommend'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t('generate.promptModeRecommend')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromptMode('selfBuild')}
+                className={cn(
+                  'h-6 rounded-full px-3 text-xs font-medium transition-colors',
+                  promptMode === 'selfBuild'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t('generate.promptModeSelfBuild')}
+              </button>
             </div>
-          ) : null}
-          <div
-            className={cn(
-              'mx-auto w-full min-w-0 max-w-md space-y-3',
-              mined.recipes.length > 0 && 'md:col-span-6',
+            {promptMode === 'recommend' ? (
+              mined.recipes.length > 0 ? (
+                <LoraSourceRecipeStrip
+                  assetName={activeAsset?.name ?? ''}
+                  recipes={mined.recipes}
+                  selectedImageUrl={selectedImageUrl}
+                  includeSeed={includeSeed}
+                  extraMountStatusByKey={{}}
+                  extraStackFull={stack.items.length >= LORA_STACK_MAX}
+                  onSelectedImageUrlChange={setSelectedImageUrl}
+                  onIncludeSeedChange={setIncludeSeed}
+                  onMountExtraLora={() => undefined}
+                  onApplyRecipe={handleApplyRecipe}
+                />
+              ) : (
+                <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                  {t('generate.recommendEmpty')}
+                </p>
+              )
+            ) : (
+              <LoraTagPicker />
             )}
-          >
+          </div>
+          <div className="mx-auto w-full min-w-0 max-w-md space-y-3 md:col-span-6">
             <div
               className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
               style={
@@ -723,6 +785,168 @@ function GenerateBranch() {
         </div>
       )}
     </section>
+  )
+}
+
+// ── 自己搭配 · 词库魔导书（docs/design/pages/lora-domain-wireframes.md §3）──
+// booru 搜索 + 功能分类 chip + 候选列表 + 已选 tray（直接复用
+// PromptTagTray，不重造一份选中态展示）。引擎（compiler/search/stack）本来
+// 就是全域共享模块，早就写好也测过，之前只是没有 UI 接上去。
+//
+// 范围收窄说明：文档设想的"发型/眼睛/表情/服装/姿势"等细粒度功能分类需要对
+// 每条 danbooru 词条做二次语义分类（文档 M3「配方拆层」，一个独立的
+// deterministic token classifier），现在没有那份数据。这里先按
+// PromptTagDefinition.category 现有的粗粒度值分（quality/style/scene/
+// character/camera/lighting/anatomy/artifacts）——比文档设想的粗，但每个
+//分类背后都是真数据，不是摆设 chip。"智能词条"（概念→一捆标签）同理：目前
+//没有 prompt_preset 类型的词条数据，先不做假按钮占位。
+function LoraTagPicker() {
+  const t = useTranslations('LoraWorkbench')
+  const tTags = useTranslations('PromptTags')
+  const promptTags = usePromptTagStack()
+  const [query, setQuery] = useState('')
+  const [polarity, setPolarity] = useState<PromptPolarity>('positive')
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    for (const tag of PROMPT_TAG_DEFINITIONS) {
+      if (tag.polarity === polarity) set.add(tag.category)
+    }
+    return Array.from(set).sort()
+  }, [polarity])
+
+  // 切正/负向时，之前选的分类可能在新极性下不存在——收回避免"选中一个筛不出
+  // 东西的分类"死态。render 时条件 reset（本文件已有的惯例模式）。
+  if (activeCategory && !categories.includes(activeCategory)) {
+    setActiveCategory(null)
+  }
+
+  const results = useMemo(() => {
+    const base = searchPromptTags({
+      query,
+      polarity,
+      selectedTagIds: promptTags.selectedTagIds,
+      limit: 60,
+    })
+    return activeCategory
+      ? base.filter((result) => result.tag.category === activeCategory)
+      : base
+  }, [activeCategory, polarity, promptTags.selectedTagIds, query])
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-1.5">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={tTags('library.searchPlaceholder')}
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+        <div className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setPolarity('positive')}
+            aria-label={tTags('library.positive')}
+            className={cn(
+              'inline-flex size-6 items-center justify-center rounded-full',
+              polarity === 'positive'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Plus className="size-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPolarity('negative')}
+            aria-label={tTags('library.negative')}
+            className={cn(
+              'inline-flex size-6 items-center justify-center rounded-full',
+              polarity === 'negative'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Minus className="size-3.5" aria-hidden />
+          </button>
+        </div>
+      </div>
+      <p className="text-2xs text-muted-foreground">
+        {t('generate.tagPickerHint')}
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setActiveCategory(null)}
+          className={cn(
+            'rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
+            activeCategory === null
+              ? 'bg-foreground text-background'
+              : 'border border-border/60 text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t('generate.tagPickerCategoryAll')}
+        </button>
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setActiveCategory(category)}
+            className={cn(
+              'rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
+              activeCategory === category
+                ? 'bg-foreground text-background'
+                : 'border border-border/60 text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {tTags(`category.${category}`)}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-border/60 p-1.5">
+        {results.length === 0 ? (
+          <p className="py-8 text-center text-xs text-muted-foreground">
+            {tTags('library.emptyTitle')}
+          </p>
+        ) : (
+          results.map((result) => (
+            <button
+              key={result.tag.id}
+              type="button"
+              disabled={result.isSelected}
+              onClick={() => promptTags.addTag(result.tag)}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-50"
+            >
+              {result.tag.polarity === 'negative' ? (
+                <Minus
+                  className="size-3 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+              ) : (
+                <Plus
+                  className="size-3 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+              )}
+              <span className="min-w-0 flex-1 truncate">
+                {result.tag.label}
+              </span>
+              <span className="shrink-0 truncate font-mono text-2xs text-muted-foreground/70">
+                {result.tag.promptText}
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+
+      <PromptTagTray />
+    </div>
   )
 }
 

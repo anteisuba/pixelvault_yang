@@ -1166,6 +1166,7 @@
       "anatomy": "结构",
       "artifacts": "瑕疵",
       "camera": "镜头",
+      "character": "角色·系列",
       "custom": "自定义",
       "lighting": "光线",
       "quality": "质量",
@@ -1269,7 +1270,12 @@
       "restore": "忠实还原",
       "resultEmptyTitle": "还没有生成结果",
       "resultEmptyHint": "选好配方后点「出图」",
-      "resultPreviewLabel": "放大查看生成结果"
+      "resultPreviewLabel": "放大查看生成结果",
+      "promptModeRecommend": "推荐",
+      "promptModeSelfBuild": "自己搭配",
+      "recommendEmpty": "这个 LoRA 还没有可用的来源图配方，切到「自己搭配」补词",
+      "tagPickerHint": "规范英文入库 · 中文检索",
+      "tagPickerCategoryAll": "全部"
     },
     "spine": {
       "currentLora": "当前 LoRA",

@@ -1166,6 +1166,7 @@
       "anatomy": "Anatomy",
       "artifacts": "Artifacts",
       "camera": "Camera",
+      "character": "キャラクター",
       "custom": "Custom",
       "lighting": "Lighting",
       "quality": "Quality",
@@ -1269,7 +1270,12 @@
       "restore": "忠実再現",
       "resultEmptyTitle": "まだ生成結果がありません",
       "resultEmptyHint": "レシピを選んで「生成」を押してください",
-      "resultPreviewLabel": "生成結果を拡大表示"
+      "resultPreviewLabel": "生成結果を拡大表示",
+      "promptModeRecommend": "おすすめ",
+      "promptModeSelfBuild": "自分で組む",
+      "recommendEmpty": "このLoRAにはまだ参照可能な元画像レシピがありません。「自分で組む」をお試しください。",
+      "tagPickerHint": "英語トークンで登録 · 多言語検索対応",
+      "tagPickerCategoryAll": "すべて"
     },
     "spine": {
       "currentLora": "現在のLoRA",

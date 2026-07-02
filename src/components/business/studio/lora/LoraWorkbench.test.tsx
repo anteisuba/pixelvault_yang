@@ -15,6 +15,7 @@ import { LoraWorkbench } from './LoraWorkbench'
 
 const mockGenerate = vi.hoisted(() => vi.fn())
 const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
+const mockAddTag = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -84,6 +85,24 @@ vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: mockUseApiKeysContext,
 }))
 
+// LoraTagPicker (自己搭配) and PromptTagTray both read this — not under test
+// here (covered separately by prompt-tag-search/compiler/stack's own
+// suites), so a minimal empty-stack stub keeps these tests focused on the
+// key-gate behavior instead of re-testing the tag-stack engine.
+vi.mock('@/hooks/use-prompt-tag-stack', () => ({
+  usePromptTagStack: () => ({
+    positive: [],
+    negative: [],
+    selectedTagIds: new Set<string>(),
+    selectedCount: 0,
+    addTag: mockAddTag,
+    removeTag: vi.fn(),
+    clearTags: vi.fn(),
+    setWeight: vi.fn(),
+    allSelections: () => [],
+  }),
+}))
+
 let mockLastGeneration: { url: string } | null = null
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
@@ -149,6 +168,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   beforeEach(() => {
     mockGenerate.mockReset()
     quickSetupSpy.mockReset()
+    mockAddTag.mockReset()
     mockLastGeneration = null
   })
 
@@ -248,6 +268,60 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       screen.queryByRole('img', {
         name: /LoraWorkbench:generate\.resultPreviewLabel/,
       }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('LoraWorkbench GenerateBranch — 自己搭配 tag picker', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    mockAddTag.mockReset()
+    mockLastGeneration = null
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  it('switches to 自己搭配 and adds a curated tag from search results', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.promptModeSelfBuild',
+      }),
+    )
+
+    // Empty-query results rank system/curated tags highest — "Masterpiece"
+    // (id: system:quality:masterpiece) should be visible without typing.
+    const masterpieceResult = screen.getByRole('button', {
+      name: /Masterpiece/,
+    })
+    fireEvent.click(masterpieceResult)
+
+    expect(mockAddTag).toHaveBeenCalledTimes(1)
+    expect(mockAddTag.mock.calls[0][0]).toMatchObject({
+      id: 'system:quality:masterpiece',
+      promptText: 'masterpiece',
+    })
+  })
+
+  it('filters results by search query', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.promptModeSelfBuild',
+      }),
+    )
+
+    const searchInput = screen.getByPlaceholderText(
+      'PromptTags:library.searchPlaceholder',
+    )
+    fireEvent.change(searchInput, { target: { value: 'rim lighting' } })
+
+    expect(
+      screen.getByRole('button', { name: /Rim light/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Masterpiece/ }),
     ).not.toBeInTheDocument()
   })
 })

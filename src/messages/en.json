@@ -1166,6 +1166,7 @@
       "anatomy": "Anatomy",
       "artifacts": "Artifacts",
       "camera": "Camera",
+      "character": "Character",
       "custom": "Custom",
       "lighting": "Lighting",
       "quality": "Quality",
@@ -1269,7 +1270,12 @@
       "restore": "Faithful restore",
       "resultEmptyTitle": "No result yet",
       "resultEmptyHint": "Pick a recipe, then hit Generate",
-      "resultPreviewLabel": "Enlarge generation result"
+      "resultPreviewLabel": "Enlarge generation result",
+      "promptModeRecommend": "Recommended",
+      "promptModeSelfBuild": "Build your own",
+      "recommendEmpty": "No source-image recipe for this LoRA yet — try Build your own.",
+      "tagPickerHint": "English tokens, search in any language",
+      "tagPickerCategoryAll": "All"
     },
     "spine": {
       "currentLora": "Current LoRA",

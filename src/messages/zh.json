@@ -1117,7 +1117,6 @@
     },
     "tray": {
       "empty": "添加标签",
-      "loraTrack": "LoRA",
       "positiveTrack": "Tags",
       "negativeTrack": "负向",
       "addPositive": "添加正向标签",
@@ -1126,11 +1125,6 @@
     },
     "chip": {
       "remove": "移除"
-    },
-    "lora": {
-      "insertTrigger": "+ Prompt",
-      "inPrompt": "已在 prompt",
-      "scale": "强度"
     },
     "library": {
       "title": "Prompt 标签库",

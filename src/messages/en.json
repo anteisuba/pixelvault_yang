@@ -1117,7 +1117,6 @@
     },
     "tray": {
       "empty": "Add tags",
-      "loraTrack": "LoRA",
       "positiveTrack": "Tags",
       "negativeTrack": "Neg",
       "addPositive": "Add positive tags",
@@ -1126,11 +1125,6 @@
     },
     "chip": {
       "remove": "Remove"
-    },
-    "lora": {
-      "insertTrigger": "+ Prompt",
-      "inPrompt": "In prompt",
-      "scale": "Scale"
     },
     "library": {
       "title": "Prompt tag library",

@@ -1117,7 +1117,6 @@
     },
     "tray": {
       "empty": "タグを追加",
-      "loraTrack": "LoRA",
       "positiveTrack": "Tags",
       "negativeTrack": "Neg",
       "addPositive": "ポジティブタグを追加",
@@ -1126,11 +1125,6 @@
     },
     "chip": {
       "remove": "削除"
-    },
-    "lora": {
-      "insertTrigger": "+ Prompt",
-      "inPrompt": "Prompt内",
-      "scale": "Scale"
     },
     "library": {
       "title": "Promptタグライブラリ",

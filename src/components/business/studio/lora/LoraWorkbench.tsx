@@ -282,6 +282,16 @@ export function LoraWorkbench() {
   )
 }
 
+/** 「Use LoRA」回放 `?aspectRatio=` 合法值——与 use-studio-replay-from-url.ts 的
+ *  VALID_ASPECT_RATIOS 保持一致（两处状态形态不同，没法共用同一份实现）。 */
+const REPLAY_ASPECT_RATIOS: readonly AspectRatio[] = [
+  '1:1',
+  '16:9',
+  '9:16',
+  '4:3',
+  '3:4',
+]
+
 /**
  * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key
  * 或 freeTier 平台额度）。纯函数——GenerateBranch 用它算当前选中底模的状态，
@@ -432,6 +442,42 @@ function GenerateBranch() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [seed, setSeed] = useState<number | undefined>(undefined)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
+
+  // 「Use LoRA」回放：网关卡片的「Use LoRA」按钮跳到
+  // /studio/lora?prompt=&seed=&negativePrompt=&aspectRatio=（不再跳
+  // /studio/image）。只挂载时应用一次，避免覆盖用户后续编辑——和 Image
+  // Studio 的 useStudioReplayFromUrl 同一套约定；这里状态是本地
+  // useState 而非 StudioFormContext dispatch，形态不同没法直接复用那个
+  // hook，就地写一份等量的解析逻辑。
+  const replaySearchParams = useSearchParams()
+  const hasAppliedReplayRef = useRef(false)
+  useEffect(() => {
+    if (hasAppliedReplayRef.current) return
+    const promptParam = replaySearchParams.get('prompt')
+    const seedParam = replaySearchParams.get('seed')
+    const negativePromptParam = replaySearchParams.get('negativePrompt')
+    const aspectRatioParam = replaySearchParams.get('aspectRatio')
+    const hasAnyReplayParam =
+      promptParam || seedParam || negativePromptParam || aspectRatioParam
+    if (!hasAnyReplayParam) return
+    hasAppliedReplayRef.current = true
+    // 一次性从 URL 回放参数灌进本地 state——ref 守卫保证只跑一次，不会级联
+    // 覆盖用户后续编辑；QuickSetupDialog.tsx 里也是同一个理由禁用这条规则。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (promptParam && promptParam.trim()) setPrompt(promptParam)
+    if (negativePromptParam && negativePromptParam.trim()) {
+      setNegativePrompt(negativePromptParam)
+    }
+    if (
+      aspectRatioParam &&
+      REPLAY_ASPECT_RATIOS.includes(aspectRatioParam as AspectRatio)
+    ) {
+      setAspectRatio(aspectRatioParam as AspectRatio)
+    }
+    if (seedParam && /^-?\d+$/.test(seedParam)) {
+      setSeed(Number(seedParam))
+    }
+  }, [replaySearchParams])
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)

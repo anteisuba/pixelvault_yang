@@ -41,7 +41,6 @@ describe('composeCharacterInjection', () => {
     expect(result).toEqual({
       promptPrefix: null,
       referenceImageUrl: null,
-      loras: [],
       appliedCardIds: [],
     })
   })
@@ -141,33 +140,6 @@ describe('composeCharacterInjection', () => {
       '[Character 1: Aemeath]\nsilver-pink hair\n\n[Character 2: 绯雪]\nwhite kimono',
     )
     expect(result.appliedCardIds).toEqual(['a', 'b'])
-  })
-
-  it('merges loras across cards and dedupes by url', () => {
-    const a = makeCard({
-      id: 'a',
-      name: 'A',
-      characterPrompt: 'p',
-      loras: [
-        { url: 'https://hf/lora-1', scale: 0.8 },
-        { url: 'https://hf/lora-2' },
-      ],
-    })
-    const b = makeCard({
-      id: 'b',
-      name: 'B',
-      characterPrompt: 'p',
-      loras: [
-        { url: 'https://hf/lora-2' },
-        { url: 'https://hf/lora-3', scale: 1.2 },
-      ],
-    })
-    const result = composeCharacterInjection([a, b])
-    expect(result.loras.map((l) => l.url)).toEqual([
-      'https://hf/lora-1',
-      'https://hf/lora-2',
-      'https://hf/lora-3',
-    ])
   })
 
   it('uses only the first card for referenceImage (no merging)', () => {

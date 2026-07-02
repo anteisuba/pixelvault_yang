@@ -664,16 +664,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           freePrompt,
           baseAdvancedParams,
         )
-        const advancedParams =
-          injection.loras.length > 0
-            ? {
-                ...(taggedPrompt.advancedParams ?? {}),
-                loras: [
-                  ...(taggedPrompt.advancedParams?.loras ?? []),
-                  ...injection.loras,
-                ],
-              }
-            : taggedPrompt.advancedParams
         return {
           modelId: imageModelForGeneration.modelId,
           apiKeyId: imageModelForGeneration.keyId,
@@ -681,7 +671,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           aspectRatio: state.aspectRatio,
           projectId: projects.activeProjectId ?? undefined,
           referenceImages: mergedReferenceImages,
-          advancedParams,
+          advancedParams: taggedPrompt.advancedParams,
           recipeUsage: state.recipeUsage ?? undefined,
           characterCardIds:
             injection.appliedCardIds.length > 0
@@ -1143,15 +1133,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               unsupportedTooltip={tImageChip('disabledUnsupported')}
               variant="composer"
             />
-            {!isAudioMode && !isVideoMode ? (
-              <PromptTagTray
-                prompt={state.prompt}
-                disabled={isGenerating}
-                onPromptChange={(value) =>
-                  dispatch({ type: 'SET_PROMPT', payload: value })
-                }
-              />
-            ) : null}
+            {!isAudioMode && !isVideoMode ? <PromptTagTray /> : null}
             <div className="flex min-h-11 items-center gap-2">
               <PromptInputTextarea
                 id={STUDIO_PROMPT_TEXTAREA_ID}

@@ -1,13 +1,8 @@
 import type { CharacterCardRecord, SourceImageEntry } from '@/types'
-import type { z } from 'zod'
-import type { LoraSchema } from '@/types'
-
-type Lora = z.infer<typeof LoraSchema>
 
 export interface CharacterInjection {
   promptPrefix: string | null
   referenceImageUrl: string | null
-  loras: Lora[]
   appliedCardIds: string[]
 }
 
@@ -45,7 +40,6 @@ export function composeCharacterInjection(
     return {
       promptPrefix: null,
       referenceImageUrl: null,
-      loras: [],
       appliedCardIds: [],
     }
   }
@@ -69,19 +63,9 @@ export function composeCharacterInjection(
 
   const referenceImageUrl = pickReferenceImage(cards[0])
 
-  const loras = cards.flatMap((card) => card.loras ?? [])
-  const dedupedLoras: Lora[] = []
-  const seen = new Set<string>()
-  for (const lora of loras) {
-    if (seen.has(lora.url)) continue
-    seen.add(lora.url)
-    dedupedLoras.push(lora)
-  }
-
   return {
     promptPrefix,
     referenceImageUrl,
-    loras: dedupedLoras,
     appliedCardIds: cards.map((c) => c.id),
   }
 }

@@ -116,15 +116,14 @@ interface StoredEnvelope {
 
 /**
  * 最近一次"新 LoRA 进入挂载栈"事件（workbench push 或 ?style= 分享链接
- * 解析）。Provider 挂在 studio layout，事件在内存里跨 /studio/lora →
- * /studio/image 的客户端导航存活。
+ * 解析）。
  *
  * ⚠️ 2026-07-02：原消费方 LoraPromptControlButton 已删除（Image Studio
  * LoRA 清理，见 docs/plans/lora-domain-split-2026-06.md §7），当前没有
  * 组件读取 mountEvent/acknowledgeMountEvent —— 这条一次性反馈通路已是
- * 死状态，只是没删（hook 本身仍被 LoraAssetCard/LoraWorkbench/
- * StudioWorkspaceUI 使用，删 mountEvent 字段需要单独评估，不在本次
- * 清理范围内）。
+ * 死状态，只是没删（删 mountEvent 字段需要单独评估，不在本次清理范围内）。
+ * Provider 现在只包 /studio/lora（见 studio/lora/layout.tsx），不再跨
+ * Image Studio 存活。
  */
 export interface LoraMountEvent {
   assetId: string
@@ -147,10 +146,10 @@ interface ActiveLoraStackValue {
   /** 消费（清除）当前挂载事件 — 反馈只展示一次。 */
   acknowledgeMountEvent(): void
   /**
-   * Build a shareable URL that reproduces this stack on the canvas.
-   * Always points at /<locale>/studio/image with a `?style=` value
-   * encoding code + (non-default) scale per LoRA, in stack order.
-   * Returns `null` when the stack is empty.
+   * Build a shareable URL that reproduces this stack in the LoRA workbench.
+   * Always points at /<locale>/studio/lora with a `?style=` value encoding
+   * code + (non-default) scale per LoRA, in stack order. Returns `null`
+   * when the stack is empty.
    */
   getShareUrl(): string | null
 }
@@ -397,10 +396,10 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     if (!encoded) return null
     // Extract the locale prefix from the current path so the share link
     // lands the recipient on the same language they're already using.
-    // Routes look like `/{locale}/studio/image` or `/{locale}/studio/lora`.
+    // Routes look like `/{locale}/studio/lora`.
     const segments = window.location.pathname.split('/').filter(Boolean)
     const locale = segments[0] ?? 'en'
-    return `${window.location.origin}/${locale}/studio/image?${STYLE_PARAM}=${encodeURIComponent(encoded)}`
+    return `${window.location.origin}/${locale}/studio/lora?${STYLE_PARAM}=${encodeURIComponent(encoded)}`
   }, [items])
 
   const value = useMemo<ActiveLoraStackValue>(

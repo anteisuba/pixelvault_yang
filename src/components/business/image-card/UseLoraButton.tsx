@@ -22,7 +22,12 @@ interface UseLoraButtonProps {
 function studioRouteForOutputType(outputType: OutputType): string {
   if (outputType === 'VIDEO') return ROUTES.STUDIO_VIDEO
   if (outputType === 'AUDIO') return ROUTES.STUDIO_AUDIO
-  return ROUTES.STUDIO_IMAGE
+  // LoRA generation now lives entirely at /studio/lora (Image Studio no
+  // longer reads the active LoRA stack — see LoraStackProvider's move in
+  // studio/lora/layout.tsx). LoraWorkbench's GenerateBranch reads the same
+  // ?prompt=&seed=&negativePrompt=&aspectRatio= replay params this button
+  // already builds below.
+  return ROUTES.STUDIO_LORA
 }
 
 /**

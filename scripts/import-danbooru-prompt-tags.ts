@@ -5,11 +5,18 @@ import type { PromptTagDefinition } from '../src/types/prompt-tags'
 
 const DEFAULT_MIN_POST_COUNT = 5000
 const OUTPUT_PATH = 'src/constants/prompt-tags.danbooru.generated.ts'
-const INCLUDED_DANBOORU_TYPES = new Set(['0', '5'])
-const EXCLUDED_NAME_PATTERNS = [
+const INCLUDED_DANBOORU_TYPES = new Set(['0', '1', '3', '4', '5'])
+const HARD_EXCLUDED_NAME_PATTERNS = [
   /^rating[:_]/i,
-  /(^|_)(artist|copyright|character|username)($|_)/i,
-  /(^|_)(loli|shota|gore|explicit|penis|vagina|nipples?)($|_)/i,
+  /(^|_)(loli|shota|toddlercon|cub)($|_)/i,
+]
+const NSFW_GATED_NAME_PATTERNS = [
+  /(^|_)(gore|explicit|penis|vagina|nipples?)($|_)/i,
+]
+const EXCLUDED_NAME_PATTERNS = [
+  ...HARD_EXCLUDED_NAME_PATTERNS,
+  ...NSFW_GATED_NAME_PATTERNS,
+  /(^|_)username($|_)/i,
 ]
 
 interface ImportOptions {
@@ -102,19 +109,62 @@ function labelFromDanbooruName(name: string): string {
     .join(' ')
 }
 
+type DanbooruTypeCode = '0' | '1' | '3' | '4' | '5'
+
+const DANBOORU_TYPE_META: Record<
+  DanbooruTypeCode,
+  {
+    idSegment: string
+    type: PromptTagDefinition['type']
+    category: string
+    orderGroup: number
+  }
+> = {
+  '0': {
+    idSegment: 'general',
+    type: 'subject',
+    category: 'scene',
+    orderGroup: 40,
+  },
+  '1': {
+    idSegment: 'artist',
+    type: 'style',
+    category: 'style',
+    orderGroup: 45,
+  },
+  '3': {
+    idSegment: 'copyright',
+    type: 'subject',
+    category: 'character',
+    orderGroup: 42,
+  },
+  '4': {
+    idSegment: 'character',
+    type: 'subject',
+    category: 'character',
+    orderGroup: 41,
+  },
+  '5': {
+    idSegment: 'meta',
+    type: 'quality',
+    category: 'quality',
+    orderGroup: 20,
+  },
+}
+
 function definitionFromRow(row: DanbooruCsvRow): PromptTagDefinition {
-  const isMeta = row.type === '5'
+  const meta = DANBOORU_TYPE_META[row.type as DanbooruTypeCode]
   return {
-    id: `danbooru:${isMeta ? 'meta' : 'general'}:${row.name}`,
-    type: isMeta ? 'quality' : 'subject',
+    id: `danbooru:${meta.idSegment}:${row.name}`,
+    type: meta.type,
     source: 'danbooru',
     label: labelFromDanbooruName(row.name),
     promptText: row.name,
     aliases: row.aliases,
-    category: isMeta ? 'quality' : 'scene',
+    category: meta.category,
     polarity: 'positive',
     modelFamilies: ['sdxl', 'anima', 'novelai'],
-    orderGroup: isMeta ? 20 : 40,
+    orderGroup: meta.orderGroup,
     popularity: Math.min(50, Math.floor(row.postCount / 100000)),
   }
 }

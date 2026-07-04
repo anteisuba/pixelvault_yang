@@ -324,11 +324,11 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
   })
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function readStringField(
+export function readStringField(
   value: Record<string, unknown>,
   key: string,
 ): string | null {
@@ -336,7 +336,7 @@ function readStringField(
   return typeof fieldValue === 'string' && fieldValue.trim() ? fieldValue : null
 }
 
-function readPositiveNumberField(
+export function readPositiveNumberField(
   value: Record<string, unknown>,
   key: string,
 ): number | null {
@@ -344,7 +344,7 @@ function readPositiveNumberField(
   return typeof fieldValue === 'number' && fieldValue > 0 ? fieldValue : null
 }
 
-function readNumberField(
+export function readNumberField(
   value: Record<string, unknown>,
   key: string,
 ): number | null {
@@ -354,7 +354,7 @@ function readNumberField(
     : null
 }
 
-function readBooleanField(
+export function readBooleanField(
   value: Record<string, unknown>,
   key: string,
 ): boolean | null {
@@ -362,7 +362,7 @@ function readBooleanField(
   return typeof fieldValue === 'boolean' ? fieldValue : null
 }
 
-function readStringArrayField(
+export function readStringArrayField(
   value: Record<string, unknown>,
   key: string,
 ): string[] | undefined {
@@ -397,15 +397,15 @@ async function readText(request: Request): Promise<string | null> {
   }
 }
 
-function isCallbackKind(value: unknown): value is CallbackKind {
+export function isCallbackKind(value: unknown): value is CallbackKind {
   return CALLBACK_KINDS.some((candidate) => candidate === value)
 }
 
-function isWorkerWorkflowId(value: unknown): value is WorkerWorkflowId {
+export function isWorkerWorkflowId(value: unknown): value is WorkerWorkflowId {
   return QUEUE_WORKFLOW_IDS.some((candidate) => candidate === value)
 }
 
-function isLongVideoPipelineWorkflowId(
+export function isLongVideoPipelineWorkflowId(
   value: unknown,
 ): value is typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID {
   return value === LONG_VIDEO_PIPELINE_WORKFLOW_ID
@@ -425,13 +425,13 @@ function isFalQueueFailureStatus(status: string): boolean {
   )
 }
 
-function toHex(buffer: ArrayBuffer): string {
+export function toHex(buffer: ArrayBuffer): string {
   return [...new Uint8Array(buffer)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 
-function hexToBytes(value: string): Uint8Array | null {
+export function hexToBytes(value: string): Uint8Array | null {
   const normalized = value.trim().toLowerCase()
   if (normalized.length % 2 !== 0 || !/^[0-9a-f]+$/.test(normalized)) {
     return null
@@ -444,7 +444,7 @@ function hexToBytes(value: string): Uint8Array | null {
   return bytes
 }
 
-function timingSafeEqualHex(left: string, right: string): boolean {
+export function timingSafeEqualHex(left: string, right: string): boolean {
   const leftBytes = hexToBytes(left)
   const rightBytes = hexToBytes(right)
 
@@ -459,7 +459,7 @@ function timingSafeEqualHex(left: string, right: string): boolean {
   return diff === 0
 }
 
-async function signBody(secret: string, body: string): Promise<string> {
+export async function signBody(secret: string, body: string): Promise<string> {
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
@@ -477,7 +477,7 @@ async function signBody(secret: string, body: string): Promise<string> {
   return toHex(signature)
 }
 
-async function verifySignedBody(
+export async function verifySignedBody(
   request: Request,
   secret: string,
 ): Promise<string | null> {
@@ -581,7 +581,7 @@ async function handleEcho(
   }
 }
 
-function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
+export function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
   if (!isRecord(input)) return null
   const providerInput = input.providerInput
   if (!isRecord(providerInput)) return null
@@ -778,7 +778,7 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
   }
 }
 
-function parseLongVideoPipelineRunContext(
+export function parseLongVideoPipelineRunContext(
   input: unknown,
 ): LongVideoPipelineRunContext | null {
   if (!isRecord(input)) return null
@@ -892,13 +892,13 @@ function parseLongVideoPipelineRunContext(
   }
 }
 
-function isModel3DWorkflowId(
+export function isModel3DWorkflowId(
   value: unknown,
 ): value is typeof HYPER3D_RODIN_WORKFLOW_ID | typeof HUNYUAN3D_WORKFLOW_ID {
   return value === HYPER3D_RODIN_WORKFLOW_ID || value === HUNYUAN3D_WORKFLOW_ID
 }
 
-function parseModel3DRunContext(
+export function parseModel3DRunContext(
   input: unknown,
 ): WorkerModel3DRunContext | null {
   if (!isRecord(input)) return null
@@ -1037,7 +1037,7 @@ async function importStateKey(secret: string): Promise<CryptoKey> {
   )
 }
 
-async function encryptStateString(
+export async function encryptStateString(
   plaintext: string,
   env: ExecutionEnv,
 ): Promise<string> {
@@ -1057,7 +1057,7 @@ async function encryptStateString(
   return bytesToBase64(combined)
 }
 
-async function decryptStateString(
+export async function decryptStateString(
   blob: string,
   env: ExecutionEnv,
 ): Promise<string> {
@@ -3789,6 +3789,179 @@ function aspectRatioToOpenAISize(aspectRatio: string): {
   }
 }
 
+/** width:height ratio parts for the five wire aspect ratios. */
+const IMAGE_ASPECT_RATIO_PARTS: Record<string, [number, number]> = {
+  '1:1': [1, 1],
+  '16:9': [16, 9],
+  '9:16': [9, 16],
+  '4:3': [4, 3],
+  '3:4': [3, 4],
+}
+
+type ImageResolutionTier = '1K' | '2K' | '4K'
+
+export function isImageResolutionTier(
+  value: string,
+): value is ImageResolutionTier {
+  return value === '1K' || value === '2K' || value === '4K'
+}
+
+interface TieredDimensionConstraints {
+  /** Target total pixel count for this tier (before rounding/clamping). */
+  targetPixels: number
+  /** Round both edges to a multiple of this (default: 1, i.e. no rounding). */
+  edgeStep?: number
+  minEdge?: number
+  maxEdge?: number
+  minTotalPixels?: number
+  maxTotalPixels?: number
+}
+
+/**
+ * Derives width/height for a (aspectRatio, resolution tier) pair from a
+ * target pixel budget rather than a hand-typed size table — the providers
+ * below each impose different edge/total-pixel constraints (see call
+ * sites), so the numbers are computed to satisfy them instead of guessed.
+ */
+export function computeTieredDimensions(
+  aspectRatio: string,
+  {
+    targetPixels,
+    edgeStep = 1,
+    minEdge = 0,
+    maxEdge = Infinity,
+    minTotalPixels = 0,
+    maxTotalPixels = Infinity,
+  }: TieredDimensionConstraints,
+): { width: number; height: number } {
+  const [rw, rh] = IMAGE_ASPECT_RATIO_PARTS[aspectRatio] ?? [1, 1]
+  const roundToStep = (value: number) =>
+    Math.max(edgeStep, Math.round(value / edgeStep) * edgeStep)
+
+  let rawWidth = Math.sqrt((targetPixels * rw) / rh)
+  let rawHeight = targetPixels / rawWidth
+
+  // Scale both edges together when either is outside [minEdge, maxEdge] so
+  // the requested aspect ratio survives the clamp. Clamping width and
+  // height independently could cap only the overflowing edge and leave the
+  // other alone — e.g. a 16:9 request whose ideal width exceeded maxEdge
+  // came out looking like ~4:3 once width alone got capped.
+  const longEdge = Math.max(rawWidth, rawHeight)
+  const shortEdge = Math.min(rawWidth, rawHeight)
+  if (longEdge > maxEdge) {
+    const scale = maxEdge / longEdge
+    rawWidth *= scale
+    rawHeight *= scale
+  } else if (shortEdge < minEdge) {
+    const scale = minEdge / shortEdge
+    rawWidth *= scale
+    rawHeight *= scale
+  }
+
+  let width = roundToStep(rawWidth)
+  let height = roundToStep(rawHeight)
+
+  // Safety net in case edge-step rounding pushed a value just past its
+  // bound (only reachable if maxEdge/minEdge isn't an exact multiple of
+  // edgeStep).
+  width = Math.min(Math.max(width, minEdge), maxEdge)
+  height = Math.min(Math.max(height, minEdge), maxEdge)
+
+  while (width * height > maxTotalPixels && height > edgeStep) {
+    height -= edgeStep
+  }
+  while (width * height < minTotalPixels) {
+    height += edgeStep
+  }
+
+  return { width, height }
+}
+
+const OPENAI_SIZE_EDGE_STEP = 16
+const OPENAI_SIZE_MAX_EDGE = 3840
+const OPENAI_SIZE_MIN_TOTAL_PIXELS = 655_360
+const OPENAI_SIZE_MAX_TOTAL_PIXELS = 8_294_400
+// gpt-image-2 accepts any size satisfying: edges are multiples of 16, long
+// edge <= 3840, and total pixels within [655_360, 8_294_400] — there is no
+// fixed enum, so tiers are pixel budgets rather than literal size strings.
+const OPENAI_RESOLUTION_TARGET_PIXELS: Record<ImageResolutionTier, number> = {
+  '1K': 1024 * 1024,
+  '2K': 2048 * 2048,
+  // True 4K (3840x3840-class) exceeds the API's total-pixel ceiling for
+  // near-square ratios, so the tier targets the ceiling itself — this still
+  // yields the exact standard 3840x2160 for 16:9.
+  '4K': OPENAI_SIZE_MAX_TOTAL_PIXELS,
+}
+
+/** Resolution-tier-aware gpt-image size, only used once the user picks a tier. */
+export function tieredOpenAISize(
+  aspectRatio: string,
+  tier: ImageResolutionTier,
+): { size: string; width: number; height: number } {
+  const { width, height } = computeTieredDimensions(aspectRatio, {
+    targetPixels: OPENAI_RESOLUTION_TARGET_PIXELS[tier],
+    edgeStep: OPENAI_SIZE_EDGE_STEP,
+    maxEdge: OPENAI_SIZE_MAX_EDGE,
+    minTotalPixels: OPENAI_SIZE_MIN_TOTAL_PIXELS,
+    maxTotalPixels: OPENAI_SIZE_MAX_TOTAL_PIXELS,
+  })
+  return { size: `${width}x${height}`, width, height }
+}
+
+const GEMINI_RESOLUTION_TARGET_PIXELS: Record<ImageResolutionTier, number> = {
+  '1K': 1024 * 1024,
+  '2K': 2048 * 2048,
+  '4K': 4096 * 4096,
+}
+
+/** Local dimension record for a Gemini output once a resolution tier is picked. */
+export function tieredGeminiDimensions(
+  aspectRatio: string,
+  tier: ImageResolutionTier,
+): { width: number; height: number } {
+  return computeTieredDimensions(aspectRatio, {
+    targetPixels: GEMINI_RESOLUTION_TARGET_PIXELS[tier],
+    maxEdge: 4096,
+  })
+}
+
+// VolcEngine Ark accepts an explicit "<W>x<H>" size string; the 4K tier is
+// new, the default (no resolution picked) keeps the existing ~2K table in
+// getVolcEngineImageSize() untouched.
+const VOLCENGINE_4K_TARGET_PIXELS = 3840 * 2160
+
+function volcEngine4KSize(aspectRatio: string): {
+  width: number
+  height: number
+  size: string
+} {
+  const { width, height } = computeTieredDimensions(aspectRatio, {
+    targetPixels: VOLCENGINE_4K_TARGET_PIXELS,
+    edgeStep: 8,
+  })
+  return { width, height, size: `${width}x${height}` }
+}
+
+// fal Seedream 4.5's custom `{width, height}` size object requires each
+// edge within [1920, 4096] (per fal's model docs) — there is no 1K tier
+// here, matching the UI's resolutionOptions: ['2K', '4K'] for this model.
+const FAL_SEEDREAM_RESOLUTION_TARGET_PIXELS: Record<'2K' | '4K', number> = {
+  '2K': 2560 * 1440,
+  '4K': 3840 * 2160,
+}
+
+function falSeedreamTieredSize(
+  aspectRatio: string,
+  tier: '2K' | '4K',
+): { width: number; height: number } {
+  return computeTieredDimensions(aspectRatio, {
+    targetPixels: FAL_SEEDREAM_RESOLUTION_TARGET_PIXELS[tier],
+    edgeStep: 8,
+    minEdge: 1920,
+    maxEdge: 4096,
+  })
+}
+
 const FAL_IMAGE_SIZES: Record<string, string> = {
   '1:1': 'square_hd',
   '16:9': 'landscape_16_9',
@@ -3818,6 +3991,7 @@ const FAL_TEXT_TO_IMAGE_ONLY_MODELS = new Set([
   'fal-ai/bytedance/seedream/v4.5/text-to-image',
   'fal-ai/recraft/v4/pro/text-to-image',
 ])
+const FAL_SEEDREAM_45_MODEL_ID = 'fal-ai/bytedance/seedream/v4.5/text-to-image'
 
 interface FalImageResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
@@ -3930,9 +4104,21 @@ function buildFalImageInput(
 ): Record<string, unknown> {
   const { providerInput } = context
   const advancedParams = readAdvancedRecord(context)
+  const resolution = readStringField(advancedParams, 'resolution')
+  // Seedream 4.5 accepts a custom {width, height} object for 2K/4K output;
+  // every other fal model keeps the existing aspect-only preset enum, and
+  // Seedream itself keeps that same enum until the user actually picks a
+  // resolution tier (no default-behavior change).
+  const seedreamTier =
+    providerInput.externalModelId === FAL_SEEDREAM_45_MODEL_ID &&
+    (resolution === '2K' || resolution === '4K')
+      ? resolution
+      : null
   const input: Record<string, unknown> = {
     prompt: providerInput.prompt,
-    image_size: FAL_IMAGE_SIZES[providerInput.aspectRatio] ?? 'square_hd',
+    image_size: seedreamTier
+      ? falSeedreamTieredSize(providerInput.aspectRatio, seedreamTier)
+      : (FAL_IMAGE_SIZES[providerInput.aspectRatio] ?? 'square_hd'),
     num_images: 1,
   }
 
@@ -4342,15 +4528,24 @@ async function generateGeminiImage(
   context: WorkerImageRunContext,
   apiKey: string,
 ): Promise<WorkerImageGenerationResult> {
-  const dimensions = getStandardImageDimensions(
-    context.providerInput.aspectRatio,
-  )
+  const advancedParams = readAdvancedRecord(context)
+  const resolution = readStringField(advancedParams, 'resolution')
+  const resolutionTier =
+    resolution && isImageResolutionTier(resolution) ? resolution : null
+  const dimensions = resolutionTier
+    ? tieredGeminiDimensions(context.providerInput.aspectRatio, resolutionTier)
+    : getStandardImageDimensions(context.providerInput.aspectRatio)
   const parts: Record<string, unknown>[] = [
     { text: context.providerInput.prompt },
   ]
   for (const referenceImage of getImageReferenceInputs(context)) {
     parts.push(await readReferenceImageAsInlinePart(referenceImage))
   }
+
+  const imageConfig: Record<string, unknown> = {
+    aspectRatio: context.providerInput.aspectRatio,
+  }
+  if (resolutionTier) imageConfig.imageSize = resolutionTier
 
   const response = await fetch(
     `${GEMINI_IMAGE_BASE_URL}/${context.providerInput.externalModelId}:generateContent`,
@@ -4364,9 +4559,7 @@ async function generateGeminiImage(
         contents: [{ parts }],
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: {
-            aspectRatio: context.providerInput.aspectRatio,
-          },
+          imageConfig,
         },
       }),
     },
@@ -4498,8 +4691,12 @@ async function generateVolcEngineImage(
   context: WorkerImageRunContext,
   apiKey: string,
 ): Promise<WorkerImageGenerationResult> {
-  const size = getVolcEngineImageSize(context.providerInput.aspectRatio)
   const advancedParams = readAdvancedRecord(context)
+  const resolution = readStringField(advancedParams, 'resolution')
+  const size =
+    resolution === '4K'
+      ? volcEngine4KSize(context.providerInput.aspectRatio)
+      : getVolcEngineImageSize(context.providerInput.aspectRatio)
   const body: Record<string, unknown> = {
     model: context.providerInput.externalModelId,
     prompt: context.providerInput.prompt,
@@ -4979,10 +5176,12 @@ async function generateOpenAIImage(
   mimeType: string
 }> {
   const { providerInput } = context
-  const { size, width, height } = aspectRatioToOpenAISize(
-    providerInput.aspectRatio,
-  )
   const advancedParams = readAdvancedRecord(context)
+  const resolution = readStringField(advancedParams, 'resolution')
+  const { size, width, height } =
+    resolution && isImageResolutionTier(resolution)
+      ? tieredOpenAISize(providerInput.aspectRatio, resolution)
+      : aspectRatioToOpenAISize(providerInput.aspectRatio)
   const referenceImages = getImageReferenceInputs(context)
   const body: Record<string, unknown> =
     referenceImages.length > 0

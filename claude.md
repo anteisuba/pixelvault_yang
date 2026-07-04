@@ -151,7 +151,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 任何 UI 改动前先读 `docs/design/README.md` 与最新 `docs/design/reviews/` 审查报告。然后按任务类型选 skill：
 
-- **首页 / Landing / 视觉升级 / 反 AI-slop** → `Taste Skill`（外部安装，见下）
+- **首页 / Landing / 视觉升级 / 反 AI-slop** → `design-taste-frontend`（设计）→ `redesign-existing-projects`（审计，见下方工作流契约）
 - **生产级产品 UI 实现** → `frontend-design`（Anthropic plugin via `/plugin`）
 - **全站 UX 审查（按钮 / 表单 / 卡片 / 响应式 / a11y / 动效）** → `ui-ux-pro-max-skill`
 - **设计系统一致性 / token 治理** → `hue design-system`
@@ -161,20 +161,22 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 **外部 skill 安装**（用户需要手动跑一次）：
 
 ```bash
-# Taste Skill
-npx skills add Leonxlnx/taste-skill
+# Taste Skill 已装（2026-07-04）：design-taste-frontend + redesign-existing-projects
+# 重装命令（会连带装出 11 个冗余/冲突的审美预设变体，装完只留这两个，其余删掉）：
+# npx skills add Leonxlnx/taste-skill
 # Anthropic frontend-design — Claude Code 里跑：/plugin → marketplace → anthropics/claude-code
 # ui-ux-pro-max / hue — 同样通过 /plugin 安装
 ```
 
 **UI 工作流契约**（与 [[feedback-design-first]] memory 一致）：
 
-1. 审查（audit only，不改代码）→ 输出问题清单 + 文件路径 + 严重程度 + 修复方案
-2. 非琐碎改动先出 Figma 改动清单，等设计稿
-3. 拿到设计稿后用 `mcp__figma__get_design_context` 拉参考代码
-4. 一次只改一个页面/组件
-5. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
-6. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
+1. 涉及 UI 的任务先用 `design-taste-frontend` skill 定设计方向/出实现，完成后过 `redesign-existing-projects` skill 审计（抓 AI-slop 通病、核对是否达标）——两个都在 `.claude/skills/`，直接用 Skill tool 调。
+2. 审查（audit only，不改代码）→ 输出问题清单 + 文件路径 + 严重程度 + 修复方案
+3. 非琐碎改动先出 Figma 改动清单，等设计稿
+4. 拿到设计稿后用 `mcp__figma__get_design_context` 拉参考代码
+5. 一次只改一个页面/组件
+6. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
+7. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
 
 **UI 确认阶梯**（每次优化/修改 UI 后**逐项**走一遍并在完成报告里逐条说明结果，不要只截图"看一眼"）：
 

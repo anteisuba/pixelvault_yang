@@ -16,6 +16,8 @@ export const INSPIRATION_CATEGORIES = [
   'UI & Graphic',
 ] as const
 
+const NATIVE_OPTION_CLASS_NAME = 'bg-popover text-popover-foreground'
+
 interface InspirationFiltersProps {
   category: string | null
   query: string
@@ -68,10 +70,18 @@ export function InspirationFilters({
               'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
             )}
           >
-            <option value="rank">{t('inspirationSortRank')}</option>
-            <option value="likes">{t('inspirationSortLikes')}</option>
-            <option value="views">{t('inspirationSortViews')}</option>
-            <option value="recent">{t('inspirationSortRecent')}</option>
+            <option value="rank" className={NATIVE_OPTION_CLASS_NAME}>
+              {t('inspirationSortRank')}
+            </option>
+            <option value="likes" className={NATIVE_OPTION_CLASS_NAME}>
+              {t('inspirationSortLikes')}
+            </option>
+            <option value="views" className={NATIVE_OPTION_CLASS_NAME}>
+              {t('inspirationSortViews')}
+            </option>
+            <option value="recent" className={NATIVE_OPTION_CLASS_NAME}>
+              {t('inspirationSortRecent')}
+            </option>
           </select>
         </div>
       </div>

@@ -46,6 +46,7 @@ const OUTPUT_TYPE_LABEL_KEYS: Record<OutputType, string> = {
   MODEL_3D: 'outputType3d',
 }
 const MODEL_CHOICES = MODEL_OPTIONS.filter((option) => option.available)
+const NATIVE_OPTION_CLASS_NAME = 'bg-popover text-popover-foreground'
 
 function getModelOption(modelId: string) {
   return MODEL_OPTIONS.find((option) => option.id === modelId)
@@ -264,10 +265,16 @@ export function PromptTemplateCreatePanel({
                 )}
               >
                 {!getModelOption(modelId) && (
-                  <option value={modelId}>{modelId}</option>
+                  <option value={modelId} className={NATIVE_OPTION_CLASS_NAME}>
+                    {modelId}
+                  </option>
                 )}
                 {MODEL_CHOICES.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <option
+                    key={option.id}
+                    value={option.id}
+                    className={NATIVE_OPTION_CLASS_NAME}
+                  >
                     {getTranslatedModelLabel(tModels, option.id)}
                   </option>
                 ))}
@@ -288,7 +295,11 @@ export function PromptTemplateCreatePanel({
                   className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   {OUTPUT_TYPES.map((type) => (
-                    <option key={type} value={type}>
+                    <option
+                      key={type}
+                      value={type}
+                      className={NATIVE_OPTION_CLASS_NAME}
+                    >
                       {t(OUTPUT_TYPE_LABEL_KEYS[type])}
                     </option>
                   ))}

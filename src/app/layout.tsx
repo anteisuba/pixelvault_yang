@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { VercelToolbar } from '@vercel/toolbar/next'
 import { getLocale } from 'next-intl/server'
 
 import { HOMEPAGE_METADATA } from '@/constants/homepage'
@@ -26,9 +25,6 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const locale = await getLocale()
-  const isDev = process.env.NODE_ENV === 'development'
-  const showVercelToolbar =
-    isDev && process.env.NEXT_PUBLIC_ENABLE_VERCEL_TOOLBAR === 'true'
 
   return (
     <html
@@ -41,7 +37,6 @@ export default async function RootLayout({
         className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
       >
         {children}
-        {showVercelToolbar && <VercelToolbar />}
       </body>
     </html>
   )

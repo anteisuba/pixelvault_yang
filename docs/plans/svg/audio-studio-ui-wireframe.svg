@@ -1,0 +1,88 @@
+<svg width="100%" viewBox="0 0 680 540" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <title>语音 kind dock 线框 2026-07</title>
+  <desc>音频工作台语音模式的 dock 结构线框：kind 切换、行内情绪 token 编辑器、基调与表现力、音色与变体、生成栏，下方为四个变更点说明</desc>
+  <rect x="0" y="0" width="680" height="540" fill="#FAF9F5"/>
+  <text x="40" y="32" font-size="16" font-weight="500" fill="#2C2C2A">语音 kind · dock 线框（结构示意，非视觉稿）</text>
+  <text x="40" y="52" font-size="12" fill="#5F5E5A">①–④ 为本次设计新增/改动点，说明见图下</text>
+
+  <rect x="40" y="68" width="600" height="356" rx="8" fill="#FFFFFF" stroke="#B4B2A9" stroke-width="0.75"/>
+
+  <rect x="56" y="82" width="246" height="30" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75"/>
+  <rect x="56" y="82" width="82" height="30" rx="6" fill="#F1EFE8"/>
+  <text x="80" y="101" font-size="12" font-weight="500" fill="#2C2C2A">语音</text>
+  <text x="164" y="101" font-size="12" fill="#5F5E5A">音效</text>
+  <text x="246" y="101" font-size="12" fill="#5F5E5A">音乐</text>
+  <circle cx="318" cy="97" r="8" fill="#534AB7"/>
+  <text x="315" y="101" font-size="11" fill="#EEEDFE">1</text>
+  <rect x="480" y="82" width="144" height="30" rx="15" fill="#F1EFE8"/>
+  <text x="494" y="101" font-size="12" fill="#444441">工作流：播客 ▾</text>
+
+  <rect x="56" y="126" width="568" height="104" rx="6" fill="#FDFCF9" stroke="#D3D1C7" stroke-width="0.75"/>
+  <text x="68" y="152" font-size="12" fill="#444441">今天的节目有点不一样。</text>
+  <rect x="206" y="138" width="52" height="20" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="214" y="152" font-size="11" fill="#3C3489">[激动]</text>
+  <text x="266" y="152" font-size="12" fill="#444441">我们请到了一位十年没露面的老朋友——</text>
+  <rect x="68" y="164" width="52" height="20" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="76" y="178" font-size="11" fill="#3C3489">[耳语]</text>
+  <text x="128" y="178" font-size="12" fill="#444441">听说，他这次带来的东西……不太寻常。</text>
+  <text x="68" y="214" font-size="12" fill="#888780">选中文本或置光标 → 点情绪 chip 插入 token；token 整体可删、按 provider 编译</text>
+  <circle cx="606" cy="146" r="8" fill="#534AB7"/>
+  <text x="603" y="150" font-size="11" fill="#EEEDFE">2</text>
+
+  <text x="56" y="262" font-size="12" font-weight="500" fill="#444441">基调</text>
+  <rect x="92" y="244" width="34" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="103" y="261" font-size="12" fill="#444441">无</text>
+  <rect x="134" y="244" width="46" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="145" y="261" font-size="12" fill="#444441">平静</text>
+  <rect x="188" y="244" width="46" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="199" y="261" font-size="12" fill="#444441">激动</text>
+  <rect x="242" y="244" width="46" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="253" y="261" font-size="12" fill="#444441">耳语</text>
+  <rect x="296" y="244" width="46" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="307" y="261" font-size="12" fill="#444441">旁白</text>
+  <rect x="350" y="244" width="46" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="361" y="261" font-size="12" fill="#444441">对话</text>
+  <circle cx="428" cy="257" r="8" fill="#534AB7"/>
+  <text x="425" y="261" font-size="11" fill="#EEEDFE">3</text>
+  <text x="446" y="262" font-size="12" font-weight="500" fill="#444441">表现力</text>
+  <rect x="494" y="244" width="130" height="26" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75"/>
+  <text x="502" y="261" font-size="12" fill="#5F5E5A">克制</text>
+  <text x="540" y="261" font-size="12" fill="#5F5E5A">自然</text>
+  <rect x="576" y="244" width="48" height="26" rx="6" fill="#EEEDFE"/>
+  <text x="582" y="261" font-size="12" font-weight="500" fill="#3C3489">戏剧化</text>
+
+  <text x="56" y="306" font-size="12" font-weight="500" fill="#444441">音色</text>
+  <rect x="92" y="288" width="118" height="26" rx="13" fill="#F1EFE8"/>
+  <text x="104" y="305" font-size="12" fill="#444441">少女 · 星野 ▾</text>
+  <rect x="222" y="288" width="158" height="26" rx="13" fill="none" stroke="#B4B2A9" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="234" y="305" font-size="12" fill="#888780">+ 添加说话人（播客）</text>
+  <text x="470" y="306" font-size="12" font-weight="500" fill="#444441">变体</text>
+  <rect x="506" y="288" width="34" height="26" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75"/>
+  <text x="514" y="305" font-size="12" fill="#5F5E5A">×1</text>
+  <rect x="546" y="288" width="34" height="26" rx="6" fill="#EEEDFE"/>
+  <text x="554" y="305" font-size="12" font-weight="500" fill="#3C3489">×2</text>
+  <rect x="586" y="288" width="34" height="26" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75"/>
+  <text x="594" y="305" font-size="12" fill="#5F5E5A">×4</text>
+  <circle cx="634" cy="301" r="8" fill="#534AB7"/>
+  <text x="631" y="305" font-size="11" fill="#EEEDFE">4</text>
+
+  <rect x="56" y="336" width="568" height="40" rx="6" fill="#F1EFE8"/>
+  <text x="68" y="360" font-size="12" fill="#5F5E5A">预计 10 credits（×2 变体）· Eleven v3 · 表现力：戏剧化（自动，检测到情绪标记）</text>
+  <rect x="524" y="343" width="88" height="26" rx="6" fill="#2C2C2A"/>
+  <text x="554" y="360" font-size="12" font-weight="500" fill="#F1EFE8">生成</text>
+
+  <text x="68" y="408" font-size="12" fill="#888780">（出纸区：波形卡 + 分段情绪标记高亮；长音频显示章节条 — 略）</text>
+
+  <circle cx="48" cy="452" r="8" fill="#534AB7"/>
+  <text x="45" y="456" font-size="11" fill="#EEEDFE">1</text>
+  <text x="64" y="456" font-size="12" fill="#444441">kind 二级切换：单路由内换 dock 面板，画布 / 历史共享；播客是语音下的工作流</text>
+  <circle cx="48" cy="474" r="8" fill="#534AB7"/>
+  <text x="45" y="478" font-size="11" fill="#EEEDFE">2</text>
+  <text x="64" y="478" font-size="12" fill="#444441">行内情绪 token：复用 mention-input 原子 pill；Fish 透传自由词表，v3 白名单编译</text>
+  <circle cx="48" cy="496" r="8" fill="#534AB7"/>
+  <text x="45" y="500" font-size="11" fill="#EEEDFE">3</text>
+  <text x="64" y="500" font-size="12" fill="#444441">表现力三档：默认自动 — 有情绪意图 → 戏剧化（Creative），无 → 自然（Natural）</text>
+  <circle cx="48" cy="518" r="8" fill="#534AB7"/>
+  <text x="45" y="522" font-size="11" fill="#EEEDFE">4</text>
+  <text x="64" y="522" font-size="12" fill="#444441">A/B 变体出纸：×1 / ×2 / ×4 并排试听，情绪调参的感知基础</text>
+</svg>

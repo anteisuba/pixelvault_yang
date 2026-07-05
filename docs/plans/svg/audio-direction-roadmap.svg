@@ -1,0 +1,54 @@
+<svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <title>音频域方向优先级路线 2026-07</title>
+  <desc>左侧为可复用的现状积木，右侧为 D1 至 D6 六个方向按 P0 P1 P2 三档排列，底部为明确不做项</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <rect x="0" y="0" width="680" height="520" fill="#FAF9F5"/>
+  <text x="40" y="32" font-size="16" font-weight="500" fill="#2C2C2A">音频域 · 方向优先级路线（2026-07）</text>
+  <text x="40" y="52" font-size="12" fill="#5F5E5A">排序 = 复用现有管线的程度 × 对画布视频主线的加成</text>
+
+  <rect x="40" y="68" width="180" height="290" rx="6" fill="none" stroke="#0F6E56" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="52" y="88" font-size="12" font-weight="500" fill="#085041">现状积木 · 全复用</text>
+  <rect x="52" y="100" width="156" height="38" rx="4" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.75"/>
+  <text x="62" y="124" font-size="12" font-weight="500" fill="#085041">ElevenLabs adapter</text>
+  <rect x="52" y="148" width="156" height="38" rx="4" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.75"/>
+  <text x="62" y="172" font-size="12" font-weight="500" fill="#085041">音色卡 + 克隆管线</text>
+  <rect x="52" y="196" width="156" height="38" rx="4" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.75"/>
+  <text x="62" y="220" font-size="12" font-weight="500" fill="#085041">多说话人 ≤8</text>
+  <rect x="52" y="244" width="156" height="38" rx="4" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.75"/>
+  <text x="62" y="268" font-size="12" font-weight="500" fill="#085041">两阶段剧本引擎</text>
+  <rect x="52" y="292" width="156" height="38" rx="4" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.75"/>
+  <text x="62" y="316" font-size="12" font-weight="500" fill="#085041">credit · R2 · 重试管线</text>
+
+  <line x1="226" y1="212" x2="244" y2="212" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="250" y="68" width="390" height="138" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="262" y="88" font-size="12" font-weight="500" fill="#444441">P0 — 同批建模，可分批上线</text>
+  <rect x="262" y="98" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="274" y="120" font-size="14" font-weight="500" fill="#3C3489">D1 音效生成（SFX）</text>
+  <text x="274" y="138" font-size="12" fill="#534AB7">SFX V2 · 多变体出纸</text>
+  <rect x="456" y="98" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="468" y="120" font-size="14" font-weight="500" fill="#3C3489">D2 音乐生成</text>
+  <text x="468" y="138" font-size="12" fill="#534AB7">Eleven Music · ≤60s 先行</text>
+  <text x="262" y="184" font-size="12" font-weight="500" fill="#444441">建模：audioKind ∈ {speech, sfx, music} — 属性，不是新类型</text>
+
+  <rect x="250" y="218" width="390" height="100" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="262" y="238" font-size="12" font-weight="500" fill="#444441">P1 — 成品化组合拳</text>
+  <rect x="262" y="248" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="274" y="270" font-size="14" font-weight="500" fill="#3C3489">D3 播客 / 长对话</text>
+  <text x="274" y="288" font-size="12" fill="#534AB7">剧本引擎 + 多音色拼接</text>
+  <rect x="456" y="248" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="468" y="270" font-size="14" font-weight="500" fill="#3C3489">D4 文字造音色</text>
+  <text x="468" y="288" font-size="12" fill="#534AB7">产物落音色卡（designed）</text>
+
+  <rect x="250" y="330" width="390" height="100" rx="6" fill="none" stroke="#B4B2A9" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="262" y="350" font-size="12" font-weight="500" fill="#444441">P2 — 补位工具</text>
+  <rect x="262" y="360" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="274" y="382" font-size="14" font-weight="500" fill="#3C3489">D5 视频配音</text>
+  <text x="274" y="400" font-size="12" fill="#534AB7">video-to-sound · 补救位</text>
+  <rect x="456" y="360" width="182" height="58" rx="4" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
+  <text x="468" y="382" font-size="14" font-weight="500" fill="#3C3489">D6 转录 / 字幕</text>
+  <text x="468" y="400" font-size="12" fill="#534AB7">服务画布与详情页</text>
+
+  <rect x="40" y="442" width="600" height="44" rx="4" fill="#FAECE7" stroke="#D85A30" stroke-width="0.75" stroke-dasharray="4 3"/>
+  <text x="56" y="469" font-size="12" font-weight="500" fill="#712B13">明确不做（现在）：实时语音 agents（定位错位）· DAW 式音频编辑（投入错配）</text>
+</svg>

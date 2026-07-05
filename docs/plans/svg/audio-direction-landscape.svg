@@ -1,0 +1,57 @@
+<svg width="100%" viewBox="0 0 680 580" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <title>音频域外部生态地图 2026-07</title>
+  <desc>四个外部领域（语音克隆、音乐、音效视频配音、播客长音频）的代表玩家、趋势判断与对 PixelVault 的含义</desc>
+  <rect x="0" y="0" width="680" height="580" fill="#FAF9F5"/>
+  <text x="40" y="32" font-size="16" font-weight="500" fill="#2C2C2A">音频域 · 外部生态地图（2026-07）</text>
+  <text x="40" y="52" font-size="12" fill="#5F5E5A">来源：X / GitHub / Hugging Face / 网页检索 · 绿色行 = 对 PixelVault 的含义</text>
+
+  <rect x="40" y="70" width="600" height="108" rx="6" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.75"/>
+  <text x="56" y="94" font-size="14" font-weight="500" fill="#2C2C2A">语音 / 克隆 — 开源已平价化</text>
+  <rect x="56" y="104" width="138" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="66" y="119" font-size="12" fill="#444441">OmniVoice · 646 语言</text>
+  <rect x="204" y="104" width="95" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="214" y="119" font-size="12" fill="#444441">Higgs TTS 3</text>
+  <rect x="309" y="104" width="122" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="319" y="119" font-size="12" fill="#444441">Chatterbox · MIT</text>
+  <rect x="441" y="104" width="140" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="451" y="119" font-size="12" fill="#444441">fish s2-pro 已开源</text>
+  <text x="56" y="148" font-size="12" fill="#5F5E5A">趋势：3 秒克隆、646 语言全开源，纯 TTS 能力不再稀缺</text>
+  <text x="56" y="166" font-size="12" font-weight="500" fill="#0F6E56">含义：押注音色资产 + 表现力控制；画布「音色 = 角色身份」方向正确</text>
+
+  <rect x="40" y="192" width="600" height="108" rx="6" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.75"/>
+  <text x="56" y="216" font-size="14" font-weight="500" fill="#2C2C2A">音乐生成 — 商用许可分层</text>
+  <rect x="56" y="226" width="160" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="66" y="241" font-size="12" fill="#444441">Eleven Music · 官方 API</text>
+  <rect x="224" y="226" width="138" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="234" y="241" font-size="12" fill="#444441">Suno v5 · 无官方 API</text>
+  <rect x="370" y="226" width="96" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="380" y="241" font-size="12" fill="#444441">MiniMax 2.5</text>
+  <rect x="474" y="226" width="110" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="484" y="241" font-size="12" fill="#444441">ACE-Step · MIT</text>
+  <text x="56" y="270" font-size="12" fill="#5F5E5A">趋势：Suno 质量最强但无官方 API；ElevenLabs 训练数据带授权、商用最干净</text>
+  <text x="56" y="288" font-size="12" font-weight="500" fill="#0F6E56">含义：直连 Eleven Music API（adapter 已有）；开源 ACE-Step 留给 RUNNER 远期</text>
+
+  <rect x="40" y="314" width="600" height="108" rx="6" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.75"/>
+  <text x="56" y="338" font-size="14" font-weight="500" fill="#2C2C2A">音效 / 视频配音 — 并入视频工作流</text>
+  <rect x="56" y="348" width="130" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="66" y="363" font-size="12" fill="#444441">ElevenLabs SFX V2</text>
+  <rect x="194" y="348" width="110" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="204" y="363" font-size="12" fill="#444441">Video-to-Sound</text>
+  <rect x="312" y="348" width="136" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="322" y="363" font-size="12" fill="#444441">Stable Audio 3 SFX</text>
+  <rect x="456" y="348" width="160" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="466" y="363" font-size="12" fill="#444441">Veo / Seedance 原生音轨</text>
+  <text x="56" y="392" font-size="12" fill="#5F5E5A">趋势：视频模型原生带音轨成默认；竞品把音频做成视频的配套层</text>
+  <text x="56" y="410" font-size="12" font-weight="500" fill="#0F6E56">含义：画布场景 / 动作卡缺声音层，SFX 是最近的补口</text>
+
+  <rect x="40" y="436" width="600" height="108" rx="6" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.75"/>
+  <text x="56" y="460" font-size="14" font-weight="500" fill="#2C2C2A">播客 / 长音频 — 品类已验证</text>
+  <rect x="56" y="470" width="166" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="66" y="485" font-size="12" fill="#444441">NotebookLM · 80+ 语言</text>
+  <rect x="230" y="470" width="158" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="240" y="485" font-size="12" fill="#444441">open-notebook · 34.9k★</text>
+  <rect x="396" y="470" width="118" height="22" rx="11" fill="#F1EFE8"/>
+  <text x="406" y="485" font-size="12" fill="#444441">4 形态 · 可插话</text>
+  <text x="56" y="514" font-size="12" fill="#5F5E5A">趋势：LLM 对话稿 + 多音色 TTS 拼接，开源已跟上（GitHub 月度上榜）</text>
+  <text x="56" y="532" font-size="12" font-weight="500" fill="#0F6E56">含义：两阶段剧本引擎 + 多说话人 ≤8，积木齐备只差编排</text>
+</svg>

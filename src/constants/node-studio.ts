@@ -363,6 +363,13 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     characterRowOffsetY: 260,
     voiceRowOffsetY: 150,
   },
+  // §7.1 部门条 ＋添加位 autospawn: place the new reference node to the LEFT of
+  // its target video node, stacked downward by how many upstream nodes the
+  // target already has, so successive adds don't overlap.
+  referenceSpawn: {
+    offsetX: -420,
+    rowOffsetY: 200,
+  },
 } as const
 
 export const NODE_STUDIO_ID_PREFIXES = {

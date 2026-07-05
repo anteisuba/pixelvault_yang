@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { uploadReferenceVideoAPI } from '@/lib/api-client'
+import { captureVideoThumbnail } from '@/lib/video-thumbnail'
 import { REFERENCE_VIDEO_MAX_DURATION_SECONDS } from '@/constants/node-studio'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -65,6 +66,10 @@ export function VideoReferenceInspector({
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
   const mediaLabel =
     typeof node.data.mediaLabel === 'string' ? node.data.mediaLabel : null
+  const videoThumbnailUrl =
+    typeof node.data.videoThumbnailUrl === 'string'
+      ? node.data.videoThumbnailUrl
+      : undefined
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +106,11 @@ export function VideoReferenceInspector({
 
       setIsUploading(true)
       try {
-        const response = await uploadReferenceVideoAPI(file)
+        // Grab a poster frame client-side so the manually-uploaded clip carries
+        // the same thumbnail the AI-generated path gets (§9.2). Best-effort:
+        // a null capture just means no poster, never a failed upload.
+        const thumbnailBlob = await captureVideoThumbnail(file)
+        const response = await uploadReferenceVideoAPI(file, thumbnailBlob)
         if (!response.success || !response.data) {
           toast.error(response.error ?? t('errors.uploadFailed'), {
             duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
@@ -113,6 +122,7 @@ export function VideoReferenceInspector({
         updateNodeData(node.id, {
           mediaUrl: response.data.url,
           mediaLabel: response.data.fileName,
+          videoThumbnailUrl: response.data.thumbnailUrl,
           status: NODE_STATUS_IDS.done,
         })
         toast.success(t('uploaded'), {
@@ -161,6 +171,7 @@ export function VideoReferenceInspector({
         {mediaUrl ? (
           <video
             src={mediaUrl}
+            poster={videoThumbnailUrl}
             className="h-full w-full object-cover"
             controls
             muted

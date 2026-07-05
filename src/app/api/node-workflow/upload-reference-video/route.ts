@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger'
 
 export const maxDuration = 60
 
-function isUploadedVideo(value: FormDataEntryValue | null): value is File {
+function isUploadedFile(value: FormDataEntryValue | null): value is File {
   if (typeof value !== 'object' || value === null) {
     return false
   }
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const video = formData.get('video')
-    if (!isUploadedVideo(video)) {
+    if (!isUploadedFile(video)) {
       return NextResponse.json(
         { success: false, error: 'Video file is required' },
         { status: 400 },
@@ -72,11 +72,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Optional client-captured poster frame (webp). Ignore anything that isn't a
+    // real uploaded file — the video still uploads without it (§9.2 失败兜底).
+    const thumbnail = formData.get('thumbnail')
+    const thumbnailBuffer = isUploadedFile(thumbnail)
+      ? Buffer.from(await thumbnail.arrayBuffer())
+      : undefined
+
     const dbUser = await ensureUser(clerkId)
     const uploaded = await uploadReferenceVideo({
       userId: dbUser.id,
       fileBuffer,
       mimeType: video.type,
+      thumbnailBuffer,
     })
 
     return NextResponse.json({
@@ -85,6 +93,7 @@ export async function POST(request: NextRequest) {
         url: uploaded.url,
         sizeBytes: uploaded.sizeBytes,
         mimeType: uploaded.mimeType,
+        thumbnailUrl: uploaded.thumbnailUrl,
         fileName: video.name || `reference.${uploaded.mimeType.split('/')[1]}`,
       },
     })

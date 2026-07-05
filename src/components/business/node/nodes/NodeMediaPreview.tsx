@@ -124,6 +124,10 @@ export function NodeMediaPreview({
   const tTypes = useTranslations('StudioNode.nodeTypes')
   const tPicker = useTranslations('StudioNode.imageRolePicker')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
+  const videoThumbnailUrl =
+    typeof data.videoThumbnailUrl === 'string'
+      ? data.videoThumbnailUrl
+      : undefined
   const summaryFields = getSummaryFields(type)
   const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
   const generationStatus =
@@ -195,6 +199,7 @@ export function NodeMediaPreview({
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
             <video
               src={mediaUrl}
+              poster={videoThumbnailUrl}
               className="h-full w-full object-contain"
               controls
               muted

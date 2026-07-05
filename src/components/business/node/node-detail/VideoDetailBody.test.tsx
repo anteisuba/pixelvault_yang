@@ -13,14 +13,14 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { VideoDetailBody } from './VideoDetailBody'
 
 describe('VideoDetailBody', () => {
-  it('keeps a generated video visible above the expanded composer', () => {
+  it('is a thin dispatch to the detail-density composer (monitor lives in VideoComposer)', () => {
     const data: NodeWorkflowNodeData = {
       mediaUrl: 'https://cdn.test/generated-video.mp4',
       prompt: 'A cinematic close-up',
       status: NODE_STATUS_IDS.done,
     }
 
-    const { container } = render(
+    render(
       <VideoDetailBody
         nodeId="video-1"
         type={NODE_TYPE_IDS.seedance}
@@ -28,19 +28,16 @@ describe('VideoDetailBody', () => {
       />,
     )
 
-    const video = container.querySelector('video')
-    expect(video).toHaveAttribute('src', 'https://cdn.test/generated-video.mp4')
-    expect(video).toHaveAttribute('controls')
     expect(screen.getByText('video-composer-detail')).toBeInTheDocument()
   })
 
-  it('keeps an ungenerated node focused on the expanded composer', () => {
+  it('renders the same dispatch for an ungenerated node', () => {
     const data: NodeWorkflowNodeData = {
       prompt: 'A cinematic close-up',
       status: NODE_STATUS_IDS.ready,
     }
 
-    const { container } = render(
+    render(
       <VideoDetailBody
         nodeId="video-1"
         type={NODE_TYPE_IDS.seedance}
@@ -48,7 +45,6 @@ describe('VideoDetailBody', () => {
       />,
     )
 
-    expect(container.querySelector('video')).toBeNull()
     expect(screen.getByText('video-composer-detail')).toBeInTheDocument()
   })
 })

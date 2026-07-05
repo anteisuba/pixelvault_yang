@@ -299,6 +299,12 @@ export interface AudioBinding {
    * routing through a character.
    */
   characterName?: string
+  /** The voice node's own id — lets the composer's @token hover preview
+   *  locate it on canvas (§8.3), unlike the URL which is not unique per node. */
+  nodeId?: string
+  /** Voice cover — `voiceCoverImage` (system voice) or `voiceReferenceCoverImage`
+   *  (user reference audio's asset-library cover), for the token thumbnail (§8.2). */
+  coverImage?: string
 }
 
 function readCharacterName(node: NodeWorkflowNode): string | undefined {
@@ -317,13 +323,28 @@ function readCharacterName(node: NodeWorkflowNode): string | undefined {
   return undefined
 }
 
-function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
+export function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
   if (!isVoiceProfileNode(node)) return undefined
   const url =
     typeof node.data.voiceReferenceAudioUrl === 'string'
       ? node.data.voiceReferenceAudioUrl.trim()
       : ''
   return url || undefined
+}
+
+export function readVoiceCoverImage(
+  node: NodeWorkflowNode,
+): string | undefined {
+  const referenceCover =
+    typeof node.data.voiceReferenceCoverImage === 'string'
+      ? node.data.voiceReferenceCoverImage.trim()
+      : ''
+  if (referenceCover) return referenceCover
+  const systemCover =
+    typeof node.data.voiceCoverImage === 'string'
+      ? node.data.voiceCoverImage.trim()
+      : ''
+  return systemCover || undefined
 }
 
 /**
@@ -344,10 +365,21 @@ export function harvestUpstreamAudioBindings(
   const seenUrls = new Set<string>()
   const bindings: AudioBinding[] = []
 
-  const push = (url: string, characterName?: string) => {
+  const push = (
+    url: string,
+    voiceNode: NodeWorkflowNode,
+    characterName?: string,
+  ) => {
     if (seenUrls.has(url)) return
     seenUrls.add(url)
-    bindings.push({ url, ...(characterName ? { characterName } : {}) })
+    bindings.push({
+      url,
+      nodeId: voiceNode.id,
+      ...(characterName ? { characterName } : {}),
+      ...(readVoiceCoverImage(voiceNode)
+        ? { coverImage: readVoiceCoverImage(voiceNode) }
+        : {}),
+    })
   }
 
   // Pass 1 — voices wired through a character node (character-bound) take
@@ -360,7 +392,7 @@ export function harvestUpstreamAudioBindings(
     for (const candidate of characterUpstream) {
       const url = readVoiceUrl(candidate)
       if (!url) continue
-      push(url, characterName)
+      push(url, candidate, characterName)
     }
   }
 
@@ -368,7 +400,7 @@ export function harvestUpstreamAudioBindings(
   for (const node of directUpstream) {
     const url = readVoiceUrl(node)
     if (!url) continue
-    push(url)
+    push(url, node)
   }
 
   return bindings

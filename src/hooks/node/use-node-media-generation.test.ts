@@ -156,6 +156,43 @@ describe('useNodeMediaGeneration', () => {
     expect(checkVideoStatusAPI).toHaveBeenCalledWith('job-video')
   })
 
+  it('carries the provider poster frame back as thumbnailUrl (§9.1)', async () => {
+    const videoWithThumbnail: GenerationRecord = {
+      ...VIDEO_GENERATION_RECORD,
+      thumbnailUrl: 'https://cdn.test/clip-thumb.webp',
+    }
+    vi.mocked(submitVideoAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-video', requestId: 'request-video' },
+    })
+    vi.mocked(checkVideoStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        status: 'COMPLETED',
+        generation: videoWithThumbnail,
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        kind: 'video',
+        modelId: videoWithThumbnail.model,
+        prompt: videoWithThumbnail.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: true,
+      generation: videoWithThumbnail,
+      mediaUrl: videoWithThumbnail.url,
+      thumbnailUrl: videoWithThumbnail.thumbnailUrl,
+    })
+  })
+
   it('generates audio media through the queue and status API', async () => {
     vi.mocked(generateAudioAPI).mockResolvedValue({
       success: true,

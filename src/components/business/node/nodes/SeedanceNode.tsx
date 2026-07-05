@@ -21,6 +21,10 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
   const { id, data, selected } = props
   const t = useTranslations('StudioNode.videoGeneration')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
+  const videoThumbnailUrl =
+    typeof data.videoThumbnailUrl === 'string'
+      ? data.videoThumbnailUrl
+      : undefined
   const generationStatus =
     data.generationStatus ??
     (mediaUrl
@@ -68,6 +72,7 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
           {mediaUrl ? (
             <video
               src={mediaUrl}
+              poster={videoThumbnailUrl}
               className="h-full w-full object-cover"
               controls
               muted

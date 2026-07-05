@@ -529,7 +529,11 @@ describe('harvestUpstreamAudioBindings', () => {
       makeEdge('e2', 'charA', 'seedance'),
     ]
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/voice-a.mp3', characterName: 'Alice' },
+      {
+        url: 'https://cdn/voice-a.mp3',
+        nodeId: 'voiceA',
+        characterName: 'Alice',
+      },
     ])
   })
 
@@ -542,7 +546,7 @@ describe('harvestUpstreamAudioBindings', () => {
     ]
     const edges = [makeEdge('e1', 'voiceA', 'seedance')]
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/voice-a.mp3' },
+      { url: 'https://cdn/voice-a.mp3', nodeId: 'voiceA' },
     ])
   })
 
@@ -569,8 +573,16 @@ describe('harvestUpstreamAudioBindings', () => {
       makeEdge('e4', 'charB', 'seedance'),
     ]
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/voice-a.mp3', characterName: 'Alice' },
-      { url: 'https://cdn/voice-b.mp3', characterName: 'Bob' },
+      {
+        url: 'https://cdn/voice-a.mp3',
+        nodeId: 'voiceA',
+        characterName: 'Alice',
+      },
+      {
+        url: 'https://cdn/voice-b.mp3',
+        nodeId: 'voiceB',
+        characterName: 'Bob',
+      },
     ])
   })
 
@@ -592,7 +604,7 @@ describe('harvestUpstreamAudioBindings', () => {
     ]
     // Character-bound path takes priority, second path is dropped.
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/voice.mp3', characterName: 'Alice' },
+      { url: 'https://cdn/voice.mp3', nodeId: 'voice', characterName: 'Alice' },
     ])
   })
 
@@ -630,7 +642,44 @@ describe('harvestUpstreamAudioBindings', () => {
       makeEdge('e2', 'char', 'seedance'),
     ]
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/v.mp3', characterName: 'Charlie' },
+      { url: 'https://cdn/v.mp3', nodeId: 'voice', characterName: 'Charlie' },
+    ])
+  })
+
+  it('carries the voice cover image through for the token thumbnail (§8.2)', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceCoverImage: 'https://cdn/voice-cover.png',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voice', 'seedance')]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      {
+        url: 'https://cdn/v.mp3',
+        nodeId: 'voice',
+        coverImage: 'https://cdn/voice-cover.png',
+      },
+    ])
+  })
+
+  it('prefers the reference-audio cover over the system voice cover', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceCoverImage: 'https://cdn/system-cover.png',
+        voiceReferenceCoverImage: 'https://cdn/reference-cover.png',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voice', 'seedance')]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      {
+        url: 'https://cdn/v.mp3',
+        nodeId: 'voice',
+        coverImage: 'https://cdn/reference-cover.png',
+      },
     ])
   })
 })

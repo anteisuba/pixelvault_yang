@@ -84,6 +84,8 @@ type NodeMediaGenerationResult =
       success: true
       generation: GenerationRecord
       mediaUrl: string
+      /** Poster frame for video generations (§9.1) — undefined for image/audio. */
+      thumbnailUrl?: string
     }
   | {
       success: false
@@ -302,6 +304,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           success: true,
           generation,
           mediaUrl: generation.url,
+          thumbnailUrl: generation.thumbnailUrl ?? undefined,
         }
       } catch (caughtError) {
         const message =

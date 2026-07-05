@@ -9,6 +9,17 @@ export function formatDuration(seconds: number): string {
   return min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`
 }
 
+/** HH:MM:SS timecode for the video monitor's REC readout (§4 C4). */
+export function formatTimecode(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(clamped / 3600)
+  const minutes = Math.floor((clamped % 3600) / 60)
+  const seconds = clamped % 60
+  return [hours, minutes, seconds]
+    .map((part) => String(part).padStart(2, '0'))
+    .join(':')
+}
+
 /** Video size lookup matching OpenAI Sora's expected sizes */
 export const VIDEO_SIZES: Record<string, { width: number; height: number }> = {
   '1:1': { width: 1024, height: 1024 },

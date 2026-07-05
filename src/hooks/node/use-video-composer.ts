@@ -11,14 +11,20 @@ import {
   type VideoVariantId,
 } from '@/constants/video-brands'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
+import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
 import {
   getNodeMediaUrl,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamImageUrls,
+  harvestUpstreamVideoUrls,
   isKeyframeNode,
+  isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
+  readVoiceCoverImage,
+  readVoiceUrl,
 } from '@/lib/node-workflow-graph'
 import {
   deriveSwitcherStateFromModel,
@@ -35,6 +41,35 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+
+/** A character's bound voice — its 听觉身份 (cast-redesign §3). A voice node
+ *  wired INTO a character node (`voice → character → video`) is that
+ *  character's timbre, shown as the 音色徽标 on the character slot, NOT as a
+ *  standalone token. `ready=false` = wired but no reference audio, so it
+ *  contributes nothing to audio_urls (不静默丢 → dimmed badge). */
+export interface BoundVoice {
+  nodeId: string
+  label: string
+  coverImage?: string
+  ready: boolean
+  /** Payload audio_urls index when ready (shared order with 旁白 voices). */
+  audioSlotIndex?: number
+  /** The voice→character edge — lets the badge's × detach the voice. */
+  edgeId?: string
+}
+
+/** A reference token enriched with generate-payload bookkeeping (§7 部门条):
+ *  `imageSlotIndex`/`audioSlotIndex`/`videoSlotIndex` tie the slot badge to
+ *  the real payload order (image_urls / audio_urls / video_urls); `edgeId` is
+ *  the direct edge into this video node (× = delete it). `boundVoice` rides a
+ *  character token as its 音色 facet (cast-redesign 五卡：音色收进角色). */
+export interface ComposerReferenceToken extends ReferenceTokenData {
+  imageSlotIndex?: number
+  audioSlotIndex?: number
+  videoSlotIndex?: number
+  edgeId?: string
+  boundVoice?: BoundVoice
+}
 
 function toSelection(
   option: NodeWorkflowModelOption,
@@ -113,72 +148,154 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     return Array.from(kinds)
   }, [edges, nodes, nodeId])
 
-  // Per-reference tokens for the detail panel's clickable @token chips. Visual
-  // refs (character/background) carry their user-given name → @name (natural
-  // language; the image itself still rides image_urls). Voices come from the
-  // same harvest the generate path uses, so @AudioN order matches the fal
-  // builder's audio_urls slots exactly. An empty `token` = unnamed → the chip
-  // is a non-insertable indicator until the node is named.
-  const referenceTokens = useMemo<
-    Array<{
-      id: string
-      kind: 'character' | 'background' | 'shot' | 'voice'
-      label: string
-      token: string
-    }>
-  >(() => {
+  // Per-reference tokens for the detail panel's department strip (§7) +
+  // clickable @token slots. Visual refs (character/background/shot) carry
+  // their user-given name → @name (natural language; the image itself still
+  // rides image_urls) plus `mediaUrl` for the token's thumbnail (§8.2). Voices
+  // come from the same harvest the generate path uses, so @AudioN order
+  // matches the fal builder's audio_urls slots exactly, and carry `coverImage`
+  // (voiceCoverImage / voiceReferenceCoverImage) for their thumbnail. An empty
+  // `token` = unnamed → the chip is a non-insertable indicator until the node
+  // is named.
+  //
+  // `imageSlotIndex` / `audioSlotIndex` are the reference's 0-based position
+  // in the ACTUAL generate payload (harvestUpstreamImageUrls / audio bindings
+  // — same calls StudioNodeWorkbench's generate path makes), so the slot's
+  // 图N/音N corner badge (§4 C3) never lies about what the model receives.
+  // Keyframes occupy image slots but aren't tokens, so 图N may skip numbers —
+  // that's correct, not a bug. `edgeId` is the direct edge feeding this video
+  // node when one exists (§7.1: 删除槽位 = 删连线); voices routed through a
+  // character have no direct edge → no edgeId → no × button.
+  const referenceTokens = useMemo<ComposerReferenceToken[]>(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
-    const tokens: Array<{
-      id: string
-      kind: 'character' | 'background' | 'shot' | 'voice'
-      label: string
-      token: string
-    }> = []
-    for (const node of incoming) {
-      const kind = getSeedanceReferenceKind(node)
-      if (kind === 'character') {
-        const name =
-          typeof node.data.characterName === 'string'
-            ? node.data.characterName.trim()
-            : ''
-        tokens.push({
-          id: node.id,
-          kind,
-          label: name,
-          token: name ? `@${name}` : '',
-        })
-      } else if (kind === 'background') {
-        const name =
-          typeof node.data.backgroundName === 'string'
-            ? node.data.backgroundName.trim()
-            : ''
-        tokens.push({
-          id: node.id,
-          kind,
-          label: name,
-          token: name ? `@${name}` : '',
-        })
-      } else if (kind === 'shot') {
-        const name =
-          typeof node.data.shotName === 'string'
-            ? node.data.shotName.trim()
-            : ''
-        tokens.push({
-          id: node.id,
-          kind,
-          label: name,
-          token: name ? `@${name}` : '',
-        })
+    const payloadImageUrls = harvestUpstreamImageUrls(incoming)
+    const directEdgeBySource = new Map<string, string>()
+    for (const edge of edges) {
+      if (edge.target === nodeId) directEdgeBySource.set(edge.source, edge.id)
+    }
+
+    // Payload audio order (audio_urls) — the badge index is shared whether a
+    // voice shows as a character's 音色 or as a standalone 旁白, so it never
+    // lies about the send order. Maps voice node id → slot.
+    const audioBindings = harvestUpstreamAudioBindings(nodeId, edges, nodes)
+    const audioSlotByVoiceId = new Map<string, number>()
+    audioBindings.forEach((binding, i) => {
+      if (binding.nodeId) audioSlotByVoiceId.set(binding.nodeId, i)
+    })
+
+    // cast-redesign 五卡：音色收进角色. A voice wired INTO a character
+    // (`voice → character`) is that character's 听觉身份 — resolve it here as a
+    // BoundVoice facet, not a standalone token. 1:1 by design, so take the
+    // first voice upstream of the character (prefer a ready one).
+    const resolveBoundVoice = (
+      characterNodeId: string,
+    ): BoundVoice | undefined => {
+      const voiceEdges = edges.filter((edge) => edge.target === characterNodeId)
+      const voiceNodes = voiceEdges
+        .map((edge) => ({
+          node: nodes.find((n) => n.id === edge.source),
+          edgeId: edge.id,
+        }))
+        .filter(
+          (entry): entry is { node: NodeWorkflowNode; edgeId: string } =>
+            Boolean(entry.node) && isVoiceProfileNode(entry.node!),
+        )
+      if (voiceNodes.length === 0) return undefined
+      const chosen =
+        voiceNodes.find(({ node }) => readVoiceUrl(node)) ?? voiceNodes[0]
+      const voiceName =
+        typeof chosen.node.data.voiceName === 'string'
+          ? chosen.node.data.voiceName.trim()
+          : ''
+      return {
+        nodeId: chosen.node.id,
+        label: voiceName,
+        coverImage: readVoiceCoverImage(chosen.node),
+        ready: Boolean(readVoiceUrl(chosen.node)),
+        audioSlotIndex: audioSlotByVoiceId.get(chosen.node.id),
+        edgeId: chosen.edgeId,
       }
     }
-    harvestUpstreamAudioBindings(nodeId, edges, nodes).forEach((binding, i) => {
+
+    const tokens: ComposerReferenceToken[] = []
+
+    // Image references (character / background / shot). Character tokens carry
+    // their 音色 as boundVoice (身份单元); background / shot don't.
+    for (const node of incoming) {
+      const kind = getSeedanceReferenceKind(node)
+      if (kind === null || kind === 'voice') continue
+      const nameField =
+        kind === 'character'
+          ? node.data.characterName
+          : kind === 'background'
+            ? node.data.backgroundName
+            : node.data.shotName
+      const name = typeof nameField === 'string' ? nameField.trim() : ''
+      const mediaUrl = getNodeMediaUrl(node.data)
+      const slotIndex = mediaUrl ? payloadImageUrls.indexOf(mediaUrl) : -1
       tokens.push({
-        id: `audio-${i}`,
-        kind: 'voice',
-        label: binding.characterName ?? '',
-        token: `@Audio${i + 1}`,
+        id: node.id,
+        kind,
+        label: name,
+        token: name ? `@${name}` : '',
+        mediaUrl,
+        imageSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
+        edgeId: directEdgeBySource.get(node.id),
+        ...(kind === 'character'
+          ? { boundVoice: resolveBoundVoice(node.id) }
+          : {}),
       })
-    })
+    }
+
+    // 旁白 — voices wired DIRECTLY into the video node (no character). Ready →
+    // @AudioN insertable token; unready → dimmed non-insertable slot (不静默丢).
+    // Character-routed voices are absorbed above and skipped here.
+    for (const node of incoming) {
+      if (!isVoiceProfileNode(node)) continue
+      const voiceName =
+        typeof node.data.voiceName === 'string'
+          ? node.data.voiceName.trim()
+          : ''
+      const ready = Boolean(readVoiceUrl(node))
+      const slot = audioSlotByVoiceId.get(node.id)
+      tokens.push({
+        id: node.id,
+        kind: 'voice',
+        label: voiceName,
+        token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
+        coverImage: readVoiceCoverImage(node),
+        audioSlotIndex: ready ? slot : undefined,
+        insertable: ready,
+        dimmed: !ready,
+        edgeId: directEdgeBySource.get(node.id),
+      })
+    }
+
+    // Video references (uploaded videoReference nodes or upstream generated
+    // videos) — they ride video_urls automatically, so their slots are
+    // projection-only (no @insert; there is no name-token to insert yet).
+    const payloadVideoUrls = harvestUpstreamVideoUrls(incoming)
+    for (const node of incoming) {
+      if (!isVideoSourceNode(node)) continue
+      const url =
+        typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : undefined
+      if (!url) continue
+      const slotIndex = payloadVideoUrls.indexOf(url)
+      tokens.push({
+        id: node.id,
+        kind: 'video',
+        label: '',
+        token: '',
+        insertable: false,
+        mediaUrl:
+          typeof node.data.videoThumbnailUrl === 'string'
+            ? node.data.videoThumbnailUrl
+            : undefined,
+        videoSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
+        edgeId: directEdgeBySource.get(node.id),
+      })
+    }
+
     return tokens
   }, [edges, nodes, nodeId])
 

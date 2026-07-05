@@ -177,6 +177,12 @@ export const NodeWorkflowNodeDataSchema = z
       .enum(Object.keys(IMAGE_SIZES) as [string, ...string[]])
       .optional(),
     negativePrompt: z.string().trim().min(1).max(1000).optional(),
+    /** Reference id → name last inserted as an `@name` token into this video
+     *  node's prompt (§7.2 ⑥ 改名漂移). Lets the composer detect when an
+     *  upstream node was renamed after its token was already typed into the
+     *  prompt text, so it can offer a "replace with the new name" affordance
+     *  instead of silently leaving a stale @token in place. */
+    insertedReferenceNames: z.record(z.string(), z.string()).optional(),
     generateAudio: z.boolean().optional(),
     seed: z.number().int().min(0).max(2147483647).optional(),
     /** 上次生成实际用的 seed（provider 回写）— 用于展示 +「锁定」回填 seed。 */
@@ -209,6 +215,10 @@ export const NodeWorkflowNodeDataSchema = z
     imageUrl: z.string().trim().min(1).optional(),
     mediaKind: NodeWorkflowMediaKindSchema.optional(),
     mediaUrl: z.string().trim().min(1).optional(),
+    /** Video poster frame — AI-generated videos get it from `Generation.thumbnailUrl`
+     *  (§9.1); manually-uploaded reference videos get it from client-side capture
+     *  (§9.2). Optional so nodes saved before this field existed stay valid. */
+    videoThumbnailUrl: z.string().trim().min(1).optional(),
     mediaJobId: z.string().trim().min(1).max(200).optional(),
     mediaLabel: z.string().trim().min(1).max(160).optional(),
     generationStatus: NodeWorkflowGenerationStatusSchema.optional(),

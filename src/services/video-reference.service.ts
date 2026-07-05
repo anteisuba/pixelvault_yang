@@ -3,6 +3,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 
 import { uploadToR2 } from '@/services/storage/r2'
+import { logger } from '@/lib/logger'
 
 /**
  * Maximum reference video payload accepted from the client. fal Seedance
@@ -31,6 +32,12 @@ export interface UploadReferenceVideoParams {
   userId: string
   fileBuffer: Buffer
   mimeType: string
+  /**
+   * Optional client-captured poster frame (already encoded as webp by
+   * `captureVideoThumbnail`). Absent when the browser couldn't decode a frame —
+   * the video still uploads, just without a poster (§9.2 失败兜底).
+   */
+  thumbnailBuffer?: Buffer
 }
 
 export interface UploadedReferenceVideo {
@@ -38,6 +45,9 @@ export interface UploadedReferenceVideo {
   storageKey: string
   sizeBytes: number
   mimeType: string
+  /** Poster-frame URL, present only when a thumbnail buffer was supplied and
+   *  its R2 upload succeeded. */
+  thumbnailUrl?: string
 }
 
 export interface ReferenceVideoValidationError {
@@ -82,7 +92,8 @@ export async function uploadReferenceVideo(
   const extension = pickVideoExtension(params.mimeType)
   const date = new Date().toISOString().slice(0, 10)
   const random = randomBytes(12).toString('hex')
-  const storageKey = `video-references/${params.userId}/${date}_${random}.${extension}`
+  const baseKey = `video-references/${params.userId}/${date}_${random}`
+  const storageKey = `${baseKey}.${extension}`
 
   const url = await uploadToR2({
     data: params.fileBuffer,
@@ -90,10 +101,32 @@ export async function uploadReferenceVideo(
     mimeType: params.mimeType,
   })
 
+  // Best-effort poster: the client already encoded a webp frame, so we just
+  // write the bytes to a sibling `-thumb.webp` key. A failure here must not
+  // fail the video upload — the clip is the payload, the poster is a nicety.
+  let thumbnailUrl: string | undefined
+  if (params.thumbnailBuffer && params.thumbnailBuffer.byteLength > 0) {
+    try {
+      thumbnailUrl = await uploadToR2({
+        data: params.thumbnailBuffer,
+        key: `${baseKey}-thumb.webp`,
+        mimeType: 'image/webp',
+      })
+    } catch (error) {
+      logger.warn(
+        'Reference video poster upload failed; continuing without it',
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      )
+    }
+  }
+
   return {
     url,
     storageKey,
     sizeBytes: params.fileBuffer.byteLength,
     mimeType: params.mimeType,
+    thumbnailUrl,
   }
 }

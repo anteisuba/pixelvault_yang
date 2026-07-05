@@ -149,6 +149,10 @@ export function NodeMediaInspector({
     useNodeReferenceUpload()
   const mediaUrl =
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
+  const videoThumbnailUrl =
+    typeof node.data.videoThumbnailUrl === 'string'
+      ? node.data.videoThumbnailUrl
+      : undefined
   const modelOptions = modelOptionsByType[type] ?? []
   const prompt = buildNodeWorkflowPrompt(type, node.data).trim()
   const referenceAssets = useMemo(
@@ -521,6 +525,7 @@ export function NodeMediaInspector({
               {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
                 <video
                   src={mediaUrl}
+                  poster={videoThumbnailUrl}
                   className="h-full w-full object-cover"
                   controls
                   muted

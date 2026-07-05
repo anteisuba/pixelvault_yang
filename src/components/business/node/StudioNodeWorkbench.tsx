@@ -43,10 +43,13 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_IMAGE_ROLE_IDS,
+  NODE_IMAGE_ROLE_TO_LEGACY_TYPE,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
@@ -62,7 +65,10 @@ import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
-import { useNodeWorkflow } from '@/hooks/node/use-node-workflow'
+import {
+  createDefaultNodeData,
+  useNodeWorkflow,
+} from '@/hooks/node/use-node-workflow'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
@@ -103,7 +109,10 @@ import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
-import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
+import {
+  NodeWorkflowActionsProvider,
+  type SpawnReferenceInput,
+} from './NodeWorkflowActionsContext'
 import { ProjectNameDialog } from './ProjectNameDialog'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { NodeDetailPanel } from './node-detail/NodeDetailPanel'
@@ -956,6 +965,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           mediaJobId: undefined,
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
+          ...(isVideoMediaNode
+            ? { videoThumbnailUrl: result.thumbnailUrl }
+            : {}),
           mediaLabel: result.generation.model,
           // seed 复现闭环：回写 provider 实际用的 seed 供前端展示 +「锁定」。
           lastSeed:
@@ -1039,6 +1051,86 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       })
     },
     [fitView, workflow],
+  )
+
+  // §7.1 部门条 ＋添加位: create an upstream reference node from an already
+  // resolved asset (uploaded or picked from the library) and wire it into the
+  // target video node. Reuses createDefaultNodeData so a role-stamped image
+  // node matches ImageRolePicker exactly (single source of truth), and mirrors
+  // NodeMediaInspector's existing-image field set so the spawned node reads as
+  // "已有素材" not a blank generator.
+  const handleSpawnReference = useCallback(
+    (input: SpawnReferenceInput): string => {
+      const target = workflow.nodes.find(
+        (node) => node.id === input.targetNodeId,
+      )
+      const existingUpstream = getUpstreamNodes(
+        input.targetNodeId,
+        workflow.edges,
+        workflow.nodes,
+      ).length
+      const anchor =
+        target?.position ?? NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition
+      const position = {
+        x: anchor.x + NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.offsetX,
+        y:
+          anchor.y +
+          existingUpstream *
+            NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
+      }
+
+      const newId = workflow.addNode(input.nodeType, position)
+      const name = input.media.name?.trim()
+
+      if (input.nodeType === NODE_TYPE_IDS.image && input.role) {
+        // Subject-name props are schema fields accessed directly as
+        // node.data.characterName/backgroundName/shotName (not in
+        // NODE_WORKFLOW_FIELD_IDS, which only covers prompt-builder fields).
+        const roleNameField =
+          input.role === NODE_IMAGE_ROLE_IDS.character
+            ? 'characterName'
+            : input.role === NODE_IMAGE_ROLE_IDS.background
+              ? 'backgroundName'
+              : 'shotName'
+        workflow.updateNodeData(newId, {
+          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[input.role]),
+          role: input.role,
+          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+          mediaKind: NODE_MEDIA_KIND_IDS.image,
+          mediaUrl: input.media.url,
+          mediaLabel: name,
+          sourceLabel: name,
+          sourceGenerationId: input.media.generationId,
+          generationId: input.media.generationId,
+          generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          status: NODE_STATUS_IDS.done,
+          ...(name ? { [roleNameField]: name } : {}),
+        })
+      } else if (input.nodeType === NODE_TYPE_IDS.voice) {
+        workflow.updateNodeData(newId, {
+          voiceReferenceAudioUrl: input.media.url,
+          status: NODE_STATUS_IDS.done,
+          ...(name ? { [NODE_WORKFLOW_FIELD_IDS.voiceName]: name } : {}),
+        })
+      } else if (input.nodeType === NODE_TYPE_IDS.videoReference) {
+        workflow.updateNodeData(newId, {
+          mediaUrl: input.media.url,
+          videoThumbnailUrl: input.media.thumbnailUrl,
+          mediaLabel: name,
+          status: NODE_STATUS_IDS.done,
+        })
+      }
+
+      workflow.onConnect({
+        source: newId,
+        target: input.targetNodeId,
+        sourceHandle: null,
+        targetHandle: null,
+      })
+
+      return newId
+    },
+    [workflow],
   )
 
   const handleFocusGeneratedNodes = useCallback(() => {
@@ -1152,6 +1244,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       generateMediaNode: handleGenerateMediaNode,
       enhanceSeedancePrompt: handleEnhanceSeedancePrompt,
       focusGeneratedNodes: handleFocusGeneratedNodes,
+      focusNode: handleFocusNode,
+      spawnReference: handleSpawnReference,
       toolMode,
       setToolMode,
       expandedNodeId,
@@ -1166,6 +1260,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       expandedNodeId,
       handleEnhanceSeedancePrompt,
       handleFocusGeneratedNodes,
+      handleFocusNode,
+      handleSpawnReference,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
       modelOptionsByType,

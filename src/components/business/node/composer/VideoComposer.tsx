@@ -7,6 +7,8 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   AlertTriangle,
   Check,
@@ -19,12 +21,14 @@ import {
   Wand2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import type { AspectRatio } from '@/constants/config'
+import { motionTransition } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -42,7 +46,10 @@ import {
   VIDEO_RESOLUTIONS,
   type VideoResolution,
 } from '@/constants/video-options'
-import { useVideoComposer } from '@/hooks/node/use-video-composer'
+import {
+  useVideoComposer,
+  type ComposerReferenceToken,
+} from '@/hooks/node/use-video-composer'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
@@ -56,7 +63,10 @@ import {
   hasIgnoredRebindings,
   type VideoRebindPreviewItem,
 } from '@/lib/video-rebind-preview'
+import { formatTimecode } from '@/lib/video-utils'
 import { cn } from '@/lib/utils'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowModelOption,
   NodeWorkflowNodeData,
@@ -64,6 +74,12 @@ import type {
 
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import {
+  DepartmentStrip,
+  TOKEN_PORT_COLOR_VAR,
+  type AddReferenceRequest,
+} from './DepartmentStrip'
+import type { ReferenceTokenData } from './ReferenceTokenChip'
 
 interface VideoComposerProps {
   id: string
@@ -101,6 +117,29 @@ const PROVIDER_LABEL_KEYS: Partial<Record<AI_ADAPTER_TYPES, string>> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'volcengine',
 }
 
+// §7.2 ⑥ 改名漂移: a reference was renamed after its @oldName was already typed
+// into the prompt. Only tracked for character/background/shot (their anchor in
+// text is the unambiguous `@name`) — voice's anchor is a bare name next to
+// `(@AudioN)`, too easy to false-match against unrelated prose.
+function findDriftReplacement(
+  insertedNames: Record<string, string> | undefined,
+  tokenId: string,
+  currentLabel: string,
+  promptText: string,
+): string | undefined {
+  const insertedName = insertedNames?.[tokenId]
+  if (!insertedName || insertedName === currentLabel) return undefined
+  return promptText.includes(`@${insertedName}`) ? insertedName : undefined
+}
+
+interface FlyingTokenState {
+  kind: ReferenceTokenData['kind']
+  thumbUrl?: string
+  glyph: string
+  from: { x: number; y: number; size: number }
+  to: { x: number; y: number }
+}
+
 function stopCanvasKey(event: KeyboardEvent<HTMLElement>) {
   event.stopPropagation()
 }
@@ -127,6 +166,94 @@ function ComposerField({
   )
 }
 
+// Seconds since `active` last flipped to true, ticking every second. Resets to
+// 0 when generation stops. Client-observed elapsed time (not a backend-tracked
+// duration — F7 real progress/cancel is P2, out of scope here); the REC dot
+// itself already reflects real generation state, so this is truthful about
+// what it shows, not fabricated.
+function useElapsedSeconds(active: boolean): number {
+  const [wasActive, setWasActive] = useState(active)
+  const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef<number | null>(null)
+
+  // Reset to 0 the render `active` flips, before the effect below re-arms the
+  // timer (adjust-state-during-render pattern — same as NodeDetailPanel's
+  // trackedNodeId reset). This branch stays pure — no Date.now() here; that
+  // only happens inside the effect/interval below, never during render.
+  if (active !== wasActive) {
+    setWasActive(active)
+    setElapsed(0)
+  }
+
+  useEffect(() => {
+    if (!active) {
+      startRef.current = null
+      return
+    }
+    startRef.current = Date.now()
+    const interval = setInterval(() => {
+      const start = startRef.current
+      if (start !== null) {
+        setElapsed(Math.floor((Date.now() - start) / 1000))
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [active])
+
+  return elapsed
+}
+
+// C4 监视器：预览升级为"导演监视器"语言——四角取景框、生成中 REC+TC、无媒体时的
+// 空态提示。取代 VideoDetailBody 里原先裸的 aspect-video 预览块（§9.3：所有视频
+// 预览统一走 videoThumbnailUrl 作 poster）。
+function VideoMonitor({
+  mediaUrl,
+  thumbnailUrl,
+  isGenerating,
+}: {
+  mediaUrl: string
+  thumbnailUrl?: string
+  isGenerating: boolean
+}) {
+  const tc = useTranslations('StudioNode.videoComposer')
+  const elapsedSeconds = useElapsedSeconds(isGenerating)
+
+  return (
+    <div className="node-monitor-matte relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas">
+      {mediaUrl ? (
+        <video
+          src={mediaUrl}
+          poster={thumbnailUrl}
+          className="h-full w-full object-contain"
+          controls
+          muted
+          playsInline
+          preload="metadata"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center px-4 text-center">
+          <span className="text-3xs text-node-subtle">
+            {tc('monitor.empty')}
+          </span>
+        </div>
+      )}
+      <span className="node-monitor-corner" data-pos="tl" aria-hidden />
+      <span className="node-monitor-corner" data-pos="tr" aria-hidden />
+      <span className="node-monitor-corner" data-pos="bl" aria-hidden />
+      <span className="node-monitor-corner" data-pos="br" aria-hidden />
+      {isGenerating ? (
+        <>
+          <span className="pointer-events-none absolute right-4 top-9 flex items-center gap-1.5 font-mono text-3xs tabular-nums text-node-muted">
+            <span className="size-1.5 animate-pulse rounded-full bg-node-danger" />
+            {`${tc('monitor.rec')} ${formatTimecode(elapsedSeconds)}`}
+          </span>
+          <div className="node-canvas-progress-track pointer-events-none absolute inset-x-4 bottom-9 h-0.5 rounded-full bg-node-panel-inner" />
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 /**
  * Model-aware video composer mounted on the node card (density='card') and, for
  * now, hosted in a slimmed inspector (density='expand'). Reuses the same
@@ -137,12 +264,22 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const t = useTranslations('StudioNode.videoGeneration')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tc = useTranslations('StudioNode.videoComposer')
-  const { updateNodeData, generateMediaNode, setExpandedNodeId } =
-    useNodeWorkflowActions()
+  const {
+    updateNodeData,
+    generateMediaNode,
+    setExpandedNodeId,
+    focusNode,
+    deleteEdge,
+    spawnReference,
+  } = useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
+  const reducedMotion = useReducedMotion()
   // Ref to the prompt textarea so clickable @reference chips can splice their
   // token in at the caret (not just append) — see `insertReferenceToken`.
   const promptRef = useRef<HTMLTextAreaElement>(null)
+  // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
+  // to the prompt, cleared once its fly+glow finishes. null when idle.
+  const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
   // In-composer disclosure for the compact model picker (detail mode). Default
   // open only when no brand is committed yet, so first-run users see the list;
   // it collapses after a brand is committed (ready-key click or rebind confirm).
@@ -277,6 +414,10 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     data.status === NODE_STATUS_IDS.running
   const hasMedia = typeof data.mediaUrl === 'string' && data.mediaUrl.length > 0
   const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, data)
+  const promptFieldValue = getNodeWorkflowFieldValue(
+    data,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  )
 
   const handleFieldChange = useCallback(
     (fieldId: NodeWorkflowFieldId, value: string) => {
@@ -326,6 +467,146 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       }
     },
     [data, handleFieldChange],
+  )
+
+  // §8.4 插入动效: fires the token's real insert (unchanged text logic above)
+  // plus a transient flying-thumbnail overlay approximating "this image flew
+  // into the sentence" (skipped under reduced-motion — it lands instantly).
+  // Also records `insertedReferenceNames` for visual kinds so a later rename
+  // can be detected as drift (§7.2 ⑥); voice's anchor is too ambiguous to
+  // track reliably, see `findDriftReplacement`.
+  const handleTokenInsert = useCallback(
+    (refToken: ReferenceTokenData, originEl: HTMLElement) => {
+      const insertText =
+        refToken.kind === 'voice' && refToken.label
+          ? `${refToken.label} (${refToken.token})`
+          : refToken.token
+      insertReferenceToken(insertText)
+
+      if (refToken.kind !== 'voice') {
+        updateNodeData(id, {
+          insertedReferenceNames: {
+            ...(data.insertedReferenceNames ?? {}),
+            [refToken.id]: refToken.label,
+          },
+        })
+      }
+
+      if (reducedMotion) return
+      const fromRect = originEl.getBoundingClientRect()
+      const toRect = promptRef.current?.getBoundingClientRect()
+      setFlyingToken({
+        kind: refToken.kind,
+        thumbUrl:
+          refToken.kind === 'voice' ? refToken.coverImage : refToken.mediaUrl,
+        glyph: (refToken.label || refToken.token).slice(0, 1),
+        from: {
+          x: fromRect.left,
+          y: fromRect.top,
+          size: fromRect.width,
+        },
+        to: toRect
+          ? { x: toRect.left + 20, y: toRect.top + 20 }
+          : { x: fromRect.left, y: fromRect.top },
+      })
+      window.setTimeout(() => setFlyingToken(null), 440)
+    },
+    [
+      data.insertedReferenceNames,
+      id,
+      insertReferenceToken,
+      reducedMotion,
+      updateNodeData,
+    ],
+  )
+
+  // §7.2 ⑥ "点击替换": the prompt text still literally contains `@oldName` —
+  // swap it for the current `@newName` and re-anchor the bookkeeping so drift
+  // isn't re-flagged next render.
+  const handleReplaceDrift = useCallback(
+    (refId: string, oldName: string, newName: string) => {
+      const current = getNodeWorkflowFieldValue(
+        data,
+        NODE_WORKFLOW_FIELD_IDS.prompt,
+      )
+      const next = current.split(`@${oldName}`).join(`@${newName}`)
+      updateNodeData(id, {
+        [NODE_WORKFLOW_FIELD_IDS.prompt]: next,
+        insertedReferenceNames: {
+          ...(data.insertedReferenceNames ?? {}),
+          [refId]: newName,
+        },
+        status: buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, {
+          ...data,
+          [NODE_WORKFLOW_FIELD_IDS.prompt]: next,
+        }).trim()
+          ? NODE_STATUS_IDS.ready
+          : NODE_STATUS_IDS.idle,
+      })
+    },
+    [data, id, updateNodeData],
+  )
+
+  // §7.1 ＋添加位: the card's ＋ emits a (nodeType, role, mediaType) intent; we
+  // open the matching asset library, and on pick autospawn the upstream node +
+  // wire it via the context's spawnReference. Upload-local / paste are a
+  // follow-up (per-modality upload endpoints differ) — library covers the core
+  // "add an existing asset" flow uniformly across all three cards.
+  const [pendingAdd, setPendingAdd] = useState<AddReferenceRequest | null>(null)
+
+  // Plain handlers (not useCallback): they close over the derived `pendingAdd`
+  // state, which the React Compiler can't reconcile with a manual dep array —
+  // same reason the duration handlers below drop useCallback. The compiler
+  // memoizes them for us.
+  const handleAddReference = (request: AddReferenceRequest) => {
+    setPendingAdd(request)
+  }
+
+  // ＋配音 on a character slot: open the audio library, but target the CHARACTER
+  // node so the spawned voice wires `voice → character` (its 音色), not into the
+  // video node.
+  const handleAddVoice = (characterNodeId: string) => {
+    setPendingAdd({
+      nodeType: NODE_TYPE_IDS.voice,
+      mediaType: 'voice',
+      targetNodeId: characterNodeId,
+    })
+  }
+
+  const handleSelectAssetForAdd = (generation: GenerationRecord) => {
+    if (!pendingAdd || !generation.url) {
+      setPendingAdd(null)
+      return
+    }
+    spawnReference?.({
+      targetNodeId: pendingAdd.targetNodeId ?? id,
+      nodeType: pendingAdd.nodeType,
+      role: pendingAdd.role,
+      media: {
+        url: generation.url,
+        generationId: generation.id,
+        thumbnailUrl: generation.thumbnailUrl ?? undefined,
+        name: generation.prompt || generation.model || undefined,
+      },
+    })
+    setPendingAdd(null)
+  }
+
+  // §7.1 删除槽位 = 删连线：the slot is only a projection of the edge, so ×
+  // removes the edge and the upstream node survives — the toast says exactly
+  // that, so it never reads as a destructive delete.
+  const handleRemoveReference = useCallback(
+    (refToken: ComposerReferenceToken) => {
+      if (!refToken.edgeId) return
+      deleteEdge(refToken.edgeId)
+      toast.info(
+        tc('references.removedToast', {
+          name:
+            refToken.label || refToken.token || tc(`refKind.${refToken.kind}`),
+        }),
+      )
+    },
+    [deleteEdge, tc],
   )
 
   const handleResolutionToggle = useCallback(
@@ -486,59 +767,38 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       <div className="@container">
         <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
           <div className="space-y-3">
-            {/* References — clickable @token chips, sitting right above the
-                prompt they insert into. */}
+            {/* §7 部门条 — the four production departments (选角/置景/镜头/
+                配音) sitting right above the prompt their slots insert into.
+                Slots project the current canvas edges; click = insert @token,
+                hover × = delete the edge (node kept). */}
             <div className="space-y-1">
               <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
                 {tc('references.label')}
               </span>
+              <DepartmentStrip
+                tokens={composer.referenceTokens}
+                driftFor={(refToken) =>
+                  findDriftReplacement(
+                    data.insertedReferenceNames,
+                    refToken.id,
+                    refToken.label,
+                    promptFieldValue,
+                  )
+                }
+                onInsert={handleTokenInsert}
+                onReplaceDrift={(refToken, oldName, newName) =>
+                  handleReplaceDrift(refToken.id, oldName, newName)
+                }
+                onLocate={focusNode}
+                onRemove={handleRemoveReference}
+                onAddReference={spawnReference ? handleAddReference : undefined}
+                onAddVoice={spawnReference ? handleAddVoice : undefined}
+              />
               {composer.referenceTokens.length > 0 ? (
-                <>
-                  <div className="flex flex-wrap gap-1">
-                    {composer.referenceTokens.map((refToken) => {
-                      if (!refToken.token) {
-                        return (
-                          <span
-                            key={refToken.id}
-                            title={tc('references.unnamedHint')}
-                            className="rounded-md border border-dashed border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-subtle"
-                          >
-                            {tc(`refKind.${refToken.kind}`)} ·{' '}
-                            {tc('references.unnamed')}
-                          </span>
-                        )
-                      }
-                      const insertText =
-                        refToken.kind === 'voice' && refToken.label
-                          ? `${refToken.label} (${refToken.token})`
-                          : refToken.token
-                      const display =
-                        refToken.kind === 'voice'
-                          ? refToken.label || refToken.token
-                          : refToken.token
-                      return (
-                        <button
-                          key={refToken.id}
-                          type="button"
-                          {...KEY_GUARD}
-                          onClick={() => insertReferenceToken(insertText)}
-                          title={tc('references.insertHint')}
-                          className="rounded-md border border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
-                        >
-                          {display}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-                    {tc('references.insertHint')}
-                  </p>
-                </>
-              ) : (
-                <p className="text-2xs leading-4 text-node-subtle">
-                  {tc('references.empty')}
+                <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+                  {tc('references.insertHint')}
                 </p>
-              )}
+              ) : null}
               {composer.hasReferenceInputs ? (
                 <p className="px-0.5 text-2xs leading-4 text-node-subtle">
                   {tc('referenceModeOn')}
@@ -600,6 +860,17 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
           </div>
 
           <div className="space-y-3">
+            {/* C4 监视器 — 右列第一个区块，"看片"先于"调参"。 */}
+            <VideoMonitor
+              mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
+              thumbnailUrl={
+                typeof data.videoThumbnailUrl === 'string'
+                  ? data.videoThumbnailUrl
+                  : undefined
+              }
+              isGenerating={isPending}
+            />
+
             {/* Compact model picker — collapsed chip below the prompt; expands the
           full brand/variant/provider rail and collapses again after a commit. */}
             <div className="space-y-2">
@@ -1019,6 +1290,98 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
           }}
         />
       ) : null}
+
+      {/* §7.1 ＋添加位 asset library — one dialog for all three cards; the
+          pending request's mediaType picks the library (voice → audio). */}
+      <AssetSelectorDialog
+        open={pendingAdd !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAdd(null)
+        }}
+        onSelect={handleSelectAssetForAdd}
+        title={tc('references.addDialogTitle')}
+        description={tc('references.addDialogDescription')}
+        mediaType={
+          pendingAdd?.mediaType === 'voice' ? 'audio' : pendingAdd?.mediaType
+        }
+      />
+
+      {flyingToken && typeof document !== 'undefined'
+        ? createPortal(
+            <AnimatePresence>
+              <motion.div
+                key={`${flyingToken.kind}-fly`}
+                initial={{
+                  x: flyingToken.from.x,
+                  y: flyingToken.from.y,
+                  scale: 1,
+                  opacity: 1,
+                }}
+                animate={{
+                  x: flyingToken.to.x,
+                  y: flyingToken.to.y,
+                  scale: 16 / flyingToken.from.size,
+                  opacity: 0,
+                }}
+                transition={motionTransition('base')}
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  top: 0,
+                  width: flyingToken.from.size,
+                  height: flyingToken.from.size,
+                  transformOrigin: 'top left',
+                  pointerEvents: 'none',
+                  zIndex: 60,
+                  overflow: 'hidden',
+                  borderRadius:
+                    flyingToken.kind === 'background' ||
+                    flyingToken.kind === 'shot'
+                      ? 8
+                      : 9999,
+                }}
+              >
+                {flyingToken.thumbUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={flyingToken.thumbUrl}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span
+                    className="flex size-full items-center justify-center text-2xs font-semibold text-node-canvas"
+                    style={{
+                      background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
+                    }}
+                  >
+                    {flyingToken.glyph}
+                  </span>
+                )}
+              </motion.div>
+              <motion.div
+                key={`${flyingToken.kind}-glow`}
+                initial={{ opacity: 0.55, scale: 0.6 }}
+                animate={{ opacity: 0, scale: 2.2 }}
+                transition={motionTransition('base')}
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  top: 0,
+                  width: 16,
+                  height: 16,
+                  x: flyingToken.to.x,
+                  y: flyingToken.to.y,
+                  borderRadius: 9999,
+                  pointerEvents: 'none',
+                  zIndex: 60,
+                  background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
+                }}
+              />
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

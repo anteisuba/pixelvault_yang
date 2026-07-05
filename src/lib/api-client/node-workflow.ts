@@ -138,6 +138,9 @@ export interface ReferenceVideoUpload {
   sizeBytes: number
   mimeType: string
   fileName: string
+  /** Poster-frame URL, present when a client-captured thumbnail was uploaded
+   *  and its R2 write succeeded (§9.2). */
+  thumbnailUrl?: string
 }
 
 export interface ReferenceVideoUploadResponse {
@@ -149,10 +152,14 @@ export interface ReferenceVideoUploadResponse {
 
 export async function uploadReferenceVideoAPI(
   file: File,
+  thumbnailBlob?: Blob | null,
 ): Promise<ReferenceVideoUploadResponse> {
   try {
     const formData = new FormData()
     formData.append('video', file)
+    if (thumbnailBlob) {
+      formData.append('thumbnail', thumbnailBlob, 'thumbnail.webp')
+    }
 
     const response = await fetch('/api/node-workflow/upload-reference-video', {
       method: 'POST',

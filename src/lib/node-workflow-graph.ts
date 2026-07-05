@@ -281,6 +281,127 @@ export function buildShotReferenceLegend(
   return `${NODE_STUDIO_SHOT_REFERENCE_LEGEND.title}\n${lines.join('\n')}`
 }
 
+export type VideoLegendImageKind =
+  | 'character'
+  | 'background'
+  | 'shot'
+  | 'closeup'
+
+export interface VideoLegendImageReference {
+  kind: VideoLegendImageKind
+  /** User-given name, or undefined when unnamed (the legend then falls back to
+   *  the same auto-name the composer's token uses). */
+  name?: string
+}
+
+/**
+ * Map every named image reference a VIDEO node sends to its subject, keyed by
+ * URL. Covers direct visual refs (character / background / shot) AND 1-hop
+ * closeups (closeup → character), so the legend can bind `@特写N` too. Keyframes
+ * are omitted — they occupy an image slot but carry no name/token. The caller
+ * looks each sent URL up by its FINAL position in `referenceImages`, so this
+ * map's own iteration order doesn't matter (mirrors buildShotReferenceLegend).
+ */
+export function harvestUpstreamVideoImageReferences(
+  focalNodeId: string,
+  edges: readonly NodeWorkflowEdge[],
+  nodes: readonly NodeWorkflowNode[],
+): Map<string, VideoLegendImageReference> {
+  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
+  const map = new Map<string, VideoLegendImageReference>()
+
+  const readName = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined
+
+  for (const node of directUpstream) {
+    const kind = getSeedanceReferenceKind(node)
+    if (kind !== 'character' && kind !== 'background' && kind !== 'shot') {
+      continue
+    }
+    const url = getNodeMediaUrl(node.data)
+    if (url && !map.has(url)) {
+      const name =
+        kind === 'character'
+          ? readName(node.data.characterName)
+          : kind === 'background'
+            ? readName(node.data.backgroundName)
+            : readName(node.data.shotName)
+      map.set(url, { kind, name })
+    }
+    if (kind !== 'character') continue
+    for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
+      if (!isCloseupNode(upstream)) continue
+      const closeupUrl = getNodeMediaUrl(upstream.data)
+      if (!closeupUrl || map.has(closeupUrl)) continue
+      map.set(closeupUrl, {
+        kind: 'closeup',
+        name: readName(upstream.data.characterName),
+      })
+    }
+  }
+
+  return map
+}
+
+export interface VideoReferenceLegendLabels {
+  title: string
+  imagePrefix: string
+  videoPrefix: string
+  audioPrefix: string
+  kindLabel: Record<VideoLegendImageKind | 'video', string>
+  /** Auto-name prefix per kind — MUST be the same i18n string the composer's
+   *  autoName uses, so `@特写1` in the prompt matches `特写1` here. */
+  autoNamePrefix: Record<VideoLegendImageKind | 'video', string>
+  characterVoiceSuffix: string
+  narration: string
+}
+
+/**
+ * Build the reference legend prepended to a video generation (cast §7.2⑦ / §9 D).
+ * Each sent slot → `图N：角色「名字」` / `视N：视频「视频N」` / `音N：角色「名字」的音色`,
+ * where an unnamed slot falls back to `${autoNamePrefix}${N}` — byte-identical to
+ * the composer's auto-numbered @token, so the model binds them. `N` is the slot's
+ * FINAL position in the sent payload (keyframes count toward it but are skipped),
+ * matching the 图N/视N/音N slot badges. Returns '' when nothing is nameable.
+ */
+export function buildVideoReferenceLegend(input: {
+  referenceImages: readonly string[]
+  imageRefByUrl: ReadonlyMap<string, VideoLegendImageReference>
+  videoUrls: readonly string[]
+  audioBindings: readonly AudioBinding[]
+  labels: VideoReferenceLegendLabels
+}): string {
+  const { referenceImages, imageRefByUrl, videoUrls, audioBindings, labels } =
+    input
+  const lines: string[] = []
+
+  referenceImages.forEach((url, index) => {
+    const ref = imageRefByUrl.get(url)
+    if (!ref) return
+    const name = ref.name || `${labels.autoNamePrefix[ref.kind]}${index + 1}`
+    lines.push(
+      `${labels.imagePrefix}${index + 1}：${labels.kindLabel[ref.kind]}「${name}」`,
+    )
+  })
+
+  videoUrls.forEach((_, index) => {
+    const name = `${labels.autoNamePrefix.video}${index + 1}`
+    lines.push(
+      `${labels.videoPrefix}${index + 1}：${labels.kindLabel.video}「${name}」`,
+    )
+  })
+
+  audioBindings.forEach((binding, index) => {
+    const speaker = binding.characterName
+      ? `${labels.kindLabel.character}「${binding.characterName}」${labels.characterVoiceSuffix}`
+      : labels.narration
+    lines.push(`${labels.audioPrefix}${index + 1}：${speaker}`)
+  })
+
+  if (lines.length === 0) return ''
+  return `${labels.title}\n${lines.join('\n')}`
+}
+
 /**
  * Harvest reference-video URLs from upstream video-source nodes (e.g. a
  * Seedance node whose generation has resolved). Only their `mediaUrl` is

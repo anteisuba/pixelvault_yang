@@ -39,6 +39,7 @@ import {
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
   NODE_STUDIO_TOOL_MODE_IDS,
+  NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
@@ -73,17 +74,20 @@ import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
   buildShotReferenceLegend,
+  buildVideoReferenceLegend,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
   harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
+  harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
   isShotNode,
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
+  type VideoLegendImageReference,
 } from '@/lib/node-workflow-graph'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -812,9 +816,44 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const referenceByUrl = new Map<string, UpstreamImageReference>(
         upstreamImageReferences.map((reference) => [reference.url, reference]),
       )
+      // Video legend (§7.2⑦ / §9 D): bind every sent 图N/视N/音N slot to its
+      // subject so the composer's @name / @特写N / @视频N tokens resolve. Auto-name
+      // prefixes come from the SAME i18n key the composer's autoName uses, so the
+      // fallback names are byte-identical to the tokens in the prompt.
+      const videoImageRefByUrl = isVideoMediaNode
+        ? harvestUpstreamVideoImageReferences(
+            nodeId,
+            workflow.edges,
+            workflow.nodes,
+          )
+        : new Map<string, VideoLegendImageReference>()
       const referenceLegend = isShotImageNode
         ? buildShotReferenceLegend(referenceImages, referenceByUrl)
-        : ''
+        : isVideoMediaNode
+          ? buildVideoReferenceLegend({
+              referenceImages,
+              imageRefByUrl: videoImageRefByUrl,
+              videoUrls: upstreamVideoUrls,
+              audioBindings: upstreamAudioBindings,
+              labels: {
+                title: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.title,
+                imagePrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.imagePrefix,
+                videoPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.videoPrefix,
+                audioPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.audioPrefix,
+                kindLabel: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.kindLabel,
+                autoNamePrefix: {
+                  character: t('videoComposer.autoName.character'),
+                  background: t('videoComposer.autoName.background'),
+                  shot: t('videoComposer.autoName.shot'),
+                  closeup: t('videoComposer.autoName.closeup'),
+                  video: t('videoComposer.autoName.video'),
+                },
+                characterVoiceSuffix:
+                  NODE_STUDIO_VIDEO_REFERENCE_LEGEND.characterVoiceSuffix,
+                narration: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.narration,
+              },
+            })
+          : ''
       const finalPrompt = referenceLegend
         ? `${referenceLegend}\n\n${mergedPrompt}`
         : mergedPrompt

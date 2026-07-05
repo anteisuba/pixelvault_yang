@@ -5,6 +5,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
   buildShotReferenceLegend,
+  buildVideoReferenceLegend,
   getNodeMediaUrl,
   getSeedanceReferenceKind,
   getUpstreamNodes,
@@ -13,6 +14,7 @@ import {
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
+  harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
   harvestUpstreamVoiceAudioUrls,
   isKeyframeNode,
@@ -24,6 +26,8 @@ import {
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
+  type VideoLegendImageReference,
+  type VideoReferenceLegendLabels,
 } from './node-workflow-graph'
 
 function makeNode(
@@ -405,6 +409,121 @@ describe('buildShotReferenceLegend', () => {
       ],
     ])
     expect(buildShotReferenceLegend(['https://cdn/x.png'], refByUrl)).toBe('')
+  })
+})
+
+describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', () => {
+  it('maps character/background/shot + 1-hop closeup names by URL', () => {
+    const nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/cu.png',
+        characterName: '剑修脸',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '剑修',
+      }),
+      makeNode('bg1', NODE_TYPE_IDS.backgroundImage, {
+        mediaUrl: 'https://cdn/bg.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e-cu', 'cu1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+      makeEdge('e-bg', 'bg1', 'video1'),
+    ]
+    const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+    expect(map.get('https://cdn/char.png')).toEqual({
+      kind: 'character',
+      name: '剑修',
+    })
+    // closeup resolved 1-hop from its character, name from characterName.
+    expect(map.get('https://cdn/cu.png')).toEqual({
+      kind: 'closeup',
+      name: '剑修脸',
+    })
+    // unnamed background → name undefined (caller auto-numbers it).
+    expect(map.get('https://cdn/bg.png')).toEqual({
+      kind: 'background',
+      name: undefined,
+    })
+  })
+})
+
+describe('buildVideoReferenceLegend (§7.2⑦ / §9 D)', () => {
+  const labels: VideoReferenceLegendLabels = {
+    title: '参考素材说明：',
+    imagePrefix: '图',
+    videoPrefix: '视',
+    audioPrefix: '音',
+    kindLabel: {
+      character: '角色',
+      background: '场景',
+      shot: '镜头',
+      closeup: '特写',
+      video: '视频',
+    },
+    autoNamePrefix: {
+      character: '角色',
+      background: '场景',
+      shot: '镜头',
+      closeup: '特写',
+      video: '视频',
+    },
+    characterVoiceSuffix: '的音色',
+    narration: '旁白',
+  }
+
+  it('binds each image slot by its FINAL index, keyframes skipped, closeup auto-named', () => {
+    // referenceImages: [keyframe(slot0, no name), char(slot1, named), closeup(slot2, auto)]
+    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
+      ['https://cdn/char.png', { kind: 'character', name: '剑修' }],
+      ['https://cdn/cu.png', { kind: 'closeup' }],
+    ])
+    const legend = buildVideoReferenceLegend({
+      referenceImages: [
+        'https://cdn/kf.png',
+        'https://cdn/char.png',
+        'https://cdn/cu.png',
+      ],
+      imageRefByUrl,
+      videoUrls: [],
+      audioBindings: [],
+      labels,
+    })
+    // char at index 1 → 图2；closeup unnamed at index 2 → 特写3 (matches the
+    // composer's autoName('closeup', 2) token @特写3); keyframe skipped.
+    expect(legend).toBe('参考素材说明：\n图2：角色「剑修」\n图3：特写「特写3」')
+  })
+
+  it('adds 视N and 音N lines (character voice vs 旁白)', () => {
+    const legend = buildVideoReferenceLegend({
+      referenceImages: [],
+      imageRefByUrl: new Map(),
+      videoUrls: ['https://cdn/ref.mp4'],
+      audioBindings: [
+        { url: 'https://cdn/a1.mp3', characterName: '剑修' },
+        { url: 'https://cdn/a2.mp3' },
+      ],
+      labels,
+    })
+    expect(legend).toBe(
+      '参考素材说明：\n视1：视频「视频1」\n音1：角色「剑修」的音色\n音2：旁白',
+    )
+  })
+
+  it('returns empty when nothing is nameable', () => {
+    expect(
+      buildVideoReferenceLegend({
+        referenceImages: ['https://cdn/kf.png'],
+        imageRefByUrl: new Map(),
+        videoUrls: [],
+        audioBindings: [],
+        labels,
+      }),
+    ).toBe('')
   })
 })
 

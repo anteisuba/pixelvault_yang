@@ -330,6 +330,32 @@ export const NODE_STUDIO_SHOT_REFERENCE_LEGEND = {
   },
 } as const
 
+/**
+ * Prompt legend prepended to a VIDEO (Seedance) generation, mapping every SENT
+ * reference slot — image_urls (角色 / 场景 / 镜头 / 特写), video_urls (视频), and
+ * audio_urls (角色音色 / 旁白) — to its subject, so the model binds the `@名字`
+ * tokens the composer inserted to the right slot (cast-redesign §7.2⑦ + §9 D,
+ * incl. the closeup `@特写N` mapping). Structural + kind words are Chinese
+ * (model-facing, like the shot legend); the per-slot NAME is either the user's
+ * name or the SAME auto-name the composer's token uses (passed in from i18n so
+ * `@特写1` in the prompt matches `特写1` in the legend byte-for-byte).
+ */
+export const NODE_STUDIO_VIDEO_REFERENCE_LEGEND = {
+  title: '参考素材说明（按名字对应到下列素材）：',
+  imagePrefix: '图',
+  videoPrefix: '视',
+  audioPrefix: '音',
+  kindLabel: {
+    character: '角色',
+    background: '场景',
+    shot: '镜头',
+    closeup: '特写',
+    video: '视频',
+  },
+  characterVoiceSuffix: '的音色',
+  narration: '旁白',
+} as const
+
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
   maxItems: 5,
   defaultScale: 1,

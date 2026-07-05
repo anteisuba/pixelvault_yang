@@ -121,4 +121,19 @@
 | S4 运镜 L2       | 镜头卡结构化 camera 下拉                                                                                                      | S1                                           |
 | 后续             | keyframe→镜头卡 · 超限⚠（先抽共享 payload 装配）· 拖拽排序（先定排序建模）· 上传/粘贴入口 · **@token nodeId 持久化→漂移消失** | 见 v4 §14.3                                  |
 
-**S1/S2 交付实证**（2026-07-05，commit a97a85b3/d77abf44/f3efd761）：浏览器 DOM 查得五卡 `["角色","场景","镜头","动作","旁白"]`、角色槽 2 枚音色徽标（就绪）、prompt 内 7 枚 `@name` 原子胶囊（`contenteditable=false`）；tsc 全量 exit 0；定向单测全绿。**§6 的"漂移检测随之删"未执行**——token 在 data.prompt 仍是纯文本 `@name`（生成路径不变），改名后 `@name` 退化成纯文本、漂移提示仍有用；真正"nodeId 活引用/漂移消失"需改持久化格式（动生成路径），列入后续。keyframe→镜头卡本轮也延后（镜头卡 kinds 暂只 `shot`）。
+**S1/S2 交付实证**（2026-07-05，commit a97a85b3/d77abf44/f3efd761）：浏览器 DOM 查得五卡 `["角色","场景","镜头","动作","旁白"]`、角色槽 2 枚音色徽标（就绪）、prompt 内 7 枚 `@name` 原子胶囊（`contenteditable=false`）；tsc 全量 exit 0；定向单测全绿。**§6 的"漂移检测随之删"未执行**——token 在 data.prompt 仍是纯文本 `@name`（生成路径不变），改名后 `@name` 退化成纯文本、漂移提示仍有用；真正"nodeId 活引用/漂移消失"需改持久化格式（动生成路径），列入后续。~~keyframe→镜头卡本轮也延后~~（后续增量已交付：keyframe 作 projection-only token 进镜头卡，commit 222772b5；运镜 L1 chips 同日交付，commit 519ec1ef）。
+
+## 9. v2 升级：富缩略图 token + 特写 + 自动编号（2026-07-05 晚，owner 拍板）
+
+> 权威图：[`svg/cast-v2-rich-tokens.svg`](svg/cast-v2-rich-tokens.svg)。触发：owner 给出即梦 Seedance 2.0 引用式 prompt 截图（「剑修2 是男徒弟。特写 是男徒弟面部细节。…角色动作、音乐、视频运镜完全参考 视频1」），要求最终效果对标 + 补面部特写。X 调查确认「素材引用规范」是 Seedance 2.0 skill 生态核心。
+
+**五卡骨架与发送机制（胶囊→@名字纯文本+自动图例）不变**，升级四点：
+
+1. **富 token**：MentionInput 胶囊内嵌 16px 真实缩略图（圆=角色/方=图/▶=视频）+ 名字，端口色底。
+2. **特写（closeup）**：角色的面部细节子参考——image node 新 role `closeup`，**连进角色节点**（与 voice→character 完全同 1 跳范式）；角色身份 = 脸+特写+音色；特写随角色进 image_urls（1 跳收割），`@特写N` 独立可插。
+3. **自动编号**：未命名素材自动得槽位名（角色N/场景N/镜头N/视频N/特写N），即连即用，「需命名」拦截取消；用户改名优先。编号=payload 槽位序（已有真源）。
+4. **视频可内联引用**：动作卡参考视频获得「视频N」，可插入组句（「运镜完全参考 视频1」）；keyframe 仍 projection-only。
+
+**改名策略 = B 自动回写**（owner 拍板，取代 nodeId marker 方案 C）：节点改名 → 复用现有漂移检测把引用它的 prompt 内 `@旧名`→`@新名` **静默自动回写**，删漂移提示 UI（手动替换按钮/⚠虚线态）。生成路径零改动。
+
+**切片**：V2-1 B 自动回写+删漂移 UI（低）→ V2-2 token 内嵌缩略图（低）→ V2-3 自动编号+视频/未命名可插（中）→ V2-4 特写 role=closeup+身份组 UI+1 跳收割（大：新 role 波及 role picker/收割/连线规则/图例）。

@@ -53,6 +53,18 @@ export function HomepageFeatureSection({
     )
   }
 
+  if (rhythm === 'band') {
+    return (
+      <HomepageBandFeatureSection
+        id={id}
+        ctaHref={ctaHref}
+        tone={tone}
+        showCta={showCta}
+        media={media}
+      />
+    )
+  }
+
   return (
     <HomepageStandardFeatureSection
       id={id}
@@ -100,6 +112,15 @@ function HomepagePanoramaFeatureSection({
         <p className="homepage-feature-copy mt-6 max-w-2xl font-display font-medium text-[var(--home-muted)]">
           {t('description', translationValues)}
         </p>
+        {showCta && (
+          <Button
+            asChild
+            size="lg"
+            className="homepage-primary-btn mt-8 h-14 rounded-full px-8 text-base font-semibold"
+          >
+            <Link href={ctaHref}>{t('cta', translationValues)}</Link>
+          </Button>
+        )}
       </div>
 
       <div
@@ -134,16 +155,76 @@ function HomepagePanoramaFeatureSection({
         )}
         {!media && <HomepageFeatureMediaFallback id={id} />}
       </div>
+    </section>
+  )
+}
 
-      {showCta && (
-        <Button
-          asChild
-          size="lg"
-          className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
+/**
+ * Full-bleed light "audio strip" band — a short, wide horizontal panel that
+ * breaks the tall left/right split run. Text sits on the light strip; the
+ * waveform lives in a wide, short dark window (audio needs the dark mat for
+ * the white waveform to read). Distinct from both the tall splits and the
+ * full-bleed dark panorama, so the page reads in three rhythms.
+ */
+function HomepageBandFeatureSection({
+  id,
+  ctaHref,
+  tone,
+  showCta = true,
+  media,
+}: HomepageFeatureSectionProps) {
+  const t = useTranslations(`Homepage.featureSections.${id}`)
+  const translationValues = HOMEPAGE_FEATURE_TRANSLATION_VALUES[id] ?? {}
+
+  return (
+    <section
+      id={id}
+      data-homepage-reveal
+      className="homepage-feature-band scroll-mt-24"
+      aria-labelledby={`homepage-feature-${id}-title`}
+    >
+      <div className="homepage-feature-band-inner">
+        <div className="flex flex-col items-start text-left">
+          <h2
+            id={`homepage-feature-${id}-title`}
+            className="homepage-feature-title font-display font-bold text-foreground text-balance"
+          >
+            {t('title', translationValues)}
+          </h2>
+          <p className="homepage-feature-copy mt-5 max-w-xl font-display font-medium text-[var(--home-muted)]">
+            {t('description', translationValues)}
+          </p>
+          {showCta && (
+            <Button
+              asChild
+              size="lg"
+              className="homepage-primary-btn mt-7 h-14 rounded-full px-8 text-base font-semibold"
+            >
+              <Link href={ctaHref}>{t('cta', translationValues)}</Link>
+            </Button>
+          )}
+        </div>
+
+        <div
+          className={cn(
+            'homepage-feature-media-container homepage-feature-band-media',
+            `homepage-feature-tone-${tone}`,
+          )}
+          aria-hidden={media ? undefined : 'true'}
         >
-          <Link href={ctaHref}>{t('cta', translationValues)}</Link>
-        </Button>
-      )}
+          {media?.type === 'image' && (
+            <Image
+              src={media.src}
+              alt={media.alt}
+              fill
+              sizes="(min-width: 1024px) 55vw, 100vw"
+              className="homepage-feature-media object-cover"
+              priority={false}
+            />
+          )}
+          {!media && <HomepageFeatureMediaFallback id={id} />}
+        </div>
+      </div>
     </section>
   )
 }

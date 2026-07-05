@@ -121,7 +121,7 @@ export type HomepageFeatureMedia =
   | { type: 'image'; src: string; alt: string }
   | { type: 'video'; src: string; poster?: string; alt: string }
 
-export type HomepageFeatureRhythm = 'feature' | 'compact' | 'panorama'
+export type HomepageFeatureRhythm = 'feature' | 'compact' | 'panorama' | 'band'
 
 /**
  * Feature sections — covers the six real product pillars. 图片生成 carries the
@@ -167,7 +167,10 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'sky',
     reverse: false,
-    rhythm: 'compact',
+    // full-bleed light "audio strip" band — breaks the image/video split run
+    // (anti-slop: no 3 consecutive left/right splits) and suits the waveform,
+    // which is naturally a wide horizontal timeline.
+    rhythm: 'band',
     showEyebrow: false,
     showCta: true,
     // SVG TTS player (HomepageTtsPlayer) — pure renderer, no asset.

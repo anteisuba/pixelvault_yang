@@ -76,13 +76,49 @@ describe('HomepageFeatureSection', () => {
     ).toHaveAttribute('href', '/studio/node')
   })
 
+  it('renders the full-bleed audio band for band rhythm', () => {
+    render(
+      <HomepageFeatureSection
+        id="tts"
+        ctaHref="/studio"
+        tone="sky"
+        rhythm="band"
+        showEyebrow={false}
+        showCta
+      />,
+    )
+
+    const section = document.getElementById('tts')
+    expect(section).not.toBeNull()
+    expect(section).toHaveClass('homepage-feature-band')
+    expect(section).not.toHaveClass('homepage-feature-section')
+    expect(
+      screen.getByRole('heading', {
+        name: 'Homepage.featureSections.tts.title',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Homepage.featureSections.tts.cta' }),
+    ).toHaveAttribute('href', '/studio')
+  })
+
   it('keeps every configured section eyebrow-free (anti-slop guard)', () => {
     for (const section of HOMEPAGE_FEATURE_SECTIONS) {
       expect(section.showEyebrow).toBe(false)
     }
-    // exactly one section carries the panorama rhythm (the canvas band)
+    // exactly one panorama (canvas) and one band (audio) break the split run
     expect(
       HOMEPAGE_FEATURE_SECTIONS.filter((s) => s.rhythm === 'panorama'),
     ).toHaveLength(1)
+    expect(
+      HOMEPAGE_FEATURE_SECTIONS.filter((s) => s.rhythm === 'band'),
+    ).toHaveLength(1)
+    // no 3 consecutive left/right splits (the anti-slop reason for band+panorama)
+    const isSplit = (r: string) => r === 'feature' || r === 'compact'
+    let run = 0
+    for (const s of HOMEPAGE_FEATURE_SECTIONS) {
+      run = isSplit(s.rhythm) ? run + 1 : 0
+      expect(run).toBeLessThanOrEqual(2)
+    }
   })
 })

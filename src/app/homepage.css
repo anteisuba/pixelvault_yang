@@ -10,7 +10,7 @@
   --muted: oklch(97% 0 0);
   --muted-foreground: oklch(55.6% 0 0);
   --border: oklch(92.2% 0 0);
-  --primary: oklch(0% 0 0);
+  --primary: oklch(14.5% 0 0);
   --primary-foreground: oklch(100% 0 0);
 
   --home-border: color-mix(in oklab, var(--border) 72%, transparent);
@@ -665,7 +665,7 @@ html:lang(ja) .homepage .homepage-capability-item-title {
   --muted: oklch(97% 0 0);
   --muted-foreground: oklch(55.6% 0 0);
   --border: oklch(92.2% 0 0);
-  --primary: oklch(0% 0 0);
+  --primary: oklch(14.5% 0 0);
   --primary-foreground: oklch(100% 0 0);
 
   /* re-derive the homepage-local tokens against the flipped palette */
@@ -809,6 +809,63 @@ html:lang(ja) .homepage .homepage-capability-item-title {
     transform: none;
     box-shadow: none;
   }
+}
+
+/* — Audio strip band (音频生成) — a short, full-bleed light strip that breaks
+   the tall split run. Text on the light strip; the waveform sits in a wide,
+   short dark window (audio needs the dark mat). Reads as a third rhythm next
+   to the tall splits and the dark panorama. */
+.homepage-feature-band {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(1rem, calc(50vw - 37.5rem));
+  padding-block: clamp(2.25rem, 3.5vw, 3rem);
+  background: var(--home-surface-soft);
+  border-block: 1px solid var(--home-border);
+}
+
+.homepage-feature-band-inner {
+  display: grid;
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .homepage-feature-band-inner {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr);
+  }
+}
+
+.homepage-feature-band-media {
+  height: clamp(9rem, 15vw, 11rem);
+}
+
+/* 暗房相纸 — a very faint film grain over the dark surfaces (the "prints" and
+   windows), so the near-black mats read as photographic paper rather than flat
+   ink. Static background image (no filter), pointer-events-none, clipped to the
+   element's own rounding — cheap, no per-frame repaint. */
+.homepage {
+  --home-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.homepage-capability-panel,
+.homepage-footer {
+  position: relative;
+}
+
+.homepage-hero-window::after,
+.homepage-feature-media-container::after,
+.homepage-capability-panel::after,
+.homepage-footer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--home-noise);
+  background-size: 140px 140px;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
 }
 
 /* — Film strip (视频生成) — a light passes across four real frames in
@@ -1316,7 +1373,7 @@ html.homepage-motion-ready
   --muted: oklch(97% 0 0);
   --muted-foreground: oklch(55.6% 0 0);
   --border: oklch(92.2% 0 0);
-  --primary: oklch(0% 0 0);
+  --primary: oklch(14.5% 0 0);
   --primary-foreground: oklch(100% 0 0);
   --home-border: color-mix(in oklab, var(--border) 72%, transparent);
   --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
@@ -1332,6 +1389,29 @@ html.homepage-motion-ready
 .homepage-bottom-cta-content {
   position: relative;
   z-index: 2;
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .homepage-bottom-cta-content {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.7fr);
+  }
+}
+
+.homepage-bottom-cta-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.homepage-bottom-cta-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  border: 1px solid var(--home-border);
 }
 
 /* — Footer — */

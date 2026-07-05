@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { BRAND_ACCENT, BRAND_BG, BRAND_FG } from '@/lib/design-tokens'
 import { isAppLocale } from '@/i18n/routing'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const alt = 'PixelVault — Personal AI Gallery'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'

@@ -296,6 +296,26 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       })
     }
 
+    // Keyframe references (首/尾帧, role=frame) — they ride image_urls (first,
+    // per harvestUpstreamImageUrls) but have no name-token, so they surface as
+    // projection-only slots in the 镜头 card (cast-redesign §3/§4, keyframe→镜头卡).
+    for (const node of incoming) {
+      if (!isKeyframeNode(node)) continue
+      const url = getNodeMediaUrl(node.data)
+      if (!url) continue
+      const slotIndex = payloadImageUrls.indexOf(url)
+      tokens.push({
+        id: node.id,
+        kind: 'keyframe',
+        label: '',
+        token: '',
+        insertable: false,
+        mediaUrl: url,
+        imageSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
+        edgeId: directEdgeBySource.get(node.id),
+      })
+    }
+
     return tokens
   }, [edges, nodes, nodeId])
 

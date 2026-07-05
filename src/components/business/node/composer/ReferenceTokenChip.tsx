@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { AlertTriangle, Film, Locate, Mic2, Play } from 'lucide-react'
+import { AlertTriangle, Film, Frame, Locate, Mic2, Play } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -15,6 +15,7 @@ export type ReferenceTokenKind =
   | 'character'
   | 'background'
   | 'shot'
+  | 'keyframe'
   | 'voice'
   | 'video'
 
@@ -43,6 +44,7 @@ const SHAPE_CLASS: Record<ReferenceTokenKind, string> = {
   character: 'rounded-full',
   background: 'rounded-md',
   shot: 'rounded-md',
+  keyframe: 'rounded-md',
   voice: 'rounded-full',
   video: 'rounded-md',
 }
@@ -50,6 +52,7 @@ const RING_CLASS: Record<ReferenceTokenKind, string> = {
   character: 'ring-node-port-character/40',
   background: 'ring-node-port-background/40',
   shot: 'ring-node-port-image/40',
+  keyframe: 'ring-node-port-image/40',
   voice: 'ring-node-port-voice/40',
   video: 'ring-node-port-video/40',
 }
@@ -57,6 +60,7 @@ const FILL_CLASS: Record<ReferenceTokenKind, string> = {
   character: 'bg-node-port-character/20 text-node-port-character',
   background: 'bg-node-port-background/20 text-node-port-background',
   shot: 'bg-node-port-image/20 text-node-port-image',
+  keyframe: 'bg-node-port-image/20 text-node-port-image',
   voice: 'bg-node-port-voice/20 text-node-port-voice',
   video: 'bg-node-port-video/20 text-node-port-video',
 }
@@ -107,9 +111,11 @@ export function ReferenceTokenChip({
   const noInsertHint =
     data.kind === 'video'
       ? tc('references.videoAutoHint')
-      : data.kind === 'voice'
-        ? tc('references.voiceNotReadyHint')
-        : undefined
+      : data.kind === 'keyframe'
+        ? tc('references.keyframeHint')
+        : data.kind === 'voice'
+          ? tc('references.voiceNotReadyHint')
+          : undefined
 
   const thumbUrl = data.kind === 'voice' ? data.coverImage : data.mediaUrl
   const display =
@@ -168,6 +174,8 @@ export function ReferenceTokenChip({
                 <Mic2 className="size-4" />
               ) : data.kind === 'video' ? (
                 <Film className="size-4" />
+              ) : data.kind === 'keyframe' ? (
+                <Frame className="size-4" />
               ) : (
                 <span className="text-2xs font-semibold">{glyph}</span>
               )}
@@ -215,6 +223,8 @@ export function ReferenceTokenChip({
               <Mic2 className="size-6" />
             ) : data.kind === 'video' ? (
               <Film className="size-6" />
+            ) : data.kind === 'keyframe' ? (
+              <Frame className="size-6" />
             ) : (
               <span className="text-sm font-semibold">{glyph}</span>
             )}

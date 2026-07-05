@@ -37,6 +37,7 @@ export const TOKEN_PORT_COLOR_VAR: Record<ReferenceTokenKind, string> = {
   character: 'var(--node-port-character)',
   background: 'var(--node-port-background)',
   shot: 'var(--node-port-image)',
+  keyframe: 'var(--node-port-image)',
   voice: 'var(--node-port-voice)',
   video: 'var(--node-port-video)',
 }
@@ -75,7 +76,7 @@ const DEPARTMENTS: ReadonlyArray<{
   },
   {
     id: 'shot',
-    kinds: ['shot'],
+    kinds: ['shot', 'keyframe'],
     colorVar: 'var(--node-port-image)',
     nodeType: NODE_TYPE_IDS.image,
     mediaType: 'image',

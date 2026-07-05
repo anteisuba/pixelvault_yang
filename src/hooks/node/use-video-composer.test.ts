@@ -76,14 +76,17 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     ]
 
     const tokens = renderComposer().referenceTokens
-    expect(tokens).toHaveLength(1)
-    expect(tokens[0]).toMatchObject({
+    // character token (named) + keyframe token (projection-only 镜头卡).
+    const character = tokens.find((token) => token.kind === 'character')
+    const keyframe = tokens.find((token) => token.kind === 'keyframe')
+    expect(character).toMatchObject({
       id: 'char1',
-      kind: 'character',
       token: '@角色A',
       imageSlotIndex: 1,
       edgeId: 'e-char',
     })
+    // Keyframe rides image_urls first → slot 0.
+    expect(keyframe).toMatchObject({ id: 'frame1', imageSlotIndex: 0 })
   })
 
   it('leaves imageSlotIndex unset when the reference has no media yet', () => {
@@ -190,6 +193,29 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       (token) => token.kind === 'character',
     )
     expect(character?.boundVoice).toBeUndefined()
+  })
+
+  it('surfaces a keyframe node as a projection-only 镜头卡 token (图N order)', () => {
+    graphState.nodes = [
+      makeNode('kf1', NODE_TYPE_IDS.frameImage, {
+        imageUrl: 'https://cdn.test/kf.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-kf', 'kf1', 'video1')]
+
+    const kf = renderComposer().referenceTokens.find(
+      (token) => token.kind === 'keyframe',
+    )
+    expect(kf).toMatchObject({
+      id: 'kf1',
+      kind: 'keyframe',
+      token: '',
+      insertable: false,
+      mediaUrl: 'https://cdn.test/kf.png',
+      imageSlotIndex: 0,
+      edgeId: 'e-kf',
+    })
   })
 
   it('projects upstream video sources as projection-only tokens with 视N order', () => {

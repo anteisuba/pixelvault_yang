@@ -111,6 +111,22 @@ describe('DepartmentStrip (cast 五卡)', () => {
     expect(screen.getByText('references.slotBadgeVideo')).toBeInTheDocument()
   })
 
+  it('groups a keyframe token into the shot (镜头) card', () => {
+    renderStrip([
+      makeToken({
+        id: 'kf1',
+        kind: 'keyframe',
+        label: '',
+        token: '',
+        insertable: false,
+      }),
+    ])
+    const shotCard = screen.getByRole('region', { name: 'departments.shot' })
+    expect(
+      within(shotCard).getByRole('button', { name: 'refKind.keyframe' }),
+    ).toBeInTheDocument()
+  })
+
   it('projects an unready 旁白 voice as a dimmed slot in the narration card', () => {
     renderStrip([
       makeToken({

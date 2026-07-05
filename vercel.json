@@ -8,11 +8,11 @@
   "crons": [
     {
       "path": "/api/internal/civitai-lora/prewarm",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/internal/execution/sweep",
-      "schedule": "0 * * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }

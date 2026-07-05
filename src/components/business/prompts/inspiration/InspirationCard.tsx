@@ -38,6 +38,10 @@ export function InspirationCard({
     useState<MediaTransitionOrigin | null>(null)
   const tCommon = useTranslations('Common')
 
+  // Community-published prompts may have no cover (opt-in publishing) — never
+  // render <img src=""> (breaks + warns). Fall back to a prompt-text card.
+  const hasImage = !imageFailed && Boolean(inspiration.imageUrl)
+
   async function handleClone() {
     setIsCloning(true)
     try {
@@ -80,7 +84,7 @@ export function InspirationCard({
           }}
           className="relative aspect-4/5 overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          {!imageFailed ? (
+          {hasImage ? (
             <img
               src={inspiration.imageUrl}
               alt={inspiration.authorName}
@@ -89,8 +93,10 @@ export function InspirationCard({
               className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-              {t('inspirationImageUnavailable')}
+            <div className="flex size-full flex-col justify-end bg-muted/20 p-4">
+              <p className="line-clamp-6 whitespace-pre-wrap font-serif text-sm leading-6 text-muted-foreground/85">
+                {inspiration.prompt}
+              </p>
             </div>
           )}
           <div
@@ -159,11 +165,19 @@ export function InspirationCard({
         description={inspiration.prompt}
         closeLabel={tCommon('close')}
         media={
-          <img
-            src={inspiration.imageUrl}
-            alt={inspiration.authorName}
-            className="relative z-10 h-auto max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl object-contain shadow-sm lg:max-h-[calc(100dvh-8rem)]"
-          />
+          hasImage ? (
+            <img
+              src={inspiration.imageUrl}
+              alt={inspiration.authorName}
+              className="relative z-10 h-auto max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl object-contain shadow-sm lg:max-h-[calc(100dvh-8rem)]"
+            />
+          ) : (
+            <div className="relative z-10 flex max-h-[calc(48dvh-4rem)] w-full max-w-md items-end rounded-2xl bg-muted/20 p-6 lg:max-h-[calc(100dvh-8rem)]">
+              <p className="line-clamp-6 whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground/90">
+                {inspiration.prompt}
+              </p>
+            </div>
+          )
         }
         sideHeader={
           <div className="space-y-3">
@@ -243,7 +257,7 @@ export function InspirationCard({
           </div>
         }
         transitionOrigin={transitionOrigin}
-        transitionImageSrc={inspiration.imageUrl}
+        transitionImageSrc={hasImage ? inspiration.imageUrl : undefined}
         transitionImageAlt={inspiration.authorName}
       />
     </>

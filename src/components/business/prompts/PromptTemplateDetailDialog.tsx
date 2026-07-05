@@ -4,8 +4,10 @@
 import { useEffect, useState } from 'react'
 import {
   Copy,
+  Globe,
   ImageOff,
   Loader2,
+  Lock,
   Pencil,
   RotateCcw,
   Save,
@@ -20,6 +22,7 @@ import { MODEL_OPTIONS } from '@/constants/models'
 import {
   PROMPT_TEMPLATE_OUTPUT_TYPES,
   PROMPT_OUTPUT_TYPE_LABEL_KEYS,
+  RECIPE_VISIBILITY,
 } from '@/constants/prompt-library'
 import { getDefaultProviderConfig } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
@@ -30,6 +33,7 @@ import {
   deleteRecipeAPI,
   getRecipeAPI,
   listRecipeGenerationsAPI,
+  setRecipeVisibilityAPI,
   updateRecipeAPI,
 } from '@/lib/api-client/recipes'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
@@ -76,6 +80,8 @@ export interface PromptTemplateDetailRecipe {
   version: number
   createdAt: string
   compiledPrompt: string
+  /** 'PRIVATE' | 'PUBLIC' — drives the publish/unpublish toggle. */
+  visibility?: string
 }
 
 interface PromptTemplateDetailDialogProps {
@@ -118,6 +124,10 @@ export function PromptTemplateDetailDialog({
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [visibility, setVisibility] = useState(
+    recipe.visibility ?? RECIPE_VISIBILITY.PRIVATE,
+  )
 
   const [name, setName] = useState(recipe.name)
   const [compiledPrompt, setCompiledPrompt] = useState(recipe.compiledPrompt)
@@ -167,6 +177,7 @@ export function PromptTemplateDetailDialog({
         setOutputType(detail.outputType)
         setVersion(detail.version)
         setParentGenerationId(detail.parentGenerationId)
+        if (detail.visibility) setVisibility(detail.visibility)
       }
       setIsLoadingAssets(false)
     })()
@@ -241,6 +252,25 @@ export function PromptTemplateDetailDialog({
       toast.error(response.error ?? t('updateTemplateFailed'))
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const togglePublish = async () => {
+    const isPublic = visibility === RECIPE_VISIBILITY.PUBLIC
+    const next = isPublic ? RECIPE_VISIBILITY.PRIVATE : RECIPE_VISIBILITY.PUBLIC
+
+    setIsPublishing(true)
+    try {
+      const response = await setRecipeVisibilityAPI(recipe.id, next)
+      if (response.success && response.data) {
+        setVisibility(next)
+        toast.success(isPublic ? t('unpublishSuccess') : t('publishSuccess'))
+        router.refresh()
+        return
+      }
+      toast.error(response.error ?? t('publishFailed'))
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -541,6 +571,29 @@ export function PromptTemplateDetailDialog({
               >
                 <Pencil className="size-4" />
                 {t('editAction')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                disabled={isPublishing}
+                onClick={() => void togglePublish()}
+                title={t('publishHint')}
+              >
+                {isPublishing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : visibility === RECIPE_VISIBILITY.PUBLIC ? (
+                  <Lock className="size-4" />
+                ) : (
+                  <Globe className="size-4" />
+                )}
+                {visibility === RECIPE_VISIBILITY.PUBLIC
+                  ? isPublishing
+                    ? t('unpublishing')
+                    : t('unpublishAction')
+                  : isPublishing
+                    ? t('publishing')
+                    : t('publishAction')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>

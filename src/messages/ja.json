@@ -369,6 +369,11 @@
     "create": "作成",
     "close": "閉じる"
   },
+  "NotFound": {
+    "title": "ページが見つかりません",
+    "description": "お探しのページは存在しないか、移動した可能性があります。",
+    "backHome": "ホームに戻る"
+  },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
     "description": "Gemini・FLUXなど主要AIモデルで画像・動画・音声を生成し、すべての結果をひとつの個人ギャラリーに永久保存。",
@@ -1776,6 +1781,15 @@
     "templateCount": "{count} 件のテンプレート",
     "updateTemplateSuccess": "プロンプトテンプレートを更新しました",
     "updateTemplateFailed": "プロンプトテンプレートの更新に失敗しました",
+    "publishAction": "共有ライブラリに公開",
+    "unpublishAction": "公開を取り消す",
+    "publishing": "公開中...",
+    "unpublishing": "取り下げ中...",
+    "publishSuccess": "共有プロンプトライブラリに公開しました",
+    "unpublishSuccess": "共有ライブラリから取り下げました",
+    "publishFailed": "公開状態の更新に失敗しました",
+    "publishedBadge": "公開中",
+    "publishHint": "公開すると、他のユーザーが共有プロンプトライブラリでこのテンプレートを見つけて再利用できます。",
     "tabMine": "マイテンプレート",
     "tabInspiration": "共有プロンプト",
     "mineEyebrow": "マイライブラリ",

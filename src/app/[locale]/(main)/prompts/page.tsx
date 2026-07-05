@@ -74,7 +74,7 @@ export default async function PromptsPage({
 
   return (
     <main className="editorial-page">
-      <div className="editorial-container editorial-container--wide">
+      <div className="editorial-container editorial-container--wide editorial-container--tight">
         <PromptLibraryTabs currentTab={currentTab} />
 
         {currentTab === 'inspiration' ? (
@@ -140,12 +140,12 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
 
   return (
     <>
-      <header className="space-y-2">
+      <header className="space-y-1">
         <p className="editorial-eyebrow">{t('mineEyebrow')}</p>
         <h1 className="font-display text-2xl font-medium tracking-tight">
           {t('title')}
         </h1>
-        <p className="max-w-2xl font-serif text-sm leading-7 text-muted-foreground">
+        <p className="max-w-2xl font-serif text-sm leading-6 text-muted-foreground">
           {t('description')}
         </p>
       </header>
@@ -193,6 +193,7 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
             compiledPrompt: recipe.compiledPrompt,
             modelId: recipe.modelId,
             version: recipe.version,
+            visibility: recipe.visibility,
             createdAt: recipe.createdAt.toISOString(),
             outputTypeLabel: getOutputTypeLabel(recipe.outputType),
             coverThumbnailUrl: recipe.coverThumbnailUrl,

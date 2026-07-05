@@ -55,6 +55,7 @@ import {
   listRecipeSummaries,
   getRecipe,
   deleteRecipe,
+  setRecipeVisibility,
 } from '@/services/prompts/recipe.service'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
@@ -501,6 +502,7 @@ describe('listRecipeSummaries', () => {
           compiledPrompt: true,
           modelId: true,
           version: true,
+          visibility: true,
           createdAt: true,
           parentGenerationId: true,
           userIntent: true,
@@ -659,6 +661,47 @@ describe('deleteRecipe', () => {
     mockFindFirst.mockResolvedValue(null)
     const result = await deleteRecipe('clerk_test_user', 'recipe_missing')
     expect(result).toBe(false)
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+})
+
+describe('setRecipeVisibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockFindFirst.mockResolvedValue({ id: 'recipe_abc' })
+    mockUpdate.mockResolvedValue({ ...FAKE_RECIPE, visibility: 'PUBLIC' })
+  })
+
+  it('publishes an owned recipe (PRIVATE → PUBLIC)', async () => {
+    const result = await setRecipeVisibility(
+      'clerk_test_user',
+      'recipe_abc',
+      'PUBLIC',
+    )
+
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'recipe_abc', userId: 'db_user_123', isDeleted: false },
+      }),
+    )
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'recipe_abc' },
+      data: { visibility: 'PUBLIC' },
+    })
+    expect(result?.visibility).toBe('PUBLIC')
+  })
+
+  it('returns null when the recipe is missing or not owned', async () => {
+    mockFindFirst.mockResolvedValue(null)
+
+    const result = await setRecipeVisibility(
+      'clerk_test_user',
+      'recipe_missing',
+      'PUBLIC',
+    )
+
+    expect(result).toBeNull()
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

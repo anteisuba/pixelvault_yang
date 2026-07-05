@@ -369,6 +369,11 @@
     "create": "创建",
     "close": "关闭"
   },
+  "NotFound": {
+    "title": "页面未找到",
+    "description": "你访问的页面不存在或已被移动。",
+    "backHome": "返回首页"
+  },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
     "description": "使用 Gemini、FLUX 等顶级 AI 模型生成图像、视频和音频，并将每次结果永久归档到同一个个人画廊中。",
@@ -1776,6 +1781,15 @@
     "templateCount": "{count} 个模板",
     "updateTemplateSuccess": "提示词模板已更新",
     "updateTemplateFailed": "更新提示词模板失败",
+    "publishAction": "发布到共享库",
+    "unpublishAction": "取消发布",
+    "publishing": "发布中...",
+    "unpublishing": "下架中...",
+    "publishSuccess": "已发布到共享提示词库",
+    "unpublishSuccess": "已从共享库下架",
+    "publishFailed": "发布状态更新失败",
+    "publishedBadge": "已发布",
+    "publishHint": "发布后其他人可以在共享提示词库看到并复用这条模板。",
     "tabMine": "我的模板",
     "tabInspiration": "共享提示词库",
     "mineEyebrow": "个人模板库",

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Globe, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -19,6 +19,7 @@ import {
 import {
   PROMPT_TEMPLATE_OUTPUT_TYPES,
   PROMPT_OUTPUT_TYPE_LABEL_KEYS,
+  RECIPE_VISIBILITY,
   type PromptTemplateOutputType,
 } from '@/constants/prompt-library'
 import { deleteRecipeAPI } from '@/lib/api-client/recipes'
@@ -37,6 +38,8 @@ export interface PromptTemplateListItem {
   compiledPrompt: string
   modelId: string
   version: number
+  /** 'PRIVATE' | 'PUBLIC' — PUBLIC shows a "published" badge + is in the shared library. */
+  visibility?: string
   createdAt: string
   /** First image generated with this template (cover). Null → text fallback. */
   coverThumbnailUrl?: string | null
@@ -252,6 +255,12 @@ function PromptTemplateCard({
             </span>
             <span aria-hidden>·</span>
             <span>{formattedDate}</span>
+            {recipe.visibility === RECIPE_VISIBILITY.PUBLIC && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary">
+                <Globe className="size-3" />
+                {t('publishedBadge')}
+              </span>
+            )}
           </div>
         </div>
       </article>

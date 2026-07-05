@@ -27,13 +27,13 @@ export function InspirationGrid() {
   } = useInspirations()
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-2">
+    <section className="space-y-4">
+      <header className="space-y-1">
         <p className="editorial-eyebrow">{t('inspirationEyebrow')}</p>
         <h1 className="font-display text-2xl font-medium tracking-tight">
           {t('inspirationTitle')}
         </h1>
-        <p className="max-w-2xl font-serif text-sm leading-7 text-muted-foreground">
+        <p className="max-w-2xl font-serif text-sm leading-6 text-muted-foreground">
           {t('inspirationDescription')}
         </p>
       </header>

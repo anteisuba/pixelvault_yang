@@ -6,6 +6,7 @@ import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
+import type { RecipeVisibility } from '@/constants/prompt-library'
 import {
   GenerationSnapshotSchema,
   type CreateRecipeFromGenerationRequest,
@@ -31,6 +32,7 @@ export type RecipeListItem = Pick<
   | 'compiledPrompt'
   | 'modelId'
   | 'version'
+  | 'visibility'
   | 'createdAt'
 >
 
@@ -45,6 +47,7 @@ const RECIPE_LIST_ITEM_SELECT = {
   compiledPrompt: true,
   modelId: true,
   version: true,
+  visibility: true,
   createdAt: true,
 } as const satisfies Prisma.RecipeSelect
 
@@ -469,9 +472,34 @@ export async function listRecipeSummaries(
     compiledPrompt: recipe.compiledPrompt,
     modelId: recipe.modelId,
     version: recipe.version,
+    visibility: recipe.visibility,
     createdAt: recipe.createdAt,
     coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
   }))
+}
+
+/**
+ * Flip a recipe's visibility (PRIVATE ⇄ PUBLIC). Publishing surfaces the
+ * template in the shared prompt library; unpublishing removes it. Owner-scoped
+ * — returns null when the recipe is missing or not owned by the caller.
+ */
+export async function setRecipeVisibility(
+  clerkId: string,
+  id: string,
+  visibility: RecipeVisibility,
+): Promise<Recipe | null> {
+  const user = await ensureUser(clerkId)
+  const existing = await db.recipe.findFirst({
+    where: { id, userId: user.id, isDeleted: false },
+    select: { id: true },
+  })
+
+  if (!existing) return null
+
+  return db.recipe.update({
+    where: { id },
+    data: { visibility },
+  })
 }
 
 export async function createRecipeFromGeneration(

@@ -21,6 +21,7 @@ import {
 } from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
+import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
@@ -4028,11 +4029,21 @@ export type RecipeRecord = {
   parentGenerationId: string | null
   coverThumbnailUrl?: string | null
   version: number
+  /** 'PRIVATE' | 'PUBLIC' — PUBLIC recipes appear in the shared library. */
+  visibility?: string
   evaluationSummary?: unknown
   isDeleted: boolean
   createdAt: string
   updatedAt: string
 }
+
+export const SetRecipeVisibilityRequestSchema = z.object({
+  visibility: z.enum(RECIPE_VISIBILITY_VALUES),
+})
+
+export type SetRecipeVisibilityRequest = z.infer<
+  typeof SetRecipeVisibilityRequestSchema
+>
 
 // ─── Inspiration Library (public curated prompts) ─────────────────
 

@@ -369,6 +369,11 @@
     "create": "Create",
     "close": "Close"
   },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or may have moved.",
+    "backHome": "Back to home"
+  },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
     "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
@@ -1776,6 +1781,15 @@
     "templateCount": "{count} templates",
     "updateTemplateSuccess": "Prompt template updated",
     "updateTemplateFailed": "Failed to update prompt template",
+    "publishAction": "Publish to shared library",
+    "unpublishAction": "Unpublish",
+    "publishing": "Publishing...",
+    "unpublishing": "Removing...",
+    "publishSuccess": "Published to the shared prompt library",
+    "unpublishSuccess": "Removed from the shared library",
+    "publishFailed": "Failed to update publish status",
+    "publishedBadge": "Published",
+    "publishHint": "Once published, anyone can find and reuse this template in the shared prompt library.",
     "tabMine": "My templates",
     "tabInspiration": "Shared prompts",
     "mineEyebrow": "Personal library",

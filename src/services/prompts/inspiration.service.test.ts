@@ -15,6 +15,12 @@ const mockFindMany = vi.fn()
 const mockFindUnique = vi.fn()
 const mockCount = vi.fn()
 const mockRecipeCreate = vi.fn()
+const mockRecipeCount = vi.fn()
+const mockRecipeFindMany = vi.fn()
+const mockRecipeFindFirst = vi.fn()
+const mockRecipeUpdate = vi.fn()
+const mockUserFindMany = vi.fn()
+const mockQueryRaw = vi.fn()
 vi.mock('@/lib/db', () => ({
   db: {
     inspirationPrompt: {
@@ -24,7 +30,15 @@ vi.mock('@/lib/db', () => ({
     },
     recipe: {
       create: (...a: unknown[]) => mockRecipeCreate(...a),
+      count: (...a: unknown[]) => mockRecipeCount(...a),
+      findMany: (...a: unknown[]) => mockRecipeFindMany(...a),
+      findFirst: (...a: unknown[]) => mockRecipeFindFirst(...a),
+      update: (...a: unknown[]) => mockRecipeUpdate(...a),
     },
+    user: {
+      findMany: (...a: unknown[]) => mockUserFindMany(...a),
+    },
+    $queryRaw: (...a: unknown[]) => mockQueryRaw(...a),
   },
 }))
 
@@ -64,6 +78,11 @@ describe('listInspirations', () => {
     vi.clearAllMocks()
     mockFindMany.mockResolvedValue([FAKE_INSPIRATION])
     mockCount.mockResolvedValue(1)
+    // No community-published recipes by default → feed is the curated dataset.
+    mockRecipeCount.mockResolvedValue(0)
+    mockRecipeFindMany.mockResolvedValue([])
+    mockUserFindMany.mockResolvedValue([])
+    mockQueryRaw.mockResolvedValue([])
   })
 
   it('returns inspirations + total with default pagination (rank asc)', async () => {
@@ -131,6 +150,53 @@ describe('listInspirations', () => {
       expect.objectContaining({ take: 60, skip: 0 }),
     )
   })
+
+  it('prepends community-published recipes ahead of curated inspirations', async () => {
+    mockRecipeCount.mockResolvedValue(1)
+    mockRecipeFindMany.mockResolvedValue([
+      {
+        id: 'recipe_pub',
+        userId: 'db_user_9',
+        compiledPrompt: 'a shared community prompt',
+        negativePrompt: null,
+        modelId: 'gpt-image-2',
+        provider: 'OpenAI',
+        outputType: 'IMAGE',
+        favoriteCount: 3,
+        usageCount: 7,
+        tags: ['Photography'],
+        coverImageUrl: null,
+        createdAt: new Date('2026-07-01'),
+        updatedAt: new Date('2026-07-05'),
+      },
+    ])
+    mockUserFindMany.mockResolvedValue([
+      { id: 'db_user_9', username: 'nova', displayName: 'Nova' },
+    ])
+    mockQueryRaw.mockResolvedValue([
+      {
+        recipeId: 'recipe_pub',
+        thumbnailUrl: 'https://cdn/nova.jpg',
+        previewUrl: null,
+        url: null,
+      },
+    ])
+
+    const result = await listInspirations()
+
+    expect(result.total).toBe(2) // 1 recipe + 1 curated
+    expect(result.inspirations[0]).toMatchObject({
+      id: 'recipe_pub',
+      source: 'user_recipe',
+      author: 'nova',
+      authorName: 'Nova',
+      likes: 3,
+      views: 7,
+      imageUrl: 'https://cdn/nova.jpg',
+      sourceUrl: '/u/nova',
+    })
+    expect(result.inspirations[1]?.id).toBe('insp_1')
+  })
 })
 
 describe('getInspirationById', () => {
@@ -165,6 +231,9 @@ describe('cloneInspirationToRecipe', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
+    // Default: id is not a public recipe either → clone falls through to 404.
+    mockRecipeFindFirst.mockResolvedValue(null)
+    mockRecipeUpdate.mockResolvedValue({ id: 'src_recipe' })
   })
 
   it('creates a Recipe with the inspiration prompt + attribution metadata', async () => {
@@ -208,6 +277,43 @@ describe('cloneInspirationToRecipe', () => {
     await expect(cloneInspirationToRecipe('clerk_1', 'insp_1')).rejects.toThrow(
       ApiRequestError,
     )
+  })
+
+  it('clones a community-published recipe when the id is a public recipe', async () => {
+    mockFindUnique.mockResolvedValue(null) // not a curated inspiration
+    mockRecipeFindFirst.mockResolvedValue({
+      id: 'recipe_pub',
+      userId: 'other_user',
+      name: 'Shared look',
+      compiledPrompt: 'a shared community prompt',
+      negativePrompt: null,
+      modelId: 'gpt-image-2',
+      provider: 'OpenAI',
+      outputType: 'IMAGE',
+      visibility: 'PUBLIC',
+      isDeleted: false,
+    })
+    mockRecipeCreate.mockResolvedValue({ id: 'cloned_recipe' })
+
+    const recipe = await cloneInspirationToRecipe('clerk_1', 'recipe_pub')
+
+    expect(recipe).toEqual({ id: 'cloned_recipe' })
+    expect(mockRecipeCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: FAKE_USER.id,
+        compiledPrompt: 'a shared community prompt',
+        remixSourceRecipeId: 'recipe_pub',
+        userIntent: expect.objectContaining({
+          source: 'user_recipe',
+          recipeId: 'recipe_pub',
+        }),
+      }),
+    })
+    // Source usage counter bumped to reflect the clone.
+    expect(mockRecipeUpdate).toHaveBeenCalledWith({
+      where: { id: 'recipe_pub' },
+      data: { usageCount: { increment: 1 } },
+    })
   })
 
   it('respects overrides for model / provider / outputType', async () => {

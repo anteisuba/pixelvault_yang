@@ -15,6 +15,28 @@ export const PROMPT_TEMPLATE_OUTPUT_TYPES = [
 export type PromptTemplateOutputType =
   (typeof PROMPT_TEMPLATE_OUTPUT_TYPES)[number]
 
+/**
+ * Recipe (prompt template) visibility. `PUBLIC` templates surface in the
+ * shared prompt library ("共享提示词库") as community-shared prompts; `PRIVATE`
+ * ones stay in the owner's library only. Mirrors the `Recipe.visibility`
+ * column (default `PRIVATE`).
+ */
+export const RECIPE_VISIBILITY = {
+  PRIVATE: 'PRIVATE',
+  PUBLIC: 'PUBLIC',
+} as const
+
+export type RecipeVisibility =
+  (typeof RECIPE_VISIBILITY)[keyof typeof RECIPE_VISIBILITY]
+
+export const RECIPE_VISIBILITY_VALUES = [
+  RECIPE_VISIBILITY.PRIVATE,
+  RECIPE_VISIBILITY.PUBLIC,
+] as const
+
+/** Marker `source` for community recipes surfaced in the shared library feed. */
+export const USER_RECIPE_INSPIRATION_SOURCE = 'user_recipe'
+
 /** i18n keys (PromptLibrary namespace) for every output type incl. legacy. */
 export const PROMPT_OUTPUT_TYPE_LABEL_KEYS: Record<OutputType, string> = {
   IMAGE: 'outputTypeImage',

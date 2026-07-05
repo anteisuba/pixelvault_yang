@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
+import type { RecipeVisibility } from '@/constants/prompt-library'
 import type {
   CreateRecipeFromGenerationRequest,
   CreateRecipeRequest,
@@ -144,6 +145,33 @@ export async function updateRecipeAPI(
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: stringifyRecipeRequest(data),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}
+
+export async function setRecipeVisibilityAPI(
+  id: string,
+  visibility: RecipeVisibility,
+): Promise<RecipeApiResponse<RecipeRecord>> {
+  try {
+    const response = await fetch(`${getRecipeUrl(id)}/visibility`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibility }),
     })
 
     if (!response.ok) {

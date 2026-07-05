@@ -386,7 +386,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     mockLibraryDebouncedSearch = ''
     mockLibrarySort = 'Highest Rated'
     mockLibraryBaseModel = 'all'
-    mockLibraryNsfwFilter = 'unrestricted'
+    mockLibraryNsfwFilter = 'safe'
     mockLibraryItems = []
   })
 
@@ -417,8 +417,9 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     }
   }
 
-  // P1-6 三态循环：unrestricted(默认) → nsfwOnly → safe → unrestricted。
-  it('cycles unrestricted → nsfwOnly on click, showing the unrestricted label by default', () => {
+  // P1-6 三态循环：unrestricted → nsfwOnly → safe → unrestricted（默认从 safe 起步）。
+  it('cycles unrestricted → nsfwOnly on click, showing the unrestricted label', () => {
+    mockLibraryNsfwFilter = 'unrestricted'
     mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
 
     render(<LoraWorkbench />)
@@ -481,7 +482,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
 
     expect(mockSetBaseModel).toHaveBeenCalledWith('all')
     expect(mockSetSearch).toHaveBeenCalledWith('')
-    expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
+    expect(mockSetNsfwFilter).toHaveBeenCalledWith('safe')
   })
 
   it('hides the clear-filters action when no filter is active', () => {

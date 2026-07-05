@@ -131,6 +131,132 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBe('cursor-3')
   })
 
+  it('promotes an NSFW (XXX) image to the cover in the default unrestricted filter', async () => {
+    // hentai LoRA case (ExpressiveH): 示例图全是 XXX（nsfwLevel 16）。默认
+    // unrestricted 档天花板放到 16，第一张 XXX 图应成为封面而非退化占位卡。
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 555,
+            name: 'Some Style LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            modelVersions: [
+              {
+                id: 999,
+                name: 'v1',
+                baseModel: 'Pony',
+                createdAt: '2024-03-09T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/999',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                  { url: 'https://image.civitai.com/sfw.jpeg', nsfwLevel: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'unrestricted' })
+
+    expect(result.items[0]?.coverImageUrlOriginal).toBe(
+      'https://image.civitai.com/xxx.jpeg',
+    )
+  })
+
+  it('keeps the cover on the SFW image and drops XXX under the safe filter', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 556,
+            name: 'Some Style LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            modelVersions: [
+              {
+                id: 1000,
+                name: 'v1',
+                baseModel: 'Pony',
+                createdAt: '2024-03-09T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1000',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                  { url: 'https://image.civitai.com/sfw.jpeg', nsfwLevel: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+
+    expect(result.items[0]?.coverImageUrlOriginal).toBe(
+      'https://image.civitai.com/sfw.jpeg',
+    )
+  })
+
+  it('leaves an all-XXX LoRA cover null under the safe filter', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 557,
+            name: 'Some Style LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            modelVersions: [
+              {
+                id: 1001,
+                name: 'v1',
+                baseModel: 'Pony',
+                createdAt: '2024-03-09T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1001',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+
+    expect(result.items[0]?.coverImageUrlOriginal).toBeNull()
+    expect(result.items[0]?.previewImageUrls).toEqual([])
+  })
+
   it('falls back to extracting cursor from metadata.nextPage when nextCursor is absent (the actual pagination bug)', async () => {
     // Real suspected root cause: for a plain browse request (no query),
     // Civitai's response only carries metadata.nextPage (a full next-page
@@ -985,10 +1111,10 @@ describe('listCivitaiLoras', () => {
     await promise
   })
 
-  // P1-6（2026-07-04 三态改稿）：unrestricted（默认，不过滤）/ safe（civitai
-  // `nsfw=false` + 名称词表兜底）/ nsfwOnly（civitai `nsfw=true` + 只留
-  // `model.nsfw` 标记为真的条目）。三个 fixture 条目分别只踩中其中一种
-  // 信号，用来确认两种客户端过滤各自只认自己的信号，不会互相误判。
+  // P1-6（2026-07-04 三态；2026-07-06 默认改回 safe）：safe（默认，civitai
+  // `nsfw=false` + 名称词表兜底）/ unrestricted（不过滤）/ nsfwOnly（civitai
+  // `nsfw=true` + 只留 `model.nsfw` 标记为真的条目）。三个 fixture 条目分别
+  // 只踩中其中一种信号，用来确认两种客户端过滤各自只认自己的信号，不互相误判。
   function nsfwFilterFixture() {
     function modelFor(id: number, name: string, nsfw: boolean) {
       return {
@@ -1031,16 +1157,17 @@ describe('listCivitaiLoras', () => {
     }
   }
 
-  it('defaults to nsfwFilter=unrestricted and applies no client-side filter', async () => {
+  it('defaults to nsfwFilter=safe: requests nsfw=false and name-filters NSFW models', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
 
     const result = await listCivitaiLoras()
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
-    expect(requestUrl.searchParams.get('nsfw')).toBe('true')
+    expect(requestUrl.searchParams.get('nsfw')).toBe('false')
+    // 默认 safe：名称词表命中的 'Hentai Style LoRA' 被过滤；civitai-nsfw 标记
+    // 为真但名字无害的 'Realistic Lingerie LoRA' 仍留（safe 只认名称信号）。
     expect(result.items.map((item) => item.name)).toEqual([
       'Clean Style LoRA',
-      'Hentai Style LoRA',
       'Realistic Lingerie LoRA',
     ])
   })
@@ -1474,6 +1601,51 @@ describe('mineCivitaiUserPrompts', () => {
     expect(requestUrl.pathname).toBe('/api/v1/model-versions/2819970')
   })
 
+  it('mines source recipes from NSFW (XXX) model-version images', async () => {
+    // hentai LoRA "一键同款"：来源图全是 XXX（nsfwLevel 16）。放开天花板后
+    // 这些图仍应产出配方，而不是被过滤成 0 → 空态。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 3001,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/nsfw-source.jpeg',
+            width: 832,
+            height: 1216,
+            nsfwLevel: 16,
+            meta: {
+              prompt: '<lora:ExpressiveH:0.8>, expressiveh, 1girl',
+              resources: [
+                {
+                  hash: 'ABCDEF123456',
+                  name: 'ExpressiveH',
+                  type: 'lora',
+                  weight: 0.8,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 3000,
+      modelVersionId: 3001,
+      fileHashAutoV3: 'abcdef123456',
+    })
+
+    expect(result.recipes).toHaveLength(1)
+    expect(result.recipes?.[0]).toMatchObject({
+      imageUrl: 'https://image.civitai.com/nsfw-source.jpeg',
+      source: 'model_version_image',
+      loraWeight: 0.8,
+    })
+    // 只打了 model-versions 一次——source-image 命中就不再回落 community。
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('clusters real activation segments from /api/v1/images by hash', async () => {
     // Two c1-outfit generations + one c2-outfit, mirroring the actual
     // wuthering-waves Denia shape. Hash comparison is case-insensitive
@@ -1581,7 +1753,8 @@ describe('mineCivitaiUserPrompts', () => {
     expect(requestUrl.searchParams.get('modelId')).toBeNull()
     expect(requestUrl.searchParams.get('modelVersionId')).toBe('2975273')
     expect(requestUrl.searchParams.get('withMeta')).toBe('true')
-    expect(requestUrl.searchParams.get('browsingLevel')).toBe('1')
+    // 31 = 放开到 XXX（仍挡 Blocked），让 NSFW LoRA 的社区配方也进入挖掘。
+    expect(requestUrl.searchParams.get('browsingLevel')).toBe('31')
     expect(requestUrl.searchParams.get('nsfw')).toBeNull()
     expect(requestUrl.searchParams.get('sort')).toBe('Most Reactions')
   })
@@ -1620,7 +1793,7 @@ describe('mineCivitaiUserPrompts', () => {
     expect(requestUrl.searchParams.get('modelId')).toBe('1')
     expect(requestUrl.searchParams.get('modelVersionId')).toBeNull()
     expect(requestUrl.searchParams.get('withMeta')).toBe('true')
-    expect(requestUrl.searchParams.get('browsingLevel')).toBe('1')
+    expect(requestUrl.searchParams.get('browsingLevel')).toBe('31')
   })
 
   it('returns empty outfits without crashing when no generation references the LoRA', async () => {

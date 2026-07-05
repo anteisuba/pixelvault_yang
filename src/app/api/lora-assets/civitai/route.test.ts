@@ -33,21 +33,21 @@ beforeEach(() => {
 })
 
 describe('GET /api/lora-assets/civitai', () => {
-  it('defaults nsfwFilter to unrestricted when the query param is absent', async () => {
+  it('defaults nsfwFilter to safe when the query param is absent', async () => {
     const response = await GET(createGET('/api/lora-assets/civitai', {}))
     const body = await parseJSON<{ success: boolean }>(response)
 
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
-      expect.objectContaining({ nsfwFilter: 'unrestricted' }),
+      expect.objectContaining({ nsfwFilter: 'safe' }),
     )
   })
 
   // P1-6 三态：任何不在 (unrestricted/nsfwOnly/safe) 白名单里的值都必须
-  // 静默落回默认（unrestricted），不能透传给 civitai。
+  // 静默落回默认（safe），不能透传给 civitai。
   it.each(['0', '1', 'true', 'garbage'])(
-    'treats nsfw=%s as unrestricted (not a valid tri-state value)',
+    'treats nsfw=%s as safe (not a valid tri-state value)',
     async (value) => {
       const response = await GET(
         createGET('/api/lora-assets/civitai', { nsfw: value }),
@@ -55,7 +55,7 @@ describe('GET /api/lora-assets/civitai', () => {
 
       expect(response.status).toBe(200)
       expect(mockListCivitaiLoras).toHaveBeenCalledWith(
-        expect.objectContaining({ nsfwFilter: 'unrestricted' }),
+        expect.objectContaining({ nsfwFilter: 'safe' }),
       )
     },
   )

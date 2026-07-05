@@ -326,11 +326,12 @@ export function isCivitaiLoraBaseModel(
   return (CIVITAI_LORA_BASE_MODEL_VALUES as readonly string[]).includes(value)
 }
 
-// P1-6（2026-07-04 owner 改稿：三态分级，默认不设限）：
-//   unrestricted — 默认。安全 + NSFW 混着显示，不额外过滤。
+// P1-6（2026-07-04 三态分级；2026-07-06 owner 改回默认 safe）：
+//   safe         — 默认。civitai `nsfw=false` + 名称词表兜底，封面/模型都干净。
+//   unrestricted — 安全 + NSFW 混着显示，不额外过滤，封面放到 XXX。
 //   nsfwOnly     — 仅 NSFW：过滤掉安全内容，只留 NSFW 内容。
-//   safe         — 安全：civitai 侧 nsfw=false + 名称词表兜底过滤。
-// 顺序即 UI 循环点击的顺序：unrestricted → nsfwOnly → safe → unrestricted。
+// 数组顺序即 UI 循环点击顺序：unrestricted → nsfwOnly → safe → unrestricted；
+// 默认从 safe 起步，首次点击进入 unrestricted。
 export const LORA_NSFW_FILTER_VALUES = [
   'unrestricted',
   'nsfwOnly',
@@ -339,7 +340,7 @@ export const LORA_NSFW_FILTER_VALUES = [
 
 export type LoraNsfwFilter = (typeof LORA_NSFW_FILTER_VALUES)[number]
 
-export const DEFAULT_LORA_NSFW_FILTER: LoraNsfwFilter = 'unrestricted'
+export const DEFAULT_LORA_NSFW_FILTER: LoraNsfwFilter = 'safe'
 
 export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
   return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)

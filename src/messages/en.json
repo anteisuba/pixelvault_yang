@@ -1,4 +1,9 @@
 {
+  "NotFound": {
+    "title": "This page isn't here",
+    "description": "The page you're looking for may have moved, or it never existed. Head back to the gallery.",
+    "backHome": "Back home"
+  },
   "Legal": {
     "backHome": "Back home",
     "updatedLabel": "Last updated",
@@ -368,11 +373,6 @@
     "save": "Save",
     "create": "Create",
     "close": "Close"
-  },
-  "NotFound": {
-    "title": "Page not found",
-    "description": "The page you're looking for doesn't exist or may have moved.",
-    "backHome": "Back to home"
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",

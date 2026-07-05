@@ -25,6 +25,7 @@ export const MARKETING_NAMESPACES = [
   'Legal',
   'LocaleSwitcher',
   'Metadata',
+  'NotFound',
   'Models',
   'Navbar',
   'Toasts',

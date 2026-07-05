@@ -48,7 +48,7 @@ describe('LegalPage', () => {
   })
 
   it('renders the terms doc for every configured locale', () => {
-    for (const locale of ['en', 'zh', 'ja']) {
+    for (const locale of ['en', 'zh', 'ja'] as const) {
       const messages = loadMessages(locale)
       const { unmount } = render(
         <NextIntlClientProvider locale={locale} messages={messages}>

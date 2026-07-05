@@ -1,4 +1,9 @@
 {
+  "NotFound": {
+    "title": "这个页面不在这里",
+    "description": "你要找的页面可能已经移动，或者从未存在。回到画廊看看吧。",
+    "backHome": "返回首页"
+  },
   "Legal": {
     "backHome": "返回首页",
     "updatedLabel": "最后更新",
@@ -368,11 +373,6 @@
     "save": "保存",
     "create": "创建",
     "close": "关闭"
-  },
-  "NotFound": {
-    "title": "页面未找到",
-    "description": "你访问的页面不存在或已被移动。",
-    "backHome": "返回首页"
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",

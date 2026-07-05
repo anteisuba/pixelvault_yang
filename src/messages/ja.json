@@ -1,4 +1,9 @@
 {
+  "NotFound": {
+    "title": "このページはありません",
+    "description": "お探しのページは移動したか、存在しない可能性があります。ギャラリーに戻りましょう。",
+    "backHome": "ホームに戻る"
+  },
   "Legal": {
     "backHome": "ホームに戻る",
     "updatedLabel": "最終更新",
@@ -368,11 +373,6 @@
     "save": "保存",
     "create": "作成",
     "close": "閉じる"
-  },
-  "NotFound": {
-    "title": "ページが見つかりません",
-    "description": "お探しのページは存在しないか、移動した可能性があります。",
-    "backHome": "ホームに戻る"
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",

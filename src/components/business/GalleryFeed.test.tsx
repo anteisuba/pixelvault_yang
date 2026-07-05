@@ -37,6 +37,8 @@ const DEFAULT_FILTERS: GalleryFilters = {
 
 const MESSAGES = {
   GalleryPage: {
+    feedEyebrow: 'Public gallery',
+    feedTitle: 'Recent public works',
     feedDescription: 'Browse the public archive.',
     feedCount: '{shown} of {total}',
     emptyTitle: 'No works yet',
@@ -116,6 +118,20 @@ describe('GalleryFeed', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.history.pushState(null, '', '/zh/gallery')
+  })
+
+  it('renders a single public gallery heading', () => {
+    mockGalleryState()
+
+    renderFeed()
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Public gallery' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Recent public works')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Browse the public archive.'),
+    ).not.toBeInTheDocument()
   })
 
   it('syncs filter changes into the current URL', () => {

@@ -1,6 +1,14 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Sparkles } from 'lucide-react'
 
 import type { Route } from '@/constants/routes'
@@ -33,6 +41,7 @@ const RENDER_BATCH_SIZE = 12
 const INITIAL_EAGER_IMAGE_INDEXES = new Set([0])
 const EAGER_VIEWPORT_MARGIN_PX = 80
 const SPATIAL_CROSS_AXIS_WEIGHT = 4
+const MASONRY_GRID_ROW_HEIGHT_PX = 1
 
 function areIndexSetsEqual(
   a: ReadonlySet<number>,
@@ -181,7 +190,7 @@ export function GalleryGrid({
     }
   }, [visibleGenerations.length])
 
-  // Spatial keyboard navigation follows the visible masonry positions.
+  // Spatial keyboard navigation follows the visible grid positions.
   const handleGalleryKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
       const items = e.currentTarget.querySelectorAll<HTMLElement>(
@@ -234,7 +243,8 @@ export function GalleryGrid({
       ref={feedRef}
       role="feed"
       aria-label={feedLabel}
-      className="columns-1 gap-6 sm:columns-2 xl:columns-3"
+      className="grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2 xl:grid-cols-3"
+      style={{ gridAutoRows: `${MASONRY_GRID_ROW_HEIGHT_PX}px` }}
       onKeyDown={handleGalleryKeyDown}
     >
       {visibleGenerations.map((generation, index) => {
@@ -255,7 +265,7 @@ export function GalleryGrid({
       })}
       {/* Sentinel for progressive loading */}
       {visibleCount < generations.length && (
-        <div ref={sentinelRef} className="h-px" />
+        <div ref={sentinelRef} className="col-span-full h-px" />
       )}
     </section>
   )
@@ -284,36 +294,90 @@ const GalleryGridItem = memo(function GalleryGridItem({
   priority,
   isLeadItem,
 }: GalleryGridItemProps) {
+  const itemRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const item = itemRef.current
+    const content = contentRef.current
+    const grid = item?.parentElement
+    if (!item || !content || !grid) return
+
+    let timeoutId: number | null = null
+
+    const updateRowSpan = () => {
+      const rowHeight = Number.parseFloat(getComputedStyle(grid).gridAutoRows)
+      if (!Number.isFinite(rowHeight) || rowHeight <= 0) return
+
+      const contentHeight = content.getBoundingClientRect().height
+      item.style.gridRowEnd = `span ${Math.max(
+        1,
+        Math.ceil(contentHeight / rowHeight),
+      )}`
+    }
+
+    const scheduleRowSpanUpdate = () => {
+      updateRowSpan()
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null
+        updateRowSpan()
+      }, 0)
+    }
+
+    updateRowSpan()
+    window.addEventListener('resize', scheduleRowSpanUpdate)
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(updateRowSpan)
+    resizeObserver?.observe(content)
+
+    return () => {
+      window.removeEventListener('resize', scheduleRowSpanUpdate)
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      resizeObserver?.disconnect()
+    }
+  }, [])
+
   return (
-    <BlurFade
-      delay={Math.min(index * 0.025, 0.2)}
-      duration={0.22}
-      offset={4}
-      blur="0px"
-      inView
-      className={cn('mb-6 break-inside-avoid', isLeadItem && 'xl:mb-8')}
-    >
-      <div
-        role="article"
-        tabIndex={0}
-        aria-posinset={index + 1}
-        aria-setsize={total}
-        aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
-        data-gallery-index={index}
-        className={cn(
-          'rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none',
-          isLeadItem && 'bg-primary/6 p-1 ring-1 ring-primary/20',
-        )}
-      >
-        <ImageCard
-          generation={generation}
-          showVisibility={showVisibility}
-          showDelete={showDelete}
-          onDelete={onDelete}
-          priority={priority}
-          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
-        />
+    <div ref={itemRef} className="self-start">
+      <div ref={contentRef} className="pb-6">
+        <BlurFade
+          delay={Math.min(index * 0.025, 0.2)}
+          duration={0.22}
+          offset={4}
+          blur="0px"
+          inView
+        >
+          <div
+            role="article"
+            tabIndex={0}
+            aria-posinset={index + 1}
+            aria-setsize={total}
+            aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
+            data-gallery-index={index}
+            className={cn(
+              'rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none',
+              isLeadItem && 'bg-primary/6 p-1 ring-1 ring-primary/20',
+            )}
+          >
+            <ImageCard
+              generation={generation}
+              showVisibility={showVisibility}
+              showDelete={showDelete}
+              onDelete={onDelete}
+              priority={priority}
+              presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
+            />
+          </div>
+        </BlurFade>
       </div>
-    </BlurFade>
+    </div>
   )
 })

@@ -4,6 +4,7 @@
 >
 > 状态：设计已定，等 Phase 0 本地证明。文档语言中文，代码标识符/路径保留英文。
 > 关联：[[project-comfy-runner]]、[[project-lora-recipe-first]]、`docs/plans/lora-recipe-workflow.md`
+> 本地/部署形态调研（2026-07，**含宿主决策更新**）：[`comfy-runner-deployment-research-2026-07.md`](comfy-runner-deployment-research-2026-07.md) —— **路线已定 RunPod-first**：本地只装 ComfyUI GUI 调 workflow + 导出模板；生产直接 RunPod Serverless（fork worker-comfyui）；`recipe→workflow` 映射放 Cloudflare Worker（TS 纯函数）。**本文 §2 架构图 / §10 任务 1 的「本地 TS runner + Tunnel」宿主假设已被覆盖，宿主部分以调研文档 §2.2 / §3 为准**（架构分层、契约、错误码、manifest 等其余决策不变）。
 
 ---
 

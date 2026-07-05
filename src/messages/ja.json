@@ -3574,6 +3574,12 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
+      "autoName": {
+        "character": "キャラクター",
+        "background": "シーン",
+        "shot": "ショット",
+        "video": "動画"
+      },
       "cameraGrammar": {
         "label": "カメラ文法",
         "groups": {

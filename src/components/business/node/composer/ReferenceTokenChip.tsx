@@ -101,9 +101,14 @@ export function ReferenceTokenChip({
   }
 
   // Why a wired reference can't be @inserted — also the slot's title and a
-  // status line in the hover preview, so "won't send" is never silent.
-  const noInsertHint =
-    data.kind === 'video'
+  // status line in the hover preview, so "won't send" is never silent. Only
+  // meaningful when NOT insertable: a video reference is insertable since §9 D
+  // (自动编号), so this only fires for the rare no-slot edge case, not the
+  // common path — showing it unconditionally would contradict an insertable
+  // video chip's own click behavior.
+  const noInsertHint = insertable
+    ? undefined
+    : data.kind === 'video'
       ? tc('references.videoAutoHint')
       : data.kind === 'keyframe'
         ? tc('references.keyframeHint')

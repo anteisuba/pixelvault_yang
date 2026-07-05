@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
+import { useTranslations } from 'next-intl'
 
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -98,6 +99,7 @@ function toSelection(
 export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
+  const tc = useTranslations('StudioNode.videoComposer')
   const { modelOptionsByType, updateNodeData, defaultVideoModel } =
     useNodeWorkflowActions()
 
@@ -217,6 +219,17 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       }
     }
 
+    // cast-redesign §9 C 自动编号: an unnamed-but-connected reference still
+    // gets an insertable @name instead of blocking on "需命名" — its number IS
+    // the real payload slot (matches the 图N/视N corner badge exactly, so the
+    // two never disagree even as connections reorder). A later user rename
+    // degrades this auto name to plain text and V2-1's drift rewrite picks it
+    // up automatically, same as any other rename.
+    const autoName = (
+      kind: 'character' | 'background' | 'shot' | 'video',
+      slotIndex: number,
+    ) => `${tc(`autoName.${kind}`)}${slotIndex + 1}`
+
     const tokens: ComposerReferenceToken[] = []
 
     // Image references (character / background / shot). Character tokens carry
@@ -233,11 +246,13 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       const name = typeof nameField === 'string' ? nameField.trim() : ''
       const mediaUrl = getNodeMediaUrl(node.data)
       const slotIndex = mediaUrl ? payloadImageUrls.indexOf(mediaUrl) : -1
+      const resolvedName =
+        name || (slotIndex >= 0 ? autoName(kind, slotIndex) : '')
       tokens.push({
         id: node.id,
         kind,
-        label: name,
-        token: name ? `@${name}` : '',
+        label: resolvedName,
+        token: resolvedName ? `@${resolvedName}` : '',
         mediaUrl,
         imageSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
         edgeId: directEdgeBySource.get(node.id),
@@ -272,8 +287,10 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     }
 
     // Video references (uploaded videoReference nodes or upstream generated
-    // videos) — they ride video_urls automatically, so their slots are
-    // projection-only (no @insert; there is no name-token to insert yet).
+    // videos) — they ride video_urls automatically AND are now insertable (§9 D
+    // 视频可内联引用): auto-numbered off their own video_urls slot, so a phrase
+    // like「运镜完全参考 @视频1」works. No user-rename field exists for videos
+    // yet, so the auto name is always used.
     const payloadVideoUrls = harvestUpstreamVideoUrls(incoming)
     for (const node of incoming) {
       if (!isVideoSourceNode(node)) continue
@@ -281,12 +298,13 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : undefined
       if (!url) continue
       const slotIndex = payloadVideoUrls.indexOf(url)
+      const resolvedName = slotIndex >= 0 ? autoName('video', slotIndex) : ''
       tokens.push({
         id: node.id,
         kind: 'video',
-        label: '',
-        token: '',
-        insertable: false,
+        label: resolvedName,
+        token: resolvedName ? `@${resolvedName}` : '',
+        insertable: Boolean(resolvedName),
         mediaUrl:
           typeof node.data.videoThumbnailUrl === 'string'
             ? node.data.videoThumbnailUrl
@@ -317,7 +335,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     }
 
     return tokens
-  }, [edges, nodes, nodeId])
+  }, [edges, nodes, nodeId, tc])
 
   const state = useMemo(
     () => deriveSwitcherStateFromModel(data.model),

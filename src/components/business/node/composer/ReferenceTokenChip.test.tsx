@@ -116,7 +116,7 @@ describe('ReferenceTokenChip', () => {
     expect(onLocate).toHaveBeenCalledWith('c1')
   })
 
-  it('renders a video reference as a projection-only slot (never inserts)', () => {
+  it('renders a video reference as a projection-only slot when explicitly non-insertable', () => {
     const onInsert = vi.fn()
     render(
       <ReferenceTokenChip
@@ -135,6 +135,27 @@ describe('ReferenceTokenChip', () => {
     expect(slot).toHaveAttribute('title', 'references.videoAutoHint')
     fireEvent.click(slot)
     expect(onInsert).not.toHaveBeenCalled()
+  })
+
+  it('inserts an auto-numbered video @token and shows no contradictory hint (§9 D)', () => {
+    const onInsert = vi.fn()
+    render(
+      <ReferenceTokenChip
+        data={baseToken({
+          kind: 'video',
+          label: '视频1',
+          token: '@视频1',
+          mediaUrl: 'https://cdn.test/clip-thumb.webp',
+        })}
+        onInsert={onInsert}
+      />,
+    )
+    const slot = screen.getByRole('button', { name: '@视频1' })
+    // insertable=true (default) must NOT carry the "won't send" hint that
+    // contradicts the click-to-insert behavior it now has.
+    expect(slot).toHaveAttribute('title', 'references.insertHint')
+    fireEvent.click(slot)
+    expect(onInsert).toHaveBeenCalledTimes(1)
   })
 
   it('renders an unready voice dimmed with a not-sent warning', () => {

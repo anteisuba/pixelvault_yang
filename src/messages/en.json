@@ -3574,6 +3574,12 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
+      "autoName": {
+        "character": "Character",
+        "background": "Scene",
+        "shot": "Shot",
+        "video": "Video"
+      },
       "cameraGrammar": {
         "label": "Camera grammar",
         "groups": {

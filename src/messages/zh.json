@@ -3574,6 +3574,12 @@
         "volcengine": "火山方舟"
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
+      "autoName": {
+        "character": "角色",
+        "background": "场景",
+        "shot": "镜头",
+        "video": "视频"
+      },
       "cameraGrammar": {
         "label": "运镜语法",
         "groups": {

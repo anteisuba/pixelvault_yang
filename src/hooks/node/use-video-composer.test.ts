@@ -28,6 +28,10 @@ vi.mock('@/components/business/node/NodeWorkflowActionsContext', () => ({
   }),
 }))
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
 import { useVideoComposer } from './use-video-composer'
 
 function makeNode(
@@ -218,7 +222,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     })
   })
 
-  it('projects upstream video sources as projection-only tokens with 视N order', () => {
+  it('auto-numbers an upstream video source as an insertable @token (§9 D)', () => {
     graphState.nodes = [
       makeNode('ref1', NODE_TYPE_IDS.videoReference, {
         mediaUrl: 'https://cdn.test/ref.mp4',
@@ -232,11 +236,48 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     expect(tokens[0]).toMatchObject({
       id: 'ref1',
       kind: 'video',
-      token: '',
-      insertable: false,
+      token: '@autoName.video1',
+      insertable: true,
       mediaUrl: 'https://cdn.test/ref-thumb.webp',
       videoSlotIndex: 0,
       edgeId: 'e-ref',
     })
+  })
+
+  it('auto-numbers an unnamed character/background/shot off its real image slot (§9 C)', () => {
+    graphState.nodes = [
+      makeNode('bg1', NODE_TYPE_IDS.backgroundImage, {
+        imageUrl: 'https://cdn.test/bg.png',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '角色A',
+        imageUrl: 'https://cdn.test/char.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-bg', 'bg1', 'video1'),
+      makeEdge('e-char', 'char1', 'video1'),
+    ]
+
+    const tokens = renderComposer().referenceTokens
+    const background = tokens.find((token) => token.kind === 'background')
+    const character = tokens.find((token) => token.kind === 'character')
+    // Unnamed background auto-numbers off its OWN image_urls slot (index 0) —
+    // the number matches the 图N badge exactly, not a separate per-kind count.
+    expect(background).toMatchObject({ token: '@autoName.background1' })
+    // A user-named reference keeps its own name regardless of auto-numbering.
+    expect(character).toMatchObject({ token: '@角色A' })
+  })
+
+  it('leaves a medialess unnamed reference without a token (no payload slot to number)', () => {
+    graphState.nodes = [
+      makeNode('bg1', NODE_TYPE_IDS.backgroundImage, {}),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-bg', 'bg1', 'video1')]
+
+    const tokens = renderComposer().referenceTokens
+    expect(tokens[0]).toMatchObject({ token: '', imageSlotIndex: undefined })
   })
 })

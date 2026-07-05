@@ -84,6 +84,7 @@ export type PanelName =
   | 'refImage'
   | 'layerDecompose'
   | 'aspectRatio'
+  | 'resolution'
   | 'loraSelector'
   | 'voiceSelector'
   | 'voiceTrainer'
@@ -242,6 +243,7 @@ const initialPanels: Record<PanelName, boolean> = {
   refImage: false,
   layerDecompose: false,
   aspectRatio: false,
+  resolution: false,
   loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
@@ -262,6 +264,7 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'layerDecompose',
   'civitai',
   'aspectRatio',
+  'resolution',
   'videoParams',
   'script',
   'voiceSelector',

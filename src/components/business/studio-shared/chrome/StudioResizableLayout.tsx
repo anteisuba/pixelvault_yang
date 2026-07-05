@@ -35,8 +35,12 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
             to the viewport bottom: it follows directly beneath the image,
             rising/falling as the image's height changes, and any vertical
             slack collapses below the dock. On md (tablet) the dock is sticky,
-            so keep md:flex-1 to hold its bottom position there. */}
-        <div className="px-2 pt-2 pb-1 sm:px-6 sm:pt-3 md:flex-1 lg:flex-none lg:px-8">
+            so keep md:flex-1 to hold its bottom position there.
+            空态例外：.studio-canvas-slot:has(.studio-empty-state)（globals.css）
+            让槽位吃满剩余高度并把起手势内容垂直居中 —— 空态没有"跟随图片"
+            的语义，canvas + dock 必须一屏放下。
+            画布垂直间距的唯一负责人是这里 —— 空态/结果组件不再自带外边距。 */}
+        <div className="studio-canvas-slot px-2 pt-2 pb-1 sm:px-6 sm:pt-4 md:flex-1 lg:flex-none lg:px-8 lg:pt-6">
           {canvas}
         </div>
 

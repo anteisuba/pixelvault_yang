@@ -1,4 +1,74 @@
 {
+  "Legal": {
+    "backHome": "Back home",
+    "updatedLabel": "Last updated",
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "July 5, 2026",
+      "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, and the control you keep over your data.",
+      "sections": [
+        {
+          "heading": "What we store",
+          "body": "Your account details come from Clerk when you sign in. Beyond that we keep the generations you make and their metadata: the prompt, model, provider, and seed, so your archive stays searchable. We do not build advertising profiles."
+        },
+        {
+          "heading": "Your API keys",
+          "body": "Keys you add are encrypted at rest and used only to call the providers you turned on. We never resell them, share them, or use them for our own generations."
+        },
+        {
+          "heading": "Third-party providers",
+          "body": "When you generate, your prompt and any input media are sent to the provider you chose, whether Google, OpenAI, fal.ai, or another. Their handling of that request is governed by their own privacy terms."
+        },
+        {
+          "heading": "Where files live",
+          "body": "Finished results are stored in Cloudflare R2 under your account. They stay there until you delete them or close your account."
+        },
+        {
+          "heading": "Cookies",
+          "body": "We use only the cookies needed to keep you signed in. There are no third-party advertising or tracking cookies."
+        },
+        {
+          "heading": "Your control",
+          "body": "You can export or delete any generation at any time, and deleting your account removes your archive from our storage. Reach us at privacy@antei.app for anything else."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "updated": "July 5, 2026",
+      "intro": "These terms cover your use of ANTEI. By creating an account you agree to them.",
+      "sections": [
+        {
+          "heading": "The service",
+          "body": "ANTEI is a personal gallery for generating with multiple AI models using your own API keys, and for keeping every result in one archive. The product is under active development, and features may change."
+        },
+        {
+          "heading": "Your account",
+          "body": "You are responsible for the keys and credentials you add and for activity under your account. Keep your sign-in secure."
+        },
+        {
+          "heading": "Acceptable use",
+          "body": "Do not generate content that is illegal or that breaks the terms of the providers you connect. We may suspend accounts that do."
+        },
+        {
+          "heading": "Your content",
+          "body": "You own what you create. You grant us the limited rights needed to store it and display it back to you, and to show anything you deliberately publish to the public gallery."
+        },
+        {
+          "heading": "Costs and third parties",
+          "body": "You pay the AI providers directly through your own keys. We do not control their pricing, limits, or uptime, and we are not responsible for their charges."
+        },
+        {
+          "heading": "Availability",
+          "body": "The service is provided as is, without warranty. We work to keep it running but cannot guarantee uninterrupted access."
+        },
+        {
+          "heading": "Changes",
+          "body": "We may update these terms as the product grows. Continued use after an update means you accept the revised terms. Questions go to legal@antei.app."
+        }
+      ]
+    }
+  },
   "ImageUpload": {
     "compressing": "Optimizing large image…",
     "compressed": "Compressed {from} MB → {to} MB",
@@ -158,6 +228,66 @@
         }
       }
     }
+  },
+  "StudioEmptyState": {
+    "modeLabel": {
+      "image": "Image studio",
+      "video": "Video studio",
+      "audio": "Audio studio"
+    },
+    "hint": {
+      "image": "Describe the image you want, or start from an example",
+      "video": "Describe what happens in the shot, or start from an example",
+      "audio": "Enter the text to narrate, or start from an example"
+    },
+    "examples": {
+      "image": {
+        "e1": {
+          "label": "Film portrait",
+          "prompt": "Film-look portrait of a woman by a window, soft natural light, shallow depth of field, Portra 400 tones, fine skin texture"
+        },
+        "e2": {
+          "label": "Morning street",
+          "prompt": "Old town street in early morning mist, wet cobblestones reflecting warm street lamps, a cyclist in the distance, cinematic composition"
+        },
+        "e3": {
+          "label": "Watercolor cat",
+          "prompt": "An orange cat napping on a windowsill, watercolor illustration, generous negative space, loose brushwork, clear translucent colors"
+        }
+      },
+      "video": {
+        "e1": {
+          "label": "Push-in close-up",
+          "prompt": "Camera slowly pushes in on a cup of hot coffee on a desk, steam rising in morning light, shallow depth of field, warm tones"
+        },
+        "e2": {
+          "label": "Coastal aerial",
+          "prompt": "Drone shot along a coastline, waves crashing on rocks, camera tracks slowly along the shore, golden hour light"
+        },
+        "e3": {
+          "label": "Neon rain",
+          "prompt": "City street on a rainy night, neon signs reflected in puddles, a transparent umbrella enters the frame, camera tilts down slowly"
+        }
+      },
+      "audio": {
+        "e1": {
+          "label": "Late-night radio",
+          "prompt": "It's late. You've done enough for today. Let go of the day's rush and drift gently into sleep."
+        },
+        "e2": {
+          "label": "Product intro",
+          "prompt": "What sets this product apart is how it folds a complex workflow into a single button — you say the idea, it does the rest."
+        },
+        "e3": {
+          "label": "Story time",
+          "prompt": "In the morning forest, the little fox set out alone for the first time. Dew soaked its paws, but its ears stood up with excitement."
+        }
+      }
+    },
+    "recentLabel": "Pick up where you left off",
+    "recentRemixHint": "Remix from this result",
+    "guideButton": "How it works",
+    "guideDialogTitle": "Quick guide"
   },
   "Toasts": {
     "createSuccess": "Created successfully",
@@ -401,7 +531,6 @@
         "arena": "Arena",
         "models": "Models",
         "github": "GitHub",
-        "docs": "Docs",
         "privacy": "Privacy",
         "terms": "Terms"
       },
@@ -1649,6 +1778,10 @@
     "updateTemplateFailed": "Failed to update prompt template",
     "tabMine": "My templates",
     "tabInspiration": "Shared prompts",
+    "mineEyebrow": "Personal library",
+    "typeFilterLabel": "Filter by type",
+    "typeFilterAll": "All",
+    "typeFilterEmpty": "No templates of this type yet.",
     "inspirationEyebrow": "Community shared",
     "inspirationTitle": "Shared prompt library",
     "inspirationDescription": "Browse prompts shared by the broader AI image community. Clone any prompt into your own library to remix and run.",
@@ -3433,9 +3566,11 @@
         "video": "Reference video"
       },
       "departments": {
-        "image": "Image · References",
-        "voice": "Voice · Dubbing",
-        "video": "Video · References"
+        "character": "Character",
+        "scene": "Scene",
+        "shot": "Shot",
+        "motion": "Motion",
+        "narration": "Narration"
       },
       "references": {
         "label": "References",
@@ -3450,12 +3585,13 @@
         "slotBadgeVideo": "VID{n}",
         "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
         "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
+        "voiceBadge": "Voice: {name}",
+        "addVoice": "Add a voice to \"{name}\"",
         "remove": "Disconnect \"{name}\" (node kept)",
         "removedToast": "Disconnected \"{name}\" — the node is kept",
         "slotBadgeImage": "IMG{n}",
         "slotBadgeAudio": "AUD{n}",
         "add": "Add {dept} reference",
-        "addRolePrompt": "Which kind of image",
         "addDialogTitle": "Pick a reference from your library",
         "addDialogDescription": "The chosen asset becomes an upstream node wired into this video node."
       },

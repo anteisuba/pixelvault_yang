@@ -17,6 +17,10 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { MODEL_OPTIONS } from '@/constants/models'
+import {
+  PROMPT_TEMPLATE_OUTPUT_TYPES,
+  PROMPT_OUTPUT_TYPE_LABEL_KEYS,
+} from '@/constants/prompt-library'
 import { getDefaultProviderConfig } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
@@ -60,6 +64,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
+import { OutputTypeChip } from '@/components/business/prompts/OutputTypeChip'
 import type { CreateRecipeRequest, GenerationRecord, OutputType } from '@/types'
 
 export interface PromptTemplateDetailRecipe {
@@ -82,13 +87,6 @@ interface PromptTemplateDetailDialogProps {
 }
 
 const MODEL_CHOICES = MODEL_OPTIONS.filter((option) => option.available)
-const OUTPUT_TYPES: OutputType[] = ['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']
-const OUTPUT_TYPE_LABEL_KEYS: Record<OutputType, string> = {
-  IMAGE: 'outputTypeImage',
-  VIDEO: 'outputTypeVideo',
-  AUDIO: 'outputTypeAudio',
-  MODEL_3D: 'outputType3d',
-}
 
 function getModelOption(modelId: string) {
   return MODEL_OPTIONS.find((option) => option.id === modelId)
@@ -368,9 +366,16 @@ export function PromptTemplateDetailDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {OUTPUT_TYPES.map((type) => (
+              {/* Legacy recipes may still be MODEL_3D — keep the stored value
+                  selectable, but don't offer 3D for new choices. */}
+              {outputType === 'MODEL_3D' && (
+                <SelectItem value="MODEL_3D">
+                  {t(PROMPT_OUTPUT_TYPE_LABEL_KEYS.MODEL_3D)}
+                </SelectItem>
+              )}
+              {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {t(OUTPUT_TYPE_LABEL_KEYS[type])}
+                  {t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -453,9 +458,10 @@ export function PromptTemplateDetailDialog({
             {t('templateMeta', { model: modelId, version })}
           </ResponsiveDialogDescription>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="rounded-full">
-              {t(OUTPUT_TYPE_LABEL_KEYS[outputType])}
-            </Badge>
+            <OutputTypeChip
+              outputType={outputType}
+              label={t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[outputType])}
+            />
             <span>{t('templateMeta', { model: modelId, version })}</span>
             <span>{formattedDate}</span>
           </div>

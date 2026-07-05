@@ -67,9 +67,9 @@ export function HomepageFeatureMediaFallback({
 
   switch (id) {
     case 'image':
-      return <FallbackImage compareLabel={t('image.compare')} />
+      return <FallbackImage />
     case 'video':
-      return <FallbackVideoStrip storyboardLabel={t('video.storyboard')} />
+      return <FallbackVideoStrip />
     case 'lora':
       return (
         <FallbackLoraSheet
@@ -87,7 +87,7 @@ export function HomepageFeatureMediaFallback({
         />
       )
     case 'model3d':
-      return <FallbackModel3d turntableLabel={t('model3d.turntable')} />
+      return <FallbackModel3d />
     case 'workflow':
       return (
         <FallbackWorkflow
@@ -97,7 +97,6 @@ export function HomepageFeatureMediaFallback({
             t('workflow.videoNode'),
             t('workflow.deployNode'),
           ]}
-          statusLabel={t('workflow.status')}
         />
       )
     case 'arena':
@@ -158,32 +157,24 @@ function FbLabel({
   )
 }
 
-interface FallbackVideoStripProps {
-  storyboardLabel: string
-}
-
-function FallbackVideoStrip({ storyboardLabel }: FallbackVideoStripProps) {
+/**
+ * Film strip — four real frames side by side; a light sweeps across them in
+ * sequence (one frame at a time brightens) so the strip reads as frames of a
+ * moving picture, not a fake player. Motion lives in homepage.css
+ * (.homepage-film-frame), reduced-motion collapses to all-bright static.
+ */
+function FallbackVideoStrip() {
   return (
-    <div className="absolute inset-0">
-      <FbImg src={pick('video', 0, 4)} alt="" />
-      <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent" />
-      <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/45 backdrop-blur-sm">
-        <svg
-          viewBox="0 0 24 24"
-          className="h-7 w-7 fill-white"
-          aria-hidden="true"
+    <div className="homepage-film-strip absolute inset-0">
+      {[0, 1, 2, 3].map((idx) => (
+        <div
+          key={idx}
+          className="homepage-film-frame"
+          style={{ '--film-index': idx } as React.CSSProperties}
         >
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </span>
-      <div className="absolute inset-x-4 bottom-4 z-[2] flex items-center gap-3">
-        <span className="font-mono text-[11px] text-white/85">0:03</span>
-        <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/25">
-          <span className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-white" />
-        </span>
-        <span className="font-mono text-[11px] text-white/60">0:08</span>
-      </div>
-      <FbLabel className="left-3 top-3">{storyboardLabel}</FbLabel>
+          <FbImg src={pick('video', idx, 4 + idx)} alt="" sizes="20vw" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -193,32 +184,41 @@ interface FallbackLoraSheetProps {
   modelLabel: string
 }
 
+/**
+ * Reference sheet → result: three small reference thumbs stacked left, one
+ * large output right, so the "lock a character, keep the look" story is told
+ * by the layout itself. The two labels carry real semantics (which images are
+ * input vs output) and stay.
+ */
 function FallbackLoraSheet({
   trainingSetLabel,
   modelLabel,
 }: FallbackLoraSheetProps) {
   return (
-    <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2 p-2">
-      {[0, 1, 2, 3].map((idx) => (
-        <div key={idx} className="relative overflow-hidden rounded-lg">
-          <FbImg src={pick('lora', idx, idx)} alt="" sizes="20vw" />
-        </div>
-      ))}
-      <FbLabel className="left-3 top-3">{trainingSetLabel}</FbLabel>
-      <FbLabel className="bottom-3 right-3">{modelLabel}</FbLabel>
+    <div className="absolute inset-0 flex gap-2 p-2">
+      <div className="relative grid w-[34%] shrink-0 grid-rows-3 gap-2">
+        {[0, 1, 2].map((idx) => (
+          <div key={idx} className="relative overflow-hidden rounded-lg">
+            <FbImg src={pick('lora', idx, idx)} alt="" sizes="14vw" />
+          </div>
+        ))}
+        <FbLabel className="left-2 top-2">{trainingSetLabel}</FbLabel>
+      </div>
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-lg">
+        <FbImg src={pick('lora', 3, 3)} alt="" sizes="26vw" />
+        <FbLabel className="bottom-3 right-3">{modelLabel}</FbLabel>
+      </div>
     </div>
   )
-}
-
-interface FallbackImageProps {
-  compareLabel: string
 }
 
 /**
  * Flagship 图片生成 tile: the same idea rendered by several models, each cell
  * chipped with its model name — the BYOK multi-model compare in one glance.
+ * The model chips are real semantics (which model made which) and stay; the
+ * old "side by side" corner label was redundant with the section title.
  */
-function FallbackImage({ compareLabel }: FallbackImageProps) {
+function FallbackImage() {
   return (
     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2 p-2">
       {HOMEPAGE_SHOWCASE.slice(0, 4).map((shot) => (
@@ -229,7 +229,6 @@ function FallbackImage({ compareLabel }: FallbackImageProps) {
           </span>
         </div>
       ))}
-      <FbLabel className="bottom-3 right-3">{compareLabel}</FbLabel>
     </div>
   )
 }
@@ -257,11 +256,7 @@ function FallbackTts({
   )
 }
 
-interface FallbackModel3dProps {
-  turntableLabel: string
-}
-
-function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
+function FallbackModel3d() {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="absolute inset-0 overflow-hidden">
@@ -296,17 +291,15 @@ function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
           strokeDasharray="2 3"
         />
       </svg>
-      <FbLabel className="bottom-3 right-3">{turntableLabel}</FbLabel>
     </div>
   )
 }
 
 interface FallbackWorkflowProps {
   nodes: readonly [string, string, string, string]
-  statusLabel: string
 }
 
-function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
+function FallbackWorkflow({ nodes }: FallbackWorkflowProps) {
   // 剧本 → (图像, 音频) → 视频 — the canvas autospawn shape, with real
   // generated media inside the visual nodes so it reads as produced work
   // rather than an abstract diagram. Connectors live on a 0–100 viewBox
@@ -396,8 +389,6 @@ function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
           </svg>
         </span>
       </WorkflowNode>
-
-      <FbLabel className="bottom-4 right-4">{statusLabel}</FbLabel>
     </div>
   )
 }

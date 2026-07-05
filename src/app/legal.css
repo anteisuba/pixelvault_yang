@@ -1,0 +1,80 @@
+/* Legal / display-surface pages (privacy, terms).
+   The app shell is dark (工作面); these are 陈列面 → the ivory "white hall",
+   so the page forces the light palette the way .homepage does, and shares the
+   editorial-serif signature for its title. */
+.legal-page {
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.5% 0 0);
+  --muted-foreground: oklch(55.6% 0 0);
+  --border: oklch(92.2% 0 0);
+  --home-border: color-mix(in oklab, var(--border) 72%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
+  --home-serif:
+    var(--font-editorial), 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC',
+    'Songti TC', 'SimSun', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+
+  min-height: 100svh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.legal-header {
+  border-bottom: 1px solid var(--home-border);
+  background: color-mix(in oklab, var(--background) 86%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.legal-back-link {
+  color: var(--home-muted);
+  transition: color 180ms ease;
+}
+.legal-back-link:hover,
+.legal-back-link:focus-visible {
+  color: var(--foreground);
+}
+.legal-back-link:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 45%, transparent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.legal-title {
+  font-family: var(--home-serif);
+  font-weight: 500;
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+}
+
+html:lang(zh) .legal-title,
+html:lang(ja) .legal-title {
+  letter-spacing: 0;
+}
+
+.legal-updated {
+  color: var(--home-muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+.legal-intro {
+  font-size: clamp(1.05rem, 1.4vw, 1.2rem);
+  line-height: 1.6;
+  color: color-mix(in oklab, var(--foreground) 82%, var(--background));
+}
+
+.legal-section {
+  border-top: 1px solid var(--home-border);
+}
+
+.legal-section-heading {
+  font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.legal-section-body {
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  line-height: 1.68;
+  max-width: 68ch;
+}

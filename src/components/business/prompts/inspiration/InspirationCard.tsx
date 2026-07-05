@@ -25,8 +25,6 @@ interface InspirationCardProps {
   ) => Promise<{ success: boolean; recipe?: { id: string }; error?: string }>
 }
 
-const PROMPT_PREVIEW_MAX_CHARS = 320
-
 export function InspirationCard({
   inspiration,
   onClone,
@@ -39,11 +37,6 @@ export function InspirationCard({
   const [transitionOrigin, setTransitionOrigin] =
     useState<MediaTransitionOrigin | null>(null)
   const tCommon = useTranslations('Common')
-
-  const previewPrompt =
-    inspiration.prompt.length > PROMPT_PREVIEW_MAX_CHARS
-      ? `${inspiration.prompt.slice(0, PROMPT_PREVIEW_MAX_CHARS).trimEnd()}...`
-      : inspiration.prompt
 
   async function handleClone() {
     setIsCloning(true)
@@ -72,7 +65,8 @@ export function InspirationCard({
 
   return (
     <>
-      <article className="group flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-colors hover:border-primary/30">
+      <article className="group flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+        {/* 卡面只放作品图 —— 提示词全文只在详情弹窗展示（2026-07-05 拍板）。 */}
         <button
           type="button"
           aria-label={t('viewDetail')}
@@ -84,7 +78,7 @@ export function InspirationCard({
             )
             setDetailOpen(true)
           }}
-          className="relative aspect-square overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="relative aspect-4/5 overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {!imageFailed ? (
             <img
@@ -92,47 +86,52 @@ export function InspirationCard({
               alt={inspiration.authorName}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
             <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
               {t('inspirationImageUnavailable')}
             </div>
           )}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/70 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          />
+          <span className="pointer-events-none absolute bottom-3 left-3 text-xs font-medium text-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            {t('viewDetail')}
+          </span>
           {inspiration.likes > 0 && (
-            <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-1 text-[11px] font-medium text-foreground backdrop-blur-sm">
+            <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-1 text-2xs font-medium text-foreground backdrop-blur-sm">
               <Heart className="size-3" />
               {formatCount(inspiration.likes)}
             </div>
           )}
         </button>
 
-        <div className="flex flex-1 flex-col gap-3 p-4">
-          <p className="whitespace-pre-wrap font-serif text-sm leading-6 text-foreground/85">
-            {previewPrompt}
-          </p>
+        <div className="flex flex-1 flex-col gap-2.5 p-4">
+          {inspiration.categories.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {inspiration.categories.map((cat) => (
+                <Badge
+                  key={cat}
+                  variant="outline"
+                  className="rounded-full text-3xs"
+                >
+                  {cat}
+                </Badge>
+              ))}
+            </div>
+          )}
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {inspiration.categories.map((cat) => (
-              <Badge
-                key={cat}
-                variant="outline"
-                className="rounded-full text-[10px]"
-              >
-                {cat}
-              </Badge>
-            ))}
-          </div>
-
-          <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground">
             <a
               href={inspiration.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-foreground"
+              className="inline-flex min-w-0 items-center gap-1 hover:text-foreground"
             >
-              <span>@{inspiration.authorName}</span>
-              <ExternalLink className="size-3" />
+              <span className="truncate">@{inspiration.authorName}</span>
+              <ExternalLink className="size-3 shrink-0" />
             </a>
             <Button
               type="button"
@@ -140,7 +139,7 @@ export function InspirationCard({
               variant="ghost"
               disabled={isCloning}
               onClick={() => void handleClone()}
-              className="h-8 gap-1.5 rounded-full px-3 text-xs"
+              className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs"
             >
               {isCloning ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -207,7 +206,7 @@ export function InspirationCard({
                 <Badge
                   key={cat}
                   variant="outline"
-                  className="rounded-full text-[10px]"
+                  className="rounded-full text-3xs"
                 >
                   {cat}
                 </Badge>

@@ -22,6 +22,7 @@ export const MARKETING_NAMESPACES = [
   'ErrorBoundary',
   'Errors',
   'Homepage',
+  'Legal',
   'LocaleSwitcher',
   'Metadata',
   'Models',

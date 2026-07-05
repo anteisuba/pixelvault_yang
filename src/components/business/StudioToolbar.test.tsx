@@ -23,6 +23,12 @@ vi.mock('@/components/business/studio/StudioAspectRatioPopover', () => ({
   StudioAspectRatioPopover: () => <button type="button">aspect</button>,
 }))
 
+vi.mock('@/components/business/studio/StudioResolutionPopover', () => ({
+  // Mirrors production behavior: no selected model / capability data in
+  // this test, so the real component would render null too.
+  StudioResolutionPopover: () => null,
+}))
+
 describe('StudioToolbar', () => {
   it('renders the fixed four-chip image toolbar without separators', () => {
     render(<StudioToolbar />)

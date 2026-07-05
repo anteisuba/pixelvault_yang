@@ -40,6 +40,9 @@
   --color-node-port-voice: var(--node-port-voice);
   --color-node-port-video: var(--node-port-video);
   --color-node-port-image: var(--node-port-image);
+  --color-modality-image: var(--modality-image);
+  --color-modality-video: var(--modality-video);
+  --color-modality-audio: var(--modality-audio);
   --color-node-status-done: var(--node-status-done);
   --color-node-status-done-fg: var(--node-status-done-fg);
   --color-node-status-failed: var(--node-status-failed);
@@ -310,6 +313,17 @@
   --node-status-done-fg: #7fc4a0;
   --node-status-failed: #3a1e1e;
   --node-status-failed-fg: #f09595;
+  /* 视频监视器语言（v4 §3.3/§4 C4）：取景框角标，纯装饰不承载语义，独立 token */
+  --node-monitor-frame: #4a4f5c;
+  --node-monitor-matte: #050505;
+
+  /* 模态语义色（提示词库等跟随主题的页面用）：与画布端口色同族色相
+     （image 紫 292 / video 蓝 255 / audio 玫瑰 10），低饱和守 anti-slop。
+     画布端口 token 是暗面常量，此处按浅/暗主题各给一档明度。
+     TODO：node-port-* 后续可反向 alias 到这组（与 node-amber 改名一起做）。 */
+  --modality-image: oklch(46% 0.08 292);
+  --modality-video: oklch(46% 0.09 255);
+  --modality-audio: oklch(46% 0.09 10);
 }
 
 html:lang(ja) {
@@ -381,6 +395,11 @@ html:lang(zh) {
 
   --overlay-chip: oklch(100% 0 0 / 0.4);
   --overlay-chip-foreground: oklch(100% 0 0);
+
+  /* 模态语义色 · 暗面档（同 :root 注释，暗底提亮到 78%） */
+  --modality-image: oklch(78% 0.09 292);
+  --modality-video: oklch(78% 0.1 255);
+  --modality-audio: oklch(78% 0.1 10);
 }
 
 @layer base {
@@ -502,6 +521,14 @@ html:lang(zh) {
      wide screens — only widens once the viewport exceeds the base 78rem. */
   .editorial-container--wide {
     max-width: 96rem;
+  }
+
+  /* Tool-style editorial pages (e.g. prompt library) run denser than long-form
+     reading pages: tighten the inter-block rhythm and top padding so the header
+     + toolbar don't eat the fold. */
+  .editorial-container--tight {
+    gap: clamp(1.25rem, 2.25vw, 1.75rem);
+    padding-top: clamp(1.25rem, 2vw, 1.75rem);
   }
 
   .editorial-hero {
@@ -1309,6 +1336,57 @@ html:lang(zh) {
   animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
 }
 
+/* C4 监视器遮幅 — 上下 letterbox bars, 纯装饰，不接受交互。 */
+.node-monitor-matte::before,
+.node-monitor-matte::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: var(--node-monitor-matte);
+  pointer-events: none;
+}
+.node-monitor-matte::before {
+  top: 0;
+}
+.node-monitor-matte::after {
+  bottom: 0;
+}
+
+/* C4 监视器四角取景框 — inset 14px，1.5px 描边，纯装饰。 */
+.node-monitor-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--node-monitor-frame);
+  pointer-events: none;
+}
+.node-monitor-corner[data-pos='tl'] {
+  top: 14px;
+  left: 14px;
+  border-right: none;
+  border-bottom: none;
+}
+.node-monitor-corner[data-pos='tr'] {
+  top: 14px;
+  right: 14px;
+  border-left: none;
+  border-bottom: none;
+}
+.node-monitor-corner[data-pos='bl'] {
+  bottom: 14px;
+  left: 14px;
+  border-right: none;
+  border-top: none;
+}
+.node-monitor-corner[data-pos='br'] {
+  bottom: 14px;
+  right: 14px;
+  border-left: none;
+  border-top: none;
+}
+
 /* Neutralise the shared radix Slider inside the video detail panel (去黄橙 D1):
    the default uses --primary/--muted; here the duration slider is pure neutral. */
 .node-duration-slider [data-slot='slider-track'] {
@@ -1452,6 +1530,24 @@ html:lang(zh) {
   100% {
     background-position: -30% 0;
   }
+}
+
+/* ── Studio 空态高度链（有意放在 @layer 之外）─────────────────────
+   .studio-empty-state 在树里时：画布槽 → StudioCanvas → 内容层整条链
+   改为可伸展的 flex 列，让起手势内容垂直居中于 canvas + dock 之外的
+   全部剩余高度。结果态不受影响 —— lg 下 dock 依旧跟随图片（见
+   StudioResizableLayout 注释）。两个实现约束：
+   1. 必须是未分层样式：槽位上的 lg:flex-none 在 utilities layer，
+      layered 规则不论 specificity 都压不过它。
+   2. flex-basis 用 auto 而不是 0%：移动端外层容器是内容高度，
+      0% 会把整条链坍缩成 0。 */
+.studio-canvas-slot:has(.studio-empty-state),
+.studio-canvas-slot:has(.studio-empty-state) .studio-canvas,
+.studio-canvas-slot:has(.studio-empty-state) .studio-canvas > div {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ── B7: Reduced motion preference ──────────────────────────────── */

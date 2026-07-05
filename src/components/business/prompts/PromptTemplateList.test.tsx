@@ -81,6 +81,61 @@ function makeItem(
 }
 
 describe('PromptTemplateList', () => {
+  it('shows a modality chip on every card cover', () => {
+    render(
+      <PromptTemplateList
+        locale="en"
+        recipes={[
+          makeItem({
+            id: 'img',
+            outputType: 'IMAGE',
+            outputTypeLabel: 'Image',
+          }),
+          makeItem({
+            id: 'vid',
+            outputType: 'VIDEO',
+            outputTypeLabel: 'Video',
+          }),
+          makeItem({
+            id: 'aud',
+            outputType: 'AUDIO',
+            outputTypeLabel: 'Audio',
+          }),
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Image')).toBeInTheDocument()
+    expect(screen.getByText('Video')).toBeInTheDocument()
+    expect(screen.getByText('Audio')).toBeInTheDocument()
+  })
+
+  it('filters cards by output type and shows an empty hint when nothing matches', () => {
+    render(
+      <PromptTemplateList
+        locale="en"
+        recipes={[
+          makeItem({ id: 'img', name: 'Image one', outputType: 'IMAGE' }),
+          makeItem({ id: 'vid', name: 'Video one', outputType: 'VIDEO' }),
+        ]}
+      />,
+    )
+
+    // Filter to video: image card disappears.
+    fireEvent.click(screen.getByRole('button', { name: 'outputTypeVideo' }))
+    expect(screen.queryByText('Image one')).not.toBeInTheDocument()
+    expect(screen.getByText('Video one')).toBeInTheDocument()
+
+    // Filter to audio: no matches → empty hint.
+    fireEvent.click(screen.getByRole('button', { name: 'outputTypeAudio' }))
+    expect(screen.getByText('typeFilterEmpty')).toBeInTheDocument()
+
+    // Back to all: both cards return.
+    fireEvent.click(screen.getByRole('button', { name: 'typeFilterAll' }))
+    expect(screen.getByText('Image one')).toBeInTheDocument()
+    expect(screen.getByText('Video one')).toBeInTheDocument()
+  })
+
   it('renders the cover image plus title when a template has one', () => {
     render(
       <PromptTemplateList

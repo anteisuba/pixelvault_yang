@@ -18,7 +18,6 @@ export function HomepageBottomCta() {
         aria-labelledby="homepage-bottom-cta-title"
       >
         <div className="homepage-bottom-cta-content flex max-w-3xl flex-col items-start text-left">
-          <span className="homepage-feature-pill mb-5">{t('eyebrow')}</span>
           <h2
             id="homepage-bottom-cta-title"
             className="homepage-feature-title font-display font-bold text-foreground text-balance"

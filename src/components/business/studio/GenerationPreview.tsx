@@ -22,7 +22,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
-import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
+import { StudioEmptyState } from '@/components/business/studio/StudioEmptyState'
 import {
   Drawer,
   DrawerContent,
@@ -130,13 +130,13 @@ export const GenerationPreview = memo(function GenerationPreview({
       state.outputType === 'video' ||
       state.outputType === 'audio'
     ) {
+      // 起手势空态（外边距归 StudioFlowLayout 单层管理，这里不再加 wrapper）。
       return (
-        <div className="flex flex-col items-center justify-center px-3 py-4 sm:px-6 sm:py-8">
-          <XiaoheiGuideCarousel
-            key={state.outputType}
-            guideId={state.outputType}
-          />
-        </div>
+        <StudioEmptyState
+          key={state.outputType}
+          mode={state.outputType}
+          onRemix={onRemix}
+        />
       )
     }
 

@@ -16,6 +16,7 @@ describe('AdvancedParamsSchema', () => {
       seed: 42,
       referenceStrength: 0.7,
       quality: 'high',
+      resolution: '2K',
       background: 'transparent',
       style: 'vivid',
     })
@@ -27,9 +28,23 @@ describe('AdvancedParamsSchema', () => {
       seed: 42,
       referenceStrength: 0.7,
       quality: 'high',
+      resolution: '2K',
       background: 'transparent',
       style: 'vivid',
     })
+  })
+
+  it('accepts each valid resolution tier', () => {
+    for (const resolution of ['auto', '1K', '2K', '4K'] as const) {
+      const result = AdvancedParamsSchema.safeParse({ resolution })
+      expect(result.success).toBe(true)
+      expect(result.data?.resolution).toBe(resolution)
+    }
+  })
+
+  it('rejects an invalid resolution value', () => {
+    const result = AdvancedParamsSchema.safeParse({ resolution: '8K' })
+    expect(result.success).toBe(false)
   })
 
   it('accepts partial fields', () => {

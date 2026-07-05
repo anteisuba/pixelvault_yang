@@ -111,6 +111,23 @@
   transform: translateY(0);
 }
 
+/* Arrow nudge — the trailing arrow leans into the direction of travel on
+   hover (feedback: "this takes you somewhere"). */
+.homepage-secondary-btn svg {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.homepage-secondary-btn:hover svg {
+  transform: translateX(3px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .homepage-secondary-btn svg {
+    transition: none;
+  }
+  .homepage-secondary-btn:hover svg {
+    transform: none;
+  }
+}
+
 .homepage-secondary-btn:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--foreground) 45%, transparent);
   outline-offset: 2px;
@@ -548,6 +565,53 @@ html:lang(ja) .homepage .homepage-capability-item-title {
   }
 }
 
+/* Hero content entrance — headline, subline and CTAs rise in sequence right
+   after the wall tiles cascade in, so the first paint reads as one composed
+   beat (storytelling), not a static card. Pure CSS: works without JS, gated
+   on reduced motion below. */
+@media (prefers-reduced-motion: no-preference) {
+  .homepage-hero-title-main,
+  .homepage-hero-title-platform,
+  .homepage-hero-actions {
+    animation: homepage-hero-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .homepage-hero-title-platform {
+    animation-delay: 80ms;
+  }
+  .homepage-hero-actions {
+    animation-delay: 160ms;
+  }
+}
+
+@keyframes homepage-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Hero wall scroll parallax — the work wall scrolls slightly slower than the
+   window it hangs in, giving the "darkroom window" real depth (spatial
+   continuity). Progressive enhancement: only where CSS scroll-driven
+   animations exist, never under reduced motion. The wall bleeds 12% above the
+   frame so the lag never exposes a gap. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .homepage-hero-wall {
+      inset: -12% 0 0 0;
+      animation: homepage-hero-parallax linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+  }
+}
+
+@keyframes homepage-hero-parallax {
+  to {
+    transform: translateY(10%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .homepage-hero-tile,
   .homepage-hero-tile-image {
@@ -558,6 +622,12 @@ html:lang(ja) .homepage .homepage-capability-item-title {
   .homepage-hero-tile-image-next {
     animation: none !important;
     opacity: 0 !important;
+  }
+  .homepage-hero-title-main,
+  .homepage-hero-title-platform,
+  .homepage-hero-actions,
+  .homepage-hero-wall {
+    animation: none !important;
   }
 }
 
@@ -703,6 +773,95 @@ html:lang(ja) .homepage .homepage-capability-item-title {
 .homepage-feature-tone-ink,
 .homepage-feature-tone-earth {
   background: var(--home-mat);
+}
+
+/* — Panorama feature band (画布) — a full-bleed dark slab mid-page that breaks
+   the alternating split rhythm and echoes the hero window / capability panel /
+   footer, so the white hall is punctuated by dark windows at a steady beat. */
+.homepage-feature-panorama {
+  margin-inline: calc(50% - 50vw);
+  /* match the features band's 1rem mobile rail so the panorama content lines
+     up with the split rows above/below at every width */
+  padding-inline: max(1rem, calc(50vw - 37.5rem));
+  padding-block: clamp(3rem, 5vw, 4.5rem);
+
+  --background: oklch(7.5% 0.01 220);
+  --foreground: oklch(98% 0 0);
+  --home-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 62%, var(--background));
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.homepage-feature-panorama-media {
+  margin-top: clamp(2rem, 3.5vw, 3rem);
+  height: clamp(16rem, 32vw, 26rem);
+}
+
+/* Inside the dark band the window frame is already dark-on-dark, so the
+   canvas media sits flush as part of the slab: hairline only, no lift. */
+.homepage-feature-panorama .homepage-feature-media-container {
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .homepage-feature-panorama .homepage-feature-media-container:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* — Film strip (视频生成) — a light passes across four real frames in
+   sequence, so the strip reads as time moving through frames (what video is)
+   instead of a fake player. */
+.homepage-film-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.homepage-film-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.homepage-film-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* start transparent so that when the animation never runs (reduced motion,
+     old browsers, Playwright animations:disabled, battery saver) the strip
+     degrades to four fully-bright frames instead of a permanently dimmed band.
+     `backwards` fill hands the dim back to the 0% keyframe during the delay. */
+  opacity: 0;
+  background: oklch(7.5% 0.01 220 / 0.55);
+  animation: homepage-film-active 8s cubic-bezier(0.22, 1, 0.36, 1) infinite
+    backwards;
+  animation-delay: calc(var(--film-index, 0) * 2s);
+}
+
+/* each frame holds the light for its 2s slot, then hands off to the next */
+@keyframes homepage-film-active {
+  0%,
+  2% {
+    opacity: 1;
+  }
+  8%,
+  22% {
+    opacity: 0;
+  }
+  30%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-film-frame::after {
+    animation: none !important;
+    opacity: 0;
+  }
 }
 
 /* Section eyebrow — unified to the gallery-label micro-kicker (uppercase,

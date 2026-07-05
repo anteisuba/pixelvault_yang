@@ -62,7 +62,7 @@ function ModelGroup({
   const shown = typeof limit === 'number' ? models.slice(0, limit) : models
 
   return (
-    <div>
+    <div data-homepage-reveal-item>
       <p className="homepage-model-group-label mb-4 text-xs font-semibold uppercase tracking-[0.18em]">
         {label}
       </p>

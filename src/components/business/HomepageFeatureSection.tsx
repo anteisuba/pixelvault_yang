@@ -39,6 +39,20 @@ export function HomepageFeatureSection({
   comingSoon,
   media,
 }: HomepageFeatureSectionProps) {
+  if (rhythm === 'panorama') {
+    return (
+      <HomepagePanoramaFeatureSection
+        id={id}
+        ctaHref={ctaHref}
+        tone={tone}
+        showEyebrow={showEyebrow}
+        showCta={showCta}
+        comingSoon={comingSoon}
+        media={media}
+      />
+    )
+  }
+
   return (
     <HomepageStandardFeatureSection
       id={id}
@@ -51,6 +65,86 @@ export function HomepageFeatureSection({
       comingSoon={comingSoon}
       media={media}
     />
+  )
+}
+
+/**
+ * Full-bleed dark band variant — breaks the alternating split rhythm mid-page
+ * and gives the canvas story a wide "darkroom window" of its own, echoing the
+ * hero window / capability panel / footer slabs.
+ */
+function HomepagePanoramaFeatureSection({
+  id,
+  ctaHref,
+  tone,
+  showCta = true,
+  media,
+}: HomepageFeatureSectionProps) {
+  const t = useTranslations(`Homepage.featureSections.${id}`)
+  const translationValues = HOMEPAGE_FEATURE_TRANSLATION_VALUES[id] ?? {}
+
+  return (
+    <section
+      id={id}
+      data-homepage-reveal
+      className="homepage-feature-panorama scroll-mt-24"
+      aria-labelledby={`homepage-feature-${id}-title`}
+    >
+      <div className="homepage-feature-panorama-head flex flex-col items-start text-left">
+        <h2
+          id={`homepage-feature-${id}-title`}
+          className="homepage-feature-title font-display font-bold text-foreground text-balance"
+        >
+          {t('title', translationValues)}
+        </h2>
+        <p className="homepage-feature-copy mt-6 max-w-2xl font-display font-medium text-[var(--home-muted)]">
+          {t('description', translationValues)}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          'homepage-feature-media-container homepage-feature-panorama-media',
+          `homepage-feature-tone-${tone}`,
+        )}
+        aria-hidden={media ? undefined : 'true'}
+      >
+        {media?.type === 'image' && (
+          <Image
+            src={media.src}
+            alt={media.alt}
+            fill
+            sizes="100vw"
+            className="homepage-feature-media object-cover"
+            priority={false}
+          />
+        )}
+        {media?.type === 'video' && (
+          <video
+            className="homepage-feature-media h-full w-full object-cover"
+            src={media.src}
+            poster={media.poster}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label={media.alt}
+          />
+        )}
+        {!media && <HomepageFeatureMediaFallback id={id} />}
+      </div>
+
+      {showCta && (
+        <Button
+          asChild
+          size="lg"
+          className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
+        >
+          <Link href={ctaHref}>{t('cta', translationValues)}</Link>
+        </Button>
+      )}
+    </section>
   )
 }
 

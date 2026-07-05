@@ -21,14 +21,13 @@ const SECTIONS = [
         href: 'https://github.com/anteisuba/pixelvault_yang',
         external: true,
       },
-      { id: 'docs', href: '/docs', external: false },
     ],
   },
   {
     id: 'legal',
     items: [
-      { id: 'privacy', href: '/privacy', external: false },
-      { id: 'terms', href: '/terms', external: false },
+      { id: 'privacy', href: ROUTES.PRIVACY, external: false },
+      { id: 'terms', href: ROUTES.TERMS, external: false },
     ],
   },
 ] as const

@@ -203,7 +203,7 @@ export function XiaoheiGuideCarousel({
           <ChevronRight className="size-4" />
           <span className="sr-only">{t('next')}</span>
         </Button>
-        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+        <div className="absolute inset-x-0 bottom-1 flex justify-center gap-0.5">
           {slides.map((slide, index) => (
             <button
               key={slide.key}
@@ -211,11 +211,16 @@ export function XiaoheiGuideCarousel({
               aria-label={t('goToStep', { step: index + 1 })}
               aria-current={index === activeSlideIndex}
               onClick={() => setActiveIndex(index)}
-              className={cn(
-                'size-1.5 rounded-full bg-black/25 ring-1 ring-white/50 transition-colors',
-                index === activeIndex && 'bg-black/70',
-              )}
-            />
+              className="flex size-8 items-center justify-center"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'size-1.5 rounded-full bg-black/25 ring-1 ring-white/50 transition-colors',
+                  index === activeSlideIndex && 'bg-black/70',
+                )}
+              />
+            </button>
           ))}
         </div>
       </div>

@@ -9,6 +9,10 @@ export const ROUTES = {
   HOME: '/',
   GALLERY: '/gallery',
 
+  /** Legal / display-surface pages */
+  PRIVACY: '/privacy',
+  TERMS: '/terms',
+
   /** Auth pages */
   SIGN_IN: '/sign-in',
   SIGN_UP: '/sign-up',

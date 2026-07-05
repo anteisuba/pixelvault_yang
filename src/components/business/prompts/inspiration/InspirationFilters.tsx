@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { PromptFilterChip } from '@/components/business/prompts/PromptFilterChip'
 import type { InspirationSortBy } from '@/types'
 
 export const INSPIRATION_CATEGORIES = [
@@ -87,13 +88,13 @@ export function InspirationFilters({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <CategoryChip
+        <PromptFilterChip
           label={t('inspirationCategoryAll')}
           active={category === null}
           onClick={() => onCategoryChange(null)}
         />
         {INSPIRATION_CATEGORIES.map((cat) => (
-          <CategoryChip
+          <PromptFilterChip
             key={cat}
             label={cat}
             active={category === cat}
@@ -102,31 +103,5 @@ export function InspirationFilters({
         ))}
       </div>
     </div>
-  )
-}
-
-function CategoryChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex h-8 items-center rounded-full px-3 text-xs font-medium transition-colors',
-        active
-          ? 'bg-foreground/90 text-background'
-          : 'border border-border/60 bg-card/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground',
-      )}
-    >
-      {label}
-    </button>
   )
 }

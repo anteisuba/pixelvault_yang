@@ -30,10 +30,10 @@ export function InspirationGrid() {
     <section className="space-y-6">
       <header className="space-y-2">
         <p className="editorial-eyebrow">{t('inspirationEyebrow')}</p>
-        <h2 className="font-display text-2xl font-medium tracking-tight">
+        <h1 className="font-display text-2xl font-medium tracking-tight">
           {t('inspirationTitle')}
-        </h2>
-        <p className="font-serif text-sm leading-7 text-muted-foreground">
+        </h1>
+        <p className="max-w-2xl font-serif text-sm leading-7 text-muted-foreground">
           {t('inspirationDescription')}
         </p>
       </header>
@@ -96,17 +96,16 @@ export function InspirationGrid() {
 
 function GridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
           className="overflow-hidden rounded-2xl border border-border/60 bg-card/60"
         >
-          <div className="aspect-square animate-pulse bg-muted/50" />
-          <div className="space-y-2 p-4">
-            <div className="h-3 w-full animate-pulse rounded bg-muted/50" />
-            <div className="h-3 w-3/4 animate-pulse rounded bg-muted/50" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-muted/50" />
+          <div className="aspect-4/5 animate-pulse bg-muted/50" />
+          <div className="flex items-center justify-between p-4">
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted/50" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted/50" />
           </div>
         </div>
       ))}

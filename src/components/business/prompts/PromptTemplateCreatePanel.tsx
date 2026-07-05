@@ -7,6 +7,12 @@ import { toast } from 'sonner'
 
 import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
 import {
+  PROMPT_TEMPLATE_OUTPUT_TYPES,
+  PROMPT_OUTPUT_TYPE_LABEL_KEYS,
+  toPromptTemplateOutputType,
+  type PromptTemplateOutputType,
+} from '@/constants/prompt-library'
+import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
@@ -14,9 +20,15 @@ import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { CreateRecipeRequest, OutputType } from '@/types'
 
@@ -37,16 +49,7 @@ interface PromptTemplateCreatePanelProps {
 
 const DEFAULT_MODEL_ID = AI_MODELS.OPENAI_GPT_IMAGE_2
 const DEFAULT_PROVIDER = getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI).label
-const DEFAULT_OUTPUT_TYPE: OutputType = 'IMAGE'
-const OUTPUT_TYPES: OutputType[] = ['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']
-const OUTPUT_TYPE_LABEL_KEYS: Record<OutputType, string> = {
-  IMAGE: 'outputTypeImage',
-  VIDEO: 'outputTypeVideo',
-  AUDIO: 'outputTypeAudio',
-  MODEL_3D: 'outputType3d',
-}
 const MODEL_CHOICES = MODEL_OPTIONS.filter((option) => option.available)
-const NATIVE_OPTION_CLASS_NAME = 'bg-popover text-popover-foreground'
 
 function getModelOption(modelId: string) {
   return MODEL_OPTIONS.find((option) => option.id === modelId)
@@ -59,7 +62,10 @@ function getProviderForModel(modelId: string): string {
 
 function normalizeInitialValues(
   initialValues?: PromptTemplateCreateInitialValues,
-): Required<Omit<PromptTemplateCreateInitialValues, 'parentGenerationId'>> & {
+): Required<
+  Omit<PromptTemplateCreateInitialValues, 'parentGenerationId' | 'outputType'>
+> & {
+  outputType: PromptTemplateOutputType
   parentGenerationId?: string
 } {
   const modelId = initialValues?.modelId || DEFAULT_MODEL_ID
@@ -73,8 +79,11 @@ function normalizeInitialValues(
       initialValues?.provider ||
       getProviderForModel(modelId) ||
       DEFAULT_PROVIDER,
-    outputType:
-      initialValues?.outputType ?? option?.outputType ?? DEFAULT_OUTPUT_TYPE,
+    // Templates cover image/video/audio only — legacy 3D prefills fall back
+    // to image (see PROMPT_TEMPLATE_OUTPUT_TYPES).
+    outputType: toPromptTemplateOutputType(
+      initialValues?.outputType ?? option?.outputType,
+    ),
     parentGenerationId: initialValues?.parentGenerationId,
   }
 }
@@ -115,7 +124,7 @@ export function PromptTemplateCreatePanel({
     setModelId(nextModelId)
     const option = getModelOption(nextModelId)
     if (!option) return
-    setOutputType(option.outputType)
+    setOutputType(toPromptTemplateOutputType(option.outputType))
     setProvider(getDefaultProviderConfig(option.adapterType).label)
   }
 
@@ -255,30 +264,25 @@ export function PromptTemplateCreatePanel({
               <label className="text-sm font-medium" htmlFor="recipe-model">
                 {t('createModelLabel')}
               </label>
-              <select
-                id="recipe-model"
-                value={modelId}
-                onChange={(event) => selectModel(event.target.value)}
-                className={cn(
-                  'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-[color,box-shadow]',
-                  'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                )}
-              >
-                {!getModelOption(modelId) && (
-                  <option value={modelId} className={NATIVE_OPTION_CLASS_NAME}>
-                    {modelId}
-                  </option>
-                )}
-                {MODEL_CHOICES.map((option) => (
-                  <option
-                    key={option.id}
-                    value={option.id}
-                    className={NATIVE_OPTION_CLASS_NAME}
-                  >
-                    {getTranslatedModelLabel(tModels, option.id)}
-                  </option>
-                ))}
-              </select>
+              <Select value={modelId} onValueChange={selectModel}>
+                <SelectTrigger
+                  id="recipe-model"
+                  className="w-full"
+                  aria-label={t('createModelLabel')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {!getModelOption(modelId) && (
+                    <SelectItem value={modelId}>{modelId}</SelectItem>
+                  )}
+                  {MODEL_CHOICES.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {getTranslatedModelLabel(tModels, option.id)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -286,24 +290,27 @@ export function PromptTemplateCreatePanel({
                 <label className="text-sm font-medium" htmlFor="recipe-type">
                   {t('createOutputTypeLabel')}
                 </label>
-                <select
-                  id="recipe-type"
+                <Select
                   value={outputType}
-                  onChange={(event) =>
-                    setOutputType(event.target.value as OutputType)
+                  onValueChange={(value) =>
+                    setOutputType(value as PromptTemplateOutputType)
                   }
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
-                  {OUTPUT_TYPES.map((type) => (
-                    <option
-                      key={type}
-                      value={type}
-                      className={NATIVE_OPTION_CLASS_NAME}
-                    >
-                      {t(OUTPUT_TYPE_LABEL_KEYS[type])}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="recipe-type"
+                    className="w-full"
+                    aria-label={t('createOutputTypeLabel')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

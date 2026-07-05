@@ -103,7 +103,6 @@ export const HOMEPAGE_ROUTES = {
   studio: ROUTES.STUDIO,
   models: '#models',
   pricing: '#models',
-  docs: '/docs',
 } as const
 
 /**
@@ -122,13 +121,18 @@ export type HomepageFeatureMedia =
   | { type: 'image'; src: string; alt: string }
   | { type: 'video'; src: string; poster?: string; alt: string }
 
-export type HomepageFeatureRhythm = 'feature' | 'compact'
+export type HomepageFeatureRhythm = 'feature' | 'compact' | 'panorama'
 
 /**
- * Feature sections — left-image / right-text, alternating. Covers the six
- * real product pillars; 图片生成 + 画布 carry the `feature` rhythm (large),
- * the rest are `compact`. The two big rows sit at positions 1 and 4 so the
- * page breathes instead of front-loading both.
+ * Feature sections — covers the six real product pillars. 图片生成 carries the
+ * `feature` rhythm (large); 画布 (`workflow`) is a full-bleed dark `panorama`
+ * band that breaks the alternating split rhythm mid-page (anti-slop: no more
+ * than 2-3 consecutive image/text zigzag rows) and echoes the hero window /
+ * capability panel / footer dark slabs; the rest are `compact`.
+ *
+ * `showEyebrow` is off across the board — the section titles are strong on
+ * their own, and a micro-kicker above every headline is the single most
+ * templated "AI landing page" signature (see taste-skill eyebrow restraint).
  *
  * `id: 'workflow'` is the **画布 / canvas** feature — it reuses the existing
  * node-graph fallback renderer and `featureSections.workflow` / `mediaLabels.
@@ -141,7 +145,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'dawn',
     reverse: false,
     rhythm: 'feature',
-    showEyebrow: true,
+    showEyebrow: false,
     showCta: true,
     // Multi-model contact sheet: one prompt across Flux / Gemini / GPT Image
     // / NovelAI, each tile chipped with its model name, full colour.
@@ -153,7 +157,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'forest',
     reverse: true,
     rhythm: 'compact',
-    showEyebrow: true,
+    showEyebrow: false,
     showCta: true,
     // Film-strip storyboard, 4 cinematic frames with frame numbers.
     media: undefined as HomepageFeatureMedia | undefined,
@@ -164,7 +168,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'sky',
     reverse: false,
     rhythm: 'compact',
-    showEyebrow: true,
+    showEyebrow: false,
     showCta: true,
     // SVG TTS player (HomepageTtsPlayer) — pure renderer, no asset.
     media: undefined as HomepageFeatureMedia | undefined,
@@ -174,8 +178,8 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO_NODE,
     tone: 'ink',
     reverse: true,
-    rhythm: 'feature',
-    showEyebrow: true,
+    rhythm: 'panorama',
+    showEyebrow: false,
     showCta: true,
     // Canvas node-graph: 剧本 → (图像, 音频) → 视频 — the autospawn shape.
     media: undefined as HomepageFeatureMedia | undefined,
@@ -186,7 +190,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'amber',
     reverse: false,
     rhythm: 'compact',
-    showEyebrow: true,
+    showEyebrow: false,
     showCta: true,
     // Contact sheet of reference images + the consistent result.
     media: undefined as HomepageFeatureMedia | undefined,
@@ -197,7 +201,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'earth',
     reverse: true,
     rhythm: 'compact',
-    showEyebrow: true,
+    showEyebrow: false,
     showCta: true,
     // Turntable: a saved image lifted onto a 360° 3D stage.
     media: undefined as HomepageFeatureMedia | undefined,

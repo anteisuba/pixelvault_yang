@@ -13,6 +13,7 @@ export type ProviderCapability =
   | 'seed'
   | 'referenceStrength'
   | 'quality'
+  | 'resolution'
   | 'background'
   | 'style'
   | 'imageAnalysis'
@@ -51,6 +52,8 @@ export interface CapabilityConfig {
   referenceStrength?: NumericRange
   loraScale?: NumericRange
   qualityOptions?: readonly string[]
+  /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
+  resolutionOptions?: readonly string[]
   styleOptions?: readonly string[]
   backgroundOptions?: readonly string[]
   /** Maximum number of LoRAs that can be applied simultaneously */
@@ -134,8 +137,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
 
     [AI_ADAPTER_TYPES.OPENAI]: {
-      capabilities: ['quality', 'background', 'style', 'imageAnalysis'],
+      capabilities: [
+        'quality',
+        'resolution',
+        'background',
+        'style',
+        'imageAnalysis',
+      ],
       qualityOptions: ['auto', 'low', 'medium', 'high'],
+      resolutionOptions: ['auto', '1K', '2K', '4K'],
       backgroundOptions: ['auto', 'transparent', 'opaque'],
       styleOptions: ['vivid', 'natural'],
       maxReferenceImages: 1,
@@ -147,14 +157,16 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
 
     [AI_ADAPTER_TYPES.GEMINI]: {
-      capabilities: ['imageAnalysis'],
+      capabilities: ['resolution', 'imageAnalysis'],
+      resolutionOptions: ['1K', '2K', '4K'],
       maxReferenceImages: 14,
       referenceImageMode: 'native',
     },
 
     [AI_ADAPTER_TYPES.VOLCENGINE]: {
-      capabilities: ['seed', 'guidanceScale', 'imageAnalysis'],
+      capabilities: ['seed', 'guidanceScale', 'resolution', 'imageAnalysis'],
       guidanceScale: { min: 1, max: 10, step: 0.5, default: 8.0 },
+      resolutionOptions: ['2K', '4K'],
       maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
       referenceImageMode: 'native',
     },
@@ -195,6 +207,20 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   },
   [AI_MODELS.SEEDREAM_45]: {
     maxReferenceImages: 0,
+    // Seedream 4.5 (via fal) supports 2K/4K output on top of the generic FAL
+    // capability set — kept as a full override (not a merge) since
+    // resolveConfig() replaces `capabilities` wholesale rather than
+    // concatenating with the adapter default.
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'imageAnalysis',
+      'lora',
+      'resolution',
+    ] as const,
+    resolutionOptions: ['2K', '4K'],
   },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,
@@ -203,7 +229,12 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: 0,
   },
   [AI_MODELS.FLUX_LORA]: {
-    maxReferenceImages: 0,
+    // B9 (D6): reference-image img2img enabled. The FAL adapter default
+    // already carries `referenceStrength` + `referenceImageMode: 'img2img'`;
+    // flipping this to 1 lets the LoRA workbench surface the reference-image
+    // chip. The fal adapter swaps `fal-ai/flux-lora` → the `/image-to-image`
+    // endpoint when a reference image is present.
+    maxReferenceImages: 1,
   },
   [AI_MODELS.RECRAFT_V4_PRO]: {
     maxReferenceImages: 0,

@@ -54,6 +54,12 @@ interface LoraSourceRecipeStripProps {
   extraMountStatusByKey: Record<string, ExtraMountStatus>
   extraStackFull: boolean
   disabled?: boolean
+  /**
+   * B10 (§2②): other mounted LoRAs' trigger words. When non-empty (multi-mount),
+   * the recipe panel shows a forward-looking hint that applying will auto-append
+   * these triggers — the parent's onApplyRecipe does the actual appending.
+   */
+  otherMountTriggers?: readonly string[]
   onSelectedImageUrlChange: (imageUrl: string | null) => void
   onIncludeSeedChange: (includeSeed: boolean) => void
   onMountExtraLora: (extra: CivitaiRecipeExtraLora) => void
@@ -84,6 +90,7 @@ export function LoraSourceRecipeStrip({
   extraMountStatusByKey,
   extraStackFull,
   disabled,
+  otherMountTriggers,
   onSelectedImageUrlChange,
   onIncludeSeedChange,
   onMountExtraLora,
@@ -244,6 +251,15 @@ export function LoraSourceRecipeStrip({
             </p>
           ) : null}
 
+          {otherMountTriggers && otherMountTriggers.length > 0 ? (
+            <p className="text-2xs text-muted-foreground">
+              {t('recipeAppendTriggersHint', {
+                name: assetName,
+                triggers: otherMountTriggers.join(', '),
+              })}
+            </p>
+          ) : null}
+
           <div className="flex items-center justify-between gap-2">
             {plan.advancedParams?.seed !== undefined ? (
               <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
@@ -262,7 +278,7 @@ export function LoraSourceRecipeStrip({
             )}
             <Button
               type="button"
-              variant="default"
+              variant="outline"
               size="xs"
               disabled={disabled}
               onClick={() => onApplyRecipe(selected, { includeSeed })}

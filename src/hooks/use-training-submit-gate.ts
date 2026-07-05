@@ -15,7 +15,6 @@ export type TrainingSubmitReasonKey =
   | 'noTrigger'
   | 'invalidTrigger'
   | 'unsupportedBaseModel'
-  | 'noApiKey'
   | 'uploading'
 
 export interface TrainingSubmitGateInput {
@@ -24,7 +23,6 @@ export interface TrainingSubmitGateInput {
   baseModel: LoraTrainingBaseModel
   imageCount: number
   uploadsInFlight: number
-  hasApiKey: boolean
 }
 
 export interface TrainingSubmitGate {
@@ -102,9 +100,9 @@ export function useTrainingSubmitGate(
     if (trimmedTrigger.length === 0) {
       return { disabled: true, reasonKey: 'noTrigger', badge: 'incomplete' }
     }
-    if (!input.hasApiKey) {
-      return { disabled: true, reasonKey: 'noApiKey', badge: 'incomplete' }
-    }
+    // P1-2 (Hard Rule 8): a missing API key must never disable Submit — the
+    // caller intercepts the click and opens QuickSetupDialog instead. This
+    // gate only covers form-validity reasons.
     if (input.uploadsInFlight > 0) {
       return { disabled: true, reasonKey: 'uploading', badge: 'incomplete' }
     }
@@ -116,6 +114,5 @@ export function useTrainingSubmitGate(
     input.baseModel,
     input.imageCount,
     input.uploadsInFlight,
-    input.hasApiKey,
   ])
 }

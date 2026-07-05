@@ -18,6 +18,7 @@ import {
   type LoraTrainingSubmitFailure,
 } from '@/lib/api-client'
 import { LORA_TRAINING } from '@/constants/config'
+import { LORA_TOAST_DURATION_MS } from '@/constants/lora'
 
 export interface SubmitOutcome {
   job: LoraTrainingRecord | null
@@ -136,9 +137,13 @@ export function useLoraTraining(): UseLoraTrainingReturn {
         ) {
           stopPolling()
           if (updated.status === 'COMPLETED') {
-            toast.success(t('loraTrainingComplete'))
+            toast.success(t('loraTrainingComplete'), {
+              duration: LORA_TOAST_DURATION_MS,
+            })
           } else if (updated.status === 'FAILED') {
-            toast.error(updated.errorMessage ?? t('loraTrainingFailed'))
+            toast.error(updated.errorMessage ?? t('loraTrainingFailed'), {
+              duration: LORA_TOAST_DURATION_MS,
+            })
           }
         }
       }, LORA_TRAINING.POLL_INTERVAL_MS)
@@ -360,7 +365,9 @@ export function useLoraTraining(): UseLoraTrainingReturn {
         const newJob = response.data
         setJobs((prev) => [newJob, ...prev])
         startPolling(newJob.id)
-        toast.success(t('loraTrainingSubmitted'))
+        toast.success(t('loraTrainingSubmitted'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return { job: newJob }
       }
 
@@ -368,7 +375,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
       const friendly = failure.messageKey
         ? tErr(failure.messageKey)
         : (failure.error ?? t('loraTrainingSubmitFailed'))
-      toast.error(friendly)
+      toast.error(friendly, { duration: LORA_TOAST_DURATION_MS })
       return {
         job: null,
         errorCode: failure.code,

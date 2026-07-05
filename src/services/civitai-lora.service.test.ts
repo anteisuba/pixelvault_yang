@@ -342,9 +342,14 @@ describe('listCivitaiLoras', () => {
     const result = await listCivitaiLoras()
     const item = result.items[0]
     expect(item).toBeDefined()
-    // List thumbnail: 96px, drives a 40×40 DOM slot — never the original.
+    // List thumbnail: 96px — mount-stack chip / facepile only, never the grid card.
     expect(item?.thumbImageUrl).toBe(
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=96,optimized=true/1917130.jpeg',
+    )
+    // P0-3: public library grid card, 450px — was wrongly using the 96px
+    // list thumbnail, which renders systemically blurry on a ~200px card.
+    expect(item?.cardImageUrl).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=450,optimized=true/1917130.jpeg',
     )
     // Inspector cover: 640px, fits the aspect-video panel.
     expect(item?.coverImageUrl).toBe(
@@ -358,6 +363,7 @@ describe('listCivitaiLoras', () => {
     // for some `(anim=false, width=N, optimized=true)` cache entries).
     expect(item?.coverImageUrl).not.toContain('anim=false')
     expect(item?.thumbImageUrl).not.toContain('anim=false')
+    expect(item?.cardImageUrl).not.toContain('anim=false')
   })
 
   it('prefers cursor over page for non-search library pagination once a cursor exists', async () => {
@@ -492,8 +498,15 @@ describe('listCivitaiLoras', () => {
       trainedWords: ['trigger'],
     })
 
-    mockFetch.mockResolvedValue(
-      jsonResponse({
+    // B11: search always tries meilisearch first — fail it here so the
+    // request falls through to the REST scan path this test exercises.
+    // mockImplementation (not mockResolvedValue) so each call gets a fresh
+    // Response body instead of reusing one already-consumed instance.
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'down' }, 503)
+      }
+      return jsonResponse({
         items: [
           {
             id: 1,
@@ -521,8 +534,8 @@ describe('listCivitaiLoras', () => {
           },
         ],
         metadata: {},
-      }),
-    )
+      })
+    })
 
     const result = await listCivitaiLoras({
       baseModel: 'Illustrious',
@@ -530,7 +543,10 @@ describe('listCivitaiLoras', () => {
       search: 'Wuthering Waves',
     })
 
-    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    const restCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('/api/v1/models'),
+    )
+    const requestUrl = new URL(String(restCall?.[0]))
     expect(requestUrl.searchParams.get('limit')).toBe('40')
     expect(requestUrl.searchParams.get('query')).toBe('Wuthering Waves')
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
@@ -562,8 +578,13 @@ describe('listCivitaiLoras', () => {
       trainedWords: [`trigger-${id}`],
     })
 
-    mockFetch.mockResolvedValue(
-      jsonResponse({
+    // B11: fail meilisearch first so this falls through to the REST scan
+    // path under test (see comment on the previous test).
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'down' }, 503)
+      }
+      return jsonResponse({
         items: Array.from({ length: 12 }).map((_, index) => ({
           id: index + 1,
           name: `Wuthering Waves LoRA ${index + 1}`,
@@ -571,8 +592,8 @@ describe('listCivitaiLoras', () => {
           modelVersions: [versionFor(index + 101)],
         })),
         metadata: { nextCursor: 'cursor-next' },
-      }),
-    )
+      })
+    })
 
     const result = await listCivitaiLoras({
       baseModel: 'Illustrious',
@@ -583,15 +604,164 @@ describe('listCivitaiLoras', () => {
     expect(result.items).toHaveLength(10)
     expect(result.items[0]?.name).toBe('Wuthering Waves LoRA 1')
     expect(result.hasNextPage).toBe(true)
-    expect(result.nextCursor).toBe('search-scan:2')
+    expect(result.nextCursor).toEqual(expect.any(String))
 
-    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    const restCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('/api/v1/models'),
+    )
+    const requestUrl = new URL(String(restCall?.[0]))
     expect(requestUrl.searchParams.get('limit')).toBe('40')
     expect(requestUrl.searchParams.get('query')).toBe('鸣潮')
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
       'Illustrious',
       'NoobAI',
     ])
+  })
+
+  it('continues sparse searched base model pages until the logical page is full', async () => {
+    const versionFor = (id: number) => ({
+      id,
+      name: 'v1',
+      baseModel: 'Anima',
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: [`trigger-${id}`],
+    })
+    const modelFor = (id: number) => ({
+      id,
+      name: `Wuthering Waves Anima ${id}`,
+      type: 'LORA',
+      modelVersions: [versionFor(id + 100)],
+    })
+    const pages = new Map<
+      string | null,
+      { ids: number[]; next: string | null }
+    >([
+      [null, { ids: [1], next: 'cursor-1' }],
+      ['cursor-1', { ids: [2, 3], next: 'cursor-2' }],
+      ['cursor-2', { ids: [], next: 'cursor-3' }],
+      ['cursor-3', { ids: [4], next: 'cursor-4' }],
+      ['cursor-4', { ids: [5, 6], next: 'cursor-5' }],
+      ['cursor-5', { ids: [7, 8, 9, 10, 11], next: 'cursor-6' }],
+    ])
+
+    // B11: fail meilisearch first (+1 call) so this falls through to the
+    // REST scan path under test.
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'down' }, 503)
+      }
+      const cursor = new URL(String(input)).searchParams.get('cursor')
+      const page = pages.get(cursor)
+      if (!page) throw new Error(`Unexpected cursor: ${cursor}`)
+      return jsonResponse({
+        items: page.ids.map(modelFor),
+        metadata: { nextCursor: page.next },
+      })
+    })
+
+    const result = await listCivitaiLoras({
+      baseModel: 'Anima',
+      pageSize: 10,
+      search: '鸣潮',
+      sort: 'Newest',
+    })
+
+    expect(result.items).toHaveLength(10)
+    expect(result.items.map((item) => item.name)).toEqual(
+      Array.from(
+        { length: 10 },
+        (_, index) => `Wuthering Waves Anima ${index + 1}`,
+      ),
+    )
+    expect(result.hasNextPage).toBe(true)
+    expect(result.nextCursor).toEqual(expect.any(String))
+    expect(mockFetch).toHaveBeenCalledTimes(7)
+  })
+
+  it('preserves a continuation when sparse search reaches the scan safety limit', async () => {
+    const versionFor = (id: number) => ({
+      id,
+      name: 'v1',
+      baseModel: 'Anima',
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: [`trigger-${id}`],
+    })
+    const modelFor = (id: number) => ({
+      id,
+      name: `Sparse Anima ${id}`,
+      type: 'LORA',
+      modelVersions: [versionFor(id + 200)],
+    })
+    const sparseIds = [[1], [2], [], [3], [], [4], [], [5], [], [6]]
+    const pages = new Map<
+      string | null,
+      { ids: number[]; next: string | null }
+    >()
+
+    sparseIds.forEach((ids, index) => {
+      pages.set(index === 0 ? null : `cursor-${index}`, {
+        ids,
+        next: `cursor-${index + 1}`,
+      })
+    })
+    pages.set('cursor-10', { ids: [7, 8, 9, 10, 11], next: null })
+
+    // B11: fail meilisearch first (+1 call per listCivitaiLoras invocation)
+    // so both pages fall through to the REST scan path under test.
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'down' }, 503)
+      }
+      const cursor = new URL(String(input)).searchParams.get('cursor')
+      const page = pages.get(cursor)
+      if (!page) throw new Error(`Unexpected cursor: ${cursor}`)
+      return jsonResponse({
+        items: page.ids.map(modelFor),
+        metadata: { nextCursor: page.next },
+      })
+    })
+
+    const firstPage = await listCivitaiLoras({
+      baseModel: 'Anima',
+      pageSize: 10,
+      search: '鸣潮',
+      sort: 'Newest',
+    })
+
+    expect(firstPage.items.map((item) => item.name)).toEqual(
+      Array.from({ length: 6 }, (_, index) => `Sparse Anima ${index + 1}`),
+    )
+    expect(firstPage.hasNextPage).toBe(true)
+    expect(firstPage.nextCursor).toEqual(expect.any(String))
+    expect(mockFetch).toHaveBeenCalledTimes(11)
+
+    const secondPage = await listCivitaiLoras({
+      baseModel: 'Anima',
+      cursor: firstPage.nextCursor,
+      page: 2,
+      pageSize: 10,
+      search: '鸣潮',
+      sort: 'Newest',
+    })
+
+    expect(secondPage.items.map((item) => item.name)).toEqual(
+      Array.from({ length: 5 }, (_, index) => `Sparse Anima ${index + 7}`),
+    )
+    expect(secondPage.hasNextPage).toBe(false)
+    expect(secondPage.nextCursor).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(13)
   })
 
   it('forwards Civitai license fields to library items', async () => {
@@ -813,6 +983,356 @@ describe('listCivitaiLoras', () => {
     // schedule across multiple retry attempts.
     await vi.runAllTimersAsync()
     await promise
+  })
+
+  // P1-6（2026-07-04 三态改稿）：unrestricted（默认，不过滤）/ safe（civitai
+  // `nsfw=false` + 名称词表兜底）/ nsfwOnly（civitai `nsfw=true` + 只留
+  // `model.nsfw` 标记为真的条目）。三个 fixture 条目分别只踩中其中一种
+  // 信号，用来确认两种客户端过滤各自只认自己的信号，不会互相误判。
+  function nsfwFilterFixture() {
+    function modelFor(id: number, name: string, nsfw: boolean) {
+      return {
+        id,
+        name,
+        type: 'LORA',
+        tags: [],
+        stats: {},
+        nsfw,
+        modelVersions: [
+          {
+            id: id * 10,
+            name: 'v1',
+            baseModel: 'SDXL 1.0',
+            files: [
+              {
+                type: 'Model',
+                primary: true,
+                downloadUrl: `https://civitai.com/api/download/models/${id * 10}`,
+              },
+            ],
+            images: [],
+            stats: {},
+          },
+        ],
+      }
+    }
+
+    return {
+      items: [
+        modelFor(1, 'Clean Style LoRA', false),
+        // Name-keyword hit, but civitai's own model.nsfw flag is false —
+        // only the 'safe' mode's name-keyword filter should catch this one.
+        modelFor(2, 'Hentai Style LoRA', false),
+        // civitai model.nsfw flag is true, but the name gives no hint —
+        // only the 'nsfwOnly' mode's isNsfw filter should catch this one.
+        modelFor(3, 'Realistic Lingerie LoRA', true),
+      ],
+      metadata: { totalItems: 3 },
+    }
+  }
+
+  it('defaults to nsfwFilter=unrestricted and applies no client-side filter', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
+
+    const result = await listCivitaiLoras()
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('nsfw')).toBe('true')
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Clean Style LoRA',
+      'Hentai Style LoRA',
+      'Realistic Lingerie LoRA',
+    ])
+  })
+
+  it('nsfwFilter=safe requests nsfw=false and filters NSFW-named models by keyword', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('nsfw')).toBe('false')
+    // Keeps the civitai-nsfw-flagged-but-innocuous-named model — the safe
+    // filter only knows about the name-keyword signal, not model.nsfw.
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Clean Style LoRA',
+      'Realistic Lingerie LoRA',
+    ])
+  })
+
+  it('nsfwFilter=nsfwOnly requests nsfw=true and keeps only civitai-flagged NSFW models', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('nsfw')).toBe('true')
+    // Excludes the NSFW-named-but-civitai-flagged-safe model — nsfwOnly
+    // only trusts the real model.nsfw signal, not the name.
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Realistic Lingerie LoRA',
+    ])
+  })
+})
+
+// P1-11/B11: REST `/api/v1/models` silently ignores `sort` once a `query`
+// is present (confirmed against the real endpoint + civitai/civitai#1848).
+// Search now goes through civitai's own meilisearch endpoint instead, which
+// has a completely different hit shape (no files/downloadUrl at all —
+// confirmed via a live curl during implementation) and needs an extra
+// per-hit request to recover the download link.
+describe('listCivitaiLoras — B11 meilisearch search path', () => {
+  function searchHitFixture(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 1277664,
+      name: 'Cantarella LoRA',
+      type: 'LORA',
+      nsfw: false,
+      createdAt: '2025-02-21T03:23:32.151Z',
+      metrics: { downloadCount: 5380, thumbsUpCount: 633 },
+      user: { username: 'wiehhg_37', image: null },
+      permissions: {
+        allowCommercialUse: ['RentCivit', 'Rent'],
+        allowDerivatives: false,
+      },
+      tags: [{ name: 'wuthering waves' }, { name: 'character' }],
+      images: [
+        {
+          id: 59589204,
+          url: '2dfde10e-6245-4a6b-be7d-5888a72dacd0',
+          // <=2 so pickImages-equivalent filtering keeps it as the cover —
+          // matches the existing REST-path image-safety threshold.
+          nsfwLevel: 1,
+        },
+      ],
+      version: {
+        id: 1451120,
+        name: 'Illustrious&noob_1.0',
+        baseModel: 'Illustrious',
+        trainedWords: ['Cantarella'],
+        metrics: { downloadCount: 5137, thumbsUpCount: 617 },
+        createdAt: '2025-02-23T09:33:50.194Z',
+      },
+      versions: [],
+      ...overrides,
+    }
+  }
+
+  function multiSearchResponse(
+    hits: unknown[],
+    estimatedTotalHits = hits.length,
+  ) {
+    return { results: [{ hits, estimatedTotalHits }] }
+  }
+
+  function versionDownloadResponse(versionId: number, downloadUrl: string) {
+    return {
+      id: versionId,
+      name: 'v1',
+      baseModel: 'Illustrious',
+      downloadUrl,
+      files: [{ type: 'Model', primary: true, downloadUrl }],
+      modelId: 1277664,
+      model: { name: 'Cantarella LoRA', type: 'LORA' },
+    }
+  }
+
+  // Routes fetch calls by URL: multi-search POST vs per-version GET.
+  function mockSearchAndVersionFetch(searchBody: unknown, searchStatus = 200) {
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse(searchBody, searchStatus)
+      }
+      const match = url.match(/model-versions\/(\d+)/)
+      const versionId = match ? Number(match[1]) : 0
+      return jsonResponse(
+        versionDownloadResponse(
+          versionId,
+          `https://civitai.com/api/download/models/${versionId}`,
+        ),
+      )
+    })
+  }
+
+  it('routes non-empty search queries to meilisearch, not the REST models endpoint', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+    await listCivitaiLoras({ search: '鸣潮', sort: 'Most Downloaded' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    expect(searchCall).toBeDefined()
+    const init = searchCall?.[1] as RequestInit
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body))
+    expect(body.queries[0].q).toBe('鸣潮')
+    expect(body.queries[0].sort).toEqual(['metrics.downloadCount:desc'])
+  })
+
+  it.each([
+    ['Highest Rated', undefined],
+    ['Most Downloaded', ['metrics.downloadCount:desc']],
+    ['Newest', ['createdAt:desc']],
+  ] as const)(
+    'maps sort=%s to the meilisearch sort field %j',
+    async (sort, expected) => {
+      mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+      await listCivitaiLoras({ search: 'detail', sort })
+
+      const searchCall = mockFetch.mock.calls.find((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      )
+      const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+      expect(body.queries[0].sort).toEqual(expected)
+    },
+  )
+
+  it('maps a meilisearch hit into a full library item, reconstructing the cover URL from the CDN bucket', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+    const result = await listCivitaiLoras({ search: 'Cantarella' })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({
+      id: 'civitai:1277664:1451120',
+      name: 'Cantarella LoRA',
+      baseModelFamily: 'Illustrious',
+      loraUrl: 'https://civitai.com/api/download/models/1451120',
+      creatorName: 'wiehhg_37',
+      downloadCount: 5137,
+      thumbsUpCount: 617,
+      allowCommercialUse: ['RentCivit', 'Rent'],
+      allowDerivatives: false,
+      isNsfw: false,
+      tags: ['wuthering waves', 'character'],
+    })
+    expect(result.items[0]?.coverImageUrl).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2dfde10e-6245-4a6b-be7d-5888a72dacd0/width=640,optimized=true/59589204.jpeg',
+    )
+  })
+
+  it('computes the meilisearch offset from the requested page number', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 100))
+
+    await listCivitaiLoras({ search: 'detail', page: 3, pageSize: 12 })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+    expect(body.queries[0].offset).toBe(24)
+    expect(body.queries[0].limit).toBe(12)
+  })
+
+  it('derives hasNextPage from estimatedTotalHits', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 50))
+
+    const result = await listCivitaiLoras({
+      search: 'detail',
+      page: 1,
+      pageSize: 12,
+    })
+
+    // offset(0) + hits.length(1) = 1 < estimatedTotalHits(50)
+    expect(result.hasNextPage).toBe(true)
+    expect(result.total).toBe(50)
+  })
+
+  it('falls back to the REST search path when meilisearch fails, and flags sortFellBackToRelevance', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'down' }, 503)
+      }
+      // REST fallback path (models?query=...) — return a normal REST payload.
+      return jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Fallback Result',
+            type: 'LORA',
+            tags: [],
+            stats: {},
+            modelVersions: [
+              {
+                id: 10,
+                name: 'v1',
+                baseModel: 'SDXL 1.0',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/10',
+                  },
+                ],
+                images: [],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      })
+    })
+
+    const result = await listCivitaiLoras({ search: 'detail' })
+
+    expect(result.sortFellBackToRelevance).toBe(true)
+    expect(result.items.map((item) => item.name)).toEqual(['Fallback Result'])
+    // REST fallback really was hit (not just an empty/errored result).
+    const restCall = mockFetch.mock.calls.find(
+      (call) =>
+        String(call[0]).includes('/api/v1/models') &&
+        !String(call[0]).includes('model-versions'),
+    )
+    expect(restCall).toBeDefined()
+  })
+
+  it('search mode still applies the nsfw safe/nsfwOnly client filters on hits', async () => {
+    // Same two-orthogonal-signal setup as the REST-path nsfw fixture: safe
+    // only trusts the name-keyword signal, nsfwOnly only trusts the real
+    // civitai `nsfw` flag — they must not cross-react.
+    const cleanHit = searchHitFixture({
+      id: 1,
+      name: 'Clean Search Hit',
+      nsfw: false,
+      version: { ...searchHitFixture().version, id: 101 },
+    })
+    const nameFlaggedHit = searchHitFixture({
+      id: 2,
+      name: 'Hentai Search Hit',
+      nsfw: false,
+      version: { ...searchHitFixture().version, id: 102 },
+    })
+    const civitaiFlaggedHit = searchHitFixture({
+      id: 3,
+      name: 'Innocuous Search Hit',
+      nsfw: true,
+      version: { ...searchHitFixture().version, id: 103 },
+    })
+    const hits = [cleanHit, nameFlaggedHit, civitaiFlaggedHit]
+
+    mockSearchAndVersionFetch(multiSearchResponse(hits))
+    const safeResult = await listCivitaiLoras({
+      search: 'x',
+      nsfwFilter: 'safe',
+    })
+    expect(safeResult.items.map((i) => i.name)).toEqual([
+      'Clean Search Hit',
+      'Innocuous Search Hit',
+    ])
+
+    mockSearchAndVersionFetch(multiSearchResponse(hits))
+    const nsfwOnlyResult = await listCivitaiLoras({
+      search: 'x',
+      nsfwFilter: 'nsfwOnly',
+    })
+    expect(nsfwOnlyResult.items.map((i) => i.name)).toEqual([
+      'Innocuous Search Hit',
+    ])
   })
 })
 

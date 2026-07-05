@@ -12,7 +12,6 @@ const VALID: TrainingSubmitGateInput = {
   baseModel: 'flux-1-d',
   imageCount: 10,
   uploadsInFlight: 0,
-  hasApiKey: true,
 }
 
 function render(overrides: Partial<TrainingSubmitGateInput> = {}) {
@@ -74,11 +73,9 @@ describe('useTrainingSubmitGate', () => {
     expect(result.current.badge).toBe('invalid')
   })
 
-  it('blocks with noApiKey when no provider key configured', () => {
-    const { result } = render({ hasApiKey: false })
-    expect(result.current.reasonKey).toBe('noApiKey')
-    expect(result.current.badge).toBe('incomplete')
-  })
+  // P1-2 (Hard Rule 8): a missing API key is deliberately NOT one of this
+  // gate's reasons — the caller opens QuickSetupDialog on click instead of
+  // disabling Submit. Covered by LoraTrainingDialog's own tests.
 
   it('blocks with uploading while uploads in flight', () => {
     const { result } = render({ uploadsInFlight: 2 })

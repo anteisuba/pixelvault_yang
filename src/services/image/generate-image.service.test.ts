@@ -594,17 +594,19 @@ describe('generateImageForUser', () => {
   })
 
   it('throws VALIDATION_ERROR when selected model does not support reference images', async () => {
+    // FLUX_2_PRO is a FAL text-to-image-only model (maxReferenceImages 0).
+    // (FLUX_LORA used to sit here, but B9 gave it img2img support.)
     vi.mocked(getApiKeyValueById).mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.FAL,
       providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
       keyValue: 'fal-key',
-      modelId: AI_MODELS.FLUX_LORA,
+      modelId: AI_MODELS.FLUX_2_PRO,
     } as never)
 
     await expect(
       generateImageForUser('clerk-1', {
         ...BYOK_INPUT,
-        modelId: AI_MODELS.FLUX_LORA,
+        modelId: AI_MODELS.FLUX_2_PRO,
         referenceImages: ['https://cdn.example.com/reference.png'],
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR' }))

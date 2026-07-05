@@ -1,5 +1,10 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
+import {
+  DEFAULT_LORA_NSFW_FILTER,
+  type CivitaiLoraBaseModel,
+  type CivitaiLoraSort,
+  type LoraNsfwFilter,
+} from '@/constants/lora'
 import type {
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
@@ -78,6 +83,7 @@ export async function listCivitaiLoraAssetsAPI(params: {
   search?: string
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
+  nsfwFilter?: LoraNsfwFilter
 }): Promise<CivitaiListResponse> {
   try {
     const query = new URLSearchParams()
@@ -87,6 +93,9 @@ export async function listCivitaiLoraAssetsAPI(params: {
     if (params.search) query.set('search', params.search)
     if (params.baseModel) query.set('baseModel', params.baseModel)
     if (params.sort) query.set('sort', params.sort)
+    if (params.nsfwFilter && params.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER) {
+      query.set('nsfw', params.nsfwFilter)
+    }
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,

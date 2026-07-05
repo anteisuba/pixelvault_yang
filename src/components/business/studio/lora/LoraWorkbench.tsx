@@ -30,6 +30,9 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Users,
   Wand2,
@@ -41,14 +44,24 @@ import { toast } from 'sonner'
 import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_SORT_OPTIONS,
+  DEFAULT_LORA_NSFW_FILTER,
   DEFAULT_LORA_WORKBENCH_SECTION,
+  LORA_LIBRARY_FAMILY_PARAM,
+  LORA_LIBRARY_NSFW_PARAM,
+  LORA_LIBRARY_SEARCH_PARAM,
+  LORA_LIBRARY_SORT_PARAM,
+  LORA_NSFW_FILTER_VALUES,
+  LORA_RESULT_HISTORY_MAX,
+  LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
   isCivitaiBaseModelGeneratable,
   isCivitaiLoraBaseModel,
   isCivitaiLoraSort,
+  isLoraNsfwFilter,
   isLoraWorkbenchSection,
   type CivitaiLoraBaseModel,
+  type LoraNsfwFilter,
   type LoraWorkbenchSection,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
@@ -92,6 +105,7 @@ const MobileTrainingSheet = dynamic(
   { ssr: false },
 )
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
+import { LoraCoverTile } from '@/components/business/studio/lora/LoraCoverTile'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -116,16 +130,26 @@ import {
   recordSearchTerm,
 } from '@/lib/civitai-search-history'
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
+import { appendMissingTriggers } from '@/lib/lora-prompt-triggers'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getAvailableImageModels } from '@/constants/models'
+import { getAvailableImageModels, resolveAdapterType } from '@/constants/models'
+import {
+  getCapabilityConfig,
+  getMaxReferenceImages,
+  type NumericRange,
+} from '@/constants/provider-capabilities'
 import { PROMPT_TAG_DEFINITIONS } from '@/constants/prompt-tags'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { useImageUpload } from '@/hooks/use-image-upload'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
+import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
+import { LoraReferenceImageChip } from '@/components/business/studio/lora/LoraReferenceImageChip'
+import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import {
   buildSavedModelOptionsForModels,
@@ -198,10 +222,24 @@ export function LoraWorkbench() {
     activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
     activeSection === LORA_WORKBENCH_SECTIONS.MINE
 
+  // D7⑦: 壳（tab bar）不动，body crossfade。顶层三段（生成 / 库 / 训练）
+  // 切换时整块 body 淡入；库内公开↔我的属同一壳，只让内层内容淡入、pills
+  // 不动。key 变化触发 React 重挂载 → animate-in fade 播放；reduced-motion
+  // 由 globals.css 的全局 media 块降级为直切。
+  const bodyKey = isLibrary ? 'library' : activeSection
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-      <Tabs value={tabValue} onValueChange={handleTabChange}>
-        <TabsList className="grid h-9 w-full grid-cols-3 bg-muted/40 sm:inline-grid sm:w-auto">
+      {/* P2-4: 模块 tab 从三个全宽大块收成紧凑居中 segmented pill——
+          `items-center` 把 content-width 的 TabsList 在 flex-col 里水平居中，
+          去掉 `w-full grid-cols-3` 让它自适应内容宽度。Radix Tabs 已带
+          role=tab / 键盘导航（P2-7 语义无需另接）。 */}
+      <Tabs
+        value={tabValue}
+        onValueChange={handleTabChange}
+        className="items-center"
+      >
+        <TabsList className="h-9 bg-muted/40">
           <TabsTrigger
             value={LORA_WORKBENCH_SECTIONS.GENERATE}
             className="h-7 px-3 text-xs"
@@ -226,71 +264,79 @@ export function LoraWorkbench() {
         </TabsList>
       </Tabs>
 
-      {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
-        <GenerateBranch />
-      ) : null}
+      <div key={bodyKey} className="animate-in fade-in duration-200">
+        {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
+          <GenerateBranch />
+        ) : null}
 
-      {isLibrary ? (
-        <section className="space-y-4">
-          <div className="inline-flex gap-1 rounded-lg bg-muted/40 p-1">
-            <button
-              type="button"
-              onClick={() =>
-                setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
-              }
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
-                activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
-                  ? 'bg-background font-medium text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+        {isLibrary ? (
+          <section className="space-y-4">
+            <div className="inline-flex gap-1 rounded-lg bg-muted/40 p-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
+                }
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                  activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
+                    ? 'bg-background font-medium text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Compass className="size-3.5" aria-hidden />
+                {t('library.public')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection(LORA_WORKBENCH_SECTIONS.MINE)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                  activeSection === LORA_WORKBENCH_SECTIONS.MINE
+                    ? 'bg-background font-medium text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Library className="size-3.5" aria-hidden />
+                {t('tabs.mine')}
+              </button>
+            </div>
+
+            {/* 公开↔我的：pills 是壳保持不动，只让内层内容 crossfade。 */}
+            <div
+              key={activeSection}
+              className="animate-in fade-in duration-200"
             >
-              <Compass className="size-3.5" aria-hidden />
-              {t('library.public')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection(LORA_WORKBENCH_SECTIONS.MINE)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
-                activeSection === LORA_WORKBENCH_SECTIONS.MINE
-                  ? 'bg-background font-medium text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
+              {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
+                <MyLoraBranch
+                  trained={trainedAssets}
+                  favorites={favoriteAssets}
+                  discoverAssets={discoverAssets}
+                  isLoading={isLoadingMine}
+                  error={errorMine}
+                  onRefresh={refresh}
+                  onSwitchSection={setActiveSection}
+                  onVisibilityChange={setVisibility}
+                  onUnfavorite={unfavoriteAsset}
+                  onDelete={deleteAsset}
+                  onFavoriteDiscover={favoriteCivitaiLora}
+                  isFavorited={isFavorited}
+                />
+              ) : (
+                <CivitaiCommunityBranch
+                  onFavorite={favoriteCivitaiLora}
+                  onUnfavoriteByUrl={unfavoriteByUrl}
+                  isFavorited={isFavorited}
+                />
               )}
-            >
-              <Library className="size-3.5" aria-hidden />
-              {t('tabs.mine')}
-            </button>
-          </div>
+            </div>
+          </section>
+        ) : null}
 
-          {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
-            <MyLoraBranch
-              trained={trainedAssets}
-              favorites={favoriteAssets}
-              discoverAssets={discoverAssets}
-              isLoading={isLoadingMine}
-              error={errorMine}
-              onRefresh={refresh}
-              onSwitchSection={setActiveSection}
-              onVisibilityChange={setVisibility}
-              onUnfavorite={unfavoriteAsset}
-              onDelete={deleteAsset}
-              onFavoriteDiscover={favoriteCivitaiLora}
-              isFavorited={isFavorited}
-            />
-          ) : (
-            <CivitaiCommunityBranch
-              onFavorite={favoriteCivitaiLora}
-              onUnfavoriteByUrl={unfavoriteByUrl}
-              isFavorited={isFavorited}
-            />
-          )}
-        </section>
-      ) : null}
-
-      {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
-        <TrainingBranch />
-      ) : null}
+        {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
+          <TrainingBranch />
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -304,6 +350,25 @@ const REPLAY_ASPECT_RATIOS: readonly AspectRatio[] = [
   '4:3',
   '3:4',
 ]
+
+/** D7③: one entry in the session result filmstrip. `scale`/`seed` are captured
+ *  at generate-time for the s×.×× · seed corner label; both may be null. */
+interface LoraResultHistoryItem {
+  id: string
+  url: string
+  scale: number | null
+  seed: number | null
+}
+
+/** GenerationRecord.seed is bigint|string|number|null (bigint from DB, string
+ *  after JSON). Normalize to a finite number for the filmstrip label, or null. */
+function normalizeRecordSeed(
+  seed: bigint | string | number | null | undefined,
+): number | null {
+  if (seed == null) return null
+  const n = typeof seed === 'bigint' ? Number(seed) : Number(seed)
+  return Number.isFinite(n) ? n : null
+}
 
 /**
  * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key
@@ -430,11 +495,18 @@ function GenerateBranch() {
   // 用 render 时条件 setState（React 推荐的"随 prop 重置 state"），避免 effect 级联。
   const loraId = stack.items[0]?.asset.id ?? null
   const loraTrigger = stack.items[0]?.asset.triggerWord ?? ''
+  // §2②: 纸的初始预填 = 全部挂载触发词逗号连接（不只 primary），保证多挂载
+  // 首次出图不漏别的 LoRA 激活词。reset 只在 primary 变化时触发（key=loraId），
+  // 中途新增挂载不清空用户已编辑的正文——那条缺口由「一键同款补齐触发词」兜底。
+  const mountedTriggersPrefill = stack.items
+    .map((it) => it.asset.triggerWord?.trim())
+    .filter((word): word is string => !!word)
+    .join(', ')
   const [prompt, setPrompt] = useState('')
   const [promptLoraId, setPromptLoraId] = useState<string | null>(null)
   if (promptLoraId !== loraId) {
     setPromptLoraId(loraId)
-    setPrompt(loraTrigger)
+    setPrompt(mountedTriggersPrefill)
   }
 
   // 忠实还原：用 LoRA 的推荐/源图匹配提示词一键填充 + 套用推荐 scale + 负向。
@@ -452,21 +524,92 @@ function GenerateBranch() {
     stack.setScale(activeAsset.id, matched.scale)
   }, [activeAsset, stack])
 
-  // 源图配方：按当前 LoRA 的 Civitai provenance 取源图，点某张「一键同款」。
-  const mined = useCivitaiMinedPrompts(
+  // B10 (D7④/§2①) 多挂载配方分组：来源图 strip 一次只展示一个挂载的源图集，
+  // 上方分组 chips 切换（单挂时隐藏）。recipeGroupAsset = 当前被选中的分组，
+  // 默认第一个挂载；指向已卸载的 LoRA 时回落到 items[0]。
+  const [recipeGroupAssetId, setRecipeGroupAssetId] = useState<string | null>(
+    null,
+  )
+  const recipeGroupAsset =
+    stack.items.find((it) => it.asset.id === recipeGroupAssetId)?.asset ??
     activeAsset
+
+  // 源图配方：按当前分组 LoRA 的 Civitai provenance 取源图，点某张「一键同款」。
+  const mined = useCivitaiMinedPrompts(
+    recipeGroupAsset
       ? {
-          modelId: activeAsset.modelId,
-          modelVersionId: activeAsset.modelVersionId,
-          fileHashAutoV3: activeAsset.fileHashAutoV3,
+          modelId: recipeGroupAsset.modelId,
+          modelVersionId: recipeGroupAsset.modelVersionId,
+          fileHashAutoV3: recipeGroupAsset.fileHashAutoV3,
         }
       : null,
   )
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+  // B10 (D7④)：进推荐 tab / 切分组后默认选中第一张来源图，消灭左栏空态。
+  // 每个分组只默认一次（recipeDefaultedFor 记住已默认过的分组 key）——用户手动
+  // 关闭配方面板后不再自动弹回；切到别的分组才重新默认。render 时条件 setState
+  // 是本文件既有惯例（见上方 promptLoraId）。
+  const [recipeDefaultedFor, setRecipeDefaultedFor] = useState<string | null>(
+    null,
+  )
+  const recipeGroupKey = recipeGroupAsset?.id ?? null
+  if (
+    promptMode === 'recommend' &&
+    recipeGroupKey &&
+    !mined.isLoading &&
+    mined.recipes.length > 0 &&
+    recipeDefaultedFor !== recipeGroupKey
+  ) {
+    setRecipeDefaultedFor(recipeGroupKey)
+    setSelectedImageUrl(mined.recipes[0].imageUrl)
+  }
   const [includeSeed, setIncludeSeed] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [seed, setSeed] = useState<number | undefined>(undefined)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
+
+  // ── B10 (D7③) 结果历史 filmstrip ─────────────────────────────────────
+  // 会话级缩略条：每次出图成功后 prepend（新→旧），FIFO 上限
+  // LORA_RESULT_HISTORY_MAX。scale/seed 从「本次请求 + 返回的 GenerationRecord」
+  // 就地捕获（record.seed 是 provider 真实种子，random 请求也能回读）。选中项
+  // 覆盖主图显示；刷新即清空（正片长期归档在素材库/画廊）。
+  const [resultHistory, setResultHistory] = useState<LoraResultHistoryItem[]>(
+    [],
+  )
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null)
+
+  // ── B9 (D6) 参考图 img2img ────────────────────────────────────────────
+  // imageUpload 在 GenerateBranch own（不是各 chip 各持一份），这样
+  // handleGenerate 能读到启用的参考图 URL；chip 是否渲染 / 上限全由底模
+  // 能力位数据驱动（FLUX_LORA maxReferenceImages=1；不支持的底模为 0）。
+  const imageUpload = useImageUpload()
+  const referenceAdapter = baseModelId ? resolveAdapterType(baseModelId) : null
+  // Base-model capability config drives the paper's reference-image chip (B9)
+  // and the spine-bar scale popover (B10 D7②) — resolve it once per base.
+  const baseCapability = useMemo(
+    () =>
+      referenceAdapter && baseModelId
+        ? getCapabilityConfig(referenceAdapter, baseModelId)
+        : null,
+    [referenceAdapter, baseModelId],
+  )
+  const maxReferenceImages =
+    referenceAdapter && baseModelId
+      ? getMaxReferenceImages(referenceAdapter, baseModelId)
+      : 0
+  const referenceStrengthConfig = baseCapability?.referenceStrength
+  const loraScaleConfig = baseCapability?.loraScale
+  const maxLoras = baseCapability?.maxLoras
+  const [referenceStrength, setReferenceStrength] = useState(
+    referenceStrengthConfig?.default ?? 0.7,
+  )
+  // 底模切换时把上限同步给 useImageUpload——切到 maxRef=0 的底模，已传条目
+  // 标 disabled 但不删；切回自动恢复（§3.5）。setMaxImages 稳定且无变化时
+  // 自动 bail，安全放进 effect。
+  const setMaxReferenceImages = imageUpload.setMaxImages
+  useEffect(() => {
+    setMaxReferenceImages(maxReferenceImages)
+  }, [setMaxReferenceImages, maxReferenceImages])
 
   // 「Use LoRA」回放：网关卡片的「Use LoRA」按钮跳到
   // /studio/lora?prompt=&seed=&negativePrompt=&aspectRatio=（不再跳
@@ -506,15 +649,41 @@ function GenerateBranch() {
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
-      setPrompt(plan.prompt)
+      // B10 (D7④/§2②) 一键同款自动补齐触发词：配方来自某个分组 LoRA，但纸上
+      // 还挂着其他 LoRA——把它们缺失的触发词 append 到配方 prompt 末尾，否则
+      // 多挂载出图会漏掉别的 LoRA 的激活词。语义只承诺还原单主体（§2③）。
+      const appended = appendMissingTriggers(
+        plan.prompt,
+        stack.items.map((it) => it.asset.triggerWord),
+      )
+      setPrompt(appended.prompt)
       setNegativePrompt(plan.advancedParams?.negativePrompt ?? '')
       if (plan.aspectRatio) setAspectRatio(plan.aspectRatio)
-      if (plan.loraScale != null && activeAsset) {
-        stack.setScale(activeAsset.id, plan.loraScale)
+      // Scale applies to the group the recipe came from (per-mount), not
+      // always the primary — multi-mount tunes each LoRA independently.
+      if (plan.loraScale != null && recipeGroupAsset) {
+        stack.setScale(recipeGroupAsset.id, plan.loraScale)
       }
       setSeed(options.includeSeed ? plan.advancedParams?.seed : undefined)
+      // Undoable toast when we actually appended other mounts' triggers
+      // (single-mount → nothing appended → no toast).
+      if (appended.appendedTriggers.length > 0) {
+        const previousPrompt = prompt
+        toast.success(
+          t('generate.recipeTriggersAppended', {
+            triggers: appended.appendedTriggers.join(', '),
+          }),
+          {
+            duration: LORA_TOAST_DURATION_MS,
+            action: {
+              label: t('generate.recipeTriggersUndo'),
+              onClick: () => setPrompt(previousPrompt),
+            },
+          },
+        )
+      }
     },
-    [activeAsset, stack],
+    [prompt, recipeGroupAsset, stack, t],
   )
 
   const hasLora = stack.items.length > 0
@@ -546,23 +715,51 @@ function GenerateBranch() {
     if (loras.length > 0) advanced.loras = loras
     if (compiled.negativePrompt)
       advanced.negativePrompt = compiled.negativePrompt
-    await generate({
+    // B9: reference-image img2img — only when the base supports it (enabled
+    // urls) and one was attached. Strength drives fal's denoising inversion.
+    const referenceImages = imageUpload.referenceImages
+    if (referenceImages.length > 0) {
+      advanced.referenceStrength = referenceStrength
+    }
+    const record = await generate({
       mode: 'image',
       image: {
         modelId: providerModelId,
         freePrompt: compiled.freePrompt ?? prompt,
         aspectRatio,
         seed,
+        referenceImages:
+          referenceImages.length > 0 ? referenceImages : undefined,
         advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
         sourceSurface: 'LORA_WORKBENCH',
       },
     })
+    // D7③: on success, prepend to the session filmstrip and select it as the
+    // shown result. Scale is the primary LoRA's (loras[0]); seed comes from the
+    // record (real provider seed) with the requested seed as fallback.
+    if (record) {
+      const primaryScale = loras[0]?.scale ?? null
+      setResultHistory((prev) =>
+        [
+          {
+            id: record.id,
+            url: record.url,
+            scale: primaryScale,
+            seed: normalizeRecordSeed(record.seed) ?? seed ?? null,
+          },
+          ...prev.filter((item) => item.id !== record.id),
+        ].slice(0, LORA_RESULT_HISTORY_MAX),
+      )
+      setSelectedResultId(record.id)
+    }
   }, [
     aspectRatio,
     generate,
+    imageUpload.referenceImages,
     negativePrompt,
     prompt,
     promptTags,
+    referenceStrength,
     seed,
     selectedBase,
     stack,
@@ -578,6 +775,22 @@ function GenerateBranch() {
     }
     void handleGenerate()
   }, [handleGenerate, needsKeySetup, openKeySetupFor, workspaceOptionForBase])
+
+  // §2② 面板预告行：配方来自当前分组 LoRA，其他挂载的触发词在「一键同款」时
+  // 会被自动补上——把它们列给 strip 提示用户（前瞻性提示，不判断是否已在词里）。
+  const otherMountTriggers = stack.items
+    .filter((it) => it.asset.id !== recipeGroupKey)
+    .map((it) => it.asset.triggerWord?.trim())
+    .filter((word): word is string => !!word)
+
+  // D7③: which result the main image shows — the filmstrip selection, falling
+  // back to the newest entry, then to the hook's lastGeneration (covers a
+  // result that predates any filmstrip entry, e.g. a still-processing resolve).
+  const selectedResult =
+    resultHistory.find((item) => item.id === selectedResultId) ??
+    resultHistory[0] ??
+    null
+  const displayedResultUrl = selectedResult?.url ?? lastGeneration?.url ?? null
 
   return (
     <section className="space-y-4">
@@ -595,7 +808,7 @@ function GenerateBranch() {
       )}
 
       <Dialog
-        open={resultPreviewOpen && !!lastGeneration}
+        open={resultPreviewOpen && !!displayedResultUrl}
         onOpenChange={setResultPreviewOpen}
       >
         <DialogContent
@@ -615,10 +828,10 @@ function GenerateBranch() {
               <span>{t('coverPreviewBack')}</span>
             </button>
           </DialogClose>
-          {lastGeneration ? (
+          {displayedResultUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={lastGeneration.url}
+              src={displayedResultUrl}
               alt={t('generate.resultPreviewLabel')}
               className="block max-h-full max-w-full rounded-xl object-contain sm:max-h-[90svh] sm:max-w-[90vw]"
             />
@@ -634,6 +847,10 @@ function GenerateBranch() {
         onRequestKeySetup={() =>
           workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
         }
+        loraScaleConfig={loraScaleConfig}
+        maxLoras={maxLoras}
+        activeRecipeGroupId={recipeGroupKey}
+        onSelectRecipeGroup={setRecipeGroupAssetId}
       />
 
       {!hasLora ? (
@@ -662,132 +879,214 @@ function GenerateBranch() {
           </Button>
         </div>
       ) : (
-        <div className="grid min-w-0 gap-4 md:grid-cols-12 md:items-start">
-          <div className="min-w-0 md:col-span-6">
-            {/* 推荐/自己搭配（lora-domain-wireframes.md §3）：推荐=既有来源图
+        // D8 布局 B：上半双栏（来源/配方 · 结果），象牙提示词纸收成全宽底档。
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid min-w-0 gap-6 md:grid-cols-2 md:items-start">
+            <div className="min-w-0">
+              {/* 推荐/自己搭配（lora-domain-wireframes.md §3）：推荐=既有来源图
                 配方 strip，自己搭配=词库导入后第一个真正接上的浏览/检索
                 入口。两者共用左栏空间，之前没有配方时左栏整个不渲染，现在
                 自己搭配 tab 总有内容可显示。 */}
-            <div className="mb-2.5 inline-flex h-8 items-center gap-0.5 rounded-full bg-muted/40 p-1">
-              <button
-                type="button"
-                onClick={() => setPromptMode('recommend')}
-                className={cn(
-                  'h-6 rounded-full px-3 text-xs font-medium transition-colors',
-                  promptMode === 'recommend'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+              {/* D8 细则②：视图切换一律下划线文字 tab（非胶囊）。用普通 button +
+                  aria-pressed 而非 role=tab——没有配套 tabpanel 语义，且要与
+                  模块 tab bar 的 role=tab 区分开。 */}
+              <div
+                aria-label={t('generate.promptModeLabel')}
+                className="mb-3 flex items-center gap-4 border-b border-white/[0.08]"
               >
-                {t('generate.promptModeRecommend')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPromptMode('selfBuild')}
-                className={cn(
-                  'h-6 rounded-full px-3 text-xs font-medium transition-colors',
-                  promptMode === 'selfBuild'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t('generate.promptModeSelfBuild')}
-              </button>
-            </div>
-            {promptMode === 'recommend' ? (
-              mined.recipes.length > 0 ? (
-                <LoraSourceRecipeStrip
-                  assetName={activeAsset?.name ?? ''}
-                  recipes={mined.recipes}
-                  selectedImageUrl={selectedImageUrl}
-                  includeSeed={includeSeed}
-                  extraMountStatusByKey={{}}
-                  extraStackFull={stack.items.length >= LORA_STACK_MAX}
-                  onSelectedImageUrlChange={setSelectedImageUrl}
-                  onIncludeSeedChange={setIncludeSeed}
-                  onMountExtraLora={() => undefined}
-                  onApplyRecipe={handleApplyRecipe}
-                />
-              ) : (
-                <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
-                  {t('generate.recommendEmpty')}
-                </p>
-              )
-            ) : (
-              <LoraTagPicker />
-            )}
-          </div>
-          <div className="mx-auto w-full min-w-0 max-w-md space-y-3 md:col-span-6">
-            <div
-              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/30 bg-cover bg-center"
-              style={
-                lastGeneration
-                  ? { backgroundImage: `url(${lastGeneration.url})` }
-                  : undefined
-              }
-            >
-              {isGenerating ? (
-                <div className="flex size-full items-center justify-center">
-                  <Loader2
-                    className="size-6 animate-spin text-muted-foreground"
-                    aria-hidden
-                  />
-                </div>
-              ) : !lastGeneration ? (
-                <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
-                  <Sparkles
-                    className="size-7 text-muted-foreground/40"
-                    aria-hidden
-                  />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {t('generate.resultEmptyTitle')}
-                  </p>
-                  <p className="text-xs text-muted-foreground/70">
-                    {t('generate.resultEmptyHint')}
-                  </p>
+                {(['recommend', 'selfBuild'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={promptMode === mode}
+                    onClick={() => setPromptMode(mode)}
+                    className={cn(
+                      '-mb-px border-b-2 pb-1.5 text-xs font-medium transition-colors',
+                      promptMode === mode
+                        ? 'border-foreground text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {mode === 'recommend'
+                      ? t('generate.promptModeRecommend')
+                      : t('generate.promptModeSelfBuild')}
+                  </button>
+                ))}
+              </div>
+              {promptMode === 'recommend' ? (
+                <div className="space-y-2">
+                  {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
+                      即切来源图/配方）。这里只留一行说明当前展示的是哪个挂载的
+                      来源图，把顶部切换动作和左栏结果连起来。单挂时隐藏。 */}
+                  {stack.items.length > 1 && recipeGroupAsset ? (
+                    <p className="truncate text-2xs text-muted-foreground">
+                      {t('generate.recipeGroupActive', {
+                        name: recipeGroupAsset.name,
+                      })}
+                    </p>
+                  ) : null}
+                  {mined.isLoading ? (
+                    <div className="mt-1 flex gap-1.5" aria-hidden>
+                      {Array.from({ length: 4 }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
+                        />
+                      ))}
+                    </div>
+                  ) : mined.recipes.length > 0 ? (
+                    <LoraSourceRecipeStrip
+                      assetName={recipeGroupAsset?.name ?? ''}
+                      recipes={mined.recipes}
+                      selectedImageUrl={selectedImageUrl}
+                      includeSeed={includeSeed}
+                      extraMountStatusByKey={{}}
+                      extraStackFull={stack.items.length >= LORA_STACK_MAX}
+                      otherMountTriggers={otherMountTriggers}
+                      onSelectedImageUrlChange={setSelectedImageUrl}
+                      onIncludeSeedChange={setIncludeSeed}
+                      onMountExtraLora={() => undefined}
+                      onApplyRecipe={handleApplyRecipe}
+                    />
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                      {t('generate.recommendEmpty')}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setResultPreviewOpen(true)}
-                  aria-label={t('generate.resultPreviewLabel')}
-                  className="absolute inset-0 cursor-zoom-in"
-                />
+                <LoraTagPicker />
               )}
             </div>
+            <div className="mx-auto w-full min-w-0 max-w-md space-y-3">
+              {/* D8 细则①：结果图裸浮暗面无底板——去边框/底板，仅圆角裁切；
+                空态不套盒，居中占位。 */}
+              <div
+                className="relative aspect-square w-full overflow-hidden rounded-xl bg-cover bg-center"
+                style={
+                  displayedResultUrl
+                    ? { backgroundImage: `url(${displayedResultUrl})` }
+                    : undefined
+                }
+              >
+                {isGenerating ? (
+                  <div className="flex size-full items-center justify-center">
+                    <Loader2
+                      className="size-6 animate-spin text-muted-foreground"
+                      aria-hidden
+                    />
+                  </div>
+                ) : !displayedResultUrl ? (
+                  <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
+                    <Sparkles
+                      className="size-7 text-muted-foreground/40"
+                      aria-hidden
+                    />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('generate.resultEmptyTitle')}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {t('generate.resultEmptyHint')}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setResultPreviewOpen(true)}
+                    aria-label={t('generate.resultPreviewLabel')}
+                    className="absolute inset-0 cursor-zoom-in"
+                  />
+                )}
+              </div>
 
-            <div className="space-y-2 rounded-2xl bg-surface-composer p-3 text-surface-composer-foreground">
-              <textarea
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder={loraTrigger || t('generate.promptPlaceholder')}
-                rows={3}
-                className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
-              />
-              {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
-                <div className="space-y-1 border-t border-surface-composer-foreground/10 pt-2">
-                  <p className="text-2xs font-medium uppercase tracking-wide text-surface-composer-foreground/50">
-                    {t('generate.negativePromptLabel')}
-                  </p>
-                  <textarea
-                    value={negativePrompt}
-                    onChange={(event) => setNegativePrompt(event.target.value)}
-                    placeholder={t('generate.negativePromptPlaceholder')}
-                    rows={2}
-                    className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-surface-composer-foreground/40"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNegativePromptExpanded(true)}
-                  className="inline-flex items-center gap-1 text-2xs text-surface-composer-foreground/50 transition-colors hover:text-surface-composer-foreground"
+              {/* D7③: 会话级结果 filmstrip——多于一张时显示，点缩略切主图，
+                每张带 s×.×× · seed 角标。会话内存，刷新清空。 */}
+              {resultHistory.length > 1 ? (
+                <div
+                  className="flex gap-2 overflow-x-auto pb-1"
+                  role="listbox"
+                  aria-label={t('generate.resultHistoryLabel')}
                 >
-                  <Plus className="size-3" aria-hidden />
-                  {t('generate.negativePromptAdd')}
-                </button>
-              )}
-              <div className="flex items-center justify-between gap-2">
+                  {resultHistory.map((item) => {
+                    const isActive = item.id === selectedResult?.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isActive}
+                        onClick={() => setSelectedResultId(item.id)}
+                        title={
+                          item.seed != null
+                            ? t('generate.resultHistoryMeta', {
+                                scale:
+                                  item.scale != null
+                                    ? item.scale.toFixed(2)
+                                    : '—',
+                                seed: item.seed,
+                              })
+                            : undefined
+                        }
+                        className={cn(
+                          'group relative aspect-square h-16 shrink-0 overflow-hidden rounded-lg border bg-muted/30 bg-cover bg-center transition-colors',
+                          isActive
+                            ? 'border-primary ring-1 ring-primary'
+                            : 'border-border/60 hover:border-primary/40',
+                        )}
+                        style={{ backgroundImage: `url(${item.url})` }}
+                      >
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-[9px] leading-tight text-white/90">
+                          {item.scale != null
+                            ? `s${item.scale.toFixed(2)}`
+                            : ''}
+                          {item.scale != null && item.seed != null ? ' · ' : ''}
+                          {item.seed != null ? item.seed : ''}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* D8 布局 B (细则⑤)：象牙提示词纸全宽底档，左右下三边出血贴容器
+              边缘；.studio-composer 在其作用域内把语义色板反相成墨色系——出图
+              自动成墨块（细则③ 唯一反相 CTA）、chips 纸面形制、忠实还原=象牙
+              描边 ghost、禁止灰字上纸。 */}
+          <div className="studio-composer -mx-4 -mb-5 space-y-2 rounded-t-2xl border-t border-black/[0.06] px-4 pb-5 pt-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder={loraTrigger || t('generate.promptPlaceholder')}
+              rows={3}
+              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-surface-composer-foreground/40"
+            />
+            {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
+              <div className="space-y-1 border-t border-surface-composer-foreground/10 pt-2">
+                <p className="text-2xs font-medium uppercase tracking-wide text-surface-composer-foreground/50">
+                  {t('generate.negativePromptLabel')}
+                </p>
+                <textarea
+                  value={negativePrompt}
+                  onChange={(event) => setNegativePrompt(event.target.value)}
+                  placeholder={t('generate.negativePromptPlaceholder')}
+                  rows={2}
+                  className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-surface-composer-foreground/40"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNegativePromptExpanded(true)}
+                className="inline-flex items-center gap-1 text-2xs text-surface-composer-foreground/50 transition-colors hover:text-surface-composer-foreground"
+              >
+                <Plus className="size-3" aria-hidden />
+                {t('generate.negativePromptAdd')}
+              </button>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -798,20 +1097,38 @@ function GenerateBranch() {
                   <Wand2 className="size-3.5" aria-hidden />
                   {t('generate.restore')}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={!canGenerate}
-                  onClick={handleGenerateClick}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Sparkles className="size-3.5" aria-hidden />
-                  )}
-                  {t('generate.run')}
-                </Button>
+                {/* B10 (D7①): 比例 chip——链路早已通（handleGenerate 一直传
+                      aspectRatio），此前页面无控件把用户锁死 1:1。默认 1:1 不动。 */}
+                <LoraAspectRatioChip
+                  value={aspectRatio}
+                  onChange={setAspectRatio}
+                  disabled={isGenerating}
+                />
+                {/* B9: 参考图 chip——能力位驱动，仅当底模支持参考图
+                      （maxReferenceImages > 0）且有强度配置时渲染。 */}
+                {maxReferenceImages > 0 && referenceStrengthConfig ? (
+                  <LoraReferenceImageChip
+                    imageUpload={imageUpload}
+                    strength={referenceStrength}
+                    onStrengthChange={setReferenceStrength}
+                    strengthConfig={referenceStrengthConfig}
+                    disabled={!selectedBase?.available || isGenerating}
+                  />
+                ) : null}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!canGenerate}
+                onClick={handleGenerateClick}
+              >
+                {isGenerating ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden />
+                )}
+                {t('generate.run')}
+              </Button>
             </div>
           </div>
         </div>
@@ -990,6 +1307,15 @@ interface LoraSpineBarProps {
    *  不该挂在出图按钮上。 */
   needsKeySetup: boolean
   onRequestKeySetup: () => void
+  /** 当前底模的 LoRA scale 值域（0.1–2.0）——驱动 chip 的 scale popover。
+   *  底模未选或不支持 LoRA 时 undefined，此时 chip 退回静态文本。 */
+  loraScaleConfig: NumericRange | undefined
+  /** 当前底模的多挂载上限（fal 5 / Replicate delta-lock 2）——余量小字用。 */
+  maxLoras: number | undefined
+  /** B10-8：当前激活的配方分组（=正在展示来源图/配方的挂载）。多挂载时脊柱条
+   *  chip 点名字即切换到该 LoRA 的来源图集与配方面板。 */
+  activeRecipeGroupId: string | null
+  onSelectRecipeGroup: (assetId: string) => void
 }
 
 // 常驻脊柱条：当前 LoRA stack（自取）+ 被 LoRA 家族约束的底模扁平选择器。
@@ -1000,44 +1326,117 @@ function LoraSpineBar({
   onSelectBase,
   needsKeySetup,
   onRequestKeySetup,
+  loraScaleConfig,
+  maxLoras,
+  activeRecipeGroupId,
+  onSelectRecipeGroup,
 }: LoraSpineBarProps) {
   const t = useTranslations('LoraWorkbench')
   const tSetup = useTranslations('QuickSetup')
   const stack = useActiveLoraStack()
+  // 多挂载时 chip 名字变成分组切换器（点它切来源图/配方）；单挂无需切换。
+  const canSwitchGroup = stack.items.length > 1
 
   const fidelityLabel = (b: LoraBaseModel) =>
     b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+    // D8 细则① 去盒化：脊柱条不再套圆角面板，改底部发丝线（白 8%）+ 留白节奏。
+    <div className="flex flex-wrap items-center gap-2.5 border-b border-white/[0.08] px-0.5 pb-3">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {t('spine.currentLora')}
       </span>
       {stack.items.length > 0 ? (
-        stack.items.map((item) => (
-          <span
-            key={item.asset.id}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background py-1 pl-2.5 pr-1 text-xs"
-          >
-            {item.asset.name}
-            <span className="text-muted-foreground">
-              ×{(item.scale ?? item.asset.defaultScale).toFixed(1)}
-            </span>
-            <button
-              type="button"
-              onClick={() => stack.remove(item.asset.id)}
-              aria-label={t('spine.removeLora', { name: item.asset.name })}
-              className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        stack.items.map((item) => {
+          const isActiveGroup =
+            canSwitchGroup && item.asset.id === activeRecipeGroupId
+          return (
+            <span
+              key={item.asset.id}
+              className={cn(
+                'inline-flex items-center gap-0.5 rounded-full border py-1 pl-1 pr-1 text-xs',
+                isActiveGroup
+                  ? 'border-primary/50 bg-primary/5'
+                  : 'border-border/60 bg-background',
+              )}
             >
-              <X className="size-3" aria-hidden />
-            </button>
-          </span>
-        ))
+              {/* B10-8：长名（Civitai 全名带 | 段）截断到固定宽，全名进 title；
+                  多挂载时点名字切到该 LoRA 的来源图/配方分组。 */}
+              {canSwitchGroup ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectRecipeGroup(item.asset.id)}
+                  title={item.asset.name}
+                  aria-pressed={isActiveGroup}
+                  className={cn(
+                    'block max-w-40 truncate rounded-full px-1.5 py-0.5 font-medium transition-colors',
+                    isActiveGroup
+                      ? 'text-primary'
+                      : 'text-foreground hover:bg-muted',
+                  )}
+                >
+                  {item.asset.name}
+                </button>
+              ) : (
+                <span
+                  className="block max-w-52 truncate px-1.5"
+                  title={item.asset.name}
+                >
+                  {item.asset.name}
+                </span>
+              )}
+              {loraScaleConfig ? (
+                <LoraScaleChip
+                  name={item.asset.name}
+                  value={item.scale ?? item.asset.defaultScale}
+                  onChange={(scale) => stack.setScale(item.asset.id, scale)}
+                  config={loraScaleConfig}
+                />
+              ) : (
+                <span className="text-muted-foreground">
+                  ×{(item.scale ?? item.asset.defaultScale).toFixed(2)}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => stack.remove(item.asset.id)}
+                aria-label={t('spine.removeLora', { name: item.asset.name })}
+                className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3" aria-hidden />
+              </button>
+            </span>
+          )
+        })
       ) : (
         <span className="text-xs text-muted-foreground">
           {t('spine.empty')}
         </span>
       )}
+      {/* D8 细则④：挂载余量用实心/空心圆点替代文字计数（●●○○○）。 */}
+      {stack.items.length > 0 && maxLoras && maxLoras > 1 ? (
+        <span
+          className="flex items-center gap-1"
+          role="img"
+          aria-label={t('spine.mountCount', {
+            current: stack.items.length,
+            max: maxLoras,
+          })}
+        >
+          {Array.from({ length: maxLoras }).map((_, idx) => (
+            <span
+              key={idx}
+              aria-hidden
+              className={cn(
+                'size-1.5 rounded-full',
+                idx < stack.items.length
+                  ? 'bg-muted-foreground'
+                  : 'border border-muted-foreground/50',
+              )}
+            />
+          ))}
+        </span>
+      ) : null}
       <span className="grow" />
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {t('spine.baseModel')}
@@ -1695,6 +2094,12 @@ interface CivitaiCommunityBranchProps {
   isFavorited: (loraUrl: string) => boolean
 }
 
+const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
+  unrestricted: 'nsfwFilterUnrestricted',
+  nsfwOnly: 'nsfwFilterNsfwOnly',
+  safe: 'nsfwFilterSafe',
+}
+
 function CivitaiCommunityBranch({
   onFavorite,
   onUnfavoriteByUrl,
@@ -1702,8 +2107,70 @@ function CivitaiCommunityBranch({
 }: CivitaiCommunityBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const stack = useActiveLoraStack()
-  const library = useCivitaiLoraLibrary()
+  // P1-5 方案 A：family/q/sort/nsfw 全部入 URL query（白名单校验，未知值
+  // 静默按默认处理，不透传给 civitai API）。只在挂载时读一次做初始种子——
+  // 后续变更由下面的 effect 写回 URL，与 section 参数同一套「值等于默认
+  // 就从 query 里删掉」的约定。
+  const initialFamilyParam = searchParams.get(LORA_LIBRARY_FAMILY_PARAM)
+  const initialSortParam = searchParams.get(LORA_LIBRARY_SORT_PARAM)
+  const initialNsfwParam = searchParams.get(LORA_LIBRARY_NSFW_PARAM)
+  const library = useCivitaiLoraLibrary({
+    initialBaseModel:
+      initialFamilyParam && isCivitaiLoraBaseModel(initialFamilyParam)
+        ? initialFamilyParam
+        : undefined,
+    initialSort:
+      initialSortParam && isCivitaiLoraSort(initialSortParam)
+        ? initialSortParam
+        : undefined,
+    initialSearch:
+      searchParams.get(LORA_LIBRARY_SEARCH_PARAM)?.trim() || undefined,
+    initialNsfwFilter:
+      initialNsfwParam && isLoraNsfwFilter(initialNsfwParam)
+        ? initialNsfwParam
+        : undefined,
+  })
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (library.baseModel === 'all') {
+      params.delete(LORA_LIBRARY_FAMILY_PARAM)
+    } else {
+      params.set(LORA_LIBRARY_FAMILY_PARAM, library.baseModel)
+    }
+    if (library.debouncedSearch) {
+      params.set(LORA_LIBRARY_SEARCH_PARAM, library.debouncedSearch)
+    } else {
+      params.delete(LORA_LIBRARY_SEARCH_PARAM)
+    }
+    if (library.sort === 'Highest Rated') {
+      params.delete(LORA_LIBRARY_SORT_PARAM)
+    } else {
+      params.set(LORA_LIBRARY_SORT_PARAM, library.sort)
+    }
+    if (library.nsfwFilter === DEFAULT_LORA_NSFW_FILTER) {
+      params.delete(LORA_LIBRARY_NSFW_PARAM)
+    } else {
+      params.set(LORA_LIBRARY_NSFW_PARAM, library.nsfwFilter)
+    }
+    const query = params.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    const currentQuery = searchParams.toString()
+    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
+    if (nextUrl === currentUrl) return
+    router.replace(nextUrl, { scroll: false })
+  }, [
+    library.baseModel,
+    library.sort,
+    library.debouncedSearch,
+    library.nsfwFilter,
+    pathname,
+    router,
+    searchParams,
+  ])
   // Phase-2 enrichment: mine the activation prompt from user generations
   // for the currently-selected LoRA. Lazy + cached per (model, version,
   // hash); covers the ~34% of LoRAs that ship neither trainedWords nor
@@ -1767,15 +2234,38 @@ function CivitaiCommunityBranch({
       // rather than dispatching them into a guaranteed-failure path.
       if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
         window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-        toast.info(t('externalUseRedirect', { name: item.name }))
+        toast.info(t('externalUseRedirect', { name: item.name }), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return
       }
       stack.push(item)
-      toast.success(t('addedToStack', { name: item.name }))
+      toast.success(t('addedToStack', { name: item.name }), {
+        duration: LORA_TOAST_DURATION_MS,
+      })
       // 去生成：切到 LoRA 域生成 tab（Image Studio 已不消费 LoRA）。
       router.push(
         `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
       )
+    },
+    [router, stack, t],
+  )
+
+  // B10 (D7⑤) 带词去生成：与 handleUse 同一挂载路径，额外把试用词段带进生成
+  // 纸——走 ?prompt= 回放注入（GenerateBranch 的 replay effect 会读它填 prompt）。
+  // 只对可生成家族有意义；外源家族在 UI 层已不显示这个入口。
+  const handleUseWithPrompt = useCallback(
+    (item: CivitaiLoraLibraryItem, promptText: string) => {
+      if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) return
+      stack.push(item)
+      toast.success(t('addedToStack', { name: item.name }), {
+        duration: LORA_TOAST_DURATION_MS,
+      })
+      const params = new URLSearchParams({
+        [LORA_WORKBENCH_SEARCH_PARAM]: LORA_WORKBENCH_SECTIONS.GENERATE,
+      })
+      if (promptText.trim()) params.set('prompt', promptText)
+      router.push(`${ROUTES.STUDIO_LORA}?${params.toString()}`)
     },
     [router, stack, t],
   )
@@ -1817,6 +2307,27 @@ function CivitaiCommunityBranch({
     [library],
   )
 
+  // P1-6（三态循环）：不设限 → 仅NSFW → 安全 → 不设限。
+  const handleNsfwToggle = useCallback(() => {
+    const currentIndex = LORA_NSFW_FILTER_VALUES.indexOf(library.nsfwFilter)
+    const nextValue =
+      LORA_NSFW_FILTER_VALUES[
+        (currentIndex + 1) % LORA_NSFW_FILTER_VALUES.length
+      ]
+    library.setNsfwFilter(nextValue)
+  }, [library])
+
+  // P2-6：空结果时补「清除筛选」——只在真的有筛选在生效时才有意义显示。
+  const hasActiveFilters =
+    library.baseModel !== 'all' ||
+    library.debouncedSearch !== '' ||
+    library.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER
+  const handleClearFilters = useCallback(() => {
+    library.setBaseModel('all')
+    library.setSearch('')
+    library.setNsfwFilter(DEFAULT_LORA_NSFW_FILTER)
+  }, [library])
+
   const handleHistoryPick = useCallback(
     (term: string) => {
       library.setSearch(term)
@@ -1838,9 +2349,13 @@ function CivitaiCommunityBranch({
       const text = overridePrompt ?? buildLoraPromptTemplate(item)
       try {
         await navigator.clipboard.writeText(text)
-        toast.success(t('tryPromptCopied'))
+        toast.success(t('tryPromptCopied'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
       } catch {
-        toast.error(t('tryPromptCopyFailed'))
+        toast.error(t('tryPromptCopyFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
       }
     },
     [t],
@@ -1854,9 +2369,11 @@ function CivitaiCommunityBranch({
       // an existing prompt.
       try {
         await navigator.clipboard.writeText(trigger)
-        toast.success(t('triggerCopied'))
+        toast.success(t('triggerCopied'), { duration: LORA_TOAST_DURATION_MS })
       } catch {
-        toast.error(t('tryPromptCopyFailed'))
+        toast.error(t('tryPromptCopyFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
       }
     },
     [t],
@@ -1962,6 +2479,44 @@ function CivitaiCommunityBranch({
                 ))}
               </SelectContent>
             </Select>
+            {/* B11 兜底：meilisearch 挂了回落 REST 搜索路径，此时排序请求
+                被 civitai 静默忽略——如实告知，别让用户以为选的排序生效了。 */}
+            {library.sortFellBackToRelevance ? (
+              <span
+                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap text-2xs text-muted-foreground"
+                title={t('sortFallbackHint')}
+              >
+                {t('sortFallbackLabel')}
+              </span>
+            ) : null}
+            {/* P1-6（三态循环，2026-07-04 改稿）：不设限（默认）→ 仅NSFW
+                （过滤掉安全内容）→ 安全 → 循环。仅 NSFW 态琥珀描边示警，
+                安全态用与其它筛选 chip 一致的 primary 高亮。 */}
+            <button
+              type="button"
+              onClick={handleNsfwToggle}
+              aria-label={`${t('nsfwToggleHint')}：${t(
+                NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
+              )}`}
+              title={t('nsfwToggleHint')}
+              className={cn(
+                'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
+                library.nsfwFilter === 'nsfwOnly'
+                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  : library.nsfwFilter === 'safe'
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+              )}
+            >
+              {library.nsfwFilter === 'nsfwOnly' ? (
+                <ShieldAlert className="size-3.5" aria-hidden />
+              ) : library.nsfwFilter === 'safe' ? (
+                <ShieldCheck className="size-3.5" aria-hidden />
+              ) : (
+                <Shield className="size-3.5" aria-hidden />
+              )}
+              {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
+            </button>
           </div>
 
           <div
@@ -1987,8 +2542,19 @@ function CivitaiCommunityBranch({
                 <span>{t('communityLoadFailed')}</span>
               </div>
             ) : library.items.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                {t('communityEmpty')}
+              <div className="flex flex-col items-center gap-3 py-12 text-center text-xs text-muted-foreground">
+                <span>{t('communityEmpty')}</span>
+                {hasActiveFilters ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearFilters}
+                    className="h-8 text-xs"
+                  >
+                    {t('clearFilters')}
+                  </Button>
+                ) : null}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -1996,7 +2562,11 @@ function CivitaiCommunityBranch({
                   <CivitaiLoraCard
                     key={item.id}
                     item={item}
-                    isSelected={library.selectedItem?.id === item.id}
+                    // P2-5：ring 只在抽屉/侧栏真正打开时标记对应卡，不然首屏
+                    // 第一张卡永远带 ring 却不指向任何打开的状态。
+                    isSelected={
+                      inspectorOpen && library.selectedItem?.id === item.id
+                    }
                     isFavorited={isFavorited(item.loraUrl)}
                     onSelect={handleSelectItem}
                     onFavorite={handleFavoriteToggle}
@@ -2053,6 +2623,10 @@ function CivitaiCommunityBranch({
                 handleUse(item)
                 setInspectorOpen(false)
               }}
+              onUseWithPrompt={(item, promptText) => {
+                handleUseWithPrompt(item, promptText)
+                setInspectorOpen(false)
+              }}
               onFavorite={handleFavoriteToggle}
               onCopyTryPrompt={handleCopyTryPrompt}
               onCopyTrigger={handleCopyTrigger}
@@ -2092,6 +2666,10 @@ function CivitaiCommunityBranch({
               }
               onUse={(item) => {
                 handleUse(item)
+                setInspectorOpen(false)
+              }}
+              onUseWithPrompt={(item, promptText) => {
+                handleUseWithPrompt(item, promptText)
                 setInspectorOpen(false)
               }}
               onFavorite={handleFavoriteToggle}
@@ -2229,70 +2807,46 @@ function CivitaiLoraCard({
 }: CivitaiLoraCardProps) {
   const t = useTranslations('LoraWorkbench')
   const isGeneratable = isCivitaiBaseModelGeneratable(item.baseModelFamily)
-  // 96px CDN transform 优先，缺失才退回 640px cover——网格缩略图不用加载
-  // 1-5MB 原图。
-  const src = item.thumbImageUrl ?? item.coverImageUrl
+  // 450px 网格卡专用档位优先，缺失才退回 640px cover（P0-3：96px 缩略拉伸到
+  // ~200px 卡上系统性发糊，96 档保留给挂载栈 chip/facepile）。
+  const src = item.cardImageUrl ?? item.coverImageUrl
 
   return (
     <div className="min-w-0">
-      <div
-        className={cn(
-          'group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted',
-          isSelected &&
-            'ring-2 ring-primary ring-offset-2 ring-offset-background',
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => onSelect(item)}
-          aria-label={item.name}
-          className="absolute inset-0"
-        >
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={src}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              <Sparkles className="size-6" aria-hidden />
-            </div>
-          )}
-        </button>
-        <span
-          className={cn(
-            'pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs',
-            isGeneratable
-              ? 'bg-black/55 text-white'
-              : 'bg-amber-500/80 text-white',
-          )}
-          title={isGeneratable ? undefined : t('externalBadgeHint')}
-        >
-          {!isGeneratable ? (
+      <LoraCoverTile
+        coverUrl={src}
+        alt=""
+        fallbackIcon={<Sparkles className="size-6" aria-hidden />}
+        badgeLabel={item.baseModelFamily}
+        badgeIcon={
+          isGeneratable ? undefined : (
             <ExternalLink className="size-3" aria-hidden />
-          ) : null}
-          {item.baseModelFamily}
-        </span>
-        <button
-          type="button"
-          onClick={() => onFavorite(item)}
-          aria-label={isFavorited ? t('unfavorite') : t('favorite')}
-          title={isFavorited ? t('unfavorite') : t('favorite')}
-          className="absolute right-1.5 top-1.5 text-white drop-shadow transition-transform hover:scale-110"
-        >
-          <Heart
-            className={cn(
-              'size-4',
-              isFavorited ? 'fill-rose-500 text-rose-500' : 'fill-black/25',
-            )}
-            aria-hidden
-          />
-        </button>
-      </div>
+          )
+        }
+        badgeTitle={isGeneratable ? undefined : t('externalBadgeHint')}
+        selected={isSelected}
+        onClick={() => onSelect(item)}
+        interactiveLabel={item.name}
+        topRight={
+          // P1-9: 视觉 16px 心，触屏（coarse pointer）下用透明 ::before 把点击
+          // 区扩到 44px（16 + 2×14），鼠标端保持精确小目标不抢卡片点击。
+          <button
+            type="button"
+            onClick={() => onFavorite(item)}
+            aria-label={isFavorited ? t('unfavorite') : t('favorite')}
+            title={isFavorited ? t('unfavorite') : t('favorite')}
+            className="text-white drop-shadow transition-transform hover:scale-110 coarse:before:absolute coarse:before:-inset-3.5 coarse:before:content-['']"
+          >
+            <Heart
+              className={cn(
+                'size-4',
+                isFavorited ? 'fill-rose-500 text-rose-500' : 'fill-black/25',
+              )}
+              aria-hidden
+            />
+          </button>
+        }
+      />
       <p className="mt-1.5 truncate text-xs text-foreground">{item.name}</p>
     </div>
   )
@@ -2302,6 +2856,9 @@ interface CivitaiLoraInspectorProps {
   item: CivitaiLoraLibraryItem | null
   isFavorited: boolean
   onUse: (item: CivitaiLoraLibraryItem) => void
+  /** B10 (D7⑤): mount the LoRA + carry the shown try-prompt into the generate
+   *  paper (via ?prompt= replay), then jump to the generate section. */
+  onUseWithPrompt: (item: CivitaiLoraLibraryItem, prompt: string) => void
   onFavorite: (item: CivitaiLoraLibraryItem) => void
   onCopyTryPrompt: (
     item: CivitaiLoraLibraryItem,
@@ -2323,6 +2880,7 @@ function CivitaiLoraInspector({
   item,
   isFavorited,
   onUse,
+  onUseWithPrompt,
   onFavorite,
   onCopyTryPrompt,
   onCopyTrigger,
@@ -2335,6 +2893,9 @@ function CivitaiLoraInspector({
   const isGeneratable = item
     ? isCivitaiBaseModelGeneratable(item.baseModelFamily)
     : true
+  // P1-1：抽屉大封面同样有数秒空白灰框的窗口——caller 用 `key={item.id}`
+  // 整体重挂载这个组件，所以这个 state 天然随选中项切换重置。
+  const [coverLoaded, setCoverLoaded] = useState(false)
 
   // Multi-outfit LoRAs: Civitai authors stash per-costume activation
   // prompts in description <pre><code> blocks; we surface them as a chip
@@ -2445,6 +3006,7 @@ function CivitaiLoraInspector({
           aria-label={t('viewCover')}
           className={cn(
             'block w-full overflow-hidden rounded-lg border border-border/60 bg-muted',
+            item.coverImageUrl && !coverLoaded && 'animate-pulse',
             item.coverImageUrl
               ? 'cursor-zoom-in transition-opacity hover:opacity-90'
               : 'cursor-default',
@@ -2457,7 +3019,11 @@ function CivitaiLoraInspector({
               alt={item.name}
               width={640}
               height={360}
-              className="aspect-video w-full object-cover"
+              onLoad={() => setCoverLoaded(true)}
+              className={cn(
+                'aspect-video w-full object-cover transition-opacity duration-200',
+                coverLoaded ? 'opacity-100' : 'opacity-0',
+              )}
               loading="lazy"
               decoding="async"
             />
@@ -2623,13 +3189,27 @@ function CivitaiLoraInspector({
                 />
               ) : null}
             </span>
-            <button
-              type="button"
-              onClick={() => void onCopyTryPrompt(item, displayedPrompt)}
-              className="text-2xs font-medium text-foreground hover:text-primary"
-            >
-              {t('tryPromptCopy')}
-            </button>
+            <div className="flex shrink-0 items-center gap-2.5">
+              {/* B10 (D7⑤): 带词去生成——挂载 + 把这段试用词带进生成纸。
+                  仅可生成家族显示（外源家族无内部生成路径）。 */}
+              {isGeneratable ? (
+                <button
+                  type="button"
+                  onClick={() => onUseWithPrompt(item, displayedPrompt)}
+                  className="inline-flex items-center gap-1 text-2xs font-semibold text-primary hover:text-primary/80"
+                >
+                  <Sparkles className="size-3" aria-hidden />
+                  {t('tryPromptUseWithPrompt')}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void onCopyTryPrompt(item, displayedPrompt)}
+                className="text-2xs font-medium text-foreground hover:text-primary"
+              >
+                {t('tryPromptCopy')}
+              </button>
+            </div>
           </div>
           {/* Multi-outfit chip selector: lets the user flip between e.g.
               costume1 / costume2 of a character LoRA before copying. Only
@@ -2894,6 +3474,9 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
           // chips (+ separator) wrap to at most 2 rows on iPhone-portrait
           // instead of overflowing horizontally.
           'inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-2xs font-medium transition-colors sm:px-2.5',
+          // P1-9: 视觉尺寸不变，触屏下用透明 ::before 把点击区纵向扩到 44px
+          // （h-7=28 + 2×8）。`inset-x-0` 让 ::before 撑满 chip 宽度。
+          "relative coarse:before:absolute coarse:before:-inset-y-2 coarse:before:inset-x-0 coarse:before:content-['']",
           isActive
             ? isExternal
               ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'

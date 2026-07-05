@@ -16,12 +16,24 @@ const mockStackPush = vi.hoisted(() => vi.fn())
 const mockNextPage = vi.hoisted(() => vi.fn())
 const mockPreviousPage = vi.hoisted(() => vi.fn())
 const mockSelectItem = vi.hoisted(() => vi.fn())
+const mockSetSearch = vi.hoisted(() => vi.fn())
+const mockSetSort = vi.hoisted(() => vi.fn())
+const mockSetBaseModel = vi.hoisted(() => vi.fn())
+const mockSetNsfwFilter = vi.hoisted(() => vi.fn())
+const mockUseCivitaiLoraLibrary = vi.hoisted(() => vi.fn())
 
 let mockSection = 'community'
+// P1-5 深链测试用：family/q/sort/nsfw 查询串（不含 `section=`，由下面拼接）。
+let mockLibraryQuery = ''
 let mockFavoritedUrls = new Set<string>()
 let mockLibraryItems: CivitaiLoraLibraryItem[] = []
 let mockLibraryPage = 1
 let mockLibraryHasNextPage = false
+let mockLibrarySearch = ''
+let mockLibraryDebouncedSearch = ''
+let mockLibrarySort = 'Highest Rated'
+let mockLibraryBaseModel = 'all'
+let mockLibraryNsfwFilter = 'unrestricted'
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -38,7 +50,10 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(`section=${mockSection}`),
+  useSearchParams: () =>
+    new URLSearchParams(
+      [`section=${mockSection}`, mockLibraryQuery].filter(Boolean).join('&'),
+    ),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -99,33 +114,7 @@ vi.mock('@/lib/civitai-search-history', () => ({
 }))
 
 vi.mock('@/hooks/use-civitai-lora-library', () => ({
-  useCivitaiLoraLibrary: () => ({
-    get items() {
-      return mockLibraryItems
-    },
-    selectedItem: mockLibraryItems[0] ?? null,
-    total: mockLibraryItems.length,
-    get page() {
-      return mockLibraryPage
-    },
-    pageSize: 24,
-    get hasNextPage() {
-      return mockLibraryHasNextPage
-    },
-    isLoading: false,
-    isRevalidating: false,
-    error: null,
-    search: '',
-    sort: 'Highest Rated',
-    baseModel: 'all',
-    setSearch: vi.fn(),
-    setSort: vi.fn(),
-    setBaseModel: vi.fn(),
-    selectItem: mockSelectItem,
-    nextPage: mockNextPage,
-    previousPage: mockPreviousPage,
-    refresh: vi.fn(),
-  }),
+  useCivitaiLoraLibrary: mockUseCivitaiLoraLibrary,
 }))
 
 function makeLibraryItem(
@@ -170,12 +159,18 @@ function makeLibraryItem(
 describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', () => {
   beforeEach(() => {
     mockSection = 'community'
+    mockLibraryQuery = ''
     mockFavoriteCivitaiLora.mockReset()
     mockUnfavoriteByUrl.mockReset()
     mockStackPush.mockReset()
     mockSelectItem.mockReset()
     mockNextPage.mockReset()
     mockPreviousPage.mockReset()
+    mockSetSearch.mockReset()
+    mockSetSort.mockReset()
+    mockSetBaseModel.mockReset()
+    mockSetNsfwFilter.mockReset()
+    mockUseCivitaiLoraLibrary.mockReset()
     mockFavoritedUrls = new Set()
     mockLibraryItems = [
       makeLibraryItem({ id: '1', name: 'Perlica' }),
@@ -183,6 +178,51 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     ]
     mockLibraryPage = 1
     mockLibraryHasNextPage = true
+    mockLibrarySearch = ''
+    mockLibraryDebouncedSearch = ''
+    mockLibrarySort = 'Highest Rated'
+    mockLibraryBaseModel = 'all'
+    mockLibraryNsfwFilter = 'unrestricted'
+    mockUseCivitaiLoraLibrary.mockImplementation(() => ({
+      get items() {
+        return mockLibraryItems
+      },
+      selectedItem: mockLibraryItems[0] ?? null,
+      total: mockLibraryItems.length,
+      get page() {
+        return mockLibraryPage
+      },
+      pageSize: 24,
+      get hasNextPage() {
+        return mockLibraryHasNextPage
+      },
+      isLoading: false,
+      isRevalidating: false,
+      error: null,
+      get search() {
+        return mockLibrarySearch
+      },
+      get debouncedSearch() {
+        return mockLibraryDebouncedSearch
+      },
+      get sort() {
+        return mockLibrarySort
+      },
+      get baseModel() {
+        return mockLibraryBaseModel
+      },
+      get nsfwFilter() {
+        return mockLibraryNsfwFilter
+      },
+      setSearch: mockSetSearch,
+      setSort: mockSetSort,
+      setBaseModel: mockSetBaseModel,
+      setNsfwFilter: mockSetNsfwFilter,
+      selectItem: mockSelectItem,
+      nextPage: mockNextPage,
+      previousPage: mockPreviousPage,
+      refresh: vi.fn(),
+    }))
   })
 
   it('renders a cover card per library item instead of a row list', () => {
@@ -257,5 +297,283 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     expect(
       screen.getByRole('button', { name: /LoraWorkbench:communityPrevious/ }),
     ).not.toBeDisabled()
+  })
+})
+
+describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
+  beforeEach(() => {
+    mockSection = 'community'
+    mockLibraryQuery = ''
+    mockUseCivitaiLoraLibrary.mockReset()
+    mockFavoritedUrls = new Set()
+    mockLibraryItems = []
+    mockLibraryPage = 1
+    mockLibraryHasNextPage = false
+    mockLibrarySearch = ''
+    mockLibraryDebouncedSearch = ''
+    mockLibrarySort = 'Highest Rated'
+    mockLibraryBaseModel = 'all'
+    mockLibraryNsfwFilter = 'unrestricted'
+    mockUseCivitaiLoraLibrary.mockImplementation(() => ({
+      items: mockLibraryItems,
+      selectedItem: null,
+      total: 0,
+      page: mockLibraryPage,
+      pageSize: 24,
+      hasNextPage: mockLibraryHasNextPage,
+      isLoading: false,
+      isRevalidating: false,
+      error: null,
+      search: mockLibrarySearch,
+      debouncedSearch: mockLibraryDebouncedSearch,
+      sort: mockLibrarySort,
+      baseModel: mockLibraryBaseModel,
+      nsfwFilter: mockLibraryNsfwFilter,
+      setSearch: mockSetSearch,
+      setSort: mockSetSort,
+      setBaseModel: mockSetBaseModel,
+      setNsfwFilter: mockSetNsfwFilter,
+      selectItem: mockSelectItem,
+      nextPage: mockNextPage,
+      previousPage: mockPreviousPage,
+      refresh: vi.fn(),
+    }))
+  })
+
+  it('parses family/q/sort/nsfw off the URL into the hook initial seed', () => {
+    mockLibraryQuery = 'family=Illustrious&q=detail&sort=Newest&nsfw=nsfwOnly'
+
+    render(<LoraWorkbench />)
+
+    expect(mockUseCivitaiLoraLibrary).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialBaseModel: 'Illustrious',
+        initialSort: 'Newest',
+        initialSearch: 'detail',
+        initialNsfwFilter: 'nsfwOnly',
+      }),
+    )
+  })
+
+  it('falls back to defaults for unknown/invalid query values instead of leaking them', () => {
+    mockLibraryQuery = 'family=not-a-real-family&sort=also-bogus&nsfw=yes'
+
+    render(<LoraWorkbench />)
+
+    expect(mockUseCivitaiLoraLibrary).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialBaseModel: undefined,
+        initialSort: undefined,
+        initialNsfwFilter: undefined,
+      }),
+    )
+  })
+})
+
+describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear filters', () => {
+  beforeEach(() => {
+    mockSection = 'community'
+    mockLibraryQuery = ''
+    mockSetSearch.mockReset()
+    mockSetSort.mockReset()
+    mockSetBaseModel.mockReset()
+    mockSetNsfwFilter.mockReset()
+    mockUseCivitaiLoraLibrary.mockReset()
+    mockFavoritedUrls = new Set()
+    mockLibraryPage = 1
+    mockLibraryHasNextPage = false
+    mockLibrarySearch = ''
+    mockLibraryDebouncedSearch = ''
+    mockLibrarySort = 'Highest Rated'
+    mockLibraryBaseModel = 'all'
+    mockLibraryNsfwFilter = 'unrestricted'
+    mockLibraryItems = []
+  })
+
+  function mockLibraryReturn() {
+    return {
+      items: mockLibraryItems,
+      selectedItem: mockLibraryItems[0] ?? null,
+      total: mockLibraryItems.length,
+      page: mockLibraryPage,
+      pageSize: 24,
+      hasNextPage: mockLibraryHasNextPage,
+      isLoading: false,
+      isRevalidating: false,
+      error: null,
+      search: mockLibrarySearch,
+      debouncedSearch: mockLibraryDebouncedSearch,
+      sort: mockLibrarySort,
+      baseModel: mockLibraryBaseModel,
+      nsfwFilter: mockLibraryNsfwFilter,
+      setSearch: mockSetSearch,
+      setSort: mockSetSort,
+      setBaseModel: mockSetBaseModel,
+      setNsfwFilter: mockSetNsfwFilter,
+      selectItem: mockSelectItem,
+      nextPage: mockNextPage,
+      previousPage: mockPreviousPage,
+      refresh: vi.fn(),
+    }
+  }
+
+  // P1-6 三态循环：unrestricted(默认) → nsfwOnly → safe → unrestricted。
+  it('cycles unrestricted → nsfwOnly on click, showing the unrestricted label by default', () => {
+    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
+
+    render(<LoraWorkbench />)
+
+    const toggle = screen.getByRole('button', {
+      name: /LoraWorkbench:nsfwToggleHint/,
+    })
+    expect(
+      within(toggle).getByText('LoraWorkbench:nsfwFilterUnrestricted'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(mockSetNsfwFilter).toHaveBeenCalledWith('nsfwOnly')
+  })
+
+  it('cycles nsfwOnly → safe on click, showing the nsfwOnly label', () => {
+    mockLibraryNsfwFilter = 'nsfwOnly'
+    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
+
+    render(<LoraWorkbench />)
+
+    const toggle = screen.getByRole('button', {
+      name: /LoraWorkbench:nsfwToggleHint/,
+    })
+    expect(
+      within(toggle).getByText('LoraWorkbench:nsfwFilterNsfwOnly'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(mockSetNsfwFilter).toHaveBeenCalledWith('safe')
+  })
+
+  it('cycles safe → unrestricted on click, showing the safe label', () => {
+    mockLibraryNsfwFilter = 'safe'
+    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
+
+    render(<LoraWorkbench />)
+
+    const toggle = screen.getByRole('button', {
+      name: /LoraWorkbench:nsfwToggleHint/,
+    })
+    expect(
+      within(toggle).getByText('LoraWorkbench:nsfwFilterSafe'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
+  })
+
+  it('shows a clear-filters action in the empty state only when a filter is active, and resets on click', () => {
+    mockLibraryBaseModel = 'Illustrious'
+    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
+
+    render(<LoraWorkbench />)
+
+    const clearButton = screen.getByRole('button', {
+      name: 'LoraWorkbench:clearFilters',
+    })
+    fireEvent.click(clearButton)
+
+    expect(mockSetBaseModel).toHaveBeenCalledWith('all')
+    expect(mockSetSearch).toHaveBeenCalledWith('')
+    expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
+  })
+
+  it('hides the clear-filters action when no filter is active', () => {
+    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:clearFilters' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+// B7 form-batch card visuals: P2-1 (external family badge unified to the
+// black nacre, no amber solid) + P1-9 (touch hit-area expansion classes on
+// the favorite heart and family chips). The exact ≥44px measurement is a
+// visual/Playwright concern; these are cheap regression guards against a
+// revert of the intentional classes.
+describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
+  beforeEach(() => {
+    mockSection = 'community'
+    mockLibraryQuery = ''
+    mockUseCivitaiLoraLibrary.mockReset()
+    mockFavoritedUrls = new Set()
+    mockLibraryPage = 1
+    mockLibraryHasNextPage = false
+    mockLibrarySearch = ''
+    mockLibraryDebouncedSearch = ''
+    mockLibrarySort = 'Highest Rated'
+    mockLibraryBaseModel = 'all'
+    mockLibraryNsfwFilter = 'unrestricted'
+    // Pony is an external (non-generatable) family — used to prove the badge
+    // is NOT amber for external items.
+    mockLibraryItems = [
+      makeLibraryItem({
+        id: 'ext-1',
+        name: 'Pony Card',
+        baseModelFamily: 'Pony',
+      }),
+    ]
+    mockUseCivitaiLoraLibrary.mockImplementation(() => ({
+      items: mockLibraryItems,
+      selectedItem: null,
+      total: mockLibraryItems.length,
+      page: mockLibraryPage,
+      pageSize: 24,
+      hasNextPage: mockLibraryHasNextPage,
+      isLoading: false,
+      isRevalidating: false,
+      error: null,
+      search: mockLibrarySearch,
+      debouncedSearch: mockLibraryDebouncedSearch,
+      sort: mockLibrarySort,
+      baseModel: mockLibraryBaseModel,
+      nsfwFilter: mockLibraryNsfwFilter,
+      setSearch: mockSetSearch,
+      setSort: mockSetSort,
+      setBaseModel: mockSetBaseModel,
+      setNsfwFilter: mockSetNsfwFilter,
+      selectItem: mockSelectItem,
+      nextPage: mockNextPage,
+      previousPage: mockPreviousPage,
+      refresh: vi.fn(),
+    }))
+  })
+
+  it('P2-1: external family badge uses the black nacre, never an amber solid', () => {
+    render(<LoraWorkbench />)
+
+    // "Pony" also appears as a filter chip (a <button role=radio>); the card
+    // badge is the <span> overlay — pick that one.
+    const badge = screen
+      .getAllByText('Pony')
+      .find((el) => el.tagName === 'SPAN')
+    expect(badge).toBeDefined()
+    expect(badge?.className).toContain('bg-black/55')
+    expect(badge?.className).not.toContain('amber')
+  })
+
+  it('P1-9: favorite heart carries the touch (coarse) hit-area expansion', () => {
+    render(<LoraWorkbench />)
+
+    const heart = screen.getByRole('button', { name: 'LoraWorkbench:favorite' })
+    expect(heart.className).toContain('coarse:before:')
+  })
+
+  it('P1-9: family filter chips carry the touch (coarse) hit-area expansion', () => {
+    render(<LoraWorkbench />)
+
+    const allChip = screen.getByRole('radio', {
+      name: 'LoraWorkbench:baseModelFilterAll',
+    })
+    expect(allChip.className).toContain('coarse:before:')
   })
 })

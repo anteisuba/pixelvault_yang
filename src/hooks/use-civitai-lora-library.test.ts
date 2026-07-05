@@ -175,4 +175,105 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.items).toEqual([itemA])
     expect(result.current.isRevalidating).toBe(false)
   })
+
+  // P1-5：URL 深链的种子值——caller（CivitaiCommunityBranch）解析 URL 后
+  // 传进来，hook 只在挂载时读一次。
+  it('seeds baseModel/sort/search/nsfwFilter from options and fetches with them on mount', async () => {
+    const item = createItem('deep-link', 'Deep link seed')
+    mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
+      success: true,
+      data: createResult(item, 1),
+    })
+
+    const { result } = renderHook(() =>
+      useCivitaiLoraLibrary({
+        initialBaseModel: 'Pony',
+        initialSort: 'Newest',
+        initialSearch: 'foo',
+        initialNsfwFilter: 'nsfwOnly',
+      }),
+    )
+
+    // Seeded search already equals debouncedSearch, so this fetches
+    // immediately — no debounce wait needed.
+    await waitFor(() => expect(result.current.items).toEqual([item]))
+
+    expect(result.current.baseModel).toBe('Pony')
+    expect(result.current.sort).toBe('Newest')
+    expect(result.current.search).toBe('foo')
+    expect(result.current.debouncedSearch).toBe('foo')
+    expect(result.current.nsfwFilter).toBe('nsfwOnly')
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseModel: 'Pony',
+        sort: 'Newest',
+        search: 'foo',
+        nsfwFilter: 'nsfwOnly',
+      }),
+    )
+  })
+
+  it('defaults nsfwFilter to unrestricted when no options are given', async () => {
+    const item = createItem('default-nsfw', 'Default nsfw filter')
+    mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
+      success: true,
+      data: createResult(item, 1),
+    })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([item]))
+
+    expect(result.current.nsfwFilter).toBe('unrestricted')
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledWith(
+      expect.objectContaining({ nsfwFilter: 'unrestricted' }),
+    )
+  })
+
+  // P1-6：nsfwFilter 是独立的缓存维度/请求参数——切换必须触发新请求，不能被
+  // 另一档的缓存条目误命中，也不能悄悄透传成别的值。
+  it('threads nsfwFilter into the fetch params and cache key, resetting to page 1 on toggle', async () => {
+    const unrestrictedItem = createItem('unrestricted-1', 'Unrestricted result')
+    const nsfwOnlyItem = createItem('nsfw-only-1', 'Nsfw only result')
+
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(unrestrictedItem, 1),
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(nsfwOnlyItem, 1),
+      })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() =>
+      expect(result.current.items).toEqual([unrestrictedItem]),
+    )
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ nsfwFilter: 'unrestricted' }),
+    )
+
+    act(() => {
+      result.current.setNsfwFilter('nsfwOnly')
+    })
+
+    expect(result.current.page).toBe(1)
+    await waitFor(() => expect(result.current.items).toEqual([nsfwOnlyItem]))
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ nsfwFilter: 'nsfwOnly' }),
+    )
+
+    // Toggling back to unrestricted hits the cache entry from the first
+    // fetch (nsfwFilter is part of the cache key, so this is the same key
+    // as call #1) — no third network call, same as the existing sort
+    // toggle-back behaviour.
+    act(() => {
+      result.current.setNsfwFilter('unrestricted')
+    })
+    await waitFor(() =>
+      expect(result.current.items).toEqual([unrestrictedItem]),
+    )
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
+  })
 })

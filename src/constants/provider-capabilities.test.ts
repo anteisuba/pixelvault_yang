@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
 import {
   ADAPTER_CAPABILITIES,
   getCapabilityConfig,
+  getMaxReferenceImages,
   hasCapability,
 } from '@/constants/provider-capabilities'
 
@@ -82,5 +84,20 @@ describe('provider-capabilities', () => {
     expect(config.qualityOptions!.length).toBeGreaterThan(0)
     expect(config.backgroundOptions!.length).toBeGreaterThan(0)
     expect(config.styleOptions!.length).toBeGreaterThan(0)
+  })
+
+  // B9 (D6): FLUX LoRA reference-image img2img is enabled — the workbench
+  // gates the reference chip on getMaxReferenceImages > 0, and the strength
+  // slider on the inherited FAL referenceStrength range.
+  it('FLUX LoRA accepts one reference image with an inherited strength range', () => {
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.FLUX_LORA),
+    ).toBe(1)
+    const config = getCapabilityConfig(
+      AI_ADAPTER_TYPES.FAL,
+      AI_MODELS.FLUX_LORA,
+    )
+    expect(config.referenceStrength).toBeDefined()
+    expect(config.capabilities).toContain('referenceStrength')
   })
 })

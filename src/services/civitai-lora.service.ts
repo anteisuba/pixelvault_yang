@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { Buffer } from 'node:buffer'
+
 import { z } from 'zod'
 
 import {
@@ -7,8 +9,11 @@ import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
+  DEFAULT_LORA_NSFW_FILTER,
+  isNsfwNamedModel,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
+  type LoraNsfwFilter,
 } from '@/constants/lora'
 import {
   extractActivationSegment,
@@ -158,6 +163,9 @@ const CivitaiModelSchema = z
       z.array(z.string()).optional(),
     ),
     allowDerivatives: z.boolean().optional(),
+    // civitai 模型级 NSFW 标记（与图片级 nsfwLevel 分开）——P1-6 三态里
+    // 「仅 NSFW」档用它做客户端二次过滤。
+    nsfw: z.boolean().optional(),
   })
   .passthrough()
 
@@ -187,6 +195,44 @@ const CivitaiSearchVersionSchema = z
     name: z.string().optional(),
     baseModel: z.string().nullable().optional(),
     files: z.array(CivitaiSearchVersionFileSchema).optional(),
+    // B11：meilisearch 版本对象里有这两个，但从不带 files[].downloadUrl —
+    // 触发词/下载量可以直接用，下载链接必须另外二段解析（见
+    // fetchCivitaiSearchVersionDownloadUrl）。
+    trainedWords: z.array(z.string()).optional(),
+    metrics: CivitaiStatsSchema.optional(),
+    createdAt: z.string().optional(),
+  })
+  .passthrough()
+
+// B11：meilisearch 图片对象没有拼好的完整 URL，只有 CDN 路径的两段
+// （id 对应文件名、url 对应 uuid 目录）——真实 URL 由
+// buildCivitaiSearchImageOriginalUrl 用固定 bucket 拼出来，实测同一
+// bucket 在不同模型/作者间一致（Cloudflare Images 账号级路径，非按图分配）。
+const CivitaiSearchImageSchema = z
+  .object({
+    id: z.number(),
+    url: z.string(),
+    nsfwLevel: z.number().optional(),
+  })
+  .passthrough()
+
+const CivitaiSearchUserSchema = z
+  .object({
+    username: z.string().optional(),
+    image: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+const CivitaiSearchPermissionsSchema = z
+  .object({
+    allowCommercialUse: z.array(z.string()).optional(),
+    allowDerivatives: z.boolean().optional(),
+  })
+  .passthrough()
+
+const CivitaiSearchTagSchema = z
+  .object({
+    name: z.string(),
   })
   .passthrough()
 
@@ -195,7 +241,17 @@ const CivitaiSearchHitSchema = z
     id: z.number(),
     name: z.string(),
     type: z.string().optional(),
+    // hit.version = civitai 挑的"这次命中要展示的版本"（其余版本在
+    // versions[] 里，B11 只用这一个，与 versions[0] 保持一致但不假设顺序）。
+    version: CivitaiSearchVersionSchema.optional(),
     versions: z.array(CivitaiSearchVersionSchema).optional(),
+    createdAt: z.string().optional(),
+    nsfw: z.boolean().optional(),
+    metrics: CivitaiStatsSchema.optional(),
+    user: CivitaiSearchUserSchema.nullable().optional(),
+    permissions: CivitaiSearchPermissionsSchema.optional(),
+    tags: z.array(CivitaiSearchTagSchema).optional(),
+    images: z.array(CivitaiSearchImageSchema).optional(),
   })
   .passthrough()
 
@@ -205,6 +261,7 @@ const CivitaiModelSearchResponseSchema = z
       z
         .object({
           hits: z.array(CivitaiSearchHitSchema).optional(),
+          estimatedTotalHits: z.number().optional(),
         })
         .passthrough(),
     ),
@@ -458,8 +515,11 @@ function baseModelMatchesCandidate(
   return candidateKey !== null && acceptedKeys.has(candidateKey)
 }
 
+// 只按文件名比对，跟调用方是 REST 版本对象还是 meilisearch 版本对象无关——
+// 参数类型故意收窄到实际用到的形状，别绑死某一份 schema（两处调用方各用
+// 各的 schema，字段集合并不完全相同）。
 function searchVersionHasExactFileStem(
-  version: z.infer<typeof CivitaiSearchVersionSchema>,
+  version: { files?: { name?: string }[] },
   targetNameKey: string,
 ): boolean {
   return (
@@ -712,6 +772,10 @@ export interface ListCivitaiLorasInput {
   search?: string
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
+  /** P1-6：三态分级，默认 'unrestricted'（安全+NSFW 混着显示，不过滤）。
+   *  'safe' 请求 civitai `nsfw=false` + 名称词表兜底；'nsfwOnly' 请求
+   *  civitai `nsfw=true` 后客户端只保留 `isNsfw` 的条目。 */
+  nsfwFilter?: LoraNsfwFilter
 }
 
 export interface CivitaiLoraPrewarmEntry {
@@ -734,7 +798,53 @@ export interface CivitaiLoraPrewarmResult {
 }
 
 const CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT = 40
-const CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES = 5
+const CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES = 10
+const CIVITAI_SEARCH_SCAN_CURSOR_PREFIX = 'search-scan:v1:'
+const CIVITAI_LEGACY_SEARCH_SCAN_CURSOR_PREFIX = 'search-scan:'
+
+const CivitaiSearchScanCursorSchema = z.object({
+  upstreamCursor: z.string().nullable(),
+  skippedItemIds: z.array(z.string()).max(CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT),
+})
+
+type CivitaiSearchScanCursor = z.infer<typeof CivitaiSearchScanCursorSchema>
+
+function parseCivitaiSearchScanCursor(
+  cursor: string | null | undefined,
+): CivitaiSearchScanCursor {
+  const normalizedCursor = cursor?.trim()
+  if (!normalizedCursor) {
+    return { upstreamCursor: null, skippedItemIds: [] }
+  }
+  if (!normalizedCursor.startsWith(CIVITAI_SEARCH_SCAN_CURSOR_PREFIX)) {
+    if (normalizedCursor.startsWith(CIVITAI_LEGACY_SEARCH_SCAN_CURSOR_PREFIX)) {
+      return { upstreamCursor: null, skippedItemIds: [] }
+    }
+    return { upstreamCursor: normalizedCursor, skippedItemIds: [] }
+  }
+
+  try {
+    const encoded = normalizedCursor.slice(
+      CIVITAI_SEARCH_SCAN_CURSOR_PREFIX.length,
+    )
+    const payload: unknown = JSON.parse(
+      Buffer.from(encoded, 'base64url').toString('utf8'),
+    )
+    const parsed = CivitaiSearchScanCursorSchema.safeParse(payload)
+    if (parsed.success) return parsed.data
+  } catch {
+    // Invalid or stale cursors restart the bounded search scan safely.
+  }
+
+  return { upstreamCursor: null, skippedItemIds: [] }
+}
+
+function createCivitaiSearchScanCursor(state: CivitaiSearchScanCursor): string {
+  const encoded = Buffer.from(JSON.stringify(state), 'utf8').toString(
+    'base64url',
+  )
+  return `${CIVITAI_SEARCH_SCAN_CURSOR_PREFIX}${encoded}`
+}
 
 function pickDownloadUrl(
   version: z.infer<typeof CivitaiModelVersionSchema>,
@@ -756,7 +866,11 @@ function pickDownloadUrl(
 // 各场景下的目标渲染宽度（CSS px），用于把 Civitai 默认 `original=true` 的
 // 大图（1–5 MB）改写成对应尺寸的 transform。Retina 屏 ×2 在大多数列表场景
 // 已经够清；超出的 LCP/带宽成本远大于细节收益。
-const CIVITAI_THUMB_WIDTH = 96 // 列表 row 40×40 缩略
+const CIVITAI_THUMB_WIDTH = 96 // 列表 row 40×40 缩略；挂载栈 chip / facepile 用
+// 公开库封面网格卡（~166–221px CSS，retina 需 ~400 物理 px）。此前网格误用了
+// 96 档缩略图（P0-3：96px 拉伸到 ~200px 卡上系统性发糊），640 档又是给抽屉
+// 大图用的、网格 30 张同屏时流量翻倍——450 是网格卡专用的中间档。
+const CIVITAI_CARD_WIDTH = 450
 const CIVITAI_COVER_WIDTH = 640 // Inspector aspect-video / AssetCard square
 const CIVITAI_PREVIEW_WIDTH = 768 // 预留：未来的预览画廊 / 大图轮播
 
@@ -808,6 +922,9 @@ function toLibraryItem(
   const thumbImageUrl = coverOriginal
     ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_THUMB_WIDTH })
     : null
+  const cardImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_CARD_WIDTH })
+    : null
   const baseModelFamily = version.baseModel?.trim() || 'unknown'
   // 触发词抽取的复杂度（拆 comma / 去 SD 语法 / 多 outfit / 从模型名兜底）
   // 全部封装在 `extractCivitaiTrigger`。旧实现取 trainedWords[0] 整段、然后
@@ -849,6 +966,7 @@ function toLibraryItem(
     coverImageUrl,
     coverImageUrlOriginal: coverOriginal,
     thumbImageUrl,
+    cardImageUrl,
     previewImageUrls,
     defaultScale: 1,
     isPublic: true,
@@ -868,6 +986,255 @@ function toLibraryItem(
       version.stats?.thumbsUpCount ?? model.stats?.thumbsUpCount ?? 0,
     allowCommercialUse: model.allowCommercialUse ?? [],
     allowDerivatives: model.allowDerivatives ?? false,
+    isNsfw: model.nsfw ?? false,
+  }
+}
+
+// ── B11：搜索路径切 civitai 自家 meilisearch（真排序）────────────────────
+//
+// REST `/api/v1/models` 带 `query` 时忽略 `sort`（官方 issue civitai/civitai
+// #1848，我们自己 curl 对照实验也证实）。civitai 网页版自己的搜索走这个
+// meilisearch 端点，排序字段实测（2026-07-04）全部生效。
+
+// Cloudflare Images 账号级 bucket——同一 bucket 在两个完全无关模型/作者的
+// 封面图之间保持一致（不是按图分配），实测对照 REST 响应确认。
+const CIVITAI_SEARCH_IMAGE_BUCKET = 'xG1nkqKTMzGDvpLrqFT7WA'
+
+function buildCivitaiSearchImageOriginalUrl(image: {
+  id: number
+  url: string
+}): string {
+  return `https://image.civitai.com/${CIVITAI_SEARCH_IMAGE_BUCKET}/${image.url}/original=true/${image.id}.jpeg`
+}
+
+// 排序映射——三档实测（curl 对照，2026-07-04）：不传 sort 就是 meilisearch
+// 相关性序（与 REST 搜索结果逐条一致，说明 REST 内部就是这条相关性序）；
+// 其余两档严格降序。
+const CIVITAI_SEARCH_SORT_MAP: Record<CivitaiLoraSort, string[] | undefined> = {
+  'Highest Rated': undefined,
+  'Most Downloaded': ['metrics.downloadCount:desc'],
+  Newest: ['createdAt:desc'],
+}
+
+// meilisearch hit 里没有 files[]/downloadUrl（实测确认，与 REST 的
+// modelVersions[].files 不同）——每个 hit 都要单独二段解析。批量大小跟
+// resolveFirstExactCivitaiVersionCandidate 的批量常量保持一致的节流力度。
+const CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE = 6
+
+async function fetchCivitaiSearchVersionDownloadUrl(
+  versionId: number,
+): Promise<string | null> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${versionId}`)
+  try {
+    const payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.searchVersionDownloadUrl',
+    })
+    const parsed = CivitaiVersionResolveSchema.safeParse(payload)
+    if (!parsed.success) return null
+    return pickDownloadUrl(parsed.data)
+  } catch (error) {
+    logger.warn('Civitai search hit version download-url resolve failed', {
+      versionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+}
+
+async function hitToLibraryItem(
+  hit: z.infer<typeof CivitaiSearchHitSchema>,
+): Promise<CivitaiLoraLibraryItem | null> {
+  if (hit.type && hit.type.toUpperCase() !== 'LORA') return null
+  // hit.version = civitai 挑的"这次命中要展示的版本"；versions[0] 兜底
+  // 未必所有 hit 都带 version 字段。
+  const version = hit.version ?? hit.versions?.[0]
+  if (!version) return null
+
+  const loraUrl = await fetchCivitaiSearchVersionDownloadUrl(version.id)
+  if (!loraUrl) return null
+
+  const tags = (hit.tags ?? []).map((tag) => tag.name)
+  const originalImageUrls = (hit.images ?? [])
+    .filter((image) => (image.nsfwLevel ?? 1) <= 2)
+    .slice(0, 6)
+    .map((image) => buildCivitaiSearchImageOriginalUrl(image))
+  const coverOriginal = originalImageUrls[0] ?? null
+  const previewImageUrls = originalImageUrls.map((url) =>
+    rewriteCivitaiImageUrl(url, { width: CIVITAI_PREVIEW_WIDTH }),
+  )
+  const coverImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })
+    : null
+  const thumbImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_THUMB_WIDTH })
+    : null
+  const cardImageUrl = coverOriginal
+    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_CARD_WIDTH })
+    : null
+  const baseModelFamily = version.baseModel?.trim() || 'unknown'
+
+  const triggerInfo = extractCivitaiTrigger({
+    trainedWords: version.trainedWords,
+    modelName: hit.name,
+    // meilisearch hit 没有 description 字段（实测确认）——outfit 多段
+    // prompt 抽取在搜索结果里天然缺失，mined-prompts phase-2 enrichment
+    // 之后按需补，不在本批范围内。
+    descriptionHtml: null,
+  })
+
+  return {
+    id: `civitai:${hit.id}:${version.id}`,
+    styleCode: `civitai-${version.id}`,
+    name: hit.name,
+    source: 'imported',
+    type: inferLoraType(tags, hit.name),
+    baseModelFamily,
+    provider: 'civitai',
+    triggerWord: triggerInfo.trigger,
+    // meilisearch 版本对象没有 files[].hashes，AutoV3 拿不到——挂载栈的
+    // hash 匹配对搜索结果里的条目退化为 no-op，不影响下载/挂载本身。
+    fileHashAutoV3: null,
+    triggerAlternates: triggerInfo.alternates,
+    recommendedPrompt: triggerInfo.recommendedPrompt,
+    recommendedPromptAlternates: triggerInfo.recommendedPromptAlternates,
+    triggerSource: triggerInfo.source,
+    loraUrl,
+    coverImageUrl,
+    coverImageUrlOriginal: coverOriginal,
+    thumbImageUrl,
+    cardImageUrl,
+    previewImageUrls,
+    defaultScale: 1,
+    isPublic: true,
+    isOwn: false,
+    createdAt: version.createdAt ?? hit.createdAt ?? new Date(0).toISOString(),
+    modelId: hit.id,
+    modelVersionId: version.id,
+    versionName: version.name ?? '',
+    creatorName: hit.user?.username ?? null,
+    creatorAvatarUrl: hit.user?.image ?? null,
+    modelPageUrl: `https://civitai.com/models/${hit.id}?modelVersionId=${version.id}`,
+    tags: tags.slice(0, 8),
+    downloadCount:
+      version.metrics?.downloadCount ?? hit.metrics?.downloadCount ?? 0,
+    thumbsUpCount:
+      version.metrics?.thumbsUpCount ?? hit.metrics?.thumbsUpCount ?? 0,
+    allowCommercialUse: hit.permissions?.allowCommercialUse ?? [],
+    allowDerivatives: hit.permissions?.allowDerivatives ?? false,
+    isNsfw: hit.nsfw ?? false,
+  }
+}
+
+async function hitsToLibraryItems(
+  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
+): Promise<CivitaiLoraLibraryItem[]> {
+  const resolved: CivitaiLoraLibraryItem[] = []
+  for (
+    let start = 0;
+    start < hits.length;
+    start += CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE
+  ) {
+    const batch = hits.slice(
+      start,
+      start + CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE,
+    )
+    const items = await Promise.all(batch.map((hit) => hitToLibraryItem(hit)))
+    for (const item of items) {
+      if (item) resolved.push(item)
+    }
+  }
+  return dedupeLibraryItems(resolved)
+}
+
+// meilisearch 的 `nsfw` 字段不在 filterable attribute 列表里（实测 400：
+// "Attribute `nsfw` is not filterable"），safe/nsfwOnly 只能跟 REST 浏览态
+// 一样做客户端过滤——分级门槛这里不做请求层优化，正确性优先。
+function filterSearchHitsByNsfw(
+  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
+  nsfwFilter: LoraNsfwFilter,
+): readonly z.infer<typeof CivitaiSearchHitSchema>[] {
+  if (nsfwFilter === 'safe') {
+    return hits.filter((hit) => !isNsfwNamedModel(hit.name))
+  }
+  if (nsfwFilter === 'nsfwOnly') {
+    return hits.filter((hit) => hit.nsfw)
+  }
+  return hits
+}
+
+async function listCivitaiLorasBySearch({
+  page,
+  pageSize,
+  search,
+  baseModel,
+  sort,
+  nsfwFilter,
+}: {
+  page: number
+  pageSize: number
+  search: string
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  nsfwFilter: LoraNsfwFilter
+}): Promise<CivitaiLoraLibraryResult> {
+  const offset = (page - 1) * pageSize
+  const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const body = {
+    queries: [
+      {
+        indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+        q: search,
+        limit: pageSize,
+        offset,
+        filter: buildCivitaiSearchFilters(
+          baseModel === 'all' ? null : baseModel,
+        ),
+        sort: CIVITAI_SEARCH_SORT_MAP[sort],
+      },
+    ],
+  }
+
+  const payload = await withRetry(
+    () =>
+      fetchCivitaiPayload(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }),
+    {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.searchLoras',
+    },
+  )
+
+  // 解析失败/形状异常直接抛出——调用方 listCivitaiLoras 捕获后回落 REST，
+  // 不在这里吞掉错误（吞了调用方就没法区分"真的没结果"和"端点坏了"）。
+  const parsed = CivitaiModelSearchResponseSchema.parse(payload)
+  const result = parsed.results[0]
+  const hits = result?.hits ?? []
+  const filteredHits = filterSearchHitsByNsfw(hits, nsfwFilter)
+  const items = await hitsToLibraryItems(filteredHits)
+
+  const estimatedTotal = result?.estimatedTotalHits ?? null
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: estimatedTotal,
+    hasNextPage:
+      estimatedTotal !== null
+        ? offset + hits.length < estimatedTotal
+        : hits.length >= pageSize,
+    nextCursor: null,
   }
 }
 
@@ -1035,7 +1402,13 @@ function appendBaseModelFamilyParams(
   })
 }
 
-async function fetchCivitaiLoraPage(url: URL): Promise<{
+async function fetchCivitaiLoraPage(
+  url: URL,
+  // P1-6 三态：'safe' 额外按名称词表过滤（civitai 的 `nsfw=false` 只挡
+  // 封面变占位卡，标题本身还在）；'nsfwOnly' 反过来只留 `isNsfw` 的条目；
+  // 'unrestricted' 不做客户端过滤。
+  nsfwFilter: LoraNsfwFilter = DEFAULT_LORA_NSFW_FILTER,
+): Promise<{
   items: CivitaiLoraLibraryItem[]
   total: number | null
   nextCursor: string | null
@@ -1048,11 +1421,16 @@ async function fetchCivitaiLoraPage(url: URL): Promise<{
     label: 'civitai.listLoras',
   })
   const parsed = CivitaiModelsResponseSchema.parse(payload)
-  const items = dedupeLibraryItems(
-    parsed.items
-      .map(toLibraryItem)
-      .filter((item): item is CivitaiLoraLibraryItem => Boolean(item)),
-  )
+  const mappedItems = parsed.items
+    .map(toLibraryItem)
+    .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
+  const filteredItems =
+    nsfwFilter === 'safe'
+      ? mappedItems.filter((item) => !isNsfwNamedModel(item.name))
+      : nsfwFilter === 'nsfwOnly'
+        ? mappedItems.filter((item) => item.isNsfw)
+        : mappedItems
+  const items = dedupeLibraryItems(filteredItems)
 
   return {
     items,
@@ -1067,70 +1445,163 @@ async function fetchCivitaiLoraPage(url: URL): Promise<{
 async function listSearchedBaseModelCivitaiLoras({
   page,
   pageSize,
+  cursor,
   search,
   baseModel,
   sort,
+  nsfwFilter,
 }: {
   page: number
   pageSize: number
+  cursor?: string | null
   search: string
   baseModel: Exclude<CivitaiLoraBaseModel, 'all'>
   sort: CivitaiLoraSort
+  nsfwFilter: LoraNsfwFilter
 }): Promise<CivitaiLoraLibraryResult> {
-  const end = page * pageSize
-  const start = end - pageSize
   const collected: CivitaiLoraLibraryItem[] = []
-  let upstreamCursor: string | null = null
+  const initialCursor = parseCivitaiSearchScanCursor(cursor)
+  let upstreamCursor = initialCursor.upstreamCursor
+  let skippedItemIds = new Set(initialCursor.skippedItemIds)
+  const seenItemIds = new Set<string>()
+  let remainingOffset = cursor ? 0 : Math.max(0, (page - 1) * pageSize)
   let scannedPages = 0
   let upstreamHasNextPage = true
+  let nextCursor: string | null = null
 
   while (
-    collected.length <= end &&
+    (remainingOffset > 0 || collected.length < pageSize) &&
     upstreamHasNextPage &&
     scannedPages < CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES
   ) {
+    const requestCursor = upstreamCursor
     const url = new URL(CIVITAI_MODELS_API)
     url.searchParams.set('types', 'LORA')
     url.searchParams.set('limit', String(CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT))
     url.searchParams.set('sort', sort)
-    url.searchParams.set('nsfw', 'false')
+    url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
     url.searchParams.set('query', search)
     if (upstreamCursor) url.searchParams.set('cursor', upstreamCursor)
     appendBaseModelFamilyParams(url, baseModel)
 
-    const result = await fetchCivitaiLoraPage(url)
-    appendUniqueLibraryItems(
-      collected,
-      filterByBaseModelFamily(result.items, baseModel),
-    )
+    const result = await fetchCivitaiLoraPage(url, nsfwFilter)
+    scannedPages += 1
+
+    const familyItems = filterByBaseModelFamily(result.items, baseModel)
+    const consumedItemIds = new Set(skippedItemIds)
+    let availableItems = familyItems.filter((item) => {
+      const wasConsumed =
+        skippedItemIds.has(item.id) || seenItemIds.has(item.id)
+      if (wasConsumed) consumedItemIds.add(item.id)
+      return !wasConsumed
+    })
+    familyItems.forEach((item) => seenItemIds.add(item.id))
+
+    if (remainingOffset > 0) {
+      const offsetCount = Math.min(remainingOffset, availableItems.length)
+      availableItems
+        .slice(0, offsetCount)
+        .forEach((item) => consumedItemIds.add(item.id))
+      availableItems = availableItems.slice(offsetCount)
+      remainingOffset -= offsetCount
+    }
+
+    if (remainingOffset === 0) {
+      const remainingCapacity = pageSize - collected.length
+      if (availableItems.length > remainingCapacity) {
+        const pageItems = availableItems.slice(0, remainingCapacity)
+        appendUniqueLibraryItems(collected, pageItems)
+        pageItems.forEach((item) => consumedItemIds.add(item.id))
+        nextCursor = createCivitaiSearchScanCursor({
+          upstreamCursor: requestCursor,
+          skippedItemIds: [...consumedItemIds],
+        })
+        break
+      }
+      appendUniqueLibraryItems(collected, availableItems)
+    }
+
     upstreamCursor = result.nextCursor
     upstreamHasNextPage = result.hasNextPage && Boolean(upstreamCursor)
-    scannedPages += 1
+    skippedItemIds = new Set()
+
+    if (collected.length === pageSize) {
+      nextCursor =
+        upstreamHasNextPage && upstreamCursor
+          ? createCivitaiSearchScanCursor({
+              upstreamCursor,
+              skippedItemIds: [],
+            })
+          : null
+      break
+    }
   }
 
-  const hasBufferedNextPage = collected.length > end
-  const hasNextPage =
-    hasBufferedNextPage ||
-    (upstreamHasNextPage &&
-      scannedPages < CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES)
+  if (!nextCursor && upstreamHasNextPage && upstreamCursor) {
+    nextCursor = createCivitaiSearchScanCursor({
+      upstreamCursor,
+      skippedItemIds: [],
+    })
+  }
 
   return {
-    items: collected.slice(start, end),
+    items: collected,
     page,
     pageSize,
     total: null,
-    hasNextPage,
-    nextCursor: hasNextPage ? `search-scan:${page + 1}` : null,
+    hasNextPage: Boolean(nextCursor),
+    nextCursor,
   }
 }
 
-export async function listCivitaiLoras({
+export async function listCivitaiLoras(
+  input: ListCivitaiLorasInput = {},
+): Promise<CivitaiLoraLibraryResult> {
+  const {
+    page = 1,
+    pageSize = CIVITAI_LORA_PAGE_SIZE,
+    baseModel = 'all',
+    sort = 'Highest Rated',
+    nsfwFilter = DEFAULT_LORA_NSFW_FILTER,
+  } = input
+  const normalizedSearch = input.search?.trim() ?? ''
+
+  // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
+  // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，
+  // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「按相关性」。
+  if (normalizedSearch) {
+    try {
+      return await listCivitaiLorasBySearch({
+        page,
+        pageSize,
+        search: normalizedSearch,
+        baseModel,
+        sort,
+        nsfwFilter,
+      })
+    } catch (error) {
+      logger.warn('Civitai meilisearch failed, falling back to REST search', {
+        error: error instanceof Error ? error.message : 'Unknown',
+        search: normalizedSearch,
+        baseModel,
+        sort,
+      })
+      const fallback = await listCivitaiLorasViaRest(input)
+      return { ...fallback, sortFellBackToRelevance: true }
+    }
+  }
+
+  return listCivitaiLorasViaRest(input)
+}
+
+async function listCivitaiLorasViaRest({
   page = 1,
   pageSize = CIVITAI_LORA_PAGE_SIZE,
   cursor,
   search,
   baseModel = 'all',
   sort = 'Highest Rated',
+  nsfwFilter = DEFAULT_LORA_NSFW_FILTER,
 }: ListCivitaiLorasInput = {}): Promise<CivitaiLoraLibraryResult> {
   const url = new URL(CIVITAI_MODELS_API)
   const normalizedSearch = search?.trim() ?? ''
@@ -1139,9 +1610,11 @@ export async function listCivitaiLoras({
     return listSearchedBaseModelCivitaiLoras({
       page,
       pageSize,
+      cursor: nextPageCursor || null,
       search: normalizedSearch,
       baseModel,
       sort,
+      nsfwFilter,
     })
   }
 
@@ -1150,7 +1623,7 @@ export async function listCivitaiLoras({
   url.searchParams.set('types', 'LORA')
   url.searchParams.set('limit', String(upstreamLimit))
   url.searchParams.set('sort', sort)
-  url.searchParams.set('nsfw', 'false')
+  url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
   if (normalizedSearch) {
     url.searchParams.set('query', normalizedSearch)
   }
@@ -1178,7 +1651,7 @@ export async function listCivitaiLoras({
     // wraps three attempts with exponential backoff. Our CivitaiFetchError
     // carries `.status` so the default retry classifier lets 4xx fail fast
     // (a bad query won't get better by hammering it).
-    const result = await fetchCivitaiLoraPage(url)
+    const result = await fetchCivitaiLoraPage(url, nsfwFilter)
     const filteredItems = filterByBaseModelFamily(result.items, baseModel)
 
     const items = filteredItems.slice(0, pageSize)

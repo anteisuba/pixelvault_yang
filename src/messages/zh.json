@@ -358,17 +358,11 @@
     "capabilityMatrix": {
       "eyebrow": "作品的底座",
       "title": "生成之外，作品自有归宿",
-      "description": "盲测擂台帮你选出更强的一版，每次生成连同 prompt、模型和 seed 永久归档，公共画廊让作品被看见——都不必离开 ANTEI。"
+      "description": "盲测擂台帮你选出更强的一版，每次生成连同 prompt、模型和 seed 永久归档，公共画廊让作品被看见。这些都不必离开 ANTEI。"
     },
     "mediaLabels": {
-      "image": {
-        "compare": "多模型对比"
-      },
-      "video": {
-        "storyboard": "片段"
-      },
       "lora": {
-        "trainingSet": "参考 · 4 张",
+        "trainingSet": "参考 · 3 张",
         "model": "同款角色"
       },
       "tts": {
@@ -377,15 +371,11 @@
         "play": "播放示例",
         "pause": "暂停示例"
       },
-      "model3d": {
-        "turntable": "转台 · 360°"
-      },
       "workflow": {
         "imageNode": "剧本",
         "upscaleNode": "图像",
         "videoNode": "音频",
-        "deployNode": "视频",
-        "status": "自动连线"
+        "deployNode": "视频"
       },
       "arena": {
         "winner": "胜出",
@@ -1201,6 +1191,7 @@
       "recipeUseSeed": "使用原图 seed",
       "recipeApplied": "已应用来源图配方",
       "recipeSkipped": "未应用：{params}",
+      "recipeAppendTriggersHint": "配方来自「{name}」·同款时自动补上其他挂载的触发词：{triggers}",
       "recipeExtraLoras": "该图叠加了 {count} 个其他 LoRA，仅挂载当前 LoRA 还原度有限",
       "recipeExtraMount": "挂载",
       "recipeExtraResolving": "定位中…",
@@ -1271,6 +1262,7 @@
       "resultEmptyTitle": "还没有生成结果",
       "resultEmptyHint": "选好配方后点「出图」",
       "resultPreviewLabel": "放大查看生成结果",
+      "promptModeLabel": "提示词来源",
       "promptModeRecommend": "推荐",
       "promptModeSelfBuild": "自己搭配",
       "recommendEmpty": "这个 LoRA 还没有可用的来源图配方，切到「自己搭配」补词",
@@ -1278,7 +1270,13 @@
       "tagPickerCategoryAll": "全部",
       "negativePromptLabel": "负面 Prompt",
       "negativePromptPlaceholder": "不想要的元素，比如 bad hands, blurry…",
-      "negativePromptAdd": "添加负面 Prompt"
+      "negativePromptAdd": "添加负面 Prompt",
+      "aspectRatioLabel": "画面比例",
+      "resultHistoryLabel": "本次会话的出图记录",
+      "resultHistoryMeta": "强度 ×{scale} · 种子 {seed}",
+      "recipeGroupActive": "正在看「{name}」的来源图",
+      "recipeTriggersAppended": "已自动补上触发词：{triggers}",
+      "recipeTriggersUndo": "撤销"
     },
     "spine": {
       "currentLora": "当前 LoRA",
@@ -1288,7 +1286,10 @@
       "fast": "快",
       "faithful": "忠实",
       "comingSoon": "即将",
-      "removeLora": "移除 {name}"
+      "removeLora": "移除 {name}",
+      "scaleLabel": "{name} 强度",
+      "scaleHint": "越高 LoRA 风格越强",
+      "mountCount": "{current}/{max}"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",
@@ -1306,7 +1307,7 @@
     "myLorasTrainedSectionEmpty": "还没有自训 LoRA",
     "myLorasFavoritesSectionEmpty": "还没有收藏的 LoRA",
     "mineSectionToggleLabel": "在「收藏」与「自训」之间切换",
-    "myLorasSubtitle": "自训和收藏的 LoRA 都在这里。添加到 prompt tags 后即可在 Studio 使用。",
+    "myLorasSubtitle": "自训和收藏的 LoRA 都在这里。挑一个去生成，或去训练做新的。",
     "myLorasEmptyTitle": "训练你的第一个 LoRA",
     "myLorasEmptyDescription": "LoRA 是你的私有风格 / 角色，训练一次，所有生成都能用。",
     "myLorasEmptyCtaTrain": "训练新 LoRA",
@@ -1333,12 +1334,20 @@
     "assetDeleteFailed": "删除失败",
     "assetActionMakePrivate": "设为私有",
     "communityEmpty": "没有找到匹配的 LoRA。",
+    "clearFilters": "清除筛选",
+    "nsfwFilterUnrestricted": "不设限",
+    "nsfwFilterNsfwOnly": "仅NSFW",
+    "nsfwFilterSafe": "安全",
+    "nsfwToggleHint": "切换分级：不设限 / 仅NSFW / 安全",
+    "sortFallbackLabel": "按相关性",
+    "sortFallbackHint": "搜索排序服务暂时不可用，当前按相关性显示",
     "baseModelFilterLabel": "按基础模型过滤",
     "baseModelFilterAll": "全部",
     "searchHistoryTitle": "最近搜索",
     "searchHistoryClear": "清空",
     "tryPromptLabel": "试用提示词",
     "tryPromptCopy": "复制",
+    "tryPromptUseWithPrompt": "带词去生成",
     "tryPromptCopied": "示例提示词已复制 — 粘贴到 Studio 即可",
     "tryPromptCopyFailed": "复制失败",
     "communitySearch": "搜索 LoRA...",
@@ -1368,7 +1377,7 @@
     "tryPromptMinedHint": "从 Civitai 上 {sampled} 张社区生成图反推得到。",
     "tryPromptMinedLoading": "正在从社区生成中提取真实激活 prompt…",
     "communityTags": "标签",
-    "communityUseInStudio": "添加 LoRA 标签",
+    "communityUseInStudio": "去生成",
     "communityOpenSource": "打开来源",
     "communityPrevious": "上一页",
     "communityNext": "下一页",
@@ -1380,9 +1389,9 @@
     "refresh": "刷新",
     "typeStyle": "风格",
     "typeSubject": "主体",
-    "use": "用于 prompt",
+    "use": "去生成",
     "alreadyInUse": "已添加",
-    "addedToStack": "已将 {name} 添加为 LoRA 标签，正在打开 Studio",
+    "addedToStack": "已挂载 {name}，正在打开生成",
     "copyCode": "复制风格码",
     "assetSourceShort": "来源",
     "codeCopied": "风格码已复制",
@@ -1427,6 +1436,8 @@
     "layerDecompose": "从图片拆层",
     "dropComposerHint": "松开即可添加图片",
     "removeReferenceImage": "移除第 {index} 张参考图",
+    "referenceStrength": "参考强度",
+    "referenceStrengthHint": "越高越贴近参考图",
     "disabledOverLimit": "超出当前模型的参考图数量限制",
     "disabledUnsupported": "当前模型不支持参考图",
     "back": "返回",
@@ -3393,6 +3404,10 @@
       "statusTextReady": "文本会作为下游节点输入"
     },
     "videoComposer": {
+      "monitor": {
+        "empty": "生成后在此预览",
+        "rec": "REC"
+      },
       "variant": {
         "standard": "标准",
         "fast": "快速"
@@ -3414,14 +3429,35 @@
         "character": "角色",
         "background": "背景",
         "shot": "镜头",
-        "voice": "声音"
+        "voice": "声音",
+        "video": "参考视频"
+      },
+      "departments": {
+        "image": "图片 · 参考图",
+        "voice": "语音 · 配音",
+        "video": "视频 · 参考视频"
       },
       "references": {
         "label": "参考素材",
-        "empty": "连接角色 / 背景 / 声音节点以添加参考",
-        "insertHint": "点击标签插入到提示词",
+        "insertHint": "点击槽位插入到提示词",
         "unnamed": "需命名",
-        "unnamedHint": "给该节点命名后即可作为标签插入"
+        "unnamedHint": "给该节点命名后即可作为标签插入",
+        "locate": "定位到画布对应节点",
+        "driftHint": "@{old} 已改名为『{name}』，点击替换",
+        "driftReplace": "替换",
+        "count": "{count} 项引用",
+        "emptyDept": "暂无引用 · 画布连线后出现",
+        "slotBadgeVideo": "视{n}",
+        "videoAutoHint": "参考视频随连线自动发送，无需插入提示词",
+        "voiceNotReadyHint": "未上传/选择参考音频 — 本次生成不会发送",
+        "remove": "断开「{name}」的连线（节点保留）",
+        "removedToast": "已断开「{name}」的连线，节点保留",
+        "slotBadgeImage": "图{n}",
+        "slotBadgeAudio": "音{n}",
+        "add": "添加{dept}参考",
+        "addRolePrompt": "添加哪类图片",
+        "addDialogTitle": "从素材库选择参考",
+        "addDialogDescription": "选中的素材会自动建成上游节点并连到本视频节点。"
       },
       "aspectAuto": "自动",
       "generateAudioLabel": "生成音频",
@@ -3823,6 +3859,14 @@
     "compareSuccess": "对比已生成！",
     "compareSelectModels": "选择 2-3 个模型进行对比",
     "aspectRatioLabel": "宽高比",
+    "resolutionQualityLabel": "分辨率与质量",
+    "resolutionLabel": "分辨率",
+    "resolutionOption": {
+      "auto": "自动",
+      "1K": "1K",
+      "2K": "2K",
+      "4K": "4K"
+    },
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
     "enhance": "助手",
@@ -4354,7 +4398,7 @@
     "removeImage": "移除",
     "historyTitle": "训练历史",
     "historyHint": "你的训练任务和已完成的 LoRA",
-    "historyEmpty": "还没有训练任务。在右侧开始第一个。",
+    "historyEmpty": "还没有训练任务。填好左侧表单开始第一个。",
     "datasetReuseTitle": "数据集复用",
     "datasetReuseHint": "敬请期待 — 复用之前的训练图集省去重传步骤",
     "assetSelectorTitle": "从素材库选训练图",
@@ -4362,8 +4406,8 @@
     "imageCount": "{count} 张图片",
     "imageCountWithMax": "{count}/{max} 张",
     "selectApiKey": "Replicate API Key",
-    "noApiKey": "未配置 Replicate API Key",
-    "addApiKeyHint": "在侧边栏添加 Replicate API Key 以使用此功能",
+    "noApiKey": "未配置 {provider} API Key",
+    "addApiKeyHint": "点击上方「{provider}」配置，或直接点「开始训练」",
     "configureApiKey": "点击配置",
     "submit": "开始训练",
     "submitting": "提交中...",
@@ -4416,7 +4460,7 @@
     "summaryTime": "预计时长",
     "summaryTimeValue": "约 {min} 分钟",
     "completionTitle": "LoRA 训练完成",
-    "completionBody": "「{name}」训练完成，去图像工具激活它就能开始生成。",
+    "completionBody": "「{name}」训练完成，去生成里激活它就能开始出图。",
     "completionTriggerHint": "触发词：{triggerWord}",
     "completionCtaUse": "去使用",
     "completionCtaAnother": "训练新的",
@@ -4434,7 +4478,6 @@
       "noTrigger": "请填写触发词。",
       "invalidTrigger": "触发词只能用字母、数字或下划线。",
       "unsupportedBaseModel": "目前只支持 FLUX-D 训练。",
-      "noApiKey": "请先添加 Replicate 或 fal.ai 的 API Key。",
       "uploading": "等待上传完成。"
     },
     "errorInsufficientCredits": "积分不足，无法开始这次训练。充值后再试。",

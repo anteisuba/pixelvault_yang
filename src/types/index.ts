@@ -149,6 +149,7 @@ export const AdvancedParamsSchema = z.object({
   seed: z.number().int().min(-1).max(4294967295).optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
   quality: z.enum(['auto', 'low', 'medium', 'high']).optional(),
+  resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),
   style: z.string().optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
@@ -3573,9 +3574,18 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'Sell'（出售模型本身）。我们在 UI 上用这个字段做 license 徽章 + 过滤。
   allowCommercialUse: z.array(z.string()),
   allowDerivatives: z.boolean(),
+  // P1-6：civitai 模型级 NSFW 标记（三态分级里「仅 NSFW」档用它过滤）。
+  // optional 是为了不破坏其余构造该类型的旧调用点/测试 fixture。
+  isNsfw: z.boolean().optional(),
   // 列表 row 用的 96px 缩略图（base `coverImageUrl` 已经在 service 层 rewrite
-  // 成 640px inspector 尺寸，再缩到 40×40 仍是巨大浪费）。
+  // 成 640px inspector 尺寸，再缩到 40×40 仍是巨大浪费）。挂载栈 chip /
+  // facepile 专用——网格卡请用下面的 `cardImageUrl`（P0-3：96 拉伸到网格卡
+  // 尺寸会系统性发糊）。
   thumbImageUrl: z.string().url().nullable(),
+  // 公开库封面网格卡专用档位（450px CSS，见 civitai-lora.service.ts 的
+  // `CIVITAI_CARD_WIDTH`）。optional 是为了不破坏其余构造该类型的旧调用点/
+  // 测试 fixture；缺失时 UI 回退到 `coverImageUrl`（640px）。
+  cardImageUrl: z.string().url().nullable().optional(),
   // 「点击放大查看」对话框用的全分辨率原图。base `coverImageUrl` rewrite 后
   // 已经是 640px，放大时需要回退到原图。
   coverImageUrlOriginal: z.string().url().nullable(),
@@ -3691,6 +3701,9 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   total: z.number().int().nonnegative().nullable(),
   hasNextPage: z.boolean(),
   nextCursor: z.string().nullable(),
+  // B11：搜索路径的 civitai meilisearch 端点挂了，回落到忽略 sort 的 REST
+  // 搜索路径时置 true——UI 用它把排序控件降级显示成「按相关性」。
+  sortFellBackToRelevance: z.boolean().optional(),
 })
 
 export type CivitaiLoraLibraryResult = z.infer<

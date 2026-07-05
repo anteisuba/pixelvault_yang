@@ -8,7 +8,6 @@ import {
   HeartOff,
   Lock,
   MoreHorizontal,
-  Palette,
   Sparkles,
   Trash2,
   User,
@@ -18,6 +17,7 @@ import { toast } from 'sonner'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import {
+  LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
@@ -42,6 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { LoraCoverTile } from '@/components/business/studio/lora/LoraCoverTile'
 import { cn } from '@/lib/utils'
 
 interface LoraAssetCardProps {
@@ -121,7 +122,9 @@ export function LoraAssetCard({
     }
     // 去生成：把 LoRA 喂进脊柱条并切到 LoRA 域的生成 tab
     // （Image Studio 已解耦、不再消费 LoRA）。
-    toast.success(t('addedToStack', { name: asset.name }))
+    toast.success(t('addedToStack', { name: asset.name }), {
+      duration: LORA_TOAST_DURATION_MS,
+    })
     router.push(
       `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
     )
@@ -130,9 +133,9 @@ export function LoraAssetCard({
   const handleCopyCode = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(asset.styleCode)
-      toast.success(t('codeCopied'))
+      toast.success(t('codeCopied'), { duration: LORA_TOAST_DURATION_MS })
     } catch {
-      toast.error(t('codeCopyFailed'))
+      toast.error(t('codeCopyFailed'), { duration: LORA_TOAST_DURATION_MS })
     }
   }, [asset.styleCode, t])
 
@@ -166,107 +169,31 @@ export function LoraAssetCard({
     Boolean(onUnfavorite) ||
     canDelete
 
+  // 无封面时按 type 切换 fallback / 徽标图标 —— style 用 Sparkles、
+  // subject（及其它）用 User，带语义的占位比通用 Palette 更可读。
+  const TypeIcon = asset.type === 'style' ? Sparkles : User
+  const typeLabel = asset.type === 'style' ? t('typeStyle') : t('typeSubject')
+
   return (
-    <article
-      className={cn(
-        'group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all',
-        'border-border/60 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/90 hover:shadow-lg',
-      )}
-    >
-      <div className="relative aspect-square overflow-hidden bg-muted">
-        {asset.coverImageUrl ? (
-          // Plain <img> is fine here — assets are user/curated content
-          // and don't benefit from next/image's optimization pass.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={asset.coverImageUrl}
-            alt={asset.name}
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          />
-        ) : (
-          // 无封面时按 type 切换 fallback 图标 — Palette 太通用，
-          // style 用 Sparkles、subject 用 User 让占位图也带语义。
-          <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/60 text-muted-foreground">
-            {asset.type === 'style' ? (
-              <Sparkles className="size-12 opacity-30" strokeWidth={1.25} />
-            ) : asset.type === 'subject' ? (
-              <User className="size-12 opacity-30" strokeWidth={1.25} />
-            ) : (
-              <Palette className="size-12 opacity-30" strokeWidth={1.25} />
-            )}
-          </div>
-        )}
-
-        {/* 「刚训练好」徽章 — 7 天内训练完成的 trained 资产。
-            放左上是因为右上要让位给 type badge / 操作菜单。 */}
-        {recentlyTrained ? (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-2xs font-medium text-primary-foreground backdrop-blur-sm shadow-sm">
-            <Sparkles className="size-2.5 fill-current" aria-hidden />
-            {t('recentlyTrainedBadge')}
-          </span>
-        ) : null}
-
-        {/* type 徽章去 purple/emerald — 改用品牌中性 token，
-            和 design-system.md 对齐 (#d97757 brand accent)。 */}
-        <span
-          className={cn(
-            'absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium uppercase tracking-wide backdrop-blur-sm',
-            asset.type === 'style'
-              ? 'bg-primary/20 text-primary-foreground ring-1 ring-primary/30'
-              : 'bg-foreground/15 text-foreground ring-1 ring-foreground/20',
-          )}
-        >
-          {asset.type === 'style' ? t('typeStyle') : t('typeSubject')}
-        </span>
-
-        {/* hover 行：复制风格码 + 取消收藏 — 默认隐藏，hover 卡片时
-            从顶部滑出。视觉噪音从 default 状态拿走，主操作（使用）
-            还在卡片底部，没有抢戏。键盘可达：focus-within 也会触发。 */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-end gap-1.5 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          <button
-            type="button"
-            onClick={() => void handleCopyCode()}
-            className="pointer-events-auto inline-flex size-7 items-center justify-center rounded-full bg-background/95 text-foreground shadow-sm transition-transform hover:scale-105"
-            aria-label={t('copyCode')}
-            title={asset.styleCode}
-          >
-            <Copy className="size-3.5" aria-hidden />
-          </button>
-          {onUnfavorite ? (
-            <button
-              type="button"
-              onClick={() => void onUnfavorite(asset.id)}
-              className="pointer-events-auto inline-flex size-7 items-center justify-center rounded-full bg-background/95 text-foreground shadow-sm transition-transform hover:scale-105 hover:text-destructive"
-              aria-label={t('unfavorite')}
-              title={t('unfavorite')}
-            >
-              <HeartOff className="size-3.5" aria-hidden />
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-1 font-medium text-foreground">
-              {asset.name}
-            </h3>
-            <p className="line-clamp-1 text-xs text-muted-foreground">
-              <span className="font-mono">{asset.triggerWord}</span>
-            </p>
-          </div>
-
-          {/* visibility 切换从常驻 row 收进 dropdown — 大部分时间
-              用户不切换可见性，常驻显示是把「偶尔决策」放在「持续可见」
-              的位置，违反 subtraction default。状态本身用 icon 在 menu
-              trigger 里保留指示。 */}
-          {hasMenu ? (
+    // B8 / P2-3: 我的页卡片复用公开库卡片基底（封面优先 3:4 tile + 左上黑纱
+    // 类型徽标），主按钮「去生成」在名字下，来源/可见性/删除全收进右上溢出
+    // 菜单，两页网格读作同一套视觉语言。
+    <article className="group flex min-w-0 flex-col">
+      <LoraCoverTile
+        coverUrl={asset.coverImageUrl}
+        alt={asset.name}
+        fallbackIcon={
+          <TypeIcon className="size-8 opacity-30" strokeWidth={1.25} />
+        }
+        badgeLabel={typeLabel}
+        badgeIcon={<TypeIcon className="size-3" aria-hidden />}
+        topRight={
+          hasMenu ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex size-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
                   aria-label={t('assetActionsLabel')}
                   title={t('assetActionsLabel')}
                 >
@@ -344,48 +271,47 @@ export function LoraAssetCard({
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null}
+          ) : undefined
+        }
+        overlay={
+          recentlyTrained ? (
+            // 7 天内训练完成的 trained 资产 —— 放底部左角，让位给顶部的
+            // 类型徽标 + 操作菜单。
+            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground shadow-sm backdrop-blur-sm">
+              <Sparkles className="size-2.5 fill-current" aria-hidden />
+              {t('recentlyTrainedBadge')}
+            </span>
+          ) : undefined
+        }
+      />
+
+      <div className="mt-1.5 min-w-0 space-y-1.5">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-foreground">
+            {asset.name}
+          </p>
+          <p className="truncate text-2xs text-muted-foreground">
+            <span className="font-mono">{asset.triggerWord}</span>
+          </p>
         </div>
 
-        <div
+        <button
+          type="button"
+          onClick={handleUse}
           className={cn(
-            'mt-auto grid gap-2',
-            sourceUrl ? 'grid-cols-[auto_1fr]' : 'grid-cols-1',
+            'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+            alreadyInStack
+              ? 'bg-muted text-muted-foreground'
+              : 'bg-foreground text-background hover:bg-foreground/85',
           )}
+          aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}
         >
-          {sourceUrl ? (
-            <a
-              href={sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-1 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t('assetActionOpenSource')}
-              title={t('assetActionOpenSource')}
-            >
-              <ExternalLink className="size-3" aria-hidden />
-              <span className="hidden sm:inline">{t('assetSourceShort')}</span>
-            </a>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleUse}
-            className={cn(
-              'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-              alreadyInStack
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-foreground text-background hover:bg-foreground/85',
-            )}
-            aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}
-          >
-            <Sparkles className="size-3" aria-hidden />
-            {alreadyInStack ? t('alreadyInUse') : t('use')}
-          </button>
-        </div>
+          <Sparkles className="size-3" aria-hidden />
+          {alreadyInStack ? t('alreadyInUse') : t('use')}
+        </button>
 
-        {/* visibility 状态指示器 — 只在 showVisibilityToggle (own asset)
-            时显示一个简洁的图标 + 文字行，让用户随时知道这个 LoRA
-            是公开还是私有，但不再占用一个完整的 row（节省纵向空间）。
-            实际切换通过上面的 dropdown menu 完成。 */}
+        {/* 私有锁标（§5「自训卡保留私有锁标」）—— own asset 才显示公开/私有
+            指示；实际切换走上面的溢出菜单。 */}
         {showVisibilityToggle ? (
           <div className="flex items-center gap-1 text-2xs text-muted-foreground">
             {asset.isPublic ? (

@@ -16,6 +16,8 @@ import { LoraWorkbench } from './LoraWorkbench'
 const mockGenerate = vi.hoisted(() => vi.fn())
 const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
 const mockAddTag = vi.hoisted(() => vi.fn())
+const mockRouterReplace = vi.hoisted(() => vi.fn())
+const mockRouterPush = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -32,7 +34,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/studio/lora',
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ replace: mockRouterReplace, push: mockRouterPush }),
 }))
 
 vi.mock('@/hooks/use-mobile', () => ({
@@ -149,6 +151,43 @@ vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   }),
 }))
 
+// B9: control the reference-image state so we can assert handleGenerate
+// threads it into the generate request. Default empty → transparent to the
+// other tests. Reset before every test via the file-level beforeEach below.
+let mockReferenceImages: string[] = []
+vi.mock('@/hooks/use-image-upload', () => ({
+  useImageUpload: () => ({
+    referenceImage: mockReferenceImages[0],
+    referenceImages: mockReferenceImages,
+    referenceEntries: mockReferenceImages.map((url) => ({
+      url,
+      disabledReason: null,
+    })),
+    setReferenceImage: vi.fn(),
+    addReferenceImage: vi.fn(),
+    removeReferenceImage: vi.fn(),
+    clearAllImages: vi.fn(),
+    addFromUrl: vi.fn(),
+    setMaxImages: vi.fn(),
+    isDragging: false,
+    setIsDragging: vi.fn(),
+    fileInputRef: { current: null },
+    handleFileChange: vi.fn(),
+    handleDrop: vi.fn(),
+    handleDragEnter: vi.fn(),
+    handleDragOver: vi.fn(),
+    handleDragLeave: vi.fn(),
+    openFilePicker: vi.fn(),
+    handleInputChange: vi.fn(),
+    clearImage: vi.fn(),
+    isUploading: false,
+  }),
+}))
+
+beforeEach(() => {
+  mockReferenceImages = []
+})
+
 const quickSetupSpy = vi.hoisted(() => vi.fn())
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: (props: {
@@ -173,6 +212,28 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     quickSetupSpy.mockReset()
     mockAddTag.mockReset()
     mockLastGeneration = null
+    mockMinedRecipes = []
+  })
+
+  it('D7④: default-selects the first source image so the recipe panel is not empty', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'portrait, green hanfu',
+      },
+    ]
+
+    render(<LoraWorkbench />)
+
+    // Without any manual thumbnail click, the recipe card (its Apply button)
+    // is already rendered → the first source image was auto-selected.
+    expect(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('shows a needs-key badge in the spine bar that opens QuickSetupDialog, without touching Generate', () => {
@@ -246,6 +307,93 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
+  })
+
+  it('B9: threads the reference image + strength into the generate request when one is attached', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockReferenceImages = ['https://cdn.example.com/ref.png']
+
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    const call = mockGenerate.mock.calls[0][0]
+    expect(call.image.referenceImages).toEqual([
+      'https://cdn.example.com/ref.png',
+    ])
+    expect(call.image.advancedParams.referenceStrength).toEqual(
+      expect.any(Number),
+    )
+  })
+
+  it('D7③: records each successful generation into the session filmstrip and switches the shown result', async () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockGenerate
+      .mockResolvedValueOnce({
+        id: 'gen-1',
+        url: 'https://example.com/1.png',
+        seed: 111,
+      })
+      .mockResolvedValueOnce({
+        id: 'gen-2',
+        url: 'https://example.com/2.png',
+        seed: 222,
+      })
+
+    render(<LoraWorkbench />)
+    const generateButton = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.run/,
+    })
+
+    // One generation → no filmstrip yet (needs >1 result).
+    fireEvent.click(generateButton)
+    await screen.findByRole('button', {
+      name: /LoraWorkbench:generate\.resultPreviewLabel/,
+    })
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+
+    // Second generation → filmstrip appears with both, newest selected.
+    fireEvent.click(generateButton)
+    const options = await screen.findAllByRole('option')
+    expect(options).toHaveLength(2)
+    // gen-2 is the most recent → prepended and selected.
+    expect(options[0]).toHaveAttribute('aria-selected', 'true')
+    expect(options[0]).toHaveTextContent('222')
+
+    // Clicking the older thumbnail switches selection.
+    fireEvent.click(options[1])
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
   })
 
   it('opens a picture-frame preview when clicking the generated result image', () => {
@@ -397,5 +545,57 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
         'LoraWorkbench:generate.negativePromptPlaceholder',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+// B7 / P2-4 + P2-7: the module tab bar is a real Radix Tabs pill — three
+// role="tab" triggers, clicking one drives the URL (section deep link)
+// rather than any custom pointer handler. This guards both the standard
+// tab semantics and the click→navigate wiring.
+describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
+  beforeEach(() => {
+    mockRouterReplace.mockReset()
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  it('renders exactly three tabs with the tab role, generate selected on the generate deep link', () => {
+    render(<LoraWorkbench />)
+
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    expect(
+      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.generate/ }),
+    ).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('navigates (URL replace) to the activated section — Radix tabs activate on primary mousedown', () => {
+    render(<LoraWorkbench />)
+
+    // P2-7: Radix Tabs activate on primary pointer-down (this is why a bare
+    // synthetic click() looked like a no-op on the old bar); firing the real
+    // activation event proves the click→navigate wiring end to end.
+    fireEvent.mouseDown(
+      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.train/ }),
+      { button: 0 },
+    )
+
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      expect.stringContaining('section=train'),
+      expect.objectContaining({ scroll: false }),
+    )
+  })
+
+  it('activates a tab from the keyboard (Enter) — full Radix tab a11y', () => {
+    render(<LoraWorkbench />)
+
+    const trainTab = screen.getByRole('tab', {
+      name: /LoraWorkbench:tabs\.train/,
+    })
+    trainTab.focus()
+    fireEvent.keyDown(trainTab, { key: 'Enter' })
+
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      expect.stringContaining('section=train'),
+      expect.objectContaining({ scroll: false }),
+    )
   })
 })

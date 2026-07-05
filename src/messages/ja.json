@@ -358,17 +358,11 @@
     "capabilityMatrix": {
       "eyebrow": "作品をささえる層",
       "title": "生成のその先で、作品に居場所を",
-      "description": "ブラインドのアリーナで強い 1 枚を選び、すべての生成をプロンプト・モデル・シードごと永久保存し、公開ギャラリーで作品を届ける——どれも ANTEI の中で完結します。"
+      "description": "ブラインドのアリーナで強い 1 枚を選び、すべての生成をプロンプト・モデル・シードごと永久保存し、公開ギャラリーで作品を届ける。どれも ANTEI の中で完結します。"
     },
     "mediaLabels": {
-      "image": {
-        "compare": "並べて比較"
-      },
-      "video": {
-        "storyboard": "クリップ"
-      },
       "lora": {
-        "trainingSet": "参照 · 4 枚",
+        "trainingSet": "参照 · 3 枚",
         "model": "同じキャラ"
       },
       "tts": {
@@ -377,15 +371,11 @@
         "play": "サンプルを再生",
         "pause": "サンプルを一時停止"
       },
-      "model3d": {
-        "turntable": "ターンテーブル · 360°"
-      },
       "workflow": {
         "imageNode": "脚本",
         "upscaleNode": "画像",
         "videoNode": "音声",
-        "deployNode": "動画",
-        "status": "自動接続"
+        "deployNode": "動画"
       },
       "arena": {
         "winner": "勝利",
@@ -1201,6 +1191,7 @@
       "recipeUseSeed": "元画像のseedを使う",
       "recipeApplied": "サンプルのレシピを適用しました",
       "recipeSkipped": "未適用：{params}",
+      "recipeAppendTriggersHint": "レシピは「{name}」由来 · 適用時に他マウントのトリガーワードを自動追加：{triggers}",
       "recipeExtraLoras": "この画像は他に {count} 個のLoRAを併用しています — このLoRAだけでは再現度が下がります",
       "recipeExtraMount": "追加",
       "recipeExtraResolving": "検索中…",
@@ -1271,6 +1262,7 @@
       "resultEmptyTitle": "まだ生成結果がありません",
       "resultEmptyHint": "レシピを選んで「生成」を押してください",
       "resultPreviewLabel": "生成結果を拡大表示",
+      "promptModeLabel": "プロンプトの出所",
       "promptModeRecommend": "おすすめ",
       "promptModeSelfBuild": "自分で組む",
       "recommendEmpty": "このLoRAにはまだ参照可能な元画像レシピがありません。「自分で組む」をお試しください。",
@@ -1278,7 +1270,13 @@
       "tagPickerCategoryAll": "すべて",
       "negativePromptLabel": "ネガティブプロンプト",
       "negativePromptPlaceholder": "望まない要素、例: bad hands, blurry…",
-      "negativePromptAdd": "ネガティブプロンプトを追加"
+      "negativePromptAdd": "ネガティブプロンプトを追加",
+      "aspectRatioLabel": "アスペクト比",
+      "resultHistoryLabel": "このセッションの生成結果",
+      "resultHistoryMeta": "強度 ×{scale} · シード {seed}",
+      "recipeGroupActive": "「{name}」のソース画像を表示中",
+      "recipeTriggersAppended": "トリガーワードを自動追加：{triggers}",
+      "recipeTriggersUndo": "取り消す"
     },
     "spine": {
       "currentLora": "現在のLoRA",
@@ -1288,7 +1286,10 @@
       "fast": "高速",
       "faithful": "忠実",
       "comingSoon": "近日公開",
-      "removeLora": "{name} を削除"
+      "removeLora": "{name} を削除",
+      "scaleLabel": "{name} の強度",
+      "scaleHint": "高いほど LoRA スタイルが強く反映",
+      "mountCount": "{current}/{max}"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",
@@ -1306,7 +1307,7 @@
     "myLorasTrainedSectionEmpty": "自分で訓練したLoRAはまだありません",
     "myLorasFavoritesSectionEmpty": "お気に入りはまだありません",
     "mineSectionToggleLabel": "お気に入りと自分で訓練したLoRAを切り替え",
-    "myLorasSubtitle": "自分で訓練したLoRAとお気に入りはここに。Promptタグに追加するとStudioで使えます。",
+    "myLorasSubtitle": "自分で訓練したLoRAとお気に入りはここに。ひとつ選んで生成するか、新しく訓練しましょう。",
     "myLorasEmptyTitle": "最初のLoRAを訓練しよう",
     "myLorasEmptyDescription": "LoRAは自分専用のスタイル/キャラ。一度訓練すれば、何度でも使えます。",
     "myLorasEmptyCtaTrain": "新しいLoRAを訓練",
@@ -1333,12 +1334,20 @@
     "assetDeleteFailed": "削除に失敗しました",
     "assetActionMakePrivate": "非公開にする",
     "communityEmpty": "一致するLoRAがありません。",
+    "clearFilters": "フィルターを解除",
+    "nsfwFilterUnrestricted": "制限なし",
+    "nsfwFilterNsfwOnly": "NSFWのみ",
+    "nsfwFilterSafe": "セーフ",
+    "nsfwToggleHint": "表示を切り替え：制限なし / NSFWのみ / セーフ",
+    "sortFallbackLabel": "関連度順",
+    "sortFallbackHint": "検索の並び替えが一時的に利用できません。関連度順で表示しています",
     "baseModelFilterLabel": "ベースモデルで絞り込み",
     "baseModelFilterAll": "全部",
     "searchHistoryTitle": "最近の検索",
     "searchHistoryClear": "クリア",
     "tryPromptLabel": "おすすめプロンプト",
     "tryPromptCopy": "コピー",
+    "tryPromptUseWithPrompt": "プロンプト付きで生成",
     "tryPromptCopied": "サンプルプロンプトをコピーしました — Studioに貼り付けてください",
     "tryPromptCopyFailed": "コピーに失敗しました",
     "communitySearch": "LoRAを検索...",
@@ -1368,7 +1377,7 @@
     "tryPromptMinedHint": "Civitai上の {sampled} 件のコミュニティ生成から逆解析しました。",
     "tryPromptMinedLoading": "コミュニティ生成から実際の起動プロンプトを抽出中…",
     "communityTags": "タグ",
-    "communityUseInStudio": "LoRAタグを追加",
+    "communityUseInStudio": "生成する",
     "communityOpenSource": "ソースを開く",
     "communityPrevious": "前へ",
     "communityNext": "次へ",
@@ -1380,9 +1389,9 @@
     "refresh": "更新",
     "typeStyle": "スタイル",
     "typeSubject": "サブジェクト",
-    "use": "Promptで使う",
+    "use": "生成する",
     "alreadyInUse": "追加済み",
-    "addedToStack": "{name} をLoRAタグとして追加し、Studioを開いています",
+    "addedToStack": "{name} を装着しました。生成画面を開いています",
     "copyCode": "スタイルコードをコピー",
     "assetSourceShort": "ソース",
     "codeCopied": "スタイルコードをコピーしました",
@@ -1427,6 +1436,8 @@
     "layerDecompose": "画像をレイヤー分解",
     "dropComposerHint": "離すと画像を添付します",
     "removeReferenceImage": "参照画像 {index} を削除",
+    "referenceStrength": "参照強度",
+    "referenceStrengthHint": "高いほど参照画像に近づきます",
     "disabledOverLimit": "現在のモデルが受け付ける枚数を超えています",
     "disabledUnsupported": "現在のモデルは参照画像を受け付けません",
     "back": "戻る",
@@ -3393,6 +3404,10 @@
       "statusTextReady": "このテキストは下流ノードの入力になります"
     },
     "videoComposer": {
+      "monitor": {
+        "empty": "生成後にここにプレビューが表示されます",
+        "rec": "REC"
+      },
       "variant": {
         "standard": "標準",
         "fast": "高速"
@@ -3414,14 +3429,35 @@
         "character": "キャラクター",
         "background": "背景",
         "shot": "ショット",
-        "voice": "ボイス"
+        "voice": "ボイス",
+        "video": "参照動画"
+      },
+      "departments": {
+        "image": "画像 · 参照画像",
+        "voice": "音声 · アフレコ",
+        "video": "動画 · 参照動画"
       },
       "references": {
         "label": "参照素材",
-        "empty": "キャラクター / 背景 / ボイスのノードを接続して参照を追加",
-        "insertHint": "タグをクリックしてプロンプトに挿入",
+        "insertHint": "スロットをクリックしてプロンプトに挿入",
         "unnamed": "要命名",
-        "unnamedHint": "ノードに名前を付けるとタグとして挿入できます"
+        "unnamedHint": "ノードに名前を付けるとタグとして挿入できます",
+        "locate": "キャンバス上のノードに移動",
+        "driftHint": "@{old} は『{name}』に改名されました。クリックして置換",
+        "driftReplace": "置換",
+        "count": "{count} 件の参照",
+        "emptyDept": "参照なし · キャンバスで接続後に表示",
+        "slotBadgeVideo": "動{n}",
+        "videoAutoHint": "参照動画は接続に従って自動送信されます。挿入は不要です",
+        "voiceNotReadyHint": "参照音声が未アップロード/未選択 — 今回の生成では送信されません",
+        "remove": "「{name}」の接続を解除（ノードは保持）",
+        "removedToast": "「{name}」の接続を解除しました。ノードは保持されます",
+        "slotBadgeImage": "図{n}",
+        "slotBadgeAudio": "音{n}",
+        "add": "{dept}参照を追加",
+        "addRolePrompt": "どの種類の画像",
+        "addDialogTitle": "ライブラリから参照を選択",
+        "addDialogDescription": "選んだ素材は上流ノードとして自動作成され、この動画ノードに接続されます。"
       },
       "aspectAuto": "自動",
       "generateAudioLabel": "音声を生成",
@@ -3815,6 +3851,14 @@
     "compareSuccess": "比較が生成されました！",
     "compareSelectModels": "比較する2〜3つのモデルを選択",
     "aspectRatioLabel": "アスペクト比",
+    "resolutionQualityLabel": "解像度と品質",
+    "resolutionLabel": "解像度",
+    "resolutionOption": {
+      "auto": "自動",
+      "1K": "1K",
+      "2K": "2K",
+      "4K": "4K"
+    },
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
     "enhance": "アシスタント",
@@ -4354,7 +4398,7 @@
     "removeImage": "削除",
     "historyTitle": "学習履歴",
     "historyHint": "進行中の学習タスクと完成した LoRA",
-    "historyEmpty": "まだ学習タスクがありません。右側から始めましょう。",
+    "historyEmpty": "まだ学習タスクがありません。左側のフォームから始めましょう。",
     "datasetReuseTitle": "データセット再利用",
     "datasetReuseHint": "近日対応 — 過去のデータセットを再利用してアップロードを省略",
     "assetSelectorTitle": "学習画像を選ぶ",
@@ -4362,8 +4406,8 @@
     "imageCount": "{count}枚",
     "imageCountWithMax": "{count}/{max} 枚",
     "selectApiKey": "Replicate APIキー",
-    "noApiKey": "Replicate APIキーが未設定です",
-    "addApiKeyHint": "サイドバーでReplicate APIキーを追加してください",
+    "noApiKey": "{provider} APIキーが未設定です",
+    "addApiKeyHint": "上の「{provider}」をクリックして設定するか、そのまま「トレーニング開始」を押してください",
     "configureApiKey": "クリックして設定",
     "submit": "トレーニング開始",
     "submitting": "送信中...",
@@ -4416,7 +4460,7 @@
     "summaryTime": "予想時間",
     "summaryTimeValue": "約 {min} 分",
     "completionTitle": "LoRAの準備ができました",
-    "completionBody": "「{name}」のトレーニングが完了しました。画像ツールでアクティブにすると生成を開始できます。",
+    "completionBody": "「{name}」のトレーニングが完了しました。生成でアクティブにすると画像作りを始められます。",
     "completionTriggerHint": "トリガーワード：{triggerWord}",
     "completionCtaUse": "今すぐ使う",
     "completionCtaAnother": "もう一つトレーニング",
@@ -4434,7 +4478,6 @@
       "noTrigger": "トリガーワードを入力してください。",
       "invalidTrigger": "トリガーワードは英数字とアンダースコアのみ。",
       "unsupportedBaseModel": "現在はFLUX-Dトレーニングのみ利用可能です。",
-      "noApiKey": "Replicateまたはfal.aiのAPIキーを追加してください。",
       "uploading": "アップロード完了をお待ちください。"
     },
     "errorInsufficientCredits": "クレジット不足のためトレーニングを開始できません。チャージしてから再試行してください。",

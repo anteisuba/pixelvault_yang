@@ -11,6 +11,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Touch / coarse-pointer breakpoint. Used to expand hit areas to the 44px
+   minimum on touch devices while keeping the tight visual size on mouse
+   (precise pointers). Pair with `before:`/`after:` pseudo-element hit
+   expansion so the visual footprint stays unchanged. */
+@custom-variant coarse (@media (pointer: coarse));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

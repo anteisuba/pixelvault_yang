@@ -7,6 +7,8 @@ import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
+  DEFAULT_LORA_NSFW_FILTER,
+  isLoraNsfwFilter,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
 import { listCivitaiLoras } from '@/services/civitai-lora.service'
@@ -29,6 +31,16 @@ const ListCivitaiLoraQuerySchema = z.object({
   search: z.string().trim().optional(),
   baseModel: z.enum(CIVITAI_LORA_BASE_MODEL_VALUES).default('all'),
   sort: z.enum(CIVITAI_LORA_SORT_VALUES).default('Highest Rated'),
+  // P1-6 三态（unrestricted/nsfwOnly/safe）——未知/缺失值静默落回默认，
+  // 不透传给 civitai。
+  nsfwFilter: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value !== undefined && isLoraNsfwFilter(value)
+        ? value
+        : DEFAULT_LORA_NSFW_FILTER,
+    ),
 })
 
 interface SuccessBody {
@@ -53,6 +65,7 @@ export async function GET(
       search: searchParams.get('search') ?? undefined,
       baseModel: searchParams.get('baseModel') ?? undefined,
       sort: searchParams.get('sort') ?? undefined,
+      nsfwFilter: searchParams.get('nsfw') ?? undefined,
     })
 
     if (!parsed.success) {

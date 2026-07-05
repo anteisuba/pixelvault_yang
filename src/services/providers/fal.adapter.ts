@@ -308,6 +308,13 @@ const FAL_HUNYUAN3D_V3_MODEL_IDS = new Set([
 
 const FAL_TRELLIS_2_MODEL_ID = 'fal-ai/trellis-2'
 
+// B9 (D6): flux-lora endpoint pair — the base id is text-to-image only; the
+// `/image-to-image` variant accepts `image_url` + `strength` + `loras` (same
+// body shape). We swap to the i2i endpoint when a reference image is present
+// so LoRA img2img works, and keep the base id in TEXT_TO_IMAGE_ONLY_MODELS.
+const FAL_FLUX_LORA_T2I_MODEL_ID = 'fal-ai/flux-lora'
+const FAL_FLUX_LORA_I2I_MODEL_ID = 'fal-ai/flux-lora/image-to-image'
+
 function isFalHunyuan3DV3Model(externalModelId: string): boolean {
   return FAL_HUNYUAN3D_V3_MODEL_IDS.has(externalModelId)
 }
@@ -602,7 +609,14 @@ export const falAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const externalModelId = getExecutionModelId(modelId)
-    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
+    // B9: flux-lora targets its `/image-to-image` endpoint when a reference
+    // image is present; every other model keeps its own external id.
+    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+    const resolvedModelId =
+      externalModelId === FAL_FLUX_LORA_T2I_MODEL_ID && effectiveRefImage
+        ? FAL_FLUX_LORA_I2I_MODEL_ID
+        : externalModelId
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${resolvedModelId}`
 
     const body: Record<string, unknown> = {
       prompt,
@@ -636,9 +650,12 @@ export const falAdapter: ProviderAdapter = {
     // Kontext models: native reference image handling (no strength/denoising)
     const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
     const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
-    // Pure text-to-image endpoints ignore any reference image input.
+    // Pure text-to-image endpoints ignore any reference image input. Note
+    // the flux-lora *base* id stays here — with a reference image present we
+    // already resolved to the `/image-to-image` variant above, which falls
+    // through to the standard img2img branch below.
     const TEXT_TO_IMAGE_ONLY_MODELS = new Set([
-      'fal-ai/flux-lora',
+      FAL_FLUX_LORA_T2I_MODEL_ID,
       'fal-ai/flux-2-pro',
       'fal-ai/flux-2/flash',
       'ideogram/v4',
@@ -646,20 +663,18 @@ export const falAdapter: ProviderAdapter = {
       'fal-ai/recraft/v4/pro/text-to-image',
     ])
 
-    if (KONTEXT_MULTI_MODELS.has(externalModelId)) {
+    if (KONTEXT_MULTI_MODELS.has(resolvedModelId)) {
       // Kontext Max: multiple reference images
       if (referenceImages?.length) {
         body.image_urls = referenceImages
       }
-    } else if (KONTEXT_SINGLE_MODELS.has(externalModelId)) {
+    } else if (KONTEXT_SINGLE_MODELS.has(resolvedModelId)) {
       // Kontext Pro: single reference image
-      const ref = referenceImages?.[0] ?? referenceImage
-      if (ref) {
-        body.image_url = ref
+      if (effectiveRefImage) {
+        body.image_url = effectiveRefImage
       }
-    } else if (!TEXT_TO_IMAGE_ONLY_MODELS.has(externalModelId)) {
+    } else if (!TEXT_TO_IMAGE_ONLY_MODELS.has(resolvedModelId)) {
       // Standard FAL img2img: reference image with denoising strength
-      const effectiveRefImage = referenceImages?.[0] ?? referenceImage
       if (effectiveRefImage) {
         body.image_url = effectiveRefImage
         // fal's `strength` = denoising strength (higher = more change, less similarity)

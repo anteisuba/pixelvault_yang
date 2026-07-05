@@ -5,12 +5,29 @@ import { useTranslations } from 'next-intl'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
+  DEFAULT_LORA_NSFW_FILTER,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
+  type LoraNsfwFilter,
 } from '@/constants/lora'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
+
+export interface UseCivitaiLoraLibraryOptions {
+  /**
+   * Seed values for the URL-deep-link filters (P1-5 方案 A). Caller parses
+   * `family`/`q`/`sort`/`nsfw` off `useSearchParams()`, whitelist-validates
+   * them, and passes the result here so a pasted deep link renders the right
+   * filters on first paint. Only read once (lazy `useState` initializer) —
+   * this hook does not re-sync from the URL after mount; the caller owns
+   * pushing filter changes back to the URL via the plain setters below.
+   */
+  initialBaseModel?: CivitaiLoraBaseModel
+  initialSort?: CivitaiLoraSort
+  initialSearch?: string
+  initialNsfwFilter?: LoraNsfwFilter
+}
 
 export interface UseCivitaiLoraLibraryReturn {
   items: CivitaiLoraLibraryItem[]
@@ -19,6 +36,11 @@ export interface UseCivitaiLoraLibraryReturn {
   page: number
   pageSize: number
   hasNextPage: boolean
+  /**
+   * B11：搜索路径的 civitai meilisearch 端点挂了、回落到忽略 sort 的 REST
+   * 路径时为 true——UI 据此把排序控件降级显示成「按相关性」。
+   */
+  sortFellBackToRelevance: boolean
   /**
    * True only when there is nothing to show AND we are fetching. UI uses this
    * to render the full-section loader on first paint. After we have any items
@@ -33,11 +55,16 @@ export interface UseCivitaiLoraLibraryReturn {
   isRevalidating: boolean
   error: string | null
   search: string
+  /** Debounced/committed search term — what the URL sync and the fetch both
+   *  key off, as opposed to `search` which tracks every keystroke. */
+  debouncedSearch: string
   sort: CivitaiLoraSort
   baseModel: CivitaiLoraBaseModel
+  nsfwFilter: LoraNsfwFilter
   setSearch: (value: string) => void
   setSort: (value: CivitaiLoraSort) => void
   setBaseModel: (value: CivitaiLoraBaseModel) => void
+  setNsfwFilter: (value: LoraNsfwFilter) => void
   selectItem: (item: CivitaiLoraLibraryItem) => void
   nextPage: () => void
   previousPage: () => void
@@ -72,6 +99,7 @@ function buildCacheKey(params: {
   baseModel: CivitaiLoraBaseModel
   sort: CivitaiLoraSort
   search: string
+  nsfwFilter: LoraNsfwFilter
   page: number
   cursor: string | null
 }): string {
@@ -79,6 +107,7 @@ function buildCacheKey(params: {
     params.baseModel,
     params.sort,
     params.search,
+    params.nsfwFilter,
     params.page,
     params.cursor ?? '',
   ].join('|')
@@ -114,23 +143,35 @@ export function __resetCivitaiLibraryCacheForTests(): void {
   libraryCache.clear()
 }
 
-export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
+export function useCivitaiLoraLibrary(
+  options: UseCivitaiLoraLibraryOptions = {},
+): UseCivitaiLoraLibraryReturn {
   const t = useTranslations('LoraWorkbench')
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
+  const [sortFellBackToRelevance, setSortFellBackToRelevance] = useState(false)
   // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
   // running, possibly while stale items remain visible". Splitting them lets
   // the section render normal content + a small spinner instead of a white
   // flash every time the search debounce kicks in.
   const [isRevalidating, setIsRevalidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearchValue] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sort, setSortValue] = useState<CivitaiLoraSort>('Highest Rated')
-  const [baseModel, setBaseModelValue] = useState<CivitaiLoraBaseModel>('all')
+  const [search, setSearchValue] = useState(options.initialSearch ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    options.initialSearch ?? '',
+  )
+  const [sort, setSortValue] = useState<CivitaiLoraSort>(
+    options.initialSort ?? 'Highest Rated',
+  )
+  const [baseModel, setBaseModelValue] = useState<CivitaiLoraBaseModel>(
+    options.initialBaseModel ?? 'all',
+  )
+  const [nsfwFilter, setNsfwFilterValue] = useState<LoraNsfwFilter>(
+    options.initialNsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+  )
   const requestIdRef = useRef(0)
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
@@ -140,6 +181,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     setItems(result.items)
     setTotal(result.total)
     setHasNextPage(result.hasNextPage)
+    setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
     setSelectedItemId((current) => {
       if (current && result.items.some((item) => item.id === current)) {
         return current
@@ -164,6 +206,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       baseModel,
       sort,
       search: activeSearch,
+      nsfwFilter,
       page,
       cursor,
     })
@@ -191,6 +234,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       search: activeSearch || undefined,
       sort,
       baseModel,
+      nsfwFilter,
     })
     if (requestIdRef.current !== requestId) return
 
@@ -209,7 +253,16 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       setError(response.error ?? t('communityLoadFailed'))
     }
     setIsRevalidating(false)
-  }, [applyResult, baseModel, debouncedSearch, page, search, sort, t])
+  }, [
+    applyResult,
+    baseModel,
+    debouncedSearch,
+    nsfwFilter,
+    page,
+    search,
+    sort,
+    t,
+  ])
 
   // Debounce search input → committed `debouncedSearch`. Pagination resets to
   // page 1 whenever the active search term actually changes.
@@ -260,6 +313,16 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     [baseModel],
   )
 
+  const setNsfwFilter = useCallback(
+    (value: LoraNsfwFilter) => {
+      if (value === nsfwFilter) return
+      cursorByPageRef.current = new Map([[1, null]])
+      setPage(1)
+      setNsfwFilterValue(value)
+    },
+    [nsfwFilter],
+  )
+
   const selectItem = useCallback((item: CivitaiLoraLibraryItem) => {
     setSelectedItemId(item.id)
   }, [])
@@ -287,15 +350,19 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     page,
     pageSize: CIVITAI_LORA_PAGE_SIZE,
     hasNextPage,
+    sortFellBackToRelevance,
     isLoading,
     isRevalidating,
     error,
     search,
+    debouncedSearch,
     sort,
     baseModel,
+    nsfwFilter,
     setSearch,
     setSort,
     setBaseModel,
+    setNsfwFilter,
     selectItem,
     nextPage,
     previousPage,

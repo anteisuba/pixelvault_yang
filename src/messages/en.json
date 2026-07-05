@@ -358,17 +358,11 @@
     "capabilityMatrix": {
       "eyebrow": "Around the work",
       "title": "Beyond generating, the work has a home",
-      "description": "A blind arena helps you pick the stronger take, every generation is archived with its prompt, model, and seed, and a public gallery lets the work be seen — all without leaving ANTEI."
+      "description": "A blind arena helps you pick the stronger take, every generation is archived with its prompt, model, and seed, and a public gallery lets the work be seen. All without leaving ANTEI."
     },
     "mediaLabels": {
-      "image": {
-        "compare": "Side by side"
-      },
-      "video": {
-        "storyboard": "Clip"
-      },
       "lora": {
-        "trainingSet": "Reference · 4 images",
+        "trainingSet": "Reference · 3 images",
         "model": "Same character"
       },
       "tts": {
@@ -377,15 +371,11 @@
         "play": "Play sample",
         "pause": "Pause sample"
       },
-      "model3d": {
-        "turntable": "Turntable · 360°"
-      },
       "workflow": {
         "imageNode": "script",
         "upscaleNode": "image",
         "videoNode": "audio",
-        "deployNode": "video",
-        "status": "Auto-wired"
+        "deployNode": "video"
       },
       "arena": {
         "winner": "WIN",
@@ -421,7 +411,7 @@
       "image": {
         "eyebrow": "Multi-model images",
         "title": "Image Generation",
-        "description": "Send one prompt to Flux, Gemini, GPT Image, and NovelAI at once, compare them side by side, and keep the best. Bring your own API keys — every result is archived with its model and settings.",
+        "description": "Send one prompt to Flux, Gemini, GPT Image, and NovelAI at once, compare them side by side, and keep the best. Bring your own API keys; every result is archived with its model and settings.",
         "cta": "Start generating"
       },
       "video": {
@@ -486,7 +476,7 @@
     },
     "modelLineup": {
       "title": "The best AI models, ready when you are",
-      "description": "{count} active models across image, video, audio, and 3D. We keep the catalog wired and current — you bring your own key, choose the right model, and keep every result.",
+      "description": "{count} active models across image, video, audio, and 3D. We keep the catalog wired and current. You bring your own key, choose the right model, and keep every result.",
       "groups": {
         "image": "Image Models",
         "video": "Video Models",
@@ -1201,6 +1191,7 @@
       "recipeUseSeed": "Use source seed",
       "recipeApplied": "Source recipe applied",
       "recipeSkipped": "Not applied: {params}",
+      "recipeAppendTriggersHint": "Recipe from \"{name}\" · applying auto-adds the other mounts' triggers: {triggers}",
       "recipeExtraLoras": "This image stacked {count} other LoRA(s) — reproduction with only this one is limited",
       "recipeExtraMount": "Mount",
       "recipeExtraResolving": "Locating…",
@@ -1271,6 +1262,7 @@
       "resultEmptyTitle": "No result yet",
       "resultEmptyHint": "Pick a recipe, then hit Generate",
       "resultPreviewLabel": "Enlarge generation result",
+      "promptModeLabel": "Prompt source",
       "promptModeRecommend": "Recommended",
       "promptModeSelfBuild": "Build your own",
       "recommendEmpty": "No source-image recipe for this LoRA yet — try Build your own.",
@@ -1278,7 +1270,13 @@
       "tagPickerCategoryAll": "All",
       "negativePromptLabel": "Negative prompt",
       "negativePromptPlaceholder": "What you don't want, e.g. bad hands, blurry…",
-      "negativePromptAdd": "Add negative prompt"
+      "negativePromptAdd": "Add negative prompt",
+      "aspectRatioLabel": "Aspect ratio",
+      "resultHistoryLabel": "This session's results",
+      "resultHistoryMeta": "Strength ×{scale} · seed {seed}",
+      "recipeGroupActive": "Showing source images for \"{name}\"",
+      "recipeTriggersAppended": "Auto-added trigger words: {triggers}",
+      "recipeTriggersUndo": "Undo"
     },
     "spine": {
       "currentLora": "Current LoRA",
@@ -1288,7 +1286,10 @@
       "fast": "Fast",
       "faithful": "Faithful",
       "comingSoon": "Coming soon",
-      "removeLora": "Remove {name}"
+      "removeLora": "Remove {name}",
+      "scaleLabel": "{name} strength",
+      "scaleHint": "Higher = stronger LoRA style",
+      "mountCount": "{current}/{max}"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",
@@ -1306,7 +1307,7 @@
     "myLorasTrainedSectionEmpty": "No trained LoRAs yet",
     "myLorasFavoritesSectionEmpty": "No favorites yet",
     "mineSectionToggleLabel": "Switch between Favorites and Trained",
-    "myLorasSubtitle": "Trained and favorited LoRAs live here. Add one to your prompt tags to use it in Studio.",
+    "myLorasSubtitle": "Trained and favorited LoRAs live here. Pick one to generate, or train a new one.",
     "myLorasEmptyTitle": "Train your first LoRA",
     "myLorasEmptyDescription": "A LoRA is your private style or subject — train once, reuse it on every generation.",
     "myLorasEmptyCtaTrain": "Train a new LoRA",
@@ -1333,12 +1334,20 @@
     "assetDeleteFailed": "Couldn't delete the LoRA",
     "assetActionMakePrivate": "Make private",
     "communityEmpty": "No matching LoRAs found.",
+    "clearFilters": "Clear filters",
+    "nsfwFilterUnrestricted": "Unrestricted",
+    "nsfwFilterNsfwOnly": "NSFW only",
+    "nsfwFilterSafe": "Safe",
+    "nsfwToggleHint": "Cycle rating: unrestricted / NSFW only / safe",
+    "sortFallbackLabel": "By relevance",
+    "sortFallbackHint": "Search ranking is temporarily unavailable — showing relevance order",
     "baseModelFilterLabel": "Filter by base model",
     "baseModelFilterAll": "All",
     "searchHistoryTitle": "Recent searches",
     "searchHistoryClear": "Clear",
     "tryPromptLabel": "Try this prompt",
     "tryPromptCopy": "Copy",
+    "tryPromptUseWithPrompt": "Generate with prompt",
     "tryPromptCopied": "Example prompt copied — paste into Studio",
     "tryPromptCopyFailed": "Couldn't copy",
     "communitySearch": "Search LoRAs...",
@@ -1368,7 +1377,7 @@
     "tryPromptMinedHint": "Reverse-engineered from {sampled} community generations on Civitai.",
     "tryPromptMinedLoading": "Mining real activation prompts from community generations…",
     "communityTags": "Tags",
-    "communityUseInStudio": "Add LoRA tag",
+    "communityUseInStudio": "Generate",
     "communityOpenSource": "Open source",
     "communityPrevious": "Previous",
     "communityNext": "Next",
@@ -1380,9 +1389,9 @@
     "refresh": "Refresh",
     "typeStyle": "Style",
     "typeSubject": "Subject",
-    "use": "Use in prompt",
+    "use": "Generate",
     "alreadyInUse": "Added",
-    "addedToStack": "Added {name} as a LoRA tag and opening Studio",
+    "addedToStack": "Mounted {name}, opening generate",
     "copyCode": "Copy style code",
     "assetSourceShort": "Source",
     "codeCopied": "Style code copied",
@@ -1427,6 +1436,8 @@
     "layerDecompose": "Split into layers",
     "dropComposerHint": "Drop to attach image",
     "removeReferenceImage": "Remove reference image {index}",
+    "referenceStrength": "Reference strength",
+    "referenceStrengthHint": "Higher stays closer to the reference",
     "disabledOverLimit": "Exceeds the current model's image limit",
     "disabledUnsupported": "Current model doesn't accept reference images",
     "back": "Back",
@@ -3393,6 +3404,10 @@
       "statusTextReady": "Text will feed downstream nodes"
     },
     "videoComposer": {
+      "monitor": {
+        "empty": "Preview appears here once generated",
+        "rec": "REC"
+      },
       "variant": {
         "standard": "Standard",
         "fast": "Fast"
@@ -3414,14 +3429,35 @@
         "character": "Character",
         "background": "Background",
         "shot": "Shot",
-        "voice": "Voice"
+        "voice": "Voice",
+        "video": "Reference video"
+      },
+      "departments": {
+        "image": "Image · References",
+        "voice": "Voice · Dubbing",
+        "video": "Video · References"
       },
       "references": {
         "label": "References",
-        "empty": "Wire character / background / voice nodes to add references",
-        "insertHint": "Click a tag to insert it into the prompt",
+        "insertHint": "Click a slot to insert it into the prompt",
         "unnamed": "needs a name",
-        "unnamedHint": "Name this node to use it as an insertable tag"
+        "unnamedHint": "Name this node to use it as an insertable tag",
+        "locate": "Locate this node on canvas",
+        "driftHint": "@{old} was renamed to \"{name}\" — click to replace",
+        "driftReplace": "Replace",
+        "count": "{count, plural, one {1 reference} other {# references}}",
+        "emptyDept": "None yet · wire nodes on the canvas",
+        "slotBadgeVideo": "VID{n}",
+        "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
+        "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
+        "remove": "Disconnect \"{name}\" (node kept)",
+        "removedToast": "Disconnected \"{name}\" — the node is kept",
+        "slotBadgeImage": "IMG{n}",
+        "slotBadgeAudio": "AUD{n}",
+        "add": "Add {dept} reference",
+        "addRolePrompt": "Which kind of image",
+        "addDialogTitle": "Pick a reference from your library",
+        "addDialogDescription": "The chosen asset becomes an upstream node wired into this video node."
       },
       "aspectAuto": "Auto",
       "generateAudioLabel": "Generate audio",
@@ -3823,6 +3859,14 @@
     "compareSuccess": "Comparison generated!",
     "compareSelectModels": "Select 2-3 models to compare",
     "aspectRatioLabel": "Aspect Ratio",
+    "resolutionQualityLabel": "Resolution & quality",
+    "resolutionLabel": "Resolution",
+    "resolutionOption": {
+      "auto": "Auto",
+      "1K": "1K",
+      "2K": "2K",
+      "4K": "4K"
+    },
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
     "enhance": "Assistant",
@@ -4354,7 +4398,7 @@
     "removeImage": "Remove",
     "historyTitle": "Training history",
     "historyHint": "Your training jobs and finished LoRAs",
-    "historyEmpty": "No training jobs yet. Start your first one on the right.",
+    "historyEmpty": "No training jobs yet. Fill in the form on the left to start your first one.",
     "datasetReuseTitle": "Dataset reuse",
     "datasetReuseHint": "Coming soon — reuse a previous dataset to skip re-uploading",
     "assetSelectorTitle": "Pick training images",
@@ -4362,8 +4406,8 @@
     "imageCount": "{count} images",
     "imageCountWithMax": "{count}/{max} images",
     "selectApiKey": "Replicate API key",
-    "noApiKey": "No Replicate API key configured",
-    "addApiKeyHint": "Add a Replicate API key in the sidebar to use this feature",
+    "noApiKey": "No {provider} API key configured",
+    "addApiKeyHint": "Click \"{provider}\" above to configure, or just click Start Training",
     "configureApiKey": "Click to configure",
     "submit": "Start Training",
     "submitting": "Submitting...",
@@ -4416,7 +4460,7 @@
     "summaryTime": "Est. time",
     "summaryTimeValue": "~{min} min",
     "completionTitle": "Your LoRA is ready",
-    "completionBody": "\"{name}\" finished training. Activate it in the image tool to start generating.",
+    "completionBody": "\"{name}\" finished training. Activate it in generate to start creating images.",
     "completionTriggerHint": "Trigger word: {triggerWord}",
     "completionCtaUse": "Use it now",
     "completionCtaAnother": "Train another",
@@ -4434,7 +4478,6 @@
       "noTrigger": "Add a trigger word.",
       "invalidTrigger": "Trigger word should be letters, numbers, or underscores only.",
       "unsupportedBaseModel": "Only FLUX-D training is available today.",
-      "noApiKey": "Add a Replicate or fal.ai API key.",
       "uploading": "Wait for uploads to finish."
     },
     "errorInsufficientCredits": "Not enough credits to start this training. Top up and try again.",

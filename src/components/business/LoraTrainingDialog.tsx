@@ -71,6 +71,27 @@ import { CompletionCelebration } from '@/components/business/studio/lora/trainin
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
 
+// QuickSetup target per training provider — shared by the provider picker
+// buttons and the Submit-click gate (P1-2) so both open the exact same
+// dialog for the exact same provider. modelId picks the inference model
+// used for QuickSetup's test call (FLUX_LORA for fal, ILLUSTRIOUS_XL for
+// Replicate — both share the same key as their respective trainers).
+const TRAINING_PROVIDER_QUICK_SETUP: Record<
+  'replicate' | 'fal',
+  { adapterType: AI_ADAPTER_TYPES; modelId: string; modelLabel: string }
+> = {
+  replicate: {
+    adapterType: AI_ADAPTER_TYPES.REPLICATE,
+    modelId: AI_MODELS.ILLUSTRIOUS_XL,
+    modelLabel: 'Replicate',
+  },
+  fal: {
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    modelId: AI_MODELS.FLUX_LORA,
+    modelLabel: 'fal.ai',
+  },
+}
+
 interface LoraTrainingFormProps {
   characterCardId?: string
   onSubmitted?: () => void
@@ -198,7 +219,6 @@ export function LoraTrainingForm({
     baseModel,
     imageCount: imageUrls.length,
     uploadsInFlight,
-    hasApiKey: Boolean(selectedKeyId),
   })
 
   const submitGateReasonText = gate.reasonKey
@@ -273,7 +293,14 @@ export function LoraTrainingForm({
   )
 
   const handleSubmit = useCallback(async () => {
-    if (gate.disabled || !selectedKeyId) return
+    if (gate.disabled) return
+    // P1-2 (Hard Rule 8): missing API key never disables Submit — clicking
+    // it launches the same QuickSetupDialog as the provider button instead
+    // of silently no-op'ing.
+    if (!selectedKeyId) {
+      setQuickSetup({ open: true, ...TRAINING_PROVIDER_QUICK_SETUP[provider] })
+      return
+    }
     setSubmitFieldError(null)
     const result = await submit({
       name: name.trim(),
@@ -297,10 +324,10 @@ export function LoraTrainingForm({
   }, [
     gate.disabled,
     selectedKeyId,
+    provider,
     name,
     triggerWord,
     loraType,
-    provider,
     baseModel,
     imageUrls,
     characterCardId,
@@ -485,9 +512,7 @@ export function LoraTrainingForm({
                 } else {
                   setQuickSetup({
                     open: true,
-                    adapterType: AI_ADAPTER_TYPES.REPLICATE,
-                    modelId: AI_MODELS.ILLUSTRIOUS_XL,
-                    modelLabel: 'Replicate',
+                    ...TRAINING_PROVIDER_QUICK_SETUP.replicate,
                   })
                 }
               }}
@@ -513,9 +538,7 @@ export function LoraTrainingForm({
                 } else {
                   setQuickSetup({
                     open: true,
-                    adapterType: AI_ADAPTER_TYPES.FAL,
-                    modelId: AI_MODELS.FLUX_LORA,
-                    modelLabel: 'fal.ai',
+                    ...TRAINING_PROVIDER_QUICK_SETUP.fal,
                   })
                 }
               }}
@@ -544,15 +567,20 @@ export function LoraTrainingForm({
               // range, amber too few, blue plenty. Drives "is my dataset
               // good enough yet?" intuition without parsing the long
               // uploadHint paragraph.
+              // D7⑥: 0 is a neutral empty state, not a warning — only turn
+              // red once the user has started uploading but hasn't hit the
+              // minimum yet (0 < n < MIN_IMAGES).
               const n = imageUrls.length
               const tone =
-                n < LORA_TRAINING.MIN_IMAGES
-                  ? 'text-destructive'
-                  : n < LORA_TRAINING.RECOMMENDED_MIN
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : n <= LORA_TRAINING.RECOMMENDED_MAX
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-sky-600 dark:text-sky-400'
+                n === 0
+                  ? 'text-muted-foreground'
+                  : n < LORA_TRAINING.MIN_IMAGES
+                    ? 'text-destructive'
+                    : n < LORA_TRAINING.RECOMMENDED_MIN
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : n <= LORA_TRAINING.RECOMMENDED_MAX
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-sky-600 dark:text-sky-400'
               return (
                 <span className={cn('text-2xs font-medium', tone)}>
                   {t('imageCountWithMax', {
@@ -697,13 +725,20 @@ export function LoraTrainingForm({
           </div>
         ) : null}
 
+        {/* P1-2: text must not point at "the sidebar" — this UI doesn't
+            have one. Points at the provider buttons above instead, and
+            makes clear Submit itself also opens the same setup dialog. */}
         {!hasAnyKey && (
           <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2">
             <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-              {t('noApiKey')}
+              {t('noApiKey', {
+                provider: TRAINING_PROVIDER_QUICK_SETUP[provider].modelLabel,
+              })}
             </p>
             <p className="text-2xs text-muted-foreground">
-              {t('addApiKeyHint')}
+              {t('addApiKeyHint', {
+                provider: TRAINING_PROVIDER_QUICK_SETUP[provider].modelLabel,
+              })}
             </p>
           </div>
         )}

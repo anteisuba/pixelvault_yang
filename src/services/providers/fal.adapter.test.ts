@@ -111,51 +111,19 @@ describe('falAdapter.generateImage', () => {
   // checkpoint endpoint is identified; the Civitai LoRA library routes Anima
   // baseModel LoRAs to "open in Civitai" instead.
 
-  it('does not send reference images to the text-to-image FLUX LoRA endpoint', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            request_id: 'req-flux-lora',
-            status_url: 'https://queue.fal.run/status/req-flux-lora',
-            response_url: 'https://queue.fal.run/result/req-flux-lora',
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: 'COMPLETED' }), {
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            images: [
-              {
-                url: 'https://fal.run/output/flux-lora.png',
-                width: 1024,
-                height: 1024,
-              },
-            ],
-          }),
-          { status: 200 },
-        ),
-      )
+  // B9 (D6): flux-lora ships separate t2i / i2i endpoints. Without a reference
+  // image it stays text-to-image; with one it switches to /image-to-image and
+  // carries image_url + inverted strength + loras.
+  it('keeps FLUX LoRA on the text-to-image endpoint (no image_url) when no reference image is present', async () => {
+    const fetchMock = vi.fn()
+    mockFalImageQueue(fetchMock, 'req-flux-lora-t2i')
     vi.stubGlobal('fetch', fetchMock)
 
     await falAdapter.generateImage({
       ...BASE_INPUT,
       modelId: AI_MODELS.FLUX_LORA,
-      referenceImages: ['https://cdn.example.com/reference.png'],
       advancedParams: {
-        loras: [
-          {
-            url: 'https://example.com/lora.safetensors',
-            scale: 1,
-          },
-        ],
+        loras: [{ url: 'https://example.com/lora.safetensors', scale: 1 }],
       },
     })
 
@@ -165,12 +133,38 @@ describe('falAdapter.generateImage', () => {
     )
     const body = JSON.parse((init as RequestInit).body as string)
     expect(body.image_url).toBeUndefined()
+    expect(body.strength).toBeUndefined()
+    expect(body.loras).toEqual([
+      { path: 'https://example.com/lora.safetensors', scale: 1 },
+    ])
+  })
+
+  it('routes FLUX LoRA to /image-to-image with image_url + inverted strength + loras when a reference image is present', async () => {
+    const fetchMock = vi.fn()
+    mockFalImageQueue(fetchMock, 'req-flux-lora-i2i')
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: AI_MODELS.FLUX_LORA,
+      referenceImages: ['https://cdn.example.com/reference.png'],
+      advancedParams: {
+        referenceStrength: 0.7,
+        loras: [{ url: 'https://example.com/lora.safetensors', scale: 1 }],
+      },
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toBe(
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/flux-lora/image-to-image`,
+    )
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.image_url).toBe('https://cdn.example.com/reference.png')
+    // fal denoising `strength` = 1 - referenceStrength (0.7 → ~0.3).
+    expect(body.strength).toBeCloseTo(0.3, 5)
     expect(body.image_urls).toBeUndefined()
     expect(body.loras).toEqual([
-      {
-        path: 'https://example.com/lora.safetensors',
-        scale: 1,
-      },
+      { path: 'https://example.com/lora.safetensors', scale: 1 },
     ])
   })
 

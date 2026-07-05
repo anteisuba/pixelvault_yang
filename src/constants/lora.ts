@@ -1,3 +1,5 @@
+import type { AspectRatio } from '@/constants/config'
+
 export const LORA_WORKBENCH_SECTIONS = {
   // GENERATE 是新一等 surface（LoRA 域拥有生成，见 lora-domain-split）。
   // mine/community 保留为「库」tab 的两个子态（公开/我的），深链不破坏。
@@ -18,6 +20,29 @@ export const DEFAULT_LORA_WORKBENCH_SECTION = LORA_WORKBENCH_SECTIONS.COMMUNITY
 
 export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
+// D7③：生成页结果历史 filmstrip 的会话级上限。超过后 FIFO 丢最旧一张——
+// 只在内存里存本会话结果，刷新清空（正片在素材库/画廊里另有长期归档）。
+export const LORA_RESULT_HISTORY_MAX = 12
+
+// P1-10（D7①）：生成页比例 chip 的值域与展示顺序。LoRA 出图主流是 3:4 立绘，
+// 故 3:4 紧跟 1:1 排在前面（与 Studio 的 STUDIO_IMAGE_ASPECT_RATIOS 值域相同、
+// 顺序不同——LoRA 域偏向竖构图）。默认值仍是 1:1，见 DEFAULT_ASPECT_RATIO。
+export const LORA_GENERATE_ASPECT_RATIOS = [
+  '1:1',
+  '3:4',
+  '4:3',
+  '16:9',
+  '9:16',
+] as const satisfies readonly AspectRatio[]
+
+// ── 库筛选深链（P1-5 方案 A）────────────────────────────────────────────
+// family/q/sort/nsfw 全部入 URL query，与上面的 section 参数同一套「默认值
+// 不入 URL」约定：值等于默认时从 query 里删掉，保持深链干净。
+export const LORA_LIBRARY_FAMILY_PARAM = 'family'
+export const LORA_LIBRARY_SEARCH_PARAM = 'q'
+export const LORA_LIBRARY_SORT_PARAM = 'sort'
+export const LORA_LIBRARY_NSFW_PARAM = 'nsfw'
+
 // ── 挂载可见性（M2a，docs/plans/lora-recipe-workflow.md）──────────────
 // Studio chip 卡片 48px 缩略图请求宽度，96 覆盖 2x 屏。
 export const LORA_CHIP_THUMBNAIL_WIDTH = 96
@@ -27,6 +52,9 @@ export const LORA_CARD_SOURCE_IMAGE_WIDTH = 192
 export const LORA_MOUNT_EVENT_FRESH_MS = 5 * 60 * 1000
 // 挂载后触发按钮的高亮时长。
 export const LORA_MOUNT_PULSE_MS = 4000
+// LoRA 域 toast 统一停留时长（P2-2：此前部分 toast 无显式 duration，
+// 观察到停留 >30s 不消失；显式设置消灭歧义）。
+export const LORA_TOAST_DURATION_MS = 4000
 
 // 收藏自愈回填：单次列表请求最多回填几行（每行一次 Civitai 请求，
 // 限量避免旧收藏多的用户首次加载被拖慢；剩余行下次请求继续愈合）。
@@ -35,7 +63,9 @@ export const LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST = 3
 // 配方 extras 自动定位全部失败时的逃生口：跳 Civitai 站内搜索让用户自查。
 export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
 
-export const CIVITAI_LORA_PAGE_SIZE = 10
+// P2-6：10 条/页在 2xl:6 列网格下永远残行；12 在 6/4/3/2 列下都能整行
+// （5 列容忍最后一行留 2 空位）。
+export const CIVITAI_LORA_PAGE_SIZE = 12
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =
   'https://raw.githubusercontent.com/mix1009/model-keyword/main/lora-keyword.txt'
@@ -294,4 +324,44 @@ export function isCivitaiLoraBaseModel(
   value: string,
 ): value is CivitaiLoraBaseModel {
   return (CIVITAI_LORA_BASE_MODEL_VALUES as readonly string[]).includes(value)
+}
+
+// P1-6（2026-07-04 owner 改稿：三态分级，默认不设限）：
+//   unrestricted — 默认。安全 + NSFW 混着显示，不额外过滤。
+//   nsfwOnly     — 仅 NSFW：过滤掉安全内容，只留 NSFW 内容。
+//   safe         — 安全：civitai 侧 nsfw=false + 名称词表兜底过滤。
+// 顺序即 UI 循环点击的顺序：unrestricted → nsfwOnly → safe → unrestricted。
+export const LORA_NSFW_FILTER_VALUES = [
+  'unrestricted',
+  'nsfwOnly',
+  'safe',
+] as const
+
+export type LoraNsfwFilter = (typeof LORA_NSFW_FILTER_VALUES)[number]
+
+export const DEFAULT_LORA_NSFW_FILTER: LoraNsfwFilter = 'unrestricted'
+
+export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
+  return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)
+}
+
+// P1-6：安全档下，civitai `nsfw=false` 已经把 NSFW 分级的封面挡成占位卡——
+// 但模型名本身还在（比如标题带 "Hentai"），留着只剩一张无信息量的空卡。
+// 名称词表按小写子串匹配，只过滤"这名字本身就是 NSFW 标签"的场景，不做
+// 内容层面的判断（内容层面已经交给 civitai 的 nsfwLevel）。
+export const LORA_NSFW_NAME_KEYWORDS = [
+  'hentai',
+  'nsfw',
+  'r18',
+  'r-18',
+  'porn',
+  'nudity',
+  'nude',
+  'ecchi',
+  'lewd',
+] as const
+
+export function isNsfwNamedModel(name: string): boolean {
+  const haystack = name.toLowerCase()
+  return LORA_NSFW_NAME_KEYWORDS.some((keyword) => haystack.includes(keyword))
 }

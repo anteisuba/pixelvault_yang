@@ -12,6 +12,7 @@ import {
   setLoraAssetVisibilityAPI,
   unfavoriteLoraAPI,
 } from '@/lib/api-client/lora-assets'
+import { LORA_TOAST_DURATION_MS } from '@/constants/lora'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 
@@ -90,13 +91,17 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await setLoraAssetVisibilityAPI(assetId, isPublic)
       if (!result.success || !result.data) {
         setMyAssets(previous)
-        toast.error(result.error ?? t('visibilityUpdateFailed'))
+        toast.error(result.error ?? t('visibilityUpdateFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return false
       }
       setMyAssets((prev) =>
         prev.map((a) => (a.id === assetId ? result.data! : a)),
       )
-      toast.success(isPublic ? t('madePublic') : t('madePrivate'))
+      toast.success(isPublic ? t('madePublic') : t('madePrivate'), {
+        duration: LORA_TOAST_DURATION_MS,
+      })
       return true
     },
     [myAssets, t],
@@ -130,14 +135,16 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       }
       const result = await favoriteLoraAPI(payload)
       if (!result.success || !result.data) {
-        toast.error(result.error ?? t('favoriteFailed'))
+        toast.error(result.error ?? t('favoriteFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return null
       }
       setMyAssets((prev) => {
         if (prev.some((a) => a.id === result.data!.id)) return prev
         return [result.data!, ...prev]
       })
-      toast.success(t('favoriteAdded'))
+      toast.success(t('favoriteAdded'), { duration: LORA_TOAST_DURATION_MS })
       return result.data
     },
     [t],
@@ -150,10 +157,12 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await unfavoriteLoraAPI(assetId)
       if (!result.success) {
         setMyAssets(previous)
-        toast.error(result.error ?? t('favoriteFailed'))
+        toast.error(result.error ?? t('favoriteFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return false
       }
-      toast.success(t('favoriteRemoved'))
+      toast.success(t('favoriteRemoved'), { duration: LORA_TOAST_DURATION_MS })
       return true
     },
     [myAssets, t],
@@ -172,13 +181,16 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await deleteLoraAssetAPI(assetId)
       if (!result.success) {
         setMyAssets(previous)
-        toast.error(result.error ?? t('assetDeleteFailed'))
+        toast.error(result.error ?? t('assetDeleteFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
         return false
       }
       toast.success(
         target
           ? t('assetDeleted', { name: target.name })
           : t('assetDeleted', { name: '' }),
+        { duration: LORA_TOAST_DURATION_MS },
       )
       return true
     },

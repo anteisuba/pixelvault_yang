@@ -12,12 +12,16 @@ import {
 
 describe('reference-image-capabilities', () => {
   describe('getImageReferenceCapability', () => {
-    it('returns kind:none when model is overridden to zero (FLUX_LORA)', () => {
+    // B9 (D6): FLUX LoRA reference-image img2img is enabled — one image via
+    // the FAL img2img endpoint pair.
+    it('returns flexible max=1 img2img for FLUX_LORA', () => {
       const cap = getImageReferenceCapability(
         AI_ADAPTER_TYPES.FAL,
         AI_MODELS.FLUX_LORA,
       )
-      expect(cap.kind).toBe('none')
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.max).toBe(1)
+      expect(cap.mode).toBe('img2img')
     })
 
     it.each([

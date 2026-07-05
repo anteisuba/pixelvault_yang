@@ -485,32 +485,44 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       kind: refToken.kind,
     }))
 
-  // §7.2 ⑥ "点击替换": the prompt text still literally contains `@oldName` —
-  // swap it for the current `@newName` and re-anchor the bookkeeping so drift
-  // isn't re-flagged next render.
-  const handleReplaceDrift = useCallback(
-    (refId: string, oldName: string, newName: string) => {
-      const current = getNodeWorkflowFieldValue(
-        data,
-        NODE_WORKFLOW_FIELD_IDS.prompt,
+  // V2-1 改名静默自动回写: when a referenced node is renamed, its @oldName sits
+  // stale in the prompt. Rather than surface a manual "replace" affordance
+  // (removed), detect drift and rewrite @oldName → @currentName automatically,
+  // re-anchoring `insertedReferenceNames` so it self-terminates next render.
+  // Voice anchors are ambiguous (bare name), so they're never tracked. The
+  // persisted value stays plain-text @name — the generate path is untouched.
+  useEffect(() => {
+    const insertedNames = data.insertedReferenceNames
+    if (!insertedNames) return
+    let nextPrompt = promptFieldValue
+    const nextInserted = { ...insertedNames }
+    let changed = false
+    for (const refToken of composer.referenceTokens) {
+      if (refToken.kind === 'voice') continue
+      const stale = findDriftReplacement(
+        insertedNames,
+        refToken.id,
+        refToken.label,
+        nextPrompt,
       )
-      const next = current.split(`@${oldName}`).join(`@${newName}`)
-      updateNodeData(id, {
-        [NODE_WORKFLOW_FIELD_IDS.prompt]: next,
-        insertedReferenceNames: {
-          ...(data.insertedReferenceNames ?? {}),
-          [refId]: newName,
-        },
-        status: buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, {
-          ...data,
-          [NODE_WORKFLOW_FIELD_IDS.prompt]: next,
-        }).trim()
-          ? NODE_STATUS_IDS.ready
-          : NODE_STATUS_IDS.idle,
-      })
-    },
-    [data, id, updateNodeData],
-  )
+      if (stale) {
+        nextPrompt = nextPrompt.split(`@${stale}`).join(`@${refToken.label}`)
+        nextInserted[refToken.id] = refToken.label
+        changed = true
+      }
+    }
+    if (!changed) return
+    updateNodeData(id, {
+      [NODE_WORKFLOW_FIELD_IDS.prompt]: nextPrompt,
+      insertedReferenceNames: nextInserted,
+    })
+  }, [
+    composer.referenceTokens,
+    promptFieldValue,
+    data.insertedReferenceNames,
+    id,
+    updateNodeData,
+  ])
 
   // §7.1 ＋添加位: the card's ＋ emits a (nodeType, role, mediaType) intent; we
   // open the matching asset library, and on pick autospawn the upstream node +
@@ -742,18 +754,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               </span>
               <DepartmentStrip
                 tokens={composer.referenceTokens}
-                driftFor={(refToken) =>
-                  findDriftReplacement(
-                    data.insertedReferenceNames,
-                    refToken.id,
-                    refToken.label,
-                    promptFieldValue,
-                  )
-                }
                 onInsert={handleTokenInsert}
-                onReplaceDrift={(refToken, oldName, newName) =>
-                  handleReplaceDrift(refToken.id, oldName, newName)
-                }
                 onLocate={focusNode}
                 onRemove={handleRemoveReference}
                 onAddReference={spawnReference ? handleAddReference : undefined}

@@ -91,18 +91,6 @@ describe('ReferenceTokenChip', () => {
     )
   })
 
-  it('marks a drifted token with a dashed ring and a warning badge', () => {
-    render(
-      <ReferenceTokenChip
-        data={baseToken()}
-        driftFrom="旧名字"
-        onInsert={vi.fn()}
-      />,
-    )
-    const chip = screen.getByRole('button', { name: '@角色A' })
-    expect(chip.className).toContain('border-dashed')
-  })
-
   it('calls onInsert with the token data and the clicked element', () => {
     const onInsert = vi.fn()
     render(<ReferenceTokenChip data={baseToken()} onInsert={onInsert} />)
@@ -126,21 +114,6 @@ describe('ReferenceTokenChip', () => {
     expect(screen.getByText('references.locate')).toBeInTheDocument()
     fireEvent.click(screen.getByText('references.locate'))
     expect(onLocate).toHaveBeenCalledWith('c1')
-  })
-
-  it('offers a replace action for a drifted token', () => {
-    const onReplaceDrift = vi.fn()
-    render(
-      <ReferenceTokenChip
-        data={baseToken()}
-        driftFrom="旧名字"
-        onInsert={vi.fn()}
-        onReplaceDrift={onReplaceDrift}
-      />,
-    )
-    fireEvent.mouseEnter(screen.getByRole('button', { name: '@角色A' }))
-    fireEvent.click(screen.getByText('references.driftReplace'))
-    expect(onReplaceDrift).toHaveBeenCalledWith('旧名字', '角色A')
   })
 
   it('renders a video reference as a projection-only slot (never inserts)', () => {

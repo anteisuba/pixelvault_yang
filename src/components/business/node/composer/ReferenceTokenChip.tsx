@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { AlertTriangle, Film, Frame, Locate, Mic2, Play } from 'lucide-react'
+import { Film, Frame, Locate, Mic2, Play } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -67,23 +67,17 @@ const FILL_CLASS: Record<ReferenceTokenKind, string> = {
 
 interface ReferenceTokenChipProps {
   data: ReferenceTokenData
-  /** Set when the prompt text still contains `@driftFrom` but this reference
-   *  has since been renamed to `data.label` (§7.2 ⑥ 改名漂移). */
-  driftFrom?: string
   onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
-  onReplaceDrift?(oldName: string, newName: string): void
   onLocate?(nodeId: string): void
 }
 
-/** §8 引用 token — 内嵌真实缩略图的六态 chip：选角(圆)/置景(方)/配音(圆，已配置
- *  封面或 Mic2 兜底)/漂移(虚线描边+⚠角标)。'shot' 视觉上并入置景的方形语言，只用
- *  image 族色区分（§7/§8 四部门里没有独立的"镜头"态）。Hover 弹出预览浮层
- *  （§8.3），点击插入交给调用方（VideoComposer 负责飞入+辉光动效，§8.4）。 */
+/** §8 引用 token — 内嵌真实缩略图的 chip：选角(圆)/置景·镜头(方)/配音(圆，封面
+ *  或 Mic2 兜底)/视频(方·▶)/keyframe(方·Frame)。Hover 弹出预览浮层（§8.3），点击
+ *  插入交给调用方（VideoComposer 负责飞入+辉光动效，§8.4）。改名走 V2-1 静默自动
+ *  回写（VideoComposer 侧），token 不再有漂移态。 */
 export function ReferenceTokenChip({
   data,
-  driftFrom,
   onInsert,
-  onReplaceDrift,
   onLocate,
 }: ReferenceTokenChipProps) {
   const tc = useTranslations('StudioNode.videoComposer')
@@ -149,13 +143,12 @@ export function ReferenceTokenChip({
           title={insertable ? tc('references.insertHint') : noInsertHint}
           aria-label={display}
           className={cn(
-            'nodrag relative flex size-10 shrink-0 items-center justify-center overflow-hidden border transition-colors',
+            'nodrag relative flex size-10 shrink-0 items-center justify-center overflow-hidden border ring-1 transition-colors',
             SHAPE_CLASS[data.kind],
             !insertable && 'cursor-default',
             data.dimmed && 'opacity-40',
-            driftFrom
-              ? 'border-dashed border-node-subtle'
-              : cn('border-node-panel-inner ring-1', RING_CLASS[data.kind]),
+            'border-node-panel-inner',
+            RING_CLASS[data.kind],
           )}
         >
           {thumbUrl ? (
@@ -185,11 +178,6 @@ export function ReferenceTokenChip({
             // §8.2 动作·参考视频: ▶ 角标一眼区分"这是动图不是静图"。
             <span className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl bg-node-canvas/85 text-node-foreground">
               <Play className="size-2" fill="currentColor" />
-            </span>
-          ) : null}
-          {driftFrom ? (
-            <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-node-danger text-node-canvas">
-              <AlertTriangle className="size-2.5" />
             </span>
           ) : null}
         </button>
@@ -248,21 +236,6 @@ export function ReferenceTokenChip({
           >
             {noInsertHint}
           </p>
-        ) : null}
-
-        {driftFrom ? (
-          <div className="space-y-1.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2">
-            <p className="text-2xs leading-4 text-node-muted">
-              {tc('references.driftHint', { old: driftFrom, name: data.label })}
-            </p>
-            <button
-              type="button"
-              onClick={() => onReplaceDrift?.(driftFrom, data.label)}
-              className="w-full rounded-md bg-node-foreground px-2 py-1 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
-            >
-              {tc('references.driftReplace')}
-            </button>
-          </div>
         ) : null}
 
         {onLocate ? (

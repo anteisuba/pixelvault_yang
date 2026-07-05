@@ -230,7 +230,9 @@ describe('VideoComposer references row (detail)', () => {
     expect(img).toHaveAttribute('src', 'https://cdn.test/character-a.png')
   })
 
-  it('flags drift when a reference was renamed after its old @token was typed in', () => {
+  it('V2-1 silently auto-rewrites a stale @oldName after the node is renamed', () => {
+    // The reference was inserted as @旧名字, then its node renamed to 新名字.
+    // No manual affordance — the effect rewrites the prompt automatically.
     const data = {
       prompt: '@旧名字 walks into frame',
       status: 'idle',
@@ -241,11 +243,11 @@ describe('VideoComposer references row (detail)', () => {
     ]
     render(<VideoComposer id="v1" data={data} density="detail" />)
 
-    const chip = screen.getByRole('button', { name: '@新名字' })
-    expect(chip.className).toContain('border-dashed')
-
-    fireEvent.mouseEnter(chip)
-    fireEvent.click(screen.getByText('references.driftReplace'))
+    // No drift affordance renders anymore.
+    expect(
+      screen.queryByText('references.driftReplace'),
+    ).not.toBeInTheDocument()
+    // The prompt is rewritten + bookkeeping re-anchored, automatically.
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
       expect.objectContaining({

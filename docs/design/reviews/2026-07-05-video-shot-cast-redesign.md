@@ -137,3 +137,5 @@
 **改名策略 = B 自动回写**（owner 拍板，取代 nodeId marker 方案 C）：节点改名 → 复用现有漂移检测把引用它的 prompt 内 `@旧名`→`@新名` **静默自动回写**，删漂移提示 UI（手动替换按钮/⚠虚线态）。生成路径零改动。
 
 **切片**：V2-1 B 自动回写+删漂移 UI（低）→ V2-2 token 内嵌缩略图（低）→ V2-3 自动编号+视频/未命名可插（中）→ V2-4 特写 role=closeup+身份组 UI+1 跳收割（大：新 role 波及 role picker/收割/连线规则/图例）。
+
+**V2-1 已交付**（2026-07-05 晚）：改名静默自动回写落地——VideoComposer 加 effect，检测到 `insertedReferenceNames[id]≠当前名` 且 prompt 含 `@旧名` 时自动 `@旧名→@新名` 回写并 re-anchor（self-terminating）；漂移 UI 整套删除（ReferenceTokenChip 的 driftFrom/onReplaceDrift/虚线态/⚠角标/替换按钮，DepartmentStrip 的 driftFor/onReplaceDrift 贯穿）。生成路径零改动。测试改为验证「无替换按钮 + prompt 自动回写」。i18n `driftHint/driftReplace` 键成孤儿（共享文件污染，未删，无害）。

@@ -100,15 +100,7 @@ const DEPARTMENTS: ReadonlyArray<{
 
 interface DepartmentStripProps {
   tokens: ComposerReferenceToken[]
-  /** §7.2 ⑥ rename drift — returns the stale `@oldName` still present in the
-   *  prompt for this token, if any. */
-  driftFor(token: ComposerReferenceToken): string | undefined
   onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
-  onReplaceDrift(
-    token: ComposerReferenceToken,
-    oldName: string,
-    newName: string,
-  ): void
   onLocate?(nodeId: string): void
   /** §7.1: 删除槽位 = 删连线（节点保留）。Only offered for tokens with a
    *  direct edge into this video node (`edgeId` set). */
@@ -125,15 +117,13 @@ interface DepartmentStripProps {
 
 /** cast-redesign 部门条 — 按制作角色五卡（角色/场景/镜头/动作/旁白）。每张卡：
  *  4px 端口色轨 + 标题 + 「n 项引用」计数，槽位投影当前画布连线（槽 =
- *  ReferenceTokenChip，hover 预览 / 单击插入 @ / 漂移替换全沿用）+ 左下
- *  图N/音N/视N payload 角标 + hover 右上 × 删连线。角色槽额外挂**音色徽标**
- *  （有音色=mic/封面，未就绪=置灰，无音色=＋配音 autospawn voice→character）。
- *  旁白卡只收直连视频的语音；音色收进角色不单列。 */
+ *  ReferenceTokenChip，hover 预览 / 单击插入 @）+ 左下 图N/音N/视N payload 角标
+ *  + hover 右上 × 删连线。角色槽额外挂**音色徽标**（有音色=mic/封面，未就绪=置灰，
+ *  无音色=＋配音 autospawn voice→character）。旁白卡只收直连视频的语音；音色收进
+ *  角色不单列。改名走 V2-1 静默自动回写（VideoComposer 侧），无漂移态。 */
 export function DepartmentStrip({
   tokens,
-  driftFor,
   onInsert,
-  onReplaceDrift,
   onLocate,
   onRemove,
   onAddReference,
@@ -177,9 +167,7 @@ export function DepartmentStrip({
                   <DepartmentSlot
                     key={token.id}
                     token={token}
-                    driftFrom={driftFor(token)}
                     onInsert={onInsert}
-                    onReplaceDrift={onReplaceDrift}
                     onLocate={onLocate}
                     onRemove={onRemove}
                     onAddVoice={onAddVoice}
@@ -235,24 +223,16 @@ function AddReferenceTile({
 /** 参考槽（§4 C3）: the untouched ReferenceTokenChip plus strip-only overlays —
  *  a payload-order corner badge (图N/音N) and a hover-revealed × that deletes
  *  the edge. Overlays are siblings, not chip changes, so the chip's hover
- *  preview / insert / drift behavior stays byte-identical elsewhere. */
+ *  preview / insert behavior stays byte-identical elsewhere. */
 function DepartmentSlot({
   token,
-  driftFrom,
   onInsert,
-  onReplaceDrift,
   onLocate,
   onRemove,
   onAddVoice,
 }: {
   token: ComposerReferenceToken
-  driftFrom?: string
   onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
-  onReplaceDrift(
-    token: ComposerReferenceToken,
-    oldName: string,
-    newName: string,
-  ): void
   onLocate?(nodeId: string): void
   onRemove?(token: ComposerReferenceToken): void
   onAddVoice?(characterNodeId: string): void
@@ -272,11 +252,7 @@ function DepartmentSlot({
     <span className="group/slot relative inline-flex">
       <ReferenceTokenChip
         data={token}
-        driftFrom={driftFrom}
         onInsert={onInsert}
-        onReplaceDrift={(oldName, newName) =>
-          onReplaceDrift(token, oldName, newName)
-        }
         onLocate={onLocate}
       />
       {badge ? (

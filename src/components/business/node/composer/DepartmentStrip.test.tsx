@@ -34,9 +34,7 @@ function renderStrip(
   return render(
     <DepartmentStrip
       tokens={tokens}
-      driftFor={() => undefined}
       onInsert={handlers?.onInsert ?? vi.fn()}
-      onReplaceDrift={vi.fn()}
       onRemove={handlers?.onRemove}
       onAddReference={handlers?.onAddReference}
       onAddVoice={handlers?.onAddVoice}

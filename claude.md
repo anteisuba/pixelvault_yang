@@ -151,32 +151,55 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 任何 UI 改动前先读 `docs/design/README.md` 与最新 `docs/design/reviews/` 审查报告。然后按任务类型选 skill：
 
-- **首页 / Landing / 视觉升级 / 反 AI-slop** → `design-taste-frontend`（设计）→ `redesign-existing-projects`（审计，见下方工作流契约）
-- **生产级产品 UI 实现** → `frontend-design`（Anthropic plugin via `/plugin`）
-- **全站 UX 审查（按钮 / 表单 / 卡片 / 响应式 / a11y / 动效）** → `ui-ux-pro-max-skill`
-- **设计系统一致性 / token 治理** → `hue design-system`
+- **首页 / Landing / 视觉升级 / 反 AI-slop（营销页）** → `design-taste-frontend`（设计）→ `redesign-existing-projects`（审计，见下方工作流契约①）
+- **产品内页 / 非营销页新实现（Studio / 画布 / LoRA 等应用型 UI）** → `ui-ux-pro-max`（定调/出设计系统）→ `frontend-design`（在系统内实现）→ `polish` / `audit`（收尾检查）→ 需要时 `redesign-existing-projects`（存量页面整体升级，见下方工作流契约②）
+- **全站 UX 审查（按钮 / 表单 / 卡片 / 响应式 / a11y / 动效）** → `ui-ux-pro-max`（99 条 UX 规则 + Quick Reference §1–§3）
+- **设计系统一致性 / token 治理** → `design-system`（token 三层架构）+ `ui-ux-pro-max --design-system`
 - **Plan-stage 设计评审（写代码前）** → `plan-design-review`（gstack 内置）
 - **Live 视觉审计（部署后）** → `design-review`（gstack 内置）
 
 **外部 skill 安装**（用户需要手动跑一次）：
 
 ```bash
-# Taste Skill 已装（2026-07-04）：design-taste-frontend + redesign-existing-projects
-# 重装命令（会连带装出 11 个冗余/冲突的审美预设变体，装完只留这两个，其余删掉）：
+# 本地已装（.claude/skills/，直接用 Skill tool 调，无需 /plugin）：
+# design-taste-frontend、redesign-existing-projects（2026-07-04 装，Taste Skill）
+# frontend-design、polish、audit（Anthropic 官方 skill 集，随仓库自带）
+# ui-ux-pro-max、ui-styling、design-system（2026-07-04 装，nextlevelbuilder/ui-ux-pro-max-skill）
+#   → 设计系统大脑：161 配色/57 字体/99 UX 规则；命令 python .agents/skills/ui-ux-pro-max/scripts/search.py "<产品 行业 调性>" --design-system --persist -p PixelVault
+# 重装 Taste Skill 会连带装出 11 个冗余/冲突的审美预设变体，装完只留 design-taste-frontend + redesign-existing-projects，其余删掉：
 # npx skills add Leonxlnx/taste-skill
-# Anthropic frontend-design — Claude Code 里跑：/plugin → marketplace → anthropics/claude-code
-# ui-ux-pro-max / hue — 同样通过 /plugin 安装
+# 装 ui-ux-pro-max-skill 会连带甩出 banner-design/brand/design/slides（营销/品牌/PPT，off-scope）——已删，只留 ui-ux-pro-max/ui-styling/design-system 三个产品 UI skill
+# hue — 尚未安装，需要时 Claude Code 里跑 /plugin → marketplace → anthropics/claude-code
 ```
 
 **UI 工作流契约**（与 [[feedback-design-first]] memory 一致）：
 
-1. 涉及 UI 的任务先用 `design-taste-frontend` skill 定设计方向/出实现，完成后过 `redesign-existing-projects` skill 审计（抓 AI-slop 通病、核对是否达标）——两个都在 `.claude/skills/`，直接用 Skill tool 调。
-2. 审查（audit only，不改代码）→ 输出问题清单 + 文件路径 + 严重程度 + 修复方案
-3. 非琐碎改动先出 Figma 改动清单，等设计稿
-4. 拿到设计稿后用 `mcp__figma__get_design_context` 拉参考代码
-5. 一次只改一个页面/组件
-6. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
-7. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
+**① 营销页（首页 / Landing）**
+
+1. 先用 `design-taste-frontend` skill 定设计方向/出实现，完成后过 `redesign-existing-projects` skill 审计（抓 AI-slop 通病、核对是否达标）。
+
+**② 产品内页 / 非营销页（Studio / 画布 / LoRA 等应用型 UI）** — 两条子工作流：
+
+**新页面/新组件开发（🅰）**
+
+1. **定调**：先用 `ui-ux-pro-max --design-system --persist` 生成/复用设计系统（色/字/间距/风格/反模式），落 `design-system/MASTER.md` + `pages/<页>.md`；旋钮 `--variance`/`--motion`/`--density` 调创意度/动效/密度。
+2. **落地**：`frontend-design` skill 在上面设计系统的约束内逐屏/逐组件实现（不脱离系统自由发挥）。
+3. **质检**：`polish`（对齐/间距/细节收尾）或 `audit`（问题清单+严重度分级）——快速单点检查，不重新设计。
+
+**既存 UI 升级（🅱，存量提质感、非新写）**
+
+1. **审计**：`redesign-existing-projects`（audit-first，抓 AI-slop 通病）或 `audit`，出问题清单+文件路径+严重度。
+2. **对标规则**：`ui-ux-pro-max --domain ux` 拿 Quick Reference §1–§3（a11y/触达/性能 CRITICAL）逐条过。
+3. **逐页升级**：按审计清单一次一页改，`redesign-existing-projects` 落地，不破坏功能。
+
+**两者通用步骤**
+
+1. 审查类 skill 默认 audit only（不改代码）→ 输出问题清单 + 文件路径 + 严重程度 + 修复方案
+2. 非琐碎改动先出 Figma 改动清单，等设计稿
+3. 拿到设计稿后用 `mcp__figma__get_design_context` 拉参考代码
+4. 一次只改一个页面/组件
+5. 跑 `npm run lint && npm run build && npx playwright test e2e/mobile.spec.ts --project=mobile`
+6. UI-only 任务**不动** `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk 配线、credit/billing — 需要时停下来 surface 冲突
 
 **UI 确认阶梯**（每次优化/修改 UI 后**逐项**走一遍并在完成报告里逐条说明结果，不要只截图"看一眼"）：
 

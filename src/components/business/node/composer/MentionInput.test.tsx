@@ -115,6 +115,22 @@ describe('MentionInput component', () => {
     expect(onValueChange).toHaveBeenCalledWith('@角色A ')
   })
 
+  it('inserts plain text (no chip) via insertText — used by 运镜语法', () => {
+    const onValueChange = vi.fn()
+    const ref = createRef<MentionInputHandle>()
+    const { container } = render(
+      <MentionInput
+        ref={ref}
+        value=""
+        onValueChange={onValueChange}
+        tokens={TOKENS}
+      />,
+    )
+    ref.current?.insertText('推镜头 ')
+    expect(container.querySelectorAll('[data-mention]')).toHaveLength(0)
+    expect(onValueChange).toHaveBeenCalledWith('推镜头 ')
+  })
+
   it('does not re-render (reset) the DOM when value echoes the last edit', () => {
     const onValueChange = vi.fn()
     const { container, rerender } = render(

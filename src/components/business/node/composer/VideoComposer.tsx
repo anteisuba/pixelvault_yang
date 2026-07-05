@@ -85,6 +85,7 @@ import {
   type MentionInputHandle,
   type MentionToken,
 } from './MentionInput'
+import { CameraGrammarButton } from './CameraGrammarButton'
 
 interface VideoComposerProps {
   id: string
@@ -772,8 +773,19 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
 
             {/* Prompt — the composer's hero field. @references render as atomic
                 chips (§6 S2 MentionInput); the persisted value stays plain-text
-                @name for the generate path. */}
-            <ComposerField label={tFields('prompt.label')}>
+                @name for the generate path. The 运镜语法 button (§5 L1) inserts
+                film-language phrases at the caret. */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {tFields('prompt.label')}
+                </span>
+                <CameraGrammarButton
+                  onInsert={(phrase) =>
+                    promptRef.current?.insertText(`${phrase} `)
+                  }
+                />
+              </div>
               <MentionInput
                 ref={promptRef}
                 value={promptFieldValue}
@@ -786,7 +798,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
                 {...KEY_GUARD}
                 className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
               />
-            </ComposerField>
+            </div>
 
             {/* Negative prompt — grouped with the other text inputs. */}
             <ComposerField label={t('negativePromptLabel')}>

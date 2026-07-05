@@ -22,6 +22,9 @@ export interface MentionToken {
 export interface MentionInputHandle {
   /** Insert `@name` as an atomic chip at the caret (falls back to the end). */
   insertToken(name: string): void
+  /** Insert plain text at the caret — used by the 运镜语法 chips (§5 L1), which
+   *  are film-language phrases, not @tokens. */
+  insertText(text: string): void
   focus(): void
   getBoundingClientRect(): DOMRect | undefined
 }
@@ -260,6 +263,13 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
           insertNodeAtCaret(el, el.ownerDocument.createTextNode(' '))
+          emit()
+        },
+        insertText(text: string) {
+          const el = editorRef.current
+          if (!el) return
+          el.focus()
+          insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
           emit()
         },
         focus() {

@@ -56,3 +56,38 @@ LIGHT AS EMOTION & CONTINUITY
 PACING
 - Think in precise second ranges and name the transition between shots (hard cut / dissolve / whip / match cut).
 - One primary subject per beat; with multiple subjects set a clear focal priority and action order.`
+
+/**
+ * Camera-grammar vocabulary as click-to-insert chips (cast-redesign §5 L1 运镜
+ * L1). Distilled from CINEMATIC_SHOT_GRAMMAR's shot-size / angle / movement
+ * terms into the three groups a director reaches for. Each chip's Chinese term
+ * is inserted verbatim into the prompt as plain text (not an @token) — a fast,
+ * zero-learning-curve vocabulary helper. `id` keys the group label i18n.
+ */
+export const CAMERA_GRAMMAR_GROUPS = [
+  {
+    id: 'size',
+    chips: ['远景', '全景', '中景', '中近景', '特写', '大特写'],
+  },
+  {
+    id: 'angle',
+    chips: ['平视', '低角度', '高角度', '荷兰角', '过肩', '主观视角', '鸟瞰'],
+  },
+  {
+    id: 'move',
+    chips: [
+      '推镜头',
+      '拉镜头',
+      '摇镜头',
+      '移镜头',
+      '跟拍',
+      '甩镜头',
+      '升降镜头',
+      '手持',
+      '环绕',
+      '希区柯克变焦',
+    ],
+  },
+] as const
+
+export type CameraGrammarGroupId = (typeof CAMERA_GRAMMAR_GROUPS)[number]['id']

@@ -18,8 +18,10 @@ import {
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamCloseupUrls,
   harvestUpstreamImageUrls,
   harvestUpstreamVideoUrls,
+  isCloseupNode,
   isKeyframeNode,
   isVideoSourceNode,
   isVisualReferenceNode,
@@ -70,6 +72,9 @@ export interface ComposerReferenceToken extends ReferenceTokenData {
   videoSlotIndex?: number
   edgeId?: string
   boundVoice?: BoundVoice
+  /** For a closeup token (§9 B): the character node it wires into, so the strip
+   *  can group it under that character's identity unit. */
+  parentCharacterId?: string
 }
 
 function toSelection(
@@ -170,7 +175,13 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // character have no direct edge → no edgeId → no × button.
   const referenceTokens = useMemo<ComposerReferenceToken[]>(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
-    const payloadImageUrls = harvestUpstreamImageUrls(incoming)
+    // image_urls order = keyframes → main refs → 1-hop closeups, matching the
+    // generate path (StudioNodeWorkbench). Closeups append last so 特写N's slot
+    // number lines up with its 图N badge and the model's cap keeps main refs.
+    const payloadImageUrls = [
+      ...harvestUpstreamImageUrls(incoming),
+      ...harvestUpstreamCloseupUrls(nodeId, edges, nodes),
+    ]
     const directEdgeBySource = new Map<string, string>()
     for (const edge of edges) {
       if (edge.target === nodeId) directEdgeBySource.set(edge.source, edge.id)
@@ -226,7 +237,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     // degrades this auto name to plain text and V2-1's drift rewrite picks it
     // up automatically, same as any other rename.
     const autoName = (
-      kind: 'character' | 'background' | 'shot' | 'video',
+      kind: 'character' | 'background' | 'shot' | 'video' | 'closeup',
       slotIndex: number,
     ) => `${tc(`autoName.${kind}`)}${slotIndex + 1}`
 
@@ -260,6 +271,44 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
           ? { boundVoice: resolveBoundVoice(node.id) }
           : {}),
       })
+
+      // Closeup sub-references (§9 B): a character's face-detail images wire
+      // INTO the character (closeup → character), so they're resolved 1-hop from
+      // here — surfaced as insertable `@特写N` tokens tagged with their parent
+      // character so the strip can group them into its identity unit. Their edge
+      // is the closeup→character one, so × detaches the closeup (not the video
+      // edge). They ride image_urls via harvestUpstreamCloseupUrls.
+      if (kind === 'character') {
+        for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
+          if (!isCloseupNode(upstream)) continue
+          const closeupUrl = getNodeMediaUrl(upstream.data)
+          const closeupSlot = closeupUrl
+            ? payloadImageUrls.indexOf(closeupUrl)
+            : -1
+          const closeupNameField =
+            typeof upstream.data.characterName === 'string'
+              ? upstream.data.characterName.trim()
+              : ''
+          const closeupName =
+            closeupNameField ||
+            (closeupSlot >= 0 ? autoName('closeup', closeupSlot) : '')
+          // The closeup's edge is into the CHARACTER (closeup → character), not
+          // the video — so × on this slot detaches the closeup from its subject.
+          const closeupEdgeId = edges.find(
+            (edge) => edge.source === upstream.id && edge.target === node.id,
+          )?.id
+          tokens.push({
+            id: upstream.id,
+            kind: 'closeup',
+            label: closeupName,
+            token: closeupName ? `@${closeupName}` : '',
+            mediaUrl: closeupUrl,
+            imageSlotIndex: closeupSlot >= 0 ? closeupSlot : undefined,
+            parentCharacterId: node.id,
+            edgeId: closeupEdgeId,
+          })
+        }
+      }
     }
 
     // 旁白 — voices wired DIRECTLY into the video node (no character). Ready →

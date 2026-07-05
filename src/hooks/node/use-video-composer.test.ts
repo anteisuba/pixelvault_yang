@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -279,5 +279,65 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
 
     const tokens = renderComposer().referenceTokens
     expect(tokens[0]).toMatchObject({ token: '', imageSlotIndex: undefined })
+  })
+
+  it('surfaces a closeup as an insertable @token tagged to its character (§9 B)', () => {
+    // closeup → character → video: closeup is resolved 1-hop from the character,
+    // rides image_urls right behind it (slot 1), and its × detaches the
+    // closeup→character edge, not the video edge.
+    graphState.nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/cu1.png',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '剑修',
+        mediaUrl: 'https://cdn/char1.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-cu', 'cu1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+    ]
+
+    const tokens = renderComposer().referenceTokens
+    const character = tokens.find((token) => token.kind === 'character')
+    const closeup = tokens.find((token) => token.kind === 'closeup')
+    expect(character).toMatchObject({ token: '@剑修', imageSlotIndex: 0 })
+    // No `insertable: false` → default insertable (it has a @token).
+    expect(closeup).toMatchObject({
+      id: 'cu1',
+      kind: 'closeup',
+      token: '@autoName.closeup2', // auto-numbered off its image slot (index 1)
+      imageSlotIndex: 1,
+      parentCharacterId: 'char1',
+      edgeId: 'e-cu',
+    })
+    expect(closeup?.insertable).not.toBe(false)
+  })
+
+  it('uses a user-given closeup name over the auto number', () => {
+    graphState.nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        characterName: '剑修脸',
+        mediaUrl: 'https://cdn/cu1.png',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '剑修',
+        mediaUrl: 'https://cdn/char1.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-cu', 'cu1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+    ]
+
+    const closeup = renderComposer().referenceTokens.find(
+      (token) => token.kind === 'closeup',
+    )
+    expect(closeup?.token).toBe('@剑修脸')
   })
 })

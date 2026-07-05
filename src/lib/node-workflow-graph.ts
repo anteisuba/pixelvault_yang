@@ -45,6 +45,20 @@ export function isKeyframeNode(node: NodeWorkflowNode): boolean {
   return node.type === NODE_TYPE_IDS.frameImage
 }
 
+/**
+ * A closeup image (face detail) — a unified `image` node with role=closeup
+ * (cast-redesign §9 B). closeup has no legacy per-type equivalent, so it only
+ * ever exists as `image` + role. It is NOT a direct visual reference (it wires
+ * into a character, not a video), so it rides image_urls via the 1-hop
+ * `harvestUpstreamCloseupUrls`, not the direct `harvestUpstreamImageUrls`.
+ */
+export function isCloseupNode(node: NodeWorkflowNode): boolean {
+  return (
+    node.type === NODE_TYPE_IDS.image &&
+    node.data.role === NODE_IMAGE_ROLE_IDS.closeup
+  )
+}
+
 export function isShotTextNode(node: NodeWorkflowNode): boolean {
   return node.type === NODE_TYPE_IDS.shotText
 }
@@ -149,6 +163,36 @@ export function harvestUpstreamImageUrls(
   for (const node of upstreamNodes) {
     if (!isVisualReferenceNode(node)) continue
     pushUnique(result, getNodeMediaUrl(node.data))
+  }
+
+  return result
+}
+
+/**
+ * 1-hop harvest of closeup face-detail images (cast-redesign §9 B). A closeup
+ * wires into a character (`closeup → character`), not the focal video node, so
+ * it never appears in `harvestUpstreamImageUrls(directUpstream)`. This walks one
+ * hop past each upstream character to collect its closeup images, in character
+ * order then closeup order, so they ride image_urls right behind their subject.
+ *
+ * Callers append the result AFTER `harvestUpstreamImageUrls` (keyframes → main
+ * refs → closeups) and dedup, so a closeup shared with a direct reference is
+ * counted once and the main references keep priority under the model's cap.
+ */
+export function harvestUpstreamCloseupUrls(
+  focalNodeId: string,
+  edges: readonly NodeWorkflowEdge[],
+  nodes: readonly NodeWorkflowNode[],
+): string[] {
+  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
+  const result: string[] = []
+
+  for (const node of directUpstream) {
+    if (getSeedanceReferenceKind(node) !== 'character') continue
+    for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
+      if (!isCloseupNode(upstream)) continue
+      pushUnique(result, getNodeMediaUrl(upstream.data))
+    }
   }
 
   return result

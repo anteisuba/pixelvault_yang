@@ -75,6 +75,7 @@ import {
   buildShotReferenceLegend,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
@@ -710,8 +711,19 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const upstreamTextPrompt = isVideoMediaNode
         ? harvestUpstreamShotTextPrompt(upstreamNodes)
         : ''
+      // image_urls = direct visual refs (keyframes → character/background/shot)
+      // then 1-hop closeups (§9 B): a character's face-detail images ride behind
+      // it. Same order the composer's payloadImageUrls computes, so the 图N /
+      // 特写N slot badges match what's actually sent.
       const upstreamImageUrls = isVideoMediaNode
-        ? harvestUpstreamImageUrls(upstreamNodes)
+        ? [
+            ...harvestUpstreamImageUrls(upstreamNodes),
+            ...harvestUpstreamCloseupUrls(
+              nodeId,
+              workflow.edges,
+              workflow.nodes,
+            ),
+          ]
         : []
       // harvestUpstreamAudioBindings walks one hop further than the plain
       // voice harvest: voices wired through a character node carry that

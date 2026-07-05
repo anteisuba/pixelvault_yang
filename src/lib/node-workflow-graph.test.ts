@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -9,6 +9,7 @@ import {
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
+  harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
@@ -225,6 +226,62 @@ describe('harvestUpstreamImageUrls', () => {
       makeNode('t', NODE_TYPE_IDS.shotText, { status: 'idle' }),
     ]
     expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+  })
+
+  it('excludes closeups from the direct harvest (they ride 1-hop via character)', () => {
+    // A closeup is an image node with role=closeup but is NOT a visual
+    // reference, so even wired directly it contributes nothing here.
+    const upstream = [
+      makeNode('cu', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/closeup.png',
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+  })
+})
+
+describe('harvestUpstreamCloseupUrls (§9 B 1-hop)', () => {
+  it('collects closeups attached to upstream characters, in character order', () => {
+    // closeup → character → video: the closeup rides image_urls via the char.
+    const nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/cu1.png',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '剑修',
+        mediaUrl: 'https://cdn/char1.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e-cu', 'cu1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+    ]
+    expect(harvestUpstreamCloseupUrls('video1', edges, nodes)).toEqual([
+      'https://cdn/cu1.png',
+    ])
+  })
+
+  it('returns nothing when a closeup hangs off a non-character upstream', () => {
+    // A closeup wired to a background (not a character) must not be harvested —
+    // closeup only rides a character.
+    const nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/cu1.png',
+      }),
+      makeNode('bg1', NODE_TYPE_IDS.backgroundImage, {
+        mediaUrl: 'https://cdn/bg.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e-cu', 'cu1', 'bg1'),
+      makeEdge('e-bg', 'bg1', 'video1'),
+    ]
+    expect(harvestUpstreamCloseupUrls('video1', edges, nodes)).toEqual([])
   })
 })
 

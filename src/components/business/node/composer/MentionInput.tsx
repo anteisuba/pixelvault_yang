@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
  *  driving the chip's port color + thumbnail shape (§9 V2-2). */
 export interface MentionToken {
   name: string
-  kind: 'character' | 'background' | 'shot' | 'voice' | 'video'
+  kind: 'character' | 'background' | 'shot' | 'closeup' | 'voice' | 'video'
   /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
    *  or the voice cover. Falls back to a flat port-color chip when absent. */
   thumbnailUrl?: string
@@ -80,6 +80,7 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
   character: 'bg-node-port-character/25',
   background: 'bg-node-port-background/25',
   shot: 'bg-node-port-image/25',
+  closeup: 'bg-node-port-image/25',
   voice: 'bg-node-port-voice/25',
   video: 'bg-node-port-video/25',
 }
@@ -90,6 +91,7 @@ const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
   character: 'rounded-full',
   background: 'rounded-sm',
   shot: 'rounded-sm',
+  closeup: 'rounded-sm',
   voice: 'rounded-full',
   video: 'rounded-sm',
 }
@@ -97,6 +99,7 @@ const THUMB_FILL: Record<MentionToken['kind'], string> = {
   character: 'bg-node-port-character/70',
   background: 'bg-node-port-background/70',
   shot: 'bg-node-port-image/70',
+  closeup: 'bg-node-port-image/70',
   voice: 'bg-node-port-voice/70',
   video: 'bg-node-port-video/70',
 }

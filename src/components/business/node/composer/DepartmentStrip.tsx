@@ -1,6 +1,6 @@
 'use client'
 
-import { Mic2, Plus, X } from 'lucide-react'
+import { Mic2, Plus, ScanFace, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -38,6 +38,7 @@ export const TOKEN_PORT_COLOR_VAR: Record<ReferenceTokenKind, string> = {
   background: 'var(--node-port-background)',
   shot: 'var(--node-port-image)',
   keyframe: 'var(--node-port-image)',
+  closeup: 'var(--node-port-image)',
   voice: 'var(--node-port-voice)',
   video: 'var(--node-port-video)',
 }
@@ -59,8 +60,9 @@ const DEPARTMENTS: ReadonlyArray<{
   role?: NodeImageRole
 }> = [
   {
+    // 角色卡收角色 + 其面部特写（closeup）子参考——同一身份单元（§9 B）。
     id: 'character',
-    kinds: ['character'],
+    kinds: ['character', 'closeup'],
     colorVar: 'var(--node-port-character)',
     nodeType: NODE_TYPE_IDS.image,
     mediaType: 'image',
@@ -113,6 +115,9 @@ interface DepartmentStripProps {
    *  voice node wired into that CHARACTER (not the video), so it becomes the
    *  character's 音色. Gets the character node id. */
   onAddVoice?(characterNodeId: string): void
+  /** §9 B ＋特写 on a character slot — autospawns a closeup image node wired
+   *  into that CHARACTER (closeup → character), a face-detail sub-reference. */
+  onAddCloseup?(characterNodeId: string): void
 }
 
 /** cast-redesign 部门条 — 按制作角色五卡（角色/场景/镜头/动作/旁白）。每张卡：
@@ -128,15 +133,22 @@ export function DepartmentStrip({
   onRemove,
   onAddReference,
   onAddVoice,
+  onAddCloseup,
 }: DepartmentStripProps) {
   const tc = useTranslations('StudioNode.videoComposer')
 
   return (
     <div className="grid grid-cols-1 gap-2">
       {DEPARTMENTS.map((dept) => {
-        const deptTokens = tokens.filter((token) =>
-          dept.kinds.includes(token.kind),
-        )
+        // The 角色 card also holds closeup sub-references (§9 B), but its ＋ tile
+        // spawns a character — a closeup is spawned per-character via ＋特写 on
+        // the slot, so keep character chips before closeup chips for reading order.
+        const deptTokens = tokens
+          .filter((token) => dept.kinds.includes(token.kind))
+          .sort(
+            (a, b) =>
+              Number(a.kind === 'closeup') - Number(b.kind === 'closeup'),
+          )
         const addTile = onAddReference ? (
           <AddReferenceTile dept={dept} onAddReference={onAddReference} />
         ) : null
@@ -171,6 +183,7 @@ export function DepartmentStrip({
                     onLocate={onLocate}
                     onRemove={onRemove}
                     onAddVoice={onAddVoice}
+                    onAddCloseup={onAddCloseup}
                   />
                 ))}
                 {addTile}
@@ -230,12 +243,14 @@ function DepartmentSlot({
   onLocate,
   onRemove,
   onAddVoice,
+  onAddCloseup,
 }: {
   token: ComposerReferenceToken
   onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
   onLocate?(nodeId: string): void
   onRemove?(token: ComposerReferenceToken): void
   onAddVoice?(characterNodeId: string): void
+  onAddCloseup?(characterNodeId: string): void
 }) {
   const tc = useTranslations('StudioNode.videoComposer')
 
@@ -280,6 +295,18 @@ function DepartmentSlot({
       ) : null}
       {token.kind === 'character' ? (
         <CharacterVoiceBadge token={token} onAddVoice={onAddVoice} />
+      ) : null}
+      {token.kind === 'character' && onAddCloseup ? (
+        <button
+          type="button"
+          aria-label={tc('references.addCloseup', {
+            name: token.label || tc('refKind.character'),
+          })}
+          onClick={() => onAddCloseup(token.id)}
+          className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-md border border-dashed border-node-panel-inner bg-node-panel text-node-subtle opacity-0 transition-opacity hover:text-node-foreground focus-visible:opacity-100 group-hover/slot:opacity-100"
+        >
+          <ScanFace className="size-2.5" />
+        </button>
       ) : null}
     </span>
   )

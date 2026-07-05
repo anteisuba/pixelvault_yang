@@ -3630,6 +3630,7 @@
         "voiceNotReadyHint": "参照音声が未アップロード/未選択 — 今回の生成では送信されません",
         "voiceBadge": "音色：{name}",
         "addVoice": "「{name}」に音色を追加",
+        "addCloseup": "「{name}」に顔のクローズアップを追加",
         "remove": "「{name}」の接続を解除（ノードは保持）",
         "removedToast": "「{name}」の接続を解除しました。ノードは保持されます",
         "slotBadgeImage": "図{n}",

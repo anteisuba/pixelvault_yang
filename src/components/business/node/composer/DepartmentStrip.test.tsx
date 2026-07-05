@@ -29,6 +29,7 @@ function renderStrip(
     onInsert?: (data: unknown, el: HTMLElement) => void
     onAddReference?: (request: unknown) => void
     onAddVoice?: (characterNodeId: string) => void
+    onAddCloseup?: (characterNodeId: string) => void
   },
 ) {
   return render(
@@ -38,6 +39,7 @@ function renderStrip(
       onRemove={handlers?.onRemove}
       onAddReference={handlers?.onAddReference}
       onAddVoice={handlers?.onAddVoice}
+      onAddCloseup={handlers?.onAddCloseup}
     />,
   )
 }
@@ -163,6 +165,41 @@ describe('DepartmentStrip (cast 五卡)', () => {
     renderStrip([makeToken({ id: 'c1' })], { onAddVoice })
     fireEvent.click(screen.getByRole('button', { name: 'references.addVoice' }))
     expect(onAddVoice).toHaveBeenCalledWith('c1')
+  })
+
+  it('groups a closeup token into the 角色 card, after its character (§9 B)', () => {
+    renderStrip([
+      makeToken({ id: 'c1', imageSlotIndex: 0 }),
+      makeToken({
+        id: 'cu1',
+        kind: 'closeup',
+        label: '特写1',
+        token: '@特写1',
+        imageSlotIndex: 1,
+        parentCharacterId: 'c1',
+      }),
+    ])
+    const characterCard = screen.getByRole('region', {
+      name: 'departments.character',
+    })
+    // Both live in the 角色 card (identity unit); closeup is NOT its own card.
+    expect(
+      within(characterCard).getByRole('button', { name: '@角色A' }),
+    ).toBeInTheDocument()
+    expect(
+      within(characterCard).getByRole('button', { name: '@特写1' }),
+    ).toBeInTheDocument()
+    // Still five cards — no standalone closeup card leaked in.
+    expect(screen.getAllByRole('region')).toHaveLength(5)
+  })
+
+  it('offers ＋特写 on a character slot, wiring to that character', () => {
+    const onAddCloseup = vi.fn()
+    renderStrip([makeToken({ id: 'c1' })], { onAddCloseup })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'references.addCloseup' }),
+    )
+    expect(onAddCloseup).toHaveBeenCalledWith('c1')
   })
 
   it('offers × (delete edge) only for tokens with a direct edge', () => {

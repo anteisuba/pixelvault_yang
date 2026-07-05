@@ -16,6 +16,7 @@ export type ReferenceTokenKind =
   | 'background'
   | 'shot'
   | 'keyframe'
+  | 'closeup'
   | 'voice'
   | 'video'
 
@@ -45,6 +46,8 @@ const SHAPE_CLASS: Record<ReferenceTokenKind, string> = {
   background: 'rounded-md',
   shot: 'rounded-md',
   keyframe: 'rounded-md',
+  // closeup is a face-detail image → square, image-family (§9 A/B).
+  closeup: 'rounded-md',
   voice: 'rounded-full',
   video: 'rounded-md',
 }
@@ -53,6 +56,7 @@ const RING_CLASS: Record<ReferenceTokenKind, string> = {
   background: 'ring-node-port-background/40',
   shot: 'ring-node-port-image/40',
   keyframe: 'ring-node-port-image/40',
+  closeup: 'ring-node-port-image/40',
   voice: 'ring-node-port-voice/40',
   video: 'ring-node-port-video/40',
 }
@@ -61,6 +65,7 @@ const FILL_CLASS: Record<ReferenceTokenKind, string> = {
   background: 'bg-node-port-background/20 text-node-port-background',
   shot: 'bg-node-port-image/20 text-node-port-image',
   keyframe: 'bg-node-port-image/20 text-node-port-image',
+  closeup: 'bg-node-port-image/20 text-node-port-image',
   voice: 'bg-node-port-voice/20 text-node-port-voice',
   video: 'bg-node-port-video/20 text-node-port-video',
 }

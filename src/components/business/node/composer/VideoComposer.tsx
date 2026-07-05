@@ -32,6 +32,7 @@ import { motionTransition } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_IMAGE_ROLE_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
@@ -562,6 +563,18 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     })
   }
 
+  // ＋特写 on a character slot (§9 B): open the image library and target the
+  // CHARACTER so the spawned image wires `closeup → character` — a face-detail
+  // sub-reference that rides image_urls behind its subject (harvest 1-hop).
+  const handleAddCloseup = (characterNodeId: string) => {
+    setPendingAdd({
+      nodeType: NODE_TYPE_IDS.image,
+      role: NODE_IMAGE_ROLE_IDS.closeup,
+      mediaType: 'image',
+      targetNodeId: characterNodeId,
+    })
+  }
+
   const handleSelectAssetForAdd = (generation: GenerationRecord) => {
     if (!pendingAdd || !generation.url) {
       setPendingAdd(null)
@@ -771,6 +784,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
                 onRemove={handleRemoveReference}
                 onAddReference={spawnReference ? handleAddReference : undefined}
                 onAddVoice={spawnReference ? handleAddVoice : undefined}
+                onAddCloseup={spawnReference ? handleAddCloseup : undefined}
               />
               {composer.referenceTokens.length > 0 ? (
                 <p className="px-0.5 text-2xs leading-4 text-node-subtle">
@@ -1303,7 +1317,8 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
                   overflow: 'hidden',
                   borderRadius:
                     flyingToken.kind === 'background' ||
-                    flyingToken.kind === 'shot'
+                    flyingToken.kind === 'shot' ||
+                    flyingToken.kind === 'closeup'
                       ? 8
                       : 9999,
                 }}

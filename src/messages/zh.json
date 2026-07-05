@@ -3630,6 +3630,7 @@
         "voiceNotReadyHint": "未上传/选择参考音频 — 本次生成不会发送",
         "voiceBadge": "音色：{name}",
         "addVoice": "给「{name}」配音色",
+        "addCloseup": "给「{name}」加面部特写",
         "remove": "断开「{name}」的连线（节点保留）",
         "removedToast": "已断开「{name}」的连线，节点保留",
         "slotBadgeImage": "图{n}",

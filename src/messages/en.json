@@ -3630,6 +3630,7 @@
         "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
         "voiceBadge": "Voice: {name}",
         "addVoice": "Add a voice to \"{name}\"",
+        "addCloseup": "Add a face close-up to \"{name}\"",
         "remove": "Disconnect \"{name}\" (node kept)",
         "removedToast": "Disconnected \"{name}\" — the node is kept",
         "slotBadgeImage": "IMG{n}",

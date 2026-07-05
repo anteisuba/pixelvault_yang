@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { AudioExpressivenessTier } from '@/constants/audio-options'
 import type { AspectRatio } from '@/constants/config'
 import type { VideoDefaults } from '@/constants/models'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
@@ -421,6 +422,8 @@ export interface ProviderAudioInput {
   topP?: number
   chunkLength?: number
   repetitionPenalty?: number
+  /** Resolved expressiveness tier — adapters compile it into provider params. */
+  expressiveness?: AudioExpressivenessTier
 }
 
 export interface ProviderAudioTimestampSegment {

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
 import {
+  AUDIO_EXPRESSIVENESS_VALUES,
   AUDIO_FORMATS,
   AUDIO_LATENCIES,
   AUDIO_MP3_BITRATES,
@@ -425,6 +426,7 @@ export const GenerateAudioRequestSchema = z
     modelId: z.string().trim().min(1, 'Model is required').max(160),
     voiceId: z.string().trim().min(1).max(200).optional(),
     emotion: z.enum(AUDIO_EMOTIONS).optional(),
+    expressiveness: z.enum(AUDIO_EXPRESSIVENESS_VALUES).optional(),
     pace: z.enum(AUDIO_PACES).optional(),
     pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
     pronunciationDictionary: z.record(z.string(), z.string()).optional(),

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { EXPRESSIVENESS_TO_FISH_TEMPERATURE } from '@/constants/audio-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
@@ -68,7 +69,17 @@ function buildFishAudioRequestBody(
     topP,
     chunkLength,
     repetitionPenalty,
+    expressiveness,
   } = input
+
+  // Expressiveness sets a default temperature (higher = more expressive) when
+  // the user hasn't pinned one in advanced settings. An explicit temperature
+  // from the UI always wins.
+  const resolvedTemperature =
+    temperature ??
+    (expressiveness
+      ? EXPRESSIVENESS_TO_FISH_TEMPERATURE[expressiveness]
+      : undefined)
 
   const outputFormat = format ?? 'mp3'
   const body: Record<string, unknown> = {
@@ -104,7 +115,7 @@ function buildFishAudioRequestBody(
     appendBodyValue(body, 'opus_bitrate', opusBitrate)
   }
   appendBodyValue(body, 'latency', latency)
-  appendBodyValue(body, 'temperature', temperature)
+  appendBodyValue(body, 'temperature', resolvedTemperature)
   appendBodyValue(body, 'top_p', topP)
   appendBodyValue(body, 'chunk_length', chunkLength)
   appendBodyValue(body, 'repetition_penalty', repetitionPenalty)

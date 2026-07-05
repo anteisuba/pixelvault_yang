@@ -322,6 +322,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           <StudioAudioParams
             voiceCardId={state.voiceCardId}
             pace={state.audioPace}
+            expressiveness={state.audioExpressiveness}
             pauseMarkers={state.audioPauseMarkers}
             advanced={{
               style: state.audioEmotion,
@@ -342,6 +343,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
             }}
             onChangePace={(pace) =>
               dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
+            }
+            onChangeExpressiveness={(value) =>
+              dispatch({ type: 'SET_AUDIO_EXPRESSIVENESS', payload: value })
             }
             onChangePauseMarkers={(markers) =>
               dispatch({

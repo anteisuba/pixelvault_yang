@@ -396,8 +396,50 @@ describe('generateAudioForUser', () => {
 
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: '[clear cinematic narrator voice] Speak kindly.',
+        prompt: '[narrating] Speak kindly.',
       }),
+    )
+  })
+
+  it('injects the emotion cue at every sentence start and defaults to dramatic', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'First line. Second line.',
+      emotion: 'excited',
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: '[excited] First line. [excited] Second line.',
+        expressiveness: 'dramatic',
+      }),
+    )
+  })
+
+  it('defaults expressiveness to natural when no emotion is set', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'Plain line.',
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ expressiveness: 'natural' }),
     )
   })
 

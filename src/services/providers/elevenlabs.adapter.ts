@@ -1,5 +1,9 @@
 import 'server-only'
 
+import {
+  AUDIO_EXPRESSIVENESS,
+  EXPRESSIVENESS_TO_ELEVENLABS,
+} from '@/constants/audio-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
@@ -25,10 +29,15 @@ const ELEVENLABS_MP3_BYTES_PER_SEC = 16000
 function buildVoiceSettings(
   input: ProviderAudioInput,
 ): Record<string, unknown> {
+  // Expressiveness drives v3's emotion responsiveness: lower stability = more
+  // reactive to `[tag]` cues, higher style = more delivery variation. Without
+  // this, a fixed stability 0.5 / style 0 flattens every emotion tag.
+  const tier = input.expressiveness ?? AUDIO_EXPRESSIVENESS.NATURAL
+  const { stability, style } = EXPRESSIVENESS_TO_ELEVENLABS[tier]
   const voiceSettings: Record<string, unknown> = {
-    stability: 0.5,
+    stability,
     similarity_boost: 0.75,
-    style: 0,
+    style,
     use_speaker_boost: true,
   }
   if (input.speed !== undefined) {

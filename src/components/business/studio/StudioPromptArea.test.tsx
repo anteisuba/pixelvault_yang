@@ -253,6 +253,7 @@ function setupStudioForm(
     voiceId: null,
     voiceCardId: null,
     audioEmotion: 'none',
+    audioExpressiveness: 'auto',
     audioPace: 'normal',
     audioPauseMarkers: [],
     pronunciationDictionary: {},

@@ -751,6 +751,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               ? state.audioReferenceText.trim()
               : undefined),
           emotion: state.audioEmotion,
+          expressiveness: state.audioExpressiveness,
           pace: state.audioPace,
           pauseMarkers: state.audioPauseMarkers,
           pronunciationDictionary: audioPronunciationDictionary,
@@ -816,6 +817,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     state.prompt,
     state.voiceId,
     state.audioEmotion,
+    state.audioExpressiveness,
     state.audioPace,
     state.audioPauseMarkers,
     state.audioVolume,

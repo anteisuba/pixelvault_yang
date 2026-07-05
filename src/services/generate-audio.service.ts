@@ -17,7 +17,13 @@ import {
 import {
   AUDIO_EMOTION_PROMPTS,
   AUDIO_PACE_SPEED,
+  AUDIO_STYLE,
 } from '@/constants/voice-cards'
+import {
+  AUDIO_EXPRESSIVENESS,
+  AUDIO_EXPRESSIVENESS_VALUES,
+  type AudioExpressivenessTier,
+} from '@/constants/audio-options'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -121,6 +127,7 @@ const AudioSubmitOutboxPayloadSchema = z.object({
   prompt: z.string().min(1),
   voiceId: z.string().min(1).max(200).optional(),
   emotion: z.string().min(1).optional(),
+  expressiveness: z.enum(AUDIO_EXPRESSIVENESS_VALUES).optional(),
   pace: z.string().min(1).optional(),
   pauseMarkers: z.array(z.string().min(1)).optional(),
   pronunciationDictionary: z.record(z.string(), z.string()).optional(),
@@ -266,6 +273,15 @@ function applyPauseMarkers(prompt: string, markers?: string[]): string {
     .replace(/\n\n\s+/g, '\n\n')
 }
 
+/**
+ * Inject the emotion cue as a bracket tag at the START OF EACH SENTENCE, not
+ * once at the very top. Both providers apply emotion locally and let it decay,
+ * so a single leading tag barely colours a multi-sentence clip. The regex
+ * anchors on sentence boundaries (start of text, or after . ! ? 。 ！ ？ plus
+ * any trailing whitespace) and inserts `[cue] ` before the first spoken
+ * character — the captured whitespace (including the \n\n pause breaks added
+ * upstream) is preserved.
+ */
 function applyAudioStylePrompt(prompt: string, emotion?: string): string {
   if (!emotion) {
     return prompt
@@ -277,7 +293,38 @@ function applyAudioStylePrompt(prompt: string, emotion?: string): string {
     return prompt
   }
 
-  return `[${stylePrompt}] ${prompt}`
+  const tag = `[${stylePrompt}]`
+  return prompt.replace(
+    /(^|[.!?。！？]\s*)(\S)/g,
+    (_match, boundary: string, firstChar: string) =>
+      `${boundary}${tag} ${firstChar}`,
+  )
+}
+
+/**
+ * Resolve the concrete expressiveness tier that adapters compile into
+ * provider params. An explicit tier from the UI wins; otherwise `auto` (or
+ * absent) resolves from emotion intent — emotion present → dramatic (Creative),
+ * no emotion → natural. See EXPRESSIVENESS_TO_* maps in audio-options.
+ */
+function resolveExpressivenessTier(request: {
+  emotion?: string
+  expressiveness?: string
+}): AudioExpressivenessTier {
+  const explicit = request.expressiveness
+  if (
+    explicit === AUDIO_EXPRESSIVENESS.RESTRAINED ||
+    explicit === AUDIO_EXPRESSIVENESS.NATURAL ||
+    explicit === AUDIO_EXPRESSIVENESS.DRAMATIC
+  ) {
+    return explicit
+  }
+
+  const hasEmotion =
+    Boolean(request.emotion) && request.emotion !== AUDIO_STYLE.NONE
+  return hasEmotion
+    ? AUDIO_EXPRESSIVENESS.DRAMATIC
+    : AUDIO_EXPRESSIVENESS.NATURAL
 }
 
 function buildProviderPrompt(request: {
@@ -438,6 +485,7 @@ export async function generateAudioForUser(
               topP: request.topP,
               chunkLength: request.chunkLength,
               repetitionPenalty: request.repetitionPenalty,
+              expressiveness: resolveExpressivenessTier(request),
             }),
           { maxAttempts: 3, label: `${providerLabel}/audio` },
         ),
@@ -1074,6 +1122,7 @@ function buildAudioSubmitOutboxPayload(
     prompt: request.prompt,
     voiceId: request.voiceId,
     emotion: request.emotion,
+    expressiveness: request.expressiveness,
     pace: request.pace,
     pauseMarkers: request.pauseMarkers,
     pronunciationDictionary: request.pronunciationDictionary,
@@ -1337,6 +1386,7 @@ async function dispatchAudioSubmitOutbox(
             topP: payload.data.topP,
             chunkLength: payload.data.chunkLength,
             repetitionPenalty: payload.data.repetitionPenalty,
+            expressiveness: resolveExpressivenessTier(payload.data),
           }),
         {
           maxAttempts: 3,

@@ -97,6 +97,67 @@ export const DEFAULT_AUDIO_OPUS_BITRATE: AudioOpusBitrate = 32000
 
 export const DEFAULT_AUDIO_LATENCY: AudioLatency = 'normal'
 
+// ─── Expressiveness (emotion responsiveness) ───────────────────────
+//
+// One user-facing knob that each TTS provider compiles differently:
+//   - ElevenLabs v3: `stability` — LOWER = more responsive to emotion tags
+//   - Fish s2-pro:   `temperature` — HIGHER = more expressive
+// `auto` is the default UI state; the service resolves it from emotion intent
+// (emotion present → dramatic, else natural). The three concrete tiers are the
+// user's manual override.
+
+export const AUDIO_EXPRESSIVENESS = {
+  AUTO: 'auto',
+  RESTRAINED: 'restrained',
+  NATURAL: 'natural',
+  DRAMATIC: 'dramatic',
+} as const
+
+export const AUDIO_EXPRESSIVENESS_VALUES = [
+  AUDIO_EXPRESSIVENESS.AUTO,
+  AUDIO_EXPRESSIVENESS.RESTRAINED,
+  AUDIO_EXPRESSIVENESS.NATURAL,
+  AUDIO_EXPRESSIVENESS.DRAMATIC,
+] as const
+
+export type AudioExpressiveness = (typeof AUDIO_EXPRESSIVENESS_VALUES)[number]
+
+/** Concrete tiers shown as buttons (AUTO is the resolved default, not a button). */
+export const AUDIO_EXPRESSIVENESS_TIERS = [
+  AUDIO_EXPRESSIVENESS.RESTRAINED,
+  AUDIO_EXPRESSIVENESS.NATURAL,
+  AUDIO_EXPRESSIVENESS.DRAMATIC,
+] as const
+
+export type AudioExpressivenessTier =
+  (typeof AUDIO_EXPRESSIVENESS_TIERS)[number]
+
+export const AUDIO_DEFAULT_EXPRESSIVENESS: AudioExpressiveness =
+  AUDIO_EXPRESSIVENESS.AUTO
+
+export function isAudioExpressiveness(
+  value: string,
+): value is AudioExpressiveness {
+  return AUDIO_EXPRESSIVENESS_VALUES.includes(value as AudioExpressiveness)
+}
+
+/** ElevenLabs v3 voice_settings per tier. Lower stability = more expressive. */
+export const EXPRESSIVENESS_TO_ELEVENLABS = {
+  [AUDIO_EXPRESSIVENESS.RESTRAINED]: { stability: 1, style: 0 },
+  [AUDIO_EXPRESSIVENESS.NATURAL]: { stability: 0.5, style: 0.35 },
+  [AUDIO_EXPRESSIVENESS.DRAMATIC]: { stability: 0, style: 0.6 },
+} as const satisfies Record<
+  AudioExpressivenessTier,
+  { stability: number; style: number }
+>
+
+/** Fish s2-pro temperature per tier. Higher = more expressive. */
+export const EXPRESSIVENESS_TO_FISH_TEMPERATURE = {
+  [AUDIO_EXPRESSIVENESS.RESTRAINED]: 0.5,
+  [AUDIO_EXPRESSIVENESS.NATURAL]: 0.7,
+  [AUDIO_EXPRESSIVENESS.DRAMATIC]: 0.9,
+} as const satisfies Record<AudioExpressivenessTier, number>
+
 /** Preset voice options for Fish Audio */
 export const FISH_AUDIO_VOICES = [
   { id: 'alloy', labelKey: 'alloy', descKey: 'alloyDesc' },

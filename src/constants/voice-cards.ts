@@ -62,13 +62,21 @@ export const AUDIO_STYLES = [
 
 export type AudioStyle = (typeof AUDIO_STYLES)[number]
 
+/**
+ * Canonical single-word bracket cues. The service wraps each as `[word]` and
+ * injects it at the start of every sentence (see `applyAudioStylePrompt`).
+ * Both providers are instruction-following: ElevenLabs v3 treats `[whispers]`
+ * as an audio tag, Fish s2-pro accepts the same word as a free-form cue. Strong
+ * canonical words (`excited`, `whispers`) land far harder than the old
+ * descriptive phrases (`excited and energetic`), which read as flat narration.
+ */
 export const AUDIO_STYLE_PROMPTS = {
   [AUDIO_STYLE.NONE]: null,
-  [AUDIO_STYLE.CALM]: 'calm and steady',
-  [AUDIO_STYLE.EXCITED]: 'excited and energetic',
-  [AUDIO_STYLE.WHISPER]: 'whisper softly',
-  [AUDIO_STYLE.NARRATION]: 'clear cinematic narrator voice',
-  [AUDIO_STYLE.DIALOGUE]: 'natural character dialogue',
+  [AUDIO_STYLE.CALM]: 'calm',
+  [AUDIO_STYLE.EXCITED]: 'excited',
+  [AUDIO_STYLE.WHISPER]: 'whispers',
+  [AUDIO_STYLE.NARRATION]: 'narrating',
+  [AUDIO_STYLE.DIALOGUE]: 'conversational',
 } as const satisfies Record<AudioStyle, string | null>
 
 /**
@@ -96,9 +104,9 @@ export type AudioEmotion = (typeof AUDIO_EMOTIONS)[number]
 
 export const AUDIO_EMOTION_PROMPTS = {
   ...AUDIO_STYLE_PROMPTS,
-  [AUDIO_EMOTION.ANGRY]: 'angry and intense',
-  [AUDIO_EMOTION.SAD]: 'sad and sorrowful',
-  [AUDIO_EMOTION.SURPRISED]: 'surprised and startled',
+  [AUDIO_EMOTION.ANGRY]: 'angry',
+  [AUDIO_EMOTION.SAD]: 'sad',
+  [AUDIO_EMOTION.SURPRISED]: 'surprised',
 } as const satisfies Record<AudioEmotion, string | null>
 
 export const AUDIO_PACE = {

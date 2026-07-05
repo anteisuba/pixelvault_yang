@@ -21,7 +21,9 @@ vi.stubGlobal('ResizeObserver', MockResizeObserver)
 function renderAudioParams(overrides?: {
   advanced?: Partial<StudioAudioAdvancedSettings>
   activeSpeakerVoiceIndex?: number | null
+  expressiveness?: string
   onChangePace?: (pace: string) => void
+  onChangeExpressiveness?: (value: string) => void
   onChangePauseMarkers?: (markers: string[]) => void
   onChangeAdvanced?: (settings: Partial<StudioAudioAdvancedSettings>) => void
   onRequestSpeakerVoiceSelect?: (index: number | null) => void
@@ -54,9 +56,11 @@ function renderAudioParams(overrides?: {
   const props = {
     voiceCardId: 'voice-card-1',
     pace: 'normal',
+    expressiveness: overrides?.expressiveness ?? 'auto',
     pauseMarkers: [],
     advanced,
     onChangePace: overrides?.onChangePace ?? vi.fn(),
+    onChangeExpressiveness: overrides?.onChangeExpressiveness ?? vi.fn(),
     onChangePauseMarkers: overrides?.onChangePauseMarkers ?? vi.fn(),
     onChangeAdvanced: overrides?.onChangeAdvanced ?? vi.fn(),
     onRequestSpeakerVoiceSelect:

@@ -10,6 +10,7 @@ import {
   VIDEO_GENERATION,
 } from '@/constants/config'
 import type { AudioFormat, AudioLatency } from '@/constants/audio-options'
+import { isAudioExpressiveness } from '@/constants/audio-options'
 import {
   AUDIO_EMOTIONS,
   AUDIO_PAUSE_MARKERS,
@@ -69,6 +70,7 @@ export interface AudioGenerateInput {
   referenceAudioUrl?: string
   referenceText?: string
   emotion?: string
+  expressiveness?: string
   pace?: string
   pauseMarkers?: string[]
   pronunciationDictionary?: Record<string, string>
@@ -1007,6 +1009,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           referenceAudioUrl: input.referenceAudioUrl,
           referenceText: input.referenceText,
           emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,
+          expressiveness:
+            input.expressiveness && isAudioExpressiveness(input.expressiveness)
+              ? input.expressiveness
+              : undefined,
           pace: isAudioPace(input.pace) ? input.pace : undefined,
           pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),
           pronunciationDictionary: input.pronunciationDictionary,

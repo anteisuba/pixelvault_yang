@@ -37,6 +37,7 @@ import { VIDEO_GENERATION } from '@/constants/config'
 import {
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_AUDIO_LATENCY,
+  AUDIO_DEFAULT_EXPRESSIVENESS,
   DEFAULT_AUDIO_MP3_BITRATE,
   DEFAULT_AUDIO_OPUS_BITRATE,
   DEFAULT_AUDIO_SAMPLE_RATE,
@@ -112,6 +113,8 @@ export interface StudioFormState {
   voiceCardId: string | null
   /** Audio-specific — user-facing emotion control */
   audioEmotion: string
+  /** Audio-specific — emotion responsiveness tier (or 'auto' to derive it) */
+  audioExpressiveness: string
   /** Audio-specific — user-facing pace control */
   audioPace: string
   /** Audio-specific — sentence pause marker IDs */
@@ -192,6 +195,7 @@ export type StudioAction =
   | { type: 'SET_VOICE_ID'; payload: string | null }
   | { type: 'SET_VOICE_CARD_ID'; payload: string | null }
   | { type: 'SET_AUDIO_EMOTION'; payload: string }
+  | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
   | { type: 'SET_AUDIO_PACE'; payload: string }
   | { type: 'SET_AUDIO_PAUSE_MARKERS'; payload: string[] }
   | { type: 'SET_AUDIO_VOLUME'; payload: number }
@@ -304,6 +308,7 @@ const initialFormState: StudioFormState = {
   voiceId: null,
   voiceCardId: null,
   audioEmotion: AUDIO_DEFAULT_EMOTION,
+  audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
   audioPace: AUDIO_DEFAULT_PACE,
   audioPauseMarkers: [],
   pronunciationDictionary: {},
@@ -364,6 +369,8 @@ export function studioFormReducer(
       return { ...state, voiceCardId: action.payload }
     case 'SET_AUDIO_EMOTION':
       return { ...state, audioEmotion: action.payload }
+    case 'SET_AUDIO_EXPRESSIVENESS':
+      return { ...state, audioExpressiveness: action.payload }
     case 'SET_AUDIO_PACE':
       return { ...state, audioPace: action.payload }
     case 'SET_AUDIO_PAUSE_MARKERS':
@@ -486,6 +493,7 @@ export function studioFormReducer(
         voiceId: null,
         voiceCardId: null,
         audioEmotion: AUDIO_DEFAULT_EMOTION,
+        audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
         audioPace: AUDIO_DEFAULT_PACE,
         audioPauseMarkers: [],
         pronunciationDictionary: {},

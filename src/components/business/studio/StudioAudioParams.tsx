@@ -32,6 +32,8 @@ import { useTranslations } from 'next-intl'
 
 import {
   AUDIO_ADVANCED_TAB_IDS,
+  AUDIO_EXPRESSIVENESS,
+  AUDIO_EXPRESSIVENESS_TIERS,
   AUDIO_FORMATS,
   AUDIO_LATENCIES,
   AUDIO_MP3_BITRATES,
@@ -104,9 +106,12 @@ export interface StudioAudioAdvancedSettings {
 interface StudioAudioParamsProps {
   voiceCardId: string | null
   pace: string
+  /** Expressiveness tier ('auto' resolves from the selected emotion). */
+  expressiveness: string
   pauseMarkers: string[]
   advanced: StudioAudioAdvancedSettings
   onChangePace: (pace: string) => void
+  onChangeExpressiveness: (value: string) => void
   onChangePauseMarkers: (markers: string[]) => void
   onChangeAdvanced: (settings: Partial<StudioAudioAdvancedSettings>) => void
   onRequestSpeakerVoiceSelect: (index: number | null) => void
@@ -170,6 +175,15 @@ const PACE_OPTIONS = [
   { value: AUDIO_PACE.NORMAL, labelKey: 'paceNormal' },
   { value: AUDIO_PACE.FAST, labelKey: 'paceFast' },
 ] as const
+
+const EXPRESSIVENESS_LABEL_KEYS: Record<
+  (typeof AUDIO_EXPRESSIVENESS_TIERS)[number],
+  string
+> = {
+  [AUDIO_EXPRESSIVENESS.RESTRAINED]: 'expressivenessRestrained',
+  [AUDIO_EXPRESSIVENESS.NATURAL]: 'expressivenessNatural',
+  [AUDIO_EXPRESSIVENESS.DRAMATIC]: 'expressivenessDramatic',
+}
 
 const PAUSE_OPTIONS = AUDIO_PAUSE_MARKERS.map((value, index) => ({
   value,
@@ -560,9 +574,11 @@ function ReferenceAudioField({
 export const StudioAudioParams = memo(function StudioAudioParams({
   voiceCardId,
   pace,
+  expressiveness,
   pauseMarkers,
   advanced,
   onChangePace,
+  onChangeExpressiveness,
   onChangePauseMarkers,
   onChangeAdvanced,
   onRequestSpeakerVoiceSelect,
@@ -594,6 +610,16 @@ export const StudioAudioParams = memo(function StudioAudioParams({
     const option = STYLE_OPTIONS.find((o) => o.value === advanced.style)
     return option ? t(option.labelKey) : ''
   })()
+  // Mirror the service's default rule so the panel shows which tier `auto`
+  // lands on: an emotion cue implies dramatic delivery, silence implies natural.
+  const isAutoExpressiveness = expressiveness === AUDIO_EXPRESSIVENESS.AUTO
+  const autoExpressivenessTier =
+    advanced.style && advanced.style !== AUDIO_STYLE.NONE
+      ? AUDIO_EXPRESSIVENESS.DRAMATIC
+      : AUDIO_EXPRESSIVENESS.NATURAL
+  const resolvedExpressiveness = isAutoExpressiveness
+    ? autoExpressivenessTier
+    : expressiveness
   const selectedPaceLabel = (() => {
     const option = PACE_OPTIONS.find((o) => o.value === pace)
     return option ? t(option.labelKey) : ''
@@ -710,6 +736,53 @@ export const StudioAudioParams = memo(function StudioAudioParams({
             </ToggleGroup>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {t('expressiveness')}
+            </span>
+            {isAutoExpressiveness ? (
+              <span className="text-2xs text-muted-foreground/70">
+                {t('expressivenessAuto')}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeExpressiveness(AUDIO_EXPRESSIVENESS.AUTO)
+                }
+                className="text-2xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                {t('expressivenessResetAuto')}
+              </button>
+            )}
+          </div>
+          <p className="text-2xs text-muted-foreground">
+            {t('expressivenessHint')}
+          </p>
+        </div>
+        <ToggleGroup
+          type="single"
+          value={resolvedExpressiveness}
+          onValueChange={(value) => {
+            if (value) onChangeExpressiveness(value)
+          }}
+          aria-label={t('expressiveness')}
+          className="!grid w-full grid-cols-3"
+        >
+          {AUDIO_EXPRESSIVENESS_TIERS.map((tier) => (
+            <ToggleGroupItem
+              key={tier}
+              value={tier}
+              className="px-2 text-center"
+            >
+              {t(EXPRESSIVENESS_LABEL_KEYS[tier])}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </section>
 
       <section className="space-y-2">

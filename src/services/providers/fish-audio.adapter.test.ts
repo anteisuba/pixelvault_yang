@@ -121,6 +121,50 @@ describe('fishAudioAdapter.generateAudio', () => {
     ])
   })
 
+  it('maps expressiveness to a default temperature when none is set', async () => {
+    const generateAudio = fishAudioAdapter.generateAudio
+    if (!generateAudio) throw new Error('Fish Audio generateAudio missing')
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from(Buffer.from('fake-mp3-bytes')), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      }),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    await generateAudio({ ...BASE_AUDIO_INPUT, expressiveness: 'dramatic' })
+
+    const body = JSON.parse(
+      String((mockFetch.mock.calls[0]?.[1] as RequestInit).body),
+    )
+    expect(body.temperature).toBe(0.9)
+  })
+
+  it('lets an explicit temperature win over expressiveness', async () => {
+    const generateAudio = fishAudioAdapter.generateAudio
+    if (!generateAudio) throw new Error('Fish Audio generateAudio missing')
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from(Buffer.from('fake-mp3-bytes')), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      }),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    await generateAudio({
+      ...BASE_AUDIO_INPUT,
+      expressiveness: 'dramatic',
+      temperature: 0.6,
+    })
+
+    const body = JSON.parse(
+      String((mockFetch.mock.calls[0]?.[1] as RequestInit).body),
+    )
+    expect(body.temperature).toBe(0.6)
+  })
+
   it('throws on error response', async () => {
     const generateAudio = fishAudioAdapter.generateAudio
     if (!generateAudio) throw new Error('Fish Audio generateAudio missing')

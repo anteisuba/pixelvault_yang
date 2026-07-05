@@ -1,0 +1,64 @@
+<svg width="100%" viewBox="0 0 680 520" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>大胆方向 B1+B4：justified 网格 + 智能分段</title>
+<desc>暗色台面：按时间分段 header（今天/本周/更早，等宽计数），每段内 justified 行——竖图窄高、横图宽、方图居中，行内等高不裁剪；右侧对比现状方格海的裁剪损失。</desc>
+<style>text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}.ts{font-size:12px;fill:#5f5e5a}.leader{stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:4 3}</style>
+<rect x="8" y="8" width="664" height="504" rx="12" fill="#0b0b0d"/>
+<defs>
+<linearGradient id="jt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a30"/><stop offset="1" stop-color="#202025"/></linearGradient>
+</defs>
+<!-- segment header 今天 -->
+<text x="32" y="40" font-size="11" fill="#c4c4ca" dominant-baseline="central">今天</text>
+<text x="70" y="41" font-size="10" fill="#6a6a72" dominant-baseline="central" font-family="ui-monospace,monospace">12</text>
+<line x1="94" y1="40" x2="470" y2="40" stroke="#1c1c1f" stroke-width="1"/>
+<!-- row 1 justified: portrait, landscape, square, portrait -->
+<rect x="32" y="54" width="66" height="96" rx="5" fill="url(#jt)"/>
+<rect x="104" y="54" width="140" height="96" rx="5" fill="url(#jt)"/>
+<rect x="250" y="54" width="96" height="96" rx="5" fill="url(#jt)"/>
+<rect x="352" y="54" width="118" height="96" rx="5" fill="url(#jt)"/>
+<!-- row 2 justified: landscape, square, portrait, wide -->
+<rect x="32" y="156" width="128" height="84" rx="5" fill="url(#jt)"/>
+<rect x="166" y="156" width="84" height="84" rx="5" fill="url(#jt)"/>
+<rect x="256" y="156" width="60" height="84" rx="5" fill="url(#jt)"/>
+<rect x="322" y="156" width="148" height="84" rx="5" fill="url(#jt)"/>
+<!-- segment header 本周 -->
+<text x="32" y="266" font-size="11" fill="#c4c4ca" dominant-baseline="central">本周</text>
+<text x="70" y="267" font-size="10" fill="#6a6a72" dominant-baseline="central" font-family="ui-monospace,monospace">40</text>
+<line x1="94" y1="266" x2="470" y2="266" stroke="#1c1c1f" stroke-width="1"/>
+<rect x="32" y="280" width="108" height="72" rx="5" fill="url(#jt)"/>
+<rect x="146" y="280" width="96" height="72" rx="5" fill="url(#jt)"/>
+<rect x="248" y="280" width="54" height="72" rx="5" fill="url(#jt)"/>
+<rect x="308" y="280" width="72" height="72" rx="5" fill="url(#jt)"/>
+<rect x="386" y="280" width="84" height="72" rx="5" fill="url(#jt)"/>
+<rect x="32" y="358" width="90" height="68" rx="5" fill="url(#jt)"/>
+<rect x="128" y="358" width="130" height="68" rx="5" fill="url(#jt)"/>
+<rect x="264" y="358" width="60" height="68" rx="5" fill="url(#jt)"/>
+<rect x="330" y="358" width="140" height="68" rx="5" fill="url(#jt)"/>
+<!-- segment header 更早 -->
+<text x="32" y="452" font-size="11" fill="#c4c4ca" dominant-baseline="central">更早</text>
+<line x1="70" y1="452" x2="470" y2="452" stroke="#1c1c1f" stroke-width="1"/>
+<rect x="32" y="466" width="72" height="34" rx="5" fill="url(#jt)"/>
+<rect x="110" y="466" width="120" height="34" rx="5" fill="url(#jt)"/>
+<rect x="236" y="466" width="90" height="34" rx="5" fill="url(#jt)"/>
+<rect x="332" y="466" width="138" height="34" rx="5" fill="url(#jt)"/>
+
+<!-- annotations -->
+<line class="leader" x1="472" y1="102" x2="500" y2="102"/>
+<text class="ts" x="506" y="90">B1 justified 行</text>
+<text class="ts" x="506" y="106">行内等高 · 宽按比例</text>
+<text class="ts" x="506" y="122">竖图不再被裁成方</text>
+<line class="leader" x1="472" y1="40" x2="500" y2="40"/>
+<text class="ts" x="506" y="40">B4 智能分段 header</text>
+<line class="leader" x1="472" y1="266" x2="500" y2="266"/>
+<text class="ts" x="506" y="260">时间/模型分段</text>
+<text class="ts" x="506" y="276">给 328 张位置锚点</text>
+<!-- mini contrast: square-grid crop loss -->
+<text x="506" y="330" class="ts">现状方格海：</text>
+<rect x="506" y="342" width="40" height="40" rx="4" fill="#202025"/>
+<rect x="506" y="342" width="40" height="40" rx="4" fill="none" stroke="#e0655f" stroke-width="0.75" stroke-dasharray="3 2"/>
+<line x1="506" y1="330" x2="546" y2="330" stroke="none"/>
+<rect x="500" y="336" width="52" height="52" rx="4" fill="none" stroke="#3a3a42" stroke-width="0.5"/>
+<text x="506" y="400" class="ts">虚线外 = 竖图被裁掉</text>
+<text x="506" y="416" class="ts">的构图（信息损失）</text>
+<text x="506" y="446" class="ts">成本：需宽高比 +</text>
+<text x="506" y="462" class="ts">与 P2 虚拟化耦合</text>
+</svg>

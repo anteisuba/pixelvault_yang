@@ -14,7 +14,6 @@ import {
   Image as ImageIcon,
   Loader2,
   Mic,
-  Pencil,
   Plus,
   Box,
   Trash2,
@@ -27,6 +26,7 @@ import NextImage from 'next/image'
 import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
+import { AssetFolderTree } from '@/components/business/AssetFolderTree'
 import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
@@ -47,13 +47,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { TreeView, type TreeNode } from '@/components/ui/tree-view'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
+import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
@@ -82,7 +81,6 @@ import {
 } from '@/lib/gallery-cache'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
-import { focusUnlessTouch } from '@/lib/touch'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -164,7 +162,6 @@ const DENSITY_IMAGE_SIZES: Record<Density, string> = {
   compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
 }
 const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')
-const UNASSIGNED_FOLDER_NODE_ID = 'unassigned'
 const DENSITY_XL_COLS: Record<Density, number> = {
   comfortable: 4,
   normal: 6,
@@ -200,24 +197,6 @@ function getSnapshotString(
   if (!snapshot) return null
   const value = snapshot[key]
   return typeof value === 'string' && value.trim() ? value.trim() : null
-}
-
-type FolderTreeNodeData =
-  | { kind: 'unassigned'; count?: number }
-  | { kind: 'project'; project: ProjectRecord; count?: number }
-
-function collectExpandedFolderIds(
-  nodes: TreeNode<FolderTreeNodeData>[],
-): string[] {
-  const ids: string[] = []
-  const visit = (node: TreeNode<FolderTreeNodeData>) => {
-    if (node.children && node.children.length > 0) {
-      ids.push(node.id)
-      node.children.forEach(visit)
-    }
-  }
-  nodes.forEach(visit)
-  return ids
 }
 
 function isDensity(value: string | null): value is Density {
@@ -497,11 +476,6 @@ export function KreaAssetBrowser({
     | { kind: 'favorite-bulk'; count: number }
     | { kind: 'delete-folder'; id: string; name: string }
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
-  const [editingProjectName, setEditingProjectName] = useState('')
-  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(
-    null,
-  )
 
   const toggleSelection = useCallback(
     (id: string) => {
@@ -642,40 +616,50 @@ export function KreaAssetBrowser({
     }
   }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
 
+  // Core move: reassign a set of assets to a project (or unassigned) and
+  // reconcile the grid + sidebar counts. Shared by the bulk-action bar and
+  // the drag-to-folder drop target.
+  const moveAssets = useCallback(
+    async (ids: string[], projectId: string | null) => {
+      if (ids.length === 0) return
+      const result = await batchAssignProjectAPI(ids, projectId)
+      if (!result.success) {
+        toast.error(result.error ?? t('bulkMoveFailed'))
+        return
+      }
+      const updatedCount = result.data?.updatedCount ?? ids.length
+      const shouldKeep = shouldKeepAssetAfterProjectMove(section, projectId)
+      clearGalleryCache()
+      ids.forEach((id) => {
+        if (shouldKeep) updateGeneration(id, { projectId })
+        else removeGeneration(id)
+      })
+      void refreshCounts()
+      toast.success(t('bulkMoveSuccess', { count: updatedCount }))
+    },
+    [section, t, updateGeneration, removeGeneration, refreshCounts],
+  )
+
   const performBulkMove = useCallback(
     async (projectId: string | null) => {
       const ids = Array.from(selectedIds)
       if (ids.length === 0) return
       setIsBulkMoving(true)
       try {
-        const result = await batchAssignProjectAPI(ids, projectId)
-        if (!result.success) {
-          toast.error(result.error ?? t('bulkMoveFailed'))
-          return
-        }
-        const updatedCount = result.data?.updatedCount ?? ids.length
-        const shouldKeep = shouldKeepAssetAfterProjectMove(section, projectId)
-        clearGalleryCache()
-        ids.forEach((id) => {
-          if (shouldKeep) updateGeneration(id, { projectId })
-          else removeGeneration(id)
-        })
-        void refreshCounts()
-        toast.success(t('bulkMoveSuccess', { count: updatedCount }))
+        await moveAssets(ids, projectId)
         exitSelectionMode()
       } finally {
         setIsBulkMoving(false)
       }
     },
-    [
-      selectedIds,
-      section,
-      t,
-      updateGeneration,
-      removeGeneration,
-      refreshCounts,
-      exitSelectionMode,
-    ],
+    [selectedIds, moveAssets, exitSelectionMode],
+  )
+
+  const handleDropAssetsOnFolder = useCallback(
+    (projectId: string | null, ids: string[]) => {
+      void moveAssets(ids, projectId)
+    },
+    [moveAssets],
   )
 
   // Folder reassignment may push the asset out of the current section
@@ -972,35 +956,14 @@ export function KreaAssetBrowser({
     return () => window.removeEventListener('paste', handlePaste)
   }, [isPickerMode, section.kind, processUploadFile])
 
-  const startRenameProject = (id: string, currentName: string) => {
-    setEditingProjectId(id)
-    setEditingProjectName(currentName)
-  }
-
-  const cancelRenameProject = () => {
-    setEditingProjectId(null)
-    setEditingProjectName('')
-  }
-
-  const submitRenameProject = async (id: string, currentName: string) => {
-    if (renamingProjectId) return
-    const trimmed = editingProjectName.trim()
-    if (!trimmed) return
-    if (trimmed === currentName) {
-      cancelRenameProject()
-      return
-    }
-    setRenamingProjectId(id)
-    try {
-      const ok = await updateProject(id, { name: trimmed })
-      if (ok) {
-        cancelRenameProject()
-        void refreshCounts()
-      }
-    } finally {
-      setRenamingProjectId(null)
-    }
-  }
+  const handleRenameProject = useCallback(
+    async (id: string, newName: string) => {
+      const ok = await updateProject(id, { name: newName })
+      if (ok) void refreshCounts()
+      return ok
+    },
+    [updateProject, refreshCounts],
+  )
 
   const requestDeleteProject = (id: string, name: string) => {
     setConfirmAction({ kind: 'delete-folder', id, name })
@@ -1050,71 +1013,6 @@ export function KreaAssetBrowser({
   const projectCount = (id: string): number | undefined =>
     counts?.byProject[id] ??
     (section.kind === 'project' && section.id === id ? total : undefined)
-
-  const folderTreeData = useMemo<TreeNode<FolderTreeNodeData>[]>(() => {
-    const projectNodes = new Map<string, TreeNode<FolderTreeNodeData>>()
-    const roots: TreeNode<FolderTreeNodeData>[] = []
-
-    projects.forEach((project) => {
-      projectNodes.set(project.id, {
-        id: project.id,
-        label: project.name,
-        children: [],
-        data: {
-          kind: 'project',
-          project,
-          count:
-            counts?.byProject[project.id] ??
-            (section.kind === 'project' && section.id === project.id
-              ? total
-              : undefined),
-        },
-      })
-    })
-
-    projects.forEach((project) => {
-      const node = projectNodes.get(project.id)
-      if (!node) return
-      const parent = project.parentId
-        ? projectNodes.get(project.parentId)
-        : undefined
-      if (parent) parent.children = [...(parent.children ?? []), node]
-      else roots.push(node)
-    })
-
-    return [
-      {
-        id: UNASSIGNED_FOLDER_NODE_ID,
-        label: t('sidebarUnassigned'),
-        icon: <FolderX className="size-4" />,
-        data: { kind: 'unassigned', count: unassignedCount },
-      },
-      ...roots,
-    ]
-  }, [counts?.byProject, projects, section, t, total, unassignedCount])
-
-  const expandedFolderIds = useMemo(
-    () => collectExpandedFolderIds(folderTreeData),
-    [folderTreeData],
-  )
-  const selectedFolderIds =
-    section.kind === 'unassigned'
-      ? [UNASSIGNED_FOLDER_NODE_ID]
-      : section.kind === 'project'
-        ? [section.id]
-        : []
-  const handleFolderTreeNodeClick = useCallback(
-    (node: TreeNode<FolderTreeNodeData>) => {
-      if (node.data?.kind === 'unassigned') {
-        setSection({ kind: 'unassigned' })
-        return
-      }
-      if (node.data?.kind === 'project') {
-        setSection({ kind: 'project', id: node.data.project.id })
-      }
-    },
-    [setSection],
-  )
 
   const primaryMobileSections: MobileSectionOption[] = [
     {
@@ -1489,10 +1387,31 @@ export function KreaAssetBrowser({
                       if (selectionMode) toggleSelection(gen.id)
                       else enterSelectionWith(gen.id)
                     }
+                    // Drag-to-folder: outside picker mode a tile can be dragged
+                    // onto a folder in the sidebar. Dragging a selected tile
+                    // carries the whole selection; otherwise just this asset.
+                    const handleTileDragStart = (
+                      event: React.DragEvent<HTMLButtonElement>,
+                    ) => {
+                      const ids =
+                        selectionMode && isSelected
+                          ? Array.from(selectedIds)
+                          : [gen.id]
+                      event.dataTransfer.setData(
+                        ASSET_DND_MIME,
+                        JSON.stringify(ids),
+                      )
+                      event.dataTransfer.setData('text/plain', ids.join(','))
+                      event.dataTransfer.effectAllowed = 'move'
+                    }
                     return (
                       <button
                         key={gen.id}
                         type="button"
+                        draggable={!isPickerMode}
+                        onDragStart={
+                          isPickerMode ? undefined : handleTileDragStart
+                        }
                         onClick={handleTileClick}
                         onContextMenu={handleTileContextMenu}
                         className={tileClass}
@@ -1579,133 +1498,22 @@ export function KreaAssetBrowser({
               />
             </SidebarSection>
 
-            <SidebarSection
-              label={t('sidebarFolders')}
-              action={
-                <ProjectCreateDialog
-                  onCreated={handleProjectCreated}
-                  trigger={
-                    <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={t('folderCreate')}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Plus className="size-3.5" />
-                    </Button>
-                  }
-                />
+            <AssetFolderTree
+              projects={projects}
+              byProjectCounts={counts?.byProject}
+              activeProjectTotal={
+                section.kind === 'project' ? total : undefined
               }
-            >
-              <TreeView
-                key={expandedFolderIds.join('|')}
-                data={folderTreeData}
-                selectedIds={selectedFolderIds}
-                defaultExpandedIds={expandedFolderIds}
-                onNodeClick={handleFolderTreeNodeClick}
-                showLines
-                animateExpand
-                className="min-w-0 max-w-full overflow-hidden"
-                renderNodeContent={(node, state) => {
-                  const data = node.data
-                  const count = data?.count
-                  if (
-                    data?.kind === 'project' &&
-                    editingProjectId === data.project.id
-                  ) {
-                    return (
-                      <ProjectRenameTreeContent
-                        active={state.isSelected}
-                        value={editingProjectName}
-                        disabled={renamingProjectId === data.project.id}
-                        inputLabel={t('folderRenameInput')}
-                        saveLabel={t('folderRenameSave')}
-                        cancelLabel={t('folderRenameCancel')}
-                        onChange={setEditingProjectName}
-                        onSubmit={() =>
-                          void submitRenameProject(
-                            data.project.id,
-                            data.project.name,
-                          )
-                        }
-                        onCancel={cancelRenameProject}
-                      />
-                    )
-                  }
-
-                  return (
-                    <>
-                      <span className="min-w-0 flex-1 truncate">
-                        {node.label}
-                      </span>
-                      {typeof count === 'number' && (
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'min-w-6 justify-center px-1.5 py-0 text-3xs font-medium tabular-nums',
-                            state.isSelected
-                              ? 'bg-background/80 text-primary'
-                              : 'bg-muted/50 text-muted-foreground',
-                          )}
-                        >
-                          {count}
-                        </Badge>
-                      )}
-                      {data?.kind === 'project' && (
-                        <span className="ml-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/tree-node:opacity-100 focus-within:opacity-100">
-                          <ProjectCreateDialog
-                            parentId={data.project.id}
-                            onCreated={handleProjectCreated}
-                            trigger={
-                              <button
-                                type="button"
-                                aria-label={t('folderCreate')}
-                                title={t('folderCreate')}
-                                onClick={(event) => event.stopPropagation()}
-                                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                              >
-                                <Plus className="size-3" />
-                              </button>
-                            }
-                          />
-                          <button
-                            type="button"
-                            aria-label={t('folderRename')}
-                            title={t('folderRename')}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              startRenameProject(
-                                data.project.id,
-                                data.project.name,
-                              )
-                            }}
-                            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                          >
-                            <Pencil className="size-3" />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={t('folderDelete')}
-                            title={t('folderDelete')}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              requestDeleteProject(
-                                data.project.id,
-                                data.project.name,
-                              )
-                            }}
-                            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        </span>
-                      )}
-                    </>
-                  )
-                }}
-              />
-            </SidebarSection>
+              unassignedCount={unassignedCount}
+              activeProjectId={section.kind === 'project' ? section.id : null}
+              isUnassignedActive={section.kind === 'unassigned'}
+              onSelectUnassigned={() => setSection({ kind: 'unassigned' })}
+              onSelectProject={(id) => setSection({ kind: 'project', id })}
+              onProjectCreated={handleProjectCreated}
+              onRenameProject={handleRenameProject}
+              onRequestDeleteProject={requestDeleteProject}
+              onDropAssets={handleDropAssetsOnFolder}
+            />
           </div>
         </aside>
       </div>
@@ -2233,86 +2041,6 @@ interface SidebarItemProps {
   onClick: () => void
   onPrefetch?: () => void
   actions?: React.ReactNode
-}
-
-interface ProjectRenameSidebarItemProps {
-  active: boolean
-  value: string
-  disabled: boolean
-  inputLabel: string
-  saveLabel: string
-  cancelLabel: string
-  onChange: (value: string) => void
-  onSubmit: () => void
-  onCancel: () => void
-}
-
-function ProjectRenameTreeContent(props: ProjectRenameSidebarItemProps) {
-  const {
-    value,
-    disabled,
-    inputLabel,
-    saveLabel,
-    cancelLabel,
-    onChange,
-    onSubmit,
-    onCancel,
-  } = props
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    focusUnlessTouch(inputRef.current, { select: true })
-  }, [])
-
-  return (
-    <form
-      onClick={(event) => event.stopPropagation()}
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSubmit()
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          onCancel()
-        }
-      }}
-      className="flex min-w-0 flex-1 items-center gap-1"
-    >
-      <Input
-        ref={inputRef}
-        value={value}
-        disabled={disabled}
-        maxLength={60}
-        aria-label={inputLabel}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-7 min-w-0 flex-1 rounded-md bg-background px-2 text-sm"
-      />
-      <button
-        type="submit"
-        aria-label={saveLabel}
-        title={saveLabel}
-        disabled={disabled || value.trim().length === 0}
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {disabled ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <CheckCircle2 className="size-3.5" />
-        )}
-      </button>
-      <button
-        type="button"
-        aria-label={cancelLabel}
-        title={cancelLabel}
-        disabled={disabled}
-        onClick={onCancel}
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <X className="size-3.5" />
-      </button>
-    </form>
-  )
 }
 
 function SidebarItem({

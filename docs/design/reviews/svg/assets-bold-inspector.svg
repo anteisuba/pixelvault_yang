@@ -1,0 +1,55 @@
+<svg width="100%" viewBox="0 0 680 460" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>大胆方向 B3：分栏检视器（替代 sheet 弹窗）</title>
+<desc>暗色：左侧网格收窄成小列（一张选中白环），右侧原地展开检视器——大图、model chip、prompt 全文、动作行（复制/找同款/remix/发布/删除）、上一张下一张箭头。</desc>
+<style>text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}.ts{font-size:12px;fill:#5f5e5a}.leader{stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:4 3}</style>
+<rect x="8" y="8" width="664" height="444" rx="12" fill="#0b0b0d"/>
+<!-- narrowed grid (left) -->
+<rect x="28" y="28" width="66" height="66" rx="5" fill="#26262c"/>
+<rect x="100" y="28" width="66" height="66" rx="5" fill="#2c2c33"/>
+<rect x="28" y="100" width="66" height="66" rx="5" fill="#2c2c33"/>
+<rect x="100" y="100" width="66" height="66" rx="5" fill="#26262c" stroke="#f2f2f2" stroke-width="2"/>
+<rect x="28" y="172" width="66" height="66" rx="5" fill="#26262c"/>
+<rect x="100" y="172" width="66" height="66" rx="5" fill="#2c2c33"/>
+<rect x="28" y="244" width="66" height="66" rx="5" fill="#2c2c33"/>
+<rect x="100" y="244" width="66" height="66" rx="5" fill="#26262c"/>
+<rect x="28" y="316" width="66" height="66" rx="5" fill="#26262c"/>
+<rect x="100" y="316" width="66" height="66" rx="5" fill="#2c2c33"/>
+<!-- inspector panel (right, inline not modal) -->
+<rect x="186" y="28" width="466" height="404" rx="10" fill="#141417"/>
+<!-- large image -->
+<rect x="206" y="48" width="230" height="300" rx="6" fill="url(#ig)"/>
+<defs><linearGradient id="ig" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2e35"/><stop offset="1" stop-color="#232329"/></linearGradient></defs>
+<!-- prev / next -->
+<circle cx="196" cy="198" r="12" fill="#202025"/><text x="196" y="199" font-size="12" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">‹</text>
+<circle cx="446" cy="198" r="12" fill="#202025"/><text x="446" y="199" font-size="12" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">›</text>
+<!-- meta column -->
+<text x="460" y="60" font-size="12" fill="#ececec" dominant-baseline="central" font-weight="500">达妮娅 · 三视图</text>
+<rect x="460" y="72" width="76" height="20" rx="10" fill="#2e2e35"/>
+<text x="498" y="82" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">Illustrious</text>
+<rect x="542" y="72" width="52" height="20" rx="10" fill="#2e2e35"/>
+<text x="568" y="82" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">1024²</text>
+<text x="460" y="112" font-size="9" fill="#5a5a62" letter-spacing="1">PROMPT</text>
+<text x="460" y="130" font-size="10" fill="#9a9aa2">1girl, silver hair, cat ears, dynamic</text>
+<text x="460" y="146" font-size="10" fill="#9a9aa2">pose, three views, character sheet,</text>
+<text x="460" y="162" font-size="10" fill="#9a9aa2">masterpiece, detailed background…</text>
+<!-- action row -->
+<rect x="460" y="188" width="80" height="26" rx="8" fill="#202025" stroke="#34343a" stroke-width="0.5"/>
+<text x="500" y="201" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">复制 prompt</text>
+<rect x="548" y="188" width="72" height="26" rx="8" fill="#202025" stroke="#34343a" stroke-width="0.5"/>
+<text x="584" y="201" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">找同款</text>
+<rect x="460" y="220" width="60" height="26" rx="8" fill="#202025" stroke="#34343a" stroke-width="0.5"/>
+<text x="490" y="233" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">remix</text>
+<rect x="528" y="220" width="92" height="26" rx="8" fill="#f2f2f2"/>
+<text x="574" y="233" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central" font-weight="500">发布到画廊</text>
+<text x="460" y="266" font-size="9" fill="#5a5a62" letter-spacing="1">参数</text>
+<text x="460" y="286" font-size="10" fill="#9a9aa2" font-family="ui-monospace,monospace">cfg 5.0 · steps 28 · seed 41928</text>
+<text x="460" y="304" font-size="10" fill="#9a9aa2" font-family="ui-monospace,monospace">sampler DPM++ 2M · 2026-07-05</text>
+<rect x="460" y="322" width="60" height="24" rx="8" fill="none" stroke="#e0655f" stroke-width="0.75"/>
+<text x="490" y="334" font-size="9" fill="#e0655f" text-anchor="middle" dominant-baseline="central">删除</text>
+
+<!-- annotations -->
+<line class="leader" x1="168" y1="133" x2="182" y2="133"/>
+<text class="ts" x="188" y="372">左：网格收窄 · 选中白环 · 保持上下文</text>
+<text class="ts" x="188" y="392">右：点图原地展开检视器（非 Sheet 弹窗打断）· ‹ › 连续翻阅</text>
+<text class="ts" x="188" y="412">prompt 全文 + 找同款 + 参数原地可读 · 复用 AssetDetailSheet 动作逻辑</text>
+</svg>

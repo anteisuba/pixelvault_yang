@@ -1,0 +1,52 @@
+<svg width="100%" viewBox="0 0 680 400" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>素材中枢联动 IA</title>
+<desc>上游（生成落库/用户上传）→ 中枢 /assets（上传·分类·使用）→ 下游（同一 picker 网关分发到 Studio 参考/LoRA 训练/画布节点/3D）。</desc>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7c7c84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<style>text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}</style>
+<rect x="8" y="8" width="664" height="384" rx="12" fill="#0b0b0d"/>
+<!-- 上游 -->
+<text x="90" y="40" font-size="10" fill="#5a5a62" text-anchor="middle" letter-spacing="1">上游 · 进库</text>
+<rect x="34" y="58" width="112" height="46" rx="9" fill="#1a1a1e"/>
+<text x="90" y="76" font-size="11" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">生成落库</text>
+<text x="90" y="92" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">Studio / 画布</text>
+<rect x="34" y="118" width="112" height="46" rx="9" fill="#1a1a1e"/>
+<text x="90" y="136" font-size="11" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">用户上传</text>
+<text x="90" y="152" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">拖拽 / 粘贴 / 选择</text>
+<!-- 中枢 -->
+<rect x="210" y="52" width="180" height="240" rx="14" fill="#141417" stroke="#2a2a30" stroke-width="1"/>
+<text x="300" y="76" font-size="13" fill="#ececec" text-anchor="middle" font-weight="500">/assets 素材中枢</text>
+<rect x="230" y="96" width="140" height="52" rx="9" fill="#060608"/>
+<text x="300" y="114" font-size="11" fill="#ececec" text-anchor="middle" dominant-baseline="central">① 上传</text>
+<text x="300" y="132" font-size="9" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">全局拖拽 · 即落夹</text>
+<rect x="230" y="158" width="140" height="52" rx="9" fill="#060608"/>
+<text x="300" y="176" font-size="11" fill="#ececec" text-anchor="middle" dominant-baseline="central">② 分类</text>
+<text x="300" y="194" font-size="9" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">拖拽整理 · 未分类待办</text>
+<rect x="230" y="220" width="140" height="52" rx="9" fill="#060608"/>
+<text x="300" y="238" font-size="11" fill="#ececec" text-anchor="middle" dominant-baseline="central">③ 使用</text>
+<text x="300" y="256" font-size="9" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">多目标出口</text>
+<!-- gateway -->
+<rect x="430" y="150" width="90" height="44" rx="10" fill="#202025" stroke="#3a3a42" stroke-width="0.75"/>
+<text x="475" y="167" font-size="10" fill="#ececec" text-anchor="middle" dominant-baseline="central">picker 网关</text>
+<text x="475" y="182" font-size="8.5" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">AssetSelectorDialog</text>
+<!-- 下游 -->
+<text x="596" y="40" font-size="10" fill="#5a5a62" text-anchor="middle" letter-spacing="1">下游 · 消费</text>
+<rect x="544" y="58" width="104" height="34" rx="8" fill="#1a1a1e"/>
+<text x="596" y="75" font-size="10" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">Studio 参考图</text>
+<rect x="544" y="100" width="104" height="34" rx="8" fill="#1a1a1e"/>
+<text x="596" y="117" font-size="10" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">LoRA 训练</text>
+<rect x="544" y="204" width="104" height="34" rx="8" fill="#1a1a1e"/>
+<text x="596" y="221" font-size="10" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">画布节点</text>
+<rect x="544" y="246" width="104" height="34" rx="8" fill="#1a1a1e"/>
+<text x="596" y="263" font-size="10" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">3D</text>
+<!-- arrows upstream -> hub -->
+<line x1="148" y1="81" x2="208" y2="110" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="148" y1="141" x2="208" y2="122" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<!-- hub use -> gateway -->
+<line x1="372" y1="246" x2="428" y2="180" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<!-- gateway -> downstream -->
+<line x1="520" y1="164" x2="542" y2="90" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="520" y1="168" x2="542" y2="122" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="520" y1="176" x2="542" y2="216" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="520" y1="180" x2="542" y2="256" stroke="#7c7c84" stroke-width="1.2" marker-end="url(#ar)"/>
+<text x="340" y="360" font-size="10" fill="#6a6a72" text-anchor="middle">同一 picker 网关服务所有下游 → 改好 picker（场景化）一次改善全部联动；中枢文件夹分类须在 picker 内可见</text>
+</svg>

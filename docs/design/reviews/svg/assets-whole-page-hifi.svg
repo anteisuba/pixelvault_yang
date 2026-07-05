@@ -1,0 +1,97 @@
+<svg width="100%" viewBox="0 0 680 456" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>/assets 整页高保真 — 工程化素材中枢</title>
+<desc>暗房整页：左 nav rail，顶栏含上传主按钮，主区 justified 不裁剪网格+时间智能分段（今天/本周），右栏中枢控制台=视图+文件夹（未分类琥珀待办）+底部全局上传拖拽区；一张缩略图选中白环示意检视/使用入口。</desc>
+<defs>
+<linearGradient id="a1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a2b30"/><stop offset="1" stop-color="#2a2230"/></linearGradient>
+<linearGradient id="a2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#243130"/><stop offset="1" stop-color="#212a2a"/></linearGradient>
+<linearGradient id="a3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#25303f"/><stop offset="1" stop-color="#222834"/></linearGradient>
+<linearGradient id="a4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38321f"/><stop offset="1" stop-color="#2c2a21"/></linearGradient>
+<linearGradient id="a5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e2833"/><stop offset="1" stop-color="#25232c"/></linearGradient>
+<linearGradient id="a6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#303038"/><stop offset="1" stop-color="#26262c"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="664" height="440" rx="12" fill="#0b0b0d"/>
+<!-- rail -->
+<rect x="8" y="8" width="60" height="440" rx="12" fill="#131316"/>
+<text x="38" y="30" font-size="9.5" fill="#ececec" text-anchor="middle" font-weight="500" letter-spacing="1">ANTEI</text>
+<text x="38" y="64" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">画廊</text>
+<text x="38" y="86" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">提示词</text>
+<rect x="14" y="102" width="48" height="20" rx="6" fill="#060608"/><rect x="14" y="102" width="2.4" height="20" rx="1" fill="#f2f2f2"/>
+<text x="40" y="112" font-size="7.5" fill="#f2f2f2" text-anchor="middle" dominant-baseline="central" font-weight="500">素材</text>
+<text x="38" y="140" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">卡片</text>
+<text x="38" y="178" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">图像</text>
+<text x="38" y="200" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">视频</text>
+<text x="38" y="222" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">LoRA</text>
+<text x="38" y="244" font-size="7.5" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">节点</text>
+<circle cx="26" cy="424" r="8" fill="#26262c"/><text x="42" y="424" font-size="7.5" fill="#9a9aa2" dominant-baseline="central">YINIG</text>
+<!-- topbar -->
+<text x="86" y="34" font-size="12" fill="#ececec" dominant-baseline="central" font-weight="500">素材</text>
+<text x="116" y="35" font-size="10" fill="#6a6a72" dominant-baseline="central" font-family="ui-monospace,monospace">299</text>
+<rect x="150" y="22" width="86" height="24" rx="7" fill="#161619"/>
+<rect x="152" y="24" width="24" height="20" rx="5" fill="#2e2e35"/>
+<text x="164" y="34" font-size="9" fill="#ececec" text-anchor="middle" dominant-baseline="central">图</text>
+<text x="188" y="34" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">视</text>
+<text x="208" y="34" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">音</text>
+<text x="226" y="34" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">3D</text>
+<text x="470" y="34" font-size="9" fill="#9a9aa2" text-anchor="end" dominant-baseline="central">最新 ▾</text>
+<rect x="482" y="22" width="52" height="24" rx="7" fill="#161619"/>
+<text x="492" y="34" font-size="8" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">4</text>
+<rect x="502" y="24" width="14" height="20" rx="5" fill="#2e2e35"/><text x="509" y="34" font-size="8" fill="#ececec" text-anchor="middle" dominant-baseline="central">6</text>
+<text x="526" y="34" font-size="8" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">8</text>
+<rect x="542" y="22" width="42" height="24" rx="7" fill="none" stroke="#2a2a30" stroke-width="0.75"/>
+<text x="563" y="34" font-size="9" fill="#9a9aa2" text-anchor="middle" dominant-baseline="central">选择</text>
+<rect x="592" y="22" width="70" height="24" rx="7" fill="#f2f2f2"/>
+<path d="M604 34 v-8 M600 30 l4 -4 l4 4" fill="none" stroke="#141414" stroke-width="1.1" stroke-linecap="round"/>
+<text x="624" y="34" font-size="9" fill="#141414" text-anchor="middle" dominant-baseline="central" font-weight="500">上传</text>
+<line x1="78" y1="56" x2="662" y2="56" stroke="#1c1c1f" stroke-width="1"/>
+<!-- main grid: segmented + justified -->
+<text x="86" y="76" font-size="10" fill="#c4c4ca" dominant-baseline="central">今天</text>
+<text x="116" y="77" font-size="9" fill="#6a6a72" dominant-baseline="central" font-family="ui-monospace,monospace">8</text>
+<line x1="134" y1="76" x2="500" y2="76" stroke="#18181c" stroke-width="1"/>
+<rect x="86" y="88" width="64" height="96" rx="5" fill="url(#a1)"/>
+<rect x="156" y="88" width="132" height="96" rx="5" fill="url(#a3)"/>
+<rect x="155" y="87" width="134" height="98" rx="6" fill="none" stroke="#f2f2f2" stroke-width="2"/>
+<rect x="294" y="88" width="96" height="96" rx="5" fill="url(#a5)"/>
+<rect x="396" y="88" width="104" height="96" rx="5" fill="url(#a2)"/>
+<rect x="86" y="190" width="128" height="84" rx="5" fill="url(#a4)"/>
+<rect x="220" y="190" width="84" height="84" rx="5" fill="url(#a6)"/>
+<rect x="310" y="190" width="58" height="84" rx="5" fill="url(#a1)"/>
+<rect x="374" y="190" width="126" height="84" rx="5" fill="url(#a3)"/>
+<text x="86" y="296" font-size="10" fill="#c4c4ca" dominant-baseline="central">本周</text>
+<text x="116" y="297" font-size="9" fill="#6a6a72" dominant-baseline="central" font-family="ui-monospace,monospace">40</text>
+<line x1="134" y1="296" x2="500" y2="296" stroke="#18181c" stroke-width="1"/>
+<rect x="86" y="308" width="90" height="72" rx="5" fill="url(#a2)"/>
+<rect x="182" y="308" width="76" height="72" rx="5" fill="url(#a5)"/>
+<rect x="264" y="308" width="54" height="72" rx="5" fill="url(#a4)"/>
+<rect x="324" y="308" width="72" height="72" rx="5" fill="url(#a6)"/>
+<rect x="402" y="308" width="98" height="72" rx="5" fill="url(#a3)"/>
+<rect x="86" y="386" width="90" height="40" rx="5" fill="url(#a1)"/>
+<rect x="182" y="386" width="120" height="40" rx="5" fill="url(#a3)"/>
+<rect x="308" y="386" width="88" height="40" rx="5" fill="url(#a5)"/>
+<rect x="402" y="386" width="98" height="40" rx="5" fill="url(#a4)"/>
+<!-- right console (no card border, sits on floor) -->
+<line x1="510" y1="56" x2="510" y2="424" stroke="#1c1c1f" stroke-width="1"/>
+<text x="524" y="76" font-size="8.5" fill="#5a5a62" letter-spacing="1">视图</text>
+<rect x="516" y="84" width="146" height="24" rx="6" fill="#060608"/><rect x="516" y="84" width="2.4" height="24" rx="1" fill="#f2f2f2"/>
+<text x="530" y="96" font-size="9.5" fill="#ececec" dominant-baseline="central">全部</text>
+<text x="654" y="96" font-size="9" fill="#c4c4ca" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">299</text>
+<text x="530" y="122" font-size="9.5" fill="#9a9aa2" dominant-baseline="central">收藏</text>
+<text x="654" y="122" font-size="9" fill="#6a6a72" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">3</text>
+<text x="530" y="144" font-size="9.5" fill="#9a9aa2" dominant-baseline="central">已发布到画廊</text>
+<text x="654" y="144" font-size="9" fill="#6a6a72" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">12</text>
+<text x="530" y="166" font-size="9.5" fill="#9a9aa2" dominant-baseline="central">本地素材</text>
+<text x="524" y="194" font-size="8.5" fill="#5a5a62" letter-spacing="1">文件夹</text>
+<text x="656" y="194" font-size="13" fill="#8a8a92" text-anchor="end" dominant-baseline="central">+</text>
+<!-- 未分类 = amber待办 -->
+<rect x="516" y="204" width="146" height="26" rx="7" fill="#161510"/><rect x="516" y="204" width="2.4" height="26" rx="1" fill="#e0a955"/>
+<text x="530" y="213" font-size="9.5" fill="#d8c9a8" dominant-baseline="central">未分类</text>
+<text x="530" y="225" font-size="8" fill="#9a8f70" dominant-baseline="central">待整理 →</text>
+<text x="654" y="217" font-size="10" fill="#d8c9a8" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">64</text>
+<text x="530" y="248" font-size="9.5" fill="#9a9aa2" dominant-baseline="central">▾ ba</text>
+<text x="654" y="248" font-size="9" fill="#6a6a72" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">27</text>
+<text x="530" y="270" font-size="9.5" fill="#9a9aa2" dominant-baseline="central">鸣潮</text>
+<text x="654" y="270" font-size="9" fill="#6a6a72" text-anchor="end" dominant-baseline="central" font-family="ui-monospace,monospace">24</text>
+<!-- bottom global upload zone -->
+<rect x="516" y="352" width="146" height="64" rx="9" fill="#0e0e11" stroke="#3a3a42" stroke-width="1" stroke-dasharray="5 4"/>
+<path d="M589 388 v-16 M582 379 l7 -7 l7 7" fill="none" stroke="#8a8a92" stroke-width="1.2" stroke-linecap="round"/>
+<text x="589" y="404" font-size="8.5" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">拖文件到此 · 或页面任意处</text>
+</svg>

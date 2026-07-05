@@ -1,0 +1,58 @@
+<svg width="100%" viewBox="0 0 680 430" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>场景化 picker — 高保真成品</title>
+<desc>Studio 触发的选择参考图弹窗：标题+仅图片锁徽标+关闭；文件夹 chips 横向（复用中枢分类，全部激活）；最近生成网格（低饱和真实缩略图，一张 hover 白环）+ dashed 内联上传格；底部提示点击选用/拖入粘贴上传。</desc>
+<defs>
+<linearGradient id="p1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#39272c"/><stop offset="1" stop-color="#2a222a"/></linearGradient>
+<linearGradient id="p2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#243030"/><stop offset="1" stop-color="#212a2a"/></linearGradient>
+<linearGradient id="p3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#25303f"/><stop offset="1" stop-color="#222834"/></linearGradient>
+<linearGradient id="p4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38321f"/><stop offset="1" stop-color="#2c2a21"/></linearGradient>
+<linearGradient id="p5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e2833"/><stop offset="1" stop-color="#26232c"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="664" height="414" rx="12" fill="#0b0b0d" opacity="0.6"/>
+<rect x="56" y="26" width="568" height="378" rx="16" fill="#16161a" stroke="#2c2c32" stroke-width="1"/>
+<!-- header -->
+<text x="80" y="54" font-size="13" fill="#ececec" font-weight="500" dominant-baseline="central">选择参考图</text>
+<rect x="176" y="44" width="64" height="21" rx="10" fill="#2a2a30"/>
+<text x="208" y="55" font-size="9" fill="#c4c4ca" text-anchor="middle" dominant-baseline="central">仅图片</text>
+<text x="598" y="54" font-size="15" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">×</text>
+<!-- folder chips (reuse hub classification) -->
+<rect x="80" y="78" width="48" height="26" rx="13" fill="#ececec"/>
+<text x="104" y="91" font-size="10" fill="#141414" text-anchor="middle" dominant-baseline="central">全部</text>
+<rect x="134" y="78" width="48" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="158" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">收藏</text>
+<rect x="188" y="78" width="60" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="218" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">未分类</text>
+<rect x="254" y="78" width="40" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="274" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">ba</text>
+<rect x="300" y="78" width="56" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="328" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">鸣潮</text>
+<rect x="362" y="78" width="64" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="394" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">达妮娅</text>
+<rect x="432" y="78" width="58" height="26" rx="13" fill="#22222a" stroke="#34343a" stroke-width="0.5"/>
+<text x="461" y="91" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">更多 ▾</text>
+<!-- recent label -->
+<text x="80" y="128" font-size="10" fill="#8a8a92" dominant-baseline="central">最近生成</text>
+<text x="130" y="128" font-size="9" fill="#5a5a62" dominant-baseline="central" font-family="ui-monospace,monospace">32</text>
+<!-- grid row 1 -->
+<rect x="80" y="140" width="80" height="80" rx="6" fill="url(#p1)"/>
+<rect x="168" y="140" width="80" height="80" rx="6" fill="url(#p2)"/>
+<rect x="256" y="140" width="80" height="80" rx="6" fill="url(#p3)"/>
+<rect x="255" y="139" width="82" height="82" rx="7" fill="none" stroke="#f2f2f2" stroke-width="2"/>
+<rect x="344" y="140" width="80" height="80" rx="6" fill="url(#p4)"/>
+<rect x="432" y="140" width="80" height="80" rx="6" fill="url(#p5)"/>
+<rect x="520" y="140" width="80" height="80" rx="6" fill="url(#p1)"/>
+<!-- grid row 2 -->
+<rect x="80" y="228" width="80" height="80" rx="6" fill="url(#p3)"/>
+<rect x="168" y="228" width="80" height="80" rx="6" fill="url(#p5)"/>
+<rect x="256" y="228" width="80" height="80" rx="6" fill="url(#p2)"/>
+<rect x="344" y="228" width="80" height="80" rx="6" fill="url(#p1)"/>
+<rect x="432" y="228" width="80" height="80" rx="6" fill="url(#p4)"/>
+<!-- inline upload dashed -->
+<rect x="520" y="228" width="80" height="80" rx="6" fill="#101014" stroke="#4a4a52" stroke-width="1" stroke-dasharray="5 4"/>
+<path d="M560 278 v-16 M553 269 l7 -7 l7 7" fill="none" stroke="#8a8a92" stroke-width="1.2" stroke-linecap="round"/>
+<text x="560" y="294" font-size="9" fill="#6a6a72" text-anchor="middle" dominant-baseline="central">上传</text>
+<!-- footer hint -->
+<line x1="80" y1="336" x2="600" y2="336" stroke="#212127" stroke-width="1"/>
+<text x="80" y="360" font-size="10" fill="#7c7c84" dominant-baseline="central">点击缩略图即选用</text>
+<text x="600" y="360" font-size="10" fill="#6a6a72" text-anchor="end" dominant-baseline="central">拖入 / 粘贴文件 → 上传即选中</text>
+</svg>

@@ -40,6 +40,27 @@ export interface TreeViewProps<TData = unknown> {
     node: TreeNode<TData>,
     state: TreeNodeRenderState,
   ) => React.ReactNode
+  /**
+   * Optional row-className resolver. When provided, it fully owns the row's
+   * hover/selected styling (the built-in `hover:bg-muted/50` +
+   * `bg-primary/10` selection is skipped). Lets a consumer swap in its own
+   * aesthetic — e.g. the /assets folder tree's darkroom well + tick — without
+   * forking the tree. Receives the node and its render state.
+   */
+  getRowClassName?: (
+    node: TreeNode<TData>,
+    state: TreeNodeRenderState,
+  ) => string | undefined
+  /**
+   * Optional per-node drag-and-drop handlers. When provided, each row wires
+   * the matching native DnD event so a consumer can turn tree rows into drop
+   * targets (e.g. dragging /assets tiles onto a folder). The consumer owns
+   * the drop-target highlight — read its own drag-over state inside
+   * `getRowClassName`.
+   */
+  onNodeDragOver?: (node: TreeNode<TData>, event: React.DragEvent) => void
+  onNodeDragLeave?: (node: TreeNode<TData>, event: React.DragEvent) => void
+  onNodeDrop?: (node: TreeNode<TData>, event: React.DragEvent) => void
 }
 
 export function TreeView<TData = unknown>({
@@ -57,6 +78,10 @@ export function TreeView<TData = unknown>({
   indent = 18,
   animateExpand = true,
   renderNodeContent,
+  getRowClassName,
+  onNodeDragOver,
+  onNodeDragLeave,
+  onNodeDrop,
 }: TreeViewProps<TData>) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(defaultExpandedIds),
@@ -143,10 +168,24 @@ export function TreeView<TData = unknown>({
           aria-expanded={hasChildren ? isExpanded : undefined}
           className={cn(
             'group/tree-node relative mx-1 flex cursor-pointer items-center rounded-lg px-2 py-1.5 text-sm transition-colors',
-            'hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-            isSelected && 'bg-primary/10 text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            getRowClassName
+              ? getRowClassName(node, state)
+              : cn(
+                  'hover:bg-muted/50 hover:text-foreground',
+                  isSelected && 'bg-primary/10 text-primary',
+                ),
           )}
           style={{ paddingLeft: level * indent + 8 }}
+          onDragOver={
+            onNodeDragOver ? (event) => onNodeDragOver(node, event) : undefined
+          }
+          onDragLeave={
+            onNodeDragLeave
+              ? (event) => onNodeDragLeave(node, event)
+              : undefined
+          }
+          onDrop={onNodeDrop ? (event) => onNodeDrop(node, event) : undefined}
           onClick={(event) => {
             activateNode(node, hasChildren, event.ctrlKey || event.metaKey)
           }}
@@ -211,7 +250,7 @@ export function TreeView<TData = unknown>({
             <span
               className={cn(
                 'mr-2 flex size-4 shrink-0 items-center justify-center',
-                isSelected ? 'text-primary' : 'text-muted-foreground/75',
+                isSelected ? 'text-foreground' : 'text-muted-foreground/75',
               )}
             >
               {node.icon ?? defaultIcon}

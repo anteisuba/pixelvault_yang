@@ -244,6 +244,174 @@ Anti-slop 自查（taste §9 对本页适用项）：无渐变文字、无霓虹
 
 **落地成本提示**：T1 需要在 `globals.css` 补一组 assets 作用域的亮度阶梯变量（`--assets-floor / --assets-raised / --assets-well / --assets-tile-*`），这是本轮唯一建议新增的 CSS——因为"亮度阶梯"是本页 core 视觉契约，符合 css-and-tokens.md 的"稳定语义才提 token"标准；其余仍用 shadcn 语义 token 组合。
 
+## 9c. 大胆方向探索（可选跃迁，成本更高 — owner 问"有没有更大胆的"）
+
+前面 T1–T5 / S1–S11 是"把文件管理器做精致"。这一节问更根本的问题：**/assets 该不该从"文件管理器"变成"暗房检视台"？** 判断标尺——对本产品，合法的"大胆"只有一种：**更贴创作者真实的看图/翻阅/复盘工作流**；装饰性的大胆（花哨动效、炫布局本身）仍在 anti-slop 红线内。五个方向都踩这条线。
+
+**B1 justified 网格（不裁剪，按比例排）· 观感改变最大**
+现状 `aspect-square` 方格把所有图裁成正方形——但 AI 图比例极杂（竖构图人物 / 横构图场景 / 9:16 手机图 / 海报 / 方形头像）。方格裁剪 = 构图信息损失 + 千图一面。改 justified rows（Flickr / Google Photos / 即梦：行内等高、宽度按比例）或 masonry columns（Pinterest / Eagle：列内瀑布）。密度滑块从"列数"变"目标行高"。
+
+- 为何对本产品：创作者靠**构图和比例**辨图，方格恰好抹掉这个维度。justified 让每张图完整呈现，扫读效率和"这是我的作品墙"的观感一起上台阶。
+- 成本/风险：需要每图宽高比（`generation` 有 width/height？要核）；无限滚动 + justified 布局计算更重；CLS 靠 aspect 占位兜；与 P2-2 虚拟化耦合（justified 虚拟化更难）。**中高成本**。
+
+**B2 密度升级为"工作模式"三档（暗房隐喻，扣主基调）**
+现状密度 = 4/6/8 纯列数。改三档，借真实暗房术语：**接触印相（contact sheet，极密无间距，扫全局）→ 工作台（justified，当前）→ 检视（loupe 放大镜，大图 + 元数据并排）**。不是换列数，是换"工作意图"。
+
+- 为何对：328 张时任务是"扫"，找特定图时是"检视"——两种任务，一个滑块。contact sheet / loupe 是摄影暗房真实概念，直接扣"暗房工坊，白厅画廊"主基调，比 4/6/8 有意义得多。
+- 成本：contact sheet 是密排变体（低）；loupe = B3 的入口（见下）。**低到中**。
+
+**B3 分栏检视器（inline inspector，替代 sheet 弹窗）· 工作流改变最大**
+现状点图 → `AssetDetailSheet` 从侧边弹出、遮住网格、打断浏览。改：点图 → 网格收窄，**右侧原地展开检视器**（大图 + prompt 全文 + model/参数 chip + 动作 + ←/→ 翻上一张下一张），像 Lightroom / Finder 分栏。网格保持上下文，翻阅连续。
+
+- 为何对：AIGC 复盘的真实动作是"连续看很多张 + 逐张读 prompt"，sheet 每张都要开关一次；分栏让"翻阅"变连续。呼应 direction.md 的 MeiGen route-backed overlay 思路，但做成分栏而非全屏弹层。
+- ⚠**空间冲突**：右栏现在是文件夹树（决策①保留）。检视器占哪？两案：(a) 检视模式下文件夹树收起、检视器接管右侧；(b) 检视器盖在网格区右半、文件夹树不动（网格挤到左半）。**待决**。
+- 成本：**中高**，但复用现有 `AssetDetailSheet` 的动作逻辑，主要是容器从 Sheet 改 inline 分栏 + ←/→ 导航。
+
+**B4 智能分段（方格海 → 有结构的时间/模型分段）**
+现状一片连续方格无锚点。改：按时间（今天 / 本周 / 更早，`createdAt` 现成）或按模型智能分段，每段一个轻 header（等宽数字计数）。像 Google Photos 时间分段。
+
+- 为何对：328 张连续滚动没有位置感；分段给锚点，也契合仪表/账本气质（T3）。
+- 成本：**低**（时间分组是纯前端 groupBy createdAt）。是本节性价比最高的一个。
+
+**B5 prompt 一等化（hover peek + 找同款）**
+现状 prompt 埋在 detail sheet。改：hover 图浮出 prompt 前若干字 + 一键"复制 prompt / 找同款"（用该图 prompt 或 model 筛选）。让最值钱的元数据浮上来。
+
+- 为何对：调研里 Eagle 工作流的核心诉求（找图靠 prompt/model），也是 §1 的"prompt 断层"。与 B3 检视器天然配套。
+- 成本：**低到中**（偏 P1-3，但配 B3 更强）。
+
+**推荐组合与顺序**：真正把 /assets 变成"暗房检视台"的核心是 **B1（justified）+ B3（分栏检视器）+ B4（智能分段）**——三者合起来把"文件管理器方格海"变成"能连续翻阅、按结构组织、完整呈现每张图的检视台"。若想低风险先见效，**B4 → B2(contact sheet 档) → B5** 是廉价三连；B1/B3 是高投入高回报的重构，且与 P2-2 虚拟化、B3 空间冲突需先拍板。全部守无彩暗房约束，无一处为装饰而大胆。
+
+配图：`svg/assets-bold-justified.svg`（B1+B4 暗房台面）、`svg/assets-bold-inspector.svg`（B3 分栏检视器）。
+
+## 13. 文件夹树 = MagicUI File Tree 复刻（owner 选定 · `svg/assets-folder-magicui-clone.svg`）
+
+owner 选定 [MagicUI File Tree](https://magicui.design/docs/components/file-tree) 作为文件夹树的形态，走"1:1 复刻交互/视觉 + 套暗房无彩皮 + 接我们业务"。
+
+**MagicUI 源码机制**（`Tree/Folder/File/CollapseButton`，实为 shadcn-extension tree-view 同源）：
+
+- 底层 = `@radix-ui/react-accordion`（`Root type="multiple"`）+ `ScrollArea`；`TreeContext` 管 selectedId/expandedItems/indicator。
+- **展开折叠动画** = `data-[state]:animate-accordion-up/down`（shadcn accordion 关键帧）。
+- **缩进引导线 `TreeIndicator`**（招牌）= `absolute left-1.5 h-full w-px bg-muted`，每个展开文件夹的子组里一条竖发丝线；`indicator` prop 默认开。
+- **缩进** = 子级 `ml-5`（20px）+ `py-1 gap-1`。
+- **图标** = 展开 `FolderOpenIcon` / 折叠 `FolderIcon` / 叶子 `FileIcon`（lucide，size-4）。
+- **选中高亮** = `bg-muted rounded-md`。
+- **纯展示，无拖放**。
+
+**复刻矩阵**：
+
+| 项                                  | 处理                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Radix Accordion 展开折叠动画        | **1:1 复刻**（关键帧项目已有）                                                          |
+| 缩进引导线 TreeIndicator            | **1:1 复刻**（MagicUI 招牌视觉）                                                        |
+| FolderOpen/Folder/File 图标         | **1:1 复刻**（lucide 现成）                                                             |
+| 选中 `bg-muted` 高亮                | **暗房重皮** → 下沉井 `--assets-well` + 左白条（S5）                                    |
+| 引导线 `bg-muted` + hover slate-300 | **暗房重皮** → 发丝级 `--border`，无彩 hover                                            |
+| 计数                                | **新增**（MagicUI 无）→ 账本 mono 右对齐（S4）                                          |
+| 未分类待办                          | **新增** → 琥珀 amber 行（唯一功能性暖色）                                              |
+| hover 行内 +/✎/🗑                   | **新增**（沿用现状 CRUD）                                                               |
+| **拖放 drop target**                | **新增**（MagicUI 纯展示无 DnD）→ tile/批量拖到文件夹即 `batchAssignProjectAPI`（P1-2） |
+| CollapseButton 全展/全收            | 复刻（可选，放头部）                                                                    |
+
+**依赖**：**零新增**。`@radix-ui/react-accordion` + accordion 关键帧（`tw-animate-css`/globals）项目已有。拖放用原生 DnD 或已有 `use-stable-drag-state`，不引 dnd-kit（除非虚拟化 P2-2 一起上再评估）。
+
+**落点**：新建业务组件 `src/components/business/AssetFolderTree.tsx`——复刻 MagicUI 结构 + 暗房皮 + 接 `folderTreeData`/`setSection`/重命名/删除/`ProjectCreateDialog`/`batchAssignProjectAPI`/i18n/触屏；右栏塌成 `<AssetFolderTree/>`；移动端镜像（`folderMobileSections`）一并迁入。现有 `ui/tree-view.tsx` 在 assets 右栏不再用（保留给其他调用方，先 grep 确认不误伤）。配 `AssetFolderTree.test.tsx`。
+
+**施工前**：出拆分 diff 计划（从 `KreaAssetBrowser` 搬哪些行、新组件 props 接口、DnD 事件流），确认后落地。
+
+**已交付**：
+
+- **Slice 1**（复用 `TreeView` 重皮，无新依赖）：`AssetFolderTree` 抽出 + 暗房皮（选中井+左白条 / 账本 mono 计数 / 未分类 amber 待办行）；`TreeView` 加可选 `getRowClassName`；行为不变。lint/tsc/测试绿。
+- **Slice 2**（拖放整理）：`TreeView` 加可选 per-node DnD props（`onNodeDragOver/Leave/Drop`）；`AssetFolderTree` 文件夹行 + 未分类行成 drop target（drag-over 高亮 = ring+well / amber-ring），drop → `onDropAssets(projectId|null, ids)`；grid tile 加 `draggable`（非 picker 模式）+ `onDragStart`（选中集或单个，写 `ASSET_DND_MIME` payload）；`KreaAssetBrowser` 抽 `moveAssets` 核心复用给 bulk-bar + drop。新增 `src/constants/asset-dnd.ts`。测试含 2 个 drop 用例。
+
+## 12. 工程化素材中枢（**重定位 · owner：主目的是工程化管理素材**）
+
+定位翻转：/assets 不是画廊墙，是**素材中枢**。三个一等动作——**上传 · 分类 · 使用**——加上与其他区域的联动，是这页的全部工作。前面 T/S/B 系列的观感优化服务于此、不喧宾夺主。所谓"UI 更高级"= 让这三个动作各自变成顺手的工程操作，且中枢与下游无缝。
+
+### 12.1 联动 IA（先看清素材怎么流动）
+
+配图 `svg/assets-hub-ia.svg`。**上游进库 → 中枢分类 → 下游消费**：
+
+- **上游**：Studio/画布生成自动落库 + 用户上传（`ImageSourcePicker` 上传路径 / uploads section）。
+- **中枢**：/assets — 分类整理（文件夹 / 收藏 / 发布）。
+- **下游**：`ImageSourcePicker`「从素材库选」→ `AssetSelectorDialog`（picker）→ Studio 参考图 / LoRA 训练多选 / 画布节点 / 3D。
+
+**关键**：`ImageSourcePicker`（`ImageSourcePicker.tsx`）是 Studio 通用"图片来源"入口，给「上传」和「从素材库选」两条路，`mediaType` 锁 image。**同一个 picker 服务所有下游**——所以 picker 场景化（P0-2）一次改善全部联动；素材页的文件夹分类**必须在 picker 里可见**，用户才能按平时的分类快速定位。
+
+### 12.2 上传素材（现藏在 section → 全局一等动作）
+
+现状：上传只在「本地素材」section 内可用，粘贴上传也限该 section。=断层，上传被藏起来。高级化：
+
+- **全局拖拽上传**：拖文件到 /assets 任意处 → 整页 drop overlay「松手上传」→ 上传。不必先切 uploads section。
+- **上传即分类（工程化关键，合并动作①③）**：当前在某文件夹视图时，上传**直接落该文件夹**；在「全部」时落未分类。省掉"传完再移动"两步。
+- **粘贴全局可用** + **上传队列**（多文件进度条列，Eagle 自动导入手感）。
+- 顶栏常驻上传入口 + 空态上传起手（不只藏 section）。
+
+### 12.3 分类素材（批量下拉三步 → 拖拽 + 待办队列）
+
+现状：批量选中→底部下拉选文件夹（三步）；无拖拽；「未分类 64」是积压。高级化：
+
+- **拖拽整理（P1-2）**：tile 拖到右栏文件夹节点即移动；批量选中拖=批量移动（§2.2 S10 已预埋 drop target）。分类核心手感。
+- **未分类=待办队列**：64 张未分类是需处理的积压。给「整理」入口——进未分类后一张张/批量快速分派到文件夹（照片整理流），处理完队列见底。
+- **上传即落夹**（12.2）从源头减少积压。
+
+### 12.4 使用素材（单一 remix → 多目标「使用」出口 + 场景化 picker）
+
+现状：从素材页"使用"一张图只有 detail sheet 的 remix；反向 picker 是素材页缩小复刻。高级化：
+
+- **detail/hover 的「使用」多目标出口**：一张图 → 展开"用到哪"：作参考图（Studio）/ 作角色脸 / 作 LoRA 训练素材 / 送画布节点 / 发布画廊。把"这张图能去哪"显性化——中枢的下游出口。
+- **picker 场景化（P0-2）+ 复用中枢文件夹**：picker 里出现同样的文件夹 chips，用户按平时分类定位，不重新找。
+- **（激进）跨面板拖拽**：从素材页拖图直接进 Studio dock / 画布节点。成本高、最"高级"，需跨面板 DnD 基建，列远期。
+
+### 12.5 "UI 更高级"的落点（延续暗房检视台语言）
+
+- 三动作全走亮度阶梯 + 等宽仪表读数（T1/T3）；拖拽/上传/分类的反馈态用**下沉井 + 白环**，不用彩色。
+- 上传队列、未分类待办、使用出口都是"工程操作"气质：数字精确、状态明确、无装饰。
+- 联动处（picker / 使用出口）复用同一套 tile / 选中 / 计数语法，让"中枢"与"下游"看起来是一个系统。
+
+### 12.6 优先级建议（三动作 × 成本）
+
+| 动作 | 高级化项              | 成本  | 建议                                                |
+| ---- | --------------------- | ----- | --------------------------------------------------- |
+| 上传 | 全局拖拽 + 上传即落夹 | 低-中 | **先做**：复用现有上传管线 + drop overlay，收益立现 |
+| 分类 | 拖拽整理 + 未分类待办 | 中    | P1-2 已排；drop target 已预埋                       |
+| 使用 | 「使用」多目标出口    | 中    | 复用 detail 现有动作 + 展开多目标                   |
+| 使用 | picker 场景化         | 中-高 | P0-2；一次改善全部联动，杠杆最高                    |
+| 使用 | 跨面板拖拽            | 高    | 远期，需 DnD 基建                                   |
+
+配图：`svg/assets-hub-ia.svg`（联动 IA）、`svg/assets-three-actions.svg`（三动作高级化）。
+
+### 12.9 IA 调整：视图组移顶栏图标化，右栏纯文件夹（owner 2026-07-05）
+
+owner 决定重排信息架构（配图 `svg/assets-topbar-viewseg.svg` 顶栏细节、`svg/assets-whole-page-v2.svg` 整页 v2）：
+
+- **视图组（全部/收藏/已发布到画廊/本地素材）从右栏移到顶栏**，做成**图标 segmented**（像类型分段），紧邻类型组。图标：全部=grid / 收藏=heart / 已发布=globe / 本地素材=upload。
+- **激活视图的名称 + 计数显示在标题**「素材 · 收藏 3」；图标组本身不逐个显数（4 个图标带计数会太挤），靠 hover tooltip 兜底可读性（纯图标歧义的补偿）。
+- **右栏彻底腾给文件夹分类**：只剩「文件夹」组——`+` 建项目、未分类琥珀待办条、项目树（账本计数、发丝树线、下沉井激活）、底部全局上传拖拽区。视图组不再占右栏顶部，文件夹树能显示更多层、更专注。
+- **系统级筛选全上顶栏**：视图（横切系统分区）+ 类型（媒体类型）都在顶栏 segmented，二者可叠加（收藏 + 图片 = 图片类收藏）；右栏 = 用户私人分类。职责清晰二分：**顶栏=系统怎么切，右栏=你怎么分**。
+- 与前文的衔接：§2.2 侧栏 S1–S11 里的「视图组」条目（S2/S3 的视图行）随此调整**迁移到顶栏 segmented**；S1 去卡壳、S4 账本计数、S5 下沉井激活、S6 树线、S10 drop target **仍适用于右栏文件夹树**。计数 bug（§11）修复同样适用——顶栏视图 segmented 的激活计数、右栏文件夹计数都应随类型 tab 求交。
+- **本地素材的去向**：它现在是视图 segmented 的第 4 个图标（upload）。注意它与顶栏「上传」按钮、右栏底部上传拖拽区语义不同——「本地素材」是*筛选查看*已上传的素材，「上传」按钮/拖拽区是*新增*上传。三者不冲突（一个是 view 一个是 action）。
+
+### 12.8 整页成品（`svg/assets-whole-page-hifi.svg`，早于 12.9 IA 调整；最新整页以 `assets-whole-page-v2.svg` 为准）— 工程化素材中枢的整体样子
+
+把前面所有决策 + 大胆方向整合成一张完整整页，严守设计理念（暗房亮度阶梯 / 无彩到底 / 内容发色 / 等宽仪表读数）。整页四个大胆选择：
+
+1. **网格 = justified 不裁剪 + 时间智能分段（B1+B4）**。取代方格海：缩略图按原比例排（竖图窄高、横图铺宽），行内等高不裁构图；「今天 8 / 本周 40」分段 header 给 299 张位置锚点。缩略图是全页唯一有色处（低饱和），UI 全中性。
+2. **上传升为一等动作（12.2）**。顶栏右端「上传」反相主按钮（从藏在 uploads section 里拎出来）+ 右栏底部常驻**全局拖拽区**「拖文件到此 · 或页面任意处」。上传两个显性入口，且拖进当前文件夹即落该夹。
+3. **右栏 = 中枢控制台（非纯文件夹树）**。视图 + 文件夹（账本计数列、下沉井激活、S1 去卡壳）+ **「未分类 64 · 待整理 →」琥珀待办条**——把分类动作的积压显性成待办队列（唯一允许的功能性暖色，语义=待处理，非装饰）。
+4. **使用出口 + 检视走 §12.7/§9c**。选中缩略图=白环（示意点开进检视/使用出口 §12.7）。
+
+三动作在整页都有明确落点：**上传**（顶栏按钮 + 右栏拖拽区）·**分类**（文件夹 + 未分类待办 + 拖拽 S10）·**使用**（缩略图→检视器多目标出口）。这就是"文件管理器"与"素材中枢"的整体差别。
+
+### 12.7 两个联动出口的成品效果（高保真 mockup）
+
+前面是线框/流程，这两张是接近真实渲染的成品（缩略图给极低饱和色调模拟真实 AI 图 = "UI 全中性、只有作品发色"）：
+
+**`svg/assets-use-outlet-hifi.svg` — 使用多目标出口**
+点开一张素材的检视面板：左大图，右侧 标题 + 模型/尺寸 chip + prompt + 等宽参数，中段「使用到」把下游目标显性列成一列——作参考图（→Studio 图像，首行 hover 态）/ 作角色脸（→角色卡·节点）/ LoRA 训练素材（→加入训练集）/ 送画布节点（→插入当前工程）；底部左侧 收藏·下载·删除幽灵图标，右侧「发布到画廊」反相主按钮（分享 ≠ 使用，独立）。取代现状 detail 里孤零零一个 remix。复用 `AssetDetailSheet` 现有动作逻辑，增量是把单一出口扩成多目标列。
+
+**`svg/assets-picker-scene-hifi.svg` — 场景化 picker**
+Studio 点「从素材库选参考图」弹出的成品：标题 + 「仅图片」锁徽标 + ×；**文件夹 chips 横向复用中枢分类**（全部[激活]/收藏/未分类/ba/鸣潮/达妮娅/更多▾）——这是"picker 里能看到平时的文件夹"的落地；「最近生成」默认网格（选参考图 90% 拿最近，等宽计数）+ 一张 hover 白环；末位 dashed 内联上传格（拖入/粘贴上传即选中）；底部提示"点击即选用 · 拖入/粘贴上传"。对比现状 picker = 把整个素材页塞进弹窗（竖树占 40% 宽、无最近分层、不能内联传）。单选态无确认条（点即选中关闭）；多选态（LoRA）底部换「添加 N 张」muted pill（§6）。
+
 ## 10. 验证清单（施工完成后逐项报告）
 
 1. `npm run lint && npm run build` 绿。

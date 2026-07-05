@@ -1,0 +1,111 @@
+<svg width="100%" viewBox="0 0 680 560" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>/assets 全页面综合设计稿（决策已落）</title>
+<desc>完整暗色页面：最左 app 导航 rail、中部顶栏（标题计数/搜索/类型分段/排序/密度/选择）与素材网格（普通·hover·选中三态，rounded-lg tile），右栏视图与文件夹树，底部矩形批量操作条。</desc>
+<style>
+text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.lbl{font-size:10px;fill:#a9a9b0}.mut{font-size:9px;fill:#7c7c84}.hi{font-size:10px;fill:#ececec}
+</style>
+<rect x="8" y="8" width="664" height="544" rx="14" fill="#0f0f12"/>
+
+<!-- App nav rail -->
+<rect x="8" y="8" width="66" height="544" rx="14" fill="#141417"/>
+<text x="41" y="34" font-size="11" fill="#ececec" text-anchor="middle" font-weight="500">ANTEI</text>
+<rect x="18" y="70" width="46" height="24" rx="7" fill="#26262b"/>
+<text x="41" y="82" font-size="8" fill="#ececec" text-anchor="middle" dominant-baseline="central">画廊</text>
+<text x="41" y="112" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">提示词</text>
+<rect x="18" y="128" width="46" height="24" rx="7" fill="#1f1f24" stroke="#3a3a42" stroke-width="0.75"/>
+<text x="41" y="140" font-size="8" fill="#f2f2f2" text-anchor="middle" dominant-baseline="central" font-weight="500">素材</text>
+<text x="41" y="170" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">卡片</text>
+<text x="41" y="212" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">图像</text>
+<text x="41" y="238" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">视频</text>
+<text x="41" y="264" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">音频</text>
+<text x="41" y="290" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">LoRA</text>
+<text x="41" y="316" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">画布</text>
+<circle cx="30" cy="524" r="9" fill="#2e2e35"/>
+<text x="48" y="524" font-size="8" fill="#a9a9b0" dominant-baseline="central">YINIG</text>
+
+<!-- Main column top bar -->
+<line x1="74" y1="56" x2="672" y2="56" stroke="#222227" stroke-width="1"/>
+<text x="90" y="34" font-size="12" fill="#ececec" dominant-baseline="central" font-weight="500">素材</text>
+<text x="120" y="34" font-size="10" fill="#8a8a92" dominant-baseline="central">321</text>
+<rect x="150" y="22" width="150" height="24" rx="7" fill="#1a1a1e" stroke="#32323a" stroke-width="0.75"/>
+<text x="162" y="34" font-size="9" fill="#6f6f77" dominant-baseline="central">搜索 prompt / 模型…</text>
+<rect x="282" y="26" width="14" height="16" rx="3" fill="none" stroke="#3a3a42" stroke-width="0.5"/>
+<text x="289" y="34" font-size="8" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">/</text>
+<rect x="312" y="22" width="80" height="24" rx="7" fill="#1f1f24"/>
+<text x="326" y="34" font-size="9" fill="#ececec" text-anchor="middle" dominant-baseline="central">图</text>
+<text x="348" y="34" font-size="9" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">视</text>
+<text x="368" y="34" font-size="9" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">音</text>
+<text x="384" y="34" font-size="9" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">3D</text>
+<text x="418" y="34" font-size="9" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">最新 ▾</text>
+<rect x="452" y="22" width="46" height="24" rx="7" fill="#1f1f24"/>
+<text x="464" y="34" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">4</text>
+<text x="475" y="34" font-size="9" fill="#ececec" text-anchor="middle" dominant-baseline="central">6</text>
+<text x="488" y="34" font-size="8" fill="#7c7c84" text-anchor="middle" dominant-baseline="central">8</text>
+<rect x="508" y="22" width="42" height="24" rx="12" fill="none" stroke="#3a3a42" stroke-width="0.75"/>
+<text x="529" y="34" font-size="9" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">选择</text>
+
+<!-- Grid: rows of rounded-lg tiles -->
+<!-- row 1 -->
+<rect x="90" y="72" width="88" height="88" rx="6" fill="#26262b"/>
+<rect x="186" y="72" width="88" height="88" rx="6" fill="#2b2b31" stroke="#8f8f96" stroke-width="1"/>
+<rect x="186" y="140" width="88" height="20" rx="0" fill="#0d0d10" opacity="0.85"/>
+<text x="194" y="150" font-size="7.5" fill="#c9c9cf" dominant-baseline="central">Seedance · 4s</text>
+<rect x="282" y="72" width="88" height="88" rx="6" fill="#26262b" stroke="#f2f2f2" stroke-width="2"/>
+<circle cx="358" cy="83" r="7" fill="#f2f2f2"/><text x="358" y="84" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central">✓</text>
+<rect x="378" y="72" width="88" height="88" rx="6" fill="#2e2e34"/>
+<rect x="474" y="72" width="88" height="88" rx="6" fill="#26262b"/>
+<!-- row 2 -->
+<rect x="90" y="168" width="88" height="88" rx="6" fill="#2e2e34"/>
+<rect x="186" y="168" width="88" height="88" rx="6" fill="#26262b"/>
+<rect x="282" y="168" width="88" height="88" rx="6" fill="#2e2e34"/>
+<rect x="378" y="168" width="88" height="88" rx="6" fill="#26262b" stroke="#f2f2f2" stroke-width="2"/>
+<circle cx="454" cy="179" r="7" fill="#f2f2f2"/><text x="454" y="180" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central">✓</text>
+<rect x="474" y="168" width="88" height="88" rx="6" fill="#2e2e34"/>
+<!-- row 3 -->
+<rect x="90" y="264" width="88" height="88" rx="6" fill="#26262b"/>
+<rect x="186" y="264" width="88" height="88" rx="6" fill="#2e2e34"/>
+<rect x="282" y="264" width="88" height="88" rx="6" fill="#26262b"/>
+<rect x="378" y="264" width="88" height="88" rx="6" fill="#2e2e34"/>
+<rect x="474" y="264" width="88" height="88" rx="6" fill="#26262b"/>
+<!-- row 4 partial -->
+<rect x="90" y="360" width="88" height="70" rx="6" fill="#2e2e34"/>
+<rect x="186" y="360" width="88" height="70" rx="6" fill="#26262b"/>
+<rect x="282" y="360" width="88" height="70" rx="6" fill="#2e2e34"/>
+<rect x="378" y="360" width="88" height="70" rx="6" fill="#26262b"/>
+<rect x="474" y="360" width="88" height="70" rx="6" fill="#2e2e34"/>
+
+<!-- Right tree column -->
+<line x1="578" y1="56" x2="578" y2="500" stroke="#222227" stroke-width="1"/>
+<text x="594" y="76" font-size="9" fill="#6f6f77">视图</text>
+<rect x="588" y="84" width="76" height="22" rx="6" fill="#26262b"/>
+<rect x="588" y="87" width="2" height="16" fill="#f2f2f2"/>
+<text x="598" y="95" font-size="9" fill="#ececec" dominant-baseline="central">全部</text>
+<text x="660" y="95" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">321</text>
+<text x="598" y="119" font-size="9" fill="#a9a9b0" dominant-baseline="central">收藏</text>
+<text x="660" y="119" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">3</text>
+<text x="598" y="141" font-size="9" fill="#a9a9b0" dominant-baseline="central">已发布</text>
+<text x="660" y="141" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">12</text>
+<text x="598" y="163" font-size="9" fill="#a9a9b0" dominant-baseline="central">本地素材</text>
+<text x="594" y="196" font-size="9" fill="#6f6f77">文件夹</text>
+<text x="598" y="216" font-size="9" fill="#a9a9b0" dominant-baseline="central">未分类</text>
+<text x="660" y="216" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">57</text>
+<text x="598" y="238" font-size="9" fill="#a9a9b0" dominant-baseline="central">▾ ba</text>
+<text x="606" y="258" font-size="9" fill="#8a8a92" dominant-baseline="central">キサキ</text>
+<text x="660" y="258" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">5</text>
+<text x="598" y="280" font-size="9" fill="#a9a9b0" dominant-baseline="central">鸣潮</text>
+<text x="660" y="280" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">24</text>
+<text x="598" y="302" font-size="9" fill="#a9a9b0" dominant-baseline="central">测试</text>
+<text x="660" y="302" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">39</text>
+<text x="598" y="324" font-size="9" fill="#a9a9b0" dominant-baseline="central">3d</text>
+<text x="660" y="324" font-size="8" fill="#8a8a92" text-anchor="end" dominant-baseline="central">13</text>
+
+<!-- Rectangular batch bar (floating) -->
+<rect x="150" y="452" width="356" height="40" rx="12" fill="#18181c" stroke="#34343a" stroke-width="0.75"/>
+<text x="166" y="472" font-size="10" fill="#ececec" dominant-baseline="central">已选 12</text>
+<text x="230" y="472" font-size="10" fill="#a9a9b0" dominant-baseline="central">移动</text>
+<text x="270" y="472" font-size="10" fill="#a9a9b0" dominant-baseline="central">收藏</text>
+<text x="310" y="472" font-size="10" fill="#a9a9b0" dominant-baseline="central">发布</text>
+<line x1="440" y1="462" x2="440" y2="482" stroke="#34343a" stroke-width="0.75"/>
+<text x="490" y="472" font-size="10" fill="#e05a5a" text-anchor="end" dominant-baseline="central">删除</text>
+</svg>

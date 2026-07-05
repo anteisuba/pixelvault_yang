@@ -1,0 +1,42 @@
+<svg width="100%" viewBox="0 0 680 150" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>批量操作条优化版（对齐实际 7 动作）</title>
+<desc>矩形浮条：已选计数、全选、清除、移动到文件夹下拉、收藏（玫红）、发布到画廊（反相白丸）、删除（红），全部带图标；下方标注三个语义强调色。</desc>
+<style>text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}.ts{font-size:12px;fill:#5f5e5a}</style>
+<rect x="40" y="30" width="600" height="48" rx="12" fill="#202025" stroke="#34343a" stroke-width="0.75"/>
+<!-- count -->
+<text x="60" y="54" font-size="12" fill="#ececec" dominant-baseline="central"><tspan font-family="ui-monospace,monospace" font-weight="500">1</tspan> 已选</text>
+<line x1="116" y1="42" x2="116" y2="66" stroke="#34343a" stroke-width="0.75"/>
+<!-- select all / clear (ghost) -->
+<text x="130" y="54" font-size="12" fill="#a9a9b0" dominant-baseline="central">全选</text>
+<text x="170" y="54" font-size="12" fill="#a9a9b0" dominant-baseline="central">清除</text>
+<line x1="210" y1="42" x2="210" y2="66" stroke="#34343a" stroke-width="0.75"/>
+<!-- move to folder (outline pill + dropdown) -->
+<rect x="224" y="40" width="118" height="28" rx="10" fill="none" stroke="#3a3a42" stroke-width="0.75"/>
+<rect x="236" y="49" width="10" height="8" rx="1.5" fill="none" stroke="#c4c4ca" stroke-width="1"/>
+<text x="254" y="54" font-size="11" fill="#c4c4ca" dominant-baseline="central">移动到文件夹</text>
+<text x="330" y="54" font-size="9" fill="#8a8a92" dominant-baseline="central">▾</text>
+<!-- favorite (rose) -->
+<rect x="352" y="40" width="72" height="28" rx="10" fill="none" stroke="#e0655f" stroke-width="0.75" opacity="0.55"/>
+<path d="M366 50 a3 3 0 0 1 5 0 a3 3 0 0 1 5 0 q0 4 -5 7 q-5 -3 -5 -7 z" fill="#e0655f"/>
+<text x="388" y="54" font-size="11" fill="#e0655f" dominant-baseline="central">收藏</text>
+<!-- publish (inverted white) -->
+<rect x="434" y="40" width="108" height="28" rx="10" fill="#f2f2f2"/>
+<circle cx="450" cy="54" r="5.5" fill="none" stroke="#111" stroke-width="1"/>
+<line x1="444.5" y1="54" x2="455.5" y2="54" stroke="#111" stroke-width="1"/>
+<path d="M450 48.5 q3 5.5 0 11 q-3 -5.5 0 -11" fill="none" stroke="#111" stroke-width="1"/>
+<text x="466" y="54" font-size="11" fill="#111" dominant-baseline="central" font-weight="500">发布到画廊</text>
+<!-- delete (red, isolated right) -->
+<line x1="556" y1="42" x2="556" y2="66" stroke="#34343a" stroke-width="0.75"/>
+<rect x="566" y="40" width="60" height="28" rx="10" fill="none" stroke="#e0655f" stroke-width="0.75"/>
+<rect x="578" y="49" width="9" height="9" rx="1.5" fill="none" stroke="#e0655f" stroke-width="1"/>
+<text x="598" y="54" font-size="11" fill="#e0655f" dominant-baseline="central">删除</text>
+<!-- legend -->
+<text x="40" y="104" class="ts">三语义强调（各有语义非装饰）：</text>
+<rect x="210" y="97" width="10" height="10" rx="2" fill="#e0655f" opacity="0.6"/>
+<text x="226" y="103" class="ts">收藏 rose = 喜欢</text>
+<rect x="330" y="97" width="10" height="10" rx="2" fill="#f2f2f2"/>
+<text x="346" y="103" class="ts">发布 反相白丸 = 本 surface 主动作</text>
+<rect x="560" y="97" width="10" height="10" rx="2" fill="#e0655f"/>
+<text x="576" y="103" class="ts">删除 红 = 危险</text>
+<text x="40" y="128" class="ts">容器改矩形 rounded-xl · 全 7 动作保留 · 移动带下拉 · 窄屏横滚 · 全页唯一漂浮物（允许 shadow-lg）</text>
+</svg>

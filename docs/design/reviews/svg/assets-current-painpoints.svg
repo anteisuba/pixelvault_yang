@@ -1,0 +1,60 @@
+<svg width="100%" viewBox="0 0 680 480" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>/assets 现状结构与四个断层</title>
+<desc>左侧为 KreaAssetBrowser 页面结构（顶栏、网格、右栏、批量条），右侧四个红色痛点框：检索断层、整理断层、prompt 沉睡、规模风险。</desc>
+<style>
+text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;fill:#2c2c2a}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#2c2c2a}
+.c-gray>rect{fill:#F1EFE8;stroke:#5F5E5A}
+.c-teal>rect{fill:#E1F5EE;stroke:#0F6E56}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.c-red>rect{fill:#FCEBEB;stroke:#A32D2D}.c-red .th{fill:#791F1F}.c-red .ts{fill:#A32D2D}
+.leader{stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:4 3}
+</style>
+<g class="c-gray">
+  <rect x="40" y="40" width="370" height="400" rx="16" stroke-width="0.5"/>
+  <text class="th" x="60" y="68">/assets — KreaAssetBrowser · 2397 行单体</text>
+</g>
+<g class="c-teal">
+  <rect x="60" y="90" width="330" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="225" y="110" text-anchor="middle" dominant-baseline="central">顶栏</text>
+  <text class="ts" x="225" y="128" text-anchor="middle" dominant-baseline="central">类型切换 · 选择 · 密度 4/6/8</text>
+</g>
+<g class="c-teal">
+  <rect x="60" y="158" width="200" height="170" rx="8" stroke-width="0.5"/>
+  <text class="th" x="160" y="230" text-anchor="middle" dominant-baseline="central">素材网格</text>
+  <text class="ts" x="160" y="252" text-anchor="middle" dominant-baseline="central">无限滚动 · 无虚拟化</text>
+</g>
+<g class="c-teal">
+  <rect x="274" y="158" width="116" height="170" rx="8" stroke-width="0.5"/>
+  <text class="th" x="332" y="230" text-anchor="middle" dominant-baseline="central">视图+文件夹</text>
+  <text class="ts" x="332" y="252" text-anchor="middle" dominant-baseline="central">仅点击选择</text>
+</g>
+<g class="c-teal">
+  <rect x="60" y="344" width="330" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="225" y="364" text-anchor="middle" dominant-baseline="central">批量操作条</text>
+  <text class="ts" x="225" y="382" text-anchor="middle" dominant-baseline="central">移动靠下拉三步</text>
+</g>
+<g class="c-red">
+  <rect x="460" y="90" width="180" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="550" y="112" text-anchor="middle" dominant-baseline="central">检索断层</text>
+  <text class="ts" x="550" y="130" text-anchor="middle" dominant-baseline="central">引擎有 · UI 无</text>
+</g>
+<g class="c-red">
+  <rect x="460" y="170" width="180" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="550" y="192" text-anchor="middle" dominant-baseline="central">整理断层</text>
+  <text class="ts" x="550" y="210" text-anchor="middle" dominant-baseline="central">无拖拽 · 无范围选</text>
+</g>
+<g class="c-red">
+  <rect x="460" y="250" width="180" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="550" y="272" text-anchor="middle" dominant-baseline="central">prompt 沉睡</text>
+  <text class="ts" x="550" y="290" text-anchor="middle" dominant-baseline="central">不参与检索与复用</text>
+</g>
+<g class="c-red">
+  <rect x="460" y="330" width="180" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="550" y="352" text-anchor="middle" dominant-baseline="central">规模风险</text>
+  <text class="ts" x="550" y="370" text-anchor="middle" dominant-baseline="central">千级资产 DOM 失控</text>
+</g>
+<line class="leader" x1="392" y1="116" x2="458" y2="118"/>
+<line class="leader" x1="392" y1="198" x2="458" y2="198"/>
+<line class="leader" x1="412" y1="278" x2="458" y2="278"/>
+<line class="leader" x1="412" y1="358" x2="458" y2="358"/>
+</svg>

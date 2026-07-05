@@ -1,0 +1,62 @@
+<svg width="100%" viewBox="0 0 680 480" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>/assets 优化分期路线 P0 到 P2</title>
+<desc>三个阶段容器自上而下：P0 检索与场景（检索露出、picker 重设计），P1 效率层（范围选择、拖拽整理、prompt 即资产），P2 规模层（保存的搜索、虚拟滚动、标签评分）。</desc>
+<style>
+text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;fill:#2c2c2a}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#2c2c2a}
+.phase{fill:none;stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:5 4}
+.c-teal>rect{fill:#E1F5EE;stroke:#0F6E56}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.c-purple>rect{fill:#EEEDFE;stroke:#534AB7}.c-purple .th{fill:#3C3489}.c-purple .ts{fill:#534AB7}
+.c-gray>rect{fill:#F1EFE8;stroke:#5F5E5A}.c-gray .th{fill:#444441}.c-gray .ts{fill:#5F5E5A}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="phase" x="40" y="40" width="600" height="110" rx="12"/>
+<text class="th" x="60" y="64">P0 · 先做 — 检索与场景</text>
+<g class="c-teal">
+  <rect x="60" y="78" width="270" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="195" y="100" text-anchor="middle" dominant-baseline="central">P0-1 检索露出</text>
+  <text class="ts" x="195" y="118" text-anchor="middle" dominant-baseline="central">搜索 · 排序 · 纯 UI 接线</text>
+</g>
+<g class="c-teal">
+  <rect x="350" y="78" width="270" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="485" y="100" text-anchor="middle" dominant-baseline="central">P0-2 picker 重设计</text>
+  <text class="ts" x="485" y="118" text-anchor="middle" dominant-baseline="central">搜索 + 最近 + 内联上传</text>
+</g>
+<line class="arr" x1="340" y1="150" x2="340" y2="180" marker-end="url(#arrow)"/>
+<rect class="phase" x="40" y="184" width="600" height="110" rx="12"/>
+<text class="th" x="60" y="208">P1 · 效率层</text>
+<g class="c-purple">
+  <rect x="60" y="222" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="148" y="244" text-anchor="middle" dominant-baseline="central">P1-1 范围选择</text>
+  <text class="ts" x="148" y="262" text-anchor="middle" dominant-baseline="central">shift · Esc · hover</text>
+</g>
+<g class="c-purple">
+  <rect x="248" y="222" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="336" y="244" text-anchor="middle" dominant-baseline="central">P1-2 拖拽整理</text>
+  <text class="ts" x="336" y="262" text-anchor="middle" dominant-baseline="central">tile 拖入文件夹</text>
+</g>
+<g class="c-purple">
+  <rect x="436" y="222" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="524" y="244" text-anchor="middle" dominant-baseline="central">P1-3 prompt 即资产</text>
+  <text class="ts" x="524" y="262" text-anchor="middle" dominant-baseline="central">复制 · 同款 · 模型 chip</text>
+</g>
+<line class="arr" x1="340" y1="294" x2="340" y2="324" marker-end="url(#arrow)"/>
+<rect class="phase" x="40" y="328" width="600" height="110" rx="12"/>
+<text class="th" x="60" y="352">P2 · 规模与自动化层</text>
+<g class="c-gray">
+  <rect x="60" y="366" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="148" y="388" text-anchor="middle" dominant-baseline="central">P2-1 保存的搜索</text>
+  <text class="ts" x="148" y="406" text-anchor="middle" dominant-baseline="central">filter 固化伪文件夹</text>
+</g>
+<g class="c-gray">
+  <rect x="248" y="366" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="336" y="388" text-anchor="middle" dominant-baseline="central">P2-2 虚拟滚动</text>
+  <text class="ts" x="336" y="406" text-anchor="middle" dominant-baseline="central">千级资产再做</text>
+</g>
+<g class="c-gray">
+  <rect x="436" y="366" width="176" height="56" rx="8" stroke-width="0.5"/>
+  <text class="th" x="524" y="388" text-anchor="middle" dominant-baseline="central">P2-3 标签评分</text>
+  <text class="ts" x="524" y="406" text-anchor="middle" dominant-baseline="central">P0 顶不住再启动</text>
+</g>
+</svg>

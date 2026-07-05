@@ -1,0 +1,78 @@
+<svg width="100%" viewBox="0 0 680 540" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>/assets 页面细节设计标注稿</title>
+<desc>暗色页面线框：顶栏（标题计数、搜索框、类型分段、排序、密度、选择）、素材网格（普通/hover/选中三态 tile）、右栏视图与文件夹树、底部批量操作条；右侧五条样式标注。</desc>
+<style>
+text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;fill:#2c2c2a}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#2c2c2a}
+.leader{stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:4 3}
+</style>
+<rect x="40" y="40" width="400" height="470" rx="12" fill="#141417" stroke="#2a2a30" stroke-width="1"/>
+<line x1="40" y1="88" x2="440" y2="88" stroke="#26262b" stroke-width="1"/>
+<text x="56" y="64" font-size="13" fill="#ececec" dominant-baseline="central">素材</text>
+<text x="88" y="64" font-size="11" fill="#8a8a92" dominant-baseline="central">321</text>
+<rect x="112" y="52" width="124" height="24" rx="6" fill="#1f1f24" stroke="#34343a" stroke-width="0.5"/>
+<text x="120" y="64" font-size="10" fill="#6f6f77" dominant-baseline="central">搜索 prompt / 模型…</text>
+<rect x="216" y="56" width="14" height="16" rx="3" fill="none" stroke="#3a3a42" stroke-width="0.5"/>
+<text x="223" y="64" font-size="9" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">/</text>
+<rect x="244" y="52" width="68" height="24" rx="6" fill="#1f1f24"/>
+<rect x="250" y="60" width="8" height="8" rx="2" fill="#ececec"/>
+<rect x="266" y="60" width="8" height="8" rx="2" fill="#6f6f77"/>
+<rect x="282" y="60" width="8" height="8" rx="2" fill="#6f6f77"/>
+<rect x="298" y="60" width="8" height="8" rx="2" fill="#6f6f77"/>
+<text x="322" y="64" font-size="10" fill="#a9a9b0" dominant-baseline="central">最新 ▾</text>
+<rect x="366" y="52" width="26" height="24" rx="6" fill="#1f1f24"/>
+<text x="379" y="64" font-size="10" fill="#ececec" text-anchor="middle" dominant-baseline="central">6</text>
+<rect x="398" y="52" width="34" height="24" rx="12" fill="none" stroke="#3a3a42" stroke-width="0.5"/>
+<text x="415" y="64" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">选择</text>
+<rect x="56" y="104" width="80" height="80" rx="8" fill="#26262b"/>
+<rect x="144" y="104" width="80" height="80" rx="8" fill="#2b2b31" stroke="#8f8f96" stroke-width="1"/>
+<rect x="144" y="166" width="80" height="18" fill="#0f0f12" opacity="0.85"/>
+<text x="150" y="175" font-size="8" fill="#c9c9cf" dominant-baseline="central">Seedance · 4s</text>
+<rect x="232" y="104" width="80" height="80" rx="8" fill="#26262b" stroke="#f2f2f2" stroke-width="2"/>
+<circle cx="302" cy="114" r="7" fill="#f2f2f2"/>
+<text x="302" y="115" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central">✓</text>
+<rect x="56" y="192" width="80" height="80" rx="8" fill="#2e2e34"/>
+<rect x="144" y="192" width="80" height="80" rx="8" fill="#26262b"/>
+<rect x="232" y="192" width="80" height="80" rx="8" fill="#2e2e34"/>
+<rect x="56" y="280" width="80" height="80" rx="8" fill="#26262b"/>
+<rect x="144" y="280" width="80" height="80" rx="8" fill="#2e2e34"/>
+<rect x="232" y="280" width="80" height="80" rx="8" fill="#26262b"/>
+<text x="330" y="110" font-size="9" fill="#6f6f77">视图</text>
+<rect x="324" y="118" width="108" height="24" rx="6" fill="#26262b"/>
+<rect x="324" y="122" width="2" height="16" fill="#f2f2f2"/>
+<text x="336" y="130" font-size="10" fill="#ececec" dominant-baseline="central">全部</text>
+<text x="426" y="130" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">321</text>
+<text x="336" y="154" font-size="10" fill="#a9a9b0" dominant-baseline="central">收藏</text>
+<text x="426" y="154" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">3</text>
+<text x="336" y="178" font-size="10" fill="#a9a9b0" dominant-baseline="central">已发布</text>
+<text x="426" y="178" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">12</text>
+<text x="336" y="202" font-size="10" fill="#a9a9b0" dominant-baseline="central">本地素材</text>
+<text x="330" y="238" font-size="9" fill="#6f6f77">文件夹</text>
+<text x="336" y="254" font-size="10" fill="#a9a9b0" dominant-baseline="central">未分类</text>
+<text x="426" y="254" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">57</text>
+<text x="336" y="278" font-size="10" fill="#a9a9b0" dominant-baseline="central">▸ ba</text>
+<text x="426" y="278" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">27</text>
+<text x="336" y="302" font-size="10" fill="#a9a9b0" dominant-baseline="central">鸣潮</text>
+<text x="426" y="302" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">24</text>
+<text x="336" y="326" font-size="10" fill="#a9a9b0" dominant-baseline="central">测试</text>
+<text x="426" y="326" font-size="9" fill="#8a8a92" text-anchor="end" dominant-baseline="central">39</text>
+<rect x="56" y="440" width="256" height="36" rx="8" fill="#1f1f24" stroke="#34343a" stroke-width="0.5"/>
+<text x="68" y="458" font-size="10" fill="#ececec" dominant-baseline="central">已选 12</text>
+<text x="124" y="458" font-size="10" fill="#a9a9b0" dominant-baseline="central">移动　收藏　发布</text>
+<text x="298" y="458" font-size="10" fill="#e05a5a" text-anchor="end" dominant-baseline="central">删除</text>
+<line class="leader" x1="442" y1="64" x2="472" y2="64"/>
+<text class="ts" x="478" y="60">顶栏 48px · 搜索常驻不藏图标</text>
+<text class="ts" x="478" y="76">「/」聚焦 · 计数 tabular-nums</text>
+<line class="leader" x1="442" y1="144" x2="472" y2="144"/>
+<text class="ts" x="478" y="140">tile hover = 1px 白描边</text>
+<text class="ts" x="478" y="156">信息条纯色渐显 · 禁止缩放</text>
+<line class="leader" x1="442" y1="216" x2="472" y2="216"/>
+<text class="ts" x="478" y="212">选中 = 白环 ring-2 + 勾徽标</text>
+<text class="ts" x="478" y="228">无彩 · 触屏命中区外扩 44px</text>
+<line class="leader" x1="442" y1="290" x2="472" y2="290"/>
+<text class="ts" x="478" y="286">树行 32px · active 亮度+左白条</text>
+<text class="ts" x="478" y="302">计数右对齐 text-3xs tabular</text>
+<line class="leader" x1="442" y1="458" x2="472" y2="458"/>
+<text class="ts" x="478" y="454">批量条改矩形 rounded-xl</text>
+<text class="ts" x="478" y="470">删除独立靠右 · 唯一红色</text>
+</svg>

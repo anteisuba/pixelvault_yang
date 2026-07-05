@@ -1,0 +1,60 @@
+<svg width="100%" viewBox="0 0 680 400" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>素材选择器细节设计标注稿 v2</title>
+<desc>暗色选择器弹窗线框：搜索行与媒体类型锁定徽标、文件夹 chips 行、最近生成网格（含选中态与 dashed 上传格）、底部 muted pill 确认条；右侧五条样式标注，含确认按钮层级修正。</desc>
+<style>
+text{font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.ts{font-size:12px;fill:#5f5e5a}
+.leader{stroke:#B4B2A9;stroke-width:0.75;stroke-dasharray:4 3}
+</style>
+<rect x="40" y="40" width="400" height="330" rx="14" fill="#1c1c21" stroke="#3a3a42" stroke-width="1"/>
+<text x="424" y="58" font-size="14" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">×</text>
+<rect x="60" y="58" width="250" height="28" rx="8" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="70" y="72" font-size="10" fill="#8a8a92" dominant-baseline="central">搜索 prompt / 模型…</text>
+<rect x="318" y="58" width="70" height="28" rx="14" fill="#2e2e35"/>
+<text x="353" y="72" font-size="10" fill="#d7d7dc" text-anchor="middle" dominant-baseline="central">仅图片</text>
+<rect x="60" y="100" width="44" height="22" rx="11" fill="#ececec"/>
+<text x="82" y="111" font-size="10" fill="#111" text-anchor="middle" dominant-baseline="central">全部</text>
+<rect x="110" y="100" width="44" height="22" rx="11" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="132" y="111" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">收藏</text>
+<rect x="160" y="100" width="36" height="22" rx="11" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="178" y="111" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">ba</text>
+<rect x="202" y="100" width="44" height="22" rx="11" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="224" y="111" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">鸣潮</text>
+<rect x="252" y="100" width="52" height="22" rx="11" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="278" y="111" font-size="10" fill="#a9a9b0" text-anchor="middle" dominant-baseline="central">更多 ▾</text>
+<text x="60" y="142" font-size="9" fill="#8a8a92" dominant-baseline="central">最近生成</text>
+<text x="420" y="142" font-size="9" fill="#6f6f77" text-anchor="end" dominant-baseline="central">拖入 / 粘贴 → 上传即选中</text>
+<rect x="60" y="152" width="76" height="76" rx="8" fill="#2e2e35"/>
+<rect x="144" y="152" width="76" height="76" rx="8" fill="#34343c" stroke="#f2f2f2" stroke-width="2"/>
+<circle cx="212" cy="160" r="7" fill="#f2f2f2"/>
+<text x="212" y="161" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central">✓</text>
+<rect x="228" y="152" width="76" height="76" rx="8" fill="#2e2e35"/>
+<rect x="312" y="152" width="76" height="76" rx="8" fill="#34343c"/>
+<rect x="60" y="236" width="76" height="76" rx="8" fill="#34343c"/>
+<rect x="144" y="236" width="76" height="76" rx="8" fill="#2e2e35"/>
+<rect x="228" y="236" width="76" height="76" rx="8" fill="#34343c" stroke="#f2f2f2" stroke-width="2"/>
+<circle cx="296" cy="244" r="7" fill="#f2f2f2"/>
+<text x="296" y="245" font-size="9" fill="#111" text-anchor="middle" dominant-baseline="central">✓</text>
+<rect x="312" y="236" width="76" height="76" rx="8" fill="none" stroke="#5a5a63" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="350" y="268" font-size="16" fill="#8a8a92" text-anchor="middle" dominant-baseline="central">＋</text>
+<text x="350" y="288" font-size="9" fill="#6f6f77" text-anchor="middle" dominant-baseline="central">上传</text>
+<rect x="60" y="326" width="328" height="32" rx="8" fill="#26262c" stroke="#34343a" stroke-width="0.5"/>
+<text x="72" y="342" font-size="10" fill="#d7d7dc" dominant-baseline="central">已选 2 张</text>
+<rect x="296" y="331" width="84" height="22" rx="11" fill="#3a3a42"/>
+<text x="338" y="342" font-size="10" fill="#ececec" text-anchor="middle" dominant-baseline="central">添加 2 张</text>
+<line class="leader" x1="442" y1="72" x2="472" y2="72"/>
+<text class="ts" x="478" y="68">搜索行 h-10 · 触屏不自动聚焦</text>
+<text class="ts" x="478" y="84">锁定徽标 = 状态说明非按钮</text>
+<line class="leader" x1="442" y1="111" x2="472" y2="111"/>
+<text class="ts" x="478" y="107">chip 契约 §4 pill 语法</text>
+<text class="ts" x="478" y="123">选中 = 白底黑字反相 chip</text>
+<line class="leader" x1="442" y1="190" x2="472" y2="190"/>
+<text class="ts" x="478" y="186">tile 同页面规格 · 固定 normal</text>
+<text class="ts" x="478" y="202">选中白环 + 勾 · 同一套语法</text>
+<line class="leader" x1="442" y1="274" x2="472" y2="274"/>
+<text class="ts" x="478" y="270">拖入 → 整窗白环 + 纯色提示层</text>
+<text class="ts" x="478" y="286">dashed 上传格 · 完成即选中</text>
+<line class="leader" x1="442" y1="342" x2="472" y2="342"/>
+<text class="ts" x="478" y="338">确认 = muted pill（契约 §3）</text>
+<text class="ts" x="478" y="354">反相丸只属于生成 · v1 已修正</text>
+</svg>

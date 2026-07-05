@@ -69,6 +69,16 @@ export function getGenerationErrorMessage(
 ): string {
   const normalizedKey = normalizeI18nKey(payload.i18nKey)
 
+  // Validation errors carry the specific, actionable reason in `error` (which
+  // field or rule failed). Surface it instead of the generic localized
+  // "invalid input" string, which hides what the user actually has to fix.
+  const isValidationError =
+    payload.errorCode === 'VALIDATION_ERROR' ||
+    normalizedKey === 'validation.invalidInput'
+  if (isValidationError && payload.error) {
+    return payload.error
+  }
+
   if (normalizedKey && tErrors.has(normalizedKey)) {
     return tErrors(normalizedKey)
   }

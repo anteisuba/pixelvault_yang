@@ -65,6 +65,7 @@ import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
+import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import type {
   AdvancedParams,
   InspirationRecord,
@@ -722,6 +723,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const executeGenerate = useCallback(async () => {
     if (!canGenerate) return
     if (isAudioMode && selectedModel) {
+      // Audio clip + transcript must ship as a coherent pair (schema refine);
+      // resolve them from one source so a card clip without a transcript never
+      // 400s the request.
+      const audioReference = resolveInlineAudioReference({
+        cardReferenceAudioUrl: selectedVoiceCard?.referenceAudioUrl,
+        cardSampleText: selectedVoiceCard?.sampleText,
+        adHocReferenceUrl: state.audioReferenceUrl,
+        adHocReferenceText: state.audioReferenceText,
+      })
       await generate({
         mode: 'audio',
         audio: {
@@ -741,15 +751,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           // back to whatever ad-hoc clip the user uploaded for this run.
           // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
           // references) takes care of the rest at the provider call site.
-          referenceAudioUrl:
-            selectedVoiceCard?.referenceAudioUrl ??
-            state.audioReferenceUrl ??
-            undefined,
-          referenceText:
-            selectedVoiceCard?.sampleText ??
-            (state.audioReferenceText.trim()
-              ? state.audioReferenceText.trim()
-              : undefined),
+          referenceAudioUrl: audioReference.referenceAudioUrl,
+          referenceText: audioReference.referenceText,
           emotion: state.audioEmotion,
           expressiveness: state.audioExpressiveness,
           pace: state.audioPace,

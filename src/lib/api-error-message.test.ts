@@ -106,6 +106,36 @@ describe('getGenerationErrorMessage', () => {
     ).toBe('totally unexpected xyz')
   })
 
+  it('surfaces the specific reason for a validation error (by errorCode)', () => {
+    expect(
+      getGenerationErrorMessage(
+        translator,
+        {
+          errorCode: 'VALIDATION_ERROR',
+          i18nKey: 'errors.validation.invalidInput',
+          error:
+            'referenceAudioUrl and referenceText must both be provided or both omitted',
+        },
+        'fallback',
+      ),
+    ).toBe(
+      'referenceAudioUrl and referenceText must both be provided or both omitted',
+    )
+  })
+
+  it('surfaces the specific reason for a validation error (by i18nKey only)', () => {
+    expect(
+      getGenerationErrorMessage(
+        translator,
+        {
+          i18nKey: 'errors.validation.invalidInput',
+          error: 'Text is required',
+        },
+        'fallback',
+      ),
+    ).toBe('Text is required')
+  })
+
   it('falls back to fallbackMessage for an empty payload', () => {
     expect(getGenerationErrorMessage(translator, {}, 'fallback')).toBe(
       'fallback',

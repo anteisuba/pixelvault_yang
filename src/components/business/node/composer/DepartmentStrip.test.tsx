@@ -202,6 +202,46 @@ describe('DepartmentStrip (cast 五卡)', () => {
     expect(onAddCloseup).toHaveBeenCalledWith('c1')
   })
 
+  it('renders each character as an identity unit with a facet caption (§9 B V2-4d)', () => {
+    renderStrip([
+      makeToken({
+        id: 'c1',
+        label: '剑修',
+        token: '@剑修',
+        boundVoice: { nodeId: 'v1', label: '男声', ready: true },
+      }),
+      makeToken({
+        id: 'cu1',
+        kind: 'closeup',
+        label: '特写1',
+        token: '@特写1',
+        parentCharacterId: 'c1',
+      }),
+    ])
+    const characterCard = screen.getByRole('region', {
+      name: 'departments.character',
+    })
+    // Face + closeup share ONE identity box; the caption lists present facets:
+    // face (always) · closeup (has one) · voice (bound + ready).
+    expect(
+      within(characterCard).getByText('references.facetFace', { exact: false }),
+    ).toBeInTheDocument()
+    expect(characterCard).toHaveTextContent('references.facetCloseup')
+    expect(characterCard).toHaveTextContent('references.facetVoice')
+    // The character name heads the caption.
+    expect(characterCard).toHaveTextContent('剑修')
+  })
+
+  it('omits the 音色/特写 facets when a character has neither', () => {
+    renderStrip([makeToken({ id: 'c1', label: '路人' })])
+    const characterCard = screen.getByRole('region', {
+      name: 'departments.character',
+    })
+    expect(characterCard).toHaveTextContent('references.facetFace')
+    expect(characterCard).not.toHaveTextContent('references.facetCloseup')
+    expect(characterCard).not.toHaveTextContent('references.facetVoice')
+  })
+
   it('offers × (delete edge) only for tokens with a direct edge', () => {
     const onRemove = vi.fn()
     renderStrip(

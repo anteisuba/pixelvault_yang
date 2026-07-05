@@ -140,18 +140,29 @@ export function DepartmentStrip({
   return (
     <div className="grid grid-cols-1 gap-2">
       {DEPARTMENTS.map((dept) => {
-        // The 角色 card also holds closeup sub-references (§9 B), but its ＋ tile
-        // spawns a character — a closeup is spawned per-character via ＋特写 on
-        // the slot, so keep character chips before closeup chips for reading order.
-        const deptTokens = tokens
-          .filter((token) => dept.kinds.includes(token.kind))
-          .sort(
-            (a, b) =>
-              Number(a.kind === 'closeup') - Number(b.kind === 'closeup'),
-          )
+        const deptTokens = tokens.filter((token) =>
+          dept.kinds.includes(token.kind),
+        )
         const addTile = onAddReference ? (
           <AddReferenceTile dept={dept} onAddReference={onAddReference} />
         ) : null
+        // The 角色 card renders one identity-unit box per character (§9 B):
+        // face + its closeups + 音色徽标 grouped, so a face-detail visibly
+        // belongs to its subject instead of floating in a flat row. Other cards
+        // keep the flat slot row.
+        const isCharacterCard = dept.id === 'character'
+        const characterTokens = deptTokens.filter(
+          (token) => token.kind === 'character',
+        )
+        const closeupsByCharacter = new Map<string, ComposerReferenceToken[]>()
+        for (const token of deptTokens) {
+          if (token.kind !== 'closeup') continue
+          const key = token.parentCharacterId ?? ''
+          closeupsByCharacter.set(key, [
+            ...(closeupsByCharacter.get(key) ?? []),
+            token,
+          ])
+        }
         return (
           <section
             key={dept.id}
@@ -173,12 +184,20 @@ export function DepartmentStrip({
                 </span>
               ) : null}
             </div>
-            {deptTokens.length > 0 ? (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {deptTokens.map((token) => (
-                  <DepartmentSlot
-                    key={token.id}
-                    token={token}
+            {deptTokens.length === 0 ? (
+              <div className="mt-1.5 flex items-center gap-2">
+                <p className="text-2xs leading-4 text-node-subtle">
+                  {tc('references.emptyDept')}
+                </p>
+                {addTile}
+              </div>
+            ) : isCharacterCard ? (
+              <div className="mt-1.5 flex flex-wrap items-stretch gap-2">
+                {characterTokens.map((character) => (
+                  <IdentityUnit
+                    key={character.id}
+                    character={character}
+                    closeups={closeupsByCharacter.get(character.id) ?? []}
                     onInsert={onInsert}
                     onLocate={onLocate}
                     onRemove={onRemove}
@@ -189,10 +208,17 @@ export function DepartmentStrip({
                 {addTile}
               </div>
             ) : (
-              <div className="mt-1.5 flex items-center gap-2">
-                <p className="text-2xs leading-4 text-node-subtle">
-                  {tc('references.emptyDept')}
-                </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {deptTokens.map((token) => (
+                  <DepartmentSlot
+                    key={token.id}
+                    token={token}
+                    onInsert={onInsert}
+                    onLocate={onLocate}
+                    onRemove={onRemove}
+                    onAddVoice={onAddVoice}
+                  />
+                ))}
                 {addTile}
               </div>
             )}
@@ -233,24 +259,94 @@ function AddReferenceTile({
   )
 }
 
-/** 参考槽（§4 C3）: the untouched ReferenceTokenChip plus strip-only overlays —
- *  a payload-order corner badge (图N/音N) and a hover-revealed × that deletes
- *  the edge. Overlays are siblings, not chip changes, so the chip's hover
- *  preview / insert behavior stays byte-identical elsewhere. */
-function DepartmentSlot({
-  token,
+/** §9 B 身份单元卡 — one bordered box per character grouping its face + closeups
+ *  + 音色徽标, so a face-detail visibly belongs to its subject. The face slot
+ *  keeps its voice badge / ×; closeups are their own slots (× detaches the
+ *  closeup→character edge); a trailing ＋特写 tile spawns another closeup. A
+ *  caption lists the facets present (脸 · 特写 · 音色). */
+function IdentityUnit({
+  character,
+  closeups,
   onInsert,
   onLocate,
   onRemove,
   onAddVoice,
   onAddCloseup,
 }: {
-  token: ComposerReferenceToken
+  character: ComposerReferenceToken
+  closeups: ComposerReferenceToken[]
   onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
   onLocate?(nodeId: string): void
   onRemove?(token: ComposerReferenceToken): void
   onAddVoice?(characterNodeId: string): void
   onAddCloseup?(characterNodeId: string): void
+}) {
+  const tc = useTranslations('StudioNode.videoComposer')
+
+  const facets = [tc('references.facetFace')]
+  if (closeups.length > 0) facets.push(tc('references.facetCloseup'))
+  if (character.boundVoice?.ready) facets.push(tc('references.facetVoice'))
+
+  return (
+    <div className="rounded-lg border border-node-panel-inner bg-node-panel p-2">
+      <div className="flex items-center gap-1.5">
+        <DepartmentSlot
+          token={character}
+          onInsert={onInsert}
+          onLocate={onLocate}
+          onRemove={onRemove}
+          onAddVoice={onAddVoice}
+        />
+        {closeups.map((closeup) => (
+          <DepartmentSlot
+            key={closeup.id}
+            token={closeup}
+            onInsert={onInsert}
+            onLocate={onLocate}
+            onRemove={onRemove}
+          />
+        ))}
+        {onAddCloseup ? (
+          <button
+            type="button"
+            aria-label={tc('references.addCloseup', {
+              name: character.label || tc('refKind.character'),
+            })}
+            onClick={() => onAddCloseup(character.id)}
+            className="nodrag flex size-10 shrink-0 flex-col items-center justify-center rounded-md border border-dashed border-node-panel-inner text-node-subtle transition-colors hover:border-node-edge hover:text-node-foreground"
+          >
+            <ScanFace className="size-4" />
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-1.5 truncate text-2xs leading-4">
+        <span className="font-semibold text-node-foreground">
+          {character.label || tc('refKind.character')}
+        </span>{' '}
+        <span className="text-node-subtle">{facets.join(' · ')}</span>
+      </p>
+    </div>
+  )
+}
+
+/** 参考槽（§4 C3）: the untouched ReferenceTokenChip plus strip-only overlays —
+ *  a payload-order corner badge (图N/音N) and a hover-revealed × that deletes
+ *  the edge. Overlays are siblings, not chip changes, so the chip's hover
+ *  preview / insert behavior stays byte-identical elsewhere. The character slot
+ *  additionally carries its 音色徽标 (CharacterVoiceBadge); ＋特写 lives on the
+ *  identity unit, not here. */
+function DepartmentSlot({
+  token,
+  onInsert,
+  onLocate,
+  onRemove,
+  onAddVoice,
+}: {
+  token: ComposerReferenceToken
+  onInsert(data: ReferenceTokenData, originEl: HTMLElement): void
+  onLocate?(nodeId: string): void
+  onRemove?(token: ComposerReferenceToken): void
+  onAddVoice?(characterNodeId: string): void
 }) {
   const tc = useTranslations('StudioNode.videoComposer')
 
@@ -295,18 +391,6 @@ function DepartmentSlot({
       ) : null}
       {token.kind === 'character' ? (
         <CharacterVoiceBadge token={token} onAddVoice={onAddVoice} />
-      ) : null}
-      {token.kind === 'character' && onAddCloseup ? (
-        <button
-          type="button"
-          aria-label={tc('references.addCloseup', {
-            name: token.label || tc('refKind.character'),
-          })}
-          onClick={() => onAddCloseup(token.id)}
-          className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-md border border-dashed border-node-panel-inner bg-node-panel text-node-subtle opacity-0 transition-opacity hover:text-node-foreground focus-visible:opacity-100 group-hover/slot:opacity-100"
-        >
-          <ScanFace className="size-2.5" />
-        </button>
       ) : null}
     </span>
   )

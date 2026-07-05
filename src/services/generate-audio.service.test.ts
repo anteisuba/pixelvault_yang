@@ -103,6 +103,7 @@ import type { GenerateAudioRequest } from '@/types'
 import {
   checkAudioGenerationStatus,
   generateAudioForUser,
+  generateSoundEffectForUser,
   submitAudioGeneration,
 } from '@/services/generate-audio.service'
 import { getApiKeyValueById } from '@/services/apiKey.service'
@@ -250,7 +251,88 @@ function setupSyncHappyPath(mockGenerateAudio = vi.fn()) {
   vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
 }
 
+function setupSfxHappyPath(mockGenerateSoundEffect = vi.fn()) {
+  vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
+  vi.mocked(resolveGenerationRoute).mockResolvedValue({
+    modelId: 'eleven-sfx-v2',
+    adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+    providerConfig: {
+      label: 'ElevenLabs',
+      baseUrl: 'https://api.elevenlabs.io',
+    },
+    apiKey: 'eleven-key',
+    resolvedApiKeyId: 'sfx-key-1',
+    creditCost: 3,
+  } as never)
+  vi.mocked(getProviderAdapter).mockReturnValue({
+    generateSoundEffect: mockGenerateSoundEffect,
+  } as never)
+  mockGenerateSoundEffect.mockResolvedValue({
+    audioUrl: 'https://provider.example.com/sfx.mp3',
+    format: 'mp3',
+    duration: 5,
+    requestCount: 1,
+  })
+  vi.mocked(fetchAsBuffer).mockResolvedValue({
+    buffer: Buffer.from('fake-sfx'),
+    mimeType: 'audio/mpeg',
+  } as never)
+  vi.mocked(generateStorageKey).mockReturnValue('audio/user-1/sfx.mp3')
+  vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/sfx.mp3')
+  vi.mocked(createGenerationJob).mockResolvedValue(FAKE_SYNC_JOB as never)
+  vi.mocked(createGeneration).mockResolvedValue(FAKE_GENERATION as never)
+  vi.mocked(createApiUsageEntry).mockResolvedValue(FAKE_USAGE as never)
+  vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
+  return mockGenerateSoundEffect
+}
+
 // ─── Tests ─────────────────────────────────────────────────────
+
+describe('generateSoundEffectForUser', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls the adapter with sfx params and returns a completed job id', async () => {
+    const mockSfx = setupSfxHappyPath()
+
+    const res = await generateSoundEffectForUser('clerk-1', {
+      prompt: 'thunder rumbling in the distance',
+      modelId: 'eleven-sfx-v2',
+      durationSeconds: 5,
+      loop: true,
+      promptInfluence: 0.6,
+    })
+
+    expect(res).toEqual({ jobId: FAKE_SYNC_JOB.id })
+    expect(mockSfx).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'thunder rumbling in the distance',
+        durationSeconds: 5,
+        loop: true,
+        promptInfluence: 0.6,
+      }),
+    )
+  })
+
+  it('throws when the adapter lacks generateSoundEffect', async () => {
+    vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
+    vi.mocked(resolveGenerationRoute).mockResolvedValue({
+      modelId: 'eleven-sfx-v2',
+      adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+      providerConfig: { label: 'ElevenLabs', baseUrl: 'u' },
+      apiKey: 'k',
+    } as never)
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      generateAudio: vi.fn(),
+    } as never)
+
+    await expect(
+      generateSoundEffectForUser('clerk-1', {
+        prompt: 'x',
+        modelId: 'eleven-sfx-v2',
+      }),
+    ).rejects.toThrow()
+  })
+})
 
 describe('generateAudioForUser', () => {
   beforeEach(() => {

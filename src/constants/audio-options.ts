@@ -158,6 +158,56 @@ export const EXPRESSIVENESS_TO_FISH_TEMPERATURE = {
   [AUDIO_EXPRESSIVENESS.DRAMATIC]: 0.9,
 } as const satisfies Record<AudioExpressivenessTier, number>
 
+// ─── Audio kind (speech / sfx / music) ────────────────────────────
+//
+// A capability ATTRIBUTE on audio models, not a separate mode/route/outputType.
+// The audio workspace filters AUDIO_MODEL_OPTIONS by the active kind; every
+// audio model declares which kind it produces (default: speech).
+
+export const AUDIO_KIND = {
+  SPEECH: 'speech',
+  SFX: 'sfx',
+  MUSIC: 'music',
+} as const
+
+export const AUDIO_KINDS = [
+  AUDIO_KIND.SPEECH,
+  AUDIO_KIND.SFX,
+  AUDIO_KIND.MUSIC,
+] as const
+
+export type AudioKind = (typeof AUDIO_KINDS)[number]
+
+export const DEFAULT_AUDIO_KIND: AudioKind = AUDIO_KIND.SPEECH
+
+export function isAudioKind(value: string): value is AudioKind {
+  return AUDIO_KINDS.includes(value as AudioKind)
+}
+
+// ─── Sound effects (SFX) ───────────────────────────────────────────
+//
+// ElevenLabs SFX V2 (`POST /v1/sound-generation`): a text prompt → one sound
+// clip. Duration is optional (the model auto-picks when omitted), capped at
+// 30s; `promptInfluence` trades prompt adherence vs creativity; `loop` makes a
+// seamless loop. Variant count (×N) is a client concern — issue N requests.
+
+export const SFX_DURATION_RANGE = {
+  min: 0.5,
+  max: 30,
+  step: 0.5,
+} as const
+
+export const SFX_PROMPT_INFLUENCE_RANGE = {
+  min: 0,
+  max: 1,
+  step: 0.05,
+  default: 0.3,
+} as const
+
+export const SFX_VARIANT_COUNTS = [1, 2, 4] as const
+export type SfxVariantCount = (typeof SFX_VARIANT_COUNTS)[number]
+export const DEFAULT_SFX_VARIANT_COUNT: SfxVariantCount = 4
+
 /** Preset voice options for Fish Audio */
 export const FISH_AUDIO_VOICES = [
   { id: 'alloy', labelKey: 'alloy', descKey: 'alloyDesc' },

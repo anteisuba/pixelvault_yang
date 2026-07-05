@@ -22,8 +22,10 @@ import {
 import {
   AUDIO_EXPRESSIVENESS,
   AUDIO_EXPRESSIVENESS_VALUES,
+  AUDIO_KIND,
   type AudioExpressivenessTier,
 } from '@/constants/audio-options'
+import { resolveAudioKind } from '@/constants/models/audio'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -585,6 +587,160 @@ export async function generateAudioForUser(
 }
 
 /**
+ * Generate a sound effect synchronously (ElevenLabs SFX — returns bytes
+ * immediately) and persist it as an already-COMPLETED job, so the poll-based
+ * client resolves it on the first status check. No voice / emotion; carries
+ * duration / loop / promptInfluence instead.
+ */
+export async function generateSoundEffectForUser(
+  clerkId: string,
+  request: GenerateAudioRequest,
+): Promise<AudioSubmitResponseData> {
+  const timer = new GenerationStageTimer({
+    outputType: 'AUDIO',
+    modelId: request.modelId,
+  })
+
+  const { userId, route, adapter, providerLabel } = await timer.measure(
+    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
+    async () => {
+      const ensuredUser = await ensureUser(clerkId)
+      const resolvedRoute = await resolveGenerationRoute(ensuredUser.id, {
+        modelId: request.modelId,
+        apiKeyId: request.apiKeyId,
+      })
+
+      const providerAdapter = getProviderAdapter(resolvedRoute.adapterType)
+      if (!providerAdapter?.generateSoundEffect) {
+        throw new GenerateImageServiceError(
+          'UNSUPPORTED_MODEL',
+          'This model does not support sound-effect generation',
+          400,
+        )
+      }
+
+      return {
+        userId: ensuredUser.id,
+        route: resolvedRoute,
+        adapter: providerAdapter,
+        providerLabel: getProviderLabel(resolvedRoute.providerConfig),
+      }
+    },
+  )
+
+  timer.setContext({
+    modelId: route.modelId,
+    adapterType: route.adapterType,
+    provider: providerLabel,
+    routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
+  })
+
+  const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
+    createGenerationJob({
+      userId,
+      adapterType: route.adapterType,
+      provider: providerLabel,
+      modelId: route.modelId,
+    }),
+  )
+  timer.setContext({ jobId: job.id })
+
+  try {
+    const breaker = getCircuitBreaker(route.adapterType)
+    const result = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
+      breaker.call(() =>
+        withRetry(
+          () =>
+            adapter.generateSoundEffect!({
+              prompt: request.prompt,
+              modelId: route.modelId,
+              providerConfig: route.providerConfig,
+              apiKey: route.apiKey,
+              durationSeconds: request.durationSeconds,
+              loop: request.loop,
+              promptInfluence: request.promptInfluence,
+              format: request.format,
+              sampleRate: request.sampleRate,
+            }),
+          { maxAttempts: 3, label: `${providerLabel}/sfx` },
+        ),
+      ),
+    )
+
+    const { buffer, mimeType } = await timer.measure(
+      GENERATION_STAGE.RESULT_DOWNLOAD,
+      () => fetchAsBuffer(result.audioUrl),
+    )
+    const storageKey = generateStorageKey('AUDIO', userId, result.format)
+    const permanentUrl = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+      uploadToR2({ data: buffer, key: storageKey, mimeType }),
+    )
+
+    await timer.measure(GENERATION_STAGE.DB_FINALIZE, async () => {
+      const createdGeneration = await createGeneration({
+        userId,
+        outputType: 'AUDIO',
+        url: permanentUrl,
+        storageKey,
+        mimeType,
+        previewUrl: request.coverImageUrl,
+        width: 0,
+        height: 0,
+        duration: result.duration,
+        prompt: request.prompt,
+        model: route.modelId,
+        provider: providerLabel,
+        requestCount: result.requestCount,
+        isFreeGeneration: route.isFreeGeneration,
+        snapshot: withGenerationObservability(
+          { audioFormat: result.format, audioKind: AUDIO_KIND.SFX },
+          timer,
+        ),
+      })
+
+      await completeGenerationJob(job.id, {
+        generationId: createdGeneration.id,
+        requestCount: result.requestCount,
+      })
+
+      await createApiUsageEntry({
+        userId,
+        generationId: createdGeneration.id,
+        generationJobId: job.id,
+        adapterType: route.adapterType,
+        provider: providerLabel,
+        modelId: route.modelId,
+        requestCount: result.requestCount,
+        durationMs: timer.elapsedMs(),
+        wasSuccessful: true,
+      })
+    })
+
+    logger.info('Sound effect generation completed', {
+      jobId: job.id,
+      model: route.modelId,
+      duration: result.duration,
+    })
+    timer.log()
+
+    return { jobId: job.id }
+  } catch (error) {
+    await failGenerationJob(job.id, {
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    })
+
+    if (error instanceof ProviderError) {
+      throw new GenerateImageServiceError(
+        'PROVIDER_ERROR',
+        error.message,
+        error.status,
+      )
+    }
+    throw error
+  }
+}
+
+/**
  * Submit async audio generation (FAL F5-TTS — queue-based).
  * Persists a server-owned job + execution outbox and returns the durable job ID.
  */
@@ -622,6 +778,12 @@ export async function submitAudioGeneration(
     provider: providerLabel,
     routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
+
+  // SFX models generate synchronously (ElevenLabs sound-generation): run now
+  // and hand back an already-COMPLETED job the client resolves on first poll.
+  if (modelConfig && resolveAudioKind(modelConfig) === AUDIO_KIND.SFX) {
+    return generateSoundEffectForUser(clerkId, request)
+  }
 
   if (modelConfig && canSubmitAudioViaExecutionWorker(route)) {
     return submitAudioWorkerRun({

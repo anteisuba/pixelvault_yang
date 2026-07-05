@@ -119,6 +119,7 @@ describe('models', () => {
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
       AI_MODELS.ELEVENLABS_V3,
+      AI_MODELS.ELEVENLABS_SFX_V2,
     ])
   })
 })

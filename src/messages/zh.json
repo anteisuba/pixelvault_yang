@@ -2607,6 +2607,10 @@
       "label": "ElevenLabs v3",
       "description": "高品质、富有表现力的文字转语音，声音自然逼真"
     },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "用文字提示生成音效与拟音"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "?? fal.ai ??? Alibaba ??????????????????????"

@@ -2607,6 +2607,10 @@
       "label": "ElevenLabs v3",
       "description": "自然で表現豊かな高品質テキスト読み上げ"
     },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "テキストプロンプトから効果音・フォーリーを生成"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "fal.ai ??? Alibaba ??????????????text-to-video?image-to-video ???????"

@@ -40,6 +40,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'fishAudioS2Pro',
   [AI_MODELS.ELEVENLABS_V3]: 'elevenV3',
+  [AI_MODELS.ELEVENLABS_SFX_V2]: 'elevenSfxV2',
   [AI_MODELS.HAPPYHORSE_10]: 'happyhorse10',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.LTX_23]: 'ltx23',

@@ -3,6 +3,8 @@
 import { useMemo } from 'react'
 
 import { getAvailableAudioModels } from '@/constants/models'
+import { resolveAudioKind } from '@/constants/models/audio'
+import { AUDIO_KIND } from '@/constants/audio-options'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
@@ -21,7 +23,15 @@ export function useAudioModelOptions(): UseAudioModelOptionsReturn {
   const { state } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
 
-  const audioModels = useMemo(() => getAvailableAudioModels(), [])
+  // Speech-only workspace for now — SFX / music kinds get their own surface in
+  // the audio-kind switcher (Phase B3), so keep them out of the voice picker.
+  const audioModels = useMemo(
+    () =>
+      getAvailableAudioModels().filter(
+        (model) => resolveAudioKind(model) === AUDIO_KIND.SPEECH,
+      ),
+    [],
+  )
 
   const modelOptions = useMemo<StudioModelOption[]>(() => {
     const builtIn: StudioModelOption[] = audioModels.map((model) => ({

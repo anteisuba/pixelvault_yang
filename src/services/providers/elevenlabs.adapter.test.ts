@@ -78,3 +78,59 @@ describe('elevenLabsAdapter.generateAudio voice_settings', () => {
     })
   })
 })
+
+describe('elevenLabsAdapter.generateSoundEffect', () => {
+  it('posts the SFX params to the sound-generation endpoint', async () => {
+    const generateSoundEffect = elevenLabsAdapter.generateSoundEffect
+    if (!generateSoundEffect) {
+      throw new Error('ElevenLabs generateSoundEffect missing')
+    }
+
+    const mockFetch = mockAudioFetch()
+    const result = await generateSoundEffect({
+      prompt: 'thunder rumbling in the distance',
+      modelId: 'eleven-sfx-v2',
+      providerConfig: {
+        label: 'ElevenLabs',
+        baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
+      },
+      apiKey: 'eleven-test-key',
+      durationSeconds: 5,
+      loop: true,
+      promptInfluence: 0.6,
+    })
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/v1/sound-generation')
+    expect(JSON.parse(String(init.body))).toEqual({
+      text: 'thunder rumbling in the distance',
+      duration_seconds: 5,
+      loop: true,
+      prompt_influence: 0.6,
+    })
+    expect(result.audioUrl).toMatch(/^data:audio/)
+    // Explicit duration is echoed back rather than estimated from bytes.
+    expect(result.duration).toBe(5)
+  })
+
+  it('omits duration/loop/influence when not provided', async () => {
+    const generateSoundEffect = elevenLabsAdapter.generateSoundEffect
+    if (!generateSoundEffect) {
+      throw new Error('ElevenLabs generateSoundEffect missing')
+    }
+
+    const mockFetch = mockAudioFetch()
+    await generateSoundEffect({
+      prompt: 'glass shatter',
+      modelId: 'eleven-sfx-v2',
+      providerConfig: {
+        label: 'ElevenLabs',
+        baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
+      },
+      apiKey: 'eleven-test-key',
+    })
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit
+    expect(JSON.parse(String(init.body))).toEqual({ text: 'glass shatter' })
+  })
+})

@@ -107,6 +107,58 @@ export const elevenLabsAdapter: ProviderAdapter = {
     }
   },
 
+  async generateSoundEffect(
+    input: ProviderAudioInput,
+  ): Promise<ProviderAudioResult> {
+    const {
+      prompt,
+      providerConfig,
+      apiKey,
+      durationSeconds,
+      loop,
+      promptInfluence,
+      sampleRate,
+    } = input
+
+    const outputFormat = 'mp3'
+    const outputSampleRate = sampleRate ?? 44100
+
+    const body: Record<string, unknown> = { text: prompt }
+    if (durationSeconds !== undefined) body.duration_seconds = durationSeconds
+    if (loop !== undefined) body.loop = loop
+    if (promptInfluence !== undefined) body.prompt_influence = promptInfluence
+
+    const response = await fetch(
+      `${providerConfig.baseUrl}/v1/sound-generation?output_format=mp3_44100_128`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    )
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => 'Unknown error')
+      throw new ProviderError('ElevenLabs', response.status, detail)
+    }
+
+    const audioBuffer = await response.arrayBuffer()
+    const estimatedDuration =
+      durationSeconds ??
+      Math.round(audioBuffer.byteLength / ELEVENLABS_MP3_BYTES_PER_SEC)
+
+    return {
+      audioUrl: `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`,
+      duration: estimatedDuration,
+      format: outputFormat,
+      sampleRate: outputSampleRate,
+      requestCount: 1,
+    }
+  },
+
   async healthCheck({
     apiKey,
     baseUrl,

@@ -424,6 +424,13 @@ export interface ProviderAudioInput {
   repetitionPenalty?: number
   /** Resolved expressiveness tier — adapters compile it into provider params. */
   expressiveness?: AudioExpressivenessTier
+  // ── Sound-effect (SFX) params — only used by generateSoundEffect ──
+  /** Target clip length in seconds; omit to let the model auto-pick. */
+  durationSeconds?: number
+  /** Make the clip a seamless loop. */
+  loop?: boolean
+  /** 0–1: prompt adherence (high) vs creative variation (low). */
+  promptInfluence?: number
 }
 
 export interface ProviderAudioTimestampSegment {
@@ -467,6 +474,11 @@ export interface ProviderAdapter {
   ): Promise<ProviderQueueStatusResult>
   /** Synchronous audio generation (e.g. Fish Audio — returns audio immediately) */
   generateAudio?(input: ProviderAudioInput): Promise<ProviderAudioResult>
+  /**
+   * Synchronous sound-effect generation (prompt → one clip). Separate from
+   * generateAudio: no voice/emotion, but takes duration/loop/promptInfluence.
+   */
+  generateSoundEffect?(input: ProviderAudioInput): Promise<ProviderAudioResult>
   /** Async audio queue submission (e.g. FAL F5-TTS) */
   submitAudioToQueue?(
     input: ProviderAudioInput,

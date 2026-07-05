@@ -1,4 +1,5 @@
 import type { OutputType } from '@/types'
+import type { AudioKind } from '@/constants/audio-options'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type { VideoResolution } from '@/constants/video-options'
 import type { AI_MODELS } from '@/constants/models/enum'
@@ -43,6 +44,11 @@ export interface ModelOption {
   providerConfig: ProviderConfig
   externalModelId: string
   outputType: OutputType
+  /**
+   * For AUDIO models: which kind of audio this produces. A capability
+   * attribute, not a separate mode. Omitted → speech (see DEFAULT_AUDIO_KIND).
+   */
+  audioKind?: AudioKind
   available: boolean
   freeTier?: boolean
   officialUrl?: string

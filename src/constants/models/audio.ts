@@ -1,4 +1,9 @@
 import {
+  AUDIO_KIND,
+  DEFAULT_AUDIO_KIND,
+  type AudioKind,
+} from '@/constants/audio-options'
+import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
@@ -14,6 +19,7 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
     externalModelId: 's2-pro',
     outputType: 'AUDIO',
+    audioKind: AUDIO_KIND.SPEECH,
     available: true,
     officialUrl:
       'https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech',
@@ -27,10 +33,35 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
     externalModelId: 'eleven_v3',
     outputType: 'AUDIO',
+    audioKind: AUDIO_KIND.SPEECH,
     available: true,
     officialUrl:
       'https://elevenlabs.io/docs/api-reference/text-to-speech/convert',
     timeoutMs: 60_000,
     qualityTier: 'premium',
   },
+  {
+    id: AI_MODELS.ELEVENLABS_SFX_V2,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
+    externalModelId: 'eleven_sfx_v2',
+    outputType: 'AUDIO',
+    audioKind: AUDIO_KIND.SFX,
+    available: true,
+    officialUrl:
+      'https://elevenlabs.io/docs/api-reference/sound-generation/convert',
+    timeoutMs: 60_000,
+    qualityTier: 'premium',
+  },
 ]
+
+/** The audio kind a model produces — defaults to speech when unset. */
+export function resolveAudioKind(model: ModelOption): AudioKind {
+  return model.audioKind ?? DEFAULT_AUDIO_KIND
+}
+
+/** Audio models producing the given kind (speech / sfx / music). */
+export function getAudioModelsByKind(kind: AudioKind): ModelOption[] {
+  return AUDIO_MODEL_OPTIONS.filter((model) => resolveAudioKind(model) === kind)
+}

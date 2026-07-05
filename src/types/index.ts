@@ -7,6 +7,7 @@ import {
   AUDIO_LATENCIES,
   AUDIO_MP3_BITRATES,
   AUDIO_OPUS_BITRATES,
+  SFX_DURATION_RANGE,
   TTS_CHUNK_LENGTH_RANGE,
   TTS_MAX_TEXT_LENGTH,
   TTS_REPETITION_PENALTY_RANGE,
@@ -427,6 +428,14 @@ export const GenerateAudioRequestSchema = z
     voiceId: z.string().trim().min(1).max(200).optional(),
     emotion: z.enum(AUDIO_EMOTIONS).optional(),
     expressiveness: z.enum(AUDIO_EXPRESSIVENESS_VALUES).optional(),
+    // Sound-effect (SFX) params — only meaningful for sfx-kind models.
+    durationSeconds: z
+      .number()
+      .min(SFX_DURATION_RANGE.min)
+      .max(SFX_DURATION_RANGE.max)
+      .optional(),
+    loop: z.boolean().optional(),
+    promptInfluence: z.number().min(0).max(1).optional(),
     pace: z.enum(AUDIO_PACES).optional(),
     pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
     pronunciationDictionary: z.record(z.string(), z.string()).optional(),

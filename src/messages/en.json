@@ -2607,6 +2607,10 @@
       "label": "ElevenLabs v3",
       "description": "Premium expressive text-to-speech with natural, lifelike voices"
     },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "Generate sound effects and foley from a text prompt"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."

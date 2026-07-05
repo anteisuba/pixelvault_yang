@@ -80,6 +80,11 @@ import {
   type AddReferenceRequest,
 } from './DepartmentStrip'
 import type { ReferenceTokenData } from './ReferenceTokenChip'
+import {
+  MentionInput,
+  type MentionInputHandle,
+  type MentionToken,
+} from './MentionInput'
 
 interface VideoComposerProps {
   id: string
@@ -105,12 +110,6 @@ function aspectBoxStyle(ratio: string): { width: number; height: number } {
     ? { width: max, height: Math.round((max * h) / w) }
     : { width: Math.round((max * w) / h), height: max }
 }
-
-// Draft b2: a single prompt field — camera/motion ("运镜") go in the prompt,
-// not separate fields. This keeps the detail panel compact, not a long scroll.
-const EXPAND_TEXT_FIELDS: readonly NodeWorkflowFieldId[] = [
-  NODE_WORKFLOW_FIELD_IDS.prompt,
-]
 
 const PROVIDER_LABEL_KEYS: Partial<Record<AI_ADAPTER_TYPES, string>> = {
   [AI_ADAPTER_TYPES.FAL]: 'fal',
@@ -274,9 +273,10 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   } = useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
   const reducedMotion = useReducedMotion()
-  // Ref to the prompt textarea so clickable @reference chips can splice their
-  // token in at the caret (not just append) — see `insertReferenceToken`.
-  const promptRef = useRef<HTMLTextAreaElement>(null)
+  // Ref to the prompt MentionInput so clickable @reference chips can insert an
+  // atomic token chip at the caret (§6 S2). Exposes insertToken / focus /
+  // getBoundingClientRect (the flying-animation target).
+  const promptRef = useRef<MentionInputHandle>(null)
   // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
   // to the prompt, cleared once its fly+glow finishes. null when idle.
   const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
@@ -432,56 +432,16 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     [data, id, updateNodeData],
   )
 
-  // Splice a reference @token into the prompt at the caret (falls back to the
-  // end when the textarea isn't focused), padding so it doesn't fuse with
-  // adjacent words, then restore the caret just past the inserted token once the
-  // controlled value has flowed back in. Connected character/background/voice
-  // nodes surface as clickable chips that call this — the inserted name lets
-  // Seedance tie "@角色A" in the prompt to that node's reference image/audio.
-  const insertReferenceToken = useCallback(
-    (token: string) => {
-      if (!token) return
-      const el = promptRef.current
-      const current = el
-        ? el.value
-        : getNodeWorkflowFieldValue(data, NODE_WORKFLOW_FIELD_IDS.prompt)
-      const start = el ? el.selectionStart : current.length
-      const end = el ? el.selectionEnd : current.length
-      const before = current.slice(0, start)
-      const after = current.slice(end)
-      const lead = before && !/\s$/.test(before) ? ' ' : ''
-      const trail = after && !/^\s/.test(after) ? ' ' : ''
-      const fragment = `${lead}${token}${trail}`
-      handleFieldChange(
-        NODE_WORKFLOW_FIELD_IDS.prompt,
-        `${before}${fragment}${after}`,
-      )
-      const caret = start + fragment.length
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(() => {
-          const node = promptRef.current
-          if (!node) return
-          node.focus()
-          node.setSelectionRange(caret, caret)
-        })
-      }
-    },
-    [data, handleFieldChange],
-  )
-
-  // §8.4 插入动效: fires the token's real insert (unchanged text logic above)
-  // plus a transient flying-thumbnail overlay approximating "this image flew
-  // into the sentence" (skipped under reduced-motion — it lands instantly).
-  // Also records `insertedReferenceNames` for visual kinds so a later rename
-  // can be detected as drift (§7.2 ⑥); voice's anchor is too ambiguous to
-  // track reliably, see `findDriftReplacement`.
+  // §6 S2: insert the reference as an ATOMIC chip at the caret (MentionInput
+  // owns the DOM + serialization back to plain-text @name). Also records
+  // `insertedReferenceNames` for visual kinds so a later rename can be detected
+  // as drift (§7.2 ⑥) — a stale @oldName degrades to plain text and the drift
+  // affordance offers to replace it. Plus the §8.4 flying-thumbnail overlay.
   const handleTokenInsert = useCallback(
     (refToken: ReferenceTokenData, originEl: HTMLElement) => {
-      const insertText =
-        refToken.kind === 'voice' && refToken.label
-          ? `${refToken.label} (${refToken.token})`
-          : refToken.token
-      insertReferenceToken(insertText)
+      const name = refToken.token.replace(/^@/, '')
+      if (!name) return
+      promptRef.current?.insertToken(name)
 
       if (refToken.kind !== 'voice') {
         updateNodeData(id, {
@@ -511,14 +471,18 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       })
       window.setTimeout(() => setFlyingToken(null), 440)
     },
-    [
-      data.insertedReferenceNames,
-      id,
-      insertReferenceToken,
-      reducedMotion,
-      updateNodeData,
-    ],
+    [data.insertedReferenceNames, id, reducedMotion, updateNodeData],
   )
+
+  // Reference names the prompt editor should render as atomic chips — the
+  // insertable tokens (character/background/shot @name, voice @AudioN). Unnamed
+  // / projection-only refs (empty token) contribute no chip.
+  const mentionTokens: MentionToken[] = composer.referenceTokens
+    .filter((refToken) => Boolean(refToken.token))
+    .map((refToken) => ({
+      name: refToken.token.replace(/^@/, ''),
+      kind: refToken.kind,
+    }))
 
   // §7.2 ⑥ "点击替换": the prompt text still literally contains `@oldName` —
   // swap it for the current `@newName` and re-anchor the bookkeeping so drift
@@ -806,45 +770,23 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               ) : null}
             </div>
 
-            {/* Prompt — the composer's hero field. */}
-            {EXPAND_TEXT_FIELDS.map((fieldId) => {
-              const value = getNodeWorkflowFieldValue(data, fieldId)
-              const isLong =
-                fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.motion ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.audioIntent
-              return (
-                <ComposerField
-                  key={fieldId}
-                  label={tFields(`${fieldId}.label`)}
-                >
-                  {isLong ? (
-                    <IMEAwareTextarea
-                      value={value}
-                      onValueChange={(next) => handleFieldChange(fieldId, next)}
-                      textareaRef={
-                        fieldId === NODE_WORKFLOW_FIELD_IDS.prompt
-                          ? promptRef
-                          : undefined
-                      }
-                      aria-label={tFields(`${fieldId}.label`)}
-                      placeholder={tFields(`${fieldId}.placeholder`)}
-                      {...KEY_GUARD}
-                      className="min-h-52 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                    />
-                  ) : (
-                    <IMEAwareInput
-                      value={value}
-                      onValueChange={(next) => handleFieldChange(fieldId, next)}
-                      aria-label={tFields(`${fieldId}.label`)}
-                      placeholder={tFields(`${fieldId}.placeholder`)}
-                      {...KEY_GUARD}
-                      className="h-9 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                    />
-                  )}
-                </ComposerField>
-              )
-            })}
+            {/* Prompt — the composer's hero field. @references render as atomic
+                chips (§6 S2 MentionInput); the persisted value stays plain-text
+                @name for the generate path. */}
+            <ComposerField label={tFields('prompt.label')}>
+              <MentionInput
+                ref={promptRef}
+                value={promptFieldValue}
+                onValueChange={(next) =>
+                  handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+                }
+                tokens={mentionTokens}
+                aria-label={tFields('prompt.label')}
+                placeholder={tFields('prompt.placeholder')}
+                {...KEY_GUARD}
+                className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
+              />
+            </ComposerField>
 
             {/* Negative prompt — grouped with the other text inputs. */}
             <ComposerField label={t('negativePromptLabel')}>

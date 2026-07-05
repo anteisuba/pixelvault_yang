@@ -165,15 +165,16 @@ describe('VideoComposer references row (detail)', () => {
     expect(screen.getAllByText('references.emptyDept')).toHaveLength(3)
   })
 
-  it('inserts a character @token into the prompt on chip click', () => {
+  it('inserts a character @token as an atomic chip on click (trailing space)', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
     ]
     renderDetail()
     fireEvent.click(screen.getByRole('button', { name: '@角色A' }))
+    // MentionInput serializes the chip + trailing space back to plain text.
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
-      expect.objectContaining({ prompt: '@角色A' }),
+      expect.objectContaining({ prompt: '@角色A ' }),
     )
     // §7.2 ⑥ drift bookkeeping: records what name was inserted for this ref.
     expect(updateNodeData).toHaveBeenCalledWith('v1', {
@@ -191,11 +192,11 @@ describe('VideoComposer references row (detail)', () => {
     fireEvent.click(chip)
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
-      expect.objectContaining({ prompt: '@开场远景' }),
+      expect.objectContaining({ prompt: '@开场远景 ' }),
     )
   })
 
-  it('inserts a voice token labelled with the speaker name (no drift bookkeeping)', () => {
+  it('inserts a voice @AudioN chip (no drift bookkeeping)', () => {
     composerState.referenceTokens = [
       { id: 'a1', kind: 'voice', label: '角色A', token: '@Audio1' },
     ]
@@ -203,9 +204,9 @@ describe('VideoComposer references row (detail)', () => {
     fireEvent.click(screen.getByRole('button', { name: '角色A' }))
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
-      expect.objectContaining({ prompt: '角色A (@Audio1)' }),
+      expect.objectContaining({ prompt: '@Audio1 ' }),
     )
-    // Voice's text anchor is ambiguous (bare name, not `@name`) — not tracked.
+    // Voice's text anchor is ambiguous — not drift-tracked.
     expect(updateNodeData).not.toHaveBeenCalledWith(
       'v1',
       expect.objectContaining({ insertedReferenceNames: expect.anything() }),

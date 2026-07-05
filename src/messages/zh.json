@@ -3574,6 +3574,14 @@
         "volcengine": "火山方舟"
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
+      "cameraGrammar": {
+        "label": "运镜语法",
+        "groups": {
+          "size": "景别",
+          "angle": "角度",
+          "move": "运动"
+        }
+      },
       "modelRail": {
         "label": "模型",
         "ready": "我的密钥",
@@ -3587,7 +3595,8 @@
         "background": "背景",
         "shot": "镜头",
         "voice": "声音",
-        "video": "参考视频"
+        "video": "参考视频",
+        "keyframe": "首尾帧"
       },
       "departments": {
         "character": "角色",
@@ -3608,6 +3617,7 @@
         "emptyDept": "暂无引用 · 画布连线后出现",
         "slotBadgeVideo": "视{n}",
         "videoAutoHint": "参考视频随连线自动发送，无需插入提示词",
+        "keyframeHint": "首/尾帧随连线自动发送，无需插入提示词",
         "voiceNotReadyHint": "未上传/选择参考音频 — 本次生成不会发送",
         "voiceBadge": "音色：{name}",
         "addVoice": "给「{name}」配音色",

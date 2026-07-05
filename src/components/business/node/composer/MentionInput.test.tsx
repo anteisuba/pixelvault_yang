@@ -84,7 +84,41 @@ describe('MentionInput component', () => {
     expect(chips).toHaveLength(2)
     expect(chips[0].getAttribute('data-mention')).toBe('角色A')
     expect(chips[0].getAttribute('contenteditable')).toBe('false')
+    // The 16px thumb contributes no text, so textContent stays the clean @name.
     expect(chips[0].textContent).toBe('@角色A')
+    expect(chips[0].querySelector('.mention-chip-thumb')).not.toBeNull()
+  })
+
+  it('embeds the token thumbnail image inside the chip (§9 V2-2)', () => {
+    const { container } = render(
+      <MentionInput
+        value="参考 @角色A"
+        onValueChange={vi.fn()}
+        tokens={[
+          {
+            name: '角色A',
+            kind: 'character',
+            thumbnailUrl: 'https://r2.example/face.jpg',
+          },
+        ]}
+      />,
+    )
+    const img = container.querySelector('.mention-chip-thumb img')
+    expect(img).not.toBeNull()
+    expect(img?.getAttribute('src')).toBe('https://r2.example/face.jpg')
+  })
+
+  it('marks a video chip with a ▶ overlay and no image when thumbless', () => {
+    const { container } = render(
+      <MentionInput
+        value="参考 @视频1"
+        onValueChange={vi.fn()}
+        tokens={[{ name: '视频1', kind: 'video' }]}
+      />,
+    )
+    const thumb = container.querySelector('.mention-chip-thumb')
+    expect(thumb?.querySelector('img')).toBeNull()
+    expect(thumb?.querySelector('svg polygon')).not.toBeNull()
   })
 
   it('emits the serialized plain text on input', () => {

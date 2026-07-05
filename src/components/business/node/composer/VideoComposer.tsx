@@ -479,10 +479,22 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   // insertable tokens (character/background/shot @name, voice @AudioN). Unnamed
   // / projection-only refs (empty token) contribute no chip.
   const mentionTokens: MentionToken[] = composer.referenceTokens
-    .filter((refToken) => Boolean(refToken.token))
+    .filter(
+      // keyframe is projection-only (empty token) — never an insertable mention,
+      // so excluding it also narrows kind to MentionToken's insertable union.
+      (
+        refToken,
+      ): refToken is ComposerReferenceToken & {
+        kind: MentionToken['kind']
+      } => Boolean(refToken.token) && refToken.kind !== 'keyframe',
+    )
     .map((refToken) => ({
       name: refToken.token.replace(/^@/, ''),
       kind: refToken.kind,
+      // The chip's 16px thumbnail: voices show their cover, everything else its
+      // own image / video frame — same source ReferenceTokenChip picks (§9 V2-2).
+      thumbnailUrl:
+        refToken.kind === 'voice' ? refToken.coverImage : refToken.mediaUrl,
     }))
 
   // V2-1 改名静默自动回写: when a referenced node is renamed, its @oldName sits

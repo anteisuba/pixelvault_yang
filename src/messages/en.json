@@ -3574,6 +3574,14 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
+      "cameraGrammar": {
+        "label": "Camera grammar",
+        "groups": {
+          "size": "Shot size",
+          "angle": "Angle",
+          "move": "Movement"
+        }
+      },
       "modelRail": {
         "label": "Model",
         "ready": "Your key",
@@ -3587,7 +3595,8 @@
         "background": "Background",
         "shot": "Shot",
         "voice": "Voice",
-        "video": "Reference video"
+        "video": "Reference video",
+        "keyframe": "Keyframe"
       },
       "departments": {
         "character": "Character",
@@ -3608,6 +3617,7 @@
         "emptyDept": "None yet · wire nodes on the canvas",
         "slotBadgeVideo": "VID{n}",
         "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
+        "keyframeHint": "First/last frames are sent automatically with the wire — nothing to insert",
         "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
         "voiceBadge": "Voice: {name}",
         "addVoice": "Add a voice to \"{name}\"",

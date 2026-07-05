@@ -13,10 +13,13 @@ import {
 import { cn } from '@/lib/utils'
 
 /** A reference name the editor should render as an atomic chip, with its kind
- *  driving the chip's port color. */
+ *  driving the chip's port color + thumbnail shape (§9 V2-2). */
 export interface MentionToken {
   name: string
   kind: 'character' | 'background' | 'shot' | 'voice' | 'video'
+  /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
+   *  or the voice cover. Falls back to a flat port-color chip when absent. */
+  thumbnailUrl?: string
 }
 
 export interface MentionInputHandle {
@@ -80,20 +83,89 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
   voice: 'bg-node-port-voice/25',
   video: 'bg-node-port-video/25',
 }
+// The embedded 16px thumbnail's shape encodes the kind (§9 V2-2 token anatomy):
+// circle = 角色/配音 (identity), square = 图/镜头/场景/视频. Placeholder tint uses
+// the port color at higher opacity so a thumbless reference still reads as its kind.
+const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
+  character: 'rounded-full',
+  background: 'rounded-sm',
+  shot: 'rounded-sm',
+  voice: 'rounded-full',
+  video: 'rounded-sm',
+}
+const THUMB_FILL: Record<MentionToken['kind'], string> = {
+  character: 'bg-node-port-character/70',
+  background: 'bg-node-port-background/70',
+  shot: 'bg-node-port-image/70',
+  voice: 'bg-node-port-voice/70',
+  video: 'bg-node-port-video/70',
+}
 const CHIP_BASE =
-  'mention-chip mx-0.5 inline-flex select-none items-center rounded px-1 align-baseline text-node-foreground'
+  'mention-chip mx-0.5 inline-flex select-none items-center gap-1 rounded-full py-0.5 align-baseline text-node-foreground'
 const MENTION_ATTR = 'data-mention'
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/** A centered ▶ overlay — the shape language marks a video reference apart from
+ *  a still image (both square). White + drop-shadow so it reads on any frame. */
+function buildPlayOverlay(doc: Document): HTMLSpanElement {
+  const overlay = doc.createElement('span')
+  overlay.className =
+    'pointer-events-none absolute inset-0 flex items-center justify-center text-white drop-shadow'
+  const svg = doc.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', '0 0 10 10')
+  svg.setAttribute('class', 'size-2.5')
+  const poly = doc.createElementNS(SVG_NS, 'polygon')
+  poly.setAttribute('points', '3,2 3,8 8,5')
+  poly.setAttribute('fill', 'currentColor')
+  svg.appendChild(poly)
+  overlay.appendChild(svg)
+  return overlay
+}
+
+/** The 16px thumbnail that leads each chip: real image when we have one, else a
+ *  flat port-color box. Contributes no text so the chip's textContent stays the
+ *  clean `@name` (serialization + the atomic-delete contract are unaffected). */
+function buildThumb(
+  doc: Document,
+  kind: MentionToken['kind'],
+  thumbnailUrl: string | undefined,
+): HTMLSpanElement {
+  const thumb = doc.createElement('span')
+  thumb.className = cn(
+    'mention-chip-thumb relative flex size-4 shrink-0 items-center justify-center overflow-hidden',
+    THUMB_SHAPE[kind],
+    !thumbnailUrl && THUMB_FILL[kind],
+  )
+  if (thumbnailUrl) {
+    const img = doc.createElement('img')
+    img.src = thumbnailUrl
+    img.alt = ''
+    img.className = 'size-full object-cover'
+    thumb.appendChild(img)
+  }
+  if (kind === 'video') thumb.appendChild(buildPlayOverlay(doc))
+  return thumb
+}
 
 function buildChip(
   doc: Document,
   name: string,
-  kind: MentionToken['kind'] | undefined,
+  token: MentionToken | undefined,
 ): HTMLSpanElement {
+  const kind = token?.kind
   const chip = doc.createElement('span')
   chip.setAttribute(MENTION_ATTR, name)
   chip.setAttribute('contenteditable', 'false')
-  chip.className = cn(CHIP_BASE, kind ? CHIP_FILL[kind] : 'bg-node-panel-inner')
-  chip.textContent = `@${name}`
+  chip.className = cn(
+    CHIP_BASE,
+    kind ? CHIP_FILL[kind] : 'bg-node-panel-inner',
+    kind ? 'pl-0.5 pr-1.5' : 'px-1.5',
+  )
+  if (kind) chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
+  const label = doc.createElement('span')
+  label.className = 'mention-chip-label leading-none'
+  label.textContent = `@${name}`
+  chip.appendChild(label)
   return chip
 }
 
@@ -103,7 +175,7 @@ function renderInto(
   el: HTMLElement,
   value: string,
   knownNames: readonly string[],
-  kindByName: ReadonlyMap<string, MentionToken['kind']>,
+  tokenByName: ReadonlyMap<string, MentionToken>,
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
@@ -111,7 +183,9 @@ function renderInto(
     if (segment.type === 'text') {
       el.appendChild(doc.createTextNode(segment.text))
     } else {
-      el.appendChild(buildChip(doc, segment.name, kindByName.get(segment.name)))
+      el.appendChild(
+        buildChip(doc, segment.name, tokenByName.get(segment.name)),
+      )
     }
   }
 }
@@ -220,12 +294,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       () => tokens.map((token) => token.name).filter((name) => name.length > 0),
       [tokens],
     )
-    const kindByName = useMemo(
+    const tokenByName = useMemo(
       () =>
         new Map(
           tokens
             .filter((token) => token.name.length > 0)
-            .map((token) => [token.name, token.kind] as const),
+            .map((token) => [token.name, token] as const),
         ),
       [tokens],
     )
@@ -237,9 +311,9 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       if (value === lastValueRef.current) return
       const el = editorRef.current
       if (!el) return
-      renderInto(el, value, knownNames, kindByName)
+      renderInto(el, value, knownNames, tokenByName)
       lastValueRef.current = value
-    }, [value, isComposing, knownNames, kindByName])
+    }, [value, isComposing, knownNames, tokenByName])
 
     const emit = () => {
       const el = editorRef.current
@@ -258,7 +332,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           el.focus()
           insertNodeAtCaret(
             el,
-            buildChip(el.ownerDocument, name, kindByName.get(name)),
+            buildChip(el.ownerDocument, name, tokenByName.get(name)),
           )
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
@@ -280,7 +354,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [kindByName],
+      [tokenByName],
     )
 
     return (

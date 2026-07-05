@@ -3574,6 +3574,14 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
+      "cameraGrammar": {
+        "label": "カメラ文法",
+        "groups": {
+          "size": "サイズ",
+          "angle": "アングル",
+          "move": "動き"
+        }
+      },
       "modelRail": {
         "label": "モデル",
         "ready": "自分のキー",
@@ -3587,7 +3595,8 @@
         "background": "背景",
         "shot": "ショット",
         "voice": "ボイス",
-        "video": "参照動画"
+        "video": "参照動画",
+        "keyframe": "キーフレーム"
       },
       "departments": {
         "character": "キャラクター",
@@ -3608,6 +3617,7 @@
         "emptyDept": "参照なし · キャンバスで接続後に表示",
         "slotBadgeVideo": "動{n}",
         "videoAutoHint": "参照動画は接続に従って自動送信されます。挿入は不要です",
+        "keyframeHint": "先頭/末尾フレームは接続に従って自動送信されます。挿入は不要です",
         "voiceNotReadyHint": "参照音声が未アップロード/未選択 — 今回の生成では送信されません",
         "voiceBadge": "音色：{name}",
         "addVoice": "「{name}」に音色を追加",

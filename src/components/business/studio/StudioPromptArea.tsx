@@ -1127,6 +1127,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             <ImageAttachmentPreviewStrip
               entries={imageUpload.referenceEntries}
               previewAlt={tImageChip('label')}
+              previewLabel={(index) =>
+                tImageChip('previewReferenceImage', { index })
+              }
+              previewDescription={tImageChip('previewReferenceDescription')}
+              previewCloseLabel={tImageChip('closeReferencePreview')}
               removeLabel={(index) =>
                 tImageChip('removeReferenceImage', { index })
               }

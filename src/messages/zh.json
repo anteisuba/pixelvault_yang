@@ -3102,7 +3102,8 @@
       "reChoose": "返回图片",
       "character": "角色",
       "background": "背景",
-      "shot": "镜头"
+      "shot": "镜头",
+      "closeup": "特写"
     },
     "addMenuHelpers": {
       "composer": "写下创作想法，作为工作流的起点。",
@@ -3578,7 +3579,8 @@
         "character": "角色",
         "background": "场景",
         "shot": "镜头",
-        "video": "视频"
+        "video": "视频",
+        "closeup": "特写"
       },
       "cameraGrammar": {
         "label": "运镜语法",
@@ -3602,7 +3604,8 @@
         "shot": "镜头",
         "voice": "声音",
         "video": "参考视频",
-        "keyframe": "首尾帧"
+        "keyframe": "首尾帧",
+        "closeup": "特写"
       },
       "departments": {
         "character": "角色",

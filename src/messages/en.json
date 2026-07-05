@@ -3102,7 +3102,8 @@
       "reChoose": "Back to image roles",
       "character": "Character",
       "background": "Background",
-      "shot": "Shot"
+      "shot": "Shot",
+      "closeup": "Close-up"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
@@ -3578,7 +3579,8 @@
         "character": "Character",
         "background": "Scene",
         "shot": "Shot",
-        "video": "Video"
+        "video": "Video",
+        "closeup": "Closeup"
       },
       "cameraGrammar": {
         "label": "Camera grammar",
@@ -3602,7 +3604,8 @@
         "shot": "Shot",
         "voice": "Voice",
         "video": "Reference video",
-        "keyframe": "Keyframe"
+        "keyframe": "Keyframe",
+        "closeup": "Close-up"
       },
       "departments": {
         "character": "Character",

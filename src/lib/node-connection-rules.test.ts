@@ -27,6 +27,58 @@ describe('canConnectNodeTypes', () => {
     ).toBe(true)
   })
 
+  it('allows the closeup→character 1-hop (§9 B) into legacy + unified character', () => {
+    // image[closeup] → legacy characterImage
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.characterImage,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.closeup,
+      ),
+    ).toBe(true)
+    // image[closeup] → unified image[character]
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.image,
+        NODE_IMAGE_ROLE_IDS.character,
+        NODE_IMAGE_ROLE_IDS.closeup,
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects a closeup source anywhere but a character target', () => {
+    // closeup is NOT a direct visual reference — it only feeds a character, so
+    // a closeup→seedance / closeup→shot edge (which harvest would silently drop)
+    // is rejected outright.
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.seedance,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.closeup,
+      ),
+    ).toBe(false)
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.shot,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.closeup,
+      ),
+    ).toBe(false)
+    // A non-closeup, non-voice source must not connect into a character.
+    expect(
+      canConnectNodeTypes(
+        NODE_TYPE_IDS.image,
+        NODE_TYPE_IDS.characterImage,
+        undefined,
+        NODE_IMAGE_ROLE_IDS.background,
+      ),
+    ).toBe(false)
+  })
+
   it('routes the unified image node by role', () => {
     // image (any role) → seedance reference, mirroring the legacy image types.
     expect(

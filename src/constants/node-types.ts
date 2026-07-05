@@ -53,12 +53,20 @@ export const NODE_IMAGE_MODEL_NODE_TYPES = [
  * Each role maps 1:1 onto a legacy per-role image type and drives the node's
  * default field set, empty-state copy, accent, and seedance-harvest treatment
  * (character/background/shot → visual reference, frame → keyframe).
+ *
+ * `closeup` (cast-redesign §9 B, V2-4) is a face-detail sub-reference of a
+ * character: it wires INTO a character node (`closeup → character`, the same
+ * 1-hop pattern as `voice → character`), NOT directly into a video, and rides
+ * image_urls when the character is harvested. It reuses the character family
+ * for presentation (see NODE_IMAGE_ROLE_TO_LEGACY_TYPE) but is NOT offered as a
+ * top-level canvas role — it's spawned from a character's identity group.
  */
 export const NODE_IMAGE_ROLE_IDS = {
   character: 'character',
   background: 'background',
   shot: 'shot',
   frame: 'frame',
+  closeup: 'closeup',
 } as const
 
 export const NODE_IMAGE_ROLES = [
@@ -66,6 +74,7 @@ export const NODE_IMAGE_ROLES = [
   NODE_IMAGE_ROLE_IDS.background,
   NODE_IMAGE_ROLE_IDS.shot,
   NODE_IMAGE_ROLE_IDS.frame,
+  NODE_IMAGE_ROLE_IDS.closeup,
 ] as const
 
 export type NodeImageRole = (typeof NODE_IMAGE_ROLES)[number]
@@ -84,6 +93,11 @@ export const NODE_IMAGE_ROLE_TO_LEGACY_TYPE: Record<
   [NODE_IMAGE_ROLE_IDS.background]: NODE_TYPE_IDS.backgroundImage,
   [NODE_IMAGE_ROLE_IDS.shot]: NODE_TYPE_IDS.shot,
   [NODE_IMAGE_ROLE_IDS.frame]: NODE_TYPE_IDS.frameImage,
+  // closeup is a character-family face detail → reuses the character card /
+  // badge / accent / inspector (its name field is characterName like a
+  // character). Its distinct behavior (1-hop into character, not a direct video
+  // reference) lives in the graph/harvest layer, not presentation.
+  [NODE_IMAGE_ROLE_IDS.closeup]: NODE_TYPE_IDS.characterImage,
 }
 
 export const NODE_VIDEO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.seedance] as const
@@ -239,6 +253,9 @@ export const NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE: Record<
     NODE_WORKFLOW_FIELD_IDS.camera,
     NODE_WORKFLOW_FIELD_IDS.prompt,
   ],
+  // closeup mirrors the character field set — just a prompt describing the
+  // face-detail; identity binding is structural (its edge into the character).
+  [NODE_IMAGE_ROLE_IDS.closeup]: [NODE_WORKFLOW_FIELD_IDS.prompt],
 } as const
 
 export const NODE_MEDIA_KIND_BY_NODE_TYPE = {

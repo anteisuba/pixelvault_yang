@@ -3102,7 +3102,8 @@
       "reChoose": "画像の用途に戻る",
       "character": "キャラクター",
       "background": "背景",
-      "shot": "ショット"
+      "shot": "ショット",
+      "closeup": "クローズアップ"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
@@ -3578,7 +3579,8 @@
         "character": "キャラクター",
         "background": "シーン",
         "shot": "ショット",
-        "video": "動画"
+        "video": "動画",
+        "closeup": "クローズアップ"
       },
       "cameraGrammar": {
         "label": "カメラ文法",
@@ -3602,7 +3604,8 @@
         "shot": "ショット",
         "voice": "ボイス",
         "video": "参照動画",
-        "keyframe": "キーフレーム"
+        "keyframe": "キーフレーム",
+        "closeup": "クローズアップ"
       },
       "departments": {
         "character": "キャラクター",

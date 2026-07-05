@@ -1087,7 +1087,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         // node.data.characterName/backgroundName/shotName (not in
         // NODE_WORKFLOW_FIELD_IDS, which only covers prompt-builder fields).
         const roleNameField =
-          input.role === NODE_IMAGE_ROLE_IDS.character
+          input.role === NODE_IMAGE_ROLE_IDS.character ||
+          input.role === NODE_IMAGE_ROLE_IDS.closeup
             ? 'characterName'
             : input.role === NODE_IMAGE_ROLE_IDS.background
               ? 'backgroundName'

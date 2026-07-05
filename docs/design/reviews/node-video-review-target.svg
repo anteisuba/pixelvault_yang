@@ -1,0 +1,164 @@
+<svg viewBox="0 0 1240 840" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1240" height="840" fill="#141519"/>
+
+  <!-- ============ header ============ -->
+  <text x="24" y="42" fill="#e8e9ee" font-size="20" font-weight="700">目标形态 — 视频节点详情面板重构（P0 范围示意）</text>
+  <text x="24" y="66" fill="#6b7180" font-size="11">原则：画布图结构仍是唯一事实源；槽位只是「以本节点为焦点的上游投影」，不把参考塞进 node.data 内联数组</text>
+
+  <!-- ============ main wireframe: two-column panel ============ -->
+  <rect x="24" y="90" width="740" height="580" rx="16" fill="#1e2027" stroke="#363a45"/>
+
+  <!-- header bar with mode echo -->
+  <rect x="40" y="104" width="708" height="34" rx="8" fill="#2a2d36"/>
+  <text x="54" y="126" fill="#e8e9ee" font-size="12">画布 / 视频生成</text>
+  <rect x="200" y="110" width="196" height="22" rx="11" fill="#1d2b33"/>
+  <text x="298" y="125" text-anchor="middle" fill="#7fb8d8" font-size="10">模式回显：参考生视频 · 图2 视频1 音频1</text>
+  <rect x="694" y="110" width="44" height="22" rx="11" fill="#173427"/>
+  <text x="716" y="125" text-anchor="middle" fill="#34d399" font-size="10">完成</text>
+
+  <!-- left column: media -->
+  <text x="40" y="166" fill="#9aa0ad" font-size="11" font-weight="700">媒体列</text>
+  <rect x="40" y="176" width="330" height="188" rx="10" fill="#0e0f12" stroke="#363a45"/>
+  <polygon points="192,258 192,284 216,271" fill="#4a4f5c"/>
+  <text x="205" y="350" text-anchor="middle" fill="#6b7180" font-size="10">视频预览（可折叠为小窗）</text>
+
+  <!-- version strip -->
+  <text x="40" y="392" fill="#9aa0ad" font-size="10" font-weight="600">版本历史（F6）</text>
+  <rect x="40" y="400" width="72" height="46" rx="8" fill="#2a2d36" stroke="#34d399" stroke-width="2"/>
+  <text x="76" y="428" text-anchor="middle" fill="#34d399" font-size="10">v3 当前</text>
+  <rect x="120" y="400" width="72" height="46" rx="8" fill="#2a2d36"/>
+  <text x="156" y="428" text-anchor="middle" fill="#8b8f9c" font-size="10">v2</text>
+  <rect x="200" y="400" width="72" height="46" rx="8" fill="#2a2d36"/>
+  <text x="236" y="428" text-anchor="middle" fill="#8b8f9c" font-size="10">v1</text>
+  <text x="40" y="466" fill="#5a5f6c" font-size="9">点选切换「当前输出」，下游 harvest 跟随</text>
+
+  <!-- generating state note -->
+  <rect x="40" y="482" width="330" height="60" rx="10" fill="#2a2d36"/>
+  <text x="54" y="504" fill="#c6c9d2" font-size="10" font-weight="600">生成中（F7）：已耗时 0:42 · ⏹ 取消</text>
+  <line x1="54" y1="518" x2="356" y2="518" stroke="#363a45" stroke-width="4" stroke-linecap="round"/>
+  <line x1="54" y1="518" x2="180" y2="518" stroke="#34d399" stroke-width="4" stroke-linecap="round"/>
+  <text x="54" y="536" fill="#5a5f6c" font-size="9">可关面板离开，卡片继续显示状态（jobId 轮询已有，surface 即可）</text>
+
+  <!-- right column: ops -->
+  <text x="394" y="166" fill="#9aa0ad" font-size="11" font-weight="700">操作列</text>
+
+  <!-- reference slots -->
+  <text x="394" y="184" fill="#c6c9d2" font-size="10" font-weight="600">参考素材槽位（F1/F2）</text>
+  <text x="748" y="184" text-anchor="end" fill="#6b7180" font-size="9">图 2/9 · 视频 1/3 · 音频 1/3</text>
+
+  <rect x="394" y="192" width="62" height="62" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <rect x="394" y="238" width="30" height="16" rx="4" fill="#141519"/>
+  <text x="409" y="250" text-anchor="middle" fill="#c6c9d2" font-size="9">图1</text>
+  <text x="425" y="222" text-anchor="middle" fill="#8b8f9c" font-size="9">缩略图</text>
+
+  <rect x="464" y="192" width="62" height="62" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <rect x="464" y="238" width="30" height="16" rx="4" fill="#141519"/>
+  <text x="479" y="250" text-anchor="middle" fill="#c6c9d2" font-size="9">图2</text>
+  <text x="495" y="222" text-anchor="middle" fill="#8b8f9c" font-size="9">缩略图</text>
+
+  <rect x="534" y="192" width="62" height="62" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <rect x="534" y="238" width="38" height="16" rx="4" fill="#141519"/>
+  <text x="553" y="250" text-anchor="middle" fill="#c6c9d2" font-size="9">视频1</text>
+  <text x="565" y="222" text-anchor="middle" fill="#8b8f9c" font-size="9">▶</text>
+
+  <rect x="604" y="192" width="62" height="62" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <rect x="604" y="238" width="38" height="16" rx="4" fill="#141519"/>
+  <text x="623" y="250" text-anchor="middle" fill="#c6c9d2" font-size="9">音频1</text>
+  <text x="635" y="222" text-anchor="middle" fill="#8b8f9c" font-size="9">♪</text>
+
+  <rect x="674" y="192" width="62" height="62" rx="8" fill="none" stroke="#4a4f5c" stroke-dasharray="5 4"/>
+  <text x="705" y="218" text-anchor="middle" fill="#9aa0ad" font-size="14">＋</text>
+  <text x="705" y="236" text-anchor="middle" fill="#6b7180" font-size="8">上传 / 素材库</text>
+  <text x="705" y="248" text-anchor="middle" fill="#6b7180" font-size="8">/ 粘贴</text>
+
+  <text x="394" y="276" fill="#5a5f6c" font-size="9">编号 = 实际发送顺序；可拖拽排序 / 单槽禁用；超限条目置灰 ⚠ 不发送（不静默丢）</text>
+
+  <!-- prompt -->
+  <text x="394" y="302" fill="#c6c9d2" font-size="10" font-weight="600">生成提示词</text>
+  <rect x="394" y="310" width="354" height="88" rx="8" fill="#2a2d36"/>
+  <text x="406" y="330" fill="#8b8f9c" font-size="10">参考〈视频1〉中的动作与镜头语言，将 @弗洛洛…</text>
+  <text x="406" y="348" fill="#8b8f9c" font-size="10">〈图片1〉坐在椅子上…</text>
+  <!-- chips row -->
+  <rect x="394" y="406" width="64" height="20" rx="10" fill="#1e2027" stroke="#4a4f5c"/>
+  <text x="426" y="420" text-anchor="middle" fill="#c6c9d2" font-size="9">@弗洛洛</text>
+  <rect x="466" y="406" width="64" height="20" rx="10" fill="#1e2027" stroke="#4a4f5c"/>
+  <text x="498" y="420" text-anchor="middle" fill="#c6c9d2" font-size="9">〈图片1〉</text>
+  <rect x="538" y="406" width="56" height="20" rx="10" fill="#173427"/>
+  <text x="566" y="420" text-anchor="middle" fill="#34d399" font-size="9">✨ 增强</text>
+  <rect x="602" y="406" width="146" height="20" rx="10" fill="#1e2027" stroke="#4a4f5c"/>
+  <text x="675" y="420" text-anchor="middle" fill="#c6c9d2" font-size="9">模板 ▾（画风锁定 / 肢体逻辑…）</text>
+  <text x="394" y="442" fill="#5a5f6c" font-size="9">chips 插入的编号与槽位同一套（F3）；增强走已有 enhance + 运镜语法模块（F8）</text>
+
+  <!-- params one line -->
+  <text x="394" y="468" fill="#c6c9d2" font-size="10" font-weight="600">参数（一行放下，不再折叠）</text>
+  <rect x="394" y="476" width="122" height="26" rx="8" fill="#2a2d36"/>
+  <circle cx="408" cy="489" r="3.5" fill="#34d399"/>
+  <text x="418" y="493" fill="#e8e9ee" font-size="10">Seedance · 快速 ▾</text>
+  <rect x="524" y="476" width="70" height="26" rx="8" fill="#2a2d36"/>
+  <text x="559" y="493" text-anchor="middle" fill="#e8e9ee" font-size="10">时长 自动</text>
+  <rect x="602" y="476" width="58" height="26" rx="8" fill="#2a2d36"/>
+  <text x="631" y="493" text-anchor="middle" fill="#e8e9ee" font-size="10">720p</text>
+  <rect x="668" y="476" width="52" height="26" rx="8" fill="#2a2d36"/>
+  <text x="694" y="493" text-anchor="middle" fill="#e8e9ee" font-size="10">9:16</text>
+  <text x="394" y="522" fill="#5a5f6c" font-size="9">时长开关文案缩为「自动」，auto 态收起滑杆（U3）；点任一 chip 展开对应控件</text>
+
+  <!-- sticky action bar -->
+  <rect x="40" y="560" width="708" height="52" rx="12" fill="#22252e" stroke="#34d399"/>
+  <text x="58" y="592" fill="#9aa0ad" font-size="11">参考生视频 · 图2 视频1 音频1</text>
+  <rect x="540" y="570" width="192" height="32" rx="10" fill="#34d399"/>
+  <text x="636" y="591" text-anchor="middle" fill="#10221a" font-size="12" font-weight="700">生成视频</text>
+  <text x="40" y="636" fill="#34d399" font-size="10">▲ sticky 常驻操作栏（U2）：模式回显（F4）＋ 生成按钮，永不沉底</text>
+  <text x="40" y="656" fill="#5a5f6c" font-size="9">禁用时按钮文字显示原因（现有行为保留）；成本/积分显示已搁置（owner 2026-07-04）</text>
+
+  <!-- ============ right side: autospawn mechanism ============ -->
+  <rect x="790" y="90" width="426" height="330" rx="16" fill="#1e2027" stroke="#363a45"/>
+  <text x="810" y="122" fill="#e8e9ee" font-size="14" font-weight="700">快速通道机制：槽位 autospawn（F1 核心）</text>
+
+  <rect x="810" y="140" width="180" height="40" rx="10" fill="#2a2d36"/>
+  <text x="900" y="164" text-anchor="middle" fill="#c6c9d2" font-size="11">槽位内 上传 / 选素材</text>
+  <line x1="990" y1="160" x2="1022" y2="160" stroke="#34d399" stroke-width="2"/>
+  <polygon points="1022,155 1032,160 1022,165" fill="#34d399"/>
+  <rect x="1036" y="140" width="160" height="40" rx="10" fill="#173427" stroke="#34d399"/>
+  <text x="1116" y="158" text-anchor="middle" fill="#34d399" font-size="10">自动创建上游节点</text>
+  <text x="1116" y="172" text-anchor="middle" fill="#34d399" font-size="10">＋ 自动连线 ＋ 自动命名</text>
+
+  <!-- mini canvas sketch -->
+  <rect x="810" y="200" width="386" height="150" rx="12" fill="#141519" stroke="#363a45"/>
+  <text x="826" y="222" fill="#5a5f6c" font-size="9">画布（图结构 = 唯一事实源）</text>
+
+  <rect x="830" y="234" width="86" height="30" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <text x="873" y="253" text-anchor="middle" fill="#c6c9d2" font-size="9">图片·参考图1</text>
+  <rect x="830" y="272" width="86" height="30" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <text x="873" y="291" text-anchor="middle" fill="#c6c9d2" font-size="9">视频参考1</text>
+  <rect x="830" y="310" width="86" height="30" rx="8" fill="#2a2d36" stroke="#4a4f5c"/>
+  <text x="873" y="329" text-anchor="middle" fill="#c6c9d2" font-size="9">声音·音频1</text>
+
+  <path d="M916 249 C 980 249, 990 275, 1040 275" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <path d="M916 287 L 1040 287" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <path d="M916 325 C 980 325, 990 299, 1040 299" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+
+  <rect x="1040" y="258" width="140" height="60" rx="10" fill="#2a2d36" stroke="#34d399"/>
+  <text x="1110" y="284" text-anchor="middle" fill="#e8e9ee" font-size="11" font-weight="600">视频生成节点</text>
+  <text x="1110" y="302" text-anchor="middle" fill="#8b8f9c" font-size="9">槽位区 = 上游投影</text>
+
+  <text x="810" y="376" fill="#c6c9d2" font-size="10">· 连线党与槽位党看到的永远是同一张图；删槽位 = 删连线（节点保留＋toast）</text>
+  <text x="810" y="396" fill="#c6c9d2" font-size="10">· autospawn 已有先例：scriptDocToGraph 的投影生成节点</text>
+
+  <!-- shell animation canon -->
+  <rect x="790" y="440" width="426" height="120" rx="16" fill="#1e2027" stroke="#363a45"/>
+  <text x="810" y="472" fill="#e8e9ee" font-size="14" font-weight="700">外壳动画 canon（U1）</text>
+  <text x="810" y="498" fill="#c6c9d2" font-size="10">· 顶栏：收起 = 向上淡出，pill 淡入；展开反向</text>
+  <text x="810" y="518" fill="#c6c9d2" font-size="10">· 助手 dock：桌面自右侧滑入滑出，移动端自底部</text>
+  <text x="810" y="538" fill="#c6c9d2" font-size="10">· 统一复用 NodeDetailPanel 的 motionTransition('slow') ＋ useReducedMotion</text>
+
+  <!-- non-goals -->
+  <rect x="790" y="576" width="426" height="120" rx="16" fill="#1e2027" stroke="#f87171" stroke-dasharray="6 4"/>
+  <text x="810" y="608" fill="#f87171" font-size="14" font-weight="700">明确不做</text>
+  <text x="810" y="634" fill="#c6c9d2" font-size="10">✕ 不抄竞品五 tab 模式切换 —— mode-by-input 更少决策，只补回显</text>
+  <text x="810" y="654" fill="#c6c9d2" font-size="10">✕ 不把参考塞进 node.data 内联数组 —— 会造出两套事实，长期分叉</text>
+  <text x="810" y="674" fill="#c6c9d2" font-size="10">✕ 卡片不做编辑 —— 卡片=只读摘要（加缩略图队列），编辑一律进详情面板</text>
+
+  <!-- bottom note -->
+  <text x="24" y="700" fill="#9aa0ad" font-size="11" font-weight="600">卡片侧（U4/U5）：</text>
+  <text x="130" y="700" fill="#6b7180" font-size="11">参考缩略图小队列（≤4＋「+N」）替代文字 chips；空态改为「上传参考图 / 素材库 / 连接上游」三入口前门</text>
+</svg>

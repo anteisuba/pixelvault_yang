@@ -1,0 +1,181 @@
+<svg viewBox="0 0 1400 1420" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1400" height="1420" fill="#0b0b0a"/>
+  <text x="40" y="34" fill="#e8e6de" font-size="20" font-weight="700">视频详情面板 v4 · 最终汇总（B 骨架 + A 监视器语言 + OSD 修正，taste-skill 工艺过审）</text>
+  <text x="40" y="56" fill="#6f6a63" font-size="11">这不再是 A/B/C 三选一——三张对比图收敛为这一张定稿；范围声明：本面板是密集工作台，非 landing page，仅套用 taste-skill 的跨场景工艺纪律</text>
+
+  <!-- ============ MAIN PANEL ============ -->
+  <rect x="20" y="80" width="900" height="1320" rx="20" fill="#1a1a1a" stroke="#2a2a2a"/>
+
+  <!-- header 44px slate -->
+  <rect x="44" y="104" width="852" height="48" rx="10" fill="#0e0e0d" stroke="#2a2a2a"/>
+  <line x1="60" y1="138" x2="66" y2="118" stroke="#e8e6de" stroke-width="1.5"/>
+  <line x1="66" y1="138" x2="72" y2="118" stroke="#e8e6de" stroke-width="1.5"/>
+  <line x1="72" y1="138" x2="78" y2="118" stroke="#e8e6de" stroke-width="1.5"/>
+  <text x="92" y="122" fill="#6f6a63" font-size="7">PROJECT</text>
+  <text x="92" y="136" fill="#e8e6de" font-size="12" font-weight="700">弗洛洛 MV</text>
+  <text x="230" y="122" fill="#6f6a63" font-size="7">SHOT</text>
+  <text x="230" y="136" fill="#e8e6de" font-size="12" font-weight="700">视频生成</text>
+  <rect x="350" y="116" width="40" height="20" rx="4" fill="#2a2a2a"/><text x="370" y="130" text-anchor="middle" fill="#e8e6de" font-size="10" font-family="monospace" font-weight="700">V03</text>
+  <text x="410" y="122" fill="#6f6a63" font-size="7">MODE</text>
+  <text x="410" y="136" fill="#e8e6de" font-size="11" font-weight="600">参考生 · 图3 视频1 音频1</text>
+  <circle cx="812" cy="129" r="4" fill="#10b981"/><text x="822" y="132" fill="#9a988f" font-size="8" font-family="monospace">READY</text>
+
+  <!-- monitor hero -->
+  <rect x="44" y="164" width="852" height="264" rx="8" fill="#0b0b0a" stroke="#2a2a2a"/>
+  <rect x="44" y="164" width="852" height="14" fill="#050505"/>
+  <rect x="44" y="414" width="852" height="14" fill="#050505"/>
+  <path d="M60 192 L60 180 L72 180" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <path d="M868 180 L880 180 L880 192" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <path d="M60 400 L60 412 L72 412" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <path d="M868 412 L880 412 L880 400" fill="none" stroke="#4a4f5c" stroke-width="1.5"/>
+  <polygon points="440,278 440,314 472,296" fill="#4a4f5c"/>
+  <text x="72" y="204" fill="#9a988f" font-size="9" font-family="monospace">A-03 · TAKE 03</text>
+  <circle cx="806" cy="200" r="4" fill="#e5484d"/><text x="816" y="204" fill="#e8e6de" font-size="11" font-family="monospace" font-weight="700">TC 00:00:42</text>
+
+  <!-- OSD summary bar -->
+  <rect x="44" y="388" width="852" height="30" rx="10" fill="#1a1a1a" opacity="0.94" stroke="#2a2a2a"/>
+  <circle cx="60" cy="403" r="4" fill="#10b981"/>
+  <text x="70" y="407" fill="#e8e6de" font-size="10" font-weight="600">Seedance · 标准</text>
+  <text x="192" y="407" fill="#c6c9d2" font-size="10" font-family="monospace">10秒</text>
+  <text x="238" y="407" fill="#c6c9d2" font-size="10" font-family="monospace">720P</text>
+  <rect x="284" y="392" width="52" height="22" rx="6" fill="#2a2a2a" stroke="#e8e6de"/>
+  <text x="310" y="407" text-anchor="middle" fill="#e8e6de" font-size="9" font-family="monospace" font-weight="700">4:3 ▾</text>
+  <text x="808" y="407" text-anchor="end" fill="#6f6a63" font-size="9">点击任一段编辑</text>
+  <polygon points="298,414 310,414 304,422" fill="#1a1a1a"/>
+
+  <!-- aspect expanded (OSD fix) -->
+  <rect x="44" y="424" width="852" height="100" rx="10" fill="#202020" stroke="#4a4f5c"/>
+  <text x="60" y="440" fill="#9a988f" font-size="9" font-weight="600">画幅比例（现有控件 1:1 复用，不因入 OSD 而阉割）</text>
+  <g>
+    <rect x="60" y="448" width="52" height="64" rx="8" fill="#2a2a2a"/>
+    <text x="86" y="470" text-anchor="middle" fill="#9a988f" font-size="12">✳</text>
+    <text x="86" y="500" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">自动</text>
+    <rect x="120" y="448" width="52" height="64" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="135" y="474" width="22" height="12" fill="none" stroke="#6f6a63"/>
+    <text x="146" y="500" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">16:9</text>
+    <rect x="180" y="448" width="52" height="64" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="199" y="462" width="14" height="26" fill="none" stroke="#6f6a63"/>
+    <text x="206" y="500" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">9:16</text>
+    <rect x="240" y="448" width="52" height="64" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="256" y="468" width="20" height="20" fill="none" stroke="#6f6a63"/>
+    <text x="266" y="500" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">1:1</text>
+    <rect x="300" y="448" width="52" height="64" rx="8" fill="#2a2a2a" stroke="#e8e6de" stroke-width="1.5"/>
+    <rect x="315" y="467" width="22" height="17" fill="none" stroke="#e8e6de" stroke-width="1.5"/>
+    <text x="326" y="500" text-anchor="middle" fill="#e8e6de" font-size="8" font-weight="700">4:3</text>
+    <rect x="360" y="448" width="52" height="64" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="377" y="460" width="17" height="22" fill="none" stroke="#6f6a63"/>
+    <text x="386" y="500" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">3:4</text>
+  </g>
+  <text x="430" y="474" fill="#6f6a63" font-size="8">同理：点「10秒」展开滑杆＋自动开关；点「720P」展开三 pill；</text>
+  <text x="430" y="488" fill="#6f6a63" font-size="8">点「Seedance·标准」展开两级品牌/变体/供应商 rail——均原样复用</text>
+  <text x="430" y="504" fill="#34d399" font-size="8" font-weight="600">同一时间只保留一个展开态，点新段自动收起上一个</text>
+
+  <!-- 生成音频 always-visible -->
+  <rect x="44" y="540" width="852" height="44" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="60" y="567" fill="#e8e6de" font-size="11" font-weight="600">生成音频</text>
+  <rect x="812" y="550" width="44" height="24" rx="12" fill="#3a3e4a"/>
+  <circle cx="844" cy="562" r="10" fill="#e8e6de"/>
+
+  <!-- 种子 collapsed -->
+  <rect x="44" y="596" width="852" height="30" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="60" y="616" fill="#9a988f" font-size="10">种子</text>
+  <text x="812" y="616" text-anchor="end" fill="#c6c9d2" font-size="10">随机 ▾</text>
+
+  <!-- dept 2x2 grid -->
+  <rect x="44" y="642" width="422" height="56" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="44" y="642" width="4" height="56" fill="#6f6a86"/>
+  <text x="60" y="664" fill="#e8e6de" font-size="10" font-weight="600">选角 · 角色</text>
+  <text x="60" y="682" fill="#6f6a63" font-size="8">2 项引用</text>
+  <rect x="474" y="642" width="422" height="56" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="474" y="642" width="4" height="56" fill="#5f7a73"/>
+  <text x="490" y="664" fill="#e8e6de" font-size="10" font-weight="600">置景 · 背景</text>
+  <text x="490" y="682" fill="#6f6a63" font-size="8">1 项引用</text>
+  <rect x="44" y="706" width="422" height="56" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="44" y="706" width="4" height="56" fill="#647386"/>
+  <text x="60" y="728" fill="#e8e6de" font-size="10" font-weight="600">动作 · 参考视频</text>
+  <text x="60" y="746" fill="#6f6a63" font-size="8">1/3</text>
+  <rect x="474" y="706" width="422" height="56" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="474" y="706" width="4" height="56" fill="#856a72"/>
+  <text x="490" y="728" fill="#e8e6de" font-size="10" font-weight="600">配音 · 声音</text>
+  <text x="490" y="746" fill="#6f6a63" font-size="8">1/3</text>
+
+  <!-- version filmstrip -->
+  <text x="44" y="786" fill="#9a988f" font-size="9" font-weight="600">版本（F6）</text>
+  <rect x="44" y="794" width="140" height="46" rx="6" fill="#202020" stroke="#2a2a2a"/>
+  <text x="114" y="820" text-anchor="middle" fill="#6f6a63" font-size="7" font-family="monospace">V01</text>
+  <rect x="192" y="794" width="140" height="46" rx="6" fill="#202020" stroke="#2a2a2a"/>
+  <text x="262" y="820" text-anchor="middle" fill="#6f6a63" font-size="7" font-family="monospace">V02</text>
+  <rect x="340" y="794" width="140" height="46" rx="6" fill="#202020" stroke="#e8e6de" stroke-width="1.5"/>
+  <text x="410" y="816" text-anchor="middle" fill="#e8e6de" font-size="7" font-family="monospace" font-weight="700">V03</text>
+  <text x="410" y="828" text-anchor="middle" fill="#34d399" font-size="6" font-weight="700">当前</text>
+  <rect x="488" y="794" width="120" height="46" rx="6" fill="none" stroke="#4a4f5c" stroke-dasharray="3 3"/>
+  <text x="548" y="820" text-anchor="middle" fill="#6f6a63" font-size="11">＋ 新版本</text>
+
+  <!-- prompt hero -->
+  <text x="44" y="874" fill="#9a988f" font-size="10" font-weight="600">生成提示词</text>
+  <rect x="720" y="856" width="56" height="20" rx="10" fill="#173427"/><text x="748" y="870" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">✨ 增强</text>
+  <rect x="784" y="856" width="72" height="20" rx="10" fill="#1a1a1a" stroke="#4a4f5c"/><text x="820" y="870" text-anchor="middle" fill="#c6c9d2" font-size="8" font-weight="600">运镜语法 ▾</text>
+  <text x="856" y="870" text-anchor="end" fill="#6f6a63" font-size="8">⤢ 全屏</text>
+  <rect x="44" y="884" width="852" height="196" rx="10" fill="#202020" stroke="#2a2a2a"/>
+  <text x="60" y="906" fill="#c6c9d2" font-size="10">参考〈视频1〉中的动作与镜头语言，将</text>
+  <rect x="60" y="914" width="66" height="18" rx="9" fill="#6f6a86" opacity="0.3"/><text x="93" y="927" text-anchor="middle" fill="#e8e6de" font-size="8" font-weight="600">@弗洛洛</text>
+  <text x="132" y="927" fill="#c6c9d2" font-size="10">中浅绿色长麻花辫、戴酒红色贝雷帽的二次元少女……</text>
+  <text x="60" y="950" fill="#c6c9d2" font-size="10">少女</text>
+  <rect x="86" y="940" width="52" height="18" rx="9" fill="#856a72" opacity="0.3"/><text x="112" y="953" text-anchor="middle" fill="#e8e6de" font-size="8" font-weight="600">〈图1〉</text>
+  <text x="144" y="953" fill="#c6c9d2" font-size="10">坐在椅子上，神情苦恼郁闷……</text>
+  <text x="60" y="976" fill="#c6c9d2" font-size="10">画面快速切换多个室内场景……</text>
+  <text x="60" y="1064" fill="#6f6a63" font-size="8">来源提示：由剧本第 3 镜生成 · 点击回跳助手对应分镜</text>
+
+  <!-- sticky action bar -->
+  <rect x="44" y="1100" width="852" height="60" rx="12" fill="#22252e" stroke="#10b981"/>
+  <text x="60" y="1136" fill="#9a988f" font-size="10">场记：参考生 · 选角2 · 置景1 · 动作1 · 配音1</text>
+  <rect x="720" y="1112" width="152" height="36" rx="9" fill="#10b981"/>
+  <text x="796" y="1135" text-anchor="middle" fill="#10221a" font-size="12" font-weight="700">生成视频</text>
+  <!-- pressed state ghost overlay (taste-skill tactile feedback fix) -->
+  <rect x="720" y="1116" width="152" height="36" rx="9" fill="none" stroke="#10b981" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
+  <text x="796" y="1170" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">按下态（新增）：scale(0.98) + translateY(1px)，120ms fast，虚线圈=按下时按钮实际位移</text>
+
+  <text x="44" y="1210" fill="#5a5f6c" font-size="8">部门条 hover 出现 删/⊘ · 拖拽排序落点插入线；版本帧 hover 提亮+放大 1.02；槽位/tile/pill 全部同享此按下态规则，不只按钮独享</text>
+
+  <!-- ============ RIGHT: taste-skill craft audit ============ -->
+  <rect x="960" y="80" width="400" height="700" rx="16" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="980" y="108" fill="#e8e6de" font-size="13" font-weight="700">Taste-Skill 工艺审查</text>
+  <text x="980" y="126" fill="#6f6a63" font-size="9">范围声明：面板是密集工作台，非 landing page；只挪用跨场景通用工艺纪律，不套营销版式规则</text>
+
+  <text x="980" y="154" fill="#34d399" font-size="10" font-weight="700">✓ 适用且已满足</text>
+  <text x="980" y="174" fill="#c6c9d2" font-size="9">单一强调色锁定：全程只有 --node-success 绿一处彩色</text>
+  <text x="980" y="192" fill="#c6c9d2" font-size="9">无 AI-purple / 霓虹光晕（canvas-baseline D1 已清）</text>
+  <text x="980" y="210" fill="#c6c9d2" font-size="9">圆角体系锁定：面板16/卡10-12/输入10/槽位8/胶囊999</text>
+  <text x="980" y="228" fill="#c6c9d2" font-size="9">图标库统一用 lucide-react（项目既有依赖，适用例外条款）</text>
+  <text x="980" y="246" fill="#c6c9d2" font-size="9">Empty/Loading/Error 三态齐全（S2/生成中/错误条）</text>
+  <text x="980" y="264" fill="#c6c9d2" font-size="9">reduced-motion 全局归零（v4 §6 已写）</text>
+  <text x="980" y="282" fill="#c6c9d2" font-size="9">深色主题唯一，不出现浅色区块反色</text>
+
+  <text x="980" y="312" fill="#f5a623" font-size="10" font-weight="700">⚠ 适用且本次补齐</text>
+  <text x="980" y="332" fill="#c6c9d2" font-size="9">按下态触觉反馈：此前四张图只有 hover/展开，无按下</text>
+  <text x="980" y="350" fill="#c6c9d2" font-size="9">→ 本图右下角标注：scale(0.98)+translateY(1px)，120ms</text>
+  <text x="980" y="368" fill="#c6c9d2" font-size="9">→ 规则推广到槽位/tile/pill，不只生成按钮独享</text>
+  <text x="980" y="386" fill="#c6c9d2" font-size="9">按钮对比度：#10b981 底配 #0b0b0a 字，需实测 ≥4.5:1</text>
+  <text x="980" y="404" fill="#c6c9d2" font-size="9">（视觉估算约 6.2:1，达标；上代码前用真实渲染复核）</text>
+
+  <text x="980" y="434" fill="#6f6a63" font-size="10" font-weight="700">✕ 明确不适用（skill 自身声明的范围外）</text>
+  <text x="980" y="454" fill="#8b8f9c" font-size="9">bento 网格 / hero 首屏规则 / marquee 跑马灯</text>
+  <text x="980" y="472" fill="#8b8f9c" font-size="9">「Trusted by」logo 墙 / eyebrow 计数上限</text>
+  <text x="980" y="490" fill="#8b8f9c" font-size="9">营销文案密度规则（≤25 词副标题等）</text>
+  <text x="980" y="508" fill="#8b8f9c" font-size="9">em-dash 禁令——中文「——」是正常破折号，不是英文 LLM 惯用crutch，不清</text>
+
+  <text x="980" y="538" fill="#e8e6de" font-size="10" font-weight="700">本图地位</text>
+  <text x="980" y="558" fill="#c6c9d2" font-size="9">不再是 A/B/C 三选一——这是收敛后的定稿汇总：</text>
+  <text x="980" y="576" fill="#c6c9d2" font-size="9">B 双栏骨架 + A 监视器语言 + OSD 展开修正 + 按下态补丁</text>
+  <text x="980" y="594" fill="#c6c9d2" font-size="9">四份合一，作为 §7 开发落地的唯一视觉基准</text>
+
+  <text x="980" y="624" fill="#e8e6de" font-size="10" font-weight="700">下一步</text>
+  <text x="980" y="644" fill="#c6c9d2" font-size="9">§7 已锁定三文件：VideoComposer.tsx / VideoDetailBody.tsx</text>
+  <text x="980" y="662" fill="#c6c9d2" font-size="9">/ NodeDetailPanel.tsx；零新增 token，按此图逐块实现</text>
+  <text x="980" y="690" fill="#5a5f6c" font-size="8">建议顺序：C1 场记条 → C4/C5 监视器+OSD → C2 部门条</text>
+  <text x="980" y="704" fill="#5a5f6c" font-size="8">→ C6 提示词 → C7 操作栏（按下态贯穿全部，最后统一验收）</text>
+
+  <rect x="960" y="800" width="400" height="60" rx="12" fill="#141519" stroke="#2a2a2a"/>
+  <text x="980" y="826" fill="#9a988f" font-size="9" font-weight="600">尺寸</text>
+  <text x="980" y="844" fill="#c6c9d2" font-size="8">面板 900×1320（≈56rem 内容区）· 监视器 852×264 · 部门卡 422×56 · 版本帧 140×46</text>
+</svg>

@@ -1,0 +1,214 @@
+<svg viewBox="0 0 1400 1460" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1400" height="1460" fill="#0b0b0a"/>
+  <text x="40" y="34" fill="#e8e6de" font-size="20" font-weight="700">提示词引用 Token · 组件重新设计 v2（封面图机制对照代码现状修正）</text>
+  <text x="40" y="56" fill="#6f6a63" font-size="11">v1 的音频 token 画了个通用波形图标——但项目里音频其实有真实可配置封面，这版按代码现状重新核对三种媒体类型各自的封面来源</text>
+
+  <!-- ============ GROUNDING BOX：封面机制核对 ============ -->
+  <rect x="40" y="76" width="1320" height="130" rx="12" fill="#141519" stroke="#4a4f5c"/>
+  <text x="60" y="98" fill="#e8e6de" font-size="12" font-weight="700">封面机制核对（对照代码现状，非假设）</text>
+  <text x="60" y="120" fill="#c6c9d2" font-size="10"><tspan font-weight="700" fill="#e8e6de">图片</tspan> —— 本身即封面：mediaUrl 直接就是缩略图，不需要额外机制</text>
+  <text x="60" y="140" fill="#c6c9d2" font-size="10"><tspan font-weight="700" fill="#e8e6de">视频</tspan> —— Generation.thumbnailUrl 由 provider 回调自动生成（execution-callback.service.ts），但<tspan fill="#f5a623" font-weight="700">目前没有流入 node.data</tspan>，节点 &lt;video&gt; 标签也没设 poster —— 这是需要补的现状缺口，不是凭空发明</text>
+  <text x="60" y="160" fill="#c6c9d2" font-size="10"><tspan font-weight="700" fill="#e8e6de">声音</tspan> —— 已有完整机制：<tspan font-family="monospace">voiceCoverImage</tspan>（系统音色自带头像）/ <tspan font-family="monospace">voiceReferenceCoverImage</tspan>（参考音频跟随素材库封面，来自</text>
+  <text x="60" y="178" fill="#c6c9d2" font-size="10"><tspan font-family="monospace">generation.previewUrl ?? generation.thumbnailUrl</tspan>，由 AssetDetailSheet.tsx「设置封面」按钮配置，PATCH <tspan font-family="monospace">/generations/{'{'}id{'}'}/cover</tspan> 写入 previewUrl）</text>
+  <text x="60" y="196" fill="#34d399" font-size="9" font-weight="600">结论：token 里的音频缩略图应优先显示这份真实头像；波形图标只在完全没配置封面时才当兜底，不是默认画法（v1 的错误）</text>
+
+  <!-- ============ SECTION A: Token 解剖 ============ -->
+  <text x="40" y="222" fill="#e8e6de" font-size="14" font-weight="700">① Token 解剖 —— 四种引用类型 + 漂移态，各自的视觉身份</text>
+
+  <!-- Row 1: 角色 -->
+  <rect x="40" y="242" width="560" height="80" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="56" y="262" fill="#6f6a63" font-size="8">句中效果</text>
+  <text x="56" y="290" fill="#c6c9d2" font-size="11">……将</text>
+  <g>
+    <rect x="92" y="276" width="98" height="26" rx="13" fill="#6f6a86" opacity="0.16" stroke="#6f6a86" stroke-width="1"/>
+    <circle cx="106" cy="289" r="10" fill="#6f6a86" opacity="0.5"/>
+    <circle cx="106" cy="285" r="3.4" fill="#e8e6de" opacity="0.85"/>
+    <path d="M100 295 Q106 289 112 295" fill="none" stroke="#e8e6de" stroke-width="1.6" opacity="0.85"/>
+    <text x="150" y="294" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@弗洛洛</text>
+  </g>
+  <text x="196" y="290" fill="#c6c9d2" font-size="11">中浅绿色长麻花辫……</text>
+
+  <rect x="620" y="242" width="740" height="80" rx="8" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="636" y="262" fill="#9a988f" font-size="9" font-weight="600">角色 token —— 封面 = mediaUrl 本身（图片自带，无需额外机制）</text>
+  <rect x="700" y="272" width="120" height="30" rx="15" fill="#6f6a86" opacity="0.16" stroke="#6f6a86" stroke-width="1.2"/>
+  <circle cx="716" cy="287" r="11" fill="#6f6a86" opacity="0.55"/>
+  <circle cx="716" cy="283" r="3.8" fill="#e8e6de" opacity="0.9"/>
+  <path d="M709 294 Q716 287 723 294" fill="none" stroke="#e8e6de" stroke-width="1.8" opacity="0.9"/>
+  <text x="770" y="292" text-anchor="middle" fill="#e8e6de" font-size="11" font-weight="700">@弗洛洛</text>
+  <text x="850" y="292" fill="#6f6a63" font-size="8">port 色环 = --node-port-character；名字非编号</text>
+
+  <!-- Row 2: 背景 -->
+  <rect x="40" y="334" width="560" height="80" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="56" y="354" fill="#6f6a63" font-size="8">句中效果</text>
+  <text x="56" y="382" fill="#c6c9d2" font-size="11">场景设置在</text>
+  <g>
+    <rect x="128" y="368" width="86" height="26" rx="6" fill="#5f7a73" opacity="0.16" stroke="#5f7a73" stroke-width="1"/>
+    <rect x="136" y="375" width="18" height="14" rx="3" fill="#5f7a73" opacity="0.5"/>
+    <path d="M136 386 L142 379 L148 384 L154 375" fill="none" stroke="#e8e6de" stroke-width="1.3" opacity="0.85"/>
+    <text x="184" y="386" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@客厅</text>
+  </g>
+  <text x="222" y="382" fill="#c6c9d2" font-size="11">，暖光灯……</text>
+
+  <rect x="620" y="334" width="740" height="80" rx="8" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="636" y="354" fill="#9a988f" font-size="9" font-weight="600">背景 token —— 同角色，封面 = mediaUrl 本身；方形圆角裁切区别于角色的圆形</text>
+  <rect x="700" y="366" width="106" height="30" rx="7" fill="#5f7a73" opacity="0.16" stroke="#5f7a73" stroke-width="1.2"/>
+  <rect x="708" y="373" width="20" height="16" rx="3" fill="#5f7a73" opacity="0.55"/>
+  <path d="M708 386 L715 378 L722 384 L730 373" fill="none" stroke="#e8e6de" stroke-width="1.4" opacity="0.9"/>
+  <text x="765" y="386" text-anchor="middle" fill="#e8e6de" font-size="11" font-weight="700">@客厅</text>
+  <text x="850" y="386" fill="#6f6a63" font-size="8">port 色 = --node-port-background #5f7a73</text>
+
+  <!-- Row 3: 动作/参考视频（修正：标注 thumbnailUrl 缺口） -->
+  <rect x="40" y="426" width="560" height="80" rx="8" fill="#202020" stroke="#f5a623" stroke-dasharray="4 3"/>
+  <text x="56" y="446" fill="#f5a623" font-size="8" font-weight="700">封面待接入</text>
+  <text x="56" y="474" fill="#c6c9d2" font-size="11">参考</text>
+  <g>
+    <rect x="90" y="460" width="94" height="26" rx="6" fill="#647386" opacity="0.16" stroke="#647386" stroke-width="1"/>
+    <rect x="98" y="467" width="18" height="14" rx="3" fill="#647386" opacity="0.5"/>
+    <polygon points="103,470 103,478 112,474" fill="#e8e6de" opacity="0.9"/>
+    <text x="152" y="478" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@视频1</text>
+  </g>
+  <text x="188" y="474" fill="#c6c9d2" font-size="11">中的动作与镜头语言……</text>
+
+  <rect x="620" y="426" width="740" height="80" rx="8" fill="#241f14" stroke="#f5a623"/>
+  <text x="636" y="446" fill="#f5a623" font-size="9" font-weight="700">动作/参考视频 token —— 封面应来自 Generation.thumbnailUrl（provider 回调自动生成首帧海报）</text>
+  <rect x="700" y="458" width="106" height="30" rx="6" fill="#647386" opacity="0.16" stroke="#647386" stroke-width="1.2"/>
+  <rect x="708" y="465" width="20" height="16" rx="3" fill="#647386" opacity="0.55"/>
+  <polygon points="714,468 714,478 724,473" fill="#e8e6de" opacity="0.9"/>
+  <text x="765" y="478" text-anchor="middle" fill="#e8e6de" font-size="11" font-weight="700">@视频1</text>
+  <text x="850" y="472" fill="#6f6a63" font-size="8">⚠ 现状：thumbnailUrl 未流入 node.data，&lt;video&gt; 也没设 poster——</text>
+  <text x="850" y="486" fill="#6f6a63" font-size="8">需补：node.data 加 videoThumbnailUrl 字段 + video poster 属性接上，非纯 UI 改动</text>
+
+  <!-- Row 4: 配音/声音（修正：封面优先，波形只是兜底） -->
+  <rect x="40" y="518" width="560" height="80" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="56" y="538" fill="#6f6a63" font-size="8">句中效果（已配置封面）</text>
+  <text x="56" y="566" fill="#c6c9d2" font-size="11">音色参考</text>
+  <g>
+    <rect x="126" y="552" width="94" height="26" rx="13" fill="#856a72" opacity="0.16" stroke="#856a72" stroke-width="1"/>
+    <circle cx="140" cy="565" r="10" fill="#856a72" opacity="0.55"/>
+    <circle cx="140" cy="561" r="3.4" fill="#e8e6de" opacity="0.85"/>
+    <path d="M134 571 Q140 565 146 571" fill="none" stroke="#e8e6de" stroke-width="1.5" opacity="0.85"/>
+    <text x="186" y="570" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@Audio1</text>
+  </g>
+  <text x="224" y="566" fill="#c6c9d2" font-size="11">，语速偏快……</text>
+
+  <rect x="620" y="518" width="740" height="80" rx="8" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="636" y="538" fill="#34d399" font-size="9" font-weight="700">配音/声音 token —— 优先显示真实头像（v1 的通用波形图标是错的，已修正）</text>
+  <rect x="700" y="550" width="112" height="30" rx="15" fill="#856a72" opacity="0.16" stroke="#856a72" stroke-width="1.2"/>
+  <circle cx="716" cy="565" r="11" fill="#856a72" opacity="0.55"/>
+  <circle cx="716" cy="561" r="3.8" fill="#e8e6de" opacity="0.85"/>
+  <path d="M709 572 Q716 565 723 572" fill="none" stroke="#e8e6de" stroke-width="1.7" opacity="0.85"/>
+  <text x="765" y="570" text-anchor="middle" fill="#e8e6de" font-size="11" font-weight="700">@Audio1</text>
+  <line x1="812" y1="565" x2="850" y2="565" stroke="#4a4f5c" stroke-width="1" stroke-dasharray="2 2"/>
+  <text x="856" y="550" fill="#6f6a63" font-size="8">头像来源：voiceCoverImage（系统音色）</text>
+  <text x="856" y="564" fill="#6f6a63" font-size="8">/ voiceReferenceCoverImage（参考音频，</text>
+  <text x="856" y="578" fill="#6f6a63" font-size="8">跟随素材库「设置封面」，已在 VoiceDetailBody.tsx 实现）</text>
+
+  <!-- Row 4b: 声音 fallback state -->
+  <rect x="40" y="606" width="560" height="60" rx="8" fill="#202020" stroke="#2a2a2a" stroke-dasharray="3 3" opacity="0.85"/>
+  <text x="56" y="624" fill="#6f6a63" font-size="8">兜底态（未配置任何封面时）</text>
+  <g>
+    <rect x="126" y="632" width="94" height="24" rx="12" fill="#856a72" opacity="0.16" stroke="#856a72" stroke-width="1"/>
+    <circle cx="140" cy="644" r="9" fill="#856a72" opacity="0.6"/>
+    <rect x="135" y="641" width="2" height="6" fill="#e8e6de"/><rect x="139" y="638" width="2" height="12" fill="#e8e6de"/><rect x="143" y="642" width="2" height="4" fill="#e8e6de"/>
+    <text x="186" y="648" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="700">@Audio1</text>
+  </g>
+  <text x="240" y="647" fill="#6f6a63" font-size="8">← 波形图标只在这里出现，是兜底不是默认</text>
+
+  <!-- Row 5: 漂移态 -->
+  <text x="40" y="695" fill="#6f6a63" font-size="9" font-weight="600">漂移态（改名后）示例：</text>
+  <rect x="40" y="704" width="560" height="70" rx="8" fill="#202020" stroke="#f5a623" stroke-dasharray="4 3"/>
+  <text x="56" y="722" fill="#c6c9d2" font-size="11">……将</text>
+  <g>
+    <rect x="92" y="730" width="106" height="26" rx="13" fill="#6f6a86" opacity="0.12" stroke="#f5a623" stroke-width="1.2" stroke-dasharray="3 2"/>
+    <circle cx="106" cy="743" r="10" fill="#6f6a86" opacity="0.35"/>
+    <text x="155" y="748" text-anchor="middle" fill="#c6c9d2" font-size="10" font-weight="700">@参考图1</text>
+    <circle cx="192" cy="735" r="6" fill="#f5a623"/>
+    <text x="192" y="738" text-anchor="middle" fill="#0b0b0a" font-size="8" font-weight="700">!</text>
+  </g>
+  <text x="214" y="748" fill="#c6c9d2" font-size="11">中……</text>
+
+  <rect x="620" y="704" width="740" height="70" rx="8" fill="#241f14" stroke="#f5a623"/>
+  <text x="636" y="724" fill="#f5a623" font-size="9" font-weight="700">⚠ 徽标长在 token 本体上，hover 提示"已改名为『弗洛洛』，点击替换"</text>
+  <text x="636" y="748" fill="#c6c9d2" font-size="9">沿用 §10 ⑥ 的改名漂移逻辑，只是把提示从独立 banner 升级为长在 token 上的徽标，三种媒体类型共用同一套漂移处理</text>
+
+  <!-- ============ SECTION B: hover 预览 ============ -->
+  <text x="40" y="812" fill="#e8e6de" font-size="14" font-weight="700">② hover 预览浮层 —— 不确定引用是谁时，悬停放大核实，不用回头翻部门条</text>
+  <rect x="40" y="830" width="1320" height="200" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="60" y="856" fill="#c6c9d2" font-size="11">……将</text>
+  <rect x="96" y="842" width="106" height="26" rx="13" fill="#6f6a86" opacity="0.25" stroke="#e8e6de" stroke-width="1.2"/>
+  <circle cx="110" cy="855" r="10" fill="#6f6a86" opacity="0.6"/>
+  <circle cx="110" cy="851" r="3.4" fill="#e8e6de"/>
+  <path d="M104 861 Q110 855 116 861" fill="none" stroke="#e8e6de" stroke-width="1.6"/>
+  <text x="158" y="860" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@弗洛洛</text>
+  <text x="60" y="892" fill="#5a5f6c" font-size="8">↑ hover 中（描边提亮，200ms fast）</text>
+
+  <path d="M150 840 L150 812" stroke="#4a4f5c" stroke-width="1" stroke-dasharray="2 2"/>
+  <rect x="60" y="910" width="320" height="110" rx="12" fill="#202020" stroke="#4a4f5c"/>
+  <polygon points="150,902 165,902 157,914" fill="#202020" stroke="#4a4f5c"/>
+  <rect x="76" y="924" width="72" height="72" rx="10" fill="#0b0b0a" stroke="#2a2a2a"/>
+  <circle cx="112" cy="960" r="24" fill="#6f6a86" opacity="0.5"/>
+  <circle cx="112" cy="950" r="8" fill="#e8e6de" opacity="0.85"/>
+  <path d="M96 976 Q112 960 128 976" fill="none" stroke="#e8e6de" stroke-width="2.4" opacity="0.85"/>
+  <text x="164" y="942" fill="#e8e6de" font-size="12" font-weight="700">弗洛洛</text>
+  <text x="164" y="958" fill="#6f6a63" font-size="9">选角 · 角色引用</text>
+  <text x="164" y="980" fill="#34d399" font-size="8" font-weight="600">点击定位到画布对应节点</text>
+  <text x="164" y="994" fill="#6f6a63" font-size="8">来源：详情面板「选角」部门卡 · 图1</text>
+
+  <text x="440" y="856" fill="#9a988f" font-size="10" font-weight="600">浮层内容规则</text>
+  <text x="440" y="878" fill="#c6c9d2" font-size="9">· 缩略图放大到 72×72（角色/背景=裁切图，视频=thumbnailUrl 首帧，配音=真实头像或兜底波形的放大版）</text>
+  <text x="440" y="896" fill="#c6c9d2" font-size="9">· 名字 + 类型标签（选角/置景/动作/配音），不重复显示编号</text>
+  <text x="440" y="914" fill="#c6c9d2" font-size="9">· 「点击定位到画布对应节点」——把用户从文本带回图结构，双向导航</text>
+  <text x="440" y="932" fill="#c6c9d2" font-size="9">· 漂移态浮层额外一行：「已改名为『新名字』，点击替换」+ 一键替换按钮</text>
+  <text x="440" y="954" fill="#6f6a63" font-size="8">浮层用现有 StudioToolPopoverContent 暗面 chrome，不新起一套弹层样式</text>
+
+  <!-- ============ SECTION C: 插入动效重新设计 ============ -->
+  <text x="40" y="1012" fill="#e8e6de" font-size="14" font-weight="700">③ 插入动效重新设计 —— 从「瞬间出现+色块淡出」升级为「缩略图飞入+落点辉光」</text>
+  <rect x="40" y="1030" width="1320" height="240" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+
+  <text x="60" y="1056" fill="#9a988f" font-size="9" font-weight="600">帧1 · 点击槽位</text>
+  <rect x="60" y="1066" width="52" height="52" rx="8" fill="#2a2a2a" stroke="#e8e6de" stroke-width="1.5"/>
+  <circle cx="86" cy="1092" r="18" fill="#6f6a86" opacity="0.5"/>
+  <rect x="60" y="1122" width="52" height="16" rx="4" fill="#0b0b0a"/>
+  <text x="86" y="1134" text-anchor="middle" fill="#c6c9d2" font-size="8">图1</text>
+
+  <path d="M120 1092 C 220 1050, 340 1050, 420 1110" fill="none" stroke="#6f6a86" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="270" y="1050" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">fly 240ms · ease-standard</text>
+
+  <text x="360" y="1056" fill="#9a988f" font-size="9" font-weight="600">帧2 · 飞行中（缩小 52→16px）</text>
+  <circle cx="420" cy="1110" r="10" fill="#6f6a86" opacity="0.6"/>
+  <circle cx="420" cy="1110" r="16" fill="none" stroke="#6f6a86" opacity="0.3"/>
+
+  <text x="640" y="1056" fill="#9a988f" font-size="9" font-weight="600">帧3 · 落点辉光脉冲</text>
+  <text x="660" y="1116" fill="#c6c9d2" font-size="11">……将</text>
+  <circle cx="722" cy="1110" r="26" fill="none" stroke="#6f6a86" opacity="0.4"/>
+  <circle cx="722" cy="1110" r="18" fill="none" stroke="#6f6a86" opacity="0.6"/>
+  <rect x="698" y="1097" width="106" height="26" rx="13" fill="#6f6a86" opacity="0.3" stroke="#e8e6de" stroke-width="1"/>
+  <circle cx="712" cy="1110" r="9" fill="#6f6a86" opacity="0.7"/>
+  <text x="765" y="1114" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@弗洛洛</text>
+  <text x="820" y="1116" fill="#c6c9d2" font-size="11">中……</text>
+  <text x="660" y="1140" fill="#e8e6de" font-size="9" font-weight="600">glow pulse 200ms（port 色，不是纯灰白闪）</text>
+
+  <line x1="960" y1="1110" x2="1040" y2="1110" stroke="#4a4f5c" stroke-width="1.5"/>
+  <polygon points="1040,1104 1052,1110 1040,1116" fill="#4a4f5c"/>
+  <text x="1096" y="1056" fill="#9a988f" font-size="9" font-weight="600">帧4 · 定格（glow 已褪去，正常态）</text>
+  <text x="1070" y="1116" fill="#c6c9d2" font-size="11">……将</text>
+  <rect x="1120" y="1103" width="106" height="26" rx="13" fill="#6f6a86" opacity="0.16" stroke="#6f6a86" stroke-width="1"/>
+  <circle cx="1134" cy="1116" r="9" fill="#6f6a86" opacity="0.5"/>
+  <text x="1178" y="1120" text-anchor="middle" fill="#e8e6de" font-size="10" font-weight="700">@弗洛洛</text>
+  <text x="1234" y="1116" fill="#c6c9d2" font-size="11">中……</text>
+
+  <text x="60" y="1190" fill="#6f6a63" font-size="9">与旧版「300ms 纯色块淡出」的区别：飞行路径建立"部门卡→文本"的空间连续性（这张具体的图飞进了句子），辉光脉冲用 port 色而非纯灰白，进一步强化"这是哪一类引用"</text>
+  <text x="60" y="1208" fill="#6f6a63" font-size="9">reduced-motion 下：飞行/辉光全部归零，token 直接以定格态出现在光标处（不做位移替代方案，直接跳过动效）</text>
+  <text x="60" y="1234" fill="#5a5f6c" font-size="8">此设计取代 motion-storyboard.svg 第 6 组「槽位插入高亮」；旧的"纯色块 300ms 淡出"方案作废，以本文件为准</text>
+  <text x="60" y="1252" fill="#5a5f6c" font-size="8">动效四帧同样适用于视频/声音槽位，飞入的缩略图内容按①的对应封面来源渲染</text>
+
+  <!-- ============ Rationale ============ -->
+  <rect x="40" y="1284" width="1320" height="164" rx="10" fill="#152219" stroke="#34d399"/>
+  <text x="60" y="1308" fill="#34d399" font-size="12" font-weight="700">为什么升级</text>
+  <text x="60" y="1330" fill="#c6c9d2" font-size="10">· 实体感：token 内嵌真实缩略图/头像，用户扫一眼 prompt 就认得出「@弗洛洛」具体是谁，不必回头核对部门条——这是纯色块版本完全没有的信息量</text>
+  <text x="60" y="1350" fill="#c6c9d2" font-size="10">· 封面来源对照代码，不是凭空设计：图片=自身、视频=Generation.thumbnailUrl（需补接入 node.data 的现状缺口）、声音=voiceCoverImage/voiceReferenceCoverImage（已实现，波形只是没配置时的兜底）</text>
+  <text x="60" y="1370" fill="#c6c9d2" font-size="10">· 漂移态标在 token 本体上：改名后的 ⚠ 角标直接长在出问题的那个 token 上，而不是一条脱离上下文的独立 banner，定位更精准</text>
+  <text x="60" y="1390" fill="#c6c9d2" font-size="10">· 插入动效有空间叙事：缩略图飞入 + 落点辉光，比"瞬间出现+纯色淡出"更能让用户感到"这次点击真的把这张图放进了句子里"</text>
+  <text x="60" y="1414" fill="#6f6a63" font-size="8">色彩零新增：全部沿用 --node-port-* 四色 + node-* 灰阶；圆角/描边/弹层 chrome 均复用现有 token 与组件，不引入新样式系统</text>
+  <text x="60" y="1432" fill="#6f6a63" font-size="8">视频封面缺口是本次核对唯一暴露的真实开发工作项：需在 node.data 加字段并接上 &lt;video poster&gt;，不是纯 UI 改动可以完成</text>
+</svg>

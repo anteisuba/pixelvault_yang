@@ -1,0 +1,162 @@
+<svg viewBox="0 0 1440 1150" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1440" height="1150" fill="#0b0b0a"/>
+  <text x="40" y="34" fill="#e8e6de" font-size="20" font-weight="700">摄制部门条 · 完整交互工作流（放文件 → 提示词引用，第四轮追加）</text>
+  <text x="40" y="56" fill="#6f6a63" font-size="11">聚焦 owner 点名区域：选角/置景/动作/配音四个部门卡。图结构（画布连线）始终是唯一事实源，槽位只是它的投影——放文件即建图，点槽位即写词</text>
+
+  <!-- ============ LANE 1: 放文件 ============ -->
+  <rect x="24" y="80" width="1392" height="330" rx="16" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="44" y="108" fill="#e8e6de" font-size="14" font-weight="700">① 放文件</text>
+  <text x="44" y="126" fill="#6f6a63" font-size="10">空槽位 → 三选一入口 → 自动建图连线 → 槽位回填，全程不需要先手动造节点再拖连线</text>
+
+  <!-- step 1: empty slot -->
+  <rect x="44" y="150" width="300" height="90" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="44" y="150" width="4" height="90" fill="#6f6a86"/>
+  <text x="60" y="172" fill="#e8e6de" font-size="11" font-weight="600">选角 · 角色</text>
+  <text x="60" y="188" fill="#6f6a63" font-size="8">0 项引用</text>
+  <rect x="264" y="176" width="52" height="52" rx="8" fill="none" stroke="#4a4f5c" stroke-dasharray="4 3"/>
+  <text x="290" y="208" text-anchor="middle" fill="#6f6a63" font-size="16">＋</text>
+  <text x="60" y="225" fill="#5a5f6c" font-size="8">① 空槽位：不强制先建节点</text>
+  <text x="180" y="266" text-anchor="middle" fill="#6f6a63" font-size="9">点击 ＋</text>
+  <polygon points="360,196 384,196 372,206" fill="#4a4f5c"/>
+
+  <!-- step 2: popover 3 choices -->
+  <rect x="400" y="150" width="280" height="150" rx="8" fill="#202020" stroke="#4a4f5c"/>
+  <text x="416" y="170" fill="#9a988f" font-size="9" font-weight="600">添加参考（三入口平权）</text>
+  <rect x="416" y="180" width="248" height="34" rx="6" fill="#2a2a2a"/>
+  <text x="428" y="201" fill="#e8e6de" font-size="10">⬆ 上传本地文件</text>
+  <rect x="416" y="220" width="248" height="34" rx="6" fill="#2a2a2a"/>
+  <text x="428" y="241" fill="#e8e6de" font-size="10">▤ 从素材库选</text>
+  <rect x="416" y="260" width="248" height="34" rx="6" fill="#2a2a2a"/>
+  <text x="428" y="281" fill="#e8e6de" font-size="10">⧉ 粘贴（剪贴板）</text>
+  <text x="416" y="130" fill="#5a5f6c" font-size="8" opacity="0"></text>
+  <text x="540" y="316" text-anchor="middle" fill="#6f6a63" font-size="9">② 选定任一入口</text>
+  <polygon points="700,220 724,220 712,230" fill="#4a4f5c"/>
+
+  <!-- step 3: autospawn mini canvas -->
+  <rect x="740" y="150" width="330" height="180" rx="8" fill="#0b0b0a" stroke="#2a2a2a"/>
+  <text x="756" y="170" fill="#9a988f" font-size="9" font-weight="600">③ autospawn：画布自动建图</text>
+  <rect x="756" y="230" width="110" height="34" rx="6" fill="#2a2a2a" stroke="#4a4f5c"/>
+  <text x="811" y="251" text-anchor="middle" fill="#c6c9d2" font-size="9">视频生成节点</text>
+  <rect x="936" y="182" width="118" height="36" rx="6" fill="#2a2a2a" stroke="#6f6a86" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="995" y="197" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">角色·参考图1</text>
+  <text x="995" y="209" text-anchor="middle" fill="#6f6a63" font-size="7">（新建，默认命名）</text>
+  <path d="M936 200 C 900 200, 890 247, 866 247" fill="none" stroke="#6f6a86" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="756" y="304" fill="#6f6a63" font-size="8">自动创建对应类型上游节点 ＋ 自动连线 ＋ 自动命名（默认名可改）</text>
+  <text x="756" y="318" fill="#34d399" font-size="8" font-weight="600">图结构＝唯一事实源，槽位只是投影（F1 定稿，本轮不变）</text>
+  <text x="1030" y="360" text-anchor="middle" fill="#6f6a63" font-size="9">④ 建图完成，槽位回填</text>
+  <polygon points="1088,285 1088,309 1104,297" fill="#4a4f5c" transform="rotate(90 1088 297)"/>
+
+  <!-- step 4: slot populated -->
+  <rect x="1096" y="150" width="300" height="90" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="1096" y="150" width="4" height="90" fill="#6f6a86"/>
+  <text x="1112" y="172" fill="#e8e6de" font-size="11" font-weight="600">选角 · 角色</text>
+  <text x="1112" y="188" fill="#6f6a63" font-size="8">1 项引用</text>
+  <rect x="1316" y="164" width="52" height="52" rx="8" fill="#2a2a2a"/>
+  <rect x="1316" y="200" width="30" height="16" rx="4" fill="#0b0b0a"/>
+  <text x="1331" y="212" text-anchor="middle" fill="#c6c9d2" font-size="9">图1</text>
+  <text x="1112" y="222" fill="#c6c9d2" font-size="9">参考图1</text>
+  <text x="1112" y="234" fill="#5a5f6c" font-size="7">（可点名字改名）</text>
+
+  <!-- delete vs disable distinction callout -->
+  <rect x="44" y="270" width="1026" height="122" rx="10" fill="#141519" stroke="#2a2a2a"/>
+  <text x="60" y="292" fill="#e8e6de" font-size="10" font-weight="700">删除 vs 禁用：两个不同操作，图标必须区分</text>
+  <rect x="60" y="304" width="52" height="52" rx="8" fill="#2a2a2a"/>
+  <rect x="60" y="340" width="30" height="16" rx="4" fill="#0b0b0a"/>
+  <text x="75" y="352" text-anchor="middle" fill="#c6c9d2" font-size="9">图1</text>
+  <rect x="96" y="308" width="20" height="20" rx="10" fill="#0b0b0a" opacity="0.85"/>
+  <text x="106" y="322" text-anchor="middle" fill="#e8e6de" font-size="11" font-weight="700">×</text>
+  <text x="130" y="322" fill="#c6c9d2" font-size="9" font-weight="600">× 删连线</text>
+  <text x="130" y="338" fill="#6f6a63" font-size="8">断开这条参考连线，</text>
+  <text x="130" y="352" fill="#6f6a63" font-size="8">节点保留 + toast 提示</text>
+  <rect x="330" y="304" width="52" height="52" rx="8" fill="#2a2a2a" opacity="0.45"/>
+  <rect x="330" y="340" width="30" height="16" rx="4" fill="#0b0b0a" opacity="0.45"/>
+  <text x="345" y="352" text-anchor="middle" fill="#6f6a63" font-size="9">图1</text>
+  <circle cx="396" cy="318" r="10" fill="#0b0b0a" opacity="0.85"/>
+  <text x="396" y="322" text-anchor="middle" fill="#e8e6de" font-size="9">⊘</text>
+  <text x="420" y="322" fill="#c6c9d2" font-size="9" font-weight="600">⊘ 临时禁用</text>
+  <text x="420" y="338" fill="#6f6a63" font-size="8">连线还在，本次生成</text>
+  <text x="420" y="352" fill="#6f6a63" font-size="8">不发送这份参考</text>
+  <text x="640" y="322" fill="#6f6a63" font-size="9">拖拽排序：落点显示 2px edge-active 插入线，编号 = 实际发送顺序</text>
+  <text x="640" y="340" fill="#6f6a63" font-size="9">超限（如第 10 张）：置灰 + ⚠「不会发送」，不静默丢（详见 F2）</text>
+  <text x="640" y="368" fill="#5a5f6c" font-size="8">这三条本轮不重复展开，与①–④/⑤–⑦是同一部门条上的正交能力</text>
+
+  <!-- ============ LANE 2: 如何引用 ============ -->
+  <rect x="24" y="424" width="1392" height="704" rx="16" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="44" y="452" fill="#e8e6de" font-size="14" font-weight="700">② 如何引用在提示词中</text>
+  <text x="44" y="470" fill="#6f6a63" font-size="10">单击槽位即写词 → 改名漂移诚实提示 → 发送时自动生成图例（不占用户可编辑文本空间）</text>
+
+  <!-- step 5: click slot inserts token -->
+  <text x="44" y="502" fill="#9a988f" font-size="10" font-weight="600">⑤ 单击已回填槽位＝在提示词光标处插入 @名字</text>
+  <rect x="44" y="512" width="330" height="90" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <rect x="44" y="512" width="4" height="90" fill="#6f6a86"/>
+  <text x="60" y="534" fill="#e8e6de" font-size="11" font-weight="600">选角 · 角色</text>
+  <rect x="264" y="526" width="52" height="52" rx="8" fill="#2a2a2a" stroke="#e8e6de" stroke-width="1.5"/>
+  <rect x="264" y="562" width="30" height="16" rx="4" fill="#0b0b0a"/>
+  <text x="279" y="574" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="700">图1</text>
+  <text x="60" y="588" fill="#34d399" font-size="8" font-weight="600">← 点击（按下 scale.98）</text>
+  <polygon points="392,548 416,548 404,558" fill="#4a4f5c"/>
+
+  <rect x="432" y="512" width="480" height="90" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="448" y="532" fill="#9a988f" font-size="9" font-weight="600">生成提示词（光标处插入）</text>
+  <text x="448" y="554" fill="#c6c9d2" font-size="10">参考〈视频1〉的动作与镜头语言，将</text>
+  <rect x="448" y="562" width="72" height="18" rx="9" fill="#6f6a86" opacity="0.35" stroke="#6f6a86"/>
+  <text x="484" y="575" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="700">@参考图1</text>
+  <text x="530" y="575" fill="#c6c9d2" font-size="10">中……</text>
+  <text x="448" y="592" fill="#5a5f6c" font-size="8">插入点 300ms 高亮褪去，提示"刚才这里被改了"</text>
+
+  <!-- step 6: rename drift -->
+  <text x="44" y="644" fill="#9a988f" font-size="10" font-weight="600">⑥ 改名漂移（本次补的诚实边界）：改名不会自动同步进已写好的文本</text>
+  <rect x="44" y="656" width="330" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="60" y="676" fill="#c6c9d2" font-size="9">用户之后在画布/详情面板把</text>
+  <text x="60" y="692" fill="#c6c9d2" font-size="9">节点名从「参考图1」改成「弗洛洛」</text>
+  <rect x="60" y="704" width="290" height="40" rx="6" fill="#2a2a2a" stroke="#6f6a86"/>
+  <text x="76" y="728" fill="#e8e6de" font-size="10">选角 · 角色 → <tspan font-weight="700">弗洛洛</tspan>（图1）</text>
+  <polygon points="392,700 416,700 404,710" fill="#f5a623"/>
+
+  <rect x="432" y="656" width="480" height="110" rx="8" fill="#241f14" stroke="#f5a623"/>
+  <text x="448" y="678" fill="#f5a623" font-size="10" font-weight="700">⚠ 内联提示（不阻塞生成）</text>
+  <text x="448" y="700" fill="#c6c9d2" font-size="10">文本里仍是旧名字：</text>
+  <text x="448" y="716" fill="#8b8f9c" font-size="9">"……将 @参考图1 中浅绿色长麻花辫……"</text>
+  <rect x="448" y="726" width="330" height="26" rx="6" fill="#2a2a2a" stroke="#f5a623"/>
+  <text x="463" y="743" fill="#e8e6de" font-size="9">@参考图1 已改名为「弗洛洛」，点击替换</text>
+  <text x="448" y="762" fill="#6f6a63" font-size="8">点了才替换文本；不点也不拦生成——诚实暴露"静态文本≠活节点"这条边界</text>
+
+  <!-- step 7: legend at send time -->
+  <text x="44" y="806" fill="#9a988f" font-size="10" font-weight="600">⑦ 发送时自动生成引用图例（只读，不占用户可编辑的 textarea 空间）</text>
+  <rect x="44" y="818" width="500" height="130" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="60" y="838" fill="#c6c9d2" font-size="9">用户可编辑的 prompt（textarea 里看到的）：</text>
+  <rect x="60" y="846" width="468" height="60" rx="6" fill="#141519"/>
+  <text x="72" y="866" fill="#8b8f9c" font-size="9">参考〈视频1〉的动作与镜头语言，将 @弗洛洛</text>
+  <text x="72" y="882" fill="#8b8f9c" font-size="9">中浅绿色长麻花辫……坐在椅子上……</text>
+  <text x="60" y="928" fill="#5a5f6c" font-size="8">用户只看到、只编辑这一段——图例不混进来污染这里</text>
+
+  <rect x="564" y="818" width="400" height="130" rx="8" fill="#141519" stroke="#4a4f5c" stroke-dasharray="4 3"/>
+  <text x="580" y="838" fill="#9a988f" font-size="9" font-weight="600">实际发给模型的 payload（自动追加，只读）：</text>
+  <text x="580" y="860" fill="#8b8f9c" font-size="9">…（用户 prompt 原文）…</text>
+  <rect x="580" y="870" width="368" height="58" rx="6" fill="#202020" stroke="#2a2a2a"/>
+  <text x="592" y="888" fill="#c6c9d2" font-size="9" font-family="monospace">图1＝角色「弗洛洛」</text>
+  <text x="592" y="904" fill="#c6c9d2" font-size="9" font-family="monospace">图2＝背景「客厅」</text>
+  <text x="580" y="944" fill="#34d399" font-size="8" font-weight="600">复用 shot 侧已有 buildShotReferenceLegend 模式，按槽位实际顺序生成</text>
+
+  <rect x="984" y="818" width="392" height="130" rx="8" fill="#202020" stroke="#2a2a2a"/>
+  <text x="1000" y="838" fill="#9a988f" font-size="9" font-weight="600">生成按钮旁：查看发送内容（可展开）</text>
+  <rect x="1000" y="848" width="360" height="28" rx="14" fill="#2a2a2a" stroke="#4a4f5c"/>
+  <text x="1180" y="866" text-anchor="middle" fill="#c6c9d2" font-size="9">👁 查看发送内容 ▾</text>
+  <text x="1000" y="896" fill="#6f6a63" font-size="8">展开后原样显示⑦左侧的完整 payload（prompt + 图例），</text>
+  <text x="1000" y="910" fill="#6f6a63" font-size="8">避免自动追加的部分变成又一个黑盒</text>
+  <rect x="1000" y="918" width="360" height="30" rx="8" fill="#22252e" stroke="#10b981"/>
+  <text x="1180" y="938" text-anchor="middle" fill="#10221a" font-size="10" font-weight="700" fill-opacity="0">生成视频</text>
+  <text x="1180" y="938" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">［生成视频］按钮就在旁边</text>
+
+  <!-- design rationale -->
+  <rect x="44" y="968" width="1332" height="130" rx="10" fill="#152219" stroke="#34d399"/>
+  <text x="60" y="990" fill="#34d399" font-size="11" font-weight="700">为什么这样设计</text>
+  <text x="60" y="1010" fill="#c6c9d2" font-size="9">· 不强制手动命名——autospawn 兜底默认名，用户不改名字也能正常引用（@参考图1 一样可用），命名只是让 prompt 更好读，不是引用的前提</text>
+  <text x="60" y="1028" fill="#c6c9d2" font-size="9">· 引用永远指向名字，不指向编号——编号只活在自动图例里，改连线顺序不会破坏已经写好的 prompt（v3 合并解决 F3 编号漂移的核心机制，本轮确认没有退化）</text>
+  <text x="60" y="1046" fill="#c6c9d2" font-size="9">· 改名漂移只提示不阻塞——诚实暴露"静态文本 vs 活节点"这条真实技术边界，而不是假装文本会自动跟着变，也不因为这个边界情况就限制用户改名</text>
+  <text x="60" y="1064" fill="#c6c9d2" font-size="9">· 图例只读且可查看——自动生成的部分永远可以在"查看发送内容"里核实，不做黑盒</text>
+  <text x="60" y="1084" fill="#6f6a63" font-size="8">端口色图例：选角 #6f6a86 · 置景 #5f7a73 · 动作/视频 #647386 · 配音/声音 #856a72（贯穿画布连线/端口/部门条左缘，三处同色同义）</text>
+
+  <rect x="44" y="1108" width="1332" height="30" rx="8" fill="#141519" stroke="#2a2a2a"/>
+  <text x="60" y="1128" fill="#6f6a63" font-size="8">动效：插入高亮 300ms 褪去 · 按下 scale(0.98)+translateY(1px) fast120ms · 拖拽插入线 base200ms · 全部走现有 canon，reduced-motion 归零</text>
+</svg>

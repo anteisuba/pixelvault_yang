@@ -1,0 +1,162 @@
+<svg viewBox="0 0 1240 900" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1240" height="900" fill="#141519"/>
+
+  <text x="24" y="42" fill="#e8e9ee" font-size="20" font-weight="700">视觉方向 A「导演台」v3 — 部门条＝引用插入源（三轮反馈已并入）</text>
+  <text x="24" y="66" fill="#6b7180" font-size="11">修订：部门条纯中文 · 按钮保留「生成视频」· 提示词全宽大文本区 · 槽位单击即插入引用（独立 chips 行取消）</text>
+
+  <!-- ============ mock panel ============ -->
+  <rect x="24" y="90" width="740" height="760" rx="16" fill="#1a1a1a" stroke="#2a2a2a"/>
+
+  <!-- slate header (pure Chinese) -->
+  <rect x="40" y="104" width="708" height="52" rx="10" fill="#0e0e0d" stroke="#2a2a2a"/>
+  <text x="58" y="124" fill="#6f6a63" font-size="8" letter-spacing="2">项目</text>
+  <text x="58" y="144" fill="#e8e6de" font-size="13" font-weight="700">弗洛洛 MV</text>
+  <line x1="220" y1="112" x2="220" y2="148" stroke="#2a2a2a"/>
+  <text x="238" y="124" fill="#6f6a63" font-size="8" letter-spacing="2">镜头</text>
+  <text x="238" y="144" fill="#e8e6de" font-size="13" font-weight="700">视频生成</text>
+  <line x1="400" y1="112" x2="400" y2="148" stroke="#2a2a2a"/>
+  <text x="418" y="124" fill="#6f6a63" font-size="8" letter-spacing="2">版本</text>
+  <text x="418" y="144" fill="#e8e6de" font-size="13" font-weight="700">03</text>
+  <line x1="500" y1="112" x2="500" y2="148" stroke="#2a2a2a"/>
+  <text x="518" y="124" fill="#6f6a63" font-size="8" letter-spacing="2">模式（F4 回显）</text>
+  <text x="518" y="144" fill="#e8e6de" font-size="13" font-weight="700">参考生 · 图3 视频1 音频1</text>
+
+  <!-- monitor preview -->
+  <rect x="40" y="172" width="330" height="196" rx="6" fill="#0b0b0a" stroke="#2a2a2a"/>
+  <path d="M52 196 L52 184 L64 184" fill="none" stroke="#6f6a63" stroke-width="2"/>
+  <path d="M346 184 L358 184 L358 196" fill="none" stroke="#6f6a63" stroke-width="2"/>
+  <path d="M52 320 L52 332 L64 332" fill="none" stroke="#6f6a63" stroke-width="2"/>
+  <path d="M346 332 L358 332 L358 320" fill="none" stroke="#6f6a63" stroke-width="2"/>
+  <polygon points="192,244 192,272 218,258" fill="#4a4f5c"/>
+  <circle cx="268" cy="192" r="3.5" fill="#e8e6de"/>
+  <text x="278" y="196" fill="#e8e6de" font-size="10" font-weight="600">TC 00:00:42</text>
+  <text x="278" y="209" fill="#5a5f6c" font-size="8">生成中＝录制（F7）</text>
+  <rect x="41" y="336" width="328" height="31" fill="#141519" opacity="0.88"/>
+  <text x="56" y="356" fill="#c6c9d2" font-size="10" letter-spacing="1">SEEDANCE FAST · 720P · 9:16 · AUTO</text>
+  <text x="354" y="356" text-anchor="end" fill="#5a5f6c" font-size="9">← OSD，点任一段编辑</text>
+
+  <!-- version strip -->
+  <text x="40" y="394" fill="#9a988f" font-size="10" font-weight="600">版本（F6）</text>
+  <g>
+    <rect x="40" y="402" width="76" height="54" rx="6" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="47" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="63" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="79" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="95" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/>
+    <rect x="47" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="63" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="79" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="95" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/>
+    <text x="78" y="434" text-anchor="middle" fill="#6f6a63" font-size="9">版本 01</text>
+  </g>
+  <g>
+    <rect x="124" y="402" width="76" height="54" rx="6" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="131" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="147" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="163" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="179" y="406" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/>
+    <rect x="131" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="147" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="163" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/><rect x="179" y="447" width="8" height="5" rx="1" fill="none" stroke="#4a4f5c"/>
+    <text x="162" y="434" text-anchor="middle" fill="#6f6a63" font-size="9">版本 02</text>
+  </g>
+  <g>
+    <rect x="208" y="402" width="76" height="54" rx="6" fill="#202020" stroke="#e8e6de" stroke-width="1.5"/>
+    <rect x="215" y="406" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="231" y="406" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="247" y="406" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="263" y="406" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/>
+    <rect x="215" y="447" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="231" y="447" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="247" y="447" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/><rect x="263" y="447" width="8" height="5" rx="1" fill="none" stroke="#6f6a63"/>
+    <text x="246" y="434" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="700">版本 03 · 当前</text>
+  </g>
+  <text x="40" y="476" fill="#5a5f6c" font-size="9">齿孔只用描边灰阶；点选切换「当前输出」，下游 harvest 跟随</text>
+
+  <!-- department strips (pure Chinese) -->
+  <text x="394" y="188" fill="#9a988f" font-size="10" font-weight="600">参考素材 · 摄制部门条（F1/F2）</text>
+  <g>
+    <rect x="394" y="196" width="354" height="44" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="394" y="196" width="3" height="44" rx="1.5" fill="#6f6a86"/>
+    <text x="408" y="222" fill="#c6c9d2" font-size="10" font-weight="700">选角 · 角色</text>
+    <rect x="520" y="203" width="30" height="30" rx="5" fill="#2a2a2a"/><text x="535" y="222" text-anchor="middle" fill="#9a988f" font-size="8">图1</text>
+    <rect x="558" y="203" width="30" height="30" rx="5" fill="#2a2a2a"/><text x="573" y="222" text-anchor="middle" fill="#9a988f" font-size="8">图2</text>
+    <rect x="596" y="203" width="30" height="30" rx="5" fill="none" stroke="#4a4f5c" stroke-dasharray="4 3"/><text x="611" y="223" text-anchor="middle" fill="#6f6a63" font-size="12">＋</text>
+    <text x="736" y="222" text-anchor="end" fill="#6b7180" font-size="9">2</text>
+  </g>
+  <g>
+    <rect x="394" y="248" width="354" height="44" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="394" y="248" width="3" height="44" rx="1.5" fill="#5f7a73"/>
+    <text x="408" y="274" fill="#c6c9d2" font-size="10" font-weight="700">置景 · 背景</text>
+    <rect x="520" y="255" width="30" height="30" rx="5" fill="#2a2a2a"/><text x="535" y="274" text-anchor="middle" fill="#9a988f" font-size="8">图3</text>
+    <rect x="558" y="255" width="30" height="30" rx="5" fill="none" stroke="#4a4f5c" stroke-dasharray="4 3"/><text x="573" y="275" text-anchor="middle" fill="#6f6a63" font-size="12">＋</text>
+    <text x="736" y="274" text-anchor="end" fill="#6b7180" font-size="9">1</text>
+  </g>
+  <g>
+    <rect x="394" y="300" width="354" height="44" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="394" y="300" width="3" height="44" rx="1.5" fill="#5f6e7a"/>
+    <text x="408" y="326" fill="#c6c9d2" font-size="10" font-weight="700">动作 · 参考视频</text>
+    <rect x="520" y="307" width="30" height="30" rx="5" fill="#2a2a2a"/><text x="535" y="326" text-anchor="middle" fill="#9a988f" font-size="8">视频1</text>
+    <rect x="558" y="307" width="30" height="30" rx="5" fill="none" stroke="#4a4f5c" stroke-dasharray="4 3"/><text x="573" y="327" text-anchor="middle" fill="#6f6a63" font-size="12">＋</text>
+    <text x="736" y="326" text-anchor="end" fill="#6b7180" font-size="9">1/3</text>
+  </g>
+  <g>
+    <rect x="394" y="352" width="354" height="44" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <rect x="394" y="352" width="3" height="44" rx="1.5" fill="#7a6f5f"/>
+    <text x="408" y="378" fill="#c6c9d2" font-size="10" font-weight="700">配音 · 声音</text>
+    <rect x="520" y="359" width="30" height="30" rx="5" fill="#2a2a2a"/><text x="535" y="378" text-anchor="middle" fill="#9a988f" font-size="8">音频1</text>
+    <rect x="558" y="359" width="30" height="30" rx="5" fill="none" stroke="#4a4f5c" stroke-dasharray="4 3"/><text x="573" y="379" text-anchor="middle" fill="#6f6a63" font-size="12">＋</text>
+    <text x="736" y="378" text-anchor="end" fill="#6b7180" font-size="9">1/3</text>
+  </g>
+  <text x="394" y="414" fill="#5a5f6c" font-size="9">左缘 3px = 现有端口低饱和 token（--node-port-*）：连线 / 端口 / 面板三处同色同义</text>
+  <text x="394" y="432" fill="#5a5f6c" font-size="9">＋ = 上传 / 素材库 / 粘贴 → autospawn 自动建节点连线（F1）</text>
+  <text x="394" y="450" fill="#c6c9d2" font-size="9" font-weight="600">★ v3：单击槽位＝在提示词光标处插入 @名字；hover＝删/禁用；拖拽＝排序</text>
+  <text x="394" y="466" fill="#5a5f6c" font-size="9">发送时按槽位顺序自动注入图例「图1＝角色『弗洛洛』…」→ 编号漂移不再破坏 prompt（F3 就地解决）</text>
+
+  <!-- full-width prompt (v3: bigger, tools in toolbar) -->
+  <text x="40" y="508" fill="#9a988f" font-size="10" font-weight="600">生成提示词</text>
+  <rect x="536" y="492" width="56" height="20" rx="10" fill="#173427"/>
+  <text x="564" y="506" text-anchor="middle" fill="#34d399" font-size="9">✨ 增强</text>
+  <rect x="600" y="492" width="88" height="20" rx="10" fill="#1a1a1a" stroke="#4a4f5c"/>
+  <text x="644" y="506" text-anchor="middle" fill="#c6c9d2" font-size="9">运镜语法 ▾</text>
+  <text x="748" y="506" text-anchor="end" fill="#6b7180" font-size="9">⤢ 全屏编辑</text>
+  <rect x="40" y="516" width="708" height="226" rx="10" fill="#202020" stroke="#2a2a2a"/>
+  <text x="56" y="540" fill="#8b8f9c" font-size="11">参考〈视频1〉中的动作与镜头语言，将 @弗洛洛 中浅绿色长麻花辫、戴酒红色贝雷帽的二次元少女作为主角进行生成。</text>
+  <text x="56" y="562" fill="#8b8f9c" font-size="11">少女〈图1〉坐在椅子上，神情苦恼郁闷，双臂交叉抱在胸前，随后放下手中的相机。</text>
+  <text x="56" y="584" fill="#8b8f9c" font-size="11">画面快速切换多个室内场景，少女〈图1〉展示多款拍照姿势（如指尖抵唇、手指向镜头等）……</text>
+  <text x="56" y="712" fill="#5a5f6c" font-size="9">来源提示：由剧本第 3 镜生成 · 点击回跳助手对应分镜（与助手的双向通道）</text>
+  <text x="56" y="730" fill="#5a5f6c" font-size="9">引用不再有单独 chips 行——点上方部门条槽位即插入（v3 合并）</text>
+
+  <!-- sticky bar -->
+  <rect x="40" y="756" width="708" height="52" rx="12" fill="#22252e" stroke="#34d399"/>
+  <text x="58" y="788" fill="#9a988f" font-size="11">场记：参考生 · 选角 2 · 置景 1 · 动作 1 · 配音 1</text>
+  <rect x="572" y="766" width="160" height="32" rx="10" fill="#34d399"/>
+  <text x="652" y="787" text-anchor="middle" fill="#10221a" font-size="12" font-weight="700">生成视频</text>
+  <text x="40" y="832" fill="#5a5f6c" font-size="9">按钮文案维持「生成视频」（owner v2 拍板）；参数在监视器 OSD 上，右栏只剩部门条——两栏高度自然对齐</text>
+
+  <!-- ============ right column ============ -->
+  <rect x="790" y="90" width="426" height="256" rx="16" fill="#1e2027" stroke="#363a45"/>
+  <text x="810" y="120" fill="#e8e9ee" font-size="14" font-weight="700">六装置 · v3 定稿</text>
+  <g font-size="10" fill="#c6c9d2">
+    <text x="810" y="146"><tspan fill="#e8e9ee" font-weight="700">1 场记板头</tspan> — 项目/镜头/版本/模式，纯中文字段（F4 回显）</text>
+    <text x="810" y="170"><tspan fill="#e8e9ee" font-weight="700">2 部门条</tspan> — 选角/置景/动作/配音；端口色左缘；槽位即插入源</text>
+    <text x="810" y="194"><tspan fill="#e8e9ee" font-weight="700">3 版本胶片条</tspan> — F6 的形，齿孔描边不加色</text>
+    <text x="810" y="218"><tspan fill="#e8e9ee" font-weight="700">4 监视器 OSD</tspan> — 参数贴画面，点击编辑（消 U2）</text>
+    <text x="810" y="242"><tspan fill="#e8e9ee" font-weight="700">5 TC 时间码</tspan> — 生成态＝录制中（F7）</text>
+    <text x="810" y="266"><tspan fill="#e8e9ee" font-weight="700">6 绿钮「生成视频」</tspan> — 文案不改；D5 唯一彩色 CTA</text>
+    <text x="810" y="296" fill="#5a5f6c" font-size="9">OSD 内型号规格（SEEDANCE FAST · 720P）保留英文——</text>
+    <text x="810" y="310" fill="#5a5f6c" font-size="9">技术参数不是叙事词汇；其余叙事词全中文</text>
+  </g>
+
+  <rect x="790" y="362" width="426" height="180" rx="16" fill="#1e2027" stroke="#363a45"/>
+  <text x="810" y="392" fill="#e8e9ee" font-size="14" font-weight="700">提示词区规格（v2 新增）</text>
+  <g font-size="10" fill="#c6c9d2">
+    <text x="810" y="418">· 全宽：横跨面板整宽，脱离右栏（文本要宽也要高）</text>
+    <text x="810" y="440">· min-height ≈ 面板高 1/3，随内容自动增高</text>
+    <text x="810" y="462">· ⤢ 全屏编辑 = 长文本逃生口（复用节点展开的分级披露）</text>
+    <text x="810" y="484">· v3：引用无独立 chips 行——部门条槽位即插入源；</text>
+    <text x="822" y="500">✨增强 / 运镜语法 上移到文本区工具栏（它们是工具不是引用）</text>
+    <text x="810" y="524" fill="#5a5f6c" font-size="9">增强与运镜语法走已有 enhance + cinematic-grammar（F8），</text>
+    <text x="810" y="538" fill="#5a5f6c" font-size="9">插入为可编辑文本，不做黑盒</text>
+  </g>
+
+  <rect x="790" y="558" width="426" height="176" rx="16" fill="#152219" stroke="#34d399"/>
+  <text x="810" y="588" fill="#34d399" font-size="14" font-weight="700">与助手的分工（owner 点到的边界）</text>
+  <g font-size="10" fill="#c6c9d2">
+    <text x="810" y="614">· 长文写作（大纲 → 分镜，两道门）归<tspan font-weight="700">助手</tspan>——剧本的家在那边</text>
+    <text x="810" y="636">· ScriptDoc autospawn 生成节点时<tspan font-weight="700">回填</tspan>各镜头 prompt</text>
+    <text x="810" y="658">· 面板提示词 = <tspan font-weight="700">本镜头精修</tspan>：够大好改，不必大到能写剧本</text>
+    <text x="810" y="680">· 来源提示「由剧本第 N 镜生成」→ 点击回跳助手对应分镜，</text>
+    <text x="822" y="698">改剧本回助手、改本镜留面板，双向不打架</text>
+  </g>
+
+  <rect x="790" y="750" width="426" height="120" rx="16" fill="#1e2027" stroke="#4a4f5c" stroke-dasharray="6 4"/>
+  <text x="810" y="780" fill="#9aa0ad" font-size="13" font-weight="700">已拍板（2026-07-04，三轮）</text>
+  <text x="810" y="804" fill="#c6c9d2" font-size="10">① 方向 A 通过　② 部门条纯中文　③ 按钮保留「生成视频」</text>
+  <text x="810" y="826" fill="#c6c9d2" font-size="10">④ 提示词全宽加大＋与助手分工边界成立</text>
+  <text x="810" y="848" fill="#c6c9d2" font-size="10">⑤ 部门条与引用 chips 合并——槽位即插入源，token＝@名字＋自动图例</text>
+</svg>

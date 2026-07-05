@@ -1,0 +1,245 @@
+<svg viewBox="0 0 1440 1560" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1440" height="1560" fill="#0b0b0a"/>
+  <text x="40" y="34" fill="#e8e6de" font-size="20" font-weight="700">过渡动画故事板 · 10 组转场（起止帧 + 时长/缓动 + 触发动机）</text>
+  <text x="40" y="56" fill="#6f6a63" font-size="11">全部走同一 canon：ease 唯一 cubic-bezier(0.22,1,0.36,1) · 时长 fast120/base200/slow320/reveal500 · reduced-motion 全局归零 · 只动 transform/opacity</text>
+  <text x="40" y="76" fill="#34d399" font-size="10">🟢 = 代码里已实现（可直接复用手感基准）　🟠 = 设计已定但代码未落地（随本轮面板重构一起补，不算额外排期）</text>
+
+  <!-- ============ CARD MACRO helper positions (hand-authored) ============ -->
+
+  <!-- Card 1: 顶栏收放 -->
+  <g>
+    <rect x="40" y="100" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="616" y="116" width="88" height="20" rx="10" fill="#332b18"/><text x="660" y="130" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="60" y="128" fill="#e8e6de" font-size="12" font-weight="700">1 · 顶栏收放（U1）</text>
+    <rect x="60" y="150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="70" y="170" fill="#6f6a63" font-size="8">起始</text>
+    <rect x="76" y="180" width="148" height="34" rx="8" fill="#2a2a2a" stroke="#4a4f5c"/>
+    <text x="150" y="201" text-anchor="middle" fill="#c6c9d2" font-size="9">完整顶栏（项目/工具）</text>
+    <path d="M250 205 L 260 205" stroke="none"/>
+    <line x1="248" y1="205" x2="460" y2="205" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="460,199 472,205 460,211" fill="#4a4f5c"/>
+    <text x="360" y="192" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">slow 320ms</text>
+    <text x="360" y="222" text-anchor="middle" fill="#6f6a63" font-size="8">上移8px+淡出 → pill 延迟80ms淡入</text>
+    <rect x="480" y="150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="490" y="170" fill="#6f6a63" font-size="8">结束</text>
+    <rect x="496" y="188" width="80" height="24" rx="12" fill="#2a2a2a" stroke="#4a4f5c"/>
+    <text x="536" y="204" text-anchor="middle" fill="#c6c9d2" font-size="8">收起 pill</text>
+    <rect x="496" y="182" width="80" height="24" rx="12" fill="none" stroke="#4a4f5c" stroke-dasharray="2 2" opacity="0.5"/>
+    <text x="60" y="300" fill="#6f6a63" font-size="9">为什么：状态澄清 + 空间连续，不是纯装饰——用户要看清"收起=还在，只是让位"</text>
+  </g>
+
+  <!-- Card 2: 助手dock开合 -->
+  <g>
+    <rect x="760" y="100" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="1336" y="116" width="88" height="20" rx="10" fill="#332b18"/><text x="1380" y="130" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="780" y="128" fill="#e8e6de" font-size="12" font-weight="700">2 · 助手 dock 开合（M2）</text>
+    <rect x="780" y="150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="790" y="170" fill="#6f6a63" font-size="8">起始（隐藏）</text>
+    <rect x="920" y="180" width="10" height="50" rx="4" fill="#2a2a2a" stroke="#4a4f5c"/>
+    <text x="925" y="220" fill="#6f6a63" font-size="6" transform="rotate(90 925 220)">把手</text>
+    <line x1="968" y1="205" x2="1180" y2="205" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="1180,199 1192,205 1180,211" fill="#4a4f5c"/>
+    <text x="1080" y="192" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">slow320（桌）/ base200（移动）</text>
+    <text x="1080" y="222" text-anchor="middle" fill="#6f6a63" font-size="8">桌面自右滑入+淡入；移动端自底部</text>
+    <rect x="1200" y="150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="1210" y="170" fill="#6f6a63" font-size="8">结束（可见）</text>
+    <rect x="1220" y="182" width="140" height="70" rx="8" fill="#2a2a2a" stroke="#4a4f5c"/>
+    <text x="1290" y="220" text-anchor="middle" fill="#c6c9d2" font-size="8">助手面板</text>
+    <rect x="1210" y="182" width="150" height="70" rx="8" fill="none" stroke="#4a4f5c" stroke-dasharray="2 2" opacity="0.4"/>
+    <text x="780" y="300" fill="#6f6a63" font-size="9">为什么：空间连续性——面板从"来源方向"滑入，用户理解它和把手是同一个物体的展开</text>
+  </g>
+
+  <!-- Card 3: 详情面板进出场 -->
+  <g>
+    <rect x="40" y="350" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="616" y="366" width="88" height="20" rx="10" fill="#152219"/><text x="660" y="380" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">🟢 已实现</text>
+    <text x="60" y="378" fill="#e8e6de" font-size="12" font-weight="700">3 · 详情面板进出场</text>
+    <rect x="60" y="400" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="70" y="420" fill="#6f6a63" font-size="8">起始（纯画布）</text>
+    <rect x="80" y="440" width="60" height="40" rx="6" fill="#2a2a2a"/>
+    <rect x="150" y="440" width="60" height="40" rx="6" fill="#2a2a2a"/>
+    <line x1="248" y1="455" x2="460" y2="455" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="460,449 472,455 460,461" fill="#4a4f5c"/>
+    <text x="360" y="442" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">slow 320ms</text>
+    <text x="360" y="472" text-anchor="middle" fill="#6f6a63" font-size="8">backdrop 淡入 + 面板 scale .96→1；退场 →.97</text>
+    <rect x="480" y="400" width="180" height="110" rx="8" fill="#0b0b0a" opacity="0.7" stroke="#2a2a2a"/>
+    <rect x="510" y="418" width="120" height="76" rx="8" fill="#202020" stroke="#e8e6de" stroke-width="1"/>
+    <text x="570" y="460" text-anchor="middle" fill="#c6c9d2" font-size="9">详情面板</text>
+    <text x="60" y="550" fill="#34d399" font-size="9" font-weight="600">已在 NodeDetailPanel.tsx 落地——作为其余 9 组过渡的手感基准，直接照抄这套 AnimatePresence 写法</text>
+  </g>
+
+  <!-- Card 4: 区块首现 stagger -->
+  <g>
+    <rect x="760" y="350" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="1336" y="366" width="88" height="20" rx="10" fill="#332b18"/><text x="1380" y="380" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="780" y="378" fill="#e8e6de" font-size="12" font-weight="700">4 · 面板内区块首现 stagger</text>
+    <rect x="780" y="400" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="790" y="420" fill="#6f6a63" font-size="8">起始（全部半透明+下移8px）</text>
+    <rect x="800" y="432" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.3"/>
+    <rect x="800" y="448" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.3"/>
+    <rect x="800" y="464" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.3"/>
+    <rect x="800" y="480" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.3"/>
+    <rect x="800" y="496" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.3"/>
+    <line x1="968" y1="455" x2="1180" y2="455" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="1180,449 1192,455 1180,461" fill="#4a4f5c"/>
+    <text x="1080" y="442" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">base 200，stagger 50ms 封顶300</text>
+    <text x="1080" y="472" text-anchor="middle" fill="#6f6a63" font-size="8">场记条→监视器→部门→prompt→操作栏 依次点亮</text>
+    <rect x="1200" y="400" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="1210" y="420" fill="#6f6a63" font-size="8">结束（依次点亮，最后一块仍在褪入）</text>
+    <rect x="1220" y="432" width="140" height="12" rx="4" fill="#2a2a2a"/>
+    <rect x="1220" y="448" width="140" height="12" rx="4" fill="#2a2a2a"/>
+    <rect x="1220" y="464" width="140" height="12" rx="4" fill="#2a2a2a"/>
+    <rect x="1220" y="480" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.6"/>
+    <rect x="1220" y="496" width="140" height="12" rx="4" fill="#2a2a2a" opacity="0.25"/>
+    <text x="780" y="550" fill="#6f6a63" font-size="9">为什么：引导阅读顺序（先看清场记/画面，再到参数/文字），不是五块同时炸出的廉价感</text>
+  </g>
+
+  <!-- Card 5: OSD段展开/收起 -->
+  <g>
+    <rect x="40" y="600" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="616" y="616" width="88" height="20" rx="10" fill="#332b18"/><text x="660" y="630" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="60" y="628" fill="#e8e6de" font-size="12" font-weight="700">5 · OSD 段展开/收起</text>
+    <rect x="60" y="650" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="70" y="670" fill="#6f6a63" font-size="8">起始（收起）</text>
+    <rect x="76" y="690" width="148" height="22" rx="10" fill="#2a2a2a" stroke="#4a4f5c"/>
+    <text x="150" y="705" text-anchor="middle" fill="#c6c9d2" font-size="8">模型·时长·分辨率·4:3▾</text>
+    <line x1="248" y1="705" x2="460" y2="705" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="460,699 472,705 460,711" fill="#4a4f5c"/>
+    <text x="360" y="692" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">base 200ms</text>
+    <text x="360" y="722" text-anchor="middle" fill="#6f6a63" font-size="8">scale .98→1 + opacity，复用 .node-collapsible</text>
+    <rect x="480" y="650" width="180" height="110" rx="8" fill="#202020" stroke="#4a4f5c"/>
+    <text x="490" y="670" fill="#6f6a63" font-size="8">结束（画幅 6-tile 展开）</text>
+    <g>
+      <rect x="496" y="682" width="24" height="30" rx="4" fill="#2a2a2a"/>
+      <rect x="524" y="682" width="24" height="30" rx="4" fill="#2a2a2a"/>
+      <rect x="552" y="682" width="24" height="30" rx="4" fill="#2a2a2a" stroke="#e8e6de"/>
+      <rect x="580" y="682" width="24" height="30" rx="4" fill="#2a2a2a"/>
+      <rect x="608" y="682" width="24" height="30" rx="4" fill="#2a2a2a"/>
+      <rect x="496" y="716" width="24" height="30" rx="4" fill="none" stroke="#4a4f5c" stroke-dasharray="2 2"/>
+    </g>
+    <text x="60" y="800" fill="#6f6a63" font-size="9">为什么：不新发明交互——直接复用现有品牌切换器的手风琴机制，用户已经学过一次</text>
+  </g>
+
+  <!-- Card 6: 槽位插入高亮 -->
+  <g>
+    <rect x="760" y="600" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="1336" y="616" width="88" height="20" rx="10" fill="#332b18"/><text x="1380" y="630" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="780" y="628" fill="#e8e6de" font-size="12" font-weight="700">6 · 槽位插入高亮</text>
+    <rect x="780" y="650" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="790" y="670" fill="#6f6a63" font-size="8">起始（点击槽位瞬间）</text>
+    <text x="800" y="700" fill="#8b8f9c" font-size="9">……将</text>
+    <rect x="828" y="692" width="2" height="14" fill="#e8e6de"/>
+    <text x="836" y="700" fill="#8b8f9c" font-size="9">中……</text>
+    <line x1="968" y1="705" x2="1180" y2="705" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="1180,699 1192,705 1180,711" fill="#4a4f5c"/>
+    <text x="1080" y="692" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">300ms 褪去</text>
+    <text x="1080" y="722" text-anchor="middle" fill="#6f6a63" font-size="8">token 落点高亮底渐隐</text>
+    <rect x="1200" y="650" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="1210" y="670" fill="#6f6a63" font-size="8">结束（插入完成，褪色中）</text>
+    <text x="1220" y="700" fill="#8b8f9c" font-size="9">……将</text>
+    <rect x="1248" y="692" width="70" height="18" rx="9" fill="#6f6a86" opacity="0.35"/>
+    <text x="1283" y="705" text-anchor="middle" fill="#e8e6de" font-size="8" font-weight="600">@弗洛洛</text>
+    <text x="1324" y="700" fill="#8b8f9c" font-size="9">中……</text>
+    <text x="780" y="800" fill="#6f6a63" font-size="9">为什么：反馈"刚才这里被写入了"——用户点槽位时视线在部门条，褪色高亮把注意力带回文本发生变化的位置</text>
+  </g>
+
+  <!-- Card 7: 拖拽排序插入线 -->
+  <g>
+    <rect x="40" y="850" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="616" y="866" width="88" height="20" rx="10" fill="#332b18"/><text x="660" y="880" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="60" y="878" fill="#e8e6de" font-size="12" font-weight="700">7 · 拖拽排序插入线</text>
+    <rect x="60" y="900" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="70" y="920" fill="#6f6a63" font-size="8">起始（拖起一个槽位）</text>
+    <rect x="80" y="945" width="30" height="30" rx="6" fill="#2a2a2a"/>
+    <rect x="150" y="945" width="30" height="30" rx="6" fill="#2a2a2a" stroke="#e8e6de" stroke-dasharray="2 2"/>
+    <rect x="220" y="945" width="30" height="30" rx="6" fill="none" stroke="#4a4f5c" stroke-dasharray="2 2" opacity="0"/>
+    <text x="150" y="990" text-anchor="middle" fill="#6f6a63" font-size="7">跟手拖动中（无过渡，1:1贴光标）</text>
+    <line x1="248" y1="960" x2="460" y2="960" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="460,954 472,960 460,966" fill="#4a4f5c"/>
+    <text x="360" y="947" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">base 200ms（仅插入线）</text>
+    <text x="360" y="977" text-anchor="middle" fill="#6f6a63" font-size="8">松手位置淡入 2px edge-active 竖线</text>
+    <rect x="480" y="900" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="490" y="920" fill="#6f6a63" font-size="8">结束（落点插入线确认）</text>
+    <rect x="500" y="945" width="30" height="30" rx="6" fill="#2a2a2a"/>
+    <line x1="538" y1="940" x2="538" y2="980" stroke="#e8e6de" stroke-width="2"/>
+    <rect x="546" y="945" width="30" height="30" rx="6" fill="#2a2a2a"/>
+    <rect x="586" y="945" width="30" height="30" rx="6" fill="#2a2a2a"/>
+    <text x="60" y="1050" fill="#6f6a63" font-size="9">为什么：拖拽本身要瞬时跟手，只有"确认要插进这里"这一下需要视觉辅助——不是每一帧都要过渡</text>
+  </g>
+
+  <!-- Card 8: 按下态反馈 -->
+  <g>
+    <rect x="760" y="850" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="1336" y="866" width="88" height="20" rx="10" fill="#332b18"/><text x="1380" y="880" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="780" y="878" fill="#e8e6de" font-size="12" font-weight="700">8 · 按下态反馈（taste-skill 新补）</text>
+    <rect x="780" y="900" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="790" y="920" fill="#6f6a63" font-size="8">起始（正常态）</text>
+    <rect x="820" y="945" width="100" height="36" rx="9" fill="#10b981"/>
+    <text x="870" y="968" text-anchor="middle" fill="#10221a" font-size="9" font-weight="700">生成视频</text>
+    <line x1="968" y1="960" x2="1180" y2="960" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="1180,954 1192,960 1180,966" fill="#4a4f5c"/>
+    <text x="1080" y="947" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">fast 120ms</text>
+    <text x="1080" y="977" text-anchor="middle" fill="#6f6a63" font-size="8">scale(0.98) + translateY(1px)</text>
+    <rect x="1200" y="900" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="1210" y="920" fill="#6f6a63" font-size="8">结束（按下）</text>
+    <rect x="1240" y="948" width="94" height="34" rx="9" fill="#0ea371"/>
+    <rect x="1237" y="944" width="100" height="36" rx="9" fill="none" stroke="#10b981" stroke-dasharray="2 2" opacity="0.5"/>
+    <text x="780" y="1050" fill="#6f6a63" font-size="9">为什么：物理按压反馈——覆盖生成按钮 + 部门卡 + 槽位 + OSD 段 + tile/pill 全部可点元素，不是生成按钮独享</text>
+  </g>
+
+  <!-- Card 9: 生成中 REC+TC+sweep -->
+  <g>
+    <rect x="40" y="1100" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="616" y="1116" width="88" height="20" rx="10" fill="#332b18"/><text x="660" y="1130" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="60" y="1128" fill="#e8e6de" font-size="12" font-weight="700">9 · 生成中（REC 脉冲 + TC 跳动 + sweep）</text>
+    <rect x="60" y="1150" width="180" height="110" rx="8" fill="#0b0b0a" stroke="#2a2a2a"/>
+    <text x="70" y="1170" fill="#6f6a63" font-size="8">起始（静态监视器）</text>
+    <polygon points="140,1195 140,1225 165,1210" fill="#4a4f5c"/>
+    <line x1="248" y1="1210" x2="460" y2="1210" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="460,1204 472,1210 460,1216" fill="#4a4f5c"/>
+    <text x="360" y="1197" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">REC 1.4s 循环 / sweep 1.2s 循环</text>
+    <text x="360" y="1227" text-anchor="middle" fill="#6f6a63" font-size="8">循环态，唯一被批准的"持续动效"</text>
+    <rect x="480" y="1150" width="180" height="110" rx="8" fill="#0b0b0a" stroke="#e5484d" stroke-width="1"/>
+    <text x="490" y="1170" fill="#6f6a63" font-size="8">结束（生成中）</text>
+    <circle cx="500" cy="1188" r="4" fill="#e5484d"/>
+    <circle cx="500" cy="1188" r="8" fill="none" stroke="#e5484d" opacity="0.5"/>
+    <text x="512" y="1192" fill="#e8e6de" font-size="9" font-family="monospace" font-weight="700">TC 00:00:42</text>
+    <rect x="490" y="1234" width="160" height="4" rx="2" fill="#2a2a2a"/>
+    <rect x="490" y="1234" width="70" height="4" rx="2" fill="#10b981"/>
+    <text x="60" y="1300" fill="#6f6a63" font-size="9">为什么：生成是真实后台状态在跑，动效对应真实进度，不是装饰——反馈规则允许它例外于"不做无意义循环"</text>
+  </g>
+
+  <!-- Card 10: 版本新帧落位 -->
+  <g>
+    <rect x="760" y="1100" width="680" height="230" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+    <rect x="1336" y="1116" width="88" height="20" rx="10" fill="#332b18"/><text x="1380" y="1130" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="700">🟠 待实现</text>
+    <text x="780" y="1128" fill="#e8e6de" font-size="12" font-weight="700">10 · 版本新帧落位</text>
+    <rect x="780" y="1150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="790" y="1170" fill="#6f6a63" font-size="8">起始（生成完成瞬间）</text>
+    <rect x="800" y="1195" width="44" height="30" rx="5" fill="#2a2a2a"/>
+    <rect x="850" y="1195" width="44" height="30" rx="5" fill="#2a2a2a"/>
+    <rect x="900" y="1195" width="44" height="30" rx="5" fill="#2a2a2a" stroke="#e8e6de"/>
+    <line x1="968" y1="1210" x2="1180" y2="1210" stroke="#4a4f5c" stroke-width="1.5"/>
+    <polygon points="1180,1204 1192,1210 1180,1216" fill="#4a4f5c"/>
+    <text x="1080" y="1197" text-anchor="middle" fill="#e8e6de" font-size="9" font-weight="600">base 200ms</text>
+    <text x="1080" y="1227" text-anchor="middle" fill="#6f6a63" font-size="8">opacity + scale .96→1 落入胶片条</text>
+    <rect x="1200" y="1150" width="180" height="110" rx="8" fill="#202020" stroke="#2a2a2a"/>
+    <text x="1210" y="1170" fill="#6f6a63" font-size="8">结束（新版本已当前）</text>
+    <rect x="1220" y="1195" width="44" height="30" rx="5" fill="#2a2a2a" opacity="0.6"/>
+    <rect x="1270" y="1195" width="44" height="30" rx="5" fill="#2a2a2a" opacity="0.6"/>
+    <rect x="1320" y="1195" width="44" height="30" rx="5" fill="#2a2a2a" stroke="#e8e6de" stroke-width="1.5"/>
+    <text x="1342" y="1234" text-anchor="middle" fill="#34d399" font-size="6" font-weight="700">当前</text>
+    <text x="780" y="1300" fill="#6f6a63" font-size="9">为什么：强调"新结果诞生"这个时刻——无声替换会让用户以为没生成，落位动效确认"这是刚出的"</text>
+  </g>
+
+  <!-- footer: reused pattern note + legend -->
+  <rect x="40" y="1350" width="1400" height="60" rx="10" fill="#141519" stroke="#2a2a2a"/>
+  <text x="60" y="1374" fill="#9a988f" font-size="10" font-weight="700">复用说明</text>
+  <text x="60" y="1392" fill="#c6c9d2" font-size="9">模型两级切换器的手风琴（180ms，`.node-collapsible`）🟢 已实现——第 5 组「OSD 段展开」直接复用同一套 CSS 机制，不新造一遍手风琴</text>
+
+  <rect x="40" y="1420" width="1400" height="120" rx="10" fill="#152219" stroke="#34d399"/>
+  <text x="60" y="1444" fill="#34d399" font-size="11" font-weight="700">10 组里只有 1 组已经在代码里（详情面板进出场），其余 9 组随本轮面板重构一起补</text>
+  <text x="60" y="1464" fill="#c6c9d2" font-size="9">这不是额外的动效项目，是面板重构本身的一部分——每个新组件（OSD/部门条/版本条/监视器）落地时顺手把对应过渡写好，不需要单独排期或二次返工</text>
+  <text x="60" y="1482" fill="#c6c9d2" font-size="9">reduced-motion 兜底：以上 10 组在 `prefers-reduced-motion` 下全部归零为瞬时切换（第 9 组的循环态也停止，改为静态 REC 圆点 + 数字跳变）</text>
+  <text x="60" y="1502" fill="#6f6a63" font-size="8">canon 来源：`src/constants/motion.ts` + `globals.css` 的 `--ease-standard` / `--duration-*`；本图不引入任何新缓动或新时长档位</text>
+</svg>

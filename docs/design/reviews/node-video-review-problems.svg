@@ -1,0 +1,180 @@
+<svg viewBox="0 0 1240 880" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <rect width="1240" height="880" fill="#141519"/>
+
+  <!-- ============ header ============ -->
+  <text x="24" y="42" fill="#e8e9ee" font-size="20" font-weight="700">画布视频节点 · 问题地图（2026-07-03 审查）</text>
+  <text x="24" y="66" fill="#6b7180" font-size="11">证据：VideoComposer.tsx · use-video-composer.ts · video-request-builders.ts · node-workflow-graph.ts · StudioNodeWorkbench.tsx</text>
+
+  <!-- ============ left: current 6-step flow ============ -->
+  <rect x="24" y="90" width="520" height="366" rx="16" fill="#1e2027" stroke="#363a45"/>
+  <text x="44" y="122" fill="#f5a623" font-size="14" font-weight="700">现状 — 给视频加一张参考图：6 步 · 跨 3 个面板</text>
+  <line x1="64" y1="150" x2="64" y2="400" stroke="#363a45" stroke-width="2"/>
+
+  <g font-size="12" fill="#e8e9ee">
+    <circle cx="64" cy="154" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="158" text-anchor="middle" font-size="11" fill="#9aa0ad">1</text>
+    <rect x="86" y="136" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="158">画布 ＋ 添加「图片」节点</text>
+
+    <circle cx="64" cy="204" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="208" text-anchor="middle" font-size="11" fill="#9aa0ad">2</text>
+    <rect x="86" y="186" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="208">打开详情面板，选 角色 / 背景 role</text>
+
+    <circle cx="64" cy="254" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="258" text-anchor="middle" font-size="11" fill="#9aa0ad">3</text>
+    <rect x="86" y="236" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="258">上传图片</text>
+
+    <circle cx="64" cy="304" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="308" text-anchor="middle" font-size="11" fill="#9aa0ad">4</text>
+    <rect x="86" y="286" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="308">给节点命名（不命名则 @ 引用不可插入）</text>
+
+    <circle cx="64" cy="354" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="358" text-anchor="middle" font-size="11" fill="#9aa0ad">5</text>
+    <rect x="86" y="336" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="358">拖连线接到视频节点</text>
+
+    <circle cx="64" cy="404" r="11" fill="#2a2d36" stroke="#4a4f5c"/>
+    <text x="64" y="408" text-anchor="middle" font-size="11" fill="#9aa0ad">6</text>
+    <rect x="86" y="386" width="430" height="36" rx="8" fill="#2a2d36"/>
+    <text x="100" y="408">回到视频节点写提示词</text>
+  </g>
+
+  <!-- competitor contrast -->
+  <rect x="24" y="470" width="520" height="66" rx="12" fill="#152219" stroke="#34d399"/>
+  <text x="44" y="497" fill="#34d399" font-size="13" font-weight="700">竞品同一件事 = 1 步：点击槽位 → 直接上传</text>
+  <text x="44" y="518" fill="#9aa0ad" font-size="11">编号缩略图槽位（图1…图9 / 视频 / 音频）＋ 底部常驻生成栏（含 ⚡ 成本）</text>
+
+  <!-- U1 shell animation -->
+  <rect x="24" y="552" width="520" height="130" rx="12" fill="#1e2027" stroke="#f5a623" stroke-dasharray="6 4"/>
+  <text x="44" y="580" fill="#f5a623" font-size="13" font-weight="700">U1 · 外壳收放无过渡动画（用户点名）</text>
+  <g font-size="11" fill="#c6c9d2">
+    <text x="44" y="604">· 顶栏：topbarOpen 条件渲染，展开↔收起 DOM 硬切（StudioNodeWorkbench:1247）</text>
+    <text x="44" y="626">· 助手 dock：只有 width 过渡；打开/关闭无 enter/exit（globals.css:1256）</text>
+    <text x="44" y="648" fill="#34d399">✓ NodeDetailPanel 已有 motion canon（slow + reduced-motion）→ 推广即可</text>
+  </g>
+
+  <!-- ============ right: detail panel wireframe ============ -->
+  <rect x="590" y="90" width="330" height="610" rx="14" fill="#1e2027" stroke="#363a45"/>
+  <!-- header bar -->
+  <rect x="606" y="104" width="298" height="30" rx="8" fill="#2a2d36"/>
+  <text x="618" y="123" fill="#e8e9ee" font-size="11">画布 / 视频生成</text>
+  <rect x="852" y="109" width="44" height="20" rx="10" fill="#173427"/>
+  <text x="874" y="123" text-anchor="middle" fill="#34d399" font-size="10">完成</text>
+
+  <!-- preview -->
+  <rect x="606" y="144" width="298" height="156" rx="8" fill="#0e0f12" stroke="#363a45"/>
+  <polygon points="746,210 746,234 768,222" fill="#4a4f5c"/>
+  <text x="755" y="290" text-anchor="middle" fill="#6b7180" font-size="10">视频预览（通栏 aspect-video）</text>
+
+  <!-- references -->
+  <text x="606" y="322" fill="#9aa0ad" font-size="10" font-weight="600">参考素材</text>
+  <rect x="606" y="330" width="66" height="22" rx="6" fill="#2a2d36"/>
+  <text x="639" y="345" text-anchor="middle" fill="#c6c9d2" font-size="10">@弗洛洛</text>
+  <text x="682" y="345" fill="#6b7180" font-size="10">← 仅文字 chip，无缩略图、无上传入口</text>
+
+  <!-- prompt -->
+  <text x="606" y="380" fill="#9aa0ad" font-size="10" font-weight="600">生成提示词</text>
+  <rect x="606" y="388" width="298" height="92" rx="8" fill="#2a2d36"/>
+  <text x="618" y="408" fill="#8b8f9c" font-size="10">参考&lt;视频1&gt;中的动作与镜头语言，将 @弗洛洛…</text>
+  <text x="618" y="426" fill="#8b8f9c" font-size="10">少女&lt;图片1&gt;坐在椅子上，神情苦恼郁闷…</text>
+  <text x="618" y="444" fill="#8b8f9c" font-size="10">画面快速切换多个室内场景…</text>
+  <text x="618" y="468" fill="#5a5f6c" font-size="9">（裸 textarea：无增强、无模板、编号手写）</text>
+
+  <!-- model chip -->
+  <rect x="606" y="492" width="298" height="28" rx="8" fill="#2a2d36"/>
+  <circle cx="622" cy="506" r="4" fill="#34d399"/>
+  <text x="634" y="510" fill="#e8e9ee" font-size="11">Seedance · 快速</text>
+  <text x="892" y="510" text-anchor="end" fill="#6b7180" font-size="11">▾</text>
+
+  <!-- duration -->
+  <rect x="606" y="528" width="298" height="46" rx="8" fill="#2a2d36"/>
+  <text x="618" y="546" fill="#f87171" font-size="10">自动（由模型决定）</text>
+  <text x="892" y="546" text-anchor="end" fill="#f87171" font-size="10">自动（由模型决定）⬤</text>
+  <line x1="618" y1="562" x2="892" y2="562" stroke="#4a4f5c" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="755" cy="562" r="6" fill="#8b8f9c"/>
+
+  <!-- fold line -->
+  <line x1="590" y1="590" x2="920" y2="590" stroke="#f87171" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="606" y="606" fill="#f87171" font-size="10">↓ 首屏折叠线（以下全部要滚动）</text>
+
+  <!-- resolution -->
+  <rect x="606" y="616" width="52" height="22" rx="11" fill="#2a2d36"/>
+  <text x="632" y="631" text-anchor="middle" fill="#9aa0ad" font-size="10">480p</text>
+  <rect x="666" y="616" width="52" height="22" rx="11" fill="#3a3e4a"/>
+  <text x="692" y="631" text-anchor="middle" fill="#e8e9ee" font-size="10">720p</text>
+
+  <!-- aspect (cut) -->
+  <rect x="606" y="646" width="298" height="20" rx="6" fill="none" stroke="#4a4f5c" stroke-dasharray="4 4"/>
+  <text x="618" y="660" fill="#6b7180" font-size="10">画幅比例…（截图里已被截断）</text>
+
+  <!-- generate button -->
+  <rect x="606" y="672" width="298" height="22" rx="8" fill="#173427"/>
+  <text x="755" y="687" text-anchor="middle" fill="#34d399" font-size="10">重新生成视频（在滚动区最底部）</text>
+
+  <!-- ============ callouts ============ -->
+  <g>
+    <line x1="920" y1="210" x2="946" y2="180" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="150" width="268" height="62" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="172" fill="#f5a623" font-size="12" font-weight="700">U2 · 预览吃掉首屏【P0】</text>
+    <text x="962" y="190" fill="#c6c9d2" font-size="10">参数被压到折叠线下，生成按钮沉底；</text>
+    <text x="962" y="204" fill="#c6c9d2" font-size="10">「看参考→改词→生成」每步都要滚动</text>
+  </g>
+  <g>
+    <line x1="920" y1="341" x2="946" y2="260" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="228" width="268" height="62" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="250" fill="#f5a623" font-size="12" font-weight="700">F1 · 参考没有快速通道【P0】</text>
+    <text x="962" y="268" fill="#c6c9d2" font-size="10">节点内不能上传 / 选素材 / 贴图，</text>
+    <text x="962" y="282" fill="#c6c9d2" font-size="10">一切参考都得先造节点再连线（左图 6 步）</text>
+  </g>
+  <g>
+    <line x1="920" y1="350" x2="946" y2="340" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="306" width="268" height="62" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="328" fill="#f5a623" font-size="12" font-weight="700">F2 · 实际载荷不可见【P0】</text>
+    <text x="962" y="346" fill="#c6c9d2" font-size="10">上限 图9/视频3/音频3/总12，超限静默裁剪；</text>
+    <text x="962" y="360" fill="#c6c9d2" font-size="10">发几张、什么顺序、丢了谁——UI 全看不到</text>
+  </g>
+  <g>
+    <line x1="920" y1="434" x2="946" y2="420" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="384" width="268" height="62" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="406" fill="#f5a623" font-size="12" font-weight="700">F3 / F8 · 提示词两宗罪【P1/P2】</text>
+    <text x="962" y="424" fill="#c6c9d2" font-size="10">F3：手写〈图片1〉，编号随连线漂移不报警</text>
+    <text x="962" y="438" fill="#c6c9d2" font-size="10">F8：已有 enhance / 词库 / 运镜语法没接进来</text>
+  </g>
+  <g>
+    <line x1="920" y1="551" x2="946" y2="500" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="462" width="268" height="62" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="484" fill="#f5a623" font-size="12" font-weight="700">U3 · 时长控件【P1】</text>
+    <text x="962" y="502" fill="#c6c9d2" font-size="10">「自动（由模型决定）」出现两遍；</text>
+    <text x="962" y="516" fill="#c6c9d2" font-size="10">auto 态滑杆拇指停在 9s 位置，像已选中</text>
+  </g>
+  <g>
+    <line x1="920" y1="683" x2="946" y2="600" stroke="#f5a623" stroke-width="1"/>
+    <rect x="948" y="540" width="268" height="76" rx="10" fill="#241f14" stroke="#f5a623"/>
+    <text x="962" y="562" fill="#f5a623" font-size="12" font-weight="700">F5 / F6 / F7 · 生成动作三缺【P1/P2】</text>
+    <text x="962" y="580" fill="#5a5f6c" font-size="10">F5：成本预估 —— 已搁置（积分暂不做）</text>
+    <text x="962" y="594" fill="#c6c9d2" font-size="10">F7：生成中无耗时/进度/取消（1–3 分钟盲等）</text>
+    <text x="962" y="608" fill="#c6c9d2" font-size="10">F6：重新生成直接覆盖，节点无版本历史</text>
+  </g>
+  <g>
+    <rect x="948" y="632" width="268" height="62" rx="10" fill="#1e2027" stroke="#4a4f5c"/>
+    <text x="962" y="654" fill="#9aa0ad" font-size="12" font-weight="700">F4 / U4 / U5（不在此线框上）</text>
+    <text x="962" y="672" fill="#8b8f9c" font-size="10">F4 生成模式全隐式无回显 · U4 卡片无缩略图</text>
+    <text x="962" y="686" fill="#8b8f9c" font-size="10">U5 空态只说「暂无视频」，没给下一步入口</text>
+  </g>
+
+  <!-- ============ bottom: priority ============ -->
+  <rect x="24" y="716" width="1192" height="140" rx="14" fill="#1e2027" stroke="#363a45"/>
+  <text x="44" y="746" fill="#e8e9ee" font-size="14" font-weight="700">落地顺序</text>
+  <rect x="44" y="760" width="36" height="20" rx="6" fill="#3a2620"/>
+  <text x="62" y="774" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">P0</text>
+  <text x="94" y="774" fill="#c6c9d2" font-size="12">F1 参考槽位＋autospawn 自动连线 · F2 载荷可视化 · U2 面板信息架构重排 · U1 外壳动画　（前三项是同一次详情面板手术）</text>
+  <rect x="44" y="790" width="36" height="20" rx="6" fill="#332b18"/>
+  <text x="62" y="804" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="700">P1</text>
+  <text x="94" y="804" fill="#c6c9d2" font-size="12">F3 编号语言统一 · U3 时长控件 · U4 卡片缩略图　（F5 成本预估已搁置：积分暂不做）</text>
+  <rect x="44" y="820" width="36" height="20" rx="6" fill="#1d2b33"/>
+  <text x="62" y="834" text-anchor="middle" fill="#7fb8d8" font-size="11" font-weight="700">P2</text>
+  <text x="94" y="834" fill="#c6c9d2" font-size="12">F4 模式回显 · F6 版本历史 · F7 进度/取消 · F8 提示词增强 · U5 空态前门</text>
+</svg>

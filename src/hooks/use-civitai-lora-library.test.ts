@@ -63,14 +63,15 @@ function createItem(id: string, name: string): CivitaiLoraLibraryItem {
 function createResult(
   item: CivitaiLoraLibraryItem,
   page: number,
+  nextCursor: string | null = `cursor-${page + 1}`,
 ): CivitaiLoraLibraryResult {
   return {
     items: [item],
     page,
     pageSize: 10,
     total: null,
-    hasNextPage: true,
-    nextCursor: `cursor-${page + 1}`,
+    hasNextPage: nextCursor !== null,
+    nextCursor,
   }
 }
 
@@ -210,6 +211,79 @@ describe('useCivitaiLoraLibrary', () => {
     // Items not wiped — user can keep browsing what they already had.
     expect(result.current.items).toEqual([itemA])
     expect(result.current.isRevalidating).toBe(false)
+  })
+
+  it('does not advance non-search pagination when the next cursor is missing', async () => {
+    const item = createItem('page-1', 'Browse page 1')
+
+    mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...createResult(item, 1, null),
+        hasNextPage: true,
+      },
+    })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([item]))
+
+    act(() => {
+      result.current.nextPage()
+    })
+
+    expect(result.current.page).toBe(1)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not skip cursor pages on rapid next clicks', async () => {
+    const firstPageItem = createItem('page-1', 'Browse page 1')
+    const secondPageItem = createItem('page-2', 'Browse page 2')
+    let resolveSecondPage:
+      | ((value: Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>) => void)
+      | undefined
+    const secondPagePromise = new Promise<
+      Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>
+    >((resolve) => {
+      resolveSecondPage = resolve
+    })
+
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(firstPageItem, 1, 'cursor-2'),
+      })
+      .mockReturnValueOnce(secondPagePromise)
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([firstPageItem]))
+
+    act(() => {
+      result.current.nextPage()
+      result.current.nextPage()
+    })
+
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2),
+    )
+    expect(result.current.page).toBe(2)
+    expect(result.current.isRevalidating).toBe(true)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        page: 2,
+        cursor: 'cursor-2',
+      }),
+    )
+
+    act(() => {
+      resolveSecondPage?.({
+        success: true,
+        data: createResult(secondPageItem, 2, 'cursor-3'),
+      })
+    })
+
+    await waitFor(() => expect(result.current.items).toEqual([secondPageItem]))
+    expect(result.current.page).toBe(2)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
   })
 
   // P1-5：URL 深链的种子值——caller（CivitaiCommunityBranch）解析 URL 后

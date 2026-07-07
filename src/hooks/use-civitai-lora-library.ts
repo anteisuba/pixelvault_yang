@@ -173,6 +173,7 @@ export function useCivitaiLoraLibrary(
     options.initialNsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
   )
   const requestIdRef = useRef(0)
+  const paginationPendingRef = useRef(false)
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
   )
@@ -230,6 +231,7 @@ export function useCivitaiLoraLibrary(
       } else {
         cursorByPageRef.current.delete(page + 1)
       }
+      paginationPendingRef.current = false
       setError(null)
       setIsRevalidating(false)
       return
@@ -263,6 +265,7 @@ export function useCivitaiLoraLibrary(
       // surface the error so the caller can render a toast/banner.
       setError(response.error ?? t('communityLoadFailed'))
     }
+    paginationPendingRef.current = false
     setIsRevalidating(false)
   }, [
     applyResult,
@@ -342,12 +345,34 @@ export function useCivitaiLoraLibrary(
   }, [])
 
   const nextPage = useCallback(() => {
-    setPage((current) => current + 1)
-  }, [])
+    if (paginationPendingRef.current || isRevalidating || !hasNextPage) {
+      return
+    }
+
+    const targetPage = page + 1
+    const cursorReady = cursorByPageRef.current.has(targetPage)
+    const canUseOffsetPagination =
+      debouncedSearch.trim().length > 0 && !sortFellBackToRelevance
+    if (!canUseOffsetPagination && !cursorReady) return
+
+    paginationPendingRef.current = true
+    setIsRevalidating(true)
+    setPage(targetPage)
+  }, [
+    debouncedSearch,
+    hasNextPage,
+    isRevalidating,
+    page,
+    sortFellBackToRelevance,
+  ])
 
   const previousPage = useCallback(() => {
+    if (paginationPendingRef.current || isRevalidating) return
+    if (page <= 1) return
+    paginationPendingRef.current = true
+    setIsRevalidating(true)
     setPage((current) => Math.max(1, current - 1))
-  }, [])
+  }, [isRevalidating, page])
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? items[0] ?? null

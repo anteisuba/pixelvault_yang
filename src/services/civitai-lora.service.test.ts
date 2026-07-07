@@ -566,6 +566,70 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBeNull()
   })
 
+  it('walks Civitai cursors instead of forwarding page-only non-search requests', async () => {
+    const modelFor = (id: number) => ({
+      id,
+      name: `LoRA ${id}`,
+      type: 'LORA',
+      modelVersions: [
+        {
+          id: id + 100,
+          name: 'v1',
+          baseModel: 'Anima',
+          files: [
+            {
+              type: 'Model',
+              primary: true,
+              downloadUrl: `https://civitai.com/api/download/models/${id + 100}`,
+            },
+          ],
+          trainedWords: ['trigger'],
+        },
+      ],
+    })
+
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [modelFor(1)],
+          metadata: { nextCursor: 'cursor-2' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [modelFor(2)],
+          metadata: { nextCursor: 'cursor-3' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [modelFor(3)],
+          metadata: { nextCursor: 'cursor-4' },
+        }),
+      )
+
+    const result = await listCivitaiLoras({
+      page: 3,
+      baseModel: 'Anima',
+    })
+
+    const firstRequestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(firstRequestUrl.searchParams.get('page')).toBe('1')
+    expect(firstRequestUrl.searchParams.get('cursor')).toBeNull()
+
+    const secondRequestUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
+    expect(secondRequestUrl.searchParams.get('page')).toBeNull()
+    expect(secondRequestUrl.searchParams.get('cursor')).toBe('cursor-2')
+
+    const finalRequestUrl = new URL(String(mockFetch.mock.calls[2]?.[0]))
+    expect(finalRequestUrl.searchParams.get('page')).toBeNull()
+    expect(finalRequestUrl.searchParams.get('cursor')).toBe('cursor-3')
+
+    expect(result.page).toBe(3)
+    expect(result.items[0]?.name).toBe('LoRA 3')
+    expect(result.nextCursor).toBe('cursor-4')
+  })
+
   it('forwards base model family buckets when browsing so upstream sort is global', async () => {
     const versionFor = (baseModel: string, id: number) => ({
       id,

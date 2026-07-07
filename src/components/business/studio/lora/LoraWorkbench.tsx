@@ -2580,7 +2580,7 @@ function CivitaiCommunityBranch({
             page={library.page}
             total={library.total}
             hasNextPage={library.hasNextPage}
-            isLoading={library.isLoading}
+            isBusy={library.isRevalidating}
             onPreviousPage={library.previousPage}
             onNextPage={library.nextPage}
           />
@@ -2730,7 +2730,7 @@ interface CommunityPaginationProps {
   page: number
   total: number | null
   hasNextPage: boolean
-  isLoading: boolean
+  isBusy: boolean
   onPreviousPage: () => void
   onNextPage: () => void
 }
@@ -2739,7 +2739,7 @@ function CommunityPagination({
   page,
   total,
   hasNextPage,
-  isLoading,
+  isBusy,
   onPreviousPage,
   onNextPage,
 }: CommunityPaginationProps) {
@@ -2757,7 +2757,7 @@ function CommunityPagination({
         type="button"
         variant="outline"
         size="sm"
-        disabled={page <= 1 || isLoading}
+        disabled={page <= 1 || isBusy}
         onClick={onPreviousPage}
         className="h-9 justify-center text-xs sm:min-w-24"
       >
@@ -2776,7 +2776,7 @@ function CommunityPagination({
         type="button"
         variant="outline"
         size="sm"
-        disabled={!hasNextPage || isLoading}
+        disabled={!hasNextPage || isBusy}
         onClick={onNextPage}
         className="h-9 justify-center text-xs sm:min-w-24"
       >

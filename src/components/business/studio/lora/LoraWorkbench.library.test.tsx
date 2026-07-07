@@ -34,6 +34,7 @@ let mockLibraryDebouncedSearch = ''
 let mockLibrarySort = 'Highest Rated'
 let mockLibraryBaseModel = 'all'
 let mockLibraryNsfwFilter = 'unrestricted'
+let mockLibraryIsRevalidating = false
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -183,6 +184,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     mockLibrarySort = 'Highest Rated'
     mockLibraryBaseModel = 'all'
     mockLibraryNsfwFilter = 'unrestricted'
+    mockLibraryIsRevalidating = false
     mockUseCivitaiLoraLibrary.mockImplementation(() => ({
       get items() {
         return mockLibraryItems
@@ -197,7 +199,9 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
         return mockLibraryHasNextPage
       },
       isLoading: false,
-      isRevalidating: false,
+      get isRevalidating() {
+        return mockLibraryIsRevalidating
+      },
       error: null,
       get search() {
         return mockLibrarySearch
@@ -298,6 +302,21 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
       screen.getByRole('button', { name: /LoraWorkbench:communityPrevious/ }),
     ).not.toBeDisabled()
   })
+
+  it('disables pagination while the community library is revalidating', () => {
+    mockLibraryPage = 2
+    mockLibraryHasNextPage = true
+    mockLibraryIsRevalidating = true
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.getByRole('button', { name: /LoraWorkbench:communityPrevious/ }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: /LoraWorkbench:communityNext/ }),
+    ).toBeDisabled()
+  })
 })
 
 describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
@@ -314,6 +333,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
     mockLibrarySort = 'Highest Rated'
     mockLibraryBaseModel = 'all'
     mockLibraryNsfwFilter = 'unrestricted'
+    mockLibraryIsRevalidating = false
     mockUseCivitaiLoraLibrary.mockImplementation(() => ({
       items: mockLibraryItems,
       selectedItem: null,

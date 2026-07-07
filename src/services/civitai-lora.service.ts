@@ -1446,6 +1446,44 @@ function appendBaseModelFamilyParams(
   })
 }
 
+async function resolveCivitaiRestCursorForPage({
+  page,
+  pageSize,
+  baseModel,
+  sort,
+  nsfwFilter,
+}: {
+  page: number
+  pageSize: number
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  nsfwFilter: LoraNsfwFilter
+}): Promise<string | null> {
+  let cursor: string | null = null
+
+  for (let currentPage = 1; currentPage < page; currentPage += 1) {
+    const url = new URL(CIVITAI_MODELS_API)
+    url.searchParams.set('types', 'LORA')
+    url.searchParams.set('limit', String(pageSize))
+    url.searchParams.set('sort', sort)
+    url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
+    if (cursor) {
+      url.searchParams.set('cursor', cursor)
+    } else {
+      url.searchParams.set('page', '1')
+    }
+    if (baseModel !== 'all') {
+      appendBaseModelFamilyParams(url, baseModel)
+    }
+
+    const result = await fetchCivitaiLoraPage(url, nsfwFilter)
+    cursor = result.nextCursor
+    if (!cursor) return null
+  }
+
+  return cursor
+}
+
 async function fetchCivitaiLoraPage(
   url: URL,
   // P1-6 三态：'safe' 额外按名称词表过滤（civitai 的 `nsfw=false` 只挡
@@ -1652,7 +1690,7 @@ async function listCivitaiLorasViaRest({
 }: ListCivitaiLorasInput = {}): Promise<CivitaiLoraLibraryResult> {
   const url = new URL(CIVITAI_MODELS_API)
   const normalizedSearch = search?.trim() ?? ''
-  const nextPageCursor = cursor?.trim() ?? ''
+  let nextPageCursor = cursor?.trim() ?? ''
   // 'other' 兜底桶即使无搜索词也走扩窗扫描：REST 表达不了 NOT IN，单页
   // upstream 窗口（pageSize 条）几乎全被 named family 占据，补集过滤后
   // 直接空页 dead-end——必须像 search+family 一样 over-fetch 多页凑满。
@@ -1668,35 +1706,53 @@ async function listCivitaiLorasViaRest({
     })
   }
 
-  const upstreamLimit = pageSize
-
-  url.searchParams.set('types', 'LORA')
-  url.searchParams.set('limit', String(upstreamLimit))
-  url.searchParams.set('sort', sort)
-  url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
-  if (normalizedSearch) {
-    url.searchParams.set('query', normalizedSearch)
-  }
-  // 2026-07-02 第二轮修复（第一轮"page 模式不发 cursor"和撤销前的"page+cursor
-  // 都发"两个版本都被用户实测证伪——页码在客户端正确变了，但 Civitai 返回的
-  // 还是第 1 页那批数据）。这次反过来：cursor 存在就优先用 cursor、不发
-  // page；只有第一页（没有 cursor）才用 page。Civitai 官方文档推荐 cursor
-  // 分页，猜测 page 参数在他们那边基本不生效——之前两种"都发"或"只发
-  // page"都会让 upstream 落回 page1 等价的结果。这轮也没法直接打真实接口
-  // 验证，需要用户再测一遍确认。
-  if (nextPageCursor) {
-    url.searchParams.set('cursor', nextPageCursor)
-  } else if (!normalizedSearch) {
-    url.searchParams.set('page', String(page))
-  }
-  if (baseModel !== 'all') {
-    appendBaseModelFamilyParams(url, baseModel)
-  }
-  // Keep non-search filtering upstream so Civitai applies sort over the full
-  // result set before pagination. Search + baseModel uses the scan path above
-  // because Civitai under-fills `query + baseModels` at small limits.
-
   try {
+    const upstreamLimit = pageSize
+
+    if (!nextPageCursor && page > 1 && !normalizedSearch) {
+      nextPageCursor =
+        (await resolveCivitaiRestCursorForPage({
+          page,
+          pageSize: upstreamLimit,
+          baseModel,
+          sort,
+          nsfwFilter,
+        })) ?? ''
+
+      if (!nextPageCursor) {
+        return {
+          items: [],
+          page,
+          pageSize,
+          total: null,
+          hasNextPage: false,
+          nextCursor: null,
+        }
+      }
+    }
+
+    url.searchParams.set('types', 'LORA')
+    url.searchParams.set('limit', String(upstreamLimit))
+    url.searchParams.set('sort', sort)
+    url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
+    if (normalizedSearch) {
+      url.searchParams.set('query', normalizedSearch)
+    }
+    // Civitai's REST `page` parameter is unreliable for models/images: live
+    // checks show `page=6` can return page 1. Only the first page may use
+    // `page`; later non-search pages must be addressed by cursor.
+    if (nextPageCursor) {
+      url.searchParams.set('cursor', nextPageCursor)
+    } else if (!normalizedSearch) {
+      url.searchParams.set('page', '1')
+    }
+    if (baseModel !== 'all') {
+      appendBaseModelFamilyParams(url, baseModel)
+    }
+    // Keep non-search filtering upstream so Civitai applies sort over the full
+    // result set before pagination. Search + baseModel uses the scan path above
+    // because Civitai under-fills `query + baseModels` at small limits.
+
     // Civitai's public API blips with intermittent 5xx/timeouts — withRetry
     // wraps three attempts with exponential backoff. Our CivitaiFetchError
     // carries `.status` so the default retry classifier lets 4xx fail fast

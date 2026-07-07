@@ -397,13 +397,16 @@ function assertFishAudioVoiceInput(request: GenerateAudioRequest): void {
 }
 
 /**
- * Generate audio synchronously (Fish Audio — returns audio bytes immediately).
- * Flow: validate → resolve route → call adapter.generateAudio() → upload R2 → create record.
+ * Generate speech synchronously (ElevenLabs v3, or Fish Audio without a
+ * worker-resolvable key — returns audio bytes immediately) and persist it as an
+ * already-COMPLETED job, so the poll-based client resolves it on the first
+ * status check. Flow: validate → resolve route → adapter.generateAudio() →
+ * upload R2 → create + complete job.
  */
 export async function generateAudioForUser(
   clerkId: string,
   request: GenerateAudioRequest,
-): Promise<GenerationRecord> {
+): Promise<AudioSubmitResponseData> {
   const timer = new GenerationStageTimer({
     outputType: 'AUDIO',
     modelId: request.modelId,
@@ -569,7 +572,7 @@ export async function generateAudioForUser(
     timer.setContext({ generationId: generation.id })
     timer.log()
 
-    return generation
+    return { jobId: job.id }
   } catch (error) {
     await failGenerationJob(job.id, {
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -796,6 +799,13 @@ export async function submitAudioGeneration(
       modelConfig,
       timer,
     })
+  }
+
+  // Synchronous speech models (ElevenLabs v3, or Fish without a worker-
+  // resolvable key): generate now and return an already-COMPLETED job the
+  // client resolves on the first poll — same pattern as SFX.
+  if (adapter?.generateAudio && !adapter.submitAudioToQueue) {
+    return generateAudioForUser(clerkId, request)
   }
 
   if (!adapter?.submitAudioToQueue) {

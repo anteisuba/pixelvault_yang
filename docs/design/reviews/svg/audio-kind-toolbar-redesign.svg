@@ -1,0 +1,77 @@
+<svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <title>音频工作台 kind 切换重设计线框 2026-07-06</title>
+  <desc>目标 dock 两种 kind 状态的工具栏行首紧凑切换器，以及音效设置 popover 的形态</desc>
+  <rect x="0" y="0" width="680" height="620" fill="#FAF9F5"/>
+  <text x="40" y="32" font-size="16" font-weight="500" fill="#2C2C2A">音频 dock · kind 切换重设计（目标形态）</text>
+  <text x="40" y="52" font-size="12" fill="#5F5E5A">切换器并入工具栏行首（~110px），不再独占一行；音效设置改锚定 popover</text>
+
+  <text x="40" y="84" font-size="12" font-weight="500" fill="#444441">语音态</text>
+  <rect x="40" y="94" width="600" height="112" rx="10" fill="#141414"/>
+  <rect x="56" y="108" width="100" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <rect x="56" y="108" width="50" height="30" rx="8" fill="#F1EFE8"/>
+  <text x="68" y="127" font-size="12" font-weight="500" fill="#141414">语音</text>
+  <text x="118" y="127" font-size="12" fill="#888780">音效</text>
+  <circle cx="172" cy="123" r="8" fill="#534AB7"/>
+  <text x="169" y="127" font-size="11" fill="#EEEDFE">1</text>
+  <rect x="190" y="108" width="132" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="202" y="127" font-size="12" fill="#D3D1C7">Fish Audio S2 Pro ▾</text>
+  <rect x="330" y="108" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="342" y="127" font-size="12" fill="#888780">模板</text>
+  <rect x="392" y="108" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="404" y="127" font-size="12" fill="#888780">助手</text>
+  <rect x="454" y="108" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="466" y="127" font-size="12" fill="#888780">音色</text>
+  <rect x="516" y="108" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="528" y="127" font-size="12" fill="#888780">克隆</text>
+  <rect x="578" y="108" width="46" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="588" y="127" font-size="12" fill="#888780">转录</text>
+  <rect x="56" y="150" width="568" height="40" rx="20" fill="#1E1E1E"/>
+  <text x="74" y="174" font-size="12" fill="#6B6B66">输入你想转换为语音的文本…</text>
+  <circle cx="602" cy="170" r="14" fill="#F1EFE8"/>
+  <text x="597" y="175" font-size="12" fill="#141414">➤</text>
+
+  <text x="40" y="240" font-size="12" font-weight="500" fill="#444441">音效态</text>
+  <rect x="40" y="250" width="600" height="112" rx="10" fill="#141414"/>
+  <rect x="56" y="264" width="100" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="68" y="283" font-size="12" fill="#888780">语音</text>
+  <rect x="106" y="264" width="50" height="30" rx="8" fill="#F1EFE8"/>
+  <text x="118" y="283" font-size="12" font-weight="500" fill="#141414">音效</text>
+  <rect x="190" y="264" width="140" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="202" y="283" font-size="12" fill="#D3D1C7">ElevenLabs SFX v2 ▾</text>
+  <rect x="338" y="264" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="350" y="283" font-size="12" fill="#888780">模板</text>
+  <rect x="400" y="264" width="54" height="30" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="412" y="283" font-size="12" fill="#888780">助手</text>
+  <rect x="462" y="264" width="54" height="30" rx="8" fill="#2A2A45" stroke="#7F77DD" stroke-width="1"/>
+  <text x="474" y="283" font-size="12" fill="#CECBF6">设置</text>
+  <circle cx="536" cy="279" r="8" fill="#534AB7"/>
+  <text x="533" y="283" font-size="11" fill="#EEEDFE">2</text>
+  <rect x="56" y="306" width="568" height="40" rx="20" fill="#1E1E1E"/>
+  <text x="74" y="330" font-size="12" fill="#6B6B66">描述你想要的音效…</text>
+  <circle cx="602" cy="326" r="14" fill="#F1EFE8"/>
+  <text x="597" y="331" font-size="12" fill="#141414">➤</text>
+
+  <line x1="489" y1="362" x2="489" y2="388" stroke="#7F77DD" stroke-width="1" stroke-dasharray="3 3"/>
+  <rect x="360" y="390" width="260" height="150" rx="10" fill="#1A1A1A" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="376" y="416" font-size="12" font-weight="500" fill="#D3D1C7">时长</text>
+  <text x="604" y="416" font-size="12" fill="#888780" text-anchor="end">5s</text>
+  <rect x="376" y="426" width="228" height="3" rx="1.5" fill="#333330"/>
+  <rect x="376" y="426" width="40" height="3" rx="1.5" fill="#F1EFE8"/>
+  <circle cx="416" cy="427.5" r="6" fill="#F1EFE8"/>
+  <text x="376" y="456" font-size="12" font-weight="500" fill="#D3D1C7">提示词贴合度</text>
+  <text x="604" y="456" font-size="12" fill="#888780" text-anchor="end">0.3</text>
+  <rect x="376" y="466" width="228" height="3" rx="1.5" fill="#333330"/>
+  <rect x="376" y="466" width="68" height="3" rx="1.5" fill="#F1EFE8"/>
+  <circle cx="444" cy="467.5" r="6" fill="#F1EFE8"/>
+  <text x="376" y="500" font-size="12" font-weight="500" fill="#D3D1C7">无缝循环</text>
+  <rect x="576" y="490" width="28" height="16" rx="8" fill="#333330"/>
+  <circle cx="584" cy="498" r="6" fill="#888780"/>
+  <text x="376" y="524" font-size="11" fill="#6B6B66">锚定「设置」chip · w-72 · 无全屏遮罩</text>
+
+  <circle cx="48" cy="566" r="8" fill="#534AB7"/>
+  <text x="45" y="570" font-size="11" fill="#EEEDFE">1</text>
+  <text x="64" y="570" font-size="12" fill="#444441">kind 切换器：工具栏行首紧凑 segmented（~110px、h-9 同高），选中段反相白底</text>
+  <circle cx="48" cy="590" r="8" fill="#534AB7"/>
+  <text x="45" y="594" font-size="11" fill="#EEEDFE">2</text>
+  <text x="64" y="594" font-size="12" fill="#444441">音效设置：chip 锚定 popover（对齐图片模式 aspect-ratio 先例），删全屏 modal</text>
+</svg>

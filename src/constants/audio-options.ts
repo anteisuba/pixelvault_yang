@@ -208,6 +208,8 @@ export const SFX_VARIANT_COUNTS = [1, 2, 4] as const
 export type SfxVariantCount = (typeof SFX_VARIANT_COUNTS)[number]
 export const DEFAULT_SFX_VARIANT_COUNT: SfxVariantCount = 4
 
+export const DEFAULT_SFX_DURATION_SECONDS = 5
+
 /** Preset voice options for Fish Audio */
 export const FISH_AUDIO_VOICES = [
   { id: 'alloy', labelKey: 'alloy', descKey: 'alloyDesc' },

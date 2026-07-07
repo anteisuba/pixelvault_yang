@@ -12,6 +12,7 @@ import {
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
+import { AUDIO_KIND } from '@/constants/audio-options'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { StudioToolbar } from '@/components/business/StudioToolbar'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { ReferenceImageChip } from './ReferenceImageChip'
 import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
 import { StudioEnhanceButton } from './StudioEnhanceButton'
+import { StudioSfxParamsPopover } from './StudioSfxParamsPopover'
 
 interface StudioToolbarPanelsProps {
   compact?: boolean
@@ -94,6 +96,17 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
     const pillInactive =
       'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
+
+    // Sound effects: no voice / clone / transcript — just the SFX param popover.
+    if (state.audioKind === AUDIO_KIND.SFX) {
+      return (
+        <Toolbar.Root className={cn('flex items-center gap-1.5', 'flex-wrap')}>
+          <StudioEnhanceButton disabled={isGenerating} />
+          <StudioSfxParamsPopover disabled={isGenerating} />
+        </Toolbar.Root>
+      )
+    }
+
     return (
       // Wrap in Toolbar.Root for StudioEnhanceButton (Toolbar.Button under
       // the hood); plain `button` children remain valid inside.

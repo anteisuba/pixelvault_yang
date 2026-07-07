@@ -14,6 +14,7 @@ export { StudioWorkflowPicker } from '@/components/business/studio-shared/workfl
 export { StudioWorkflowSummary } from '@/components/business/studio-shared/workflow/StudioWorkflowSummary'
 export { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'
 export { StudioCommandPalette } from '@/components/business/studio-shared/chrome/StudioCommandPalette'
+export { StudioAssistantDock } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
 
 // Still flat — to be relocated by Spec 6 (4 giants + 24 remaining SHARED)
 // or by individual L2 module specs.

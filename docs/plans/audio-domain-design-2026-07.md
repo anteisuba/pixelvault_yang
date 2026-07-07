@@ -65,6 +65,10 @@
 
 遵循 `docs/design/direction.md` 双面模式（Studio = 暗面工作台）与 anti-slop 红线；改 UI 前照常读 `docs/design/README.md` + 最新 review。
 
+> ⚠ **kind 切换与音效参数的落地细则已被
+> [`../design/reviews/2026-07-06-audio-kind-ui-redesign.md`](../design/reviews/2026-07-06-audio-kind-ui-redesign.md)
+> 取代**（B3 首版全宽切换条被 owner 否决；新细则=切换器进工具栏行首紧凑 segmented、音效设置改锚定 popover）。
+
 ### 4.1 kind 切换（surface 不裂开）
 
 `/studio/audio` 单路由内做二级 segmented「语音 / 音效 / 音乐」，位置在 dock 参数区顶（与 video workflow picker 同位）。切换只换 dock 面板与出纸形态，画布/历史/快捷键全共享。播客不是第四个 kind，是语音 kind 下的**工作流**（入口挂 StudioWorkflowPicker），因为它复用语音的全部资产与参数。

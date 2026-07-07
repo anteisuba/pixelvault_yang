@@ -38,10 +38,13 @@ import {
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_AUDIO_LATENCY,
   AUDIO_DEFAULT_EXPRESSIVENESS,
+  DEFAULT_AUDIO_KIND,
   DEFAULT_AUDIO_MP3_BITRATE,
   DEFAULT_AUDIO_OPUS_BITRATE,
   DEFAULT_AUDIO_SAMPLE_RATE,
+  DEFAULT_SFX_DURATION_SECONDS,
   normalizeSpeakerVoiceIds,
+  SFX_PROMPT_INFLUENCE_RANGE,
   TTS_CHUNK_LENGTH_RANGE,
   TTS_REPETITION_PENALTY_RANGE,
   TTS_TEMPERATURE_RANGE,
@@ -90,6 +93,7 @@ export type PanelName =
   | 'voiceSelector'
   | 'voiceTrainer'
   | 'audioTranscribe'
+  | 'sfxParams'
   | 'videoParams'
   | 'script'
   | 'keepChange'
@@ -111,10 +115,20 @@ export interface StudioFormState {
   voiceId: string | null
   /** Persisted VoiceCard ID for TTS */
   voiceCardId: string | null
+  /** Audio-specific — active kind (speech / sfx / music) */
+  audioKind: string
   /** Audio-specific — user-facing emotion control */
   audioEmotion: string
   /** Audio-specific — emotion responsiveness tier (or 'auto' to derive it) */
   audioExpressiveness: string
+  /** Audio-specific (sfx) — target clip length in seconds */
+  audioSfxDurationSeconds: number
+  /** Audio-specific (sfx) — seamless loop toggle */
+  audioSfxLoop: boolean
+  /** Audio-specific (sfx) — prompt adherence vs creativity (0–1) */
+  audioSfxPromptInfluence: number
+  /** Audio-specific (sfx) — number of variant clips per run (A/B compare) */
+  audioSfxVariantCount: number
   /** Audio-specific — user-facing pace control */
   audioPace: string
   /** Audio-specific — sentence pause marker IDs */
@@ -194,8 +208,13 @@ export type StudioAction =
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'SET_VOICE_ID'; payload: string | null }
   | { type: 'SET_VOICE_CARD_ID'; payload: string | null }
+  | { type: 'SET_AUDIO_KIND'; payload: string }
   | { type: 'SET_AUDIO_EMOTION'; payload: string }
   | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
+  | { type: 'SET_AUDIO_SFX_DURATION'; payload: number }
+  | { type: 'SET_AUDIO_SFX_LOOP'; payload: boolean }
+  | { type: 'SET_AUDIO_SFX_PROMPT_INFLUENCE'; payload: number }
+  | { type: 'SET_AUDIO_SFX_VARIANT_COUNT'; payload: number }
   | { type: 'SET_AUDIO_PACE'; payload: string }
   | { type: 'SET_AUDIO_PAUSE_MARKERS'; payload: string[] }
   | { type: 'SET_AUDIO_VOLUME'; payload: number }
@@ -252,13 +271,16 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
+  sfxParams: false,
   videoParams: false,
   script: false,
   keepChange: false,
 }
 
+// 'enhance' is deliberately NOT in this list: since 2026-07-07 it backs the
+// persistent assistant dock (desktop) / drawer (mobile), which coexists with
+// tool dialogs instead of being mutually exclusive with them.
 export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
-  'enhance',
   'reverse',
   'cardSelector',
   'advanced',
@@ -274,6 +296,7 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'voiceSelector',
   'voiceTrainer',
   'audioTranscribe',
+  'sfxParams',
 ]
 
 function openPanel(
@@ -307,8 +330,13 @@ const initialFormState: StudioFormState = {
   tokenInput: '',
   voiceId: null,
   voiceCardId: null,
+  audioKind: DEFAULT_AUDIO_KIND,
   audioEmotion: AUDIO_DEFAULT_EMOTION,
   audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
+  audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
+  audioSfxLoop: false,
+  audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
+  audioSfxVariantCount: 1,
   audioPace: AUDIO_DEFAULT_PACE,
   audioPauseMarkers: [],
   pronunciationDictionary: {},
@@ -367,10 +395,20 @@ export function studioFormReducer(
       return { ...state, voiceId: action.payload }
     case 'SET_VOICE_CARD_ID':
       return { ...state, voiceCardId: action.payload }
+    case 'SET_AUDIO_KIND':
+      return { ...state, audioKind: action.payload }
     case 'SET_AUDIO_EMOTION':
       return { ...state, audioEmotion: action.payload }
     case 'SET_AUDIO_EXPRESSIVENESS':
       return { ...state, audioExpressiveness: action.payload }
+    case 'SET_AUDIO_SFX_DURATION':
+      return { ...state, audioSfxDurationSeconds: action.payload }
+    case 'SET_AUDIO_SFX_LOOP':
+      return { ...state, audioSfxLoop: action.payload }
+    case 'SET_AUDIO_SFX_PROMPT_INFLUENCE':
+      return { ...state, audioSfxPromptInfluence: action.payload }
+    case 'SET_AUDIO_SFX_VARIANT_COUNT':
+      return { ...state, audioSfxVariantCount: action.payload }
     case 'SET_AUDIO_PACE':
       return { ...state, audioPace: action.payload }
     case 'SET_AUDIO_PAUSE_MARKERS':
@@ -492,8 +530,13 @@ export function studioFormReducer(
         selectedOptionId: null,
         voiceId: null,
         voiceCardId: null,
+        audioKind: DEFAULT_AUDIO_KIND,
         audioEmotion: AUDIO_DEFAULT_EMOTION,
         audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
+        audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
+        audioSfxLoop: false,
+        audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
+        audioSfxVariantCount: 1,
         audioPace: AUDIO_DEFAULT_PACE,
         audioPauseMarkers: [],
         pronunciationDictionary: {},

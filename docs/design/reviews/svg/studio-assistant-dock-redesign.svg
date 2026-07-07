@@ -1,0 +1,165 @@
+<svg width="100%" viewBox="0 0 680 1300" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <title>Studio 助手 dock 化线框 v4 2026-07-07</title>
+  <desc>v4：图片按钮改素材 popover（拖拽/粘贴/上传+素材网格），网/书 icon-only 加 tooltip，所有图片路径只进参考槽不触发生成</desc>
+  <rect x="0" y="0" width="680" height="1300" fill="#FAF9F5"/>
+  <text x="40" y="32" font-size="16" font-weight="500" fill="#2C2C2A">Studio 助手 · 居中 Dialog → 右侧 dock（草稿 v4）</text>
+  <text x="40" y="52" font-size="12" fill="#5F5E5A">v4：图=素材 popover（见③）；网/书 常驻仅图标 + hover tooltip；图片一律进参考槽、不触发生成</text>
+
+  <text x="40" y="84" font-size="12" font-weight="500" fill="#444441">① 桌面总览（≥lg）</text>
+  <rect x="40" y="96" width="600" height="320" rx="10" fill="#0E0E0E"/>
+  <rect x="40" y="96" width="64" height="320" rx="10" fill="#141414"/>
+  <rect x="96" y="96" width="8" height="320" fill="#141414"/>
+  <text x="52" y="120" font-size="11" font-weight="500" fill="#D3D1C7">ANTEI</text>
+  <rect x="52" y="136" width="40" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="52" y="150" width="40" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="52" y="164" width="40" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="52" y="178" width="40" height="6" rx="3" fill="#3A3A3A"/>
+
+  <rect x="118" y="112" width="326" height="186" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="281" y="196" font-size="12" fill="#888780" text-anchor="middle">画布 / 结果预览</text>
+  <rect x="150" y="220" width="56" height="42" rx="6" fill="#1E1E1E" stroke="#534AB7" stroke-width="1"/>
+  <text x="178" y="245" font-size="10" fill="#888780" text-anchor="middle">结果</text>
+  <path d="M214 240 C 300 240, 380 210, 452 190" fill="none" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M452 190 L442 188 L448 197 Z" fill="#534AB7"/>
+
+  <rect x="118" y="312" width="326" height="88" rx="8" fill="#141414"/>
+  <rect x="130" y="324" width="84" height="22" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="138" y="339" font-size="10" fill="#D3D1C7">请先选择模型 ▾</text>
+  <rect x="222" y="324" width="44" height="22" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="230" y="339" font-size="10" fill="#888780">模板</text>
+  <rect x="274" y="324" width="44" height="22" rx="6" fill="#F1EFE8"/>
+  <text x="282" y="339" font-size="10" font-weight="500" fill="#141414">助手</text>
+  <rect x="326" y="324" width="44" height="22" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="334" y="339" font-size="10" fill="#888780">图像</text>
+  <rect x="378" y="324" width="40" height="22" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="386" y="339" font-size="10" fill="#888780">1:1</text>
+  <rect x="130" y="356" width="302" height="32" rx="16" fill="#1E1E1E"/>
+  <text x="144" y="376" font-size="10" fill="#6B6B66">描述动作、场景或表情…</text>
+  <circle cx="416" cy="372" r="11" fill="#F1EFE8"/>
+  <path d="M412 367 L422 372 L412 377 Z" fill="#141414"/>
+
+  <rect x="456" y="96" width="184" height="320" rx="10" fill="#161616"/>
+  <rect x="456" y="96" width="10" height="320" fill="#161616"/>
+  <line x1="456" y1="100" x2="456" y2="412" stroke="#3A3A3A" stroke-width="1"/>
+  <circle cx="476" cy="116" r="7" fill="#534AB7"/>
+  <text x="490" y="120" font-size="11" font-weight="500" fill="#D3D1C7">助手</text>
+  <text x="612" y="120" font-size="11" fill="#888780">⊕  ▸</text>
+  <line x1="466" y1="132" x2="630" y2="132" stroke="#2A2A2A" stroke-width="1"/>
+  <rect x="468" y="142" width="52" height="16" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <rect x="526" y="142" width="34" height="16" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <rect x="566" y="142" width="56" height="16" rx="8" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <rect x="468" y="176" width="158" height="88" rx="6" fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="547" y="216" font-size="10" fill="#534AB7" text-anchor="middle">⇩ 拖到这里作为参考图</text>
+  <rect x="468" y="352" width="158" height="48" rx="8" fill="#101010" stroke="#2E2E2E" stroke-width="1"/>
+  <text x="478" y="372" font-size="9" fill="#6B6B66">描述你想要创作的内容…</text>
+
+  <circle cx="46" cy="444" r="3" fill="#534AB7"/>
+  <text x="56" y="448" font-size="12" fill="#444441">画布结果 / 参考图 strip 缩略图 / OS 文件均可拖入 dock（studio-generation 协议复用）</text>
+  <circle cx="46" cy="466" r="3" fill="#534AB7"/>
+  <text x="56" y="470" font-size="12" fill="#444441">拖到画布 = 加生成参考；拖到 dock = 给助手看图。两个 drop 目标物理分离不冲突</text>
+  <circle cx="46" cy="488" r="3" fill="#534AB7"/>
+  <text x="56" y="492" font-size="12" fill="#444441">模型池对齐 node（DeepSeek/Qwen 文本可入）+ 联网研究 toggle；尺寸/开合同 v1</text>
+
+  <text x="40" y="530" font-size="12" font-weight="500" fill="#444441">② dock 细节（≈1:1）</text>
+  <rect x="40" y="542" width="300" height="510" rx="10" fill="#161616" stroke="#2A2A2A" stroke-width="1"/>
+  <rect x="40" y="542" width="6" height="510" fill="#1E1E1E"/>
+  <circle cx="43" cy="780" r="1.5" fill="#534AB7"/>
+  <circle cx="43" cy="790" r="1.5" fill="#534AB7"/>
+  <circle cx="43" cy="800" r="1.5" fill="#534AB7"/>
+
+  <circle cx="70" cy="566" r="10" fill="#534AB7"/>
+  <text x="88" y="571" font-size="13" font-weight="500" fill="#D3D1C7">助手</text>
+  <rect x="258" y="554" width="24" height="24" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="265" y="570" font-size="11" fill="#888780">⊕</text>
+  <rect x="290" y="554" width="24" height="24" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="297" y="570" font-size="11" fill="#888780">▸</text>
+  <line x1="56" y1="590" x2="324" y2="590" stroke="#2A2A2A" stroke-width="1"/>
+
+  <rect x="54" y="602" width="70" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="66" y="619" font-size="11" fill="#888780">图片风格</text>
+  <rect x="130" y="602" width="44" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="142" y="619" font-size="11" fill="#888780">详细</text>
+  <rect x="180" y="602" width="80" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="190" y="619" font-size="11" fill="#888780">LoRA 转换</text>
+  <rect x="266" y="602" width="44" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="278" y="619" font-size="11" fill="#888780">标签</text>
+
+  <rect x="180" y="648" width="140" height="30" rx="15" fill="#1E1E1E"/>
+  <text x="196" y="667" font-size="11" fill="#D3D1C7">把这句扩写成动漫风</text>
+
+  <rect x="56" y="694" width="264" height="124" rx="8" fill="#1A1A1A" stroke="#2E2E2E" stroke-width="1"/>
+  <rect x="70" y="708" width="200" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="70" y="722" width="236" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="70" y="736" width="220" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="70" y="750" width="160" height="6" rx="3" fill="#2E2E2E"/>
+  <rect x="70" y="776" width="48" height="26" rx="6" fill="#F1EFE8"/>
+  <text x="82" y="793" font-size="11" font-weight="500" fill="#141414">填入</text>
+  <rect x="126" y="776" width="48" height="26" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="138" y="793" font-size="11" fill="#888780">追加</text>
+  <rect x="286" y="776" width="26" height="26" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="293" y="793" font-size="11" fill="#888780">⧉</text>
+
+  <rect x="56" y="830" width="264" height="54" rx="8" fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="188" y="861" font-size="11" fill="#534AB7" text-anchor="middle">⇩ 拖入画布结果 / 参考图 / 本地文件</text>
+
+  <rect x="56" y="900" width="264" height="72" rx="10" fill="#101010" stroke="#2E2E2E" stroke-width="1"/>
+  <text x="70" y="922" font-size="11" fill="#6B6B66">描述你想要创作的内容…</text>
+  <rect x="56" y="984" width="100" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="66" y="1001" font-size="10" fill="#D3D1C7">DeepSeek V3 ▾</text>
+  <rect x="162" y="984" width="48" height="26" rx="13" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="171" y="1001" font-size="10" fill="#888780">中文 ▾</text>
+  <rect x="216" y="984" width="24" height="26" rx="6" fill="#534AB7"/>
+  <text x="222" y="1001" font-size="10" fill="#EEEDFE">网</text>
+  <rect x="244" y="984" width="24" height="26" rx="6" fill="none" stroke="#3A3A3A" stroke-width="1"/>
+  <text x="250" y="1001" font-size="10" fill="#888780">图</text>
+  <circle cx="310" cy="997" r="13" fill="#F1EFE8"/>
+  <path d="M305 991 L317 997 L305 1003 Z" fill="#141414"/>
+
+  <line x1="342" y1="566" x2="364" y2="566" stroke="#534AB7" stroke-width="1"/>
+  <text x="370" y="562" font-size="12" fill="#444441">头部与 node dock 同构：</text>
+  <text x="370" y="578" font-size="12" fill="#444441">⊕ 新对话 / ▸ 收起</text>
+
+  <line x1="342" y1="615" x2="364" y2="615" stroke="#534AB7" stroke-width="1"/>
+  <text x="370" y="611" font-size="12" fill="#444441">原 4 个 tab 降为对话上方</text>
+  <text x="370" y="627" font-size="12" fill="#444441">快捷动作 chips（逻辑保留）</text>
+
+  <line x1="342" y1="756" x2="364" y2="756" stroke="#534AB7" stroke-width="1"/>
+  <text x="370" y="744" font-size="12" fill="#444441">结果卡「填入 / 追加」直写</text>
+  <text x="370" y="760" font-size="12" fill="#444441">prompt 框；对话跨多轮生成</text>
+  <text x="370" y="776" font-size="12" fill="#444441">持续存在，不再随弹窗消失</text>
+
+  <line x1="342" y1="936" x2="364" y2="936" stroke="#534AB7" stroke-width="1"/>
+  <text x="370" y="912" font-size="12" fill="#444441">composer：模型池对齐 node，</text>
+  <text x="370" y="928" font-size="12" fill="#444441">DeepSeek 纯文本可选（拆</text>
+  <text x="370" y="944" font-size="12" fill="#444441">enhance 能力），带图仅多模态；</text>
+  <text x="370" y="960" font-size="12" fill="#444441">网 仅图标 + hover tooltip；图=素材</text>
+  <text x="370" y="976" font-size="12" fill="#444441">popover（见③）；灵感开关 v1 撤下</text>
+
+  <text x="370" y="820" font-size="12" fill="#444441">左缘 6px 拖拽手柄，</text>
+  <text x="370" y="836" font-size="12" fill="#444441">双击复位 448px</text>
+  <line x1="342" y1="816" x2="364" y2="816" stroke="#534AB7" stroke-width="1"/>
+
+  <line x1="342" y1="857" x2="364" y2="857" stroke="#534AB7" stroke-width="1"/>
+  <text x="370" y="861" font-size="12" fill="#444441">整个 dock 即 drop zone，</text>
+  <text x="370" y="877" font-size="12" fill="#444441">拖入 = 替换单图参考槽</text>
+
+  <text x="40" y="1112" font-size="12" font-weight="500" fill="#444441">③ 图片按钮 popover（点击「图」后）</text>
+  <rect x="40" y="1124" width="240" height="150" rx="10" fill="#161616" stroke="#2A2A2A" stroke-width="1"/>
+  <rect x="54" y="1138" width="212" height="44" rx="8" fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="160" y="1164" font-size="11" fill="#534AB7" text-anchor="middle">⇩ 拖拽 / 粘贴 / 点击上传</text>
+  <rect x="54" y="1192" width="48" height="36" rx="4" fill="#1E1E1E" stroke="#534AB7" stroke-width="1"/>
+  <rect x="108" y="1192" width="48" height="36" rx="4" fill="#1E1E1E" stroke="#2E2E2E" stroke-width="1"/>
+  <rect x="162" y="1192" width="48" height="36" rx="4" fill="#1E1E1E" stroke="#2E2E2E" stroke-width="1"/>
+  <rect x="216" y="1192" width="48" height="36" rx="4" fill="#1E1E1E" stroke="#2E2E2E" stroke-width="1"/>
+  <text x="54" y="1256" font-size="11" fill="#888780">最近素材 · 素材库 →</text>
+
+  <line x1="288" y1="1160" x2="310" y2="1160" stroke="#534AB7" stroke-width="1"/>
+  <text x="316" y="1148" font-size="12" fill="#444441">点选素材 / 拖入 / 粘贴 / 上传</text>
+  <text x="316" y="1164" font-size="12" fill="#444441">→ 全部进 composer 参考槽</text>
+  <text x="316" y="1180" font-size="12" fill="#444441">（textarea 上方预览条），不直接生成</text>
+  <text x="316" y="1212" font-size="12" fill="#444441">tooltip 文案：网=「开启后回答会联网搜索」；</text>
+  <text x="316" y="1228" font-size="12" fill="#444441">BookOpen 灵感开关 v1 撤下（子串匹配公共库</text>
+  <text x="316" y="1244" font-size="12" fill="#444441">基本命不中，service 保留，检索升级后再回归）</text>
+
+  <text x="40" y="1288" font-size="12" fill="#5F5E5A">移动端 &lt;lg：退化为 Drawer，无拖拽——靠图片 popover（sheet 形态）上传/选素材；dock 滚动区显式 color-scheme:dark</text>
+</svg>

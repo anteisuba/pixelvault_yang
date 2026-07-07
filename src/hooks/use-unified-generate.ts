@@ -29,6 +29,7 @@ import { galleryGenerationPath } from '@/constants/routes'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
+  GenerateAudioRequest,
   GenerateAudioResponseData,
   GenerationRecord,
   RunGroupMode,
@@ -71,6 +72,11 @@ export interface AudioGenerateInput {
   referenceText?: string
   emotion?: string
   expressiveness?: string
+  durationSeconds?: number
+  loop?: boolean
+  promptInfluence?: number
+  /** >1 issues N independent generations shown as an A/B variant grid. */
+  variantCount?: number
   pace?: string
   pauseMarkers?: string[]
   pronunciationDictionary?: Record<string, string>
@@ -150,6 +156,47 @@ function hasJobId(
 
 function waitForPollInterval(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+/** Compile an audio-mode input into the API request (shared by single + variants). */
+function buildAudioRequestPayload(
+  input: AudioGenerateInput,
+): GenerateAudioRequest {
+  return {
+    prompt: input.freePrompt ?? '',
+    modelId: input.modelId,
+    apiKeyId: input.apiKeyId,
+    voiceId: input.voiceId,
+    coverImageUrl: input.coverImageUrl,
+    referenceAudioUrl: input.referenceAudioUrl,
+    referenceText: input.referenceText,
+    emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,
+    durationSeconds: input.durationSeconds,
+    loop: input.loop,
+    promptInfluence: input.promptInfluence,
+    expressiveness:
+      input.expressiveness && isAudioExpressiveness(input.expressiveness)
+        ? input.expressiveness
+        : undefined,
+    pace: isAudioPace(input.pace) ? input.pace : undefined,
+    pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),
+    pronunciationDictionary: input.pronunciationDictionary,
+    speed: input.speed,
+    volume: input.volume,
+    normalizeLoudness: input.normalizeLoudness,
+    normalizeText: input.normalizeText,
+    withTimestamps: input.withTimestamps,
+    format: input.format,
+    sampleRate: input.sampleRate,
+    mp3Bitrate: input.mp3Bitrate,
+    opusBitrate: input.opusBitrate,
+    latency: input.latency,
+    temperature: input.temperature,
+    topP: input.topP,
+    chunkLength: input.chunkLength,
+    repetitionPenalty: input.repetitionPenalty,
+    speakerVoiceIds: input.speakerVoiceIds,
+  }
 }
 
 function toCompletedRunItem<T extends RunItem>(
@@ -1000,38 +1047,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       })
 
       try {
-        const result = await generateAudioAPI({
-          prompt: input.freePrompt ?? '',
-          modelId: input.modelId,
-          apiKeyId: input.apiKeyId,
-          voiceId: input.voiceId,
-          coverImageUrl: input.coverImageUrl,
-          referenceAudioUrl: input.referenceAudioUrl,
-          referenceText: input.referenceText,
-          emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,
-          expressiveness:
-            input.expressiveness && isAudioExpressiveness(input.expressiveness)
-              ? input.expressiveness
-              : undefined,
-          pace: isAudioPace(input.pace) ? input.pace : undefined,
-          pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),
-          pronunciationDictionary: input.pronunciationDictionary,
-          speed: input.speed,
-          volume: input.volume,
-          normalizeLoudness: input.normalizeLoudness,
-          normalizeText: input.normalizeText,
-          withTimestamps: input.withTimestamps,
-          format: input.format,
-          sampleRate: input.sampleRate,
-          mp3Bitrate: input.mp3Bitrate,
-          opusBitrate: input.opusBitrate,
-          latency: input.latency,
-          temperature: input.temperature,
-          topP: input.topP,
-          chunkLength: input.chunkLength,
-          repetitionPenalty: input.repetitionPenalty,
-          speakerVoiceIds: input.speakerVoiceIds,
-        })
+        const result = await generateAudioAPI(buildAudioRequestPayload(input))
 
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data
@@ -1132,6 +1148,143 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     ],
   )
 
+  // ── Audio variants (N independent clips, A/B compare) ─────────
+
+  const generateAudioVariants = useCallback(
+    async (
+      input: AudioGenerateInput,
+      count: number,
+    ): Promise<GenerationRecord | null> => {
+      setIsGenerating(true)
+      setStage('generating')
+      setError(null)
+      setErrorCode(null)
+      startTimer()
+
+      const runGroupId = crypto.randomUUID()
+      const items = Array.from({ length: count }, (_, index) => ({
+        id: crypto.randomUUID(),
+        modelId: input.modelId,
+        status: 'generating' as const,
+        generation: null,
+        error: null,
+        index,
+      }))
+      setActiveRun({
+        id: runGroupId,
+        mode: 'variant',
+        items,
+        selectedItemId: null,
+        prompt: input.freePrompt ?? '',
+        startedAt: Date.now(),
+      })
+
+      const payload = buildAudioRequestPayload(input)
+      let firstSuccess: GenerationRecord | null = null
+      const firstFailure = {
+        current: null as { message: string; code: GenerationErrorCode } | null,
+      }
+      const timeoutFailure = () => ({
+        message: tErrors('generation.provider_timeout'),
+        code: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
+      })
+
+      // Each variant submits + polls on its own loop (the shared pollRef only
+      // tracks one job), resolving its tile as soon as it finishes.
+      const runOne = async (itemId: string): Promise<void> => {
+        const submit = await generateAudioAPI(payload)
+        if (!(submit.success && hasJobId(submit.data))) {
+          const failure = resolveGenerationError(
+            submit,
+            tStudio('generateFailed'),
+          )
+          markActiveRunItemFailed(itemId, failure.message)
+          firstFailure.current ??= failure
+          return
+        }
+        const { jobId } = submit.data
+        for (
+          let attempt = 0;
+          attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
+          attempt += 1
+        ) {
+          await waitForPollInterval(AUDIO_GENERATION.POLL_INTERVAL_MS)
+          let statusResponse
+          try {
+            statusResponse = await checkAudioStatusAPI(jobId)
+          } catch {
+            markActiveRunItemFailed(itemId, tStudio('generateFailed'))
+            firstFailure.current ??= {
+              message: tStudio('generateFailed'),
+              code: GENERATION_ERROR_CODES.UNKNOWN,
+            }
+            return
+          }
+          if (!statusResponse.success || !statusResponse.data) {
+            const failure = resolveGenerationError(
+              statusResponse,
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(itemId, failure.message)
+            firstFailure.current ??= failure
+            return
+          }
+          const statusData = statusResponse.data
+          if (statusData.status === 'COMPLETED') {
+            markActiveRunItemCompleted(itemId, statusData.generation)
+            if (!firstSuccess) {
+              firstSuccess = statusData.generation
+              setLastGeneration(statusData.generation)
+            }
+            return
+          }
+          if (statusData.status === 'FAILED') {
+            const failure = resolveGenerationError(
+              statusData,
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(itemId, failure.message)
+            firstFailure.current ??= failure
+            return
+          }
+        }
+        markActiveRunItemFailed(itemId, timeoutFailure().message)
+        firstFailure.current ??= timeoutFailure()
+      }
+
+      try {
+        await Promise.all(items.map((item) => runOne(item.id)))
+
+        if (firstSuccess) {
+          notifySaved(firstSuccess, tStudio('generateSuccess'))
+          finish()
+          return firstSuccess
+        }
+        const failure = firstFailure.current ?? {
+          message: tStudio('generateFailed'),
+          code: GENERATION_ERROR_CODES.UNKNOWN,
+        }
+        finish(failure.message, failure.code)
+        return null
+      } finally {
+        stopTimer()
+        setIsGenerating(false)
+        setStage('idle')
+      }
+    },
+    [
+      tErrors,
+      tStudio,
+      notifySaved,
+      startTimer,
+      stopTimer,
+      finish,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      resolveGenerationError,
+    ],
+  )
+
   // ── Unified entry point ───────────────────────────────────────
 
   const generate = useCallback(
@@ -1154,6 +1307,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         return generateVideo(input.video)
       }
       if (input.mode === 'audio' && input.audio) {
+        const count = input.audio.variantCount ?? 1
+        if (count > 1) {
+          return generateAudioVariants(input.audio, count)
+        }
         return generateAudio(input.audio)
       }
       return null
@@ -1164,6 +1321,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       generateCompare,
       generateVideo,
       generateAudio,
+      generateAudioVariants,
     ],
   )
 

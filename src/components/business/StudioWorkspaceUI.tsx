@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { ROUTES } from '@/constants/routes'
 import {
+  StudioAssistantDock,
   StudioCanvas,
   StudioBottomDock,
   StudioFlowLayout,
@@ -170,7 +171,7 @@ export function StudioWorkspaceUI() {
         role="tabpanel"
         id={`studio-panel-${state.outputType}`}
         aria-labelledby={`studio-tab-${state.outputType}`}
-        className="studio-layout-v2"
+        className="flex"
       >
         {/*
          * Unified canvas-centric layout for image / video / audio. The
@@ -183,11 +184,19 @@ export function StudioWorkspaceUI() {
          * the sidebar's Card section (single source of truth, no
          * duplicate entry in the top bar), so the workspace now renders
          * inside the (main) layout's SidebarProvider directly.
+         *
+         * The assistant dock (2026-07-07) sits as a horizontal flex
+         * sibling of the canvas column — deliberately outside
+         * StudioFlowLayout, which stays the sole owner of the vertical
+         * canvas/dock rhythm.
          */}
-        <StudioFlowLayout
-          canvas={<StudioCanvas />}
-          dock={<StudioBottomDock />}
-        />
+        <div className="studio-layout-v2 min-w-0 flex-1">
+          <StudioFlowLayout
+            canvas={<StudioCanvas />}
+            dock={<StudioBottomDock />}
+          />
+        </div>
+        <StudioAssistantDock />
       </div>
 
       <StudioCommandPalette />

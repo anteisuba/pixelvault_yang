@@ -13,18 +13,19 @@ import TextareaAutosize from 'react-textarea-autosize'
 import {
   ArrowRight,
   Bot,
-  BookOpen,
   Check,
   ChevronDown,
   Copy,
+  Globe,
   ImagePlus,
   Images,
   Languages,
+  Library,
   Loader2,
-  Paperclip,
   Plus,
   Sparkles,
   Tag,
+  UploadCloud,
   WandSparkles,
   X,
 } from 'lucide-react'
@@ -39,7 +40,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
+import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
+import { fetchGalleryImages } from '@/lib/api-client'
 import {
   usePromptAssistant,
   STYLE_SHORTCUTS,
@@ -113,6 +121,13 @@ interface PromptAssistantPanelProps {
   onAppendPrompt?: (prompt: string) => void
   /** Called when panel is closed */
   onClose?: () => void
+  /**
+   * External reference injection (assistant dock drop zone). Each drop bumps
+   * `token`, and the panel replaces its single reference slot with `url`
+   * (data URL or remote URL). Images only ever land in the composer — they
+   * never trigger generation.
+   */
+  injectedReference?: { url: string; token: number }
 }
 
 export function PromptAssistantPanel({
@@ -122,6 +137,7 @@ export function PromptAssistantPanel({
   llmApiKeys,
   onUsePrompt,
   onAppendPrompt,
+  injectedReference,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
@@ -137,7 +153,7 @@ export function PromptAssistantPanel({
   const [selectedApiKeyId, setSelectedApiKeyId] = useState<string | undefined>(
     llmApiKeys?.[0]?.id,
   )
-  const [useInspirationContext, setUseInspirationContext] = useState(false)
+  const [researchEnabled, setResearchEnabled] = useState(false)
   const [referenceImage, setReferenceImage] =
     useState<AssistantReferenceImage | null>(
       referenceImageData
@@ -146,6 +162,21 @@ export function PromptAssistantPanel({
     )
   const [referenceError, setReferenceError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Dock drop zone → single reference slot (replace semantics). Derived
+  // state from props via a render-phase update (React's recommended
+  // alternative to setState-in-effect).
+  const [lastInjectedToken, setLastInjectedToken] = useState<
+    number | undefined
+  >(undefined)
+  if (injectedReference && injectedReference.token !== lastInjectedToken) {
+    setLastInjectedToken(injectedReference.token)
+    setReferenceImage({
+      data: injectedReference.url,
+      previewUrl: injectedReference.url,
+    })
+    setReferenceError(null)
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -166,7 +197,7 @@ export function PromptAssistantPanel({
       currentPrompt,
       apiKeyId: selectedApiKeyId,
       responseLanguage,
-      useInspirationContext,
+      research: researchEnabled,
     }),
     [
       modelId,
@@ -174,7 +205,7 @@ export function PromptAssistantPanel({
       currentPrompt,
       selectedApiKeyId,
       responseLanguage,
-      useInspirationContext,
+      researchEnabled,
     ],
   )
 
@@ -335,7 +366,6 @@ export function PromptAssistantPanel({
         referencePreviewUrl={referenceImage?.previewUrl}
         referenceImageAlt={t('referenceImageAlt')}
         removeReferenceLabel={t('removeImage')}
-        selectAssetLabel={t('selectAsset')}
         assetDialogTitle={t('selectAsset')}
         assetDialogDescription={t('referenceDescription')}
         responseLanguage={responseLanguage}
@@ -349,12 +379,15 @@ export function PromptAssistantPanel({
         selectedApiKeyId={selectedApiKeyId}
         selectApiKeyLabel={t('selectApiKey')}
         onSelectApiKey={setSelectedApiKeyId}
-        useInspirationContext={useInspirationContext}
-        onToggleInspirationContext={() =>
-          setUseInspirationContext((prev) => !prev)
-        }
-        inspirationContextLabel={t('useInspirationContext')}
-        inspirationContextOnLabel={t('useInspirationContextOn')}
+        researchEnabled={researchEnabled}
+        onToggleResearch={() => setResearchEnabled((prev) => !prev)}
+        researchLabel={t('research')}
+        researchHint={t('researchHint')}
+        imageButtonLabel={t('imageButton')}
+        imageDropHint={t('imageDropHint')}
+        recentAssetsLabel={t('recentAssets')}
+        recentAssetsEmptyLabel={t('recentAssetsEmpty')}
+        openLibraryLabel={t('openLibrary')}
         onClear={clear}
         onReferenceFile={handleReferenceFile}
         onReferenceAsset={handleReferenceAsset}
@@ -391,16 +424,20 @@ interface AssistantAnimatedInputProps {
   removeReferenceLabel: string
   selectedApiKeyId?: string
   selectApiKeyLabel: string
-  selectAssetLabel: string
   assetDialogDescription: string
   assetDialogTitle: string
   sendLabel: string
   showClear: boolean
   value: string
-  useInspirationContext: boolean
-  onToggleInspirationContext: () => void
-  inspirationContextLabel: string
-  inspirationContextOnLabel: string
+  researchEnabled: boolean
+  onToggleResearch: () => void
+  researchLabel: string
+  researchHint: string
+  imageButtonLabel: string
+  imageDropHint: string
+  recentAssetsLabel: string
+  recentAssetsEmptyLabel: string
+  openLibraryLabel: string
 }
 
 function AssistantAnimatedInput({
@@ -417,7 +454,7 @@ function AssistantAnimatedInput({
   onResponseLanguageChange,
   onSelectApiKey,
   onSubmit,
-  onToggleInspirationContext,
+  onToggleResearch,
   onValueChange,
   placeholder,
   referenceImageAlt,
@@ -428,19 +465,24 @@ function AssistantAnimatedInput({
   removeReferenceLabel,
   selectedApiKeyId,
   selectApiKeyLabel,
-  selectAssetLabel,
   assetDialogDescription,
   assetDialogTitle,
   sendLabel,
   showClear,
   value,
-  useInspirationContext,
-  inspirationContextLabel,
-  inspirationContextOnLabel,
+  researchEnabled,
+  researchLabel,
+  researchHint,
+  imageButtonLabel,
+  imageDropHint,
+  recentAssetsLabel,
+  recentAssetsEmptyLabel,
+  openLibraryLabel,
 }: AssistantAnimatedInputProps) {
   const tForm = useTranslations('StudioForm')
   const [isComposing, setIsComposing] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const [imagePopoverOpen, setImagePopoverOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const responseLanguageOption = responseLanguageOptions.find(
     (option) => option.value === responseLanguage,
@@ -465,6 +507,17 @@ function AssistantAnimatedInput({
   const handleAssetSelect = (generation: GenerationRecord) => {
     if (generation.outputType !== 'IMAGE') return
     void onReferenceAsset(generation)
+  }
+
+  // Pasting an image into the composer fills the reference slot — mirrors
+  // the studio prompt textarea's paste behavior.
+  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const file = Array.from(event.clipboardData?.files ?? []).find((entry) =>
+      entry.type.startsWith('image/'),
+    )
+    if (!file) return
+    event.preventDefault()
+    void onReferenceFile(file)
   }
 
   return (
@@ -500,6 +553,7 @@ function AssistantAnimatedInput({
           disabled={disabled}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onCompositionStart={() => setIsComposing(true)}
           onCompositionEnd={() => setIsComposing(false)}
           className="min-h-20 w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
@@ -557,25 +611,22 @@ function AssistantAnimatedInput({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* 联网研究 toggle — icon-only + tooltip（同 node dock 语义） */}
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              aria-label={inspirationContextLabel}
-              aria-pressed={useInspirationContext}
-              title={
-                useInspirationContext
-                  ? inspirationContextOnLabel
-                  : inspirationContextLabel
-              }
+              aria-label={researchLabel}
+              aria-pressed={researchEnabled}
+              title={researchHint}
               disabled={disabled}
-              onClick={onToggleInspirationContext}
+              onClick={onToggleResearch}
               className={cn(
                 'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                useInspirationContext && 'bg-primary/10 text-primary',
+                researchEnabled && 'bg-primary/10 text-primary',
               )}
             >
-              <BookOpen className="size-4" />
+              <Globe className="size-4" />
             </Button>
 
             <input
@@ -586,31 +637,46 @@ function AssistantAnimatedInput({
               onChange={handleFileChange}
               disabled={disabled}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={attachLabel}
-              disabled={disabled}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                hasReferenceImage && 'bg-primary/10 text-primary',
-              )}
-            >
-              <Paperclip className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={selectAssetLabel}
-              disabled={disabled}
-              onClick={() => setAssetDialogOpen(true)}
-              className="size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground"
-            >
-              <Images className="size-4" />
-            </Button>
+            {/* 图片入口收敛为一个按钮 → 素材 popover（拖/粘/传 + 最近素材 + 素材库） */}
+            <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={imageButtonLabel}
+                  title={attachLabel}
+                  disabled={disabled}
+                  className={cn(
+                    'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    hasReferenceImage && 'bg-primary/10 text-primary',
+                  )}
+                >
+                  <Images className="size-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" sideOffset={8} className="w-72 p-3">
+                <AssistantImagePopoverBody
+                  dropHint={imageDropHint}
+                  recentLabel={recentAssetsLabel}
+                  recentEmptyLabel={recentAssetsEmptyLabel}
+                  openLibraryLabel={openLibraryLabel}
+                  onPickFile={() => fileInputRef.current?.click()}
+                  onDropFile={(file) => {
+                    void onReferenceFile(file)
+                    setImagePopoverOpen(false)
+                  }}
+                  onPickAsset={(generation) => {
+                    void onReferenceAsset(generation)
+                    setImagePopoverOpen(false)
+                  }}
+                  onOpenLibrary={() => {
+                    setImagePopoverOpen(false)
+                    setAssetDialogOpen(true)
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
 
             {showClear && (
               <Button
@@ -646,6 +712,122 @@ function AssistantAnimatedInput({
         description={assetDialogDescription}
         mediaType="image"
       />
+    </div>
+  )
+}
+
+// ─── Image popover body ─────────────────────────────────────────
+// 图片入口收敛（2026-07-07 D4）：上半拖/粘/传混合入区，下半最近素材网格，
+// 底部进全量素材库。所有路径只写 composer 参考槽，不触发生成。
+
+function AssistantImagePopoverBody({
+  dropHint,
+  recentLabel,
+  recentEmptyLabel,
+  openLibraryLabel,
+  onPickFile,
+  onDropFile,
+  onPickAsset,
+  onOpenLibrary,
+}: {
+  dropHint: string
+  recentLabel: string
+  recentEmptyLabel: string
+  openLibraryLabel: string
+  onPickFile: () => void
+  onDropFile: (file: File) => void
+  onPickAsset: (generation: GenerationRecord) => void
+  onOpenLibrary: () => void
+}) {
+  const [assets, setAssets] = useState<GenerationRecord[] | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchGalleryImages(1, STUDIO_ASSISTANT_RECENT_ASSETS, {
+      mine: true,
+      type: 'image',
+      sort: 'newest',
+    }).then((result) => {
+      if (cancelled) return
+      setAssets(result.success ? (result.data?.generations ?? []) : [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={onPickFile}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return
+          event.preventDefault()
+          setIsDragOver(true)
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(event) => {
+          event.preventDefault()
+          setIsDragOver(false)
+          const file = Array.from(event.dataTransfer.files).find((entry) =>
+            entry.type.startsWith('image/'),
+          )
+          if (file) onDropFile(file)
+        }}
+        className={cn(
+          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground',
+          isDragOver && 'border-primary/60 bg-primary/10 text-foreground',
+        )}
+      >
+        <UploadCloud className="size-4" />
+        {dropHint}
+      </button>
+
+      <div className="space-y-1.5">
+        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          {recentLabel}
+        </p>
+        {assets === null ? (
+          <div className="flex h-16 items-center justify-center">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : assets.length === 0 ? (
+          <p className="py-3 text-center text-xs text-muted-foreground">
+            {recentEmptyLabel}
+          </p>
+        ) : (
+          <div className="grid grid-cols-4 gap-1.5">
+            {assets.map((generation) => (
+              <button
+                key={generation.id}
+                type="button"
+                onClick={() => onPickAsset(generation)}
+                className="group relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              >
+                <img
+                  src={generation.url}
+                  alt=""
+                  loading="lazy"
+                  className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onOpenLibrary}
+        className="h-8 w-full gap-1.5 rounded-lg text-xs"
+      >
+        <Library className="size-3.5" />
+        {openLibraryLabel}
+      </Button>
     </div>
   )
 }

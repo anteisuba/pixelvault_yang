@@ -1,15 +1,16 @@
-import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
-
 /**
- * Top-level Studio layout — wraps every /studio/* route in
- * PromptTagProvider, which keeps selected prompt tags scoped to the
- * signed-in user.
+ * Top-level Studio layout — a pass-through segment above the Image /
+ * Video / Audio workspace and the LoRA domain.
  *
- * LoraStackProvider used to live here too, but LoRA generation now owns
- * its own domain at /studio/lora (see docs/plans/lora-domain-split-2026-06.md
- * §7) — Image Studio no longer reads the active LoRA stack. The provider
- * moved down to `studio/lora/layout.tsx` so it only wraps the surface that
- * actually needs it.
+ * Both session-scoped providers that used to live here have moved down to
+ * `studio/lora/layout.tsx`, because both are LoRA-domain concerns that
+ * Image Studio must not read:
+ *   - LoraStackProvider — the active LoRA stack
+ *     (see docs/plans/lora-domain-split-2026-06.md §7).
+ *   - PromptTagProvider — the tavern-style prompt-tag stack. Its only
+ *     add-UI is the LoRA workbench; keeping it at this level leaked the
+ *     selected tags (display + prompt injection) into the Image Studio
+ *     compose bar.
  *
  * The (workspace) and edit sub-layouts continue to own their own
  * StudioProvider / EditWorkspaceShell — this layer sits above them.
@@ -19,5 +20,5 @@ export default function StudioLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <PromptTagProvider>{children}</PromptTagProvider>
+  return <>{children}</>
 }

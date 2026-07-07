@@ -238,12 +238,14 @@
     "modeLabel": {
       "image": "图片工作台",
       "video": "视频工作台",
-      "audio": "音频工作台"
+      "audio": "音频工作台",
+      "audio_sfx": "音效工作台"
     },
     "hint": {
       "image": "描述你想要的画面，或从一个示例开始",
       "video": "描述镜头里发生什么，或从一个示例开始",
-      "audio": "输入要朗读的文本，或从一个示例开始"
+      "audio": "输入要朗读的文本，或从一个示例开始",
+      "audio_sfx": "描述你想要的声音，或从一个示例开始"
     },
     "examples": {
       "image": {
@@ -286,6 +288,20 @@
         "e3": {
           "label": "有声故事",
           "prompt": "清晨的森林里，小狐狸第一次独自出门。露水打湿了它的爪子，它却兴奋得竖起了耳朵。"
+        }
+      },
+      "audio_sfx": {
+        "e1": {
+          "label": "雷声",
+          "prompt": "一声突如其来的雷鸣划过天空，低沉的隆隆声渐渐消散成远处的回响"
+        },
+        "e2": {
+          "label": "砾石脚步声",
+          "prompt": "缓慢而沉稳的脚步踩在砾石上，近距离，安静的户外环境音"
+        },
+        "e3": {
+          "label": "玻璃碎裂",
+          "prompt": "一只玻璃杯掉落在瓷砖地面上摔碎，清脆的破裂声伴随四散的碎片"
         }
       }
     },
@@ -674,6 +690,7 @@
     "audioVoice": "声音",
     "audioText": "文本",
     "audioPlaceholder": "输入你想转换为语音的文本...",
+    "sfxPlaceholder": "描述你想要的音效...",
     "audioSpeed": "语速",
     "audioGenerate": "生成语音",
     "audioGenerating": "生成中...",
@@ -794,6 +811,17 @@
     "expressivenessRestrained": "克制",
     "expressivenessNatural": "自然",
     "expressivenessDramatic": "戏剧化",
+    "kindLabel": "类型",
+    "kindSpeech": "语音",
+    "kindSfx": "音效",
+    "kindMusic": "音乐",
+    "sfxDuration": "时长",
+    "sfxDurationHint": "音效的目标长度。",
+    "sfxPromptInfluence": "提示词贴合度",
+    "sfxPromptInfluenceHint": "越高越贴合提示词，越低越有创意。",
+    "sfxLoop": "无缝循环",
+    "sfxVariants": "变体数",
+    "sfxVariantsHint": "一次生成多条对比挑选。每个变体都是一次独立生成。",
     "paceSlow": "慢",
     "paceNormal": "正常",
     "paceFast": "快",
@@ -1484,6 +1512,7 @@
     "sortFallbackHint": "搜索排序服务暂时不可用，当前按相关性显示",
     "baseModelFilterLabel": "按基础模型过滤",
     "baseModelFilterAll": "全部",
+    "baseModelFilterOther": "其他",
     "searchHistoryTitle": "最近搜索",
     "searchHistoryClear": "清空",
     "tryPromptLabel": "试用提示词",
@@ -1600,6 +1629,7 @@
     "signedOutSecondary": "或先去工作台试用",
     "search": "搜索素材...",
     "uploadButton": "上传",
+    "uploadDropHint": "松手上传到「{folder}」",
     "uploadInputLabel": "上传图片到本地素材",
     "uploading": "上传中...",
     "uploadSuccess": "图片已上传到本地素材。",
@@ -1616,11 +1646,20 @@
     "sidebarViews": "视图",
     "sidebarModel3D": "3D",
     "sidebarTools": "工具",
+    "pickerLocked": "仅{type}",
     "sidebarImages": "图像",
     "sidebarVideos": "视频",
     "sidebarAudio": "音频",
     "sidebarFolders": "文件夹",
     "sidebarUnassigned": "未分类",
+    "sidebarUnassignedHint": "待整理",
+    "folderSearch": "搜索文件夹",
+    "folderSearchClear": "清除搜索",
+    "folderSearchEmpty": "没有匹配的文件夹",
+    "folderSort": "排序",
+    "folderSortRecent": "最近使用",
+    "folderSortName": "按名称",
+    "folderSortCount": "按数量",
     "mobileSections": "分组",
     "mobileSectionPickerOpen": "更改",
     "mobileSectionPickerClose": "完成",
@@ -2492,8 +2531,18 @@
     "presetAnime": "动漫",
     "presetLora": "LoRA 转换",
     "presetTags": "标签",
-    "useInspirationContext": "用共享提示词库作参考",
-    "useInspirationContextOn": "共享提示词参考：已开启"
+    "research": "联网搜索",
+    "researchHint": "开启后回答会联网搜索",
+    "imageButton": "参考图",
+    "imageDropHint": "拖拽 / 粘贴 / 点击上传",
+    "recentAssets": "最近素材",
+    "recentAssetsEmpty": "暂无素材",
+    "openLibrary": "素材库",
+    "dockLabel": "助手面板",
+    "dockTitle": "助手",
+    "dockCollapse": "收起助手",
+    "dockResizeLabel": "调整助手面板宽度",
+    "dockDropHint": "松开，设为助手参考图"
   },
   "LayerDecompose": {
     "title": "图层分解",
@@ -4098,6 +4147,7 @@
     "characterCard": "角色卡",
     "civitai": "Civitai Token",
     "videoSettings": "视频设置",
+    "sfxSettings": "音效设置",
     "keepChange": "保留与改变"
   },
   "StudioToolbar": {
@@ -4107,7 +4157,8 @@
     "voice": "音色",
     "voiceSelected": "✓ 音色",
     "clone": "克隆",
-    "transcribe": "音频转脚本"
+    "transcribe": "音频转脚本",
+    "sfxParams": "设置"
   },
   "StudioV3": {
     "quickMode": "快速生成",

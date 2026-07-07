@@ -39,6 +39,7 @@ import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFee
 import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { VariantGrid } from '@/components/business/image/VariantGrid'
+import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.
@@ -289,11 +290,15 @@ export const StudioCanvas = memo(function StudioCanvas() {
             onSelect={selectWinner}
           />
         ) : activeRun?.mode === 'variant' ? (
-          <VariantGrid
-            items={activeRun.items}
-            selectedItemId={activeRun.selectedItemId}
-            onSelect={selectWinner}
-          />
+          state.outputType === 'audio' ? (
+            <AudioVariantGrid items={activeRun.items} />
+          ) : (
+            <VariantGrid
+              items={activeRun.items}
+              selectedItemId={activeRun.selectedItemId}
+              onSelect={selectWinner}
+            />
+          )
         ) : (
           <>
             <GenerationPreview

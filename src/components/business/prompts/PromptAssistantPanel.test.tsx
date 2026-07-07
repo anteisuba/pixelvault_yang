@@ -41,6 +41,12 @@ vi.mock('@/components/business/studio-shared/pickers', () => ({
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))
+vi.mock('@/lib/api-client', () => ({
+  fetchGalleryImages: vi.fn().mockResolvedValue({
+    success: true,
+    data: { generations: [] },
+  }),
+}))
 
 import { PromptAssistantPanel } from './PromptAssistantPanel'
 
@@ -132,5 +138,66 @@ describe('PromptAssistantPanel', () => {
 
     expect(screen.getByText('usePrompt')).toBeInTheDocument()
     expect(screen.queryByText('appendPrompt')).not.toBeInTheDocument()
+  })
+
+  // ── D5/D4 composer 收敛（2026-07-07 dock 重设计）────────────────
+
+  it('exposes the research toggle and drops the inspiration toggle', () => {
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    const researchToggle = screen.getByRole('button', { name: 'research' })
+    expect(researchToggle).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(researchToggle)
+    expect(researchToggle).toHaveAttribute('aria-pressed', 'true')
+
+    expect(
+      screen.queryByRole('button', { name: 'useInspirationContext' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('sends the research flag with the message when enabled', () => {
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'research' }))
+    fireEvent.click(screen.getByText('starterA'))
+
+    expect(sendMock).toHaveBeenCalledTimes(1)
+    expect(sendMock.mock.calls[0][1]).toMatchObject({ research: true })
+  })
+
+  it('merges the two image buttons into a single popover trigger', () => {
+    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
+
+    expect(
+      screen.getByRole('button', { name: 'imageButton' }),
+    ).toBeInTheDocument()
+    // 旧的独立「选素材」按钮不再存在（selectAsset 只剩 Dialog 标题用途）
+    expect(
+      screen.queryByRole('button', { name: 'selectAsset' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'addImage' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('fills the reference slot from an injected dock drop', () => {
+    const { rerender } = render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        onUsePrompt={vi.fn()}
+        injectedReference={undefined}
+      />,
+    )
+    expect(screen.queryByAltText('referenceImageAlt')).not.toBeInTheDocument()
+
+    rerender(
+      <PromptAssistantPanel
+        currentPrompt=""
+        onUsePrompt={vi.fn()}
+        injectedReference={{ url: 'https://cdn.example.com/ref.png', token: 1 }}
+      />,
+    )
+
+    expect(screen.getByAltText('referenceImageAlt')).toBeInTheDocument()
   })
 })

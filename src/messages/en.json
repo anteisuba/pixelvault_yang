@@ -238,12 +238,14 @@
     "modeLabel": {
       "image": "Image studio",
       "video": "Video studio",
-      "audio": "Audio studio"
+      "audio": "Audio studio",
+      "audio_sfx": "Sound effects"
     },
     "hint": {
       "image": "Describe the image you want, or start from an example",
       "video": "Describe what happens in the shot, or start from an example",
-      "audio": "Enter the text to narrate, or start from an example"
+      "audio": "Enter the text to narrate, or start from an example",
+      "audio_sfx": "Describe the sound you want, or start from an example"
     },
     "examples": {
       "image": {
@@ -286,6 +288,20 @@
         "e3": {
           "label": "Story time",
           "prompt": "In the morning forest, the little fox set out alone for the first time. Dew soaked its paws, but its ears stood up with excitement."
+        }
+      },
+      "audio_sfx": {
+        "e1": {
+          "label": "Thunderclap",
+          "prompt": "A sudden thunderclap rolls across the sky, deep rumble fading into distant echoes"
+        },
+        "e2": {
+          "label": "Footsteps on gravel",
+          "prompt": "Slow, deliberate footsteps crunching on gravel, close up, quiet outdoor ambience"
+        },
+        "e3": {
+          "label": "Glass shatter",
+          "prompt": "A glass cup falls and shatters on a tile floor, sharp break with scattering shards"
         }
       }
     },
@@ -674,6 +690,7 @@
     "audioVoice": "Voice",
     "audioText": "Text",
     "audioPlaceholder": "Enter the text you want to convert to speech...",
+    "sfxPlaceholder": "Describe the sound effect you want...",
     "audioSpeed": "Speed",
     "audioGenerate": "Generate Speech",
     "audioGenerating": "Generating...",
@@ -794,6 +811,17 @@
     "expressivenessRestrained": "Restrained",
     "expressivenessNatural": "Natural",
     "expressivenessDramatic": "Dramatic",
+    "kindLabel": "Type",
+    "kindSpeech": "Voice",
+    "kindSfx": "Sound FX",
+    "kindMusic": "Music",
+    "sfxDuration": "Duration",
+    "sfxDurationHint": "Target length of the sound effect.",
+    "sfxPromptInfluence": "Prompt influence",
+    "sfxPromptInfluenceHint": "Higher sticks closer to your prompt; lower is more creative.",
+    "sfxLoop": "Seamless loop",
+    "sfxVariants": "Variants",
+    "sfxVariantsHint": "Generate several clips to compare. Each variant is a separate generation.",
     "paceSlow": "Slow",
     "paceNormal": "Normal",
     "paceFast": "Fast",
@@ -1484,6 +1512,7 @@
     "sortFallbackHint": "Search ranking is temporarily unavailable — showing relevance order",
     "baseModelFilterLabel": "Filter by base model",
     "baseModelFilterAll": "All",
+    "baseModelFilterOther": "Other",
     "searchHistoryTitle": "Recent searches",
     "searchHistoryClear": "Clear",
     "tryPromptLabel": "Try this prompt",
@@ -1600,6 +1629,7 @@
     "signedOutSecondary": "Or try Studio first",
     "search": "Search assets...",
     "uploadButton": "Upload",
+    "uploadDropHint": "Drop to upload into \"{folder}\"",
     "uploadInputLabel": "Upload image to local assets",
     "uploading": "Uploading...",
     "uploadSuccess": "Image uploaded to local assets.",
@@ -1616,11 +1646,20 @@
     "sidebarViews": "Views",
     "sidebarModel3D": "3D",
     "sidebarTools": "Tools",
+    "pickerLocked": "{type} only",
     "sidebarImages": "Images",
     "sidebarVideos": "Videos",
     "sidebarAudio": "Audio",
     "sidebarFolders": "Folders",
     "sidebarUnassigned": "Unassigned",
+    "sidebarUnassignedHint": "To sort",
+    "folderSearch": "Search folders",
+    "folderSearchClear": "Clear search",
+    "folderSearchEmpty": "No matching folders",
+    "folderSort": "Sort",
+    "folderSortRecent": "Recently used",
+    "folderSortName": "By name",
+    "folderSortCount": "By count",
     "mobileSections": "Sections",
     "mobileSectionPickerOpen": "Change",
     "mobileSectionPickerClose": "Done",
@@ -2492,8 +2531,18 @@
     "presetAnime": "Anime",
     "presetLora": "LoRA Convert",
     "presetTags": "Tags",
-    "useInspirationContext": "Use shared prompt library as reference",
-    "useInspirationContextOn": "Shared prompt reference: on"
+    "research": "Web search",
+    "researchHint": "When on, answers use live web search",
+    "imageButton": "Reference image",
+    "imageDropHint": "Drag, paste, or click to upload",
+    "recentAssets": "Recent assets",
+    "recentAssetsEmpty": "No assets yet",
+    "openLibrary": "Asset library",
+    "dockLabel": "Assistant panel",
+    "dockTitle": "Assistant",
+    "dockCollapse": "Collapse assistant",
+    "dockResizeLabel": "Resize assistant panel",
+    "dockDropHint": "Drop to set as assistant reference"
   },
   "LayerDecompose": {
     "title": "Layer Decompose",
@@ -4098,6 +4147,7 @@
     "characterCard": "Character Card",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
+    "sfxSettings": "Sound effect settings",
     "keepChange": "Keep & Change"
   },
   "StudioToolbar": {
@@ -4107,7 +4157,8 @@
     "voice": "Voice",
     "voiceSelected": "✓ Voice",
     "clone": "Clone",
-    "transcribe": "Transcribe"
+    "transcribe": "Transcribe",
+    "sfxParams": "Settings"
   },
   "StudioV3": {
     "quickMode": "Quick Generate",

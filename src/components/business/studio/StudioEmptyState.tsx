@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleHelp } from 'lucide-react'
+import { AudioLines, CircleHelp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { AUDIO_KIND, DEFAULT_AUDIO_KIND } from '@/constants/audio-options'
+import { getModelById } from '@/constants/models'
+import { resolveAudioKind } from '@/constants/models/audio'
 import {
   STUDIO_EMPTY_EXAMPLE_KEYS,
   STUDIO_EMPTY_RECENT_COUNT,
@@ -49,9 +52,15 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
  */
 export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const t = useTranslations('StudioEmptyState')
-  const { dispatch } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { projects } = useStudioData()
   const [guideOpen, setGuideOpen] = useState(false)
+
+  // Audio splits into speech / sfx: swap the copy + example chips for sound
+  // effects so the empty state isn't voice-only. Recent works + tutorial stay
+  // keyed to the base mode.
+  const contentKey =
+    mode === 'audio' && state.audioKind === AUDIO_KIND.SFX ? 'audio_sfx' : mode
 
   // 首访自动弹一次教程。标记在用户关闭教程时才写（handleGuideOpenChange）：
   // 打开时就写会让 dev StrictMode 的卸载重挂载把刚打开的对话框吞掉，
@@ -85,13 +94,18 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const recent = useMemo(() => {
     const expected = EXPECTED_OUTPUT_TYPE[mode]
     return projects.history
-      .filter(
-        (g) =>
-          String(g.outputType).toUpperCase() === expected &&
-          (mode === 'audio' || Boolean(g.url)),
-      )
+      .filter((g) => {
+        if (String(g.outputType).toUpperCase() !== expected) return false
+        if (mode !== 'audio') return Boolean(g.url)
+        // Audio splits by kind: only surface recent works of the active kind.
+        // `snapshot.audioKind` isn't loaded in the history list (heavy column),
+        // so derive the kind from the model id, which is.
+        const model = getModelById(g.model)
+        const genKind = model ? resolveAudioKind(model) : DEFAULT_AUDIO_KIND
+        return genKind === state.audioKind
+      })
       .slice(0, STUDIO_EMPTY_RECENT_COUNT)
-  }, [projects.history, mode])
+  }, [projects.history, mode, state.audioKind])
 
   const handleExample = (prompt: string) => {
     dispatch({ type: 'SET_PROMPT', payload: prompt })
@@ -102,10 +116,10 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-8 px-4 py-6 sm:gap-10">
       <div className="flex max-w-2xl flex-col items-center gap-4 text-center sm:gap-5">
         <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground/70">
-          {t(`modeLabel.${mode}`)}
+          {t(`modeLabel.${contentKey}`)}
         </p>
         <p className="text-sm text-muted-foreground sm:text-base">
-          {t(`hint.${mode}`)}
+          {t(`hint.${contentKey}`)}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {STUDIO_EMPTY_EXAMPLE_KEYS.map((exampleKey) => (
@@ -113,11 +127,11 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
               key={exampleKey}
               type="button"
               onClick={() =>
-                handleExample(t(`examples.${mode}.${exampleKey}.prompt`))
+                handleExample(t(`examples.${contentKey}.${exampleKey}.prompt`))
               }
               className="min-h-11 rounded-full border border-border/60 bg-muted/40 px-4 text-xs text-foreground/90 transition-colors hover:bg-muted sm:min-h-9 sm:text-sm"
             >
-              {t(`examples.${mode}.${exampleKey}.label`)}
+              {t(`examples.${contentKey}.${exampleKey}.label`)}
             </button>
           ))}
         </div>
@@ -183,8 +197,8 @@ function RecentTile({ gen, onRemix, label }: RecentTileProps) {
       className="group relative size-20 shrink-0 overflow-hidden rounded-lg border border-border/50 transition-transform duration-200 hover:-translate-y-0.5 sm:size-24"
     >
       {gen.outputType === 'AUDIO' ? (
-        <span className="flex size-full items-center justify-center bg-muted/20 text-xl">
-          🎵
+        <span className="flex size-full items-center justify-center bg-muted/20 text-muted-foreground">
+          <AudioLines className="size-7" />
         </span>
       ) : gen.outputType === 'VIDEO' && gen.url ? (
         <video

@@ -238,12 +238,14 @@
     "modeLabel": {
       "image": "画像スタジオ",
       "video": "動画スタジオ",
-      "audio": "音声スタジオ"
+      "audio": "音声スタジオ",
+      "audio_sfx": "効果音スタジオ"
     },
     "hint": {
       "image": "作りたいイメージを言葉にするか、例から始めましょう",
       "video": "ショットで何が起きるかを書くか、例から始めましょう",
-      "audio": "読み上げるテキストを入力するか、例から始めましょう"
+      "audio": "読み上げるテキストを入力するか、例から始めましょう",
+      "audio_sfx": "欲しい音を説明するか、例から始めましょう"
     },
     "examples": {
       "image": {
@@ -286,6 +288,20 @@
         "e3": {
           "label": "よみきかせ",
           "prompt": "朝の森で、子ぎつねははじめてひとりで出かけました。露に濡れた足先、それでも耳をぴんと立てて、わくわくしています。"
+        }
+      },
+      "audio_sfx": {
+        "e1": {
+          "label": "雷鳴",
+          "prompt": "突然の雷鳴が空を走り、低いとどろきが遠くの残響へと消えていく"
+        },
+        "e2": {
+          "label": "砂利の足音",
+          "prompt": "砂利を踏みしめるゆっくりとした足音、近距離、静かな屋外の環境音"
+        },
+        "e3": {
+          "label": "ガラスが割れる",
+          "prompt": "ガラスのコップがタイルの床に落ちて割れ、鋭い破砕音と飛び散る破片"
         }
       }
     },
@@ -674,6 +690,7 @@
     "audioVoice": "声",
     "audioText": "テキスト",
     "audioPlaceholder": "音声に変換したいテキストを入力...",
+    "sfxPlaceholder": "欲しい効果音を説明...",
     "audioSpeed": "速度",
     "audioGenerate": "音声を生成",
     "audioGenerating": "生成中...",
@@ -794,6 +811,17 @@
     "expressivenessRestrained": "控えめ",
     "expressivenessNatural": "自然",
     "expressivenessDramatic": "ドラマチック",
+    "kindLabel": "種類",
+    "kindSpeech": "音声",
+    "kindSfx": "効果音",
+    "kindMusic": "音楽",
+    "sfxDuration": "長さ",
+    "sfxDurationHint": "効果音の目標の長さ。",
+    "sfxPromptInfluence": "プロンプト忠実度",
+    "sfxPromptInfluenceHint": "高いほどプロンプトに忠実、低いほど創造的。",
+    "sfxLoop": "シームレスループ",
+    "sfxVariants": "バリエーション",
+    "sfxVariantsHint": "複数のクリップを生成して比較。各バリエーションは個別の生成です。",
     "paceSlow": "遅い",
     "paceNormal": "標準",
     "paceFast": "速い",
@@ -1484,6 +1512,7 @@
     "sortFallbackHint": "検索の並び替えが一時的に利用できません。関連度順で表示しています",
     "baseModelFilterLabel": "ベースモデルで絞り込み",
     "baseModelFilterAll": "全部",
+    "baseModelFilterOther": "その他",
     "searchHistoryTitle": "最近の検索",
     "searchHistoryClear": "クリア",
     "tryPromptLabel": "おすすめプロンプト",
@@ -1600,6 +1629,7 @@
     "signedOutSecondary": "またはスタジオを試す",
     "search": "アセットを検索...",
     "uploadButton": "アップロード",
+    "uploadDropHint": "ドロップして「{folder}」にアップロード",
     "uploadInputLabel": "画像をローカル素材にアップロード",
     "uploading": "アップロード中...",
     "uploadSuccess": "画像をローカル素材に追加しました。",
@@ -1616,11 +1646,20 @@
     "sidebarViews": "ビュー",
     "sidebarModel3D": "3D",
     "sidebarTools": "ツール",
+    "pickerLocked": "{type}のみ",
     "sidebarImages": "画像",
     "sidebarVideos": "動画",
     "sidebarAudio": "音声",
     "sidebarFolders": "フォルダ",
     "sidebarUnassigned": "未分類",
+    "sidebarUnassignedHint": "要整理",
+    "folderSearch": "フォルダを検索",
+    "folderSearchClear": "検索をクリア",
+    "folderSearchEmpty": "一致するフォルダがありません",
+    "folderSort": "並び替え",
+    "folderSortRecent": "最近使用",
+    "folderSortName": "名前順",
+    "folderSortCount": "数量順",
     "mobileSections": "セクション",
     "mobileSectionPickerOpen": "変更",
     "mobileSectionPickerClose": "完了",
@@ -2492,8 +2531,18 @@
     "presetAnime": "アニメ",
     "presetLora": "LoRA変換",
     "presetTags": "タグ",
-    "useInspirationContext": "共有プロンプトライブラリを参考にする",
-    "useInspirationContextOn": "共有プロンプト参照: オン"
+    "research": "ウェブ検索",
+    "researchHint": "オンにすると回答時にウェブ検索します",
+    "imageButton": "参考画像",
+    "imageDropHint": "ドラッグ / ペースト / クリックでアップロード",
+    "recentAssets": "最近の素材",
+    "recentAssetsEmpty": "素材がありません",
+    "openLibrary": "素材ライブラリ",
+    "dockLabel": "アシスタントパネル",
+    "dockTitle": "アシスタント",
+    "dockCollapse": "アシスタントを閉じる",
+    "dockResizeLabel": "アシスタントパネルの幅を調整",
+    "dockDropHint": "ドロップしてアシスタントの参考画像に設定"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",
@@ -4098,6 +4147,7 @@
     "characterCard": "キャラクターカード",
     "civitai": "Civitai トークン",
     "videoSettings": "ビデオ設定",
+    "sfxSettings": "効果音の設定",
     "keepChange": "保留と変更"
   },
   "StudioToolbar": {
@@ -4107,7 +4157,8 @@
     "voice": "音声",
     "voiceSelected": "✓ 音声",
     "clone": "クローン",
-    "transcribe": "音声を書き起こし"
+    "transcribe": "音声を書き起こし",
+    "sfxParams": "設定"
   },
   "StudioV3": {
     "quickMode": "クイック生成",

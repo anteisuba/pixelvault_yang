@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { Image as ImageIcon, X } from 'lucide-react'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
@@ -23,6 +24,61 @@ interface ImageAttachmentPreviewStripProps {
   overLimitTooltip?: string
   unsupportedTooltip?: string
   variant?: 'composer' | 'panel'
+  /**
+   * Opt-in Pragmatic DnD drag source. When set, each thumbnail can be
+   * dragged out with payload `{ type: dragType, url }` — used by the studio
+   * composer strip so thumbnails can be dropped onto the assistant dock
+   * (STUDIO_REFERENCE_DRAG_TYPE). Deliberately NOT 'studio-generation', so
+   * the canvas drop target ignores strip drags instead of re-adding the
+   * same reference.
+   */
+  dragType?: string
+}
+
+/** Per-thumbnail wrapper that registers a Pragmatic DnD drag source. */
+function StripEntryShell({
+  dragType,
+  url,
+  className,
+  title,
+  children,
+}: {
+  dragType?: string
+  url: string
+  className: string
+  title?: string
+  children: ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !dragType) return
+
+    // Prevent child <img> from intercepting the drag (images are natively
+    // draggable, which would bypass the registered element).
+    el.querySelectorAll('img').forEach((img) => {
+      img.setAttribute('draggable', 'false')
+    })
+
+    return draggable({
+      element: el,
+      getInitialData: () => ({ type: dragType, url }),
+    })
+  }, [dragType, url])
+
+  return (
+    <div
+      ref={ref}
+      title={title}
+      className={cn(
+        className,
+        dragType && 'cursor-grab active:cursor-grabbing',
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function ImageAttachmentPreviewStrip({
@@ -36,6 +92,7 @@ export function ImageAttachmentPreviewStrip({
   overLimitTooltip,
   unsupportedTooltip,
   variant = 'panel',
+  dragType,
 }: ImageAttachmentPreviewStripProps) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -71,8 +128,10 @@ export function ImageAttachmentPreviewStrip({
           const imagePreviewLabel = previewLabel?.(index + 1)
 
           return (
-            <div
+            <StripEntryShell
               key={`${index}-${entry.url.slice(0, 32)}`}
+              dragType={dragType}
+              url={entry.url}
               title={tooltip}
               className={cn(
                 'group relative flex size-16 shrink-0 overflow-hidden rounded-xl border border-border/65 bg-muted/35 shadow-sm',
@@ -133,7 +192,7 @@ export function ImageAttachmentPreviewStrip({
               >
                 <X className="size-3" />
               </button>
-            </div>
+            </StripEntryShell>
           )
         })}
       </div>

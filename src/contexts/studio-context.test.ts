@@ -43,8 +43,13 @@ function makeInitialState(
     tokenInput: '',
     voiceId: null,
     voiceCardId: null,
+    audioKind: 'speech',
     audioEmotion: 'none',
     audioExpressiveness: 'auto',
+    audioSfxDurationSeconds: 5,
+    audioSfxLoop: false,
+    audioSfxPromptInfluence: 0.3,
+    audioSfxVariantCount: 1,
     audioPace: 'normal',
     audioPauseMarkers: [],
     pronunciationDictionary: {},
@@ -89,6 +94,7 @@ function makeInitialState(
       voiceSelector: false,
       voiceTrainer: false,
       audioTranscribe: false,
+      sfxParams: false,
       videoParams: false,
       script: false,
       keepChange: false,
@@ -538,13 +544,25 @@ describe('studioFormReducer', () => {
 
   it('TOGGLE_PANEL toolbar panels are mutually exclusive', () => {
     const state = makeInitialState()
+    state.panels.refImage = true
+    const next = studioFormReducer(state, {
+      type: 'TOGGLE_PANEL',
+      payload: 'advanced',
+    })
+    // Opening advanced should close refImage (both are toolbar panels)
+    expect(next.panels.refImage).toBe(false)
+    expect(next.panels.advanced).toBe(true)
+  })
+
+  it('TOGGLE_PANEL keeps the assistant dock (enhance) open when a tool panel opens', () => {
+    const state = makeInitialState()
     state.panels.enhance = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
       payload: 'advanced',
     })
-    // Opening advanced should close enhance (both are toolbar panels)
-    expect(next.panels.enhance).toBe(false)
+    // enhance backs the persistent assistant dock — it coexists with tool dialogs
+    expect(next.panels.enhance).toBe(true)
     expect(next.panels.advanced).toBe(true)
   })
 

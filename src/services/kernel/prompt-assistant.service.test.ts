@@ -24,6 +24,26 @@ vi.mock('@/services/kernel/inspiration-context.service', () => ({
     mockBuildInspirationContext(...a),
 }))
 
+const mockGatherWebContext = vi.fn()
+vi.mock('@/services/web-research.service', () => ({
+  gatherWebContext: (...a: unknown[]) => mockGatherWebContext(...a),
+  hasWebContext: (context: { results: unknown[]; pages: unknown[] }) =>
+    context.results.length > 0 || context.pages.length > 0,
+}))
+
+const mockResolveResearchRoute = vi.fn()
+vi.mock('@/services/kernel/research-route.service', () => ({
+  formatWebContext: (context: {
+    results: { title: string; url: string; snippet: string }[]
+    pages: { url: string; content: string }[]
+  }) =>
+    [
+      ...context.results.map((r) => `${r.title} ${r.url} ${r.snippet}`),
+      ...context.pages.map((p) => `${p.url} ${p.content}`),
+    ].join('\n'),
+  resolveResearchRoute: (...a: unknown[]) => mockResolveResearchRoute(...a),
+}))
+
 import { chatPromptAssistant } from '@/services/kernel/prompt-assistant.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -43,6 +63,7 @@ describe('chatPromptAssistant', () => {
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockResolveLlmRoute.mockResolvedValue(FAKE_ROUTE)
     mockBuildInspirationContext.mockResolvedValue('')
+    mockGatherWebContext.mockResolvedValue({ results: [], pages: [] })
   })
 
   it('extracts prompt from a code block in the LLM response', async () => {
@@ -212,6 +233,93 @@ describe('chatPromptAssistant', () => {
 
     expect(mockBuildInspirationContext).toHaveBeenCalledWith(
       'an existing prompt about a cat',
+    )
+  })
+
+  // ── Research turns (D5, 2026-07-07) ────────────────────────────
+
+  it('does not touch web research when research flag is off', async () => {
+    mockLlmCompletion.mockResolvedValue('```\na cat\n```')
+
+    await chatPromptAssistant('clerk_1', [{ role: 'user', content: 'a cat' }])
+
+    expect(mockGatherWebContext).not.toHaveBeenCalled()
+    expect(mockResolveResearchRoute).not.toHaveBeenCalled()
+  })
+
+  it('injects gathered web context and keeps the selected route (decoupled path)', async () => {
+    mockGatherWebContext.mockResolvedValue({
+      results: [
+        {
+          title: 'Ghibli style guide',
+          url: 'https://example.com/ghibli',
+          snippet: 'soft light',
+        },
+      ],
+      pages: [],
+    })
+    mockLlmCompletion.mockResolvedValue('```\nghibli cat\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'ghibli style cat' }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'english',
+      'general',
+      undefined,
+      true,
+    )
+
+    expect(mockGatherWebContext).toHaveBeenCalledWith('ghibli style cat')
+    // Decoupled path: any writing model can answer — no grounding borrow.
+    expect(mockResolveResearchRoute).not.toHaveBeenCalled()
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+      useGrounding?: boolean
+      adapterType: string
+    }
+    expect(call.userPrompt).toContain('WEB CONTEXT')
+    expect(call.userPrompt).toContain('https://example.com/ghibli')
+    expect(call.useGrounding).toBeUndefined()
+    expect(call.adapterType).toBe(FAKE_ROUTE.adapterType)
+  })
+
+  it('falls back to provider-native grounding when no web context is gathered', async () => {
+    const GROUNDING_ROUTE = {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
+      apiKey: 'grounding-key',
+    }
+    mockGatherWebContext.mockResolvedValue({ results: [], pages: [] })
+    mockResolveResearchRoute.mockResolvedValue({
+      route: GROUNDING_ROUTE,
+      useGrounding: true,
+    })
+    mockLlmCompletion.mockResolvedValue('```\nresearched cat\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'latest seedream style trends' }],
+      undefined,
+      undefined,
+      undefined,
+      'key_1',
+      'english',
+      'general',
+      undefined,
+      true,
+    )
+
+    expect(mockResolveResearchRoute).toHaveBeenCalledWith(FAKE_USER.id, 'key_1')
+    expect(mockLlmCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        apiKey: 'grounding-key',
+        useGrounding: true,
+      }),
     )
   })
 })

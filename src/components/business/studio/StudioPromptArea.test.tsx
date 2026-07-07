@@ -40,6 +40,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
+  sfxParams: false,
   videoParams: false,
   script: false,
   keepChange: false,
@@ -111,20 +112,6 @@ vi.mock('@/hooks/use-studio-shortcuts', () => ({
   useStudioShortcuts: vi.fn(),
 }))
 
-vi.mock('@/hooks/use-prompt-tag-stack', () => ({
-  usePromptTagStack: () => ({
-    positive: [],
-    negative: [],
-    selectedTagIds: new Set<string>(),
-    selectedCount: 0,
-    addTag: vi.fn(),
-    removeTag: vi.fn(),
-    clearTags: vi.fn(),
-    setWeight: vi.fn(),
-    allSelections: () => [],
-  }),
-}))
-
 vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: mockUseImageModelOptions,
 }))
@@ -190,10 +177,6 @@ vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
   StudioToolbarPanels: () => <div data-testid="studio-toolbar-panels" />,
 }))
 
-vi.mock('@/components/business/studio/prompt-tags/PromptTagTray', () => ({
-  PromptTagTray: () => <div data-testid="prompt-tag-tray" />,
-}))
-
 vi.mock('@/components/ui/prompt-input', () => ({
   PromptInput: ({
     children,
@@ -252,8 +235,13 @@ function setupStudioForm(
     tokenInput: '',
     voiceId: null,
     voiceCardId: null,
+    audioKind: 'speech',
     audioEmotion: 'none',
     audioExpressiveness: 'auto',
+    audioSfxDurationSeconds: 5,
+    audioSfxLoop: false,
+    audioSfxPromptInfluence: 0.3,
+    audioSfxVariantCount: 1,
     audioPace: 'normal',
     audioPauseMarkers: [],
     pronunciationDictionary: {},

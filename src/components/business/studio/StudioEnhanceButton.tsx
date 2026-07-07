@@ -11,12 +11,9 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTrigger,
 } from '@/components/ui/responsive-dialog'
-import { useStudioData, useStudioForm } from '@/contexts/studio-context'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { adapterHasCapability } from '@/constants/llm-capability'
+import { useStudioData } from '@/contexts/studio-context'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
 import { cn } from '@/lib/utils'
 import {
   studioChipActiveClass,
@@ -46,63 +43,53 @@ interface StudioEnhanceButtonProps {
 }
 
 /**
- * StudioEnhanceButton — toolbar trigger that opens the PromptAssistantPanel
- * in a responsive heavy panel. Enhance is intentionally heavier than its toolbar
- * siblings (style / refImage / aspect): it bundles an LLM textarea, style
- * picker, and Gemini quick-setup, so it uses desktop Dialog / mobile Drawer
- * instead of a popover that would clip on smaller viewports.
+ * StudioEnhanceButton — the toolbar "助手" chip. Since 2026-07-07 it has two
+ * hosts behind one `panels.enhance` state:
+ *  - desktop (≥lg): plain open/close toggle for the persistent right-side
+ *    StudioAssistantDock (mounted by StudioWorkspaceUI) — no dialog here.
+ *  - mobile (<lg): keeps the ResponsiveDialog drawer host, since a side dock
+ *    doesn't fit narrow viewports.
+ * 施工基准：docs/design/reviews/2026-07-07-studio-assistant-dock-redesign.md
  */
 export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
-  const { state, dispatch } = useStudioForm()
-  const { imageUpload, styles, promptEnhance } = useStudioData()
   const t = useTranslations('StudioV2')
-  const { selectedModel: imageSelectedModel } = useImageModelOptions()
-  const { selectedModel: videoSelectedModel } = useVideoModelOptions(
-    state.selectedOptionId ?? '',
-  )
-  const { selectedModel: audioSelectedModel } = useAudioModelOptions()
-  const { keys: apiKeys } = useApiKeysContext()
+  const isMobile = useIsMobile()
+  const { promptEnhance } = useStudioData()
+  const {
+    open,
+    setOpen,
+    currentPrompt,
+    modelId,
+    llmApiKeys,
+    referenceImageData,
+    onUsePrompt,
+    onAppendPrompt,
+  } = useStudioAssistantPanelInputs()
 
-  const llmApiKeys = apiKeys
-    .filter((k) => k.isActive && adapterHasCapability(k.adapterType, 'enhance'))
-    .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
-
-  const selectedStyleCard = styles.activeCard
-  const selectedModel =
-    state.outputType === 'audio'
-      ? audioSelectedModel
-      : state.outputType === 'video'
-        ? videoSelectedModel
-        : imageSelectedModel
-  const modelId =
-    state.workflowMode === 'quick' && selectedModel
-      ? selectedModel.modelId
-      : (selectedStyleCard?.modelId ?? undefined)
-
-  const open = state.panels.enhance
   const isEnhancing = promptEnhance.isEnhancing
 
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={(nextOpen) =>
-        dispatch({
-          type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
-          payload: 'enhance',
-        })
-      }
+  const triggerButton = (
+    <Toolbar.Button
+      type="button"
+      disabled={disabled || isEnhancing}
+      aria-label={t('enhance')}
+      aria-pressed={open}
+      onClick={isMobile ? undefined : () => setOpen(!open)}
+      className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
     >
-      <ResponsiveDialogTrigger asChild>
-        <Toolbar.Button
-          type="button"
-          disabled={disabled || isEnhancing}
-          aria-label={t('enhance')}
-          className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
-        >
-          <Sparkles className={cn('size-4', isEnhancing && 'animate-pulse')} />
-          <span className="hidden sm:inline">{t('enhance')}</span>
-        </Toolbar.Button>
-      </ResponsiveDialogTrigger>
+      <Sparkles className={cn('size-4', isEnhancing && 'animate-pulse')} />
+      <span className="hidden sm:inline">{t('enhance')}</span>
+    </Toolbar.Button>
+  )
+
+  // Desktop: the chip only toggles panels.enhance; the dock renders the panel.
+  if (!isMobile) {
+    return triggerButton
+  }
+
+  return (
+    <ResponsiveDialog open={open} onOpenChange={setOpen}>
+      <ResponsiveDialogTrigger asChild>{triggerButton}</ResponsiveDialogTrigger>
       <ResponsiveDialogContent
         className={cn(
           studioDialogBaseClass,
@@ -122,23 +109,13 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
         </ResponsiveDialogDescription>
         <div className="flex h-[min(680px,75vh)] flex-col overflow-hidden px-5 pb-5 pt-3">
           <PromptAssistantPanel
-            currentPrompt={state.prompt}
+            currentPrompt={currentPrompt}
             modelId={modelId}
-            referenceImageData={imageUpload.referenceImages[0]}
+            referenceImageData={referenceImageData}
             llmApiKeys={llmApiKeys}
-            onUsePrompt={(text) => {
-              dispatch({ type: 'SET_PROMPT', payload: text })
-            }}
-            onAppendPrompt={(text) => {
-              const current = state.prompt.trim()
-              dispatch({
-                type: 'SET_PROMPT',
-                payload: current ? `${current}, ${text}` : text,
-              })
-            }}
-            onClose={() => {
-              dispatch({ type: 'CLOSE_PANEL', payload: 'enhance' })
-            }}
+            onUsePrompt={onUsePrompt}
+            onAppendPrompt={onAppendPrompt}
+            onClose={() => setOpen(false)}
           />
         </div>
       </ResponsiveDialogContent>

@@ -16,7 +16,10 @@ import { Loader2, Send } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
-import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import {
+  STUDIO_PROMPT_TEXTAREA_ID,
+  STUDIO_REFERENCE_DRAG_TYPE,
+} from '@/constants/studio'
 import {
   getWorkflowById,
   WORKFLOW_IDS,
@@ -28,6 +31,7 @@ import {
 } from '@/constants/sample-prompts'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
 import {
+  AUDIO_KIND,
   TTS_ESTIMATED_CHARS_PER_MINUTE,
   TTS_MAX_TEXT_LENGTH,
   TTS_MIN_PREVIEW_MINUTES,
@@ -55,19 +59,17 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { getStylePresetById } from '@/constants/style-presets'
-import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
 import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
+import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
-import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import type {
-  AdvancedParams,
   InspirationRecord,
   OutputType as RecipeOutputType,
   RecipeRecord,
@@ -78,7 +80,6 @@ import {
   PromptInputActions,
 } from '@/components/ui/prompt-input'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
   '[data-studio-tool-popover]',
@@ -107,7 +108,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tModels = useTranslations('Models')
   const locale = useLocale()
   const reducedMotion = useReducedMotion()
-  const promptTags = usePromptTagStack()
 
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -136,12 +136,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       ? videoModel
       : imageModel
   const trimmedPrompt = state.prompt.trim()
-  const selectedPromptTags = useMemo(
-    () => promptTags.allSelections(),
-    [promptTags],
-  )
-  const hasPositivePromptTags = promptTags.positive.length > 0
-  const hasPromptForImage = Boolean(trimmedPrompt || hasPositivePromptTags)
+  const hasPromptForImage = Boolean(trimmedPrompt)
   const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
   const isAudioPromptOverLimit =
     isAudioMode && audioPromptLength > TTS_MAX_TEXT_LENGTH
@@ -531,29 +526,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     [state.advancedParams, activePreset],
   )
 
-  const composePromptTagsForImage = useCallback(
-    (
-      freePrompt: string | undefined,
-      advancedParams: AdvancedParams | undefined,
-    ) => {
-      const compiled = compilePromptTags({
-        freePrompt,
-        selectedTags: selectedPromptTags,
-        existingNegativePrompt: advancedParams?.negativePrompt,
-      })
-      return {
-        freePrompt: compiled.freePrompt,
-        advancedParams: compiled.negativePrompt
-          ? {
-              ...(advancedParams ?? {}),
-              negativePrompt: compiled.negativePrompt,
-            }
-          : advancedParams,
-      }
-    },
-    [selectedPromptTags],
-  )
-
   // ── Generate handler ──────────────────────────────────────────
   // ── Video input builder ──────────────────────────────────────
   const buildVideoInput = useCallback(() => {
@@ -661,18 +633,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         const baseAdvancedParams = composeAdvancedParams(
           overrides?.negativePrompt,
         )
-        const taggedPrompt = composePromptTagsForImage(
-          freePrompt,
-          baseAdvancedParams,
-        )
         return {
           modelId: imageModelForGeneration.modelId,
           apiKeyId: imageModelForGeneration.keyId,
-          freePrompt: taggedPrompt.freePrompt,
+          freePrompt,
           aspectRatio: state.aspectRatio,
           projectId: projects.activeProjectId ?? undefined,
           referenceImages: mergedReferenceImages,
-          advancedParams: taggedPrompt.advancedParams,
+          advancedParams: baseAdvancedParams,
           recipeUsage: state.recipeUsage ?? undefined,
           characterCardIds:
             injection.appliedCardIds.length > 0
@@ -681,22 +649,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         }
       }
       if (state.workflowMode === 'card' && styles.activeCardId) {
-        const taggedPrompt = composePromptTagsForImage(
-          composePrompt(state.prompt),
-          composeAdvancedParams(),
-        )
         return {
           characterCardId: selectedCharId ?? undefined,
           backgroundCardId: backgrounds.activeCardId ?? undefined,
           styleCardId: styles.activeCardId,
-          freePrompt: taggedPrompt.freePrompt,
+          freePrompt: composePrompt(state.prompt),
           aspectRatio: state.aspectRatio,
           projectId: projects.activeProjectId ?? undefined,
           referenceImages:
             imageUpload.referenceImages.length > 0
               ? imageUpload.referenceImages
               : undefined,
-          advancedParams: taggedPrompt.advancedParams,
+          advancedParams: composeAdvancedParams(),
           recipeUsage: state.recipeUsage ?? undefined,
         }
       }
@@ -709,7 +673,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       state.aspectRatio,
       composePrompt,
       composeAdvancedParams,
-      composePromptTagsForImage,
       selectedModel,
       selectedCharId,
       backgrounds.activeCardId,
@@ -723,6 +686,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const executeGenerate = useCallback(async () => {
     if (!canGenerate) return
     if (isAudioMode && selectedModel) {
+      const isSfx = state.audioKind === AUDIO_KIND.SFX
       // Audio clip + transcript must ship as a coherent pair (schema refine);
       // resolve them from one source so a card clip without a transcript never
       // 400s the request.
@@ -755,6 +719,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           referenceText: audioReference.referenceText,
           emotion: state.audioEmotion,
           expressiveness: state.audioExpressiveness,
+          durationSeconds: isSfx ? state.audioSfxDurationSeconds : undefined,
+          loop: isSfx ? state.audioSfxLoop : undefined,
+          promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
+          variantCount: isSfx ? state.audioSfxVariantCount : undefined,
           pace: state.audioPace,
           pauseMarkers: state.audioPauseMarkers,
           pronunciationDictionary: audioPronunciationDictionary,
@@ -819,8 +787,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     selectedModel,
     state.prompt,
     state.voiceId,
+    state.audioKind,
     state.audioEmotion,
     state.audioExpressiveness,
+    state.audioSfxDurationSeconds,
+    state.audioSfxLoop,
+    state.audioSfxPromptInfluence,
+    state.audioSfxVariantCount,
     state.audioPace,
     state.audioPauseMarkers,
     state.audioVolume,
@@ -976,7 +949,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tStudio = useTranslations('StudioPage')
 
   const placeholder = isAudioMode
-    ? tStudio('audioPlaceholder')
+    ? state.audioKind === AUDIO_KIND.SFX
+      ? tStudio('sfxPlaceholder')
+      : tStudio('audioPlaceholder')
     : state.workflowMode === 'card' &&
         selectedStyleCard?.modelId &&
         modelSupportsLora(selectedStyleCard.modelId)
@@ -1043,6 +1018,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               >
                 <div className="studio-dock-control-row flex flex-col gap-2 px-1 md:flex-row md:items-center md:gap-3">
                   <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                    {isAudioMode && <StudioAudioKindSwitcher />}
                     {state.workflowMode === 'quick' && (
                       <MainModelPicker
                         modality={
@@ -1142,8 +1118,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               overLimitTooltip={tImageChip('disabledOverLimit')}
               unsupportedTooltip={tImageChip('disabledUnsupported')}
               variant="composer"
+              dragType={STUDIO_REFERENCE_DRAG_TYPE}
             />
-            {!isAudioMode && !isVideoMode ? <PromptTagTray /> : null}
             <div className="flex min-h-11 items-center gap-2">
               <PromptInputTextarea
                 id={STUDIO_PROMPT_TEXTAREA_ID}
@@ -1213,7 +1189,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               </PromptInputActions>
             </div>
           </motion.div>
-          {isAudioMode && (
+          {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
             <div
               className={cn(
                 'flex justify-end px-3 pt-1 text-2xs tabular-nums',

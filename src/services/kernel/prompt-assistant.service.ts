@@ -4,10 +4,19 @@ import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import {
+  formatWebContext,
+  resolveResearchRoute,
+} from '@/services/kernel/research-route.service'
+import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
+import {
+  gatherWebContext,
+  hasWebContext,
+  type WebContext,
+} from '@/services/web-research.service'
 import { logger } from '@/lib/logger'
 import { validateLlmPromptOutput } from '@/lib/llm-output-validator'
 import type {
@@ -157,9 +166,9 @@ export async function chatPromptAssistant(
   responseLanguage: PromptAssistantResponseLanguage = 'english',
   mode: PromptAssistantMode = 'general',
   useInspirationContext?: boolean,
+  research?: boolean,
 ): Promise<{ prompt: string }> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
   let systemPrompt = buildAssistantSystemPrompt(modelId, responseLanguage, mode)
 
@@ -172,7 +181,31 @@ export async function chatPromptAssistant(
     if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
   }
 
-  const userPrompt = flattenConversation(messages, currentPrompt)
+  let userPrompt = flattenConversation(messages, currentPrompt)
+
+  // Research turn — same two-tier policy as the node assistant:
+  // Serper-gathered context lets ANY writing model (incl. DeepSeek/Qwen)
+  // answer; otherwise borrow provider-native grounding when possible.
+  let route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  let useGrounding: boolean | undefined
+  if (research) {
+    const latestUserText =
+      [...messages].reverse().find((msg) => msg.role === 'user')?.content ?? ''
+    const webContext: WebContext = latestUserText
+      ? await gatherWebContext(latestUserText)
+      : { results: [], pages: [] }
+
+    if (hasWebContext(webContext)) {
+      userPrompt = `${userPrompt}
+
+WEB CONTEXT (use this as your primary evidence for factual claims):
+${formatWebContext(webContext)}`
+    } else {
+      const researchRoute = await resolveResearchRoute(dbUser.id, apiKeyId)
+      route = researchRoute.route
+      useGrounding = researchRoute.useGrounding || undefined
+    }
+  }
 
   const rawResult = await llmTextCompletion({
     systemPrompt,
@@ -181,6 +214,7 @@ export async function chatPromptAssistant(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    useGrounding,
   })
 
   const prompt = extractPromptFromResponse(rawResult)

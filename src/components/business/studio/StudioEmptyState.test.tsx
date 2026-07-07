@@ -16,7 +16,10 @@ const dispatchMock = vi.fn()
 let historyMock: GenerationRecord[] = []
 
 vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({ dispatch: dispatchMock }),
+  useStudioForm: () => ({
+    state: { audioKind: 'speech' },
+    dispatch: dispatchMock,
+  }),
   useStudioData: () => ({ projects: { history: historyMock } }),
 }))
 

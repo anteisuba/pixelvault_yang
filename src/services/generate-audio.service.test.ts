@@ -339,12 +339,12 @@ describe('generateAudioForUser', () => {
     vi.clearAllMocks()
   })
 
-  it('returns generation record on success', async () => {
+  it('returns a completed job id on success', async () => {
     setupSyncHappyPath()
 
     const result = await generateAudioForUser('clerk-1', BASE_SYNC_REQUEST)
 
-    expect(result).toEqual(FAKE_GENERATION)
+    expect(result).toEqual({ jobId: FAKE_SYNC_JOB.id })
     expect(createGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
@@ -687,6 +687,46 @@ describe('submitAudioGeneration', () => {
     })
     mockGenerationJobUpdate.mockResolvedValue(undefined)
     vi.mocked(generateStorageKey).mockReturnValue('audio/user-1/gen.mp3')
+  })
+
+  it('runs a synchronous speech model (ElevenLabs) as a completed job', async () => {
+    const generateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    vi.mocked(resolveGenerationRoute).mockResolvedValue({
+      modelId: 'eleven-v3',
+      adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+      providerConfig: {
+        label: 'ElevenLabs',
+        baseUrl: 'https://api.elevenlabs.io',
+      },
+      apiKey: 'eleven-key',
+      resolvedApiKeyId: 'sync-key-1',
+      creditCost: 5,
+    } as never)
+    vi.mocked(getProviderAdapter).mockReturnValue({ generateAudio } as never)
+    vi.mocked(createGenerationJob).mockResolvedValue(FAKE_SYNC_JOB as never)
+    vi.mocked(fetchAsBuffer).mockResolvedValue({
+      buffer: Buffer.from('fake-audio'),
+      mimeType: 'audio/mpeg',
+    } as never)
+    vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/audio.mp3')
+    vi.mocked(createGeneration).mockResolvedValue(FAKE_GENERATION as never)
+    vi.mocked(createApiUsageEntry).mockResolvedValue(FAKE_USAGE as never)
+    vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
+
+    const result = await submitAudioGeneration('clerk-1', {
+      prompt: 'Hello world',
+      modelId: 'eleven-v3',
+    })
+
+    expect(result).toEqual({ jobId: FAKE_SYNC_JOB.id })
+    expect(generateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Hello world' }),
+    )
   })
 
   it('enqueues legacy async audio routes in the execution outbox', async () => {

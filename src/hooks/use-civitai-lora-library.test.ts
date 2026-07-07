@@ -156,6 +156,42 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.isRevalidating).toBe(false)
   })
 
+  it("clears stale cards and requests the 'other' base-model bucket on category change", async () => {
+    const allItem = createItem('all-1', 'All bucket result')
+    const otherItem = createItem('other-1', 'Other bucket result')
+
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(allItem, 1),
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(otherItem, 1),
+      })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([allItem]))
+
+    act(() => {
+      result.current.setBaseModel('other')
+    })
+
+    expect(result.current.baseModel).toBe('other')
+    expect(result.current.items).toEqual([])
+    expect(result.current.selectedItem).toBeNull()
+    expect(result.current.isLoading).toBe(true)
+
+    await waitFor(() => expect(result.current.items).toEqual([otherItem]))
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        baseModel: 'other',
+        page: 1,
+        cursor: null,
+      }),
+    )
+  })
+
   it('keeps stale items visible when a fetch fails and surfaces error', async () => {
     const itemA = createItem('err-a', 'A')
 

@@ -130,7 +130,15 @@ export const CIVITAI_LORA_SORT_OPTIONS = [
 
 // 顺序决定 UI 上 filter chip 的展示顺序：Illustrious 排在最前（我们的首选
 // anime 路径），然后是 Flux / SDXL 这些有 native 端点的，最后是只能跳走的
-// Pony / SD 1.5 / Anima。
+// Pony / SD 1.5 / Anima / 新家族。
+//
+// 2026-07-07 与 Civitai 全量 base model 清单对齐（数据驱动：按 meilisearch
+// estimatedTotalHits 实测供给，≥1000 个 LoRA 的家族才配 named chip，其余全部
+// 落进 'other' 兜底桶——保证任何 Civitai baseModel 值都可被过滤到，无枚举
+// 遗漏）。实测（2026-07-07）：Z-Image 系 ~9.3k · NoobAI 8.4k（并入
+// Illustrious 桶）· Qwen 1.7k · Chroma 1.1k；Flux.2 D 111 / Pony V7 65 /
+// HiDream 65 / SD 3.5 ≈0 → 'other'。视频家族（Wan/Hunyuan Video 等）也归
+// 'other'——本库是图像 LoRA 场景，不为视频家族占 chip 位。
 export const CIVITAI_LORA_BASE_MODEL_VALUES = [
   'all',
   'Illustrious',
@@ -139,6 +147,10 @@ export const CIVITAI_LORA_BASE_MODEL_VALUES = [
   'Pony',
   'SD 1.5',
   'Anima',
+  'Qwen',
+  'Z-Image',
+  'Chroma',
+  'other',
 ] as const
 
 export type CivitaiLoraBaseModel =
@@ -155,15 +167,59 @@ export const CIVITAI_BASE_MODEL_FAMILY_MEMBERS = {
   // NoobAI 是 Illustrious 衍生的 finetune，权重结构兼容，可共用 Replicate
   // delta-lock/noobai-xl 端点。
   Illustrious: ['Illustrious', 'NoobAI'],
-  'Flux.1 D': ['Flux.1 D', 'Flux.1 S'],
-  'SDXL 1.0': ['SDXL 1.0', 'SDXL 0.9', 'SDXL Turbo'],
+  // Flux.1 Krea 是 Flux.1 dev 的同架构 drop-in 变体，LoRA 互通。
+  'Flux.1 D': ['Flux.1 D', 'Flux.1 S', 'Flux.1 Krea'],
+  // Lightning/Hyper/LCM 是 SDXL 1.0 的蒸馏/加速变体，LoRA 权重结构同源。
+  'SDXL 1.0': [
+    'SDXL 1.0',
+    'SDXL 0.9',
+    'SDXL Turbo',
+    'SDXL Lightning',
+    'SDXL Hyper',
+    'SDXL 1.0 LCM',
+  ],
+  // 只收 SDXL 架构的 V6 系；Pony V7 是 AuraFlow 架构、权重不通，归 'other'。
   Pony: ['Pony'],
-  'SD 1.5': ['SD 1.5', 'SD 1.5 LCM'],
+  'SD 1.5': ['SD 1.5', 'SD 1.5 LCM', 'SD 1.5 Hyper', 'SD 1.4'],
   Anima: ['Anima'],
+  Qwen: ['Qwen'],
+  // Turbo 是 Z-Image 的蒸馏版，浏览归同一家族桶（Civitai 上供给以 Turbo 为主）。
+  'Z-Image': ['ZImageBase', 'ZImageTurbo'],
+  Chroma: ['Chroma'],
 } as const satisfies Record<
-  Exclude<CivitaiLoraBaseModel, 'all'>,
+  Exclude<CivitaiLoraBaseModel, 'all' | 'other'>,
   readonly string[]
 >
+
+// 'other' 兜底桶的判定集合：不属于任何 named family 的 baseModel 都算 other。
+export const CIVITAI_NAMED_BASE_MODEL_MEMBER_SET: ReadonlySet<string> = new Set(
+  Object.values(CIVITAI_BASE_MODEL_FAMILY_MEMBERS).flat(),
+)
+
+// Civitai REST can filter by explicit baseModels but cannot express NOT IN.
+// Keep the full complement check in service code, and use this curated long-tail
+// set only to keep the "other" browse path from scanning broad all-model pages.
+export const CIVITAI_OTHER_BASE_MODEL_MEMBERS = [
+  'Pony V7',
+  'Flux.2 D',
+  'Flux.2 S',
+  'HiDream',
+  'SD 3.5',
+  'SD 3',
+  'SD 2.1',
+  'SD 2.0',
+  'AuraFlow',
+  'Kolors',
+  'PixArt a',
+  'PixArt E',
+  'Wan Video 14B t2v',
+  'Wan Video 14B i2v 480p',
+  'Wan Video 14B i2v 720p',
+  'Hunyuan Video',
+  'LTXV',
+  'Mochi',
+  'CogVideoX',
+] as const
 
 // 每个 base model family 在 PixelVault 上能不能跑生成：
 //   - 'native':   有 native 端点，用户能在 PixelVault 内部生成
@@ -183,11 +239,16 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   Illustrious: 'native',
   'Flux.1 D': 'native',
   'SDXL 1.0': 'native',
+  // Pony / Anima / SDXL 系将随 comfy runner（RunPod）转 native，见
+  // docs/plans/comfy-runner-HANDOFF-2026-07.md；翻转与 runner 交付同批。
   Pony: 'external',
   'SD 1.5': 'external',
   Anima: 'external',
+  Qwen: 'external',
+  'Z-Image': 'external',
+  Chroma: 'external',
 } as const satisfies Record<
-  Exclude<CivitaiLoraBaseModel, 'all'>,
+  Exclude<CivitaiLoraBaseModel, 'all' | 'other'>,
   CivitaiBaseModelGeneratability
 >
 
@@ -203,7 +264,7 @@ export function isCivitaiBaseModelGeneratable(rawBaseModel: string): boolean {
     if ((members as readonly string[]).includes(rawBaseModel)) {
       return (
         CIVITAI_BASE_MODEL_GENERATABILITY[
-          family as Exclude<CivitaiLoraBaseModel, 'all'>
+          family as Exclude<CivitaiLoraBaseModel, 'all' | 'other'>
         ] === 'native'
       )
     }

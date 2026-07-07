@@ -77,7 +77,7 @@ const SEARCH_DEBOUNCE_MS = 300
 //
 // Stale-while-revalidate friend. Keeps last-N (baseModel, sort, search, page)
 // → result pages in memory so flicking sort/baseModel/page back and forth
-// returns instantly without the network or a `setItems([])` flash.
+// returns quickly once the next facet/search request resolves.
 //
 // Module-scoped (not per-hook-instance) so navigating away and back to /lora
 // still hits the cache. TTL guards against truly stale data — the Next.js
@@ -190,6 +190,17 @@ export function useCivitaiLoraLibrary(
     })
   }, [])
 
+  const clearFacetResults = useCallback(() => {
+    requestIdRef.current += 1
+    setItems([])
+    setSelectedItemId(null)
+    setTotal(null)
+    setHasNextPage(false)
+    setSortFellBackToRelevance(false)
+    setError(null)
+    setIsRevalidating(true)
+  }, [])
+
   const refresh = useCallback(async () => {
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
@@ -298,9 +309,10 @@ export function useCivitaiLoraLibrary(
       if (value === sort) return
       cursorByPageRef.current = new Map([[1, null]])
       setPage(1)
+      clearFacetResults()
       setSortValue(value)
     },
-    [sort],
+    [clearFacetResults, sort],
   )
 
   const setBaseModel = useCallback(
@@ -308,9 +320,10 @@ export function useCivitaiLoraLibrary(
       if (value === baseModel) return
       cursorByPageRef.current = new Map([[1, null]])
       setPage(1)
+      clearFacetResults()
       setBaseModelValue(value)
     },
-    [baseModel],
+    [baseModel, clearFacetResults],
   )
 
   const setNsfwFilter = useCallback(
@@ -318,9 +331,10 @@ export function useCivitaiLoraLibrary(
       if (value === nsfwFilter) return
       cursorByPageRef.current = new Map([[1, null]])
       setPage(1)
+      clearFacetResults()
       setNsfwFilterValue(value)
     },
-    [nsfwFilter],
+    [clearFacetResults, nsfwFilter],
   )
 
   const selectItem = useCallback((item: CivitaiLoraLibraryItem) => {

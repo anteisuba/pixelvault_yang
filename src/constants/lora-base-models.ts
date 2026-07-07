@@ -137,6 +137,9 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   const s = raw.trim().toLowerCase()
   if (!s) return null
   if (s.includes('illustrious') || s.includes('noob')) return 'illustrious'
+  // Pony V7 是 AuraFlow 架构，与 V6（SDXL 系）权重不通——不能归 pony 家族，
+  // 否则将来会被错误路由到 SDXL 架构的 pony runner checkpoint。
+  if (s.includes('pony') && s.includes('v7')) return null
   if (s.includes('pony')) return 'pony'
   if (s.includes('anima')) return 'anima'
   if (s.includes('flux')) return 'flux'

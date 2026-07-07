@@ -25,6 +25,11 @@ describe('normalizeToLoraBaseFamily', () => {
     expect(normalizeToLoraBaseFamily('Pony XL')).toBe('pony')
   })
 
+  it('keeps Pony V7 (AuraFlow arch) out of the SDXL-based pony family', () => {
+    expect(normalizeToLoraBaseFamily('Pony V7')).toBeNull()
+    expect(normalizeToLoraBaseFamily('Pony Diffusion V7')).toBeNull()
+  })
+
   it('returns null for empty or unknown input', () => {
     expect(normalizeToLoraBaseFamily('')).toBeNull()
     expect(normalizeToLoraBaseFamily('   ')).toBeNull()

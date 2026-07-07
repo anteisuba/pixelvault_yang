@@ -7,6 +7,8 @@ import { z } from 'zod'
 import {
   CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
   CIVITAI_LORA_BASE_MODEL_VALUES,
+  CIVITAI_NAMED_BASE_MODEL_MEMBER_SET,
+  CIVITAI_OTHER_BASE_MODEL_MEMBERS,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
   DEFAULT_LORA_NSFW_FILTER,
@@ -95,11 +97,16 @@ const CivitaiImageMetaSchema = z
   })
   .passthrough()
 
+const CivitaiImageDimensionSchema = z.preprocess(
+  (value) => (value === 0 || value === null ? undefined : value),
+  z.number().int().positive().optional(),
+)
+
 const CivitaiImageSchema = z
   .object({
     url: z.string().url(),
-    width: z.number().int().positive().optional(),
-    height: z.number().int().positive().optional(),
+    width: CivitaiImageDimensionSchema,
+    height: CivitaiImageDimensionSchema,
     nsfwLevel: z.number().optional(),
     hasMeta: z.boolean().optional(),
     hasPositivePrompt: z.boolean().optional(),
@@ -497,6 +504,15 @@ function buildCivitaiSearchFilters(
   baseModelFamily: string | null | undefined,
 ): string[] {
   const filters = ['type = LoRA']
+  // 'other' 兜底桶：meilisearch 支持 NOT IN，直接把所有 named family 成员
+  // 取补集（REST 路径做不到这点，见 appendBaseModelFamilyParams）。
+  if (baseModelFamily === 'other') {
+    const quoted = [...CIVITAI_NAMED_BASE_MODEL_MEMBER_SET]
+      .map((name) => JSON.stringify(name))
+      .join(', ')
+    filters.push(`versions.baseModel NOT IN [${quoted}]`)
+    return filters
+  }
   const baseModelNames = acceptedBaseModelNames(baseModelFamily)
   if (baseModelNames && baseModelNames.length > 0) {
     const quoted = baseModelNames.map((name) => JSON.stringify(name)).join(', ')
@@ -1383,6 +1399,14 @@ function filterByBaseModelFamily(
   baseModel: CivitaiLoraBaseModel,
 ): CivitaiLoraLibraryItem[] {
   if (baseModel === 'all') return items
+  // 'other' = 兜底桶：不属于任何 named family 的 baseModel（Wan/Hunyuan
+  // Video、Flux.2、Pony V7、SD 3.5 等长尾）全部归这里，保证 Civitai 任何
+  // baseModel 值都能被过滤到。
+  if (baseModel === 'other') {
+    return items.filter(
+      (item) => !CIVITAI_NAMED_BASE_MODEL_MEMBER_SET.has(item.baseModelFamily),
+    )
+  }
   const accepted = new Set<string>(CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel])
   return items.filter((item) => accepted.has(item.baseModelFamily))
 }
@@ -1411,6 +1435,12 @@ function appendBaseModelFamilyParams(
   url: URL,
   baseModel: Exclude<CivitaiLoraBaseModel, 'all'>,
 ): void {
+  if (baseModel === 'other') {
+    CIVITAI_OTHER_BASE_MODEL_MEMBERS.forEach((familyMember) => {
+      url.searchParams.append('baseModels', familyMember)
+    })
+    return
+  }
   CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel].forEach((familyMember) => {
     url.searchParams.append('baseModels', familyMember)
   })
@@ -1495,7 +1525,9 @@ async function listSearchedBaseModelCivitaiLoras({
     url.searchParams.set('limit', String(CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT))
     url.searchParams.set('sort', sort)
     url.searchParams.set('nsfw', String(nsfwFilter !== 'safe'))
-    url.searchParams.set('query', search)
+    // 'other' 桶的无搜索词浏览也复用本扫描路径——空 query 不发参数，
+    // 保持与纯浏览请求一致的 upstream 语义。
+    if (search) url.searchParams.set('query', search)
     if (upstreamCursor) url.searchParams.set('cursor', upstreamCursor)
     appendBaseModelFamilyParams(url, baseModel)
 
@@ -1621,7 +1653,10 @@ async function listCivitaiLorasViaRest({
   const url = new URL(CIVITAI_MODELS_API)
   const normalizedSearch = search?.trim() ?? ''
   const nextPageCursor = cursor?.trim() ?? ''
-  if (normalizedSearch && baseModel !== 'all') {
+  // 'other' 兜底桶即使无搜索词也走扩窗扫描：REST 表达不了 NOT IN，单页
+  // upstream 窗口（pageSize 条）几乎全被 named family 占据，补集过滤后
+  // 直接空页 dead-end——必须像 search+family 一样 over-fetch 多页凑满。
+  if ((normalizedSearch || baseModel === 'other') && baseModel !== 'all') {
     return listSearchedBaseModelCivitaiLoras({
       page,
       pageSize,
@@ -1700,7 +1735,11 @@ async function listCivitaiLorasViaRest({
 const CIVITAI_LORA_PREWARM_CONCURRENCY = 3
 
 export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmResult> {
-  const tasks = CIVITAI_LORA_BASE_MODEL_VALUES.flatMap((baseModel) =>
+  // 'other' 兜底桶不预热：REST 补集只能扩窗扫描（每个 sort 最多 10 次上游
+  // 请求），命中率又低，边缘缓存价值配不上这个成本——冷路径按需加载即可。
+  const tasks = CIVITAI_LORA_BASE_MODEL_VALUES.filter(
+    (baseModel) => baseModel !== 'other',
+  ).flatMap((baseModel) =>
     CIVITAI_LORA_SORT_VALUES.map((sort) => ({ baseModel, sort })),
   )
   const entries: CivitaiLoraPrewarmEntry[] = new Array(tasks.length)
@@ -1846,8 +1885,8 @@ const CivitaiImageItemSchema = z
   .object({
     id: z.union([z.number(), z.string()]).optional(),
     url: z.string().url().optional(),
-    width: z.number().int().positive().optional(),
-    height: z.number().int().positive().optional(),
+    width: CivitaiImageDimensionSchema,
+    height: CivitaiImageDimensionSchema,
     meta: z
       .object({
         prompt: z.string().optional(),

@@ -3458,7 +3458,12 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
     const isActive = option === value
     const isExternal =
       option !== 'all' && !isCivitaiBaseModelGeneratable(option)
-    const label = option === 'all' ? t('baseModelFilterAll') : option
+    const label =
+      option === 'all'
+        ? t('baseModelFilterAll')
+        : option === 'other'
+          ? t('baseModelFilterOther')
+          : option
     return (
       <button
         key={option}

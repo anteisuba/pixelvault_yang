@@ -108,6 +108,9 @@ describe('listCivitaiLoras', () => {
       'SDXL 1.0',
       'SDXL 0.9',
       'SDXL Turbo',
+      'SDXL Lightning',
+      'SDXL Hyper',
+      'SDXL 1.0 LCM',
     ])
     expect(requestUrl.searchParams.get('sort')).toBe('Most Downloaded')
     expect(result.items).toHaveLength(1)
@@ -255,6 +258,54 @@ describe('listCivitaiLoras', () => {
 
     expect(result.items[0]?.coverImageUrlOriginal).toBeNull()
     expect(result.items[0]?.previewImageUrls).toEqual([])
+  })
+
+  it('tolerates Civitai model images with zero dimensions', async () => {
+    const coverUrl = 'https://image.civitai.com/zero-dimension.jpeg'
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 558,
+            name: 'Zero Dimension LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            modelVersions: [
+              {
+                id: 1002,
+                name: 'v1',
+                baseModel: 'Pony V7',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1002',
+                  },
+                ],
+                images: [
+                  {
+                    url: coverUrl,
+                    width: 0,
+                    height: 0,
+                    nsfwLevel: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({
+      baseModel: 'other',
+      nsfwFilter: 'unrestricted',
+    })
+
+    expect(result.items[0]?.coverImageUrlOriginal).toBe(coverUrl)
+    expect(result.items[0]?.baseModelFamily).toBe('Pony V7')
   })
 
   it('falls back to extracting cursor from metadata.nextPage when nextCursor is absent (the actual pagination bug)', async () => {
@@ -572,6 +623,87 @@ describe('listCivitaiLoras', () => {
       'NoobAI',
     ])
     expect(result.hasNextPage).toBe(true)
+  })
+
+  it("fetches long-tail baseModels for the 'other' bucket and keeps only unbucketed families", async () => {
+    const versionFor = (baseModel: string, id: number) => ({
+      id,
+      name: 'v1',
+      baseModel,
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: ['trigger'],
+    })
+
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Wan LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Wan Video 14B t2v', 101)],
+          },
+          {
+            id: 2,
+            name: 'Illustrious LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Illustrious', 102)],
+          },
+          {
+            id: 3,
+            name: 'Pony V7 LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Pony V7', 103)],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras({ baseModel: 'other' })
+
+    // REST 表达不了 NOT IN；browse 态先用明确长尾 baseModels 缩小上游窗口，
+    // 再由客户端补集过滤兜住误归类。
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    const baseModels = requestUrl.searchParams.getAll('baseModels')
+    expect(baseModels).toContain('Pony V7')
+    expect(baseModels).toContain('Wan Video 14B t2v')
+    expect(baseModels).not.toContain('Illustrious')
+    expect(result.items.map((item) => item.baseModelFamily)).toEqual([
+      'Wan Video 14B t2v',
+      'Pony V7',
+    ])
+  })
+
+  it("searches the 'other' bucket via a meilisearch NOT IN complement filter", async () => {
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ results: [{ hits: [], estimatedTotalHits: 0 }] })
+      }
+      return jsonResponse({ items: [], metadata: {} })
+    })
+
+    const result = await listCivitaiLoras({ baseModel: 'other', search: 'wan' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    const searchBody = JSON.parse(String(searchCall?.[1]?.body)) as {
+      queries: { filter: string[] }[]
+    }
+    expect(searchBody.queries[0]?.filter[0]).toBe('type = LoRA')
+    expect(searchBody.queries[0]?.filter[1]).toMatch(
+      /^versions\.baseModel NOT IN \[/,
+    )
+    expect(searchBody.queries[0]?.filter[1]).toContain('"Illustrious"')
+    expect(searchBody.queries[0]?.filter[1]).toContain('"ZImageTurbo"')
+    expect(result.items).toEqual([])
   })
 
   it('deduplicates repeated Civitai model versions from upstream pages', async () => {
@@ -1041,8 +1173,10 @@ describe('listCivitaiLoras', () => {
     )
 
     const result = await prewarmCivitaiLoraLibrary()
+    // 'other' 兜底桶被排除在预热外（REST 补集只能多页扫描，成本不值）。
     const expectedTotal =
-      CIVITAI_LORA_BASE_MODEL_VALUES.length * CIVITAI_LORA_SORT_VALUES.length
+      CIVITAI_LORA_BASE_MODEL_VALUES.filter((value) => value !== 'other')
+        .length * CIVITAI_LORA_SORT_VALUES.length
 
     expect(result.total).toBe(expectedTotal)
     expect(result.successCount).toBe(expectedTotal)

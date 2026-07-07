@@ -21,15 +21,15 @@ vi.mock('@/lib/prepare-image-upload', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({
-  uploadImageAPI: vi.fn(),
+  uploadImageFileAPI: vi.fn(),
 }))
 
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
-import { uploadImageAPI } from '@/lib/api-client'
+import { uploadImageFileAPI } from '@/lib/api-client'
 
 const mockPrepare = vi.mocked(prepareImageUpload)
-const mockUpload = vi.mocked(uploadImageAPI)
+const mockUpload = vi.mocked(uploadImageFileAPI)
 
 describe('useImageUpload', () => {
   describe('initial state', () => {

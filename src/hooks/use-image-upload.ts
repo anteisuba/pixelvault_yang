@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
-import { uploadImageAPI } from '@/lib/api-client'
+import { uploadImageFileAPI } from '@/lib/api-client'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 
@@ -137,15 +137,6 @@ export function useImageUpload(): UseImageUploadReturn {
     })
   }, [])
 
-  const loadImageAsBase64 = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }, [])
-
   const addReferenceImage = useCallback((image: string) => {
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current
@@ -213,11 +204,11 @@ export function useImageUpload(): UseImageUploadReturn {
     ])
   }, [])
 
-  // Local files are compressed under the Vercel request-body cap, uploaded to
-  // R2, and stored as an http(s) URL — never inlined as a multi-MB base64 data
-  // URL in the generate request body (that overflows the ~4.5 MB limit and
-  // 413s before the request ever reaches the worker). Mirrors the node-editor
-  // / image-edit upload path.
+  // Local files upload via multipart/form-data (raw bytes, no base64) and come
+  // back as an http(s) R2 URL — never inlined as a multi-MB data URL in a
+  // generate request body. prepareImageUpload only squeezes files over the cap,
+  // so normal images keep full quality. Mirrors the node-editor / image-edit
+  // upload path.
   const uploadLocalFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) return
@@ -234,8 +225,7 @@ export function useImageUpload(): UseImageUploadReturn {
           },
         })
         if (!prepared) return // prepareImageUpload already toasted the reason
-        const imageDataUrl = await loadImageAsBase64(prepared)
-        const response = await uploadImageAPI({ imageDataUrl })
+        const response = await uploadImageFileAPI(prepared)
         if (response.success && response.data?.generation.url) {
           addReferenceImage(response.data.generation.url)
         } else {
@@ -247,7 +237,7 @@ export function useImageUpload(): UseImageUploadReturn {
         setIsUploading(false)
       }
     },
-    [t, loadImageAsBase64, addReferenceImage],
+    [t, addReferenceImage],
   )
 
   const handleFileChange = useCallback(

@@ -13,6 +13,7 @@ import {
   Heart,
   Image as ImageIcon,
   Loader2,
+  Lock,
   Mic,
   Plus,
   Box,
@@ -51,6 +52,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
+import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { ROUTES } from '@/constants/routes'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import {
@@ -71,7 +73,7 @@ import {
   fetchAssetSectionCounts,
   fetchGalleryImages,
 } from '@/lib/api-client/gallery'
-import { uploadImageAPI } from '@/lib/api-client/generation'
+import { uploadImageFileAPI } from '@/lib/api-client/generation'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import {
   clearGalleryCache,
@@ -81,6 +83,7 @@ import {
 } from '@/lib/gallery-cache'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
+import { isTouchPrimary } from '@/lib/touch'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -406,9 +409,11 @@ export function KreaAssetBrowser({
   // per item — and the All count stays stable as the user filters down.
   const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
   const refreshCounts = useCallback(async () => {
-    const response = await fetchAssetSectionCounts()
+    // Scope counts to the active type tab so the badges match the grid.
+    // Changing the type tab re-runs this via the effect below.
+    const response = await fetchAssetSectionCounts(filters.type)
     if (response.success) setCounts(response.data)
-  }, [])
+  }, [filters.type])
   useEffect(() => {
     void refreshCounts()
   }, [refreshCounts])
@@ -460,6 +465,9 @@ export function KreaAssetBrowser({
     if (pickerMultiSelect) setSelectionMode(true)
   }, [pickerMultiSelect])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Off-screen element used as a custom drag image when dragging a multi-select
+  // batch onto a folder — shows the count instead of a lone thumbnail ghost.
+  const dragGhostRef = useRef<HTMLDivElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
@@ -865,13 +873,13 @@ export function KreaAssetBrowser({
   }
 
   const processUploadFile = useCallback(
-    async (file: File) => {
+    async (file: File): Promise<GenerationRecord | null> => {
       const isAcceptedType = (
         USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
       ).includes(file.type)
       if (!isAcceptedType) {
         toast.error(t('uploadUnsupportedFile'))
-        return
+        return null
       }
 
       setIsUploading(true)
@@ -889,50 +897,133 @@ export function KreaAssetBrowser({
             tooLarge: t('uploadFileTooLarge', { maxMb }),
           },
         })
-        if (!uploadFile) return // helper already toasted the error
+        if (!uploadFile) return null // helper already toasted the error
 
-        const imageDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => {
-            if (typeof reader.result === 'string') resolve(reader.result)
-            else reject(new Error(t('uploadFailed')))
-          }
-          reader.onerror = () =>
-            reject(reader.error ?? new Error(t('uploadFailed')))
-          reader.readAsDataURL(uploadFile)
+        // Upload-into-folder: viewing a project uploads straight into it;
+        // any other view uploads to the unassigned bucket.
+        const targetProjectId =
+          section.kind === 'project' ? section.id : undefined
+        const response = await uploadImageFileAPI(uploadFile, {
+          projectId: targetProjectId,
         })
-        const response = await uploadImageAPI({ imageDataUrl })
         if (!response.success || !response.data) {
           toast.error(response.error ?? t('uploadFailed'))
-          return
+          return null
         }
         clearGalleryCache()
-        prependGeneration(response.data.generation)
+        // Only surface the upload in the grid if it belongs in the current
+        // view (e.g. don't inject it into Favorites or the wrong type tab).
+        if (
+          shouldKeepAssetAfterPatch(
+            section,
+            response.data.generation,
+            activeMediaType,
+          )
+        ) {
+          prependGeneration(response.data.generation)
+        }
         void refreshCounts()
         toast.success(t('uploadSuccess'))
+        return response.data.generation
       } catch (error) {
         toast.error(error instanceof Error ? error.message : t('uploadFailed'))
+        return null
       } finally {
         setIsUploading(false)
       }
     },
-    [t, prependGeneration, refreshCounts],
+    [t, prependGeneration, refreshCounts, section, activeMediaType],
+  )
+
+  // Sequential multi-file upload — dropping or picking several images uploads
+  // them one after another into the current folder. Returns the successfully
+  // uploaded generations so the picker can select them.
+  const processUploadFiles = useCallback(
+    async (files: File[]): Promise<GenerationRecord[]> => {
+      const images = files.filter((file) => file.type.startsWith('image/'))
+      const uploaded: GenerationRecord[] = []
+      for (const image of images) {
+        const gen = await processUploadFile(image)
+        if (gen) uploaded.push(gen)
+      }
+      return uploaded
+    },
+    [processUploadFile],
+  )
+
+  // Picker inline upload: after uploading, resolve the picker with the new
+  // asset(s) — single-select picks the last one, multi-select toggles each in.
+  const selectUploadedInPicker = useCallback(
+    (uploaded: GenerationRecord[]) => {
+      if (!isPickerMode || uploaded.length === 0) return
+      if (pickerMultiSelect) {
+        uploaded.forEach((gen) => toggleSelection(gen.id))
+      } else if (onSelect) {
+        onSelect(uploaded[uploaded.length - 1])
+      }
+    },
+    [isPickerMode, pickerMultiSelect, toggleSelection, onSelect],
   )
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0]
+    const files = Array.from(event.target.files ?? [])
     event.target.value = ''
-    if (!file) return
-    await processUploadFile(file)
+    if (files.length === 0) return
+    selectUploadedInPicker(await processUploadFiles(files))
   }
 
-  // Paste-to-upload: when viewing Local assets, ⌘V / Ctrl+V uploads any image
-  // sitting on the clipboard. Mirrors the Edit workspace pattern. Skipped when
-  // the user is typing in a field so the search/rename inputs still work.
+  // ── Global drag-to-upload ─────────────────────────────────────
+  // Dropping OS files anywhere on the page uploads them into the current
+  // folder. Keyed off the "Files" payload so it never collides with the
+  // in-page tile → folder drag (which carries ASSET_DND_MIME instead).
+  const {
+    isDragging: isFileDragging,
+    resetDragging: resetFileDragging,
+    handleDragEnter: markFileDragEnter,
+    handleDragOver: markFileDragOver,
+    handleDragLeave: markFileDragLeave,
+  } = useStableDragState()
+
+  // Global drag-upload is on for the main page, and inside image pickers
+  // (uploads are always images — an audio/3d picker can't use them).
+  const uploadDropEnabled = !isPickerMode || mediaType === 'image' || !mediaType
+  const hasFilePayload = (dataTransfer: DataTransfer) =>
+    Array.from(dataTransfer.types).includes('Files')
+  const uploadTargetLabel =
+    section.kind === 'project'
+      ? (projects.find((project) => project.id === section.id)?.name ??
+        t('sidebarUnassigned'))
+      : t('sidebarUnassigned')
+
+  const handleRootDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!uploadDropEnabled || !hasFilePayload(event.dataTransfer)) return
+    markFileDragEnter(event)
+  }
+  const handleRootDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!uploadDropEnabled || !hasFilePayload(event.dataTransfer)) return
+    markFileDragOver(event)
+  }
+  const handleRootDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!uploadDropEnabled) return
+    markFileDragLeave(event)
+  }
+  const handleRootDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!uploadDropEnabled || !hasFilePayload(event.dataTransfer)) return
+    event.preventDefault()
+    resetFileDragging()
+    const files = Array.from(event.dataTransfer.files)
+    if (files.length > 0) {
+      void processUploadFiles(files).then(selectUploadedInPicker)
+    }
+  }
+
+  // Paste-to-upload: ⌘V / Ctrl+V uploads a clipboard image into the current
+  // folder (and, in an image picker, selects it). Skipped when the user is
+  // typing in a field so the rename inputs still work.
   useEffect(() => {
-    if (isPickerMode || section.kind !== 'uploads') return
+    if (!uploadDropEnabled) return
 
     const handlePaste = (event: globalThis.ClipboardEvent) => {
       const target = event.target as HTMLElement | null
@@ -949,12 +1040,14 @@ export function KreaAssetBrowser({
       )
       if (!imageFile) return
       event.preventDefault()
-      void processUploadFile(imageFile)
+      void processUploadFile(imageFile).then((gen) => {
+        if (gen) selectUploadedInPicker([gen])
+      })
     }
 
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
-  }, [isPickerMode, section.kind, processUploadFile])
+  }, [uploadDropEnabled, processUploadFile, selectUploadedInPicker])
 
   const handleRenameProject = useCallback(
     async (id: string, newName: string) => {
@@ -1145,6 +1238,17 @@ export function KreaAssetBrowser({
       (option) => option.active,
     ) ?? primaryMobileSections[0]
   const activeSectionCount = activeSection.count
+  // Read-only "locked to X" label for pickers scoped to a single media type.
+  const lockedMediaTypeLabel = mediaType
+    ? t('pickerLocked', {
+        type: {
+          image: t('sidebarImages'),
+          video: t('sidebarVideos'),
+          audio: t('sidebarAudio'),
+          model_3d: t('sidebarModel3D'),
+        }[mediaType],
+      })
+    : null
 
   return (
     <div
@@ -1152,7 +1256,21 @@ export function KreaAssetBrowser({
         'flex h-[calc(100svh-3rem)] flex-col bg-background',
         className,
       )}
+      onDragEnter={handleRootDragEnter}
+      onDragOver={handleRootDragOver}
+      onDragLeave={handleRootDragLeave}
+      onDrop={handleRootDrop}
     >
+      {isFileDragging && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-foreground/40 bg-background/60 px-10 py-8 text-center">
+            <UploadCloud className="size-8 text-foreground/70" />
+            <p className="text-sm font-medium text-foreground">
+              {t('uploadDropHint', { folder: uploadTargetLabel })}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
         <main className="studio-scrollbar flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4">
@@ -1175,10 +1293,30 @@ export function KreaAssetBrowser({
                         {activeSectionCount}
                       </span>
                     )}
+                    {/* Read-only lock badge: every picker is scoped to one
+                        media type. Shows the type as context, never a toggle. */}
+                    {isPickerMode && lockedMediaTypeLabel && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 gap-1 px-2 py-0.5 text-2xs font-medium text-muted-foreground"
+                      >
+                        <Lock className="size-2.5" />
+                        {lockedMediaTypeLabel}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                {!mediaType && (
-                  <MediaTypeToggle
+                {/* Main page: view + type toggles live in the top bar.
+                    Picker mode moves both into the horizontal section rail
+                    below the grid, so hide them here to avoid duplication. */}
+                {!isPickerMode && (
+                  <IconSegmentedToggle
+                    label={t('sidebarViews')}
+                    options={primaryMobileSections}
+                  />
+                )}
+                {!isPickerMode && !mediaType && (
+                  <IconSegmentedToggle
                     label={t('sidebarTools')}
                     options={toolMobileSections}
                   />
@@ -1188,36 +1326,22 @@ export function KreaAssetBrowser({
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:shrink-0">
                 {!isPickerMode && (
                   <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
-                    {section.kind === 'uploads' && (
-                      <>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept={USER_UPLOAD_ACCEPT}
-                          className="sr-only"
-                          aria-label={t('uploadInputLabel')}
-                          onChange={(event) => {
-                            void handleFileChange(event)
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleUploadClick}
-                          disabled={isUploading}
-                          className="h-10 rounded-lg px-3.5"
-                        >
-                          {isUploading ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <UploadCloud className="size-3.5" />
-                          )}
-                          <span>
-                            {isUploading ? t('uploading') : t('uploadButton')}
-                          </span>
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleUploadClick}
+                      disabled={isUploading}
+                      className="h-10 rounded-lg px-3.5"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <UploadCloud className="size-3.5" />
+                      )}
+                      <span>
+                        {isUploading ? t('uploading') : t('uploadButton')}
+                      </span>
+                    </Button>
                     <Button
                       type="button"
                       size="sm"
@@ -1252,6 +1376,18 @@ export function KreaAssetBrowser({
             </div>
           </div>
 
+          {/* Scenized picker: one horizontal section rail replaces the hidden
+              folder tree so folders don't eat the dialog width. No type rail —
+              every picker locks a single media type (see the locked badge in
+              the header); a switchable type toggle would only mislead. */}
+          {isPickerMode && (
+            <div className="mb-3 hidden lg:block">
+              <MobileSectionRail
+                label={t('sidebarViews')}
+                options={[...primaryMobileSections, ...folderMobileSections]}
+              />
+            </div>
+          )}
           <div className="mb-4 lg:hidden">
             <MobileSectionPicker
               label={t('mobileSections')}
@@ -1264,6 +1400,23 @@ export function KreaAssetBrowser({
             />
           </div>
 
+          {/* Hidden upload input — rendered wherever uploading is allowed
+              (main page always, image picker) so both the top-bar upload
+              button and the picker's inline dashed cell can trigger it. */}
+          {uploadDropEnabled && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={USER_UPLOAD_ACCEPT}
+              multiple
+              className="sr-only"
+              aria-label={t('uploadInputLabel')}
+              onChange={(event) => {
+                void handleFileChange(event)
+              }}
+            />
+          )}
+
           {/* Krea-style switching: useGallery serves cached snapshots
               instantly (0ms) and falls through to the grid skeleton on
               the genuinely-uncached miss. No top banner / pill — the
@@ -1273,6 +1426,26 @@ export function KreaAssetBrowser({
             <EmptyState />
           ) : (
             <div className={cn('grid gap-2', DENSITY_GRID_CLASS[density])}>
+              {/* Picker inline upload: drop/click uploads an image and selects
+                  it, so users don't have to leave the dialog to add one. */}
+              {isPickerMode && uploadDropEnabled && (
+                <button
+                  type="button"
+                  onClick={handleUploadClick}
+                  disabled={isUploading}
+                  aria-label={t('uploadButton')}
+                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="size-5" />
+                  )}
+                  <span className="text-2xs font-medium">
+                    {t('uploadButton')}
+                  </span>
+                </button>
+              )}
               {generations.length === 0 && isLoading
                 ? Array.from({ length: 12 }).map((_, idx) => (
                     <div
@@ -1288,10 +1461,10 @@ export function KreaAssetBrowser({
                       gen,
                     ).find((url) => !failedAudioPreviewUrls.has(url))
                     const tileClass = cn(
-                      'group relative aspect-square overflow-hidden rounded-md border bg-muted/40 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                      'group relative aspect-square overflow-hidden rounded-lg border bg-muted/40 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
                       isSelected
-                        ? 'border-primary ring-2 ring-primary/40 scale-[0.97]'
-                        : 'border-border/60 hover:border-primary/40 hover:scale-[1.02]',
+                        ? 'border-primary ring-2 ring-primary/40'
+                        : 'border-border/60 hover:border-primary/40',
                     )
                     const tileChildren =
                       gen.outputType === 'VIDEO' ? (
@@ -1403,12 +1576,24 @@ export function KreaAssetBrowser({
                       )
                       event.dataTransfer.setData('text/plain', ids.join(','))
                       event.dataTransfer.effectAllowed = 'move'
+                      // Multi-select batch: show a "N selected" chip instead of
+                      // a single tile ghost so the user sees the drag scope.
+                      if (ids.length > 1 && dragGhostRef.current) {
+                        dragGhostRef.current.textContent = t('selectedCount', {
+                          count: ids.length,
+                        })
+                        event.dataTransfer.setDragImage(
+                          dragGhostRef.current,
+                          16,
+                          16,
+                        )
+                      }
                     }
                     return (
                       <button
                         key={gen.id}
                         type="button"
-                        draggable={!isPickerMode}
+                        draggable={!isPickerMode && !isTouchPrimary()}
                         onDragStart={
                           isPickerMode ? undefined : handleTileDragStart
                         }
@@ -1462,60 +1647,31 @@ export function KreaAssetBrowser({
         </main>
 
         {/* ─── Right sidebar ─────────────────────────────────────── */}
-        <aside className="studio-scrollbar hidden min-w-0 w-72 shrink-0 overflow-x-hidden overflow-y-auto py-4 lg:block">
-          <div className="grid min-w-0 gap-4 overflow-hidden rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
-            <SidebarSection label={t('sidebarViews')}>
-              <SidebarItem
-                active={section.kind === 'all'}
-                icon={<FolderOpen className="size-4" />}
-                label={t('sidebarAll')}
-                count={allCount}
-                onClick={() => setSection({ kind: 'all' })}
-                onPrefetch={() => prefetchSection({ kind: 'all' })}
+        {/* Hidden in picker mode — the folder tree would eat ~40% of the
+            dialog width. The scenized picker uses a horizontal section rail
+            above the grid instead (see below). */}
+        {!isPickerMode && (
+          <aside className="studio-scrollbar hidden min-w-0 w-72 shrink-0 overflow-x-hidden overflow-y-auto py-4 lg:block">
+            <div className="grid min-w-0 gap-4 overflow-hidden rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
+              <AssetFolderTree
+                projects={projects}
+                byProjectCounts={counts?.byProject}
+                activeProjectTotal={
+                  section.kind === 'project' ? total : undefined
+                }
+                unassignedCount={unassignedCount}
+                activeProjectId={section.kind === 'project' ? section.id : null}
+                isUnassignedActive={section.kind === 'unassigned'}
+                onSelectUnassigned={() => setSection({ kind: 'unassigned' })}
+                onSelectProject={(id) => setSection({ kind: 'project', id })}
+                onProjectCreated={handleProjectCreated}
+                onRenameProject={handleRenameProject}
+                onRequestDeleteProject={requestDeleteProject}
+                onDropAssets={handleDropAssetsOnFolder}
               />
-              <SidebarItem
-                active={section.kind === 'favorites'}
-                icon={<Heart className="size-4" />}
-                label={t('sidebarFavorites')}
-                count={favoritesCount}
-                onClick={() => setSection({ kind: 'favorites' })}
-                onPrefetch={() => prefetchSection({ kind: 'favorites' })}
-              />
-              <SidebarItem
-                active={section.kind === 'published'}
-                icon={<Globe className="size-4" />}
-                label={t('sidebarPublished')}
-                count={publishedCount}
-                onClick={() => setSection({ kind: 'published' })}
-                onPrefetch={() => prefetchSection({ kind: 'published' })}
-              />
-              <SidebarItem
-                active={section.kind === 'uploads'}
-                icon={<UploadCloud className="size-4" />}
-                label={t('sidebarUploads')}
-                onClick={() => setSection({ kind: 'uploads' })}
-                onPrefetch={() => prefetchSection({ kind: 'uploads' })}
-              />
-            </SidebarSection>
-
-            <AssetFolderTree
-              projects={projects}
-              byProjectCounts={counts?.byProject}
-              activeProjectTotal={
-                section.kind === 'project' ? total : undefined
-              }
-              unassignedCount={unassignedCount}
-              activeProjectId={section.kind === 'project' ? section.id : null}
-              isUnassignedActive={section.kind === 'unassigned'}
-              onSelectUnassigned={() => setSection({ kind: 'unassigned' })}
-              onSelectProject={(id) => setSection({ kind: 'project', id })}
-              onProjectCreated={handleProjectCreated}
-              onRenameProject={handleRenameProject}
-              onRequestDeleteProject={requestDeleteProject}
-              onDropAssets={handleDropAssetsOnFolder}
-            />
-          </div>
-        </aside>
+            </div>
+          </aside>
+        )}
       </div>
       {!isPickerMode && (
         <AssetDetailSheet
@@ -1533,6 +1689,13 @@ export function KreaAssetBrowser({
           transitionOrigin={selectedOriginRect}
         />
       )}
+      {/* Off-screen custom drag image for multi-select folder drags. */}
+      <div
+        ref={dragGhostRef}
+        aria-hidden="true"
+        style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}
+        className="pointer-events-none rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
+      />
       {/* ─── Picker confirmation bar (multi-select picker mode) ── */}
       {pickerMultiSelect && (
         <div
@@ -1594,7 +1757,7 @@ export function KreaAssetBrowser({
               'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
           }}
         >
-          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
+          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
             <span className="px-2 text-xs font-medium tabular-nums">
               {t('selectedCount', { count: selectedIds.size })}
             </span>
@@ -1815,12 +1978,12 @@ interface MobileSectionOption {
   onPrefetch?: () => void
 }
 
-interface MediaTypeToggleProps {
+interface IconSegmentedToggleProps {
   label: string
   options: MobileSectionOption[]
 }
 
-function MediaTypeToggle({ label, options }: MediaTypeToggleProps) {
+function IconSegmentedToggle({ label, options }: IconSegmentedToggleProps) {
   const activeKey = options.find((option) => option.active)?.key ?? ''
 
   return (
@@ -2008,98 +2171,6 @@ function MobileSectionRail({
         ))}
       </div>
     </section>
-  )
-}
-
-// ─── Sidebar primitives ─────────────────────────────
-
-interface SidebarSectionProps {
-  label: string
-  action?: React.ReactNode
-  children: React.ReactNode
-}
-
-function SidebarSection({ label, action, children }: SidebarSectionProps) {
-  return (
-    <section className="grid gap-1.5" aria-label={label}>
-      <div className="flex min-h-7 items-center justify-between gap-2 px-2">
-        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-          {label}
-        </span>
-        {action}
-      </div>
-      <div className="grid gap-0.5">{children}</div>
-    </section>
-  )
-}
-
-interface SidebarItemProps {
-  active: boolean
-  icon: React.ReactNode
-  label: string
-  count?: number
-  onClick: () => void
-  onPrefetch?: () => void
-  actions?: React.ReactNode
-}
-
-function SidebarItem({
-  active,
-  icon,
-  label,
-  count,
-  onClick,
-  onPrefetch,
-  actions,
-}: SidebarItemProps) {
-  return (
-    <div
-      className={cn(
-        'group/sidebar-item relative flex w-full items-center gap-1 rounded-lg py-1.5 pl-3 pr-1 text-sm transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:transition-colors',
-        active
-          ? 'bg-primary/10 text-primary before:bg-primary'
-          : 'text-foreground/80 before:bg-transparent hover:bg-muted/50 hover:text-foreground',
-      )}
-      onMouseEnter={onPrefetch}
-      onFocus={onPrefetch}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={active}
-        className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              'shrink-0',
-              active ? 'text-primary' : 'text-muted-foreground/70',
-            )}
-          >
-            {icon}
-          </span>
-          <span className="truncate">{label}</span>
-        </span>
-        {typeof count === 'number' && (
-          <Badge
-            variant="secondary"
-            className={cn(
-              'min-w-6 justify-center px-1.5 py-0 text-3xs font-medium tabular-nums',
-              active
-                ? 'bg-background/80 text-primary'
-                : 'bg-muted/50 text-muted-foreground',
-            )}
-          >
-            {count}
-          </Badge>
-        )}
-      </button>
-      {actions ? (
-        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/sidebar-item:opacity-100 focus-within:opacity-100">
-          {actions}
-        </span>
-      ) : null}
-    </div>
   )
 }
 

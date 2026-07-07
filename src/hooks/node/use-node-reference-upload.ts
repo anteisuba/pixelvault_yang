@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
-import { uploadImageAPI } from '@/lib/api-client'
+import { uploadImageFileAPI } from '@/lib/api-client'
 import { compressImageToLimit } from '@/lib/compress-image'
 
 const NODE_REFERENCE_UPLOAD_FALLBACK_ERROR = 'Reference image upload failed'
@@ -21,21 +21,6 @@ interface UseNodeReferenceUploadValue {
   error: string | null
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result)
-        return
-      }
-      reject(new Error(NODE_REFERENCE_UPLOAD_FALLBACK_ERROR))
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 export function useNodeReferenceUpload(): UseNodeReferenceUploadValue {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,16 +31,12 @@ export function useNodeReferenceUpload(): UseNodeReferenceUploadValue {
       setError(null)
 
       try {
-        // Compress under the Vercel request-body cap before base64-encoding —
-        // an oversized data URL 413s at the platform before reaching the API.
+        // Only squeeze files over the cap; smaller ones upload untouched at
+        // full quality. Sent as multipart raw bytes, not a base64 data URL.
         const { file: compressed } = await compressImageToLimit(file, {
           maxBytes: CLIENT_UPLOAD_MAX_BYTES,
         })
-        const imageDataUrl = await readFileAsDataUrl(compressed)
-        const response = await uploadImageAPI({
-          imageDataUrl,
-          note,
-        })
+        const response = await uploadImageFileAPI(compressed, { note })
 
         if (response.success && response.data?.generation.url) {
           return {

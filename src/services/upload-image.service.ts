@@ -7,7 +7,7 @@ import {
 } from '@/constants/uploads'
 import { createGeneration } from '@/services/generation.service'
 import {
-  createImagePreviewAssets,
+  createImageThumbnailAsset,
   detectTrustedImageMime,
   fetchAsBuffer,
   generateStorageKey,
@@ -18,35 +18,20 @@ import type { GenerationRecord, UploadImageRequest } from '@/types'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 /**
- * Persist a user-uploaded image as a first-class Generation row tagged with
- * `USER_UPLOAD_PROVIDER` so it surfaces in the asset browser's "Local
- * assets" sidebar and is reusable as a source for any downstream tool
- * (3D, video, etc.) without re-uploading.
+ * Shared persistence step for both upload paths (local multipart file and
+ * remote-URL import). The original bytes are stored in R2 *as-is* — no
+ * re-encode, no downscale, so a good image keeps its quality — and only a
+ * grid-tile thumbnail is derived (the detail view serves the original). The
+ * buffer is validated by libvips magic bytes so a client can't smuggle a
+ * disallowed or corrupt format past the claimed MIME.
  */
-export async function uploadUserImage(
-  clerkId: string,
-  input: UploadImageRequest,
-): Promise<GenerationRecord> {
-  const dbUser = await ensureUser(clerkId)
-  return uploadUserImageForUserId(dbUser.id, input)
-}
-
-export async function uploadUserImageForUserId(
-  userId: string,
-  input: UploadImageRequest,
-): Promise<GenerationRecord> {
-  const sourceUrl = input.imageDataUrl ?? input.imageUrl
-  if (!sourceUrl) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      'Either imageDataUrl or imageUrl must be provided',
-      400,
-    )
-  }
-
-  const { buffer } = await fetchAsBuffer(sourceUrl, {
-    maxBytes: USER_UPLOAD_MAX_BYTES,
-  })
+async function storeUserUpload(params: {
+  userId: string
+  buffer: Buffer
+  note?: string
+  projectId?: string
+}): Promise<GenerationRecord> {
+  const { userId, buffer, note, projectId } = params
 
   if (buffer.byteLength > USER_UPLOAD_MAX_BYTES) {
     throw new GenerateImageServiceError(
@@ -76,13 +61,13 @@ export async function uploadUserImageForUserId(
   }
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const [publicUrl, previewAssets] = await Promise.all([
+  const [publicUrl, thumbnail] = await Promise.all([
     uploadToR2({
       data: buffer,
       key: storageKey,
       mimeType: trustedMimeType,
     }),
-    createImagePreviewAssets({
+    createImageThumbnailAsset({
       sourceBuffer: buffer,
       sourceStorageKey: storageKey,
     }),
@@ -92,19 +77,86 @@ export async function uploadUserImageForUserId(
     url: publicUrl,
     storageKey,
     mimeType: trustedMimeType,
-    thumbnailUrl: previewAssets.thumbnailUrl,
-    thumbnailStorageKey: previewAssets.thumbnailStorageKey,
-    previewUrl: previewAssets.previewUrl,
-    previewStorageKey: previewAssets.previewStorageKey,
+    thumbnailUrl: thumbnail.thumbnailUrl,
+    thumbnailStorageKey: thumbnail.thumbnailStorageKey,
     width: detectedWidth,
     height: detectedHeight,
-    prompt: input.note ?? '',
+    prompt: note ?? '',
     model: USER_UPLOAD_PROVIDER,
     provider: USER_UPLOAD_PROVIDER,
     requestCount: 0,
     outputType: 'IMAGE',
     isFreeGeneration: true,
     userId,
+    projectId,
+  })
+}
+
+/**
+ * Persist a user-uploaded image as a first-class Generation row tagged with
+ * `USER_UPLOAD_PROVIDER` so it surfaces in the asset browser's "Local
+ * assets" sidebar and is reusable as a source for any downstream tool
+ * (3D, video, etc.) without re-uploading.
+ *
+ * JSON path: accepts a base64 data URL (legacy) or a remote https URL the
+ * server fetches. Local files should use the multipart `uploadUserImageFile`
+ * path instead — it avoids base64 inflation and preserves original quality.
+ */
+export async function uploadUserImage(
+  clerkId: string,
+  input: UploadImageRequest,
+): Promise<GenerationRecord> {
+  const dbUser = await ensureUser(clerkId)
+  return uploadUserImageForUserId(dbUser.id, input)
+}
+
+export async function uploadUserImageForUserId(
+  userId: string,
+  input: UploadImageRequest,
+): Promise<GenerationRecord> {
+  const sourceUrl = input.imageDataUrl ?? input.imageUrl
+  if (!sourceUrl) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Either imageDataUrl or imageUrl must be provided',
+      400,
+    )
+  }
+
+  const { buffer } = await fetchAsBuffer(sourceUrl, {
+    maxBytes: USER_UPLOAD_MAX_BYTES,
+  })
+
+  return storeUserUpload({
+    userId,
+    buffer,
+    note: input.note,
+    projectId: input.projectId,
+  })
+}
+
+export interface UploadUserImageFileInput {
+  fileBuffer: Buffer
+  /** MIME the client claimed; kept for logging — the real format is detected. */
+  claimedMimeType?: string
+  note?: string
+  projectId?: string
+}
+
+/**
+ * Multipart path for local-file uploads: the raw file bytes arrive as a
+ * Buffer (no base64), get validated + stored as-is. Mirrors the LoRA-training
+ * and reference-video upload routes.
+ */
+export async function uploadUserImageFile(
+  clerkId: string,
+  input: UploadUserImageFileInput,
+): Promise<GenerationRecord> {
+  const dbUser = await ensureUser(clerkId)
+  return storeUserUpload({
+    userId: dbUser.id,
+    buffer: input.fileBuffer,
+    note: input.note,
     projectId: input.projectId,
   })
 }

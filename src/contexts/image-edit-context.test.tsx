@@ -17,7 +17,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 // uninitialized binding at module-evaluation time.
 const {
   toastMock,
-  uploadImageAPI,
+  uploadImageFileAPI,
   compressImageToLimit,
   ImageCompressionError,
 } = vi.hoisted(() => {
@@ -41,7 +41,7 @@ const {
       loading: vi.fn(() => 'compressing-toast-id'),
       dismiss: vi.fn(),
     },
-    uploadImageAPI: vi.fn(),
+    uploadImageFileAPI: vi.fn(),
     compressImageToLimit: vi.fn(),
     ImageCompressionError,
   }
@@ -61,7 +61,7 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({
-  uploadImageAPI,
+  uploadImageFileAPI,
 }))
 
 vi.mock('@/lib/compress-image', () => ({
@@ -129,7 +129,7 @@ beforeEach(() => {
 describe('ImageEditProvider — uploadSourceFile compression glue', () => {
   it('uploads small files directly without invoking the compressor', async () => {
     const file = makeFile('small.png', 'image/png', 1024)
-    uploadImageAPI.mockResolvedValue({
+    uploadImageFileAPI.mockResolvedValue({
       success: true,
       data: {
         generation: {
@@ -145,7 +145,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
 
     await waitFor(() => {
-      expect(uploadImageAPI).toHaveBeenCalledTimes(1)
+      expect(uploadImageFileAPI).toHaveBeenCalledTimes(1)
     })
     expect(compressImageToLimit).not.toHaveBeenCalled()
     expect(toastMock.loading).not.toHaveBeenCalled()
@@ -158,8 +158,8 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     expect(screen.queryByTestId('banner-error')).toBeNull()
   })
 
-  it('compresses oversized files and forwards the smaller blob to uploadImageAPI', async () => {
-    const file = makeFile('big.png', 'image/png', 8 * 1024 * 1024)
+  it('compresses oversized files and forwards the smaller blob to uploadImageFileAPI', async () => {
+    const file = makeFile('big.png', 'image/png', 20 * 1024 * 1024)
     const compressedFile = makeFile('big.png', 'image/png', 2 * 1024 * 1024)
     compressImageToLimit.mockResolvedValue({
       file: compressedFile,
@@ -167,7 +167,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
       compressedBytes: 2 * 1024 * 1024,
       wasCompressed: true,
     })
-    uploadImageAPI.mockResolvedValue({
+    uploadImageFileAPI.mockResolvedValue({
       success: true,
       data: {
         generation: {
@@ -183,7 +183,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
 
     await waitFor(() => {
-      expect(uploadImageAPI).toHaveBeenCalledTimes(1)
+      expect(uploadImageFileAPI).toHaveBeenCalledTimes(1)
     })
     // Compressor was called with the original file + project size cap.
     expect(compressImageToLimit).toHaveBeenCalledWith(
@@ -213,7 +213,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
       compressedBytes: 6 * 1024 * 1024,
       wasCompressed: false,
     })
-    uploadImageAPI.mockResolvedValue({
+    uploadImageFileAPI.mockResolvedValue({
       success: true,
       data: {
         generation: {
@@ -229,13 +229,13 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
 
     await waitFor(() => {
-      expect(uploadImageAPI).toHaveBeenCalledTimes(1)
+      expect(uploadImageFileAPI).toHaveBeenCalledTimes(1)
     })
     expect(toastMock.message).not.toHaveBeenCalled()
   })
 
-  it('rejects oversized GIFs with uploadGifTooLarge and never calls uploadImageAPI', async () => {
-    const file = makeFile('big.gif', 'image/gif', 8 * 1024 * 1024)
+  it('rejects oversized GIFs with uploadGifTooLarge and never calls uploadImageFileAPI', async () => {
+    const file = makeFile('big.gif', 'image/gif', 20 * 1024 * 1024)
     compressImageToLimit.mockRejectedValue(
       new ImageCompressionError(
         'UNSUPPORTED_FORMAT',
@@ -253,7 +253,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     expect(toastMock.error.mock.calls[0][0]).toMatch(
       new RegExp(`"maxMb":"${EXPECTED_MAX_MB}"`),
     )
-    expect(uploadImageAPI).not.toHaveBeenCalled()
+    expect(uploadImageFileAPI).not.toHaveBeenCalled()
     // Banner mirrors the toast for the persistent in-canvas error UI.
     await waitFor(() => {
       expect(screen.getByTestId('banner-error').textContent).toMatch(
@@ -281,7 +281,7 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     })
     expect(toastMock.error.mock.calls[0][0]).toMatch(/uploadTooLarge/)
     expect(toastMock.error.mock.calls[0][0]).not.toMatch(/uploadGifTooLarge/)
-    expect(uploadImageAPI).not.toHaveBeenCalled()
+    expect(uploadImageFileAPI).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(screen.getByTestId('banner-error').textContent).toMatch(
         /uploadTooLarge/,
@@ -300,6 +300,6 @@ describe('ImageEditProvider — uploadSourceFile compression glue', () => {
     })
     expect(toastMock.error.mock.calls[0][0]).toMatch(/uploadUnsupported/)
     expect(compressImageToLimit).not.toHaveBeenCalled()
-    expect(uploadImageAPI).not.toHaveBeenCalled()
+    expect(uploadImageFileAPI).not.toHaveBeenCalled()
   })
 })

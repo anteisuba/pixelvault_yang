@@ -7,22 +7,26 @@
 export const USER_UPLOAD_PROVIDER = 'user-upload'
 
 /**
- * Server-side business cap: a stored user-upload's decoded image may not
- * exceed this (5 MB). Enforced in `upload-image.service`. NOT a safe
- * client-side compression target — see `CLIENT_UPLOAD_MAX_BYTES`.
+ * Server-side business cap on a user-upload's raw bytes (15 MB). Enforced in
+ * `upload-image.service` (buffer path) and the multipart route's early
+ * content-length short-circuit. Matches `CLIENT_UPLOAD_MAX_BYTES` so a file
+ * the client is willing to send is a file the server is willing to store.
  */
-export const USER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+export const USER_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 
 /**
- * Client-side compression cap for images sent to the server as a base64 data
- * URL in the request body. Vercel caps a Serverless Function request body at
- * ~4.5 MB and base64 inflates bytes by ~33%, so the pre-encode file must stay
- * well under that: 3 MB → ~4.1 MB base64, leaving headroom for the JSON
- * envelope. Every client upload that inlines a data URL must compress to this
- * first, or large images 413 at the platform before reaching the handler.
- * (Raising this requires presigned direct-to-R2 uploads to bypass the limit.)
+ * Client-side cap for local-file uploads. Files at or under this are sent
+ * *as-is* (no re-encode, no quality loss) via `multipart/form-data`; only
+ * files larger than this get squeezed down to fit — see `compress-image.ts`.
+ *
+ * Uploads go through `multipart/form-data`, not a base64 data URL in a JSON
+ * body, so there is no ~33% base64 inflation to budget for. The platform
+ * already streams multipart bodies well past this via the reference-video
+ * (50 MB) and reference-audio (25 MB) upload routes, so 15 MB has ample
+ * headroom. (The old 3 MB base64 path crushed quality — every good image got
+ * re-encoded down; this preserves it.)
  */
-export const CLIENT_UPLOAD_MAX_BYTES = 3 * 1024 * 1024
+export const CLIENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 
 /**
  * Accepted MIME types for user uploads. Deliberately narrow — `image/svg+xml`

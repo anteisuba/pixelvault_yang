@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Video file exceeds the ${Math.round(
+          error: `Video is over the ${Math.round(
             REFERENCE_VIDEO_MAX_BYTES / 1024 / 1024,
-          )} MB limit.`,
+          )} MB limit. Seedance references only use 480–720p, so re-export at 720p or trim the clip to ≤15s and try again.`,
           errorCode: 'VIDEO_TOO_LARGE',
         },
         { status: 413 },

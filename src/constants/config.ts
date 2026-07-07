@@ -169,8 +169,11 @@ export const API_ENDPOINTS = {
   GENERATE_MULTIVIEW: '/api/generate-multiview',
   GENERATE_MULTIVIEW_STATUS: '/api/generate-multiview/status',
 
-  /** Upload a local image as a Generation row (user-upload provider) */
+  /** Import a remote/base64 image as a Generation row (JSON body) */
   UPLOAD_IMAGE: '/api/upload-image',
+
+  /** Upload a local image file as a Generation row (multipart/form-data) */
+  UPLOAD_IMAGE_FILE: '/api/upload-image/file',
 
   /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
   GENERATION_POSTER: '/api/generations',

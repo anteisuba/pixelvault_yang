@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowDownUp,
   CheckCircle2,
+  Folder,
   FolderX,
   Loader2,
   Pencil,
   Plus,
+  Search,
   Trash2,
   X,
 } from 'lucide-react'
@@ -14,6 +17,13 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { TreeView, type TreeNode } from '@/components/ui/tree-view'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
@@ -40,7 +50,7 @@ import type { ProjectRecord } from '@/types'
  * `onRenameProject` / `onRequestDeleteProject`.
  */
 
-interface FolderNodeData {
+export interface FolderNodeData {
   project: ProjectRecord
   count?: number
 }
@@ -70,6 +80,61 @@ interface AssetFolderTreeProps {
 }
 
 const UNASSIGNED_DROP_ID = '__unassigned__'
+
+/** Folder ordering the user can pick from the sort dropdown. */
+type FolderSortMode = 'recent' | 'name' | 'count'
+
+const FOLDER_SORT_MODES: readonly FolderSortMode[] = ['recent', 'name', 'count']
+
+/**
+ * Sort sibling folders at every level. `recent` = most-recently-updated first
+ * (the incoming default), `name` = A→Z, `count` = most assets first (uses the
+ * displayed, type-scoped count so it matches the on-screen ledger column).
+ */
+export function sortFolderNodes(
+  nodes: TreeNode<FolderNodeData>[],
+  mode: FolderSortMode,
+): TreeNode<FolderNodeData>[] {
+  const sorted = [...nodes].sort((a, b) => {
+    if (mode === 'name') return a.label.localeCompare(b.label)
+    if (mode === 'count') return (b.data?.count ?? 0) - (a.data?.count ?? 0)
+    const at = new Date(a.data?.project?.updatedAt ?? 0).getTime()
+    const bt = new Date(b.data?.project?.updatedAt ?? 0).getTime()
+    return bt - at
+  })
+  return sorted.map((node) =>
+    node.children && node.children.length > 0
+      ? { ...node, children: sortFolderNodes(node.children, mode) }
+      : node,
+  )
+}
+
+/**
+ * Filter the tree to folders matching `query` (case-insensitive substring on
+ * the name). A parent whose own name doesn't match is kept when a descendant
+ * matches, so nested matches stay reachable.
+ */
+export function filterFolderNodes(
+  nodes: TreeNode<FolderNodeData>[],
+  query: string,
+): TreeNode<FolderNodeData>[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return nodes
+  const result: TreeNode<FolderNodeData>[] = []
+  for (const node of nodes) {
+    if (node.label.toLowerCase().includes(q)) {
+      result.push(node)
+      continue
+    }
+    const matchedChildren = node.children
+      ? filterFolderNodes(node.children, q)
+      : []
+    if (matchedChildren.length > 0) {
+      result.push({ ...node, children: matchedChildren })
+    }
+  }
+  return result
+}
 
 /** Parse the asset-id payload from a folder drop event, or null if absent. */
 function readDroppedAssetIds(event: React.DragEvent): string[] | null {
@@ -120,6 +185,8 @@ export function AssetFolderTree({
   // Which drop target is currently under the drag (project id, or the
   // unassigned sentinel). Drives the drop-target highlight.
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [sortMode, setSortMode] = useState<FolderSortMode>('recent')
 
   const dndEnabled = Boolean(onDropAssets)
 
@@ -217,12 +284,37 @@ export function AssetFolderTree({
       else roots.push(node)
     })
 
+    // A project is always a folder — even a childless one. TreeView's default
+    // icon falls back to a File glyph for leaf nodes, so pin a closed-folder
+    // icon on childless projects. Projects with children keep the default
+    // open/closed switching.
+    const pinLeafFolderIcons = (nodes: TreeNode<FolderNodeData>[]) => {
+      nodes.forEach((node) => {
+        if (!node.children || node.children.length === 0) {
+          node.icon = <Folder className="size-4" />
+        } else {
+          pinLeafFolderIcons(node.children)
+        }
+      })
+    }
+    pinLeafFolderIcons(roots)
+
     return roots
   }, [projects, byProjectCounts, activeProjectId, activeProjectTotal])
 
+  // Sort first, then filter — so the visible tree respects the chosen order
+  // while search narrows it. Both are pure transforms over folderTreeData.
+  const visibleTreeData = useMemo(
+    () => filterFolderNodes(sortFolderNodes(folderTreeData, sortMode), query),
+    [folderTreeData, sortMode, query],
+  )
+
+  const isSearching = query.trim().length > 0
+  const noSearchResults = isSearching && visibleTreeData.length === 0
+
   const expandedFolderIds = useMemo(
-    () => collectExpandedFolderIds(folderTreeData),
-    [folderTreeData],
+    () => collectExpandedFolderIds(visibleTreeData),
+    [visibleTreeData],
   )
   const selectedFolderIds = activeProjectId ? [activeProjectId] : []
 
@@ -257,6 +349,62 @@ export function AssetFolderTree({
           }
         />
       </div>
+
+      {/* Search + sort controls — the "many folders" management row. */}
+      {projects.length > 0 && (
+        <div className="flex items-center gap-1 px-1">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground/60" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('folderSearch')}
+              aria-label={t('folderSearch')}
+              className="h-7 rounded-md bg-background/60 pl-7 pr-6 text-xs"
+            />
+            {isSearching && (
+              <button
+                type="button"
+                aria-label={t('folderSearchClear')}
+                onClick={() => setQuery('')}
+                className="absolute right-1.5 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                aria-label={t('folderSort')}
+                title={t('folderSort')}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowDownUp className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-36">
+              <DropdownMenuRadioGroup
+                value={sortMode}
+                onValueChange={(value) => setSortMode(value as FolderSortMode)}
+              >
+                {FOLDER_SORT_MODES.map((mode) => (
+                  <DropdownMenuRadioItem key={mode} value={mode}>
+                    {mode === 'recent'
+                      ? t('folderSortRecent')
+                      : mode === 'name'
+                        ? t('folderSortName')
+                        : t('folderSortCount')}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       {/* Unassigned = dedicated amber to-do row (not a tree node). */}
       <button
@@ -311,8 +459,11 @@ export function AssetFolderTree({
         )}
       >
         <FolderX className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">
-          {t('sidebarUnassigned')}
+        <span className="flex min-w-0 flex-1 flex-col items-start leading-tight text-left">
+          <span className="truncate">{t('sidebarUnassigned')}</span>
+          <span className="text-3xs text-amber-200/50">
+            {t('sidebarUnassignedHint')}
+          </span>
         </span>
         {typeof unassignedCount === 'number' && (
           <span className="shrink-0 font-mono text-3xs tabular-nums text-amber-200/70">
@@ -321,9 +472,15 @@ export function AssetFolderTree({
         )}
       </button>
 
+      {noSearchResults && (
+        <p className="px-3 py-2 text-xs text-muted-foreground/60">
+          {t('folderSearchEmpty')}
+        </p>
+      )}
+
       <TreeView
         key={expandedFolderIds.join('|')}
-        data={folderTreeData}
+        data={visibleTreeData}
         selectedIds={selectedFolderIds}
         defaultExpandedIds={expandedFolderIds}
         onNodeClick={handleNodeClick}

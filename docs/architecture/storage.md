@@ -29,6 +29,7 @@
 - `uploadFromHttpToR2`
 - `uploadBufferedHttpToR2`
 - `createImagePreviewAssets`
+- `createImageThumbnailAsset`
 - `createVideoPosterAsset`
 - `deleteFromR2`
 - `deleteManyFromR2`
@@ -79,7 +80,19 @@ Video poster assets are generated as WebP thumbnails:
 
 Generated image previews may be produced through `ExecutionOutbox` via `src/services/image/image-preview-derivative.service.ts`.
 
-User uploads and extracted elements can generate preview assets synchronously during persistence.
+Extracted elements can generate preview assets synchronously during persistence.
+
+#### User uploads (local files)
+
+Local-file uploads (`POST /api/upload-image/file`, multipart/form-data) stream
+the **raw bytes** — no base64 data URL in a JSON body, so there is no ~33%
+inflation and no need to pre-crush quality to fit a request-body cap. The
+original is stored in R2 **as-is** (no server re-encode / downscale) up to
+`USER_UPLOAD_MAX_BYTES` (15 MB); the client only compresses a file that exceeds
+`CLIENT_UPLOAD_MAX_BYTES` before sending. Unlike generated images, an upload
+derives **only a 384px thumbnail** (`createImageThumbnailAsset`) — the detail
+view serves the full original, so the 1280px preview is skipped. The legacy
+`POST /api/upload-image` JSON route remains for importing a remote/`data:` URL.
 
 ### Deletion
 

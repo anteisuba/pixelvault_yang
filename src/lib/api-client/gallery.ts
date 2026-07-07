@@ -2,6 +2,7 @@ import type {
   AssetSectionCounts,
   GalleryResponse,
   GenerationRecord,
+  OutputTypeFilter,
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
@@ -203,11 +204,19 @@ export type AssetSectionCountsResponse =
   | { success: false; error: string }
 
 /**
- * Fetch the aggregate counts powering the /assets right-sidebar.
+ * Fetch the aggregate counts powering the /assets right-sidebar. `type`
+ * scopes the view/folder counts to the active type tab so the badges match
+ * the grid (which the type tab filters).
  */
-export async function fetchAssetSectionCounts(): Promise<AssetSectionCountsResponse> {
+export async function fetchAssetSectionCounts(
+  type?: OutputTypeFilter,
+): Promise<AssetSectionCountsResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSET_SECTION_COUNTS, {
+    const url =
+      type && type !== 'all'
+        ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?type=${type}`
+        : API_ENDPOINTS.ASSET_SECTION_COUNTS
+    const response = await fetch(url, {
       cache: 'no-store',
     })
     if (!response.ok) {

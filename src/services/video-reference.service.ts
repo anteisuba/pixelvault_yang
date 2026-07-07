@@ -65,9 +65,9 @@ export function validateReferenceVideo(
   if (fileBuffer.byteLength > REFERENCE_VIDEO_MAX_BYTES) {
     return {
       code: 'VIDEO_TOO_LARGE',
-      message: `Video file exceeds the ${Math.round(
+      message: `Video is over the ${Math.round(
         REFERENCE_VIDEO_MAX_BYTES / 1024 / 1024,
-      )} MB limit.`,
+      )} MB limit. Seedance references only use 480–720p, so re-export at 720p or trim the clip to ≤15s and try again.`,
     }
   }
   if (!SUPPORTED_VIDEO_MIMES.has(mimeType.toLowerCase())) {

@@ -94,7 +94,7 @@ import { useGenerateMultiView } from '@/hooks/use-generate-multiview'
 import {
   fetchGenerationByIdAPI,
   uploadGenerationPosterAPI,
-  uploadImageAPI,
+  uploadImageFileAPI,
 } from '@/lib/api-client'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { cn } from '@/lib/utils'
@@ -147,15 +147,6 @@ function isGeneratedSideView(
   view: MultiViewImageRecord['view'],
 ): view is GeneratedSideView {
   return GENERATED_VIEW_ANGLES.some((candidate) => candidate === view)
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
 }
 
 function getMultiViewImages(
@@ -988,9 +979,7 @@ export function Studio3DWorkspace({
     try {
       const uploadFile = await prepareUploadFile(file)
       if (!uploadFile) return
-      const dataUrl = await readFileAsDataUrl(uploadFile)
-      const response = await uploadImageAPI({
-        imageDataUrl: dataUrl,
+      const response = await uploadImageFileAPI(uploadFile, {
         note: t('manualViewUploadNote', { view: getViewLabel(view) }),
       })
       if (!response.success || !response.data) {
@@ -1060,9 +1049,7 @@ export function Studio3DWorkspace({
     try {
       const uploadFile = await prepareUploadFile(file)
       if (!uploadFile) return
-      const dataUrl = await readFileAsDataUrl(uploadFile)
-      const response = await uploadImageAPI({
-        imageDataUrl: dataUrl,
+      const response = await uploadImageFileAPI(uploadFile, {
         note: t('manualViewUploadNote', { view: getRodinAngleLabel(angle) }),
       })
       if (!response.success || !response.data) {
@@ -1105,8 +1092,7 @@ export function Studio3DWorkspace({
     try {
       const uploadFile = await prepareUploadFile(file)
       if (!uploadFile) return
-      const dataUrl = await readFileAsDataUrl(uploadFile)
-      const response = await uploadImageAPI({ imageDataUrl: dataUrl })
+      const response = await uploadImageFileAPI(uploadFile)
       if (!response.success || !response.data) {
         toast.error(response.error ?? t('errorFallback'))
         return

@@ -1014,7 +1014,17 @@ export async function countUserGenerationsByType(
  */
 export async function getAssetSectionCounts(
   userId: string,
+  type?: OutputTypeFilter,
 ): Promise<AssetSectionCounts> {
+  // The grid is filtered by the active type tab, so the view + folder badges
+  // must be scoped to the same type or they over-count (e.g. "Favorites 3"
+  // while the image grid shows 2 because one favorite is a video). byType
+  // stays unscoped — it powers the type toggle's own per-type counts.
+  const outputType = outputTypeToEnum(type)
+  const typeScope: { outputType?: OutputType } = outputType
+    ? { outputType }
+    : {}
+
   const [byType, byProject, favorites, published] = await Promise.all([
     db.generation.groupBy({
       by: ['outputType'],
@@ -1023,14 +1033,14 @@ export async function getAssetSectionCounts(
     }),
     db.generation.groupBy({
       by: ['projectId'],
-      where: { userId },
+      where: { userId, ...typeScope },
       _count: { _all: true },
     }),
     db.generation.count({
-      where: { userId, likes: { some: { userId } } },
+      where: { userId, likes: { some: { userId } }, ...typeScope },
     }),
     db.generation.count({
-      where: { userId, isPublic: true },
+      where: { userId, isPublic: true, ...typeScope },
     }),
   ])
 
@@ -1048,12 +1058,17 @@ export async function getAssetSectionCounts(
 
   for (const row of byType) {
     const n = row._count._all
-    counts.all += n
     if (row.outputType === 'IMAGE') counts.image = n
     else if (row.outputType === 'VIDEO') counts.video = n
     else if (row.outputType === 'AUDIO') counts.audio = n
     else if (row.outputType === 'MODEL_3D') counts.model_3d = n
   }
+
+  // "All" reflects the active type scope: the scoped type's total, or the
+  // grand total across every type when unscoped.
+  counts.all = outputType
+    ? (byType.find((row) => row.outputType === outputType)?._count._all ?? 0)
+    : counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
 
   for (const row of byProject) {
     const n = row._count._all

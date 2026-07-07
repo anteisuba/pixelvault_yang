@@ -881,6 +881,52 @@ describe('generation.service', () => {
         byProject: {},
       })
     })
+
+    it('scopes view + folder counts to the active type tab', async () => {
+      mockGenerationGroupBy
+        // byType stays unscoped — powers the type toggle's per-type counts
+        .mockResolvedValueOnce([
+          { outputType: 'IMAGE', _count: { _all: 7 } },
+          { outputType: 'VIDEO', _count: { _all: 3 } },
+        ])
+        // byProject is image-scoped
+        .mockResolvedValueOnce([
+          { projectId: null, _count: { _all: 2 } },
+          { projectId: 'proj-a', _count: { _all: 5 } },
+        ])
+      mockGenerationCount.mockResolvedValueOnce(2) // favorites ∩ image
+      mockGenerationCount.mockResolvedValueOnce(3) // published ∩ image
+
+      const counts = await getAssetSectionCounts('user-1', 'image')
+
+      expect(counts).toEqual({
+        all: 7, // image total, not the grand total across types
+        favorites: 2,
+        published: 3,
+        image: 7,
+        video: 3,
+        audio: 0,
+        model_3d: 0,
+        unassigned: 2,
+        byProject: { 'proj-a': 5 },
+      })
+      // byProject / favorites / published carry the type scope
+      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(2, {
+        by: ['projectId'],
+        where: { userId: 'user-1', outputType: 'IMAGE' },
+        _count: { _all: true },
+      })
+      expect(mockGenerationCount).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          likes: { some: { userId: 'user-1' } },
+          outputType: 'IMAGE',
+        },
+      })
+      expect(mockGenerationCount).toHaveBeenCalledWith({
+        where: { userId: 'user-1', isPublic: true, outputType: 'IMAGE' },
+      })
+    })
   })
 
   describe('deleteGeneration', () => {

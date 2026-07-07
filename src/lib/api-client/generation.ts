@@ -219,6 +219,47 @@ export async function uploadImageAPI(
   }
 }
 
+/**
+ * Upload a local image file as a Generation row via multipart/form-data.
+ * Sends the raw bytes (no base64) so full-quality images aren't crushed to
+ * fit a JSON body. Use this for anything the user picks/drops from disk;
+ * `uploadImageAPI` is for importing a remote URL.
+ */
+export async function uploadImageFileAPI(
+  file: File,
+  options?: { note?: string; projectId?: string },
+): Promise<UploadImageResponse> {
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+    if (options?.note) formData.append('note', options.note)
+    if (options?.projectId) formData.append('projectId', options.projectId)
+
+    const response = await fetch(API_ENDPOINTS.UPLOAD_IMAGE_FILE, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Upload failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function submit3DAPI(
   params: Generate3DRequest,
 ): Promise<Model3DSubmitResponse> {

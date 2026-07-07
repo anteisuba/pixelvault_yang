@@ -7,7 +7,10 @@ import { ensureUser } from '@/services/user.service'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import type { AssetSectionCounts } from '@/types'
 
-const SectionCountsQuerySchema = z.object({})
+const SectionCountsQuerySchema = z.object({
+  /** Active type tab — scopes view/folder counts so badges match the grid. */
+  type: z.enum(['all', 'image', 'video', 'audio', 'model_3d']).optional(),
+})
 
 /**
  * GET /api/assets/section-counts
@@ -24,11 +27,11 @@ export const GET = createApiGetRoute<
   routeName: 'GET /api/assets/section-counts',
   requireAuth: true,
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
-  handler: async ({ clerkId }) => {
+  handler: async ({ clerkId, data }) => {
     if (!clerkId) throw new AuthError()
     try {
       const user = await ensureUser(clerkId)
-      return getAssetSectionCounts(user.id)
+      return getAssetSectionCounts(user.id, data.type)
     } catch (error) {
       if (error instanceof AuthError) throw error
       throw new ApiRequestError(

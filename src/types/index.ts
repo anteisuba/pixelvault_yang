@@ -2014,6 +2014,10 @@ export const PromptAssistantRequestSchema = z.object({
   /** When true (and only on the first turn), inject top-3 curated
    *  inspiration prompts as a few-shot reference block. */
   useInspirationContext: z.boolean().optional(),
+  /** When true, answer with live web research (Serper context first,
+   *  provider-native grounding fallback — same policy as the node
+   *  assistant's research turns). */
+  research: z.boolean().optional(),
 })
 
 export type PromptAssistantRequest = z.infer<

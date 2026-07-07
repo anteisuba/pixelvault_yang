@@ -322,6 +322,7 @@ owner 选定 [MagicUI File Tree](https://magicui.design/docs/components/file-tre
 
 - **Slice 1**（复用 `TreeView` 重皮，无新依赖）：`AssetFolderTree` 抽出 + 暗房皮（选中井+左白条 / 账本 mono 计数 / 未分类 amber 待办行）；`TreeView` 加可选 `getRowClassName`；行为不变。lint/tsc/测试绿。
 - **Slice 2**（拖放整理）：`TreeView` 加可选 per-node DnD props（`onNodeDragOver/Leave/Drop`）；`AssetFolderTree` 文件夹行 + 未分类行成 drop target（drag-over 高亮 = ring+well / amber-ring），drop → `onDropAssets(projectId|null, ids)`；grid tile 加 `draggable`（非 picker 模式）+ `onDragStart`（选中集或单个，写 `ASSET_DND_MIME` payload）；`KreaAssetBrowser` 抽 `moveAssets` 核心复用给 bulk-bar + drop。新增 `src/constants/asset-dnd.ts`。测试含 2 个 drop 用例。
+- **Slice 3**（收尾 polish）：① childless 项目节点 pin `Folder` 图标（TreeView 默认给叶子 File 图标，项目永远是文件夹）；② 未分类待办行两行化，补 `sidebarUnassignedHint`（zh 待整理 / en To sort / ja 要整理，三语已加）；③ 多选拖放自定义拖影——off-screen ghost 元素显示「已选 N」（`selectedCount`），单张仍用默认；④ 触屏：`draggable` 由 `!isTouchPrimary()` 关闭（原生 HTML5 DnD 触屏不可靠），**触屏移动走既有批量条「移动到文件夹」下拉**（现成路径，未新写触屏拖动手势）。真·触屏拖动手势（pointer/dnd-kit）留作独立项。
 
 ## 12. 工程化素材中枢（**重定位 · owner：主目的是工程化管理素材**）
 

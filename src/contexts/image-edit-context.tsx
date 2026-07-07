@@ -22,7 +22,7 @@ import {
   CLIENT_UPLOAD_MAX_BYTES,
 } from '@/constants/uploads'
 import { useInpaint } from '@/hooks/image/use-inpaint'
-import { uploadImageAPI } from '@/lib/api-client'
+import { uploadImageAPI, uploadImageFileAPI } from '@/lib/api-client'
 import {
   getImageFileFromDataTransfer,
   getRemoteImageUrlFromDataTransfer,
@@ -135,19 +135,6 @@ function getSourceFromQuery(queryString: string): EditableSource | null {
     width: parseDimension(params.get('width')),
     height: parseDimension(params.get('height')),
   }
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') resolve(reader.result)
-      else reject(new Error('Failed to read file'))
-    }
-    reader.onerror = () =>
-      reject(reader.error ?? new Error('Failed to read file'))
-    reader.readAsDataURL(file)
-  })
 }
 
 export function ImageEditProvider({ children }: { children: ReactNode }) {
@@ -279,9 +266,7 @@ export function ImageEditProvider({ children }: { children: ReactNode }) {
         })
         if (!uploadFile) return // helper already toasted + set banner
 
-        const imageDataUrl = await readFileAsDataUrl(uploadFile)
-        const response = await uploadImageAPI({
-          imageDataUrl,
+        const response = await uploadImageFileAPI(uploadFile, {
           note: t('uploadNote'),
         })
 

@@ -294,6 +294,33 @@ async function createImageDerivativeBuffer(
     .toBuffer()
 }
 
+/**
+ * Thumbnail-only derivative for user uploads. Unlike generated images (which
+ * keep both a 1280px preview and a 384px thumbnail), a stored upload serves
+ * its full original in the detail view, so only the grid-tile thumbnail is
+ * worth deriving — it keeps a dense asset grid of hundreds of high-res
+ * originals from downloading multi-MB files per tile.
+ */
+export async function createImageThumbnailAsset(params: {
+  sourceBuffer: Buffer
+  sourceStorageKey: string
+}): Promise<{ thumbnailUrl: string; thumbnailStorageKey: string }> {
+  const thumbnailStorageKey = buildImageDerivativeStorageKey(
+    params.sourceStorageKey,
+    'thumbnail',
+  )
+  const thumbnailBuffer = await createImageDerivativeBuffer(
+    params.sourceBuffer,
+    'thumbnail',
+  )
+  const thumbnailUrl = await uploadToR2({
+    data: thumbnailBuffer,
+    key: thumbnailStorageKey,
+    mimeType: 'image/webp',
+  })
+  return { thumbnailUrl, thumbnailStorageKey }
+}
+
 export async function createImagePreviewAssets(params: {
   sourceBuffer: Buffer
   sourceStorageKey: string

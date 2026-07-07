@@ -46,7 +46,6 @@ export function ProjectCreateDialog({
   const t = useTranslations('LibraryPage')
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [isCreating, setIsCreating] = useState(false)
 
   const trimmedName = name.trim()
@@ -54,18 +53,14 @@ export function ProjectCreateDialog({
 
   const reset = () => {
     setName('')
-    setDescription('')
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!canSubmit) return
     setIsCreating(true)
-    const trimmedDescription = description.trim()
     const response = await createProjectAPI({
       name: trimmedName,
-      description:
-        trimmedDescription.length > 0 ? trimmedDescription : undefined,
       parentId,
     })
     setIsCreating(false)
@@ -95,26 +90,15 @@ export function ProjectCreateDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Input
-              autoFocus={!isTouchPrimary()}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('projectNamePlaceholder')}
-              maxLength={64}
-              disabled={isCreating}
-              required
-            />
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('projectDescriptionPlaceholder')}
-              maxLength={500}
-              rows={3}
-              disabled={isCreating}
-              className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
+          <Input
+            autoFocus={!isTouchPrimary()}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('projectNamePlaceholder')}
+            maxLength={64}
+            disabled={isCreating}
+            required
+          />
 
           <DialogFooter>
             <Button

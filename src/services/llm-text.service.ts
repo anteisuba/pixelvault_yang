@@ -2,7 +2,11 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { AI_PROVIDER_ENDPOINTS, LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import {
+  AI_PROVIDER_ENDPOINTS,
+  LLM_TEXT_DEFAULT_MAX_TOKENS,
+  LLM_TEXT_MODEL_IDS,
+} from '@/constants/config'
 import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
@@ -70,14 +74,36 @@ const GeminiTextResponseSchema = z.object({
     .optional(),
 })
 
+const OpenAiChatTextPartSchema = z.object({
+  text: z.string().optional(),
+  type: z.string().optional(),
+})
+
 const OpenAiChatResponseSchema = z.object({
   choices: z.array(
     z.object({
+      finish_reason: z.string().nullable().optional(),
       message: z.object({
-        content: z.string().nullable(),
+        content: z
+          .union([z.string(), z.array(OpenAiChatTextPartSchema)])
+          .nullable()
+          .optional(),
+        content_parts: z.array(OpenAiChatTextPartSchema).nullable().optional(),
+        refusal: z.string().nullable().optional(),
       }),
     }),
   ),
+  usage: z
+    .object({
+      completion_tokens_details: z
+        .object({
+          reasoning_tokens: z.number().optional(),
+        })
+        .passthrough()
+        .optional(),
+    })
+    .passthrough()
+    .optional(),
 })
 
 // ─── LLM Text Models ────────────────────────────────────────────
@@ -176,6 +202,63 @@ function getOpenAiTokenLimit(modelId: string, maxTokens: number) {
   }
 
   return { max_tokens: maxTokens }
+}
+
+function extractOpenAiText(
+  content:
+    | string
+    | Array<z.infer<typeof OpenAiChatTextPartSchema>>
+    | null
+    | undefined,
+): string | null {
+  if (typeof content === 'string') {
+    const trimmed = content.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => part.text?.trim())
+      .filter((part): part is string => Boolean(part))
+      .join('\n')
+      .trim()
+
+    return text.length > 0 ? text : null
+  }
+
+  return null
+}
+
+function getOpenAiChatText(
+  data: z.infer<typeof OpenAiChatResponseSchema>,
+): string | null {
+  const message = data.choices[0]?.message
+  return (
+    extractOpenAiText(message?.content) ??
+    extractOpenAiText(message?.content_parts)
+  )
+}
+
+function throwNoOpenAiTextResponse(
+  data: z.infer<typeof OpenAiChatResponseSchema>,
+  modelId: string,
+): never {
+  const choice = data.choices[0]
+  logger.warn('OpenAI text completion returned no text', {
+    modelId,
+    finishReason: choice?.finish_reason,
+    hasContent: choice?.message.content != null,
+    contentPartsCount: choice?.message.content_parts?.length ?? 0,
+    hasRefusal: Boolean(choice?.message.refusal),
+    reasoningTokens: data.usage?.completion_tokens_details?.reasoning_tokens,
+  })
+
+  throw new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.failed,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
+    LLM_TEXT_PROVIDER_ERROR_MESSAGES.failed,
+  )
 }
 
 function toLlmTextProviderError(
@@ -424,6 +507,9 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
+  const requestModelId = input.useGrounding
+    ? LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API
+    : modelId
   const baseUrl = getOpenAiChatBaseUrl(input.providerConfig.baseUrl)
   const endpoint = `${baseUrl}/chat/completions`
 
@@ -452,15 +538,16 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: modelId,
+      model: requestModelId,
       messages,
-      ...getOpenAiTokenLimit(modelId, input.maxTokens ?? 1024),
+      ...getOpenAiTokenLimit(
+        requestModelId,
+        input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING,
+      ),
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
-      ...(input.useGrounding
-        ? { tools: [{ type: 'web_search_preview' }] }
-        : {}),
+      ...(input.useGrounding ? { web_search_options: {} } : {}),
     }),
   })
 
@@ -468,18 +555,18 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     const errorBody = await response.text().catch(() => 'Unknown error')
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
-      modelId,
+      modelId: requestModelId,
     })
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
-  const content = data.choices[0]?.message?.content
+  const content = getOpenAiChatText(data)
 
   if (!content) {
-    throw new Error('No text response from OpenAI')
+    throwNoOpenAiTextResponse(data, requestModelId)
   }
 
-  return content.trim()
+  return content
 }
 
 async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
@@ -507,7 +594,7 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
         { role: 'system', content: input.systemPrompt },
         { role: 'user', content: input.userPrompt },
       ],
-      max_tokens: input.maxTokens ?? 1024,
+      max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
@@ -523,13 +610,13 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
-  const content = data.choices[0]?.message?.content
+  const content = getOpenAiChatText(data)
 
   if (!content) {
     throw new Error('No text response from DeepSeek')
   }
 
-  return content.trim()
+  return content
 }
 
 /**
@@ -590,7 +677,7 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
     body: JSON.stringify({
       model: modelId,
       messages,
-      max_tokens: input.maxTokens ?? 1024,
+      max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
       ...(wantsJson
         ? { response_format: { type: 'json_object' }, enable_thinking: false }
         : {}),
@@ -606,13 +693,13 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
-  const content = data.choices[0]?.message?.content
+  const content = getOpenAiChatText(data)
 
   if (!content) {
     throw new Error('No text response from Qwen')
   }
 
-  return content.trim()
+  return content
 }
 
 /**

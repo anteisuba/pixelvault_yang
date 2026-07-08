@@ -416,6 +416,7 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
   GEMINI_3_5_FLASH: 'gemini-3.5-flash',
   OPENAI_GPT_5_5: 'gpt-5.5',
+  OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
   // vision. IDs map to compatible-mode aliases; pin to dated snapshots if
@@ -424,6 +425,11 @@ export const LLM_TEXT_MODEL_IDS = {
   QWEN_PLUS: 'qwen-plus',
   QWEN_FLASH: 'qwen-flash',
   QWEN3_VL_PLUS: 'qwen3-vl-plus',
+} as const
+
+export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
+  DEFAULT: 1024,
+  OPENAI_REASONING: 4096,
 } as const
 
 export const RUNWAY_API = {

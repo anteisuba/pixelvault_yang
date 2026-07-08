@@ -24,6 +24,10 @@ import {
   llmTextCompletion,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  LLM_TEXT_DEFAULT_MAX_TOKENS,
+  LLM_TEXT_MODEL_IDS,
+} from '@/constants/config'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -178,12 +182,55 @@ describe('llmTextCompletion - Gemini', () => {
 
 describe('llmTextCompletion - OpenAI', () => {
   it('returns content from a successful OpenAI response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'openai reply' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected OpenAI request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      max_completion_tokens?: number
+    }
+
+    expect(result).toBe('openai reply')
+    expect(payload.max_completion_tokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING,
+    )
+  })
+
+  it('returns text from OpenAI content_parts when message content is null', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
-            choices: [{ message: { content: 'openai reply' } }],
+            choices: [
+              {
+                message: {
+                  content: null,
+                  content_parts: [
+                    { type: 'text', text: 'openai content part reply' },
+                  ],
+                },
+              },
+            ],
           }),
           { status: 200 },
         ),
@@ -198,7 +245,48 @@ describe('llmTextCompletion - OpenAI', () => {
       apiKey: 'sk-test',
     })
 
-    expect(result).toBe('openai reply')
+    expect(result).toBe('openai content part reply')
+  })
+
+  it('classifies empty OpenAI 200 responses as provider failures', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: 'length',
+                message: { content: null },
+              },
+            ],
+            usage: {
+              completion_tokens_details: {
+                reasoning_tokens: 1024,
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'sk-test',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_ERROR',
+      httpStatus: 502,
+      i18nKey: 'errors.provider.failed',
+    })
   })
 
   it('uses the chat API root when given the shared OpenAI image base URL', async () => {
@@ -245,6 +333,44 @@ describe('llmTextCompletion - OpenAI', () => {
     expect(payload.model).toBe('gpt-5.2')
     expect(payload.max_completion_tokens).toBe(3500)
     expect(payload.response_format?.type).toBe('json_object')
+  })
+
+  it('uses Chat Completions web search parameters for OpenAI grounding', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'grounded openai reply' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'latest visual trend',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+      useGrounding: true,
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected OpenAI request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      model: string
+      tools?: unknown
+      web_search_options?: Record<string, unknown>
+    }
+
+    expect(result).toBe('grounded openai reply')
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API)
+    expect(payload.web_search_options).toEqual({})
+    expect(payload.tools).toBeUndefined()
   })
 })
 

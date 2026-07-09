@@ -17,23 +17,20 @@ Keep PixelVault's planning maps, progress notes, and operating context aligned w
 
 2. Load context in project order:
    - Read `AGENTS.md`.
-   - Read `docs/README.md`.
-   - Read `docs/status.md` if it exists.
-   - Read `docs/product/mainline.md` for product or workflow context.
-   - Read the smallest relevant set from `docs/domains/`, `docs/architecture/`, `docs/integrations/`, `docs/engineering/`, `docs/design/`, or `docs/qa/`.
-   - For non-trivial implementation handoff, use `docs/engineering/task-packet-template.md`.
+   - Read `docs/README.md` and `docs/WORKFLOW.md`.
+   - Read `docs/status.md`.
+   - Read the smallest relevant set from `docs/references/`, `docs/plans/`, `docs/brand-dna.md`, `docs/forbidden.md`, or `docs/checklists/`.
+   - For non-trivial implementation handoff, use `docs/templates/task-packet.md`.
    - Inspect the actual diff before writing docs.
 
 3. Update only the narrow docs that own the changed fact:
    - `docs/status.md` for the short active status summary.
-   - `docs/product/` for product intent and user-visible scope.
-   - `docs/architecture/` for system contracts and boundaries.
-   - `docs/domains/` for business-domain ownership and source-of-truth maps.
-   - `docs/integrations/` for external service contracts.
-   - `docs/engineering/` for stable workflows, validation methods, and agent loops.
-   - `docs/design/` for UI system rules, page scene files, and reusable review evidence.
-   - `docs/qa/` for reusable browser, manual, mobile, and regression checklists.
-   - `docs/plans/` only for active task packets and execution plans.
+   - `docs/references/` for stable contracts and current-state facts (frontend, backend, database, cicd, testing, providers, product, domains/).
+   - `docs/brand-dna.md` / `docs/forbidden.md` only when the owner confirms a standards change.
+   - `docs/checklists/` for reusable P0/P1/P2 quality gates.
+   - `docs/scenes/` for per-task-type workflows.
+   - `docs/plans/` only for active task packets; completed packets are deleted, moved to `docs/archive/`, or distilled into `docs/references/`.
+   - `docs/archive/` is append-only history; never edit archived decisions retroactively.
    - `AGENTS.md` only for durable project rules, not transient task notes.
 
 4. Keep docs factual:

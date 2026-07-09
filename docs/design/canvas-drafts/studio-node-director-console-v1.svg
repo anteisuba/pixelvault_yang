@@ -1,0 +1,282 @@
+<svg width="100%" viewBox="0 0 1560 1080" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Studio 与 Node 导演控制台草稿 V1</title>
+  <desc>低保真结构草稿：Studio 图片页底部去拥挤、Node 视频生成导演控制台、角色卡参数引用。</desc>
+  <defs>
+    <style>
+      text {
+        font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+      }
+      .title { font-size: 30px; font-weight: 800; fill: #f7f2e8; }
+      .subtitle { font-size: 14px; fill: #a8b0bd; }
+      .label { font-size: 13px; font-weight: 700; fill: #e9edf4; }
+      .muted { font-size: 12px; fill: #8c96a6; }
+      .tiny { font-size: 10px; fill: #8c96a6; }
+      .micro { font-size: 9px; fill: #9aa7ba; }
+      .panel-title { font-size: 18px; font-weight: 800; fill: #f6f7fb; }
+      .callout-title { font-size: 14px; font-weight: 800; fill: #f7f2e8; }
+      .callout { font-size: 12px; fill: #d5dbe6; }
+      .chip-text { font-size: 11px; font-weight: 700; fill: #eaf3ff; }
+      .stroke-soft { stroke: #2d3544; stroke-width: 1; }
+      .stroke-mid { stroke: #3d485c; stroke-width: 1; }
+      .shadow { filter: drop-shadow(0 18px 45px rgba(0,0,0,.42)); }
+    </style>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080a0e"/>
+      <stop offset=".48" stop-color="#0d1118"/>
+      <stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <linearGradient id="panelBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171b22"/>
+      <stop offset="1" stop-color="#10141b"/>
+    </linearGradient>
+    <linearGradient id="studioCanvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a0c10"/>
+      <stop offset="1" stop-color="#11151c"/>
+    </linearGradient>
+    <linearGradient id="nodeBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19324a"/>
+      <stop offset="1" stop-color="#172234"/>
+    </linearGradient>
+    <linearGradient id="roleCard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#23344d"/>
+      <stop offset=".55" stop-color="#1b2638"/>
+      <stop offset="1" stop-color="#181d28"/>
+    </linearGradient>
+    <linearGradient id="accentBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4aa3ff"/>
+      <stop offset="1" stop-color="#7bd3ff"/>
+    </linearGradient>
+    <linearGradient id="accentMint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4ed6a7"/>
+      <stop offset="1" stop-color="#8ce7c8"/>
+    </linearGradient>
+    <linearGradient id="accentAmber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f1b85b"/>
+      <stop offset="1" stop-color="#ffe2a3"/>
+    </linearGradient>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67b7ff"/>
+    </marker>
+    <marker id="arrowMint" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#65dfb5"/>
+    </marker>
+  </defs>
+
+  <rect width="1560" height="1080" fill="url(#pageBg)"/>
+  <circle cx="126" cy="120" r="92" fill="#163557" opacity=".22"/>
+  <circle cx="1404" cy="1008" r="150" fill="#1d3f4d" opacity=".18"/>
+
+  <text x="46" y="62" class="title">Studio / Node 设计草稿 V1</text>
+  <text x="48" y="90" class="subtitle">目标：底部输入区减负，Node 视频生成变成导演控制台，角色卡成为提示词引用的参数容器。</text>
+  <rect x="1240" y="38" width="262" height="42" rx="21" fill="#1c2430" stroke="#334052"/>
+  <text x="1371" y="64" text-anchor="middle" class="chip-text">推荐路线：先 UI V1，再做数据模型</text>
+
+  <!-- Studio image composer -->
+  <g transform="translate(42 130)">
+    <rect width="704" height="420" rx="24" fill="url(#panelBg)" stroke="#303845" class="shadow"/>
+    <text x="26" y="36" class="panel-title">A. Studio 图片页：底部去拥挤</text>
+    <text x="26" y="60" class="muted">模型、状态、比例从底部搬到“生成上下文条”，底部只做输入与少量高频工具。</text>
+
+    <rect x="24" y="82" width="656" height="304" rx="18" fill="#07090d" stroke="#252c38"/>
+    <rect x="24" y="82" width="44" height="304" rx="18" fill="#0d1118" stroke="#252c38"/>
+    <circle cx="46" cy="114" r="8" fill="#536071"/>
+    <rect x="38" y="142" width="16" height="16" rx="4" fill="#59667a"/>
+    <rect x="38" y="176" width="16" height="16" rx="4" fill="#59667a"/>
+    <rect x="37" y="210" width="18" height="18" rx="5" fill="#2b85ff"/>
+    <rect x="38" y="248" width="16" height="16" rx="4" fill="#59667a"/>
+
+    <rect x="86" y="104" width="362" height="38" rx="19" fill="#121924" stroke="#2f3b4e"/>
+    <text x="106" y="128" class="chip-text">生成上下文</text>
+    <rect x="208" y="112" width="116" height="22" rx="11" fill="#1d2c40" stroke="#355170"/>
+    <text x="266" y="127" text-anchor="middle" class="micro">OpenAI GPT...</text>
+    <rect x="332" y="112" width="58" height="22" rx="11" fill="#172235" stroke="#39475e"/>
+    <text x="361" y="127" text-anchor="middle" class="micro">中文</text>
+    <rect x="398" y="112" width="40" height="22" rx="11" fill="#172235" stroke="#39475e"/>
+    <text x="418" y="127" text-anchor="middle" class="micro">1:1</text>
+
+    <text x="252" y="214" text-anchor="middle" class="label">图片工作台</text>
+    <text x="252" y="240" text-anchor="middle" class="muted">主画布保持安静，只显示创作内容</text>
+    <rect x="144" y="266" width="76" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="182" y="285" text-anchor="middle" class="micro">胶片人像</text>
+    <rect x="228" y="266" width="76" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="266" y="285" text-anchor="middle" class="micro">清晨街景</text>
+    <rect x="312" y="266" width="76" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="350" y="285" text-anchor="middle" class="micro">水彩小猫</text>
+
+    <rect x="464" y="104" width="196" height="250" rx="16" fill="#0f131a" stroke="#283141"/>
+    <text x="486" y="130" class="label">助手 Dock</text>
+    <rect x="486" y="150" width="72" height="22" rx="11" fill="#151b25" stroke="#3a4658"/>
+    <text x="522" y="165" text-anchor="middle" class="micro">图片风格</text>
+    <rect x="566" y="150" width="48" height="22" rx="11" fill="#243653" stroke="#5caeff"/>
+    <text x="590" y="165" text-anchor="middle" class="micro">详细</text>
+    <rect x="486" y="194" width="150" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="561" y="212" text-anchor="middle" class="micro">雨夜霓虹下的少女</text>
+    <rect x="486" y="232" width="150" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="561" y="250" text-anchor="middle" class="micro">夏日山谷里的小屋</text>
+    <rect x="486" y="270" width="150" height="28" rx="14" fill="#161b23" stroke="#303b4c"/>
+    <text x="561" y="288" text-anchor="middle" class="micro">太空舷窗前的猫</text>
+
+    <rect x="90" y="324" width="342" height="40" rx="20" fill="#f4f1e9"/>
+    <text x="112" y="349" class="muted" fill="#6f7785">描述动作、场景或表情...</text>
+    <circle cx="410" cy="344" r="16" fill="#07090d"/>
+    <text x="410" y="349" text-anchor="middle" font-size="15" fill="#f4f1e9">↗</text>
+    <rect x="92" y="300" width="64" height="20" rx="10" fill="#151b25" stroke="#303b4c"/>
+    <text x="124" y="314" text-anchor="middle" class="micro">模板</text>
+    <rect x="164" y="300" width="70" height="20" rx="10" fill="#10243a" stroke="#62b3ff"/>
+    <rect x="160" y="296" width="78" height="28" rx="14" fill="none" stroke="#62b3ff" stroke-width="2" opacity=".7"/>
+    <text x="199" y="314" text-anchor="middle" class="micro" fill="#dbeeff">助手</text>
+    <rect x="242" y="300" width="58" height="20" rx="10" fill="#151b25" stroke="#303b4c"/>
+    <text x="271" y="314" text-anchor="middle" class="micro">图片</text>
+    <rect x="308" y="300" width="58" height="20" rx="10" fill="#151b25" stroke="#303b4c"/>
+    <text x="337" y="314" text-anchor="middle" class="micro">卡片</text>
+    <text x="26" y="408" class="tiny">点击“助手”后：按钮有蓝色边框、轻 ring、背景过渡，表达右侧 Dock 已打开。</text>
+  </g>
+
+  <!-- Node director console -->
+  <g transform="translate(778 130)">
+    <rect width="740" height="650" rx="24" fill="url(#panelBg)" stroke="#303845" class="shadow"/>
+    <text x="26" y="36" class="panel-title">B. Node 视频生成：导演控制台</text>
+    <text x="26" y="60" class="muted">把“参考素材、预览、参数、提示词”分成稳定区域，避免一个滚动面板塞满所有控件。</text>
+
+    <rect x="24" y="82" width="692" height="528" rx="18" fill="#10141b" stroke="#2d3544"/>
+    <rect x="24" y="82" width="692" height="54" rx="18" fill="#171c24" stroke="#2d3544"/>
+    <circle cx="54" cy="109" r="17" fill="#253145"/>
+    <text x="54" y="114" text-anchor="middle" class="label">D</text>
+    <text x="86" y="114" class="label">画布 / 视频生成</text>
+    <rect x="610" y="97" width="56" height="26" rx="13" fill="#202936" stroke="#374457"/>
+    <text x="638" y="115" text-anchor="middle" class="micro">就绪</text>
+    <text x="680" y="115" text-anchor="middle" font-size="16" fill="#9da8b8">↗</text>
+
+    <rect x="46" y="158" width="230" height="326" rx="16" fill="url(#nodeBlue)" stroke="#3b5573"/>
+    <text x="62" y="184" class="label">参考素材</text>
+    <rect x="60" y="204" width="202" height="118" rx="14" fill="url(#roleCard)" stroke="#5b7fae"/>
+    <rect x="74" y="224" width="50" height="66" rx="10" fill="#304968" stroke="#80bbff"/>
+    <circle cx="99" cy="248" r="16" fill="#dfe7f4"/>
+    <rect x="86" y="266" width="26" height="12" rx="6" fill="#b3c1d8"/>
+    <text x="138" y="228" class="chip-text">角色卡：主角</text>
+    <text x="138" y="248" class="micro">2 图像 · 1 声音 · 3 约束</text>
+    <rect x="138" y="262" width="44" height="18" rx="9" fill="#203958" stroke="#50739b"/>
+    <text x="160" y="275" text-anchor="middle" class="micro">脸</text>
+    <rect x="188" y="262" width="44" height="18" rx="9" fill="#203958" stroke="#50739b"/>
+    <text x="210" y="275" text-anchor="middle" class="micro">音色</text>
+    <rect x="138" y="286" width="94" height="20" rx="10" fill="#253a54" stroke="#67b7ff"/>
+    <text x="185" y="300" text-anchor="middle" class="micro">@主角 插入提示词</text>
+
+    <rect x="60" y="336" width="202" height="44" rx="12" fill="#1b2737" stroke="#3d536f"/>
+    <text x="76" y="362" class="micro">场景：暂无引用</text>
+    <rect x="226" y="348" width="22" height="20" rx="6" fill="#26364a" stroke="#42556e"/>
+    <text x="237" y="363" text-anchor="middle" class="muted">+</text>
+    <rect x="60" y="392" width="202" height="44" rx="12" fill="#1b2737" stroke="#3d536f"/>
+    <text x="76" y="418" class="micro">镜头：画布连线后出现</text>
+    <rect x="226" y="404" width="22" height="20" rx="6" fill="#26364a" stroke="#42556e"/>
+    <text x="237" y="419" text-anchor="middle" class="muted">+</text>
+    <rect x="60" y="448" width="94" height="26" rx="13" fill="#24344a" stroke="#506985"/>
+    <text x="107" y="466" text-anchor="middle" class="micro">动作</text>
+    <rect x="164" y="448" width="94" height="26" rx="13" fill="#24344a" stroke="#506985"/>
+    <text x="211" y="466" text-anchor="middle" class="micro">旁白</text>
+
+    <rect x="296" y="158" width="396" height="206" rx="16" fill="#071018" stroke="#314051"/>
+    <rect x="415" y="182" width="154" height="138" rx="10" fill="#1e3044" stroke="#456487"/>
+    <rect x="444" y="202" width="96" height="98" rx="9" fill="#90a8bd" opacity=".62"/>
+    <text x="494" y="343" text-anchor="middle" class="tiny">视频预览固定在右上，参数变化时不被挤走</text>
+    <circle cx="326" cy="318" r="10" fill="#f2f6ff"/>
+    <text x="326" y="323" text-anchor="middle" font-size="13" fill="#071018">▶</text>
+    <text x="354" y="323" class="label">0:00 / 0:12</text>
+
+    <rect x="296" y="382" width="396" height="102" rx="16" fill="#121923" stroke="#2f3d51"/>
+    <text x="314" y="410" class="label">生成提示词</text>
+    <rect x="314" y="424" width="76" height="24" rx="12" fill="#243a58" stroke="#6cb9ff"/>
+    <text x="352" y="441" text-anchor="middle" class="micro">@主角</text>
+    <rect x="398" y="424" width="76" height="24" rx="12" fill="#243a58" stroke="#6cb9ff"/>
+    <text x="436" y="441" text-anchor="middle" class="micro">@场景</text>
+    <text x="316" y="466" class="micro">远景推入，主角在雨夜街口回头，镜头慢慢靠近...</text>
+
+    <rect x="46" y="500" width="646" height="84" rx="16" fill="#111821" stroke="#2f3d51"/>
+    <text x="64" y="528" class="label">参数条</text>
+    <rect x="136" y="510" width="108" height="28" rx="14" fill="#182537" stroke="#3f536d"/>
+    <text x="190" y="529" text-anchor="middle" class="micro">Seedance · 快速</text>
+    <rect x="260" y="510" width="54" height="28" rx="14" fill="#172235" stroke="#43546a"/>
+    <text x="287" y="529" text-anchor="middle" class="micro">10 秒</text>
+    <rect x="330" y="510" width="54" height="28" rx="14" fill="#263b55" stroke="#75bfff"/>
+    <text x="357" y="529" text-anchor="middle" class="micro">720p</text>
+    <rect x="400" y="510" width="54" height="28" rx="14" fill="#263b55" stroke="#75bfff"/>
+    <text x="427" y="529" text-anchor="middle" class="micro">9:16</text>
+    <rect x="470" y="510" width="92" height="28" rx="14" fill="#172235" stroke="#43546a"/>
+    <text x="516" y="529" text-anchor="middle" class="micro">生成音频</text>
+    <rect x="574" y="510" width="86" height="28" rx="14" fill="#172235" stroke="#43546a"/>
+    <text x="617" y="529" text-anchor="middle" class="micro">SEED</text>
+    <text x="64" y="562" class="tiny">宽屏时参数条可在底部，窄屏时折叠成右侧抽屉或 tab。</text>
+  </g>
+
+  <!-- Role card compiler -->
+  <g transform="translate(42 590)">
+    <rect width="704" height="396" rx="24" fill="url(#panelBg)" stroke="#303845" class="shadow"/>
+    <text x="26" y="36" class="panel-title">C. 角色卡：提示词引用的是一整组参数</text>
+    <text x="26" y="60" class="muted">第一步只做 UI 与引用语义，先复用现有 cardId / nodeId / reference assets，暂不改数据库。</text>
+
+    <rect x="34" y="96" width="212" height="230" rx="18" fill="url(#roleCard)" stroke="#557aa7"/>
+    <text x="54" y="126" class="callout-title">角色卡</text>
+    <rect x="54" y="146" width="62" height="86" rx="12" fill="#304968" stroke="#80bbff"/>
+    <circle cx="85" cy="177" r="20" fill="#dfe7f4"/>
+    <rect x="68" y="204" width="34" height="14" rx="7" fill="#b3c1d8"/>
+    <text x="130" y="156" class="chip-text">主角</text>
+    <text x="130" y="178" class="micro">身份：短发少女</text>
+    <text x="130" y="198" class="micro">服装：黑色制服</text>
+    <text x="130" y="218" class="micro">音色：清冷女声</text>
+    <rect x="54" y="250" width="46" height="24" rx="12" fill="#243a58" stroke="#6cb9ff"/>
+    <text x="77" y="267" text-anchor="middle" class="micro">脸图</text>
+    <rect x="106" y="250" width="46" height="24" rx="12" fill="#243a58" stroke="#6cb9ff"/>
+    <text x="129" y="267" text-anchor="middle" class="micro">全身</text>
+    <rect x="158" y="250" width="56" height="24" rx="12" fill="#254133" stroke="#69dfb4"/>
+    <text x="186" y="267" text-anchor="middle" class="micro">音色</text>
+    <rect x="54" y="288" width="140" height="24" rx="12" fill="#26364d" stroke="#6cb9ff"/>
+    <text x="124" y="305" text-anchor="middle" class="micro">@主角</text>
+
+    <path d="M 258 210 C 306 210, 310 210, 350 210" fill="none" stroke="#67b7ff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <rect x="362" y="132" width="136" height="156" rx="18" fill="#142033" stroke="#3e5a7d"/>
+    <text x="430" y="164" text-anchor="middle" class="callout-title">@主角 token</text>
+    <text x="430" y="192" text-anchor="middle" class="micro">显示为一个 chip</text>
+    <text x="430" y="216" text-anchor="middle" class="micro">内部绑定 cardId</text>
+    <text x="430" y="240" text-anchor="middle" class="micro">可展开查看参数</text>
+    <rect x="390" y="252" width="80" height="24" rx="12" fill="#263b55" stroke="#75bfff"/>
+    <text x="430" y="269" text-anchor="middle" class="micro">hover 预览</text>
+
+    <path d="M 510 210 C 558 210, 562 210, 602 210" fill="none" stroke="#65dfb5" stroke-width="2" marker-end="url(#arrowMint)"/>
+    <rect x="614" y="98" width="56" height="224" rx="18" fill="#111821" stroke="#2e3b4e"/>
+    <text x="642" y="128" text-anchor="middle" class="callout-title">编译</text>
+    <text x="642" y="162" text-anchor="middle" class="micro">身份词</text>
+    <text x="642" y="190" text-anchor="middle" class="micro">参考图</text>
+    <text x="642" y="218" text-anchor="middle" class="micro">音色</text>
+    <text x="642" y="246" text-anchor="middle" class="micro">约束</text>
+    <text x="642" y="274" text-anchor="middle" class="micro">LoRA</text>
+
+    <text x="34" y="358" class="tiny">交互原则：用户看到的是 @角色，系统使用的是角色卡参数包。这样提示词干净，视频/音频/图像都能复用同一张卡。</text>
+  </g>
+
+  <!-- Implementation notes -->
+  <g transform="translate(778 818)">
+    <rect width="740" height="168" rx="24" fill="#141922" stroke="#303845" class="shadow"/>
+    <text x="26" y="38" class="panel-title">落地拆分建议</text>
+    <rect x="30" y="62" width="156" height="68" rx="16" fill="#101824" stroke="#33475f"/>
+    <text x="108" y="86" text-anchor="middle" class="callout-title">1. 微交互</text>
+    <text x="108" y="108" text-anchor="middle" class="micro">助手按钮 active 边框</text>
+    <text x="108" y="124" text-anchor="middle" class="micro">底部按钮视觉减负</text>
+
+    <rect x="206" y="62" width="156" height="68" rx="16" fill="#101824" stroke="#33475f"/>
+    <text x="284" y="86" text-anchor="middle" class="callout-title">2. Studio Dock</text>
+    <text x="284" y="108" text-anchor="middle" class="micro">模型状态上移</text>
+    <text x="284" y="124" text-anchor="middle" class="micro">底部只保留输入</text>
+
+    <rect x="382" y="62" width="156" height="68" rx="16" fill="#101824" stroke="#33475f"/>
+    <text x="460" y="86" text-anchor="middle" class="callout-title">3. 角色卡 V1</text>
+    <text x="460" y="108" text-anchor="middle" class="micro">替换小素材槽视觉</text>
+    <text x="460" y="124" text-anchor="middle" class="micro">仍复用现有引用数据</text>
+
+    <rect x="558" y="62" width="156" height="68" rx="16" fill="#101824" stroke="#33475f"/>
+    <text x="636" y="86" text-anchor="middle" class="callout-title">4. Node 布局</text>
+    <text x="636" y="108" text-anchor="middle" class="micro">重排 VideoComposer</text>
+    <text x="636" y="124" text-anchor="middle" class="micro">参数可折叠</text>
+
+    <text x="30" y="152" class="tiny">这个 SVG 是结构草稿，不代表最终颜色和间距。确认方向后再按现有组件拆小步实现。</text>
+  </g>
+</svg>

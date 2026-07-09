@@ -1,12 +1,13 @@
 # 项目状态
 
-最后更新：2026-06-13
+最后更新：2026-07-08
 
 这是唯一的活跃进度文档。它应该保持短，并随着项目变化覆盖更新。
 
 ## Current Focus
 
 - 第一轮文档重构已完成，`docs/design/` 已调整为结构入口；详细 UI 设计文档先不写，后续一页一页确认。
+- 文档结构和 Agent 工作流已升级为“流程入口 + 规则知识库 + 任务起点 + checklist”模式；后续非 trivial 任务使用 `docs/engineering/task-packet-template.md` 补齐执行包。
 - `docs/product/mainline.md` 已成为产品方向主线文档；后续功能、媒体、资源管理和 Studio 相关任务应在 `docs/status.md` 后读取它。
 - 视频方向已确认：`Studio Video` 保持轻量短片入口，`Node workflow` 承担长视频、系列镜头、角色/声音绑定、分镜、参考视频和片段合并等导演式生产能力。
 - （2026-06-13）后续开发方向已经 owner 两轮核对锁定，全域 Codex 任务包在 [`docs/plans/execution-roadmap-2026-06.md`](plans/execution-roadmap-2026-06.md)：视频三系统收敛成分层架构、第一期系列镜头、Seedance via fal、视频 BYOK 先行、专业优先+长视频画布为核心等决策见该文件 §0。
@@ -61,6 +62,9 @@
 - `docs/integrations/providers.md` 已记录 provider registry、model catalog、execution routing、BYOK/platform key 边界、server-side key verification 现状、官方文档核验入口、逐模型核验流程和未决风险。
 - `GET /api/usage-summary` 已改为使用 `FreeTierSlot` 今日预留数作为 `freeGenerationsToday`，让用户可见免费额度显示与当前限制源一致。
 - `docs/design/` 已建立结构：`system/` 放全局 UI/CSS/组件/响应式/i18n 规则，`pages/` 放逐页设计，`reviews/` 放可复用 UI 审查；详细内容先不定稿。
+- （2026-07-08）`docs/README.md` 已按 Esther personal design system 的执行思想更新：明确流程入口、项目基因、UI 规则库、任务起点、证据/checklist 之间的关系；标准工作流新增任务场景判定和 5 个 intake 问题。
+- （2026-07-08）`docs/engineering/task-packet-template.md` 已新增，作为非 trivial 任务包模板；`docs/engineering/agent-loops.md` 已接入该模板和 PixelVault Documentation System Loop。
+- （2026-07-08）`docs/qa/README.md` 已新增为可复用 QA checklist 入口；一次性测试报告仍不进入活跃 QA 路径。
 - （2026-06-03）`docs/domains/arena.md` 已补：记录 Arena 模型对战域（match 创建、并行多模型 entry、投票、ELO 排名、按 taskType 胜率、个人统计），并标注 entry 复用标准生成链路。
 - （2026-06-03）`docs/domains/storyboard.md` 已补：记录 Storyboard 叙事编排域（从已有作品挑图成 Story、LLM 叙事、scroll/comic 呈现、导出、公开切换），并标注它只消费 Generation、不生成图像。
 - （2026-06-03）`docs/domains/prompts.md` 已补：记录 Prompts 提示词库域（`Recipe` 模板 + `InspirationPrompt` 灵感库、从作品存模板、模板到作品血缘），并把 prompt 增强/助手/守卫等创作辅助划归 Studio 链路（`services/kernel/`）。
@@ -112,9 +116,12 @@
 - `docs/design/system/README.md`
 - `docs/design/pages/README.md`
 - `docs/design/reviews/README.md`
+- `docs/engineering/agent-loops.md`
+- `docs/engineering/task-packet-template.md`
+- `docs/qa/README.md`
 
 ## Last Verified
 
-- Date: 2026-06-13
-- Method: focused documentation/code inspection and owner direction confirmation for product mainline; earlier Worker-only generation migration validation remains recorded in history
+- Date: 2026-07-08
+- Method: focused documentation inspection and external workflow reference review for docs structure/workflow update
 - External docs: checked provider-level official documentation for OpenAI, Google Gemini, Hugging Face, FAL, Replicate, Runway, NovelAI, VolcEngine Ark, Fish Audio, Hyper3D Rodin, and DeepSeek for `docs/integrations/providers.md`; rechecked FAL queue/Veo extend, Gemini image generation, Replicate predictions, NovelAI image Swagger entry, VolcEngine Seedream, Hugging Face HF Inference, Fish Audio TTS, and Cloudflare Workers best practices for 2026-06-03 Worker migrations

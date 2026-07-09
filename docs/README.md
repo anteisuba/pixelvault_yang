@@ -13,6 +13,22 @@
 5. 能更新现有文档时，不新建重复文档。
 6. 过期进度报告不能留在默认阅读路径里。
 
+## Agent 可执行文档系统
+
+本项目文档采用“流程入口 + 规则知识库 + 任务起点 + 检查清单”的结构。这个模式参考了 [Esther 的个人设计系统](https://hiesther.me/tutorials/esther-design-system/)：让 AI 先读规则、再选择既有素材和流程、最后按 checklist 自检，而不是自由发挥。
+
+在 PixelVault 中对应关系如下：
+
+- 流程入口：`AGENTS.md`、`CLAUDE.md`、`docs/README.md`、`docs/engineering/agent-loops.md`
+- 项目基因：`docs/product/`、`docs/architecture/`、`docs/domains/`、`docs/integrations/`
+- UI 规则库：`docs/design/system/`、`docs/design/pages/`、`docs/design/direction.md`
+- 任务起点：`docs/plans/` 中的活跃 task packet，以及 `docs/engineering/task-packet-template.md`
+- 证据和检查：`docs/design/reviews/`、`docs/screenshots/`、`docs/qa/`
+
+Agent 不应该临时发明文件结构、流程、UI 方向或验证口径。遇到任务时先判断任务场景，再从上述目录选择最小必要文档集合。
+
+如果缺少任务场景、成功标准、禁止改动范围、验证方式或用户确认的方向，先暴露缺口；只有 trivial 修改可以直接执行。
+
 ## 文档生命周期
 
 ### 长期参考文档
@@ -42,22 +58,24 @@
 
 归档文档只保留历史背景，不参与默认开发阅读路径。
 
-## 建议目录结构
+## 标准目录结构
 
 ```text
 docs/
-├── README.md
-├── status.md
-├── product/
-├── architecture/
-├── domains/
-├── integrations/
-├── engineering/
-├── design/
-├── qa/
-├── decisions/
-├── plans/
-└── archive/
+├── README.md                  # 文档入口和读取路由
+├── status.md                  # 唯一活跃状态摘要
+├── product/                   # 产品边界和主线
+├── architecture/              # 系统级契约
+├── domains/                   # 业务域场景文件
+├── integrations/              # 外部服务接入契约
+├── engineering/               # Agent/workflow/验证方法
+├── design/                    # UI 设计系统、页面规则、审查证据
+├── development/               # 具体开发/测试说明；不进入默认读取路径
+├── plans/                     # 活跃 task packet 和近期执行计划
+├── screenshots/               # 浏览器、移动端和视觉 QA 证据
+├── qa/                        # 可复用 QA checklist
+├── decisions/                 # ADR；需要时创建
+└── archive/                   # 历史材料；需要时创建
 ```
 
 ## 分类规则
@@ -152,6 +170,8 @@ docs/
 - 调试流程
 - Codex 和 Claude 协作规则
 
+此目录是工作流知识库，不是任务日志。稳定流程、task packet 模板、agent loop 适配规则放这里；一次性执行记录仍放 `docs/plans/` 或最终沉淀到长期文档。
+
 ### `design/`
 
 UI 系统和体验规则。
@@ -165,6 +185,14 @@ UI 系统和体验规则。
 - i18n 规则
 
 不要把一次性页面实现计划放进这里，除非它已经变成稳定设计契约。
+
+设计文档按三层读取：
+
+- `system/`：全局 CSS、token、布局壳、组件、响应式、i18n/accessibility 规则。
+- `pages/`：页面或场景文件，说明一个页面负责什么、不能破坏什么、当前 source of truth 在哪。
+- `reviews/`：审查证据、候选方向、截图和结论。只有可复用结论才沉淀回 `system/` 或 `pages/`。
+
+视觉素材、草图和截图是证据或起点，不是默认规则。Agent 必须先读对应规则文件，再使用这些素材。
 
 ### `qa/`
 
@@ -195,6 +223,19 @@ UI 系统和体验规则。
 只放活跃任务包。
 
 相关任务完成后，计划必须删除、归档或沉淀。这个目录不能再次变成主要知识库。
+
+非 trivial task packet 必须包含：
+
+- Goal
+- Non-goals
+- Task scene/type
+- Read first
+- Source of truth
+- Allowed file scope
+- Forbidden file scope
+- Acceptance criteria
+- Validation / evidence
+- Documentation sync
 
 ### `archive/`
 
@@ -237,19 +278,21 @@ UI 系统和体验规则。
 
 所有有实际影响的开发、规划、调试、Provider/model/API、架构或 UI 任务，都必须按这个顺序推进：
 
-1. 读相关文档。
-2. 查代码事实源。
-3. 任务涉及 provider、model、API、价格、SDK/平台行为、认证、存储、数据库、部署或安全时，查官方或一手资料。
-4. 暴露不确定点、冲突和假设。
-5. 方向不清晰或存在多个合理方向时，停止并等用户确认。
-6. 非 trivial 实现前，写出或确认 task packet。
-7. 实现一个小切片。
-8. 跑相关验证。
-9. 只更新必要文档。
+1. 判断任务场景：产品、架构、业务域、Provider/API、UI、QA、文档、部署或调试。
+2. 若输入不足，先问或暴露 5 个关键点：目标、受影响用户/路由/模块、成功标准、禁止改动范围、验证证据。
+3. 读相关文档。
+4. 查代码事实源。
+5. 任务涉及 provider、model、API、价格、SDK/平台行为、认证、存储、数据库、部署或安全时，查官方或一手资料。
+6. 暴露不确定点、冲突和假设。
+7. 方向不清晰或存在多个合理方向时，停止并等用户确认。
+8. 非 trivial 实现前，写出或确认 task packet。
+9. 实现一个小切片。
+10. 跑相关验证。
+11. 只更新必要文档。
 
 简写：
 
-`读文档 -> 查代码事实源 -> 必要时查官方资料 -> 暴露不确定点 -> 你确认方向 -> 写 task packet -> 实现小切片 -> 跑验证 -> 更新必要文档`
+`判定场景 -> 补齐 5 个关键点 -> 读文档 -> 查代码事实源 -> 必要时查官方资料 -> 暴露不确定点 -> 你确认方向 -> 写 task packet -> 实现小切片 -> 跑验证 -> 更新必要文档`
 
 只有 trivial 修改可以跳过无关步骤。跳过时必须在最终报告里说明原因。
 

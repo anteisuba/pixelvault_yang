@@ -7,6 +7,11 @@ This directory is for UI design documentation.
 The design docs should be written slowly and confirmed one by one.
 Do not treat any page direction as final until it has been discussed and accepted.
 
+This directory is PixelVault's UI design-system knowledge base. It follows the
+same operating idea as a personal design system: agents must read the visual
+rules and the relevant page scene before changing UI, then use existing
+components, layouts, screenshots, and reviews as the starting point.
+
 ## Purpose
 
 Design docs should eventually cover:
@@ -26,6 +31,7 @@ Detailed design docs are intentionally deferred until each topic is reviewed.
 ```text
 docs/design/
 ├── README.md
+├── direction.md
 ├── system/
 │   └── README.md
 ├── pages/
@@ -33,6 +39,16 @@ docs/design/
 └── reviews/
     └── README.md
 ```
+
+Current supporting assets:
+
+- `canvas-drafts/` stores visual exploration assets and wireframes.
+- `reviews/assets/` and `reviews/svg/` store evidence for design reviews.
+- `docs/screenshots/` stores browser and mobile QA screenshots.
+
+These assets are not rules by themselves. A UI task should first read the
+relevant `system/` and `pages/` files, then use assets as evidence or starting
+material.
 
 ## Writing Order
 
@@ -54,6 +70,26 @@ Recommended order:
 14. `pages/3d.md`
 
 Each file should be created only when that topic is being discussed.
+
+## UI Task Workflow
+
+Before UI implementation or visual review, follow this sequence:
+
+1. Classify the scene: landing/marketing, product app surface, Studio workspace,
+   asset/gallery/profile page, modal/dialog, state component, or responsive bug.
+2. Ask or answer five questions: target user outcome, route/component owner,
+   what must stay unchanged, source screenshots or design references, and
+   validation evidence.
+3. Read `docs/design/direction.md` if the task affects visual direction.
+4. Read relevant `system/*.md` and `pages/*.md` files.
+5. Inspect the current route, component, messages, and CSS source of truth.
+6. Start from existing components, layout shells, or reviewed designs; do not
+   create a parallel visual system.
+7. Implement one page or component slice.
+8. Self-check against hierarchy, spacing, typography, responsiveness, a11y,
+   i18n, and the project anti-slop rules.
+9. Run relevant validation or explain why it was skipped.
+10. Record only reusable findings back into `system/`, `pages/`, or `reviews/`.
 
 ## Confirmation Rule
 

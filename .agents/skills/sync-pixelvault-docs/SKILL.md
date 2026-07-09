@@ -17,16 +17,23 @@ Keep PixelVault's planning maps, progress notes, and operating context aligned w
 
 2. Load context in project order:
    - Read `AGENTS.md`.
-   - Read relevant `docs/guides/*.md`.
-   - Read the closest current-state map: `docs/plans/ui/02-現狀映射.md`, `docs/plans/feature/02-現狀映射.md`, `docs/plans/qa/functional/02-現狀映射.md`, `docs/plans/qa/ui/02-現狀映射.md`, or `docs/progress/current-status-audit.md`.
+   - Read `docs/README.md`.
+   - Read `docs/status.md` if it exists.
+   - Read `docs/product/mainline.md` for product or workflow context.
+   - Read the smallest relevant set from `docs/domains/`, `docs/architecture/`, `docs/integrations/`, `docs/engineering/`, `docs/design/`, or `docs/qa/`.
+   - For non-trivial implementation handoff, use `docs/engineering/task-packet-template.md`.
    - Inspect the actual diff before writing docs.
 
 3. Update only the narrow docs that own the changed fact:
-   - `docs/progress/` for current implementation status and shipped/verified changes.
-   - `docs/plans/ui/` for UI state maps, visual workflow decisions, and page-level status.
-   - `docs/plans/feature/` for product or feature implementation state.
-   - `docs/plans/qa/` for test coverage, known gaps, and QA state.
-   - `docs/guides/` for stable operating workflows.
+   - `docs/status.md` for the short active status summary.
+   - `docs/product/` for product intent and user-visible scope.
+   - `docs/architecture/` for system contracts and boundaries.
+   - `docs/domains/` for business-domain ownership and source-of-truth maps.
+   - `docs/integrations/` for external service contracts.
+   - `docs/engineering/` for stable workflows, validation methods, and agent loops.
+   - `docs/design/` for UI system rules, page scene files, and reusable review evidence.
+   - `docs/qa/` for reusable browser, manual, mobile, and regression checklists.
+   - `docs/plans/` only for active task packets and execution plans.
    - `AGENTS.md` only for durable project rules, not transient task notes.
 
 4. Keep docs factual:

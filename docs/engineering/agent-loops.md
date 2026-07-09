@@ -13,6 +13,7 @@ override this repository's rules.
 - `docs/status.md`
 - `docs/product/mainline.md`
 - `package.json`
+- `docs/engineering/task-packet-template.md`
 - `docs/engineering/matt-pocock-skills.md`
 - https://loops.elorm.xyz/
 - https://loops.elorm.xyz/install
@@ -44,6 +45,26 @@ engineering loops such as diagnosing, TDD, grilling, and issue splitting.
 Personal AI Gallery uses these prompts only after adapting them to this
 repository's task-packet workflow, validation commands, security boundaries,
 and documentation taxonomy.
+
+## PixelVault Documentation System Loop
+
+When a task changes docs, workflow, UI direction, QA expectations, or durable
+project rules, use the docs as an agent-readable system:
+
+1. Pick the task scene: product, architecture, domain, integration, UI, QA,
+   docs, deployment, or debugging.
+2. Fill or confirm the five intake questions from
+   `docs/engineering/task-packet-template.md`.
+3. Read the smallest relevant rule set from `docs/README.md`.
+4. Use existing docs, templates, page notes, screenshots, and reviews as the
+   starting point. Do not invent a parallel taxonomy.
+5. Patch only the document that owns the changed fact.
+6. Check the diff for stale claims, duplicate guidance, and old path drift.
+7. Report changed files, what the change enables, and what validation ran.
+
+This is the PixelVault adaptation of a personal design-system workflow: the
+agent reads the brain, reads the relevant scene rules, starts from a template or
+known source, self-checks, and then delivers evidence.
 
 ## Hard Rules
 
@@ -77,10 +98,12 @@ Before the first pass:
 2. Read docs/README.md, docs/status.md, and docs/product/mainline.md.
 3. Read the relevant docs/domains, docs/architecture, docs/integrations,
    docs/engineering, docs/design, or docs/qa files.
-4. Inspect the code source of truth.
-5. Verify official or primary-source documentation when the task touches
+4. For non-trivial work, write or confirm a task packet using
+   docs/engineering/task-packet-template.md.
+5. Inspect the code source of truth.
+6. Verify official or primary-source documentation when the task touches
    provider/model/API/pricing/auth/storage/database/deployment/security behavior.
-6. State assumptions, conflicts, and stop-worthy uncertainty.
+7. State assumptions, conflicts, and stop-worthy uncertainty.
 
 Each pass:
 1. Implement one small scoped slice.
@@ -193,6 +216,7 @@ Use current documentation locations:
 - browser, manual, and regression QA: `docs/qa/`
 - UI design and responsive rules: `docs/design/`
 - active task packets and execution plans: `docs/plans/`
+- reusable task packet template: `docs/engineering/task-packet-template.md`
 
 Historical paths such as `docs/guides/**`, `docs/ai/**`,
 `docs/reference/**`, and `docs/progress/**` are not default reading paths.

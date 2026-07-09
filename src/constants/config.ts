@@ -175,6 +175,12 @@ export const API_ENDPOINTS = {
   /** Upload a local image file as a Generation row (multipart/form-data) */
   UPLOAD_IMAGE_FILE: '/api/upload-image/file',
 
+  /** Prepare a browser-direct R2 image upload */
+  UPLOAD_IMAGE_DIRECT: '/api/upload-image/direct',
+
+  /** Complete a browser-direct R2 image upload and create its Generation row */
+  UPLOAD_IMAGE_DIRECT_COMPLETE: '/api/upload-image/direct/complete',
+
   /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
   GENERATION_POSTER: '/api/generations',
 

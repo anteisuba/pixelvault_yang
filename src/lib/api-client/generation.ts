@@ -36,6 +36,7 @@ import type {
   ToggleVisibilityResponse,
   Model3DStatusResponse,
   Model3DSubmitResponse,
+  DirectUploadImagePrepare,
   UploadImageRequest,
   UploadImageResponse,
   VideoStatusResponse,
@@ -219,38 +220,90 @@ export async function uploadImageAPI(
   }
 }
 
+interface DirectUploadPrepareResponse {
+  success: boolean
+  data?: DirectUploadImagePrepare
+  error?: string
+}
+
+async function postJson<TResponse>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  fallbackMessage: string,
+): Promise<TResponse | { success: false; error: string }> {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: await getErrorMessage(response, fallbackMessage),
+    }
+  }
+
+  return (await response.json()) as TResponse
+}
+
 /**
- * Upload a local image file as a Generation row via multipart/form-data.
- * Sends the raw bytes (no base64) so full-quality images aren't crushed to
- * fit a JSON body. Use this for anything the user picks/drops from disk;
- * `uploadImageAPI` is for importing a remote URL.
+ * Upload a local image file as a Generation row. Browser bytes go directly to
+ * R2 through a short-lived presigned URL, then the server re-reads the R2
+ * object, verifies it, creates the thumbnail, and persists the Generation row.
+ * Use this for anything the user picks/drops from disk; `uploadImageAPI` is
+ * for importing a remote URL.
  */
 export async function uploadImageFileAPI(
   file: File,
   options?: { note?: string; projectId?: string },
 ): Promise<UploadImageResponse> {
   try {
-    const formData = new FormData()
-    formData.append('image', file)
-    if (options?.note) formData.append('note', options.note)
-    if (options?.projectId) formData.append('projectId', options.projectId)
+    const prepare = await postJson<DirectUploadPrepareResponse>(
+      API_ENDPOINTS.UPLOAD_IMAGE_DIRECT,
+      {
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        note: options?.note,
+        projectId: options?.projectId,
+      },
+      'Upload prepare failed',
+    )
 
-    const response = await fetch(API_ENDPOINTS.UPLOAD_IMAGE_FILE, {
-      method: 'POST',
-      body: formData,
-    })
-
-    if (!response.ok) {
+    if (!prepare.success || !prepare.data) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Upload failed with status ${response.status}`,
-        ),
+        error: prepare.error ?? 'Upload prepare failed',
       }
     }
 
-    return await response.json()
+    const storageResponse = await fetch(prepare.data.uploadUrl, {
+      method: 'PUT',
+      headers: prepare.data.headers,
+      body: file,
+    })
+
+    if (!storageResponse.ok) {
+      return {
+        success: false,
+        error: `Storage upload failed with status ${storageResponse.status}`,
+      }
+    }
+
+    const complete = await postJson<UploadImageResponse>(
+      API_ENDPOINTS.UPLOAD_IMAGE_DIRECT_COMPLETE,
+      {
+        storageKey: prepare.data.storageKey,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        note: options?.note,
+        projectId: options?.projectId,
+      },
+      'Upload finalize failed',
+    )
+
+    return complete
   } catch (error) {
     return {
       success: false,

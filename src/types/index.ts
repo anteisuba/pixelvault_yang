@@ -25,6 +25,11 @@ import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import {
+  USER_UPLOAD_ACCEPTED_MIME_TYPES,
+  USER_UPLOAD_MAX_BYTES,
+  type AcceptedUploadMimeType,
+} from '@/constants/uploads'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
   HUNYUAN3D_FACE_COUNT,
@@ -813,6 +818,42 @@ export interface UploadImageResponse {
   success: boolean
   data?: { generation: GenerationRecord }
   error?: string
+}
+
+export const CreateUploadImageDirectRequestSchema = z.object({
+  fileName: z.string().trim().max(240).optional(),
+  mimeType: z.enum(USER_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_UPLOAD_MAX_BYTES),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CreateUploadImageDirectRequest = z.infer<
+  typeof CreateUploadImageDirectRequestSchema
+>
+
+export const CompleteUploadImageDirectRequestSchema = z.object({
+  storageKey: z.string().trim().min(1).max(1024),
+  mimeType: z.enum(USER_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_UPLOAD_MAX_BYTES),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CompleteUploadImageDirectRequest = z.infer<
+  typeof CompleteUploadImageDirectRequestSchema
+>
+
+export interface DirectUploadImagePrepare {
+  uploadUrl: string
+  storageKey: string
+  publicUrl: string
+  headers: {
+    'Content-Type': AcceptedUploadMimeType
+    'If-None-Match': '*'
+  }
+  expiresAt: string
+  maxBytes: number
 }
 
 // ─── 3D Generate Request + Queue (submit + poll) ─────────────────

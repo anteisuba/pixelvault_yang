@@ -5,8 +5,10 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import sharp from 'sharp'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -244,6 +246,73 @@ export async function uploadToR2(params: {
 
   logger.info('Uploaded to R2', { key: params.key, mimeType: params.mimeType })
   return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`
+}
+
+export function getR2PublicUrl(key: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_STORAGE_BASE_URL is required')
+  }
+
+  return `${baseUrl.replace(/\/$/, '')}/${key}`
+}
+
+export async function createPresignedR2PutUrl(params: {
+  key: string
+  mimeType: string
+  expiresInSeconds: number
+}): Promise<string> {
+  return await getSignedUrl(
+    r2,
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: params.key,
+      ContentType: params.mimeType,
+      IfNoneMatch: '*',
+    }),
+    { expiresIn: params.expiresInSeconds },
+  )
+}
+
+export async function getR2ObjectBuffer(params: {
+  key: string
+  maxBytes?: number
+}): Promise<{ buffer: Buffer; mimeType?: string }> {
+  const object = await withRetry(
+    () =>
+      r2.send(
+        new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: params.key,
+        }),
+      ),
+    { maxAttempts: 3, baseDelayMs: 500, label: 'r2.getObject' },
+  )
+
+  const declaredBytes = object.ContentLength
+  if (
+    params.maxBytes !== undefined &&
+    declaredBytes !== undefined &&
+    declaredBytes > params.maxBytes
+  ) {
+    throw new Error(
+      `R2 object exceeds maximum size of ${params.maxBytes} bytes (declared ${declaredBytes}).`,
+    )
+  }
+
+  if (!object.Body) {
+    throw new Error(`R2 object body missing: ${params.key}`)
+  }
+
+  const bytes = await object.Body.transformToByteArray()
+  const buffer = Buffer.from(bytes)
+  if (params.maxBytes !== undefined && buffer.byteLength > params.maxBytes) {
+    throw new Error(
+      `R2 object exceeds maximum size of ${params.maxBytes} bytes (got ${buffer.byteLength}).`,
+    )
+  }
+
+  return { buffer, mimeType: object.ContentType }
 }
 
 // ─── Image Preview Derivatives ──────────────────────────────────

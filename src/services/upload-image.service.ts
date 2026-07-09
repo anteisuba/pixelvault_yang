@@ -2,19 +2,30 @@ import 'server-only'
 
 import {
   USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
+  USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS,
   USER_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
 import { createGeneration } from '@/services/generation.service'
 import {
   createImageThumbnailAsset,
+  createPresignedR2PutUrl,
+  deleteFromR2,
   detectTrustedImageMime,
   fetchAsBuffer,
   generateStorageKey,
+  getR2ObjectBuffer,
+  getR2PublicUrl,
   uploadToR2,
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import type { GenerationRecord, UploadImageRequest } from '@/types'
+import type {
+  CompleteUploadImageDirectRequest,
+  CreateUploadImageDirectRequest,
+  DirectUploadImagePrepare,
+  GenerationRecord,
+  UploadImageRequest,
+} from '@/types'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 /**
@@ -157,6 +168,142 @@ export async function uploadUserImageFile(
     userId: dbUser.id,
     buffer: input.fileBuffer,
     note: input.note,
+    projectId: input.projectId,
+  })
+}
+
+function assertDirectUploadSize(sizeBytes: number) {
+  if (sizeBytes <= USER_UPLOAD_MAX_BYTES) return
+
+  throw new GenerateImageServiceError(
+    'PROVIDER_ERROR',
+    `File too large (${(sizeBytes / 1024 / 1024).toFixed(1)} MB, max ${USER_UPLOAD_MAX_BYTES / 1024 / 1024} MB)`,
+    400,
+  )
+}
+
+function assertDirectUploadStorageKeyForUser(
+  storageKey: string,
+  userId: string,
+) {
+  const expectedPrefix = `generations/${userId}/image/`
+  const hasUnsafePath =
+    storageKey.includes('..') ||
+    storageKey.startsWith('/') ||
+    storageKey.endsWith('/')
+
+  if (!storageKey.startsWith(expectedPrefix) || hasUnsafePath) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Upload storage key is not valid for this user',
+      403,
+    )
+  }
+}
+
+export async function createUserImageDirectUpload(
+  clerkId: string,
+  input: CreateUploadImageDirectRequest,
+): Promise<DirectUploadImagePrepare> {
+  assertDirectUploadSize(input.sizeBytes)
+
+  const dbUser = await ensureUser(clerkId)
+  const storageKey = generateStorageKey('IMAGE', dbUser.id)
+  const uploadUrl = await createPresignedR2PutUrl({
+    key: storageKey,
+    mimeType: input.mimeType,
+    expiresInSeconds: USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS,
+  })
+
+  return {
+    uploadUrl,
+    storageKey,
+    publicUrl: getR2PublicUrl(storageKey),
+    headers: {
+      'Content-Type': input.mimeType,
+      'If-None-Match': '*',
+    },
+    expiresAt: new Date(
+      Date.now() + USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS * 1000,
+    ).toISOString(),
+    maxBytes: USER_UPLOAD_MAX_BYTES,
+  }
+}
+
+export async function completeUserImageDirectUpload(
+  clerkId: string,
+  input: CompleteUploadImageDirectRequest,
+): Promise<GenerationRecord> {
+  assertDirectUploadSize(input.sizeBytes)
+
+  const dbUser = await ensureUser(clerkId)
+  assertDirectUploadStorageKeyForUser(input.storageKey, dbUser.id)
+
+  const cleanupUploadedObject = async () => {
+    await deleteFromR2(input.storageKey).catch(() => undefined)
+  }
+
+  const { buffer } = await getR2ObjectBuffer({
+    key: input.storageKey,
+    maxBytes: USER_UPLOAD_MAX_BYTES,
+  }).catch(async (error: unknown) => {
+    await cleanupUploadedObject()
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      error instanceof Error ? error.message : 'Failed to read uploaded image',
+      400,
+    )
+  })
+
+  if (buffer.byteLength !== input.sizeBytes) {
+    await cleanupUploadedObject()
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Uploaded image size does not match the prepared upload',
+      400,
+    )
+  }
+
+  let trustedMimeType: string
+  let detectedWidth: number
+  let detectedHeight: number
+  try {
+    const detected = await detectTrustedImageMime(
+      buffer,
+      USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
+    )
+    trustedMimeType = detected.mimeType
+    detectedWidth = detected.width
+    detectedHeight = detected.height
+  } catch (error) {
+    await cleanupUploadedObject()
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      error instanceof Error ? error.message : 'Invalid image file',
+      400,
+    )
+  }
+
+  const thumbnail = await createImageThumbnailAsset({
+    sourceBuffer: buffer,
+    sourceStorageKey: input.storageKey,
+  })
+
+  return createGeneration({
+    url: getR2PublicUrl(input.storageKey),
+    storageKey: input.storageKey,
+    mimeType: trustedMimeType,
+    thumbnailUrl: thumbnail.thumbnailUrl,
+    thumbnailStorageKey: thumbnail.thumbnailStorageKey,
+    width: detectedWidth,
+    height: detectedHeight,
+    prompt: input.note ?? '',
+    model: USER_UPLOAD_PROVIDER,
+    provider: USER_UPLOAD_PROVIDER,
+    requestCount: 0,
+    outputType: 'IMAGE',
+    isFreeGeneration: true,
+    userId: dbUser.id,
     projectId: input.projectId,
   })
 }

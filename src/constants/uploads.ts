@@ -29,6 +29,12 @@ export const USER_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 export const CLIENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 
 /**
+ * Short-lived presigned PUT URL window for browser-direct R2 uploads. Keep it
+ * tight: the client only needs enough time to send one prepared image file.
+ */
+export const USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 5 * 60
+
+/**
  * Accepted MIME types for user uploads. Deliberately narrow — `image/svg+xml`
  * is excluded because SVG can carry inline scripts that execute when the
  * file is later opened directly from the CDN.

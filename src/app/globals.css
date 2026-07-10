@@ -29,7 +29,6 @@
   --color-node-foreground: var(--node-foreground);
   --color-node-muted: var(--node-muted);
   --color-node-subtle: var(--node-subtle);
-  --color-node-danger: var(--node-danger);
   --color-node-card-paper: var(--node-card-paper);
   --color-node-card-paper-strong: var(--node-card-paper-strong);
   --color-node-card-paper-soft: var(--node-card-paper-soft);
@@ -57,6 +56,9 @@
   --color-modality-image: var(--modality-image);
   --color-modality-video: var(--modality-video);
   --color-modality-audio: var(--modality-audio);
+  /* S4 minimap 蓝图纸（§3）：与 node-canvas 暖炭形成材质区分的独立深青底。 */
+  --color-node-blueprint-bg: var(--node-blueprint-bg);
+  --color-node-blueprint-line: var(--node-blueprint-line);
   --color-node-status-done: var(--node-status-done);
   --color-node-status-done-fg: var(--node-status-done-fg);
   --color-node-status-failed: var(--node-status-failed);
@@ -307,11 +309,11 @@
   --node-muted: #9a988f;
   --node-subtle: #6f6a63;
   /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
-     panel-inner）并于 2026-06-20 删除。node-danger 仍是 strangler 别名（已
-     repoint 真红），待改名 --node-status-failed。勿在新代码引用 node-danger。
+     panel-inner）并于 2026-06-20 删除。node-danger strangler 别名已于 S4
+     （2026-07-10）完成收编：全部 7 处引用改指 --node-status-failed，
+     --node-danger 定义 + @theme 映射删除，勿在新代码引用 node-danger。
      node-success（emerald）/ node-lipsync（紫）已于 2026-07-10 S1 删除：
      生成键改 --node-paint 石绿（§2.3），lipsync 语义靠图标降中性。 */
-  --node-danger: #e5484d; /* 旧 amber-yellow「danger」→ 真红（语义对齐 §6 failed=红） */
   /* 纸卡材质组（§2.2，S1 只定义、S2 起消费）+ 石绿颜料。
      paint 由施工图 #3D8A6B 微调至 #3E8C6C：WCAG 深字 text-node-canvas
      4.61:1 达标（规格值上深字 4.49 / 浅字 3.68 均 <4.5，确定性计算存档 S1 报告）。 */
@@ -348,11 +350,25 @@
   /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红 */
   --node-status-done: #1f3a2c;
   --node-status-done-fg: #7fc4a0;
-  --node-status-failed: #3a1e1e;
-  --node-status-failed-fg: #f09595;
+  /* S4 failed 真红收尾（node-canvas.md §4 已知发现修复，node-danger 收编）：
+     真红本体 = 原 --node-danger 值，章描边/章文字/failed 卡边框/卡内 banner
+     border 全部用它（deep chrome 语境，卡内一律被 .node-card-paper 作用域
+     覆盖为纸面深红，见下方 S4 覆盖块）。-fg 语义收窄为「红底上的前景」，
+     只用于 bg-node-status-failed/NN 混合底上的文字（删除按钮 hover、
+     NodeMediaInspector failed banner，均为深 chrome 语境，不落进
+     .node-card-paper 作用域）。WCAG 确定性计算（2026-07-10 S4 报告）：
+     真红 vs panel(#191612，badge 实际底) 4.61:1；-fg vs 真红/40 混
+     panel 组合底(#6b2a2a) 8.21:1、vs 真红/50 混 panel 组合底(#7f2f30)
+     6.95:1，/80 二级文字实测 5.04:1，均 ≥4.5:1 达标。 */
+  --node-status-failed: #e5484d;
+  --node-status-failed-fg: #fadcdc;
   /* 视频监视器语言（v4 §3.3/§4 C4）：取景框角标，纯装饰不承载语义，独立 token */
   --node-monitor-frame: #4a4f5c;
   --node-monitor-matte: #050505;
+  /* S4 minimap 蓝图纸（施工图 §3）：深青底 + 青线，独立于暖炭 canvas/panel
+     系，让左下角小窗读出"图纸材质"而非"又一块深色面板"。 */
+  --node-blueprint-bg: #101820;
+  --node-blueprint-line: #2e4a5e;
 
   /* 模态语义色（提示词库等跟随主题的页面用）：与画布端口色同族色相
      （image 紫 292 / video 蓝 255 / audio 玫瑰 10），低饱和守 anti-slop。
@@ -1324,7 +1340,15 @@ html:lang(zh) {
    getComputedStyle 手工验证级联成立（2026-07-10 S2）。
    `.node-card-window` 挂在 NodeMediaPreview 媒体容器：深窗只反转前景/次级/提示字
    （回到深底浅字），不动 panel 系——媒体容器自身背景由 `bg-node-card-window`
-   工具类显式设置，是独立于 panel 覆盖链之外的字面值。 */
+   工具类显式设置，是独立于 panel 覆盖链之外的字面值。
+   S4 追加 failed 覆盖（§4 已知发现修复）：NodeShellRoot 的 `.node-card-paper`
+   是无条件类（所有卡都是纸卡，deep chrome 只剩顶栏/工具条/minimap/剧本笺），
+   所以 root 的 --node-status-failed 真红对纸面文字对比度不够（vs #ebe5d8
+   仅 3.12:1），必须在这里覆盖成纸面专用深红。WCAG 确定性计算（S4 报告）：
+   纸红 #a32d2d vs card-paper-strong(#e0d8c8，badge 底) 4.99:1、vs card-paper
+   (#ebe5d8，卡边框/banner 底) 5.63:1；-fg（banner 正文用，纸红/50 混
+   card-paper 组合底 #c78983 上的墨色）#1a1310 vs 组合底 6.41:1，/80 二级
+   文字实测 4.66:1，均 ≥4.5:1 达标。 */
 .node-card-paper {
   --node-panel: var(--node-card-paper);
   --node-panel-inner: var(--node-card-paper-strong);
@@ -1332,6 +1356,8 @@ html:lang(zh) {
   --node-foreground: var(--node-card-ink);
   --node-muted: var(--node-card-ink-muted);
   --node-subtle: var(--node-card-ink-subtle);
+  --node-status-failed: #a32d2d;
+  --node-status-failed-fg: #1a1310;
   /* 拖拽微倾（§3/§9-S2）：ReactFlow 拖拽态类名实测为
      `.react-flow__node.draggable.dragging`（node_modules/@xyflow/react/dist/style.css），
      `.dragging` 单类选择器即可命中。倾斜落在 article 自身的 rotate 上，独立于

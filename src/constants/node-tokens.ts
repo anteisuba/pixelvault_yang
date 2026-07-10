@@ -132,16 +132,20 @@ export const NODE_ACCENTS = {
   audio: NEUTRAL_ACCENT,
 } satisfies Record<NodeTokenType, NodeAccentToken>
 
-// §6 去黄：排队不再 amber，进行中靠动效（组件加脉冲）不靠色，完成克制，仅失败用红。
+// S3 盖章状态系统（node-canvas.md §4）：胶囊 → 章，透明底 + 描边 + 同色文字。
+// idle 无章（组件层 return null，这里不需要条目）。§6 去黄原则延续：排队/完成
+// 靠中性炭墨，进行中靠动效 + 石绿（§5 落点②），仅失败用红——章文承载语义、
+// 颜色只加固。`text-node-*` 变量类在 `.node-card-paper` 作用域内自动变炭墨系、
+// 深 chrome（详情面板等）自动浅色系，不写两套（见 globals.css strangler 覆盖）。
 export const STATUS_COLORS = {
-  idle: 'bg-node-panel-inner text-node-muted',
-  queued: 'bg-node-panel-inner text-node-muted',
-  ready: 'bg-node-panel-inner text-node-foreground',
-  running: 'bg-node-panel-inner text-node-foreground',
-  done: 'bg-node-status-done text-node-status-done-fg',
-  failed: 'bg-node-status-failed text-node-status-failed-fg',
-  stale: 'bg-node-panel-soft text-node-subtle',
-  disabled: 'bg-node-panel-soft text-node-subtle',
+  idle: '',
+  queued: 'border-current text-node-muted',
+  ready: 'border-current text-node-foreground',
+  running: 'border-current text-node-paint',
+  done: 'border-current text-node-foreground',
+  failed: 'border-node-status-failed text-node-status-failed',
+  stale: 'border-current text-node-subtle',
+  disabled: 'border-current text-node-subtle',
 } as const
 
 // §2.3 连线全中性灰，default/hover/选中/进行中靠明度（--node-edge ↔ -edge-active），

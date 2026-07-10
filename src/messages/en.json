@@ -3174,11 +3174,11 @@
     },
     "statuses": {
       "idle": "Idle",
-      "queued": "Queued",
+      "queued": "Standby",
       "ready": "Ready",
-      "running": "Running",
-      "done": "Done",
-      "failed": "Failed",
+      "running": "Rolling",
+      "done": "Wrapped",
+      "failed": "NG",
       "stale": "Stale",
       "disabled": "Disabled"
     },

@@ -280,7 +280,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
                         className={cn(
                           'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20',
                           rangeInvalid
-                            ? 'border-node-danger/60'
+                            ? 'border-node-status-failed/60'
                             : 'border-node-panel-inner',
                         )}
                       />
@@ -301,14 +301,14 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
                         className={cn(
                           'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20',
                           rangeInvalid
-                            ? 'border-node-danger/60'
+                            ? 'border-node-status-failed/60'
                             : 'border-node-panel-inner',
                         )}
                       />
                     </label>
                   </div>
                   {rangeInvalid ? (
-                    <p className="text-2xs leading-4 text-node-danger">
+                    <p className="text-2xs leading-4 text-node-status-failed">
                       {t('trim.rangeWarning')}
                     </p>
                   ) : null}
@@ -339,7 +339,9 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
           {mediaUrl ? t('merge.regenerate') : t('merge.run')}
         </Button>
         {disabledReason ? (
-          <p className="text-xs leading-5 text-node-danger">{disabledReason}</p>
+          <p className="text-xs leading-5 text-node-status-failed">
+            {disabledReason}
+          </p>
         ) : null}
         {mediaUrl ? (
           <Button
@@ -354,7 +356,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         ) : null}
         {generationStatus === NODE_GENERATION_STATUS_IDS.error &&
         node.data.generationError ? (
-          <p className="text-xs leading-5 text-node-danger">
+          <p className="text-xs leading-5 text-node-status-failed">
             {node.data.generationError}
           </p>
         ) : null}

@@ -19,10 +19,15 @@ export function NodeStatusBadge({ status }: NodeStatusBadgeProps) {
   const isQueued = status === NODE_STATUS_IDS.queued
   const isRunning = status === NODE_STATUS_IDS.running
 
+  // §4 盖章状态系统：idle = 素卡，不盖章。
+  if (status === NODE_STATUS_IDS.idle) {
+    return null
+  }
+
   return (
     <span
       className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold uppercase tracking-nav-dense',
+        'inline-flex h-7 -rotate-2 items-center gap-1.5 rounded-none border px-2.5 text-xs font-semibold uppercase tracking-nav-dense',
         STATUS_COLORS[status],
       )}
     >

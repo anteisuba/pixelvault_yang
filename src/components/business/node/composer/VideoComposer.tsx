@@ -245,7 +245,7 @@ function VideoMonitor({
       {isGenerating ? (
         <>
           <span className="pointer-events-none absolute right-4 top-9 flex items-center gap-1.5 font-mono text-3xs tabular-nums text-node-muted">
-            <span className="size-1.5 animate-pulse rounded-full bg-node-danger" />
+            <span className="size-1.5 animate-pulse rounded-full bg-node-status-failed" />
             {`${tc('monitor.rec')} ${formatTimecode(elapsedSeconds)}`}
           </span>
           <div className="node-canvas-progress-track pointer-events-none absolute inset-x-4 bottom-9 h-0.5 rounded-full bg-node-panel-inner" />

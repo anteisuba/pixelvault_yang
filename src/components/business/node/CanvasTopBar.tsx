@@ -95,7 +95,7 @@ export function CanvasTopBar({
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-paint">
           <Workflow className="size-4" />
         </span>
         <div className="min-w-0">
@@ -108,20 +108,23 @@ export function CanvasTopBar({
                 <button
                   type="button"
                   aria-label={t('projectMenu.triggerLabel')}
-                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-2 py-1 text-left outline-none transition hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/70"
+                  // 片名条（施工图 §3/§5 落点，S4）：唯一没有 .node-card-paper
+                  // 作用域类的纸卡消费点——按钮不是卡，挂类会把整个深 chrome
+                  // 顶栏拖成纸色。逐元素显式换 card-paper/card-ink 系工具类。
+                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-node-card-line bg-node-card-paper px-2 py-1 text-left outline-none transition hover:bg-node-card-paper-strong focus-visible:ring-2 focus-visible:ring-node-focus-ring/70"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-display text-sm font-semibold text-node-foreground">
+                    <span className="block truncate font-display text-sm font-semibold text-node-card-ink">
                       {projectName}
                     </span>
                     <span
                       suppressHydrationWarning
-                      className="block truncate text-2xs font-medium text-node-muted"
+                      className="block truncate text-2xs font-medium text-node-card-ink-muted"
                     >
                       {isSaving ? t('projectMenu.saving') : updatedLabel}
                     </span>
                   </span>
-                  <ChevronDown className="size-3.5 shrink-0 text-node-muted transition group-data-[state=open]:rotate-180" />
+                  <ChevronDown className="size-3.5 shrink-0 text-node-card-ink-muted transition group-data-[state=open]:rotate-180" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -215,7 +218,9 @@ export function CanvasTopBar({
           type="button"
           size="sm"
           onClick={onAddClick ?? showPlaceholderToast}
-          className="h-9 rounded-2xl bg-node-foreground px-3 text-node-canvas hover:bg-node-foreground/90"
+          // 纸色反相丸（§5 落点⑤/§3）：深 chrome 顶栏上唯一的纸色 CTA，呼应
+          // 片名条材质，与右侧图标钮组（仍走深 chrome hover）区分主/次动作。
+          className="h-9 rounded-2xl bg-node-card-paper px-3 text-node-card-ink hover:bg-node-card-paper-strong"
         >
           <Plus className="size-4" />
           <span className="hidden sm:inline">{t('topbar.addNode')}</span>

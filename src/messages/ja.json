@@ -3174,12 +3174,12 @@
     },
     "statuses": {
       "idle": "待機中",
-      "queued": "キュー中",
+      "queued": "待機",
       "ready": "準備完了",
-      "running": "実行中",
-      "done": "完了",
-      "failed": "失敗",
-      "stale": "古い",
+      "running": "撮影中",
+      "done": "収録済み",
+      "failed": "NG",
+      "stale": "期限切れ",
       "disabled": "無効"
     },
     "composer": {

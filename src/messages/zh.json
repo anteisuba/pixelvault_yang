@@ -3174,13 +3174,13 @@
     },
     "statuses": {
       "idle": "空闲",
-      "queued": "排队",
+      "queued": "待拍",
       "ready": "就绪",
-      "running": "运行中",
-      "done": "完成",
-      "failed": "失败",
+      "running": "拍摄中",
+      "done": "已收",
+      "failed": "NG",
       "stale": "过期",
-      "disabled": "禁用"
+      "disabled": "停用"
     },
     "composer": {
       "promptLabel": "Composer 提示词",

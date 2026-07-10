@@ -244,7 +244,7 @@ export function ReferenceTokenChip({
           <p
             className={cn(
               'text-2xs leading-4',
-              data.dimmed ? 'text-node-danger' : 'text-node-muted',
+              data.dimmed ? 'text-node-status-failed' : 'text-node-muted',
             )}
           >
             {noInsertHint}

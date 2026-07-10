@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNodes } from '@xyflow/react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Minimize2 } from 'lucide-react'
@@ -16,7 +16,6 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
 
-import { ImageRolePickerBody } from '../nodes/ImageRolePicker'
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
 import { GenericDetailBody } from './GenericDetailBody'
 import { NODE_DETAIL_REGISTRY } from './registry'
@@ -68,56 +67,28 @@ export function NodeDetailPanel({
   const t = useTranslations('StudioNode.nodeDetail')
   const reducedMotion = useReducedMotion()
 
-  // Image nodes (option B) are a two-step flow: pick a role (角色/背景/镜头),
-  // then edit that role's detail. `showRolePicker` lets the role-detail view
-  // navigate back UP to the chooser via the breadcrumb (返回上一层) without
-  // leaving the panel — it's view state, not node data, so going back doesn't
-  // discard the role.
-  const [showRolePicker, setShowRolePicker] = useState(false)
-  // Reset the chooser view when the expanded node changes — the adjust-state-
-  // during-render pattern (no effect, no cascading render).
-  const [trackedNodeId, setTrackedNodeId] = useState(expandedNodeId)
-  if (trackedNodeId !== expandedNodeId) {
-    setTrackedNodeId(expandedNodeId)
-    setShowRolePicker(false)
-  }
-
   const node = expandedNodeId
     ? (nodes.find((candidate) => candidate.id === expandedNodeId) ?? null)
     : null
-  const isImageNode = node?.type === NODE_TYPE_IDS.image
-  // Show the role chooser when a freshly-added image node has no role yet OR the
-  // user navigated back up to it from a role's detail — NOT fall through to
-  // resolveNodePresentationType's `shot` default. Non-image nodes never show it.
-  const showPickerBody = Boolean(
-    isImageNode && (!node?.data.role || showRolePicker),
+  // S5d ③ retires the role-picker step entirely (node-canvas.md §6.0/§6.1):
+  // a role-less `image` node presents as `image` itself (→ `LooseImageDetailBody`,
+  // registry.ts), NOT `resolveNodePresentationType`'s `shot` fallback — 图片
+  // （素材）must read as its own kind, distinct from 镜头图（生成）.
+  const isLooseImage = Boolean(
+    node?.type === NODE_TYPE_IDS.image && !node.data.role,
   )
-  // A role's detail view has the chooser as its PARENT layer, so its breadcrumb
-  // returns there (返回上一层) instead of straight to the canvas.
-  const inImageRoleDetail = Boolean(
-    isImageNode && node?.data.role && !showRolePicker,
-  )
-  // Image nodes present as their legacy per-role type — reuses the existing
-  // badge / accent / i18n label / detail body for that role. While the chooser
-  // is shown the node presents as the neutral `image` type.
   const presentationType = node
-    ? showPickerBody
+    ? isLooseImage
       ? NODE_TYPE_IDS.image
       : resolveNodePresentationType(node)
     : null
-  // Breadcrumb parent crumb: each layer returns to the one above it. A role
-  // detail's parent is the image chooser; everything else returns to the canvas.
-  const parentCrumb = inImageRoleDetail
-    ? {
-        label: tTypes(NODE_TYPE_IDS.image),
-        title: t('backToRolePicker'),
-        onClick: () => setShowRolePicker(true),
-      }
-    : {
-        label: t('canvasCrumb'),
-        title: t('backToCanvas'),
-        onClick: onClose,
-      }
+  // Single-layer breadcrumb now that the role-picker parent layer is gone —
+  // every detail view returns straight to the canvas.
+  const parentCrumb = {
+    label: t('canvasCrumb'),
+    title: t('backToCanvas'),
+    onClick: onClose,
+  }
 
   useEffect(() => {
     if (!node) return
@@ -208,24 +179,17 @@ export function NodeDetailPanel({
               </div>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {showPickerBody ? (
-                <ImageRolePickerBody
-                  nodeId={node.id}
-                  onPicked={() => setShowRolePicker(false)}
-                />
-              ) : (
-                (() => {
-                  const Body =
-                    NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
-                  return (
-                    <Body
-                      nodeId={node.id}
-                      type={presentationType}
-                      data={node.data}
-                    />
-                  )
-                })()
-              )}
+              {(() => {
+                const Body =
+                  NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
+                return (
+                  <Body
+                    nodeId={node.id}
+                    type={presentationType}
+                    data={node.data}
+                  />
+                )
+              })()}
             </div>
           </motion.div>
         </motion.div>

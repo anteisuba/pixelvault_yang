@@ -7,12 +7,21 @@ import {
   useState,
   type ComponentType,
 } from 'react'
-import { Film, ImagePlus, Layers, Mic2, Video } from 'lucide-react'
+import {
+  Clapperboard,
+  Film,
+  ImagePlus,
+  Layers,
+  Mic2,
+  Video,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
 
 import {
+  NODE_IMAGE_ROLE_IDS,
   NODE_TYPE_IDS,
+  type NodeImageRole,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_STUDIO_ADD_MENU } from '@/constants/node-studio'
@@ -22,7 +31,7 @@ import { cn } from '@/lib/utils'
 interface CanvasAddMenuProps {
   open: boolean
   screenPosition: XYPosition | null
-  onSelect(type: NodeWorkflowNodeType): void
+  onSelect(type: NodeWorkflowNodeType, role?: NodeImageRole): void
   onClose(): void
 }
 
@@ -35,24 +44,65 @@ interface CanvasAddMenuLayout {
 }
 
 interface CanvasAddMenuItem {
+  /** Unique row key — two rows share `type: image` (素材/生成), so `type`
+   *  alone can't key the list. */
+  key: string
   type: NodeWorkflowNodeType
+  /** Role to stamp immediately on creation (bypasses any on-canvas chooser —
+   *  there isn't one anymore, S5d ③ retires it). Absent = role-less. */
+  role?: NodeImageRole
+  /** i18n label/helper key — defaults to `type` when unset (kept explicit
+   *  here since two rows now share a type). */
+  labelKey: string
   Icon: ComponentType<{ className?: string }>
 }
 
-// Flat list (post node-consolidation): only ~6 modality nodes, so category
-// tabs were dropped — search covers find-by-name without the overflowing
-// tab row. Order = elements first, then generators, then orchestration.
+// S5d ③「添加菜单更名区分」(node-canvas.md §6.1): the single ambiguous "image"
+// row (which used to defer to an on-canvas role picker) splits into two —
+// 图片（素材，role-less, upload-first 3-source starter）and 镜头图（生成，role
+// stamped `shot` immediately, same "role-preset on creation" pattern
+// `CastDock.handleCastCreate` already uses for character/background).
+// Voice/videoReference (owner 2026-07-10 追加拍板「音色/参考视频=素材」)
+// move back here — Cast 卡匣现在只放角色卡/场景卡（收集器），素材类创建走
+// this menu, "与图片三同权" (same tier as 图片（素材）).
 const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
   {
-    // Unified image node (option B): one menu entry; role (character /
-    // background / shot) is chosen in the node's empty-state picker.
+    key: 'image',
     type: NODE_TYPE_IDS.image,
+    labelKey: 'image',
     Icon: ImagePlus,
   },
-  { type: NODE_TYPE_IDS.voice, Icon: Mic2 },
-  { type: NODE_TYPE_IDS.videoReference, Icon: Film },
-  { type: NODE_TYPE_IDS.seedance, Icon: Video },
-  { type: NODE_TYPE_IDS.videoMerge, Icon: Layers },
+  {
+    key: 'shot',
+    type: NODE_TYPE_IDS.image,
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    labelKey: 'shot',
+    Icon: Clapperboard,
+  },
+  {
+    key: 'voice',
+    type: NODE_TYPE_IDS.voice,
+    labelKey: 'voice',
+    Icon: Mic2,
+  },
+  {
+    key: 'videoReference',
+    type: NODE_TYPE_IDS.videoReference,
+    labelKey: 'videoReference',
+    Icon: Film,
+  },
+  {
+    key: 'seedance',
+    type: NODE_TYPE_IDS.seedance,
+    labelKey: 'seedance',
+    Icon: Video,
+  },
+  {
+    key: 'videoMerge',
+    type: NODE_TYPE_IDS.videoMerge,
+    labelKey: 'videoMerge',
+    Icon: Layers,
+  },
 ] as const
 
 export function CanvasAddMenu({
@@ -183,15 +233,24 @@ export function CanvasAddMenu({
 
       <div className="space-y-1">
         {CANVAS_ADD_MENU_ITEMS.map((item) => {
-          const accent = NODE_ACCENTS[item.type]
+          // 镜头图（生成）row visually reads as its own family (accent token),
+          // even though it shares the unified `image` node TYPE with the
+          // 图片（素材）row — role decides accent, matching how the rest of
+          // the canvas resolves a role'd image node's presentation.
+          const accent =
+            NODE_ACCENTS[
+              item.role === NODE_IMAGE_ROLE_IDS.shot
+                ? NODE_TYPE_IDS.shot
+                : item.type
+            ]
           const Icon = item.Icon
 
           return (
             <button
-              key={item.type}
+              key={item.key}
               type="button"
               role="menuitem"
-              onClick={() => onSelect(item.type)}
+              onClick={() => onSelect(item.type, item.role)}
               className={cn(
                 'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
                 'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
@@ -208,10 +267,10 @@ export function CanvasAddMenu({
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-node-foreground">
-                  {t(`nodeTypes.${item.type}`)}
+                  {t(`nodeTypes.${item.labelKey}`)}
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-node-muted">
-                  {t(`addMenuHelpers.${item.type}`)}
+                  {t(`addMenuHelpers.${item.labelKey}`)}
                 </span>
               </span>
             </button>

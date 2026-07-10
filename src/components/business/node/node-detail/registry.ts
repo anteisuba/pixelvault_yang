@@ -8,6 +8,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 import { BackgroundDetailBody } from './BackgroundDetailBody'
 import { CharacterDetailBody } from './CharacterDetailBody'
+import { LooseImageDetailBody } from './LooseImageDetailBody'
 import { ShotDetailBody } from './ShotDetailBody'
 import { VideoDetailBody } from './VideoDetailBody'
 import { VideoReferenceDetailBody } from './VideoReferenceDetailBody'
@@ -34,4 +35,9 @@ export const NODE_DETAIL_REGISTRY: Partial<
   [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
   [NODE_TYPE_IDS.shot]: ShotDetailBody,
+  // S5d ③: a role-less (loose) image node presents as `image` itself (see
+  // `NodeDetailPanel`'s `isLooseImage` branch) instead of falling through to
+  // `resolveNodePresentationType`'s shot default — 图片（素材）must read as
+  // its own kind, not as 镜头图（生成）.
+  [NODE_TYPE_IDS.image]: LooseImageDetailBody,
 }

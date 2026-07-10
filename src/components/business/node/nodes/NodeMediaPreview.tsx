@@ -41,9 +41,6 @@ import { NodeExpandButton } from './NodeCardControls'
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
   type: NodeWorkflowNodeType
   kind: NodeWorkflowMediaKind
-  /** Unified image nodes pass this to re-open the role chooser from the card
-   *  (返回图片). Absent on standalone / legacy nodes, which have no chooser. */
-  onReChoose?: () => void
 }
 
 function getEmptyIcon(kind: NodeWorkflowMediaKind, type: NodeWorkflowNodeType) {
@@ -115,14 +112,11 @@ export function NodeMediaPreview({
   kind,
   data,
   selected,
-  onReChoose,
 }: NodeMediaPreviewProps) {
   const [videoAspect, setVideoAspect] = useState<number | null>(null)
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
-  const tTypes = useTranslations('StudioNode.nodeTypes')
-  const tPicker = useTranslations('StudioNode.imageRolePicker')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
@@ -148,24 +142,6 @@ export function NodeMediaPreview({
         type={type}
         status={data.status}
         title={getHeaderTitle(type, data)}
-        titleCrumb={
-          onReChoose ? (
-            <>
-              <button
-                type="button"
-                onClick={onReChoose}
-                aria-label={tPicker('reChoose')}
-                title={tPicker('reChoose')}
-                className="nodrag shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-              >
-                {tTypes(NODE_TYPE_IDS.image)}
-              </button>
-              <span aria-hidden className="shrink-0 text-node-subtle">
-                /
-              </span>
-            </>
-          ) : null
-        }
         action={<NodeExpandButton nodeId={id} />}
       />
       <NodeShell.Ingredients nodeId={id} />

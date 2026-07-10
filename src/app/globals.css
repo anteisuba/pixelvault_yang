@@ -1,4 +1,3 @@
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -137,6 +136,13 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
   --duration-reveal: 500ms;
+  /* 吞噬三拍专属曲线（node-canvas.md §8，与 src/constants/motion.ts
+     EASE_INGEST_CSS / EASE_SOFT_RETURN_CSS 同步）。CSS 侧只有 .node-card-paper
+     的拖拽微倾复用 --ease-standard；吸入/软弹回飞行路径走 Web Animations API
+     （use-cast-ingest.ts），这两个变量是给那条 JS 路径的具名常量落点（不允许
+     裸 cubic-bezier 字面量），也供本文件下方的 CSS 类兜底引用。 */
+  --ease-ingest: cubic-bezier(0.45, 0.05, 0.6, 1);
+  --ease-soft-return: cubic-bezier(0.3, 0.7, 0.4, 1.05);
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite
     alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
@@ -1431,6 +1437,48 @@ html:lang(zh) {
   border-radius: inherit;
   background: var(--node-foreground);
   animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
+}
+
+/* ── S5b 吞噬手势（node-canvas.md §6.3/§8）───────────────────────────
+   张口/咬不动的 outline+transform 反馈是纯 DOM 命令式切换（use-cast-ingest.ts
+   的 pointermove 命中检测直接 classList.add/remove 目标卡的 .node-card-paper
+   元素），刻意不改 NodeShell.tsx 的 JSX/state —— 命中的目标节点在拖拽过程中
+   不触发任何 React re-render，class 才不会被下一次渲染吐出的 className 字符
+   串覆盖掉（任务包 Allowed Scope 把 NodeShell.tsx 限定在成分栏 chip ×，这里
+   全靠 CSS class 名 + 内联 transform 绕开那个文件）。吸入/软弹回的副本飞行路
+   径改用 Web Animations API（起止点运行时算，量不出一条静态 keyframes），不
+   在这里定义。 */
+.node-ingest-bite {
+  transition:
+    transform 180ms var(--ease-standard),
+    outline-color 180ms var(--ease-standard);
+  outline: 2px solid var(--node-paint);
+  outline-offset: 4px;
+  border-radius: inherit;
+}
+.node-ingest-reject {
+  transition: outline-color 180ms var(--ease-standard);
+  outline: 2px solid var(--node-status-failed);
+  outline-offset: 4px;
+  border-radius: inherit;
+}
+
+/* 成分栏 chip 落定（§8「消化落定」: 340ms scale 0.3→1.2→1 overshoot）。类名常
+   驻在每个 chip 上，但 CSS animation 只在元素首次挂载（新增引用）时播放一次，
+   已存在的 chip 重渲染不会重放——不需要额外的一次性 class 摘除逻辑。 */
+@keyframes node-ingest-chip-pop {
+  0% {
+    transform: scale(0.3);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.node-ingest-chip-pop {
+  animation: node-ingest-chip-pop 340ms var(--ease-standard) both;
 }
 
 /* C4 监视器遮幅 — 上下 letterbox bars, 纯装饰，不接受交互。 */

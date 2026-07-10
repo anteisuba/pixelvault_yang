@@ -48,7 +48,10 @@ import { writeStudioNodeHandoff } from '@/lib/studio-node-handoff'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { CharacterImageLoraControls } from '@/components/business/node/CharacterImageLoraControls'
-import { CharacterImageReferenceControls } from '@/components/business/node/CharacterImageReferenceControls'
+import {
+  CharacterImageReferenceControls,
+  type CharacterReferenceGalleryExtraItem,
+} from '@/components/business/node/CharacterImageReferenceControls'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import {
@@ -85,6 +88,18 @@ interface NodeMediaInspectorProps {
    * the prompt, × to drop the edge). Only shot passes this today.
    */
   referenceChips?: ReactNode
+  /**
+   * S5c 二.2 档案面板视觉身份区: switches the reference-image control from the
+   * compact popover chip (default, every other caller) to the always-visible
+   * gallery grid. Only `CharacterImageInspector`/`BackgroundImageInspector`
+   * pass `'gallery'` (+ the two props below) — shot/frame/shotText keep the
+   * unchanged compact chip.
+   */
+  referenceGalleryMode?: 'popover' | 'gallery'
+  /** Gallery mode only: closeup images merged in read-only, labeled by source. */
+  referenceGalleryExtraItems?: readonly CharacterReferenceGalleryExtraItem[]
+  /** Gallery mode only: 拆出 (§三.4). */
+  onExtractReference?(referenceId: string): void
 }
 
 function getStatusLabelKey(
@@ -130,6 +145,9 @@ export function NodeMediaInspector({
   kind,
   roleExtras,
   referenceChips,
+  referenceGalleryMode = 'popover',
+  referenceGalleryExtraItems,
+  onExtractReference,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
@@ -604,6 +622,30 @@ export function NodeMediaInspector({
           </div>
         ) : null}
 
+        {/* S5c 二.2 视觉身份区: in gallery mode this sits OUTSIDE showAiForm —
+            a dossier's reference gallery is identity, not a step of "now
+            generating a new image," so it must stay visible in every source
+            tab (素材库/AI生成/Studio), not only behind editTarget==='ai'
+            (the compact-inspector default every other caller keeps). */}
+        {isImageNode && referenceGalleryMode === 'gallery' ? (
+          <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+            <CharacterImageReferenceControls
+              value={referenceAssets}
+              maxItems={maxReferenceImages}
+              onChange={(nextReferences) =>
+                updateNodeData(node.id, { referenceAssets: nextReferences })
+              }
+              mode="gallery"
+              extraItems={referenceGalleryExtraItems}
+              onExtract={
+                onExtractReference
+                  ? (reference) => onExtractReference(reference.id)
+                  : undefined
+              }
+            />
+          </div>
+        ) : null}
+
         {showAiForm ? (
           <>
             {referenceChips}
@@ -629,7 +671,18 @@ export function NodeMediaInspector({
               </div>
             )}
 
-            {isImageNode ? (
+            {isImageNode && referenceGalleryMode === 'gallery' ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+                <CharacterImageLoraControls
+                  value={loras}
+                  model={node.data.model}
+                  onChange={(nextLoras) =>
+                    updateNodeData(node.id, { loras: nextLoras })
+                  }
+                  onInsertTrigger={handleInsertLoraTrigger}
+                />
+              </div>
+            ) : isImageNode ? (
               <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
                 <CharacterImageReferenceControls
                   value={referenceAssets}

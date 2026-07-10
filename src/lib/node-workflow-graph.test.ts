@@ -4,6 +4,7 @@ import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
+  buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
   getNodeMediaUrl,
@@ -81,6 +82,39 @@ describe('node-workflow-graph predicates', () => {
     expect(isVoiceProfileNode(makeNode('f', NODE_TYPE_IDS.shotText))).toBe(
       false,
     )
+  })
+})
+
+describe('isKeyframeNode (S5d frame 关键帧兼容迁移)', () => {
+  it('still recognises the legacy role=frame / frameImage type unchanged', () => {
+    expect(
+      isKeyframeNode(makeNode('a', NODE_TYPE_IDS.image, { role: 'frame' })),
+    ).toBe(true)
+    expect(isKeyframeNode(makeNode('b', NODE_TYPE_IDS.frameImage))).toBe(true)
+  })
+
+  it('recognises a role-less image classified frameStart/frameEnd via imageCategory', () => {
+    expect(
+      isKeyframeNode(
+        makeNode('a', NODE_TYPE_IDS.image, { imageCategory: 'frameStart' }),
+      ),
+    ).toBe(true)
+    expect(
+      isKeyframeNode(
+        makeNode('b', NODE_TYPE_IDS.image, { imageCategory: 'frameEnd' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not treat every category as a keyframe', () => {
+    expect(
+      isKeyframeNode(
+        makeNode('a', NODE_TYPE_IDS.image, { imageCategory: 'style' }),
+      ),
+    ).toBe(false)
+    expect(
+      isKeyframeNode(makeNode('b', NODE_TYPE_IDS.image, { role: 'shot' })),
+    ).toBe(false)
   })
 })
 
@@ -409,6 +443,90 @@ describe('buildShotReferenceLegend', () => {
       ],
     ])
     expect(buildShotReferenceLegend(['https://cdn/x.png'], refByUrl)).toBe('')
+  })
+
+  // S5d ③ 分类进图例: a category-labeled entry (a shot's own referenceAssets)
+  // prints "图N = 名字（分类）" — a different format from the kind-based
+  // "图N：角色「名字」" line above, so the model doesn't read it as a subject.
+  it('labels a category entry with the "图N = 名字（分类）" format', () => {
+    const refByUrl = new Map<string, UpstreamImageReference>([
+      [
+        'https://cdn/char.png',
+        { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
+      ],
+      [
+        'https://cdn/prop.png',
+        { url: 'https://cdn/prop.png', name: '古剑', category: '道具' },
+      ],
+    ])
+    const legend = buildShotReferenceLegend(
+      ['https://cdn/char.png', 'https://cdn/prop.png'],
+      refByUrl,
+    )
+    expect(legend).toBe(
+      '参考图说明：\n图1：角色「yangyang」\n图2 = 古剑（道具）',
+    )
+  })
+})
+
+describe('buildReferenceAssetLegendEntries (S5d ③)', () => {
+  it('builds a category-labeled legend entry per named asset', () => {
+    const entries = buildReferenceAssetLegendEntries([
+      {
+        id: 'r1',
+        url: 'https://cdn/prop.png',
+        role: 'prop',
+        weight: 0.7,
+        source: 'upload',
+        name: '古剑',
+      },
+    ])
+    expect(entries.get('https://cdn/prop.png')).toEqual({
+      url: 'https://cdn/prop.png',
+      name: '古剑',
+      category: '道具',
+    })
+  })
+
+  it('uses customLabel for a custom-role asset', () => {
+    const entries = buildReferenceAssetLegendEntries([
+      {
+        id: 'r1',
+        url: 'https://cdn/x.png',
+        role: 'custom',
+        customLabel: '布景残片',
+        weight: 0.7,
+        source: 'upload',
+        name: '碎片',
+      },
+    ])
+    expect(entries.get('https://cdn/x.png')?.category).toBe('布景残片')
+  })
+
+  it('skips an unnamed asset and a custom-role asset with no typed label', () => {
+    const entries = buildReferenceAssetLegendEntries([
+      {
+        id: 'r1',
+        url: 'https://cdn/noname.png',
+        role: 'prop',
+        weight: 0.7,
+        source: 'upload',
+      },
+      {
+        id: 'r2',
+        url: 'https://cdn/nolabel.png',
+        role: 'custom',
+        weight: 0.7,
+        source: 'upload',
+        name: '某物',
+      },
+    ])
+    expect(entries.size).toBe(0)
+  })
+
+  it('returns an empty map for undefined/empty input', () => {
+    expect(buildReferenceAssetLegendEntries(undefined).size).toBe(0)
+    expect(buildReferenceAssetLegendEntries([]).size).toBe(0)
   })
 })
 

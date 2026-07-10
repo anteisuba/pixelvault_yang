@@ -61,3 +61,48 @@ export function motionTransition(
     ease: EASE_STANDARD,
   }
 }
+
+/**
+ * 吞噬三拍专属曲线（node-canvas.md §8，2026-07-10 owner demo 手感定稿，数值照抄）。
+ * 与 EASE_STANDARD 分开命名——这两拍的手感（快吸入 / 软回弹）明显偏离全站默认
+ * 曲线，不能共用一条。CSS 侧的同名变量在 globals.css `@theme`
+ * （--ease-ingest / --ease-soft-return），Web Animations API（`Element.animate`）
+ * 调用方直接用这两个字符串常量做 `easing`。
+ */
+export const EASE_INGEST_CSS = 'cubic-bezier(0.45, 0.05, 0.6, 1)'
+export const EASE_SOFT_RETURN_CSS = 'cubic-bezier(0.3, 0.7, 0.4, 1.05)'
+
+/**
+ * 吞噬三拍数值表（node-canvas.md §8「幅度加强」档，逐字照抄，不做二次设计）。
+ * `use-cast-ingest.ts` 的 Web Animations API keyframes 全部从这里取值——手势里
+ * 不允许出现裸数字（禁 inline 魔法值，任务包 B1-3 红线）。
+ */
+export const INGEST_MOTION = {
+  /** 张口：拖拽物进入合法目标热区。 */
+  biteDurationMs: 180,
+  biteScale: 1.08,
+  biteTiltDeg: 1.5,
+  biteOutlineWidthPx: 2,
+  biteOutlineOffsetPx: 4,
+  /** 吸入：松手后副本沿弧线飞入目标。 */
+  swallowDurationMs: 620,
+  swallowArcRiseRatio: 0.22,
+  swallowSquashScaleX: 1.18,
+  swallowSquashScaleY: 0.9,
+  swallowEndScale: 0.16,
+  swallowEndRotateDeg: 12,
+  /** 消化落定：目标 gulp overshoot + 成分 chip pop。 */
+  gulpDurationMs: 480,
+  gulpOvershootScaleX: 0.98,
+  gulpOvershootScaleY: 1.05,
+  chipPopDurationMs: 340,
+  chipPopScale: 1.2,
+  /** 咬不动：软弹回 + 摇头。 */
+  rejectDurationMs: 950,
+  rejectLungeRatio: 0.58,
+  rejectShakeDurationMs: 330,
+  rejectShakeAmplitudePx: 5,
+  rejectReasonVisibleMs: 2400,
+  /** 拖拽判定阈值（§6.3：pointerdown 超过阈值才进入拖拽，否则按普通点击处理）。 */
+  dragThresholdPx: 6,
+} as const

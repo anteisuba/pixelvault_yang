@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type RefObject,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
@@ -30,14 +31,18 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  NODE_STUDIO_BOTTOM_DOCK,
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DOCK,
+  NODE_STUDIO_DOCK_RESIZE,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS,
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
   type NodeStudioToolMode,
@@ -51,9 +56,11 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
+  type NodeImageRole,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import { INGEST_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
 import { AUDIO_EMOTIONS, type AudioEmotion } from '@/constants/voice-cards'
 import {
@@ -67,12 +74,22 @@ import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
+  applyBiteHover,
+  clearBiteHover,
+  findNodeCardElement,
+  playCanvasFuseSwallowAnimation,
+  playTargetGulpAnimation,
+  playTargetRejectShakeAnimation,
+} from '@/hooks/node/use-cast-ingest'
+import { useCanvasImageDrop } from '@/hooks/node/use-canvas-image-drop'
+import {
   createDefaultNodeData,
   useNodeWorkflow,
 } from '@/hooks/node/use-node-workflow'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
+  buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
   getUpstreamNodes,
@@ -113,6 +130,9 @@ import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
+import { CastDock, isCastIdentityNode, type CastSectionId } from './CastDock'
+import { createReferenceAsset } from './CharacterImageReferenceControls'
+import { IngestDragProvider } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import {
   NodeWorkflowActionsProvider,
@@ -186,6 +206,49 @@ interface AddMenuState {
   flowPosition: XYPosition
 }
 
+/**
+ * S5d ⑤/【紧急修复】: pure legality check shared by the 张口 bite-hover
+ * preview (during native drag, `handleNodeDrag`) and the actual fuse mutation
+ * (`handleFuseLooseImageNode`) — one source of truth so the bite preview
+ * never promises a fuse the drop then rejects. Mirrors
+ * `handleFuseLooseImageNode`'s own checks minus the mutation.
+ */
+function isLegalLooseImageFuseTarget(
+  sourceNode: NodeWorkflowNode,
+  targetNode: NodeWorkflowNode,
+): boolean {
+  if (sourceNode.id === targetNode.id) return false
+  const targetIsIdentityImage =
+    (targetNode.type === NODE_TYPE_IDS.image &&
+      (targetNode.data.role === NODE_IMAGE_ROLE_IDS.character ||
+        targetNode.data.role === NODE_IMAGE_ROLE_IDS.background)) ||
+    targetNode.type === NODE_TYPE_IDS.characterImage ||
+    targetNode.type === NODE_TYPE_IDS.backgroundImage
+  if (!targetIsIdentityImage) return false
+
+  const mediaUrl =
+    typeof sourceNode.data.mediaUrl === 'string'
+      ? sourceNode.data.mediaUrl.trim()
+      : ''
+  if (!mediaUrl) return false
+
+  const existing = targetNode.data.referenceAssets ?? []
+  const alreadyFused = existing.some(
+    (reference) =>
+      reference.source === NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas &&
+      reference.sourceId === sourceNode.id,
+  )
+  if (alreadyFused) return false
+
+  const maxItems = targetNode.data.model
+    ? getMaxReferenceImages(
+        targetNode.data.model.adapterType,
+        targetNode.data.model.modelId,
+      )
+    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
+  return existing.length < maxItems
+}
+
 export function StudioNodeWorkbench() {
   const canvasRef = useRef<HTMLElement | null>(null)
 
@@ -227,6 +290,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const seedancePromptPlan = useSeedancePromptPlan()
   const characterImageGeneration = useCharacterImageGeneration()
   const nodeMediaGeneration = useNodeMediaGeneration()
+  const canvasImageDrop = useCanvasImageDrop()
   const modelOptionsByType = useWorkflowModelOptions()
   // Backfill in-flight generations whose foreground poll timed out (or whose
   // tab reloaded mid-run) by re-querying their persisted jobId on mount/focus.
@@ -373,12 +437,22 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   )
 
   const handleAddNode = useCallback(
-    (type: NodeWorkflowNodeType) => {
+    (type: NodeWorkflowNodeType, role?: NodeImageRole) => {
       if (!addMenu) {
         return
       }
 
-      workflow.addNode(type, addMenu.flowPosition)
+      const newId = workflow.addNode(type, addMenu.flowPosition)
+      // S5d ③「镜头图（生成）」add-menu row: stamp role immediately (same
+      // role-preset-on-creation pattern CastDock.handleCastCreate uses for
+      // character/background) so it never passes through the (now retired)
+      // on-canvas role picker.
+      if (role) {
+        workflow.updateNodeData(newId, {
+          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[role]),
+          role,
+        })
+      }
       closeAddMenu()
     },
     [addMenu, closeAddMenu, workflow],
@@ -812,10 +886,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         maxReferenceImages,
       )
       // Map harvested references by URL so the legend labels each by its FINAL
-      // position in referenceImages (after dedup + cap).
+      // position in referenceImages (after dedup + cap). S5d ③ 分类进图例:
+      // seed from the node's OWN category-labeled referenceAssets first (a
+      // shot's manually-added 风格/道具/关键帧 refs), then let the upstream
+      // character/background harvest OVERWRITE on a URL collision — a named
+      // upstream subject is the more specific label when both exist for the
+      // same url.
       const referenceByUrl = new Map<string, UpstreamImageReference>(
-        upstreamImageReferences.map((reference) => [reference.url, reference]),
+        buildReferenceAssetLegendEntries(node.data.referenceAssets),
       )
+      for (const reference of upstreamImageReferences) {
+        referenceByUrl.set(reference.url, reference)
+      }
       // Video legend (§7.2⑦ / §9 D): bind every sent 图N/视N/音N slot to its
       // subject so the composer's @name / @特写N / @视频N tokens resolve. Auto-name
       // prefixes come from the SAME i18n key the composer's autoName uses, so the
@@ -1106,10 +1188,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
 
   // §7.1 部门条 ＋添加位: create an upstream reference node from an already
   // resolved asset (uploaded or picked from the library) and wire it into the
-  // target video node. Reuses createDefaultNodeData so a role-stamped image
-  // node matches ImageRolePicker exactly (single source of truth), and mirrors
-  // NodeMediaInspector's existing-image field set so the spawned node reads as
-  // "已有素材" not a blank generator.
+  // target video node. Reuses createDefaultNodeData (same role-stamp-on-
+  // creation helper CastDock's ＋新建 and the add-menu's 镜头图 row use), and
+  // mirrors NodeMediaInspector's existing-image field set so the spawned node
+  // reads as "已有素材" not a blank generator.
   const handleSpawnReference = useCallback(
     (input: SpawnReferenceInput): string => {
       const target = workflow.nodes.find(
@@ -1185,6 +1267,44 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [workflow],
   )
 
+  // Cast dock "＋新建" (S5a §6.2): character/background spawn a unified
+  // `image` node and stamp its role immediately (same role-preset-on-
+  // creation pattern the add-menu's 镜头图 row uses, S5d ③ — no on-canvas
+  // role chooser exists anymore to skip); voice/videoReference spawn their own
+  // node type directly (no role to preset). New nodes stagger vertically off
+  // the shared topbar-add anchor (reusing the same offset the ＋添加位
+  // autospawn uses) so repeated clicks don't stack exact duplicates, then get
+  // focused so the dock's action has visible on-canvas feedback.
+  const handleCastCreate = useCallback(
+    (sectionId: CastSectionId) => {
+      const anchor = NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition
+      const position = {
+        x: anchor.x,
+        y:
+          anchor.y +
+          (workflow.nodes.length % 6) *
+            NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
+      }
+
+      if (
+        sectionId === NODE_IMAGE_ROLE_IDS.character ||
+        sectionId === NODE_IMAGE_ROLE_IDS.background
+      ) {
+        const newId = workflow.addNode(NODE_TYPE_IDS.image, position)
+        workflow.updateNodeData(newId, {
+          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[sectionId]),
+          role: sectionId,
+        })
+        handleFocusNode(newId)
+        return
+      }
+
+      const newId = workflow.addNode(sectionId, position)
+      handleFocusNode(newId)
+    },
+    [handleFocusNode, workflow],
+  )
+
   const handleFocusGeneratedNodes = useCallback(() => {
     if (workflow.nodes.length === 0) return
     window.setTimeout(() => {
@@ -1241,6 +1361,83 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [toolMode],
   )
 
+  // S5d ②「隐藏条件修正」(node-canvas.md §6.0 owner 拍板，取代 S5b B1-6 的
+  // "类型一律隐藏"): a Cast identity node folds hidden only once it has been
+  // EATEN by something — i.e. it's the SOURCE of at least one edge (吞噬 =
+  // 建边，use-cast-ingest.ts 的 onConnect 恒定 source=身份节点/target=消费者)。
+  // 零引用的角色/背景/音色/参考视频卡显示在画布上；拆掉最后一条引用边（成分栏
+  // × / 胃取出）时这个 Set 自然少一个 id，卡片下一次渲染就回画布——不需要额外
+  // un-hide 逻辑，纯粹从 workflow.edges 派生。
+  const castIdentityNodeIdsWithOutgoingEdge = useMemo(() => {
+    const ids = new Set<string>()
+    for (const edge of workflow.edges) {
+      ids.add(edge.source)
+    }
+    return ids
+  }, [workflow.edges])
+  // 渲染退场（node-canvas.md §6.3「吞噬是纯渲染层折叠」）: fold into ReactFlow
+  // `hidden` at RENDER TIME only — the data model (`workflow.nodes`) this
+  // derives from is untouched, so undo/save/reload all still see the real
+  // graph. Shot/frame image cards ("镜头图卡" — 中鱼) are deliberately NOT in
+  // `isCastIdentityNode`, so they stay visible regardless of edges.
+  // S5c 三.3 追加同一条规矩（S5d 对齐到同一条"有下游引用才隐藏"）: a loose
+  // image node fused into a character/background's referenceAssets
+  // (`data.fusedIntoNodeId` set) folds hidden the same way — still a
+  // `hidden` flag on the real node, never a filtered array, so 拆出
+  // (extract) just clears the flag to bring it back.
+  const renderedNodes = useMemo(
+    () =>
+      workflow.nodes.map((node) =>
+        (isCastIdentityNode(node) &&
+          castIdentityNodeIdsWithOutgoingEdge.has(node.id)) ||
+        node.data.fusedIntoNodeId
+          ? { ...node, hidden: true }
+          : node,
+      ),
+    [workflow.nodes, castIdentityNodeIdsWithOutgoingEdge],
+  )
+  // 连线渲染退场: every edge goes into the store flagged `hidden` — ReactFlow
+  // paints nothing, but `useEdges()` consumers (成分栏 / DepartmentStrip 参考
+  // 面板 / CastDock 出演计数 / inspectors) still see the full graph. Handing
+  // <ReactFlow> an EMPTY array instead would starve all of them (they read the
+  // render store, not `workflow.edges`). Reverting the whole slice is a
+  // one-line change back to `workflow.edges` here.
+  const renderedEdges = useMemo<NodeWorkflowEdge[]>(
+    () => workflow.edges.map((edge) => ({ ...edge, hidden: true })),
+    [workflow.edges],
+  )
+
+  // S5b B0: shared inset for the merged bottom row (toolbar + Cast handle) —
+  // the same "clear the assistant dock" math CanvasBottomDock/CastDock used
+  // to each compute on their own before the merge.
+  const bottomRowInsetPx = useMemo(() => {
+    const assistantDockWidthPx = assistantExpanded
+      ? NODE_STUDIO_DOCK_RESIZE.expandedWidthPx
+      : NODE_STUDIO_DOCK_RESIZE.defaultWidthPx
+    const right = assistantDockOpen
+      ? assistantDockWidthPx +
+        NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx +
+        NODE_STUDIO_BOTTOM_DOCK.assistantGapPx
+      : NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx
+    return { left: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx, right }
+  }, [assistantDockOpen, assistantExpanded])
+
+  // 落卡 = 建边（B1-4）: the ingest engine's ONLY data mutation, reusing the
+  // exact same addEdge path onConnect already uses (idempotent — a duplicate
+  // source→target is rejected before this is ever called, see
+  // use-cast-ingest.ts's evaluateCastIngest).
+  const handleIngestConnect = useCallback(
+    (sourceId: string, targetId: string) => {
+      workflow.onConnect({
+        source: sourceId,
+        target: targetId,
+        sourceHandle: null,
+        targetHandle: null,
+      })
+    },
+    [workflow],
+  )
+
   // §6 connection contract: reject self-loops and any (source→target) node-type
   // pair the strict matrix doesn't allow. Existing edges aren't affected — this
   // only gates new connection attempts.
@@ -1277,6 +1474,353 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [t, toolMode, workflow],
   )
 
+  // S5c 三.3 融合（散图→角色/背景卡）: the ONLY data mutation is appending a
+  // `source:'canvas'` referenceAssets entry on the target + folding the loose
+  // source node hidden (`fusedIntoNodeId`) — no edge, unlike Cast-card ingest
+  // (吞噬 = 建边). Legality mirrors evaluateCastIngest's vocabulary (illegal
+  // target / duplicate / capacity-full) without importing that hook: the
+  // gesture here is canvas-node-drag-driven (`onNodeDragStop`), not the
+  // Cast-card pointer engine, so it earns its own small check instead of
+  // forcing a shared abstraction across two different drag origins.
+  const handleFuseLooseImageNode = useCallback(
+    (sourceNodeId: string, targetNodeId: string): boolean => {
+      const sourceNode = workflow.nodes.find((node) => node.id === sourceNodeId)
+      const targetNode = workflow.nodes.find((node) => node.id === targetNodeId)
+      if (!sourceNode || !targetNode) return false
+      if (!isLegalLooseImageFuseTarget(sourceNode, targetNode)) return false
+
+      const existing = targetNode.data.referenceAssets ?? []
+      const mediaUrl =
+        typeof sourceNode.data.mediaUrl === 'string'
+          ? sourceNode.data.mediaUrl.trim()
+          : ''
+      const name =
+        typeof sourceNode.data.mediaLabel === 'string' &&
+        sourceNode.data.mediaLabel.trim()
+          ? sourceNode.data.mediaLabel.trim()
+          : undefined
+      // S5d ③: a loose image already classified before fusion (e.g. 关键帧首)
+      // keeps that category inside the card's gallery instead of resetting
+      // to the default `identity` role.
+      const categorySeed = sourceNode.data.imageCategory
+        ? {
+            role: sourceNode.data.imageCategory,
+            customLabel: sourceNode.data.imageCategoryLabel,
+          }
+        : undefined
+
+      workflow.updateNodeData(targetNodeId, {
+        referenceAssets: [
+          ...existing,
+          createReferenceAsset(
+            mediaUrl,
+            NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
+            sourceNodeId,
+            name,
+            categorySeed,
+          ),
+        ],
+      })
+      workflow.updateNodeData(sourceNodeId, { fusedIntoNodeId: targetNodeId })
+      return true
+    },
+    [workflow],
+  )
+
+  // S5c 三.4 拆出（对称无损，「拆出 = 落画布」）: a canvas-sourced reference
+  // un-hides its origin node in place; an upload/asset/paste-sourced one
+  // materializes a fresh loose node at the viewport center — either path
+  // leaves the character/background's referenceAssets one entry shorter.
+  const handleExtractReference = useCallback(
+    (nodeId: string, referenceId: string) => {
+      const node = workflow.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      const references = node.data.referenceAssets ?? []
+      const reference = references.find((entry) => entry.id === referenceId)
+      if (!reference) return
+
+      workflow.updateNodeData(nodeId, {
+        referenceAssets: references.filter((entry) => entry.id !== referenceId),
+      })
+
+      if (
+        reference.source === NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas &&
+        reference.sourceId
+      ) {
+        const originNodeId = reference.sourceId
+        const originStillExists = workflow.nodes.some(
+          (candidate) => candidate.id === originNodeId,
+        )
+        if (originStillExists) {
+          workflow.updateNodeData(originNodeId, { fusedIntoNodeId: undefined })
+          return
+        }
+        // Origin node was deleted independently — fall through and
+        // materialize a fresh loose node from the still-good url below.
+      }
+
+      const viewportCenter = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+      const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, viewportCenter)
+      workflow.updateNodeData(newNodeId, {
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        mediaUrl: reference.url,
+        mediaLabel: reference.name,
+        sourceLabel: reference.name,
+        generationStatus: NODE_GENERATION_STATUS_IDS.success,
+        status: NODE_STATUS_IDS.done,
+      })
+    },
+    [screenToFlowPosition, workflow],
+  )
+
+  // 【紧急修复】融合三拍动画补齐 (owner 2026-07-10 实测反馈①): the fusion
+  // gesture rides ReactFlow's native node drag, which has no per-frame hook
+  // of its own — `onNodeDrag` fires continuously while ANY node drags, so
+  // this hit-tests + applies/clears 张口 (bite hover) on the current legal
+  // target, mirroring `use-cast-ingest.ts`'s own pointer-move bite logic via
+  // the SAME exported `applyBiteHover`/`clearBiteHover`/`findNodeCardElement`
+  // helpers (no second curve invented). Tracked in refs (not state) — this
+  // fires every pointer-move-equivalent frame, a state write here would
+  // thrash re-renders across the whole canvas.
+  const fuseBiteTargetIdRef = useRef<string | null>(null)
+  const fuseBiteTargetElRef = useRef<HTMLElement | null>(null)
+
+  const handleNodeDrag = useCallback(
+    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      if (node.type !== NODE_TYPE_IDS.image || node.data.role) return
+      const mediaUrl =
+        typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
+      if (!mediaUrl) return
+
+      const stackedElements = document.elementsFromPoint(
+        event.clientX,
+        event.clientY,
+      )
+      let targetId: string | null = null
+      for (const candidate of stackedElements) {
+        if (!(candidate instanceof Element)) continue
+        const canvasNode = candidate.closest<HTMLElement>(
+          '.react-flow__node[data-id]',
+        )
+        const canvasNodeId = canvasNode?.getAttribute('data-id')
+        if (canvasNode && canvasNodeId && canvasNodeId !== node.id) {
+          targetId = canvasNodeId
+          break
+        }
+        const dockCard = candidate.closest<HTMLElement>(
+          '[data-cast-card-node-id]',
+        )
+        const dockCardId = dockCard?.getAttribute('data-cast-card-node-id')
+        if (dockCard && dockCardId && dockCardId !== node.id) {
+          targetId = dockCardId
+          break
+        }
+      }
+
+      if (targetId === fuseBiteTargetIdRef.current) return
+
+      if (fuseBiteTargetElRef.current) {
+        clearBiteHover(fuseBiteTargetElRef.current)
+        fuseBiteTargetElRef.current = null
+      }
+      fuseBiteTargetIdRef.current = targetId
+      if (!targetId) return
+
+      const targetNode = workflow.nodes.find(
+        (candidate) => candidate.id === targetId,
+      )
+      if (!targetNode || !isLegalLooseImageFuseTarget(node, targetNode)) return
+
+      const el =
+        findNodeCardElement(targetId) ??
+        document.querySelector<HTMLElement>(
+          `[data-cast-card-node-id="${targetId}"]`,
+        )
+      applyBiteHover(el, INGEST_MOTION.biteTiltDeg)
+      fuseBiteTargetElRef.current = el
+    },
+    [workflow.nodes],
+  )
+
+  // S5c 三.3「onNodeDragStop 包围盒命中检测」(任务包原话) — reuses ReactFlow's
+  // OWN native node-drag lifecycle (nodes are already draggable for plain
+  // repositioning) instead of standing up a second custom pointer/ghost
+  // engine for the reverse gesture direction. The dragged NODE ITSELF is the
+  // visual "flight" for onscreen repositioning, but S5d's urgent fix adds
+  // back a real 吸入 flight ghost (`playCanvasFuseSwallowAnimation`) for the
+  // fusion beat itself — this hit-tests the drop point against currently-
+  // rendered canvas nodes / Cast cards (`data-cast-card-node-id`) and plays
+  // the full three-beat (张口 already applied by `handleNodeDrag` above,
+  // 吸入 + 落定 here) on a legal fuse, or the reject shake otherwise.
+  // Dropping on empty canvas or a non-card element is a no-op — the node
+  // simply stays wherever the native drag left it, a perfectly legal loose-
+  // image resting position (§三.1 散图 = 合法稳态).
+  const handleNodeDragStop = useCallback(
+    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      // Clear any 张口 bite-hover state `handleNodeDrag` left applied,
+      // regardless of what happens below — a stale outline/scale must never
+      // survive past the drop.
+      if (fuseBiteTargetElRef.current) {
+        clearBiteHover(fuseBiteTargetElRef.current)
+        fuseBiteTargetElRef.current = null
+      }
+      fuseBiteTargetIdRef.current = null
+
+      if (node.type !== NODE_TYPE_IDS.image || node.data.role) return
+      const mediaUrl =
+        typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
+      if (!mediaUrl) return
+
+      // S5d ⑤「融合目标改画布」: fix #2 makes zero-reference character/
+      // background cards visible ON CANVAS, so dropping directly onto one is
+      // now the primary path. `elementsFromPoint` (plural — every element
+      // stacked at that point, topmost first), not `elementFromPoint`: the
+      // just-dropped node's OWN `.react-flow__node` wrapper sits exactly
+      // under the cursor too (ReactFlow raises a dragged node's z-index) and
+      // would otherwise shadow the target beneath it, so the loop below
+      // explicitly skips any candidate whose id matches the dragged node.
+      // The Cast dock flyout's own card markup (`[data-cast-card-node-id]`)
+      // is checked too, so fusing into an ALREADY-consumed (hence hidden)
+      // card via the still-open dock keeps working — S5c's original path,
+      // not removed, just no longer the only one.
+      const stackedElements = document.elementsFromPoint(
+        event.clientX,
+        event.clientY,
+      )
+      let cardElement: HTMLElement | null = null
+      let targetNodeId: string | null = null
+      for (const candidate of stackedElements) {
+        if (!(candidate instanceof Element)) continue
+        const canvasNode = candidate.closest<HTMLElement>(
+          '.react-flow__node[data-id]',
+        )
+        const canvasNodeId = canvasNode?.getAttribute('data-id')
+        if (canvasNode && canvasNodeId && canvasNodeId !== node.id) {
+          cardElement = canvasNode
+          targetNodeId = canvasNodeId
+          break
+        }
+        const dockCard = candidate.closest<HTMLElement>(
+          '[data-cast-card-node-id]',
+        )
+        const dockCardId = dockCard?.getAttribute('data-cast-card-node-id')
+        if (dockCard && dockCardId && dockCardId !== node.id) {
+          cardElement = dockCard
+          targetNodeId = dockCardId
+          break
+        }
+      }
+      if (!cardElement || !targetNodeId) return
+
+      // Capture the DRAGGED node's own rendered card BEFORE mutating —
+      // `handleFuseLooseImageNode` sets `fusedIntoNodeId` synchronously,
+      // which folds this node `hidden` on the NEXT render. The ghost clone
+      // below is a snapshot taken while it's still on screen, so the flight
+      // starts from exactly where the node visually sits.
+      const sourceEl = findNodeCardElement(node.id)
+
+      const fused = handleFuseLooseImageNode(node.id, targetNodeId)
+      if (fused) {
+        const targetNodeIdForAnimation = targetNodeId
+        const announceFused = () =>
+          toast.success(t('ingest.looseImageFused'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+        if (sourceEl) {
+          playCanvasFuseSwallowAnimation(
+            sourceEl,
+            targetNodeIdForAnimation,
+            announceFused,
+          )
+        } else {
+          // No DOM element found for the dragged node (shouldn't normally
+          // happen) — degrade to the target's own gulp bounce, same as
+          // before this fix, so the fuse itself never silently loses its
+          // feedback.
+          playTargetGulpAnimation(cardElement)
+          announceFused()
+        }
+        return
+      }
+      playTargetRejectShakeAnimation(cardElement)
+      toast.error(t('ingest.looseImageFuseRejected'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [handleFuseLooseImageNode, t],
+  )
+
+  // S5c 三.2 本地文件拖入画布空白处: standard HTML5 DnD (this is a raw OS file
+  // drag, not the S5b custom pointer engine — `ReactFlowProps` forwards
+  // `onDrop`/`onDragOver` straight to the pane wrapper div). Upload reuses
+  // `use-canvas-image-drop.ts` (same R2 primitive as the reference gallery);
+  // each successful upload becomes its own role-less loose image node
+  // (§三.1 稳态) at the drop point, staggered so multiple files never stack
+  // exactly. A toast carries "上传中占位态" + "失败大声报错" (errors surface
+  // per-file inside the hook already).
+  const handleCanvasDragOver = useCallback((event: ReactDragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleCanvasDrop = useCallback(
+    (event: ReactDragEvent) => {
+      const files = Array.from(event.dataTransfer.files)
+      if (files.length === 0) return
+      event.preventDefault()
+
+      const dropPosition = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      })
+      const loadingToastId = toast.loading(
+        t('ingest.looseImage.uploading', { count: files.length }),
+      )
+
+      void canvasImageDrop.uploadFiles(files).then((uploaded) => {
+        toast.dismiss(loadingToastId)
+        if (uploaded.length === 0) return
+
+        uploaded.forEach((result, index) => {
+          const position = {
+            x:
+              dropPosition.x +
+              index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.offsetX,
+            y:
+              dropPosition.y +
+              index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
+          }
+          const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
+          workflow.updateNodeData(newNodeId, {
+            imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+            mediaKind: NODE_MEDIA_KIND_IDS.image,
+            mediaUrl: result.url,
+            mediaLabel: result.name,
+            sourceLabel: result.name,
+            generationStatus: NODE_GENERATION_STATUS_IDS.success,
+            status: NODE_STATUS_IDS.done,
+          })
+        })
+
+        toast.success(
+          t('ingest.looseImage.uploaded', { count: uploaded.length }),
+          {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          },
+        )
+      })
+    },
+    [canvasImageDrop, screenToFlowPosition, t, workflow],
+  )
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
@@ -1298,6 +1842,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       focusGeneratedNodes: handleFocusGeneratedNodes,
       focusNode: handleFocusNode,
       spawnReference: handleSpawnReference,
+      fuseLooseImageNode: handleFuseLooseImageNode,
+      extractReference: handleExtractReference,
       toolMode,
       setToolMode,
       expandedNodeId,
@@ -1314,6 +1860,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       handleFocusGeneratedNodes,
       handleFocusNode,
       handleSpawnReference,
+      handleFuseLooseImageNode,
+      handleExtractReference,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
       modelOptionsByType,
@@ -1342,168 +1890,200 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   return (
     <>
       <NodeWorkflowActionsProvider value={workflowActions}>
-        <ReactFlow
+        <IngestDragProvider
           nodes={workflow.nodes}
           edges={workflow.edges}
-          nodeTypes={NODE_COMPONENTS}
-          edgeTypes={NODE_EDGE_COMPONENTS}
-          onNodesChange={workflow.onNodesChange}
-          onEdgesChange={workflow.onEdgesChange}
-          onConnect={workflow.onConnect}
-          isValidConnection={isValidConnection}
-          onEdgeClick={handleEdgeClick}
-          onPaneClick={closeAddMenu}
-          onPaneContextMenu={handlePaneContextMenu}
-          onNodesDelete={handleNodesDelete}
-          deleteKeyCode={['Backspace', 'Delete']}
-          defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
-          defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
-          connectionLineType={ConnectionLineType.SmoothStep}
-          connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
-          proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
-          nodesDraggable
-          nodesConnectable
-          elementsSelectable
-          panOnDrag={panOnDrag}
-          panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
-          selectionOnDrag
-          selectionMode={SelectionMode.Partial}
-          zoomOnScroll
-          fitView={false}
-          className="bg-node-canvas"
+          onConnect={handleIngestConnect}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={NODE_STUDIO_CANVAS.background.gap}
-            size={NODE_STUDIO_CANVAS.background.size}
-            color={NODE_STUDIO_CANVAS.background.color}
-          />
-          <CanvasMiniMap />
-        </ReactFlow>
-        {workflow.nodes.length === 0 && (
-          <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
-            <NodeCanvasEmptyGuide
-              onChatOutline={() => {
-                setAssistantDockOpen(true)
-                setAssistantExpanded(true)
+          <ReactFlow
+            nodes={renderedNodes}
+            edges={renderedEdges}
+            nodeTypes={NODE_COMPONENTS}
+            edgeTypes={NODE_EDGE_COMPONENTS}
+            onNodesChange={workflow.onNodesChange}
+            onEdgesChange={workflow.onEdgesChange}
+            onConnect={workflow.onConnect}
+            isValidConnection={isValidConnection}
+            onEdgeClick={handleEdgeClick}
+            onPaneClick={closeAddMenu}
+            onPaneContextMenu={handlePaneContextMenu}
+            onNodesDelete={handleNodesDelete}
+            onNodeDrag={handleNodeDrag}
+            onNodeDragStop={handleNodeDragStop}
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+            deleteKeyCode={['Backspace', 'Delete']}
+            defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
+            defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
+            connectionLineType={ConnectionLineType.SmoothStep}
+            connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
+            proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
+            nodesDraggable
+            nodesConnectable
+            elementsSelectable
+            panOnDrag={panOnDrag}
+            panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
+            selectionOnDrag
+            selectionMode={SelectionMode.Partial}
+            zoomOnScroll
+            fitView={false}
+            className="bg-node-canvas"
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={NODE_STUDIO_CANVAS.background.gap}
+              size={NODE_STUDIO_CANVAS.background.size}
+              color={NODE_STUDIO_CANVAS.background.color}
+            />
+            <CanvasMiniMap />
+          </ReactFlow>
+          {workflow.nodes.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
+              <NodeCanvasEmptyGuide
+                onChatOutline={() => {
+                  setAssistantDockOpen(true)
+                  setAssistantExpanded(true)
+                }}
+                onAddNode={handleTopbarAddClick}
+              />
+            </div>
+          )}
+          <div className="pointer-events-none absolute inset-0 z-10">
+            {topbarOpen ? (
+              <CanvasTopBar
+                nodeCount={workflow.nodes.length}
+                projectName={workflow.currentProjectName}
+                projects={workflow.projects}
+                currentProjectId={workflow.currentProjectId}
+                onAddClick={handleTopbarAddClick}
+                onArrange={handleTidyLayout}
+                onSave={handleSaveNow}
+                isSaving={isSaving}
+                onCreateProject={handleCreateProject}
+                onRenameProject={handleRenameProject}
+                onDeleteProject={handleDeleteProject}
+                onSwitchProject={handleSwitchProject}
+                onCollapse={() => setTopbarOpen(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                aria-label={t('topbar.expand')}
+                title={t('topbar.expand')}
+                onClick={() => setTopbarOpen(true)}
+                className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-focus-ring/40 hover:bg-node-panel-inner md:left-6"
+              >
+                <PanelTopOpen className="size-4 text-node-foreground" />
+                <span className="truncate">{workflow.currentProjectName}</span>
+              </button>
+            )}
+            <StudioNodeAssistantDock
+              open={assistantDockOpen}
+              expanded={assistantExpanded}
+              projectName={workflow.currentProjectName}
+              nodes={workflow.nodes}
+              scriptDoc={workflow.scriptDoc}
+              locale={appLocale}
+              onOpenChange={setAssistantDockOpen}
+              onExpandedChange={setAssistantExpanded}
+              onFocusNode={handleFocusNode}
+            />
+            {/* Toolbar row — shares the assistant-dock-clearance inset math
+                (`bottomRowInsetPx`) that used to also carry the Cast dock's
+                pill before S5d ①「卡匣回横匣」moved it back to its own
+                horizontal strip (see below), a separate positioned layer so
+                it can float ABOVE this row instead of being squeezed inline
+                next to it. */}
+            <div
+              className="pointer-events-none absolute bottom-3 z-10 flex items-center justify-center gap-2"
+              style={{
+                left: bottomRowInsetPx.left,
+                right: bottomRowInsetPx.right,
               }}
-              onAddNode={handleTopbarAddClick}
+            >
+              <CanvasBottomDock
+                activeMode={toolMode}
+                canUndo={workflow.canUndo}
+                canRedo={workflow.canRedo}
+                assistantExpanded={assistantExpanded}
+                onModeChange={setToolMode}
+                onUndo={workflow.undo}
+                onRedo={workflow.redo}
+              />
+            </div>
+            <CastDock
+              onCreateCard={handleCastCreate}
+              insetLeft={bottomRowInsetPx.left}
+              insetRight={bottomRowInsetPx.right}
+            />
+            <CanvasAddMenu
+              open={Boolean(addMenu)}
+              screenPosition={addMenu?.menuPosition ?? null}
+              onSelect={handleAddNode}
+              onClose={closeAddMenu}
+            />
+            <NodeDetailPanel
+              expandedNodeId={expandedNodeId}
+              onClose={() => setExpandedNodeId(null)}
             />
           </div>
-        )}
-        <div className="pointer-events-none absolute inset-0 z-10">
-          {topbarOpen ? (
-            <CanvasTopBar
-              nodeCount={workflow.nodes.length}
-              projectName={workflow.currentProjectName}
-              projects={workflow.projects}
-              currentProjectId={workflow.currentProjectId}
-              onAddClick={handleTopbarAddClick}
-              onArrange={handleTidyLayout}
-              onSave={handleSaveNow}
-              isSaving={isSaving}
-              onCreateProject={handleCreateProject}
-              onRenameProject={handleRenameProject}
-              onDeleteProject={handleDeleteProject}
-              onSwitchProject={handleSwitchProject}
-              onCollapse={() => setTopbarOpen(false)}
-            />
-          ) : (
-            <button
-              type="button"
-              aria-label={t('topbar.expand')}
-              title={t('topbar.expand')}
-              onClick={() => setTopbarOpen(true)}
-              className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-focus-ring/40 hover:bg-node-panel-inner md:left-6"
-            >
-              <PanelTopOpen className="size-4 text-node-foreground" />
-              <span className="truncate">{workflow.currentProjectName}</span>
-            </button>
-          )}
-          <StudioNodeAssistantDock
-            open={assistantDockOpen}
-            expanded={assistantExpanded}
-            projectName={workflow.currentProjectName}
-            nodes={workflow.nodes}
-            scriptDoc={workflow.scriptDoc}
-            locale={appLocale}
-            onOpenChange={setAssistantDockOpen}
-            onExpandedChange={setAssistantExpanded}
-            onFocusNode={handleFocusNode}
-          />
-          <CanvasBottomDock
-            activeMode={toolMode}
-            canUndo={workflow.canUndo}
-            canRedo={workflow.canRedo}
-            assistantDockOpen={assistantDockOpen}
-            assistantExpanded={assistantExpanded}
-            onModeChange={setToolMode}
-            onUndo={workflow.undo}
-            onRedo={workflow.redo}
-          />
-          <CanvasAddMenu
-            open={Boolean(addMenu)}
-            screenPosition={addMenu?.menuPosition ?? null}
-            onSelect={handleAddNode}
-            onClose={closeAddMenu}
-          />
-          <NodeDetailPanel
-            expandedNodeId={expandedNodeId}
-            onClose={() => setExpandedNodeId(null)}
-          />
-        </div>
-        <ProjectNameDialog
-          open={projectDialogMode !== null}
-          title={
-            projectDialogMode === 'rename'
-              ? t('projectDialog.renameTitle')
-              : t('projectDialog.createTitle')
-          }
-          placeholder={t('topbar.createProjectPrompt')}
-          submitLabel={
-            projectDialogMode === 'rename'
-              ? t('projectDialog.renameSubmit')
-              : t('projectDialog.createSubmit')
-          }
-          cancelLabel={t('projectDialog.cancel')}
-          defaultValue={
-            projectDialogMode === 'rename'
-              ? workflow.currentProjectName
-              : t('projectNewDefaultName', { n: workflow.projects.length + 1 })
-          }
-          onOpenChange={(open) => {
-            if (!open) {
-              setProjectDialogMode(null)
+          <ProjectNameDialog
+            open={projectDialogMode !== null}
+            title={
+              projectDialogMode === 'rename'
+                ? t('projectDialog.renameTitle')
+                : t('projectDialog.createTitle')
             }
-          }}
-          onSubmit={handleProjectNameSubmit}
-        />
-        <AlertDialog
-          open={deleteConfirmOpen}
-          onOpenChange={setDeleteConfirmOpen}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {t('projectDialog.deleteTitle')}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('topbar.deleteProjectConfirm', {
-                  name: workflow.currentProjectName,
-                })}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t('projectDialog.cancel')}</AlertDialogCancel>
-              <AlertDialogAction
-                className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleConfirmDeleteProject}
-              >
-                {t('projectDialog.deleteConfirm')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            placeholder={t('topbar.createProjectPrompt')}
+            submitLabel={
+              projectDialogMode === 'rename'
+                ? t('projectDialog.renameSubmit')
+                : t('projectDialog.createSubmit')
+            }
+            cancelLabel={t('projectDialog.cancel')}
+            defaultValue={
+              projectDialogMode === 'rename'
+                ? workflow.currentProjectName
+                : t('projectNewDefaultName', {
+                    n: workflow.projects.length + 1,
+                  })
+            }
+            onOpenChange={(open) => {
+              if (!open) {
+                setProjectDialogMode(null)
+              }
+            }}
+            onSubmit={handleProjectNameSubmit}
+          />
+          <AlertDialog
+            open={deleteConfirmOpen}
+            onOpenChange={setDeleteConfirmOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t('projectDialog.deleteTitle')}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('topbar.deleteProjectConfirm', {
+                    name: workflow.currentProjectName,
+                  })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {t('projectDialog.cancel')}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleConfirmDeleteProject}
+                >
+                  {t('projectDialog.deleteConfirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </IngestDragProvider>
       </NodeWorkflowActionsProvider>
     </>
   )

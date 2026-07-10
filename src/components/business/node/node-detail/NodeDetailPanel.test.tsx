@@ -56,18 +56,17 @@ vi.mock('./registry', () => ({
     seedance: ({ nodeId }: { nodeId: string }) => (
       <div>video-body-{nodeId}</div>
     ),
+    // S5d ③: a role-less image node now presents as `image` itself
+    // (LooseImageDetailBody), not a role picker.
+    image: ({ nodeId }: { nodeId: string }) => (
+      <div>loose-image-body-{nodeId}</div>
+    ),
   },
 }))
 
 vi.mock('./GenericDetailBody', () => ({
   GenericDetailBody: ({ nodeId }: { nodeId: string }) => (
     <div>generic-body-{nodeId}</div>
-  ),
-}))
-
-vi.mock('../nodes/ImageRolePicker', () => ({
-  ImageRolePickerBody: ({ nodeId }: { nodeId: string }) => (
-    <div>role-picker-{nodeId}</div>
   ),
 }))
 
@@ -121,46 +120,37 @@ describe('NodeDetailPanel', () => {
     expect(screen.getByText('generic-body-n2')).toBeInTheDocument()
   })
 
-  it('shows the role picker (not a default form) for a role-less image node', () => {
-    // Regression: a freshly-added image node with no role must offer the role
-    // chooser when expanded, instead of falling through to the shot form.
+  it('dispatches the loose-image body (not a role picker) for a role-less image node', () => {
+    // S5d ③: the role picker is retired entirely — a freshly-added image node
+    // with no role presents as `image` itself (LooseImageDetailBody), same as
+    // every other registered type.
     nodesState.nodes = [makeNode('img1', NODE_TYPE_IDS.image)]
     render(<NodeDetailPanel expandedNodeId="img1" onClose={vi.fn()} />)
-    expect(screen.getByText('role-picker-img1')).toBeInTheDocument()
+    expect(screen.getByText('loose-image-body-img1')).toBeInTheDocument()
     expect(screen.queryByText('generic-body-img1')).not.toBeInTheDocument()
   })
 
-  it('returns to the canvas from a normal node breadcrumb crumb', () => {
-    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
-    const onClose = vi.fn()
-    render(<NodeDetailPanel expandedNodeId="n1" onClose={onClose} />)
-
-    // A non-image node's parent crumb is the canvas — clicking it closes.
-    fireEvent.click(screen.getByLabelText('backToCanvas'))
-    expect(onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('navigates an image role detail back up to the chooser, not the canvas', () => {
-    // Image nodes are a two-step flow (pick role → edit detail). From a role's
-    // detail the breadcrumb returns UP to the chooser (返回上一层), keeping the
-    // panel open, instead of closing back to the canvas.
+  it('dispatches the shot body for a role=shot image node (not the loose-image body)', () => {
     nodesState.nodes = [
       makeNode('img1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.shot,
       }),
     ]
-    const onClose = vi.fn()
-    render(<NodeDetailPanel expandedNodeId="img1" onClose={onClose} />)
-
-    // Role detail shows (generic body), not the chooser.
+    // `shot` isn't registered in this test's mocked registry, so it falls
+    // back to the generic body — the point under test is that it does NOT
+    // resolve as `image` (loose-image-body) despite sharing the node type.
+    render(<NodeDetailPanel expandedNodeId="img1" onClose={vi.fn()} />)
     expect(screen.getByText('generic-body-img1')).toBeInTheDocument()
-    expect(screen.queryByText('role-picker-img1')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('backToCanvas')).not.toBeInTheDocument()
+    expect(screen.queryByText('loose-image-body-img1')).not.toBeInTheDocument()
+  })
 
-    // The parent crumb returns to the chooser without closing the panel.
-    fireEvent.click(screen.getByLabelText('backToRolePicker'))
-    expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByText('role-picker-img1')).toBeInTheDocument()
+  it('returns to the canvas from the breadcrumb crumb (single layer, no role-picker parent anymore)', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    const onClose = vi.fn()
+    render(<NodeDetailPanel expandedNodeId="n1" onClose={onClose} />)
+
+    fireEvent.click(screen.getByLabelText('backToCanvas'))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('closes on backdrop click and Escape', () => {

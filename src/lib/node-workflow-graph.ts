@@ -1,4 +1,9 @@
-import { NODE_STUDIO_SHOT_REFERENCE_LEGEND } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
+  NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
+  NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
+  NODE_STUDIO_SHOT_REFERENCE_LEGEND,
+} from '@/constants/node-studio'
 import {
   NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
@@ -9,6 +14,7 @@ import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
+  NodeWorkflowReferenceAsset,
 } from '@/types/node-workflow'
 import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
@@ -38,8 +44,23 @@ export function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
 
 export function isKeyframeNode(node: NodeWorkflowNode): boolean {
   if (node.type === NODE_TYPE_IDS.image) {
-    return (
+    if (
       (node.data.role ?? NODE_IMAGE_ROLE_IDS.shot) === NODE_IMAGE_ROLE_IDS.frame
+    ) {
+      return true
+    }
+    // S5d frame 关键帧兼容迁移: the `frame` ROLE is retired from every
+    // creation path (§6.0/§6.1 — new keyframes are loose images classified
+    // 关键帧首/尾 instead), but old saved nodes with role='frame' still hit
+    // the branch above unchanged. A NEW keyframe is signalled by
+    // `data.imageCategory` instead — same seedance-harvest treatment
+    // (harvested first, ahead of plain visual references), no new field name
+    // invented beyond the S5d ③ category itself.
+    return (
+      typeof node.data.imageCategory === 'string' &&
+      (NODE_STUDIO_KEYFRAME_REFERENCE_ROLES as readonly string[]).includes(
+        node.data.imageCategory,
+      )
     )
   }
   return node.type === NODE_TYPE_IDS.frameImage
@@ -220,8 +241,20 @@ export function isShotNode(node: NodeWorkflowNode): boolean {
  */
 export interface UpstreamImageReference {
   url: string
-  kind: 'character' | 'background'
+  /** Absent for a category-labeled entry (§ below) — those print via
+   *  `category` instead of the character/background kind label. */
+  kind?: 'character' | 'background'
   name?: string
+  /**
+   * S5d ③ 分类进图例: a model-facing Chinese category label (from
+   * `NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS` or a user's custom label) for
+   * a reference image that carries its OWN classification — a shot node's
+   * own `referenceAssets` entries, not an upstream character/background
+   * NODE (those keep the existing `kind`-based "角色「名字」" wording).
+   * Mutually exclusive with `kind` in practice; `buildShotReferenceLegend`
+   * checks `category` first.
+   */
+  category?: string
 }
 
 function readBackgroundName(node: NodeWorkflowNode): string | undefined {
@@ -274,11 +307,47 @@ export function buildShotReferenceLegend(
   referenceImages.forEach((url, index) => {
     const ref = referenceByUrl.get(url)
     if (!ref?.name) return
+    // S5d ③: a category-labeled reference (the shot's own referenceAssets,
+    // e.g. 风格/道具/关键帧首) prints "图N = 名字（分类）" — visually distinct
+    // from the character/background kind format below so the model reads it
+    // as a different flavor of binding, not a mislabeled subject.
+    if (ref.category) {
+      lines.push(`图${index + 1} = ${ref.name}（${ref.category}）`)
+      return
+    }
+    if (!ref.kind) return
     const kindLabel = NODE_STUDIO_SHOT_REFERENCE_LEGEND.kindLabel[ref.kind]
     lines.push(`图${index + 1}：${kindLabel}「${ref.name}」`)
   })
   if (lines.length === 0) return ''
   return `${NODE_STUDIO_SHOT_REFERENCE_LEGEND.title}\n${lines.join('\n')}`
+}
+
+/**
+ * S5d ③: build category-labeled legend entries from a node's OWN
+ * `referenceAssets` (e.g. a shot node's manually-added 风格/道具/关键帧 refs),
+ * so `buildShotReferenceLegend` can label them alongside the existing
+ * upstream character/background entries. Pure — the URLs themselves are
+ * already pushed into `referenceImages` by the existing dedup loop at the
+ * call site; this only supplies the legend text. Skips an entry with no
+ * `name` (nothing to print — mirrors the legend's own "no known name" skip)
+ * and a `custom`-role entry with no typed `customLabel` yet (never guesses a
+ * label).
+ */
+export function buildReferenceAssetLegendEntries(
+  referenceAssets: readonly NodeWorkflowReferenceAsset[] | undefined,
+): Map<string, UpstreamImageReference> {
+  const map = new Map<string, UpstreamImageReference>()
+  for (const asset of referenceAssets ?? []) {
+    if (!asset.name) continue
+    const category =
+      asset.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
+        ? asset.customLabel
+        : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[asset.role]
+    if (!category) continue
+    map.set(asset.url, { url: asset.url, name: asset.name, category })
+  }
+  return map
 }
 
 export type VideoLegendImageKind =

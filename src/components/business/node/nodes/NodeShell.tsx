@@ -15,6 +15,7 @@ import {
   Play,
   Trash2,
   UserRound,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -251,15 +252,19 @@ interface NodeShellIngredientsProps {
 }
 
 /**
- * S2 成分栏（改动清单⑤）：片头条下的只读 chip 行，摘要「这张卡吃了哪些上游连线」。
- * 纯展示 —— 吞噬手势落地前（S5b）连线本身仍是唯一的绑定/解除入口，这里不做点击/
- * 移除，只是给那份绑定一个卡面可见的小结。空（叶子节点 / 未连线）则不渲染整行。
+ * S2 成分栏，S5b B1-7 只读升级为可解绑：片头条下的 chip 行，摘要「这张卡吃了
+ * 哪些上游连线」，hover 露出 × 解除对应边（= 吞噬「胃取出」的紧凑卡等效，和
+ * 详情面板参考素材分区的「取出」同一颗 deleteEdge）。新 chip 首次挂载播放
+ * 消化落定 pop（§8，globals.css `.node-ingest-chip-pop`，只在挂载时播放一次，
+ * 已存在的 chip 重渲染不会重放）。空（叶子节点/未连线）则不渲染整行。
  */
 function NodeShellIngredients({ nodeId }: NodeShellIngredientsProps) {
   const tTypes = useTranslations('StudioNode.nodeTypes')
   const tVideo = useTranslations('StudioNode.videoGeneration')
+  const tIngest = useTranslations('StudioNode.ingest')
   const allNodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
+  const { deleteEdge } = useNodeWorkflowActions()
 
   const upstream = useMemo(
     () => getUpstreamNodes(nodeId, edges, allNodes),
@@ -298,14 +303,28 @@ function NodeShellIngredients({ nodeId }: NodeShellIngredientsProps) {
                   ? data.voiceName?.trim()
                   : undefined
         const label = customName || tTypes(presentationType)
+        const edgeId = edges.find(
+          (edge) => edge.source === sourceNode.id && edge.target === nodeId,
+        )?.id
 
         return (
           <span
             key={sourceNode.id}
-            className="inline-flex max-w-28 items-center gap-1 rounded-full bg-node-panel-soft px-2 py-0.5 text-2xs font-medium text-node-muted"
+            className="node-ingest-chip-pop group/chip inline-flex max-w-28 items-center gap-1 rounded-full bg-node-panel-soft py-0.5 pl-2 pr-1 text-2xs font-medium text-node-muted"
           >
             {Glyph ? <Glyph aria-hidden className="size-3 shrink-0" /> : null}
             <span className="truncate">{label}</span>
+            {edgeId ? (
+              <button
+                type="button"
+                aria-label={tIngest('removeIngredient', { name: label })}
+                title={tIngest('removeIngredient', { name: label })}
+                onClick={() => deleteEdge(edgeId)}
+                className="nodrag flex size-3.5 shrink-0 items-center justify-center rounded-full text-node-subtle opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover/chip:opacity-100"
+              >
+                <X className="size-2.5" aria-hidden />
+              </button>
+            ) : null}
           </span>
         )
       })}

@@ -431,7 +431,7 @@ export function StudioNodeAssistantDock({
     <aside
       style={dockStyle}
       data-resizing={isResizing ? 'true' : undefined}
-      className="node-canvas-panel-motion pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b"
+      className="node-canvas-panel-motion pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl fade-in slide-in-from-bottom-4 duration-300 md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b md:slide-in-from-right-4"
     >
       <button
         type="button"

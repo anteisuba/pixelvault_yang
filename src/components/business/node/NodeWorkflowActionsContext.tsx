@@ -58,6 +58,24 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    *  role/media, and connects it — one high-level op so the composer never
    *  touches raw addNode/onConnect. Returns the new node id. */
   spawnReference?(input: SpawnReferenceInput): string
+  /**
+   * S5c 三.3 融合：a loose canvas image node's media is absorbed into a
+   * character/background node's `referenceAssets` (source:'canvas', sourceId
+   * = the loose node's id) and the loose node folds hidden
+   * (`fusedIntoNodeId`). Rejects (returns false, no mutation) on illegal
+   * target / duplicate / capacity-full — same legality vocabulary as the
+   * Cast-card ingest engine (`evaluateCastIngest`), reused here for the
+   * reverse direction (canvas → dock card).
+   */
+  fuseLooseImageNode?(sourceNodeId: string, targetNodeId: string): boolean
+  /**
+   * S5c 三.4 拆出（对称无损）: removes a reference from a character/
+   * background node's `referenceAssets`. A `source:'canvas'` entry un-hides
+   * its origin loose node in place (clears `fusedIntoNodeId`); any other
+   * source (upload/asset/paste) spawns a brand-new loose image node at the
+   * canvas viewport center carrying the same url — "拆出 = 落画布" either way.
+   */
+  extractReference?(nodeId: string, referenceId: string): void
   toolMode: NodeStudioToolMode
   setToolMode(mode: NodeStudioToolMode): void
   /**

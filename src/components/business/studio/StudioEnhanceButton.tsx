@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
@@ -38,6 +39,20 @@ const PromptAssistantPanel = dynamic(
   { loading: () => <PanelLoadingFallback /> },
 )
 
+// ─── Chunk prefetch ────────────────────────────────────────────────
+// Warms the panel's dynamic chunk on hover/focus intent so the first open
+// shows the panel instantly instead of the loading fallback (the open
+// transition itself is handled by StudioAssistantDock's width animation —
+// this only removes the chunk-download stall inside it). Idempotent: the
+// bundler caches the import promise, so repeat calls are free.
+// 施工基准：docs/plans/assistant-ux-batch-2026-07.md Slice B.
+let promptAssistantPanelPrefetched = false
+function prefetchPromptAssistantPanel() {
+  if (promptAssistantPanelPrefetched) return
+  promptAssistantPanelPrefetched = true
+  void import('@/components/business/prompts/PromptAssistantPanel')
+}
+
 interface StudioEnhanceButtonProps {
   disabled?: boolean
 }
@@ -68,6 +83,23 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
 
   const isEnhancing = promptEnhance.isEnhancing
 
+  // Idle-time fallback prefetch — covers touch/keyboard entry that never
+  // fires a hover/focus event before the first tap.
+  useEffect(() => {
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: () => void) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(
+        prefetchPromptAssistantPanel,
+      )
+      return () => idleWindow.cancelIdleCallback?.(handle)
+    }
+    const timeout = window.setTimeout(prefetchPromptAssistantPanel, 2000)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
   const triggerButton = (
     <Toolbar.Button
       type="button"
@@ -75,6 +107,8 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
       aria-label={t('enhance')}
       aria-pressed={open}
       onClick={isMobile ? undefined : () => setOpen(!open)}
+      onMouseEnter={prefetchPromptAssistantPanel}
+      onFocus={prefetchPromptAssistantPanel}
       className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
     >
       <Sparkles className={cn('size-4', isEnhancing && 'animate-pulse')} />
@@ -93,8 +127,9 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
       <ResponsiveDialogContent
         className={cn(
           studioDialogBaseClass,
-          'w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
+          'max-h-[min(86svh,720px)] w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
         )}
+        mobileBodyClassName="overflow-hidden px-3 pb-3 pt-1"
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
@@ -107,7 +142,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
         <ResponsiveDialogDescription className="sr-only">
           {t('enhance')}
         </ResponsiveDialogDescription>
-        <div className="flex h-[min(680px,75vh)] flex-col overflow-hidden px-5 pb-5 pt-3">
+        <div className="flex h-[min(70svh,640px)] min-h-[360px] flex-col overflow-hidden px-1 pb-1 pt-2 sm:h-[min(680px,75vh)] sm:px-5 sm:pb-5 sm:pt-3">
           <PromptAssistantPanel
             currentPrompt={currentPrompt}
             modelId={modelId}

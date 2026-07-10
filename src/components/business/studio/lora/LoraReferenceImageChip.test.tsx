@@ -5,15 +5,15 @@ import type { useImageUpload } from '@/hooks/use-image-upload'
 
 import { LoraReferenceImageChip } from './LoraReferenceImageChip'
 
-// The chip composes standalone pieces (ImageSourcePicker, AssetSelectorDialog)
+// The chip composes standalone pieces (ImagePickerPopoverBody, AssetSelectorDialog)
 // that have their own suites and heavier deps; stub them so this test stays a
 // focused smoke test of the chip's own trigger/badge logic and, crucially,
 // that it mounts without any Studio-context coupling.
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => `ImageChip:${key}`,
 }))
-vi.mock('@/components/business/ImageSourcePicker', () => ({
-  ImageSourcePicker: () => <div data-testid="image-source-picker" />,
+vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
+  ImagePickerPopoverBody: () => <div data-testid="image-picker-popover-body" />,
 }))
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,

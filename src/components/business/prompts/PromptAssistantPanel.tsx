@@ -20,12 +20,10 @@ import {
   ImagePlus,
   Images,
   Languages,
-  Library,
   Loader2,
   Plus,
   Sparkles,
   Tag,
-  UploadCloud,
   WandSparkles,
   X,
 } from 'lucide-react'
@@ -45,9 +43,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
-import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
-import { fetchGalleryImages } from '@/lib/api-client'
 import {
   usePromptAssistant,
   STYLE_SHORTCUTS,
@@ -257,9 +254,9 @@ export function PromptAssistantPanel({
   const canSubmit = Boolean(inputValue.trim() || effectiveReferenceImageData)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-2.5 sm:gap-3">
       {/* ── Header: style presets + API key selector ── */}
-      <div className="space-y-2">
+      <div className="shrink-0 space-y-2 rounded-2xl border border-border/45 bg-muted/20 p-2.5 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
         <div className="flex flex-wrap gap-1.5">
           {ACTION_PRESETS.map(({ key, icon: Icon, labelKey }) => {
             const presetDisabled =
@@ -284,23 +281,26 @@ export function PromptAssistantPanel({
             )
           })}
         </div>
+
+        {/* ── Model badge ── */}
+        {targetModelLabel && (
+          <p className="text-2xs text-muted-foreground">
+            {t('targetModel')}:{' '}
+            <span className="font-medium text-foreground">
+              {targetModelLabel}
+            </span>
+          </p>
+        )}
       </div>
 
-      {/* ── Model badge ── */}
-      {targetModelLabel && (
-        <p className="text-2xs text-muted-foreground">
-          {t('targetModel')}:{' '}
-          <span className="font-medium text-foreground">
-            {targetModelLabel}
-          </span>
-        </p>
-      )}
-
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto pr-2" ref={scrollRef}>
+      <div
+        className="min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2"
+        ref={scrollRef}
+      >
         <div className="space-y-3 pb-2">
           {messages.length === 0 && !isLoading && (
-            <div className="space-y-3 py-6">
+            <div className="space-y-3 py-3 sm:py-6">
               <p className="text-center text-sm text-muted-foreground">
                 {t('emptyHint')}
               </p>
@@ -521,7 +521,7 @@ function AssistantAnimatedInput({
   }
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/45 p-1.5">
+    <div className="shrink-0 rounded-2xl border border-border/60 bg-muted/45 p-1.5">
       <div className="relative flex flex-col overflow-hidden rounded-xl bg-background/90">
         {referencePreviewUrl && (
           <div className="border-b border-border/50 bg-muted/35 px-3 py-2">
@@ -559,8 +559,8 @@ function AssistantAnimatedInput({
           className="min-h-20 w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
         />
 
-        <div className="flex h-14 items-center border-t border-border/50 bg-muted/45 px-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-h-14 items-center gap-2 border-t border-border/50 bg-muted/45 px-3 py-2 sm:h-14 sm:gap-0 sm:py-0">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:gap-2">
             {llmApiKeys.length > 0 && (
               <MainModelPicker
                 modality="llm_assist"
@@ -656,7 +656,7 @@ function AssistantAnimatedInput({
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" sideOffset={8} className="w-72 p-3">
-                <AssistantImagePopoverBody
+                <ImagePickerPopoverBody
                   dropHint={imageDropHint}
                   recentLabel={recentAssetsLabel}
                   recentEmptyLabel={recentAssetsEmptyLabel}
@@ -712,122 +712,6 @@ function AssistantAnimatedInput({
         description={assetDialogDescription}
         mediaType="image"
       />
-    </div>
-  )
-}
-
-// ─── Image popover body ─────────────────────────────────────────
-// 图片入口收敛（2026-07-07 D4）：上半拖/粘/传混合入区，下半最近素材网格，
-// 底部进全量素材库。所有路径只写 composer 参考槽，不触发生成。
-
-function AssistantImagePopoverBody({
-  dropHint,
-  recentLabel,
-  recentEmptyLabel,
-  openLibraryLabel,
-  onPickFile,
-  onDropFile,
-  onPickAsset,
-  onOpenLibrary,
-}: {
-  dropHint: string
-  recentLabel: string
-  recentEmptyLabel: string
-  openLibraryLabel: string
-  onPickFile: () => void
-  onDropFile: (file: File) => void
-  onPickAsset: (generation: GenerationRecord) => void
-  onOpenLibrary: () => void
-}) {
-  const [assets, setAssets] = useState<GenerationRecord[] | null>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    void fetchGalleryImages(1, STUDIO_ASSISTANT_RECENT_ASSETS, {
-      mine: true,
-      type: 'image',
-      sort: 'newest',
-    }).then((result) => {
-      if (cancelled) return
-      setAssets(result.success ? (result.data?.generations ?? []) : [])
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  return (
-    <div className="space-y-3">
-      <button
-        type="button"
-        onClick={onPickFile}
-        onDragOver={(event) => {
-          if (!event.dataTransfer.types.includes('Files')) return
-          event.preventDefault()
-          setIsDragOver(true)
-        }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={(event) => {
-          event.preventDefault()
-          setIsDragOver(false)
-          const file = Array.from(event.dataTransfer.files).find((entry) =>
-            entry.type.startsWith('image/'),
-          )
-          if (file) onDropFile(file)
-        }}
-        className={cn(
-          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground',
-          isDragOver && 'border-primary/60 bg-primary/10 text-foreground',
-        )}
-      >
-        <UploadCloud className="size-4" />
-        {dropHint}
-      </button>
-
-      <div className="space-y-1.5">
-        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-          {recentLabel}
-        </p>
-        {assets === null ? (
-          <div className="flex h-16 items-center justify-center">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : assets.length === 0 ? (
-          <p className="py-3 text-center text-xs text-muted-foreground">
-            {recentEmptyLabel}
-          </p>
-        ) : (
-          <div className="grid grid-cols-4 gap-1.5">
-            {assets.map((generation) => (
-              <button
-                key={generation.id}
-                type="button"
-                onClick={() => onPickAsset(generation)}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-              >
-                <img
-                  src={generation.url}
-                  alt=""
-                  loading="lazy"
-                  className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
-                />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onOpenLibrary}
-        className="h-8 w-full gap-1.5 rounded-lg text-xs"
-      >
-        <Library className="size-3.5" />
-        {openLibraryLabel}
-      </Button>
     </div>
   )
 }

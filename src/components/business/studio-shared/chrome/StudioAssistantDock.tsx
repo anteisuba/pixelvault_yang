@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
 import { readImageFileAsBase64 } from '@/lib/image-input'
+import { cn } from '@/lib/utils'
 
 const ASSISTANT_DOCK_FILE_MAX_BYTES = 10 * 1024 * 1024
 
@@ -258,6 +259,19 @@ export function StudioAssistantDock() {
   const [isDragOver, setIsDragOver] = useState(false)
   const dockRef = useRef<HTMLElement>(null)
 
+  // Keep the panel's dynamic chunk lazy (loads on first open, or earlier if
+  // StudioEnhanceButton's hover-prefetch already warmed it) while still
+  // letting the <aside> frame stay mounted across close/reopen so the width
+  // transition below animates instead of popping in at full size on every
+  // open. Derived state from `open` via a render-phase update (React's
+  // recommended alternative to setState-in-effect — same pattern as
+  // injectedReference below). 施工基准：docs/plans/assistant-ux-batch-2026-07.md
+  // Slice B.
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
+  if (open && !hasOpenedOnce) {
+    setHasOpenedOnce(true)
+  }
+
   const injectReference = useCallback((url: string) => {
     setInjectedReference((prev) => ({ url, token: (prev?.token ?? 0) + 1 }))
   }, [])
@@ -317,19 +331,24 @@ export function StudioAssistantDock() {
     [injectReference],
   )
 
-  if (isMobile || !open) return null
+  if (isMobile) return null
 
   return (
     <aside
       ref={dockRef}
       role="complementary"
       aria-label={t('dockLabel')}
+      aria-hidden={!open}
+      inert={!open}
       data-resizing={isResizing ? 'true' : undefined}
-      style={{ width: `${layout.widthPx}px` }}
+      style={{ width: open ? `${layout.widthPx}px` : '0px' }}
       onDragOver={handleNativeDragOver}
       onDragLeave={handleNativeDragLeave}
       onDrop={handleNativeDrop}
-      className="relative hidden shrink-0 border-l border-border/60 bg-background lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col"
+      className={cn(
+        'node-canvas-panel-motion relative hidden shrink-0 overflow-hidden bg-background lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col',
+        open && 'border-l border-border/60',
+      )}
     >
       <div
         role="separator"
@@ -368,16 +387,21 @@ export function StudioAssistantDock() {
         </Button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
-        <PromptAssistantPanel
-          currentPrompt={currentPrompt}
-          modelId={modelId}
-          referenceImageData={referenceImageData}
-          llmApiKeys={llmApiKeys}
-          onUsePrompt={onUsePrompt}
-          onAppendPrompt={onAppendPrompt}
-          injectedReference={injectedReference}
-        />
+      <div
+        className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 transition-opacity duration-slow ease-standard"
+        style={{ minWidth: layout.widthPx, opacity: open ? 1 : 0 }}
+      >
+        {hasOpenedOnce && (
+          <PromptAssistantPanel
+            currentPrompt={currentPrompt}
+            modelId={modelId}
+            referenceImageData={referenceImageData}
+            llmApiKeys={llmApiKeys}
+            onUsePrompt={onUsePrompt}
+            onAppendPrompt={onAppendPrompt}
+            injectedReference={injectedReference}
+          />
+        )}
       </div>
 
       {isDragOver ? (

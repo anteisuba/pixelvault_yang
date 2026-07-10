@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
-import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
+import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { ParamSlider } from '@/components/ui/param-slider'
 import {
   Popover,
@@ -30,7 +30,7 @@ interface LoraReferenceImageChipProps {
 
 /**
  * B9 (D6): reference-image (img2img) chip for the LoRA generate paper. Borrows
- * the Studio composer's building blocks (useImageUpload state, ImageSourcePicker,
+ * the Studio composer's building blocks (useImageUpload state, ImagePickerPopoverBody,
  * ImageAttachmentPreviewStrip, AssetSelectorDialog) but owns a plain Popover +
  * chip instead of the Studio Toolbar/panels reducer — the LoRA domain has no
  * Studio context. Capability gating (whether to render this chip at all) lives
@@ -46,6 +46,7 @@ export function LoraReferenceImageChip({
   const t = useTranslations('ImageChip')
   const [open, setOpen] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const enabledCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
@@ -62,6 +63,13 @@ export function LoraReferenceImageChip({
     // anyway so a video/audio asset never gets attached as a reference image.
     if (gen.outputType !== 'IMAGE') return
     await imageUpload.addFromUrl(gen.url)
+  }
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) void imageUpload.handleFileChange(file)
+    setOpen(false)
   }
 
   return (
@@ -97,27 +105,36 @@ export function LoraReferenceImageChip({
             ) : null}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" side="top" className="w-72 space-y-2.5">
-          <ImageSourcePicker
-            variant="card"
-            description={t('description')}
-            uploadLabel={t('upload')}
-            uploadHint={t('uploadHint')}
-            selectAssetLabel={t('selectAsset')}
-            assetDialogTitle={t('selectAsset')}
-            assetDialogDescription={t('description')}
-            pasteHint={t('pasteHint')}
+        <PopoverContent align="start" side="top" className="w-72">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
             disabled={disabled}
-            onFileSelect={(file) => imageUpload.handleFileChange(file)}
-            onAssetSelect={handleSelectAsset}
-            onRequestClose={() => setOpen(false)}
-            onRequestAssetDialog={() => {
+          />
+          <ImagePickerPopoverBody
+            dropHint={t('dropHint')}
+            recentLabel={t('recentAssets')}
+            recentEmptyLabel={t('recentAssetsEmpty')}
+            openLibraryLabel={t('openLibrary')}
+            onPickFile={() => fileInputRef.current?.click()}
+            onDropFile={(file) => {
+              void imageUpload.handleFileChange(file)
+              setOpen(false)
+            }}
+            onPickAsset={(generation) => {
+              void handleSelectAsset(generation)
+              setOpen(false)
+            }}
+            onOpenLibrary={() => {
               // Close the popover before the full-screen picker so the two
               // focus traps don't fight (mirrors the Studio chip pattern).
               setOpen(false)
               setAssetDialogOpen(true)
             }}
-            preview={
+            headerSlot={
               totalEntries > 0 ? (
                 <ImageAttachmentPreviewStrip
                   entries={imageUpload.referenceEntries}
@@ -129,21 +146,23 @@ export function LoraReferenceImageChip({
                 />
               ) : null
             }
+            footerSlot={
+              enabledCount > 0 ? (
+                <div className="border-t border-border/40 pt-2.5">
+                  <ParamSlider
+                    label={t('referenceStrength')}
+                    hint={t('referenceStrengthHint')}
+                    value={strength}
+                    onChange={onStrengthChange}
+                    min={strengthConfig.min}
+                    max={strengthConfig.max}
+                    step={strengthConfig.step}
+                    formatValue={(value) => `${Math.round(value * 100)}%`}
+                  />
+                </div>
+              ) : null
+            }
           />
-          {enabledCount > 0 ? (
-            <div className="border-t border-border/40 pt-2.5">
-              <ParamSlider
-                label={t('referenceStrength')}
-                hint={t('referenceStrengthHint')}
-                value={strength}
-                onChange={onStrengthChange}
-                min={strengthConfig.min}
-                max={strengthConfig.max}
-                step={strengthConfig.step}
-                formatValue={(value) => `${Math.round(value * 100)}%`}
-              />
-            </div>
-          ) : null}
         </PopoverContent>
       </Popover>
 

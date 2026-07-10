@@ -21,7 +21,8 @@ import type {
   GenerationRecord,
   GenerateVariationsModel,
 } from '@/types'
-import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VariationGrid } from '@/components/business/VariationGrid'
@@ -131,7 +132,9 @@ export function ReverseEngineerPanel({
   const [selectedDims, setSelectedDims] = useState<Set<AnalysisDimension>>(
     new Set(),
   )
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const previewObjectUrlRef = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const revokePreviewObjectUrl = useCallback(() => {
     if (!previewObjectUrlRef.current) return
@@ -198,17 +201,37 @@ export function ReverseEngineerPanel({
   if (step === 'idle' || step === 'uploading') {
     return (
       <div className="studio-step-animate space-y-3">
-        <ImageSourcePicker
+        <div className="mx-auto w-64 max-w-full">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void handleFile(file)
+            }}
+          />
+          <ImagePickerPopoverBody
+            dropHint={tImageChip('dropHint')}
+            recentLabel={tImageChip('recentAssets')}
+            recentEmptyLabel={tImageChip('recentAssetsEmpty')}
+            openLibraryLabel={tImageChip('openLibrary')}
+            onPickFile={() => fileInputRef.current?.click()}
+            onDropFile={(file) => void handleFile(file)}
+            onPickAsset={handleSelectAsset}
+            onOpenLibrary={() => setAssetDialogOpen(true)}
+          />
+        </div>
+
+        <AssetSelectorDialog
+          open={assetDialogOpen}
+          onOpenChange={setAssetDialogOpen}
+          onSelect={handleSelectAsset}
+          title={t('selectAsset')}
           description={t('sourceDescription')}
-          uploadLabel={tImageChip('upload')}
-          uploadHint={t('uploadHint')}
-          selectAssetLabel={t('selectAsset')}
-          assetDialogTitle={t('selectAsset')}
-          assetDialogDescription={t('sourceDescription')}
-          pasteHint={t('pasteHint')}
-          className="mx-auto w-64 max-w-full"
-          onFileSelect={handleFile}
-          onAssetSelect={handleSelectAsset}
+          mediaType="image"
         />
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

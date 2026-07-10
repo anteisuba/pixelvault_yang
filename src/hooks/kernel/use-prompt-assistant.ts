@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type {
@@ -38,9 +38,49 @@ const INITIAL_STATE: PromptAssistantState = {
   error: null,
 }
 
+// ─── Module-level store ──────────────────────────────────────────
+// StudioAssistantDock returns null when closed (and the mobile drawer
+// unmounts its content too), so a plain useState here loses the
+// conversation on every close. Hoisting to module scope — same
+// useSyncExternalStore pattern as the dock width store in
+// StudioAssistantDock.tsx — lets the conversation survive close/reopen.
+// Only one PromptAssistantPanel is ever mounted at a time (desktop dock
+// XOR mobile drawer), so a singleton is safe.
+
+let promptAssistantState: PromptAssistantState = INITIAL_STATE
+const promptAssistantListeners = new Set<() => void>()
+
+function getPromptAssistantSnapshot(): PromptAssistantState {
+  return promptAssistantState
+}
+
+function getServerPromptAssistantSnapshot(): PromptAssistantState {
+  return INITIAL_STATE
+}
+
+function subscribePromptAssistant(listener: () => void): () => void {
+  promptAssistantListeners.add(listener)
+  return () => {
+    promptAssistantListeners.delete(listener)
+  }
+}
+
+function setPromptAssistantState(
+  updater: (prev: PromptAssistantState) => PromptAssistantState,
+): void {
+  promptAssistantState = updater(promptAssistantState)
+  for (const listener of promptAssistantListeners) {
+    listener()
+  }
+}
+
 export function usePromptAssistant() {
   const t = useTranslations('PromptAssistant')
-  const [state, setState] = useState<PromptAssistantState>(INITIAL_STATE)
+  const state = useSyncExternalStore(
+    subscribePromptAssistant,
+    getPromptAssistantSnapshot,
+    getServerPromptAssistantSnapshot,
+  )
 
   const send = useCallback(
     async (
@@ -63,15 +103,15 @@ export function usePromptAssistant() {
         content: text.trim(),
       }
 
+      const allMessages = [...promptAssistantState.messages, userMessage]
+
       // Optimistically add user message
-      setState((prev) => ({
+      setPromptAssistantState((prev) => ({
         ...prev,
-        messages: [...prev.messages, userMessage],
+        messages: allMessages,
         isLoading: true,
         error: null,
       }))
-
-      const allMessages = [...state.messages, userMessage]
 
       const result = await chatPromptAssistantAPI({
         messages: allMessages,
@@ -90,20 +130,20 @@ export function usePromptAssistant() {
           role: 'assistant',
           content: result.data.prompt,
         }
-        setState((prev) => ({
+        setPromptAssistantState((prev) => ({
           ...prev,
           messages: [...prev.messages, assistantMessage],
           isLoading: false,
         }))
       } else {
-        setState((prev) => ({
+        setPromptAssistantState((prev) => ({
           ...prev,
           isLoading: false,
           error: result.error ?? t('failed'),
         }))
       }
     },
-    [state.messages, t],
+    [t],
   )
 
   const applyPreset = useCallback(
@@ -132,7 +172,7 @@ export function usePromptAssistant() {
   )
 
   const clear = useCallback(() => {
-    setState(INITIAL_STATE)
+    setPromptAssistantState(() => INITIAL_STATE)
   }, [])
 
   return {

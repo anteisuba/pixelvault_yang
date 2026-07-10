@@ -51,10 +51,21 @@ beforeEach(() => {
 })
 
 describe('StudioAssistantDock', () => {
-  it('renders nothing when the panel is closed', () => {
+  it('renders collapsed to zero width and inert when the panel is closed', () => {
     mockOpen = false
     const { container } = render(<StudioAssistantDock />)
-    expect(container).toBeEmptyDOMElement()
+
+    // The <aside> frame stays mounted (closed = zero width + inert) so the
+    // width transition has something to animate from on reopen — it no
+    // longer unmounts outright. `inert` removes it from accessibility
+    // queries entirely (even with `hidden: true`), so this asserts on the
+    // raw DOM instead of screen.getByRole. See
+    // docs/plans/assistant-ux-batch-2026-07.md Slice B.
+    const dock = container.querySelector('aside[aria-label="dockLabel"]')
+    expect(dock).toHaveStyle({ width: '0px' })
+    expect(dock).toHaveAttribute('inert')
+    // The heavy panel chunk stays lazy until the dock has been opened once.
+    expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument()
   })
 
   it('renders nothing on mobile — the drawer host owns <lg', () => {

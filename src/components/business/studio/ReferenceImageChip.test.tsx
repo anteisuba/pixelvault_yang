@@ -36,9 +36,18 @@ vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
   ImageAttachmentPreviewStrip: () => null,
 }))
 
-vi.mock('@/components/business/ImageSourcePicker', () => ({
-  ImageSourcePicker: ({ variant }: { variant?: string }) => (
-    <div data-testid="image-source-picker" data-variant={variant ?? 'pill'} />
+vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
+  ImagePickerPopoverBody: ({
+    headerSlot,
+    footerSlot,
+  }: {
+    headerSlot?: ReactNode
+    footerSlot?: ReactNode
+  }) => (
+    <div data-testid="image-picker-popover-body">
+      {headerSlot}
+      {footerSlot}
+    </div>
   ),
 }))
 
@@ -95,7 +104,7 @@ describe('ReferenceImageChip', () => {
     })
   })
 
-  it('uses card source actions and keeps layer decomposition visible while empty', () => {
+  it('renders the shared image picker and keeps layer decomposition visible while empty', () => {
     mockImageUpload.referenceEntries = []
     mockImageUpload.referenceImages = []
 
@@ -105,10 +114,7 @@ describe('ReferenceImageChip', () => {
       </Toolbar.Root>,
     )
 
-    expect(screen.getByTestId('image-source-picker')).toHaveAttribute(
-      'data-variant',
-      'card',
-    )
+    expect(screen.getByTestId('image-picker-popover-body')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'layerDecompose' })).toHaveClass(
       'min-h-11',
       'w-full',

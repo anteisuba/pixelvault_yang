@@ -1,7 +1,13 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { Handle, NodeToolbar, Position } from '@xyflow/react'
+import { useMemo, type ReactNode } from 'react'
+import {
+  Handle,
+  NodeToolbar,
+  Position,
+  useEdges,
+  useNodes,
+} from '@xyflow/react'
 import {
   AudioWaveform,
   Maximize2,
@@ -20,12 +26,19 @@ import {
 } from '@/constants/node-tokens'
 import {
   NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
   type NodeWorkflowStatus,
 } from '@/constants/node-types'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
+import { getUpstreamNodes } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
+import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './NodeStatusBadge'
+
+/** S2 成分栏最多展示的 chip 数，溢出折叠为「+N」（施工图改动清单⑤）。 */
+const MAX_VISIBLE_INGREDIENTS = 4
 
 interface NodeShellRootProps {
   type: NodeTokenType
@@ -105,14 +118,18 @@ function NodeShellRoot({
   return (
     <article
       className={cn(
-        'group relative w-node-card overflow-visible rounded-2xl border bg-node-panel text-node-foreground shadow-node-panel transition-colors',
+        // node-card-paper = S2 场记卡作用域（容器级变量覆盖，globals.css）。
+        // rounded-sm（非 rounded-md）：本项目 --radius-md 被 shadcn --radius 公式
+        // 重定到 8px，rounded-sm 才是这套刻度里精确落在施工图标注 6px 的一档
+        // （--radius-sm = --radius(10px) - 4px = 6px；S2 报告有算式）。
+        'group relative w-node-card overflow-visible rounded-sm border bg-node-panel text-node-foreground shadow-node-panel transition-colors node-card-paper',
         selected
-          ? cn('border-node-foreground/70 ring-2', accent.selectedRing)
+          ? 'border-node-paint/70 ring-2 ring-node-paint/60'
           : isFailed
             ? 'border-node-status-failed'
             : overridden
-              ? 'border-dashed border-node-muted/70 hover:border-node-muted'
-              : 'border-node-panel-inner/80 hover:border-node-muted/70',
+              ? 'border-dashed border-node-card-ink-subtle hover:border-node-card-ink'
+              : 'border-node-card-line hover:border-node-card-ink-subtle',
         className,
       )}
     >
@@ -196,7 +213,7 @@ function NodeShellHeader({
     trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : t(type)
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-node-panel-inner/80 px-5 py-4">
+    <header className="flex items-center justify-between gap-3 rounded-t-sm border-b border-node-card-line bg-node-panel-inner px-5 py-4">
       <div className="flex min-w-0 items-center gap-2">
         <span
           className={cn(
@@ -226,6 +243,81 @@ function NodeShellHeader({
   )
 }
 
+interface NodeShellIngredientsProps {
+  /** The node whose incoming edges are summarized. Matches the `nodeId` this
+   *  card already passes to `NodeShellRoot` — same graph-store read pattern
+   *  as the Inspector reference chips (ShotInspector), just compact + inert. */
+  nodeId: string
+}
+
+/**
+ * S2 成分栏（改动清单⑤）：片头条下的只读 chip 行，摘要「这张卡吃了哪些上游连线」。
+ * 纯展示 —— 吞噬手势落地前（S5b）连线本身仍是唯一的绑定/解除入口，这里不做点击/
+ * 移除，只是给那份绑定一个卡面可见的小结。空（叶子节点 / 未连线）则不渲染整行。
+ */
+function NodeShellIngredients({ nodeId }: NodeShellIngredientsProps) {
+  const tTypes = useTranslations('StudioNode.nodeTypes')
+  const tVideo = useTranslations('StudioNode.videoGeneration')
+  const allNodes = useNodes<NodeWorkflowNode>()
+  const edges = useEdges<NodeWorkflowEdge>()
+
+  const upstream = useMemo(
+    () => getUpstreamNodes(nodeId, edges, allNodes),
+    [nodeId, edges, allNodes],
+  )
+
+  if (upstream.length === 0) {
+    return null
+  }
+
+  const visible = upstream.slice(0, MAX_VISIBLE_INGREDIENTS)
+  const overflow = upstream.length - visible.length
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 border-b border-node-card-line px-5 py-2"
+      title={tVideo('upstreamTitle')}
+    >
+      {visible.map((sourceNode) => {
+        const presentationType = resolveNodePresentationType(sourceNode)
+        const Glyph = PORT_GLYPHS[presentationType]
+        const data = sourceNode.data
+        // Named sources (character/background/shot/voice) show their own
+        // name — mirrors NodeMediaPreview's per-role header title so the same
+        // node reads with the same label everywhere. Everything else falls
+        // back to the localized type label (identical to NodeShell.Header's
+        // own fallback for an untitled card).
+        const customName =
+          presentationType === NODE_TYPE_IDS.characterImage
+            ? data.characterName?.trim() || data.character?.name?.trim()
+            : presentationType === NODE_TYPE_IDS.backgroundImage
+              ? data.backgroundName?.trim()
+              : presentationType === NODE_TYPE_IDS.shot
+                ? data.shotName?.trim()
+                : presentationType === NODE_TYPE_IDS.voice
+                  ? data.voiceName?.trim()
+                  : undefined
+        const label = customName || tTypes(presentationType)
+
+        return (
+          <span
+            key={sourceNode.id}
+            className="inline-flex max-w-28 items-center gap-1 rounded-full bg-node-panel-soft px-2 py-0.5 text-2xs font-medium text-node-muted"
+          >
+            {Glyph ? <Glyph aria-hidden className="size-3 shrink-0" /> : null}
+            <span className="truncate">{label}</span>
+          </span>
+        )
+      })}
+      {overflow > 0 ? (
+        <span className="shrink-0 text-2xs font-medium text-node-subtle">
+          +{overflow}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 function NodeShellBody({ children, className }: NodeShellSlotProps) {
   return <div className={cn('px-5 py-4', className)}>{children}</div>
 }
@@ -234,7 +326,7 @@ function NodeShellFooter({ children, className }: NodeShellSlotProps) {
   return (
     <footer
       className={cn(
-        'flex items-center justify-between gap-2 border-t border-node-panel-inner/80 px-5 py-4',
+        'flex items-center justify-between gap-2 border-t border-node-card-line px-5 py-4',
         className,
       )}
     >
@@ -245,6 +337,7 @@ function NodeShellFooter({ children, className }: NodeShellSlotProps) {
 
 export const NodeShell = Object.assign(NodeShellRoot, {
   Header: NodeShellHeader,
+  Ingredients: NodeShellIngredients,
   Body: NodeShellBody,
   Footer: NodeShellFooter,
 })

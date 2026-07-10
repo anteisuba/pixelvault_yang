@@ -93,7 +93,7 @@ export function CharacterImageInspector({
           </InspectorField>
 
           {boundVoice ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-node-success/30 bg-node-success/10 px-3 py-2 text-xs leading-5 text-node-success">
+            <div className="flex items-center gap-2 rounded-2xl border border-node-paint/30 bg-node-paint/10 px-3 py-2 text-xs leading-5 text-node-paint">
               <Mic2 className="size-3.5 shrink-0" />
               <span className="flex-1 truncate">
                 {boundVoice.voiceName

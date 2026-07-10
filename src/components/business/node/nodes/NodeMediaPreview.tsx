@@ -168,9 +168,10 @@ export function NodeMediaPreview({
         }
         action={<NodeExpandButton nodeId={id} />}
       />
+      <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
         <div
-          className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft"
+          className="node-card-window relative aspect-video overflow-hidden rounded-sm border border-node-panel-inner bg-node-card-window"
           style={
             kind === NODE_MEDIA_KIND_IDS.video && videoAspect
               ? { aspectRatio: videoAspect }
@@ -232,7 +233,12 @@ export function NodeMediaPreview({
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
               <Loader2 className="size-5 animate-spin text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
-              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-panel-inner" />
+              {/* Fixed dark track (not the scope-relative bg-node-panel-inner): this
+                  sits inside the deep window (.node-card-window), where the sweep
+                  itself already reads --node-foreground from that scope (light).
+                  A track tied to the outer .node-card-paper scope would resolve to
+                  paper-strong (light-on-light, invisible) — see S2 report. */}
+              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-canvas" />
             </div>
           ) : null}
         </div>

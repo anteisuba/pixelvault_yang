@@ -10,8 +10,9 @@ export const NODE_STUDIO_CANVAS = {
   background: {
     gap: 28,
     size: 1,
-    // §2.2 去暖：点阵改中性（foreground rgb 232,230,222 低透），不再用暖象牙白。
-    color: 'rgba(232,230,222,0.08)',
+    // v2 制片桌（references/pages/node-canvas.md §2.1）：暖炭点阵。
+    // S1 首落 #26231e 对比仅 1.19:1 几乎不可见，owner 目验后加深（~1.6:1）。
+    color: '#403a2f',
   },
   defaultZoomPercent: 80,
   // D3 Figma 级平移：中键(1)+右键(2) 拖拽平移画板；左键留给选择/框选。

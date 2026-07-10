@@ -59,47 +59,59 @@ const NEUTRAL_ACCENT: NodeAccentToken = {
   dotRing: '!border-node-muted',
 }
 
+// S2 端口纸面校准（施工图 §2.3 / 任务包改动清单⑥）：dot / dotRing / iconText 换
+// on-paper 变体类（NodeShell Handle 现挂在纸卡缘，需要对 --node-card-paper 达标的
+// 类型色）。on-paper 变体本轮定值 = 原值（WCAG 脚本核实 5/5 已 ≥3:1，偏移量 0，见
+// globals.css :root 注释），故这里替换 class 名本轮无像素变化，为纸面/深底两套上下
+// 文后续可独立调参预留 token 分叉点。
+//
+// iconPlate 由 /20 改 /30 → 改 /10（chrome 实跑 canvas 取样 + WCAG 计算，S2 报告）：
+// 淡底与字同色相，不透明度往上加反而把底色拉近字色、拉低对比（纸面 /20 量得
+// 2.8–2.9:1、/30 反降到 2.5–2.6:1）；往下调到 /10 才是对的方向（纸面回升到
+// 3.0–3.3:1，深底 chrome 语境同步从 2.9:1 升到 3.2:1——CanvasAddMenu /
+// NodeDetailPanel 共享同一 iconPlate token，双向都是净改善，非只顾纸面）。任务包原
+// 文按「看不清就调高」的直觉指向 /30，经验证方向相反，改 /10 而非 /30。
 const CHARACTER_ACCENT: NodeAccentToken = {
-  iconPlate: 'bg-node-port-character/20',
-  iconText: 'text-node-port-character',
+  iconPlate: 'bg-node-port-character/10',
+  iconText: 'text-node-port-character-on-paper',
   selectedRing: 'ring-node-port-character/60',
-  dot: '!bg-node-port-character',
-  dotRing: '!border-node-port-character',
+  dot: '!bg-node-port-character-on-paper',
+  dotRing: '!border-node-port-character-on-paper',
 }
 
 const BACKGROUND_ACCENT: NodeAccentToken = {
-  iconPlate: 'bg-node-port-background/20',
-  iconText: 'text-node-port-background',
+  iconPlate: 'bg-node-port-background/10',
+  iconText: 'text-node-port-background-on-paper',
   selectedRing: 'ring-node-port-background/60',
-  dot: '!bg-node-port-background',
-  dotRing: '!border-node-port-background',
+  dot: '!bg-node-port-background-on-paper',
+  dotRing: '!border-node-port-background-on-paper',
 }
 
 const VOICE_ACCENT: NodeAccentToken = {
-  iconPlate: 'bg-node-port-voice/20',
-  iconText: 'text-node-port-voice',
+  iconPlate: 'bg-node-port-voice/10',
+  iconText: 'text-node-port-voice-on-paper',
   selectedRing: 'ring-node-port-voice/60',
-  dot: '!bg-node-port-voice',
-  dotRing: '!border-node-port-voice',
+  dot: '!bg-node-port-voice-on-paper',
+  dotRing: '!border-node-port-voice-on-paper',
 }
 
 const VIDEO_ACCENT: NodeAccentToken = {
-  iconPlate: 'bg-node-port-video/20',
-  iconText: 'text-node-port-video',
+  iconPlate: 'bg-node-port-video/10',
+  iconText: 'text-node-port-video-on-paper',
   selectedRing: 'ring-node-port-video/60',
-  dot: '!bg-node-port-video',
-  dotRing: '!border-node-port-video',
+  dot: '!bg-node-port-video-on-paper',
+  dotRing: '!border-node-port-video-on-paper',
 }
 
 // Image-modality accent (low-sat violet). The unified `image` node and its
 // non-character roles (shot / frame) use it so the most-used "create an image"
 // surface isn't a colorless grey. character / background keep their own tint.
 const IMAGE_ACCENT: NodeAccentToken = {
-  iconPlate: 'bg-node-port-image/20',
-  iconText: 'text-node-port-image',
+  iconPlate: 'bg-node-port-image/10',
+  iconText: 'text-node-port-image-on-paper',
   selectedRing: 'ring-node-port-image/60',
-  dot: '!bg-node-port-image',
-  dotRing: '!border-node-port-image',
+  dot: '!bg-node-port-image-on-paper',
+  dotRing: '!border-node-port-image-on-paper',
 }
 
 export const NODE_ACCENTS = {

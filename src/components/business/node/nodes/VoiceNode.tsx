@@ -57,7 +57,12 @@ export function VoiceNode(props: NodeProps<NodeWorkflowNode>) {
             so a real voice cover reads as a first-class preview instead of a
             tiny avatar. The voice name lives in the header; when there is no
             cover we fall back to a larger icon + name + description. */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+        {/* node-card-window: this cover carries a caption badge
+            (text-node-foreground on a fixed bg-node-canvas/75 scrim) that needs
+            the deep-window's light-on-dark foreground override — on the plain
+            paper scope, text-node-foreground resolves to dark ink and the
+            caption disappears against its own dark scrim (see S2 report). */}
+        <div className="node-card-window relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-card-window">
           {showCover && cover ? (
             <>
               {/* Third-party cover images come from arbitrary hosts; keep a raw img with icon fallback. */}

@@ -186,7 +186,10 @@ export function ReferenceTokenChip({
           )}
           {data.kind === 'video' ? (
             // §8.2 动作·参考视频: ▶ 角标一眼区分"这是动图不是静图"。
-            <span className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl bg-node-canvas/85 text-node-foreground">
+            // node-card-window (S2 卡内偏差修正): same fixed-dark-scrim badge as
+            // DepartmentStrip's corner badge — needs the deep-window's light
+            // foreground override so the glyph doesn't go dark-on-dark.
+            <span className="node-card-window absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl bg-node-canvas/85 text-node-foreground">
               <Play className="size-2" fill="currentColor" />
             </span>
           ) : null}

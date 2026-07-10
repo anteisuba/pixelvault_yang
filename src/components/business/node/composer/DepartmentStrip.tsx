@@ -369,7 +369,11 @@ function DepartmentSlot({
       {badge ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute -bottom-1 -left-1 rounded bg-node-canvas/85 px-1 font-mono text-3xs leading-4 text-node-muted"
+          // node-card-window (S2 卡内偏差修正): this corner badge is a fixed dark
+          // scrim (bg-node-canvas) regardless of card material — without the
+          // scope it inherits the outer paper card's dark-ink text-node-muted,
+          // going invisible on its own dark background.
+          className="node-card-window pointer-events-none absolute -bottom-1 -left-1 rounded bg-node-canvas/85 px-1 font-mono text-3xs leading-4 text-node-muted"
         >
           {badge}
         </span>

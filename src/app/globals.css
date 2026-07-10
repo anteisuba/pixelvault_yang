@@ -30,8 +30,16 @@
   --color-node-muted: var(--node-muted);
   --color-node-subtle: var(--node-subtle);
   --color-node-danger: var(--node-danger);
-  --color-node-success: var(--node-success);
-  --color-node-lipsync: var(--node-lipsync);
+  --color-node-card-paper: var(--node-card-paper);
+  --color-node-card-paper-strong: var(--node-card-paper-strong);
+  --color-node-card-paper-soft: var(--node-card-paper-soft);
+  --color-node-card-ink: var(--node-card-ink);
+  --color-node-card-ink-muted: var(--node-card-ink-muted);
+  --color-node-card-ink-subtle: var(--node-card-ink-subtle);
+  --color-node-card-window: var(--node-card-window);
+  --color-node-card-line: var(--node-card-line);
+  --color-node-paint: var(--node-paint);
+  --color-node-paint-fg: var(--node-paint-fg);
   --color-node-edge: var(--node-edge);
   --color-node-edge-active: var(--node-edge-active);
   --color-node-focus-ring: var(--node-focus-ring);
@@ -40,6 +48,12 @@
   --color-node-port-voice: var(--node-port-voice);
   --color-node-port-video: var(--node-port-video);
   --color-node-port-image: var(--node-port-image);
+  /* S2 端口纸面校准（§2.3）：纸卡缘对纸面 #ebe5d8 的变体，见 :root 定值注释。 */
+  --color-node-port-character-on-paper: var(--node-port-character-on-paper);
+  --color-node-port-background-on-paper: var(--node-port-background-on-paper);
+  --color-node-port-voice-on-paper: var(--node-port-voice-on-paper);
+  --color-node-port-video-on-paper: var(--node-port-video-on-paper);
+  --color-node-port-image-on-paper: var(--node-port-image-on-paper);
   --color-modality-image: var(--modality-image);
   --color-modality-video: var(--modality-video);
   --color-modality-audio: var(--modality-audio);
@@ -282,21 +296,35 @@
   --surface-composer: oklch(96% 0.008 95);
   --surface-composer-foreground: oklch(20% 0 0);
 
-  /* 画布近黑工作台（direction.md 双面模式·工作面）。grays 中性化（去暖/锈调）
-     依据 canvas-baseline.md §2.2 + 草稿 fill-5；canvas/success 按 §2.1 显式「保留」。 */
-  --node-canvas: #0b0b0a;
-  --node-panel: #1a1a1a;
-  --node-panel-inner: #2a2a2a;
-  --node-panel-soft: #202020;
+  /* v2 制片桌（施工图 references/pages/node-canvas.md）：panel 系 = 深色 chrome
+     （暖炭，§2.1 调值 2026-07-10 S1）；card-* = 纸卡材质（S2 起消费）；
+     paint = 石绿颜料（唯一高光，§5 克制档五落点）。 */
+  --node-canvas: #14120f;
+  --node-panel: #191612;
+  --node-panel-inner: #221f1b;
+  --node-panel-soft: #1c1915;
   --node-foreground: #e8e6de;
   --node-muted: #9a988f;
   --node-subtle: #6f6a63;
   /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
      panel-inner）并于 2026-06-20 删除。node-danger 仍是 strangler 别名（已
-     repoint 真红），待改名 --node-status-failed。勿在新代码引用 node-danger。 */
+     repoint 真红），待改名 --node-status-failed。勿在新代码引用 node-danger。
+     node-success（emerald）/ node-lipsync（紫）已于 2026-07-10 S1 删除：
+     生成键改 --node-paint 石绿（§2.3），lipsync 语义靠图标降中性。 */
   --node-danger: #e5484d; /* 旧 amber-yellow「danger」→ 真红（语义对齐 §6 failed=红） */
-  --node-success: #10b981; /* §2.1/D5 保留：仅生成按钮的已批准例外 */
-  --node-lipsync: #9c77f6; /* §10 待 owner：lipsync 语义紫，暂留 */
+  /* 纸卡材质组（§2.2，S1 只定义、S2 起消费）+ 石绿颜料。
+     paint 由施工图 #3D8A6B 微调至 #3E8C6C：WCAG 深字 text-node-canvas
+     4.61:1 达标（规格值上深字 4.49 / 浅字 3.68 均 <4.5，确定性计算存档 S1 报告）。 */
+  --node-card-paper: #ebe5d8;
+  --node-card-paper-strong: #e0d8c8;
+  --node-card-paper-soft: #f4efe4;
+  --node-card-ink: #26231e;
+  --node-card-ink-muted: #5f594e;
+  --node-card-ink-subtle: #8a8070;
+  --node-card-window: #1b1917;
+  --node-card-line: #c9c0ab;
+  --node-paint: #3e8c6c;
+  --node-paint-fg: #ebf3ee;
   --node-shadow: rgb(0 0 0 / 0.5);
   /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相 */
   --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
@@ -308,6 +336,15 @@
   --node-port-voice: #856a72;
   --node-port-video: #647386;
   --node-port-image: #6f6a86; /* image 模态色（统一图片节点）— 与角色同属图片族紫 */
+  /* S2 端口纸面校准（§2.3，纸卡缘变体，NodeShell Handle 消费）：确定性 WCAG 脚本核实
+     5 支现值对 --node-card-paper #ebe5d8 均已 ≥3:1（3.70–4.10:1，同色相同饱和度只调
+     明度未偏移，见 S2 报告），故 on-paper 变体本轮定值 = 原值，最小偏移量为 0。仍新增
+     独立 token（而非直接复用）是为纸面/深底两套上下文各自可独立调参，不互相牵连。 */
+  --node-port-character-on-paper: #6f6a86; /* 4.10:1 vs #ebe5d8 */
+  --node-port-background-on-paper: #5f7a73; /* 3.70:1 vs #ebe5d8 */
+  --node-port-voice-on-paper: #856a72; /* 3.89:1 vs #ebe5d8 */
+  --node-port-video-on-paper: #647386; /* 3.86:1 vs #ebe5d8 */
+  --node-port-image-on-paper: #6f6a86; /* 4.10:1 vs #ebe5d8 */
   /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红 */
   --node-status-done: #1f3a2c;
   --node-status-done-fg: #7fc4a0;
@@ -1275,6 +1312,40 @@ html:lang(zh) {
       grid-template-columns: minmax(0, 1.2fr) minmax(17rem, 0.8fr);
     }
   }
+}
+
+/* ── Canvas (Node 导演台) S2 纸卡材质作用域 ────────────────────────────
+   施工图 references/pages/node-canvas.md §2.3 / §3：容器级 CSS 变量覆盖
+   （strangler 局部反转，不改 --node-panel 系全局语义，见 §2 关键建模决定）。
+   `.node-card-paper` 挂在 NodeShell Root（article）：卡内 281 处既有
+   `bg-node-panel* / text-node-foreground / text-node-muted / text-node-subtle`
+   引用零改动，靠 Tailwind v4 `@theme inline` 单跳 `var(--node-panel)` 编译
+   （非 var(--color-node-panel) 两跳）自动读到覆盖值 —— 已用 DevTools
+   getComputedStyle 手工验证级联成立（2026-07-10 S2）。
+   `.node-card-window` 挂在 NodeMediaPreview 媒体容器：深窗只反转前景/次级/提示字
+   （回到深底浅字），不动 panel 系——媒体容器自身背景由 `bg-node-card-window`
+   工具类显式设置，是独立于 panel 覆盖链之外的字面值。 */
+.node-card-paper {
+  --node-panel: var(--node-card-paper);
+  --node-panel-inner: var(--node-card-paper-strong);
+  --node-panel-soft: var(--node-card-paper-soft);
+  --node-foreground: var(--node-card-ink);
+  --node-muted: var(--node-card-ink-muted);
+  --node-subtle: var(--node-card-ink-subtle);
+  /* 拖拽微倾（§3/§9-S2）：ReactFlow 拖拽态类名实测为
+     `.react-flow__node.draggable.dragging`（node_modules/@xyflow/react/dist/style.css），
+     `.dragging` 单类选择器即可命中。倾斜落在 article 自身的 rotate 上，独立于
+     ReactFlow 加在 `.react-flow__node` 外层的 translate transform，互不干扰。
+     release 靠同一条 transition 立即归位（不额外分 in/out 曲线）。 */
+  transition: rotate var(--duration-base) var(--ease-standard);
+}
+.node-card-window {
+  --node-foreground: #e8e6de;
+  --node-muted: #9a988f;
+  --node-subtle: #6f6a63;
+}
+.react-flow__node.dragging .node-card-paper {
+  rotate: 1deg;
 }
 
 /* ── Canvas (Node 导演台) motion standard ─────────────────────────────

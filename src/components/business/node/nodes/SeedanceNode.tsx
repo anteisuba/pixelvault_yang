@@ -67,8 +67,12 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
           </div>
         }
       />
+      <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
-        <div className="relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
+        {/* node-card-window: same deep-window treatment as NodeMediaPreview's media
+            container (§3/§7) — hand-rolled here rather than delegating to
+            NodeMediaPreview, so the scope class + bg + radius are mirrored by hand. */}
+        <div className="node-card-window relative aspect-video overflow-hidden rounded-sm border border-node-panel-inner bg-node-card-window">
           {mediaUrl ? (
             <video
               src={mediaUrl}
@@ -79,7 +83,10 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              <span className="flex size-11 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted">
+              {/* Fixed dark plate (not bg-node-panel-inner) — this icon sits inside
+                  the deep window, whose --node-panel-inner would otherwise still
+                  resolve to the outer paper scope's light paper-strong. */}
+              <span className="flex size-11 items-center justify-center rounded-xl bg-node-canvas text-node-muted">
                 <Video className="size-5" />
               </span>
               <p className="text-xs leading-5 text-node-muted">
@@ -92,7 +99,9 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
               <Film className="size-5 animate-pulse text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
-              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-panel-inner" />
+              {/* Fixed dark track — see NodeMediaPreview.tsx for the same fix +
+                  rationale (light-on-light bug against the deep window scope). */}
+              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-canvas" />
             </div>
           ) : null}
         </div>

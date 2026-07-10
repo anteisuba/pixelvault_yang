@@ -145,7 +145,7 @@ export function NodeActionButton({
       onClick={() => {
         void onClick()
       }}
-      className="nodrag nopan nowheel h-10 w-full rounded-2xl bg-node-success text-xs font-semibold text-node-canvas hover:bg-node-success/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+      className="nodrag nopan nowheel h-10 w-full rounded-2xl bg-node-paint text-xs font-semibold text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
     >
       {children}
     </Button>

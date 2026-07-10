@@ -333,7 +333,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
           type="button"
           onClick={() => void handleMerge()}
           disabled={!canMerge}
-          className="bg-node-success text-node-canvas hover:bg-node-success/90"
+          className="bg-node-paint text-node-canvas hover:bg-node-paint/90"
         >
           <Sparkles className="mr-2 size-4" />
           {mediaUrl ? t('merge.regenerate') : t('merge.run')}

@@ -697,7 +697,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       {...KEY_GUARD}
       onClick={handleGenerate}
       disabled={Boolean(disabledReason)}
-      className="h-10 w-full rounded-xl bg-node-success text-node-canvas hover:bg-node-success/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+      className="h-10 w-full rounded-xl bg-node-paint text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
     >
       {isPending ? (
         <Loader2 className="size-4 animate-spin" />

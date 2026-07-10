@@ -194,7 +194,11 @@ export async function submitImageGeneration(
     timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
     maxAttempts:
       route.adapterType === AI_ADAPTER_TYPES.FAL ||
-      route.adapterType === AI_ADAPTER_TYPES.REPLICATE
+      route.adapterType === AI_ADAPTER_TYPES.REPLICATE ||
+      // RunPod cold starts (scale-to-zero) can run 150s+ before the job even
+      // starts running — needs the full poll window, not the single-shot
+      // path used by adapters that resolve synchronously inside one step.do.
+      route.adapterType === AI_ADAPTER_TYPES.RUNNER
         ? EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS
         : 1,
     pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,

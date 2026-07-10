@@ -1,10 +1,7 @@
 import type { Edge, Node } from '@xyflow/react'
 import { z } from 'zod'
 
-import {
-  AI_ADAPTER_TYPE_OPTIONS,
-  type ProviderConfig,
-} from '@/constants/providers'
+import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODES,
@@ -56,7 +53,10 @@ export const NodeWorkflowFieldSchema = z.enum(NODE_WORKFLOW_FIELDS)
 export const NodeWorkflowModelSelectionSchema = z.object({
   optionId: z.string().trim().min(1).max(240),
   modelId: z.string().trim().min(1).max(200),
-  adapterType: z.enum(AI_ADAPTER_TYPE_OPTIONS),
+  // Any adapter (not the narrower API-key-eligible subset) — canvas nodes
+  // can select a RUNNER-backed model exactly like any other, they just
+  // never carry a user apiKeyId for it (see apiKeyId below, optional).
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES),
   providerConfig: z.object({
     label: z.string().trim().min(1).max(120),
     baseUrl: z.string().trim().min(1).max(500),
@@ -100,6 +100,13 @@ export const NodeWorkflowReferenceAssetSchema = z.object({
   source: NodeWorkflowReferenceSourceSchema,
   sourceId: z.string().trim().min(1).max(160).optional(),
   name: z.string().trim().min(1).max(160).optional(),
+  /**
+   * S5d ③ 分类系统 — user-typed label when `role === 'custom'`
+   * (`NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID`). Backward-compatible additive
+   * field: absent on every pre-S5d saved reference, which keeps its preset
+   * `role` untouched.
+   */
+  customLabel: z.string().trim().min(1).max(80).optional(),
 })
 
 export const NodeWorkflowLoraSelectionSchema = z.object({
@@ -249,6 +256,30 @@ export const NodeWorkflowNodeDataSchema = z
      * place instead of spawning a duplicate. Absent on hand-added nodes.
      */
     scriptRef: ScriptRefSchema.optional(),
+    /**
+     * S5c 三.3 融合（散图→角色/背景卡）: set on a LOOSE image node (role
+     * undefined) once its image has been absorbed into a target identity
+     * node's `referenceAssets` (source:'canvas', sourceId:<this node's id>).
+     * `StudioNodeWorkbench`'s render-time hidden fold reads this alongside
+     * `isCastIdentityNode` — same "hidden flag only, never a filtered array"
+     * rule as the rest of the S5b/S5c render fold. Cleared by 拆出 (extract),
+     * which un-hides the node in place instead of spawning a new one.
+     */
+    fusedIntoNodeId: z.string().trim().min(1).max(160).optional(),
+    /**
+     * S5d ③「图片=素材原子」: a LOOSE image node's own classification (set
+     * after upload-first landing, §6.0 "图进来后可设 名字 + 分类"). Distinct
+     * from a card's nested `referenceAssets[].role` — this is the node's OWN
+     * category, carried over into that field's value if/when the node is
+     * later fused into a card (`createReferenceAsset` reads it as a seed).
+     * Optional/additive — absent on every node that predates S5d, including
+     * legacy `frame`-role nodes (their keyframe-ness still comes from
+     * `role==='frame'`, not this field — see `isKeyframeNode`).
+     */
+    imageCategory: NodeWorkflowReferenceRoleSchema.optional(),
+    /** Custom label paired with `imageCategory === 'custom'` — mirrors
+     *  `NodeWorkflowReferenceAssetSchema.customLabel`. */
+    imageCategoryLabel: z.string().trim().min(1).max(80).optional(),
   })
   .passthrough()
 

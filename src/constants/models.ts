@@ -38,6 +38,10 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.ANIMA_PENCIL_XL]: 'animaPencilXl',
   [AI_MODELS.RECRAFT_V4_PRO]: 'recraftV4Pro',
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
+  [AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE]: 'illustriousRecipeClone',
+  [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: 'animaPencilXlRunner',
+  [AI_MODELS.PONY_DIFFUSION_V6]: 'ponyDiffusionV6',
+  [AI_MODELS.SDXL_10_RUNNER]: 'sdxl10Runner',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'fishAudioS2Pro',
   [AI_MODELS.ELEVENLABS_V3]: 'elevenV3',
   [AI_MODELS.ELEVENLABS_SFX_V2]: 'elevenSfxV2',
@@ -107,6 +111,10 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.ILLUSTRIOUS_XL]: 'Illustrious',
   [AI_MODELS.ANIMA_PENCIL_XL]: 'Anima',
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'FLUX',
+  [AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE]: 'Illustrious',
+  [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: 'Anima',
+  [AI_MODELS.PONY_DIFFUSION_V6]: 'Pony',
+  [AI_MODELS.SDXL_10_RUNNER]: 'SDXL',
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.SEEDANCE_20]: 'Seedance',
@@ -231,6 +239,7 @@ export type ProviderGroup =
   | 'fish_audio'
   | 'elevenlabs'
   | 'hyper3d'
+  | 'runner'
 
 /** Display order for provider groups. */
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
@@ -246,6 +255,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'elevenlabs',
   'opensource',
   'replicate',
+  'runner',
   'hyper3d',
 ]
 
@@ -278,6 +288,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'elevenlabs'
     case AI_ADAPTER_TYPES.HYPER3D_RODIN:
       return 'hyper3d'
+    case AI_ADAPTER_TYPES.RUNNER:
+      return 'runner'
   }
 }
 

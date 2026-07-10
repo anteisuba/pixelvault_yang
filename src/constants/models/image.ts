@@ -2,8 +2,13 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
+import { FEATURE_FLAGS } from '@/constants/feature-flags'
 import { AI_MODELS } from '@/constants/models/enum'
 import type { ModelOption } from '@/constants/models/types'
+import { getRunnerCheckpointById } from '@/constants/runner-checkpoints'
+
+/** Cold starts (scale-to-zero) can run 150s+ — give runner models a long ceiling. */
+const RUNNER_TIMEOUT_MS = 600_000
 
 /**
  * Image generation models, ordered by product recommendation. The catalog is
@@ -207,5 +212,63 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     styleTag: 'anime',
     supportsLora: true,
+  },
+  // ─── Comfy Runner (RunPod Serverless ComfyUI) ──────────────────────
+  // Faithful Civitai-recipe clones for checkpoints hosted providers can't
+  // run (community LoRA layer formats, dead/nonexistent hosted endpoints).
+  // Gated behind FEATURE_FLAGS.comfyRunner — owner-only single endpoint with
+  // a hard monthly budget cap (RUNNER_MONTHLY_LIMIT). See
+  // docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b/§8.
+  {
+    id: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('waiIllustriousSDXL_v150')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
+  {
+    id: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('animaPencilXL_v500')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
+  {
+    id: AI_MODELS.PONY_DIFFUSION_V6,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('ponyDiffusionV6XL')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
+  {
+    id: AI_MODELS.SDXL_10_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('sdXL_v10VAEFix')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    qualityTier: 'standard',
+    styleTag: 'general',
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
   },
 ]

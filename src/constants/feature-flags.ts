@@ -24,6 +24,14 @@ export const FEATURE_FLAGS = {
 
   /** C2: Series mode with character consistency chaining */
   seriesMode: process.env.NEXT_PUBLIC_FF_SERIES_MODE === 'true',
+
+  /**
+   * Comfy Runner (RunPod Serverless ComfyUI) — faithful Civitai recipe
+   * clones for Illustrious/Anima/Pony/SDXL. Owner-only single-endpoint infra
+   * (scale-to-zero, $10/month prepaid budget), so it stays behind a flag even
+   * once the code ships. See docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   */
+  comfyRunner: process.env.NEXT_PUBLIC_FF_COMFY_RUNNER === 'true',
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS

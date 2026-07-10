@@ -93,6 +93,7 @@
       "volcengine": "火山エンジン",
       "opensource": "オープンソース",
       "replicate": "Replicate",
+      "runner": "Comfy Runner",
       "hyper3d": "Hyper3D"
     },
     "styleGroups": {
@@ -1603,6 +1604,10 @@
     "uploadHint": "ドラッグ、クリック、または貼り付け",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "アーカイブから選ぶ",
+    "dropHint": "ドラッグ / ペースト / クリックでアップロード",
+    "recentAssets": "最近の素材",
+    "recentAssetsEmpty": "素材がありません",
+    "openLibrary": "素材ライブラリ",
     "layerDecompose": "画像をレイヤー分解",
     "dropComposerHint": "離すと画像を添付します",
     "previewReferenceImage": "参照画像 {index} を拡大表示",
@@ -2063,6 +2068,10 @@
       "elevenlabs": {
         "label": "ElevenLabs",
         "description": "ElevenLabs v3 を使用して、自然で表現豊かな高品質テキスト読み上げを行います。"
+      },
+      "runner": {
+        "label": "PixelVault Runner",
+        "description": "忠実な Civitai レシピ複製のための自己ホスト型 RunPod ComfyUI ランナー。プラットフォーム管理型で、ユーザー設定はできません。"
       }
     },
     "summary": {
@@ -2469,11 +2478,7 @@
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",
     "sourceDescription": "画像をアップロードまたは選択して、画風、キャラクター、背景、タグを抽出します。",
-    "uploadAction": "アップロード",
     "selectAsset": "素材を選択",
-    "uploadTitle": "画像をドロップまたはクリックしてアップロード",
-    "uploadHint": "JPG, PNG, WebP — 最大10MB",
-    "pasteHint": "⌘V / Ctrl+V",
     "analyzing": "AIで画像を分析中...",
     "generatedPromptLabel": "生成されたプロンプト",
     "generateVariations": "全モデルでバリエーションを生成",
@@ -2647,6 +2652,22 @@
     "fluxKontextMax": {
       "label": "FLUX Kontext Max",
       "description": "マルチ参照編集。最大4枚の参照画像を組み合わせて一貫性のある生成。"
+    },
+    "illustriousRecipeClone": {
+      "label": "WAI-Illustrious（Runner）",
+      "description": "Comfy Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
+    },
+    "animaPencilXlRunner": {
+      "label": "Anima Pencil-XL（Runner）",
+      "description": "Comfy Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、PixelVault 内で生成できる唯一の経路です。"
+    },
+    "ponyDiffusionV6": {
+      "label": "Pony Diffusion V6 XL（Runner）",
+      "description": "Comfy Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
+    },
+    "sdxl10Runner": {
+      "label": "SDXL 1.0（Runner）",
+      "description": "Comfy Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
@@ -3150,14 +3171,6 @@
       "videoReference": "参考動画",
       "videoMerge": "動画結合"
     },
-    "imageRolePicker": {
-      "title": "この画像の用途は？",
-      "reChoose": "画像の用途に戻る",
-      "character": "キャラクター",
-      "background": "背景",
-      "shot": "ショット",
-      "closeup": "クローズアップ"
-    },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
       "agent": "Composer のアイデアを物語、シーン、ビート、ショット構成に分解します。",
@@ -3166,7 +3179,7 @@
       "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。",
       "backgroundImage": "シーン背景と空気感のある画像を生成します。",
       "frameImage": "動画生成前のキーフレーム画像を生成します。",
-      "image": "キャラクター・背景・ショット画像を生成——追加後に用途を選びます。",
+      "image": "アップロード・素材ライブラリ・AI 生成のいずれかで画像を用意——追加後に名前と分類を設定できます。キャラクター・シーンは Cast ドックから新規作成します。",
       "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
       "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。",
       "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。",
@@ -3181,6 +3194,23 @@
       "failed": "NG",
       "stale": "期限切れ",
       "disabled": "無効"
+    },
+    "imageSourceStarter": {
+      "uploadAria": "画像をアップロード",
+      "uploadTitle": "画像をアップロード",
+      "uploadHint": "クリック・ドラッグ・貼り付け",
+      "library": "素材ライブラリ",
+      "aiGenerate": "AI 生成",
+      "libraryDialogTitle": "画像素材を選択",
+      "libraryDialogDescription": "ライブラリから画像を選び、このカードの内容にします。",
+      "untitled": "無題の画像",
+      "uploadFailed": "画像のアップロードに失敗しました",
+      "nameLabel": "名前",
+      "namePlaceholder": "この画像の名前を入力…",
+      "categoryLabel": "分類",
+      "categoryUnset": "未分類",
+      "categoryCustomLabel": "カスタム分類名",
+      "categoryCustomPlaceholder": "カスタム分類を入力…"
     },
     "composer": {
       "promptLabel": "Composer プロンプト",
@@ -3255,7 +3285,8 @@
       "nameLabel": "キャラクター名",
       "voiceBound": {
         "namedVoice": "🎙 音色をバインド：{voiceName}（動画生成時に @AudioN にキャラクター名が付きます）",
-        "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）"
+        "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）",
+        "remove": "音色のバインドを解除"
       },
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
@@ -3346,8 +3377,15 @@
           "pose": "ポーズ",
           "style": "スタイル",
           "composition": "構図",
-          "background": "背景"
-        }
+          "background": "背景",
+          "faceCloseup": "顔クローズアップ",
+          "costume": "衣装",
+          "prop": "小道具",
+          "frameStart": "キーフレーム（開始）",
+          "frameEnd": "キーフレーム（終了）",
+          "custom": "カスタム"
+        },
+        "customLabelPlaceholder": "カスタム分類名…"
       },
       "lora": {
         "title": "LoRA",
@@ -3717,7 +3755,6 @@
     },
     "nodeDetail": {
       "backToCanvas": "キャンバスに戻る",
-      "backToRolePicker": "用途の選択に戻る",
       "canvasCrumb": "キャンバス",
       "close": "折りたたむ",
       "generate": "生成"
@@ -4027,6 +4064,61 @@
       "send": "送信"
     },
     "minimapTitle": "ミニマップ",
+    "castDock": {
+      "title": "キャスト",
+      "expand": "キャストドックを展開",
+      "collapse": "キャストドックを折りたたむ",
+      "handle": "Cast · {count}",
+      "sections": {
+        "character": "キャラクター",
+        "background": "シーン",
+        "voice": "ボイス",
+        "videoReference": "参考動画"
+      },
+      "performanceCount": "{count} 話に出演",
+      "referenceCountAria": "参照画像 {count} 枚",
+      "voiceBoundAria": "ボイス紐付け済み",
+      "create": "新規",
+      "deleteCard": "{name}を削除",
+      "openDetail": "{name}を開く"
+    },
+    "ingest": {
+      "reasons": {
+        "typeMismatch": "このカードはこのターゲットに取り込めません",
+        "duplicate": "すでに含まれています",
+        "capacityFull": "参照枠が満杯です",
+        "capacityFullWithLimit": "参照枠が満杯です（{current}/{limit}）"
+      },
+      "removeIngredient": "{name}のバインドを解除",
+      "quickThrow": {
+        "toggleAria": "{name}をクイック投入",
+        "hint": "{name} を投入中 — ターゲットのショットをクリック、Esc で終了",
+        "alreadyIncluded": "すでに含まれています"
+      },
+      "looseImageFused": "画像をキャラクターの参照ギャラリーに追加しました",
+      "looseImageFuseRejected": "追加できませんでした——キャラクターカードか背景カードにドロップしてください",
+      "looseImage": {
+        "uploading": "{count} 枚の画像をアップロード中…",
+        "uploaded": "{count} 枚の画像をキャンバスに配置しました",
+        "uploadFailed": "画像のアップロードに失敗しました",
+        "untitled": "無題の画像",
+        "cardAlt": "キャンバス上の散らばった画像"
+      }
+    },
+    "dossier": {
+      "gallerySourceCanvas": "キャンバスから",
+      "gallerySourceCloseup": "クローズアップ",
+      "galleryExtract": "キャンバスに取り出す",
+      "galleryAdd": "追加",
+      "galleryAddAria": "参照画像を追加",
+      "identityVisualSeedLabel": "ビジュアルシード（アシスタント設定）",
+      "voiceSection": "ボイス識別",
+      "voiceBind": "ボイスを紐付け",
+      "voiceBindDialogDescription": "生成済みまたはアップロード済みの音声クリップを、このキャラクターのボイス参照として選択します。",
+      "performanceSection": "出演ショット",
+      "performanceEmpty": "まだどのショットにも使われていません",
+      "performanceFocusAria": "{name}をキャンバスでフォーカス"
+    },
     "toasts": {
       "notImplemented": "まだ実装されていません。",
       "layoutTidied": "キャンバスを整理しました。",
@@ -4547,7 +4639,10 @@
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
       "callbackTimeout": "生成 Worker から時間内に結果が返りませんでした。もう一度試すか、Worker ログを確認してください。",
-      "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。"
+      "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",
+      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば Comfy Runner モデル（忠実なレシピ複製）をお試しください。",
+      "runnerMonthlyLimitExceeded": "Comfy Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
+      "runnerLoraUnavailable": "この LoRA は Comfy Runner でまだ利用できません（未読み込み）。別の LoRA かホスト型モデルをお試しください。"
     },
     "generation": {
       "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
@@ -4599,7 +4694,11 @@
       "avatarTooLarge": "アバターは5MB以下にしてください。",
       "bannerTooLarge": "カバー画像は10MB以下にしてください。"
     },
-    "notImplemented": "この機能は近日公開予定です。"
+    "notImplemented": "この機能は近日公開予定です。",
+    "upload": {
+      "storageUnreachable": "画像ストレージにアップロードできませんでした。通常はネットワークまたはストレージの CORS 設定の問題です。再試行してください。続く場合は管理者にお問い合わせください。",
+      "storageRejected": "画像ストレージがアップロードを拒否しました。再試行してください。続く場合は管理者にお問い合わせください。"
+    }
   },
   "Transform": {
     "errors": {

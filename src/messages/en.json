@@ -93,6 +93,7 @@
       "volcengine": "VolcEngine",
       "opensource": "Open Source",
       "replicate": "Replicate",
+      "runner": "Comfy Runner",
       "hyper3d": "Hyper3D"
     },
     "styleGroups": {
@@ -1603,6 +1604,10 @@
     "uploadHint": "Drag, click, or paste an image",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "Select asset",
+    "dropHint": "Drag, paste, or click to upload",
+    "recentAssets": "Recent assets",
+    "recentAssetsEmpty": "No assets yet",
+    "openLibrary": "Asset library",
     "layerDecompose": "Split into layers",
     "dropComposerHint": "Drop to attach image",
     "previewReferenceImage": "Preview reference image {index}",
@@ -2063,6 +2068,10 @@
       "elevenlabs": {
         "label": "ElevenLabs",
         "description": "Use ElevenLabs v3 for premium, expressive text-to-speech with natural voices."
+      },
+      "runner": {
+        "label": "PixelVault Runner",
+        "description": "Self-hosted RunPod ComfyUI runner for faithful Civitai recipe clones. Platform-managed — not user-configurable."
       }
     },
     "summary": {
@@ -2469,11 +2478,7 @@
   "ReverseEngineer": {
     "title": "Reverse Engineer",
     "sourceDescription": "Upload or choose an image to extract its style, character, background, or tags.",
-    "uploadAction": "Upload",
     "selectAsset": "Select asset",
-    "uploadTitle": "Drop an image or click to upload",
-    "uploadHint": "JPG, PNG, WebP — max 10MB",
-    "pasteHint": "⌘V / Ctrl+V",
     "analyzing": "Analyzing image with AI...",
     "generatedPromptLabel": "Generated Prompt",
     "generateVariations": "Generate Variations with All Models",
@@ -2647,6 +2652,22 @@
     "fluxKontextMax": {
       "label": "FLUX Kontext Max",
       "description": "Multi-reference editing. Combine up to 4 reference images for consistent generation."
+    },
+    "illustriousRecipeClone": {
+      "label": "WAI-Illustrious (Runner)",
+      "description": "Faithful Civitai recipe clone via Comfy Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
+    },
+    "animaPencilXlRunner": {
+      "label": "Anima Pencil-XL (Runner)",
+      "description": "Anima Pencil-XL via Comfy Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in PixelVault."
+    },
+    "ponyDiffusionV6": {
+      "label": "Pony Diffusion V6 XL (Runner)",
+      "description": "Pony Diffusion V6 XL via Comfy Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
+    },
+    "sdxl10Runner": {
+      "label": "SDXL 1.0 (Runner)",
+      "description": "Plain SDXL 1.0 via Comfy Runner — a faithful recipe-clone path alongside the hosted route."
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
@@ -3150,14 +3171,6 @@
       "videoReference": "Reference Video",
       "videoMerge": "Merge Videos"
     },
-    "imageRolePicker": {
-      "title": "What's this image for?",
-      "reChoose": "Back to image roles",
-      "character": "Character",
-      "background": "Background",
-      "shot": "Shot",
-      "closeup": "Close-up"
-    },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
       "agent": "Break a Composer idea into story, scene, beat, and shot structure.",
@@ -3166,7 +3179,7 @@
       "characterImage": "Generate a portrait or design pass from a character prompt.",
       "backgroundImage": "Generate a scene background and atmosphere plate.",
       "frameImage": "Generate a keyframe image before video creation.",
-      "image": "Generate a character, background, or shot image — pick the role after adding.",
+      "image": "Upload, pick from the library, or generate with AI — name and categorize it once it lands. Characters and scenes come from the Cast dock.",
       "voice": "Select or upload a voice profile for video character voices.",
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
       "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
@@ -3181,6 +3194,23 @@
       "failed": "NG",
       "stale": "Stale",
       "disabled": "Disabled"
+    },
+    "imageSourceStarter": {
+      "uploadAria": "Upload image",
+      "uploadTitle": "Upload image",
+      "uploadHint": "Click, drag, or paste",
+      "library": "Library",
+      "aiGenerate": "AI Generate",
+      "libraryDialogTitle": "Choose an image asset",
+      "libraryDialogDescription": "Pick an image from your library to use as this card's content.",
+      "untitled": "Untitled image",
+      "uploadFailed": "Image upload failed",
+      "nameLabel": "Name",
+      "namePlaceholder": "Name this image…",
+      "categoryLabel": "Category",
+      "categoryUnset": "Uncategorized",
+      "categoryCustomLabel": "Custom category name",
+      "categoryCustomPlaceholder": "Type a custom category…"
     },
     "composer": {
       "promptLabel": "Composer prompt",
@@ -3255,7 +3285,8 @@
       "nameLabel": "Character name",
       "voiceBound": {
         "namedVoice": "🎙 Voice bound: {voiceName} (will label the @AudioN slot in the video prompt)",
-        "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)"
+        "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
+        "remove": "Unbind voice"
       },
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
@@ -3346,8 +3377,15 @@
           "pose": "Pose",
           "style": "Style",
           "composition": "Composition",
-          "background": "Background"
-        }
+          "background": "Background",
+          "faceCloseup": "Face close-up",
+          "costume": "Costume",
+          "prop": "Prop",
+          "frameStart": "Keyframe (start)",
+          "frameEnd": "Keyframe (end)",
+          "custom": "Custom"
+        },
+        "customLabelPlaceholder": "Custom category name…"
       },
       "lora": {
         "title": "LoRA",
@@ -3717,7 +3755,6 @@
     },
     "nodeDetail": {
       "backToCanvas": "Back to canvas",
-      "backToRolePicker": "Back to image role",
       "canvasCrumb": "Canvas",
       "close": "Collapse",
       "generate": "Generate"
@@ -4027,6 +4064,61 @@
       "send": "Send"
     },
     "minimapTitle": "Minimap",
+    "castDock": {
+      "title": "Cast",
+      "expand": "Expand Cast dock",
+      "collapse": "Collapse Cast dock",
+      "handle": "Cast · {count}",
+      "sections": {
+        "character": "Characters",
+        "background": "Scenes",
+        "voice": "Voices",
+        "videoReference": "Reference Videos"
+      },
+      "performanceCount": "{count, plural, one {In # shot} other {In # shots}}",
+      "referenceCountAria": "{count, plural, one {# reference image} other {# reference images}}",
+      "voiceBoundAria": "Voice bound",
+      "create": "New",
+      "deleteCard": "Delete {name}",
+      "openDetail": "Open {name}"
+    },
+    "ingest": {
+      "reasons": {
+        "typeMismatch": "This card can't feed that target",
+        "duplicate": "Already included",
+        "capacityFull": "Reference slots are full",
+        "capacityFullWithLimit": "Reference slots are full ({current}/{limit})"
+      },
+      "removeIngredient": "Unbind {name}",
+      "quickThrow": {
+        "toggleAria": "Quick-throw {name}",
+        "hint": "Throwing {name} — click a target shot, Esc to exit",
+        "alreadyIncluded": "Already included"
+      },
+      "looseImageFused": "Image added to the character's references",
+      "looseImageFuseRejected": "Couldn't add that image — drop it on a character or background card",
+      "looseImage": {
+        "uploading": "Uploading {count, plural, one {# image} other {# images}}...",
+        "uploaded": "{count, plural, one {# image} other {# images}} added to the canvas",
+        "uploadFailed": "Image upload failed",
+        "untitled": "Untitled image",
+        "cardAlt": "Loose image on the canvas"
+      }
+    },
+    "dossier": {
+      "gallerySourceCanvas": "From canvas",
+      "gallerySourceCloseup": "Closeup",
+      "galleryExtract": "Extract to canvas",
+      "galleryAdd": "Add",
+      "galleryAddAria": "Add a reference image",
+      "identityVisualSeedLabel": "Visual seed (set by the assistant)",
+      "voiceSection": "Voice identity",
+      "voiceBind": "Bind voice",
+      "voiceBindDialogDescription": "Pick a generated or uploaded audio clip as this character's voice reference.",
+      "performanceSection": "Appears in",
+      "performanceEmpty": "Not used in any shot yet",
+      "performanceFocusAria": "Focus {name} on the canvas"
+    },
     "toasts": {
       "notImplemented": "Not implemented yet.",
       "layoutTidied": "Canvas tidied.",
@@ -4547,7 +4639,10 @@
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
-      "storageUploadFailed": "The provider returned media, but saving it failed. Try again."
+      "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",
+      "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a Comfy Runner model (faithful recipe clone) instead, if available.",
+      "runnerMonthlyLimitExceeded": "Comfy Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
+      "runnerLoraUnavailable": "This LoRA isn't available on Comfy Runner yet (not pre-loaded). Try a different LoRA or a hosted model."
     },
     "generation": {
       "provider_timeout": "The AI provider took too long to respond",
@@ -4599,7 +4694,11 @@
       "avatarTooLarge": "Avatar must be under 5 MB.",
       "bannerTooLarge": "Cover image must be under 10 MB."
     },
-    "notImplemented": "This feature is coming soon."
+    "notImplemented": "This feature is coming soon.",
+    "upload": {
+      "storageUnreachable": "Couldn't upload to image storage — usually a network or storage CORS configuration issue. Please retry; if it persists, contact the administrator.",
+      "storageRejected": "Image storage rejected the upload. Please retry; if it persists, contact the administrator."
+    }
   },
   "Transform": {
     "errors": {

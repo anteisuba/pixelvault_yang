@@ -43,6 +43,7 @@ const ADAPTER_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.NOVELAI]: [],
   [AI_ADAPTER_TYPES.FISH_AUDIO]: [],
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: [],
+  [AI_ADAPTER_TYPES.RUNNER]: [],
   // ElevenLabs is TTS-only — no text/LLM capability.
   [AI_ADAPTER_TYPES.ELEVENLABS]: [],
 }

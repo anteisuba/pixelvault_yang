@@ -15,6 +15,19 @@ export const GENERATION_ERROR_CODES = {
   REFERENCE_IMAGE_UNREACHABLE: 'reference_image_unreachable',
   REFERENCE_IMAGE_LIMIT_EXCEEDED: 'reference_image_limit_exceeded',
   INVALID_REFERENCE_IMAGE_DIMENSIONS: 'invalid_reference_image_dimensions',
+  /**
+   * A hosted provider's LoRA loader rejected a community LoRA outright
+   * (Replicate delta-lock's `layer ... not supported` / "not in the list of
+   * present adapters") — the LoRA itself is fine, the hosted backend just
+   * can't load its layer format. Distinct from generic MODEL_UNAVAILABLE so
+   * the UI can point the user at a runner-backed model instead of "try
+   * again". See docs/plans/comfy-runner-HANDOFF-2026-07.md §1.1/§4.2.
+   */
+  LORA_INCOMPATIBLE_HOSTED: 'lora_incompatible_hosted',
+  /** RUNNER's monthly generation budget cap (RUNNER_MONTHLY_LIMIT) was hit. */
+  RUNNER_MONTHLY_LIMIT_EXCEEDED: 'runner_monthly_limit_exceeded',
+  /** A requested LoRA isn't pre-baked on the runner's Network Volume yet. */
+  RUNNER_LORA_UNAVAILABLE: 'runner_lora_unavailable',
   UNKNOWN: 'unknown',
 } as const
 
@@ -71,6 +84,14 @@ const PROVIDER_REFERENCE_FORMAT_GUIDANCE: Array<{
 // requires an "invalid/expired/missing" qualifier so casual mentions of
 // the term don't trigger.
 const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
+  // Must beat the generic MODEL_UNAVAILABLE ("not found") pattern below —
+  // Replicate's delta-lock/noobai-xl throws these exact phrases when a
+  // community LoRA's layer format doesn't match its loader.
+  {
+    pattern:
+      /layer\s+\S*\s*not\s+supported|not in the list of present adapters/i,
+    code: GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED,
+  },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
     code: GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
@@ -164,6 +185,9 @@ const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
   CALLBACK_TIMEOUT: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
   STORAGE_UPLOAD_FAILED: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
   PROVIDER_NO_OUTPUT: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+  RUNNER_MONTHLY_LIMIT_EXCEEDED:
+    GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+  RUNNER_LORA_UNAVAILABLE: GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE,
 }
 
 const GENERATION_ERROR_CODE_VALUES = new Set<string>(
@@ -220,6 +244,15 @@ export function getGenerationErrorI18nKey(errorMessage: string): string | null {
   }
   if (errorCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE) {
     return 'errors.provider.insufficientBalance'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED) {
+    return 'errors.provider.loraIncompatibleHosted'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED) {
+    return 'errors.provider.runnerMonthlyLimitExceeded'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE) {
+    return 'errors.provider.runnerLoraUnavailable'
   }
   if (errorCode === GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT) {
     return 'errors.provider.noOutput'

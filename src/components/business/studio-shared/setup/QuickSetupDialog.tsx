@@ -5,10 +5,12 @@ import { ExternalLink, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
+import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { createApiKey, deleteApiKey } from '@/lib/api-client'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioFormOptional } from '@/contexts/studio-context'
 import { getDefaultProviderConfig } from '@/constants/providers'
+import type { CreateApiKeyRequest } from '@/types'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -25,7 +27,15 @@ interface QuickSetupDialogProps {
   modelId: string
   /** Display name of the model */
   modelLabel: string
-  /** Adapter type determines which provider guide to show */
+  /**
+   * Adapter type determines which provider guide to show. Stays the full
+   * AI_ADAPTER_TYPES (not narrowed to the API-key-eligible subset) because
+   * ~20 call sites across Studio/LoRA/Node already pass this from
+   * StudioModelOption.adapterType, which is typed that way. Callers are
+   * responsible for never opening this dialog for an adapter with no BYOK
+   * path (RUNNER) — see LoraWorkbench.tsx's resolveBaseKeySetup, which
+   * excludes RUNNER from ever needing setup in the first place.
+   */
   adapterType: AI_ADAPTER_TYPES
   /** Option ID to auto-select after key creation */
   optionId: string
@@ -40,6 +50,22 @@ interface QuickSetupDialogProps {
 }
 
 type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
+
+/**
+ * Narrows AI_ADAPTER_TYPES to the API-key-eligible subset CreateApiKeyRequest
+ * expects. Should always be true here — this dialog only ever opens for
+ * adapters with a BYOK path (see LoraWorkbench.tsx's resolveBaseKeySetup,
+ * which keeps RUNNER — the one adapter with no BYOK path — from ever
+ * reaching this dialog) — but the check keeps the createApiKey() call
+ * type-safe without widening CreateApiKeyRequest itself.
+ */
+function isApiKeyEligibleAdapter(
+  value: AI_ADAPTER_TYPES,
+): value is CreateApiKeyRequest['adapterType'] {
+  return (API_KEY_ADAPTER_OPTIONS as readonly AI_ADAPTER_TYPES[]).includes(
+    value,
+  )
+}
 
 /**
  * QuickSetupDialog — guides user to get an API key, verifies it, and
@@ -141,6 +167,11 @@ export function QuickSetupDialog({
 
   const handleVerify = useCallback(async () => {
     if (keyValue.trim().length < 10) return
+    if (!isApiKeyEligibleAdapter(adapterType)) {
+      setStep('error')
+      setErrorMsg(t('verifyFailed'))
+      return
+    }
     const finalLabel = labelValue.trim() || modelLabel
     setStep('verifying')
     setErrorMsg('')

@@ -21,6 +21,7 @@ const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
 const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
+const mockJobCount = vi.fn()
 const mockSlotCount = vi.fn()
 const mockSlotCreate = vi.fn()
 const mockExecuteRaw = vi.fn().mockResolvedValue(1)
@@ -39,6 +40,7 @@ vi.mock('@/lib/db', () => ({
     generationJob: {
       create: (...args: unknown[]) => mockCreate(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
+      count: (...args: unknown[]) => mockJobCount(...args),
     },
     apiUsageLedger: {
       create: (...args: unknown[]) => mockCreate(...args),
@@ -66,6 +68,9 @@ import {
   attachUsageEntryToGeneration,
   atomicReserveFreeTierSlot,
   getFreeTierSlotsUsedToday,
+  getRunnerMonthlyGenerationCount,
+  assertRunnerMonthlyLimitNotExceeded,
+  RunnerMonthlyLimitExceededError,
 } from './usage.service'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -301,6 +306,57 @@ describe('usage.service', () => {
           date: today,
         },
       })
+    })
+  })
+
+  describe('getRunnerMonthlyGenerationCount', () => {
+    it('counts GenerationJob rows for the RUNNER adapter since the start of the UTC month', async () => {
+      mockJobCount.mockResolvedValue(42)
+
+      const result = await getRunnerMonthlyGenerationCount()
+
+      expect(result).toBe(42)
+      expect(mockJobCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ adapterType: 'runner' }),
+        }),
+      )
+      const call = mockJobCount.mock.calls[0]?.[0] as {
+        where: { createdAt: { gte: Date } }
+      }
+      expect(call.where.createdAt.gte.getUTCDate()).toBe(1)
+      expect(call.where.createdAt.gte.getUTCHours()).toBe(0)
+    })
+  })
+
+  describe('assertRunnerMonthlyLimitNotExceeded', () => {
+    it('resolves when the monthly count is under the limit (299 < 300)', async () => {
+      mockJobCount.mockResolvedValue(299)
+
+      await expect(
+        assertRunnerMonthlyLimitNotExceeded(),
+      ).resolves.toBeUndefined()
+    })
+
+    it('throws RunnerMonthlyLimitExceededError when the count equals the limit (300 >= 300)', async () => {
+      mockJobCount.mockResolvedValue(300)
+
+      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toThrow(
+        RunnerMonthlyLimitExceededError,
+      )
+      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toMatchObject(
+        {
+          code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED',
+        },
+      )
+    })
+
+    it('throws when the count exceeds the limit (301 > 300)', async () => {
+      mockJobCount.mockResolvedValue(301)
+
+      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toThrow(
+        RunnerMonthlyLimitExceededError,
+      )
     })
   })
 })

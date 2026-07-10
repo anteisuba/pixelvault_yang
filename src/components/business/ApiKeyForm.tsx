@@ -53,9 +53,12 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
   const t = useTranslations('StudioApiKeys')
   const tModels = useTranslations('Models')
   const availableModels = getAvailableModels()
-  const [adapterType, setAdapterType] = useState<AI_ADAPTER_TYPES>(
-    DEFAULT_API_KEY_ADAPTER,
-  )
+  // Narrowed to the API-key-eligible subset (excludes RUNNER, which has no
+  // BYOK path) rather than the full AI_ADAPTER_TYPES enum — this form must
+  // never be able to submit an adapterType CreateApiKeyRequest doesn't accept.
+  const [adapterType, setAdapterType] = useState<
+    CreateApiKeyRequest['adapterType']
+  >(DEFAULT_API_KEY_ADAPTER)
   const [entryMode, setEntryMode] = useState<EntryMode>('preset')
   const modelsForAdapter = availableModels.filter(
     (model) => model.adapterType === adapterType,
@@ -99,7 +102,9 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
     !label.trim() ||
     !keyValue.trim()
 
-  const handleAdapterChange = (nextAdapterType: AI_ADAPTER_TYPES) => {
+  const handleAdapterChange = (
+    nextAdapterType: CreateApiKeyRequest['adapterType'],
+  ) => {
     setAdapterType(nextAdapterType)
     const nextProviderConfig = getDefaultProviderConfig(nextAdapterType)
     const nextModels = availableModels.filter(

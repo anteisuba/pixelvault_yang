@@ -14,6 +14,14 @@ export enum AI_ADAPTER_TYPES {
   HYPER3D_RODIN = 'hyper3d_rodin',
   DASHSCOPE = 'dashscope',
   ELEVENLABS = 'elevenlabs',
+  /**
+   * Self-hosted RunPod Serverless ComfyUI runner — faithful Civitai recipe
+   * clones (checkpoint + LoRA stack) that hosted providers can't run. Not a
+   * BYOK adapter: intentionally absent from `AI_ADAPTER_TYPE_OPTIONS` so it
+   * never appears in the "Add API Key" picker. See
+   * docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   */
+  RUNNER = 'runner',
 }
 
 export interface ProviderConfig {
@@ -93,6 +101,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'ElevenLabs',
     baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
   },
+  [AI_ADAPTER_TYPES.RUNNER]: {
+    label: 'PixelVault Runner',
+    baseUrl: AI_PROVIDER_ENDPOINTS.RUNPOD,
+  },
 }
 
 export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
@@ -109,6 +121,8 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'sk_...',
+  // Platform-managed only — never entered by a user (no BYOK UI slot).
+  [AI_ADAPTER_TYPES.RUNNER]: 'n/a (platform-managed)',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
@@ -125,6 +139,9 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
   [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
   [AI_ADAPTER_TYPES.ELEVENLABS]: 5,
+  // Faithful recipe clone — heavier than a plain hosted call (cold-start
+  // aware), priced closer to the premium tier.
+  [AI_ADAPTER_TYPES.RUNNER]: 3,
 }
 
 export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
@@ -141,6 +158,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
+  [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
 
 export const getDefaultProviderConfig = (
@@ -216,6 +234,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.ELEVENLABS]: {
     url: 'https://elevenlabs.io/app/settings/api-keys',
     steps: 'Sign in → Settings → API Keys → Create API Key (sk_...).',
+  },
+  [AI_ADAPTER_TYPES.RUNNER]: {
+    url: 'https://docs.runpod.io/serverless/overview',
+    steps:
+      'Platform-managed RunPod Serverless endpoint — owner-only, configured via server secrets. Not user-configurable.',
   },
 }
 

@@ -74,4 +74,7 @@ export const WORKER_MIGRATED_IMAGE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = [
   AI_ADAPTER_TYPES.NOVELAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
   AI_ADAPTER_TYPES.HUGGINGFACE,
+  // RunPod cold starts (150s+) make async-only mandatory — there is no sync
+  // fallback path for RUNNER.
+  AI_ADAPTER_TYPES.RUNNER,
 ]

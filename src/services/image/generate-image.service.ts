@@ -19,6 +19,7 @@ import {
 } from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
 import { enqueueImagePreviewDerivatives } from '@/services/image/image-preview-derivative.service'
+import { resolveRunnerCapableModelId } from '@/services/image/runner-capability-routing.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
 import {
@@ -33,12 +34,14 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import {
+  assertRunnerMonthlyLimitNotExceeded,
   attachUsageEntryToGeneration,
   atomicReserveFreeTierSlot,
   completeGenerationJob,
   createApiUsageEntry,
   createGenerationJob,
   failGenerationJob,
+  RunnerMonthlyLimitExceededError,
 } from '@/services/usage.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import { ensureUser } from '@/services/user.service'
@@ -75,6 +78,7 @@ type GenerateImageServiceErrorCode =
   | 'PLATFORM_KEY_MISSING'
   | 'PROVIDER_ERROR'
   | 'REFERENCE_IMAGE_LIMIT_EXCEEDED'
+  | 'RUNNER_MONTHLY_LIMIT_EXCEEDED'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'
   | 'VALIDATION_ERROR'
@@ -176,6 +180,44 @@ export async function resolveGenerationRoute(
       'Custom models require selecting an active API key',
       400,
     )
+  }
+
+  // Comfy Runner (RunPod) has no BYOK path — it's always the platform's own
+  // RUNPOD_KEY, gated by a monthly budget cap instead of the daily free-tier
+  // cap (different budget, different reset cadence). See
+  // constants/config.ts RUNNER_MONTHLY_LIMIT and services/usage.service.ts.
+  if (builtInModel.adapterType === AI_ADAPTER_TYPES.RUNNER) {
+    try {
+      await assertRunnerMonthlyLimitNotExceeded()
+    } catch (error) {
+      if (error instanceof RunnerMonthlyLimitExceededError) {
+        throw new GenerateImageServiceError(
+          'RUNNER_MONTHLY_LIMIT_EXCEEDED',
+          error.message,
+          429,
+        )
+      }
+      throw error
+    }
+
+    const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.RUNNER)
+    if (!platformKey) {
+      throw new GenerateImageServiceError(
+        'PLATFORM_KEY_MISSING',
+        'Comfy Runner is not configured yet (missing RUNPOD_KEY).',
+        503,
+      )
+    }
+
+    return {
+      modelId,
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      providerConfig: builtInModel.providerConfig,
+      apiKey: platformKey,
+      resolvedApiKeyId: null,
+      isFreeGeneration: false,
+      creditCost: builtInModel.cost,
+    }
   }
 
   // Auto-find an active key for this model's adapter
@@ -857,9 +899,22 @@ export async function resolveImageRouteAndValidate(
     )
   }
 
-  const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
+  // Capability routing (HANDOFF §4.2): a hosted model that can't load the
+  // attached LoRA (known via the runner allowlist) transparently upgrades to
+  // its runner-backed counterpart instead of failing with the hosted
+  // provider's raw "layer not supported" error. No-op unless both the
+  // upgrade target exists and is flag-enabled.
+  const effectiveModelId = resolveRunnerCapableModelId(
+    input.modelId,
+    input.advancedParams?.loras,
+  )
 
-  const builtInModel = getModelByIdFn(input.modelId)
+  const resolvedRoute = await resolveRouteFn(ensuredUser.id, {
+    ...input,
+    modelId: effectiveModelId,
+  })
+
+  const builtInModel = getModelByIdFn(effectiveModelId)
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
@@ -875,7 +930,7 @@ export async function resolveImageRouteAndValidate(
   // over-cap array. Reject before reaching the provider so users get a
   // structured error rather than a 4xx from the upstream service.
   const refCap = getReferenceCapabilityMax(
-    getImageReferenceCapability(resolvedRoute.adapterType, input.modelId),
+    getImageReferenceCapability(resolvedRoute.adapterType, effectiveModelId),
   )
   if (hasReferenceImage && refCap === 0) {
     throw new GenerateImageServiceError(

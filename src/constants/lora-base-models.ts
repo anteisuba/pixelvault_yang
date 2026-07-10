@@ -49,6 +49,15 @@ function hostedAvailable(id: AI_MODELS): boolean {
   return getModelById(id)?.available ?? false
 }
 
+/**
+ * runner 底模可用性同样跟随其 AI_MODELS 条目（available 由
+ * FEATURE_FLAGS.comfyRunner 门控，见 constants/models/image.ts）。单独命名
+ * 只为可读性——底层逻辑与 hostedAvailable 一致。
+ */
+function runnerAvailable(id: AI_MODELS): boolean {
+  return getModelById(id)?.available ?? false
+}
+
 export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
   {
     id: 'flux-hosted',
@@ -72,12 +81,13 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
   },
   {
     id: 'illustrious-runner',
-    displayName: 'WAI-Illustrious v16',
+    displayName: 'WAI-Illustrious-SDXL v15.0',
     family: 'illustrious',
     backend: 'runner',
     fidelity: 'faithful',
-    available: false,
-    runnerCheckpointId: 'waiIllustriousSDXL_v160',
+    available: runnerAvailable(AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE),
+    providerModelId: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
+    runnerCheckpointId: 'waiIllustriousSDXL_v150',
   },
   {
     id: 'sdxl-hosted',
@@ -91,11 +101,13 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
   },
   {
     id: 'sdxl-runner',
-    displayName: 'SDXL · runner',
+    displayName: 'SDXL 1.0 (VAE Fix) · runner',
     family: 'sdxl',
     backend: 'runner',
     fidelity: 'faithful',
-    available: false,
+    available: runnerAvailable(AI_MODELS.SDXL_10_RUNNER),
+    providerModelId: AI_MODELS.SDXL_10_RUNNER,
+    runnerCheckpointId: 'sdXL_v10VAEFix',
   },
   {
     id: 'pony-runner',
@@ -103,7 +115,8 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     family: 'pony',
     backend: 'runner',
     fidelity: 'faithful',
-    available: false,
+    available: runnerAvailable(AI_MODELS.PONY_DIFFUSION_V6),
+    providerModelId: AI_MODELS.PONY_DIFFUSION_V6,
     runnerCheckpointId: 'ponyDiffusionV6XL',
     recommended: true,
   },
@@ -113,6 +126,8 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     family: 'sd15',
     backend: 'runner',
     fidelity: 'faithful',
+    // SD 1.5 移出 runner 范围（2026-07-07 拍板）——保持 external 跳转，不再
+    // 做第二套分辨率/采样模板档。见 comfy-runner-HANDOFF-2026-07.md §4.2b。
     available: false,
     recommended: true,
   },
@@ -124,6 +139,18 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     fidelity: 'fast',
     available: hostedAvailable(AI_MODELS.ANIMA_PENCIL_XL),
     providerModelId: AI_MODELS.ANIMA_PENCIL_XL,
+  },
+  {
+    id: 'anima-runner',
+    displayName: 'Anima Pencil-XL v5.0.0',
+    family: 'anima',
+    backend: 'runner',
+    fidelity: 'faithful',
+    // Anima 的 hosted 端点是死链 + license 不许第三方托管，runner 是唯一
+    // 出路——推荐档从 hosted 切到这里。
+    available: runnerAvailable(AI_MODELS.ANIMA_PENCIL_XL_RUNNER),
+    providerModelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
+    runnerCheckpointId: 'animaPencilXL_v500',
     recommended: true,
   },
 ]

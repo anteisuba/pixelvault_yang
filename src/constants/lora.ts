@@ -229,21 +229,25 @@ export const CIVITAI_OTHER_BASE_MODEL_MEMBERS = [
 // 判断依据：
 //   Illustrious / SDXL 1.0：跑 delta-lock/noobai-xl (Replicate)，已验证
 //   Flux.1 D：跑 fal-ai/flux-lora，已验证
-//   Pony：权重命名跟 Illustrious 差异较大，跑 NoobAI 端点会报 PEFT 错误
-//   SD 1.5：项目没有 SD 1.5 推理端点
-//   Anima：作者 license 不授权第三方平台推理（Civitai 上 allowCommercialUse
-//          普遍不含 'Rent'），且没有可用 anime checkpoint 端点
+//   Pony：Comfy Runner（RunPod）跑 Pony Diffusion V6 XL checkpoint，忠实复刻
+//   SD 1.5：项目没有 SD 1.5 推理端点（runner 范围也不含，见 HANDOFF §4.2b）
+//   Anima：作者 license 不授权第三方托管 hosted 端点，但 Comfy Runner 自建
+//          环境跑同一 checkpoint 不受此限制，已转 native
+//
+// Pony / Anima 2026-07 随 comfy runner（RunPod）交付翻转为 native，见
+// docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b。实际可生成性仍受
+// FEATURE_FLAGS.comfyRunner 门控——flag 关闭时对应 AI_MODELS.available 为
+// false，isCivitaiBaseModelGeneratable() 只反映"有 native 路径"，不代表
+// flag 已开。
 type CivitaiBaseModelGeneratability = 'native' | 'external'
 
 export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   Illustrious: 'native',
   'Flux.1 D': 'native',
   'SDXL 1.0': 'native',
-  // Pony / Anima / SDXL 系将随 comfy runner（RunPod）转 native，见
-  // docs/plans/comfy-runner-HANDOFF-2026-07.md；翻转与 runner 交付同批。
-  Pony: 'external',
+  Pony: 'native',
   'SD 1.5': 'external',
-  Anima: 'external',
+  Anima: 'native',
   Qwen: 'external',
   'Z-Image': 'external',
   Chroma: 'external',

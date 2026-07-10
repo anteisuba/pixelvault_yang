@@ -416,6 +416,10 @@ export const AI_PROVIDER_ENDPOINTS = {
   // the CN host (dashscope.aliyuncs.com) and vice versa.
   DASHSCOPE: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   ELEVENLABS: 'https://api.elevenlabs.io',
+  // RunPod Serverless REST API — the execution worker POSTs
+  // `${RUNPOD}/{endpoint}/run` and polls `${RUNPOD}/{endpoint}/status/{id}`.
+  // See docs/plans/comfy-runner-HANDOFF-2026-07.md §2.3/§7.
+  RUNPOD: 'https://api.runpod.ai/v2',
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
@@ -522,6 +526,22 @@ export const FREE_TIER = {
   /** Maximum free generations per user per day */
   DAILY_LIMIT: 20,
   /** Whether the free tier is enabled */
+  ENABLED: true,
+} as const
+
+/**
+ * Comfy Runner (RunPod Serverless ComfyUI) budget guardrail.
+ *
+ * RunPod's panel can cap concurrency/cost per job but not "N generations per
+ * month" — that has to live in application code (mirrors the FREE_TIER daily
+ * cap above). 300/month is ≈ $1.8 at the measured ~$0.006/image ceiling,
+ * leaving ~5x headroom under the $10/month prepaid budget for cold-start
+ * variance and retries. See docs/plans/comfy-runner-HANDOFF-2026-07.md §4.3.
+ */
+export const RUNNER_MONTHLY_LIMIT = {
+  /** Maximum RUNNER-adapter generation attempts per calendar month (UTC). */
+  LIMIT: 300,
+  /** Whether the runner is enabled at all — see FEATURE_FLAGS.comfyRunner. */
   ENABLED: true,
 } as const
 

@@ -189,6 +189,23 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       maxReferenceImages: 5,
       referenceImageMode: 'native' as const,
     },
+
+    [AI_ADAPTER_TYPES.RUNNER]: {
+      capabilities: [
+        'negativePrompt',
+        'guidanceScale',
+        'steps',
+        'seed',
+        'lora',
+      ],
+      guidanceScale: { min: 1, max: 15, step: 0.5, default: 7.5 },
+      steps: { min: 1, max: 60, step: 1, default: 30 },
+      loraScale: { min: 0.1, max: 2, step: 0.05, default: 1 },
+      // v1 stock worker-comfyui can't download LoRAs at request time — only
+      // pre-baked, allowlisted LoRAs are mountable (see runner-checkpoints.ts).
+      maxLoras: 3,
+      maxReferenceImages: 0,
+    },
   }
 
 // ─── Per-Model Capability Overrides ─────────────────────────────

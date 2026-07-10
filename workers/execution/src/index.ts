@@ -10,6 +10,11 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
+import {
+  buildRunnerWorkflowFromRequest,
+  RunnerLoraUnavailableError,
+  RunnerUnknownCheckpointError,
+} from './models/runner/request-builder'
 
 const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
@@ -36,6 +41,7 @@ const GEMINI_IMAGE_BASE_URL =
 const HUGGINGFACE_IMAGE_BASE_URL =
   'https://router.huggingface.co/hf-inference/models'
 const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
+const RUNPOD_BASE_URL = 'https://api.runpod.ai/v2'
 const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
@@ -63,6 +69,12 @@ interface ExecutionEnv {
    * Set via: npx wrangler secret put STATE_ENCRYPTION_KEY
    */
   STATE_ENCRYPTION_KEY?: string
+  /**
+   * RunPod Serverless endpoint id for the Comfy Runner (pixelvault-runner).
+   * Not secret by itself (protected by RUNPOD_KEY bearer auth) — set as a
+   * plain wrangler.jsonc var. See docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   */
+  RUNPOD_ENDPOINT?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
@@ -4974,6 +4986,175 @@ function extractReplicateImageUrl(output: unknown): string {
   throw new Error('Replicate output did not include an image URL.')
 }
 
+// ─── Comfy Runner (RunPod Serverless ComfyUI) ────────────────────────────
+
+interface RunnerSubmitResult {
+  id: string
+}
+
+/**
+ * Builds the ComfyUI workflow via the pure recipe→workflow mapping, then
+ * POSTs it to RunPod's `/run` endpoint. Unlike Replicate/fal, the runner has
+ * no BYOK path (RUNPOD_KEY is a platform secret) and no per-request model
+ * lookup call — the checkpoint/LoRA manifest is fully static (models/runner/
+ * checkpoints.ts), so this is a single request.
+ */
+async function submitRunnerImageJob(
+  context: WorkerImageRunContext,
+  env: ExecutionEnv,
+  apiKey: string,
+): Promise<RunnerSubmitResult> {
+  if (!env.RUNPOD_ENDPOINT) {
+    throw new Error('RUNPOD_ENDPOINT is not configured.')
+  }
+
+  const dimensions = getStandardImageDimensions(
+    context.providerInput.aspectRatio,
+  )
+  const advancedParams = readAdvancedRecord(context)
+  const loraInputs = getImageLoraInputs(context)
+  const seed = readNumberField(advancedParams, 'seed')
+
+  let workflow: ReturnType<typeof buildRunnerWorkflowFromRequest>
+  try {
+    workflow = buildRunnerWorkflowFromRequest(
+      {
+        externalModelId: context.providerInput.externalModelId,
+        prompt: context.providerInput.prompt,
+        negativePrompt:
+          readStringField(advancedParams, 'negativePrompt') ?? undefined,
+        width: dimensions.width,
+        height: dimensions.height,
+        seed: seed != null && seed >= 0 ? Math.round(seed) : undefined,
+        steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
+        cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
+        loras: loraInputs,
+      },
+      randomUint32,
+    )
+  } catch (error) {
+    if (error instanceof RunnerUnknownCheckpointError) {
+      throw new WorkerProviderError({
+        message: error.message,
+        provider: 'runner',
+        phase: 'workflow_build',
+        errorCode: 'model_unavailable',
+      })
+    }
+    if (error instanceof RunnerLoraUnavailableError) {
+      throw new WorkerProviderError({
+        message: error.message,
+        provider: 'runner',
+        phase: 'workflow_build',
+        errorCode: 'runner_lora_unavailable',
+      })
+    }
+    throw error
+  }
+
+  const response = await fetch(
+    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': JSON_CONTENT_TYPE,
+      },
+      body: JSON.stringify({ input: { workflow } }),
+    },
+  )
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'runner',
+      phase: 'submit',
+      fallbackMessage: `Runner submit failed with status ${response.status}`,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const id = readStringField(data, 'id')
+  if (!id) {
+    throw new Error('Runner submit response did not include a job id.')
+  }
+  return { id }
+}
+
+type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+
+interface RunnerPollResult {
+  status: RunnerPollStatus
+  imageBase64?: string
+  error?: string
+}
+
+function normalizeRunPodStatus(raw: string): RunnerPollStatus {
+  const normalized = raw.toUpperCase()
+  if (normalized === 'COMPLETED') return 'COMPLETED'
+  if (normalized === 'IN_PROGRESS') return 'IN_PROGRESS'
+  if (
+    normalized === 'FAILED' ||
+    normalized === 'CANCELLED' ||
+    normalized === 'TIMED_OUT'
+  ) {
+    return 'FAILED'
+  }
+  return 'IN_QUEUE'
+}
+
+async function pollRunnerImageJob(
+  jobId: string,
+  env: ExecutionEnv,
+  apiKey: string,
+): Promise<RunnerPollResult> {
+  const response = await fetch(
+    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/status/${jobId}`,
+    { headers: { Authorization: `Bearer ${apiKey}` } },
+  )
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'runner',
+      phase: 'status_poll',
+      fallbackMessage: `Runner poll failed with status ${response.status}`,
+      requestId: jobId,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const status = normalizeRunPodStatus(readStringField(data, 'status') ?? '')
+
+  if (status === 'FAILED') {
+    const errorField = data.error
+    return {
+      status: 'FAILED',
+      error:
+        typeof errorField === 'string'
+          ? errorField
+          : JSON.stringify(errorField ?? 'Unknown runner failure').slice(
+              0,
+              500,
+            ),
+    }
+  }
+
+  if (status !== 'COMPLETED') return { status }
+
+  const output = isRecord(data.output) ? data.output : null
+  const images = output && Array.isArray(output.images) ? output.images : []
+  const firstImage = images.find(isRecord)
+  const imageBase64 = firstImage ? readStringField(firstImage, 'data') : null
+
+  if (!imageBase64) {
+    return {
+      status: 'FAILED',
+      error: 'Runner output did not include image data.',
+    }
+  }
+
+  return { status: 'COMPLETED', imageBase64 }
+}
+
 function isNovelAiV4Model(externalModelId: string): boolean {
   return (
     externalModelId === 'nai-diffusion-4-full' ||
@@ -5452,6 +5633,85 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           ...uploaded,
           ...dimensions,
           providerMetadata: { predictionId: completedPrediction.id },
+        }
+      } else if (context.providerId === 'runner') {
+        const submitted = await step.do(
+          'submit-runner-image',
+          {
+            retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return submitRunnerImageJob(context, this.env, apiKey)
+          },
+        )
+
+        let completed: RunnerPollResult | undefined
+        for (
+          let attempt = 1;
+          !completed && attempt <= context.maxAttempts;
+          attempt += 1
+        ) {
+          await step.sleep(
+            `wait-runner-image-${attempt}`,
+            context.pollIntervalMs,
+          )
+
+          const pollResult = await step.do(
+            `poll-runner-image-${attempt}`,
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '30 seconds',
+            },
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              return pollRunnerImageJob(submitted.id, this.env, apiKey)
+            },
+          )
+
+          if (pollResult.status === 'FAILED') {
+            throw new WorkerProviderError({
+              message: `Runner image generation failed: ${pollResult.error ?? 'unknown'}`,
+              provider: context.providerId,
+              phase: 'status_poll',
+              requestId: submitted.id,
+            })
+          }
+
+          if (pollResult.status === 'COMPLETED') {
+            completed = pollResult
+          }
+        }
+
+        if (!completed?.imageBase64) {
+          throw new Error(
+            'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
+          )
+        }
+
+        const runnerDimensions = getStandardImageDimensions(
+          context.providerInput.aspectRatio,
+        )
+        const uploaded = await step.do(
+          'upload-runner-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '60 seconds',
+          },
+          () =>
+            uploadImageBytesToKey(
+              this.env,
+              base64ToBytes(completed!.imageBase64!),
+              'image/png',
+              getWorkerImageOutputKey(context),
+            ),
+        )
+
+        result = {
+          ...uploaded,
+          ...runnerDimensions,
+          providerMetadata: { runpodJobId: submitted.id },
         }
       } else if (context.providerId === 'gemini') {
         result = await step.do(

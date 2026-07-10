@@ -21,6 +21,14 @@ export enum AI_MODELS {
   ANIMA_PENCIL_XL = 'anima-pencil-xl',
   RECRAFT_V4_PRO = 'recraft-v4-pro',
   FLUX_KONTEXT_MAX = 'flux-kontext-max',
+  /** Comfy Runner (RunPod) — faithful WAI-Illustrious recipe clone. */
+  ILLUSTRIOUS_RECIPE_CLONE = 'illustrious-recipe-clone',
+  /** Comfy Runner (RunPod) — Anima Pencil-XL (Replicate has no live endpoint). */
+  ANIMA_PENCIL_XL_RUNNER = 'anima-pencil-xl-runner',
+  /** Comfy Runner (RunPod) — Pony Diffusion V6 XL, runner-only (no hosted endpoint). */
+  PONY_DIFFUSION_V6 = 'pony-diffusion-v6',
+  /** Comfy Runner (RunPod) — plain SDXL 1.0, faithful recipe clone path. */
+  SDXL_10_RUNNER = 'sdxl-10-runner',
 
   // Audio models
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',

@@ -28,6 +28,12 @@ export function getSystemApiKey(adapterType: string): string | null {
       return process.env.NOVELAI_API_TOKEN ?? null
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return process.env.VOLCENGINE_API_KEY ?? null
+    case AI_ADAPTER_TYPES.RUNNER:
+      // Comfy Runner has no BYOK path — RUNPOD_KEY is the only credential,
+      // configured as a Cloudflare Worker secret (`wrangler secret put
+      // RUNPOD_KEY`) and read here only for the Next.js side's own
+      // system-key resolution flow (resolveExecutionApiKey → Worker).
+      return process.env.RUNPOD_KEY ?? null
     default:
       return null
   }

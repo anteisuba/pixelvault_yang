@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { API_USAGE, FREE_TIER } from '@/constants/config'
+import { API_USAGE, FREE_TIER, RUNNER_MONTHLY_LIMIT } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 import type {
@@ -120,6 +121,56 @@ export async function getFreeTierSlotsUsedToday(
       date: todayUTC(),
     },
   })
+}
+
+// ─── Comfy Runner monthly budget guardrail ───────────────────────
+//
+// RunPod's panel can cap per-job concurrency/cost but not "N generations per
+// month" — that lives here, mirroring the FREE_TIER daily cap above. Unlike
+// FREE_TIER (per-user daily), this is a single global monthly counter: the
+// budget it protects (a $10/month prepaid RunPod balance) is shared account
+// spend, not a per-user fairness allowance. Counts `GenerationJob` rows
+// (created at submit time, before the async worker even runs) rather than
+// `ApiUsageLedger` (only written on success) so failed/in-flight runner
+// dispatches — which still cost RunPod compute — count against the budget.
+
+export class RunnerMonthlyLimitExceededError extends Error {
+  readonly code = 'RUNNER_MONTHLY_LIMIT_EXCEEDED' as const
+
+  constructor(limit: number) {
+    super(
+      `Runner monthly generation limit reached (${limit}/month). Try again next month, or use a hosted model instead.`,
+    )
+    this.name = 'RunnerMonthlyLimitExceededError'
+  }
+}
+
+function startOfMonthUTC(): Date {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+}
+
+/** Number of RUNNER-adapter generation jobs created since the start of the current UTC month. */
+export async function getRunnerMonthlyGenerationCount(): Promise<number> {
+  return db.generationJob.count({
+    where: {
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      createdAt: { gte: startOfMonthUTC() },
+    },
+  })
+}
+
+/**
+ * Throws `RunnerMonthlyLimitExceededError` if the monthly RUNNER budget cap
+ * has been reached. Call before dispatching a RUNNER generation.
+ */
+export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
+  if (!RUNNER_MONTHLY_LIMIT.ENABLED) return
+
+  const count = await getRunnerMonthlyGenerationCount()
+  if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
+    throw new RunnerMonthlyLimitExceededError(RUNNER_MONTHLY_LIMIT.LIMIT)
+  }
 }
 
 export async function createGenerationJob(

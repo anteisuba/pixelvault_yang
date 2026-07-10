@@ -32,6 +32,12 @@ vi.mock('@/services/storage/r2', () => ({
   uploadFromHttpToR2: vi.fn(),
   isOwnedStorageUrl: vi.fn(() => false),
 }))
+const { MockRunnerMonthlyLimitExceededError } = vi.hoisted(() => {
+  class MockRunnerMonthlyLimitExceededError extends Error {
+    readonly code = 'RUNNER_MONTHLY_LIMIT_EXCEEDED' as const
+  }
+  return { MockRunnerMonthlyLimitExceededError }
+})
 vi.mock('@/services/usage.service', () => ({
   atomicReserveFreeTierSlot: vi.fn(),
   createApiUsageEntry: vi.fn(),
@@ -39,6 +45,8 @@ vi.mock('@/services/usage.service', () => ({
   completeGenerationJob: vi.fn(),
   failGenerationJob: vi.fn(),
   attachUsageEntryToGeneration: vi.fn(),
+  assertRunnerMonthlyLimitNotExceeded: vi.fn(),
+  RunnerMonthlyLimitExceededError: MockRunnerMonthlyLimitExceededError,
 }))
 vi.mock('@/lib/platform-keys', () => ({
   getSystemApiKey: vi.fn(),
@@ -110,6 +118,7 @@ import {
   completeGenerationJob,
   failGenerationJob,
   attachUsageEntryToGeneration,
+  assertRunnerMonthlyLimitNotExceeded,
 } from '@/services/usage.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
@@ -327,6 +336,69 @@ describe('resolveGenerationRoute', () => {
         modelId: 'gemini-3.1-flash-image-preview',
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }))
+  })
+
+  describe('RUNNER adapter (Comfy Runner / RunPod)', () => {
+    const RUNNER_MODEL = {
+      id: 'illustrious-recipe-clone',
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      providerConfig: {
+        label: 'PixelVault Runner',
+        baseUrl: 'https://api.runpod.ai/v2',
+      },
+      cost: 3,
+      available: true,
+    }
+
+    it('routes to the system key without a per-day free-tier reservation', async () => {
+      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
+        undefined,
+      )
+      vi.mocked(getSystemApiKey).mockReturnValue('runpod-key')
+
+      const route = await resolveGenerationRoute('user-1', {
+        modelId: 'illustrious-recipe-clone',
+      })
+
+      expect(route.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
+      expect(route.apiKey).toBe('runpod-key')
+      expect(route.isFreeGeneration).toBe(false)
+      expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
+      expect(atomicReserveFreeTierSlot).not.toHaveBeenCalled()
+      expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
+    })
+
+    it('throws RUNNER_MONTHLY_LIMIT_EXCEEDED when the monthly budget cap is hit', async () => {
+      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockRejectedValue(
+        new MockRunnerMonthlyLimitExceededError('Runner monthly limit reached'),
+      )
+
+      await expect(
+        resolveGenerationRoute('user-1', {
+          modelId: 'illustrious-recipe-clone',
+        }),
+      ).rejects.toThrow(
+        expect.objectContaining({ code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED' }),
+      )
+    })
+
+    it('throws PLATFORM_KEY_MISSING when RUNPOD_KEY is not configured', async () => {
+      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
+        undefined,
+      )
+      vi.mocked(getSystemApiKey).mockReturnValue(null)
+
+      await expect(
+        resolveGenerationRoute('user-1', {
+          modelId: 'illustrious-recipe-clone',
+        }),
+      ).rejects.toThrow(
+        expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }),
+      )
+    })
   })
 })
 

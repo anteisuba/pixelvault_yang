@@ -166,6 +166,57 @@ export const AdvancedParamsSchema = z.object({
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 
+// ─── Comfy Runner (RunPod Serverless ComfyUI) ────────────────────
+// Recipe→workflow mapping itself lives in the Cloudflare Worker (a separate
+// package that can't import these); these schemas describe the recipe shape
+// on the Next.js side — request validation and any future direct "clone this
+// recipe" API surface. See docs/plans/comfy-runner-HANDOFF-2026-07.md §7.1/§8.
+
+export const RunnerCheckpointFamilySchema = z.enum([
+  'illustrious',
+  'anima',
+  'pony',
+  'sdxl',
+])
+export type RunnerCheckpointFamily = z.infer<
+  typeof RunnerCheckpointFamilySchema
+>
+
+export const RunnerLoraInputSchema = z.object({
+  url: z.string().url(),
+  scale: z.number().min(0.1).max(2).optional(),
+})
+export type RunnerLoraInput = z.infer<typeof RunnerLoraInputSchema>
+
+/** A structured recipe describing a single Comfy Runner generation. */
+export const RunnerRecipeRequestSchema = z.object({
+  checkpointId: z.string().trim().min(1),
+  positivePrompt: z.string().trim().min(1),
+  negativePrompt: z.string().optional(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  seed: z.number().int().optional(),
+  steps: z.number().int().min(1).max(100).optional(),
+  cfg: z.number().min(0).max(30).optional(),
+  sampler: z.string().optional(),
+  scheduler: z.string().optional(),
+  clipSkip: z.number().int().min(1).max(4).optional(),
+  loras: z.array(RunnerLoraInputSchema).max(3).optional(),
+})
+export type RunnerRecipeRequest = z.infer<typeof RunnerRecipeRequestSchema>
+
+/** What a given runner checkpoint supports — surfaced to route/capability decisions. */
+export const RunnerCapabilitiesSchema = z.object({
+  checkpointId: z.string(),
+  family: RunnerCheckpointFamilySchema,
+  supportsLora: z.boolean(),
+  maxLoraCount: z.number().int().nonnegative(),
+  recommendedSampler: z.string(),
+  recommendedScheduler: z.string(),
+  clipSkip: z.number().int(),
+})
+export type RunnerCapabilities = z.infer<typeof RunnerCapabilitiesSchema>
+
 // ─── Generation Snapshot (B0) ────────────────────────────────────
 
 export const GenerationObservabilitySnapshotSchema = z.object({
@@ -818,6 +869,12 @@ export interface UploadImageResponse {
   success: boolean
   data?: { generation: GenerationRecord }
   error?: string
+  /**
+   * Stable key (e.g. `errors.upload.storageUnreachable`) the client resolves
+   * to a localized toast via `getApiErrorMessage`. Set for transport failures
+   * that would otherwise surface the browser's opaque "Failed to fetch".
+   */
+  i18nKey?: string
 }
 
 export const CreateUploadImageDirectRequestSchema = z.object({

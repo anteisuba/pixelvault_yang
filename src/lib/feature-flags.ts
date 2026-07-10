@@ -17,6 +17,9 @@ const ROLLOUT_ENV_BY_FLAG: Record<FeatureFlag, string> = {
   multiModelCompare: 'NEXT_PUBLIC_FF_MULTI_COMPARE_ROLLOUT',
   imageEditing: 'NEXT_PUBLIC_FF_IMAGE_EDITING_ROLLOUT',
   seriesMode: 'NEXT_PUBLIC_FF_SERIES_MODE_ROLLOUT',
+  // Owner-only on/off toggle (single RunPod endpoint) — no phased rollout in
+  // practice, but the env var exists for consistency with the other flags.
+  comfyRunner: 'NEXT_PUBLIC_FF_COMFY_RUNNER_ROLLOUT',
 }
 
 function readRolloutPercent(flag: FeatureFlag): number | null {

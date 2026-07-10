@@ -81,9 +81,13 @@ describe('LORA_BASE_MODELS catalog', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('only hosted entries carry a providerModelId', () => {
+  it('hosted entries and implemented runner entries carry a providerModelId', () => {
+    // LoraWorkbench.tsx reads `selectedBase.providerModelId` as the modelId
+    // to submit regardless of backend — so any backend with a real
+    // checkpoint wired up (runnerCheckpointId set) must have one too.
+    // sd15-runner is explicitly out of scope (no checkpoint) and has neither.
     for (const base of LORA_BASE_MODELS) {
-      if (base.backend === 'hosted') {
+      if (base.backend === 'hosted' || base.runnerCheckpointId) {
         expect(base.providerModelId).toBeDefined()
       } else {
         expect(base.providerModelId).toBeUndefined()

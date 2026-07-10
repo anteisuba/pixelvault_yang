@@ -10,6 +10,7 @@ import { huggingFaceAdapter } from '@/services/providers/huggingface.adapter'
 import { novelAiAdapter } from '@/services/providers/novelai.adapter'
 import { openAiAdapter } from '@/services/providers/openai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
+import { runnerAdapter } from '@/services/providers/runner.adapter'
 import { runwayAdapter } from '@/services/providers/runway.adapter'
 import { volcengineAdapter } from '@/services/providers/volcengine.adapter'
 import type { ProviderAdapter } from '@/services/providers/types'
@@ -25,6 +26,7 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,
   [AI_ADAPTER_TYPES.ELEVENLABS]: elevenLabsAdapter,
+  [AI_ADAPTER_TYPES.RUNNER]: runnerAdapter,
   // HYPER3D_RODIN intentionally absent — dispatched to Cloudflare Worker
   // directly via generate-3d.service.ts → submitWorker3DGeneration.
 }

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { uploadImageFileAPI } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 
@@ -111,6 +112,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const maxImagesRef = useRef<number>(Infinity)
   const [isUploading, setIsUploading] = useState(false)
   const t = useTranslations('ImageUpload')
+  const tErrors = useTranslations('Errors')
 
   const referenceImages = useMemo(
     () =>
@@ -229,7 +231,7 @@ export function useImageUpload(): UseImageUploadReturn {
         if (response.success && response.data?.generation.url) {
           addReferenceImage(response.data.generation.url)
         } else {
-          toast.error(response.error ?? t('uploadFailed'))
+          toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
         }
       } catch {
         toast.error(t('uploadFailed'))
@@ -237,7 +239,7 @@ export function useImageUpload(): UseImageUploadReturn {
         setIsUploading(false)
       }
     },
-    [t, addReferenceImage],
+    [t, tErrors, addReferenceImage],
   )
 
   const handleFileChange = useCallback(

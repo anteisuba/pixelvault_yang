@@ -170,4 +170,52 @@ describe('uploadImageFileAPI direct R2 flow', () => {
     expect(result).toEqual({ success: false, error: 'too large' })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  const preparedR2Response = () =>
+    new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          uploadUrl: 'https://r2.example.com/upload?signature=ok',
+          storageKey: 'generations/db_user_123/image/2026-07-07_abc.png',
+          publicUrl:
+            'https://cdn.example.com/generations/db_user_123/image/2026-07-07_abc.png',
+          headers: { 'Content-Type': 'image/png', 'If-None-Match': '*' },
+          expiresAt: new Date(Date.now() + 300_000).toISOString(),
+          maxBytes: 15 * 1024 * 1024,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+
+  it('tags a thrown R2 PUT (CORS/network) with a localizable reason, not raw "Failed to fetch"', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(preparedR2Response())
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' })
+    const result = await uploadImageFileAPI(file)
+
+    expect(result.success).toBe(false)
+    expect(result.i18nKey).toBe('errors.upload.storageUnreachable')
+    // Never advanced to the complete step.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('tags a non-2xx R2 PUT with a localizable reason', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(preparedR2Response())
+      .mockResolvedValueOnce(new Response(null, { status: 403 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' })
+    const result = await uploadImageFileAPI(file)
+
+    expect(result.success).toBe(false)
+    expect(result.i18nKey).toBe('errors.upload.storageRejected')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })

@@ -278,16 +278,33 @@ export async function uploadImageFileAPI(
       }
     }
 
-    const storageResponse = await fetch(prepare.data.uploadUrl, {
-      method: 'PUT',
-      headers: prepare.data.headers,
-      body: file,
-    })
+    // The one cross-origin request in this flow: browser → R2 presigned PUT.
+    // A *thrown* fetch here is almost always the R2 bucket's CORS policy not
+    // allowing this origin (or a genuine network drop). Tag it with a stable
+    // i18nKey so the UI shows a clear reason instead of the browser's opaque
+    // "Failed to fetch", which points nowhere.
+    let storageResponse: Response
+    try {
+      storageResponse = await fetch(prepare.data.uploadUrl, {
+        method: 'PUT',
+        headers: prepare.data.headers,
+        body: file,
+      })
+    } catch (error) {
+      return {
+        success: false,
+        error: `Could not reach image storage: ${
+          error instanceof Error ? error.message : 'network error'
+        }`,
+        i18nKey: 'errors.upload.storageUnreachable',
+      }
+    }
 
     if (!storageResponse.ok) {
       return {
         success: false,
-        error: `Storage upload failed with status ${storageResponse.status}`,
+        error: `Image storage rejected the upload (status ${storageResponse.status})`,
+        i18nKey: 'errors.upload.storageRejected',
       }
     }
 

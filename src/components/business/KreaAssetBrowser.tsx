@@ -74,6 +74,7 @@ import {
   fetchGalleryImages,
 } from '@/lib/api-client/gallery'
 import { uploadImageFileAPI } from '@/lib/api-client/generation'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import {
   clearGalleryCache,
@@ -343,6 +344,7 @@ export function KreaAssetBrowser({
   className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
+  const tErrors = useTranslations('Errors')
 
   const effectiveInitialFilters: GalleryFilters = mediaType
     ? { ...initialFilters, type: mediaType }
@@ -907,7 +909,7 @@ export function KreaAssetBrowser({
           projectId: targetProjectId,
         })
         if (!response.success || !response.data) {
-          toast.error(response.error ?? t('uploadFailed'))
+          toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
           return null
         }
         clearGalleryCache()
@@ -932,7 +934,7 @@ export function KreaAssetBrowser({
         setIsUploading(false)
       }
     },
-    [t, prependGeneration, refreshCounts, section, activeMediaType],
+    [t, tErrors, prependGeneration, refreshCounts, section, activeMediaType],
   )
 
   // Sequential multi-file upload — dropping or picking several images uploads

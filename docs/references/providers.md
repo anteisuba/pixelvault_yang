@@ -10,9 +10,10 @@
 4. 生成执行目标是 **worker-only**：Next.js 只做 auth / validation / route+key resolution / job create / signed dispatch / callback finalization；provider submit / poll / 结果下载 / R2 上传在 Cloudflare Worker。
 5. 官方文档打不开、要登录、只渲染 shell 时，**不能把字段写成已确认事实**。
 
-## Adapter 架构（2026-07-10 核验 registry/types）
+## Adapter 架构（2026-07-11 更新：新增 runner）
 
-- Registry `src/services/providers/registry.ts` 注册 **10 个 adapter**：huggingface · gemini · openai · fal · runway · replicate · novelai · volcengine · fish_audio · **elevenlabs**（2026-06 后新增）。
+- Registry `src/services/providers/registry.ts` 注册 **11 个 adapter**：huggingface · gemini · openai · fal · runway · replicate · novelai · volcengine · fish_audio · elevenlabs · **runner**（2026-07-11 新增，Comfy Runner / RunPod ComfyUI，见 `docs/plans/comfy-runner-HANDOFF-2026-07.md`）。
+- `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`），不占用户每日 FREE_TIER 额度。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
 - `HYPER3D_RODIN` **故意不进 registry**——3D 走 `generate-3d.service.ts` 直发 Worker。
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
 - 契约 `types.ts`：`ProviderGenerationInput/Result`（图）、`ProviderVideoInput/Result`（视频，`fetchHeaders` 支持需鉴权下载的 provider 如 Sora）、`ProviderQueueSubmitInput`（队列型，duration 支持 `'auto'`）；`civitaiToken` 全链穿透（Civitai 下载 401 需鉴权）。

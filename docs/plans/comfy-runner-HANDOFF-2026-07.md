@@ -215,17 +215,19 @@ RunPod Serverless Endpoint (runpod/worker-comfyui:base)
 
 ## 6. 当前进度（本会话已完成 / 卡在哪）
 
-| 项                                                    | 状态                                                                                                       |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 本地 ComfyUI 复刻验证（go/no-go）                     | ✅ 通过（§2.2）                                                                                            |
-| RunPod 注册 + 充值 $10 + API key                      | ✅（key 已验证有效，账号 `user_3G67EXcAzNyHrBqcgeoBa88WAaY`；存本机注册表 `HKCU:\Environment\RUNPOD_KEY`） |
-| Network Volume `pixelvault-models` 20GB / **US-CA-2** | ✅ 已建（US-CA-2 已确认有 RTX 4090 + A5000）                                                               |
-| **起临时 Pod 下 WAI 模型到 Volume**                   | ⬜ **下一步，卡在这**                                                                                      |
-| 建 serverless 端点 + 挂 Volume                        | ⬜                                                                                                         |
-| API 提交 workflow 验证第一张                          | ⬜                                                                                                         |
-| 接进 PixelVault（代码触点 §8）                        | ⬜ 未开始                                                                                                  |
-| 月度限额代码                                          | ⬜ 未开始                                                                                                  |
-| Anima/Pony V6/SDXL runner 条目                        | ⬜ 未开始（先 WAI 跑通再说；范围+配置已拍板 §4.2b，SD 1.5 已移出）                                         |
+| 项                                             | 状态                                                                                                                                                                                                                                                              |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 本地 ComfyUI 复刻验证（go/no-go）              | ✅ 通过（§2.2）                                                                                                                                                                                                                                                   |
+| RunPod 注册 + 充值 $10 + API key               | ✅（key 已验证有效，账号 `user_3G67EXcAzNyHrBqcgeoBa88WAaY`；存本机注册表 `HKCU:\Environment\RUNPOD_KEY`）                                                                                                                                                        |
+| Network Volume `pixelvault-models`             | ✅ **40GB / US-CA-2 / id `rk3t3mb1ko`**（2026-07-10 重建：之前的 20GB Volume 在账号里已消失，API 查证为空；直接按 §4.2b 建 40GB，$2.8/月）                                                                                                                        |
+| 起临时 Pod 下模型到 Volume                     | ✅ 完成（2026-07-10，CPU Pod $0.06/hr + REST API 全自动，无需网页手操；4 checkpoint 各 6.94GB + 测试 LoRA 228MB 全部进 Volume，共 ~26.2GB；首轮被 Civitai 账号级 429 限流打断，75s 长退避重跑通过，见 §9.7；Pod 已销毁）                                          |
+| 建 serverless 端点 + 挂 Volume                 | ✅ **端点 `01g8rrmixe4hah`（pixelvault-runner）**，template `it11vb8960` = `runpod/worker-comfyui:5.8.6-base`；4090 主/A5000 备、Max 1、Active 0、Idle 5s、Timeout 120s、FlashBoot 开；已存 `HKCU:\Environment\RUNPOD_ENDPOINT`                                   |
+| API 提交 workflow 验证第一张                   | ✅ **验收通过**（2026-07-11）：§7.1 workflow 提交端点，出图与本地 `clone_00001_.png` 几乎逐像素一致（同 seed 确定性复现）。executionTime 18.5s；首次冷启动 delayTime 153s（含首次镜像拉取，非常态）。部署全程总花费 **$0.037**（余额 $9.963）                     |
+| 接进 PixelVault（代码触点 §8）                 | ✅ 代码全绿（2026-07-11）：RUNNER adapter + registry 注册 + Worker 侧 recipe→workflow 纯函数（models/runner/）+ RunPod submit/poll/decode + ImageQueueWorkflow runner 分支                                                                                        |
+| 月度限额代码                                   | ✅ `RUNNER_MONTHLY_LIMIT`（300/月）+ `usage.service.ts` 的 `assertRunnerMonthlyLimitNotExceeded`（按 GenerationJob 计数，非 ApiUsageLedger，含失败/在途请求）                                                                                                     |
+| Anima/Pony V6/SDXL runner 条目                 | ✅ 4 checkpoint 全部登记（`runner-checkpoints.ts` + `models/image.ts` + `lora-base-models.ts`），`FEATURE_FLAGS.comfyRunner`（`NEXT_PUBLIC_FF_COMFY_RUNNER`）门控 available，默认关闭                                                                             |
+| 能力路由（hosted 挂社区 LoRA → 自动升 runner） | ✅ v1：仅覆盖已知会崩 hosted 的 allowlist LoRA（当前 1 条：Tutenstein Cleo Carter V1）；未知 LoRA 走新增 `lora_incompatible_hosted` 错误码手动引导，见 `runner-capability-routing.service.ts`                                                                     |
+| 遗留 TODO                                      | ⬜ owner 需 `wrangler secret put RUNPOD_KEY`（Cloudflare Worker）+ 服务端 env `RUNPOD_KEY`（Next.js，供 `getSystemApiKey`）；⬜ 验收通过后翻 `NEXT_PUBLIC_FF_COMFY_RUNNER=true`；⬜ RunPod 端 LoRA 动态下载（fork worker-comfyui）仍是 v2 范围，v1 只认 allowlist |
 
 ---
 
@@ -377,6 +379,8 @@ checkpoint/lora 文件名必须与 Volume 里一致。
 4. **本机默认 Python 是 3.14 Store 版，装不了 CUDA torch**；本地 ComfyUI 用单独装的 3.12。
 5. RunPod REST base：`https://api.runpod.ai/v2/{endpoint}/run|status`；GraphQL：`https://api.runpod.io/graphql`。均 `Authorization: Bearer`。
 6. Civitai 读图 recipe：`GET https://civitai.com/api/trpc/image.getGenerationData?input=%7B%22json%22%3A%7B%22id%22%3A<imageId>%7D%7D`，**需要登录**（带 Civitai key，否则 401）。返回 `result.data.json.{meta, resources}`。
+7. **Civitai 下载有账号级限流**：连续大文件下载会触 429 `too_many_requests`（错误体 124 字节 JSON）。重试退避要 ≥75s，别 5s 快试；下载脚本必须校验文件大小（错误体也会落成"文件"）。
+8. **RunPod REST API（`https://rest.runpod.io/v1`）能全自动建 Volume/Pod/Template/Endpoint**，原「网页手操」步骤全部可代劳。Pod 下载模型的模式：CPU Pod（$0.06/hr）+ `dockerStartCmd` 自带下载脚本 + `ports:["8000/http"]` 起 `python3 -m http.server` 服务 `download.log`，本机经 `https://{podId}-8000.proxy.runpod.net/` 轮询进度，完成后本机侧 DELETE Pod。⚠ classifier 会拦「把 RUNPOD_KEY 塞进 Pod env」（账号级凭证泄漏），Pod 内只放 CIVITAI_KEY，销毁动作放本机做。
 
 ---
 

@@ -101,3 +101,42 @@ export function rewriteCivitaiImageUrl(
   parsed.pathname = segments.join('/')
   return parsed.toString()
 }
+
+/**
+ * 把 image.civitai.com 的图 URL 改写成走自家边缘缓存代理。
+ *
+ * 根因：公开 LoRA 库封面此前从浏览器**直连** image.civitai.com，整页一次性并发
+ * 几十张 → Civitai 的 Cloudflare 按单客户端限流，突发请求被回 429/503 → 封面
+ * 全部加载失败（黑格；串行请求反而全 200，实测见诊断）。
+ *
+ * 修复：不再从浏览器 hotlink，改走 Cloudflare Worker 边缘缓存代理
+ * （`workers/civitai-image-proxy/`）。浏览器只打自家源，命中边缘缓存；未命中才由
+ * Worker 服务端拉 Civitai（Cloudflare→Cloudflare，非单客户端突发）并长期缓存，
+ * 其他用户直接吃缓存 —— 单客户端不再产生突发直连，绕开限流。
+ *
+ * 代理只接管 image.civitai.com 的图；R2 / 其它源 / 非法 URL 一律原样放行。
+ * `NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE` 未配置时**原样返回**（回退直连），所以这
+ * 段改动可以先合，Worker 部署 + 配好 env 后自动生效，无需二次改代码。
+ *
+ * 传入路径原样透传给代理（`<base>/<bucket>/<uuid>/<transform>/<file>`），路径本身
+ * 即缓存键，天然按 transform 分档缓存。已经是代理域的 URL 会原样返回（幂等），可安全
+ * 叠加在 {@link rewriteCivitaiImageUrl} 之后调用。
+ */
+export function proxyCivitaiImageUrl(url: string): string {
+  // 每次读 env（而非模块级常量）以便测试用 vi.stubEnv 覆写；客户端构建时
+  // Next 会把 process.env.NEXT_PUBLIC_* 内联成字面量，无运行时开销。
+  const rawBase = process.env.NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE
+  const proxyBase = rawBase ? rawBase.replace(/\/+$/, '') : null
+  if (!url || !proxyBase) return url
+
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return url
+  }
+
+  if (parsed.hostname !== CIVITAI_IMAGE_HOST) return url
+
+  return `${proxyBase}${parsed.pathname}${parsed.search}`
+}

@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { rewriteCivitaiImageUrl } from './civitai-image-url'
+import {
+  proxyCivitaiImageUrl,
+  rewriteCivitaiImageUrl,
+} from './civitai-image-url'
 
 describe('rewriteCivitaiImageUrl', () => {
   const ORIGINAL =
@@ -75,5 +78,83 @@ describe('rewriteCivitaiImageUrl', () => {
     expect(out).toContain('?token=xyz')
     expect(out).toContain('#anchor')
     expect(out).toContain('width=96')
+  })
+})
+
+describe('proxyCivitaiImageUrl', () => {
+  const CARD =
+    'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=450,optimized=true/1917130.jpeg'
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('passes through unchanged when the proxy base is unset (fallback = direct)', () => {
+    vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', '')
+    expect(proxyCivitaiImageUrl(CARD)).toBe(CARD)
+  })
+
+  it('rewrites the civitai host to the proxy base, keeping the full path', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(proxyCivitaiImageUrl(CARD)).toBe(
+      'https://img.anteisuba.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=450,optimized=true/1917130.jpeg',
+    )
+  })
+
+  it('tolerates a trailing slash on the proxy base', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com/',
+    )
+    expect(proxyCivitaiImageUrl(CARD)).toBe(
+      'https://img.anteisuba.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=450,optimized=true/1917130.jpeg',
+    )
+  })
+
+  it('preserves the query string', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(proxyCivitaiImageUrl(`${CARD}?token=abc`)).toBe(
+      'https://img.anteisuba.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=450,optimized=true/1917130.jpeg?token=abc',
+    )
+  })
+
+  it('leaves non-civitai URLs (R2 / own uploads) untouched even when enabled', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    const r2 = 'https://cdn.anteisuba.com/loras/cover/abc.jpg'
+    expect(proxyCivitaiImageUrl(r2)).toBe(r2)
+  })
+
+  it('is idempotent — an already-proxied URL is returned unchanged', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    const proxied = proxyCivitaiImageUrl(CARD)
+    expect(proxyCivitaiImageUrl(proxied)).toBe(proxied)
+  })
+
+  it('returns empty string for empty input', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(proxyCivitaiImageUrl('')).toBe('')
+  })
+
+  it('returns input unchanged for malformed URL', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(proxyCivitaiImageUrl('not a url')).toBe('not a url')
   })
 })

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 
+import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 
 export interface LoraCoverTileProps {
@@ -57,20 +58,33 @@ export function LoraCoverTile({
   className,
 }: LoraCoverTileProps) {
   // P1-1: some CDNs take seconds to deliver — pulse the placeholder while
-  // loading, then fade the image in, instead of a dead black frame.
-  const [loaded, setLoaded] = useState(false)
+  // loading, then fade the image in, instead of a dead black frame. On error
+  // fall back to the icon: Civitai covers can 429/503 under burst load (see
+  // proxyCivitaiImageUrl), and without onError a failed cover stays a black
+  // pulsing hole forever instead of degrading to the same placeholder as a
+  // cover-less card.
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(
+    'loading',
+  )
 
-  const cover = coverUrl ? (
+  // Route civitai covers through our edge-cache proxy so the browser never
+  // hotlinks image.civitai.com directly (that burst is what trips the rate
+  // limit). No-op for R2/own covers and when the proxy env is unset.
+  const resolvedUrl = coverUrl ? proxyCivitaiImageUrl(coverUrl) : null
+  const showImage = resolvedUrl !== null && status !== 'error'
+
+  const cover = showImage ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={coverUrl}
+      src={resolvedUrl}
       alt={alt}
       loading="lazy"
       decoding="async"
-      onLoad={() => setLoaded(true)}
+      onLoad={() => setStatus('loaded')}
+      onError={() => setStatus('error')}
       className={cn(
         'size-full object-cover transition-all duration-200 group-hover:scale-105',
-        loaded ? 'opacity-100' : 'opacity-0',
+        status === 'loaded' ? 'opacity-100' : 'opacity-0',
       )}
     />
   ) : (
@@ -83,7 +97,7 @@ export function LoraCoverTile({
     <div
       className={cn(
         'group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted',
-        coverUrl && !loaded && 'animate-pulse',
+        resolvedUrl !== null && status === 'loading' && 'animate-pulse',
         selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
         className,
       )}

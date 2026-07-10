@@ -136,7 +136,7 @@ import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-genera
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getAvailableImageModels, resolveAdapterType } from '@/constants/models'
 import {
   getCapabilityConfig,
@@ -157,6 +157,7 @@ import {
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
+import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import { searchPromptTags } from '@/lib/prompt-tag-search'
 import type { PromptPolarity } from '@/types/prompt-tags'
@@ -382,7 +383,13 @@ function resolveBaseKeySetup(
   if (!modelId) return { needsKeySetup: false }
   const options = modelOptions.filter((option) => option.modelId === modelId)
   const hasUsableRoute = options.some(
-    (option) => option.freeTier || option.sourceType === 'saved',
+    (option) =>
+      option.freeTier ||
+      option.sourceType === 'saved' ||
+      // Comfy Runner has no BYOK path — it's always the platform's own
+      // RUNPOD_KEY, resolved server-side. There's nothing to configure, so
+      // it never needs the "add an API key" QuickSetupDialog.
+      option.adapterType === AI_ADAPTER_TYPES.RUNNER,
   )
   return {
     needsKeySetup: !hasUsableRoute,
@@ -1726,7 +1733,7 @@ function RecommendFavoritesRow({
             {asset.coverImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={asset.coverImageUrl}
+                src={proxyCivitaiImageUrl(asset.coverImageUrl)}
                 alt={asset.name}
                 className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
@@ -2633,7 +2640,10 @@ function CivitaiCommunityBranch({
               onPreviewCover={(item) => {
                 const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
                 if (fullUrl) {
-                  setCoverPreview({ url: fullUrl, name: item.name })
+                  setCoverPreview({
+                    url: proxyCivitaiImageUrl(fullUrl),
+                    name: item.name,
+                  })
                 }
               }}
               minedOutfits={minedPrompts.outfits}
@@ -2678,7 +2688,10 @@ function CivitaiCommunityBranch({
               onPreviewCover={(item) => {
                 const fullUrl = item.coverImageUrlOriginal ?? item.coverImageUrl
                 if (fullUrl) {
-                  setCoverPreview({ url: fullUrl, name: item.name })
+                  setCoverPreview({
+                    url: proxyCivitaiImageUrl(fullUrl),
+                    name: item.name,
+                  })
                 }
               }}
               minedOutfits={minedPrompts.outfits}
@@ -3015,7 +3028,7 @@ function CivitaiLoraInspector({
           {item.coverImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={item.coverImageUrl}
+              src={proxyCivitaiImageUrl(item.coverImageUrl)}
               alt={item.name}
               width={640}
               height={360}

@@ -17,7 +17,10 @@ import {
   LORA_CARD_SOURCE_IMAGE_WIDTH,
 } from '@/constants/lora'
 import { LORA_STACK_MAX } from '@/hooks/use-active-lora-stack'
-import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import {
+  proxyCivitaiImageUrl,
+  rewriteCivitaiImageUrl,
+} from '@/lib/civitai-image-url'
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
 import {
@@ -175,7 +178,10 @@ export function LoraSourceRecipeStrip({
               onClick={(event) => {
                 previewTriggerRef.current = event.currentTarget
                 onSelectedImageUrlChange(recipe.imageUrl)
-                setPreview({ url: recipe.imageUrl, label: imageLabel })
+                setPreview({
+                  url: proxyCivitaiImageUrl(recipe.imageUrl),
+                  label: imageLabel,
+                })
               }}
               aria-pressed={isSelected}
               aria-label={previewLabel}
@@ -188,9 +194,11 @@ export function LoraSourceRecipeStrip({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={rewriteCivitaiImageUrl(recipe.imageUrl, {
-                  width: LORA_CARD_SOURCE_IMAGE_WIDTH,
-                })}
+                src={proxyCivitaiImageUrl(
+                  rewriteCivitaiImageUrl(recipe.imageUrl, {
+                    width: LORA_CARD_SOURCE_IMAGE_WIDTH,
+                  }),
+                )}
                 alt=""
                 loading="lazy"
                 className="h-24 w-20 object-cover"

@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelvault-civitai-image-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-24",
+  "observability": {
+    "enabled": true,
+  },
+  // 自定义域路由：`wrangler deploy` 会在 anteisuba.com 这个 zone 下自动创建
+  // img.anteisuba.com 的 DNS + 证书并指向本 Worker（zone 已托管在 Cloudflare）。
+  // 前端把 NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE 设成 https://img.anteisuba.com。
+  "routes": [
+    {
+      "pattern": "img.anteisuba.com",
+      "custom_domain": true,
+    },
+  ],
+}

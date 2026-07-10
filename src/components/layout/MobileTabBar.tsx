@@ -26,6 +26,7 @@ import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
+import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
 
@@ -181,9 +182,13 @@ export function MobileCollapsedRail() {
   const t = useTranslations('Navbar')
   const tTools = useTranslations('StudioTools')
   const { openMobile, toggleSidebar } = useSidebar()
-  // Wait for Clerk before rendering the auth-conditional account control —
-  // same hydration guard as MobileTabBar. Without it, SSR (auth unresolved)
-  // and the hydrated client (signed-in) disagree on the SignedIn subtree.
+  // Wait for both hydration and Clerk before rendering the auth-conditional
+  // account control — same guard as AppSidebarFooter. `isLoaded` alone isn't
+  // enough: Clerk can already report `isLoaded: true` on the client's first
+  // render, before that render is reconciled against the SSR (auth
+  // unresolved) output, which trips a hydration mismatch on the SignedIn
+  // subtree.
+  const hasHydrated = useHasHydrated()
   const { isLoaded } = useUser()
 
   if (openMobile) return null
@@ -307,7 +312,7 @@ export function MobileCollapsedRail() {
 
       <div className="flex shrink-0 flex-col items-center gap-1 border-t border-sidebar-border/40 py-1">
         <LocaleSwitcher tone="sidebar" orientation="vertical" />
-        {isLoaded && (
+        {hasHydrated && isLoaded && (
           <>
             <SignedIn>
               <MobileRailAccountButton />
@@ -351,8 +356,9 @@ export function MobileHeader() {
 export function MobileTabBar() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
-  // Same hydration story as AppSidebar — wait for Clerk before rendering
-  // the auth-conditional tab list.
+  // Same hydration story as AppSidebarFooter — wait for both hydration and
+  // Clerk before rendering the auth-conditional tab list.
+  const hasHydrated = useHasHydrated()
   const { isLoaded } = useUser()
 
   const signedInTabs: TabItem[] = [
@@ -377,7 +383,7 @@ export function MobileTabBar() {
       style={{ paddingBottom: 'var(--keyboard-safe-area-bottom, 0px)' }}
     >
       <div className="h-12">
-        {isLoaded && (
+        {hasHydrated && isLoaded && (
           <>
             <SignedIn>
               <TabList tabs={signedInTabs} pathname={pathname} />

@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
@@ -82,24 +76,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_FOOTER_CLASS =
   'gap-2 border-t border-sidebar-border/40 p-3 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1 md:p-2'
-
-const subscribeToHydration = () => () => {}
-const getHydratedSnapshot = () => true
-const getServerHydrationSnapshot = () => false
-
-function useHasHydrated() {
-  return useSyncExternalStore(
-    subscribeToHydration,
-    getHydratedSnapshot,
-    getServerHydrationSnapshot,
-  )
-}
 
 /**
  * AppSidebar — global navigation sidebar (replaces top Navbar).

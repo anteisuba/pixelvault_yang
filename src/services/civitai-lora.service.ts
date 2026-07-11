@@ -105,6 +105,11 @@ const CivitaiImageDimensionSchema = z.preprocess(
 const CivitaiImageSchema = z
   .object({
     url: z.string().url(),
+    // 'image' | 'video' — Civitai 允许视频当模型封面。<img> 渲染不了 video/mp4
+    // （transform 段对视频不转码、连 anim=false 也照样回 video/mp4，实测），
+    // 所以选封面时必须跳过 type=video 的条目。optional：老响应/fixture 不带
+    // type 时视为 image，不误伤。
+    type: z.string().optional(),
     width: CivitaiImageDimensionSchema,
     height: CivitaiImageDimensionSchema,
     nsfwLevel: z.number().optional(),
@@ -219,6 +224,8 @@ const CivitaiSearchImageSchema = z
   .object({
     id: z.number(),
     url: z.string(),
+    // meilisearch 索引同样带 'image' | 'video'（网页版靠它渲染视频角标）。
+    type: z.string().optional(),
     nsfwLevel: z.number().optional(),
   })
   .passthrough()
@@ -767,12 +774,14 @@ export async function fetchCivitaiVersionIdentifiers(
     : null
 
   // 回填的是用户已收藏的这把 LoRA 的封面（无三态语境）——放到 XXX 与
-  // toLibraryItem 的默认一致，否则 NSFW 收藏行永远补不回封面。
+  // toLibraryItem 的默认一致，否则 NSFW 收藏行永远补不回封面。视频封面
+  // 跳过（isStaticCivitaiImage 定义处有实测说明）。
   const coverOriginal =
     parsed.data.images?.find(
       (image) =>
+        isStaticCivitaiImage(image) &&
         (image.nsfwLevel ?? 1) <=
-        CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE,
+          CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE,
     )?.url ?? null
 
   return {
@@ -893,13 +902,26 @@ const CIVITAI_CARD_WIDTH = 450
 const CIVITAI_COVER_WIDTH = 640 // Inspector aspect-video / AssetCard square
 const CIVITAI_PREVIEW_WIDTH = 768 // 预留：未来的预览画廊 / 大图轮播
 
+/**
+ * 封面/来源图只能是静态图：Civitai 允许视频当封面，但 `<img>` 渲染不了
+ * video/mp4（transform 段对视频不转码、`anim=false` 也照样回 video/mp4，
+ * 2026-07-11 实测）。只有明确标 `type: 'video'` 才跳过——缺省视为 image，
+ * 老响应/测试 fixture 不受影响。
+ */
+function isStaticCivitaiImage(image: { type?: string }): boolean {
+  return (image.type ?? 'image').toLowerCase() !== 'video'
+}
+
 function pickImages(
   version: z.infer<typeof CivitaiModelVersionSchema>,
   maxNsfwLevel: number,
 ): string[] {
   return (
     version.images
-      ?.filter((image) => (image.nsfwLevel ?? 1) <= maxNsfwLevel)
+      ?.filter(
+        (image) =>
+          isStaticCivitaiImage(image) && (image.nsfwLevel ?? 1) <= maxNsfwLevel,
+      )
       .map((image) => image.url)
       .slice(0, 6) ?? []
   )
@@ -1082,7 +1104,11 @@ async function hitToLibraryItem(
 
   const tags = (hit.tags ?? []).map((tag) => tag.name)
   const originalImageUrls = (hit.images ?? [])
-    .filter((image) => (image.nsfwLevel ?? 1) <= maxImageNsfwLevel)
+    .filter(
+      (image) =>
+        isStaticCivitaiImage(image) &&
+        (image.nsfwLevel ?? 1) <= maxImageNsfwLevel,
+    )
     .slice(0, 6)
     .map((image) => buildCivitaiSearchImageOriginalUrl(image))
   const coverOriginal = originalImageUrls[0] ?? null
@@ -1941,6 +1967,8 @@ const CivitaiImageItemSchema = z
   .object({
     id: z.union([z.number(), z.string()]).optional(),
     url: z.string().url().optional(),
+    // 'image' | 'video' — 配方缩略条同样是 <img>，视频条目直接跳过。
+    type: z.string().optional(),
     width: CivitaiImageDimensionSchema,
     height: CivitaiImageDimensionSchema,
     meta: z
@@ -2219,6 +2247,8 @@ async function fetchModelVersionSourceRecipes(
     ) {
       continue
     }
+    // 视频条目进不了 <img> 缩略条（isStaticCivitaiImage 定义处有实测说明）。
+    if (!isStaticCivitaiImage(image)) continue
     const rawPrompt = repairUtf8Mojibake(image.meta?.prompt ?? '')
     const prompt = cleanRecommendedPrompt(rawPrompt)
     if (!prompt) continue
@@ -2346,6 +2376,8 @@ export async function mineCivitaiUserPrompts({
   const recipes: CivitaiImageRecipe[] = []
   let consideredCount = 0
   for (const item of parsed.items) {
+    // 视频条目进不了 <img> 缩略条（isStaticCivitaiImage 定义处有实测说明）。
+    if (!isStaticCivitaiImage(item)) continue
     // Civitai serves both `meta.{prompt,resources}` (single layer) and
     // `meta.meta.{prompt,resources}` (double-nested) depending on query
     // params. Try inner first, then outer — whichever has a non-empty

@@ -220,6 +220,56 @@ describe('listCivitaiLoras', () => {
     )
   })
 
+  it('skips video covers — <img> cannot render video/mp4 (anim=false does not transcode either)', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 558,
+            name: 'Video Cover LoRA',
+            type: 'LORA',
+            tags: ['character'],
+            modelVersions: [
+              {
+                id: 1003,
+                name: 'v1',
+                baseModel: 'Pony',
+                createdAt: '2024-03-09T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1003',
+                  },
+                ],
+                images: [
+                  {
+                    url: 'https://image.civitai.com/clip.mp4',
+                    type: 'video',
+                    nsfwLevel: 1,
+                  },
+                  {
+                    url: 'https://image.civitai.com/still.jpeg',
+                    type: 'image',
+                    nsfwLevel: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ nsfwFilter: 'unrestricted' })
+
+    expect(result.items[0]?.coverImageUrlOriginal).toBe(
+      'https://image.civitai.com/still.jpeg',
+    )
+  })
+
   it('leaves an all-XXX LoRA cover null under the safe filter', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({

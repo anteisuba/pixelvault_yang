@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ComponentType } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import {
   ChevronDown,
@@ -11,7 +11,10 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_CAST_DOCK,
+  NODE_STUDIO_INGEST_MAGNET,
+} from '@/constants/node-studio'
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   Popover,
@@ -113,6 +116,11 @@ interface CastDockProps {
    *  minimap (§6.2, unchanged avoidance math from the flyout era). */
   insetLeft: number
   insetRight: number
+  /** S5f B4 把手热区: true while an ingest-source canvas node is being
+   *  dragged. When the dock is collapsed and the pointer nears the handle
+   *  during such a drag, the strip auto-expands (and re-collapses on drag
+   *  end) so a card can be grabbed without breaking the drag. */
+  canvasDragActive?: boolean
 }
 
 /**
@@ -135,6 +143,7 @@ export function CastDock({
   onCreateCard,
   insetLeft,
   insetRight,
+  canvasDragActive = false,
 }: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
   const nodes = useNodes<NodeWorkflowNode>()
@@ -142,6 +151,53 @@ export function CastDock({
   const { setExpandedNodeId, expandedNodeId } = useNodeWorkflowActions()
   const { dragState } = useIngestDrag()
   const [collapsed, setCollapsed] = useState(false)
+  const collapsedHandleRef = useRef<HTMLButtonElement | null>(null)
+  // S5f B4: remembers a drag-triggered auto-expand so the strip re-collapses
+  // when the drag ends (a manual expand mid-drag would NOT set this, so it
+  // stays open — only the automatic one snaps back).
+  const autoExpandedByDragRef = useRef(false)
+
+  // S5f B4 把手热区: while collapsed AND a canvas ingest drag is in flight,
+  // watch the pointer; entering the handle's hot zone auto-expands the strip
+  // so the dragged entity can reach a card. The proximity math lives here
+  // (per-move, but only during a collapsed-dock drag — a narrow window), not
+  // in the workbench, keeping the handle's own geometry private to this file.
+  useEffect(() => {
+    if (!collapsed || !canvasDragActive) return
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = collapsedHandleRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const dx = Math.max(
+        rect.left - event.clientX,
+        0,
+        event.clientX - rect.right,
+      )
+      const dy = Math.max(
+        rect.top - event.clientY,
+        0,
+        event.clientY - rect.bottom,
+      )
+      if (Math.hypot(dx, dy) <= NODE_STUDIO_INGEST_MAGNET.handleHotZonePx) {
+        autoExpandedByDragRef.current = true
+        setCollapsed(false)
+      }
+    }
+    window.addEventListener('pointermove', handlePointerMove)
+    return () => window.removeEventListener('pointermove', handlePointerMove)
+  }, [collapsed, canvasDragActive])
+
+  // Re-collapse when the drag that auto-expanded us ends. This IS a genuine
+  // "sync to an external system" effect (ReactFlow's node-drag lifecycle lives
+  // outside React state, surfaced here via the `canvasDragActive` prop) — not
+  // the "you might not need an effect" anti-pattern — so the guarded one-shot
+  // setState is intentional (same accepted pattern as VideoComposer).
+  useEffect(() => {
+    if (!canvasDragActive && autoExpandedByDragRef.current) {
+      autoExpandedByDragRef.current = false
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- external drag ended; restore the pre-drag collapsed state
+      setCollapsed(true)
+    }
+  }, [canvasDragActive])
 
   const performanceCountBySourceId = useMemo(() => {
     const counts = new Map<string, number>()
@@ -229,6 +285,7 @@ export function CastDock({
   // (`barBottomOffsetPx` + minimap-cleared `barLeft`), unchanged from before.
   return collapsed ? (
     <button
+      ref={collapsedHandleRef}
       type="button"
       aria-label={t('expand')}
       aria-expanded={false}

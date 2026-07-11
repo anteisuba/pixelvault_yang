@@ -135,7 +135,7 @@ import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CastDock, isCastIdentityNode, type CastSectionId } from './CastDock'
 import { createReferenceAsset } from './CharacterImageReferenceControls'
-import { IngestDragProvider } from './IngestDragLayer'
+import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import {
   NodeWorkflowActionsProvider,
@@ -423,6 +423,32 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const closeAddMenu = useCallback(() => {
     setAddMenu(null)
   }, [])
+
+  // S5f B2 快投模式: the provider publishes its live API here; canvas event
+  // handlers below read it at click time (they live outside the provider).
+  const quickThrowApiRef = useRef<QuickThrowApi | null>(null)
+
+  const handleNodeClick = useCallback(
+    (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      // In quick-throw mode a node click feeds the source into it (a no-op for
+      // illegal/already-included targets, checked inside feedQuickThrow) —
+      // NOT the normal select/expand. Out of mode: fall through to default.
+      const api = quickThrowApiRef.current
+      if (api?.quickThrowSource) api.feedQuickThrow(node.id)
+    },
+    [],
+  )
+
+  const handlePaneClick = useCallback(() => {
+    // Clicking empty canvas exits quick-throw mode if active; otherwise it
+    // keeps its existing job of closing the add-node menu.
+    const api = quickThrowApiRef.current
+    if (api?.quickThrowSource) {
+      api.exitQuickThrow()
+      return
+    }
+    closeAddMenu()
+  }, [closeAddMenu])
 
   const getCanvasLocalPosition = useCallback(
     (position: XYPosition): XYPosition => {
@@ -1700,6 +1726,20 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const fuseBiteTargetIdRef = useRef<string | null>(null)
   const fuseBiteTargetElRef = useRef<HTMLElement | null>(null)
 
+  // S5f B4 把手热区: a boolean (toggled once per drag on start/stop, NOT
+  // per-frame — the proximity check itself lives inside CastDock's own
+  // listener, gated on this flag, so no re-render thrash). Only an ingest
+  // source counts — plain repositioning of a video/shot node shouldn't pop
+  // the dock open.
+  const [canvasNodeDragActive, setCanvasNodeDragActive] = useState(false)
+
+  const handleNodeDragStart = useCallback(
+    (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      if (isCanvasIngestDragSource(node)) setCanvasNodeDragActive(true)
+    },
+    [],
+  )
+
   const handleNodeDrag = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
       if (!isCanvasIngestDragSource(node)) return
@@ -1767,6 +1807,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   // that was just dragged across open canvas).
   const handleNodeDragStop = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      // S5f B4: the drag is over — any auto-expanded dock re-collapses
+      // (CastDock watches this flag falling).
+      setCanvasNodeDragActive(false)
       // Clear any 张口 bite-hover state `handleNodeDrag` left applied,
       // regardless of what happens below — a stale outline/scale must never
       // survive past the drop.
@@ -2028,6 +2071,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           nodes={workflow.nodes}
           edges={workflow.edges}
           onConnect={handleIngestConnect}
+          quickThrowApiRef={quickThrowApiRef}
         >
           <ReactFlow
             nodes={renderedNodes}
@@ -2039,9 +2083,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             onConnect={workflow.onConnect}
             isValidConnection={isValidConnection}
             onEdgeClick={handleEdgeClick}
-            onPaneClick={closeAddMenu}
+            onNodeClick={handleNodeClick}
+            onPaneClick={handlePaneClick}
             onPaneContextMenu={handlePaneContextMenu}
             onNodesDelete={handleNodesDelete}
+            onNodeDragStart={handleNodeDragStart}
             onNodeDrag={handleNodeDrag}
             onNodeDragStop={handleNodeDragStop}
             onDrop={handleCanvasDrop}
@@ -2149,6 +2195,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               onCreateCard={handleCastCreate}
               insetLeft={bottomRowInsetPx.left}
               insetRight={bottomRowInsetPx.right}
+              canvasDragActive={canvasNodeDragActive}
             />
             <CanvasAddMenu
               open={Boolean(addMenu)}

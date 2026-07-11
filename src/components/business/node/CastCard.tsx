@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react'
-import { X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
@@ -118,7 +118,8 @@ export function CastCard({
   onSelect,
 }: CastCardProps) {
   const t = useTranslations('StudioNode.castDock')
-  const { beginDrag } = useIngestDrag()
+  const tIngest = useTranslations('StudioNode.ingest')
+  const { beginDrag, enterQuickThrow } = useIngestDrag()
   const { deleteNode } = useNodeWorkflowActions()
   const fallbackName = t(`sections.${sectionId}`)
   const name = getCastCardName(node, sectionId) || fallbackName
@@ -134,13 +135,18 @@ export function CastCard({
     .filter((part): part is string => Boolean(part))
     .join(' · ')
 
+  const quickThrowSourceInfo = { node, sectionId, label: name, thumbnailUrl }
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     beginDrag({
-      source: { node, sectionId, label: name, thumbnailUrl },
+      source: quickThrowSourceInfo,
       pointerEvent: event,
       originElement: event.currentTarget,
       onTap: onSelect,
+      // S5f B2: touch entry into quick-throw — a long-press before the drag
+      // threshold. Desktop uses the hover button below instead.
+      onLongPress: () => enterQuickThrow(quickThrowSourceInfo),
     })
   }
 
@@ -195,6 +201,22 @@ export function CastCard({
         className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover:opacity-100"
       >
         <X className="size-3" aria-hidden />
+      </button>
+      {/* S5f B2 快投模式 (desktop entry): hover-reveal button → enter mode so
+          every legal target lights up and one click per target feeds it.
+          Touch uses the long-press in handlePointerDown instead. */}
+      <button
+        type="button"
+        aria-label={tIngest('quickThrow.toggleAria', { name })}
+        title={tIngest('quickThrow.toggleAria', { name })}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          enterQuickThrow(quickThrowSourceInfo)
+        }}
+        className="absolute -left-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-paint focus-visible:opacity-100 group-hover:opacity-100"
+      >
+        <Send className="size-2.5" aria-hidden />
       </button>
       <span className="node-card-window relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-node-card-window">
         {thumbnailUrl ? (

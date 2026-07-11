@@ -1448,6 +1448,15 @@ html:lang(zh) {
    全靠 CSS class 名 + 内联 transform 绕开那个文件）。吸入/软弹回的副本飞行路
    径改用 Web Animations API（起止点运行时算，量不出一条静态 keyframes），不
    在这里定义。 */
+/* S5f B1 磁吸弱档：拖拽中所有合法目标微亮（石绿 55% 细描边）。声明顺序
+   刻意排在 .node-ingest-bite 之前——两个类同特异性，最近目标同时挂
+   magnet+bite 时，后声明的 bite（满档 2px 实色）赢得 outline。 */
+.node-ingest-magnet {
+  transition: outline-color 180ms var(--ease-standard);
+  outline: 1px solid color-mix(in oklab, var(--node-paint) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
 .node-ingest-bite {
   transition:
     transform 180ms var(--ease-standard),
@@ -1461,6 +1470,54 @@ html:lang(zh) {
   outline: 2px solid var(--node-status-failed);
   outline-offset: 4px;
   border-radius: inherit;
+}
+
+/* S5f B2 快投模式：合法目标全亮 + 序号角标（::after 读 JS 注入的
+   --node-qt-index 自定义属性，序号由命令式 classList/style 写入，与
+   吞噬手势同一条"不进 React state"纪律）；已含该卡的目标 ⊘ 半透明。 */
+.node-quick-throw-target {
+  outline: 2px solid var(--node-paint);
+  outline-offset: 4px;
+  border-radius: inherit;
+}
+.node-quick-throw-target::after {
+  content: var(--node-qt-index, '');
+  position: absolute;
+  top: -0.625rem;
+  left: -0.625rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--node-paint);
+  color: var(--node-paint-fg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px var(--node-shadow);
+}
+.node-quick-throw-included {
+  opacity: 0.45;
+}
+.node-quick-throw-included::after {
+  content: '⊘';
+  position: absolute;
+  top: -0.625rem;
+  left: -0.625rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--node-panel);
+  color: var(--node-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px var(--node-shadow);
 }
 
 /* 成分栏 chip 落定（§8「消化落定」: 340ms scale 0.3→1.2→1 overshoot）。类名常

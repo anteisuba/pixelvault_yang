@@ -4,8 +4,10 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
+  type MutableRefObject,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,19 +17,38 @@ import { NODE_STUDIO_INGEST_REJECT_REASON_IDS } from '@/constants/node-studio'
 import { isVoiceProfileNode } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import {
+  evaluateCastIngest,
   findIngestTargetElement,
+  playTargetGulpAnimation,
   previewIngestCapacity,
   useCastIngestEngine,
   type BeginCastDragParams,
   type CastIngestBiteChange,
   type CastIngestDragState,
   type CastIngestEvaluation,
+  type CastIngestSourceInfo,
 } from '@/hooks/node/use-cast-ingest'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+
+/** S5f B2 快投模式 target classes (CSS in globals.css §S5f B2): legal targets
+ *  get a numbered green badge (index via the `--node-qt-index` custom prop),
+ *  already-included ones get the ⊘ dim. Applied imperatively — the target
+ *  node components never re-render for the mode (same "不进 React state"
+ *  discipline as the magnet/bite classes). */
+const QUICK_THROW_TARGET_CLASS = 'node-quick-throw-target'
+const QUICK_THROW_INCLUDED_CLASS = 'node-quick-throw-included'
+const QUICK_THROW_INDEX_PROP = '--node-qt-index'
 
 interface IngestDragContextValue {
   beginDrag(params: BeginCastDragParams): void
   dragState: CastIngestDragState
+  /** S5f B2: the card being quick-thrown, or null when not in the mode. */
+  quickThrowSource: CastIngestSourceInfo | null
+  enterQuickThrow(source: CastIngestSourceInfo): void
+  exitQuickThrow(): void
+  /** Called by the canvas (workbench onNodeClick) — feeds the quick-throw
+   *  source into `targetId` if legal; a no-op otherwise (dimmed targets). */
+  feedQuickThrow(targetId: string): void
 }
 
 const IngestDragContext = createContext<IngestDragContextValue | null>(null)
@@ -42,12 +63,26 @@ export function useIngestDrag(): IngestDragContextValue {
   return context
 }
 
+/** S5f B2: imperative bridge to the quick-throw API for consumers that live
+ *  OUTSIDE the provider — specifically the workbench's ReactFlow `onNodeClick`
+ *  / `onPaneClick` handlers, whose closures are defined in the parent scope
+ *  that renders this provider (so `useIngestDrag` isn't reachable there). A
+ *  ref (read at click time, not render time) fits: no re-render coupling. */
+export interface QuickThrowApi {
+  quickThrowSource: CastIngestSourceInfo | null
+  feedQuickThrow(targetId: string): void
+  exitQuickThrow(): void
+}
+
 interface IngestDragProviderProps {
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   /** Wraps `workflow.onConnect` — the ONLY data mutation the whole gesture
    *  performs (吞噬 = 纯渲染层折叠 + 复用现有建边路径，任务包 B1-4). */
   onConnect(sourceId: string, targetId: string): void
+  /** S5f B2: the provider writes its live quick-throw API here so the
+   *  workbench's canvas event handlers (outside the provider) can read it. */
+  quickThrowApiRef?: MutableRefObject<QuickThrowApi | null>
   children: ReactNode
 }
 
@@ -92,10 +127,106 @@ export function IngestDragProvider({
   nodes,
   edges,
   onConnect,
+  quickThrowApiRef,
   children,
 }: IngestDragProviderProps) {
   const t = useTranslations('StudioNode.ingest')
   const [preview, setPreview] = useState<MouthPreviewState | null>(null)
+  const [quickThrowSource, setQuickThrowSource] =
+    useState<CastIngestSourceInfo | null>(null)
+
+  const enterQuickThrow = useCallback((source: CastIngestSourceInfo) => {
+    setQuickThrowSource(source)
+  }, [])
+  const exitQuickThrow = useCallback(() => setQuickThrowSource(null), [])
+
+  const feedQuickThrow = useCallback(
+    (targetId: string) => {
+      if (!quickThrowSource) return
+      const targetNode = nodes.find((node) => node.id === targetId)
+      if (!targetNode) return
+      // Legality (incl. duplicate/capacity) reuses the same pure check the
+      // drag drop uses — an illegal/already-included target is a no-op (it's
+      // dimmed in the overlay anyway), so a stray click never mis-feeds.
+      if (
+        !evaluateCastIngest(quickThrowSource.node, targetNode, edges, nodes)
+          .legal
+      ) {
+        return
+      }
+      onConnect(quickThrowSource.node.id, targetId)
+      playTargetGulpAnimation(findIngestTargetElement(targetId))
+      // Mode STAYS active — quick-throw is "feed one, feed another" until Esc.
+    },
+    [quickThrowSource, nodes, edges, onConnect],
+  )
+
+  // S5f B2: light every legal target (reusing the magnet highlight) and dim
+  // every already-included one (⊘) while the mode is active. Imperative DOM
+  // (like the magnet) — the target node components never re-render for this.
+  // Re-runs when nodes/edges change (a feed adds an edge → that target flips
+  // from legal-highlight to included-dim on the next pass).
+  useEffect(() => {
+    if (!quickThrowSource) return
+    const touched: HTMLElement[] = []
+    let index = 0
+    for (const node of nodes) {
+      if (node.id === quickThrowSource.node.id) continue
+      const el = findIngestTargetElement(node.id)
+      if (!el) continue
+      const evaluation = evaluateCastIngest(
+        quickThrowSource.node,
+        node,
+        edges,
+        nodes,
+      )
+      if (evaluation.legal) {
+        index += 1
+        el.classList.add(QUICK_THROW_TARGET_CLASS)
+        // CSS `content` needs a quoted string; the number rides a custom prop.
+        el.style.setProperty(QUICK_THROW_INDEX_PROP, `"${index}"`)
+        touched.push(el)
+      } else if (
+        evaluation.reason === NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate
+      ) {
+        el.classList.add(QUICK_THROW_INCLUDED_CLASS)
+        touched.push(el)
+      }
+    }
+    return () => {
+      for (const el of touched) {
+        el.classList.remove(
+          QUICK_THROW_TARGET_CLASS,
+          QUICK_THROW_INCLUDED_CLASS,
+        )
+        el.style.removeProperty(QUICK_THROW_INDEX_PROP)
+      }
+    }
+  }, [quickThrowSource, nodes, edges])
+
+  // Esc exits the mode (pane-click exit is wired in the workbench).
+  useEffect(() => {
+    if (!quickThrowSource) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setQuickThrowSource(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [quickThrowSource])
+
+  // S5f B2: publish the live quick-throw API to the workbench's out-of-provider
+  // canvas handlers (see QuickThrowApi doc).
+  useEffect(() => {
+    if (!quickThrowApiRef) return
+    quickThrowApiRef.current = {
+      quickThrowSource,
+      feedQuickThrow,
+      exitQuickThrow,
+    }
+    return () => {
+      quickThrowApiRef.current = null
+    }
+  }, [quickThrowApiRef, quickThrowSource, feedQuickThrow, exitQuickThrow])
 
   const handleBiteChange = useCallback(
     (change: CastIngestBiteChange | null) => {
@@ -168,14 +299,39 @@ export function IngestDragProvider({
   })
 
   const value = useMemo<IngestDragContextValue>(
-    () => ({ beginDrag: engine.beginDrag, dragState: engine.dragState }),
-    [engine.beginDrag, engine.dragState],
+    () => ({
+      beginDrag: engine.beginDrag,
+      dragState: engine.dragState,
+      quickThrowSource,
+      enterQuickThrow,
+      exitQuickThrow,
+      feedQuickThrow,
+    }),
+    [
+      engine.beginDrag,
+      engine.dragState,
+      quickThrowSource,
+      enterQuickThrow,
+      exitQuickThrow,
+      feedQuickThrow,
+    ],
   )
 
   return (
     <IngestDragContext.Provider value={value}>
       {children}
       <IngestMouthPreview preview={engine.dragState.active ? preview : null} />
+      {quickThrowSource ? (
+        <div
+          role="status"
+          className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-node-paint/60 bg-node-panel px-3 py-1.5 text-xs font-semibold text-node-foreground shadow-node-panel"
+        >
+          {t('quickThrow.hint', {
+            name:
+              deriveSourceName(quickThrowSource.node) ?? quickThrowSource.label,
+          })}
+        </div>
+      ) : null}
       <IngestGhostPortal
         dragState={engine.dragState}
         registerGhostElement={engine.registerGhostElement}

@@ -27,7 +27,7 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import type { AspectRatio } from '@/constants/config'
+import { PROMPT_ENHANCE, type AspectRatio } from '@/constants/config'
 import { motionTransition } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -38,6 +38,7 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowFieldId,
 } from '@/constants/node-types'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   getVideoModelCapabilities,
   videoModelSupportsSeed,
@@ -76,10 +77,10 @@ import type {
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
-  DepartmentStrip,
+  ReferenceManagerPanel,
   TOKEN_PORT_COLOR_VAR,
   type AddReferenceRequest,
-} from './DepartmentStrip'
+} from './ReferenceManagerPanel'
 import type { ReferenceTokenData } from './ReferenceTokenChip'
 import {
   MentionInput,
@@ -388,6 +389,15 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const supportsSeed = selectedModelId
     ? videoModelSupportsSeed(selectedModelId, composer.hasReferenceInputs)
     : false
+  // V-3b 容量护栏 (设计稿 §3.6): the manager panel warns when 已引用图 exceeds
+  // the CURRENT model's actual cap (Seedance ≤9) rather than a hardcoded
+  // number — undefined model = unknown cap = warning suppressed, not guessed.
+  // Guards on `adapterType` specifically (not just `data.model`): a legacy /
+  // partially-migrated persisted node can carry a `model` object without one,
+  // and `getMaxReferenceImages` has no undefined-safe fallback of its own.
+  const maxReferenceImages = data.model?.adapterType
+    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
+    : undefined
   const resolutionOptions =
     capabilities?.supportedResolutions ?? VIDEO_RESOLUTIONS
   const aspectOptions =
@@ -769,34 +779,26 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       <div className="@container">
         <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
           <div className="space-y-3">
-            {/* §7 部门条 — the four production departments (选角/置景/镜头/
-                配音) sitting right above the prompt their slots insert into.
-                Slots project the current canvas edges; click = insert @token,
-                hover × = delete the edge (node kept). */}
-            <div className="space-y-1">
-              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                {tc('references.label')}
-              </span>
-              <DepartmentStrip
-                tokens={composer.referenceTokens}
-                onInsert={handleTokenInsert}
-                onLocate={focusNode}
-                onRemove={handleRemoveReference}
-                onAddReference={spawnReference ? handleAddReference : undefined}
-                onAddVoice={spawnReference ? handleAddVoice : undefined}
-                onAddCloseup={spawnReference ? handleAddCloseup : undefined}
-              />
-              {composer.referenceTokens.length > 0 ? (
-                <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-                  {tc('references.insertHint')}
-                </p>
-              ) : null}
-              {composer.hasReferenceInputs ? (
-                <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-                  {tc('referenceModeOn')}
-                </p>
-              ) : null}
-            </div>
+            {/* V-3a 管理素材面板 — 取代五分区部门条：始终可见的「已引用」条
+                （点击重新插入 / hover × 删连线）+「管理素材」抽屉（已连接 N 全量列
+                + 类型 tab + 搜索 + 每行插入/已引用状态 + ⋮ 定位/断连/加音色/加特写）。
+                部门条原有的 ＋添加位 能力搬进抽屉的 tab 工具条，无功能回退。 */}
+            <ReferenceManagerPanel
+              tokens={composer.referenceTokens}
+              referencedTokenIds={composer.referencedTokenIds}
+              onInsert={handleTokenInsert}
+              onLocate={focusNode}
+              onRemove={handleRemoveReference}
+              onAddReference={spawnReference ? handleAddReference : undefined}
+              onAddVoice={spawnReference ? handleAddVoice : undefined}
+              onAddCloseup={spawnReference ? handleAddCloseup : undefined}
+              maxReferenceImages={maxReferenceImages}
+            />
+            {composer.hasReferenceInputs ? (
+              <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+                {tc('referenceModeOn')}
+              </p>
+            ) : null}
 
             {/* Prompt — the composer's hero field. @references render as atomic
                 chips (§6 S2 MentionInput); the persisted value stays plain-text
@@ -825,6 +827,28 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
                 {...KEY_GUARD}
                 className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
               />
+              {/* V-3a 创意指令区底部计数（设计稿 §4）: 已引用/已连接 与 prompt 编辑
+                  同屏可见，字数复用现有 PROMPT_ENHANCE.MAX_INPUT_LENGTH（无新增
+                  magic number）。 */}
+              <div className="flex items-center justify-between gap-2 px-0.5 text-3xs tabular-nums text-node-subtle">
+                <span>
+                  {tc('references.counter', {
+                    referenced: composer.referencedTokenIds.size,
+                    connected: composer.referenceTokens.length,
+                  })}
+                </span>
+                <span
+                  className={cn(
+                    promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
+                      'text-node-status-failed',
+                  )}
+                >
+                  {tc('references.charCount', {
+                    length: promptFieldValue.length,
+                    max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
+                  })}
+                </span>
+              </div>
             </div>
 
             {/* Negative prompt — grouped with the other text inputs. */}

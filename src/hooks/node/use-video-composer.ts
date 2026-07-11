@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_TYPE_IDS, NODE_WORKFLOW_FIELD_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_BRAND_IDS,
@@ -12,7 +12,9 @@ import {
   type VideoVariantId,
 } from '@/constants/video-brands'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
+import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
+import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
 import {
   getNodeMediaUrl,
   getNodePrimaryMediaUrl,
@@ -395,6 +397,35 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     return tokens
   }, [edges, nodes, nodeId, tc])
 
+  // V-3a 管理素材面板（docs/plans/node-video-reference-seedance-design.md §4 /
+  // §10 V-3 起点）: "已引用" = a token whose `@name` (the SAME name space
+  // MentionInput renders chips for — `token` stripped of its leading `@`, not
+  // `label`; voice/video tokens are positional like `@Audio1`/`@视频1`, not
+  // their display label) literally appears in the node's OWN prompt text right
+  // now. "已连接" is simply every wired token (`referenceTokens.length`),
+  // named or not — matches the drawer's "已连接 N 全量列". Recomputed from the
+  // live prompt on every render so the strip/drawer status never lags what the
+  // user just typed.
+  const promptValue = getNodeWorkflowFieldValue(
+    data,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  )
+  const referencedTokenIds = useMemo(() => {
+    const idsByName = new Map<string, string[]>()
+    for (const token of referenceTokens) {
+      if (!token.token) continue
+      const name = token.token.replace(/^@/, '')
+      idsByName.set(name, [...(idsByName.get(name) ?? []), token.id])
+    }
+    const knownNames = Array.from(idsByName.keys())
+    const ids = new Set<string>()
+    for (const segment of parseMentions(promptValue, knownNames)) {
+      if (segment.type !== 'token') continue
+      for (const id of idsByName.get(segment.name) ?? []) ids.add(id)
+    }
+    return ids
+  }, [referenceTokens, promptValue])
+
   const state = useMemo(
     () => deriveSwitcherStateFromModel(data.model),
     [data.model],
@@ -534,6 +565,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     hasUpstreamInputs,
     referenceKinds,
     referenceTokens,
+    referencedTokenIds,
     selectBrand,
     selectVariant,
     selectProvider,

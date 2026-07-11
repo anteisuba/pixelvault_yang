@@ -110,7 +110,7 @@ import {
   type VideoLegendImageReference,
 } from '@/lib/node-workflow-graph'
 import {
-  buildReferenceImageIndexByName,
+  filterReferencedImages,
   translatePromptTokensToPositional,
 } from '@/lib/node-video-prompt-translation'
 import type { AdvancedParams } from '@/types'
@@ -1028,11 +1028,30 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         closeup: t('videoComposer.autoName.closeup'),
         video: t('videoComposer.autoName.video'),
       }
+      // V-3b 只送已引用（docs/plans/node-video-reference-seedance-design.md §3
+      // 决策1）: narrow the sent image_urls down to only what `mergedPrompt`
+      // actually `@`-mentions. 迁移红线 lives inside `filterReferencedImages`
+      // itself — a project with connections but no matching @-mention keeps
+      // sending everything (pre-V-3 behaviour), so upgrading never silently
+      // drops a reference. `effectiveReferenceImages` is what ACTUALLY ships;
+      // `referenceImages` above stays the raw connected set (still used as-is
+      // by the shot-image branch, which V-3b does not touch — §3 决策8 维持现状).
+      const referencedFilter = isVideoMediaNode
+        ? filterReferencedImages(
+            mergedPrompt,
+            referenceImages,
+            videoImageRefByUrl,
+            videoImageAutoNamePrefix,
+          )
+        : null
+      const effectiveReferenceImages = referencedFilter
+        ? referencedFilter.referenceImages
+        : referenceImages
       const referenceLegend = isShotImageNode
         ? buildShotReferenceLegend(referenceImages, referenceByUrl)
         : isVideoMediaNode
           ? buildVideoReferenceLegend({
-              referenceImages,
+              referenceImages: effectiveReferenceImages,
               imageRefByUrl: videoImageRefByUrl,
               videoUrls: upstreamVideoUrls,
               audioBindings: upstreamAudioBindings,
@@ -1056,13 +1075,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       // rewritten to @ImageN right before it leaves the client. The node's
       // stored prompt / what the composer renders is untouched; only this
       // outbound copy (`seedanceReadyPrompt`) changes. No-op for non-video
-      // media kinds (empty map → returned verbatim).
-      const imageIndexByName = isVideoMediaNode
-        ? buildReferenceImageIndexByName(
-            referenceImages,
-            videoImageRefByUrl,
-            videoImageAutoNamePrefix,
-          )
+      // media kinds (empty map → returned verbatim). `imageIndexByName` now
+      // comes from the V-3b filter above — it's already reindexed against
+      // `effectiveReferenceImages`, so @ImageN in the translated prompt lines
+      // up with the ACTUAL sent position, not the pre-filter one.
+      const imageIndexByName = referencedFilter
+        ? referencedFilter.imageIndexByName
         : new Map<string, number>()
       const seedanceReadyPrompt = translatePromptTokensToPositional(
         mergedPrompt,
@@ -1165,7 +1183,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       // then routes it to `buildSeedance20`, which silently drops video_urls /
       // audio_urls. Re-resolving at submit keeps the reference clip alive.
       const videoHasReferenceInputs =
-        referenceImages.length > 0 ||
+        effectiveReferenceImages.length > 0 ||
         upstreamVideoUrls.length > 0 ||
         upstreamAudioUrls.length > 0
       const effectiveVideoModel = isVideoMediaNode
@@ -1188,7 +1206,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           resolution: videoResolution,
           aspectRatio: videoAspectRatio,
           referenceImages:
-            referenceImages.length > 0 ? referenceImages : undefined,
+            effectiveReferenceImages.length > 0
+              ? effectiveReferenceImages
+              : undefined,
           audioUrls:
             upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
           audioBindings:
@@ -1536,8 +1556,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [workflow.nodes, nodeIdsWithOutgoingEdge],
   )
   // 连线渲染退场: every edge goes into the store flagged `hidden` — ReactFlow
-  // paints nothing, but `useEdges()` consumers (成分栏 / DepartmentStrip 参考
-  // 面板 / CastDock 出演计数 / inspectors) still see the full graph. Handing
+  // paints nothing, but `useEdges()` consumers (成分栏 / ReferenceManagerPanel
+  // 管理素材面板 / CastDock 出演计数 / inspectors) still see the full graph. Handing
   // <ReactFlow> an EMPTY array instead would starve all of them (they read the
   // render store, not `workflow.edges`). Reverting the whole slice is a
   // one-line change back to `workflow.edges` here.

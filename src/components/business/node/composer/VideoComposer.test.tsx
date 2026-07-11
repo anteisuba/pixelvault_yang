@@ -1,11 +1,12 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 // jsdom lacks ResizeObserver, which the radix Slider in the duration control
-// calls on mount.
+// calls on mount; the V-3a 管理素材 ResponsiveDialog needs scrollIntoView too.
 vi.stubGlobal(
   'ResizeObserver',
   class {
@@ -14,9 +15,40 @@ vi.stubGlobal(
     disconnect() {}
   },
 )
+beforeAll(() => {
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {}
+  }
+})
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}))
+
+// Radix DropdownMenu doesn't open on a synthetic click in jsdom; follow the
+// repo's established pattern (LoraAssetCard.test) and render the ⋮ menu
+// inline so its conditional items are queryable without driving the portal.
+vi.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: ReactNode
+    onClick?: () => void
+  }) => (
+    <div role="menuitem" onClick={onClick}>
+      {children}
+    </div>
+  ),
 }))
 
 const { composerState } = vi.hoisted(() => ({
@@ -32,7 +64,9 @@ const { composerState } = vi.hoisted(() => ({
       imageSlotIndex?: number
       audioSlotIndex?: number
       edgeId?: string
+      boundVoice?: { nodeId: string; label: string; ready: boolean }
     }>,
+    referencedTokenIds: new Set<string>(),
   },
 }))
 
@@ -47,11 +81,27 @@ vi.mock('@/hooks/node/use-video-composer', () => ({
     hasUpstreamInputs: true,
     referenceKinds: composerState.referenceKinds,
     referenceTokens: composerState.referenceTokens,
+    referencedTokenIds: composerState.referencedTokenIds,
     selectBrand: vi.fn(),
     selectVariant: vi.fn(),
     selectProvider: vi.fn(),
   }),
 }))
+
+/** V-3a: open the 管理素材 drawer and return its content root. */
+function openManager() {
+  fireEvent.click(
+    screen.getByRole('button', { name: 'references.manageButton' }),
+  )
+  return screen.getByRole('dialog')
+}
+
+/** Radix Tabs' trigger switches value on `onMouseDown`, not `onClick` (see
+ *  @radix-ui/react-tabs source) — a plain `fireEvent.click` never fires a
+ *  preceding mousedown in jsdom, so the tab silently stays put. */
+function selectTab(container: HTMLElement, name: string) {
+  fireEvent.mouseDown(within(container).getByRole('tab', { name }))
+}
 
 const { updateNodeData, focusNode, deleteEdge, toastInfo, spawnReference } =
   vi.hoisted(() => ({
@@ -125,6 +175,7 @@ describe('VideoComposer references row (detail)', () => {
   beforeEach(() => {
     composerState.referenceKinds = []
     composerState.referenceTokens = []
+    composerState.referencedTokenIds = new Set()
     updateNodeData.mockClear()
     focusNode.mockClear()
     deleteEdge.mockClear()
@@ -151,26 +202,40 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('renders bound references as named @token thumbnail chips (§8)', () => {
+  it('renders REFERENCED tokens as named @token thumbnail chips in the strip (V-3a §8)', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
       { id: 'a1', kind: 'voice', label: '角色A', token: '@Audio1' },
     ]
+    composerState.referencedTokenIds = new Set(['c1', 'a1'])
     renderDetail()
     expect(screen.getByText('references.label')).toBeInTheDocument()
     // character chip's accessible name is its @token; voice chip's is the speaker name
     expect(screen.getByRole('button', { name: '@角色A' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '角色A' })).toBeInTheDocument()
-    // character + narration have tokens; scene / shot / motion stay empty.
-    expect(screen.getAllByText('references.emptyDept')).toHaveLength(3)
   })
 
-  it('inserts a character @token as an atomic chip on click (trailing space)', () => {
+  it('a connected-but-not-yet-referenced token does NOT show in the strip', () => {
+    composerState.referenceTokens = [
+      { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
+    ]
+    // referencedTokenIds stays empty — nothing has been @-mentioned yet.
+    renderDetail()
+    expect(
+      screen.queryByRole('button', { name: '@角色A' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('references.stripEmptyHint')).toBeInTheDocument()
+  })
+
+  it('inserts a character @token from the manager drawer (first reference, trailing space)', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
     ]
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: '@角色A' }))
+    const dialog = openManager()
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'references.statusInsert' }),
+    )
     // MentionInput serializes the chip + trailing space back to plain text.
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
@@ -182,10 +247,11 @@ describe('VideoComposer references row (detail)', () => {
     })
   })
 
-  it('renders a square thumbnail for a shot token and inserts its @token', () => {
+  it('renders a square thumbnail for a REFERENCED shot token and re-inserts its @token', () => {
     composerState.referenceTokens = [
       { id: 's1', kind: 'shot', label: '开场远景', token: '@开场远景' },
     ]
+    composerState.referencedTokenIds = new Set(['s1'])
     renderDetail()
     const chip = screen.getByRole('button', { name: '@开场远景' })
     expect(chip.className).toContain('rounded-md')
@@ -196,12 +262,15 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('inserts a voice @AudioN chip (no drift bookkeeping)', () => {
+  it('inserts a voice @AudioN chip from the drawer (no drift bookkeeping)', () => {
     composerState.referenceTokens = [
       { id: 'a1', kind: 'voice', label: '角色A', token: '@Audio1' },
     ]
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: '角色A' }))
+    const dialog = openManager()
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'references.statusInsert' }),
+    )
     expect(updateNodeData).toHaveBeenCalledWith(
       'v1',
       expect.objectContaining({ prompt: '@Audio1 ' }),
@@ -213,7 +282,7 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('shows a real thumbnail image when the reference has media', () => {
+  it('shows a real thumbnail image for a referenced strip chip when the reference has media', () => {
     composerState.referenceTokens = [
       {
         id: 'c1',
@@ -223,6 +292,7 @@ describe('VideoComposer references row (detail)', () => {
         mediaUrl: 'https://cdn.test/character-a.png',
       },
     ]
+    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
     const img = screen
       .getByRole('button', { name: '@角色A' })
@@ -257,37 +327,34 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('locates the reference node on canvas from the hover preview', () => {
+  it('locates a REFERENCED reference node on canvas from the hover preview', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
     ]
+    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
     fireEvent.mouseEnter(screen.getByRole('button', { name: '@角色A' }))
     fireEvent.click(screen.getByText('references.locate'))
     expect(focusNode).toHaveBeenCalledWith('c1')
   })
 
-  it('shows a needs-name chip for an unnamed reference node', () => {
+  it('shows a needs-name hint in the manager drawer for an unnamed reference node', () => {
     composerState.referenceTokens = [
       { id: 'b1', kind: 'background', label: '', token: '' },
     ]
     renderDetail()
+    const dialog = openManager()
     expect(
-      screen.getByText('references.unnamed', { exact: false }),
+      within(dialog).getByText('references.unnamedHint'),
     ).toBeInTheDocument()
   })
 
-  it('shows the five cast cards with empty hints when nothing is bound', () => {
+  it('shows the no-connections hint when nothing is bound (V-3a, five cast cards retired)', () => {
     renderDetail()
-    expect(screen.getAllByText('references.emptyDept')).toHaveLength(5)
-    expect(screen.getByText('departments.character')).toBeInTheDocument()
-    expect(screen.getByText('departments.scene')).toBeInTheDocument()
-    expect(screen.getByText('departments.shot')).toBeInTheDocument()
-    expect(screen.getByText('departments.motion')).toBeInTheDocument()
-    expect(screen.getByText('departments.narration')).toBeInTheDocument()
+    expect(screen.getByText('references.emptyDept')).toBeInTheDocument()
   })
 
-  it('deletes the edge (node kept) from the slot × and toasts about it', () => {
+  it('deletes the edge (node kept) from a REFERENCED strip chip × and toasts about it', () => {
     composerState.referenceTokens = [
       {
         id: 'c1',
@@ -297,20 +364,22 @@ describe('VideoComposer references row (detail)', () => {
         edgeId: 'e1',
       },
     ]
+    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
     fireEvent.click(screen.getByRole('button', { name: 'references.remove' }))
     expect(deleteEdge).toHaveBeenCalledWith('e1')
     expect(toastInfo).toHaveBeenCalledWith('references.removedToast')
   })
 
-  it('autospawns from the narration card ＋ → library pick → spawnReference (voice→video)', () => {
+  it('autospawns from the 声音 tab ＋ → library pick → spawnReference (voice→video)', () => {
     renderDetail()
-    const narrationCard = screen.getByRole('region', {
-      name: 'departments.narration',
-    })
+    const dialog = openManager()
+    selectTab(dialog, 'references.tabs.voice')
     // ＋ opens the audio library (voice → audio mediaType).
     fireEvent.click(
-      within(narrationCard).getByRole('button', { name: 'references.add' }),
+      within(dialog).getByRole('button', {
+        name: 'references.addButtons.voice',
+      }),
     )
     const pick = screen.getByTestId('asset-pick')
     expect(pick).toHaveAttribute('data-media-type', 'audio')
@@ -328,13 +397,14 @@ describe('VideoComposer references row (detail)', () => {
     })
   })
 
-  it('character card ＋ autospawns an image role=character directly (no submenu)', () => {
+  it('角色 tab ＋ autospawns an image role=character directly (no submenu)', () => {
     renderDetail()
-    const characterCard = screen.getByRole('region', {
-      name: 'departments.character',
-    })
+    const dialog = openManager()
+    selectTab(dialog, 'references.tabs.character')
     fireEvent.click(
-      within(characterCard).getByRole('button', { name: 'references.add' }),
+      within(dialog).getByRole('button', {
+        name: 'references.addButtons.character',
+      }),
     )
     const pick = screen.getByTestId('asset-pick')
     expect(pick).toHaveAttribute('data-media-type', 'image')
@@ -348,12 +418,15 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('§音色收进角色: ＋配音 on a character targets the CHARACTER node (voice→character)', () => {
+  it('§音色收进角色: 管理素材抽屉里的 ＋配音 targets the CHARACTER node (voice→character)', () => {
     composerState.referenceTokens = [
       { id: 'char9', kind: 'character', label: '角色A', token: '@角色A' },
     ]
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: 'references.addVoice' }))
+    const dialog = openManager()
+    fireEvent.click(
+      within(dialog).getByRole('menuitem', { name: /references\.addVoice/ }),
+    )
     const pick = screen.getByTestId('asset-pick')
     expect(pick).toHaveAttribute('data-media-type', 'audio')
     fireEvent.click(pick)
@@ -392,6 +465,7 @@ describe('VideoComposer monitor (detail, §4 C4)', () => {
   beforeEach(() => {
     composerState.referenceKinds = []
     composerState.referenceTokens = []
+    composerState.referencedTokenIds = new Set()
     updateNodeData.mockClear()
   })
 

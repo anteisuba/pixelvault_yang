@@ -55,8 +55,8 @@ function makeEdge(
   return { id, source, target } as NodeWorkflowEdge
 }
 
-function renderComposer() {
-  const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
+function renderComposer(prompt = '') {
+  const data = { prompt, status: 'idle' } as NodeWorkflowNodeData
   return renderHook(() => useVideoComposer('video1', data)).result.current
 }
 
@@ -339,5 +339,69 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       (token) => token.kind === 'closeup',
     )
     expect(closeup?.token).toBe('@剑修脸')
+  })
+})
+
+describe('useVideoComposer referencedTokenIds (V-3a 管理素材面板)', () => {
+  it('marks a token referenced when its @token literally appears in the prompt', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '角色A',
+        imageUrl: 'https://cdn.test/char.png',
+      }),
+      makeNode('bg1', NODE_TYPE_IDS.backgroundImage, {
+        backgroundName: '教室',
+        imageUrl: 'https://cdn.test/bg.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-char', 'char1', 'video1'),
+      makeEdge('e-bg', 'bg1', 'video1'),
+    ]
+
+    const composer = renderComposer('@角色A 走进 @教室')
+    expect(composer.referencedTokenIds.has('char1')).toBe(true)
+    expect(composer.referencedTokenIds.has('bg1')).toBe(true)
+  })
+
+  it('leaves a connected-but-unmentioned token out of referencedTokenIds', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '角色A',
+        imageUrl: 'https://cdn.test/char.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-char', 'char1', 'video1')]
+
+    const composer = renderComposer('一段完全没有提到 @ 的 prompt')
+    expect(composer.referencedTokenIds.size).toBe(0)
+  })
+
+  it('matches a voice by its POSITIONAL @AudioN token, not its display label', () => {
+    // §0-6 图↔音同名绑定: the voice's `label` is its display name, but what
+    // MentionInput actually inserts/matches is the token string minus `@`
+    // (e.g. "Audio1"), not the label — see VideoComposer's handleTokenInsert.
+    graphState.nodes = [
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceName: '旁白甲',
+        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-voice', 'voice1', 'video1')]
+
+    const referencedByLabel = renderComposer('旁白甲 说话').referencedTokenIds
+    expect(referencedByLabel.size).toBe(0)
+
+    const referencedByToken = renderComposer('@Audio1 说话').referencedTokenIds
+    expect(referencedByToken.has('voice1')).toBe(true)
+  })
+
+  it('empty prompt / no tokens yields an empty referencedTokenIds set', () => {
+    graphState.nodes = [makeNode('video1', NODE_TYPE_IDS.seedance)]
+    graphState.edges = []
+    expect(renderComposer('').referencedTokenIds.size).toBe(0)
   })
 })

@@ -223,3 +223,118 @@ referenceAsset 自己身上，只需要 `CharacterImageReferenceControls` 内部
   库"——AssetSelectorDialog 就是这么做的，"管理素材"抽屉的形状和它同类）而不是
   `responsive-popover.tsx`（后者按项目约定专用于工具栏 chip / 快速配置，抽屉级的搜索+tab+长列表
   不是它的场景）。
+
+## 11. V-3 实现记录（2026-07-12，Sonnet 执行，任务包 `docs/plans/node-video-v2v3-master-panel.md`）
+
+**改了什么**：
+
+1. **新增 `src/components/business/node/composer/ReferenceManagerPanel.tsx`**（取代
+   `DepartmentStrip.tsx`，后者连同其 `.test.tsx` 已删除）：
+   - **已引用条**：始终可见，只渲染 `referencedTokenIds` 命中的 token（复用既有
+     `ReferenceTokenChip` 做缩略图+hover 预览+点击插入，未重造），hover 出现 × 断连（沿用
+     DepartmentStrip 的 `Link2Off` 图标交互）。空态两档：完全无连接→`references.emptyDept`；
+     有连接但都未引用→新态 `references.stripEmptyHint`。
+   - **管理素材抽屉**：`ResponsiveDialog`（非 `ResponsivePopover`，见 §10 起点已定）+
+     `已连接 N` 计数 + 4 类型 tab（全部/角色/场景/声音 对齐截图字面；**镜头 tab 吸收了
+     shot/keyframe/closeup/video 四种 kind**，见决策 1）+ 搜索（IMEAwareInput，名称或
+     token 子串匹配）+ 每行（缩略图/名字/类型/@token/状态/⋮）。
+   - **每行状态**：已引用→静态徽章；可插入未引用→「插入」按钮（点击即 `onInsert`，是老项目
+     "第一次引用"的实际入口）；不可插入（未命名/keyframe/未就绪音色/纯视频兜底）→复用
+     `ReferenceTokenChip` 同款提示文案（`unnamedHint`/`keyframeHint`/`voiceNotReadyHint`/
+     `videoAutoHint`）。
+   - **⋮ 菜单**（`DropdownMenu`）：定位画布（`onLocate`）、断开连接（`onRemove`，仅
+     `edgeId` 存在时）、角色行专属「添加音色」（仅无 `boundVoice` 时）/「添加特写」（恒显）——
+     一比一保留 DepartmentStrip 的 `CharacterVoiceBadge`/`＋特写` 能力，只是从"常驻卡面"搬进
+     "行内菜单"。
+   - **Tab 工具条 ＋ 添加**：DepartmentStrip 每卡一个 ＋ 的能力原样保留，落在抽屉 tab 顶部
+     （角色/场景各一个添加按钮；镜头 tab 因合并了两种 nodeType，给两个按钮"添加镜头图"/
+     "添加参考视频"；声音 tab 一个"添加配音"；全部 tab 不显示，避免类型歧义）。
+   - **容量护栏**（V-3b，§3 决策 6）：条下方一行警告，`已引用图数 > getMaxReferenceImages(当前模型)`
+     才出现，模型未选时不猜数字直接不显示——UI 提示而非发送硬截断（见决策 3）。
+2. **`src/hooks/node/use-video-composer.ts`**：新增 `referencedTokenIds`（`Set<string>`）
+   计算并入返回值——用 `token.token`（去掉 `@`，**不是** `label`，见决策 2）建 name→ids 表，
+   对节点自己的 `prompt` 字段跑 `parseMentions`，命中的 token 名字反查回 id 集合。纯读，
+   不改 `referenceTokens` 本身的形状。
+3. **`src/components/business/node/composer/VideoComposer.tsx`**：`DepartmentStrip` 换成
+   `ReferenceManagerPanel`；prompt 编辑器下新增「已引用 N / 已连接 M · 字数/max」计数行
+   （字数上限复用既有 `PROMPT_ENHANCE.MAX_INPUT_LENGTH`=2000，未新增 magic number）；新增
+   `maxReferenceImages`（读 `getMaxReferenceImages(data.model.adapterType, data.model.modelId)`）
+   传给面板做容量护栏。
+4. **`src/lib/node-video-prompt-translation.ts`**：新增纯函数 `filterReferencedImages`
+   （V-3b 核心）——见决策 4。
+5. **`src/components/business/node/StudioNodeWorkbench.tsx`**（`handleGenerateMediaNode`，
+   isVideoMediaNode 分支）：在 `referenceLegend`/`imageIndexByName` 计算前插入
+   `referencedFilter = filterReferencedImages(mergedPrompt, referenceImages, videoImageRefByUrl,
+videoImageAutoNamePrefix)`，派生 `effectiveReferenceImages`；图例构建、发送翻译、
+   `videoHasReferenceInputs` 判定、请求体 `referenceImages` 字段全部从原始 `referenceImages`
+   换成 `effectiveReferenceImages`。`referenceImages`（未过滤原集合）保留不动，继续供
+   `isShotImageNode` 分支使用（V-3b 明确不碰 shot 节点）。
+6. i18n 三语同步：`videoComposer.references` 下新增 `counter`/`charCount`/`stripEmptyHint`/
+   `manageButton`/`manageTitle`/`manageDescription`/`searchPlaceholder`/`tabs.*`/
+   `addButtons.*`/`managerEmpty`/`statusReferenced`/`statusInsert`/`rowMenu`/`rowLocate`/
+   `rowRemove`/`capacityWarning`；删除随 DepartmentStrip 一起退场、已无消费者的死键
+   `driftHint`/`driftReplace`/`count`/`slotBadgeImage`/`slotBadgeAudio`/`slotBadgeVideo`/
+   `facetFace`/`facetCloseup`/`facetVoice`/`add`（裸键）/`voiceBadge`/整个 `departments` 对象
+   （逐一 grep 确认零消费者才删，见决策 5）。三语键集合已脚本核对一致（81 键/语言）。
+7. 测试：新增 `ReferenceManagerPanel.test.tsx`（21 例，覆盖已引用条/抽屉 tab/搜索/行状态/
+   ⋮ 菜单/tab 添加按钮/容量护栏）+ `node-video-prompt-translation.test.ts` 追加
+   `filterReferencedImages` 6 例（含"迁移红线两态"+"自动命名跨过滤重编号"这个专门设计防回归的
+   用例）+ `use-video-composer.test.ts` 追加 `referencedTokenIds` 4 例。重写
+   `VideoComposer.test.tsx` 里假设旧五分区结构的用例（`departments.*` region、
+   `references.emptyDept` 计数 5/3、直接点卡内 ＋）为新面板等价路径（开抽屉→切 tab→点行内
+   插入/添加按钮），删除"五卡空态"整卡测试（职责已转移到 `ReferenceManagerPanel.test.tsx`）。
+   `DepartmentStrip.test.tsx` 随组件一并删除。
+
+**决策 1 —— 镜头 tab 合并 4 种 kind，非字面 5 tab 对齐 DepartmentStrip 的五部门**：任务包给的
+owner 截图文字描述只列了「全部/角色/场景/镜头/声音」4 个非全部 tab，比 DepartmentStrip 的五部门
+（角色/场景/镜头/**动作**/旁白）少一个"动作"（视频引用）。为了不丢失视频引用的可发现性（§9 D 的
+`@视频N` 内联引用是已交付能力），把 `video` kind 并入"镜头"tab（镜头图与参考视频都是"画面/运镜"
+类，非角色非场景），`keyframe`/`closeup` 也并入镜头 tab（同属"画面"范畴，此前也挂在镜头/角色卡）。
+Tab 工具条因此在镜头 tab 给两个添加按钮而非一个。**这是无法从纯文字描述消歧的一处解读**——如果
+owner 截图实际展示的是字面 5 个平级 tab（含独立"动作"tab），这里需要拆分调整，是本片最值得
+owner 核对截图复核的一点。
+
+**决策 2 —— `referencedTokenIds` 用 `token.token` 而非 `label` 做名字匹配**：起初想当然用
+`label`（人看的名字），核对 `VideoComposer.tsx` 的 `handleTokenInsert`/`mentionTokens` 才发现
+实际插入 prompt 的名字是 `refToken.token.replace(/^@/, '')`——对角色/场景/镜头这个等于
+`label`（token 本就是 `@${label}`），但对语音/视频是**位置串**（`Audio1`/`视频1`，与
+`label`/`voiceName` 无关）。若按 `label` 匹配，语音/视频类 token 永远判不出"已引用"（因为
+prompt 里出现的是 `@Audio1` 不是语音的显示名）。已用单测锁死这条（"matches a voice by its
+POSITIONAL @AudioN token, not its display label"）。
+
+**决策 3 —— 容量护栏是 UI 提示，不改发送路径的截断顺序**：`referenceImages`（workbench 里）在
+V-3b 之前就已经 `.slice(0, maxReferenceImages)` 截断在先、"是否已引用"判断在后。理论上更精确的
+顺序是"先按引用过滤、再按上限截断"，这样用户引用的 5 张不会因为连接了 15 张而被无关顺序挤掉。
+但改截断顺序会牵动 `referenceImages` 这个变量在 `isShotImageNode` 分支的复用（§3 决策 8 明确
+"维持现状"不碰 shot），拆分两条独立数组增加的改动面/风险超过本片收益，故按最小改动实现：容量护栏
+只做**可见的 UI 警告**（面板读 `getMaxReferenceImages` 与已引用图数比较），送法本身的顺序不变。
+记录在案，供 owner 判断是否值得开一个后续小片专门修正顺序。
+
+**决策 4 —— `filterReferencedImages` 直接复用 `buildReferenceImageIndexByName` 算 FULL 索引，
+过滤后的 `imageIndexByName` 不重新调用它、而是手工按过滤后顺序重新编号**：如果对"过滤后的
+`referenceImages`"重新跑一遍 `buildReferenceImageIndexByName`，未命名引用的回退名字
+（`autoNamePrefix[kind] + (过滤后下标+1)`）会因为下标随过滤变化而漂移，导致用户在 prompt 里
+打的 `@场景2`（基于 composer 显示的、过滤前的完整下标）在过滤后对不上重新计算出的新回退名字
+（可能变成 `@场景1`），翻译层查无匹配、静默失效。已用单测锁死（"auto-named reference keeps
+matching after narrowing shifts its position"）——这是本片最容易踩的隐蔽 bug，专门留了测试
+防回归。
+
+**决策 5 —— 借机清理死 i18n 键**：DepartmentStrip 退场后，`driftHint`/`driftReplace`/`count`/
+三个 `slotBadge*`/三个 `facet*`/裸键 `add`/`voiceBadge`/整个 `departments` 对象在全代码库
+grep 确认零消费者（逐键搜索过，非猜测）。任务包未明确要求清理死键，但留着会话导航到这些键会
+误判"仍在用"，顺手删除三语同步，比留着更符合"长期建模优先"。
+
+**迁移策略实测**（对照任务包"老项目不静默丢"验收点）：`filterReferencedImages` 的护栏条件是
+"prompt 里一个可命中的图片 @name 都没有 → 直接返回原始 `referenceImages`（`filtered:false`）"，
+与 V-2 前"送全部已连接"字节级一致——不是"送空数组再报错"，是真正的零回归维持现状。已用两个专门
+单测覆盖（"no @-mention hits any known image name"、"an empty prompt keeps the full set"）。
+
+**未做/已知限制**（供后续片参考，非本片范围）：
+
+- 决策 1 的 tab 归类是文字描述下的合理猜测，需 owner 用真实截图复核；
+- 决策 3 记录的"容量护栏只警告不改送法顺序"是有意的最小改动，非缺陷；
+- 抽屉内 `DropdownMenuContent` 走 Radix Portal 到 `document.body`，不在本组件 `dark` 容器的
+  DOM 祖先链内，若 App 处于浅色主题，⋮ 菜单浮层可能不是强制深色（轻微视觉不一致，非功能问题，
+  真机验证时请留意）；
+- "只送已引用"目前只覆盖 `image_urls`；`audio_urls`/`video_urls` 按 §3 决策 6 明确维持现状
+  （全部已连接直送），未纳入本片过滤范围，与设计稿一致，非遗漏。

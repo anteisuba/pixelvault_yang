@@ -5015,6 +5015,28 @@ async function submitRunnerImageJob(
   const loraInputs = getImageLoraInputs(context)
   const seed = readNumberField(advancedParams, 'seed')
 
+  // img2img: when the request carries a reference image (base-model capability
+  // maxReferenceImages > 0), fetch it to base64 for RunPod's `input.images`
+  // and map referenceStrength → KSampler denoise with the same inversion the
+  // fal/replicate paths use. No reference → txt2img (workflow-builder default).
+  const referenceImage = getImageReferenceInputs(context)[0]
+  const RUNNER_REFERENCE_IMAGE_NAME = 'reference.png'
+  let referenceImages: Array<{ name: string; image: string }> | undefined
+  let referenceImageName: string | undefined
+  let referenceDenoise: number | undefined
+  if (referenceImage) {
+    referenceImageName = RUNNER_REFERENCE_IMAGE_NAME
+    referenceDenoise = invertReferenceStrength(
+      readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
+    )
+    referenceImages = [
+      {
+        name: RUNNER_REFERENCE_IMAGE_NAME,
+        image: await readReferenceImageAsBase64(referenceImage),
+      },
+    ]
+  }
+
   let workflow: ReturnType<typeof buildRunnerWorkflowFromRequest>
   try {
     workflow = buildRunnerWorkflowFromRequest(
@@ -5029,6 +5051,8 @@ async function submitRunnerImageJob(
         steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
         cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
         loras: loraInputs,
+        referenceImageName,
+        denoise: referenceDenoise,
       },
       randomUint32,
     )
@@ -5060,7 +5084,11 @@ async function submitRunnerImageJob(
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': JSON_CONTENT_TYPE,
       },
-      body: JSON.stringify({ input: { workflow } }),
+      body: JSON.stringify({
+        input: referenceImages
+          ? { workflow, images: referenceImages }
+          : { workflow },
+      }),
     },
   )
 

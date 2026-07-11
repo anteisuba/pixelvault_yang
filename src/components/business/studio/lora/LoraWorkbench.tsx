@@ -860,33 +860,10 @@ function GenerateBranch() {
         onSelectRecipeGroup={setRecipeGroupAssetId}
       />
 
-      {!hasLora ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
-          <Sparkles className="size-7 text-muted-foreground" aria-hidden />
-          <div className="space-y-1">
-            <h2 className="text-base font-medium">
-              {t('generate.placeholderTitle')}
-            </h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              {t('generate.placeholderBody')}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              router.push(
-                `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
-              )
-            }
-          >
-            <Compass className="size-3.5" aria-hidden />
-            {t('tabs.library')}
-          </Button>
-        </div>
-      ) : (
+      {
         // D8 布局 B：上半双栏（来源/配方 · 结果），象牙提示词纸收成全宽底档。
+        // 空态改造：无 LoRA 时不再整块换成占位——composer（提示词框）+ 结果框
+        // 常驻，只在推荐列给出「去库挑一个 LoRA」的引导（见下方 !hasLora 分支）。
         <div className="flex min-w-0 flex-col gap-5">
           <div className="grid min-w-0 gap-6 md:grid-cols-2 md:items-start">
             <div className="min-w-0">
@@ -955,6 +932,27 @@ function GenerateBranch() {
                       onMountExtraLora={() => undefined}
                       onApplyRecipe={handleApplyRecipe}
                     />
+                  ) : !hasLora ? (
+                    // 空态改造：无 LoRA 时把「先挑一个 LoRA」引导收进推荐列
+                    // （不再整页占位），composer/结果框保持可见。
+                    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border/60 px-3 py-6 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        {t('generate.placeholderBody')}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
+                          )
+                        }
+                      >
+                        <Compass className="size-3.5" aria-hidden />
+                        {t('tabs.library')}
+                      </Button>
+                    </div>
                   ) : (
                     <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
                       {t('generate.recommendEmpty')}
@@ -969,7 +967,13 @@ function GenerateBranch() {
               {/* D8 细则①：结果图裸浮暗面无底板——去边框/底板，仅圆角裁切；
                 空态不套盒，居中占位。 */}
               <div
-                className="relative aspect-square w-full overflow-hidden rounded-xl bg-cover bg-center"
+                className={cn(
+                  'relative aspect-square w-full overflow-hidden rounded-xl bg-cover bg-center',
+                  // 无结果时（空态/生成中）给结果框加虚线边界 + 微底色，一眼看清
+                  // 占多大空间（用户要求）；有结果时保持 D8 细则①「裸浮无底板」。
+                  !displayedResultUrl &&
+                    'border border-dashed border-border/50 bg-muted/20',
+                )}
                 style={
                   displayedResultUrl
                     ? { backgroundImage: `url(${displayedResultUrl})` }
@@ -1139,7 +1143,7 @@ function GenerateBranch() {
             </div>
           </div>
         </div>
-      )}
+      }
     </section>
   )
 }

@@ -113,4 +113,27 @@ describe('buildRunnerWorkflowFromRequest', () => {
       ),
     ).toThrow(RunnerLoraUnavailableError)
   })
+
+  it('forwards referenceImageName + denoise into an img2img workflow', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({ referenceImageName: 'reference.png', denoise: 0.3 }),
+      fixedRandomSeed,
+    )
+
+    expect(workflow['load-image'].inputs.image).toBe('reference.png')
+    expect(workflow['vae-encode']).toBeDefined()
+    expect(workflow.latent).toBeUndefined()
+    expect(workflow.sampler.inputs.denoise).toBe(0.3)
+    expect(workflow.sampler.inputs.latent_image).toEqual(['vae-encode', 0])
+  })
+
+  it('stays txt2img (EmptyLatentImage) when no reference image is given', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest(),
+      fixedRandomSeed,
+    )
+    expect(workflow.latent.class_type).toBe('EmptyLatentImage')
+    expect(workflow['load-image']).toBeUndefined()
+    expect(workflow.sampler.inputs.denoise).toBe(1.0)
+  })
 })

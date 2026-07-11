@@ -141,4 +141,49 @@ describe('buildComfyWorkflow', () => {
     const workflow = buildComfyWorkflow(baseInput({ clipSkip: 1 }))
     expect(workflow['clip-skip'].inputs.stop_at_clip_layer).toBe(-1)
   })
+
+  it('swaps EmptyLatentImage for a LoadImage→ImageScale→VAEEncode img2img chain when a reference image is given', () => {
+    const workflow = buildComfyWorkflow(
+      baseInput({ referenceImageName: 'reference.png', denoise: 0.3 }),
+    )
+
+    // txt2img EmptyLatentImage is gone; the sampler denoises from the encoded
+    // reference latent instead of pure noise.
+    expect(workflow.latent).toBeUndefined()
+    expect(workflow['load-image']).toEqual({
+      class_type: 'LoadImage',
+      inputs: { image: 'reference.png', upload: 'image' },
+    })
+    expect(workflow['image-scale']).toEqual({
+      class_type: 'ImageScale',
+      inputs: {
+        image: ['load-image', 0],
+        upscale_method: 'lanczos',
+        width: 1024,
+        height: 1024,
+        crop: 'center',
+      },
+    })
+    expect(workflow['vae-encode']).toEqual({
+      class_type: 'VAEEncode',
+      inputs: { pixels: ['image-scale', 0], vae: ['checkpoint', 2] },
+    })
+    expect(workflow.sampler.inputs.latent_image).toEqual(['vae-encode', 0])
+    expect(workflow.sampler.inputs.denoise).toBe(0.3)
+  })
+
+  it('keeps txt2img (EmptyLatentImage, denoise 1.0) and ignores denoise without a reference image', () => {
+    const workflow = buildComfyWorkflow(baseInput({ denoise: 0.3 }))
+    expect(workflow.latent.class_type).toBe('EmptyLatentImage')
+    expect(workflow['load-image']).toBeUndefined()
+    expect(workflow['vae-encode']).toBeUndefined()
+    expect(workflow.sampler.inputs.denoise).toBe(1.0)
+  })
+
+  it('defaults img2img denoise to 1.0 when none is supplied', () => {
+    const workflow = buildComfyWorkflow(
+      baseInput({ referenceImageName: 'reference.png' }),
+    )
+    expect(workflow.sampler.inputs.denoise).toBe(1.0)
+  })
 })

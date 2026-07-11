@@ -38,6 +38,19 @@ export interface RunnerWorkflowInput {
   loras: readonly RunnerWorkflowLora[]
   /** SaveImage filename_prefix — defaults to 'pixelvault'. */
   filenamePrefix?: string
+  /**
+   * img2img: exact filename of a reference image uploaded alongside the
+   * workflow (RunPod `input.images[].name`). When set, the graph swaps
+   * EmptyLatentImage for LoadImage → ImageScale → VAEEncode, and the sampler
+   * denoises from that latent instead of pure noise.
+   */
+  referenceImageName?: string
+  /**
+   * KSampler denoise (0.01–1.0). 1.0 = full txt2img (the default and the only
+   * value used without a reference image). For img2img pass the
+   * reference-strength-mapped value (lower = keep more of the reference).
+   */
+  denoise?: number
 }
 
 const NODE_ID = {
@@ -46,6 +59,9 @@ const NODE_ID = {
   positivePrompt: 'positive-prompt',
   negativePrompt: 'negative-prompt',
   latent: 'latent',
+  loadImage: 'load-image',
+  imageScale: 'image-scale',
+  vaeEncode: 'vae-encode',
   sampler: 'sampler',
   vaeDecode: 'vae-decode',
   saveImage: 'save-image',
@@ -109,13 +125,47 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
     },
   }
 
-  workflow[NODE_ID.latent] = {
-    class_type: 'EmptyLatentImage',
-    inputs: {
-      width: input.width,
-      height: input.height,
-      batch_size: 1,
-    },
+  // Latent source: img2img (LoadImage → ImageScale → VAEEncode) when a
+  // reference image is supplied, else txt2img (EmptyLatentImage). The
+  // reference is scaled to the requested dimensions so the output aspect
+  // ratio matches the txt2img path regardless of the input's native size.
+  let latentSource: [string, number]
+  let denoise: number
+  if (input.referenceImageName) {
+    workflow[NODE_ID.loadImage] = {
+      class_type: 'LoadImage',
+      inputs: { image: input.referenceImageName, upload: 'image' },
+    }
+    workflow[NODE_ID.imageScale] = {
+      class_type: 'ImageScale',
+      inputs: {
+        image: [NODE_ID.loadImage, 0],
+        upscale_method: 'lanczos',
+        width: input.width,
+        height: input.height,
+        crop: 'center',
+      },
+    }
+    workflow[NODE_ID.vaeEncode] = {
+      class_type: 'VAEEncode',
+      inputs: {
+        pixels: [NODE_ID.imageScale, 0],
+        vae: [NODE_ID.checkpoint, 2],
+      },
+    }
+    latentSource = [NODE_ID.vaeEncode, 0]
+    denoise = input.denoise ?? 1.0
+  } else {
+    workflow[NODE_ID.latent] = {
+      class_type: 'EmptyLatentImage',
+      inputs: {
+        width: input.width,
+        height: input.height,
+        batch_size: 1,
+      },
+    }
+    latentSource = [NODE_ID.latent, 0]
+    denoise = 1.0
   }
 
   workflow[NODE_ID.sampler] = {
@@ -126,11 +176,11 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
       cfg: input.cfg,
       sampler_name: input.samplerName,
       scheduler: input.scheduler,
-      denoise: 1.0,
+      denoise,
       model: modelSource,
       positive: [NODE_ID.positivePrompt, 0],
       negative: [NODE_ID.negativePrompt, 0],
-      latent_image: [NODE_ID.latent, 0],
+      latent_image: latentSource,
     },
   }
 

@@ -1451,7 +1451,7 @@
     "spine": {
       "currentLora": "現在のLoRA",
       "baseModel": "ベースモデル",
-      "baseModelPending": "LoRAに追従（近日公開）",
+      "baseModelPending": "LoRA に合わせて自動選択",
       "empty": "LoRA未選択 — ライブラリで選んでください",
       "fast": "高速",
       "faithful": "忠実",

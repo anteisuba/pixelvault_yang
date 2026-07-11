@@ -34,6 +34,17 @@ export interface RunnerGenerationRequestInput {
   steps?: number
   cfg?: number
   loras: readonly RunnerLoraRequestInput[]
+  /**
+   * img2img: filename of the reference image uploaded alongside the workflow
+   * (RunPod `input.images[].name`). Omit for txt2img.
+   */
+  referenceImageName?: string
+  /**
+   * KSampler denoise for img2img (0.01–1.0). Only applied when
+   * `referenceImageName` is set; the Worker computes it from the request's
+   * referenceStrength via the same inversion used by the fal/replicate paths.
+   */
+  denoise?: number
 }
 
 export class RunnerUnknownCheckpointError extends Error {
@@ -90,5 +101,7 @@ export function buildRunnerWorkflowFromRequest(
     scheduler: checkpoint.recommendedScheduler,
     clipSkip: checkpoint.clipSkip,
     loras,
+    referenceImageName: input.referenceImageName,
+    denoise: input.denoise,
   })
 }

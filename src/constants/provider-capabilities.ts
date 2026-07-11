@@ -197,6 +197,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'steps',
         'seed',
         'lora',
+        'referenceStrength',
       ],
       guidanceScale: { min: 1, max: 15, step: 0.5, default: 7.5 },
       steps: { min: 1, max: 60, step: 1, default: 30 },
@@ -204,7 +205,12 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // v1 stock worker-comfyui can't download LoRAs at request time — only
       // pre-baked, allowlisted LoRAs are mountable (see runner-checkpoints.ts).
       maxLoras: 3,
-      maxReferenceImages: 0,
+      // img2img: one reference image, scaled to the target dimensions and
+      // VAE-encoded into the KSampler latent (see workers/execution/src/models/
+      // runner/workflow-builder.ts). referenceStrength inverts to denoise.
+      referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      referenceImageMode: 'img2img',
+      maxReferenceImages: 1,
     },
   }
 

@@ -1451,7 +1451,7 @@
     "spine": {
       "currentLora": "Current LoRA",
       "baseModel": "Base model",
-      "baseModelPending": "Follows your LoRA (coming soon)",
+      "baseModelPending": "Matched to your LoRA",
       "empty": "No LoRA selected — pick one in Library",
       "fast": "Fast",
       "faithful": "Faithful",

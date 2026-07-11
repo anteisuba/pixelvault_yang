@@ -37,10 +37,12 @@ const CIVITAI_IMAGE_PATH_RE =
 
 export default {
   async fetch(request, _env, ctx): Promise<Response> {
-    if (request.method !== 'GET') {
+    // HEAD 也放行 —— README 的验证命令用 `curl -sI`，且 Workers runtime 会自动
+    // 为 HEAD 剥掉响应 body，逻辑与 GET 完全共用。
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method Not Allowed', {
         status: 405,
-        headers: { Allow: 'GET' },
+        headers: { Allow: 'GET, HEAD' },
       })
     }
 

@@ -8,6 +8,7 @@ import {
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
   DEFAULT_LORA_NSFW_FILTER,
+  isCivitaiSearchBackend,
   isLoraNsfwFilter,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
@@ -41,6 +42,15 @@ const ListCivitaiLoraQuerySchema = z.object({
         ? value
         : DEFAULT_LORA_NSFW_FILTER,
     ),
+  // Issue C：搜索分页 hook 在同一会话内锁定的 meilisearch/REST 后端选择
+  // （docs/plans/lora-search-image-audit-2026-07.md）。未知/缺失值静默落
+  // 回 undefined（= 自由选择，与今天一致），不 400。
+  source: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value !== undefined && isCivitaiSearchBackend(value) ? value : undefined,
+    ),
 })
 
 interface SuccessBody {
@@ -66,6 +76,7 @@ export async function GET(
       baseModel: searchParams.get('baseModel') ?? undefined,
       sort: searchParams.get('sort') ?? undefined,
       nsfwFilter: searchParams.get('nsfw') ?? undefined,
+      source: searchParams.get('source') ?? undefined,
     })
 
     if (!parsed.success) {

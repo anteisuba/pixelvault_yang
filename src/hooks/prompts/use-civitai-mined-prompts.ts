@@ -121,7 +121,14 @@ function reducer(
  * Fetch user-mined activation prompts for a Civitai LoRA when the user
  * selects it in the inspector. Skips entirely when:
  *   - item is null
- *   - item isn't a Civitai LoRA (no fileHashAutoV3)
+ *   - item is missing modelId or modelVersionId
+ *
+ * fileHashAutoV3 is NOT required — meilisearch search-hit LoRAs never carry
+ * a file hash (Civitai's search index doesn't expose files[].hashes), but
+ * the mined-prompts endpoint only needs modelId+modelVersionId to locate
+ * the version's source-image recipes; the hash (when present) is only used
+ * server-side to attribute a matched image's real per-LoRA weight. See
+ * Issue A in docs/plans/lora-search-image-audit-2026-07.md.
  *
  * Stale-while-revalidate friendly: a previous result keeps rendering
  * while a new selection is loading (`isLoading: true`, outfits kept).
@@ -147,15 +154,15 @@ export function useCivitaiMinedPrompts(
     requestIdRef.current = requestId
 
     // No Civitai identifiers → idle. Reset to EMPTY so a previous LoRA's
-    // mined data doesn't leak into the next selection. modelId is
-    // required server-side; without it there's nothing to query even if
-    // a hash exists.
-    if (!fileHashAutoV3 || !modelId) {
+    // mined data doesn't leak into the next selection. modelId + modelVersionId
+    // are both required server-side to locate a version's source images;
+    // fileHashAutoV3 is optional (search-hit LoRAs never carry one — Issue A).
+    if (!modelId || !modelVersionId) {
       dispatch({ type: 'idle' })
       return
     }
 
-    const key = cacheKey(modelId, modelVersionId, fileHashAutoV3)
+    const key = cacheKey(modelId, modelVersionId, fileHashAutoV3 ?? '')
 
     // Synchronous cache hit — apply immediately, no loading flash.
     const cached = cache.get(key)
@@ -179,7 +186,7 @@ export function useCivitaiMinedPrompts(
         mineCivitaiLoraPromptsAPI({
           modelId,
           modelVersionId,
-          fileHash: fileHashAutoV3,
+          fileHash: fileHashAutoV3 ?? undefined,
         }).then((response) => {
           const entry = cache.get(key)
           if (response.success && response.data) {

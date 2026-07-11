@@ -8,6 +8,7 @@ import {
   DEFAULT_LORA_NSFW_FILTER,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
+  type CivitaiSearchBackend,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
@@ -177,6 +178,15 @@ export function useCivitaiLoraLibrary(
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
   )
+  // Issue C（docs/plans/lora-search-image-audit-2026-07.md）：一次搜索会话
+  // 内锁定 meilisearch/REST 后端选择。首页拿到结果后写入这里；第 2+ 页把
+  // 它原样回传给服务端，防止会话中途换后端打乱 page↔cursor 分页契约（两
+  // 条路径分页范式不同——meilisearch=offset 靠 page 号，REST 回落=cursor
+  // scan 靠 cursorByPageRef）。null = 尚未锁定（自由选择，等同今天行为）。
+  // 只在 debouncedSearch 非空时写入/读取——浏览模式永远走 REST，没有需要
+  // 锁定的选择。随 cursorByPageRef 一起在每个新会话起点重置（搜索词/
+  // baseModel/sort/nsfwFilter 变化）。
+  const searchBackendRef = useRef<CivitaiSearchBackend | null>(null)
 
   const applyResult = useCallback((result: CivitaiLoraLibraryResult) => {
     setItems(result.items)
@@ -231,6 +241,13 @@ export function useCivitaiLoraLibrary(
       } else {
         cursorByPageRef.current.delete(page + 1)
       }
+      // Issue C: keep the backend lock in sync even on a cache hit — a
+      // cached entry still carries which backend actually served it.
+      if (activeSearch) {
+        searchBackendRef.current = cached.sortFellBackToRelevance
+          ? 'rest'
+          : 'meilisearch'
+      }
       paginationPendingRef.current = false
       setError(null)
       setIsRevalidating(false)
@@ -248,6 +265,12 @@ export function useCivitaiLoraLibrary(
       sort,
       baseModel,
       nsfwFilter,
+      // Issue C: undefined on the session's first request (free choice,
+      // same as today); locked to whatever backend served the previous
+      // page for the rest of the session.
+      source: activeSearch
+        ? (searchBackendRef.current ?? undefined)
+        : undefined,
     })
     if (requestIdRef.current !== requestId) return
 
@@ -256,6 +279,14 @@ export function useCivitaiLoraLibrary(
         cursorByPageRef.current.set(page + 1, response.data.nextCursor)
       } else {
         cursorByPageRef.current.delete(page + 1)
+      }
+      // Issue C: lock the backend from this response. sortFellBackToRelevance
+      // is only ever true when the server fell back to REST for a search
+      // request, so absence (undefined/false) means meilisearch served it.
+      if (activeSearch) {
+        searchBackendRef.current = response.data.sortFellBackToRelevance
+          ? 'rest'
+          : 'meilisearch'
       }
       writeCache(cacheKey, response.data)
       applyResult(response.data)
@@ -285,6 +316,9 @@ export function useCivitaiLoraLibrary(
     if (trimmed === debouncedSearch) return
     const id = setTimeout(() => {
       cursorByPageRef.current = new Map([[1, null]])
+      // Issue C: a new search term starts a new session — unlock the
+      // backend so the next page 1 is free to pick meilisearch/REST again.
+      searchBackendRef.current = null
       setDebouncedSearch(trimmed)
       setPage(1)
     }, SEARCH_DEBOUNCE_MS)
@@ -311,6 +345,8 @@ export function useCivitaiLoraLibrary(
     (value: CivitaiLoraSort) => {
       if (value === sort) return
       cursorByPageRef.current = new Map([[1, null]])
+      // Issue C: facet change starts a new session — unlock the backend.
+      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setSortValue(value)
@@ -322,6 +358,7 @@ export function useCivitaiLoraLibrary(
     (value: CivitaiLoraBaseModel) => {
       if (value === baseModel) return
       cursorByPageRef.current = new Map([[1, null]])
+      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setBaseModelValue(value)
@@ -333,6 +370,7 @@ export function useCivitaiLoraLibrary(
     (value: LoraNsfwFilter) => {
       if (value === nsfwFilter) return
       cursorByPageRef.current = new Map([[1, null]])
+      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setNsfwFilterValue(value)

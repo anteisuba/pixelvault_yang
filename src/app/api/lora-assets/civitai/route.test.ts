@@ -92,4 +92,44 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(body.success).toBe(false)
     expect(mockListCivitaiLoras).not.toHaveBeenCalled()
   })
+
+  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): the search
+  // pagination hook locks onto a backend after page 1 and threads it back
+  // as `source` on subsequent pages so the session doesn't silently swap
+  // pagination paradigms (offset vs. cursor-scan) mid-flight.
+  it.each(['meilisearch', 'rest'])(
+    'passes source=%s through to the service',
+    async (source) => {
+      const response = await GET(
+        createGET('/api/lora-assets/civitai', { source }),
+      )
+
+      expect(response.status).toBe(200)
+      expect(mockListCivitaiLoras).toHaveBeenCalledWith(
+        expect.objectContaining({ source }),
+      )
+    },
+  )
+
+  it('silently drops an unknown source value instead of 400ing', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai', { source: 'garbage' }),
+    )
+    const body = await parseJSON<{ success: boolean }>(response)
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith(
+      expect.objectContaining({ source: undefined }),
+    )
+  })
+
+  it('omits source when the query param is absent', async () => {
+    const response = await GET(createGET('/api/lora-assets/civitai', {}))
+
+    expect(response.status).toBe(200)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith(
+      expect.objectContaining({ source: undefined }),
+    )
+  })
 })

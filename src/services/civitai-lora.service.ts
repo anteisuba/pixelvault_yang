@@ -15,6 +15,7 @@ import {
   isNsfwNamedModel,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
+  type CivitaiSearchBackend,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import {
@@ -528,6 +529,46 @@ function buildCivitaiSearchFilters(
   return filters
 }
 
+// Issue B（docs/plans/lora-search-image-audit-2026-07.md）：push the P1-6
+// tri-state down into the meilisearch source filter instead of post-
+// filtering a fetched page (which used to shrink `nsfwOnly` pages to ~half
+// and let NSFW LoRAs leak into `safe`). `nsfwLevel` is a per-model ARRAY
+// (every image's level, e.g. `[1,4]`) and meilisearch's array filter
+// semantics are existential — `nsfwLevel > N` matches if ANY element is >N.
+// `NOT nsfwLevel > N` is therefore the true logical negation: ALL elements
+// are <=N. Live-verified 2026-07-11 against search-new.civitai.com: for one
+// sample query, `nsfwLevel > 2` returned 22265 hits and `NOT nsfwLevel > 2`
+// returned 7165 — they sum to exactly the unfiltered total (29430), i.e. a
+// clean, non-overlapping bipartition (not an approximation).
+//
+// Threshold 2 (not the plan's initial suggestion of 1) is chosen to match
+// the file's existing `CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL` = 2
+// ("safe" cover ceiling already treats None(1)+Soft(2) as safe elsewhere in
+// this file). Using a different threshold for nsfwOnly vs. safe would leave
+// a gap where a level-2-only model matches both `nsfwLevel > 1` (nsfwOnly)
+// and `NOT nsfwLevel > 2` (safe) — same threshold keeps the two tri-state
+// filters an exact partition of each other.
+//
+// Also live-verified: Civitai's own `nsfw` boolean is unreliable in BOTH
+// directions (e.g. a "girl handjob POV" hit with nsfwLevel:[16] — XXX-only —
+// was flagged `nsfw:false`; several models with only None/Soft images were
+// flagged `nsfw:true`). That's why this pushes the *level* array down
+// instead of trying to filter on `nsfw` (which meilisearch also rejects —
+// "Attribute `nsfw` is not filterable", confirmed via a live 400).
+function appendNsfwSearchFilter(
+  filters: string[],
+  nsfwFilter: LoraNsfwFilter,
+): void {
+  if (nsfwFilter === 'safe') {
+    filters.push(
+      `NOT nsfwLevel > ${CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL}`,
+    )
+  } else if (nsfwFilter === 'nsfwOnly') {
+    filters.push(`nsfwLevel > ${CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL}`)
+  }
+  // 'unrestricted' adds no clause — matches existing behavior.
+}
+
 function baseModelMatchesCandidate(
   candidateBaseModel: string | null | undefined,
   requestedBaseModelFamily: string | null | undefined,
@@ -800,10 +841,21 @@ export interface ListCivitaiLorasInput {
   search?: string
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
-  /** P1-6：三态分级，默认 'safe'（civitai `nsfw=false` + 名称词表兜底，封面
-   *  也只留 SFW）。'unrestricted' 不过滤、封面放到 XXX；'nsfwOnly' 请求
-   *  civitai `nsfw=true` 后客户端只保留 `isNsfw` 的条目。 */
+  /** P1-6：三态分级，默认 'safe'。search 路径下推到 meilisearch 的
+   *  `nsfwLevel` source filter（'safe' 用 `NOT nsfwLevel > N`，'nsfwOnly'
+   *  用 `nsfwLevel > N`，'unrestricted' 不加）；REST 浏览路径用同一天花板
+   *  客户端扫描 images[]（见 appendNsfwSearchFilter / fetchCivitaiLoraPage
+   *  的注释，Issue B，docs/plans/lora-search-image-audit-2026-07.md）。 */
   nsfwFilter?: LoraNsfwFilter
+  /**
+   * Issue C（docs/plans/lora-search-image-audit-2026-07.md）：调用方（搜索
+   * 分页 hook）在同一次搜索会话内锁定的后端选择——首页决定 meilisearch 还
+   * 是 REST 后，后续页把这里传回来，让服务端跳过另一条路径，不再中途切
+   * 换分页范式（meilisearch=offset，REST 回落=cursor scan，混用会导致翻
+   * 页重复/错位）。仅在 `search` 非空时生效；不传 = 自由选择（当前会话
+   * 首页的行为）。
+   */
+  source?: CivitaiSearchBackend
 }
 
 export interface CivitaiLoraPrewarmEntry {
@@ -891,6 +943,19 @@ function pickDownloadUrl(
   )
 }
 
+// Shared by toLibraryItem (which version becomes the library item) and the
+// REST-path nsfw-level check (fetchCivitaiLoraPage) — both need "the same
+// version the card actually shows", so this selection lives in one place.
+function pickUsableModelVersion(
+  model: z.infer<typeof CivitaiModelSchema>,
+): z.infer<typeof CivitaiModelVersionSchema> | null {
+  return (
+    model.modelVersions?.find((candidate) =>
+      Boolean(pickDownloadUrl(candidate)),
+    ) ?? null
+  )
+}
+
 // 各场景下的目标渲染宽度（CSS px），用于把 Civitai 默认 `original=true` 的
 // 大图（1–5 MB）改写成对应尺寸的 transform。Retina 屏 ×2 在大多数列表场景
 // 已经够清；超出的 LCP/带宽成本远大于细节收益。
@@ -927,6 +992,23 @@ function pickImages(
   )
 }
 
+// Issue B REST-path counterpart to appendNsfwSearchFilter's meilisearch
+// `nsfwLevel > N` clause: REST has no pushable per-image-level filter, so
+// this scans the version's own (unceiled) images array client-side. Mirrors
+// the same existential semantics ("ANY image exceeds the ceiling") used by
+// the meilisearch array filter, so REST and search behave the same way for
+// the same data. Deliberately NOT reused from pickImages's output — that's
+// already ceiling-filtered (would make this always false for 'safe', where
+// the ceiling equals the very threshold we're checking against).
+function versionHasNsfwLevelAbove(
+  version: { images?: { nsfwLevel?: number }[] },
+  ceiling: number,
+): boolean {
+  return (
+    version.images?.some((image) => (image.nsfwLevel ?? 1) > ceiling) ?? false
+  )
+}
+
 function inferLoraType(tags: string[], name: string): LoraAssetType {
   const haystack = `${name} ${tags.join(' ')}`.toLowerCase()
   if (
@@ -947,9 +1029,7 @@ function toLibraryItem(
 ): CivitaiLoraLibraryItem | null {
   if (model.type.toUpperCase() !== 'LORA') return null
 
-  const version = model.modelVersions?.find((candidate) =>
-    Boolean(pickDownloadUrl(candidate)),
-  )
+  const version = pickUsableModelVersion(model)
   if (!version) return null
 
   const loraUrl = pickDownloadUrl(version)
@@ -1202,18 +1282,23 @@ async function hitsToLibraryItems(
   return dedupeLibraryItems(resolved)
 }
 
-// meilisearch 的 `nsfw` 字段不在 filterable attribute 列表里（实测 400：
-// "Attribute `nsfw` is not filterable"），safe/nsfwOnly 只能跟 REST 浏览态
-// 一样做客户端过滤——分级门槛这里不做请求层优化，正确性优先。
+// Issue B: nsfwOnly no longer post-filters by `hit.nsfw` — that boolean is
+// unreliable (live-verified false negatives: e.g. a hit with nsfwLevel
+// [16] — XXX-only — flagged `nsfw:false`) and, more importantly, the source
+// query (appendNsfwSearchFilter) already restricts the page to
+// `nsfwLevel > CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL`; post-filtering
+// again on top of that is what caused a fetched page of 12 to shrink to ~6
+// (Issue B's core symptom). `safe` keeps the name-keyword pass as a cheap
+// defense-in-depth layer alongside the source-level `NOT nsfwLevel > N`
+// filter (catches the rare case where a name itself signals NSFW despite
+// clean image levels — this never shrinks a page meaningfully since only a
+// handful of keywords are checked).
 function filterSearchHitsByNsfw(
   hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
   nsfwFilter: LoraNsfwFilter,
 ): readonly z.infer<typeof CivitaiSearchHitSchema>[] {
   if (nsfwFilter === 'safe') {
     return hits.filter((hit) => !isNsfwNamedModel(hit.name))
-  }
-  if (nsfwFilter === 'nsfwOnly') {
-    return hits.filter((hit) => hit.nsfw)
   }
   return hits
 }
@@ -1235,6 +1320,12 @@ async function listCivitaiLorasBySearch({
 }): Promise<CivitaiLoraLibraryResult> {
   const offset = (page - 1) * pageSize
   const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const filters = buildCivitaiSearchFilters(
+    baseModel === 'all' ? null : baseModel,
+  )
+  // Issue B: nsfw tri-state pushed down to the source filter so a fetched
+  // page is already the right shape — no more post-filter shrinkage.
+  appendNsfwSearchFilter(filters, nsfwFilter)
   const body = {
     queries: [
       {
@@ -1242,9 +1333,7 @@ async function listCivitaiLorasBySearch({
         q: search,
         limit: pageSize,
         offset,
-        filter: buildCivitaiSearchFilters(
-          baseModel === 'all' ? null : baseModel,
-        ),
+        filter: filters,
         sort: CIVITAI_SEARCH_SORT_MAP[sort],
       },
     ],
@@ -1512,9 +1601,17 @@ async function resolveCivitaiRestCursorForPage({
 
 async function fetchCivitaiLoraPage(
   url: URL,
-  // P1-6 三态：'safe' 额外按名称词表过滤（civitai 的 `nsfw=false` 只挡
-  // 封面变占位卡，标题本身还在）；'nsfwOnly' 反过来只留 `isNsfw` 的条目；
-  // 'unrestricted' 不做客户端过滤。
+  // P1-6 三态，REST 浏览路径与 appendNsfwSearchFilter（meilisearch 搜索路
+  // 径）对齐语义（Issue B）：
+  //   'safe'     排除「名字带 NSFW 关键词」*或*「任意图片超出安全天花板
+  //              CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL」的条目。
+  //   'nsfwOnly' 反过来只留「civitai 的 model.nsfw 标记为真」*或*「任意
+  //              图片超出安全天花板」的条目。
+  //   'unrestricted' 不做客户端过滤。
+  // 两个信号（名字关键词/model.nsfw 布尔）都单独不可靠（实测过双向误判，
+  // 见 appendNsfwSearchFilter 注释），REST 又没有可下推的按图 nsfwLevel
+  // 过滤——OR 组合两个信号缩小漏判面，同时保留旧信号让已有测试期望的
+  // fixture（无 images 数组时）继续按原有的关键词/布尔判据工作。
   nsfwFilter: LoraNsfwFilter = DEFAULT_LORA_NSFW_FILTER,
 ): Promise<{
   items: CivitaiLoraLibraryItem[]
@@ -1531,14 +1628,41 @@ async function fetchCivitaiLoraPage(
   const parsed = CivitaiModelsResponseSchema.parse(payload)
   const imageNsfwCeiling = maxImageNsfwLevelFor(nsfwFilter)
   const mappedItems = parsed.items
-    .map((model) => toLibraryItem(model, imageNsfwCeiling))
-    .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
+    .map((model) => {
+      const item = toLibraryItem(model, imageNsfwCeiling)
+      if (!item) return null
+      // Scan the raw (unceiled) version images — pickImages() inside
+      // toLibraryItem already dropped anything above imageNsfwCeiling from
+      // previewImageUrls/coverImageUrl, so re-deriving this signal from the
+      // mapped item would always read "safe" under 'safe' mode (its ceiling
+      // IS the threshold being checked here).
+      const version = pickUsableModelVersion(model)
+      const hasNsfwLevelAboveSafeCeiling = version
+        ? versionHasNsfwLevelAbove(
+            version,
+            CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
+          )
+        : false
+      return { item, hasNsfwLevelAboveSafeCeiling }
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
   const filteredItems =
     nsfwFilter === 'safe'
-      ? mappedItems.filter((item) => !isNsfwNamedModel(item.name))
+      ? mappedItems
+          .filter(
+            (entry) =>
+              !isNsfwNamedModel(entry.item.name) &&
+              !entry.hasNsfwLevelAboveSafeCeiling,
+          )
+          .map((entry) => entry.item)
       : nsfwFilter === 'nsfwOnly'
-        ? mappedItems.filter((item) => item.isNsfw)
-        : mappedItems
+        ? mappedItems
+            .filter(
+              (entry) =>
+                entry.item.isNsfw || entry.hasNsfwLevelAboveSafeCeiling,
+            )
+            .map((entry) => entry.item)
+        : mappedItems.map((entry) => entry.item)
   const items = dedupeLibraryItems(filteredItems)
 
   return {
@@ -1674,13 +1798,31 @@ export async function listCivitaiLoras(
     baseModel = 'all',
     sort = 'Highest Rated',
     nsfwFilter = DEFAULT_LORA_NSFW_FILTER,
+    source,
   } = input
   const normalizedSearch = input.search?.trim() ?? ''
 
   // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
   // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，
   // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「按相关性」。
+  //
+  // Issue C（docs/plans/lora-search-image-audit-2026-07.md）：这个选择每次
+  // 请求独立做，与上一页无关——但 meilisearch 走 offset 分页、REST 回落走
+  // cursor scan 分页，client 的 page↔cursor 映射假设"同一搜索会话全程同一
+  // 分页范式"。会话中途换后端（比如 page2 撞上 civitai 间歇 503 回落
+  // REST，page3 时 civitai 又恢复、meilisearch 重新命中）就会打乱这个假
+  // 设，翻页出现重复/错位。`source` 由 client 在首页决定后回传，锁定同一
+  // 会话内的后端选择：
+  //   source === 'rest'：跳过 meilisearch，直接走 REST（保持 cursor 语义
+  //     连续，不再尝试一次注定被忽略的 meilisearch 请求）。
+  //   source === 'meilisearch'：中途失败直接整体抛错/由路由层 502，不再
+  //     偷偷回落 REST——好过静默换分页范式。
+  //   source 缺省（首页 / 未锁定）：自由选择，行为与今天一致。
   if (normalizedSearch) {
+    if (source === 'rest') {
+      const fallback = await listCivitaiLorasViaRest(input)
+      return { ...fallback, sortFellBackToRelevance: true }
+    }
     try {
       return await listCivitaiLorasBySearch({
         page,
@@ -1691,6 +1833,19 @@ export async function listCivitaiLoras(
         nsfwFilter,
       })
     } catch (error) {
+      if (source === 'meilisearch') {
+        logger.warn(
+          'Civitai meilisearch failed mid-session (locked backend) — surfacing error instead of silently falling back to REST',
+          {
+            error: error instanceof Error ? error.message : 'Unknown',
+            search: normalizedSearch,
+            baseModel,
+            sort,
+            page,
+          },
+        )
+        throw error
+      }
       logger.warn('Civitai meilisearch failed, falling back to REST search', {
         error: error instanceof Error ? error.message : 'Unknown',
         search: normalizedSearch,
@@ -2302,8 +2457,16 @@ function deriveOutfitsFromRecipes(
 export interface MineCivitaiUserPromptsInput {
   modelId: number
   modelVersionId?: number
-  /** Lower-case AutoV3 hash of the primary LoRA file. */
-  fileHashAutoV3: string
+  /**
+   * Lower-case AutoV3 hash of the primary LoRA file. Optional — search-hit
+   * LoRAs (meilisearch path) never carry a file hash (the search index
+   * doesn't expose files[].hashes). `fetchModelVersionSourceRecipes` only
+   * needs modelId+modelVersionId to locate source images; the hash (when
+   * present) is only used to attribute a matched image's real per-LoRA
+   * weight via `resolveRecipeLoraSignals`, which already accepts a null
+   * `targetHashLower`. See Issue A, docs/plans/lora-search-image-audit-2026-07.md.
+   */
+  fileHashAutoV3?: string | null
 }
 
 export async function mineCivitaiUserPrompts({
@@ -2311,7 +2474,7 @@ export async function mineCivitaiUserPrompts({
   modelVersionId,
   fileHashAutoV3,
 }: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
-  const targetHash = fileHashAutoV3.toLowerCase()
+  const targetHash = fileHashAutoV3?.toLowerCase() ?? null
 
   if (modelVersionId !== undefined) {
     const sourceRecipes = await fetchModelVersionSourceRecipes(

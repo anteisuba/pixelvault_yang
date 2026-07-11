@@ -3,6 +3,7 @@ import {
   DEFAULT_LORA_NSFW_FILTER,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
+  type CivitaiSearchBackend,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import type {
@@ -84,6 +85,12 @@ export async function listCivitaiLoraAssetsAPI(params: {
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
   nsfwFilter?: LoraNsfwFilter
+  /**
+   * Issue C（docs/plans/lora-search-image-audit-2026-07.md）：本次搜索会话
+   * 内锁定的 meilisearch/REST 后端选择，由 useCivitaiLoraLibrary 在首页拿
+   * 到结果后回填，第 2+ 页原样带上，防止会话中途换后端打乱分页契约。
+   */
+  source?: CivitaiSearchBackend
 }): Promise<CivitaiListResponse> {
   try {
     const query = new URLSearchParams()
@@ -96,6 +103,7 @@ export async function listCivitaiLoraAssetsAPI(params: {
     if (params.nsfwFilter && params.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER) {
       query.set('nsfw', params.nsfwFilter)
     }
+    if (params.source) query.set('source', params.source)
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,
@@ -127,7 +135,9 @@ interface CivitaiMinedPromptsResponse {
 export async function mineCivitaiLoraPromptsAPI(params: {
   modelId: number
   modelVersionId?: number
-  fileHash: string
+  // Optional — search-hit LoRAs (meilisearch path) never carry a file hash.
+  // See Issue A, docs/plans/lora-search-image-audit-2026-07.md.
+  fileHash?: string
 }): Promise<CivitaiMinedPromptsResponse> {
   try {
     const query = new URLSearchParams()
@@ -135,7 +145,9 @@ export async function mineCivitaiLoraPromptsAPI(params: {
     if (params.modelVersionId !== undefined) {
       query.set('modelVersionId', String(params.modelVersionId))
     }
-    query.set('fileHash', params.fileHash)
+    if (params.fileHash) {
+      query.set('fileHash', params.fileHash)
+    }
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_MINED_PROMPTS}?${query.toString()}`,

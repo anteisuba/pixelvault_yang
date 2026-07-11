@@ -12,18 +12,26 @@ import type { CivitaiMinedPromptsResult } from '@/types'
 // inspector snappy even on cold paths.
 const CACHE_CONTROL = 'public, s-maxage=3600, stale-while-revalidate=86400'
 
-// fileHash is the Civitai AutoV3 hash, 12-char hex (lowercased server-side
-// before matching). We accept any non-empty hex-ish string so a future
-// change in Civitai's hash length doesn't break us.
+// modelVersionId is required — it's the only reliable way to locate a
+// version's source-image recipes (fetchModelVersionSourceRecipes). fileHash
+// is the Civitai AutoV3 hash, 12-char hex (lowercased server-side before
+// matching) — OPTIONAL: search-hit LoRAs (meilisearch path) never carry a
+// file hash (Civitai's search index doesn't expose files[].hashes), but the
+// recipe miner only needs modelId+modelVersionId to find source images; the
+// hash (when present) just attributes a matched image's real per-LoRA
+// weight. See Issue A, docs/plans/lora-search-image-audit-2026-07.md. We
+// accept any non-empty hex-ish string so a future change in Civitai's hash
+// length doesn't break us.
 const QuerySchema = z.object({
   modelId: z.coerce.number().int().positive(),
-  modelVersionId: z.coerce.number().int().positive().optional(),
+  modelVersionId: z.coerce.number().int().positive(),
   fileHash: z
     .string()
     .trim()
     .regex(/^[0-9a-fA-F]+$/)
     .min(8)
-    .max(64),
+    .max(64)
+    .optional(),
 })
 
 interface SuccessBody {

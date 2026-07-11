@@ -411,6 +411,24 @@ export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
   return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)
 }
 
+// Issue C（docs/plans/lora-search-image-audit-2026-07.md）：civitai 搜索有
+// 两条互不兼容的分页范式——meilisearch 走 offset（client 用 page 号算
+// offset）、REST 回落走 cursor scan（client 用 cursorByPageRef 记录服务端
+// 发的 cursor）。服务端 listCivitaiLoras 每次请求独立决定走哪条，中途从
+// meilisearch 切到 REST（或反之）会让 page 号与 cursor map 不再自洽，翻页
+// 出现重复/错位页。修复：一次搜索会话内锁定后端——首页决定用哪条，后续页
+// 把锁定结果回传给服务端（这个 type），服务端据此跳过另一条、不再中途切。
+export const CIVITAI_SEARCH_BACKEND_VALUES = ['meilisearch', 'rest'] as const
+
+export type CivitaiSearchBackend =
+  (typeof CIVITAI_SEARCH_BACKEND_VALUES)[number]
+
+export function isCivitaiSearchBackend(
+  value: string,
+): value is CivitaiSearchBackend {
+  return (CIVITAI_SEARCH_BACKEND_VALUES as readonly string[]).includes(value)
+}
+
 // P1-6：安全档下，civitai `nsfw=false` 已经把 NSFW 分级的封面挡成占位卡——
 // 但模型名本身还在（比如标题带 "Hentai"），留着只剩一张无信息量的空卡。
 // 名称词表按小写子串匹配，只过滤"这名字本身就是 NSFW 标签"的场景，不做

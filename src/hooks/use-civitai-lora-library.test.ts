@@ -383,4 +383,152 @@ describe('useCivitaiLoraLibrary', () => {
     await waitFor(() => expect(result.current.items).toEqual([safeItem]))
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
   })
+
+  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): once a search
+  // session falls back to REST, every subsequent page in that same session
+  // must keep requesting the REST backend explicitly — letting a later page
+  // silently retry meilisearch (and maybe succeed) would put that page on a
+  // different pagination paradigm (offset vs. cursor-scan) than the pages
+  // around it, producing duplicate/misaligned pages.
+  describe('search backend lock (Issue C)', () => {
+    it('locks onto REST after a fallback and keeps sending source=rest on later pages', async () => {
+      const page1Item = createItem('locked-1', 'Page 1')
+      const page2Item = createItem('locked-2', 'Page 2')
+      const page3Item = createItem('locked-3', 'Page 3')
+
+      mockListCivitaiLoraAssetsAPI
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(page1Item, 1, 'rest-cursor-2'),
+            sortFellBackToRelevance: true,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(page2Item, 2, 'rest-cursor-3'),
+            sortFellBackToRelevance: true,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(page3Item, 3, null),
+            sortFellBackToRelevance: true,
+          },
+        })
+
+      const { result } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialSearch: 'locked query' }),
+      )
+
+      await waitFor(() => expect(result.current.items).toEqual([page1Item]))
+      // First page is unlocked — free choice, same as today.
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ source: undefined }),
+      )
+
+      act(() => {
+        result.current.nextPage()
+      })
+      await waitFor(() => expect(result.current.items).toEqual([page2Item]))
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2, source: 'rest' }),
+      )
+
+      act(() => {
+        result.current.nextPage()
+      })
+      await waitFor(() => expect(result.current.items).toEqual([page3Item]))
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 3, source: 'rest' }),
+      )
+    })
+
+    it('never sends a source hint for browse-mode pagination (no search term)', async () => {
+      const page1Item = createItem('browse-1', 'Browse 1')
+      const page2Item = createItem('browse-2', 'Browse 2')
+
+      mockListCivitaiLoraAssetsAPI
+        .mockResolvedValueOnce({
+          success: true,
+          data: createResult(page1Item, 1, 'cursor-2'),
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: createResult(page2Item, 2, null),
+        })
+
+      const { result } = renderHook(() => useCivitaiLoraLibrary())
+      await waitFor(() => expect(result.current.items).toEqual([page1Item]))
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ source: undefined }),
+      )
+
+      act(() => {
+        result.current.nextPage()
+      })
+      await waitFor(() => expect(result.current.items).toEqual([page2Item]))
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ source: undefined }),
+      )
+    })
+
+    it('resets the backend lock when the search term changes (new session)', async () => {
+      const firstQueryPage1 = createItem('reset-a-1', 'A page 1')
+      const firstQueryPage2 = createItem('reset-a-2', 'A page 2')
+      const secondQueryPage1 = createItem('reset-b-1', 'B page 1')
+
+      mockListCivitaiLoraAssetsAPI
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(firstQueryPage1, 1, 'rest-cursor-2'),
+            sortFellBackToRelevance: true,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(firstQueryPage2, 2, null),
+            sortFellBackToRelevance: true,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: createResult(secondQueryPage1, 1),
+        })
+
+      const { result } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialSearch: 'first query' }),
+      )
+      await waitFor(() =>
+        expect(result.current.items).toEqual([firstQueryPage1]),
+      )
+
+      act(() => {
+        result.current.nextPage()
+      })
+      await waitFor(() =>
+        expect(result.current.items).toEqual([firstQueryPage2]),
+      )
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ source: 'rest' }),
+      )
+
+      act(() => {
+        result.current.setSearch('second query')
+      })
+      await new Promise((resolve) => window.setTimeout(resolve, 350))
+      await waitFor(() =>
+        expect(result.current.items).toEqual([secondQueryPage1]),
+      )
+
+      // New session — must NOT carry over the previous session's REST lock.
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, source: undefined }),
+      )
+    })
+  })
 })

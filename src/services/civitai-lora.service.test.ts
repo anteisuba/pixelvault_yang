@@ -178,7 +178,12 @@ describe('listCivitaiLoras', () => {
     )
   })
 
-  it('keeps the cover on the SFW image and drops XXX under the safe filter', async () => {
+  // Issue B fix (docs/plans/lora-search-image-audit-2026-07.md): previously
+  // this LoRA stayed in `safe` results with just its cover swapped to the
+  // SFW image — exactly the reported bug ("safe 档里内容 NSFW 的 LoRA 仍作
+  // 为卡片出现，只是封面被挡成占位/换图"). A model with even one image
+  // above the safe ceiling is now dropped entirely, not just cover-adjusted.
+  it('drops a LoRA entirely under the safe filter when any of its images exceed the safe nsfw ceiling', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [
@@ -213,11 +218,50 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    const safeResult = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    expect(safeResult.items).toEqual([])
 
-    expect(result.items[0]?.coverImageUrlOriginal).toBe(
-      'https://image.civitai.com/sfw.jpeg',
+    // The same image-level signal now also qualifies this model for
+    // nsfwOnly even though civitai's own `model.nsfw` bool is unset on this
+    // fixture — the level check is an OR alongside the bool, not a
+    // replacement of it (REST fixtures without an images array still rely
+    // on the bool alone; see the nsfwFilterFixture tests below).
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 556,
+            name: 'Some Style LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            modelVersions: [
+              {
+                id: 1000,
+                name: 'v1',
+                baseModel: 'Pony',
+                createdAt: '2024-03-09T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1000',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                  { url: 'https://image.civitai.com/sfw.jpeg', nsfwLevel: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
     )
+    const nsfwOnlyResult = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+    expect(nsfwOnlyResult.items).toHaveLength(1)
+    expect(nsfwOnlyResult.items[0]?.id).toBe('civitai:556:1000')
   })
 
   it('skips video covers — <img> cannot render video/mp4 (anim=false does not transcode either)', async () => {
@@ -270,7 +314,10 @@ describe('listCivitaiLoras', () => {
     )
   })
 
-  it('leaves an all-XXX LoRA cover null under the safe filter', async () => {
+  // Issue B fix: this is the exact "blank placeholder card" pattern from
+  // the bug report — an all-XXX LoRA used to survive `safe` filtering with
+  // a null cover instead of being excluded. Now excluded entirely.
+  it('drops an all-XXX LoRA entirely under the safe filter (no placeholder card)', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [
@@ -306,8 +353,7 @@ describe('listCivitaiLoras', () => {
 
     const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
 
-    expect(result.items[0]?.coverImageUrlOriginal).toBeNull()
-    expect(result.items[0]?.previewImageUrls).toEqual([])
+    expect(result.items).toEqual([])
   })
 
   it('tolerates Civitai model images with zero dimensions', async () => {
@@ -1448,6 +1494,84 @@ describe('listCivitaiLoras', () => {
       'Realistic Lingerie LoRA',
     ])
   })
+
+  // Issue B: live-verified real-world case (2026-07-11, query "girl") — a
+  // model with nsfwLevel:[16] (XXX-only images) was flagged `nsfw:false` by
+  // civitai itself. Under the old REST-path logic (nsfwOnly trusted only
+  // `item.isNsfw`) this would never surface in nsfwOnly AND would leak into
+  // safe (only the name-keyword filter applied). The new image-level signal
+  // fixes both without needing civitai's bool to be correct.
+  it('catches an nsfw-bool-false-but-image-level-high LoRA via the level signal (REST path)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 65407,
+            name: 'girl handjob POV',
+            type: 'LORA',
+            tags: [],
+            nsfw: false,
+            modelVersions: [
+              {
+                id: 654070,
+                name: 'v1',
+                baseModel: 'SDXL 1.0',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl:
+                      'https://civitai.com/api/download/models/654070',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+    const safeResult = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    expect(safeResult.items).toEqual([])
+
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 65407,
+            name: 'girl handjob POV',
+            type: 'LORA',
+            tags: [],
+            nsfw: false,
+            modelVersions: [
+              {
+                id: 654070,
+                name: 'v1',
+                baseModel: 'SDXL 1.0',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl:
+                      'https://civitai.com/api/download/models/654070',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/xxx.jpeg', nsfwLevel: 16 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+    const nsfwOnlyResult = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+    expect(nsfwOnlyResult.items).toHaveLength(1)
+  })
 })
 
 // P1-11/B11: REST `/api/v1/models` silently ignores `sort` once a `query`
@@ -1666,10 +1790,11 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     expect(restCall).toBeDefined()
   })
 
-  it('search mode still applies the nsfw safe/nsfwOnly client filters on hits', async () => {
-    // Same two-orthogonal-signal setup as the REST-path nsfw fixture: safe
-    // only trusts the name-keyword signal, nsfwOnly only trusts the real
-    // civitai `nsfw` flag — they must not cross-react.
+  it('search mode keeps the safe name-keyword client filter on hits', async () => {
+    // safe only trusts the name-keyword signal client-side; the nsfwLevel
+    // ceiling is enforced upstream by the meilisearch source filter (see the
+    // 'pushes the nsfw tri-state down into the meilisearch filter clause'
+    // test below), not by re-inspecting `hit.images` here.
     const cleanHit = searchHitFixture({
       id: 1,
       name: 'Clean Search Hit',
@@ -1699,15 +1824,203 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       'Clean Search Hit',
       'Innocuous Search Hit',
     ])
+  })
+
+  // Issue B fix: nsfwOnly no longer re-filters by `hit.nsfw` client-side —
+  // that boolean is unreliable (live-verified false negatives) and doing so
+  // was exactly what shrank a fetched page of ~12 down to ~6 (the reported
+  // "每页只出几张" symptom). The source filter (asserted below) now does the
+  // real narrowing, so every hit the mocked transport returns must survive
+  // to `items` unchanged, regardless of its `nsfw` bool.
+  it('search mode trusts the nsfwOnly source filter and does not re-narrow hits client-side', async () => {
+    const hits = [
+      searchHitFixture({
+        id: 1,
+        name: 'Bool True Hit',
+        nsfw: true,
+        version: { ...searchHitFixture().version, id: 101 },
+      }),
+      // Mirrors the live-verified "girl handjob POV" case: nsfwLevel says
+      // NSFW but civitai's own bool says false. Must still come through —
+      // proves nsfwOnly isn't quietly re-applying the unreliable bool.
+      searchHitFixture({
+        id: 2,
+        name: 'Bool False Hit',
+        nsfw: false,
+        version: { ...searchHitFixture().version, id: 102 },
+      }),
+    ]
 
     mockSearchAndVersionFetch(multiSearchResponse(hits))
-    const nsfwOnlyResult = await listCivitaiLoras({
+    const result = await listCivitaiLoras({
       search: 'x',
       nsfwFilter: 'nsfwOnly',
     })
-    expect(nsfwOnlyResult.items.map((i) => i.name)).toEqual([
-      'Innocuous Search Hit',
+
+    expect(result.items.map((i) => i.name)).toEqual([
+      'Bool True Hit',
+      'Bool False Hit',
     ])
+  })
+
+  // Issue B: the actual narrowing mechanism — the tri-state now travels as
+  // a meilisearch filter clause on the array `nsfwLevel` attribute, not a
+  // client-side post-filter. Threshold 2 matches
+  // CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL (the existing "safe cover"
+  // ceiling elsewhere in this file) so safe/nsfwOnly stay exact complements.
+  it.each([
+    ['safe', 'NOT nsfwLevel > 2'],
+    ['nsfwOnly', 'nsfwLevel > 2'],
+  ] as const)(
+    'pushes the nsfw tri-state down into the meilisearch filter clause for %s',
+    async (nsfwFilter, expectedClause) => {
+      mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+      await listCivitaiLoras({ search: 'x', nsfwFilter })
+
+      const searchCall = mockFetch.mock.calls.find((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      )
+      const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+      expect(body.queries[0].filter).toEqual(['type = LoRA', expectedClause])
+    },
+  )
+
+  it('adds no nsfw filter clause for unrestricted', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+    await listCivitaiLoras({ search: 'x', nsfwFilter: 'unrestricted' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+    expect(body.queries[0].filter).toEqual(['type = LoRA'])
+  })
+
+  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): the client
+  // (useCivitaiLoraLibrary) locks onto a backend after page 1 and passes it
+  // back as `source` on subsequent pages so the session never silently
+  // swaps between meilisearch's offset pagination and REST's cursor-scan
+  // pagination mid-flight (that swap is what caused duplicate/misaligned
+  // pages).
+  describe('source-locked backend (Issue C)', () => {
+    it('source=rest skips meilisearch entirely and goes straight to REST', async () => {
+      mockFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('search-new.civitai.com')) {
+          throw new Error('meilisearch must not be called when source=rest')
+        }
+        return jsonResponse({
+          items: [
+            {
+              id: 1,
+              name: 'Locked REST Result',
+              type: 'LORA',
+              tags: [],
+              stats: {},
+              modelVersions: [
+                {
+                  id: 10,
+                  name: 'v1',
+                  baseModel: 'SDXL 1.0',
+                  files: [
+                    {
+                      type: 'Model',
+                      primary: true,
+                      downloadUrl: 'https://civitai.com/api/download/models/10',
+                    },
+                  ],
+                  images: [],
+                  stats: {},
+                },
+              ],
+            },
+          ],
+          metadata: { totalItems: 1 },
+        })
+      })
+
+      const result = await listCivitaiLoras({
+        search: 'detail',
+        page: 2,
+        source: 'rest',
+      })
+
+      expect(result.sortFellBackToRelevance).toBe(true)
+      expect(result.items.map((item) => item.name)).toEqual([
+        'Locked REST Result',
+      ])
+      const searchCall = mockFetch.mock.calls.find((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      )
+      expect(searchCall).toBeUndefined()
+    })
+
+    it('source=meilisearch surfaces the error instead of silently falling back to REST', async () => {
+      mockFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('search-new.civitai.com')) {
+          return jsonResponse({ message: 'down' }, 503)
+        }
+        throw new Error('REST must not be called when source=meilisearch')
+      })
+
+      await expect(
+        listCivitaiLoras({ search: 'detail', page: 3, source: 'meilisearch' }),
+      ).rejects.toThrow()
+
+      const restCall = mockFetch.mock.calls.find(
+        (call) =>
+          String(call[0]).includes('/api/v1/models') &&
+          !String(call[0]).includes('model-versions'),
+      )
+      expect(restCall).toBeUndefined()
+    })
+
+    it('with no source (first page / unlocked), still falls back to REST on meilisearch failure — existing behavior preserved', async () => {
+      mockFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('search-new.civitai.com')) {
+          return jsonResponse({ message: 'down' }, 503)
+        }
+        return jsonResponse({
+          items: [
+            {
+              id: 1,
+              name: 'Unlocked Fallback',
+              type: 'LORA',
+              tags: [],
+              stats: {},
+              modelVersions: [
+                {
+                  id: 10,
+                  name: 'v1',
+                  baseModel: 'SDXL 1.0',
+                  files: [
+                    {
+                      type: 'Model',
+                      primary: true,
+                      downloadUrl: 'https://civitai.com/api/download/models/10',
+                    },
+                  ],
+                  images: [],
+                  stats: {},
+                },
+              ],
+            },
+          ],
+          metadata: { totalItems: 1 },
+        })
+      })
+
+      const result = await listCivitaiLoras({ search: 'detail' })
+
+      expect(result.sortFellBackToRelevance).toBe(true)
+      expect(result.items.map((item) => item.name)).toEqual([
+        'Unlocked Fallback',
+      ])
+    })
   })
 })
 
@@ -2259,6 +2572,83 @@ describe('mineCivitaiUserPrompts', () => {
     })
     expect(result.recipes?.[0]?.prompt).toBe(
       'detached sleeves, dragon girl, white dress',
+    )
+  })
+
+  // Issue A (docs/plans/lora-search-image-audit-2026-07.md): meilisearch
+  // search-hit LoRAs never carry a fileHashAutoV3 (hitToLibraryItem writes
+  // null — the search index doesn't expose files[].hashes). Recipes must
+  // still come back from the model-version source images using only
+  // modelId+modelVersionId; the hash is not a gate.
+  it('mines source recipes from model-version images when fileHashAutoV3 is null (search-hit LoRAs)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2050454,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/phrolova-source.jpeg',
+            width: 832,
+            height: 1216,
+            nsfwLevel: 1,
+            meta: {
+              prompt: '<lora:Phrolova:0.8>, phrolova, purple hair, wings',
+              seed: 42,
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 1494914,
+      modelVersionId: 2050454,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes).toHaveLength(1)
+    expect(result.recipes?.[0]).toMatchObject({
+      imageUrl: 'https://image.civitai.com/phrolova-source.jpeg',
+      source: 'model_version_image',
+      // No hash to match against resources[] — weight still recovers from
+      // the sole in-prompt <lora:..> tag (resolveRecipeLoraSignals' single-
+      // tag fallback), proving the null hash doesn't break weight recovery.
+      loraWeight: 0.8,
+    })
+    expect(result.outfits).toHaveLength(1)
+    // Only the model-versions endpoint is hit — no community-images
+    // fallback call, and no crash from the null hash reaching
+    // resolveRecipeLoraSignals.
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.pathname).toBe('/api/v1/model-versions/2050454')
+  })
+
+  it('mines source recipes when fileHashAutoV3 is omitted entirely (undefined, not just null)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 999,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/no-hash-field.jpeg',
+            nsfwLevel: 1,
+            meta: { prompt: 'a simple prompt, no lora tag at all' },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 1,
+      modelVersionId: 2,
+      // fileHashAutoV3 omitted — exercises the `fileHashAutoV3?: string |
+      // null | undefined` widened type end-to-end (undefined, not null).
+    })
+
+    expect(result.recipes).toHaveLength(1)
+    expect(result.recipes?.[0]?.prompt).toBe(
+      'a simple prompt, no lora tag at all',
     )
   })
 })

@@ -484,10 +484,19 @@ export const NODE_STUDIO_SHOT_REFERENCE_LEGEND = {
  * (model-facing, like the shot legend); the per-slot NAME is either the user's
  * name or the SAME auto-name the composer's token uses (passed in from i18n so
  * `@特写1` in the prompt matches `特写1` in the legend byte-for-byte).
+ *
+ * V-1 (docs/plans/node-video-v1-token-translation.md): `imagePrefix` is
+ * literal `@Image` — Seedance only resolves the positional `@Image1`/`@Image2`
+ * token, not a Chinese label, and `node-video-prompt-translation.ts` now
+ * rewrites the SAME `@ImageN` into the prompt body inline. This legend line
+ * ("@Image1：角色「弗洛洛」") reinforces that binding with the kind, which the
+ * inline body rewrite alone doesn't carry. `videoPrefix`/`audioPrefix` stay
+ * Chinese — video_urls/audio_urls already resolve their own `@VideoN`/`@AudioN`
+ * positional tokens via the fal builder's auto-inject fallback, untouched here.
  */
 export const NODE_STUDIO_VIDEO_REFERENCE_LEGEND = {
   title: '参考素材说明（按名字对应到下列素材）：',
-  imagePrefix: '图',
+  imagePrefix: '@Image',
   videoPrefix: '视',
   audioPrefix: '音',
   kindLabel: {

@@ -109,6 +109,10 @@ import {
   type UpstreamImageReference,
   type VideoLegendImageReference,
 } from '@/lib/node-workflow-graph'
+import {
+  buildReferenceImageIndexByName,
+  translatePromptTokensToPositional,
+} from '@/lib/node-video-prompt-translation'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
@@ -1014,6 +1018,16 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             workflow.nodes,
           )
         : new Map<string, VideoLegendImageReference>()
+      // SAME i18n key the composer's autoName uses (§7.2⑦) — reused below both
+      // for the legend AND the name→@ImageN translation map, so an unnamed
+      // card's auto token ("@角色1") resolves identically in both places.
+      const videoImageAutoNamePrefix = {
+        character: t('videoComposer.autoName.character'),
+        background: t('videoComposer.autoName.background'),
+        shot: t('videoComposer.autoName.shot'),
+        closeup: t('videoComposer.autoName.closeup'),
+        video: t('videoComposer.autoName.video'),
+      }
       const referenceLegend = isShotImageNode
         ? buildShotReferenceLegend(referenceImages, referenceByUrl)
         : isVideoMediaNode
@@ -1028,22 +1042,35 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
                 videoPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.videoPrefix,
                 audioPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.audioPrefix,
                 kindLabel: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.kindLabel,
-                autoNamePrefix: {
-                  character: t('videoComposer.autoName.character'),
-                  background: t('videoComposer.autoName.background'),
-                  shot: t('videoComposer.autoName.shot'),
-                  closeup: t('videoComposer.autoName.closeup'),
-                  video: t('videoComposer.autoName.video'),
-                },
+                autoNamePrefix: videoImageAutoNamePrefix,
                 characterVoiceSuffix:
                   NODE_STUDIO_VIDEO_REFERENCE_LEGEND.characterVoiceSuffix,
                 narration: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.narration,
               },
             })
           : ''
+      // V-1 发送翻译层（docs/plans/node-video-v1-token-translation.md）: Seedance
+      // only resolves the POSITIONAL @Image1/@Image2… token (verified against
+      // fal's reference-to-video contract), never a custom name — so the
+      // @弗洛洛 mention MentionInput serialized into `mergedPrompt` has to be
+      // rewritten to @ImageN right before it leaves the client. The node's
+      // stored prompt / what the composer renders is untouched; only this
+      // outbound copy (`seedanceReadyPrompt`) changes. No-op for non-video
+      // media kinds (empty map → returned verbatim).
+      const imageIndexByName = isVideoMediaNode
+        ? buildReferenceImageIndexByName(
+            referenceImages,
+            videoImageRefByUrl,
+            videoImageAutoNamePrefix,
+          )
+        : new Map<string, number>()
+      const seedanceReadyPrompt = translatePromptTokensToPositional(
+        mergedPrompt,
+        imageIndexByName,
+      )
       const finalPrompt = referenceLegend
-        ? `${referenceLegend}\n\n${mergedPrompt}`
-        : mergedPrompt
+        ? `${referenceLegend}\n\n${seedanceReadyPrompt}`
+        : seedanceReadyPrompt
       const supportsLora =
         isImageMediaNode &&
         hasCapability(model.adapterType, 'lora', model.modelId)

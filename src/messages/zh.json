@@ -93,7 +93,7 @@
       "volcengine": "火山引擎",
       "opensource": "开源",
       "replicate": "Replicate",
-      "runner": "Comfy Runner",
+      "runner": "PixelVault Runner",
       "hyper3d": "Hyper3D"
     },
     "styleGroups": {
@@ -2655,19 +2655,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious（Runner）",
-      "description": "通过 Comfy Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
+      "description": "通过 PixelVault Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
-      "description": "通过 Comfy Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 PixelVault 内生成它的唯一途径。"
+      "description": "通过 PixelVault Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 PixelVault 内生成它的唯一途径。"
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL（Runner）",
-      "description": "通过 Comfy Runner 跑 Pony Diffusion V6 XL——忠实复刻配方，覆盖 Civitai 上体量庞大的 Pony LoRA 生态。"
+      "description": "通过 PixelVault Runner 跑 Pony Diffusion V6 XL——忠实复刻配方，覆盖 Civitai 上体量庞大的 Pony LoRA 生态。"
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0（Runner）",
-      "description": "通过 Comfy Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
+      "description": "通过 PixelVault Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
@@ -4640,9 +4640,9 @@
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",
-      "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 Comfy Runner 模型（忠实复刻）可用，试试切换过去。",
-      "runnerMonthlyLimitExceeded": "Comfy Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
-      "runnerLoraUnavailable": "这个 LoRA 还没在 Comfy Runner 上就绪（未预置）。请换一个 LoRA 或改用托管模型。"
+      "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 PixelVault Runner 模型（忠实复刻）可用，试试切换过去。",
+      "runnerMonthlyLimitExceeded": "PixelVault Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
+      "runnerLoraUnavailable": "这个 LoRA 还没在 PixelVault Runner 上就绪（未预置）。请换一个 LoRA 或改用托管模型。"
     },
     "generation": {
       "provider_timeout": "AI 服务商响应超时",

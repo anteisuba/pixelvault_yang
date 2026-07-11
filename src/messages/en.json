@@ -93,7 +93,7 @@
       "volcengine": "VolcEngine",
       "opensource": "Open Source",
       "replicate": "Replicate",
-      "runner": "Comfy Runner",
+      "runner": "PixelVault Runner",
       "hyper3d": "Hyper3D"
     },
     "styleGroups": {
@@ -2655,19 +2655,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious (Runner)",
-      "description": "Faithful Civitai recipe clone via Comfy Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
+      "description": "Faithful Civitai recipe clone via PixelVault Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL (Runner)",
-      "description": "Anima Pencil-XL via Comfy Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in PixelVault."
+      "description": "Anima Pencil-XL via PixelVault Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in PixelVault."
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL (Runner)",
-      "description": "Pony Diffusion V6 XL via Comfy Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
+      "description": "Pony Diffusion V6 XL via PixelVault Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0 (Runner)",
-      "description": "Plain SDXL 1.0 via Comfy Runner — a faithful recipe-clone path alongside the hosted route."
+      "description": "Plain SDXL 1.0 via PixelVault Runner — a faithful recipe-clone path alongside the hosted route."
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
@@ -4640,9 +4640,9 @@
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",
-      "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a Comfy Runner model (faithful recipe clone) instead, if available.",
-      "runnerMonthlyLimitExceeded": "Comfy Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
-      "runnerLoraUnavailable": "This LoRA isn't available on Comfy Runner yet (not pre-loaded). Try a different LoRA or a hosted model."
+      "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a PixelVault Runner model (faithful recipe clone) instead, if available.",
+      "runnerMonthlyLimitExceeded": "PixelVault Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
+      "runnerLoraUnavailable": "This LoRA isn't available on PixelVault Runner yet (not pre-loaded). Try a different LoRA or a hosted model."
     },
     "generation": {
       "provider_timeout": "The AI provider took too long to respond",

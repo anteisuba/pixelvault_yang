@@ -93,7 +93,7 @@
       "volcengine": "火山エンジン",
       "opensource": "オープンソース",
       "replicate": "Replicate",
-      "runner": "Comfy Runner",
+      "runner": "PixelVault Runner",
       "hyper3d": "Hyper3D"
     },
     "styleGroups": {
@@ -2655,19 +2655,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious（Runner）",
-      "description": "Comfy Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
+      "description": "PixelVault Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
-      "description": "Comfy Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、PixelVault 内で生成できる唯一の経路です。"
+      "description": "PixelVault Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、PixelVault 内で生成できる唯一の経路です。"
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL（Runner）",
-      "description": "Comfy Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
+      "description": "PixelVault Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0（Runner）",
-      "description": "Comfy Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
+      "description": "PixelVault Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
@@ -4640,9 +4640,9 @@
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
       "callbackTimeout": "生成 Worker から時間内に結果が返りませんでした。もう一度試すか、Worker ログを確認してください。",
       "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",
-      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば Comfy Runner モデル（忠実なレシピ複製）をお試しください。",
-      "runnerMonthlyLimitExceeded": "Comfy Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
-      "runnerLoraUnavailable": "この LoRA は Comfy Runner でまだ利用できません（未読み込み）。別の LoRA かホスト型モデルをお試しください。"
+      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば PixelVault Runner モデル（忠実なレシピ複製）をお試しください。",
+      "runnerMonthlyLimitExceeded": "PixelVault Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
+      "runnerLoraUnavailable": "この LoRA は PixelVault Runner でまだ利用できません（未読み込み）。別の LoRA かホスト型モデルをお試しください。"
     },
     "generation": {
       "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",

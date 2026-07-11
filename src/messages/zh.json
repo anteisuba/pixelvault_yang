@@ -4089,6 +4089,12 @@
         "capacityFull": "参考位已满",
         "capacityFullWithLimit": "参考位已满 {current}/{limit}"
       },
+      "preview": {
+        "images": "图集×{count}",
+        "voice": "音色",
+        "slots": "参考位 {current}/{limit}",
+        "fallbackName": "未命名"
+      },
       "removeIngredient": "解绑{name}",
       "quickThrow": {
         "toggleAria": "快投 {name}",
@@ -4097,6 +4103,8 @@
       },
       "looseImageFused": "图已收进角色参考图集",
       "looseImageFuseRejected": "没收进——请拖到角色卡或背景卡上",
+      "canvasNodeIngested": "已吞入目标节点",
+      "canvasNodeIngestRejected": "没吞下",
       "looseImage": {
         "uploading": "正在上传 {count} 张图片…",
         "uploaded": "已落 {count} 张散图到画布",

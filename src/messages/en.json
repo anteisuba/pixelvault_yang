@@ -4089,6 +4089,12 @@
         "capacityFull": "Reference slots are full",
         "capacityFullWithLimit": "Reference slots are full ({current}/{limit})"
       },
+      "preview": {
+        "images": "{count} refs",
+        "voice": "Voice",
+        "slots": "Slots {current}/{limit}",
+        "fallbackName": "Untitled"
+      },
       "removeIngredient": "Unbind {name}",
       "quickThrow": {
         "toggleAria": "Quick-throw {name}",
@@ -4097,6 +4103,8 @@
       },
       "looseImageFused": "Image added to the character's references",
       "looseImageFuseRejected": "Couldn't add that image — drop it on a character or background card",
+      "canvasNodeIngested": "Ingested into the target node",
+      "canvasNodeIngestRejected": "Not ingested",
       "looseImage": {
         "uploading": "Uploading {count, plural, one {# image} other {# images}}...",
         "uploaded": "{count, plural, one {# image} other {# images}} added to the canvas",

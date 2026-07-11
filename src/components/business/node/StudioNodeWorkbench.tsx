@@ -39,6 +39,7 @@ import {
   NODE_STUDIO_DOCK_RESIZE,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
@@ -76,10 +77,12 @@ import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
   applyBiteHover,
   clearBiteHover,
+  evaluateCastIngest,
   findNodeCardElement,
   playCanvasFuseSwallowAnimation,
   playTargetGulpAnimation,
   playTargetRejectShakeAnimation,
+  type CastIngestEvaluation,
 } from '@/hooks/node/use-cast-ingest'
 import { useCanvasImageDrop } from '@/hooks/node/use-canvas-image-drop'
 import {
@@ -207,6 +210,88 @@ interface AddMenuState {
 }
 
 /**
+ * S5f A「画布实体拖拽吞噬全覆盖」: a collector card — character/background,
+ * legacy per-role type OR unified `image` with that role. The ONLY targets
+ * the loose-image FUSION gesture (referenceAssets, no edge) below applies to;
+ * every other legal (source→target) pair from here on rides the general
+ * edge-based ingest path instead (`evaluateCastIngest` + `onConnect`). Also
+ * doubles as row① source detection: this same card, native-canvas-dragged
+ * onto a shot/video target, is the "只是移动" gap the task packet names.
+ */
+function isCollectorCardNode(node: NodeWorkflowNode): boolean {
+  return (
+    (node.type === NODE_TYPE_IDS.image &&
+      (node.data.role === NODE_IMAGE_ROLE_IDS.character ||
+        node.data.role === NODE_IMAGE_ROLE_IDS.background)) ||
+    node.type === NODE_TYPE_IDS.characterImage ||
+    node.type === NODE_TYPE_IDS.backgroundImage
+  )
+}
+
+/** A role-less unified `image` node — 散图, §三.1's "合法稳态". */
+function isLooseImageNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.image && !node.data.role
+}
+
+/**
+ * S5f A: node types whose NATIVE canvas drag (plain ReactFlow
+ * `nodesDraggable`, not the Cast-dock's own pointer-ghost engine) should
+ * attempt an ingest gesture on drop — collector cards (row①), voice (row②),
+ * videoReference (row③), and loose images (row④ fusion / row⑤ edge-ingest,
+ * disambiguated by target type in the drop handler below). Every other node
+ * type (shot/seedance/videoMerge/shotText/closeup/frame/…) is outside this
+ * task packet's five-row scope and keeps plain-move behaviour, unchanged.
+ */
+function isCanvasIngestDragSource(node: NodeWorkflowNode): boolean {
+  return (
+    isCollectorCardNode(node) ||
+    node.type === NODE_TYPE_IDS.voice ||
+    node.type === NODE_TYPE_IDS.videoReference ||
+    isLooseImageNode(node)
+  )
+}
+
+interface CanvasDragHit {
+  targetNodeId: string
+  cardElement: HTMLElement
+}
+
+/**
+ * Stacked `elementsFromPoint` scan (S5c 三.3, S5d 命中检测升级) shared by
+ * every native-canvas-node-drag gesture below — topmost element first, so the
+ * DRAGGED node's own raised-z-index wrapper never shadows the drop target
+ * underneath it (explicitly skipped by id). Canvas nodes
+ * (`.react-flow__node[data-id]`) are checked before a still-open Cast dock's
+ * mirror card (`[data-cast-card-node-id]`), so dropping onto an
+ * already-eaten (hence hidden) identity card via the dock keeps working.
+ */
+function findCanvasDragHit(
+  event: ReactMouseEvent,
+  draggedNodeId: string,
+): CanvasDragHit | null {
+  const stackedElements = document.elementsFromPoint(
+    event.clientX,
+    event.clientY,
+  )
+  for (const candidate of stackedElements) {
+    if (!(candidate instanceof Element)) continue
+    const canvasNode = candidate.closest<HTMLElement>(
+      '.react-flow__node[data-id]',
+    )
+    const canvasNodeId = canvasNode?.getAttribute('data-id')
+    if (canvasNode && canvasNodeId && canvasNodeId !== draggedNodeId) {
+      return { targetNodeId: canvasNodeId, cardElement: canvasNode }
+    }
+    const dockCard = candidate.closest<HTMLElement>('[data-cast-card-node-id]')
+    const dockCardId = dockCard?.getAttribute('data-cast-card-node-id')
+    if (dockCard && dockCardId && dockCardId !== draggedNodeId) {
+      return { targetNodeId: dockCardId, cardElement: dockCard }
+    }
+  }
+  return null
+}
+
+/**
  * S5d ⑤/【紧急修复】: pure legality check shared by the 张口 bite-hover
  * preview (during native drag, `handleNodeDrag`) and the actual fuse mutation
  * (`handleFuseLooseImageNode`) — one source of truth so the bite preview
@@ -218,13 +303,7 @@ function isLegalLooseImageFuseTarget(
   targetNode: NodeWorkflowNode,
 ): boolean {
   if (sourceNode.id === targetNode.id) return false
-  const targetIsIdentityImage =
-    (targetNode.type === NODE_TYPE_IDS.image &&
-      (targetNode.data.role === NODE_IMAGE_ROLE_IDS.character ||
-        targetNode.data.role === NODE_IMAGE_ROLE_IDS.background)) ||
-    targetNode.type === NODE_TYPE_IDS.characterImage ||
-    targetNode.type === NODE_TYPE_IDS.backgroundImage
-  if (!targetIsIdentityImage) return false
+  if (!isCollectorCardNode(targetNode)) return false
 
   const mediaUrl =
     typeof sourceNode.data.mediaUrl === 'string'
@@ -1367,8 +1446,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   // 建边，use-cast-ingest.ts 的 onConnect 恒定 source=身份节点/target=消费者)。
   // 零引用的角色/背景/音色/参考视频卡显示在画布上；拆掉最后一条引用边（成分栏
   // × / 胃取出）时这个 Set 自然少一个 id，卡片下一次渲染就回画布——不需要额外
-  // un-hide 逻辑，纯粹从 workflow.edges 派生。
-  const castIdentityNodeIdsWithOutgoingEdge = useMemo(() => {
+  // un-hide 逻辑，纯粹从 workflow.edges 派生。S5f A 行⑤复用同一个 Set（改名反映
+  // 新用途，不再是 "cast identity 专属"）——散图喂进视频/镜头卡后同样"被吃"。
+  const nodeIdsWithOutgoingEdge = useMemo(() => {
     const ids = new Set<string>()
     for (const edge of workflow.edges) {
       ids.add(edge.source)
@@ -1385,16 +1465,22 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   // (`data.fusedIntoNodeId` set) folds hidden the same way — still a
   // `hidden` flag on the real node, never a filtered array, so 拆出
   // (extract) just clears the flag to bring it back.
+  // S5f A 行⑤：a loose (role-less) image dragged directly into a shot/video
+  // node builds a real EDGE (not a referenceAssets fusion — see
+  // `handleNodeDragStop`), so it folds via the SAME "has an outgoing edge"
+  // rule instead of a third flag. Scoped to `isLooseImageNode` only — shot
+  // images ("镜头图卡") stay excluded on purpose, matching the comment above.
   const renderedNodes = useMemo(
     () =>
-      workflow.nodes.map((node) =>
-        (isCastIdentityNode(node) &&
-          castIdentityNodeIdsWithOutgoingEdge.has(node.id)) ||
-        node.data.fusedIntoNodeId
-          ? { ...node, hidden: true }
-          : node,
-      ),
-    [workflow.nodes, castIdentityNodeIdsWithOutgoingEdge],
+      workflow.nodes.map((node) => {
+        const hasOutgoingEdge = nodeIdsWithOutgoingEdge.has(node.id)
+        const shouldFold =
+          (isCastIdentityNode(node) && hasOutgoingEdge) ||
+          Boolean(node.data.fusedIntoNodeId) ||
+          (isLooseImageNode(node) && hasOutgoingEdge)
+        return shouldFold ? { ...node, hidden: true } : node
+      }),
+    [workflow.nodes, nodeIdsWithOutgoingEdge],
   )
   // 连线渲染退场: every edge goes into the store flagged `hidden` — ReactFlow
   // paints nothing, but `useEdges()` consumers (成分栏 / DepartmentStrip 参考
@@ -1436,6 +1522,30 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       })
     },
     [workflow],
+  )
+
+  // S5f A: same wording table `IngestDragLayer`'s Cast-dock pointer engine
+  // uses (`StudioNode.ingest.reasons.*`) — reused here (not re-worded) so a
+  // 咬不动 rejection reads identically whether the drag started from the Cast
+  // dock or from a native canvas node.
+  const translateIngestReason = useCallback(
+    (evaluation: CastIngestEvaluation): string => {
+      switch (evaluation.reason) {
+        case NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate:
+          return t('ingest.reasons.duplicate')
+        case NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull:
+          return evaluation.limit !== undefined &&
+            evaluation.current !== undefined
+            ? t('ingest.reasons.capacityFullWithLimit', {
+                current: evaluation.current,
+                limit: evaluation.limit,
+              })
+            : t('ingest.reasons.capacityFull')
+        default:
+          return t('ingest.reasons.typeMismatch')
+      }
+    },
+    [t],
   )
 
   // §6 connection contract: reject self-loops and any (source→target) node-type
@@ -1577,10 +1687,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [screenToFlowPosition, workflow],
   )
 
-  // 【紧急修复】融合三拍动画补齐 (owner 2026-07-10 实测反馈①): the fusion
-  // gesture rides ReactFlow's native node drag, which has no per-frame hook
-  // of its own — `onNodeDrag` fires continuously while ANY node drags, so
-  // this hit-tests + applies/clears 张口 (bite hover) on the current legal
+  // 【紧急修复】融合三拍动画补齐 (owner 2026-07-10 实测反馈①), S5f A 扩面
+  // (2026-07-11): the fusion gesture (and now the general canvas-node ingest
+  // gesture below) ride ReactFlow's native node drag, which has no per-frame
+  // hook of its own — `onNodeDrag` fires continuously while ANY node drags,
+  // so this hit-tests + applies/clears 张口 (bite hover) on the current legal
   // target, mirroring `use-cast-ingest.ts`'s own pointer-move bite logic via
   // the SAME exported `applyBiteHover`/`clearBiteHover`/`findNodeCardElement`
   // helpers (no second curve invented). Tracked in refs (not state) — this
@@ -1591,35 +1702,17 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
 
   const handleNodeDrag = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
-      if (node.type !== NODE_TYPE_IDS.image || node.data.role) return
-      const mediaUrl =
-        typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
-      if (!mediaUrl) return
-
-      const stackedElements = document.elementsFromPoint(
-        event.clientX,
-        event.clientY,
-      )
-      let targetId: string | null = null
-      for (const candidate of stackedElements) {
-        if (!(candidate instanceof Element)) continue
-        const canvasNode = candidate.closest<HTMLElement>(
-          '.react-flow__node[data-id]',
-        )
-        const canvasNodeId = canvasNode?.getAttribute('data-id')
-        if (canvasNode && canvasNodeId && canvasNodeId !== node.id) {
-          targetId = canvasNodeId
-          break
-        }
-        const dockCard = candidate.closest<HTMLElement>(
-          '[data-cast-card-node-id]',
-        )
-        const dockCardId = dockCard?.getAttribute('data-cast-card-node-id')
-        if (dockCard && dockCardId && dockCardId !== node.id) {
-          targetId = dockCardId
-          break
-        }
+      if (!isCanvasIngestDragSource(node)) return
+      if (isLooseImageNode(node)) {
+        const mediaUrl =
+          typeof node.data.mediaUrl === 'string'
+            ? node.data.mediaUrl.trim()
+            : ''
+        if (!mediaUrl) return
       }
+
+      const hit = findCanvasDragHit(event, node.id)
+      const targetId = hit?.targetNodeId ?? null
 
       if (targetId === fuseBiteTargetIdRef.current) return
 
@@ -1633,7 +1726,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const targetNode = workflow.nodes.find(
         (candidate) => candidate.id === targetId,
       )
-      if (!targetNode || !isLegalLooseImageFuseTarget(node, targetNode)) return
+      if (!targetNode) return
+
+      // 行④ (fuse) vs 行①②③⑤ (edge ingest) — same dispatch rule the drop
+      // handler below uses: a loose image dropped on a collector card fuses
+      // into its referenceAssets gallery, everything else goes through the
+      // general connection-matrix check.
+      const legal =
+        isLooseImageNode(node) && isCollectorCardNode(targetNode)
+          ? isLegalLooseImageFuseTarget(node, targetNode)
+          : evaluateCastIngest(node, targetNode, workflow.edges, workflow.nodes)
+              .legal
+      if (!legal) return
 
       const el =
         findNodeCardElement(targetId) ??
@@ -1643,22 +1747,24 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       applyBiteHover(el, INGEST_MOTION.biteTiltDeg)
       fuseBiteTargetElRef.current = el
     },
-    [workflow.nodes],
+    [workflow.nodes, workflow.edges],
   )
 
-  // S5c 三.3「onNodeDragStop 包围盒命中检测」(任务包原话) — reuses ReactFlow's
-  // OWN native node-drag lifecycle (nodes are already draggable for plain
-  // repositioning) instead of standing up a second custom pointer/ghost
-  // engine for the reverse gesture direction. The dragged NODE ITSELF is the
-  // visual "flight" for onscreen repositioning, but S5d's urgent fix adds
-  // back a real 吸入 flight ghost (`playCanvasFuseSwallowAnimation`) for the
-  // fusion beat itself — this hit-tests the drop point against currently-
-  // rendered canvas nodes / Cast cards (`data-cast-card-node-id`) and plays
-  // the full three-beat (张口 already applied by `handleNodeDrag` above,
-  // 吸入 + 落定 here) on a legal fuse, or the reject shake otherwise.
-  // Dropping on empty canvas or a non-card element is a no-op — the node
-  // simply stays wherever the native drag left it, a perfectly legal loose-
-  // image resting position (§三.1 散图 = 合法稳态).
+  // S5c 三.3「onNodeDragStop 包围盒命中检测」(任务包原话) + S5f A 扩面 — reuses
+  // ReactFlow's OWN native node-drag lifecycle (nodes are already draggable
+  // for plain repositioning) instead of standing up a second custom
+  // pointer/ghost engine for canvas-node-initiated ingest gestures. The
+  // dragged NODE ITSELF is the visual "flight" for onscreen repositioning,
+  // but S5d's urgent fix adds back a real 吸入 flight ghost
+  // (`playCanvasFuseSwallowAnimation`) for the ingest beat itself — this
+  // hit-tests the drop point against currently-rendered canvas nodes / Cast
+  // cards (`data-cast-card-node-id`) and plays the full three-beat (张口
+  // already applied by `handleNodeDrag` above, 吸入 + 落定 here) on a legal
+  // ingest, or the reject shake otherwise. Dropping on empty canvas or a
+  // non-card element is a no-op — the node simply stays wherever the native
+  // drag left it, a perfectly legal resting position (§三.1 散图 = 合法稳态,
+  // and equally true of a zero-reference collector/voice/videoReference card
+  // that was just dragged across open canvas).
   const handleNodeDragStop = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
       // Clear any 张口 bite-hover state `handleNodeDrag` left applied,
@@ -1670,90 +1776,118 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       }
       fuseBiteTargetIdRef.current = null
 
-      if (node.type !== NODE_TYPE_IDS.image || node.data.role) return
-      const mediaUrl =
-        typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
-      if (!mediaUrl) return
+      if (!isCanvasIngestDragSource(node)) return
+      if (isLooseImageNode(node)) {
+        const mediaUrl =
+          typeof node.data.mediaUrl === 'string'
+            ? node.data.mediaUrl.trim()
+            : ''
+        if (!mediaUrl) return
+      }
 
       // S5d ⑤「融合目标改画布」: fix #2 makes zero-reference character/
       // background cards visible ON CANVAS, so dropping directly onto one is
-      // now the primary path. `elementsFromPoint` (plural — every element
-      // stacked at that point, topmost first), not `elementFromPoint`: the
-      // just-dropped node's OWN `.react-flow__node` wrapper sits exactly
-      // under the cursor too (ReactFlow raises a dragged node's z-index) and
-      // would otherwise shadow the target beneath it, so the loop below
-      // explicitly skips any candidate whose id matches the dragged node.
-      // The Cast dock flyout's own card markup (`[data-cast-card-node-id]`)
-      // is checked too, so fusing into an ALREADY-consumed (hence hidden)
-      // card via the still-open dock keeps working — S5c's original path,
-      // not removed, just no longer the only one.
-      const stackedElements = document.elementsFromPoint(
-        event.clientX,
-        event.clientY,
+      // now the primary path — `findCanvasDragHit` (elementsFromPoint,
+      // plural — every element stacked at that point, topmost first, not
+      // elementFromPoint) explicitly skips the dragged node's own raised-
+      // z-index wrapper so it never shadows the target beneath it, and also
+      // checks the Cast dock flyout's own card markup so dropping onto an
+      // ALREADY-consumed (hence hidden) card via the still-open dock keeps
+      // working — S5c's original path, not removed, just no longer the only
+      // one.
+      const hit = findCanvasDragHit(event, node.id)
+      if (!hit) return
+      const targetNode = workflow.nodes.find(
+        (candidate) => candidate.id === hit.targetNodeId,
       )
-      let cardElement: HTMLElement | null = null
-      let targetNodeId: string | null = null
-      for (const candidate of stackedElements) {
-        if (!(candidate instanceof Element)) continue
-        const canvasNode = candidate.closest<HTMLElement>(
-          '.react-flow__node[data-id]',
-        )
-        const canvasNodeId = canvasNode?.getAttribute('data-id')
-        if (canvasNode && canvasNodeId && canvasNodeId !== node.id) {
-          cardElement = canvasNode
-          targetNodeId = canvasNodeId
-          break
-        }
-        const dockCard = candidate.closest<HTMLElement>(
-          '[data-cast-card-node-id]',
-        )
-        const dockCardId = dockCard?.getAttribute('data-cast-card-node-id')
-        if (dockCard && dockCardId && dockCardId !== node.id) {
-          cardElement = dockCard
-          targetNodeId = dockCardId
-          break
-        }
-      }
-      if (!cardElement || !targetNodeId) return
+      if (!targetNode) return
 
-      // Capture the DRAGGED node's own rendered card BEFORE mutating —
-      // `handleFuseLooseImageNode` sets `fusedIntoNodeId` synchronously,
-      // which folds this node `hidden` on the NEXT render. The ghost clone
-      // below is a snapshot taken while it's still on screen, so the flight
-      // starts from exactly where the node visually sits.
+      // Capture the DRAGGED node's own rendered card BEFORE mutating — both
+      // branches below fold this node `hidden` on the NEXT render (fusion via
+      // `fusedIntoNodeId`, ingest via the new outgoing edge). The ghost clone
+      // is a snapshot taken while it's still on screen, so the flight starts
+      // from exactly where the node visually sits.
       const sourceEl = findNodeCardElement(node.id)
 
-      const fused = handleFuseLooseImageNode(node.id, targetNodeId)
-      if (fused) {
-        const targetNodeIdForAnimation = targetNodeId
-        const announceFused = () =>
-          toast.success(t('ingest.looseImageFused'), {
+      if (isLooseImageNode(node) && isCollectorCardNode(targetNode)) {
+        // 行④ 融合（散图→角色/背景卡，referenceAssets，无边）— S5c/S5d 原样。
+        const fused = handleFuseLooseImageNode(node.id, targetNode.id)
+        if (fused) {
+          const targetNodeIdForAnimation = targetNode.id
+          const announceFused = () =>
+            toast.success(t('ingest.looseImageFused'), {
+              duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+              position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+            })
+          if (sourceEl) {
+            playCanvasFuseSwallowAnimation(
+              sourceEl,
+              targetNodeIdForAnimation,
+              announceFused,
+            )
+          } else {
+            // No DOM element found for the dragged node (shouldn't normally
+            // happen) — degrade to the target's own gulp bounce, same as
+            // before this fix, so the fuse itself never silently loses its
+            // feedback.
+            playTargetGulpAnimation(hit.cardElement)
+            announceFused()
+          }
+          return
+        }
+        playTargetRejectShakeAnimation(hit.cardElement)
+        toast.error(t('ingest.looseImageFuseRejected'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      // S5f A 行①②③⑤: general edge-based ingest — same legality
+      // (canConnectNodeTypes + duplicate + capacity) and the same
+      // onConnect path the Cast-dock pointer engine uses, just triggered by
+      // a NATIVE canvas node drag instead of the dock's own ghost-drag.
+      const evaluation = evaluateCastIngest(
+        node,
+        targetNode,
+        workflow.edges,
+        workflow.nodes,
+      )
+      if (evaluation.legal) {
+        handleIngestConnect(node.id, targetNode.id)
+        const announceIngested = () =>
+          toast.success(t('ingest.canvasNodeIngested'), {
             duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
             position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
           })
         if (sourceEl) {
           playCanvasFuseSwallowAnimation(
             sourceEl,
-            targetNodeIdForAnimation,
-            announceFused,
+            targetNode.id,
+            announceIngested,
           )
         } else {
-          // No DOM element found for the dragged node (shouldn't normally
-          // happen) — degrade to the target's own gulp bounce, same as
-          // before this fix, so the fuse itself never silently loses its
-          // feedback.
-          playTargetGulpAnimation(cardElement)
-          announceFused()
+          playTargetGulpAnimation(hit.cardElement)
+          announceIngested()
         }
         return
       }
-      playTargetRejectShakeAnimation(cardElement)
-      toast.error(t('ingest.looseImageFuseRejected'), {
+
+      playTargetRejectShakeAnimation(hit.cardElement)
+      toast.error(t('ingest.canvasNodeIngestRejected'), {
+        description: translateIngestReason(evaluation),
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [handleFuseLooseImageNode, t],
+    [
+      handleFuseLooseImageNode,
+      handleIngestConnect,
+      t,
+      translateIngestReason,
+      workflow.edges,
+      workflow.nodes,
+    ],
   )
 
   // S5c 三.2 本地文件拖入画布空白处: standard HTML5 DnD (this is a raw OS file

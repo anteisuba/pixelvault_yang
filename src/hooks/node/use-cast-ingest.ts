@@ -9,6 +9,7 @@ import {
   INGEST_MOTION,
 } from '@/constants/motion'
 import {
+  NODE_STUDIO_INGEST_MAGNET,
   NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   type NodeStudioIngestRejectReason,
 } from '@/constants/node-studio'
@@ -84,8 +85,14 @@ function isImageContributingNode(node: NodeWorkflowNode): boolean {
  * selected (an unset model has no knowable cap — the check is skipped
  * entirely rather than guessing, matching the task packet's "上限不可得则
  * 只说「参考位已满」" — here that case simply never raises capacityFull).
+ * Exported for the S5f B3 张口预览 mini-list: the preview shows "参考位 n/m"
+ * whenever the cap is knowable, NOT only when it's exceeded — so the preview
+ * needs the raw numbers even while `evaluateCastIngest` stays legal. Kept
+ * OUT of `CastIngestEvaluation`'s legal shape on purpose (existing tests
+ * assert `toEqual({ legal: true })`, and "legal + incidental numbers" would
+ * be a weaker contract).
  */
-function evaluateCapacity(
+export function previewIngestCapacity(
   sourceNode: NodeWorkflowNode,
   targetNode: NodeWorkflowNode,
   edges: readonly NodeWorkflowEdge[],
@@ -145,7 +152,7 @@ export function evaluateCastIngest(
       reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate,
     }
   }
-  const capacity = evaluateCapacity(sourceNode, targetNode, edges, nodes)
+  const capacity = previewIngestCapacity(sourceNode, targetNode, edges, nodes)
   if (capacity && capacity.current >= capacity.limit) {
     return {
       legal: false,
@@ -172,6 +179,45 @@ export function findNodeCardElement(nodeId: string): HTMLElement | null {
   const wrapper = findNodeWrapperElement(nodeId)
   if (!wrapper) return null
   return wrapper.querySelector<HTMLElement>('.node-card-paper') ?? wrapper
+}
+
+/** S5f B: a node's rendered ingest-target surface — its canvas card if
+ *  visible, else its Cast dock mirror card (an eaten identity node only
+ *  exists on screen as the dock card). One resolver so magnet/quick-throw/
+ *  hit-test all agree on what "the target element" means. */
+export function findIngestTargetElement(nodeId: string): HTMLElement | null {
+  return (
+    findNodeCardElement(nodeId) ??
+    document.querySelector<HTMLElement>(`[data-cast-card-node-id="${nodeId}"]`)
+  )
+}
+
+/** Distance from a point to a rect's closest edge (0 while inside) — the
+ *  磁吸 snap metric (§6.3 ①「指针阈值半径内最近目标」). Edge distance, not
+ *  center distance: big cards would otherwise never win against small ones. */
+export function distanceToRect(x: number, y: number, rect: DOMRect): number {
+  const dx = Math.max(rect.left - x, 0, x - rect.right)
+  const dy = Math.max(rect.top - y, 0, y - rect.bottom)
+  return Math.hypot(dx, dy)
+}
+
+const INGEST_MAGNET_CLASS = 'node-ingest-magnet'
+
+/** S5f B1 磁吸弱档：mark one legal target while a drag is in flight. Same
+ *  imperative-classList discipline as `applyBiteHover` (never React state —
+ *  applied to N cards at drag start, per-frame renders must not eat it). */
+export function applyMagnetHighlight(el: HTMLElement): void {
+  el.classList.add(INGEST_MAGNET_CLASS)
+}
+
+/** Global sweep instead of per-element bookkeeping — a drag can end from
+ *  pointerup/pointercancel/unmount, and hot-expanding the Cast dock mid-drag
+ *  can even re-render carriers; one querySelectorAll is the only cleanup
+ *  that's correct in every exit path. */
+export function clearAllMagnetHighlights(): void {
+  document
+    .querySelectorAll<HTMLElement>(`.${INGEST_MAGNET_CLASS}`)
+    .forEach((el) => el.classList.remove(INGEST_MAGNET_CLASS))
 }
 
 function prefersReducedMotion(): boolean {
@@ -352,6 +398,13 @@ export function playCanvasFuseSwallowAnimation(
     .finally(cleanup)
 }
 
+/** One legal drop target collected at drag start — kept with its element so
+ *  the per-frame nearest-target scan (磁吸) never re-queries the DOM. */
+interface MagnetTarget {
+  id: string
+  el: HTMLElement
+}
+
 interface PendingDrag {
   source: CastIngestSourceInfo
   pointerId: number
@@ -360,7 +413,14 @@ interface PendingDrag {
   originRect: DOMRect
   dragging: boolean
   currentTargetId: string | null
+  /** null until the drag threshold is crossed (magnet lights up with the
+   *  ghost, not on plain taps). */
+  magnetTargets: MagnetTarget[] | null
+  /** S5f B2 触屏长按 → 快投 (only armed for touch pointers with an
+   *  onLongPress handler). */
+  longPressTimer: number | null
   onTap?(): void
+  onLongPress?(): void
 }
 
 export interface BeginCastDragParams {
@@ -370,6 +430,19 @@ export interface BeginCastDragParams {
   /** Called if the pointer never crosses the drag threshold — lets the
    *  caller treat it as a plain tap without double-handling click. */
   onTap?(): void
+  /** S5f B2: touch-only long-press (NODE_STUDIO_INGEST_QUICK_THROW.
+   *  longPressMs) before the drag threshold is crossed — the touchscreen
+   *  entry into quick-throw mode (desktop uses the hover button instead). */
+  onLongPress?(): void
+}
+
+/** S5f B3 张口预览: fired whenever the bite target changes — `null` on
+ *  leaving a target / drag end. The consumer (workbench) translates this
+ *  into the mini-list overlay; the engine itself stays i18n-free. */
+export interface CastIngestBiteChange {
+  sourceNode: NodeWorkflowNode
+  targetNode: NodeWorkflowNode
+  evaluation: CastIngestEvaluation
 }
 
 interface UseCastIngestEngineParams {
@@ -377,6 +450,7 @@ interface UseCastIngestEngineParams {
   edges: NodeWorkflowEdge[]
   onConnect(sourceId: string, targetId: string): void
   translateReason(evaluation: CastIngestEvaluation): string
+  onBiteChange?(change: CastIngestBiteChange | null): void
 }
 
 export interface CastIngestEngine {
@@ -400,6 +474,7 @@ export function useCastIngestEngine({
   edges,
   onConnect,
   translateReason,
+  onBiteChange,
 }: UseCastIngestEngineParams): CastIngestEngine {
   const [dragState, setDragState] =
     useState<CastIngestDragState>(EMPTY_DRAG_STATE)
@@ -420,6 +495,10 @@ export function useCastIngestEngine({
   useEffect(() => {
     translateReasonRef.current = translateReason
   }, [translateReason])
+  const onBiteChangeRef = useRef(onBiteChange)
+  useEffect(() => {
+    onBiteChangeRef.current = onBiteChange
+  }, [onBiteChange])
 
   const pendingRef = useRef<PendingDrag | null>(null)
   const ghostElRef = useRef<HTMLDivElement | null>(null)
@@ -458,6 +537,35 @@ export function useCastIngestEngine({
       if (!pending.dragging) {
         if (Math.hypot(dx, dy) < INGEST_MOTION.dragThresholdPx) return
         pending.dragging = true
+        // Crossing the threshold cancels the touch long-press candidate —
+        // the gesture is now unambiguously a drag, not a quick-throw entry.
+        if (pending.longPressTimer !== null) {
+          window.clearTimeout(pending.longPressTimer)
+          pending.longPressTimer = null
+        }
+        // S5f B1 磁吸弱档: light up EVERY legal drop target for this source
+        // once, at drag activation — evaluated against the same
+        // evaluateCastIngest the drop uses, so the highlight never promises
+        // a target the drop would reject. Canvas cards only
+        // (findNodeCardElement, not the dock fallback): the dock dims to
+        // opacity-40 during a cast drag and isn't part of this direction's
+        // hit path.
+        const magnetTargets: MagnetTarget[] = []
+        for (const node of nodesRef.current) {
+          if (node.id === pending.source.node.id) continue
+          const evaluation = evaluateCastIngest(
+            pending.source.node,
+            node,
+            edgesRef.current,
+            nodesRef.current,
+          )
+          if (!evaluation.legal) continue
+          const el = findNodeCardElement(node.id)
+          if (!el) continue
+          applyMagnetHighlight(el)
+          magnetTargets.push({ id: node.id, el })
+        }
+        pending.magnetTargets = magnetTargets
         setDragState({
           active: true,
           sourceNodeId: pending.source.node.id,
@@ -485,15 +593,41 @@ export function useCastIngestEngine({
         hitElement instanceof Element
           ? hitElement.closest('.react-flow__node')
           : null
-      const targetId = nodeWrapper?.getAttribute('data-id') ?? null
+      let targetId = nodeWrapper?.getAttribute('data-id') ?? null
+
+      // S5f B1 磁吸吸附: no direct hit → nearest legal target within the
+      // snap radius counts as the target (张口满档 + 松手即落这家 —— 磁吸
+      // 既是视觉也是落点放宽). Direct hits always win over proximity.
+      if (!targetId && pending.magnetTargets) {
+        let nearest: MagnetTarget | null = null
+        let nearestDistance = Number.POSITIVE_INFINITY
+        for (const candidate of pending.magnetTargets) {
+          const distance = distanceToRect(
+            event.clientX,
+            event.clientY,
+            candidate.el.getBoundingClientRect(),
+          )
+          if (distance < nearestDistance) {
+            nearestDistance = distance
+            nearest = candidate
+          }
+        }
+        if (
+          nearest &&
+          nearestDistance <= NODE_STUDIO_INGEST_MAGNET.snapRadiusPx
+        ) {
+          targetId = nearest.id
+        }
+      }
 
       if (targetId === pending.currentTargetId) return
       clearBite(pending.currentTargetId)
       pending.currentTargetId = targetId
+      onBiteChangeRef.current?.(null)
 
       if (targetId && targetId !== pending.source.node.id) {
         const targetNode = nodesRef.current.find((node) => node.id === targetId)
-        const evaluation = targetNode
+        const evaluation: CastIngestEvaluation = targetNode
           ? evaluateCastIngest(
               pending.source.node,
               targetNode,
@@ -505,6 +639,21 @@ export function useCastIngestEngine({
           const tiltDeg =
             dx >= 0 ? INGEST_MOTION.biteTiltDeg : -INGEST_MOTION.biteTiltDeg
           applyBiteHover(findNodeCardElement(targetId), tiltDeg)
+        }
+        // S5f B3 张口预览: legal → normal mini-list; capacityFull → red row
+        // (契约校验前置 — 咬不动之前就看得到超限). typeMismatch/duplicate
+        // stay silent (nothing useful to preview).
+        if (
+          targetNode &&
+          (evaluation.legal ||
+            evaluation.reason ===
+              NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull)
+        ) {
+          onBiteChangeRef.current?.({
+            sourceNode: pending.source.node,
+            targetNode,
+            evaluation,
+          })
         }
       }
     },
@@ -716,7 +865,13 @@ export function useCastIngestEngine({
   )
 
   const beginDrag = useCallback(
-    ({ source, pointerEvent, originElement, onTap }: BeginCastDragParams) => {
+    ({
+      source,
+      pointerEvent,
+      originElement,
+      onTap,
+      onLongPress,
+    }: BeginCastDragParams) => {
       pendingRef.current = {
         source,
         pointerId: pointerEvent.pointerId,
@@ -725,7 +880,10 @@ export function useCastIngestEngine({
         originRect: originElement.getBoundingClientRect(),
         dragging: false,
         currentTargetId: null,
+        magnetTargets: null,
+        longPressTimer: null,
         onTap,
+        onLongPress,
       }
       window.addEventListener('pointermove', handlePointerMove)
       window.addEventListener('pointerup', handlePointerUp)

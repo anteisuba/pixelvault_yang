@@ -4089,6 +4089,12 @@
         "capacityFull": "参照枠が満杯です",
         "capacityFullWithLimit": "参照枠が満杯です（{current}/{limit}）"
       },
+      "preview": {
+        "images": "参照×{count}",
+        "voice": "音声",
+        "slots": "参照枠 {current}/{limit}",
+        "fallbackName": "無題"
+      },
       "removeIngredient": "{name}のバインドを解除",
       "quickThrow": {
         "toggleAria": "{name}をクイック投入",
@@ -4097,6 +4103,8 @@
       },
       "looseImageFused": "画像をキャラクターの参照ギャラリーに追加しました",
       "looseImageFuseRejected": "追加できませんでした——キャラクターカードか背景カードにドロップしてください",
+      "canvasNodeIngested": "対象ノードに取り込みました",
+      "canvasNodeIngestRejected": "取り込めませんでした",
       "looseImage": {
         "uploading": "{count} 枚の画像をアップロード中…",
         "uploaded": "{count} 枚の画像をキャンバスに配置しました",

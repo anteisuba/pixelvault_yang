@@ -5,15 +5,21 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_INGEST_REJECT_REASON_IDS } from '@/constants/node-studio'
+import { isVoiceProfileNode } from '@/lib/node-workflow-graph'
+import { cn } from '@/lib/utils'
 import {
+  findIngestTargetElement,
+  previewIngestCapacity,
   useCastIngestEngine,
   type BeginCastDragParams,
+  type CastIngestBiteChange,
   type CastIngestDragState,
   type CastIngestEvaluation,
 } from '@/hooks/node/use-cast-ingest'
@@ -51,6 +57,37 @@ interface IngestDragProviderProps {
  * alongside its children, so a single instance near the top of the canvas
  * tree covers every Cast card everywhere in the subtree.
  */
+/** S5f B3 张口预览: the mini-list floated above the bite target while a Cast
+ *  card hovers a legal (or capacity-full) drop target — a "what am I about to
+ *  feed" glance before committing (§6.3). Position captured at bite time; the
+ *  target doesn't move during a hover so a static anchor reads fine. */
+interface MouthPreviewState {
+  x: number
+  y: number
+  name: string
+  imageCount: number
+  hasVoice: boolean
+  capacity: { current: number; limit: number } | null
+  overLimit: boolean
+}
+
+/** Card display name for the preview header — mirrors CastCard.getCastCardName's
+ *  field precedence but without needing the sectionId (the drag already knows
+ *  the source node; this derives a human label from whichever identity field is
+ *  set). */
+function deriveSourceName(node: NodeWorkflowNode): string | undefined {
+  const pick = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined
+  return (
+    pick(node.data.characterName) ||
+    pick(node.data.character?.name) ||
+    pick(node.data.backgroundName) ||
+    pick(node.data.voiceName) ||
+    pick(node.data.mediaLabel) ||
+    undefined
+  )
+}
+
 export function IngestDragProvider({
   nodes,
   edges,
@@ -58,6 +95,49 @@ export function IngestDragProvider({
   children,
 }: IngestDragProviderProps) {
   const t = useTranslations('StudioNode.ingest')
+  const [preview, setPreview] = useState<MouthPreviewState | null>(null)
+
+  const handleBiteChange = useCallback(
+    (change: CastIngestBiteChange | null) => {
+      if (!change) {
+        setPreview(null)
+        return
+      }
+      const rect = findIngestTargetElement(
+        change.targetNode.id,
+      )?.getBoundingClientRect()
+      if (!rect) {
+        setPreview(null)
+        return
+      }
+      const source = change.sourceNode
+      const imageCount = Array.isArray(source.data.referenceAssets)
+        ? source.data.referenceAssets.length
+        : 0
+      const hasVoice = edges.some((edge) => {
+        if (edge.target !== source.id) return false
+        const voiceNode = nodes.find((node) => node.id === edge.source)
+        return voiceNode ? isVoiceProfileNode(voiceNode) : false
+      })
+      setPreview({
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+        name: deriveSourceName(source) ?? t(`preview.fallbackName`),
+        imageCount,
+        hasVoice,
+        capacity: previewIngestCapacity(
+          source,
+          change.targetNode,
+          edges,
+          nodes,
+        ),
+        overLimit:
+          change.evaluation.reason ===
+          NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull,
+      })
+    },
+    [edges, nodes, t],
+  )
 
   const translateReason = useCallback(
     (evaluation: CastIngestEvaluation): string => {
@@ -84,6 +164,7 @@ export function IngestDragProvider({
     edges,
     onConnect,
     translateReason,
+    onBiteChange: handleBiteChange,
   })
 
   const value = useMemo<IngestDragContextValue>(
@@ -94,6 +175,7 @@ export function IngestDragProvider({
   return (
     <IngestDragContext.Provider value={value}>
       {children}
+      <IngestMouthPreview preview={engine.dragState.active ? preview : null} />
       <IngestGhostPortal
         dragState={engine.dragState}
         registerGhostElement={engine.registerGhostElement}
@@ -163,6 +245,55 @@ function IngestGhostPortal({
         </div>
       ) : null}
     </>,
+    document.body,
+  )
+}
+
+/**
+ * S5f B3 张口预览: the "what am I about to feed" mini-list, portaled above the
+ * bite target while a Cast card hovers a legal (or capacity-full) drop target.
+ * `overLimit` turns the whole chip red — the capacity ceiling is visible
+ * BEFORE the drop's 咬不动 rejection (§6.3 契约校验前置). i18n-free numbers are
+ * translated here (engine stays locale-free via the CastIngestBiteChange).
+ */
+function IngestMouthPreview({
+  preview,
+}: {
+  preview: MouthPreviewState | null
+}) {
+  const t = useTranslations('StudioNode.ingest')
+  if (typeof document === 'undefined' || !preview) {
+    return null
+  }
+  return createPortal(
+    <div
+      role="status"
+      className={cn(
+        'pointer-events-none fixed z-50 flex -translate-x-1/2 -translate-y-full items-center gap-1.5 whitespace-nowrap rounded-lg border bg-node-panel px-2.5 py-1 text-2xs font-medium shadow-node-panel',
+        preview.overLimit
+          ? 'border-node-status-failed/60 text-node-status-failed'
+          : 'border-node-panel-inner/70 text-node-foreground',
+      )}
+      style={{ left: preview.x, top: preview.y - 8 }}
+    >
+      <span className="font-semibold">@{preview.name}</span>
+      {preview.imageCount > 0 ? (
+        <span className="text-node-muted">
+          {t('preview.images', { count: preview.imageCount })}
+        </span>
+      ) : null}
+      {preview.hasVoice ? (
+        <span className="text-node-muted">{t('preview.voice')}</span>
+      ) : null}
+      {preview.capacity ? (
+        <span className={preview.overLimit ? undefined : 'text-node-muted'}>
+          {t('preview.slots', {
+            current: preview.capacity.current,
+            limit: preview.capacity.limit,
+          })}
+        </span>
+      ) : null}
+    </div>,
     document.body,
   )
 }

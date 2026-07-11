@@ -141,4 +141,66 @@ describe('evaluateCastIngest', () => {
       evaluateCastIngest(voice, character, [], [voice, character]),
     ).toEqual({ legal: true })
   })
+
+  // S5f A「画布实体拖拽吞噬全覆盖」— these combinations were already legal per
+  // canConnectNodeTypes before this slice (the matrix itself is untouched);
+  // what S5f adds is the native-canvas-drag GESTURE that now reaches
+  // evaluateCastIngest for them too (StudioNodeWorkbench.handleNodeDragStop).
+  // Locking the legality contract in here as regression coverage for the
+  // five task-packet rows, independent of the drag/DOM plumbing.
+
+  it('row① allows a collector card (character/background) into a shot node', () => {
+    const character = makeNode('character-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+    })
+    const background = makeNode('background-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.background,
+    })
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+    })
+    expect(evaluateCastIngest(character, shot, [], [character, shot])).toEqual({
+      legal: true,
+    })
+    expect(
+      evaluateCastIngest(background, shot, [], [background, shot]),
+    ).toEqual({ legal: true })
+  })
+
+  it('row② allows voice into a video node (旁白) as well as into a character', () => {
+    const voice = makeNode('voice-1', NODE_TYPE_IDS.voice)
+    const video = makeNode('video-1', NODE_TYPE_IDS.seedance)
+    expect(evaluateCastIngest(voice, video, [], [voice, video])).toEqual({
+      legal: true,
+    })
+  })
+
+  it('row③ allows a reference video into a video node', () => {
+    const videoReference = makeNode('video-ref-1', NODE_TYPE_IDS.videoReference)
+    const video = makeNode('video-1', NODE_TYPE_IDS.seedance)
+    expect(
+      evaluateCastIngest(videoReference, video, [], [videoReference, video]),
+    ).toEqual({ legal: true })
+  })
+
+  it('row⑤ allows a loose (role-less) image directly into a video node', () => {
+    const looseImage = makeNode('image-1', NODE_TYPE_IDS.image)
+    const video = makeNode('video-1', NODE_TYPE_IDS.seedance)
+    expect(
+      evaluateCastIngest(looseImage, video, [], [looseImage, video]),
+    ).toEqual({ legal: true })
+  })
+
+  it('row⑤ rejects a loose (role-less) image dropped on a shot node (矩阵只认 character/background 来源，not a bug)', () => {
+    const looseImage = makeNode('image-1', NODE_TYPE_IDS.image)
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+    })
+    expect(
+      evaluateCastIngest(looseImage, shot, [], [looseImage, shot]),
+    ).toEqual({
+      legal: false,
+      reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.typeMismatch,
+    })
+  })
 })

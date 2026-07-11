@@ -222,6 +222,20 @@ export const NODE_STUDIO_INGEST_QUICK_THROW = {
   longPressMs: 420,
 } as const
 
+/**
+ * S5f B 磁吸（§6.3 增强三件套①）+ 折叠把手热区（B4）。§6.3 只说"指针阈值
+ * 半径内最近目标张口满档"，未给数值——两档都按 44px 触达纪律的整数邻域取
+ * （96 ≈ 两指宽，64 ≈ 一次触达半径），owner 手感不合适可只调这里。
+ */
+export const NODE_STUDIO_INGEST_MAGNET = {
+  /** 指针到目标卡矩形边缘的吸附距离（px）：半径内最近合法目标张口满档，
+   *  松手视同落在该目标上（磁吸不只是视觉，也放宽落点精度）。 */
+  snapRadiusPx: 96,
+  /** 折叠把手热区（B4）：拖拽中的实体距折叠把手矩形此距离内 → 横匣临时
+   *  展开；松手/取消后回折叠态。 */
+  handleHotZonePx: 64,
+} as const
+
 export const NODE_STUDIO_DOCK_RESIZE = {
   /** Defaults match the previous fixed `lg:w-studio-right` (28rem) / `w-96` (24rem) sizing. */
   defaultWidthPx: 448,

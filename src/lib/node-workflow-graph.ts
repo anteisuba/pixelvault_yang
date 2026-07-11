@@ -143,6 +143,39 @@ export function getNodeMediaUrl(
   return imageUrl ?? mediaUrl
 }
 
+/**
+ * V-2 主图（docs/plans/node-video-v2v3-master-panel.md）: the ONE image a
+ * card (character/background identity node) contributes to a downstream
+ * harvest (video reference / shot image-to-image). A card can collect
+ * several `referenceAssets` for organizing/swapping (S5c 视觉身份区), but
+ * only the user-starred one (`isPrimary`) actually rides `image_urls`.
+ *
+ * Resolution order:
+ *   1. The `referenceAssets` entry marked `isPrimary` (explicit ★ pick).
+ *   2. `getNodeMediaUrl` — the node's own `imageUrl`/`mediaUrl` ("首图" for
+ *      every card saved before V-2, so an un-starred old card sends exactly
+ *      what it always sent — no behavior change).
+ *   3. The FIRST `referenceAssets` entry — closes a pre-existing gap for
+ *      cards built purely through S5c 融合 (loose image → card), which have
+ *      no `mediaUrl` at all and, before this function existed, contributed
+ *      NOTHING to a video harvest even though they visibly hold images in
+ *      the dossier gallery. This only ever ADDS a reference that was
+ *      previously silently dropped; it never removes one a card already
+ *      sent.
+ *
+ * Non-identity nodes (shot/keyframe/closeup) never get an `isPrimary` entry
+ * today — no UI writes one there — so this always degrades to step 2 for
+ * them, byte-identical to calling `getNodeMediaUrl` directly.
+ */
+export function getNodePrimaryMediaUrl(
+  data: NodeWorkflowNodeData,
+): string | undefined {
+  const assets = data.referenceAssets ?? []
+  const starred = assets.find((asset) => asset.isPrimary)
+  if (starred) return starred.url
+  return getNodeMediaUrl(data) ?? assets[0]?.url
+}
+
 export function getUpstreamNodes(
   nodeId: string,
   edges: readonly NodeWorkflowEdge[],
@@ -181,9 +214,12 @@ export function harvestUpstreamImageUrls(
     if (!isKeyframeNode(node)) continue
     pushUnique(result, getNodeMediaUrl(node.data))
   }
+  // V-2 主图: character/background/shot cards send their ★-starred
+  // referenceAssets entry (falls back to mediaUrl / first collected image —
+  // see getNodePrimaryMediaUrl), not just the raw mediaUrl.
   for (const node of upstreamNodes) {
     if (!isVisualReferenceNode(node)) continue
-    pushUnique(result, getNodeMediaUrl(node.data))
+    pushUnique(result, getNodePrimaryMediaUrl(node.data))
   }
 
   return result
@@ -212,7 +248,7 @@ export function harvestUpstreamCloseupUrls(
     if (getSeedanceReferenceKind(node) !== 'character') continue
     for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
       if (!isCloseupNode(upstream)) continue
-      pushUnique(result, getNodeMediaUrl(upstream.data))
+      pushUnique(result, getNodePrimaryMediaUrl(upstream.data))
     }
   }
 
@@ -281,7 +317,7 @@ export function harvestUpstreamImageReferences(
   for (const node of upstreamNodes) {
     const kind = getSeedanceReferenceKind(node)
     if (kind !== 'character' && kind !== 'background') continue
-    const url = getNodeMediaUrl(node.data)
+    const url = getNodePrimaryMediaUrl(node.data)
     if (!url || seen.has(url)) continue
     seen.add(url)
     const name =
@@ -387,7 +423,11 @@ export function harvestUpstreamVideoImageReferences(
     if (kind !== 'character' && kind !== 'background' && kind !== 'shot') {
       continue
     }
-    const url = getNodeMediaUrl(node.data)
+    // V-2 主图: key by the SAME primary-aware URL harvestUpstreamImageUrls
+    // puts in referenceImages — otherwise this map misses every card whose
+    // ★ pick differs from its raw mediaUrl, and the V-1 name→@ImageN
+    // translation (buildReferenceImageIndexByName) silently fails to bind it.
+    const url = getNodePrimaryMediaUrl(node.data)
     if (url && !map.has(url)) {
       const name =
         kind === 'character'
@@ -400,7 +440,7 @@ export function harvestUpstreamVideoImageReferences(
     if (kind !== 'character') continue
     for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
       if (!isCloseupNode(upstream)) continue
-      const closeupUrl = getNodeMediaUrl(upstream.data)
+      const closeupUrl = getNodePrimaryMediaUrl(upstream.data)
       if (!closeupUrl || map.has(closeupUrl)) continue
       map.set(closeupUrl, {
         kind: 'closeup',

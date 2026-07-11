@@ -8,6 +8,7 @@ import {
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
   getNodeMediaUrl,
+  getNodePrimaryMediaUrl,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
@@ -193,6 +194,85 @@ describe('getNodeMediaUrl', () => {
   })
 })
 
+describe('getNodePrimaryMediaUrl (V-2 主图)', () => {
+  it('prefers the ★-starred referenceAssets entry over mediaUrl', () => {
+    expect(
+      getNodePrimaryMediaUrl({
+        prompt: '',
+        status: 'idle',
+        mediaUrl: 'https://cdn/media.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/ref1.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/ref2.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+          },
+        ],
+      }),
+    ).toBe('https://cdn/ref2.png')
+  })
+
+  it('falls back to getNodeMediaUrl when nothing is starred (旧存档兼容)', () => {
+    expect(
+      getNodePrimaryMediaUrl({
+        prompt: '',
+        status: 'idle',
+        mediaUrl: 'https://cdn/media.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/ref1.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+    ).toBe('https://cdn/media.png')
+  })
+
+  it('falls back to the first referenceAssets entry for a 融合-only card with no mediaUrl', () => {
+    expect(
+      getNodePrimaryMediaUrl({
+        prompt: '',
+        status: 'idle',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/ref1.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'canvas',
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/ref2.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'canvas',
+          },
+        ],
+      }),
+    ).toBe('https://cdn/ref1.png')
+  })
+
+  it('returns undefined for a fully empty card', () => {
+    expect(
+      getNodePrimaryMediaUrl({ prompt: '', status: 'idle' }),
+    ).toBeUndefined()
+  })
+})
+
 describe('getUpstreamNodes', () => {
   it('returns only direct upstream nodes for a target', () => {
     const nodes = [
@@ -277,6 +357,46 @@ describe('harvestUpstreamImageUrls', () => {
     ]
     expect(harvestUpstreamImageUrls(upstream)).toEqual([])
   })
+
+  it('V-2 主图: sends the ★-starred referenceAssets image instead of mediaUrl', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/char-alt.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+      'https://cdn/char-alt.png',
+    ])
+  })
+
+  it('V-2 主图: a 融合-only card (no mediaUrl) now contributes its first referenceAssets image', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/fused.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'canvas',
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+      'https://cdn/fused.png',
+    ])
+  })
 })
 
 describe('harvestUpstreamCloseupUrls (§9 B 1-hop)', () => {
@@ -353,6 +473,28 @@ describe('harvestUpstreamImageReferences', () => {
     expect(harvestUpstreamImageReferences(upstream)).toEqual([
       { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
       { url: 'https://cdn/bg.png', kind: 'background', name: '拉海洛' },
+    ])
+  })
+
+  it('V-2 主图: uses the ★-starred referenceAssets image for a shot node harvest', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/char-alt.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/char-alt.png', kind: 'character', name: 'yangyang' },
     ])
   })
 

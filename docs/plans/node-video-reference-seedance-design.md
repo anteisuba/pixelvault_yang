@@ -12,6 +12,9 @@
 2. 每个身份最多 **2 张参考图、角度接近**（6 张收到 2 张，后续镜头漂移降 ~60%）；每图关联一个「身份槽」（条件注意力防串味）。
 3. 容量：图 ≤9 · 视频 ≤3 · 音频 ≤3 · 合计 ≤12 文件。
 4. 多角色同帧支持（各自参考图，同时维持多身份）。
+5. **多张参考图 = 多个位置槽**（2026-07-12 补核）：一个角色 2 张图 = @Image1+@Image2，prompt 里说「都是弗洛洛」把它们归到同一身份。
+6. **图↔音绑定 = prompt 里同名，无结构参数**（2026-07-12 补核）：`@Image1（弗洛洛）` + `@Audio1（弗洛洛）` → 靠共享名字「弗洛洛」让模型认「这脸配这声」；且 Seedance **用 @Image1 肖像驱动 @Audio1 口型**（图管画面也管 lip-sync）。→ 现设计已天然做到（audioBindings 带名 + V-1 图片翻译带名），名字是跨模态绑定胶水，不用加参数。
+7. **多角色同时 lip-sync 是弱项**（2026-07-12 补核）：单角色短句最稳；多人对话建议分镜各出一条再拼，或 prompt 每句点名说话人。影响「多角色配音怎么用」，不影响绑定机制。
 
 **owner 决策（2026-07-11）**：
 
@@ -36,15 +39,19 @@
 - **主图（新增概念）**：卡片收藏多图供人组织/换用，但**只有用户指定的 1 张「主图」真送 Seedance**（★ 标记）。Seedance 每身份 ≤2 图，故留「可选再指定 1 张副图一并送」的口子，MVP 默认只送主图。
 - **声音**：打包在角色卡里是组织方便；发送时走**独立 audio 槽**（@AudioN），不占图槽。
 - 收藏的非主图：仅用于人快速换主图 / 未来备选，不送 Seedance。
+- **多图 = 多槽（§0-5）**：一张卡若送 >1 图（主图 + 可选副图），它们各占一个位置槽（@Image1+@Image2），归到同一身份靠 prompt 说明（见 §3-4）。故「一卡一 @名字」在传输层展开为「一身份 1-2 槽」，卡片是身份聚合、槽是 Seedance 原子——两层不 1:1，翻译层负责展开。
+- **图↔音同名绑定（§0-6）**：角色卡的**图和音是同一身份**——发送时二者都挂该角色名（图 `@Image1（弗洛洛）` + 音 `@Audio1（弗洛洛）`），Seedance 靠共享名认「这脸配这声」并用肖像驱动口型。**设计含义**：角色卡里图与音的名字必须一致（同一角色名），这是跨模态绑定的唯一胶水；现状已做到（audioBindings 带名 + V-1 图片翻译带名），卡片模型不需为此加字段。
 
 ## 3. 发送序列化规则（正确性核心）
 
 1. **只送「已引用」**：prompt 里 @ 到的素材才进 payload（截图「已引用 4 / 已连接 18」的分野 = 送/不送的分野）。已连接未引用 = 可选素材盘，不发。→ 顺带解决容量 + 「未引用图 Seedance 用不用」的不确定（压根不发）。
 2. **名字→位置翻译**：把 prompt 里的 `@弗洛洛`/`@长麻花馆` 按其主图在 image_urls 的落位，替换成 `@Image1`/`@Image2`；同时在 prompt 相应处或图例注入名字说明「@Image1 是弗洛洛，保持外观」。
 3. **主图入 image_urls**：每个已引用卡 → 其主图（1 张，可选 +1 副图）按引用顺序推入 image_urls。
-4. **多身份**：多个已引用角色 → 各自主图各占一个身份槽，prompt 分别 @ImageN 说明（Seedance 支持多身份）。
-5. **容量护栏**：已引用**图** > 9 时提示用户取舍（Seedance 图上限）；合计文件 > 12 同理。
-6. **音频/视频**：维持现状（@AudioN/@VideoN 位置 + 名字说明），已正确。
+4. **多身份 / 多图归并（§0-4/5）**：多个已引用角色 → 各自主图各占一个身份槽，prompt 分别 @ImageN 说明；**同一角色送多图（主+副）时**，翻译层把它们的 @ImageN **一并挂同名**并在 prompt 说「@Image1 @Image2 都是弗洛洛」，让 Seedance 归到一个身份槽（Seedance 支持多身份，也支持一身份多图）。
+5. **图↔音同名绑定（§0-6）**：同一角色的图与音发送时**挂同一个角色名**（`@Image1（弗洛洛）` … `@Audio1（弗洛洛）`）——这是让 Seedance 认「图音同角色 + 肖像驱动口型」的唯一机制，无结构参数。翻译层保证图侧带名（V-1 已做），音侧 audioBindings 已带名，二者名字须一致。
+6. **容量护栏**：已引用**图** > 9 时提示用户取舍（Seedance 图上限）；合计文件 > 12 同理。
+7. **多角色 lip-sync 限制（§0-7）**：Seedance 多角色同时对口型是弱项——UI/助手层建议引导单角色短句；多人对话提示「分镜各出一条再拼」或每句点名说话人。属**使用引导**，不改发送机制。
+8. **音频/视频**：维持现状（@AudioN/@VideoN 位置 + 名字说明），已正确。
 
 > 待确认：token 语言用英文 `@Image1`（owner 已定）；但**中文 prompt 里内嵌英文 @Image1** 是否影响 Seedance 的中文理解——建议实现后做一次实测抽查（非阻塞）。
 
@@ -74,6 +81,15 @@
 > 不是本稿要修的 Seedance **视频**节点。视频节点装配时实际调用的图例函数是同文件里的
 > `buildVideoReferenceLegend`（`isVideoMediaNode` 分支），V-1 改的是它 + 新增的翻译层，
 > 一字未动 `buildShotReferenceLegend`（其模型没有 @ImageN 契约，硬套会引入新 bug）。
+
+> **V-2 执行更正（2026-07-12，见 §9）**：上表「卡片数据」写的 `primaryAssetId`
+> 字段名是**设计期占位**——实际落地时发现 §2 设想的「一卡多图」已经存在
+> （`referenceAssets` 是 S5c/S5d 就有的收藏数组，非 V-2 新引入），侦察结论详见
+> §9。实际字段是 `NodeWorkflowReferenceAssetSchema.isPrimary?: boolean`（挂在
+> 每个 referenceAsset 条目上，而非节点级的 id 指针）——原因是 V-2 唯一能安全动
+> 的落点（`CharacterImageReferenceControls` 的 `onChange(referenceAssets)`）已经
+> 是这条数组本身的读写通道，绕开了一个被并行会话（音色封面批）占用、本片禁碰的
+> 文件（`NodeMediaInspector.tsx`）。
 
 ## 6. 实现切片（拍板后转任务包）
 
@@ -125,3 +141,85 @@ i18n，zh 环境下渲染成 `@视频1`（非字面 `@Video1`），与 `@AudioN`
 `video-request-builders.ts` 的 `promptReferencesVideo()` 用正则 `/@Video[1-9]\b/` 检测，中文环境下大概率
 不命中，从而触发已有的兜底前缀注入（`buildVideoReferencePrefix`）——这条兜底本身能兜住，所以视频引用目前
 不是"丢绑定"的错误，但和音频的处理方式不一致，值得后续统一。任务包明确要求"不碰"，故只记录不改。
+
+## 10. V-2 实现记录（2026-07-12，Sonnet 执行，任务包 `docs/plans/node-video-v2v3-master-panel.md`）
+
+**侦察结论（V-2 第一步，决定实际改动面）**：V-1 决策 3 说「一张身份卡本来就只有一张图」，
+指的是**视频收割路径**只读 `getNodeMediaUrl`（单一 `imageUrl`/`mediaUrl`）；但卡片**自己的数据
+模型**其实早已支持一卡多图——`referenceAssets`（`NodeWorkflowReferenceAssetSchema`，S5c/S5d 引入）
+是角色/背景档案面板（`CharacterImageInspector`/`BackgroundImageInspector` → `NodeMediaInspector`
+`referenceGalleryMode="gallery"` → `CharacterImageReferenceControls`）里早就在用的收藏图集，最多
+`NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems`（3）张，`IdentityCollectorCard`（画布折叠卡）
+的缩略图网格也已经在合并展示 `mediaUrl` + `referenceAssets`。**结论**：属于任务包给的「多图已存在」
+分支，做完整的 ★ 指定 UI，而非「加字段但无处放」的退化版。
+
+**改了什么**：
+
+1. `types/node-workflow.ts`：`NodeWorkflowReferenceAssetSchema` 加 `isPrimary?: boolean`（每条
+   referenceAsset 自带的 ★ 标记，可选，additive）。
+2. `lib/node-workflow-graph.ts`：新增 `getNodePrimaryMediaUrl(data)`——解析顺序 = 被 ★ 的
+   referenceAsset → `getNodeMediaUrl`（旧存档 = 首图，行为不变）→ `referenceAssets[0]`（补一个
+   既有缺口：纯融合卡[无 mediaUrl，图全在 referenceAssets]此前对视频收割贡献为 0，现在贡献首图，
+   只增不减）。`harvestUpstreamImageUrls`（视觉参考图循环）/ `harvestUpstreamCloseupUrls` /
+   `harvestUpstreamImageReferences`（镜头节点收割）/ `harvestUpstreamVideoImageReferences`
+   （视频图例映射表，V-1 翻译层的查找源）四处从 `getNodeMediaUrl` 换成 `getNodePrimaryMediaUrl`——
+   最后一处是必要的一致性修复：图例表原来仍按裸 `mediaUrl` 建键，一旦 ★ 图 ≠ mediaUrl，
+   `buildReferenceImageIndexByName` 的按 URL 查找就会命中失败，V-1 的名字→@ImageN 翻译会悄悄
+   失效。
+3. `hooks/node/use-video-composer.ts`：`referenceTokens` 里角色/背景/镜头卡自身 + 其 closeup 的
+   `mediaUrl` 取值、以及 `hasReferenceInputs` 的存在性判断，同步换成 `getNodePrimaryMediaUrl`——
+   否则 composer 面板的缩略图/图N 槽位角标会显示与实际发送不一致的旧图，且纯融合卡会被误判为
+   「无参考输入」从而选错模型变体。
+4. `CharacterImageReferenceControls.tsx`（gallery 模式）：每个图集项加 ★「设为主图」toggle
+   （hover 才出现，和已有 拆出/删除 同排）+ 常显主图角标（不依赖 hover，右上角绿底 `★ 主图`）。
+   通过既有的 `onChange(referenceAssets)` 通道回写，**没有新增任何 prop 穿透 `NodeMediaInspector`**
+   （见下方“为什么不是 `primaryAssetId`”）。
+5. `IdentityCollectorCard.tsx`（画布折叠卡）：缩略图网格里匹配 `getNodePrimaryMediaUrl` 结果的那张
+   叠一个小 ★ 角标，仅在该卡总图数 > 1 时渲染（单图卡没有可辨识的意义）。
+6. i18n 三语：`StudioNode.characterImage.reference.{setPrimary,unsetPrimary}` +
+   `StudioNode.dossier.primaryBadge`。
+7. 测试：`lib/node-workflow-graph.test.ts` 新增 `getNodePrimaryMediaUrl` 四个用例（★ 优先于
+   mediaUrl / 无 ★ 回退 mediaUrl / 纯融合卡回退首个 referenceAsset / 全空返回 undefined）+
+   `harvestUpstreamImageUrls`/`harvestUpstreamImageReferences` 各一个「送 ★ 图而非 mediaUrl」用例。
+
+**决策 1 —— 字段落在 `referenceAssets[].isPrimary`，不是节点级 `primaryAssetId`**：任务包给了
+两个选项。选前者的唯一原因是**并行约束**——`NodeMediaInspector.tsx` 是当前工作区另一个并行会话
+（音色封面批）在改的文件，任务包明确写「绝不碰这些」；而 `<CharacterImageReferenceControls
+mode="gallery" value=... onChange=.../>` 的渲染调用恰好在 `NodeMediaInspector.tsx` 内部，是唯一能
+把新 UI 接到「哪张图是主图」这件事上的落点。节点级 `primaryAssetId` 需要 `NodeMediaInspector` 多传
+两个 prop（`primaryAssetId` + `onSetPrimaryAsset`）才能打通，做不到；而 `isPrimary` 挂在
+referenceAsset 自己身上，只需要 `CharacterImageReferenceControls` 内部改造它已经拥有、且完全不经过
+`NodeMediaInspector` 改动的 `onChange(referenceAssets)` 回写通道即可生效。副作用：卡片自己的
+`mediaUrl`（若存在）**没有** ★ 入口——它在身份档案面板里本来就是不可见/不可交互的（
+`identityAssetsOnly` 隐藏了那块独立预览区），所以维持"不可见=不可选"是一致的，没有制造新的死角。
+
+**决策 2 —— 空白默认解析成"首图"，且首图定义扩到 referenceAssets[0]**：任务包写"旧存档无此字段=
+默认取首图为主图，不炸"。`mediaUrl` 优先（= V-1 之前的送法，零回归）；但当 `mediaUrl` 为空
+（S5c 融合建的卡本就没有 mediaUrl，图全在 referenceAssets）时，新加的 `assets[0]?.url` 兜底让这类卡
+第一次真正给视频贡献一张参考图——之前它们静默贡献 0 张。这是一次只增不减的行为改动，非本片本该改的
+范围之外的东西，但和「主图」概念本身强相关，且不改就是明知故犯地放过一个刚发现的真实缺口，故随手修。
+
+**Chrome 实测**（localhost:3000，项目「鸣潮」，角色卡「青雷」——参考图 1/3，来源=画布融合，验证前
+无 mediaUrl 场景恰好现成）：点 ★ → 常显「★ 主图」绿色角标出现 → 刷新整页（强制服务端重新拉取项目、
+过 Zod parse）→ 角标仍在，证明 `isPrimary` 字段被正确持久化到云端存档且旧 schema parse 不炸 → 再次
+点击 ★ 取消 → 角标消失，恢复项目原状（未遗留测试痕迹）。未做真实生成请求（会消耗 provider 额度/
+真实费用），"发送只取主图"这一段改动改走单测覆盖（见上）而非线上实跑。
+
+**V-3 的起点（已勘查，供下一 session 直接续接，不必重新调研）**：
+
+- `DepartmentStrip.tsx` 只有一个真实消费者——`VideoComposer.tsx`（另有其自身 test 文件）；
+  `StudioNodeWorkbench.tsx` 里出现的一处 "DepartmentStrip" 只是注释提及，不是 import。五分区可以
+  安全整体退场，不会波及其他面。
+- "已引用/已连接" 的计算源已经是 `use-video-composer.ts` 的 `referenceTokens`（含
+  `imageSlotIndex`/`audioSlotIndex`/`videoSlotIndex` + `token`/`label`），V-3 只需要在其上叠一层
+  "该 token 的 `token` 是否出现在当前 prompt 里"（复用 `MentionInput.tsx` 导出的 `parseMentions`）
+  即可拿到已引用集合，不需要另起数据源。
+- "只送已引用" 的迁移策略建议：以"prompt 里是否出现至少一个可命中的图片类 @token"为总闸——一个
+  都没有 → 维持现状（送全部已连接图，V-2 前的行为，零回归）；只要出现一个 → 才切换成"只送被 @ 的
+  那些"。这样旧项目/从未用过 @ 语法的用户不会被静默丢参考图，同时把面板里"已引用 N / 已连接 M"的
+  数字差本身作为可见的、非静默的提示。audio_urls/video_urls 按设计 §3 决策 6"维持现状"不纳入这次
+  过滤（仍是全部已连接直送 + 已有的 @AudioN/@VideoN 兜底前缀注入）。
+- 复用优先：覆层用 `src/components/ui/responsive-dialog.tsx`（`ResponsiveDialog*`，用于"可浏览的
+  库"——AssetSelectorDialog 就是这么做的，"管理素材"抽屉的形状和它同类）而不是
+  `responsive-popover.tsx`（后者按项目约定专用于工具栏 chip / 快速配置，抽屉级的搜索+tab+长列表
+  不是它的场景）。

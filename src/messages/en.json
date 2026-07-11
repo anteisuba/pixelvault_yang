@@ -3385,7 +3385,9 @@
           "frameEnd": "Keyframe (end)",
           "custom": "Custom"
         },
-        "customLabelPlaceholder": "Custom category name…"
+        "customLabelPlaceholder": "Custom category name…",
+        "setPrimary": "Set as primary",
+        "unsetPrimary": "Unset primary"
       },
       "lora": {
         "title": "LoRA",
@@ -4119,6 +4121,7 @@
       "galleryExtract": "Extract to canvas",
       "galleryAdd": "Add",
       "galleryAddAria": "Add a reference image",
+      "primaryBadge": "Primary",
       "identityVisualSeedLabel": "Visual seed (set by the assistant)",
       "voiceSection": "Voice identity",
       "voiceBind": "Bind voice",

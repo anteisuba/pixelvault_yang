@@ -107,6 +107,19 @@ export const NodeWorkflowReferenceAssetSchema = z.object({
    * `role` untouched.
    */
   customLabel: z.string().trim().min(1).max(80).optional(),
+  /**
+   * V-2 主图（docs/plans/node-video-v2v3-master-panel.md）: marks this entry
+   * as the ONE image a character/background card sends to a downstream
+   * Seedance video reference (or a shot's own image-to-image harvest) — the
+   * card can collect several referenceAssets for organizing/swapping, but
+   * only the ★-starred one actually rides `image_urls`. At most one entry
+   * per card should carry `true`; `getNodePrimaryMediaUrl`
+   * (`lib/node-workflow-graph.ts`) takes the first if more than one somehow
+   * does. Additive/optional — absent on every reference saved before V-2,
+   * which keeps resolving to the card's `mediaUrl` (unchanged behavior, see
+   * `getNodePrimaryMediaUrl`'s fallback chain).
+   */
+  isPrimary: z.boolean().optional(),
 })
 
 export const NodeWorkflowLoraSelectionSchema = z.object({

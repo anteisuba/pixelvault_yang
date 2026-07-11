@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
-import { Mic2, UserRound } from 'lucide-react'
+import { Mic2, Star, UserRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -12,7 +12,11 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
-import { getUpstreamNodes, isVoiceProfileNode } from '@/lib/node-workflow-graph'
+import {
+  getNodePrimaryMediaUrl,
+  getUpstreamNodes,
+  isVoiceProfileNode,
+} from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeExpandButton } from './NodeCardControls'
@@ -117,6 +121,10 @@ export function IdentityCollectorCard({
     (typeof data.mediaUrl === 'string' && data.mediaUrl.trim() ? 1 : 0) +
     referenceAssets.length
   const overflowCount = Math.max(0, totalImageCount - thumbnails.length)
+  // V-2 主图角标 — only worth showing once there's an actual choice among
+  // several collected images (a single-image card has nothing to disambiguate).
+  const primaryUrl =
+    totalImageCount > 1 ? getNodePrimaryMediaUrl(data) : undefined
 
   return (
     <NodeShell
@@ -151,6 +159,14 @@ export function IdentityCollectorCard({
                 {index === thumbnails.length - 1 && overflowCount > 0 ? (
                   <span className="absolute inset-0 flex items-center justify-center bg-node-canvas/70 text-xs font-semibold text-node-foreground">
                     +{overflowCount}
+                  </span>
+                ) : null}
+                {url === primaryUrl ? (
+                  <span
+                    title={t('primaryBadge')}
+                    className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-node-paint/90 text-node-canvas"
+                  >
+                    <Star className="size-2 fill-current" aria-hidden />
                   </span>
                 ) : null}
               </div>

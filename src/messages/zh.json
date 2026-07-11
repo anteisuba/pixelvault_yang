@@ -3385,7 +3385,9 @@
           "frameEnd": "关键帧尾",
           "custom": "自定义"
         },
-        "customLabelPlaceholder": "自定义分类名…"
+        "customLabelPlaceholder": "自定义分类名…",
+        "setPrimary": "设为主图",
+        "unsetPrimary": "取消主图"
       },
       "lora": {
         "title": "LoRA",
@@ -4119,6 +4121,7 @@
       "galleryExtract": "拆出到画布",
       "galleryAdd": "添加",
       "galleryAddAria": "添加参考图",
+      "primaryBadge": "主图",
       "identityVisualSeedLabel": "视觉种子（助手设定）",
       "voiceSection": "听觉身份",
       "voiceBind": "绑定音色",

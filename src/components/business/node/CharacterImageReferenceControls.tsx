@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Library,
   Loader2,
+  Star,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -152,6 +153,25 @@ export function CharacterImageReferenceControls({
   const removeReference = useCallback(
     (id: string) => {
       onChange(references.filter((reference) => reference.id !== id))
+    },
+    [onChange, references],
+  )
+
+  /**
+   * V-2 主图 ★「设为主图」— mutually exclusive across the card's collected
+   * gallery: exactly one entry (or none) carries `isPrimary`. Clicking the
+   * currently-starred item's star toggles it back off (reverts to the
+   * default resolution — see `getNodePrimaryMediaUrl`'s fallback chain),
+   * matching the same toggle affordance the rest of this gallery uses.
+   */
+  const setPrimaryReference = useCallback(
+    (id: string) => {
+      onChange(
+        references.map((reference) => ({
+          ...reference,
+          isPrimary: reference.id === id ? !reference.isPrimary : undefined,
+        })),
+      )
     },
     [onChange, references],
   )
@@ -425,8 +445,47 @@ export function CharacterImageReferenceControls({
                     {tDossier('gallerySourceCanvas')}
                   </span>
                 ) : null}
+                {/* V-2 主图角标 — 常显（不依赖 hover），与 hover 才出现的
+                    role/weight 控件层分开渲染，保证「谁是主图」在鼠标移开后
+                    仍然可读。 */}
+                {reference.isPrimary ? (
+                  <span
+                    title={tDossier('primaryBadge')}
+                    className="absolute right-1 top-1 flex items-center gap-0.5 rounded-full bg-node-paint/90 px-1.5 py-0.5 text-2xs font-semibold text-node-canvas"
+                  >
+                    <Star className="size-2.5 fill-current" aria-hidden />
+                    {tDossier('primaryBadge')}
+                  </span>
+                ) : null}
                 <div className="absolute inset-0 flex flex-col justify-between bg-node-canvas/0 opacity-0 transition-opacity group-hover:bg-node-canvas/55 group-hover:opacity-100">
                   <div className="flex items-center justify-end gap-1 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setPrimaryReference(reference.id)}
+                      aria-label={
+                        reference.isPrimary
+                          ? t('unsetPrimary')
+                          : t('setPrimary')
+                      }
+                      title={
+                        reference.isPrimary
+                          ? t('unsetPrimary')
+                          : t('setPrimary')
+                      }
+                      className={cn(
+                        'nodrag flex size-6 items-center justify-center rounded-full bg-node-panel/90 transition-colors',
+                        reference.isPrimary
+                          ? 'text-node-paint'
+                          : 'text-node-foreground hover:text-node-paint',
+                      )}
+                    >
+                      <Star
+                        className={cn(
+                          'size-3.5',
+                          reference.isPrimary && 'fill-current',
+                        )}
+                      />
+                    </button>
                     {onExtract ? (
                       <button
                         type="button"

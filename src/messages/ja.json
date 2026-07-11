@@ -3385,7 +3385,9 @@
           "frameEnd": "キーフレーム（終了）",
           "custom": "カスタム"
         },
-        "customLabelPlaceholder": "カスタム分類名…"
+        "customLabelPlaceholder": "カスタム分類名…",
+        "setPrimary": "メイン画像に設定",
+        "unsetPrimary": "メイン画像を解除"
       },
       "lora": {
         "title": "LoRA",
@@ -4119,6 +4121,7 @@
       "galleryExtract": "キャンバスに取り出す",
       "galleryAdd": "追加",
       "galleryAddAria": "参照画像を追加",
+      "primaryBadge": "メイン画像",
       "identityVisualSeedLabel": "ビジュアルシード（アシスタント設定）",
       "voiceSection": "ボイス識別",
       "voiceBind": "ボイスを紐付け",

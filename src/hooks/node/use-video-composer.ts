@@ -15,6 +15,7 @@ import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowA
 import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
 import {
   getNodeMediaUrl,
+  getNodePrimaryMediaUrl,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
@@ -126,10 +127,14 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // harvest rules the generate path uses.
   const hasReferenceInputs = useMemo(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
+    // V-2 主图: a fusion-built card (referenceAssets only, no mediaUrl) now
+    // contributes a real image via getNodePrimaryMediaUrl's fallback chain —
+    // this flag has to agree, or the model switcher could pick a non-
+    // reference variant for a node that actually sends an image.
     const hasVisual = incoming.some(
       (node) =>
         (isVisualReferenceNode(node) || isKeyframeNode(node)) &&
-        Boolean(getNodeMediaUrl(node.data)),
+        Boolean(getNodePrimaryMediaUrl(node.data)),
     )
     if (hasVisual) return true
     if (incoming.some(isVoiceProfileNode)) return true
@@ -255,7 +260,11 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
             ? node.data.backgroundName
             : node.data.shotName
       const name = typeof nameField === 'string' ? nameField.trim() : ''
-      const mediaUrl = getNodeMediaUrl(node.data)
+      // V-2 主图: show/slot-match the ★-starred image (or its fallback — see
+      // getNodePrimaryMediaUrl), not the raw mediaUrl, so the token's
+      // thumbnail and its 图N badge always agree with what's actually in
+      // payloadImageUrls (built via the same primary-aware harvest).
+      const mediaUrl = getNodePrimaryMediaUrl(node.data)
       const slotIndex = mediaUrl ? payloadImageUrls.indexOf(mediaUrl) : -1
       const resolvedName =
         name || (slotIndex >= 0 ? autoName(kind, slotIndex) : '')
@@ -281,7 +290,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       if (kind === 'character') {
         for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
           if (!isCloseupNode(upstream)) continue
-          const closeupUrl = getNodeMediaUrl(upstream.data)
+          const closeupUrl = getNodePrimaryMediaUrl(upstream.data)
           const closeupSlot = closeupUrl
             ? payloadImageUrls.indexOf(closeupUrl)
             : -1

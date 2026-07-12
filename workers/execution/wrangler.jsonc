@@ -12,7 +12,11 @@
     // Comfy Runner (RunPod Serverless) endpoint id — not secret by itself,
     // protected by the RUNPOD_KEY bearer token (wrangler secret, owner-set).
     // See docs/plans/comfy-runner-HANDOFF-2026-07.md §6.
-    "RUNPOD_ENDPOINT": "01g8rrmixe4hah",
+    // v2 (runtime LoRA download): points at the fork endpoint running
+    // ghcr.io/anteisuba/pixelvault-runner-fork (template pmh4gs9eht). The old
+    // stock endpoint 01g8rrmixe4hah stays live as a rollback target — revert
+    // this line + redeploy to fall back to v1 (pre-baked LoRAs only).
+    "RUNPOD_ENDPOINT": "p4qb5294ma1qzi",
   },
   "r2_buckets": [
     {

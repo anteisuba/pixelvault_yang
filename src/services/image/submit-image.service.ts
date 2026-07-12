@@ -126,8 +126,19 @@ export async function submitImageGeneration(
   }
 
   const apiKeyId = route.resolvedApiKeyId ?? input.apiKeyId
+  // Comfy Runner is platform-managed (no BYOK): RUNPOD_KEY is resolved
+  // server-side and gated by a monthly budget cap, so a RUNNER run legitimately
+  // carries no user apiKeyId. Like the free-tier system-key path, it must use
+  // the platform key — resolve-key returns getSystemApiKey(RUNNER) when
+  // useSystemKey is set (see api-key-resolver.service). Without including RUNNER
+  // here the gate below wrongly rejects it as MISSING_API_KEY even though the
+  // route already verified the platform key exists + enforced the monthly cap.
+  // Billing is unaffected: credit charging keys off route.isFreeGeneration
+  // (false for RUNNER), not useSystemKey.
   const useSystemKey =
-    route.isFreeGeneration === true && !route.resolvedApiKeyId
+    (route.isFreeGeneration === true ||
+      route.adapterType === AI_ADAPTER_TYPES.RUNNER) &&
+    !route.resolvedApiKeyId
   if (!apiKeyId && !useSystemKey) {
     throw new GenerateImageServiceError(
       'MISSING_API_KEY',

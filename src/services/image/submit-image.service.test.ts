@@ -153,6 +153,60 @@ describe('submitImageGeneration', () => {
     )
   })
 
+  it('dispatches a platform-managed RUNNER run with useSystemKey and no user apiKey (MISSING_API_KEY regression)', async () => {
+    // RUNNER = 平台代付：resolvedApiKeyId null + isFreeGeneration false。修复前
+    // 这被 gate 误抛 MISSING_API_KEY 400（线上「点出图无反应」根因）。
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      route: {
+        modelId: 'anima-pencil-xl-runner',
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        providerConfig: { label: 'PixelVault Runner' },
+        creditCost: 1,
+        isFreeGeneration: false,
+        resolvedApiKeyId: null,
+      } as never,
+      provider: 'RUNNER',
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    const result = await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      modelId: 'anima-pencil-xl-runner',
+    })
+
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
+    // worker 用 useSystemKey 回调解析平台 RUNPOD_KEY；无用户 apiKeyId。
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: AI_ADAPTER_TYPES.RUNNER,
+        useSystemKey: true,
+        apiKeyId: undefined,
+      }),
+    )
+  })
+
+  it('still throws MISSING_API_KEY for a non-free, non-runner route with no user key', async () => {
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      route: {
+        modelId: 'flux-2-pro',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'FAL' },
+        creditCost: 1,
+        isFreeGeneration: false,
+        resolvedApiKeyId: null,
+      } as never,
+      provider: 'FAL',
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await expect(
+      submitImageGeneration('clerk-1', { ...INPUT, modelId: 'flux-2-pro' }),
+    ).rejects.toMatchObject({ code: 'MISSING_API_KEY', status: 400 })
+    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+  })
+
   it('fails when dispatch is not configured', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(false)

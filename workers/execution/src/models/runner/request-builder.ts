@@ -13,6 +13,11 @@ import {
 
 const DEFAULT_STEPS = 30
 const DEFAULT_CFG = 7.5
+// v3 T1 底模覆盖档：任意下载来的 checkpoint 没有 manifest 推荐参数，用保守的
+// SDXL-anime 默认（sampler/clipSkip 在当前配方 UX 里本就标「未应用」）。
+const OVERRIDE_SAMPLER = 'euler_ancestral'
+const OVERRIDE_SCHEDULER = 'normal'
+const OVERRIDE_CLIP_SKIP = 2
 
 // v2（docs/plans/comfy-runner-v2-runtime-lora.md）：LoRA 文件名由 app 侧
 // `prepareRunnerLoras` 预先派生（`civitai-<versionId>.safetensors`），并连同 R2
@@ -46,6 +51,12 @@ export interface RunnerGenerationRequestInput {
    * referenceStrength via the same inversion used by the fal/replicate paths.
    */
   denoise?: number
+  /**
+   * v3 T1：源图配方的精确底模被解析 + fork 已下载（advancedParams.runnerCheckpoint）
+   * 时，其文件名覆盖预烤 manifest 底模。任意 Civitai checkpoint 无 manifest 条目 →
+   * 用保守 SDXL 默认 sampler/scheduler/clipSkip。缺省则按 externalModelId 走预烤档。
+   */
+  checkpointOverrideFilename?: string
 }
 
 export class RunnerUnknownCheckpointError extends Error {
@@ -65,9 +76,26 @@ export function buildRunnerWorkflowFromRequest(
   input: RunnerGenerationRequestInput,
   randomSeed: () => number,
 ): ComfyWorkflow {
-  const checkpoint = getRunnerCheckpointById(input.externalModelId)
-  if (!checkpoint) {
-    throw new RunnerUnknownCheckpointError(input.externalModelId)
+  // v3 T1：app 解析出的精确底模（fork 已从 Civitai 下载）覆盖预烤底模；否则按
+  // externalModelId 查预烤 manifest。覆盖档用保守 SDXL 默认（manifest 里没有它）。
+  let checkpointFilename: string
+  let samplerName: string
+  let scheduler: string
+  let clipSkip: number
+  if (input.checkpointOverrideFilename) {
+    checkpointFilename = input.checkpointOverrideFilename
+    samplerName = OVERRIDE_SAMPLER
+    scheduler = OVERRIDE_SCHEDULER
+    clipSkip = OVERRIDE_CLIP_SKIP
+  } else {
+    const checkpoint = getRunnerCheckpointById(input.externalModelId)
+    if (!checkpoint) {
+      throw new RunnerUnknownCheckpointError(input.externalModelId)
+    }
+    checkpointFilename = checkpoint.filename
+    samplerName = checkpoint.recommendedSampler
+    scheduler = checkpoint.recommendedScheduler
+    clipSkip = checkpoint.clipSkip
   }
 
   const loras: RunnerWorkflowLora[] = input.loras.map((lora) => {
@@ -80,7 +108,7 @@ export function buildRunnerWorkflowFromRequest(
   })
 
   return buildComfyWorkflow({
-    checkpointFilename: checkpoint.filename,
+    checkpointFilename,
     positivePrompt: input.prompt,
     negativePrompt: input.negativePrompt,
     width: input.width,
@@ -88,9 +116,9 @@ export function buildRunnerWorkflowFromRequest(
     seed: input.seed ?? randomSeed(),
     steps: input.steps ?? DEFAULT_STEPS,
     cfg: input.cfg ?? DEFAULT_CFG,
-    samplerName: checkpoint.recommendedSampler,
-    scheduler: checkpoint.recommendedScheduler,
-    clipSkip: checkpoint.clipSkip,
+    samplerName,
+    scheduler,
+    clipSkip,
     loras,
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,

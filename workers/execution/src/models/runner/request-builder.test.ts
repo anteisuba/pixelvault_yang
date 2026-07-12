@@ -119,4 +119,22 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow['load-image']).toBeUndefined()
     expect(workflow.sampler.inputs.denoise).toBe(1.0)
   })
+
+  it('v3 T1: checkpointOverrideFilename overrides the baked checkpoint (any externalModelId) + uses SDXL override defaults', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        // Bogus baked id — the override must bypass the manifest lookup, not throw.
+        externalModelId: 'not-a-baked-checkpoint',
+        checkpointOverrideFilename: 'civitai-ckpt-597138.safetensors',
+      }),
+      fixedRandomSeed,
+    )
+
+    expect(workflow.checkpoint.inputs.ckpt_name).toBe(
+      'civitai-ckpt-597138.safetensors',
+    )
+    // Override defaults, not WAI's manifest ddim.
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
+    expect(workflow.sampler.inputs.scheduler).toBe('normal')
+  })
 })

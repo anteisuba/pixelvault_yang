@@ -771,6 +771,17 @@ function GenerateBranch() {
     if (referenceImages.length > 0) {
       advanced.referenceStrength = referenceStrength
     }
+    // v3：runner + 源图配方时，把配方记录的底模引用传给服务端分级（T1 下对底模
+    // 忠实还原 / T2 近似 / T3 拦）。非 runner 或无配方不传 → 维持现状用预烤底模。
+    if (isRunnerBase) {
+      const activeRecipe = selectedImageUrl
+        ? mined.recipes.find((recipe) => recipe.imageUrl === selectedImageUrl)
+        : undefined
+      if (activeRecipe?.checkpointVersionId != null)
+        advanced.checkpointVersionId = activeRecipe.checkpointVersionId
+      if (activeRecipe?.checkpoint)
+        advanced.checkpointName = activeRecipe.checkpoint
+    }
     const record = await generate({
       mode: 'image',
       image: {
@@ -806,12 +817,15 @@ function GenerateBranch() {
     aspectRatio,
     generate,
     imageUpload.referenceImages,
+    isRunnerBase,
+    mined.recipes,
     negativePrompt,
     prompt,
     promptTags,
     referenceStrength,
     seed,
     selectedBase,
+    selectedImageUrl,
     stack,
   ])
 

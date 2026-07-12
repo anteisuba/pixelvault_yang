@@ -4087,6 +4087,27 @@ function getRunnerLoraSpecs(
   })
 }
 
+interface RunnerCheckpointSpecInput {
+  filename: string
+  downloadUrl: string
+}
+
+// v3 runner（docs/plans/comfy-runner-v3-checkpoint-ondemand.md）：app 侧
+// `prepareRunnerCheckpoint`（T1 忠实）把源图配方的精确底模解析成 {filename,
+// downloadUrl}，放在 advancedParams.runnerCheckpoint。Worker 据此覆盖 workflow 的
+// ckpt_name + 发 checkpoint_to_fetch 给 fork（fork GPU 侧从 Civitai 直下到
+// models/checkpoints/）。无则用预烤底模（externalModelId）。
+function getRunnerCheckpointSpec(
+  context: WorkerImageRunContext,
+): RunnerCheckpointSpecInput | null {
+  const spec = readAdvancedRecord(context).runnerCheckpoint
+  if (!isRecord(spec)) return null
+  const filename = readStringField(spec, 'filename')
+  const downloadUrl = readStringField(spec, 'downloadUrl')
+  if (!filename || !downloadUrl) return null
+  return { filename, downloadUrl }
+}
+
 function injectCivitaiToken(url: string, civitaiToken: string | null): string {
   if (!civitaiToken || !url.includes('civitai.com')) return url
   try {
@@ -5042,6 +5063,7 @@ async function submitRunnerImageJob(
   )
   const advancedParams = readAdvancedRecord(context)
   const runnerLoras = getRunnerLoraSpecs(context)
+  const runnerCheckpoint = getRunnerCheckpointSpec(context)
   const seed = readNumberField(advancedParams, 'seed')
 
   // img2img: when the request carries a reference image (base-model capability
@@ -5083,6 +5105,7 @@ async function submitRunnerImageJob(
           filename: lora.filename,
           scale: lora.scale,
         })),
+        checkpointOverrideFilename: runnerCheckpoint?.filename,
         referenceImageName,
         denoise: referenceDenoise,
       },
@@ -5111,6 +5134,16 @@ async function submitRunnerImageJob(
   const runpodInput: Record<string, unknown> = { workflow }
   if (referenceImages) runpodInput.images = referenceImages
   if (lorasToFetch.length > 0) runpodInput.loras_to_fetch = lorasToFetch
+  // v3 T1：fork GPU 侧据此从 Civitai 直下底模到 models/checkpoints/（缺则下、有则跳）。
+  // url 不带 token（不进 job 载荷）——fork 用自己的 CIVITAI_KEY secret 加鉴权，公开
+  // 底模匿名也能下。source 限 'civitai'（fork 侧域白名单，防 SSRF）。
+  if (runnerCheckpoint) {
+    runpodInput.checkpoint_to_fetch = {
+      filename: runnerCheckpoint.filename,
+      url: runnerCheckpoint.downloadUrl,
+      source: 'civitai' as const,
+    }
+  }
 
   const response = await fetch(
     `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`,

@@ -3688,8 +3688,14 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'Sell'（出售模型本身）。我们在 UI 上用这个字段做 license 徽章 + 过滤。
   allowCommercialUse: z.array(z.string()),
   allowDerivatives: z.boolean(),
-  // P1-6：civitai 模型级 NSFW 标记（三态分级里「仅 NSFW」档用它过滤）。
-  // optional 是为了不破坏其余构造该类型的旧调用点/测试 fixture。
+  // P1-6：civitai 模型级 NSFW 标记（原样透传，供 UI 展示用）。Issue B
+  // （docs/plans/lora-search-image-audit-2026-07.md）实测这个布尔值本身
+  // 不可靠（双向误判：有 XXX-only 图片的模型仍标 false，也有全 SFW 图片
+  // 的模型标 true）——三态分级的实际过滤改用图片级 nsfwLevel（REST 浏览
+  // 路径用它 OR 这个布尔值兜底老 fixture；搜索路径下推到 meilisearch 的
+  // nsfwLevel filter，完全不依赖这个字段，见 civitai-lora.service.ts 的
+  // fetchCivitaiLoraPage / appendNsfwSearchFilter）。optional 是为了不破坏
+  // 其余构造该类型的旧调用点/测试 fixture。
   isNsfw: z.boolean().optional(),
   // 列表 row 用的 96px 缩略图（base `coverImageUrl` 已经在 service 层 rewrite
   // 成 640px inspector 尺寸，再缩到 40×40 仍是巨大浪费）。挂载栈 chip /

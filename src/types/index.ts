@@ -3799,12 +3799,28 @@ export const CivitaiImageRecipeSchema = z.object({
 })
 export type CivitaiImageRecipe = z.infer<typeof CivitaiImageRecipeSchema>
 
+// 无配方预览图：作者示例图里没带 prompt 元数据的静态图 —— 无法「一键同款」，
+// 仅作纯预览展示（点开看大图）。区别于 CivitaiImageRecipe（后者 prompt 必填）。
+export const CivitaiPreviewImageSchema = z.object({
+  imageUrl: z.string().url(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  nsfwLevel: z.number().int().optional(),
+})
+export type CivitaiPreviewImage = z.infer<typeof CivitaiPreviewImageSchema>
+
 export const CivitaiMinedPromptsResultSchema = z.object({
   outfits: z.array(CivitaiMinedPromptSchema),
   // 实际采样的图片数（用于 UI footer「采样自 N 张作者实测图」）。
   totalSampled: z.number().int().nonnegative(),
   // 逐图配方（optional：旧缓存/旧响应没有这个字段，消费方需兜底）。
   recipes: z.array(CivitaiImageRecipeSchema).optional(),
+  // 无配方兜底：作者示例图无 prompt 元数据时的纯预览图。仅在 recipes 为空时
+  // 有值；optional 向后兼容旧缓存。
+  previewImages: z.array(CivitaiPreviewImageSchema).optional(),
+  // 无配方兜底（方案 B）：作者写在 model.description 里的推荐词（已 strip 成纯
+  // 文本），原样给用户自读+复制。仅在 recipes 为空时可能有值；optional。
+  descriptionText: z.string().optional(),
 })
 export type CivitaiMinedPromptsResult = z.infer<
   typeof CivitaiMinedPromptsResultSchema

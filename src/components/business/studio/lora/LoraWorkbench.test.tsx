@@ -140,11 +140,16 @@ vi.mock('@/hooks/use-civitai-lora-library', () => ({
 }))
 
 let mockMinedRecipes: unknown[] = []
+let mockMinedPreviewImages: unknown[] = []
 vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   useCivitaiMinedPrompts: () => ({
     get recipes() {
       return mockMinedRecipes
     },
+    get previewImages() {
+      return mockMinedPreviewImages
+    },
+    descriptionText: null,
     outfits: [],
     totalSampled: 0,
     isLoading: false,
@@ -213,6 +218,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockAddTag.mockReset()
     mockLastGeneration = null
     mockMinedRecipes = []
+    mockMinedPreviewImages = []
   })
 
   it('D7④: default-selects the first source image so the recipe panel is not empty', () => {

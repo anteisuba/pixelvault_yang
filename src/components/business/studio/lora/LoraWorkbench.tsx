@@ -133,6 +133,7 @@ import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { appendMissingTriggers } from '@/lib/lora-prompt-triggers'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
+import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
@@ -931,6 +932,16 @@ function GenerateBranch() {
                       onIncludeSeedChange={setIncludeSeed}
                       onMountExtraLora={() => undefined}
                       onApplyRecipe={handleApplyRecipe}
+                    />
+                  ) : mined.previewImages.length > 0 ||
+                    mined.descriptionText ? (
+                    // 无配方兜底：作者示例图没带 prompt 元数据时，把这些静态图
+                    // 当纯预览图摆出来（点开看大图）+ 作者描述原样文本+复制，
+                    // 别让推荐区空着。
+                    <LoraSourceImagePreviewStrip
+                      assetName={recipeGroupAsset?.name ?? ''}
+                      previewImages={mined.previewImages}
+                      descriptionText={mined.descriptionText}
                     />
                   ) : !hasLora ? (
                     // 空态改造：无 LoRA 时把「先挑一个 LoRA」引导收进推荐列

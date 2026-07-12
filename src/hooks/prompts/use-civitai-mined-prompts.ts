@@ -26,6 +26,16 @@ export interface UseCivitaiMinedPromptsReturn {
    * 没有该字段 — 恒为数组，缺失时为空。
    */
   recipes: NonNullable<CivitaiMinedPromptsResult['recipes']>
+  /**
+   * 无配方兜底纯预览图（作者示例图无 prompt 元数据）。恒为数组，仅在
+   * recipes 为空且服务端有兜底图时非空。
+   */
+  previewImages: NonNullable<CivitaiMinedPromptsResult['previewImages']>
+  /**
+   * 无配方兜底（方案 B）：作者 model.description 的纯文本，供用户自读+复制。
+   * null = 无（有配方 / 描述为空 / 拉取失败）。
+   */
+  descriptionText: string | null
   totalSampled: number
   isLoading: boolean
   /**
@@ -41,6 +51,8 @@ export interface UseCivitaiMinedPromptsReturn {
 const EMPTY: UseCivitaiMinedPromptsReturn = {
   outfits: [],
   recipes: [],
+  previewImages: [],
+  descriptionText: null,
   totalSampled: 0,
   isLoading: false,
   hasFetched: false,
@@ -100,6 +112,8 @@ function reducer(
       return {
         outfits: action.data.outfits,
         recipes: action.data.recipes ?? [],
+        previewImages: action.data.previewImages ?? [],
+        descriptionText: action.data.descriptionText ?? null,
         totalSampled: action.data.totalSampled,
         isLoading: false,
         hasFetched: true,
@@ -109,6 +123,8 @@ function reducer(
       return {
         outfits: [],
         recipes: [],
+        previewImages: [],
+        descriptionText: null,
         totalSampled: 0,
         isLoading: false,
         hasFetched: true,

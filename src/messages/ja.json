@@ -1353,6 +1353,11 @@
     },
     "generate": {
       "sourceImagesLabel": "サンプル画像（{count}）",
+      "previewOnlyHint": "作者が生成パラメータを提供していません — サンプル画像のみ（参考用）",
+      "descriptionLabel": "作者の説明（おすすめプロンプトはここにあることが多い — 必要な部分をコピー）",
+      "descriptionCopy": "全てコピー",
+      "descriptionCopied": "作者の説明をコピーしました",
+      "descriptionCopyFailed": "コピーに失敗しました",
       "sourceImageAlt": "{name} のサンプル画像 {n}",
       "sourceImagePreviewLabel": "{name} のサンプル画像 {n} を拡大表示",
       "sourceImagePreviewClose": "サンプル画像のプレビューを閉じる",

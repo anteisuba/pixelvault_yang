@@ -25,6 +25,7 @@ import {
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
+import { civitaiDescriptionToText } from '@/lib/civitai-description-parse'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
 import { repairUtf8Mojibake } from '@/lib/text-encoding-repair'
@@ -34,6 +35,7 @@ import type {
   CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
+  CivitaiPreviewImage,
   CivitaiRecipeExtraLora,
   LoraAssetType,
 } from '@/types'
@@ -2349,11 +2351,17 @@ function resolveRecipeLoraSignals({
   }
 }
 
+interface ModelVersionSourceImages {
+  recipes: CivitaiImageRecipe[]
+  // 无配方兜底：静态 + 在天花板内、但没带 prompt 的示例图，供纯预览展示。
+  previews: CivitaiPreviewImage[]
+}
+
 async function fetchModelVersionSourceRecipes(
   modelId: number,
   modelVersionId: number,
   targetHashLower: string | null,
-): Promise<CivitaiImageRecipe[]> {
+): Promise<ModelVersionSourceImages> {
   const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
 
   let payload: unknown
@@ -2370,7 +2378,7 @@ async function fetchModelVersionSourceRecipes(
       modelVersionId,
       error: error instanceof Error ? error.message : 'Unknown',
     })
-    return []
+    return { recipes: [], previews: [] }
   }
 
   const parsed = CivitaiModelVersionSchema.safeParse(payload)
@@ -2383,7 +2391,7 @@ async function fetchModelVersionSourceRecipes(
         issues: parsed.error.issues.map((issue) => issue.message).join('; '),
       },
     )
-    return []
+    return { recipes: [], previews: [] }
   }
 
   // In-prompt `<lora:NAME:..>` tags use the file name stem — collect every
@@ -2393,6 +2401,7 @@ async function fetchModelVersionSourceRecipes(
     .filter((stem): stem is string => Boolean(stem))
 
   const recipes: CivitaiImageRecipe[] = []
+  const previews: CivitaiPreviewImage[] = []
   for (const image of parsed.data.images ?? []) {
     // 挖掘"一键同款"来源配方是用户主动打开某把 LoRA 的动作（无三态语境）——
     // 与库封面天花板一致放到 XXX，让 NSFW LoRA 的来源图配方也能露出。
@@ -2406,7 +2415,19 @@ async function fetchModelVersionSourceRecipes(
     if (!isStaticCivitaiImage(image)) continue
     const rawPrompt = repairUtf8Mojibake(image.meta?.prompt ?? '')
     const prompt = cleanRecommendedPrompt(rawPrompt)
-    if (!prompt) continue
+    if (!prompt) {
+      // 无 prompt 元数据的静态示例图 → 无法组配方，但可作纯预览图兜底
+      // （作者没在 Civitai 上填生成参数，全站这类 LoRA 都会命中这条）。
+      if (image.url && previews.length < CIVITAI_IMAGES_RECIPE_CAP) {
+        previews.push({
+          imageUrl: image.url,
+          width: image.width,
+          height: image.height,
+          nsfwLevel: image.nsfwLevel,
+        })
+      }
+      continue
+    }
     recipes.push({
       imageUrl: image.url,
       width: image.width,
@@ -2426,7 +2447,7 @@ async function fetchModelVersionSourceRecipes(
     if (recipes.length >= CIVITAI_IMAGES_RECIPE_CAP) break
   }
 
-  return recipes
+  return { recipes, previews }
 }
 
 /**
@@ -2469,6 +2490,39 @@ export interface MineCivitaiUserPromptsInput {
   fileHashAutoV3?: string | null
 }
 
+// 方案 B（无配方兜底）：作者常把推荐 prompt 写在 model.description 的纯段落里
+// （非 <pre><code>，trigger 抽取抓不到）。/model-versions/:id 不带模型描述，
+// 所以无配方时单独拉一次 /models/:id 取整段描述，strip 成可读纯文本原样返回，
+// 让用户自己读+复制。best-effort：拿不到就返回 undefined，不阻塞主流程。
+const CivitaiModelDescriptionSchema = z
+  .object({ description: z.string().nullable().optional() })
+  .passthrough()
+
+async function fetchCivitaiModelDescriptionText(
+  modelId: number,
+): Promise<string | undefined> {
+  const url = new URL(`${CIVITAI_MODELS_API}/${modelId}`)
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 3,
+      baseDelayMs: 400,
+      maxDelayMs: 2000,
+      label: 'civitai.modelDescription',
+    })
+  } catch (error) {
+    logger.warn('Civitai model description fetch failed', {
+      modelId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return undefined
+  }
+  const parsed = CivitaiModelDescriptionSchema.safeParse(payload)
+  if (!parsed.success) return undefined
+  const text = civitaiDescriptionToText(parsed.data.description)
+  return text.length > 0 ? text : undefined
+}
+
 export async function mineCivitaiUserPrompts({
   modelId,
   modelVersionId,
@@ -2476,12 +2530,12 @@ export async function mineCivitaiUserPrompts({
 }: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
   const targetHash = fileHashAutoV3?.toLowerCase() ?? null
 
+  // 无配方兜底：模型版本示例图里没带 prompt 的静态图，留到最后（community
+  // 路径也挖不到配方时）作纯预览展示。
+  let sourcePreviews: CivitaiPreviewImage[] = []
   if (modelVersionId !== undefined) {
-    const sourceRecipes = await fetchModelVersionSourceRecipes(
-      modelId,
-      modelVersionId,
-      targetHash,
-    )
+    const { recipes: sourceRecipes, previews } =
+      await fetchModelVersionSourceRecipes(modelId, modelVersionId, targetHash)
     if (sourceRecipes.length > 0) {
       return {
         outfits: deriveOutfitsFromRecipes(sourceRecipes),
@@ -2489,6 +2543,7 @@ export async function mineCivitaiUserPrompts({
         recipes: sourceRecipes,
       }
     }
+    sourcePreviews = previews
   }
 
   const url = new URL(CIVITAI_IMAGES_API)
@@ -2607,9 +2662,22 @@ export async function mineCivitaiUserPrompts({
       source: 'community_image' as const,
     }))
 
+  // 无配方兜底（方案 B）：到处都挖不到配方时，额外拉一次模型描述，原样给用户
+  // 自读+复制（best-effort，失败不阻塞）。
+  const descriptionText =
+    recipes.length === 0
+      ? await fetchCivitaiModelDescriptionText(modelId)
+      : undefined
+
   return {
     outfits: summarised,
     totalSampled: consideredCount,
     recipes,
+    // community 路径也没挖到配方时，才把模型版本示例图当纯预览图露出。
+    previewImages:
+      recipes.length === 0 && sourcePreviews.length > 0
+        ? sourcePreviews
+        : undefined,
+    descriptionText,
   }
 }

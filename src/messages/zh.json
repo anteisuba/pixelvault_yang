@@ -1353,6 +1353,11 @@
     },
     "generate": {
       "sourceImagesLabel": "来源图（{count}）",
+      "previewOnlyHint": "作者未提供配方参数 · 示例图仅供参考",
+      "descriptionLabel": "作者描述（推荐词常写在这，自己挑着复制）",
+      "descriptionCopy": "复制全部",
+      "descriptionCopied": "已复制作者描述",
+      "descriptionCopyFailed": "复制失败",
       "sourceImageAlt": "{name} 来源图 {n}",
       "sourceImagePreviewLabel": "放大查看 {name} 来源图 {n}",
       "sourceImagePreviewClose": "关闭来源图预览",

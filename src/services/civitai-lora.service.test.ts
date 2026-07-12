@@ -2207,6 +2207,190 @@ describe('mineCivitaiUserPrompts', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
+  it('surfaces prompt-less model-version images as previewImages when no recipe exists anywhere', async () => {
+    // 作者没在示例图 meta 里填生成参数 → 组不成配方，但应作为纯预览图兜底
+    // 露出，而不是让推荐区空着。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 3118191,
+        name: 'v1.0',
+        images: [
+          {
+            url: 'https://image.civitai.com/preview-1.jpeg',
+            width: 832,
+            height: 1216,
+            nsfwLevel: 1,
+            meta: {},
+          },
+          {
+            url: 'https://image.civitai.com/preview-2.jpeg',
+            width: 768,
+            height: 1024,
+            nsfwLevel: 2,
+            meta: {},
+          },
+        ],
+      }),
+    )
+    // model-version 无配方 → 回落 community /images，这里也挖不到 → recipes 空。
+    mockFetch.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    // 无配方兜底还会拉 /models/:id 取描述（方案 B）——给个无描述的模型。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: 2769783, name: 'Aemeath', description: null }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2769783,
+      modelVersionId: 3118191,
+      fileHashAutoV3: 'deadbeef0000',
+    })
+
+    expect(result.recipes).toHaveLength(0)
+    expect(result.previewImages).toEqual([
+      {
+        imageUrl: 'https://image.civitai.com/preview-1.jpeg',
+        width: 832,
+        height: 1216,
+        nsfwLevel: 1,
+      },
+      {
+        imageUrl: 'https://image.civitai.com/preview-2.jpeg',
+        width: 768,
+        height: 1024,
+        nsfwLevel: 2,
+      },
+    ])
+    expect(result.descriptionText).toBeUndefined()
+    // 三次请求：model-versions（无配方）→ community /images（空）→ models/:id（无描述）。
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('skips video example images when collecting previewImages', async () => {
+    // 视频封面渲染不了 <img> —— 纯预览图兜底也要跳过 video 条目。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 4001,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/clip.mp4',
+            type: 'video',
+            nsfwLevel: 1,
+            meta: {},
+          },
+          {
+            url: 'https://image.civitai.com/still.jpeg',
+            width: 512,
+            height: 768,
+            nsfwLevel: 1,
+            meta: {},
+          },
+        ],
+      }),
+    )
+    mockFetch.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    // 无配方兜底会拉 /models/:id 取描述（方案 B）——给个无描述的模型。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: 4000, name: 'x', description: null }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 4000,
+      modelVersionId: 4001,
+    })
+
+    expect(result.previewImages).toEqual([
+      {
+        imageUrl: 'https://image.civitai.com/still.jpeg',
+        width: 512,
+        height: 768,
+        nsfwLevel: 1,
+      },
+    ])
+  })
+
+  it('falls back to the author model description text when no recipe exists anywhere', async () => {
+    // 方案 B：图片无 prompt + community 也挖不到 → 拉 /models/:id 取整段描述，
+    // strip 成纯文本原样返回（作者把推荐词写在纯段落里）。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: 3118191, name: 'v1.0', images: [] }),
+    )
+    // community /images 空
+    mockFetch.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    // /models/:id 作者描述（纯段落，非 <pre><code>）
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2769783,
+        name: 'Aemeath',
+        type: 'LORA',
+        description:
+          '<p>Lora提示词：</p><p>Aemeath</p><p>long hair, pink hair</p>',
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2769783,
+      modelVersionId: 3118191,
+    })
+
+    expect(result.recipes).toHaveLength(0)
+    expect(result.previewImages).toBeUndefined()
+    expect(result.descriptionText).toBe(
+      'Lora提示词：\nAemeath\nlong hair, pink hair',
+    )
+    // 三次请求：model-versions → community images → models/:id
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    const modelUrl = new URL(String(mockFetch.mock.calls[2]?.[0]))
+    expect(modelUrl.pathname).toBe('/api/v1/models/2769783')
+  })
+
+  it('does not surface previewImages once a real recipe is found', async () => {
+    // 有配方就不需要兜底预览图 —— previewImages 应缺省（undefined）。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 5001,
+        name: 'v1',
+        images: [
+          {
+            url: 'https://image.civitai.com/no-prompt.jpeg',
+            width: 512,
+            height: 768,
+            nsfwLevel: 1,
+            meta: {},
+          },
+          {
+            url: 'https://image.civitai.com/with-prompt.jpeg',
+            width: 832,
+            height: 1216,
+            nsfwLevel: 1,
+            meta: {
+              prompt: '<lora:TestLora:0.8>, test subject, anime style',
+              resources: [
+                {
+                  hash: 'AABBCCDDEEFF',
+                  name: 'TestLora',
+                  type: 'lora',
+                  weight: 0.8,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 5000,
+      modelVersionId: 5001,
+      fileHashAutoV3: 'aabbccddeeff',
+    })
+
+    expect(result.recipes).toHaveLength(1)
+    expect(result.previewImages).toBeUndefined()
+    // 命中配方即返回，不回落 community。
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('clusters real activation segments from /api/v1/images by hash', async () => {
     // Two c1-outfit generations + one c2-outfit, mirroring the actual
     // wuthering-waves Denia shape. Hash comparison is case-insensitive

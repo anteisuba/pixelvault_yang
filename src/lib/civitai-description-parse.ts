@@ -122,3 +122,33 @@ export function firstRecommendedPromptFromDescription(
   const blocks = parseCivitaiDescriptionCodeBlocks(html)
   return blocks[0]?.prompt ?? null
 }
+
+/**
+ * 把整段 Civitai description HTML 转成**可读纯文本**（保留段落/列表/代码块的
+ * 换行），给「无配方兜底：原样展示作者描述让用户自己复制」用（方案 B）。
+ *
+ * 刻意只做「块级标签 → 换行 + 去内联标签 + 解 entity」——**不解析、不猜哪段是
+ * prompt**（那是启发式，用户明确要零误判）。产出是纯文本，直接进 `<p>`/
+ * `whiteSpace: pre-wrap`，无 HTML 注入风险（不 dangerouslySetInnerHTML）。
+ */
+export function civitaiDescriptionToText(
+  html: string | null | undefined,
+): string {
+  if (!html) return ''
+  const withBreaks = html
+    // 块级结束标签 → 换行，段落/列表项/代码块之间保持可读分隔
+    .replace(/<\/(p|div|li|pre|h[1-6]|ul|ol|blockquote|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    // 列表项前缀
+    .replace(/<li[^>]*>/gi, '• ')
+    // 去掉所有剩余标签
+    .replace(/<[^>]+>/g, '')
+  return decodeHtmlEntities(withBreaks)
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}

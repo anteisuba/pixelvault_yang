@@ -1353,6 +1353,11 @@
     },
     "generate": {
       "sourceImagesLabel": "Source images ({count})",
+      "previewOnlyHint": "The author didn't include recipe parameters — example images only, for reference",
+      "descriptionLabel": "Author's description (the recommended prompt is usually in here — copy what you need)",
+      "descriptionCopy": "Copy all",
+      "descriptionCopied": "Copied the author's description",
+      "descriptionCopyFailed": "Copy failed",
       "sourceImageAlt": "{name} source image {n}",
       "sourceImagePreviewLabel": "Preview {name} source image {n}",
       "sourceImagePreviewClose": "Close source image preview",

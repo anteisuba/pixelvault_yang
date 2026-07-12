@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  civitaiDescriptionToText,
   firstRecommendedPromptFromDescription,
   parseCivitaiDescriptionCodeBlocks,
 } from './civitai-description-parse'
@@ -94,5 +95,28 @@ describe('firstRecommendedPromptFromDescription', () => {
     ).toBe('foo, bar')
     expect(firstRecommendedPromptFromDescription(null)).toBeNull()
     expect(firstRecommendedPromptFromDescription('<p>plain</p>')).toBeNull()
+  })
+})
+
+describe('civitaiDescriptionToText', () => {
+  it('flattens plain-paragraph Civitai description HTML into readable text (the Aemeath case)', () => {
+    // Aemeath: 作者把推荐词写在纯段落里（非 <pre><code>），trigger 抽取抓不到，
+    // 方案 B 直接原样展示整段让用户自己复制。
+    const html = `<p>该Lora是以Anima-Base作为底膜。</p><p>Lora提示词：</p><p>Aemeath</p><p>long hair, pink hair, halo, heart</p>`
+    expect(civitaiDescriptionToText(html)).toBe(
+      '该Lora是以Anima-Base作为底膜。\nLora提示词：\nAemeath\nlong hair, pink hair, halo, heart',
+    )
+  })
+
+  it('keeps code blocks + list bullets, decodes entities, and trims', () => {
+    const html = `<ul><li>tag &amp; more</li></ul><pre><code>a, b, c</code></pre>`
+    expect(civitaiDescriptionToText(html)).toBe('• tag & more\n\na, b, c')
+  })
+
+  it('returns empty string for null / empty / whitespace-only', () => {
+    expect(civitaiDescriptionToText(null)).toBe('')
+    expect(civitaiDescriptionToText(undefined)).toBe('')
+    expect(civitaiDescriptionToText('')).toBe('')
+    expect(civitaiDescriptionToText('   <p>  </p>  ')).toBe('')
   })
 })

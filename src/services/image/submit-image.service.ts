@@ -40,6 +40,7 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { generateStorageKey } from '@/services/storage/r2'
+import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
 
 /**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
@@ -193,6 +194,30 @@ export async function submitImageGeneration(
     externalRequestId: JSON.stringify(metadata),
   })
 
+  // v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md V2-2c）：RUNNER 路径把每把
+  // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
+  // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
+  // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
+  let runnerAdvancedParams = input.advancedParams
+  if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
+    const loras = input.advancedParams?.loras ?? []
+    if (loras.length > 0) {
+      try {
+        const runnerLoras = await prepareRunnerLoras(loras)
+        runnerAdvancedParams = { ...input.advancedParams, runnerLoras }
+      } catch (error) {
+        // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
+        throw new GenerateImageServiceError(
+          'PROVIDER_ERROR',
+          error instanceof Error
+            ? error.message
+            : 'Failed to prepare runner LoRA',
+          502,
+        )
+      }
+    }
+  }
+
   const runContext: WorkerRunContext = {
     runId: job.id,
     workflowId: EXECUTION_WORKFLOW_IDS.IMAGE_QUEUE,
@@ -220,7 +245,7 @@ export async function submitImageGeneration(
       aspectRatio: input.aspectRatio,
       referenceImage: referenceImageUrl,
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-      advancedParams: input.advancedParams,
+      advancedParams: runnerAdvancedParams,
       outputStorageKey,
     },
   }

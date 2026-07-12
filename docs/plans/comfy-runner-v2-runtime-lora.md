@@ -63,7 +63,25 @@ input: {
 - **主动提示**（本包顺带做）：LoRA 工作台显示「本月 runner 剩余 N/300」，撞上限前就让用户知道（现状只在撞了才弹 `errors.provider.runnerMonthlyLimitExceeded`）。
 - ⚠ 推广后再迭代：per-user 配额 / 付费档 / 抬预算。**本期不做**，先放用户看反馈。
 
+## 4.5 部署顺序（**关键**，别踩）
+
+v2 代码**替换**了 v1 的 LoRA 处理（request-builder 改吃 filename、不再按 allowlist
+解析），所以：
+
+- **fork（②a）没部署前，绝不能把 v2 代码 push 上生产**——否则 workflow 引用下载
+  文件名（`civitai-<id>.safetensors`），但线上还是旧 fork（不下载）→ 文件不在 Volume
+  → ComfyUI LoraLoader 崩，**runner 全崩，比现状（1 把预烤能用）更糟**。
+- 正确顺序：① 代码本地 commit（不 push）→ ② owner 按 fork README 部署 fork + 端点换
+  镜像 + 用测试 LoRA 验通 → ③ 再 push v2 代码（这时才活）。
+- 实现记录：V2-1/2a（app R2 管线）+ V2-2b（worker）+ V2-2c（submit-image 集成）+ ②a
+  （fork 三件）已写完，全绿（app 单测 + worker 53 测），**本地 commit、待 fork 部署后 push**。
+
 ## 5. 风险 / 坑
+
+- **⚠ app-submit 下载 vs Vercel Hobby 60s**：`prepareRunnerLoras` 同步下载 Civitai→R2
+  跑在出图请求函数里；典型 LoRA（带 token）几秒够，但**大/多/被限流**时可能超 Hobby
+  60s 上限 → 超时。务实先上（撞到再迁）；**长期正解 = 把下载挪到 Cloudflare Worker**
+  的长时 workflow（已有 R2 binding；需给它配 R2 S3 凭证 + Civitai token secret）。
 
 - **冷启动 + 下载延迟**：首图 = 开机 + 拉 N 把 LoRA（各几秒）+ 出图 ≈ 30–90s；`Execution Timeout` 现 120s 可能不够 → **上调 300s**；给「下载中」进度态（④）。
 - **R2 预签名 URL 时效**：要覆盖冷启动+下载窗口（给足如 15min）。

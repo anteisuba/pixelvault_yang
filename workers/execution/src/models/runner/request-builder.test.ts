@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRunnerWorkflowFromRequest,
-  RunnerLoraUnavailableError,
   RunnerUnknownCheckpointError,
   type RunnerGenerationRequestInput,
 } from './request-builder'
@@ -64,21 +63,16 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.cfg).toBe(7.5)
   })
 
-  it('resolves an allowlisted LoRA URL to its Volume filename', () => {
+  it('applies the app-provided LoRA filename + scale (v2: no allowlist resolve)', () => {
     const workflow = buildRunnerWorkflowFromRequest(
       baseRequest({
-        loras: [
-          {
-            url: 'https://civitai.com/api/download/models/1672783?type=Model',
-            scale: 0.9,
-          },
-        ],
+        loras: [{ filename: 'civitai-3118200.safetensors', scale: 0.9 }],
       }),
       fixedRandomSeed,
     )
 
     expect(workflow['lora-0'].inputs).toMatchObject({
-      lora_name: 'tutenstein-cleo-carter-v1.safetensors',
+      lora_name: 'civitai-3118200.safetensors',
       strength_model: 0.9,
       strength_clip: 0.9,
     })
@@ -87,7 +81,7 @@ describe('buildRunnerWorkflowFromRequest', () => {
   it('defaults LoRA strength to 1 when scale is omitted', () => {
     const workflow = buildRunnerWorkflowFromRequest(
       baseRequest({
-        loras: [{ url: 'https://civitai.com/api/download/models/1672783' }],
+        loras: [{ filename: 'civitai-3118200.safetensors' }],
       }),
       fixedRandomSeed,
     )
@@ -101,17 +95,6 @@ describe('buildRunnerWorkflowFromRequest', () => {
         fixedRandomSeed,
       ),
     ).toThrow(RunnerUnknownCheckpointError)
-  })
-
-  it('throws RunnerLoraUnavailableError for a LoRA not on the runner allowlist', () => {
-    expect(() =>
-      buildRunnerWorkflowFromRequest(
-        baseRequest({
-          loras: [{ url: 'https://civitai.com/api/download/models/9999999' }],
-        }),
-        fixedRandomSeed,
-      ),
-    ).toThrow(RunnerLoraUnavailableError)
   })
 
   it('forwards referenceImageName + denoise into an img2img workflow', () => {

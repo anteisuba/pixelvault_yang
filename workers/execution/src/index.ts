@@ -12,7 +12,6 @@ import {
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
 import {
   buildRunnerWorkflowFromRequest,
-  RunnerLoraUnavailableError,
   RunnerUnknownCheckpointError,
 } from './models/runner/request-builder'
 
@@ -4058,6 +4057,36 @@ function hasCivitaiLora(context: WorkerImageRunContext): boolean {
   )
 }
 
+interface RunnerLoraSpecInput {
+  filename: string
+  downloadUrl: string
+  scale?: number
+}
+
+// v2 runner：app 侧 `prepareRunnerLoras` 已把每把 LoRA 确保进 R2 + 生成预签名 GET，
+// 结果放在 advancedParams.runnerLoras（{filename, downloadUrl, scale}）。Worker 据此
+// 组 workflow（filename）+ loras_to_fetch（downloadUrl）发给 fork worker。
+function getRunnerLoraSpecs(
+  context: WorkerImageRunContext,
+): RunnerLoraSpecInput[] {
+  const specs = readAdvancedRecord(context).runnerLoras
+  if (!Array.isArray(specs)) return []
+
+  return specs.flatMap((candidate): RunnerLoraSpecInput[] => {
+    if (!isRecord(candidate)) return []
+    const filename = readStringField(candidate, 'filename')
+    const downloadUrl = readStringField(candidate, 'downloadUrl')
+    if (!filename || !downloadUrl) return []
+    return [
+      {
+        filename,
+        downloadUrl,
+        scale: readNumberField(candidate, 'scale') ?? undefined,
+      },
+    ]
+  })
+}
+
 function injectCivitaiToken(url: string, civitaiToken: string | null): string {
   if (!civitaiToken || !url.includes('civitai.com')) return url
   try {
@@ -5012,7 +5041,7 @@ async function submitRunnerImageJob(
     context.providerInput.aspectRatio,
   )
   const advancedParams = readAdvancedRecord(context)
-  const loraInputs = getImageLoraInputs(context)
+  const runnerLoras = getRunnerLoraSpecs(context)
   const seed = readNumberField(advancedParams, 'seed')
 
   // img2img: when the request carries a reference image (base-model capability
@@ -5050,7 +5079,10 @@ async function submitRunnerImageJob(
         seed: seed != null && seed >= 0 ? Math.round(seed) : undefined,
         steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
         cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
-        loras: loraInputs,
+        loras: runnerLoras.map((lora) => ({
+          filename: lora.filename,
+          scale: lora.scale,
+        })),
         referenceImageName,
         denoise: referenceDenoise,
       },
@@ -5065,16 +5097,20 @@ async function submitRunnerImageJob(
         errorCode: 'model_unavailable',
       })
     }
-    if (error instanceof RunnerLoraUnavailableError) {
-      throw new WorkerProviderError({
-        message: error.message,
-        provider: 'runner',
-        phase: 'workflow_build',
-        errorCode: 'runner_lora_unavailable',
-      })
-    }
     throw error
   }
+
+  // v2：fork worker 据此在跑前把每把 LoRA 从 R2 拉到 models/loras/（缺则下、有则
+  // 跳）。source 限 'r2'（fork 侧只认我们的预签名链，防 SSRF）。
+  const lorasToFetch = runnerLoras.map((lora) => ({
+    filename: lora.filename,
+    url: lora.downloadUrl,
+    source: 'r2' as const,
+  }))
+
+  const runpodInput: Record<string, unknown> = { workflow }
+  if (referenceImages) runpodInput.images = referenceImages
+  if (lorasToFetch.length > 0) runpodInput.loras_to_fetch = lorasToFetch
 
   const response = await fetch(
     `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`,
@@ -5084,11 +5120,7 @@ async function submitRunnerImageJob(
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': JSON_CONTENT_TYPE,
       },
-      body: JSON.stringify({
-        input: referenceImages
-          ? { workflow, images: referenceImages }
-          : { workflow },
-      }),
+      body: JSON.stringify({ input: runpodInput }),
     },
   )
 

@@ -6,6 +6,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -269,6 +270,24 @@ export async function createPresignedR2PutUrl(params: {
       Key: params.key,
       ContentType: params.mimeType,
       IfNoneMatch: '*',
+    }),
+    { expiresIn: params.expiresInSeconds },
+  )
+}
+
+/**
+ * 预签名 GET —— v2 runner：app 为 R2 里的 LoRA 生成短时效下载链，交给 Cloudflare
+ * Worker 塞进 RunPod job，fork worker 据此从 R2 拉（worker 不需 R2 凭证）。
+ */
+export async function createPresignedR2GetUrl(params: {
+  key: string
+  expiresInSeconds: number
+}): Promise<string> {
+  return await getSignedUrl(
+    r2,
+    new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: params.key,
     }),
     { expiresIn: params.expiresInSeconds },
   )
@@ -725,6 +744,25 @@ export async function uploadBufferedHttpToR2(params: {
 /**
  * Delete an object from Cloudflare R2 by its storage key.
  */
+/**
+ * v2 runner LoRA 缓存去重：R2 上是否已有该 key（HEAD，不下载对象本体）。
+ * 找不到（404/403/NotFound）视为不存在；其它错误抛出，以区分「不在」与「R2 挂了」。
+ */
+export async function r2ObjectExists(key: string): Promise<boolean> {
+  try {
+    await r2.send(
+      new HeadObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }),
+    )
+    return true
+  } catch (error) {
+    const name = (error as { name?: string }).name
+    const status = (error as { $metadata?: { httpStatusCode?: number } })
+      .$metadata?.httpStatusCode
+    if (name === 'NotFound' || status === 404 || status === 403) return false
+    throw error
+  }
+}
+
 export async function deleteFromR2(key: string): Promise<void> {
   await r2.send(
     new DeleteObjectCommand({

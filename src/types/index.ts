@@ -149,6 +149,17 @@ export const LoraSchema = z.object({
   scale: z.number().min(0.1).max(2).optional(),
 })
 
+// v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md）：app 侧 `prepareRunnerLoras`
+// 把每把 LoRA 确保进 R2 后产出的规格——文件名 + R2 预签名下载链 + 权重。经
+// advancedParams 透传给 Cloudflare Worker → RunPod fork（fork 据 downloadUrl 拉、
+// 据 filename 挂）。
+export const RunnerLoraSpecSchema = z.object({
+  filename: z.string().min(1),
+  downloadUrl: z.string().url(),
+  scale: z.number(),
+})
+export type RunnerLoraSpec = z.infer<typeof RunnerLoraSpecSchema>
+
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
   negativePrompt: z.string().max(2000).optional(),
@@ -162,6 +173,8 @@ export const AdvancedParamsSchema = z.object({
   style: z.string().optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
   loras: z.array(LoraSchema).max(5).optional(),
+  /** v2 runner：R2 缓存后的 LoRA 规格（服务端 prepareRunnerLoras 注入，不由客户端填）。 */
+  runnerLoras: z.array(RunnerLoraSpecSchema).max(3).optional(),
 })
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>

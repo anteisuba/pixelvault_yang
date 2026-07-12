@@ -4,10 +4,7 @@
  * pure function the Worker calls right before POSTing to RunPod.
  */
 
-import {
-  getRunnerCheckpointById,
-  resolveRunnerLoraFilename,
-} from './checkpoints'
+import { getRunnerCheckpointById } from './checkpoints'
 import {
   buildComfyWorkflow,
   type ComfyWorkflow,
@@ -17,8 +14,12 @@ import {
 const DEFAULT_STEPS = 30
 const DEFAULT_CFG = 7.5
 
+// v2（docs/plans/comfy-runner-v2-runtime-lora.md）：LoRA 文件名由 app 侧
+// `prepareRunnerLoras` 预先派生（`civitai-<versionId>.safetensors`），并连同 R2
+// 预签名下载链一起下发。Worker 不再按 allowlist 解析/拒绝——fork worker 会先把
+// `filename` 从 R2 拉到 models/loras/ 再挂（下载规格另见 index.ts 的 loras_to_fetch）。
 export interface RunnerLoraRequestInput {
-  url: string
+  filename: string
   scale?: number | null
 }
 
@@ -54,16 +55,6 @@ export class RunnerUnknownCheckpointError extends Error {
   }
 }
 
-export class RunnerLoraUnavailableError extends Error {
-  constructor(readonly loraUrl: string) {
-    super(
-      `This LoRA is not available on the runner yet (not pre-baked on the ` +
-        `Network Volume — v1 has no runtime LoRA download): ${loraUrl}`,
-    )
-    this.name = 'RunnerLoraUnavailableError'
-  }
-}
-
 /**
  * Builds the ComfyUI workflow JSON for a runner generation request.
  * `randomSeed` is injected (rather than called internally) so this stays a
@@ -80,12 +71,12 @@ export function buildRunnerWorkflowFromRequest(
   }
 
   const loras: RunnerWorkflowLora[] = input.loras.map((lora) => {
-    const filename = resolveRunnerLoraFilename(lora.url)
-    if (!filename) {
-      throw new RunnerLoraUnavailableError(lora.url)
-    }
     const strength = lora.scale ?? 1
-    return { filename, strengthModel: strength, strengthClip: strength }
+    return {
+      filename: lora.filename,
+      strengthModel: strength,
+      strengthClip: strength,
+    }
   })
 
   return buildComfyWorkflow({

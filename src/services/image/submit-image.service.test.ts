@@ -51,6 +51,9 @@ vi.mock('@/services/user.service', () => ({
 vi.mock('@/services/storage/r2', () => ({
   generateStorageKey: vi.fn(() => 'generations/user-1/image/output.png'),
 }))
+vi.mock('@/services/runner/civitai-lora-to-r2.service', () => ({
+  prepareRunnerLoras: vi.fn(),
+}))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
@@ -71,6 +74,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
 import {
   checkImageGenerationStatus,
   submitImageGeneration,
@@ -182,6 +186,58 @@ describe('submitImageGeneration', () => {
         providerId: AI_ADAPTER_TYPES.RUNNER,
         useSystemKey: true,
         apiKeyId: undefined,
+      }),
+    )
+  })
+
+  it('for a RUNNER run with LoRAs, ensures them in R2 and threads runnerLoras into the worker input (v2)', async () => {
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      route: {
+        modelId: 'anima-pencil-xl-runner',
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        providerConfig: { label: 'PixelVault Runner' },
+        creditCost: 1,
+        isFreeGeneration: false,
+        resolvedApiKeyId: null,
+      } as never,
+      provider: 'RUNNER',
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(prepareRunnerLoras).mockResolvedValue([
+      {
+        filename: 'civitai-111.safetensors',
+        downloadUrl: 'https://r2/x?sig',
+        scale: 0.9,
+      },
+    ])
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      modelId: 'anima-pencil-xl-runner',
+      advancedParams: {
+        loras: [
+          { url: 'https://civitai.com/api/download/models/111', scale: 0.9 },
+        ],
+      },
+    })
+
+    expect(prepareRunnerLoras).toHaveBeenCalledWith([
+      { url: 'https://civitai.com/api/download/models/111', scale: 0.9 },
+    ])
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerInput: expect.objectContaining({
+          advancedParams: expect.objectContaining({
+            runnerLoras: [
+              {
+                filename: 'civitai-111.safetensors',
+                downloadUrl: 'https://r2/x?sig',
+                scale: 0.9,
+              },
+            ],
+          }),
+        }),
       }),
     )
   })

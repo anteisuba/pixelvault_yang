@@ -160,6 +160,13 @@ export const RunnerLoraSpecSchema = z.object({
 })
 export type RunnerLoraSpec = z.infer<typeof RunnerLoraSpecSchema>
 
+/** v3 runner：源图配方 checkpoint 解析后的下载规格（服务端 prepareRunnerCheckpoint 注入，fork GPU 侧下）。 */
+export const RunnerCheckpointSpecSchema = z.object({
+  filename: z.string().min(1),
+  downloadUrl: z.string().url(),
+})
+export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
+
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
   negativePrompt: z.string().max(2000).optional(),
@@ -175,6 +182,13 @@ export const AdvancedParamsSchema = z.object({
   loras: z.array(LoraSchema).max(5).optional(),
   /** v2 runner：R2 缓存后的 LoRA 规格（服务端 prepareRunnerLoras 注入，不由客户端填）。 */
   runnerLoras: z.array(RunnerLoraSpecSchema).max(3).optional(),
+  // v3 runner 底模按需下载：checkpointVersionId/Name = 客户端从源图配方转发的底模
+  // 引用；runnerCheckpoint = 服务端分级(T1)解析出的精确下载规格（fork GPU 侧下）；
+  // runnerCheckpointApproximate = T2 近似（无精确底模、用兼容档，UI 提示差异）。
+  checkpointVersionId: z.number().int().positive().optional(),
+  checkpointName: z.string().max(200).optional(),
+  runnerCheckpoint: RunnerCheckpointSpecSchema.optional(),
+  runnerCheckpointApproximate: z.boolean().optional(),
 })
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>

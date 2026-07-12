@@ -41,6 +41,7 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { generateStorageKey } from '@/services/storage/r2'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
+import { prepareRunnerCheckpoint } from '@/services/runner/prepare-runner-checkpoint.service'
 
 /**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
@@ -212,6 +213,31 @@ export async function submitImageGeneration(
           error instanceof Error
             ? error.message
             : 'Failed to prepare runner LoRA',
+          502,
+        )
+      }
+    }
+    // v3（docs/plans/comfy-runner-v3-checkpoint-ondemand.md V3-2c）：配方带底模引用时
+    // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
+    // 无引用（非配方生成）则维持现状，用选中的预烤底模。
+    const adv = runnerAdvancedParams
+    if (adv && (adv.checkpointVersionId != null || adv.checkpointName)) {
+      try {
+        const prepared = await prepareRunnerCheckpoint({
+          checkpointVersionId: adv.checkpointVersionId,
+          checkpointName: adv.checkpointName,
+        })
+        runnerAdvancedParams = {
+          ...adv,
+          runnerCheckpoint: prepared.runnerCheckpoint,
+          runnerCheckpointApproximate: prepared.approximate || undefined,
+        }
+      } catch (error) {
+        throw new GenerateImageServiceError(
+          'PROVIDER_ERROR',
+          error instanceof Error
+            ? error.message
+            : 'Failed to prepare runner checkpoint',
           502,
         )
       }

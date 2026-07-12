@@ -21,6 +21,7 @@ import {
   listCivitaiLoras,
   mineCivitaiUserPrompts,
   prewarmCivitaiLoraLibrary,
+  resolveCivitaiCheckpointByReference,
   resolveCivitaiLoraByReference,
   resolveCivitaiModelPageUrlByVersion,
 } from '@/services/civitai-lora.service'
@@ -2838,6 +2839,75 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.recipes?.[0]?.prompt).toBe(
       'a simple prompt, no lora tag at all',
     )
+  })
+})
+
+describe('resolveCivitaiCheckpointByReference', () => {
+  const CKPT_PAYLOAD = {
+    id: 597138,
+    modelId: 521060,
+    name: 'v5.0.0',
+    baseModel: 'Anima',
+    downloadUrl: 'https://civitai.com/api/download/models/597138',
+    model: { name: 'Anima Pencil-XL', type: 'Checkpoint' },
+    files: [
+      {
+        type: 'Model',
+        primary: true,
+        name: 'animaPencilXL_v500.safetensors',
+        downloadUrl: 'https://civitai.com/api/download/models/597138',
+        sizeKB: 6944000,
+        hashes: { AutoV3: 'ABCDEF012345' },
+      },
+    ],
+  }
+
+  it('resolves a checkpoint version to its download target', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(CKPT_PAYLOAD))
+
+    const res = await resolveCivitaiCheckpointByReference(597138)
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.pathname).toBe('/api/v1/model-versions/597138')
+    expect(res).toEqual({
+      modelVersionId: 597138,
+      name: 'v5.0.0',
+      baseModel: 'Anima',
+      downloadUrl: 'https://civitai.com/api/download/models/597138',
+      sizeKB: 6944000,
+      fileHashAutoV3: 'abcdef012345',
+    })
+  })
+
+  it('returns null when the version is a LoRA, not a checkpoint', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 135867,
+        name: 'v1',
+        baseModel: 'SDXL 1.0',
+        model: { type: 'LORA' },
+        files: [
+          {
+            type: 'Model',
+            downloadUrl: 'https://civitai.com/api/download/models/135867',
+          },
+        ],
+      }),
+    )
+    expect(await resolveCivitaiCheckpointByReference(135867)).toBeNull()
+  })
+
+  it('returns null when the checkpoint has no downloadable file', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 42,
+        name: 'gated',
+        baseModel: 'Illustrious',
+        model: { type: 'Checkpoint' },
+        files: [],
+      }),
+    )
+    expect(await resolveCivitaiCheckpointByReference(42)).toBeNull()
   })
 })
 

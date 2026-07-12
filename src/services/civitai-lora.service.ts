@@ -64,6 +64,7 @@ const CivitaiFileSchema = z
     name: z.string().optional(),
     primary: z.boolean().optional(),
     downloadUrl: z.string().url().optional(),
+    sizeKB: z.number().optional(),
     // Civitai returns multiple hash algorithms per file; AutoV3 is the one
     // that matches the `<lora:NAME:weight>` resources entry in user
     // generation metadata. Kept passthrough so future hash types come
@@ -760,6 +761,88 @@ async function resolveCivitaiLoraByWebSearchNameStem(
     target,
     baseModelFamily,
   )
+}
+
+export interface CivitaiCheckpointResolution {
+  modelVersionId: number
+  name: string
+  /** Raw Civitai baseModel string (e.g. 'Illustrious', 'Anima', 'SD 1.5'). */
+  baseModel: string | null
+  downloadUrl: string
+  sizeKB: number | null
+  fileHashAutoV3: string | null
+}
+
+/**
+ * Resolve a recipe's checkpoint (by Civitai model-version id — captured into
+ * CivitaiImageRecipe.checkpointVersionId, V3-1) to a concrete download target:
+ * the base model the runner must fetch for a faithful (T1) clone, plus its raw
+ * baseModel string (→ architecture tiering) and file size (→ Volume budget).
+ *
+ * Returns null when the version isn't a Checkpoint, isn't resolvable
+ * (gated/deleted/blip), or has no downloadable file — the caller then falls
+ * back to the approximate (T2) tier. No token is sent (mirrors the LoRA
+ * resolver); public checkpoints resolve fine. TODO(v3): pass the system Civitai
+ * token so gated-but-downloadable checkpoints resolve as T1 instead of T2.
+ *
+ * See docs/plans/comfy-runner-v3-checkpoint-ondemand.md §2/§6.
+ */
+export async function resolveCivitaiCheckpointByReference(
+  modelVersionId: number,
+): Promise<CivitaiCheckpointResolution | null> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.resolveCheckpointReference',
+    })
+  } catch (error) {
+    logger.warn('Civitai checkpoint reference resolve failed', {
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+
+  const parsed = CivitaiVersionResolveSchema.safeParse(payload)
+  if (!parsed.success) {
+    logger.warn('Civitai checkpoint reference response had unexpected shape', {
+      modelVersionId,
+    })
+    return null
+  }
+  const version = parsed.data
+
+  // Guard: the reference must point at a Checkpoint, never a LoRA/embedding —
+  // we never feed a non-checkpoint into ComfyUI's CheckpointLoaderSimple.
+  if ((version.model?.type ?? '').toLowerCase() !== 'checkpoint') return null
+
+  // Prefer the primary model file (the .safetensors checkpoint); fall back to
+  // any model-typed file, then any file carrying a download url.
+  const file =
+    version.files?.find(
+      (candidate) =>
+        candidate.primary && (candidate.type ?? '').toLowerCase() === 'model',
+    ) ??
+    version.files?.find(
+      (candidate) => (candidate.type ?? '').toLowerCase() === 'model',
+    ) ??
+    version.files?.find((candidate) => candidate.downloadUrl)
+  const downloadUrl = file?.downloadUrl ?? version.downloadUrl
+  if (!downloadUrl) return null
+
+  return {
+    modelVersionId: version.id,
+    name: version.name,
+    baseModel: version.baseModel ?? null,
+    downloadUrl,
+    sizeKB: file?.sizeKB ?? null,
+    fileHashAutoV3: file?.hashes?.AutoV3?.toLowerCase() ?? null,
+  }
 }
 
 export async function resolveCivitaiLoraByReference({

@@ -3806,6 +3806,11 @@ export const CivitaiImageRecipeSchema = z.object({
   sizeRaw: z.string().optional(),
   // meta.Model — 该图所用 checkpoint 名，解释"底模差异"用。
   checkpoint: z.string().optional(),
+  // civitaiResources[type=checkpoint].modelVersionId — 站内生成图带的精确底模
+  // 引用。V3 按需下载/保真度分级据此**精确定位**该图真正用的 checkpoint（比
+  // meta.Model 名字准、比 meta.hashes 作者本地 hash 可靠），并借此根治 Anima
+  // 命名撞车。仅站内(onsite)生成图有；离线上传图靠 checkpoint 名兜底。
+  checkpointVersionId: z.number().int().positive().optional(),
   // 目标 LoRA 在该图中的真实权重（meta.resources hash 匹配）。
   loraWeight: z.number().optional(),
   extraLoras: z.array(CivitaiRecipeExtraLoraSchema).optional(),

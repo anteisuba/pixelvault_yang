@@ -2187,7 +2187,22 @@ type RecipeMetaParams = Pick<
   | 'clipSkip'
   | 'sizeRaw'
   | 'checkpoint'
+  | 'checkpointVersionId'
 >
+
+// civitaiResources[type=checkpoint].modelVersionId — 站内生成图的精确底模引用
+// （比 meta.Model 名字准、比 meta.hashes 作者本地 hash 可靠）。V3 checkpoint
+// 解析优先用它精确定位，名字仅作离线图兜底。
+function extractCheckpointVersionId(
+  meta: Record<string, unknown>,
+): number | undefined {
+  const parsed = z
+    .array(CivitaiResourceByVersionSchema)
+    .safeParse(meta.civitaiResources)
+  if (!parsed.success) return undefined
+  return parsed.data.find((r) => (r.type ?? '').toLowerCase() === 'checkpoint')
+    ?.modelVersionId
+}
 
 function extractRecipeMetaParams(
   meta: Record<string, unknown>,
@@ -2201,6 +2216,7 @@ function extractRecipeMetaParams(
     clipSkip: coerceInteger(meta.clipSkip ?? meta['Clip skip']),
     sizeRaw: coerceTrimmedString(meta.Size ?? meta.size),
     checkpoint: coerceTrimmedString(meta.Model),
+    checkpointVersionId: extractCheckpointVersionId(meta),
   }
 }
 

@@ -2647,6 +2647,9 @@ describe('mineCivitaiUserPrompts', () => {
 
     expect(result.recipes?.[0]?.loraWeight).toBe(0.75)
     expect(result.recipes?.[0]?.extraLoras).toBeUndefined()
+    // V3: the onsite checkpoint's modelVersionId is captured for precise
+    // base-model resolution (civitaiResources[type=checkpoint]).
+    expect(result.recipes?.[0]?.checkpointVersionId).toBe(999999)
   })
 
   it('extras carry their locators (hash / modelVersionId) for one-tap mounting', async () => {

@@ -3,31 +3,44 @@ PixelVault Runner — worker-comfyui fork handler (v2 runtime LoRA download).
 
 设计：docs/plans/comfy-runner-v2-runtime-lora.md（②a）。
 
-官方 `runpod/worker-comfyui:<ver>-base` 不支持请求时下载 LoRA。本 wrapper 在把 job
-交给官方 handler 之前，先把 `input.loras_to_fetch` 里每把 LoRA 从 **R2 预签名 URL**
-拉到 Network Volume 的 `models/loras/`（缺则下、有则跳＝缓存），再跑 ComfyUI。
+官方 runpod/worker-comfyui:5.8.6-base 的 /start.sh 先后台起 ComfyUI，再跑
+`python -u /handler.py`（handler 通过 127.0.0.1:8188 和 ComfyUI 通信）。本 fork
+不改 start.sh／CMD：Dockerfile 把官方 /handler.py 挪成 /handler_base.py，再把本文件
+放到 /handler.py。于是 start.sh 那句 `python -u /handler.py` 跑的是本 wrapper——它先
+把 input.loras_to_fetch 里每把 LoRA 从 R2 预签名 URL 拉到 /runpod-volume/models/loras/
+（缺则下、有则跳＝缓存），再调用官方 handler。ComfyUI 的 folder_paths 按目录 mtime 失效
+缓存，故新下载的 LoRA 当次请求即可被 LoraLoader 找到。
 
 安全：
-- 只认 `source == "r2"`（app 侧生成的短时效预签名链），不下任意外链（防 SSRF）。
-- 文件名必须是纯 basename（无路径分隔/`..`），防目录穿越。
+- 只认 source == "r2"（app 侧生成的短时效预签名链），不下任意外链（防 SSRF）。
+- 文件名必须是纯 basename（无路径分隔 / ..），防目录穿越。
 
-⚠ 部署前须核对 base 镜像结构（见 README）：
-- `BASE_HANDLER_IMPORT` —— worker-comfyui 官方 handler 的导入路径（随版本可能变）。
-- LoRA 目录 —— serverless worker 上 Volume 挂在 `/runpod-volume`；ComfyUI 的
-  loras 目录一般是 `/runpod-volume/models/loras`（`extra_model_paths.yaml` 自动发现）。
+⚠ 部署前须核对（见 README，随 worker-comfyui 版本可能变）：
+- 官方 handler 现为 /handler.py 且 serverless.start 有 __main__ 卫（5.8.6 已确认）。
+- LoRA 目录由 /comfyui/extra_model_paths.yaml 决定：base_path /runpod-volume +
+  loras models/loras/ → /runpod-volume/models/loras（5.8.6 已确认）。
 """
 
+import importlib.util
 import os
-import runpod
-import requests
 
-# ── 需按 base 镜像核对的两个常量 ──────────────────────────────────
+import requests
+import runpod
+
+# ── 需按 base 镜像核对的常量 ──────────────────────────────────────
 LORA_DIR = os.environ.get("RUNNER_LORA_DIR", "/runpod-volume/models/loras")
 DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("RUNNER_LORA_DL_TIMEOUT", "600"))
+BASE_HANDLER_PATH = os.environ.get("RUNNER_BASE_HANDLER", "/handler_base.py")
 ALLOWED_SOURCE = "r2"
 
-# worker-comfyui 官方 handler —— 导入路径随版本核对（README §故障排查）。
-from handler import handler as base_handler  # noqa: E402
+# 载入官方 handler 模块。因其 serverless.start 有 __main__ 卫，import 不会用官方
+# handler 抢先 start —— 由本 wrapper 统一 start（见文件末）。
+_spec = importlib.util.spec_from_file_location("handler_base", BASE_HANDLER_PATH)
+if _spec is None or _spec.loader is None:
+    raise RuntimeError(f"Cannot load base worker-comfyui handler at {BASE_HANDLER_PATH!r}")
+_base = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_base)
+base_handler = _base.handler
 
 
 def _safe_basename(name: str) -> str:
@@ -67,10 +80,12 @@ def ensure_loras(loras_to_fetch) -> None:
         print(f"[runner-fork] cached LoRA {filename}", flush=True)
 
 
-def handler(event):
-    inp = (event or {}).get("input", {}) or {}
+def handler(job):
+    inp = (job or {}).get("input", {}) or {}
     ensure_loras(inp.get("loras_to_fetch"))
-    return base_handler(event)
+    return base_handler(job)
 
 
-runpod.serverless.start({"handler": handler})
+if __name__ == "__main__":
+    print("[runner-fork] starting wrapped handler (runtime LoRA download) …", flush=True)
+    runpod.serverless.start({"handler": handler})

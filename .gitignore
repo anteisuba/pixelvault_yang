@@ -69,3 +69,6 @@ next-env.d.ts
 
 # local scratch / probe outputs (e.g. fal-probe run dirs)
 /tmp/
+
+# generated monitor outputs (model-doc-monitor snapshots/reports — regenerated, not tracked)
+/artifacts/

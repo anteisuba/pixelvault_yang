@@ -1,0 +1,92 @@
+# Comfy Runner v2 — 运行时 LoRA 下载（R2 权威版）
+
+> 上游：`docs/plans/comfy-runner-HANDOFF-2026-07.md`（v1 部署已完成：端点 `01g8rrmixe4hah` + Volume `rk3t3mb1ko` 40GB + 4 底模）。v1 只认预烤 allowlist（1 把测试 LoRA），本包让 runner 能跑**任意 Civitai LoRA**。
+> 2026-07-12 讨论拍板：R2 做权威 LoRA 仓库 / Volume 只留底模不涨 / 全局共享预算档（前期不做 per-user）/ Civitai token 走 API key。
+
+## 0. 现状与卡点（一句话）
+
+- runner 出图链已通到 worker（gate 修复 `f0d3b5fc` 已上线）。
+- 但 `workers/execution/src/models/runner/request-builder.ts` 对非 allowlist LoRA 直接抛 `RunnerLoraUnavailableError` —— stock `worker-comfyui` 镜像不能在请求时下载 LoRA（HANDOFF §2.3）。
+- 结果：除 `RUNNER_LORA_ALLOWLIST`（`checkpoints.ts`，当前 1 把 `tutenstein-cleo-carter-v1` / 1672783）外，任何库 LoRA 都撞「not available on the runner」。
+
+## 1. 目标架构（R2 权威 + Volume 固定）
+
+```
+① 首次有人要某把 LoRA（R2 里没）
+   app（Next.js 服务端）→ 从 Civitai 下载（带 CIVITAI_API_TOKEN + 429 退避）→ 存进 R2
+② 每次出图
+   Cloudflare Worker：不再拒绝 → 给 RunPod job 附「LoRA 下载规格」（R2 预签名 URL + 目标文件名）
+   fork 的 worker-comfyui：逐个 LoRA → 从 R2 拉到临时盘 models/loras/ → 跑 ComfyUI → 缩容清掉
+```
+
+**关键取舍（拍板）**：
+
+- **R2 = 权威仓库**（无限、$0.015/GB、**出站免费**、app 已在用）。LoRA 存 R2，不存 Volume。
+- **Volume 只留 4 底模**（固定 ~28GB，**永不涨**）→ 不扩容、不 LRU、不清理，Volume 管理问题整个消掉。
+- **worker 每次从 R2 拉到临时盘**（不落持久 Volume）：R2→RunPod 出站免费、小文件几秒、不被 Civitai 限流；worker 热着时临时盘还能省重复拉。
+- Civitai **只被打一次**（Civitai→R2），之后全走 R2 —— 根治 Civitai 429 限流。
+
+## 2. 工作拆分（谁做什么）
+
+| 块                                 | 内容                                                                                                                                                                            | 归属                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **②a fork worker-comfyui handler** | 官方镜像基础上加：读 job 里的 LoRA 下载规格 → 逐个从 R2 拉到 `/tmp` 或 `models/loras/` → 跑；下载源 allowlist（只放 R2/我们的域）；缺失/超时 → 结构化错误回传                   | **代码=我写**（放新 fork 仓），构建/部署=owner |
+| **②b RunPod infra**                | fork 仓接 RunPod **GitHub 自动构建** → 端点 template 指向新镜像；加 secret（若 worker 需直连 civitai 兜底才要 `CIVITAI_KEY`，纯 R2 路径可不放）                                 | **owner 主导**（我给傻瓜步骤）                 |
+| **①a app 侧 Civitai→R2**           | 新 service：给定 LoRA 下载 URL/versionId → R2 有则跳过，无则从 Civitai 下（`CIVITAI_API_TOKEN` + `withRetry` 退避 ≥75s）→ 存 R2 → 返回 R2 key/预签名 URL；modelVersionId 去重键 | **代码=我/Sonnet**，本仓 `services/`           |
+| **①b Cloudflare Worker**           | `checkpoints.ts`/`request-builder.ts`/`workflow-builder.ts`/`index.ts`：非 allowlist 不再抛，派生确定性文件名 + 发下载规格（R2 预签名 URL），workflow 引用该文件名              | **代码=我/Sonnet**，本仓 `workers/execution/`  |
+| **③ 护栏**                         | 下载源 allowlist（civitai/hf→R2）、冷启动 timeout 上调（120s→300s）、下载失败/超时结构化错误→友好文案（复用 `RUNNER_LORA_UNAVAILABLE` i18n）、Volume 只读底模不写               | 我/Sonnet                                      |
+| **④ UI（可选，后置）**             | 冷启动「下载中…」进度态                                                                                                                                                         | 后置                                           |
+
+**顺序**：②（fork+RunPod）是关键路径——②上线前 ① 无端到端可测。建议：我先把 ②a handler + ①a/①b 本仓改动**成套写好**（对齐 job input 契约），owner 并行走 ②b 部署，两边对齐后端到端测一张。**img2img（`a05f2eb2`）随这次 worker 重部署一起上线。**
+
+## 3. Job input 契约（Cloudflare Worker ↔ fork worker）
+
+现状 img2img 已有 `input.images:[{name,image(base64)}]` 先例。v2 加：
+
+```jsonc
+input: {
+  workflow: { ... },              // ComfyUI workflow（引用下面的 filename）
+  loras_to_fetch: [               // 【新】fork worker 据此下载
+    { filename: "civitai-3118200.safetensors", url: "<R2 预签名 URL>", source: "r2" }
+  ]
+}
+```
+
+- `filename` 确定性派生（`civitai-<modelVersionId>.safetensors`），workflow 的 LoraLoader 用它。
+- `url` = app 生成的 **R2 预签名 GET**（短时效）。`source` 限 `r2`（安全：worker 只从我们的 R2 拉，不直连任意 URL）。
+- fork worker：`filename` 已在临时盘则跳过；否则拉 `url`→存→挂。
+
+## 4. 全局共享预算档（前期，不做 per-user）
+
+- 保持 `RUNNER_MONTHLY_LIMIT.LIMIT=300`（全局 `db.count`，UTC 月滚动）——所有用户共享，≈$10。
+- RunPod 侧：预付 $10 + 关自动续费 = 硬顶（覆盖 server+生成）。
+- **主动提示**（本包顺带做）：LoRA 工作台显示「本月 runner 剩余 N/300」，撞上限前就让用户知道（现状只在撞了才弹 `errors.provider.runnerMonthlyLimitExceeded`）。
+- ⚠ 推广后再迭代：per-user 配额 / 付费档 / 抬预算。**本期不做**，先放用户看反馈。
+
+## 5. 风险 / 坑
+
+- **冷启动 + 下载延迟**：首图 = 开机 + 拉 N 把 LoRA（各几秒）+ 出图 ≈ 30–90s；`Execution Timeout` 现 120s 可能不够 → **上调 300s**；给「下载中」进度态（④）。
+- **R2 预签名 URL 时效**：要覆盖冷启动+下载窗口（给足如 15min）。
+- **Civitai 视频封面/gated**：下载走 versionId + token；配方里的额外挂载 LoRA（截图那种叠 2 把）要**逐个**下。
+- **fork 维护**：跟 upstream worker-comfyui 版本（现 5.8.6）——fork 尽量薄（只加下载 hook），便于跟版。
+- **安全**：worker 只认 `source:r2` 的预签名 URL，不直连任意外链（防 SSRF）；app 侧下载源 allowlist（civitai.com/huggingface.co）。
+
+## 6. 切片
+
+- **V2-1**：app 侧 `civitai-lora-to-r2` service（Civitai→R2 去重下载）+ 单测。
+- **V2-2**：Cloudflare Worker 改（不再拒绝 + 发下载规格 + workflow 引用）+ worker 单测。
+- **V2-3**：fork worker-comfyui handler（新仓，Python）+ owner GitHub 构建/部署指令 + 端到端一张。
+- **V2-4**：护栏（timeout 上调 / 结构化错误 / 源 allowlist）。
+- **V2-5（可选）**：冷启动进度 UI。
+- **旁**：本次 worker 重部署带上 img2img（`a05f2eb2`）。
+
+## 7. 兑现的连带收益
+
+- v2 通 → **Anima 命名撞车那个问题终于能真机验**（任意 Anima LoRA 下载即跑 → 看 anima_pencil-XL 出的脸对不对；对不上再收紧 `normalizeToLoraBaseFamily`）。
+- runner 从「1 把样本」变「任意 Civitai LoRA」，才真正可用。
+
+## 8. Owner 待办（账户侧，与代码并行）
+
+1. RunPod：充 $10 + 关自动续费（Billing → Automatic Payments 关）+ 低余额提醒。
+2. Civitai：生成 API token（Account Settings → API Keys）——app 已有一份 `CIVITAI_API_TOKEN` 可复用于 ①a。
+3. ②b：fork 仓接 RunPod GitHub 构建 + 端点 template 换镜像（我给步骤）。

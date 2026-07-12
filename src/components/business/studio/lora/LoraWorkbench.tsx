@@ -1537,8 +1537,26 @@ function LoraSpineBar({
                   value={base.id}
                   disabled={!base.available}
                 >
-                  {base.displayName} · {fidelityLabel(base)}
-                  {base.available ? '' : ` · ${t('spine.comingSoon')}`}
+                  <span className="flex items-center gap-1.5">
+                    <span>
+                      {base.displayName} · {fidelityLabel(base)}
+                      {base.available ? '' : ` · ${t('spine.comingSoon')}`}
+                    </span>
+                    {/* 命名 A：把「免费额度 / 需 API Key」做成徽标，让 runner(平台免费·
+                        有月度额度) 和 fal(自备 key) 的实际差别一眼可见。 */}
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full border px-1.5 py-px text-2xs leading-tight',
+                        base.backend === 'runner'
+                          ? 'border-primary/40 text-primary'
+                          : 'border-border text-muted-foreground',
+                      )}
+                    >
+                      {base.backend === 'runner'
+                        ? t('spine.freeQuota')
+                        : t('spine.needApiKey')}
+                    </span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

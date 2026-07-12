@@ -1464,6 +1464,8 @@
       "fast": "Fast",
       "faithful": "Faithful",
       "comingSoon": "Coming soon",
+      "freeQuota": "Free quota",
+      "needApiKey": "Needs API key",
       "removeLora": "Remove {name}",
       "scaleLabel": "{name} strength",
       "scaleHint": "Higher = stronger LoRA style",

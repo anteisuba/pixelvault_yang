@@ -1464,6 +1464,8 @@
       "fast": "高速",
       "faithful": "忠実",
       "comingSoon": "近日公開",
+      "freeQuota": "無料枠",
+      "needApiKey": "APIキー必要",
       "removeLora": "{name} を削除",
       "scaleLabel": "{name} の強度",
       "scaleHint": "高いほど LoRA スタイルが強く反映",

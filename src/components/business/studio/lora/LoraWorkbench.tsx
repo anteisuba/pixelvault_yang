@@ -76,6 +76,7 @@ import type {
   CivitaiImageRecipe,
   CivitaiLoraLibraryItem,
   CivitaiMinedPromptsResult,
+  CivitaiRecipeExtraLora,
   LoraAssetRecord,
 } from '@/types'
 import {
@@ -135,6 +136,11 @@ import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { appendMissingTriggers } from '@/lib/lora-prompt-triggers'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
+import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
+import {
+  mountRecipeExtraLoras,
+  type ExtraMountStatus,
+} from '@/lib/lora-recipe-extra-mount'
 import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
@@ -701,6 +707,29 @@ function GenerateBranch() {
     [prompt, recipeGroupAsset, stack, t],
   )
 
+  // 一键补挂配方里叠加的其他 LoRA：解析（本地库→Civitai）→ push 进挂载栈，
+  // 状态（loading/mounted/failed）回写驱动 LoraSourceRecipeStrip 的行内反馈。
+  // baseModelFamily 用当前主 LoRA 的家族做解析提示，挑对底模变体。
+  const [extraMountStatusByKey, setExtraMountStatusByKey] = useState<
+    Record<string, ExtraMountStatus>
+  >({})
+  const handleMountExtraLora = useCallback(
+    (extra: CivitaiRecipeExtraLora) => {
+      void mountRecipeExtraLoras({
+        extras: [extra],
+        stackItems: stack.items,
+        maxStack: LORA_STACK_MAX,
+        baseModelFamily: loraFamily,
+        resolveLora: resolveCivitaiLoraAPI,
+        pushLora: stack.push,
+        setLoraScale: stack.setScale,
+        setStatus: (key, status) =>
+          setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status })),
+      })
+    },
+    [stack, loraFamily],
+  )
+
   const hasLora = stack.items.length > 0
   const canGenerate =
     hasLora &&
@@ -932,12 +961,12 @@ function GenerateBranch() {
                       recipes={mined.recipes}
                       selectedImageUrl={selectedImageUrl}
                       includeSeed={includeSeed}
-                      extraMountStatusByKey={{}}
+                      extraMountStatusByKey={extraMountStatusByKey}
                       extraStackFull={stack.items.length >= LORA_STACK_MAX}
                       otherMountTriggers={otherMountTriggers}
                       onSelectedImageUrlChange={setSelectedImageUrl}
                       onIncludeSeedChange={setIncludeSeed}
-                      onMountExtraLora={() => undefined}
+                      onMountExtraLora={handleMountExtraLora}
                       onApplyRecipe={handleApplyRecipe}
                     />
                   ) : mined.previewImages.length > 0 ||

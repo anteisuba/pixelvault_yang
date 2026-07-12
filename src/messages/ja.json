@@ -3787,7 +3787,14 @@
         "surprised": "驚き"
       },
       "sampleLabel": "音声サンプル",
-      "generateSample": "サンプルを生成"
+      "generateSample": "サンプルを生成",
+      "coverAlt": "音色カバー",
+      "coverChange": "カバーを変更",
+      "coverUpload": "音色カバーをアップロード",
+      "coverFromAssets": "素材からカバーを選択",
+      "coverDialogTitle": "音色カバーを選択",
+      "coverDialogDescription": "現在の音声と一緒に1つの音色素材として保存する画像を選択します。",
+      "coverUploadFailed": "カバーをアップロードできませんでした"
     },
     "workflowFields": {
       "prompt": {

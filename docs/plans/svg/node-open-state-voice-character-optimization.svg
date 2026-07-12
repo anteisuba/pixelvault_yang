@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Node Workflow 打开态优化：音色与角色图</title>
+  <desc id="desc">深色画布上的两个打开态面板。左侧音色将封面和音频绑定为音色身份卡；右侧角色图移除重复上传入口，只保留名称、参考素材、听觉身份和出演记录。</desc>
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="22" stdDeviation="30" flood-color="#000" flood-opacity=".5"/></filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#242424" stroke-width="1"/></pattern>
+    <clipPath id="portrait"><rect x="140" y="234" width="132" height="132" rx="18"/></clipPath>
+    <clipPath id="char1"><rect x="919" y="322" width="130" height="98" rx="14"/></clipPath>
+    <clipPath id="char2"><rect x="1061" y="322" width="130" height="98" rx="14"/></clipPath>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#0b0b0b"/>
+  <rect width="1600" height="1000" fill="url(#grid)" opacity=".72"/>
+  <path d="M0 180H1600M0 820H1600" stroke="#303030" opacity=".45"/>
+  <text x="88" y="74" fill="#f5f5f5" font-family="Inter, 'Noto Sans SC', sans-serif" font-size="25" font-weight="700">节点打开态 · 信息结构优化</text>
+  <text x="88" y="108" fill="#8f8f8f" font-family="Inter, 'Noto Sans SC', sans-serif" font-size="14">声音与封面作为一个素材身份保存；角色图只保留一个素材入口</text>
+
+  <!-- voice panel -->
+  <g filter="url(#shadow)">
+    <rect x="84" y="148" width="650" height="778" rx="24" fill="#151515" stroke="#343434"/>
+    <rect x="84" y="148" width="650" height="72" rx="24" fill="#191919"/>
+    <path d="M84 220H734" stroke="#303030"/>
+  </g>
+  <rect x="108" y="168" width="34" height="34" rx="10" fill="#2a2a2a"/>
+  <text x="125" y="191" text-anchor="middle" fill="#d7d7d7" font-family="Inter,sans-serif" font-size="14" font-weight="700">V</text>
+  <text x="158" y="190" fill="#888" font-family="Inter,'Noto Sans SC',sans-serif" font-size="14">画布&#160; /</text>
+  <text x="218" y="190" fill="#f3f3f3" font-family="Inter,'Noto Sans SC',sans-serif" font-size="15" font-weight="700">音色</text>
+  <g stroke="#9b9b9b" stroke-width="1.7" fill="none"><path d="M690 176l15 15m0-15v15h-15"/><path d="M705 176h-7"/></g>
+
+  <text x="112" y="255" fill="#8f8f8f" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">音色来源</text>
+  <rect x="108" y="270" width="602" height="44" rx="13" fill="#202020" stroke="#303030"/>
+  <rect x="112" y="274" width="294" height="36" rx="10" fill="#efefef"/>
+  <text x="259" y="297" text-anchor="middle" fill="#111" font-family="Inter,'Noto Sans SC',sans-serif" font-size="13" font-weight="700">系统音色</text>
+  <text x="558" y="297" text-anchor="middle" fill="#999" font-family="Inter,'Noto Sans SC',sans-serif" font-size="13" font-weight="600">我的音色</text>
+
+  <!-- voice identity card -->
+  <rect x="108" y="330" width="602" height="174" rx="18" fill="#1d1d1d" stroke="#3a3a3a"/>
+  <rect x="140" y="362" width="132" height="112" rx="18" fill="#34312c"/>
+  <g clip-path="url(#portrait)">
+    <rect x="140" y="234" width="132" height="240" fill="#d1b38a"/>
+    <circle cx="206" cy="386" r="34" fill="#ead8bd"/>
+    <path d="M157 477c7-43 26-63 49-63s42 20 49 63" fill="#705d50"/>
+    <path d="M172 375c8-26 58-31 68 4-13-10-51-9-68-4" fill="#332b27"/>
+  </g>
+  <rect x="148" y="434" width="116" height="30" rx="10" fill="#0c0c0c" opacity=".84"/>
+  <text x="206" y="454" text-anchor="middle" fill="#fff" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="650">更换封面</text>
+  <text x="300" y="370" fill="#f2f2f2" font-family="Inter,'Noto Sans SC',sans-serif" font-size="18" font-weight="700">沉静叙述者</text>
+  <text x="300" y="398" fill="#999" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">Fish Audio · S2 Pro</text>
+  <rect x="300" y="418" width="72" height="25" rx="13" fill="#292929"/>
+  <circle cx="316" cy="430.5" r="4" fill="#9b9b9b"/>
+  <text x="328" y="435" fill="#bcbcbc" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">未验证</text>
+  <rect x="300" y="458" width="166" height="32" rx="10" fill="#272727" stroke="#3c3c3c"/>
+  <path d="M318 468v12m-4-8 4-4 4 4" stroke="#d8d8d8" stroke-width="1.5" fill="none"/>
+  <text x="336" y="479" fill="#e5e5e5" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">试听代表音频</text>
+  <rect x="534" y="458" width="148" height="32" rx="10" fill="#f2f2f2"/>
+  <text x="608" y="479" text-anchor="middle" fill="#111" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="700">重新选择音色</text>
+
+  <rect x="108" y="520" width="602" height="58" rx="15" fill="#1c1c1c" stroke="#303030"/>
+  <rect x="124" y="535" width="28" height="28" rx="8" fill="#2b2b2b"/>
+  <path d="M132 549h12m-6-6v12" stroke="#aaa" stroke-width="1.5"/>
+  <text x="166" y="546" fill="#eee" font-family="Inter,'Noto Sans SC',sans-serif" font-size="13" font-weight="650">素材保存方式</text>
+  <text x="166" y="565" fill="#858585" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">生成后将声音 + 当前封面保存为一个音色素材</text>
+  <text x="676" y="554" text-anchor="end" fill="#bdbdbd" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">已绑定</text>
+
+  <text x="112" y="614" fill="#8f8f8f" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">基础调节</text>
+  <text x="112" y="647" fill="#ededed" font-family="Inter,'Noto Sans SC',sans-serif" font-size="14" font-weight="650">语速</text><text x="686" y="647" text-anchor="end" fill="#a5a5a5" font-family="Inter,sans-serif" font-size="13">1.0×</text>
+  <rect x="112" y="663" width="574" height="6" rx="3" fill="#303030"/><rect x="112" y="663" width="244" height="6" rx="3" fill="#d8d8d8"/><circle cx="356" cy="666" r="9" fill="#151515" stroke="#e7e7e7"/>
+  <text x="112" y="706" fill="#ededed" font-family="Inter,'Noto Sans SC',sans-serif" font-size="14" font-weight="650">音量</text><text x="686" y="706" text-anchor="end" fill="#a5a5a5" font-family="Inter,sans-serif" font-size="13">0</text>
+  <rect x="112" y="722" width="574" height="6" rx="3" fill="#303030"/><rect x="112" y="722" width="312" height="6" rx="3" fill="#d8d8d8"/><circle cx="424" cy="725" r="9" fill="#151515" stroke="#e7e7e7"/>
+  <text x="112" y="766" fill="#8f8f8f" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">情绪</text>
+  <g font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600"><rect x="112" y="779" width="48" height="34" rx="17" fill="#eee"/><text x="136" y="801" text-anchor="middle" fill="#111">无</text><rect x="168" y="779" width="58" height="34" rx="17" fill="#242424"/><text x="197" y="801" text-anchor="middle" fill="#aaa">沉稳</text><rect x="234" y="779" width="58" height="34" rx="17" fill="#242424"/><text x="263" y="801" text-anchor="middle" fill="#aaa">愤怒</text><rect x="300" y="779" width="58" height="34" rx="17" fill="#242424"/><text x="329" y="801" text-anchor="middle" fill="#aaa">悲伤</text><rect x="366" y="779" width="58" height="34" rx="17" fill="#242424"/><text x="395" y="801" text-anchor="middle" fill="#aaa">惊讶</text></g>
+  <rect x="108" y="844" width="602" height="48" rx="14" fill="#232323"/>
+  <text x="409" y="874" text-anchor="middle" fill="#d9d9d9" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">切到「我的音色」后：上传音频 / 从素材选择 → 配置封面 → 形成同一张身份卡</text>
+
+  <!-- character panel -->
+  <g filter="url(#shadow)"><rect x="814" y="148" width="702" height="778" rx="24" fill="#151515" stroke="#343434"/><rect x="814" y="148" width="702" height="72" rx="24" fill="#191919"/><path d="M814 220H1516" stroke="#303030"/></g>
+  <rect x="838" y="168" width="34" height="34" rx="10" fill="#2a2a2a"/><text x="855" y="191" text-anchor="middle" fill="#d7d7d7" font-family="Inter,sans-serif" font-size="14" font-weight="700">C</text>
+  <text x="888" y="190" fill="#888" font-family="Inter,'Noto Sans SC',sans-serif" font-size="14">画布&#160; /</text><text x="948" y="190" fill="#f3f3f3" font-family="Inter,'Noto Sans SC',sans-serif" font-size="15" font-weight="700">角色图</text>
+  <g stroke="#9b9b9b" stroke-width="1.7" fill="none"><path d="M1472 176l15 15m0-15v15h-15"/><path d="M1487 176h-7"/></g>
+
+  <text x="842" y="260" fill="#8f8f8f" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">角色名称</text>
+  <rect x="838" y="274" width="654" height="44" rx="14" fill="#1d1d1d" stroke="#343434"/><circle cx="856" cy="296" r="4" fill="#b4a8c9"/><text x="872" y="301" fill="#ededed" font-family="Inter,'Noto Sans SC',sans-serif" font-size="14" font-weight="650">林澈</text>
+
+  <rect x="838" y="338" width="654" height="230" rx="18" fill="#1b1b1b" stroke="#303030"/>
+  <text x="862" y="371" fill="#f0f0f0" font-family="Inter,'Noto Sans SC',sans-serif" font-size="15" font-weight="700">参考素材</text>
+  <text x="1468" y="371" text-anchor="end" fill="#858585" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">2 / 3</text>
+  <rect x="862" y="390" width="130" height="98" rx="14" fill="#2c2926"/>
+  <g clip-path="url(#char1)"><rect x="919" y="322" width="130" height="98" fill="#bda37d"/><circle cx="974" cy="371" r="27" fill="#e6d0b0"/><path d="M936 430c6-38 20-52 39-52s35 15 40 52" fill="#4c4a48"/><path d="M947 361c7-20 48-24 56 5-14-10-39-9-56-5" fill="#302d2b"/></g>
+  <rect x="1004" y="390" width="130" height="98" rx="14" fill="#2c2926"/>
+  <g clip-path="url(#char2)"><rect x="1061" y="322" width="130" height="98" fill="#879296"/><circle cx="1120" cy="372" r="25" fill="#dfc6a8"/><path d="M1081 430c7-37 22-52 40-52s34 16 39 52" fill="#525c61"/><path d="M1093 361c9-21 46-22 55 4-12-8-38-8-55-4" fill="#2a2c2d"/></g>
+  <rect x="1146" y="390" width="130" height="98" rx="14" fill="#181818" stroke="#505050" stroke-dasharray="5 5"/>
+  <path d="M1205 429v20m-10-10h20" stroke="#bdbdbd" stroke-width="2"/><text x="1211" y="472" text-anchor="middle" fill="#aaa" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">添加素材</text>
+  <rect x="862" y="506" width="606" height="38" rx="12" fill="#252525"/>
+  <text x="1165" y="530" text-anchor="middle" fill="#d5d5d5" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12" font-weight="600">从素材库选择 · 上传图片 · 粘贴图片</text>
+
+  <rect x="838" y="586" width="654" height="112" rx="18" fill="#1b1b1b" stroke="#303030"/>
+  <text x="862" y="619" fill="#f0f0f0" font-family="Inter,'Noto Sans SC',sans-serif" font-size="15" font-weight="700">听觉身份</text>
+  <rect x="862" y="636" width="606" height="42" rx="13" fill="#242424" stroke="#3b3b3b"/>
+  <circle cx="885" cy="657" r="12" fill="#383838"/><path d="M881 652v10m4-13v16m4-11v8" stroke="#d4d4d4" stroke-width="1.5"/>
+  <text x="910" y="654" fill="#ededed" font-family="Inter,'Noto Sans SC',sans-serif" font-size="13" font-weight="650">沉静叙述者</text><text x="910" y="670" fill="#888" font-family="Inter,'Noto Sans SC',sans-serif" font-size="10">声音 + 封面已绑定</text>
+  <text x="1448" y="661" text-anchor="end" fill="#aaa" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">更换</text>
+
+  <rect x="838" y="716" width="654" height="128" rx="18" fill="#1b1b1b" stroke="#303030"/>
+  <text x="862" y="749" fill="#f0f0f0" font-family="Inter,'Noto Sans SC',sans-serif" font-size="15" font-weight="700">出演记录</text>
+  <rect x="862" y="767" width="108" height="32" rx="16" fill="#292929"/><text x="916" y="788" text-anchor="middle" fill="#cfcfcf" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">镜头 03</text>
+  <rect x="978" y="767" width="108" height="32" rx="16" fill="#292929"/><text x="1032" y="788" text-anchor="middle" fill="#cfcfcf" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">镜头 07</text>
+  <rect x="1094" y="767" width="108" height="32" rx="16" fill="#292929"/><text x="1148" y="788" text-anchor="middle" fill="#cfcfcf" font-family="Inter,'Noto Sans SC',sans-serif" font-size="11">预告片</text>
+
+  <text x="838" y="884" fill="#777" font-family="Inter,'Noto Sans SC',sans-serif" font-size="12">已删除：顶部大上传区 · 素材库 / AI 生成 / Studio 切换条</text>
+
+  <!-- decision labels -->
+  <g font-family="Inter,'Noto Sans SC',sans-serif">
+    <rect x="614" y="334" width="90" height="28" rx="14" fill="#ededed"/><text x="659" y="353" text-anchor="middle" fill="#111" font-size="11" font-weight="700">声音 + 封面</text>
+    <rect x="1361" y="341" width="107" height="28" rx="14" fill="#ededed"/><text x="1414" y="360" text-anchor="middle" fill="#111" font-size="11" font-weight="700">唯一素材入口</text>
+  </g>
+</svg>

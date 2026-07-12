@@ -155,22 +155,16 @@ beforeEach(() => {
 })
 
 describe('CharacterImageInspector (unified wrapper)', () => {
-  it('shows the name field with an upload dropzone behind a unified source row on an empty node', () => {
+  it('keeps one reference-material entry and removes duplicate image source controls', () => {
     renderInspector(createCharacterNode())
 
-    // Identity: the character name field is always visible, even pre-image.
     expect(screen.getByLabelText('nameLabel')).toBeInTheDocument()
-    // Empty image = upload / paste / drop dropzone, not a form.
-    expect(screen.getByText('existing.upload')).toBeInTheDocument()
+    expect(screen.getByText('referenceControls')).toBeInTheDocument()
+    expect(screen.queryByText('existing.upload')).not.toBeInTheDocument()
     expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
-    // Unified source row: 素材库 / AI 生成 / Studio (no dedicated card library).
-    expect(screen.getByText('changeSourceExisting')).toBeInTheDocument()
-    expect(screen.getByText('changeSourceStudio')).toBeInTheDocument()
-    expect(screen.queryByText('cardLibrary.title')).not.toBeInTheDocument()
-
-    // Opening "AI 生成" reveals the form.
-    fireEvent.click(screen.getByText('changeSourceAi'))
-    expect(screen.getByText('modelPicker')).toBeInTheDocument()
+    expect(screen.queryByText('changeSourceExisting')).not.toBeInTheDocument()
+    expect(screen.queryByText('changeSourceAi')).not.toBeInTheDocument()
+    expect(screen.queryByText('changeSourceStudio')).not.toBeInTheDocument()
   })
 
   it('writes the character name', () => {
@@ -185,7 +179,7 @@ describe('CharacterImageInspector (unified wrapper)', () => {
     })
   })
 
-  it('shows the preview for a node with media even when legacy imageMode is choice', () => {
+  it('keeps legacy media data compatible without restoring the duplicate preview', () => {
     renderInspector(
       createCharacterNode({
         imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
@@ -194,10 +188,7 @@ describe('CharacterImageInspector (unified wrapper)', () => {
       }),
     )
 
-    expect(screen.getByAltText('imageAlt').getAttribute('src')).toBe(
-      'https://cdn.test/character.png',
-    )
-    // The chooser must not take over a node that already has a result.
-    expect(screen.queryByText('modeAiTitle')).not.toBeInTheDocument()
+    expect(screen.queryByAltText('imageAlt')).not.toBeInTheDocument()
+    expect(screen.getByText('referenceControls')).toBeInTheDocument()
   })
 })

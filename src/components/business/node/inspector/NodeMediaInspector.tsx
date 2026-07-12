@@ -100,6 +100,10 @@ interface NodeMediaInspectorProps {
   referenceGalleryExtraItems?: readonly CharacterReferenceGalleryExtraItem[]
   /** Gallery mode only: 拆出 (§三.4). */
   onExtractReference?(referenceId: string): void
+  /** Collector dossiers use referenceAssets as their only visual-input path.
+   * Hide the standalone media preview/source switcher to avoid presenting the
+   * same upload/library actions twice. */
+  identityAssetsOnly?: boolean
 }
 
 function getStatusLabelKey(
@@ -148,6 +152,7 @@ export function NodeMediaInspector({
   referenceGalleryMode = 'popover',
   referenceGalleryExtraItems,
   onExtractReference,
+  identityAssetsOnly = false,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
@@ -208,9 +213,13 @@ export function NodeMediaInspector({
   //   - source row (素材库 / AI 生成 / Studio) always shows for image nodes
   //   - the generate form only opens behind "AI 生成" (editTarget === 'ai')
   // Non-image nodes (e.g. shotText) keep their form-always behavior.
-  const showUploadDropzone = isImageNode && !hasMedia
-  const showSourceRow = isImageNode
-  const showAiForm = isImageNode ? editTarget === 'ai' : true
+  const showUploadDropzone = isImageNode && !hasMedia && !identityAssetsOnly
+  const showSourceRow = isImageNode && !identityAssetsOnly
+  const showAiForm = identityAssetsOnly
+    ? false
+    : isImageNode
+      ? editTarget === 'ai'
+      : true
   const disabledReason = isPending
     ? t('generating')
     : !node.data.model && !isTextNode
@@ -468,113 +477,115 @@ export function NodeMediaInspector({
   return (
     <>
       <div className="space-y-4">
-        <div
-          className={cn(
-            'relative aspect-video overflow-hidden rounded-2xl border bg-node-panel-soft',
-            showUploadDropzone
-              ? 'border-dashed border-node-edge'
-              : 'border-node-panel-inner',
-          )}
-        >
-          {showUploadDropzone ? (
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label={t('existing.upload')}
-              onClick={() => existingImageInputRef.current?.click()}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  existingImageInputRef.current?.click()
-                }
-              }}
-              onPaste={handleExistingPaste}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDropExistingImage}
-              className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-            >
-              {isExistingImageUploading ? (
-                <Loader2 className="size-7 animate-spin text-node-muted" />
-              ) : (
-                <Upload className="size-7 text-node-muted" />
-              )}
-              <span className="text-sm font-semibold text-node-foreground">
-                {t('existing.upload')}
-              </span>
-              <span className="text-2xs leading-4 text-node-muted">
-                {t('dropzoneHint')}
-              </span>
-              <input
-                ref={existingImageInputRef}
-                type="file"
-                accept={NODE_STUDIO_IMAGE_INPUT.accept}
-                className="hidden"
-                onChange={handleExistingFileInputChange}
-              />
-            </div>
-          ) : (
-            <>
-              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
-                <>
-                  <Image
-                    src={mediaUrl}
-                    alt={t('imageAlt')}
-                    fill
-                    sizes="360px"
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
-                    {isExistingImage
-                      ? t('sourceExisting')
-                      : t('sourceGenerated')}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleClearImage}
-                    aria-label={t('clearImage')}
-                    className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </>
-              ) : null}
-
-              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
-                <video
-                  src={mediaUrl}
-                  poster={videoThumbnailUrl}
-                  className="h-full w-full object-cover"
-                  controls
-                  muted
+        {!identityAssetsOnly ? (
+          <div
+            className={cn(
+              'relative aspect-video overflow-hidden rounded-2xl border bg-node-panel-soft',
+              showUploadDropzone
+                ? 'border-dashed border-node-edge'
+                : 'border-node-panel-inner',
+            )}
+          >
+            {showUploadDropzone ? (
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={t('existing.upload')}
+                onClick={() => existingImageInputRef.current?.click()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    existingImageInputRef.current?.click()
+                  }
+                }}
+                onPaste={handleExistingPaste}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={handleDropExistingImage}
+                className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+              >
+                {isExistingImageUploading ? (
+                  <Loader2 className="size-7 animate-spin text-node-muted" />
+                ) : (
+                  <Upload className="size-7 text-node-muted" />
+                )}
+                <span className="text-sm font-semibold text-node-foreground">
+                  {t('existing.upload')}
+                </span>
+                <span className="text-2xs leading-4 text-node-muted">
+                  {t('dropzoneHint')}
+                </span>
+                <input
+                  ref={existingImageInputRef}
+                  type="file"
+                  accept={NODE_STUDIO_IMAGE_INPUT.accept}
+                  className="hidden"
+                  onChange={handleExistingFileInputChange}
                 />
-              ) : null}
+              </div>
+            ) : (
+              <>
+                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
+                  <>
+                    <Image
+                      src={mediaUrl}
+                      alt={t('imageAlt')}
+                      fill
+                      sizes="360px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                    <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                      {isExistingImage
+                        ? t('sourceExisting')
+                        : t('sourceGenerated')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearImage}
+                      aria-label={t('clearImage')}
+                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </>
+                ) : null}
 
-              {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
-                <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-                  <Mic2 className="size-8 text-node-port-voice" />
-                  <audio src={mediaUrl} controls className="w-full" />
-                </div>
-              ) : null}
+                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
+                  <video
+                    src={mediaUrl}
+                    poster={videoThumbnailUrl}
+                    className="h-full w-full object-cover"
+                    controls
+                    muted
+                  />
+                ) : null}
 
-              {!mediaUrl ? (
-                <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                  {getEmptyPreviewIcon(kind)}
-                  <p className="text-xs leading-5 text-node-muted">
-                    {tWorkflows(`${type}.emptyPreview`)}
-                  </p>
-                </div>
-              ) : null}
-            </>
-          )}
+                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+                    <Mic2 className="size-8 text-node-port-voice" />
+                    <audio src={mediaUrl} controls className="w-full" />
+                  </div>
+                ) : null}
 
-          {isPending ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Loader2 className="size-5 animate-spin text-node-muted" />
-              <span className="text-xs font-semibold">{t('generating')}</span>
-            </div>
-          ) : null}
-        </div>
+                {!mediaUrl ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                    {getEmptyPreviewIcon(kind)}
+                    <p className="text-xs leading-5 text-node-muted">
+                      {tWorkflows(`${type}.emptyPreview`)}
+                    </p>
+                  </div>
+                ) : null}
+              </>
+            )}
+
+            {isPending ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+                <Loader2 className="size-5 animate-spin text-node-muted" />
+                <span className="text-xs font-semibold">{t('generating')}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Generation error — TOP-LEVEL so it surfaces in every view (result,
             empty, editing), not only inside the AI form. */}
@@ -732,7 +743,7 @@ export function NodeMediaInspector({
         ) : null}
       </div>
 
-      {isImageNode ? (
+      {isImageNode && !identityAssetsOnly ? (
         <AssetSelectorDialog
           open={assetDialogOpen}
           onOpenChange={setAssetDialogOpen}

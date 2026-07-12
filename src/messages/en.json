@@ -3787,7 +3787,14 @@
         "surprised": "Surprised"
       },
       "sampleLabel": "Voice sample",
-      "generateSample": "Generate sample"
+      "generateSample": "Generate sample",
+      "coverAlt": "Voice cover",
+      "coverChange": "Change cover",
+      "coverUpload": "Upload voice cover",
+      "coverFromAssets": "Choose cover from assets",
+      "coverDialogTitle": "Choose voice cover",
+      "coverDialogDescription": "Choose an image to save with the current audio as one voice asset.",
+      "coverUploadFailed": "Could not upload the cover"
     },
     "workflowFields": {
       "prompt": {

@@ -193,6 +193,7 @@ export function CharacterImageInspector({
         type={NODE_TYPE_IDS.characterImage}
         kind={NODE_MEDIA_KIND_IDS.image}
         referenceGalleryMode="gallery"
+        identityAssetsOnly
         referenceGalleryExtraItems={closeupItems}
         onExtractReference={handleExtractReference}
         roleExtras={

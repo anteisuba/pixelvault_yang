@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   IdCard,
+  ImagePlus,
   Library,
   Loader2,
   Mic2,
@@ -41,6 +42,7 @@ import {
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
@@ -112,6 +114,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   const { updateNodeData } = useNodeWorkflowActions()
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
   // Tracks the currently-selected voice so an in-flight audition (the poll can
   // run up to ~200s) can drop its result if the user switches voices mid-flight
   // — otherwise the old voice's sample would land on the new voice. Mirrors the
@@ -122,6 +125,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   }, [data.voiceId])
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [audioAssetDialogOpen, setAudioAssetDialogOpen] = useState(false)
+  const [coverAssetDialogOpen, setCoverAssetDialogOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isGeneratingSample, setIsGeneratingSample] = useState(false)
   // Track the failed cover URL (not a boolean) so picking a new voice with a
@@ -132,6 +136,8 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       ? NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio
       : NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
   )
+  const { uploadFile: uploadCover, isUploading: isCoverUploading } =
+    useNodeReferenceUpload()
 
   const applyPatch = useCallback(
     (patch: Partial<NodeWorkflowNodeData>) => {
@@ -238,6 +244,45 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
     [applyPatch, tVoice],
   )
 
+  const applyCover = useCallback(
+    (url: string) => {
+      applyPatch(
+        activeSource === NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio
+          ? { voiceCoverImage: url }
+          : { voiceReferenceCoverImage: url },
+      )
+      setErroredCover(null)
+    },
+    [activeSource, applyPatch],
+  )
+
+  const handleCoverFileInputChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (coverInputRef.current) coverInputRef.current.value = ''
+      if (!file?.type.startsWith('image/')) return
+      const result = await uploadCover(file, 'Voice profile cover')
+      if (result.success && result.url) {
+        applyCover(result.url)
+        return
+      }
+      toast.error(result.error ?? t('coverUploadFailed'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [applyCover, t, uploadCover],
+  )
+
+  const handleSelectCoverAsset = useCallback(
+    (generation: GenerationRecord) => {
+      if (!generation.url) return
+      applyCover(generation.url)
+      setCoverAssetDialogOpen(false)
+    },
+    [applyCover],
+  )
+
   const handleGenerateSample = useCallback(async () => {
     if (!data.voiceId) {
       toast.error(tVoice('toasts.referenceGenerateNoVoice'), {
@@ -311,30 +356,45 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
     : data.voiceReferenceCoverImage
   const showVoiceCover = Boolean(activeCover) && erroredCover !== activeCover
 
-  // Read-only cover thumbnail. The cover belongs to the source — a Fish voice's
-  // built-in cover, or the picked audio asset's cover (configured in the asset
-  // library). The node only DISPLAYS it; it never configures a cover itself.
   const coverThumbnail = (
-    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-node-port-voice/15 text-node-port-voice">
+    <button
+      type="button"
+      onClick={() => coverInputRef.current?.click()}
+      disabled={isCoverUploading}
+      aria-label={t('coverUpload')}
+      className="nodrag group relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-node-port-voice/15 text-node-port-voice outline-none focus-visible:ring-2 focus-visible:ring-node-focus-ring/40 disabled:opacity-60"
+    >
       {showVoiceCover && activeCover ? (
         <>
           {/* Third-party cover images come from arbitrary hosts; raw img with icon fallback. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={activeCover}
-            alt=""
+            alt={t('coverAlt')}
             className="size-full object-cover"
             onError={() => setErroredCover(activeCover ?? null)}
           />
         </>
+      ) : isCoverUploading ? (
+        <Loader2 className="size-5 animate-spin" />
       ) : (
         <Mic2 className="size-7" />
       )}
-    </span>
+      <span className="absolute inset-x-1 bottom-1 rounded-lg bg-node-canvas/85 px-1 py-0.5 text-3xs font-semibold text-node-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        {t('coverChange')}
+      </span>
+    </button>
   )
 
   return (
     <div className="space-y-4">
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleCoverFileInputChange}
+      />
       {/* §A 音色身份 (台词 removed — spoken lines belong to the script / 剧本) */}
       <div className="space-y-2">
         <span className={SECTION_LABEL}>{t('timbreLabel')}</span>
@@ -386,6 +446,16 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
                   {selectedVoiceProvider}
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setCoverAssetDialogOpen(true)}
+                onKeyDownCapture={stopCanvasKeyboardEvent}
+                className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
+                aria-label={t('coverFromAssets')}
+                title={t('coverFromAssets')}
+              >
+                <ImagePlus className="size-4" />
+              </button>
             </div>
           ) : (
             <button
@@ -434,6 +504,16 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
                     className="nodrag flex size-7 shrink-0 items-center justify-center rounded-full text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
                   >
                     <Trash2 className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoverAssetDialogOpen(true)}
+                    onKeyDownCapture={stopCanvasKeyboardEvent}
+                    className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
+                    aria-label={t('coverFromAssets')}
+                    title={t('coverFromAssets')}
+                  >
+                    <ImagePlus className="size-4" />
                   </button>
                 </div>
                 <audio
@@ -573,6 +653,14 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
         selectedVoiceId={data.voiceId ?? null}
         onSelectVoiceId={handleSelectVoiceId}
         onVoiceSelectComplete={() => setLibraryOpen(false)}
+      />
+      <AssetSelectorDialog
+        open={coverAssetDialogOpen}
+        onOpenChange={setCoverAssetDialogOpen}
+        title={t('coverDialogTitle')}
+        description={t('coverDialogDescription')}
+        mediaType="image"
+        onSelect={handleSelectCoverAsset}
       />
 
       <AssetSelectorDialog

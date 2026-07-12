@@ -26,6 +26,15 @@ vi.mock('@/lib/api-client', () => ({
   checkAudioStatusAPI,
 }))
 
+const { uploadCover } = vi.hoisted(() => ({ uploadCover: vi.fn() }))
+
+vi.mock('@/hooks/node/use-node-reference-upload', () => ({
+  useNodeReferenceUpload: () => ({
+    uploadFile: uploadCover,
+    isUploading: false,
+  }),
+}))
+
 vi.mock('@/components/ui/param-slider', () => ({
   ParamSlider: ({
     label,
@@ -93,8 +102,10 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: ({
     open,
     onSelect,
+    title,
   }: {
     open: boolean
+    title: string
     onSelect?: (generation: {
       url: string
       previewUrl: string | null
@@ -107,7 +118,10 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
         data-testid="pick-asset"
         onClick={() =>
           onSelect?.({
-            url: 'https://cdn.example.com/asset.mp3',
+            url:
+              title === 'coverDialogTitle'
+                ? 'https://cdn.example.com/selected-cover.png'
+                : 'https://cdn.example.com/asset.mp3',
             previewUrl: 'https://cdn.example.com/asset-cover.png',
             thumbnailUrl: null,
           })
@@ -147,6 +161,10 @@ describe('VoiceDetailBody', () => {
         status: 'COMPLETED',
         generation: { url: 'https://cdn.example.com/sample.mp3' },
       },
+    })
+    uploadCover.mockResolvedValue({
+      success: true,
+      url: 'https://cdn.example.com/uploaded-cover.png',
     })
   })
 
@@ -272,10 +290,8 @@ describe('VoiceDetailBody', () => {
     fireEvent.click(screen.getByText('referenceFromAssets'))
     fireEvent.click(screen.getByTestId('pick-asset'))
 
-    // The node only FOLLOWS the asset's cover (set in the asset library) — it
-    // never configures one itself.
-    // Stored in the my-voice cover field so it never clobbers the system
-    // voice's cover when the user toggles sources.
+    // The inherited asset cover starts as the editable my-voice cover and
+    // remains separate from the system voice cover.
     expect(updateNodeData).toHaveBeenCalledWith(
       'voice-1',
       expect.objectContaining({
@@ -286,11 +302,52 @@ describe('VoiceDetailBody', () => {
     )
   })
 
-  it('offers no cover-config control — covers are set in the asset library', () => {
+  it('lets a system voice choose a cover from image assets', () => {
     renderBody(makeData({ voiceId: 'voice-123', voiceName: 'Narrator One' }))
-    expect(
-      screen.queryByRole('button', { name: 'uploadCover' }),
-    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'coverFromAssets' }))
+    fireEvent.click(screen.getByTestId('pick-asset'))
+    expect(updateNodeData).toHaveBeenCalledWith(
+      'voice-1',
+      expect.objectContaining({
+        voiceCoverImage: 'https://cdn.example.com/selected-cover.png',
+      }),
+    )
+  })
+
+  it('lets my voice upload its own cover without replacing the system cover', async () => {
+    renderBody(
+      makeData({
+        voiceId: 'voice-123',
+        voiceCoverImage: 'https://cdn.example.com/system-cover.png',
+        voiceReferenceAudioUrl: 'https://cdn.example.com/mine.mp3',
+        voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+      }),
+    )
+
+    const file = new File(['cover'], 'cover.png', { type: 'image/png' })
+    const coverInput = document.querySelector<HTMLInputElement>(
+      'input[accept="image/*"]',
+    )
+    expect(coverInput).not.toBeNull()
+    fireEvent.change(coverInput!, {
+      target: { files: [file] },
+    })
+
+    await waitFor(() =>
+      expect(updateNodeData).toHaveBeenCalledWith(
+        'voice-1',
+        expect.objectContaining({
+          voiceReferenceCoverImage:
+            'https://cdn.example.com/uploaded-cover.png',
+        }),
+      ),
+    )
+    expect(updateNodeData).not.toHaveBeenCalledWith(
+      'voice-1',
+      expect.objectContaining({
+        voiceCoverImage: 'https://cdn.example.com/uploaded-cover.png',
+      }),
+    )
   })
 
   it('writes voiceSpeed from the speed slider', () => {

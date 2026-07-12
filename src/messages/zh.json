@@ -3787,7 +3787,14 @@
         "surprised": "惊讶"
       },
       "sampleLabel": "代表音频",
-      "generateSample": "生成试听"
+      "generateSample": "生成试听",
+      "coverAlt": "音色封面",
+      "coverChange": "更换封面",
+      "coverUpload": "上传音色封面",
+      "coverFromAssets": "从素材选择封面",
+      "coverDialogTitle": "选择音色封面",
+      "coverDialogDescription": "选择一张图片，与当前声音一起保存到音色素材。",
+      "coverUploadFailed": "封面上传失败"
     },
     "workflowFields": {
       "prompt": {

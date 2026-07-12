@@ -1372,6 +1372,7 @@
       "recipeExtraResolving": "Locating…",
       "recipeExtraMounted": "Mounted",
       "recipeExtraFailed": "Not found",
+      "recipeExtraIncompatible": "Incompatible with base",
       "recipeExtraSearchLink": "Search on Civitai",
       "recipeExtraUnresolvable": "Name only — can't auto-locate",
       "recipeExtraStackFull": "LoRA stack is full ({max}) — remove one first",

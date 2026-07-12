@@ -141,6 +141,7 @@ import {
   mountRecipeExtraLoras,
   type ExtraMountStatus,
 } from '@/lib/lora-recipe-extra-mount'
+import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
@@ -725,9 +726,14 @@ function GenerateBranch() {
         setLoraScale: stack.setScale,
         setStatus: (key, status) =>
           setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status })),
+        // 底模架构兼容闸：解析出的额外 LoRA 家族桶要和当前底模一致才挂，
+        // 否则（如 SD1.5/Flux LoRA 挂上 SDXL 底模）会污染 checkpoint 出坏图。
+        isBaseCompatible: selectedBase
+          ? (fam) => isLoraBaseModelMountCompatible(fam, selectedBase.family)
+          : undefined,
       })
     },
-    [stack, loraFamily],
+    [stack, loraFamily, selectedBase],
   )
 
   const hasLora = stack.items.length > 0

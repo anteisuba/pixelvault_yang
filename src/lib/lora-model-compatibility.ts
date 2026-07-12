@@ -58,6 +58,26 @@ export function isImageModelCompatibleWithLoraFamily(
   return getImageModelLoraFamilyBucket(modelId) === family
 }
 
+/**
+ * Whether a recipe-extra LoRA (given its raw baseModel string) can be mounted
+ * onto a base of the given family without an architecture mismatch that
+ * corrupts the checkpoint. Reuses the same coarse buckets as hosted routing:
+ * illustrious/pony/sdxl share the SDXL bucket and interload; flux, anima and
+ * sd1.5/other are distinct architectures whose LoRA tensors don't map onto an
+ * SDXL checkpoint (→ melted/garbage output). Buckets must match; `other`
+ * (unrecognized / sd1.5) never matches. `baseFamilyRaw` accepts either a raw
+ * baseModel string or a `LoraBaseFamily` value (e.g. `'illustrious'`).
+ */
+export function isLoraBaseModelMountCompatible(
+  loraRawBaseModel: string,
+  baseFamilyRaw: string,
+): boolean {
+  const loraBucket = getLoraFamilyBucket(loraRawBaseModel)
+  const baseBucket = getLoraFamilyBucket(baseFamilyRaw)
+  if (loraBucket === 'other' || baseBucket === 'other') return false
+  return loraBucket === baseBucket
+}
+
 export function findUsableRecommendedLoraRoute(
   options: readonly LoraRouteOption[],
   rawBaseModel: string,

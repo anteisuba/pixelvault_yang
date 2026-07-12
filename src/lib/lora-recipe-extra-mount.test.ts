@@ -63,7 +63,7 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 2, missing: 0 })
+    expect(result).toEqual({ newlyMounted: 2, missing: 0, incompatible: 0 })
     expect(pushLora).toHaveBeenNthCalledWith(1, extraByHash, 0.4)
     expect(pushLora).toHaveBeenNthCalledWith(2, extraByVersion, 0.3)
     expect(setLoraScale).not.toHaveBeenCalled()
@@ -162,7 +162,7 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 0, missing: 0 })
+    expect(result).toEqual({ newlyMounted: 0, missing: 0, incompatible: 0 })
     expect(resolveLora).not.toHaveBeenCalled()
     expect(pushLora).not.toHaveBeenCalled()
     expect(setLoraScale).toHaveBeenCalledWith('mounted-extra', 0.62)
@@ -199,10 +199,52 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 1, missing: 1 })
+    expect(result).toEqual({ newlyMounted: 1, missing: 1, incompatible: 0 })
     expect(pushLora).toHaveBeenCalledTimes(1)
     expect(pushLora).toHaveBeenCalledWith(firstExtra, 0.4)
     expect(statuses).toContainEqual(['v12', 'failed'])
+  })
+
+  it('mounts a base-compatible extra but rejects an architecture-incompatible one', async () => {
+    const illuExtra = makeAsset({
+      id: 'illu-extra',
+      styleCode: 'illu-extra',
+      name: 'Illu Extra',
+      modelVersionId: 21,
+      baseModelFamily: 'Illustrious',
+    })
+    const sd15Extra = makeAsset({
+      id: 'sd15-extra',
+      styleCode: 'sd15-extra',
+      name: 'SD15 Hands',
+      modelVersionId: 22,
+      baseModelFamily: 'SD 1.5',
+    })
+    const pushLora = vi.fn()
+    const statuses: Array<[string, string]> = []
+
+    const result = await mountRecipeExtraLoras({
+      extras: [
+        { modelVersionId: 21, weight: 0.6 },
+        { modelVersionId: 22, weight: 1 },
+      ],
+      stackItems: [{ asset: makeAsset() }],
+      maxStack: 3,
+      resolveLora: vi.fn(async (params) => ({
+        success: true,
+        data: params.modelVersionId === 21 ? illuExtra : sd15Extra,
+      })),
+      pushLora,
+      setLoraScale: vi.fn(),
+      setStatus: (key, status) => statuses.push([key, status]),
+      // Stub the real bucket rule: only illustrious/SDXL-family mounts.
+      isBaseCompatible: (fam) => fam.toLowerCase().includes('illustrious'),
+    })
+
+    expect(result).toEqual({ newlyMounted: 1, missing: 0, incompatible: 1 })
+    expect(pushLora).toHaveBeenCalledTimes(1)
+    expect(pushLora).toHaveBeenCalledWith(illuExtra, 0.6)
+    expect(statuses).toContainEqual(['v22', 'incompatible'])
   })
 
   it('normalizes extra keys for status tracking', () => {

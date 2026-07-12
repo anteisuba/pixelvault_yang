@@ -1372,6 +1372,7 @@
       "recipeExtraResolving": "検索中…",
       "recipeExtraMounted": "適用済み",
       "recipeExtraFailed": "見つかりません",
+      "recipeExtraIncompatible": "ベースモデルと非互換",
       "recipeExtraSearchLink": "Civitaiで探す",
       "recipeExtraUnresolvable": "名前のみ — 自動特定できません",
       "recipeExtraStackFull": "LoRA枠が満杯です（{max}）— 先に1つ外してください",

@@ -5,11 +5,13 @@ import {
 } from '@/types'
 import { repairUtf8Mojibake } from '@/lib/text-encoding-repair'
 
-export type ExtraMountStatus = 'loading' | 'mounted' | 'failed'
+export type ExtraMountStatus = 'loading' | 'mounted' | 'failed' | 'incompatible'
 
 export interface RecipeExtraMountResult {
   newlyMounted: number
   missing: number
+  /** Resolved but rejected for base-model architecture mismatch. */
+  incompatible: number
 }
 
 interface RecipeExtraStackEntry {
@@ -39,6 +41,14 @@ interface MountRecipeExtraLorasOptions {
   pushLora: (asset: LoraAssetRecord, scale?: number) => void
   setLoraScale: (assetId: string, scale: number) => void
   setStatus?: (key: string, status: ExtraMountStatus) => void
+  /**
+   * Base-model architecture guard. Given a resolved LoRA's baseModelFamily,
+   * returns whether it can mount onto the selected base without corrupting the
+   * checkpoint (see isLoraBaseModelMountCompatible). When omitted, no guard is
+   * applied (mounts anything that resolves). Injected so this module stays free
+   * of the base-model constants.
+   */
+  isBaseCompatible?: (assetBaseModelFamily: string) => boolean
 }
 
 function normalizedExtraName(
@@ -113,9 +123,11 @@ export async function mountRecipeExtraLoras({
   pushLora,
   setLoraScale,
   setStatus,
+  isBaseCompatible,
 }: MountRecipeExtraLorasOptions): Promise<RecipeExtraMountResult> {
   let newlyMounted = 0
   let missing = 0
+  let incompatible = 0
   const projectedIds = new Set(stackItems.map((entry) => entry.asset.id))
   let projectedCount = stackItems.length
   const seenKeys = new Set<string>()
@@ -161,6 +173,18 @@ export async function mountRecipeExtraLoras({
       continue
     }
 
+    // Base-model architecture guard: mounting a LoRA trained on a different
+    // architecture (e.g. an SD1.5/Flux LoRA on an SDXL base) corrupts the
+    // checkpoint → melted/garbage output. Reject loudly instead of mounting.
+    if (
+      isBaseCompatible !== undefined &&
+      !isBaseCompatible(item.baseModelFamily)
+    ) {
+      setStatus?.(key, 'incompatible')
+      incompatible += 1
+      continue
+    }
+
     if (projectedCount >= maxStack) {
       setStatus?.(key, 'failed')
       missing += 1
@@ -174,5 +198,5 @@ export async function mountRecipeExtraLoras({
     setStatus?.(key, 'mounted')
   }
 
-  return { newlyMounted, missing }
+  return { newlyMounted, missing, incompatible }
 }

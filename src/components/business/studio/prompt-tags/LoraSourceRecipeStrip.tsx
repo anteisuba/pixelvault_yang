@@ -382,6 +382,11 @@ function ExtraLoraList({
                   <Check className="size-3" aria-hidden />
                   {t('recipeExtraMounted')}
                 </span>
+              ) : status === 'incompatible' ? (
+                <span className="inline-flex shrink-0 items-center gap-1 text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="size-3" aria-hidden />
+                  {t('recipeExtraIncompatible')}
+                </span>
               ) : (
                 <span className="inline-flex shrink-0 items-center gap-1.5">
                   {status === 'failed' ? (

@@ -69,6 +69,7 @@ import {
   atomicReserveFreeTierSlot,
   getFreeTierSlotsUsedToday,
   getRunnerMonthlyGenerationCount,
+  getRunnerUsage,
   assertRunnerMonthlyLimitNotExceeded,
   RunnerMonthlyLimitExceededError,
 } from './usage.service'
@@ -326,6 +327,30 @@ describe('usage.service', () => {
       }
       expect(call.where.createdAt.gte.getUTCDate()).toBe(1)
       expect(call.where.createdAt.gte.getUTCHours()).toBe(0)
+    })
+  })
+
+  describe('getRunnerUsage', () => {
+    it('returns used/limit/remaining from the global monthly count', async () => {
+      mockJobCount.mockResolvedValue(40)
+
+      const result = await getRunnerUsage()
+
+      expect(result).toEqual({
+        enabled: true,
+        used: 40,
+        limit: 300,
+        remaining: 260,
+      })
+    })
+
+    it('clamps remaining at 0 when already over the limit', async () => {
+      mockJobCount.mockResolvedValue(320)
+
+      const result = await getRunnerUsage()
+
+      expect(result.used).toBe(320)
+      expect(result.remaining).toBe(0)
     })
   })
 

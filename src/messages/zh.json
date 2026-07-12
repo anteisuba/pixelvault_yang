@@ -1434,6 +1434,8 @@
       "run": "出图",
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",
+      "runnerBudgetRemaining": "本月 Runner 剩余 {remaining}/{limit} 次（全站共享）",
+      "runnerBudgetExhausted": "本月 Runner 生成额度已用完，下月重置或改用托管底模",
       "resultEmptyTitle": "还没有生成结果",
       "resultEmptyHint": "选好配方后点「出图」",
       "resultPreviewLabel": "放大查看生成结果",

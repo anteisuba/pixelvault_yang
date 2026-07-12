@@ -3835,6 +3835,16 @@ export type CivitaiModelDescriptionResult = z.infer<
   typeof CivitaiModelDescriptionResultSchema
 >
 
+// runner 全站月度额度（全局共享，非 per-user），给 LoRA 工作台主动提示
+// 「本月剩余 N/300」用。enabled=false 时前端不显示。
+export const RunnerUsageResultSchema = z.object({
+  enabled: z.boolean(),
+  used: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative(),
+  remaining: z.number().int().nonnegative(),
+})
+export type RunnerUsageResult = z.infer<typeof RunnerUsageResultSchema>
+
 export type CivitaiLoraLibraryItem = z.infer<
   typeof CivitaiLoraLibraryItemSchema
 >

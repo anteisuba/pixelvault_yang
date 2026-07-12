@@ -1434,6 +1434,8 @@
       "run": "Generate",
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",
+      "runnerBudgetRemaining": "Runner: {remaining}/{limit} left this month (shared)",
+      "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
       "resultEmptyTitle": "No result yet",
       "resultEmptyHint": "Pick a recipe, then hit Generate",
       "resultPreviewLabel": "Enlarge generation result",

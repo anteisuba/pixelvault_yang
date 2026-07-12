@@ -8,6 +8,7 @@ import type {
   ApiUsageLedger,
   GenerationJob,
 } from '@/lib/generated/prisma/client'
+import type { RunnerUsageResult } from '@/types'
 
 type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
 
@@ -171,6 +172,19 @@ export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
   if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
     throw new RunnerMonthlyLimitExceededError(RUNNER_MONTHLY_LIMIT.LIMIT)
   }
+}
+
+/**
+ * 全站 runner 月度额度快照（全局共享，非 per-user），给 LoRA 工作台「本月剩余
+ * N/300」主动提示用。ENABLED=false 时 used/limit=0、remaining=0，前端据此不显示。
+ */
+export async function getRunnerUsage(): Promise<RunnerUsageResult> {
+  if (!RUNNER_MONTHLY_LIMIT.ENABLED) {
+    return { enabled: false, used: 0, limit: 0, remaining: 0 }
+  }
+  const used = await getRunnerMonthlyGenerationCount()
+  const limit = RUNNER_MONTHLY_LIMIT.LIMIT
+  return { enabled: true, used, limit, remaining: Math.max(0, limit - used) }
 }
 
 export async function createGenerationJob(

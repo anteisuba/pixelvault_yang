@@ -1434,6 +1434,8 @@
       "run": "生成",
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",
+      "runnerBudgetRemaining": "今月の Runner 残り {remaining}/{limit} 回（全体共有）",
+      "runnerBudgetExhausted": "今月の Runner 生成枠を使い切りました。翌月リセット、またはホスト型モデルをご利用ください",
       "resultEmptyTitle": "まだ生成結果がありません",
       "resultEmptyHint": "レシピを選んで「生成」を押してください",
       "resultPreviewLabel": "生成結果を拡大表示",

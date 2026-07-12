@@ -10,6 +10,7 @@ import type {
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
   CivitaiModelDescriptionResult,
+  RunnerUsageResult,
   FavoriteLoraRequest,
   LoraAssetRecord,
 } from '@/types'
@@ -195,6 +196,34 @@ export async function fetchCivitaiModelDescriptionAPI(
       }
     }
     return (await response.json()) as CivitaiModelDescriptionResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+interface RunnerUsageResponse {
+  success: boolean
+  data?: RunnerUsageResult
+  error?: string
+}
+
+// 全站 runner 月度额度快照（「本月剩余 N/300」主动提示）。
+export async function fetchRunnerUsageAPI(): Promise<RunnerUsageResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.RUNNER_USAGE)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as RunnerUsageResponse
   } catch (error) {
     return {
       success: false,

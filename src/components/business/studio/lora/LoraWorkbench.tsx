@@ -86,6 +86,7 @@ import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import {
   LoraTrainingForm,
@@ -456,6 +457,11 @@ function GenerateBranch() {
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
+
+  // 主动提示：选中 runner 底模时拉全站月度额度，让用户点前就知道「本月剩余
+  // N/300」而不是撞上限才弹错。非 runner 底模不拉。
+  const isRunnerBase = selectedBase?.backend === 'runner'
+  const { usage: runnerUsage } = useRunnerUsage(isRunnerBase)
 
   const baseModelId = selectedBase?.providerModelId ?? null
   const { needsKeySetup, workspaceOption: workspaceOptionForBase } = useMemo(
@@ -1108,6 +1114,25 @@ function GenerateBranch() {
                 {t('generate.negativePromptAdd')}
               </button>
             )}
+            {/* 主动额度提示：选中 runner 底模且额度启用时显示「本月剩余 N/300」，
+                快满/满了变琥珀提醒——撞上限前就让用户心里有数。 */}
+            {isRunnerBase && runnerUsage?.enabled ? (
+              <p
+                className={cn(
+                  'text-2xs',
+                  runnerUsage.remaining <= 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-surface-composer-foreground/50',
+                )}
+              >
+                {runnerUsage.remaining <= 0
+                  ? t('generate.runnerBudgetExhausted')
+                  : t('generate.runnerBudgetRemaining', {
+                      remaining: runnerUsage.remaining,
+                      limit: runnerUsage.limit,
+                    })}
+              </p>
+            ) : null}
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <Button

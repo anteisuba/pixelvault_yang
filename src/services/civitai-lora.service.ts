@@ -35,6 +35,7 @@ import type {
   CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
+  CivitaiModelDescriptionResult,
   CivitaiPreviewImage,
   CivitaiRecipeExtraLora,
   LoraAssetType,
@@ -2521,6 +2522,18 @@ async function fetchCivitaiModelDescriptionText(
   if (!parsed.success) return undefined
   const text = civitaiDescriptionToText(parsed.data.description)
   return text.length > 0 ? text : undefined
+}
+
+/**
+ * 公开封装：给 LoRA 详情面板懒加载作者描述用（方向 A）。拿不到 → descriptionText
+ * null（面板据此整块不显示）。与 mineCivitaiUserPrompts 的无配方兜底同源，只是这里
+ * 对**所有** LoRA 都可按需拉取，不受「有没有配方」限制。
+ */
+export async function getCivitaiModelDescription(
+  modelId: number,
+): Promise<CivitaiModelDescriptionResult> {
+  const text = await fetchCivitaiModelDescriptionText(modelId)
+  return { descriptionText: text ?? null }
 }
 
 export async function mineCivitaiUserPrompts({

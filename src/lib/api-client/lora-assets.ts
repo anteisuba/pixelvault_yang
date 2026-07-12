@@ -9,6 +9,7 @@ import {
 import type {
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
+  CivitaiModelDescriptionResult,
   FavoriteLoraRequest,
   LoraAssetRecord,
 } from '@/types'
@@ -162,6 +163,38 @@ export async function mineCivitaiLoraPromptsAPI(params: {
       }
     }
     return (await response.json()) as CivitaiMinedPromptsResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+interface CivitaiModelDescriptionResponse {
+  success: boolean
+  data?: CivitaiModelDescriptionResult
+  error?: string
+}
+
+// 方向 A：LoRA 详情面板懒加载作者描述（strip 后的纯文本）。任何 LoRA 都可拉。
+export async function fetchCivitaiModelDescriptionAPI(
+  modelId: number,
+): Promise<CivitaiModelDescriptionResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DESCRIPTION}?modelId=${modelId}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as CivitaiModelDescriptionResponse
   } catch (error) {
     return {
       success: false,

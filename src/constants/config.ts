@@ -275,6 +275,7 @@ export const API_ENDPOINTS = {
   LORA_ASSETS_CIVITAI_SOURCE: '/api/lora-assets/civitai/source',
   /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */
   LORA_ASSETS_CIVITAI_MINED_PROMPTS: '/api/lora-assets/civitai/mined-prompts',
+  LORA_ASSETS_CIVITAI_DESCRIPTION: '/api/lora-assets/civitai/description',
   /** Resolve a recipe's extra-LoRA reference (hash / versionId) to a mountable item */
   LORA_ASSETS_CIVITAI_RESOLVE: '/api/lora-assets/civitai/resolve',
   /** Resolve a style-code share-link → LoraAsset */

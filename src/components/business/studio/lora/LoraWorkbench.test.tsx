@@ -156,6 +156,13 @@ vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   }),
 }))
 
+vi.mock('@/hooks/prompts/use-civitai-model-description', () => ({
+  useCivitaiModelDescription: () => ({
+    descriptionText: null,
+    isLoading: false,
+  }),
+}))
+
 // B9: control the reference-image state so we can assert handleGenerate
 // threads it into the generate request. Default empty → transparent to the
 // other tests. Reset before every test via the file-level beforeEach below.

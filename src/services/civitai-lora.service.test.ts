@@ -17,6 +17,7 @@ vi.mock('@/lib/with-retry', () => ({
 }))
 
 import {
+  getCivitaiModelDescription,
   listCivitaiLoras,
   mineCivitaiUserPrompts,
   prewarmCivitaiLoraLibrary,
@@ -3199,5 +3200,33 @@ describe('resolveCivitaiLoraByReference', () => {
       }),
     ).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('getCivitaiModelDescription', () => {
+  it('returns the stripped author description text from /models/:id', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 999,
+        name: 'Some LoRA',
+        description: '<p>Lora提示词：</p><p>tag a, tag b</p>',
+      }),
+    )
+
+    const result = await getCivitaiModelDescription(999)
+
+    expect(result.descriptionText).toBe('Lora提示词：\ntag a, tag b')
+    const url = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(url.pathname).toBe('/api/v1/models/999')
+  })
+
+  it('returns null when the model has no description', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: 998, name: 'x', description: null }),
+    )
+
+    const result = await getCivitaiModelDescription(998)
+
+    expect(result.descriptionText).toBeNull()
   })
 })

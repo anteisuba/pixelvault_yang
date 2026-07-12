@@ -3826,6 +3826,15 @@ export type CivitaiMinedPromptsResult = z.infer<
   typeof CivitaiMinedPromptsResultSchema
 >
 
+// 作者 model.description 的纯文本（strip 后），供 LoRA 详情面板懒加载展示 +
+// 复制。null = 无描述 / 拉取失败。
+export const CivitaiModelDescriptionResultSchema = z.object({
+  descriptionText: z.string().nullable(),
+})
+export type CivitaiModelDescriptionResult = z.infer<
+  typeof CivitaiModelDescriptionResultSchema
+>
+
 export type CivitaiLoraLibraryItem = z.infer<
   typeof CivitaiLoraLibraryItemSchema
 >

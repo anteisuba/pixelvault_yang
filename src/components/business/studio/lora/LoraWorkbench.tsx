@@ -84,6 +84,7 @@ import {
 } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
+import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import {
@@ -2933,6 +2934,23 @@ function CivitaiLoraInspector({
   // than tracking prevId in render or running a setState effect.
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0)
 
+  // 方向 A：懒加载作者描述（对任何 LoRA 都可拉，与「有没有配方」无关；面板打开时
+  // 才发一次 /models/:id）。默认折叠——描述可能很长，不占默认版面。组件按
+  // key={item.id} 整体重挂载，所以折叠态天然随选中项重置。
+  const { descriptionText: authorDescription } = useCivitaiModelDescription(
+    item?.modelId ?? null,
+  )
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const handleCopyDescription = useCallback(async () => {
+    if (!authorDescription) return
+    try {
+      await navigator.clipboard.writeText(authorDescription)
+      toast.success(t('authorDescriptionCopied'))
+    } catch {
+      toast.error(t('authorDescriptionCopyFailed'))
+    }
+  }, [authorDescription, t])
+
   // outfits[0] is the primary; alternates [1..] include author-written
   // variants first, then community-mined variants. Source tag drives
   // which badge to show on each chip. Single-outfit (no alts at all)
@@ -3282,6 +3300,46 @@ function CivitaiLoraInspector({
             {displayedPrompt}
           </p>
         </div>
+
+        {/* 方向 A：作者描述折叠区。仅在真的拉到描述时出现（无描述/失败则整块隐藏），
+            默认折叠只占一行，展开才显滚动全文 + 复制。放在试用提示词卡之后、动作钮
+            之前——和其它「作者提供的文本」归在一起，又不把主 CTA 推太远。 */}
+        {authorDescription ? (
+          <div className="rounded-lg border border-border/60 bg-background/60">
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => setDescriptionExpanded((v) => !v)}
+                aria-expanded={descriptionExpanded}
+                className="inline-flex items-center gap-1.5 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronRight
+                  className={cn(
+                    'size-3.5 transition-transform',
+                    descriptionExpanded && 'rotate-90',
+                  )}
+                  aria-hidden
+                />
+                {t('authorDescriptionLabel')}
+              </button>
+              {descriptionExpanded ? (
+                <button
+                  type="button"
+                  onClick={() => void handleCopyDescription()}
+                  className="inline-flex shrink-0 items-center gap-1 text-2xs font-medium text-foreground hover:text-primary"
+                >
+                  <Copy className="size-3" aria-hidden />
+                  {t('authorDescriptionCopy')}
+                </button>
+              ) : null}
+            </div>
+            {descriptionExpanded ? (
+              <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words px-2 pb-2 text-2xs leading-relaxed text-foreground/90">
+                {authorDescription}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {!isGeneratable ? (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">

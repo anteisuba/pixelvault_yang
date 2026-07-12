@@ -104,6 +104,13 @@ vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   }),
 }))
 
+vi.mock('@/hooks/prompts/use-civitai-model-description', () => ({
+  useCivitaiModelDescription: () => ({
+    descriptionText: null,
+    isLoading: false,
+  }),
+}))
+
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, userId: 'test-clerk-id' }),
 }))

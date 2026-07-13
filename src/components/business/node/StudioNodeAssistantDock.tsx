@@ -328,7 +328,7 @@ export function StudioNodeAssistantDock({
               ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
               : undefined
           }
-          className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-edge hover:bg-node-panel-inner lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-xl lg:px-3 lg:text-xs lg:font-semibold"
+          className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner bg-node-panel text-node-foreground shadow-sm transition-colors hover:border-node-edge hover:bg-node-panel-inner lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
         >
           <Bot className="size-5 text-node-muted lg:size-4" />
           <span className="hidden lg:inline">{tAssistant('toggle')}</span>
@@ -341,7 +341,9 @@ export function StudioNodeAssistantDock({
         aria-hidden={!open}
         data-mode={expanded ? 'script' : 'chat'}
         className={cn(
-          'pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:bg-node-panel lg:shadow-none lg:backdrop-blur-none',
+          // Haivis §3.1: desktop rail is a plain full-height column (1px left
+          // edge, no radius/blur/heavy shadow). Mobile keeps a sheet chrome.
+          'pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner bg-node-panel text-node-foreground shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:border-node-panel-inner lg:bg-node-panel lg:shadow-none',
           !open && 'hidden lg:flex lg:pointer-events-none lg:opacity-0',
         )}
       >

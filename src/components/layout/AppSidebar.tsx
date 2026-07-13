@@ -26,7 +26,6 @@ import {
   User,
   UserCircle,
   Video,
-  Wand2,
   Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -34,6 +33,7 @@ import { useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
+import { AuthModalTrigger } from '@/components/business/AuthModalTrigger'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 
@@ -215,8 +215,8 @@ function AppSidebarContent() {
   ] as const
 
   // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
-  // their per-media-type routes; Edit is the dedicated image editor while
-  // Enhance / Analyze / LoRA / Node stay discoverable as later-phase tools.
+  // their per-media-type routes; Enhance / Analyze / LoRA / Canvas stay
+  // discoverable as later-phase tools.
   const toolLinks = [
     {
       href: ROUTES.STUDIO_IMAGE,
@@ -245,13 +245,6 @@ function AppSidebarContent() {
       icon: Box,
       comingSoon: false,
       activePaths: [ROUTES.STUDIO_3D],
-    },
-    {
-      href: ROUTES.STUDIO_EDIT,
-      label: tTools('tools.edit.label'),
-      icon: Wand2,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_EDIT],
     },
     {
       href: ROUTES.STUDIO_ENHANCE,
@@ -483,19 +476,18 @@ function AppSidebarFooter() {
           </SignedIn>
 
           <SignedOut>
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="w-full rounded-full border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 group-data-[collapsible=icon]:px-0"
-            >
-              <Link href={ROUTES.SIGN_IN}>
+            <AuthModalTrigger intent="sign-in" asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full rounded-full border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 group-data-[collapsible=icon]:px-0"
+              >
                 <span className="group-data-[collapsible=icon]:hidden">
                   {t('signIn')}
                 </span>
                 <UserCircle className="hidden size-4 group-data-[collapsible=icon]:inline-block" />
-              </Link>
-            </Button>
+              </Button>
+            </AuthModalTrigger>
           </SignedOut>
         </>
       ) : (

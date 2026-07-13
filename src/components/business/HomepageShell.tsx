@@ -8,6 +8,7 @@ import { Link } from '@/i18n/navigation'
 
 import '@/app/homepage.css'
 
+import { AuthModalTrigger } from './AuthModalTrigger'
 import { HomepageBottomCta } from './HomepageBottomCta'
 import { HomepageCapabilityMatrix } from './HomepageCapabilityMatrix'
 import { HomepageFeatureSection } from './HomepageFeatureSection'
@@ -44,12 +45,12 @@ export function HomepageShell() {
           </Link>
 
           <div className="homepage-header-actions flex min-w-0 shrink items-center justify-end gap-2 sm:shrink-0 sm:gap-3">
-            <Link
-              href={HOMEPAGE_ROUTES.signIn}
+            <AuthModalTrigger
+              intent="sign-in"
               className="homepage-header-action homepage-nav-link inline-flex text-sm font-medium"
             >
               {tNavbar('signIn')}
-            </Link>
+            </AuthModalTrigger>
             <HomepageHeaderCta />
             <HomepageMenu />
           </div>

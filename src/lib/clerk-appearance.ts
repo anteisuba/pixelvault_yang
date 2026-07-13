@@ -1,11 +1,10 @@
 import type { Appearance } from '@clerk/types'
 
 /**
- * Clerk widget theme matching PixelVault marketing surfaces:
- * pure white background, near-black foreground, Space Grotesk, pill CTAs.
- * Used by sign-in and sign-up pages.
+ * Shared Clerk chrome: pure white card, near-black ink, pill CTAs.
+ * Path pages (`/sign-in`) and modal entry both use this base.
  */
-export const clerkAppearance: Appearance = {
+const clerkBaseAppearance: Appearance = {
   variables: {
     colorPrimary: '#141413',
     colorBackground: '#ffffff',
@@ -41,5 +40,22 @@ export const clerkAppearance: Appearance = {
   layout: {
     socialButtonsPlacement: 'top',
     socialButtonsVariant: 'blockButton',
+  },
+}
+
+/** Full-page auth routes (`AuthPageShell` + path routing). */
+export const clerkAppearance: Appearance = clerkBaseAppearance
+
+/**
+ * Haivis-style task switch: dimmed backdrop + centered card on the current page.
+ * Used by `AuthModalTrigger` (SignInButton / SignUpButton mode="modal").
+ */
+export const clerkModalAppearance: Appearance = {
+  ...clerkBaseAppearance,
+  elements: {
+    ...clerkBaseAppearance.elements,
+    modalBackdrop: 'bg-black/55 backdrop-blur-[6px]',
+    modalContent: 'items-center justify-center p-4',
+    card: 'shadow-2xl border border-neutral-200 bg-white rounded-2xl',
   },
 }

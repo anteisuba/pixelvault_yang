@@ -6,8 +6,8 @@ import { z } from 'zod'
 import { PAGINATION } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 
+import { AuthModalCtaButton } from '@/components/business/AuthModalCtaButton'
 import { KreaAssetBrowser } from '@/components/business/KreaAssetBrowser'
-import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { GallerySearchSchema } from '@/types'
@@ -227,9 +227,10 @@ export default async function AssetsPage({
                 {t('signedOutDescription')}
               </p>
               <div className="mt-5 flex flex-col items-center gap-2">
-                <Button asChild size="lg" className="h-11 rounded-full px-6">
-                  <Link href={ROUTES.SIGN_IN}>{t('signedOutAction')}</Link>
-                </Button>
+                <AuthModalCtaButton
+                  label={t('signedOutAction')}
+                  intent="sign-in"
+                />
                 <Link
                   href={ROUTES.STUDIO}
                   className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"

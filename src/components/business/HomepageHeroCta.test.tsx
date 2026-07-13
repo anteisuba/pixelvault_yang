@@ -9,6 +9,12 @@ const authState = { isLoaded: true, isSignedIn: false }
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => authState,
+  SignInButton: ({ children }: { children: ReactNode }) => (
+    <div data-testid="sign-in-modal">{children}</div>
+  ),
+  SignUpButton: ({ children }: { children: ReactNode }) => (
+    <div data-testid="sign-up-modal">{children}</div>
+  ),
 }))
 
 vi.mock('next-intl', () => ({
@@ -23,13 +29,15 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 describe('HomepageHeroCta', () => {
-  it('points signed-out visitors to sign-up', () => {
+  it('opens sign-up modal for signed-out visitors', () => {
     authState.isLoaded = true
     authState.isSignedIn = false
     render(<HomepageHeroCta />)
+    expect(screen.getByTestId('sign-up-modal')).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: 'Start creating' }),
-    ).toHaveAttribute('href', HOMEPAGE_ROUTES.signUp)
+      screen.getByRole('button', { name: 'Start creating' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('points signed-in visitors to Studio', () => {
@@ -41,10 +49,11 @@ describe('HomepageHeroCta', () => {
     ).toHaveAttribute('href', HOMEPAGE_ROUTES.studio)
   })
 
-  it('renders a placeholder (no link) while auth is loading', () => {
+  it('renders a placeholder (no control) while auth is loading', () => {
     authState.isLoaded = false
     authState.isSignedIn = false
     render(<HomepageHeroCta />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

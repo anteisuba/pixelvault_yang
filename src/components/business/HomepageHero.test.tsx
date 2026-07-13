@@ -41,6 +41,12 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: false }),
+  SignInButton: ({ children }: { children: ReactNode }) => (
+    <div data-testid="sign-in-modal">{children}</div>
+  ),
+  SignUpButton: ({ children }: { children: ReactNode }) => (
+    <div data-testid="sign-up-modal">{children}</div>
+  ),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -75,8 +81,9 @@ describe('HomepageHero', () => {
     expect(screen.getByText(EXPECTED_HERO.en.headline)).toBeInTheDocument()
     expect(screen.getByText(EXPECTED_HERO.en.subline)).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: 'Start creating' }),
+      screen.getByRole('button', { name: 'Start creating' }),
     ).toBeInTheDocument()
+    expect(screen.getByTestId('sign-up-modal')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Browse gallery' }),
     ).toHaveAttribute('href', expect.stringContaining('gallery'))

@@ -5,13 +5,12 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
+import { AuthModalTrigger } from '@/components/business/AuthModalTrigger'
 import { Link } from '@/i18n/navigation'
 
 /**
- * Persistent header CTA for the marketing homepage. Auth-aware like the hero
- * CTA (signed-in → Studio, signed-out → sign-up). Its colors auto-reverse with
- * the header state via the header's local --foreground/--background, so it
- * reads as a light pill over the dark hero and a dark pill over the ivory page.
+ * Persistent header CTA for the marketing homepage.
+ * Signed-in → Studio. Signed-out → Clerk sign-up modal.
  */
 export function HomepageHeaderCta() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -26,15 +25,26 @@ export function HomepageHeaderCta() {
     )
   }
 
-  const href = isSignedIn ? HOMEPAGE_ROUTES.studio : HOMEPAGE_ROUTES.signUp
+  if (isSignedIn) {
+    return (
+      <Button
+        asChild
+        size="sm"
+        className="homepage-header-cta h-9 whitespace-nowrap rounded-full px-4 text-sm font-semibold"
+      >
+        <Link href={HOMEPAGE_ROUTES.studio}>{t('startCreating')}</Link>
+      </Button>
+    )
+  }
 
   return (
-    <Button
-      asChild
-      size="sm"
-      className="homepage-header-cta h-9 whitespace-nowrap rounded-full px-4 text-sm font-semibold"
-    >
-      <Link href={href}>{t('startCreating')}</Link>
-    </Button>
+    <AuthModalTrigger intent="sign-up" asChild>
+      <Button
+        size="sm"
+        className="homepage-header-cta h-9 whitespace-nowrap rounded-full px-4 text-sm font-semibold"
+      >
+        {t('startCreating')}
+      </Button>
+    </AuthModalTrigger>
   )
 }

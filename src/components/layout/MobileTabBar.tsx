@@ -16,7 +16,6 @@ import {
   Swords,
   UserCircle,
   Video,
-  Wand2,
   Workflow,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -24,6 +23,7 @@ import { useTranslations } from 'next-intl'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 
 import { ROUTES } from '@/constants/routes'
+import { AuthModalTrigger } from '@/components/business/AuthModalTrigger'
 import { Link, usePathname } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
@@ -78,21 +78,38 @@ function isRailItemActive(pathname: string, rules: RailActiveRule[]): boolean {
 function TabList({ tabs, pathname }: TabListProps) {
   return (
     <div className="flex h-full flex-1 items-stretch">
-      {tabs.map(({ href, label, icon: Icon, activePrefix }) => (
-        <Link
-          key={href}
-          href={href}
-          className={cn(
-            MOBILE_TAB_ITEM_CLASS_NAME,
-            isTabActive(pathname, activePrefix ?? href) && 'text-primary',
-          )}
-        >
-          <Icon className="size-5" />
-          <span className="max-w-[4.5rem] truncate text-3xs font-medium leading-none">
-            {label}
-          </span>
-        </Link>
-      ))}
+      {tabs.map(({ href, label, icon: Icon, activePrefix }) => {
+        const className = cn(
+          MOBILE_TAB_ITEM_CLASS_NAME,
+          isTabActive(pathname, activePrefix ?? href) && 'text-primary',
+        )
+
+        // Signed-out “Sign in” tab: modal, not a full-page hop.
+        if (href === ROUTES.SIGN_IN) {
+          return (
+            <AuthModalTrigger
+              key={href}
+              intent="sign-in"
+              className={className}
+              aria-label={label}
+            >
+              <Icon className="size-5" />
+              <span className="max-w-[4.5rem] truncate text-3xs font-medium leading-none">
+                {label}
+              </span>
+            </AuthModalTrigger>
+          )
+        }
+
+        return (
+          <Link key={href} href={href} className={className}>
+            <Icon className="size-5" />
+            <span className="max-w-[4.5rem] truncate text-3xs font-medium leading-none">
+              {label}
+            </span>
+          </Link>
+        )
+      })}
     </div>
   )
 }
@@ -162,8 +179,8 @@ function MobileRailSignedOutLink() {
   const t = useTranslations('Navbar')
 
   return (
-    <Link
-      href={ROUTES.SIGN_IN}
+    <AuthModalTrigger
+      intent="sign-in"
       aria-label={t('signIn')}
       title={t('signIn')}
       className={cn(
@@ -174,7 +191,7 @@ function MobileRailSignedOutLink() {
       <span className="flex size-8 items-center justify-center rounded-full border border-sidebar-border/70 bg-sidebar-accent text-sidebar-foreground/70">
         <UserCircle className="size-5" aria-hidden />
       </span>
-    </Link>
+    </AuthModalTrigger>
   )
 }
 
@@ -247,12 +264,6 @@ export function MobileCollapsedRail() {
       label: tTools('tools.model3d.label'),
       icon: Box,
       activeRules: [{ path: ROUTES.STUDIO_3D }],
-    },
-    {
-      href: ROUTES.STUDIO_EDIT,
-      label: tTools('tools.edit.label'),
-      icon: Wand2,
-      activeRules: [{ path: ROUTES.STUDIO_EDIT }],
     },
     {
       href: ROUTES.STUDIO_LORA,

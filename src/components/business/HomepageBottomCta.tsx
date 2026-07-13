@@ -4,10 +4,9 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   HOMEPAGE_MODEL_COUNT_VALUES,
-  HOMEPAGE_ROUTES,
   HOMEPAGE_SHOWCASE,
 } from '@/constants/homepage'
-import { Link } from '@/i18n/navigation'
+import { AuthModalTrigger } from '@/components/business/AuthModalTrigger'
 
 // Four results filling the panel's right side so the CTA doesn't sit against
 // dead space — a small "your archive" cluster, disjoint from the hero wall.
@@ -34,13 +33,14 @@ export function HomepageBottomCta() {
             <p className="homepage-feature-copy mt-6 max-w-xl font-display font-medium text-[var(--home-muted)] text-balance">
               {t('description', HOMEPAGE_MODEL_COUNT_VALUES)}
             </p>
-            <Button
-              asChild
-              size="lg"
-              className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
-            >
-              <Link href={HOMEPAGE_ROUTES.signUp}>{t('primary')}</Link>
-            </Button>
+            <AuthModalTrigger intent="sign-up" asChild>
+              <Button
+                size="lg"
+                className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
+              >
+                {t('primary')}
+              </Button>
+            </AuthModalTrigger>
           </div>
 
           <div className="homepage-bottom-cta-gallery" aria-hidden="true">

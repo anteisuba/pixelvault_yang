@@ -55,17 +55,20 @@ function DialogContent({
   showCloseButton = true,
   closeLabel,
   onOpenAutoFocus,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   closeLabel?: string
+  /** Optional override for the dimmed backdrop (e.g. auth modal). */
+  overlayClassName?: string
 }) {
   const t = useTranslations('Common')
   const resolvedCloseLabel = closeLabel ?? t('close')
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(

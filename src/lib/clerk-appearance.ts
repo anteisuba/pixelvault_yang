@@ -47,15 +47,19 @@ const clerkBaseAppearance: Appearance = {
 export const clerkAppearance: Appearance = clerkBaseAppearance
 
 /**
- * Haivis-style task switch: dimmed backdrop + centered card on the current page.
- * Used by `AuthModalTrigger` (SignInButton / SignUpButton mode="modal").
+ * Embedded Clerk form chrome for the in-page auth dialog
+ * (`AuthModalProvider` + `routing="virtual"`). Backdrop/shell are owned by
+ * our Dialog — these tokens only style the form fields inside the card.
  */
 export const clerkModalAppearance: Appearance = {
   ...clerkBaseAppearance,
   elements: {
     ...clerkBaseAppearance.elements,
-    modalBackdrop: 'bg-black/55 backdrop-blur-[6px]',
-    modalContent: 'items-center justify-center p-4',
-    card: 'shadow-2xl border border-neutral-200 bg-white rounded-2xl',
+    rootBox: 'w-full',
+    card: 'shadow-none border-0 bg-transparent w-full',
+    headerTitle: 'hidden',
+    headerSubtitle: 'hidden',
+    // Clerk still renders a header block for a11y; collapse visual chrome.
+    header: 'hidden',
   },
 }

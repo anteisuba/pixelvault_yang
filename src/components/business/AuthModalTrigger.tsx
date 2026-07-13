@@ -2,21 +2,23 @@
 
 import type { ButtonHTMLAttributes, ReactElement, ReactNode } from 'react'
 import { Children, cloneElement, isValidElement } from 'react'
-import { SignInButton, SignUpButton } from '@clerk/nextjs'
 
-import { ROUTES } from '@/constants/routes'
-import { clerkModalAppearance } from '@/lib/clerk-appearance'
 import { cn } from '@/lib/utils'
+
+import { useAuthModal } from './AuthModalProvider'
 
 export type AuthModalIntent = 'sign-in' | 'sign-up'
 
 export type AuthModalTriggerProps = {
   /** Default sign-in; sign-up for primary “start creating” CTAs. */
   intent?: AuthModalIntent
-  /** Where Clerk sends the user after a successful session. */
+  /**
+   * Kept for API stability; redirect is owned by AuthModalProvider
+   * (locale-aware Studio path).
+   */
   fallbackRedirectUrl?: string
   /**
-   * When true, the single child element receives Clerk’s click handler
+   * When true, the single child element receives the open handler
    * (use with `<Button>`). When false, renders a native button wrapper.
    */
   asChild?: boolean
@@ -27,75 +29,54 @@ export type AuthModalTriggerProps = {
 >
 
 /**
- * Opens Clerk auth in a modal over the current page (owner: Haivis-style
- * task switch). Path routes `/sign-in` and `/sign-up` stay for OAuth /
- * email deep links and middleware redirects.
+ * Opens the in-page auth dialog (Haivis-style). Must sit under
+ * `AuthModalProvider` (mounted in `[locale]/layout`).
  */
 export function AuthModalTrigger({
   intent = 'sign-in',
-  fallbackRedirectUrl = ROUTES.STUDIO_IMAGE,
   className,
   asChild = false,
   children,
   ...buttonProps
 }: AuthModalTriggerProps) {
-  const child = resolveChild({ asChild, className, children, buttonProps })
+  const { openAuth } = useAuthModal()
 
-  if (intent === 'sign-up') {
-    return (
-      <SignUpButton
-        mode="modal"
-        appearance={clerkModalAppearance}
-        fallbackRedirectUrl={fallbackRedirectUrl}
-        signInFallbackRedirectUrl={fallbackRedirectUrl}
-      >
-        {child}
-      </SignUpButton>
-    )
+  const handleOpen = () => {
+    openAuth(intent)
   }
 
-  return (
-    <SignInButton
-      mode="modal"
-      appearance={clerkModalAppearance}
-      fallbackRedirectUrl={fallbackRedirectUrl}
-      signUpFallbackRedirectUrl={fallbackRedirectUrl}
-      withSignUp
-    >
-      {child}
-    </SignInButton>
-  )
-}
-
-function resolveChild({
-  asChild,
-  className,
-  children,
-  buttonProps,
-}: {
-  asChild: boolean
-  className?: string
-  children: ReactNode
-  buttonProps: Omit<
-    ButtonHTMLAttributes<HTMLButtonElement>,
-    'children' | 'type' | 'onClick' | 'className'
-  >
-}): ReactElement {
   if (asChild) {
     const only = Children.only(children)
-    if (!isValidElement<{ className?: string }>(only)) {
+    if (!isValidElement<{ className?: string; onClick?: unknown }>(only)) {
       throw new Error(
         'AuthModalTrigger asChild requires a single React element',
       )
     }
-    if (!className) return only
-    return cloneElement(only, {
-      className: cn(only.props.className, className),
-    })
+    return cloneElement(
+      only as ReactElement<{
+        className?: string
+        onClick?: (e: unknown) => void
+      }>,
+      {
+        className: cn(only.props.className, className),
+        onClick: (event: unknown) => {
+          const prev = only.props.onClick
+          if (typeof prev === 'function') {
+            prev(event)
+          }
+          handleOpen()
+        },
+      },
+    )
   }
 
   return (
-    <button type="button" className={className} {...buttonProps}>
+    <button
+      type="button"
+      className={className}
+      {...buttonProps}
+      onClick={handleOpen}
+    >
       {children}
     </button>
   )

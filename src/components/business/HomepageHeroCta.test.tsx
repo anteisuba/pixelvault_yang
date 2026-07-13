@@ -6,15 +6,17 @@ import { HomepageHeroCta } from './HomepageHeroCta'
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 
 const authState = { isLoaded: true, isSignedIn: false }
+const openAuth = vi.fn()
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => authState,
-  SignInButton: ({ children }: { children: ReactNode }) => (
-    <div data-testid="sign-in-modal">{children}</div>
-  ),
-  SignUpButton: ({ children }: { children: ReactNode }) => (
-    <div data-testid="sign-up-modal">{children}</div>
-  ),
+}))
+
+vi.mock('./AuthModalProvider', () => ({
+  useAuthModal: () => ({
+    openAuth,
+    closeAuth: vi.fn(),
+  }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -33,7 +35,6 @@ describe('HomepageHeroCta', () => {
     authState.isLoaded = true
     authState.isSignedIn = false
     render(<HomepageHeroCta />)
-    expect(screen.getByTestId('sign-up-modal')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Start creating' }),
     ).toBeInTheDocument()

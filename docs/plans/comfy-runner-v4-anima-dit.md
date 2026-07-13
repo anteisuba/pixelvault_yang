@@ -1,12 +1,45 @@
 # Comfy Runner v4 — Anima DiT 管线支持（让 Anima LoRA 出对图）
 
-> 状态：施工图（groundwork 已完成，正式搭建待专注段）
+> 状态：✅ **已交付上线（2026-07-13）** —— 全栈搭建 + 部署 + 真机出图验证通过
 > 关联：[v3 底模按需下载](comfy-runner-v3-checkpoint-ondemand.md)、memory `project-comfy-runner`
 > 日期：2026-07-13
 
 ## 0. 一句话
 
 让 **baseModel = "Anima" 的 DiT LoRA**（本月最热 LoRA 的 ~47%，含实测的「心月狐」）在 runner 上**出对图**，而不是被路由到 SDXL 的 anima_pencil 出紫图垃圾、或被 v3 的止损改动直接拦住。
+
+## 0.5 交付记录 & 解决过程复盘（本节点）
+
+**问题起点**：用户报「心月狐 LoRA 在 runner 出的图完全不对」（紫发通用脸，非狐耳红裙）。
+
+**一步步怎么查到根因**（可复用的诊断链）：
+
+1. **v3 fork 直连测试 FAILED**，顶层 error 只有「Job processing failed」——先误以为是通用报错。**关键突破**：读 worker-comfyui `handler.py` 发现「Job processing failed」是它**自己**在「无输出图 + 有错误」时返回的（L885），真错在返回 dict 的 **`output.details`**（之前轮询漏了这个字段）。取到真错 = `CLIPSetLastLayer clip-skip 'NoneType' object has no attribute 'clone'`（CLIP=None）。
+2. **safetensors 头部分析**（不下 GB 级）：`?token=` range GET 前 ~100KB，解析头 JSON 的全部 tensor 名 → 全是 `model.diffusion_model.blocks.N.adaln_modulation_*`、**无 CLIP/VAE** → 是 **DiT（Diffusion Transformer）**，不是 SDXL 的 UNet。
+3. **Civitai/浏览器确认**：`models?baseModels=Anima` 过滤（比 flaky 的 query 搜索可靠）+ 浏览器打开心月狐页坐实：Base Model = **Anima**、License「CircleStone Labs · Built on **NVIDIA Cosmos**」→ 根因 = **心月狐是 Cosmos-Predict2 DiT，SDXL runner 的 `CheckpointLoaderSimple` 图天生跑不了它**（UNET-only、无 CLIP/VAE）。
+
+**关键弯路修正**：中途一度按「拦住不出垃圾」做了 v3 止损（`normalizeToLoraBaseFamily('anima')→null`）。用户明确「拦住不是目的，出对图才是」→ 转为搭第二套 DiT 管线（本方案）。
+
+**怎么解决的**（正解）：
+
+- 研究 Anima 的 HF 页 + `anima_comparison.json` 工作流 → 确定它 **ComfyUI 原生支持**（Comfy Org 参与）、全标准节点、三文件 + 确切参数（CLIPLoader type=`stable_diffusion`、ModelSamplingAuraFlow shift=3、er_sde/30/cfg4）。
+- **节点探针排雷**：给现役 r2 端点发「Anima 节点 + 假文件名」workflow → 全报 `value_not_in_list`（文件缺）而非「节点类型不存在」→ 一锤确认 fork 的 ComfyUI 支持整套 Anima 节点。
+- **落盘目录排雷**：查 ComfyUI `folder_paths.map_legacy` = `{unet→diffusion_models, clip→text_encoders}` → 底模落 `models/unet/`、编码器落 `models/clip/`（落「自然名」目录会静默找不到）。
+- 搭第二套工作流（Worker `anima-workflow-builder` + 架构分派）+ 架构感知路由（app 翻转 `'anima'→'anima-dit'` 支持）+ fork **HF 自播种**配件（放弃 CPU Pod 预灌）。
+
+**交付**（2026-07-13）：
+
+- 代码全绿：app tsc0/vitest 3262 · worker tsc0/vitest 57；commit `31d6d2c0` 推 main（pre-push 全量 vitest 通过）。
+- Runner 侧部署：fork r3 镜像（GHCR `:5.8.6-r3`，commit 42ef4d8）+ RunPod template `pmh4gs9eht`→r3 + worker `wrangler deploy`（Version 28f86f1b）。
+- ✅ 真机出图验证通过：Anima LoRA 在 runner 出对图（本条据用户「完全没问题了」确认）。
+
+**可复用的教训**：
+
+- worker-comfyui 的「Job processing failed」是它自己无输出的返回，真错在 `output.details` / 顶层 error，别停在通用消息。
+- 判 checkpoint 架构不用下整包——读 safetensors 头 JSON 的 tensor 名即可（DiT 有 `adaln_modulation`、无 `conditioner.embedders`）。
+- Civitai 判 baseModel 用 `baseModels=` 过滤，别用 flaky 的 `query=` 搜索。
+- 加新架构前先用「节点 + 假文件名」探针确认 ComfyUI 支持，避免在沙上盖楼。
+- **1 套工作流 = 1 个架构，覆盖该架构下全部 LoRA**，不是每把 LoRA 一套。
 
 ## 1. 触发 / 为什么
 
@@ -96,7 +129,7 @@ VAELoader("qwen_image_vae.safetensors") ──► VAEDecode(samples, vae) ──
 
 ## 6. 风险 / 闸门
 
-1. **【首验】fork ComfyUI 版本**：r2 用 `COMFYUI_VERSION=latest` 构建（今天新构建），大概率含 Cosmos-Predict2 + Anima 支持；但「latest」是 release tag，须查 `/object_info` 确认（§3 开工第一步）。若 release 未含、只在 nightly → 需 pin 更新的 ComfyUI 或加对应支持。
+1. ~~**【首验】fork ComfyUI 版本**~~ ✅ **已探针确认**：给 r2 端点发「Anima 节点 + 假文件名」workflow，全报 `value_not_in_list`（文件缺）而非「节点类型不存在」→ ComfyUI 原生支持全套 Anima 节点（含 CLIPLoader type `stable_diffusion`）。此闸门已过。
 2. **LoRA 挂 Cosmos UNET**：`LoraLoaderModelOnly` 通用，Anima LoRA 1344 tensors 作用扩散模型，大概率能挂——须实测。
 3. **per-recipe 精确档多为私有**（BSSANIRLANIMASemi 搜不到）→ 多数 Anima recipe 落 T2 用 anima-base 默认档。因 LoRA 在 Base 上训，这个「近似」其实很忠实，可接受。
 4. **License**：Anima 是 Non-Commercial（CircleStone）+ NVIDIA Open Model License。runner 是免费额度、非商用 API 收费 → 目前用法在允许范围（生成的图可商用；不得把模型藏在收费 API 后）。⚠若未来 runner 商业化，需复核。

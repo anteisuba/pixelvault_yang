@@ -29,6 +29,8 @@ export enum AI_MODELS {
   PONY_DIFFUSION_V6 = 'pony-diffusion-v6',
   /** Comfy Runner (RunPod) — plain SDXL 1.0, faithful recipe clone path. */
   SDXL_10_RUNNER = 'sdxl-10-runner',
+  /** Comfy Runner (RunPod) — Anima (Cosmos-Predict2 DiT), its own Qwen-Image workflow. */
+  ANIMA_DIT_RUNNER = 'anima-dit-runner',
 
   // Audio models
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',

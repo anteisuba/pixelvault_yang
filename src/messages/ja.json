@@ -2683,6 +2683,10 @@
       "label": "SDXL 1.0（Runner）",
       "description": "PixelVault Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
     },
+    "animaDitRunner": {
+      "label": "Anima（Runner）",
+      "description": "PixelVault Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
       "description": "評価トップのTTS、30以上の言語で音声クローニング対応"

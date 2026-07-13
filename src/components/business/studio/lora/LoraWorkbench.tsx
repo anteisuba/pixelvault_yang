@@ -781,6 +781,14 @@ function GenerateBranch() {
         advanced.checkpointVersionId = activeRecipe.checkpointVersionId
       if (activeRecipe?.checkpoint)
         advanced.checkpointName = activeRecipe.checkpoint
+      // 带上 LoRA 的 baseModel 作权威架构信号：无精确底模时服务端按它判 T2/T3，
+      // 既能正确拦 DiT，又不会因配方 checkpoint 名字含 "anima"(如 Animagine) 误拦
+      // 合法 SDXL 生成。
+      if (
+        (advanced.checkpointVersionId || advanced.checkpointName) &&
+        loraFamily
+      )
+        advanced.loraBaseModel = loraFamily
     }
     const record = await generate({
       mode: 'image',
@@ -818,6 +826,7 @@ function GenerateBranch() {
     generate,
     imageUpload.referenceImages,
     isRunnerBase,
+    loraFamily,
     mined.recipes,
     negativePrompt,
     prompt,

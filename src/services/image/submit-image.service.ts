@@ -226,6 +226,7 @@ export async function submitImageGeneration(
         const prepared = await prepareRunnerCheckpoint({
           checkpointVersionId: adv.checkpointVersionId,
           checkpointName: adv.checkpointName,
+          loraBaseModel: adv.loraBaseModel,
         })
         runnerAdvancedParams = {
           ...adv,

@@ -14,12 +14,20 @@
 export interface RunnerCheckpointDefinition {
   /** Matches `providerInput.externalModelId` from the dispatched run context. */
   id: string
-  /** Exact filename on the RunPod Network Volume (`models/checkpoints/<filename>`). */
+  /**
+   * Exact filename on the Network Volume. SDXL → `models/checkpoints/`;
+   * Anima DiT → `models/diffusion_models/` (see `architecture`).
+   */
   filename: string
   recommendedSampler: string
   recommendedScheduler: string
-  /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. */
+  /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. Unused for Anima. */
   clipSkip: number
+  /**
+   * Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple graph).
+   * 'anima' = DiT (UNETLoader + shared Qwen CLIP/VAE + ModelSamplingAuraFlow).
+   */
+  architecture?: 'sdxl' | 'anima'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
@@ -50,6 +58,16 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
     recommendedSampler: 'euler',
     recommendedScheduler: 'normal',
     clipSkip: 1,
+  },
+  // v4 Anima DiT 默认档（配方精确 Anima checkpoint 私有/下不到时的 T2 回退——LoRA
+  // 本就在 Anima-Base 上训，用它近似很忠实）。落在 models/diffusion_models/。
+  {
+    id: 'animaBase_v10',
+    filename: 'anima-base-v1.0.safetensors',
+    recommendedSampler: 'er_sde',
+    recommendedScheduler: 'simple',
+    clipSkip: 1,
+    architecture: 'anima',
   },
 ]
 

@@ -137,4 +137,71 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
     expect(workflow.sampler.inputs.scheduler).toBe('normal')
   })
+
+  describe('v4 Anima DiT dispatch (architecture: "anima")', () => {
+    it('builds the DiT graph (UNETLoader + Qwen CLIP/VAE + ModelSamplingAuraFlow), not CheckpointLoaderSimple', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+        }),
+        fixedRandomSeed,
+      )
+      // DiT loaders present, SDXL nodes absent.
+      expect(workflow.unet.class_type).toBe('UNETLoader')
+      expect(workflow.unet.inputs.unet_name).toBe('anima-base-v1.0.safetensors')
+      expect(workflow['clip-loader'].class_type).toBe('CLIPLoader')
+      expect(workflow['clip-loader'].inputs.clip_name).toBe(
+        'qwen_3_06b_base.safetensors',
+      )
+      expect(workflow['clip-loader'].inputs.type).toBe('stable_diffusion')
+      expect(workflow['vae-loader'].inputs.vae_name).toBe(
+        'qwen_image_vae.safetensors',
+      )
+      expect(workflow['model-sampling'].class_type).toBe(
+        'ModelSamplingAuraFlow',
+      )
+      expect(workflow['model-sampling'].inputs.shift).toBe(3.0)
+      expect(workflow.checkpoint).toBeUndefined()
+      expect(workflow['clip-skip']).toBeUndefined()
+      // Anima sampler defaults from the manifest entry.
+      expect(workflow.sampler.inputs.sampler_name).toBe('er_sde')
+      expect(workflow.sampler.inputs.scheduler).toBe('simple')
+      expect(workflow.sampler.inputs.cfg).toBe(4)
+    })
+
+    it('T1 override: downloaded Anima checkpoint feeds UNETLoader + Anima override sampler', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+          checkpointOverrideFilename: 'civitai-ckpt-3108589.safetensors',
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow.unet.inputs.unet_name).toBe(
+        'civitai-ckpt-3108589.safetensors',
+      )
+      expect(workflow.sampler.inputs.sampler_name).toBe('er_sde')
+    })
+
+    it('chains the Anima LoRA model-only (LoraLoaderModelOnly, no clip strength)', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+          loras: [{ filename: 'civitai-3076650.safetensors', scale: 0.6 }],
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow['lora-0'].class_type).toBe('LoraLoaderModelOnly')
+      expect(workflow['lora-0'].inputs.lora_name).toBe(
+        'civitai-3076650.safetensors',
+      )
+      expect(workflow['lora-0'].inputs.strength_model).toBe(0.6)
+      expect(workflow['lora-0'].inputs.strength_clip).toBeUndefined()
+      // ModelSamplingAuraFlow wraps the LoRA-patched model.
+      expect(workflow['model-sampling'].inputs.model).toEqual(['lora-0', 0])
+    })
+  })
 })

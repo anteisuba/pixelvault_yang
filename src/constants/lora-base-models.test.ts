@@ -15,14 +15,24 @@ describe('normalizeToLoraBaseFamily', () => {
     expect(normalizeToLoraBaseFamily('Flux.1 D')).toBe('flux')
     expect(normalizeToLoraBaseFamily('SDXL 1.0')).toBe('sdxl')
     expect(normalizeToLoraBaseFamily('SD 1.5')).toBe('sd15')
-    expect(normalizeToLoraBaseFamily('Anima')).toBe('anima')
   })
 
   it('keeps SDXL-derived families distinct from generic sdxl', () => {
-    // Illustrious/Pony/Anima are SDXL-based but must resolve to their own
-    // family, not the catch-all sdxl (xl substring).
+    // Illustrious/Pony are SDXL-based but must resolve to their own family,
+    // not the catch-all sdxl (xl substring).
     expect(normalizeToLoraBaseFamily('Illustrious XL')).toBe('illustrious')
     expect(normalizeToLoraBaseFamily('Pony XL')).toBe('pony')
+  })
+
+  it('routes DiT "Anima" to its own anima-dit family, distinct from SDXL anima_pencil / Animagine', () => {
+    // baseModel 值 "Anima" = Cosmos-Predict2 DiT → 独立家族 'anima-dit'（走 Qwen-Image
+    // 工作流）。用精确值判，别碰 "anima" 子串，免误判 Animagine 这类 SDXL。
+    expect(normalizeToLoraBaseFamily('Anima')).toBe('anima-dit')
+    expect(normalizeToLoraBaseFamily('anima')).toBe('anima-dit')
+    expect(normalizeToLoraBaseFamily('  ANIMA ')).toBe('anima-dit')
+    // 名字含 "anima" 但架构是 SDXL 的仍归 'anima'（走 anima_pencil）。
+    expect(normalizeToLoraBaseFamily('anima_pencil-XL')).toBe('anima')
+    expect(normalizeToLoraBaseFamily('Animagine XL v3')).toBe('anima')
   })
 
   it('keeps Pony V7 (AuraFlow arch) out of the SDXL-based pony family', () => {
@@ -53,6 +63,13 @@ describe('getCompatibleBases', () => {
   it('returns empty for an unknown family', () => {
     expect(getCompatibleBases('totally-unknown')).toEqual([])
   })
+
+  it('offers the anima-dit runner base for DiT "Anima"', () => {
+    const bases = getCompatibleBases('Anima')
+    expect(bases.length).toBeGreaterThan(0)
+    expect(bases.every((b) => b.family === 'anima-dit')).toBe(true)
+    expect(bases.some((b) => b.id === 'anima-dit-runner')).toBe(true)
+  })
 })
 
 describe('getDefaultBase', () => {
@@ -68,6 +85,12 @@ describe('getDefaultBase', () => {
     const base = getDefaultBase('Pony')
     expect(base?.family).toBe('pony')
     expect(base?.backend).toBe('runner')
+  })
+
+  it('defaults DiT "Anima" to the anima-dit runner base', () => {
+    const base = getDefaultBase('Anima')
+    expect(base?.family).toBe('anima-dit')
+    expect(base?.id).toBe('anima-dit-runner')
   })
 
   it('returns null when no family matches', () => {

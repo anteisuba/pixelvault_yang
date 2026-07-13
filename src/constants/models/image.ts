@@ -271,4 +271,20 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
+  // v4：Anima（Cosmos-Predict2 DiT）——独立的 Qwen-Image 工作流（Worker 按 manifest
+  // 的 architecture:'anima' 分派）。externalModelId 指默认 anima-base 档；配方精确
+  // Anima checkpoint 走 T1 覆盖。覆盖近半热门 LoRA（baseModel "Anima"）。
+  {
+    id: AI_MODELS.ANIMA_DIT_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('animaBase_v10')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
 ]

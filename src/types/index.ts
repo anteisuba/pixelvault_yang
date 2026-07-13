@@ -164,6 +164,9 @@ export type RunnerLoraSpec = z.infer<typeof RunnerLoraSpecSchema>
 export const RunnerCheckpointSpecSchema = z.object({
   filename: z.string().min(1),
   downloadUrl: z.string().url(),
+  // v4：fork 落盘子目录。缺省 checkpoints/（SDXL）；Anima DiT → diffusion_models/
+  // （fork 侧解析到 models/unet/，配 UNETLoader）。
+  targetDir: z.enum(['checkpoints', 'diffusion_models']).optional(),
 })
 export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
 
@@ -187,6 +190,9 @@ export const AdvancedParamsSchema = z.object({
   // runnerCheckpointApproximate = T2 近似（无精确底模、用兼容档，UI 提示差异）。
   checkpointVersionId: z.number().int().positive().optional(),
   checkpointName: z.string().max(200).optional(),
+  // LoRA 声明的 baseModel（原始 Civitai 串）——无精确底模时的权威架构信号，服务端
+  // 分级用它把 DiT「Anima」正确拦成 T3（而非按 checkpoint 名字误判近似）。
+  loraBaseModel: z.string().max(120).optional(),
   runnerCheckpoint: RunnerCheckpointSpecSchema.optional(),
   runnerCheckpointApproximate: z.boolean().optional(),
 })

@@ -19,6 +19,9 @@ export const RUNNER_CHECKPOINT_FAMILIES = [
   'anima',
   'pony',
   'sdxl',
+  // v4：DiT「Anima」（Cosmos-Predict2）——与 SDXL 的 anima_pencil（family 'anima'）
+  // 是两套架构，独立家族。
+  'anima-dit',
 ] as const
 
 export type RunnerCheckpointFamily = (typeof RUNNER_CHECKPOINT_FAMILIES)[number]
@@ -28,15 +31,17 @@ export interface RunnerCheckpointManifestEntry {
   id: string
   family: RunnerCheckpointFamily
   displayName: string
-  /** Exact filename on the RunPod Network Volume (`models/checkpoints/<filename>`). */
+  /** Exact filename on the Volume. SDXL → `models/checkpoints/`; Anima DiT → `models/unet/`. */
   filename: string
   civitaiModelVersionId: number
   recommendedSampler: string
   recommendedScheduler: string
-  /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. */
+  /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. Unused for Anima DiT. */
   clipSkip: number
   /** Prefixed onto the positive prompt for checkpoints with quality-tag conventions (e.g. Pony's score_9 tags). */
   recommendedPositivePrefix?: string
+  /** Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple). 'anima' = DiT. */
+  architecture?: 'sdxl' | 'anima'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
@@ -80,6 +85,19 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     recommendedSampler: 'euler',
     recommendedScheduler: 'normal',
     clipSkip: 1,
+  },
+  // v4 Anima DiT 默认档（配方精确 Anima checkpoint 私有/下不到时的 T2 回退——LoRA
+  // 本就在 Anima-Base 上训，用它近似很忠实）。落 models/unet/（配 UNETLoader）。
+  {
+    id: 'animaBase_v10',
+    family: 'anima-dit',
+    displayName: 'Anima Base v1.0',
+    filename: 'anima-base-v1.0.safetensors',
+    civitaiModelVersionId: 2945208,
+    recommendedSampler: 'er_sde',
+    recommendedScheduler: 'simple',
+    clipSkip: 1,
+    architecture: 'anima',
   },
 ] as const
 

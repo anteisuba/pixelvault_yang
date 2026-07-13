@@ -40,6 +40,18 @@ LORA_DIR = os.environ.get("RUNNER_LORA_DIR", "/runpod-volume/models/loras")
 CHECKPOINT_DIR = os.environ.get(
     "RUNNER_CHECKPOINT_DIR", "/runpod-volume/models/checkpoints"
 )
+# v4：Anima 等 DiT 底模是 UNET-only，配 UNETLoader（ComfyUI 的 "diffusion_models"
+# folder）。worker-comfyui 的 extra_model_paths.yaml 把 volume 的 `models/unet/` 经
+# ComfyUI legacy 别名 `unet→diffusion_models` 并入该 folder——所以落 models/unet/，
+# UNETLoader 才找得到（volume 上没映射 models/diffusion_models/）。
+DIFFUSION_MODELS_DIR = os.environ.get(
+    "RUNNER_DIFFUSION_MODELS_DIR", "/runpod-volume/models/unet"
+)
+# checkpoint_to_fetch.target_dir 允许值 → 落盘目录。白名单，防写到卷上任意目录。
+CHECKPOINT_TARGET_DIRS = {
+    "checkpoints": CHECKPOINT_DIR,
+    "diffusion_models": DIFFUSION_MODELS_DIR,
+}
 DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("RUNNER_LORA_DL_TIMEOUT", "600"))
 # 底模大（6.5GB+），给足下载窗口。
 CHECKPOINT_DL_TIMEOUT_SECONDS = int(os.environ.get("RUNNER_CKPT_DL_TIMEOUT", "1800"))
@@ -75,6 +87,24 @@ def _is_civitai_url(url: str) -> bool:
     return host == "civitai.com" or host.endswith(".civitai.com")
 
 
+def _is_huggingface_url(url: str) -> bool:
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return host == "huggingface.co" or host.endswith(".huggingface.co")
+
+
+# v4：Anima DiT 的共享配件（文本编码器/VAE）+ 默认底模落盘目录白名单。source 限
+# 'huggingface'（公开、无需鉴权），host 白名单防 SSRF。
+COMPANION_TARGET_DIRS = {
+    "unet": DIFFUSION_MODELS_DIR,
+    "clip": os.environ.get("RUNNER_CLIP_DIR", "/runpod-volume/models/clip"),
+    "vae": os.environ.get("RUNNER_VAE_DIR", "/runpod-volume/models/vae"),
+}
+ALLOWED_COMPANION_SOURCE = "huggingface"
+
+
 def _download_to(
     url: str, dest: str, timeout: int = DOWNLOAD_TIMEOUT_SECONDS, headers=None
 ) -> None:
@@ -105,8 +135,13 @@ def ensure_checkpoint(spec) -> None:
         raise ValueError(
             f"Refusing checkpoint from non-civitai url (SSRF blocked): {url!r}"
         )
-    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-    dest = os.path.join(CHECKPOINT_DIR, filename)
+    # v4：按 target_dir 白名单选落盘目录（缺省 checkpoints/；Anima DiT→diffusion_models/）。
+    target_dir_key = spec.get("target_dir") or "checkpoints"
+    target_dir = CHECKPOINT_TARGET_DIRS.get(target_dir_key)
+    if target_dir is None:
+        raise ValueError(f"Refusing checkpoint with unknown target_dir: {target_dir_key!r}")
+    os.makedirs(target_dir, exist_ok=True)
+    dest = os.path.join(target_dir, filename)
     if os.path.exists(dest):
         return  # 缓存命中：Volume 上已有，跳过下载
     headers = (
@@ -117,6 +152,36 @@ def ensure_checkpoint(spec) -> None:
         url, dest, timeout=CHECKPOINT_DL_TIMEOUT_SECONDS, headers=headers
     )
     print(f"[runner-fork] cached checkpoint {filename}", flush=True)
+
+
+def ensure_companions(companions_to_fetch) -> None:
+    """v4：把 Anima DiT 的共享配件（Qwen 文本编码器/VAE）+ 默认底模从 HuggingFace 拉到
+    对应目录（缺则下、有则跳＝一次入卷永久缓存）。公开文件无需鉴权。"""
+    if not companions_to_fetch:
+        return
+    for spec in companions_to_fetch:
+        source = spec.get("source")
+        if source != ALLOWED_COMPANION_SOURCE:
+            raise ValueError(f"Refusing companion from disallowed source: {source!r}")
+        filename = _safe_basename(spec.get("filename", ""))
+        url = spec.get("url")
+        if not url:
+            raise ValueError(f"Missing download url for companion {filename!r}")
+        if not _is_huggingface_url(url):
+            raise ValueError(
+                f"Refusing companion from non-huggingface url (SSRF blocked): {url!r}"
+            )
+        dir_key = spec.get("target_dir")
+        target_dir = COMPANION_TARGET_DIRS.get(dir_key)
+        if target_dir is None:
+            raise ValueError(f"Refusing companion with unknown target_dir: {dir_key!r}")
+        os.makedirs(target_dir, exist_ok=True)
+        dest = os.path.join(target_dir, filename)
+        if os.path.exists(dest):
+            continue  # 缓存命中
+        print(f"[runner-fork] downloading companion {filename} → {dir_key} …", flush=True)
+        _download_to(url, dest, timeout=CHECKPOINT_DL_TIMEOUT_SECONDS)
+        print(f"[runner-fork] cached companion {filename}", flush=True)
 
 
 def ensure_loras(loras_to_fetch) -> None:
@@ -141,8 +206,10 @@ def ensure_loras(loras_to_fetch) -> None:
 
 def handler(job):
     inp = (job or {}).get("input", {}) or {}
-    # 底模先于 LoRA：checkpoint 就位后 LoRA 才有意义。
+    # 底模先于 LoRA：checkpoint 就位后 LoRA 才有意义。v4：Anima 的共享配件（编码器/VAE/
+    # 默认底模）也先备好，UNETLoader/CLIPLoader/VAELoader 才找得到。
     ensure_checkpoint(inp.get("checkpoint_to_fetch"))
+    ensure_companions(inp.get("companions_to_fetch"))
     ensure_loras(inp.get("loras_to_fetch"))
     return base_handler(job)
 

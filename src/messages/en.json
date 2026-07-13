@@ -2683,6 +2683,10 @@
       "label": "SDXL 1.0 (Runner)",
       "description": "Plain SDXL 1.0 via PixelVault Runner — a faithful recipe-clone path alongside the hosted route."
     },
+    "animaDitRunner": {
+      "label": "Anima (Runner)",
+      "description": "Anima (Cosmos-Predict2 DiT) via PixelVault Runner — the native path for the large Anima LoRA ecosystem on Civitai."
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
       "description": "Top-ranked TTS, 30+ languages, natural voice cloning"

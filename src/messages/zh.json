@@ -2683,6 +2683,10 @@
       "label": "SDXL 1.0（Runner）",
       "description": "通过 PixelVault Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
     },
+    "animaDitRunner": {
+      "label": "Anima（Runner）",
+      "description": "通过 PixelVault Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2 Pro",
       "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"

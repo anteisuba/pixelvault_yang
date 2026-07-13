@@ -24,6 +24,8 @@ const RUNNER_SUPPORTED_FAMILIES: readonly LoraBaseFamily[] = [
   'anima',
   'sdxl',
   'sd15',
+  // v4：DiT「Anima」走独立的 Qwen-Image 工作流（Worker 按 manifest architecture 分派）。
+  'anima-dit',
 ]
 
 function isRunnerSupportedFamily(
@@ -56,8 +58,12 @@ export type RunnerCheckpointFidelity =
 export interface RecipeCheckpointReference {
   /** civitaiResources[type=checkpoint].modelVersionId（v3-1 捕获）— 精确定位。 */
   checkpointVersionId?: number | null
-  /** meta.Model — checkpoint 名，无 versionId 时按名归一底架构兜底。 */
+  /** meta.Model — checkpoint 名，无 versionId 时的**兜底**架构信号（不可靠：Animagine
+   *  等 SDXL 底模名字也含 "anima"）。仅当没有 loraBaseModel 时才用它判架构。 */
   checkpointName?: string | null
+  /** LoRA 自己声明的 baseModel（Civitai 原始串，如 "Anima" / "Illustrious"）——**权威**
+   *  架构信号。无精确 checkpoint 时优先用它判 T2/T3，DiT「Anima」由此被正确拦。 */
+  loraBaseModel?: string | null
 }
 
 /**
@@ -90,12 +96,14 @@ export async function determineRunnerCheckpointFidelity(
     // 解析不到（gated/已删/网络抖动）→ 落到按名兜底（T2/T3）。
   }
 
-  // 2. 无精确 checkpoint —— 按配方记录的 checkpoint 名归一架构。
-  const nameFamily = requestedName
-    ? normalizeToLoraBaseFamily(requestedName)
-    : null
-  if (isRunnerSupportedFamily(nameFamily)) {
-    return { tier: 'approximate', family: nameFamily, requestedName }
+  // 2. 无精确 checkpoint —— 判架构**优先用 LoRA 自己的 baseModel**（权威信号，DiT
+  //    「Anima」= 值 "Anima" → normalize 归 null → 落 unsupported）；checkpoint 名字只
+  //    兜底（名字含 "anima" 不可靠：Animagine/anima_pencil 都是 SDXL，会错判）。
+  const loraBaseModel = recipe.loraBaseModel?.trim() || null
+  const archSignal = loraBaseModel ?? requestedName
+  const archFamily = archSignal ? normalizeToLoraBaseFamily(archSignal) : null
+  if (isRunnerSupportedFamily(archFamily)) {
+    return { tier: 'approximate', family: archFamily, requestedName }
   }
-  return { tier: 'unsupported', requestedName, baseModelRaw: null }
+  return { tier: 'unsupported', requestedName, baseModelRaw: loraBaseModel }
 }

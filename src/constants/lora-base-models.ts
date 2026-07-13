@@ -21,7 +21,11 @@ export const LORA_BASE_FAMILIES = [
   'illustrious',
   'pony',
   'sd15',
+  // SDXL 的「Anima Pencil」系（名字含 anima 但架构是 SDXL）。
   'anima',
+  // v4：DiT「Anima」（Cosmos-Predict2，baseModel 值精确为 "Anima"）——独立架构，走
+  // runner 的 Qwen-Image 工作流。与上面的 SDXL 'anima' 是两回事。
+  'anima-dit',
 ] as const
 export type LoraBaseFamily = (typeof LORA_BASE_FAMILIES)[number]
 
@@ -153,6 +157,19 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'animaPencilXL_v500',
     recommended: true,
   },
+  // v4：DiT「Anima」（Cosmos-Predict2）的唯一出路——runner 的 Qwen-Image 工作流。
+  // baseModel 值 "Anima" 的 LoRA（本月最热 ~47%，如心月狐）归此家族。
+  {
+    id: 'anima-dit-runner',
+    displayName: 'Anima (Cosmos DiT)',
+    family: 'anima-dit',
+    backend: 'runner',
+    fidelity: 'faithful',
+    available: runnerAvailable(AI_MODELS.ANIMA_DIT_RUNNER),
+    providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
+    runnerCheckpointId: 'animaBase_v10',
+    recommended: true,
+  },
 ]
 
 /**
@@ -168,6 +185,14 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   // 否则将来会被错误路由到 SDXL 架构的 pony runner checkpoint。
   if (s.includes('pony') && s.includes('v7')) return null
   if (s.includes('pony')) return 'pony'
+  // baseModel 值 "Anima" 是 Diffusion Transformer 架构（Cosmos-Predict2；Anima /
+  // WAI-ANIMA / AnimaYume… 一整个生态），权重 UNET-only、无 CLIP/VAE，跑不了 SDXL 的
+  // CheckpointLoaderSimple 图——归独立家族 'anima-dit'，走 runner 的 Qwen-Image 工作流。
+  // 与 SDXL 系区分：「Anima Pencil XL」的 baseModel 是 "SDXL 1.0"、「Animagine」也是
+  // SDXL——它们名字含 "anima" 但架构是 SDXL，走下面的 includes 归 'anima'（anima_pencil）。
+  // 判据用**精确值** s === 'anima'（Civitai 的 DiT baseModel 枚举值），不碰子串，
+  // 免误杀 Animagine（超热门 SDXL，名字含 "anima"）。
+  if (s === 'anima') return 'anima-dit'
   if (s.includes('anima')) return 'anima'
   if (s.includes('flux')) return 'flux'
   if (

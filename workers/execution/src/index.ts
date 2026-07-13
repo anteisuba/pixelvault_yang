@@ -10,6 +10,7 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
+import { getRunnerCheckpointById } from './models/runner/checkpoints'
 import {
   buildRunnerWorkflowFromRequest,
   RunnerUnknownCheckpointError,
@@ -4090,6 +4091,8 @@ function getRunnerLoraSpecs(
 interface RunnerCheckpointSpecInput {
   filename: string
   downloadUrl: string
+  /** fork 落盘子目录：SDXL→'checkpoints'（缺省）；Anima DiT→'diffusion_models'。 */
+  targetDir?: 'checkpoints' | 'diffusion_models'
 }
 
 // v3 runner（docs/plans/comfy-runner-v3-checkpoint-ondemand.md）：app 侧
@@ -4105,8 +4108,38 @@ function getRunnerCheckpointSpec(
   const filename = readStringField(spec, 'filename')
   const downloadUrl = readStringField(spec, 'downloadUrl')
   if (!filename || !downloadUrl) return null
-  return { filename, downloadUrl }
+  const targetDir =
+    readStringField(spec, 'targetDir') === 'diffusion_models'
+      ? 'diffusion_models'
+      : undefined
+  return { filename, downloadUrl, targetDir }
 }
+
+// v4 Anima DiT 共享配件（circlestone-labs/Anima 的 HF 仓）。fork 首次 Anima 作业从
+// 这里拉到卷（缺则下、有则跳＝永久缓存）：Qwen 文本编码器→models/clip、VAE→models/vae；
+// T2（无 per-recipe 精确底模）再加 anima-base→models/unet 作默认档。
+const ANIMA_HF_BASE =
+  'https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files'
+const ANIMA_SHARED_COMPANIONS = [
+  {
+    filename: 'qwen_3_06b_base.safetensors',
+    url: `${ANIMA_HF_BASE}/text_encoders/qwen_3_06b_base.safetensors`,
+    target_dir: 'clip',
+    source: 'huggingface' as const,
+  },
+  {
+    filename: 'qwen_image_vae.safetensors',
+    url: `${ANIMA_HF_BASE}/vae/qwen_image_vae.safetensors`,
+    target_dir: 'vae',
+    source: 'huggingface' as const,
+  },
+] as const
+const ANIMA_BASE_COMPANION = {
+  filename: 'anima-base-v1.0.safetensors',
+  url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
+  target_dir: 'unet',
+  source: 'huggingface' as const,
+} as const
 
 function injectCivitaiToken(url: string, civitaiToken: string | null): string {
   if (!civitaiToken || !url.includes('civitai.com')) return url
@@ -5065,6 +5098,12 @@ async function submitRunnerImageJob(
   const runnerLoras = getRunnerLoraSpecs(context)
   const runnerCheckpoint = getRunnerCheckpointSpec(context)
   const seed = readNumberField(advancedParams, 'seed')
+  // v4：底模架构由 manifest 条目决定（anima-dit 底模 → Anima DiT 工作流）。即便走
+  // T1 override（用下载的精确 Anima checkpoint），externalModelId 仍是 anima 家族的
+  // manifest id，据此选 Anima 工作流。缺省 sdxl。
+  const architecture = getRunnerCheckpointById(
+    context.providerInput.externalModelId,
+  )?.architecture
 
   // img2img: when the request carries a reference image (base-model capability
   // maxReferenceImages > 0), fetch it to base64 for RunPod's `input.images`
@@ -5106,6 +5145,7 @@ async function submitRunnerImageJob(
           scale: lora.scale,
         })),
         checkpointOverrideFilename: runnerCheckpoint?.filename,
+        architecture,
         referenceImageName,
         denoise: referenceDenoise,
       },
@@ -5142,7 +5182,18 @@ async function submitRunnerImageJob(
       filename: runnerCheckpoint.filename,
       url: runnerCheckpoint.downloadUrl,
       source: 'civitai' as const,
+      // v4：Anima DiT 底模落 models/diffusion_models/（缺省 checkpoints）。
+      ...(runnerCheckpoint.targetDir
+        ? { target_dir: runnerCheckpoint.targetDir }
+        : {}),
     }
+  }
+  // v4：Anima DiT 作业带上共享配件（Qwen 编码器/VAE），fork 首次从 HF 拉入卷后缓存。
+  // 无 per-recipe 精确底模（T2）时再加 anima-base 默认档到 models/unet/。
+  if (architecture === 'anima') {
+    runpodInput.companions_to_fetch = runnerCheckpoint
+      ? ANIMA_SHARED_COMPANIONS
+      : [...ANIMA_SHARED_COMPANIONS, ANIMA_BASE_COMPANION]
   }
 
   const response = await fetch(

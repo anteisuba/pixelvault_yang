@@ -38,11 +38,14 @@ export function deriveRunnerCheckpointFilename(modelVersionId: number): string {
 export async function prepareRunnerCheckpoint(ref: {
   checkpointVersionId?: number | null
   checkpointName?: string | null
+  /** LoRA 的 baseModel（权威架构信号）——无精确 checkpoint 时用它判 DiT/T2/T3。 */
+  loraBaseModel?: string | null
 }): Promise<PreparedRunnerCheckpoint> {
   const fidelity = await determineRunnerCheckpointFidelity(
     {
       checkpointVersionId: ref.checkpointVersionId,
       checkpointName: ref.checkpointName,
+      loraBaseModel: ref.loraBaseModel,
     },
     resolveCivitaiCheckpointByReference,
   )
@@ -55,6 +58,10 @@ export async function prepareRunnerCheckpoint(ref: {
             fidelity.checkpoint.modelVersionId,
           ),
           downloadUrl: fidelity.checkpoint.downloadUrl,
+          // v4：DiT「Anima」底模是 UNET-only，落 diffusion_models/（fork→models/unet/）。
+          ...(fidelity.family === 'anima-dit'
+            ? { targetDir: 'diffusion_models' as const }
+            : {}),
         },
         approximate: false,
       }

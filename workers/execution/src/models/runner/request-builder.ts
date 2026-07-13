@@ -4,12 +4,22 @@
  * pure function the Worker calls right before POSTing to RunPod.
  */
 
+import {
+  ANIMA_MODEL_SAMPLING_SHIFT,
+  ANIMA_TEXT_ENCODER_FILENAME,
+  ANIMA_VAE_FILENAME,
+  buildAnimaWorkflow,
+  type AnimaWorkflowLora,
+} from './anima-workflow-builder'
 import { getRunnerCheckpointById } from './checkpoints'
 import {
   buildComfyWorkflow,
   type ComfyWorkflow,
   type RunnerWorkflowLora,
 } from './workflow-builder'
+
+/** Runner 工作流架构：SDXL 系（CheckpointLoaderSimple 一套图）vs Anima DiT。 */
+export type RunnerArchitecture = 'sdxl' | 'anima'
 
 const DEFAULT_STEPS = 30
 const DEFAULT_CFG = 7.5
@@ -18,6 +28,11 @@ const DEFAULT_CFG = 7.5
 const OVERRIDE_SAMPLER = 'euler_ancestral'
 const OVERRIDE_SCHEDULER = 'normal'
 const OVERRIDE_CLIP_SKIP = 2
+// Anima DiT 覆盖档默认（HF 卡：30-50 步 CFG 4-5，er_sde 中性默认）。
+const ANIMA_DEFAULT_STEPS = 30
+const ANIMA_DEFAULT_CFG = 4
+const ANIMA_OVERRIDE_SAMPLER = 'er_sde'
+const ANIMA_OVERRIDE_SCHEDULER = 'simple'
 
 // v2（docs/plans/comfy-runner-v2-runtime-lora.md）：LoRA 文件名由 app 侧
 // `prepareRunnerLoras` 预先派生（`civitai-<versionId>.safetensors`），并连同 R2
@@ -57,6 +72,11 @@ export interface RunnerGenerationRequestInput {
    * 用保守 SDXL 默认 sampler/scheduler/clipSkip。缺省则按 externalModelId 走预烤档。
    */
   checkpointOverrideFilename?: string
+  /**
+   * v4：底模架构。'anima' → DiT 工作流（UNETLoader + 独立 Qwen CLIP/VAE +
+   * ModelSamplingAuraFlow）。缺省 'sdxl' 走原 CheckpointLoaderSimple 图（向后兼容）。
+   */
+  architecture?: RunnerArchitecture
 }
 
 export class RunnerUnknownCheckpointError extends Error {
@@ -76,6 +96,11 @@ export function buildRunnerWorkflowFromRequest(
   input: RunnerGenerationRequestInput,
   randomSeed: () => number,
 ): ComfyWorkflow {
+  // v4：Anima DiT 走独立工作流（UNETLoader + Qwen 配件）。缺省 SDXL 走下方原图。
+  if ((input.architecture ?? 'sdxl') === 'anima') {
+    return buildAnimaWorkflowFromRequest(input, randomSeed)
+  }
+
   // v3 T1：app 解析出的精确底模（fork 已从 Civitai 下载）覆盖预烤底模；否则按
   // externalModelId 查预烤 manifest。覆盖档用保守 SDXL 默认（manifest 里没有它）。
   let checkpointFilename: string
@@ -119,6 +144,57 @@ export function buildRunnerWorkflowFromRequest(
     samplerName,
     scheduler,
     clipSkip,
+    loras,
+    referenceImageName: input.referenceImageName,
+    denoise: input.denoise,
+  })
+}
+
+/**
+ * Anima DiT 组装：底模落在 diffusion_models（override = fork 已下的精确 Anima
+ * checkpoint；否则 manifest 的 anima 默认档），Qwen 文本编码器/VAE 是入卷的共享配件
+ * （固定文件名，不下载），LoRA 走 model-only。
+ */
+function buildAnimaWorkflowFromRequest(
+  input: RunnerGenerationRequestInput,
+  randomSeed: () => number,
+): ComfyWorkflow {
+  let diffusionModelFilename: string
+  let samplerName: string
+  let scheduler: string
+  if (input.checkpointOverrideFilename) {
+    diffusionModelFilename = input.checkpointOverrideFilename
+    samplerName = ANIMA_OVERRIDE_SAMPLER
+    scheduler = ANIMA_OVERRIDE_SCHEDULER
+  } else {
+    const checkpoint = getRunnerCheckpointById(input.externalModelId)
+    if (!checkpoint) {
+      throw new RunnerUnknownCheckpointError(input.externalModelId)
+    }
+    diffusionModelFilename = checkpoint.filename
+    samplerName = checkpoint.recommendedSampler
+    scheduler = checkpoint.recommendedScheduler
+  }
+
+  const loras: AnimaWorkflowLora[] = input.loras.map((lora) => ({
+    filename: lora.filename,
+    strengthModel: lora.scale ?? 1,
+  }))
+
+  return buildAnimaWorkflow({
+    diffusionModelFilename,
+    textEncoderFilename: ANIMA_TEXT_ENCODER_FILENAME,
+    vaeFilename: ANIMA_VAE_FILENAME,
+    positivePrompt: input.prompt,
+    negativePrompt: input.negativePrompt,
+    width: input.width,
+    height: input.height,
+    seed: input.seed ?? randomSeed(),
+    steps: input.steps ?? ANIMA_DEFAULT_STEPS,
+    cfg: input.cfg ?? ANIMA_DEFAULT_CFG,
+    samplerName,
+    scheduler,
+    modelSamplingShift: ANIMA_MODEL_SAMPLING_SHIFT,
     loras,
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,

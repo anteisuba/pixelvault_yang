@@ -156,16 +156,20 @@ public/homepage/demos/
 
 ## P0 实现摘要（登录 modal）
 
-| 入口                                          | 行为                                |
-| --------------------------------------------- | ----------------------------------- |
-| 首页 Hero / Header「开始创作」、Bottom CTA    | `AuthModalTrigger` sign-up modal    |
-| 首页 Header「登录」、侧栏 / 移动轨 / Tab 登录 | sign-in modal                       |
-| Cards / Assets 未登录 CTA                     | `AuthModalCtaButton`                |
-| `/sign-in` `/sign-up` path                    | **保留**（OAuth、邮件、middleware） |
+| 入口                                          | 行为                                        |
+| --------------------------------------------- | ------------------------------------------- |
+| 首页 Hero / Header「开始创作」、Bottom CTA    | `AuthModalTrigger` → 页内 Dialog + 注册表单 |
+| 首页 Header「登录」、侧栏 / 移动轨 / Tab 登录 | 页内 Dialog + 登录表单                      |
+| Cards / Assets 未登录 CTA                     | `AuthModalCtaButton`                        |
+| `/sign-in` `/sign-up` path                    | **保留**（OAuth、邮件、middleware）         |
 
-组件：`AuthModalTrigger` · `AuthModalCtaButton` · `clerkModalAppearance`。
+组件：
+
+- `AuthModalProvider`（locale layout）— 自研 Dialog 遮罩 + 白卡 + Clerk `SignIn`/`SignUp` `routing="virtual"`
+- `AuthModalTrigger` / `AuthModalCtaButton` — 只开窗，不跳 path
+- 窗内切换登录/注册，避免落到整页 auth
 
 ## Last Verified
 
 - 2026-07-13 · owner 拍板：登录一律 modal；首页动态演示按 ready 能力做 Haivis 式证据。
-- 2026-07-13 · P0 代码落地：用户可见登录入口改 modal；path 页保留。
+- 2026-07-13 · P0：用户入口改 modal；随后改为 Dialog + virtual 嵌入（非 Clerk 自带 modal 皮）。

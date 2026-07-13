@@ -11,7 +11,8 @@ import {
   Wand2,
 } from 'lucide-react'
 
-import type { EditTaskKind } from '@/contexts/image-edit-context'
+import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capabilities'
+import type { EditTaskKind } from '@/types/canvas-image-edit'
 
 export type EditTaskProvider = 'fal' | 'gemini' | 'openai'
 
@@ -99,80 +100,70 @@ export interface EditTaskMetadata {
   defaultModelId: string | null
 }
 
+function getCapabilityModelConfig(
+  task: EditTaskKind,
+): Pick<EditTaskMetadata, 'models' | 'defaultModelId'> {
+  const capability = getCanvasImageEditCapability(task)
+  return {
+    models: capability.models,
+    defaultModelId: capability.defaultModelId,
+  }
+}
+
 export const EDIT_TASKS: readonly EditTaskMetadata[] = [
   {
     task: 'upscale',
     icon: Wand2,
     providers: ['fal'],
-    models: ['fal-ai/aura-sr'],
-    defaultModelId: 'fal-ai/aura-sr',
+    ...getCapabilityModelConfig('upscale'),
   },
   {
     task: 'remove-background',
     icon: Eraser,
     providers: ['fal'],
-    models: ['fal-ai/birefnet/v2'],
-    defaultModelId: 'fal-ai/birefnet/v2',
+    ...getCapabilityModelConfig('remove-background'),
   },
   {
     task: 'inpaint',
     icon: Sparkles,
     providers: ['fal', 'gemini', 'openai'],
-    models: [
-      'fal-ai/flux-pro/v1/fill',
-      'gemini-3-pro-image-preview',
-      'gpt-image-2',
-    ],
-    defaultModelId: 'fal-ai/flux-pro/v1/fill',
+    ...getCapabilityModelConfig('inpaint'),
   },
   {
     task: 'outpaint',
     icon: Expand,
     providers: ['fal', 'gemini'],
-    models: ['fal-ai/image-apps-v2/outpaint', 'gemini-3-pro-image-preview'],
-    defaultModelId: 'fal-ai/image-apps-v2/outpaint',
+    ...getCapabilityModelConfig('outpaint'),
   },
   {
     task: 'object-replace',
     icon: Replace,
     providers: ['gemini', 'fal', 'openai'],
-    models: [],
-    defaultModelId: null,
+    ...getCapabilityModelConfig('object-replace'),
   },
   {
     task: 'style-transfer',
     icon: Palette,
     providers: ['gemini', 'fal', 'openai'],
-    models: [],
-    defaultModelId: null,
+    ...getCapabilityModelConfig('style-transfer'),
   },
   {
     task: 'text-render',
     icon: Type,
     providers: ['openai'],
-    models: [],
-    defaultModelId: null,
+    ...getCapabilityModelConfig('text-render'),
   },
   {
     task: 'decompose',
     icon: Layers,
     providers: ['fal'],
-    models: ['xiuruisu/see-through'],
-    defaultModelId: 'xiuruisu/see-through',
+    ...getCapabilityModelConfig('decompose'),
   },
   {
     task: 'extract-element',
     icon: Scissors,
     providers: ['openai', 'gemini', 'fal'],
-    models: [
-      'gpt-image-2',
-      'gemini-3-pro-image-preview',
-      'fal-ai/sam-3/image',
-      'fal-ai/evf-sam',
-      'fal-ai/lang-segment-anything',
-      'fal-ai/birefnet/v2',
-    ],
-    defaultModelId: 'gpt-image-2',
+    ...getCapabilityModelConfig('extract-element'),
   },
 ]
 

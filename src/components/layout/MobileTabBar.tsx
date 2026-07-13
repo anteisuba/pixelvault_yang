@@ -16,7 +16,6 @@ import {
   Swords,
   UserCircle,
   Video,
-  Wand2,
   Workflow,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -247,12 +246,6 @@ export function MobileCollapsedRail() {
       label: tTools('tools.model3d.label'),
       icon: Box,
       activeRules: [{ path: ROUTES.STUDIO_3D }],
-    },
-    {
-      href: ROUTES.STUDIO_EDIT,
-      label: tTools('tools.edit.label'),
-      icon: Wand2,
-      activeRules: [{ path: ROUTES.STUDIO_EDIT }],
     },
     {
       href: ROUTES.STUDIO_LORA,

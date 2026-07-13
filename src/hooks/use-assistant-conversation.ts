@@ -39,6 +39,8 @@ interface UseAssistantConversationValue {
   send(content: string, context: AssistantConversationContext): Promise<void>
   retry(context: AssistantConversationContext): Promise<void>
   clear(): void
+  /** Replace the in-memory transcript (history restore). */
+  load(messages: AssistantConversationMessage[]): void
 }
 
 let assistantMessageSequence = 0
@@ -217,6 +219,12 @@ export function useAssistantConversation(): UseAssistantConversationValue {
     setIsLoading(false)
   }, [])
 
+  const load = useCallback((nextMessages: AssistantConversationMessage[]) => {
+    setMessages(nextMessages)
+    setError(null)
+    setIsLoading(false)
+  }, [])
+
   return {
     messages,
     isLoading,
@@ -224,5 +232,6 @@ export function useAssistantConversation(): UseAssistantConversationValue {
     send,
     retry,
     clear,
+    load,
   }
 }

@@ -113,15 +113,36 @@ export interface StudioImageEditPathOptions {
   height?: number | null
 }
 
-/** Build a Studio image editor URL with an optional source image preloaded. */
-export function studioImageEditPath(
-  options: StudioImageEditPathOptions = {},
-): string {
-  const params = new URLSearchParams()
+function appendStudioImageSourceParams(
+  params: URLSearchParams,
+  options: StudioImageEditPathOptions,
+): void {
   if (options.generationId) params.set('generationId', options.generationId)
   if (options.sourceUrl) params.set('sourceUrl', options.sourceUrl)
   if (options.width) params.set('width', String(options.width))
   if (options.height) params.set('height', String(options.height))
+}
+
+/** Build a Canvas image-edit deep link with an optional source preloaded. */
+export function studioCanvasEditPath(
+  options: StudioImageEditPathOptions = {},
+): string {
+  const params = new URLSearchParams({ canvasTool: 'image-edit' })
+  appendStudioImageSourceParams(params, options)
+  return `${ROUTES.STUDIO_NODE}?${params.toString()}`
+}
+
+/**
+ * Build a legacy Studio image-editor URL with an optional source preloaded.
+ *
+ * @deprecated Use `studioCanvasEditPath` for new integrations. Existing
+ * callers stay on `/studio/edit` until Canvas can ingest every edit task.
+ */
+export function studioImageEditPath(
+  options: StudioImageEditPathOptions = {},
+): string {
+  const params = new URLSearchParams()
+  appendStudioImageSourceParams(params, options)
   const query = params.toString()
   return query ? `${ROUTES.STUDIO_EDIT}?${query}` : ROUTES.STUDIO_EDIT
 }

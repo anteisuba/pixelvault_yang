@@ -1,6 +1,9 @@
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+/** Default on-canvas size for role-less pure images (px). NodeResizer grows from here. */
+export const NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE = 320
+
 export const NODE_STUDIO_CANVAS = {
   defaultViewport: {
     x: 0,
@@ -8,8 +11,9 @@ export const NODE_STUDIO_CANVAS = {
     zoom: 0.8,
   },
   background: {
-    gap: 28,
-    size: 1,
+    // Wider spacing so the grid reads as a navigation field, not noise.
+    gap: 44,
+    size: 1.5,
     // v2 制片桌（references/pages/node-canvas.md §2.1）：暖炭点阵。
     // S1 首落 #26231e 对比仅 1.19:1 几乎不可见，owner 目验后加深（~1.6:1）。
     color: '#403a2f',
@@ -20,6 +24,34 @@ export const NODE_STUDIO_CANVAS = {
   // 空格 + 左键拖 = 临时平移（对齐 Figma）。
   panActivationKeyCode: 'Space',
 } as const
+
+export const NODE_STUDIO_CANVAS_APPEARANCE_FITS = ['cover', 'contain'] as const
+
+/**
+ * Project-level canvas wallpaper defaults. The hook intentionally leaves the
+ * persisted `canvasAppearance` field undefined for untouched projects; UI
+ * consumers resolve that absence against this constant instead.
+ */
+export const NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT = {
+  backgroundColor: '#14120F',
+  image: undefined,
+} as const
+
+/**
+ * Canvas surface presets: pure white/black for contrast checks, then warm
+ * charcoal family + a few distinct tints. Custom color picker remains available.
+ */
+export const NODE_STUDIO_CANVAS_APPEARANCE_PRESETS = [
+  '#FFFFFF',
+  '#000000',
+  '#14120F',
+  '#F4F4F3',
+  '#191612',
+  '#1A1A1C',
+  '#11181A',
+  '#171A16',
+  '#1D1715',
+] as const
 
 export const NODE_STUDIO_REACT_FLOW_PRO_OPTIONS = {
   hideAttribution: true,
@@ -37,7 +69,6 @@ export const NODE_STUDIO_ADD_MENU = {
 
 export const NODE_STUDIO_BOTTOM_DOCK = {
   canvasInsetPx: 16,
-  assistantGapPx: 16,
 } as const
 
 export const NODE_STUDIO_TOOL_MODE_IDS = {
@@ -50,11 +81,15 @@ export const NODE_STUDIO_TOOL_MODE_IDS = {
 export const NODE_STUDIO_TOOL_MODES = [
   NODE_STUDIO_TOOL_MODE_IDS.pointer,
   NODE_STUDIO_TOOL_MODE_IDS.hand,
-  NODE_STUDIO_TOOL_MODE_IDS.connect,
-  NODE_STUDIO_TOOL_MODE_IDS.cut,
 ] as const
 
-export type NodeStudioToolMode = (typeof NODE_STUDIO_TOOL_MODES)[number]
+/**
+ * `connect` and `cut` remain valid migration values for persisted sessions,
+ * but are intentionally absent from the visible toolbar while relationships
+ * are expressed through ingest and ingredient chips instead of drawn edges.
+ */
+export type NodeStudioToolMode =
+  (typeof NODE_STUDIO_TOOL_MODE_IDS)[keyof typeof NODE_STUDIO_TOOL_MODE_IDS]
 
 export const NODE_STUDIO_WORKFLOW_STORAGE = {
   keyPrefix: 'pixelvault.nodeStudio.v3',
@@ -66,6 +101,20 @@ export const NODE_STUDIO_WORKFLOW_STORAGE = {
   version: 3,
   legacyVersion: 1,
   legacyVersionV2: 2,
+} as const
+
+export const NODE_STUDIO_IMAGE_EDIT_HANDOFF = {
+  toolId: 'image-edit',
+  queryKeys: {
+    tool: 'canvasTool',
+    sourceUrl: 'sourceUrl',
+    generationId: 'generationId',
+    width: 'width',
+    height: 'height',
+    editTask: 'editTask',
+  },
+  maxSourceUrlLength: 4000,
+  maxEditTaskLength: 80,
 } as const
 
 export function getNodeStudioWorkflowStorageKey(clerkId: string): string {
@@ -234,24 +283,6 @@ export const NODE_STUDIO_INGEST_MAGNET = {
   /** 折叠把手热区（B4）：拖拽中的实体距折叠把手矩形此距离内 → 横匣临时
    *  展开；松手/取消后回折叠态。 */
   handleHotZonePx: 64,
-} as const
-
-export const NODE_STUDIO_DOCK_RESIZE = {
-  /** Defaults match the previous fixed `lg:w-studio-right` (28rem) / `w-96` (24rem) sizing. */
-  defaultWidthPx: 448,
-  minWidthPx: 320,
-  maxWidthPx: 720,
-  /** Width when the dock is in the expanded ⤢ state (conversation + ScriptDoc
-   *  workspace two-pane); capped to the viewport via inline maxWidth. */
-  expandedWidthPx: 820,
-  widthStepPx: 20,
-  /** Inspector takes 55% of vertical space by default; conversation gets 45%. */
-  defaultInspectorRatio: 0.55,
-  minInspectorRatio: 0.2,
-  maxInspectorRatio: 0.8,
-  ratioStep: 0.05,
-  handleThicknessPx: 6,
-  storageKey: 'pixelvault.nodeStudio.dock.layout.v1',
 } as const
 
 /**
@@ -549,6 +580,15 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
   referenceSpawn: {
     offsetX: -420,
     rowOffsetY: 200,
+  },
+  // Image edits never replace their source. A single result lands to the
+  // source's right; multi-output edits (for example decompose) fan out into a
+  // compact grid so the entire batch remains one spatial/undo operation.
+  derivedImage: {
+    offsetX: 460,
+    columnOffsetX: 440,
+    rowOffsetY: 440,
+    columns: 3,
   },
 } as const
 

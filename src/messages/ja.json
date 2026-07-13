@@ -215,7 +215,7 @@
       }
     },
     "node": {
-      "label": "ノードワークフローガイド",
+      "label": "キャンバスガイド",
       "slides": {
         "add": {
           "title": "最初のノードを追加",
@@ -415,8 +415,8 @@
         "description": "インペイント、アウトペイント、超解像、背景除去、レイヤー機能で生成画像を編集。"
       },
       "node": {
-        "title": "ノードスタジオ — PixelVault",
-        "description": "ノードキャンバスでビジュアルな AI 制作ワークフローを組み立てます。"
+        "title": "キャンバス — PixelVault",
+        "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"
       }
     },
     "gallery": {
@@ -3157,9 +3157,9 @@
         "description": "LoRAの学習・管理・公開コミュニティ利用。"
       },
       "node": {
-        "label": "ノード",
-        "title": "ノードエディター",
-        "description": "生成・編集・解析を視覚的にチェーン構築するワークフロー。"
+        "label": "キャンバス",
+        "title": "キャンバス",
+        "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"
       }
     }
   },
@@ -3170,11 +3170,34 @@
       "chatOutline": "アシスタントと構成を相談",
       "addNode": "ノードを手動で追加（キャラ / 背景 / ショット / 画像…）"
     },
-    "eyebrow": "ノードワークフロー",
+    "appearance": {
+      "trigger": "キャンバスの外観を設定",
+      "title": "キャンバスの外観",
+      "description": "色と背景画像は現在のプロジェクトに保存されます。",
+      "colorLabel": "背景色",
+      "customColor": "カスタムカラー",
+      "colorValueLabel": "カラーコード",
+      "invalidColor": "#RRGGBB 形式のカラーコードを入力してください。",
+      "presetColor": "色 {color} を使用",
+      "imageLabel": "背景画像",
+      "chooseImage": "画像を選択またはアップロード",
+      "replaceImage": "画像を変更",
+      "removeImage": "画像を削除",
+      "fitLabel": "表示方法",
+      "fitCover": "全体を覆う",
+      "fitContain": "画像全体を表示",
+      "opacityLabel": "画像の不透明度",
+      "restoreDefault": "デフォルトの外観に戻す",
+      "dialogTitle": "キャンバスの背景を選択",
+      "dialogDescription": "素材から選ぶか、背景画像をアップロードします。",
+      "previewAlt": "キャンバス背景のプレビュー",
+      "triggerShort": "表面"
+    },
+    "eyebrow": "キャンバス",
     "projectUntitled": "無題のプロジェクト",
     "projectNewDefaultName": "無題のプロジェクト {n}",
     "nodeCount": "{count} 個のノード",
-    "addMenuTitle": "ノードを追加",
+    "addMenuTitle": "キャンバスに追加",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3202,6 +3225,53 @@
       "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。",
       "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。",
       "videoMerge": "上流の複数の動画を順番に結合して 1 本の長い動画にします（~$0.001/回、最大 9 本）。"
+    },
+    "addCatalog": {
+      "groups": {
+        "image": "画像",
+        "video": "動画",
+        "audio": "サウンド",
+        "organize": "整理"
+      },
+      "items": {
+        "imageAsset": {
+          "label": "画像",
+          "helper": "アップロード、貼り付け、素材選択、または後から AI 生成できます。"
+        },
+        "imageShot": {
+          "label": "ショット画像",
+          "helper": "ショット指示とキャラクター・シーン参照から静止画を生成します。"
+        },
+        "imageKeyframe": {
+          "label": "キーフレーム",
+          "helper": "動画の画角と構図を制約するキー画像を追加します。"
+        },
+        "videoGenerate": {
+          "label": "動画生成",
+          "helper": "プロンプトと画像・音声参照を組み合わせて動画ショットを生成します。"
+        },
+        "videoReference": {
+          "label": "参照動画",
+          "helper": "下流の生成で動きや画面の参考にする動画をアップロードします。"
+        },
+        "videoMerge": {
+          "label": "動画合成",
+          "helper": "2〜9 本の動画を順番に結合し、クリップ範囲も設定できます。"
+        },
+        "audioVoiceProfile": {
+          "label": "ボイスプロフィール",
+          "helper": "システム音声または参照音声を再利用できる声の個性として保存します。"
+        },
+        "organizeCharacter": {
+          "label": "キャラクタープロフィール",
+          "helper": "メイン画像、参照、クローズアップ、紐づく音声をまとめます。"
+        },
+        "organizeScene": {
+          "label": "シーンプロフィール",
+          "helper": "シーン画像、場所、ムード、照明設定をまとめます。"
+        }
+      },
+      "cast": "キャスト匣"
     },
     "statuses": {
       "idle": "待機中",
@@ -3781,7 +3851,14 @@
     },
     "nodeToolbar": {
       "expand": "拡大",
-      "delete": "削除"
+      "delete": "削除",
+      "imageEditToolbar": "画像編集ツール",
+      "more": "その他",
+      "quickEdit": "クイック編集",
+      "download": "ダウンロード",
+      "rename": "名前",
+      "category": "分類",
+      "moreEdits": "編集ツール"
     },
     "nodeDetail": {
       "backToCanvas": "キャンバスに戻る",
@@ -3941,7 +4018,7 @@
       "defaultModel": "既定",
       "createProjectPrompt": "プロジェクト名",
       "renameProjectPrompt": "プロジェクト名を変更",
-      "deleteProjectConfirm": "「{name}」を削除しますか？このプロジェクトのローカル Node Studio キャンバスが削除されます。"
+      "deleteProjectConfirm": "「{name}」を削除しますか？このキャンバスプロジェクトは削除されます。"
     },
     "projectMenu": {
       "triggerLabel": "プロジェクトメニューを開く",
@@ -3976,6 +4053,9 @@
         "cut": "エッジをクリック"
       },
       "zoomLevel": "{percent}%",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "fitView": "全体を表示",
       "undo": "元に戻す",
       "redo": "やり直す"
     },
@@ -4063,6 +4143,14 @@
         "firstPhase": {
           "label": "第一段階",
           "prompt": "第一段階——短いショット群（60秒以内）を計画しましょう。"
+        },
+        "videoShot": {
+          "label": "ショット計画",
+          "prompt": "キャンバス上の動画ショットを計画してください：被写体、動き、カメラ、尺。"
+        },
+        "videoMerge": {
+          "label": "クリップ結合",
+          "prompt": "キャンバス上の動画クリップを並べて短い一本にまとめる方法を提案してください。"
         }
       },
       "welcomeTitle": "ノードを選択して検査",
@@ -4098,7 +4186,11 @@
       "modeHint": "適用前に確認",
       "research": "参考作品",
       "researchHint": "映画/アニメ/短編をWeb検索し、オリジナル脚本のアイデアに変換（Gemini/OpenAIルート）",
-      "send": "送信"
+      "send": "送信",
+      "modalityPrefix": {
+        "image": "[画像モード]",
+        "video": "[動画モード]"
+      }
     },
     "minimapTitle": "ミニマップ",
     "castDock": {
@@ -4183,6 +4275,25 @@
       "projectCreated": "プロジェクト「{name}」を作成しました。",
       "projectRenamed": "プロジェクト名を「{name}」に変更しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。"
+    },
+    "quickEdit": {
+      "placeholder": "この画像をどう編集するか書いてください",
+      "editing": "編集中 [{name}]",
+      "run": "実行",
+      "back": "ツールに戻る",
+      "title": "クイック編集",
+      "hint": "抽出したい要素を書いてください。結果は新しい画像としてキャンバスに置かれます。"
+    },
+    "history": {
+      "title": "履歴",
+      "search": "キーワードで検索",
+      "empty": "履歴はまだありません",
+      "new": "新しい会話"
+    },
+    "modality": {
+      "image": "画像",
+      "video": "動画",
+      "label": "生成モード"
     }
   },
   "StudioV2": {

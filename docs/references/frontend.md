@@ -81,7 +81,7 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 
 - 断点体系：<1024 移动 chrome（左侧 44px 竖 rail + 顶部 header + 底部 tab bar）；测试视口集 375 / 390 / 430 / 768 / 1024 / 1440。
 - 披露一律 ResponsiveDialog / ResponsivePopover；侧栏移动 Sheet 宽 `min(13rem, calc(100vw - 8rem))`。
-- 44px 触达区；软键盘双保险：visualViewport（KeyboardInsetBridge）+ 触屏键盘策略（isTouchPrimary / focusUnlessTouch——软键盘只在用户直接点输入框时弹）。
+- 自适应命中区：fine pointer 紧凑控件 ≥32px / 常规控件 ≥36px，coarse pointer/touch ≥44px；底线为 WCAG 2.2 AA 24px（小于时必须满足 spacing/equivalent 例外并断言）。软键盘双保险：visualViewport（KeyboardInsetBridge）+ 触屏键盘策略（isTouchPrimary / focusUnlessTouch——软键盘只在用户直接点输入框时弹）。
 - 移动主路径回归：`npx playwright test e2e/mobile.spec.ts --project=mobile`。
 
 ## i18n
@@ -102,3 +102,4 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 - Date: 2026-07-10 · Method: 核验 fonts.ts、(main)/layout.tsx、use-mobile.ts（断点 1024）、globals.css 关键 token 行与 Satoshi 死引用、`ui/` 目录清点（58 文件）、无 tailwind.config.ts。
 - 2026-07-10 浏览器目检（claude-in-chrome，owner dev 实例，桌面 1568 宽）：侧栏分组结构 ✓ · Studio 空态起手势（eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口）✓ · dock 六位工具栏（模型/模板/助手/图像/卡片/1:1）✓ · composer 象牙纸 + 黑丸 ✓ · 画布空态前门 + 助手右侧 dock + 底部工具条 ✓ · 登录态侧栏 footer（额度徽标/今日免费/用户菜单/语言切换）✓。**移动端壳未目检**（浏览器窗口受管理无法缩放）；发现 MobileRailAccountButton hydration mismatch（已立修复任务）。
 - 引用计数（39/44/29/41 处等）与弱 token 清单沿用 2026-06-02 系统审计口径；据此新建 UI 前遇疑先对代码。
+- 2026-07-13：owner 授权调整旧 UI 硬规则；依据 WCAG 2.2 / Apple 触屏基准，把一刀切 44px 同步为 fine 32/36px、coarse 44px、AA 24px 底线。其余组件清点事实未重跑。

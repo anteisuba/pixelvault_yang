@@ -10,28 +10,30 @@ import {
 import {
   Clapperboard,
   Film,
+  Frame,
   ImagePlus,
   Layers,
   Mic2,
+  Mountain,
+  Upload,
+  UserRound,
   Video,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
 
 import {
-  NODE_IMAGE_ROLE_IDS,
-  NODE_TYPE_IDS,
-  type NodeImageRole,
-  type NodeWorkflowNodeType,
-} from '@/constants/node-types'
+  CANVAS_ADD_CATALOG,
+  CANVAS_ADD_INTENT_IDS,
+  type CanvasAddIntentId,
+} from '@/constants/canvas-add-catalog'
 import { NODE_STUDIO_ADD_MENU } from '@/constants/node-studio'
-import { NODE_ACCENTS } from '@/constants/node-tokens'
 import { cn } from '@/lib/utils'
 
 interface CanvasAddMenuProps {
   open: boolean
   screenPosition: XYPosition | null
-  onSelect(type: NodeWorkflowNodeType, role?: NodeImageRole): void
+  onSelect(intentId: CanvasAddIntentId): void
   onClose(): void
 }
 
@@ -43,68 +45,25 @@ interface CanvasAddMenuLayout {
   maxHeight: number
 }
 
-interface CanvasAddMenuItem {
-  /** Unique row key — two rows share `type: image` (素材/生成), so `type`
-   *  alone can't key the list. */
-  key: string
-  type: NodeWorkflowNodeType
-  /** Role to stamp immediately on creation (bypasses any on-canvas chooser —
-   *  there isn't one anymore, S5d ③ retires it). Absent = role-less. */
-  role?: NodeImageRole
-  /** i18n label/helper key — defaults to `type` when unset (kept explicit
-   *  here since two rows now share a type). */
-  labelKey: string
-  Icon: ComponentType<{ className?: string }>
+const ICON_BY_INTENT: Record<
+  CanvasAddIntentId,
+  ComponentType<{ className?: string }>
+> = {
+  [CANVAS_ADD_INTENT_IDS.imageAsset]: ImagePlus,
+  [CANVAS_ADD_INTENT_IDS.imageShot]: Clapperboard,
+  [CANVAS_ADD_INTENT_IDS.imageKeyframe]: Frame,
+  [CANVAS_ADD_INTENT_IDS.videoGenerate]: Video,
+  [CANVAS_ADD_INTENT_IDS.videoReference]: Film,
+  [CANVAS_ADD_INTENT_IDS.videoMerge]: Layers,
+  [CANVAS_ADD_INTENT_IDS.audioVoiceProfile]: Mic2,
+  [CANVAS_ADD_INTENT_IDS.organizeCharacter]: UserRound,
+  [CANVAS_ADD_INTENT_IDS.organizeScene]: Mountain,
 }
 
-// S5d ③「添加菜单更名区分」(node-canvas.md §6.1): the single ambiguous "image"
-// row (which used to defer to an on-canvas role picker) splits into two —
-// 图片（素材，role-less, upload-first 3-source starter）and 镜头图（生成，role
-// stamped `shot` immediately, same "role-preset on creation" pattern
-// `CastDock.handleCastCreate` already uses for character/background).
-// Voice/videoReference (owner 2026-07-10 追加拍板「音色/参考视频=素材」)
-// move back here — Cast 卡匣现在只放角色卡/场景卡（收集器），素材类创建走
-// this menu, "与图片三同权" (same tier as 图片（素材）).
-const CANVAS_ADD_MENU_ITEMS: readonly CanvasAddMenuItem[] = [
-  {
-    key: 'image',
-    type: NODE_TYPE_IDS.image,
-    labelKey: 'image',
-    Icon: ImagePlus,
-  },
-  {
-    key: 'shot',
-    type: NODE_TYPE_IDS.image,
-    role: NODE_IMAGE_ROLE_IDS.shot,
-    labelKey: 'shot',
-    Icon: Clapperboard,
-  },
-  {
-    key: 'voice',
-    type: NODE_TYPE_IDS.voice,
-    labelKey: 'voice',
-    Icon: Mic2,
-  },
-  {
-    key: 'videoReference',
-    type: NODE_TYPE_IDS.videoReference,
-    labelKey: 'videoReference',
-    Icon: Film,
-  },
-  {
-    key: 'seedance',
-    type: NODE_TYPE_IDS.seedance,
-    labelKey: 'seedance',
-    Icon: Video,
-  },
-  {
-    key: 'videoMerge',
-    type: NODE_TYPE_IDS.videoMerge,
-    labelKey: 'videoMerge',
-    Icon: Layers,
-  },
-] as const
-
+/**
+ * Haivis-style insert menu: compact list near the pointer, soft panel, no
+ * heavy accent plates. Groups stay as lightweight separators.
+ */
 export function CanvasAddMenu({
   open,
   screenPosition,
@@ -218,65 +177,65 @@ export function CanvasAddMenu({
       ref={menuRef}
       role="menu"
       aria-label={t('addMenuTitle')}
-      className="pointer-events-auto absolute z-20 w-80 overflow-y-auto overscroll-contain rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 p-2 text-node-foreground shadow-node-panel backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="pointer-events-auto absolute z-20 w-56 overflow-y-auto overscroll-contain rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground [scrollbar-width:none] sm:w-64 [&::-webkit-scrollbar]:hidden"
       style={{
         left: activeLayout?.left ?? screenPosition.x,
         top: activeLayout?.top ?? screenPosition.y,
         maxHeight: activeLayout?.maxHeight,
+        boxShadow: 'var(--shadow-canvas-menu)',
       }}
     >
-      <div className="px-2 py-2">
-        <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-          {t('addMenuTitle')}
-        </p>
+      {/* Primary insert actions — Haivis short list density. */}
+      <div className="space-y-0.5 p-0.5">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => onSelect(CANVAS_ADD_INTENT_IDS.imageAsset)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none"
+        >
+          <Upload className="size-4 shrink-0 text-node-muted" />
+          <span className="font-medium">
+            {t('addCatalog.items.imageAsset.label')}
+          </span>
+        </button>
       </div>
 
-      <div className="space-y-1">
-        {CANVAS_ADD_MENU_ITEMS.map((item) => {
-          // 镜头图（生成）row visually reads as its own family (accent token),
-          // even though it shares the unified `image` node TYPE with the
-          // 图片（素材）row — role decides accent, matching how the rest of
-          // the canvas resolves a role'd image node's presentation.
-          const accent =
-            NODE_ACCENTS[
-              item.role === NODE_IMAGE_ROLE_IDS.shot
-                ? NODE_TYPE_IDS.shot
-                : item.type
-            ]
-          const Icon = item.Icon
-
-          return (
-            <button
-              key={item.key}
-              type="button"
-              role="menuitem"
-              onClick={() => onSelect(item.type, item.role)}
-              className={cn(
-                'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-                'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-              )}
-            >
-              <span
-                className={cn(
-                  'flex size-9 shrink-0 items-center justify-center rounded-2xl',
-                  accent.iconPlate,
-                  accent.iconText,
-                )}
-              >
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-node-foreground">
-                  {t(`nodeTypes.${item.labelKey}`)}
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-node-muted">
-                  {t(`addMenuHelpers.${item.labelKey}`)}
-                </span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      {CANVAS_ADD_CATALOG.map((group) => (
+        <section
+          key={group.id}
+          className="mt-1 space-y-0.5 border-t border-node-panel-inner/80 pt-1.5"
+        >
+          <h3 className="px-2.5 pb-0.5 pt-0.5 text-[11px] font-semibold tracking-wide text-node-subtle">
+            {t(`addCatalog.groups.${group.id}`)}
+          </h3>
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              // image.asset already listed as primary "upload" row above.
+              if (item.id === CANVAS_ADD_INTENT_IDS.imageAsset) return null
+              const Icon = ICON_BY_INTENT[item.id]
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => onSelect(item.id)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                    'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                  )}
+                >
+                  <Icon className="size-4 shrink-0 text-node-muted" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-node-foreground">
+                      {t(`addCatalog.items.${item.labelKey}.label`)}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

@@ -15,6 +15,10 @@ vi.mock('sonner', () => ({
   },
 }))
 
+vi.mock('./CanvasAppearancePanel', () => ({
+  CanvasAppearancePanel: () => <button type="button">trigger</button>,
+}))
+
 describe('CanvasTopBar', () => {
   it('does not expose a global default-video-model control', () => {
     render(
@@ -23,6 +27,8 @@ describe('CanvasTopBar', () => {
         projectName="Storyboard"
         projects={[]}
         currentProjectId=""
+        canvasAppearance={undefined}
+        onCanvasAppearanceChange={vi.fn()}
         onCreateProject={vi.fn()}
         onRenameProject={vi.fn()}
         onDeleteProject={vi.fn()}
@@ -31,5 +37,6 @@ describe('CanvasTopBar', () => {
     )
 
     expect(screen.queryByText('topbar.defaultModel')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'trigger' })).toBeInTheDocument()
   })
 })

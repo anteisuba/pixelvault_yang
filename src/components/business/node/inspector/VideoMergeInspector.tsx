@@ -73,16 +73,34 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
     return false
   }, [node.data.mergeSettings])
 
+  const hasInvalidTrim = useMemo(
+    () =>
+      upstreamVideoUrls.some((url) => {
+        const override = clipOverrides.get(url)
+        return (
+          typeof override?.startSec === 'number' &&
+          typeof override.endSec === 'number' &&
+          override.endSec <= override.startSec
+        )
+      }),
+    [clipOverrides, upstreamVideoUrls],
+  )
+
   const clipCount = upstreamVideoUrls.length
   const canMerge =
-    clipCount >= MIN_CLIPS && clipCount <= MAX_CLIPS && !isMerging
+    clipCount >= MIN_CLIPS &&
+    clipCount <= MAX_CLIPS &&
+    !hasInvalidTrim &&
+    !isMerging
 
   const disabledReason =
     clipCount < MIN_CLIPS
       ? t('errors.tooFewClips', { min: MIN_CLIPS })
       : clipCount > MAX_CLIPS
         ? t('errors.tooManyClips', { max: MAX_CLIPS })
-        : null
+        : hasInvalidTrim
+          ? t('trim.rangeWarning')
+          : null
 
   const handleTrimChange = useCallback(
     (url: string, field: 'startSec' | 'endSec', rawValue: string) => {
@@ -161,6 +179,17 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         generationError: undefined,
       })
       toast.success(t('merged'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    } catch {
+      const errorMessage = t('errors.mergeFailed')
+      updateNodeData(node.id, {
+        generationStatus: NODE_GENERATION_STATUS_IDS.error,
+        status: NODE_STATUS_IDS.failed,
+        generationError: errorMessage,
+      })
+      toast.error(errorMessage, {
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })

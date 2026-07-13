@@ -42,6 +42,8 @@ export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
           id={props.id}
           data={props.data}
           selected={props.selected}
+          width={props.width}
+          height={props.height}
         />
       )
     }

@@ -1,73 +1,211 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
+import { NodeResizer, NodeToolbar, Position } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE } from '@/constants/node-studio'
+import { cn } from '@/lib/utils'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
-import { NodeShell } from './NodeShell'
+import {
+  CanvasImageSelectionToolbar,
+  canOfferCanvasImageEdit,
+  NodeSelectionToolbarChrome,
+} from '../CanvasImageSelectionToolbar'
+import { CanvasQuickEditPrompt } from '../CanvasQuickEditPrompt'
 
 interface LooseImageCardProps {
   id: string
   data: NodeWorkflowNodeData
   selected?: boolean
+  /** React Flow node width (from resize / initial size). */
+  width?: number
+  /** React Flow node height (from resize / initial size). */
+  height?: number
+}
+
+function getImageUrl(data: NodeWorkflowNodeData): string {
+  if (typeof data.mediaUrl === 'string' && data.mediaUrl.trim()) {
+    return data.mediaUrl
+  }
+  if (typeof data.imageUrl === 'string' && data.imageUrl.trim()) {
+    return data.imageUrl
+  }
+  return ''
 }
 
 /**
- * 散图卡（S5c 三.1）— a role-less `image` node that already carries media.
- * This is a LEGAL standing state on the canvas, not an unresolved "please
- * pick a role" empty state (S5d ③ retires that chooser entirely — a role-less
- * node with NO media yet renders `ImageSourceStarter` instead). It gets its
- * own minimal presentation: deep window + filename caption, no title-bar type
- * badge (§三.1 "无片头徽章") — everything `NodeMediaPreview` adds beyond that
- * (AI-generate form, source existing/generated ribbon, prompt-field summary,
- * footer wand CTA) is meaningless for a plain dropped-in asset.
- *
- * The drag-to-fuse gesture (loose image → character/background card, §三.3,
- * retargeted onto visible canvas cards by S5d ⑤) rides ReactFlow's OWN native
- * node drag (this card sets no pointer handlers of its own) —
- * `StudioNodeWorkbench`'s `onNodeDragStop` hit-tests the drop point against
- * canvas node wrappers / Cast cards. `NodeShell`'s selection toolbar (⤢
- * expand / 🗑 delete) comes for free, same as every other card.
+ * Pure-image canvas object. Size is owned by the React Flow node (width/height);
+ * NodeResizer corner handles drag to scale. Content always fills 100% so resize
+ * is not fought by a fixed Tailwind width.
  */
-export function LooseImageCard({ id, data, selected }: LooseImageCardProps) {
+export function LooseImageCard({
+  id,
+  data,
+  selected,
+  width,
+  height,
+}: LooseImageCardProps) {
   const t = useTranslations('StudioNode.ingest.looseImage')
-  const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : ''
+  const mediaUrl = getImageUrl(data)
+  const [quickEditOpen, setQuickEditOpen] = useState(false)
+  const [naturalSize, setNaturalSize] = useState<{
+    width: number
+    height: number
+  } | null>(null)
+
   const label =
     (typeof data.mediaLabel === 'string' && data.mediaLabel.trim()) ||
     (typeof data.sourceLabel === 'string' && data.sourceLabel.trim()) ||
     t('untitled')
 
+  const frameWidth = width ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
+  const frameHeight = height ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
+
+  const displaySize = useMemo(() => {
+    const mediaW =
+      typeof data.mediaWidth === 'number' && data.mediaWidth > 0
+        ? Math.round(data.mediaWidth)
+        : naturalSize?.width
+    const mediaH =
+      typeof data.mediaHeight === 'number' && data.mediaHeight > 0
+        ? Math.round(data.mediaHeight)
+        : naturalSize?.height
+    if (!mediaW || !mediaH) return null
+    return { width: mediaW, height: mediaH }
+  }, [data.mediaHeight, data.mediaWidth, naturalSize])
+
+  const offerEdit = canOfferCanvasImageEdit(data)
+
   return (
-    <NodeShell
-      nodeId={id}
-      type={NODE_TYPE_IDS.image}
-      selected={selected}
-      status={data.status}
-      showSourceHandle={false}
-      showTargetHandle={false}
+    <div
+      data-testid="loose-image-card"
+      className={cn(
+        'group relative box-border select-none',
+        selected && 'z-10',
+      )}
+      style={{
+        width: frameWidth,
+        height: frameHeight,
+      }}
     >
-      <NodeShell.Body className="space-y-2">
-        <div className="node-card-window relative aspect-square overflow-hidden rounded-sm border border-node-panel-inner bg-node-card-window">
-          {mediaUrl ? (
-            <Image
-              src={mediaUrl}
-              alt={t('cardAlt')}
-              fill
-              sizes="320px"
-              className="object-cover"
-              unoptimized
-            />
-          ) : null}
-        </div>
-        <p
-          className="truncate text-2xs font-medium text-node-card-ink-muted"
-          title={label}
-        >
+      {/*
+        Corner + edge handles: drag any corner to scale the image on canvas.
+        keepAspectRatio so pure images don't shear.
+      */}
+      <NodeResizer
+        nodeId={id}
+        isVisible={Boolean(selected) && !quickEditOpen}
+        minWidth={120}
+        minHeight={120}
+        maxWidth={2400}
+        maxHeight={2400}
+        keepAspectRatio
+        autoScale
+        color="var(--node-paint)"
+        handleStyle={{
+          width: 12,
+          height: 12,
+          borderRadius: 2,
+          borderWidth: 2,
+          borderColor: 'var(--node-paint)',
+          backgroundColor: 'var(--node-panel)',
+          // Sit outside the paint outline so the hit target is easy to grab.
+        }}
+        lineStyle={{
+          borderColor: 'var(--node-paint)',
+          borderWidth: 1,
+          opacity: 0.55,
+        }}
+      />
+
+      <NodeToolbar
+        nodeId={id}
+        isVisible={Boolean(selected) && !quickEditOpen}
+        position={Position.Top}
+        offset={14}
+      >
+        {offerEdit ? (
+          <CanvasImageSelectionToolbar
+            nodeId={id}
+            data={data}
+            onQuickEditOpenChange={setQuickEditOpen}
+            quickEditOpen={quickEditOpen}
+          />
+        ) : (
+          <NodeSelectionToolbarChrome
+            nodeId={id}
+            data={data}
+            selected={selected}
+          />
+        )}
+      </NodeToolbar>
+
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-x-0 -top-5 flex items-end justify-between gap-2 px-0.5 text-[11px] leading-4',
+          selected ? 'text-node-paint' : 'text-node-muted',
+        )}
+      >
+        <span className="min-w-0 truncate font-medium" title={label}>
           {label}
-        </p>
-      </NodeShell.Body>
-    </NodeShell>
+        </span>
+        {displaySize ? (
+          <span className="shrink-0 tabular-nums opacity-90">
+            {displaySize.width} × {displaySize.height}
+          </span>
+        ) : (
+          <span className="shrink-0 tabular-nums opacity-80">
+            {Math.round(frameWidth)} × {Math.round(frameHeight)}
+          </span>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          'absolute inset-0 overflow-hidden bg-node-card-window',
+          selected
+            ? 'outline outline-2 outline-offset-0 outline-node-paint'
+            : 'outline outline-1 outline-offset-0 outline-transparent group-hover:outline-node-edge/40',
+        )}
+      >
+        {mediaUrl ? (
+          <Image
+            src={mediaUrl}
+            alt={t('cardAlt')}
+            fill
+            sizes={`${Math.round(frameWidth)}px`}
+            className="object-cover"
+            unoptimized
+            draggable={false}
+            onLoad={(event) => {
+              const img = event.currentTarget
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                setNaturalSize({
+                  width: img.naturalWidth,
+                  height: img.naturalHeight,
+                })
+              }
+            }}
+          />
+        ) : null}
+      </div>
+
+      <NodeToolbar
+        nodeId={id}
+        isVisible={Boolean(selected) && quickEditOpen}
+        position={Position.Bottom}
+        offset={14}
+      >
+        <CanvasQuickEditPrompt
+          nodeId={id}
+          data={data}
+          fileLabel={label}
+          onClose={() => setQuickEditOpen(false)}
+        />
+      </NodeToolbar>
+    </div>
   )
 }

@@ -36,7 +36,10 @@ import type {
   OutpaintPadding,
   OutpaintRequest,
 } from '@/types'
+import type { EditTaskKind } from '@/types/canvas-image-edit'
 import type { ImageEditApiResult } from '@/lib/api-client/image-edit'
+
+export type { EditTaskKind } from '@/types/canvas-image-edit'
 
 const DEFAULT_IMAGE_SIZE = 1024
 
@@ -46,17 +49,6 @@ export interface EditableSource {
   width: number
   height: number
 }
-
-export type EditTaskKind =
-  | 'upscale'
-  | 'remove-background'
-  | 'inpaint'
-  | 'outpaint'
-  | 'decompose'
-  | 'extract-element'
-  | 'object-replace'
-  | 'style-transfer'
-  | 'text-render'
 
 export interface EditResult {
   imageUrl: string

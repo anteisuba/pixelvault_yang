@@ -215,7 +215,7 @@
       }
     },
     "node": {
-      "label": "节点编辑操作教程",
+      "label": "画布操作教程",
       "slides": {
         "add": {
           "title": "先添加第一个节点",
@@ -415,8 +415,8 @@
         "description": "使用局部重绘、扩图、超分、去背景和图层工具编辑生成图片。"
       },
       "node": {
-        "title": "节点工作台 — PixelVault",
-        "description": "在节点画布上搭建可视化 AI 创作工作流。"
+        "title": "画布 — PixelVault",
+        "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
       }
     },
     "gallery": {
@@ -3157,9 +3157,9 @@
         "description": "训练、管理并使用社区公开的 LoRA。"
       },
       "node": {
-        "label": "节点编辑",
-        "title": "节点编辑器",
-        "description": "可视化工作流，串联生成、编辑、解析等步骤。"
+        "label": "画布",
+        "title": "画布",
+        "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
       }
     }
   },
@@ -3170,11 +3170,34 @@
       "chatOutline": "跟助手聊大纲",
       "addNode": "手动加节点（角色 / 背景 / 镜头 / 图像…）"
     },
-    "eyebrow": "节点工作流",
+    "appearance": {
+      "trigger": "设置画布外观",
+      "title": "画布外观",
+      "description": "颜色与背景图会随当前项目保存。",
+      "colorLabel": "背景颜色",
+      "customColor": "自定义颜色",
+      "colorValueLabel": "颜色值",
+      "invalidColor": "请输入 #RRGGBB 格式的颜色值。",
+      "presetColor": "使用颜色 {color}",
+      "imageLabel": "背景图片",
+      "chooseImage": "选择或上传图片",
+      "replaceImage": "更换图片",
+      "removeImage": "移除图片",
+      "fitLabel": "适配方式",
+      "fitCover": "填满画布",
+      "fitContain": "完整显示",
+      "opacityLabel": "图片透明度",
+      "restoreDefault": "恢复默认外观",
+      "dialogTitle": "选择画布背景",
+      "dialogDescription": "从素材库选择，或上传一张背景图片。",
+      "previewAlt": "画布背景预览",
+      "triggerShort": "桌面"
+    },
+    "eyebrow": "画布",
     "projectUntitled": "未命名项目",
     "projectNewDefaultName": "未命名项目 {n}",
     "nodeCount": "{count} 个节点",
-    "addMenuTitle": "添加节点",
+    "addMenuTitle": "添加到画布",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3202,6 +3225,53 @@
       "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
       "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。",
       "videoMerge": "把多个上游视频按顺序拼接成一段长视频（~$0.001 / 次，≤9 段）。"
+    },
+    "addCatalog": {
+      "groups": {
+        "image": "图片",
+        "video": "视频",
+        "audio": "声音",
+        "organize": "组织"
+      },
+      "items": {
+        "imageAsset": {
+          "label": "图片",
+          "helper": "上传、粘贴、从素材选择，或稍后使用 AI 生成。"
+        },
+        "imageShot": {
+          "label": "镜头图",
+          "helper": "用镜头描述和角色、场景参考生成单张画面。"
+        },
+        "imageKeyframe": {
+          "label": "关键帧",
+          "helper": "添加用于约束视频画面与构图的关键图像。"
+        },
+        "videoGenerate": {
+          "label": "视频生成",
+          "helper": "组合提示词与画面、声音参考，生成一个视频镜头。"
+        },
+        "videoReference": {
+          "label": "参考视频",
+          "helper": "上传一段视频，作为下游生成的运动或画面参考。"
+        },
+        "videoMerge": {
+          "label": "视频合成",
+          "helper": "按顺序合并 2–9 个视频片段，可先设置片段范围。"
+        },
+        "audioVoiceProfile": {
+          "label": "音色档案",
+          "helper": "选择系统音色或上传参考音频，保存可复用的声音身份。"
+        },
+        "organizeCharacter": {
+          "label": "角色档案",
+          "helper": "收集角色主图、参考图、特写与绑定音色。"
+        },
+        "organizeScene": {
+          "label": "场景档案",
+          "helper": "收集场景图、地点、氛围与光线设定。"
+        }
+      },
+      "cast": "卡匣"
     },
     "statuses": {
       "idle": "空闲",
@@ -3781,7 +3851,14 @@
     },
     "nodeToolbar": {
       "expand": "展开",
-      "delete": "删除"
+      "delete": "删除",
+      "imageEditToolbar": "图片编辑工具",
+      "more": "更多",
+      "quickEdit": "快捷编辑",
+      "download": "下载",
+      "rename": "命名",
+      "category": "分类",
+      "moreEdits": "编辑能力"
     },
     "nodeDetail": {
       "backToCanvas": "返回画布",
@@ -3941,7 +4018,7 @@
       "defaultModel": "默认",
       "createProjectPrompt": "项目名称",
       "renameProjectPrompt": "重命名项目",
-      "deleteProjectConfirm": "确定删除「{name}」吗？这个项目的本地节点画布会被移除。"
+      "deleteProjectConfirm": "确定删除「{name}」吗？这个画布项目会被移除。"
     },
     "projectMenu": {
       "triggerLabel": "打开项目菜单",
@@ -3976,6 +4053,9 @@
         "cut": "点击连线"
       },
       "zoomLevel": "{percent}%",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fitView": "适应画布",
       "undo": "撤销",
       "redo": "重做"
     },
@@ -4063,6 +4143,14 @@
         "firstPhase": {
           "label": "第一阶段",
           "prompt": "先规划第一阶段——一组短镜头（≤60 秒）。"
+        },
+        "videoShot": {
+          "label": "规划镜头",
+          "prompt": "帮我在画布上规划一个视频镜头：主体、运动、机位与时长。"
+        },
+        "videoMerge": {
+          "label": "合成片段",
+          "prompt": "帮我把画布上已有视频片段排序并合成为短片。"
         }
       },
       "welcomeTitle": "选择节点查看检查器",
@@ -4098,7 +4186,11 @@
       "modeHint": "应用前先询问",
       "research": "参考作品",
       "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
-      "send": "发送"
+      "send": "发送",
+      "modalityPrefix": {
+        "image": "[图像模式]",
+        "video": "[视频模式]"
+      }
     },
     "minimapTitle": "小地图",
     "castDock": {
@@ -4183,6 +4275,25 @@
       "projectCreated": "项目「{name}」已创建。",
       "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。"
+    },
+    "quickEdit": {
+      "placeholder": "描述你想如何编辑这张图片",
+      "editing": "正在编辑 [{name}]",
+      "run": "运行",
+      "back": "返回工具条",
+      "title": "快捷编辑",
+      "hint": "描述要提取的元素。结果会作为新图片放在画布上。"
+    },
+    "history": {
+      "title": "历史对话",
+      "search": "请输入搜索关键词",
+      "empty": "暂无历史对话",
+      "new": "新对话"
+    },
+    "modality": {
+      "image": "图像",
+      "video": "视频",
+      "label": "生成模态"
     }
   },
   "StudioV2": {

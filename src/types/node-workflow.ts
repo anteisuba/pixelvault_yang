@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
+  NODE_STUDIO_CANVAS_APPEARANCE_FITS,
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODES,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
@@ -37,6 +38,7 @@ import {
   SeedancePromptTimelineItemSchema,
 } from '@/types/seedance-prompt-plan'
 import { ScriptDocSchema, ScriptRefSchema } from '@/types/script-doc'
+import { ReadyCanvasImageEditCapabilityIdSchema } from '@/types/canvas-image-edit'
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -235,6 +237,11 @@ export const NodeWorkflowNodeDataSchema = z
     imageUrl: z.string().trim().min(1).optional(),
     mediaKind: NodeWorkflowMediaKindSchema.optional(),
     mediaUrl: z.string().trim().min(1).optional(),
+    /** Intrinsic dimensions of persisted media, when the producing task
+     *  reports them. Invalid legacy metadata degrades to undefined instead of
+     *  rejecting the whole saved workflow. */
+    mediaWidth: z.number().int().positive().optional().catch(undefined),
+    mediaHeight: z.number().int().positive().optional().catch(undefined),
     /** Video poster frame — AI-generated videos get it from `Generation.thumbnailUrl`
      *  (§9.1); manually-uploaded reference videos get it from client-side capture
      *  (§9.2). Optional so nodes saved before this field existed stay valid. */
@@ -246,6 +253,23 @@ export const NodeWorkflowNodeDataSchema = z
     generationId: z.string().trim().min(1).optional(),
     sourceGenerationId: z.string().trim().min(1).max(160).optional(),
     sourceLabel: z.string().trim().min(1).max(160).optional(),
+    /** Immediate canvas lineage for a non-destructive image edit result. */
+    derivedFromNodeId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .optional()
+      .catch(undefined),
+    derivedFromGenerationId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .optional()
+      .catch(undefined),
+    editCapability:
+      ReadyCanvasImageEditCapabilityIdSchema.optional().catch(undefined),
     characterName: z.string().trim().min(1).max(160).optional(),
     /** User-given name for a background node — mirrors characterName so the
      *  background can be referenced by name (e.g. @夜晚街道) in video prompts. */
@@ -334,6 +358,20 @@ export const VideoDefaultModelSchema = z.object({
 })
 export type VideoDefaultModel = z.infer<typeof VideoDefaultModelSchema>
 
+export const CanvasAppearanceImageSchema = z.object({
+  url: z.httpUrl().max(4000),
+  sourceGenerationId: z.string().trim().min(1).max(160).optional(),
+  fit: z.enum(NODE_STUDIO_CANVAS_APPEARANCE_FITS),
+  opacity: z.number().min(0.1).max(1),
+})
+
+export const CanvasAppearanceSchema = z.object({
+  backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  image: CanvasAppearanceImageSchema.optional(),
+})
+
+export type CanvasAppearance = z.infer<typeof CanvasAppearanceSchema>
+
 export const NodeWorkflowStateDataSchema = z.object({
   nodes: z.array(NodeWorkflowNodeSchema),
   edges: z.array(NodeWorkflowEdgeSchema),
@@ -350,6 +388,12 @@ export const NodeWorkflowStateDataSchema = z.object({
    * seatbelt so a malformed value never fails the whole-state parse.
    */
   defaultVideoModel: VideoDefaultModelSchema.optional().catch(undefined),
+  /**
+   * Project-level canvas wallpaper. As with ScriptDoc, malformed appearance
+   * data degrades to undefined instead of rejecting and emptying the graph.
+   * Untouched projects omit this field and resolve UI defaults at render time.
+   */
+  canvasAppearance: CanvasAppearanceSchema.optional().catch(undefined),
   /**
    * Right-rail workspace UI state — drafting stage, depth preset, and the
    * manual-edit lock keys — persisted so they survive a reload. Each `.catch`

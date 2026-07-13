@@ -13,7 +13,7 @@ import { getFormatter, getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
-import { ROUTES, studioImageEditPath } from '@/constants/routes'
+import { ROUTES, studioCanvasEditPath } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
@@ -328,7 +328,7 @@ export default async function ImageDetailPage({
                   asChild
                 >
                   <Link
-                    href={studioImageEditPath({
+                    href={studioCanvasEditPath({
                       generationId: generation.id,
                       sourceUrl: generation.url,
                       width: generation.width,

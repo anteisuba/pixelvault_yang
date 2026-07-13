@@ -17,6 +17,8 @@ import {
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_ID_PREFIXES,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PROJECTS,
   NODE_STUDIO_VOICE_PROFILE,
@@ -25,6 +27,7 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
@@ -35,6 +38,7 @@ import {
   NodeWorkflowLegacyV2StorageSchema,
   NodeWorkflowStateSchema,
   NodeWorkflowStorageSchema,
+  type CanvasAppearance,
   type NodeWorkflowEdge,
   type NodeWorkflowNode,
   type NodeWorkflowNodeData,
@@ -45,6 +49,10 @@ import {
   type NodeWorkflowStorageSnapshot,
   type VideoDefaultModel,
 } from '@/types/node-workflow'
+import {
+  CanvasDerivedImageOutputsSchema,
+  type CanvasDerivedImageOutput,
+} from '@/types/canvas-image-edit'
 import {
   createNodeWorkflowProjectAPI,
   deleteNodeWorkflowProjectAPI,
@@ -80,10 +88,21 @@ export interface UseNodeWorkflowOptions {
 
 export interface NodeWorkflowActions {
   updateNodeData(id: string, patch: Partial<NodeWorkflowNodeData>): void
+  /**
+   * Atomically place one or more non-destructive image edit results. Optional
+   * on the shared canvas context until the UI wiring slice adopts the action;
+   * the concrete useNodeWorkflow return always provides it.
+   */
+  placeDerivedImages?(
+    sourceNodeId: string,
+    outputs: readonly CanvasDerivedImageOutput[],
+  ): string[]
   /** Persist the assistant's ScriptDoc fact model on the current project. */
   setScriptDoc(scriptDoc: ScriptDoc | undefined): void
   /** Persist the canvas-default video model on the current project. */
   setDefaultVideoModel(value: VideoDefaultModel | undefined): void
+  /** Persist or reset the current project's canvas wallpaper. */
+  setCanvasAppearance(value: CanvasAppearance | undefined): void
   /** Persist the right-rail drafting stage / depth / manual-edit locks. */
   setScriptDocStage(value: ScriptDocStage): void
   setScriptDocDepth(value: ScriptDocDepth): void
@@ -113,9 +132,12 @@ export interface ApplyScriptDocResult {
 }
 
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
+  /** True only after both local and server hydration finish for this user. */
+  isHydrated: boolean
   state: NodeWorkflowState
   scriptDoc: ScriptDoc | undefined
   defaultVideoModel: VideoDefaultModel | undefined
+  canvasAppearance: CanvasAppearance | undefined
   scriptDocStage: ScriptDocStage | undefined
   scriptDocDepth: ScriptDocDepth | undefined
   scriptDocLocks: string[] | undefined
@@ -125,6 +147,10 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   currentProjectId: string
   currentProjectName: string
   addNode(type: NodeWorkflowNodeType, position: XYPosition): string
+  placeDerivedImages(
+    sourceNodeId: string,
+    outputs: readonly CanvasDerivedImageOutput[],
+  ): string[]
   createProject(name: string): string
   switchProject(id: string): void
   renameCurrentProject(name: string): void
@@ -587,6 +613,25 @@ export function useNodeWorkflow({
   )
   const [storageState, setStorageState] =
     useState<NodeWorkflowStorageSnapshot>(parkedStorage)
+  const [hydrationStatus, setHydrationStatus] = useState<{
+    clerkId: string | null
+    defaultProjectName: string
+    isComplete: boolean
+  }>(() => ({
+    clerkId,
+    defaultProjectName,
+    isComplete: false,
+  }))
+  if (
+    hydrationStatus.clerkId !== clerkId ||
+    hydrationStatus.defaultProjectName !== defaultProjectName
+  ) {
+    setHydrationStatus({
+      clerkId,
+      defaultProjectName,
+      isComplete: false,
+    })
+  }
   const storageRef = useRef<NodeWorkflowStorageSnapshot>(parkedStorage)
   // Tracks whether we've finished the localStorage hydrate for the
   // *currently active* clerkId. Cleared whenever clerkId changes so an
@@ -768,6 +813,16 @@ export function useNodeWorkflow({
     if (loadedForClerkId.current !== clerkId) return
 
     let cancelled = false
+    const completeHydration = () => {
+      if (cancelled) return
+      hasServerHydrated.current = true
+      setHydrationStatus((current) =>
+        current.clerkId === clerkId &&
+        current.defaultProjectName === defaultProjectName
+          ? { ...current, isComplete: true }
+          : current,
+      )
+    }
     void (async () => {
       const response = await listNodeWorkflowProjectsAPI()
       if (cancelled) return
@@ -776,7 +831,7 @@ export function useNodeWorkflow({
       // user keeps editing offline. We'll retry sync on the next state
       // change via the write effect below.
       if (!response.success || !response.data) {
-        hasServerHydrated.current = true
+        completeHydration()
         return
       }
 
@@ -792,7 +847,7 @@ export function useNodeWorkflow({
         }
         storageRef.current = nextStorage
         setStorageState(nextStorage)
-        hasServerHydrated.current = true
+        completeHydration()
         return
       }
 
@@ -800,7 +855,7 @@ export function useNodeWorkflow({
       // is provably owned by the user currently signed in — otherwise
       // we'd be POSTing a previous account's projects into this account.
       if (localSnapshot.ownerClerkId !== clerkId) {
-        hasServerHydrated.current = true
+        completeHydration()
         return
       }
 
@@ -834,7 +889,7 @@ export function useNodeWorkflow({
         }
       }
 
-      hasServerHydrated.current = true
+      completeHydration()
     })()
 
     return () => {
@@ -842,7 +897,7 @@ export function useNodeWorkflow({
     }
     // Re-checked on every state tick so the "wait until localStorage
     // hydrated" gate eventually opens the server hydrate.
-  }, [clerkId, storageState])
+  }, [clerkId, defaultProjectName, storageState])
 
   // Debounced server write — pushes the CURRENT project's state up every
   // ~5s of inactivity. We don't push the full snapshot (other projects)
@@ -872,6 +927,11 @@ export function useNodeWorkflow({
     [defaultProjectName, storageState],
   )
   const state = currentProject.state
+  const isHydrated =
+    clerkId !== null &&
+    hydrationStatus.clerkId === clerkId &&
+    hydrationStatus.defaultProjectName === defaultProjectName &&
+    hydrationStatus.isComplete
   const projects = useMemo(
     () => getProjectSummaries(storageState.projects),
     [storageState.projects],
@@ -903,11 +963,20 @@ export function useNodeWorkflow({
   const addNode = useCallback(
     (type: NodeWorkflowNodeType, position: XYPosition) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+      // Loose pure-image nodes need an explicit RF size so corner NodeResizer
+      // can scale them; role-stamped cards keep measuring from content.
+      const isLooseImageShell = type === NODE_TYPE_IDS.image
       const nextNode: NodeWorkflowNode = {
         id: nodeId,
         type,
         position,
         data: createDefaultNodeData(type),
+        ...(isLooseImageShell
+          ? {
+              width: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+              height: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+            }
+          : {}),
       }
 
       commitCurrentProjectState((currentState) => ({
@@ -918,6 +987,91 @@ export function useNodeWorkflow({
       return nodeId
     },
     [commitCurrentProjectState],
+  )
+
+  const placeDerivedImages = useCallback(
+    (
+      sourceNodeId: string,
+      outputs: readonly CanvasDerivedImageOutput[],
+    ): string[] => {
+      const parsedOutputs = CanvasDerivedImageOutputsSchema.safeParse(outputs)
+      if (!parsedOutputs.success) {
+        return []
+      }
+
+      const currentState = getCurrentProject(
+        storageRef.current,
+        defaultProjectName,
+      ).state
+      const sourceNode = currentState.nodes.find(
+        (node) => node.id === sourceNodeId,
+      )
+      const sourceMediaKind = sourceNode
+        ? (sourceNode.data.mediaKind ??
+          NODE_MEDIA_KIND_BY_NODE_TYPE[sourceNode.type])
+        : undefined
+      const sourceImageUrl =
+        sourceNode?.data.mediaUrl ?? sourceNode?.data.imageUrl
+
+      if (
+        !sourceNode ||
+        sourceMediaKind !== NODE_MEDIA_KIND_IDS.image ||
+        !sourceImageUrl?.trim()
+      ) {
+        return []
+      }
+
+      const derivedFromGenerationId =
+        sourceNode.data.generationId ?? sourceNode.data.sourceGenerationId
+      const placement = NODE_STUDIO_NODE_PLACEMENT.derivedImage
+      const nextNodes = parsedOutputs.data.map((output, index) => {
+        const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+        const column = index % placement.columns
+        const row = Math.floor(index / placement.columns)
+        const nextData: NodeWorkflowNodeData = {
+          ...createDefaultNodeData(NODE_TYPE_IDS.image),
+          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+          mediaKind: NODE_MEDIA_KIND_IDS.image,
+          mediaUrl: output.imageUrl,
+          generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          status: NODE_STATUS_IDS.done,
+          derivedFromNodeId: sourceNode.id,
+          editCapability: output.editCapability,
+          ...(output.width === undefined ? {} : { mediaWidth: output.width }),
+          ...(output.height === undefined
+            ? {}
+            : { mediaHeight: output.height }),
+          ...(output.generationId ? { generationId: output.generationId } : {}),
+          ...(output.label
+            ? { mediaLabel: output.label, sourceLabel: output.label }
+            : {}),
+          ...(derivedFromGenerationId ? { derivedFromGenerationId } : {}),
+        }
+
+        return {
+          id: nodeId,
+          type: NODE_TYPE_IDS.image,
+          position: {
+            x:
+              sourceNode.position.x +
+              placement.offsetX +
+              column * placement.columnOffsetX,
+            y: sourceNode.position.y + row * placement.rowOffsetY,
+          },
+          width: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+          height: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+          data: nextData,
+        } satisfies NodeWorkflowNode
+      })
+
+      commitCurrentProjectState((latestState) => ({
+        ...latestState,
+        nodes: [...latestState.nodes, ...nextNodes],
+      }))
+
+      return nextNodes.map((node) => node.id)
+    },
+    [commitCurrentProjectState, defaultProjectName],
   )
 
   // Gate every server-side effect on (a) Clerk having loaded a user
@@ -1116,6 +1270,7 @@ export function useNodeWorkflow({
   const deleteNode = useCallback(
     (id: string) => {
       commitCurrentProjectState((currentState) => ({
+        ...currentState,
         nodes: currentState.nodes.filter((node) => node.id !== id),
         edges: currentState.edges.filter(
           (edge) => edge.source !== id && edge.target !== id,
@@ -1168,6 +1323,22 @@ export function useNodeWorkflow({
           (currentState) => ({
             ...currentState,
             defaultVideoModel: value,
+          }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  const setCanvasAppearance = useCallback(
+    (value: CanvasAppearance | undefined) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({
+            ...currentState,
+            canvasAppearance: value,
           }),
         ),
       )
@@ -1491,9 +1662,11 @@ export function useNodeWorkflow({
 
   return useMemo(
     () => ({
+      isHydrated,
       state,
       scriptDoc: state.scriptDoc,
       defaultVideoModel: state.defaultVideoModel,
+      canvasAppearance: state.canvasAppearance,
       scriptDocStage: state.scriptDocStage,
       scriptDocDepth: state.scriptDocDepth,
       scriptDocLocks: state.scriptDocLocks,
@@ -1503,6 +1676,7 @@ export function useNodeWorkflow({
       currentProjectId: currentProject.id,
       currentProjectName: currentProject.name,
       addNode,
+      placeDerivedImages,
       createProject,
       switchProject,
       renameCurrentProject,
@@ -1510,6 +1684,7 @@ export function useNodeWorkflow({
       updateNodeData,
       setScriptDoc,
       setDefaultVideoModel,
+      setCanvasAppearance,
       setScriptDocStage,
       setScriptDocDepth,
       setScriptDocLocks,
@@ -1539,15 +1714,18 @@ export function useNodeWorkflow({
       getOutgoingTargetByType,
       historyAvailability.canRedo,
       historyAvailability.canUndo,
+      isHydrated,
       onConnect,
       onEdgesChange,
       onNodesChange,
+      placeDerivedImages,
       projects,
       redo,
       renameCurrentProject,
       saveNow,
       setScriptDoc,
       setDefaultVideoModel,
+      setCanvasAppearance,
       setScriptDocStage,
       setScriptDocDepth,
       setScriptDocLocks,

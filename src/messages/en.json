@@ -215,7 +215,7 @@
       }
     },
     "node": {
-      "label": "Node workflow guide",
+      "label": "Canvas guide",
       "slides": {
         "add": {
           "title": "Add the first node",
@@ -415,8 +415,8 @@
         "description": "Edit generated images with inpaint, outpaint, super resolution, background removal, and layer tools."
       },
       "node": {
-        "title": "Node Studio — PixelVault",
-        "description": "Build visual AI creation workflows on a node canvas."
+        "title": "Canvas — PixelVault",
+        "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
       }
     },
     "gallery": {
@@ -3157,9 +3157,9 @@
         "description": "Train, manage, and use public community LoRAs."
       },
       "node": {
-        "label": "Node Editor",
-        "title": "Node Editor",
-        "description": "Build visual workflows that chain generation, editing, and analysis steps."
+        "label": "Canvas",
+        "title": "Canvas",
+        "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
       }
     }
   },
@@ -3170,11 +3170,34 @@
       "chatOutline": "Chat the outline with the assistant",
       "addNode": "Add a node manually (character / background / shot / image…)"
     },
-    "eyebrow": "Node workflow",
+    "appearance": {
+      "trigger": "Set canvas appearance",
+      "title": "Canvas appearance",
+      "description": "Color and wallpaper are saved with this project.",
+      "colorLabel": "Background color",
+      "customColor": "Custom color",
+      "colorValueLabel": "Color value",
+      "invalidColor": "Enter a color in #RRGGBB format.",
+      "presetColor": "Use color {color}",
+      "imageLabel": "Background image",
+      "chooseImage": "Choose or upload image",
+      "replaceImage": "Replace image",
+      "removeImage": "Remove image",
+      "fitLabel": "Fit",
+      "fitCover": "Fill canvas",
+      "fitContain": "Show full image",
+      "opacityLabel": "Image opacity",
+      "restoreDefault": "Restore default appearance",
+      "dialogTitle": "Choose canvas background",
+      "dialogDescription": "Select from assets or upload a background image.",
+      "previewAlt": "Canvas background preview",
+      "triggerShort": "Surface"
+    },
+    "eyebrow": "Canvas",
     "projectUntitled": "Untitled project",
     "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
-    "addMenuTitle": "Add node",
+    "addMenuTitle": "Add to canvas",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3202,6 +3225,53 @@
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
       "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
       "videoMerge": "Concatenate multiple upstream videos into one long clip (~$0.001/run, up to 9 clips)."
+    },
+    "addCatalog": {
+      "groups": {
+        "image": "Images",
+        "video": "Video",
+        "audio": "Sound",
+        "organize": "Organize"
+      },
+      "items": {
+        "imageAsset": {
+          "label": "Image",
+          "helper": "Upload, paste, choose an asset, or generate with AI later."
+        },
+        "imageShot": {
+          "label": "Shot image",
+          "helper": "Generate a still from shot direction plus character and scene references."
+        },
+        "imageKeyframe": {
+          "label": "Keyframe",
+          "helper": "Add a key image that constrains a video's framing and composition."
+        },
+        "videoGenerate": {
+          "label": "Generate video",
+          "helper": "Combine a prompt with visual and sound references to create a video shot."
+        },
+        "videoReference": {
+          "label": "Reference video",
+          "helper": "Upload a clip as motion or visual guidance for downstream generation."
+        },
+        "videoMerge": {
+          "label": "Compose videos",
+          "helper": "Join 2–9 clips in order, with optional per-clip ranges."
+        },
+        "audioVoiceProfile": {
+          "label": "Voice profile",
+          "helper": "Choose a system voice or upload reference audio as a reusable identity."
+        },
+        "organizeCharacter": {
+          "label": "Character profile",
+          "helper": "Collect a character's hero image, references, close-ups, and bound voice."
+        },
+        "organizeScene": {
+          "label": "Scene profile",
+          "helper": "Collect scene images, location, mood, and lighting direction."
+        }
+      },
+      "cast": "Cast tray"
     },
     "statuses": {
       "idle": "Idle",
@@ -3781,7 +3851,14 @@
     },
     "nodeToolbar": {
       "expand": "Expand",
-      "delete": "Delete"
+      "delete": "Delete",
+      "imageEditToolbar": "Image edit tools",
+      "more": "More",
+      "quickEdit": "Quick edit",
+      "download": "Download",
+      "rename": "Name",
+      "category": "Category",
+      "moreEdits": "Edit tools"
     },
     "nodeDetail": {
       "backToCanvas": "Back to canvas",
@@ -3941,7 +4018,7 @@
       "defaultModel": "Default",
       "createProjectPrompt": "Project name",
       "renameProjectPrompt": "Rename project",
-      "deleteProjectConfirm": "Delete \"{name}\"? This removes its local Node Studio canvas."
+      "deleteProjectConfirm": "Delete \"{name}\"? This removes this canvas project."
     },
     "projectMenu": {
       "triggerLabel": "Open project menu",
@@ -3976,6 +4053,9 @@
         "cut": "Click an edge"
       },
       "zoomLevel": "{percent}%",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Fit canvas",
       "undo": "Undo",
       "redo": "Redo"
     },
@@ -4063,6 +4143,14 @@
         "firstPhase": {
           "label": "First phase",
           "prompt": "Let's plan the first phase — a short series of shots (≤60s)."
+        },
+        "videoShot": {
+          "label": "Plan a shot",
+          "prompt": "Help me plan a video shot on this canvas: subject, motion, camera, and duration."
+        },
+        "videoMerge": {
+          "label": "Merge clips",
+          "prompt": "Help me order and merge video clips already on the canvas into a short sequence."
         }
       },
       "welcomeTitle": "Select a node to inspect it",
@@ -4098,7 +4186,11 @@
       "modeHint": "Ask before applying",
       "research": "Reference work",
       "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
-      "send": "Send"
+      "send": "Send",
+      "modalityPrefix": {
+        "image": "[Image mode]",
+        "video": "[Video mode]"
+      }
     },
     "minimapTitle": "Minimap",
     "castDock": {
@@ -4183,6 +4275,25 @@
       "projectCreated": "Project \"{name}\" created.",
       "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted."
+    },
+    "quickEdit": {
+      "placeholder": "Describe how you want to edit this image",
+      "editing": "Editing [{name}]",
+      "run": "Run",
+      "back": "Back to tools",
+      "title": "Quick edit",
+      "hint": "Describe the element to extract. Result is a new image on the canvas."
+    },
+    "history": {
+      "title": "History",
+      "search": "Search conversations",
+      "empty": "No conversations yet",
+      "new": "New chat"
+    },
+    "modality": {
+      "image": "Image",
+      "video": "Video",
+      "label": "Generation type"
     }
   },
   "StudioV2": {

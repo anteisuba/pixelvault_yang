@@ -16,7 +16,7 @@
 2. **读规矩**：`brand-dna.md`（含过渡期规则）→ `forbidden.md` UI 节 → `references/frontend.md`（覆层强约定矩阵 + token 四层治理 + 组件清单）→ `references/domains/<域>.md` → 对应 archive 施工基准。
 3. **从既有起步**：先查 frontend.md 组件清单——覆层选型走强约定矩阵（ResponsiveDialog / ResponsivePopover / tool-surface / AssetSelectorDialog…），禁止重造已有组件；新组件用 `templates/component.md` 骨架并按层级判据放对目录。
 4. **设计先行（非琐碎改动）**：Fable 出方案/线框图（show_widget 内联渲染）→ owner 拍板 → 落成可执行描述交 Sonnet；琐碎改动可直接做但报告里说明。
-5. **实现**：匹配该页现行体系；token 走 `@theme inline` 不用任意值；i18n 三语同步；触屏键盘策略与 44px 触达区不破坏。
+5. **实现**：匹配该页现行体系；token 走 `@theme inline` 不用任意值；i18n 三语同步；触屏键盘策略与自适应命中区不破坏（fine pointer 紧凑 32px/常规 36px，coarse pointer 44px）。
 6. **自检**：`checklists/ui.md` 逐项过——机械项跑命令（lint/build/visual），判断项逐条给结论。
 7. **交付报告**：改动清单 + checklist 逐项结论 + 截图/图示对比 + **手动验证步骤**（点哪/看什么/DevTools 看哪个请求）。
 

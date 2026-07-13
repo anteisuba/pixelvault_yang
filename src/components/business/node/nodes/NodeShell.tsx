@@ -10,10 +10,8 @@ import {
 } from '@xyflow/react'
 import {
   AudioWaveform,
-  Maximize2,
   Mountain,
   Play,
-  Trash2,
   UserRound,
   X,
   type LucideIcon,
@@ -35,6 +33,9 @@ import { getUpstreamNodes } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
+import type { NodeWorkflowNodeData } from '@/types/node-workflow'
+
+import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './NodeStatusBadge'
 
@@ -46,6 +47,11 @@ interface NodeShellRootProps {
   /** When set, a Figma-style floating toolbar (⤢ / delete) shows on select. */
   nodeId?: string
   selected?: boolean
+  /**
+   * When provided and the node carries an image URL, the selection toolbar
+   * expands into the Haivis-aligned image-edit capability strip.
+   */
+  imageEditData?: NodeWorkflowNodeData
   /** When `failed`, the card gets a red border (must-1 失败态). Optional so
    *  existing callers are unaffected; node cards pass their `data.status`. */
   status?: NodeWorkflowStatus
@@ -103,6 +109,7 @@ function NodeShellRoot({
   type,
   nodeId,
   selected,
+  imageEditData,
   status,
   children,
   showSourceHandle = true,
@@ -110,8 +117,6 @@ function NodeShellRoot({
   overridden = false,
   className,
 }: NodeShellRootProps) {
-  const t = useTranslations('StudioNode.nodeToolbar')
-  const { setExpandedNodeId, deleteNode } = useNodeWorkflowActions()
   const accent = NODE_ACCENTS[type]
   const Glyph = PORT_GLYPHS[type]
   const isFailed = status === NODE_STATUS_IDS.failed
@@ -141,26 +146,11 @@ function NodeShellRoot({
           position={Position.Top}
           offset={8}
         >
-          <div className="flex items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 shadow-node-panel backdrop-blur">
-            <button
-              type="button"
-              onClick={() => setExpandedNodeId(nodeId)}
-              aria-label={t('expand')}
-              title={t('expand')}
-              className="flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-            >
-              <Maximize2 className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => deleteNode(nodeId)}
-              aria-label={t('delete')}
-              title={t('delete')}
-              className="flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-status-failed/40 hover:text-node-status-failed-fg"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
+          <NodeSelectionToolbarChrome
+            nodeId={nodeId}
+            data={imageEditData}
+            selected={selected}
+          />
         </NodeToolbar>
       ) : null}
       {showTargetHandle ? (

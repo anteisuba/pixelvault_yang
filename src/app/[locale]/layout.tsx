@@ -10,7 +10,6 @@ import { notFound } from 'next/navigation'
 
 import { getAppOrigin, getClerkAllowedOrigins } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
-import { AuthModalProvider } from '@/components/business/AuthModalProvider'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
 import { MARKETING_NAMESPACES, pickMessages } from '@/i18n/messages-split'
 import { getPathname } from '@/i18n/navigation'
@@ -113,7 +112,7 @@ export default async function LocaleLayout({
       allowedRedirectOrigins={CLERK_ALLOWED_REDIRECT_ORIGINS}
     >
       <NextIntlClientProvider locale={locale} messages={marketingMessages}>
-        <AuthModalProvider>{children}</AuthModalProvider>
+        {children}
       </NextIntlClientProvider>
     </ClerkProvider>
   )

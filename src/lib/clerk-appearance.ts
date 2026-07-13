@@ -1,10 +1,11 @@
 import type { Appearance } from '@clerk/types'
 
 /**
- * Shared Clerk chrome: pure white card, near-black ink, pill CTAs.
- * Path pages (`/sign-in`) and modal entry both use this base.
+ * Clerk widget theme matching PixelVault marketing surfaces:
+ * pure white background, near-black foreground, Space Grotesk, pill CTAs.
+ * Used by sign-in and sign-up pages.
  */
-const clerkBaseAppearance: Appearance = {
+export const clerkAppearance: Appearance = {
   variables: {
     colorPrimary: '#141413',
     colorBackground: '#ffffff',
@@ -40,26 +41,5 @@ const clerkBaseAppearance: Appearance = {
   layout: {
     socialButtonsPlacement: 'top',
     socialButtonsVariant: 'blockButton',
-  },
-}
-
-/** Full-page auth routes (`AuthPageShell` + path routing). */
-export const clerkAppearance: Appearance = clerkBaseAppearance
-
-/**
- * Embedded Clerk form chrome for the in-page auth dialog
- * (`AuthModalProvider` + `routing="virtual"`). Backdrop/shell are owned by
- * our Dialog — these tokens only style the form fields inside the card.
- */
-export const clerkModalAppearance: Appearance = {
-  ...clerkBaseAppearance,
-  elements: {
-    ...clerkBaseAppearance.elements,
-    rootBox: 'w-full',
-    card: 'shadow-none border-0 bg-transparent w-full',
-    headerTitle: 'hidden',
-    headerSubtitle: 'hidden',
-    // Clerk still renders a header block for a11y; collapse visual chrome.
-    header: 'hidden',
   },
 }

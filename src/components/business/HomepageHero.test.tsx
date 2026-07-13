@@ -43,13 +43,6 @@ vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: false }),
 }))
 
-vi.mock('./AuthModalProvider', () => ({
-  useAuthModal: () => ({
-    openAuth: vi.fn(),
-    closeAuth: vi.fn(),
-  }),
-}))
-
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href }: { children: ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -82,7 +75,7 @@ describe('HomepageHero', () => {
     expect(screen.getByText(EXPECTED_HERO.en.headline)).toBeInTheDocument()
     expect(screen.getByText(EXPECTED_HERO.en.subline)).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Start creating' }),
+      screen.getByRole('link', { name: 'Start creating' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Browse gallery' }),

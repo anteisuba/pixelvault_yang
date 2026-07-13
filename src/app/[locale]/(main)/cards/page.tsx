@@ -2,8 +2,10 @@ import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
+import { ROUTES } from '@/constants/routes'
+import { Button } from '@/components/ui/button'
+import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { AuthModalCtaButton } from '@/components/business/AuthModalCtaButton'
 import { CardsPageContent } from '@/components/business/cards/CardsPageContent'
 
 interface CardsPageProps {
@@ -40,7 +42,9 @@ export default async function CardsPage({ params }: CardsPageProps) {
               <p className="font-serif text-sm leading-7 text-muted-foreground">
                 {t('cardManagementSignInDescription')}
               </p>
-              <AuthModalCtaButton label={tNav('signIn')} intent="sign-in" />
+              <Button asChild size="lg" className="h-11 rounded-full px-6">
+                <Link href={ROUTES.SIGN_IN}>{tNav('signIn')}</Link>
+              </Button>
             </div>
           </div>
         </div>

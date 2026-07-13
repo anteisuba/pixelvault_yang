@@ -1,8 +1,8 @@
 # 首页施工图 — marketing home
 
-> 状态：**方向拍板（2026-07-13）** · **P0 登录 modal 已落地** · 首页动态演示（P1+）仍待讨论。  
+> 状态：**方向拍板（2026-07-13）** · **登录 modal 实现已回退**（恢复 path `/sign-in` `/sign-up`）· 首页动态演示（P1+）仍待讨论。  
 > 房间：营销首页 `/` · 参考：`docs/references/ui-inspiration/haivis-landing-2026-07.md`  
-> 边界：作品优先 / 证据式能力 / 登录模态；**不**抄 Haivis 纯黑页、大衬线品牌皮、假能力 demo。
+> 边界：作品优先 / 证据式能力；登录 modal 仅作产品意向，代码未采用。
 
 ## 0. 拍板记录（本会话）
 
@@ -154,22 +154,17 @@ public/homepage/demos/
 - 画布兑现：`docs/references/pages/node-canvas.md` · `docs/plans/canvas-image-edit-convergence-2026-07.md`
 - 场景流：`docs/scenes/ui-marketing.md`（本拍板后：**允许**为 modal 登录改 Clerk **前端呈现**，仍不改密钥与策略）
 
-## P0 实现摘要（登录 modal）
+## P0 登录 modal
 
-| 入口                                          | 行为                                        |
-| --------------------------------------------- | ------------------------------------------- |
-| 首页 Hero / Header「开始创作」、Bottom CTA    | `AuthModalTrigger` → 页内 Dialog + 注册表单 |
-| 首页 Header「登录」、侧栏 / 移动轨 / Tab 登录 | 页内 Dialog + 登录表单                      |
-| Cards / Assets 未登录 CTA                     | `AuthModalCtaButton`                        |
-| `/sign-in` `/sign-up` path                    | **保留**（OAuth、邮件、middleware）         |
+| 项       | 状态                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| 产品意向 | 仍希望 Haivis 式页内窗（见 §2）                                              |
+| 代码     | **已回退**：用户入口恢复 `Link` → `/sign-in` `/sign-up` 整页 `AuthPageShell` |
+| 原因     | 两轮实现均未达标；owner 要求退回                                             |
 
-组件：
-
-- `AuthModalProvider`（locale layout）— 自研 Dialog 遮罩 + 白卡 + Clerk `SignIn`/`SignUp` `routing="virtual"`
-- `AuthModalTrigger` / `AuthModalCtaButton` — 只开窗，不跳 path
-- 窗内切换登录/注册，避免落到整页 auth
+再次开工前需对照截图/录屏确认验收，再开 PR。
 
 ## Last Verified
 
-- 2026-07-13 · owner 拍板：登录一律 modal；首页动态演示按 ready 能力做 Haivis 式证据。
-- 2026-07-13 · P0：用户入口改 modal；随后改为 Dialog + virtual 嵌入（非 Clerk 自带 modal 皮）。
+- 2026-07-13 · owner 拍板：登录一律 modal；首页动态演示按 ready 能力。
+- 2026-07-13 · P0 尝试后 **整段回退**，恢复 path 登录。

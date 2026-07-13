@@ -6,17 +6,9 @@ import { HomepageHeroCta } from './HomepageHeroCta'
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 
 const authState = { isLoaded: true, isSignedIn: false }
-const openAuth = vi.fn()
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => authState,
-}))
-
-vi.mock('./AuthModalProvider', () => ({
-  useAuthModal: () => ({
-    openAuth,
-    closeAuth: vi.fn(),
-  }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -31,14 +23,13 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 describe('HomepageHeroCta', () => {
-  it('opens sign-up modal for signed-out visitors', () => {
+  it('points signed-out visitors to sign-up', () => {
     authState.isLoaded = true
     authState.isSignedIn = false
     render(<HomepageHeroCta />)
     expect(
-      screen.getByRole('button', { name: 'Start creating' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+      screen.getByRole('link', { name: 'Start creating' }),
+    ).toHaveAttribute('href', HOMEPAGE_ROUTES.signUp)
   })
 
   it('points signed-in visitors to Studio', () => {
@@ -50,11 +41,10 @@ describe('HomepageHeroCta', () => {
     ).toHaveAttribute('href', HOMEPAGE_ROUTES.studio)
   })
 
-  it('renders a placeholder (no control) while auth is loading', () => {
+  it('renders a placeholder (no link) while auth is loading', () => {
     authState.isLoaded = false
     authState.isSignedIn = false
     render(<HomepageHeroCta />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

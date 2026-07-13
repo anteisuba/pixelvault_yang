@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   inpaintImageAPI: vi.fn(),
   outpaintImageAPI: vi.fn(),
   placeDerivedImages: vi.fn(),
+  updateNodeData: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
@@ -51,6 +52,7 @@ vi.mock('./NodeWorkflowActionsContext', () => ({
   useNodeWorkflowActions: () => ({
     placeDerivedImages: mocks.placeDerivedImages,
     focusNode: mocks.focusNode,
+    updateNodeData: mocks.updateNodeData,
   }),
 }))
 

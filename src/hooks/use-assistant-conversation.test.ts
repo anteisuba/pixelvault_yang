@@ -2,10 +2,23 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockStreamNodeAssistantAPI = vi.fn()
+const mockListAssistantConversationsAPI = vi.fn()
+const mockGetAssistantConversationAPI = vi.fn()
+const mockUpsertAssistantConversationAPI = vi.fn()
 
-vi.mock('@/lib/api-client/node-assistant', () => ({
+vi.mock('@/lib/api-client', () => ({
   streamNodeAssistantAPI: (...args: unknown[]) =>
     mockStreamNodeAssistantAPI(...args),
+  listAssistantConversationsAPI: (...args: unknown[]) =>
+    mockListAssistantConversationsAPI(...args),
+  getAssistantConversationAPI: (...args: unknown[]) =>
+    mockGetAssistantConversationAPI(...args),
+  upsertAssistantConversationAPI: (...args: unknown[]) =>
+    mockUpsertAssistantConversationAPI(...args),
+}))
+
+vi.mock('@/lib/logger', () => ({
+  logger: { warn: vi.fn(), error: vi.fn() },
 }))
 
 vi.mock('next-intl', () => {
@@ -49,19 +62,41 @@ const CONTEXT: AssistantConversationContext = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockListAssistantConversationsAPI.mockResolvedValue({
+    success: true,
+    data: [],
+  })
+  mockGetAssistantConversationAPI.mockResolvedValue({
+    success: true,
+    data: null,
+  })
+  mockUpsertAssistantConversationAPI.mockResolvedValue({
+    success: true,
+    data: {
+      id: 'session-1',
+      surface: 'NODE_CANVAS',
+      projectId: 'project-1',
+      title: 'test',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  })
 })
 
 describe('useAssistantConversation', () => {
   it('accumulates streamed assistant messages and extracts node references', async () => {
     mockStreamNodeAssistantAPI.mockResolvedValue({
       success: true,
-      stream: createStream(['检查 ', '[[node:node-1]]', '。']),
+      stream: createStream(['Check ', '[[node:node-1]]', '.']),
     })
 
-    const { result } = renderHook(() => useAssistantConversation())
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
 
     await act(async () => {
-      await result.current.send('帮我看一下', CONTEXT)
+      await result.current.send('Please review', CONTEXT)
     })
 
     expect(result.current.isLoading).toBe(false)
@@ -69,11 +104,11 @@ describe('useAssistantConversation', () => {
     expect(result.current.messages).toHaveLength(2)
     expect(result.current.messages[0]).toMatchObject({
       role: 'user',
-      content: '帮我看一下',
+      content: 'Please review',
     })
     expect(result.current.messages[1]).toMatchObject({
       role: 'assistant',
-      content: '检查 。',
+      content: 'Check .',
       references: [{ nodeId: 'node-1' }],
     })
     expect(mockStreamNodeAssistantAPI).toHaveBeenCalledWith(
@@ -91,7 +126,9 @@ describe('useAssistantConversation', () => {
       errorCode: 'MISSING_KEY',
     })
 
-    const { result } = renderHook(() => useAssistantConversation())
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
 
     await act(async () => {
       await result.current.send('hello', CONTEXT)
@@ -112,10 +149,12 @@ describe('useAssistantConversation', () => {
       stream: createStream(['ok']),
     })
 
-    const { result } = renderHook(() => useAssistantConversation())
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
 
     await act(async () => {
-      await result.current.send('走这条路由', {
+      await result.current.send('use this route', {
         ...CONTEXT,
         apiKeyId: 'key-selected',
       })
@@ -128,7 +167,7 @@ describe('useAssistantConversation', () => {
     )
   })
 
-  it('retries the last user message', async () => {
+  it('retries the last user message without duplicating it', async () => {
     mockStreamNodeAssistantAPI
       .mockResolvedValueOnce({
         success: false,
@@ -136,23 +175,31 @@ describe('useAssistantConversation', () => {
       })
       .mockResolvedValueOnce({
         success: true,
-        stream: createStream(['恢复']),
+        stream: createStream(['recovered']),
       })
 
-    const { result } = renderHook(() => useAssistantConversation())
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
 
     await act(async () => {
-      await result.current.send('重试这个问题', CONTEXT)
+      await result.current.send('retry this', CONTEXT)
     })
     await act(async () => {
       await result.current.retry(CONTEXT)
     })
 
-    expect(mockStreamNodeAssistantAPI).toHaveBeenCalledTimes(2)
+    expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
-    expect(result.current.messages.at(-1)).toMatchObject({
-      role: 'assistant',
-      content: '恢复',
+    expect(result.current.messages).toHaveLength(2)
+    expect(result.current.messages[0]).toMatchObject({
+      role: 'user',
+      content: 'retry this',
     })
+    expect(result.current.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'recovered',
+    })
+    expect(mockStreamNodeAssistantAPI).toHaveBeenCalledTimes(2)
   })
 })

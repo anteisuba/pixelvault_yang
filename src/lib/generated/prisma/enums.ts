@@ -113,6 +113,14 @@ export const VideoScriptStatus = {
 export type VideoScriptStatus = (typeof VideoScriptStatus)[keyof typeof VideoScriptStatus]
 
 
+export const AssistantSurface = {
+  STUDIO: 'STUDIO',
+  NODE_CANVAS: 'NODE_CANVAS'
+} as const
+
+export type AssistantSurface = (typeof AssistantSurface)[keyof typeof AssistantSurface]
+
+
 export const VideoScriptSceneStatus = {
   PENDING: 'PENDING',
   FRAME_GENERATING: 'FRAME_GENERATING',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   Bot,
   Globe,
@@ -18,20 +18,10 @@ import {
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import {
-  useAssistantConversation,
-  type AssistantConversationMessage,
-} from '@/hooks/use-assistant-conversation'
+import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import type { AppLocale } from '@/i18n/routing'
-import {
-  createNodeAssistantSessionId,
-  listNodeAssistantSessions,
-  saveNodeAssistantSession,
-  titleFromMessages,
-  type NodeAssistantHistorySession,
-} from '@/lib/node-assistant-history'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
@@ -118,52 +108,14 @@ export function StudioNodeAssistantDock({
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const tConversation = useTranslations('StudioNode.conversation')
   const selection = useNodeSelection()
-  const conversation = useAssistantConversation()
+  const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
   const [researchEnabled, setResearchEnabled] = useState(false)
   const [modality, setModality] = useState<CanvasAssistantModality>('image')
-  const [sessionId, setSessionId] = useState(() =>
-    createNodeAssistantSessionId(),
-  )
-  const [sessions, setSessions] = useState<NodeAssistantHistorySession[]>([])
   const isMobile = useIsMobile()
-
-  const refreshSessions = useCallback(() => {
-    setSessions(listNodeAssistantSessions(projectId))
-  }, [projectId])
-
-  useEffect(() => {
-    refreshSessions()
-    // Switching projects starts a fresh local session for the new project.
-    setSessionId(createNodeAssistantSessionId())
-    conversation.clear()
-    // Intentionally only re-run on projectId — conversation identity is stable
-    // enough for clear(), and we must not wipe on every messages update.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, refreshSessions])
-
-  const persistSession = useCallback(
-    (messages: AssistantConversationMessage[]) => {
-      if (messages.length === 0) return
-      saveNodeAssistantSession(projectId, {
-        id: sessionId,
-        title: titleFromMessages(messages, tHistory('new')),
-        updatedAt: new Date().toISOString(),
-        messages,
-      })
-      refreshSessions()
-    },
-    [projectId, refreshSessions, sessionId, tHistory],
-  )
-
-  useEffect(() => {
-    if (conversation.isLoading) return
-    if (conversation.messages.length === 0) return
-    persistSession(conversation.messages)
-  }, [conversation.isLoading, conversation.messages, persistSession])
 
   const dockStyle = isMobile
     ? {
@@ -239,27 +191,25 @@ export function StudioNodeAssistantDock({
   }, [buildConversationContext, conversation])
 
   const handleNewConversation = useCallback(() => {
-    if (conversation.messages.length > 0) {
-      persistSession(conversation.messages)
-    }
-    setSessionId(createNodeAssistantSessionId())
     conversation.clear()
-  }, [conversation, persistSession])
+  }, [conversation])
 
   const handleSelectHistory = useCallback(
     (id: string) => {
-      const target = listNodeAssistantSessions(projectId).find(
-        (session) => session.id === id,
-      )
-      if (!target) return
-      if (conversation.messages.length > 0) {
-        persistSession(conversation.messages)
-      }
-      setSessionId(target.id)
-      conversation.load(target.messages)
-      refreshSessions()
+      void conversation.selectSession(id)
     },
-    [conversation, persistSession, projectId, refreshSessions],
+    [conversation],
+  )
+
+  const historySessions = useMemo(
+    () =>
+      conversation.sessions.map((session) => ({
+        id: session.id,
+        title: session.title ?? tHistory('new'),
+        updatedAt: session.updatedAt,
+        messages: [],
+      })),
+    [conversation.sessions, tHistory],
   )
 
   const getNodeLabel = useCallback(
@@ -380,8 +330,8 @@ export function StudioNodeAssistantDock({
               <MessageSquarePlus className="size-4" />
             </Button>
             <CanvasAssistantHistory
-              sessions={sessions}
-              activeSessionId={sessionId}
+              sessions={historySessions}
+              activeSessionId={conversation.sessionId}
               onSelect={handleSelectHistory}
             />
             <Button

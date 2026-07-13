@@ -123,6 +123,13 @@ export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeFilter<$PrismaModel>
 }
 
+export type EnumAssistantSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+}
+
 export type JsonFilter<$PrismaModel = never> =
 | Prisma.PatchUndefined<
     Prisma.Either<Required<JsonFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonFilterBase<$PrismaModel>>, 'path'>>,
@@ -145,6 +152,16 @@ export type JsonFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type EnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
 }
 
 export type JsonWithAggregatesFilter<$PrismaModel = never> =
@@ -692,6 +709,23 @@ export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeFilter<$PrismaModel>
+}
+
+export type NestedEnumAssistantSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+}
+
+export type NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
 }
 
 export type NestedJsonFilter<$PrismaModel = never> =

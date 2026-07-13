@@ -1006,12 +1006,16 @@ export function useNodeWorkflow({
       const sourceNode = currentState.nodes.find(
         (node) => node.id === sourceNodeId,
       )
-      const sourceMediaKind = sourceNode
-        ? (sourceNode.data.mediaKind ??
-          NODE_MEDIA_KIND_BY_NODE_TYPE[sourceNode.type])
-        : undefined
       const sourceImageUrl =
         sourceNode?.data.mediaUrl ?? sourceNode?.data.imageUrl
+      // Prefer explicit mediaKind; fall back to type map; finally infer image
+      // when a remote media URL is present (role-stamped `image` nodes often
+      // omit mediaKind after createDefaultNodeData).
+      const sourceMediaKind = sourceNode
+        ? (sourceNode.data.mediaKind ??
+          NODE_MEDIA_KIND_BY_NODE_TYPE[sourceNode.type] ??
+          (sourceImageUrl?.trim() ? NODE_MEDIA_KIND_IDS.image : undefined))
+        : undefined
 
       if (
         !sourceNode ||

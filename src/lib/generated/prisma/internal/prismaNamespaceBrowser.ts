@@ -52,6 +52,7 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
+  AssistantConversation: 'AssistantConversation',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
   UserApiKey: 'UserApiKey',
@@ -124,6 +125,20 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const AssistantConversationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  surface: 'surface',
+  projectId: 'projectId',
+  title: 'title',
+  messages: 'messages',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantConversationScalarFieldEnum = (typeof AssistantConversationScalarFieldEnum)[keyof typeof AssistantConversationScalarFieldEnum]
 
 
 export const NodeWorkflowProjectScalarFieldEnum = {

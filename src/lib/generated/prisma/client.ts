@@ -47,6 +47,12 @@ export { Prisma }
  */
 export type User = Prisma.UserModel
 /**
+ * Model AssistantConversation
+ * Persisted assistant chat (Node canvas and Studio). Messages are JSON
+ * text-only (plus remote media URLs) — never base64 payloads.
+ */
+export type AssistantConversation = Prisma.AssistantConversationModel
+/**
  * Model NodeWorkflowProject
  * Node Studio workflow project — persists the React Flow canvas state
  * (nodes + edges + per-node data) per user so a workflow survives across

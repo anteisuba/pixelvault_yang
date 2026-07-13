@@ -28,6 +28,10 @@ import {
   getCanvasImageEditCapability,
   READY_CANVAS_IMAGE_EDIT_CAPABILITIES,
 } from '@/constants/canvas-image-edit-capabilities'
+import {
+  NODE_GENERATION_STATUS_IDS,
+  NODE_STATUS_IDS,
+} from '@/constants/node-types'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import {
   createExtractedElementAPI,
@@ -111,7 +115,8 @@ export function CanvasImageEditWorkspace({
   const t = useTranslations('StudioImageEdit')
   const tCommon = useTranslations('Common')
   const tErrors = useTranslations('Errors')
-  const { placeDerivedImages, focusNode } = useNodeWorkflowActions()
+  const { placeDerivedImages, focusNode, updateNodeData } =
+    useNodeWorkflowActions()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(true)
   const [activeTask, setActiveTask] =
     useState<ReadyCanvasImageEditCapabilityId>(defaultTask)
@@ -151,23 +156,38 @@ export function CanvasImageEditWorkspace({
     async (
       task: ReadyCanvasImageEditCapabilityId,
       fallbackMessage: string,
-      operation: () => Promise<void>,
+      operation: () => Promise<boolean>,
     ) => {
       if (runningRef.current || !sourceUrl) return
 
       runningRef.current = true
       setRunningTask(task)
+      // C2: surface running progress on the source object (not only the dialog).
+      updateNodeData(nodeId, {
+        generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+        status: NODE_STATUS_IDS.running,
+      })
       try {
-        await operation()
+        const succeeded = await operation()
+        updateNodeData(nodeId, {
+          generationStatus: succeeded
+            ? NODE_GENERATION_STATUS_IDS.success
+            : NODE_GENERATION_STATUS_IDS.error,
+          status: succeeded ? NODE_STATUS_IDS.done : NODE_STATUS_IDS.failed,
+        })
       } catch (error) {
         logger.error('[canvas-image-edit] task failed', { task, error })
         toast.error(fallbackMessage)
+        updateNodeData(nodeId, {
+          generationStatus: NODE_GENERATION_STATUS_IDS.error,
+          status: NODE_STATUS_IDS.failed,
+        })
       } finally {
         runningRef.current = false
         setRunningTask(null)
       }
     },
-    [sourceUrl],
+    [nodeId, sourceUrl, updateNodeData],
   )
 
   const placeOutputs = useCallback(
@@ -219,7 +239,7 @@ export function CanvasImageEditWorkspace({
         toast.error(
           getGenerationErrorMessage(tErrors, response, t('editFailed')),
         )
-        return
+        return false
       }
 
       if (
@@ -234,9 +254,10 @@ export function CanvasImageEditWorkspace({
           t('editFailed'),
         )
       ) {
-        return
+        return false
       }
       toast.success(t('success.upscale'))
+      return true
     })
   }, [
     placeSingleResult,
@@ -258,7 +279,7 @@ export function CanvasImageEditWorkspace({
         toast.error(
           getGenerationErrorMessage(tErrors, response, t('editFailed')),
         )
-        return
+        return false
       }
 
       if (
@@ -273,9 +294,10 @@ export function CanvasImageEditWorkspace({
           t('editFailed'),
         )
       ) {
-        return
+        return false
       }
       toast.success(t('success.removeBg'))
+      return true
     })
   }, [
     placeSingleResult,
@@ -299,7 +321,7 @@ export function CanvasImageEditWorkspace({
         toast.error(
           getGenerationErrorMessage(tErrors, response, t('decomposeFailed')),
         )
-        return
+        return false
       }
 
       const outputs = response.data.layers
@@ -316,11 +338,12 @@ export function CanvasImageEditWorkspace({
 
       if (outputs.length === 0) {
         toast.error(t('decomposeFailed'))
-        return
+        return false
       }
-      if (!placeOutputs(outputs, t('decomposeFailed'))) return
+      if (!placeOutputs(outputs, t('decomposeFailed'))) return false
 
       toast.success(t('decomposeDone', { count: outputs.length }))
+      return true
     })
   }, [
     placeOutputs,
@@ -350,7 +373,7 @@ export function CanvasImageEditWorkspace({
         toast.error(
           getGenerationErrorMessage(tErrors, response, t('extractFailed')),
         )
-        return
+        return false
       }
 
       if (
@@ -365,7 +388,7 @@ export function CanvasImageEditWorkspace({
           t('extractFailed'),
         )
       ) {
-        return
+        return false
       }
 
       const saveResponse = await createExtractedElementAPI({
@@ -384,9 +407,11 @@ export function CanvasImageEditWorkspace({
         toast.warning(t('extract.success'), {
           description: t('extract.saveFailed'),
         })
-        return
+        // Placement already succeeded — treat as overall success for canvas.
+        return true
       }
       toast.success(t('extract.success'))
+      return true
     })
   }, [
     extractInvert,
@@ -413,7 +438,7 @@ export function CanvasImageEditWorkspace({
           toast.error(
             getGenerationErrorMessage(tErrors, response, t('editFailed')),
           )
-          return
+          return false
         }
 
         if (
@@ -428,9 +453,10 @@ export function CanvasImageEditWorkspace({
             t('editFailed'),
           )
         ) {
-          return
+          return false
         }
         toast.success(t('savedToGallery'))
+        return true
       })
     },
     [
@@ -457,7 +483,7 @@ export function CanvasImageEditWorkspace({
           toast.error(
             getGenerationErrorMessage(tErrors, response, t('editFailed')),
           )
-          return
+          return false
         }
 
         if (
@@ -472,9 +498,10 @@ export function CanvasImageEditWorkspace({
             t('editFailed'),
           )
         ) {
-          return
+          return false
         }
         toast.success(t('savedToGallery'))
+        return true
       })
     },
     [

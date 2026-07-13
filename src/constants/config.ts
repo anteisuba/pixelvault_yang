@@ -117,6 +117,8 @@ export const API_ENDPOINTS = {
   SEEDANCE_PROMPT_PLAN: '/api/studio/seedance-prompt-plan',
   /** Node Studio assistant conversation */
   NODE_ASSISTANT: '/api/studio/node-assistant',
+  /** Persisted assistant chat transcripts (Node canvas + Studio) */
+  ASSISTANT_CONVERSATION: '/api/assistant/conversation',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */

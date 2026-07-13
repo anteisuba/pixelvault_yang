@@ -385,6 +385,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  AssistantConversation: 'AssistantConversation',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
   UserApiKey: 'UserApiKey',
@@ -435,7 +436,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt"
+    modelProps: "user" | "assistantConversation" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -510,6 +511,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    AssistantConversation: {
+      payload: Prisma.$AssistantConversationPayload<ExtArgs>
+      fields: Prisma.AssistantConversationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantConversationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantConversationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantConversationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantConversationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        findMany: {
+          args: Prisma.AssistantConversationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>[]
+        }
+        create: {
+          args: Prisma.AssistantConversationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        createMany: {
+          args: Prisma.AssistantConversationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantConversationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantConversationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        update: {
+          args: Prisma.AssistantConversationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantConversationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantConversationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantConversationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantConversationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationPayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantConversationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantConversation>
+        }
+        groupBy: {
+          args: Prisma.AssistantConversationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantConversationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantConversationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantConversationCountAggregateOutputType> | number
         }
       }
     }
@@ -3163,6 +3238,20 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const AssistantConversationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  surface: 'surface',
+  projectId: 'projectId',
+  title: 'title',
+  messages: 'messages',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantConversationScalarFieldEnum = (typeof AssistantConversationScalarFieldEnum)[keyof typeof AssistantConversationScalarFieldEnum]
+
+
 export const NodeWorkflowProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3928,6 +4017,20 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
+ * Reference to a field of type 'AssistantSurface'
+ */
+export type EnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantSurface[]'
+ */
+export type ListEnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface[]'>
+    
+
+
+/**
  * Reference to a field of type 'Json'
  */
 export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
@@ -4232,6 +4335,7 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  assistantConversation?: Prisma.AssistantConversationOmit
   nodeWorkflowProject?: Prisma.NodeWorkflowProjectOmit
   project?: Prisma.ProjectOmit
   userApiKey?: Prisma.UserApiKeyOmit

@@ -204,6 +204,7 @@ export type AssistantConversationWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  shares?: Prisma.AssistantConversationShareListRelationFilter
 }
 
 export type AssistantConversationOrderByWithRelationInput = {
@@ -216,6 +217,7 @@ export type AssistantConversationOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  shares?: Prisma.AssistantConversationShareOrderByRelationAggregateInput
 }
 
 export type AssistantConversationWhereUniqueInput = Prisma.AtLeast<{
@@ -231,6 +233,7 @@ export type AssistantConversationWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  shares?: Prisma.AssistantConversationShareListRelationFilter
 }, "id">
 
 export type AssistantConversationOrderByWithAggregationInput = {
@@ -270,6 +273,7 @@ export type AssistantConversationCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantConversationsInput
+  shares?: Prisma.AssistantConversationShareCreateNestedManyWithoutConversationInput
 }
 
 export type AssistantConversationUncheckedCreateInput = {
@@ -281,6 +285,7 @@ export type AssistantConversationUncheckedCreateInput = {
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  shares?: Prisma.AssistantConversationShareUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type AssistantConversationUpdateInput = {
@@ -292,6 +297,7 @@ export type AssistantConversationUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantConversationsNestedInput
+  shares?: Prisma.AssistantConversationShareUpdateManyWithoutConversationNestedInput
 }
 
 export type AssistantConversationUncheckedUpdateInput = {
@@ -303,6 +309,7 @@ export type AssistantConversationUncheckedUpdateInput = {
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shares?: Prisma.AssistantConversationShareUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type AssistantConversationCreateManyInput = {
@@ -378,6 +385,11 @@ export type AssistantConversationMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
+export type AssistantConversationScalarRelationFilter = {
+  is?: Prisma.AssistantConversationWhereInput
+  isNot?: Prisma.AssistantConversationWhereInput
+}
+
 export type AssistantConversationCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.AssistantConversationCreateWithoutUserInput, Prisma.AssistantConversationUncheckedCreateWithoutUserInput> | Prisma.AssistantConversationCreateWithoutUserInput[] | Prisma.AssistantConversationUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.AssistantConversationCreateOrConnectWithoutUserInput | Prisma.AssistantConversationCreateOrConnectWithoutUserInput[]
@@ -424,6 +436,20 @@ export type EnumAssistantSurfaceFieldUpdateOperationsInput = {
   set?: $Enums.AssistantSurface
 }
 
+export type AssistantConversationCreateNestedOneWithoutSharesInput = {
+  create?: Prisma.XOR<Prisma.AssistantConversationCreateWithoutSharesInput, Prisma.AssistantConversationUncheckedCreateWithoutSharesInput>
+  connectOrCreate?: Prisma.AssistantConversationCreateOrConnectWithoutSharesInput
+  connect?: Prisma.AssistantConversationWhereUniqueInput
+}
+
+export type AssistantConversationUpdateOneRequiredWithoutSharesNestedInput = {
+  create?: Prisma.XOR<Prisma.AssistantConversationCreateWithoutSharesInput, Prisma.AssistantConversationUncheckedCreateWithoutSharesInput>
+  connectOrCreate?: Prisma.AssistantConversationCreateOrConnectWithoutSharesInput
+  upsert?: Prisma.AssistantConversationUpsertWithoutSharesInput
+  connect?: Prisma.AssistantConversationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AssistantConversationUpdateToOneWithWhereWithoutSharesInput, Prisma.AssistantConversationUpdateWithoutSharesInput>, Prisma.AssistantConversationUncheckedUpdateWithoutSharesInput>
+}
+
 export type AssistantConversationCreateWithoutUserInput = {
   id?: string
   surface: $Enums.AssistantSurface
@@ -432,6 +458,7 @@ export type AssistantConversationCreateWithoutUserInput = {
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  shares?: Prisma.AssistantConversationShareCreateNestedManyWithoutConversationInput
 }
 
 export type AssistantConversationUncheckedCreateWithoutUserInput = {
@@ -442,6 +469,7 @@ export type AssistantConversationUncheckedCreateWithoutUserInput = {
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  shares?: Prisma.AssistantConversationShareUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type AssistantConversationCreateOrConnectWithoutUserInput = {
@@ -484,6 +512,66 @@ export type AssistantConversationScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
 }
 
+export type AssistantConversationCreateWithoutSharesInput = {
+  id?: string
+  surface: $Enums.AssistantSurface
+  projectId?: string | null
+  title?: string | null
+  messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutAssistantConversationsInput
+}
+
+export type AssistantConversationUncheckedCreateWithoutSharesInput = {
+  id?: string
+  userId: string
+  surface: $Enums.AssistantSurface
+  projectId?: string | null
+  title?: string | null
+  messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AssistantConversationCreateOrConnectWithoutSharesInput = {
+  where: Prisma.AssistantConversationWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssistantConversationCreateWithoutSharesInput, Prisma.AssistantConversationUncheckedCreateWithoutSharesInput>
+}
+
+export type AssistantConversationUpsertWithoutSharesInput = {
+  update: Prisma.XOR<Prisma.AssistantConversationUpdateWithoutSharesInput, Prisma.AssistantConversationUncheckedUpdateWithoutSharesInput>
+  create: Prisma.XOR<Prisma.AssistantConversationCreateWithoutSharesInput, Prisma.AssistantConversationUncheckedCreateWithoutSharesInput>
+  where?: Prisma.AssistantConversationWhereInput
+}
+
+export type AssistantConversationUpdateToOneWithWhereWithoutSharesInput = {
+  where?: Prisma.AssistantConversationWhereInput
+  data: Prisma.XOR<Prisma.AssistantConversationUpdateWithoutSharesInput, Prisma.AssistantConversationUncheckedUpdateWithoutSharesInput>
+}
+
+export type AssistantConversationUpdateWithoutSharesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutAssistantConversationsNestedInput
+}
+
+export type AssistantConversationUncheckedUpdateWithoutSharesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type AssistantConversationCreateManyUserInput = {
   id?: string
   surface: $Enums.AssistantSurface
@@ -502,6 +590,7 @@ export type AssistantConversationUpdateWithoutUserInput = {
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shares?: Prisma.AssistantConversationShareUpdateManyWithoutConversationNestedInput
 }
 
 export type AssistantConversationUncheckedUpdateWithoutUserInput = {
@@ -512,6 +601,7 @@ export type AssistantConversationUncheckedUpdateWithoutUserInput = {
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shares?: Prisma.AssistantConversationShareUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type AssistantConversationUncheckedUpdateManyWithoutUserInput = {
@@ -525,6 +615,35 @@ export type AssistantConversationUncheckedUpdateManyWithoutUserInput = {
 }
 
 
+/**
+ * Count Type AssistantConversationCountOutputType
+ */
+
+export type AssistantConversationCountOutputType = {
+  shares: number
+}
+
+export type AssistantConversationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  shares?: boolean | AssistantConversationCountOutputTypeCountSharesArgs
+}
+
+/**
+ * AssistantConversationCountOutputType without action
+ */
+export type AssistantConversationCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssistantConversationCountOutputType
+   */
+  select?: Prisma.AssistantConversationCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * AssistantConversationCountOutputType without action
+ */
+export type AssistantConversationCountOutputTypeCountSharesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AssistantConversationShareWhereInput
+}
+
 
 export type AssistantConversationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -536,6 +655,8 @@ export type AssistantConversationSelect<ExtArgs extends runtime.Types.Extensions
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  shares?: boolean | Prisma.AssistantConversation$sharesArgs<ExtArgs>
+  _count?: boolean | Prisma.AssistantConversationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["assistantConversation"]>
 
 export type AssistantConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -576,6 +697,8 @@ export type AssistantConversationSelectScalar = {
 export type AssistantConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "surface" | "projectId" | "title" | "messages" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantConversation"]>
 export type AssistantConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  shares?: boolean | Prisma.AssistantConversation$sharesArgs<ExtArgs>
+  _count?: boolean | Prisma.AssistantConversationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AssistantConversationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -588,6 +711,7 @@ export type $AssistantConversationPayload<ExtArgs extends runtime.Types.Extensio
   name: "AssistantConversation"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    shares: Prisma.$AssistantConversationSharePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1002,6 +1126,7 @@ readonly fields: AssistantConversationFieldRefs;
 export interface Prisma__AssistantConversationClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  shares<T extends Prisma.AssistantConversation$sharesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssistantConversation$sharesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantConversationSharePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1437,6 +1562,30 @@ export type AssistantConversationDeleteManyArgs<ExtArgs extends runtime.Types.Ex
    * Limit how many AssistantConversations to delete.
    */
   limit?: number
+}
+
+/**
+ * AssistantConversation.shares
+ */
+export type AssistantConversation$sharesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssistantConversationShare
+   */
+  select?: Prisma.AssistantConversationShareSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AssistantConversationShare
+   */
+  omit?: Prisma.AssistantConversationShareOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AssistantConversationShareInclude<ExtArgs> | null
+  where?: Prisma.AssistantConversationShareWhereInput
+  orderBy?: Prisma.AssistantConversationShareOrderByWithRelationInput | Prisma.AssistantConversationShareOrderByWithRelationInput[]
+  cursor?: Prisma.AssistantConversationShareWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AssistantConversationShareScalarFieldEnum | Prisma.AssistantConversationShareScalarFieldEnum[]
 }
 
 /**

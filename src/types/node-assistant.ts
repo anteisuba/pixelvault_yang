@@ -39,6 +39,21 @@ export const NodeAssistantNodeContextSchema = z.object({
     .optional(),
 })
 
+/**
+ * Media that is already present on the canvas and can be attached to an
+ * assistant turn. URLs are deliberately persisted as references, never as
+ * data URLs, so the assistant request stays bounded and share/history rows do
+ * not accidentally contain binary payloads.
+ */
+export const NodeAssistantMediaReferenceSchema = z.object({
+  id: z.string().trim().min(1).max(160),
+  nodeId: z.string().trim().min(1).max(160),
+  kind: z.enum(['image', 'video']),
+  url: z.string().trim().url().max(4000),
+  thumbnailUrl: z.string().trim().url().max(4000).optional(),
+  label: z.string().trim().min(1).max(160),
+})
+
 export const NodeAssistantRequestSchema = z.object({
   messages: z
     .array(NodeAssistantMessageSchema)
@@ -51,6 +66,10 @@ export const NodeAssistantRequestSchema = z.object({
     .array(z.string().trim().min(1).max(160))
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes)
     .default([]),
+  references: z
+    .array(NodeAssistantMediaReferenceSchema)
+    .max(NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
+    .optional(),
   locale: z.enum(LOCALES),
   apiKeyId: z.string().trim().min(1).max(160).optional(),
   /**
@@ -68,5 +87,8 @@ export type NodeAssistantMessageRole = z.infer<
 export type NodeAssistantMessage = z.infer<typeof NodeAssistantMessageSchema>
 export type NodeAssistantNodeContext = z.infer<
   typeof NodeAssistantNodeContextSchema
+>
+export type NodeAssistantMediaReference = z.infer<
+  typeof NodeAssistantMediaReferenceSchema
 >
 export type NodeAssistantRequest = z.infer<typeof NodeAssistantRequestSchema>

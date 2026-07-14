@@ -53,7 +53,10 @@ export function CanvasAssistantHistory({
       </ResponsivePopoverTrigger>
       <ResponsivePopoverContent
         label={t('title')}
-        align="end"
+        // Start alignment lets Radix collision handling keep the panel inside
+        // the assistant rail instead of pinning its right edge to the history
+        // icon (which made it float over the canvas on narrow rails).
+        align="start"
         sideOffset={8}
         className="w-80 border-node-panel-inner bg-node-panel p-0 text-node-foreground shadow-node-panel"
       >

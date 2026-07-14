@@ -53,6 +53,11 @@ export type User = Prisma.UserModel
  */
 export type AssistantConversation = Prisma.AssistantConversationModel
 /**
+ * Model AssistantConversationShare
+ * Unauthenticated, read-only snapshots shared by an assistant conversation owner.
+ */
+export type AssistantConversationShare = Prisma.AssistantConversationShareModel
+/**
  * Model NodeWorkflowProject
  * Node Studio workflow project — persists the React Flow canvas state
  * (nodes + edges + per-node data) per user so a workflow survives across

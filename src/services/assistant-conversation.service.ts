@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { createHash, randomBytes } from 'node:crypto'
+
 import type { AssistantSurface, Prisma } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
@@ -10,9 +12,17 @@ import {
   type AssistantConversationMessageStored,
   type AssistantConversationRecord,
   type AssistantConversationSummary,
+  type AssistantConversationShare,
   type AssistantSurfaceId,
+  type SharedAssistantConversationRecord,
   type UpsertAssistantConversationRequest,
 } from '@/types/assistant-conversation'
+
+const ASSISTANT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+function hashShareToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
+}
 
 function titleFromMessages(
   messages: AssistantConversationMessageStored[],
@@ -183,4 +193,60 @@ export async function getAssistantConversation(
     orderBy: { updatedAt: 'desc' },
   })
   return row ? toRecord(row) : null
+}
+
+export async function createAssistantConversationShare(
+  clerkId: string,
+  conversationId: string,
+): Promise<AssistantConversationShare> {
+  const user = await ensureUser(clerkId)
+  const conversation = await db.assistantConversation.findFirst({
+    where: { id: conversationId, userId: user.id },
+    select: { id: true },
+  })
+  if (!conversation) throw new Error('ASSISTANT_CONVERSATION_NOT_FOUND')
+
+  const token = randomBytes(32).toString('base64url')
+  const expiresAt = new Date(Date.now() + ASSISTANT_SHARE_TTL_MS)
+
+  await db.assistantConversationShare.updateMany({
+    where: { conversationId: conversation.id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  })
+  await db.assistantConversationShare.create({
+    data: {
+      conversationId: conversation.id,
+      tokenHash: hashShareToken(token),
+      expiresAt,
+    },
+  })
+
+  return { token, expiresAt: expiresAt.toISOString() }
+}
+
+export async function getSharedAssistantConversation(
+  token: string,
+): Promise<SharedAssistantConversationRecord | null> {
+  const share = await db.assistantConversationShare.findUnique({
+    where: { tokenHash: hashShareToken(token) },
+    include: { conversation: true },
+  })
+  if (
+    !share ||
+    share.revokedAt ||
+    !share.expiresAt ||
+    share.expiresAt <= new Date()
+  ) {
+    return null
+  }
+
+  const record = toRecord(share.conversation)
+  return {
+    id: record.id,
+    surface: record.surface,
+    title: record.title,
+    messages: record.messages,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  }
 }

@@ -153,6 +153,8 @@ const LLM_TEXT_PROVIDER_ERROR_CODES = {
   rateLimited: 'PROVIDER_RATE_LIMITED',
   temporarilyUnavailable: 'PROVIDER_TRANSIENT',
   failed: 'PROVIDER_ERROR',
+  /** Completion budget used up (often by reasoning) before any visible text. */
+  outputBudgetExhausted: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
@@ -161,6 +163,7 @@ const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   rateLimited: 'errors.provider.rateLimited',
   temporarilyUnavailable: 'errors.provider.temporarilyUnavailable',
   failed: 'errors.provider.failed',
+  outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
@@ -174,6 +177,8 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
     'The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.',
   failed:
     'The selected planner provider rejected the request. Try another Agent Key.',
+  outputBudgetExhausted:
+    'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.',
 } as const
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
@@ -196,8 +201,31 @@ function getOpenAiChatBaseUrl(baseUrl?: string): string {
     : baseUrl
 }
 
+function isOpenAiReasoningModel(modelId: string): boolean {
+  return /^(gpt-5|o[134])(?:[.-]|$)/i.test(modelId)
+}
+
+/**
+ * Resolve completion token budget for OpenAI chat.
+ * Reasoning models (gpt-5*, o1/o3/o4) bill hidden reasoning against
+ * max_completion_tokens; callers that pass a small maxTokens often get
+ * empty content with finish_reason=length. Floor those models at
+ * OPENAI_REASONING so assistant / planner routes stay reliable.
+ */
+function resolveOpenAiCompletionBudget(
+  modelId: string,
+  maxTokens?: number,
+): number {
+  if (isOpenAiReasoningModel(modelId)) {
+    const requested = maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING
+    return Math.max(requested, LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING)
+  }
+
+  return maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT
+}
+
 function getOpenAiTokenLimit(modelId: string, maxTokens: number) {
-  if (/^(gpt-5|o[134])(?:[.-]|$)/i.test(modelId)) {
+  if (isOpenAiReasoningModel(modelId)) {
     return { max_completion_tokens: maxTokens }
   }
 
@@ -244,14 +272,35 @@ function throwNoOpenAiTextResponse(
   modelId: string,
 ): never {
   const choice = data.choices[0]
+  const finishReason = choice?.finish_reason
+  const reasoningTokens =
+    data.usage?.completion_tokens_details?.reasoning_tokens
   logger.warn('OpenAI text completion returned no text', {
     modelId,
-    finishReason: choice?.finish_reason,
+    finishReason,
     hasContent: choice?.message.content != null,
     contentPartsCount: choice?.message.content_parts?.length ?? 0,
     hasRefusal: Boolean(choice?.message.refusal),
-    reasoningTokens: data.usage?.completion_tokens_details?.reasoning_tokens,
+    reasoningTokens,
   })
+
+  // finish_reason=length with reasoning-only usage means the model never
+  // reached visible text — not an invalid API key. Surface a specific code
+  // so the UI does not tell users to "try another Agent Key".
+  const budgetExhausted =
+    finishReason === 'length' &&
+    (typeof reasoningTokens === 'number'
+      ? reasoningTokens > 0
+      : isOpenAiReasoningModel(modelId))
+
+  if (budgetExhausted) {
+    throw new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.outputBudgetExhausted,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.outputBudgetExhausted,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.outputBudgetExhausted,
+    )
+  }
 
   throw new ApiRequestError(
     LLM_TEXT_PROVIDER_ERROR_CODES.failed,
@@ -542,7 +591,7 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
       messages,
       ...getOpenAiTokenLimit(
         requestModelId,
-        input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING,
+        resolveOpenAiCompletionBudget(requestModelId, input.maxTokens),
       ),
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }

@@ -5,12 +5,16 @@ export type AssistantSurfaceId = (typeof ASSISTANT_SURFACES)[number]
 
 export const AssistantSurfaceSchema = z.enum(ASSISTANT_SURFACES)
 
-/** Max characters stored per message body (server + client). */
+/**
+ * Canvas / studio assistant persistence. Conversation is not product-capped —
+ * values below are hard DoS guards only (must stay ≥ node-assistant request
+ * limits so a successful turn never fails on the next upsert).
+ */
 export const ASSISTANT_CONVERSATION_LIMITS = {
-  maxMessages: 200,
-  maxContentLength: 12_000,
+  maxMessages: 500,
+  maxContentLength: 100_000,
   titleMaxLength: 80,
-  /** Messages sent to the LLM (UI keeps full history). */
+  /** Soft window for non-canvas surfaces that still replay a short history. */
   replayWindow: 12,
 } as const
 
@@ -79,4 +83,18 @@ export interface AssistantConversationSummary {
   title: string | null
   updatedAt: string
   messageCount: number
+}
+
+export interface AssistantConversationShare {
+  token: string
+  expiresAt: string
+}
+
+export interface SharedAssistantConversationRecord {
+  id: string
+  surface: AssistantSurfaceId
+  title: string | null
+  messages: AssistantConversationMessageStored[]
+  createdAt: string
+  updatedAt: string
 }

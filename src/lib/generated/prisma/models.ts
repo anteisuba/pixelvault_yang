@@ -10,6 +10,7 @@
  */
 export type * from './models/User'
 export type * from './models/AssistantConversation'
+export type * from './models/AssistantConversationShare'
 export type * from './models/NodeWorkflowProject'
 export type * from './models/Project'
 export type * from './models/UserApiKey'

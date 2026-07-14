@@ -386,6 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   AssistantConversation: 'AssistantConversation',
+  AssistantConversationShare: 'AssistantConversationShare',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
   UserApiKey: 'UserApiKey',
@@ -436,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt"
+    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -585,6 +586,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.AssistantConversationCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.AssistantConversationCountAggregateOutputType> | number
+        }
+      }
+    }
+    AssistantConversationShare: {
+      payload: Prisma.$AssistantConversationSharePayload<ExtArgs>
+      fields: Prisma.AssistantConversationShareFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantConversationShareFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantConversationShareFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantConversationShareFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantConversationShareFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        findMany: {
+          args: Prisma.AssistantConversationShareFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>[]
+        }
+        create: {
+          args: Prisma.AssistantConversationShareCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        createMany: {
+          args: Prisma.AssistantConversationShareCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantConversationShareCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantConversationShareDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        update: {
+          args: Prisma.AssistantConversationShareUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantConversationShareDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantConversationShareUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantConversationShareUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantConversationShareUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantConversationSharePayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantConversationShareAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantConversationShare>
+        }
+        groupBy: {
+          args: Prisma.AssistantConversationShareGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantConversationShareGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantConversationShareCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantConversationShareCountAggregateOutputType> | number
         }
       }
     }
@@ -3252,6 +3327,18 @@ export const AssistantConversationScalarFieldEnum = {
 export type AssistantConversationScalarFieldEnum = (typeof AssistantConversationScalarFieldEnum)[keyof typeof AssistantConversationScalarFieldEnum]
 
 
+export const AssistantConversationShareScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  revokedAt: 'revokedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type AssistantConversationShareScalarFieldEnum = (typeof AssistantConversationShareScalarFieldEnum)[keyof typeof AssistantConversationShareScalarFieldEnum]
+
+
 export const NodeWorkflowProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4336,6 +4423,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   assistantConversation?: Prisma.AssistantConversationOmit
+  assistantConversationShare?: Prisma.AssistantConversationShareOmit
   nodeWorkflowProject?: Prisma.NodeWorkflowProjectOmit
   project?: Prisma.ProjectOmit
   userApiKey?: Prisma.UserApiKeyOmit

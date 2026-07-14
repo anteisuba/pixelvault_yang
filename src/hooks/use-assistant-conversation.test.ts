@@ -119,6 +119,26 @@ describe('useAssistantConversation', () => {
     )
   })
 
+  it('extracts confirmed capability markers without persisting marker text', async () => {
+    mockStreamNodeAssistantAPI.mockResolvedValue({
+      success: true,
+      stream: createStream(['Run it [[capability:upscale:node-1]]']),
+    })
+
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
+
+    await act(async () => {
+      await result.current.send('Upscale this image', CONTEXT)
+    })
+
+    expect(result.current.messages[1]).toMatchObject({
+      content: 'Run it',
+      capabilities: [{ capability: 'upscale', nodeId: 'node-1' }],
+    })
+  })
+
   it('surfaces API errors and removes the pending assistant placeholder', async () => {
     mockStreamNodeAssistantAPI.mockResolvedValue({
       success: false,

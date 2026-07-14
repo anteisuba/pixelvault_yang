@@ -1,8 +1,10 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type {
+  AssistantConversationShare,
   AssistantConversationRecord,
   AssistantConversationSummary,
   AssistantSurfaceId,
+  SharedAssistantConversationRecord,
   UpsertAssistantConversationRequest,
 } from '@/types/assistant-conversation'
 
@@ -111,6 +113,51 @@ export async function upsertAssistantConversationAPI(
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to save conversation',
+    }
+  }
+}
+
+export async function createAssistantConversationShareAPI(
+  conversationId: string,
+): Promise<ApiResult<AssistantConversationShare>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/share`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId }),
+      },
+    )
+    return parseJsonResult(response, 'Failed to create assistant share')
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to create assistant share',
+    }
+  }
+}
+
+export async function getSharedAssistantConversationAPI(
+  token: string,
+): Promise<ApiResult<SharedAssistantConversationRecord>> {
+  try {
+    const params = new URLSearchParams({ token })
+    const response = await fetch(
+      `${API_ENDPOINTS.ASSISTANT_SHARE}?${params.toString()}`,
+      { method: 'GET', headers: { Accept: 'application/json' } },
+    )
+    return parseJsonResult(response, 'Failed to load assistant share')
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to load assistant share',
     }
   }
 }

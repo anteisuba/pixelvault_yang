@@ -144,17 +144,23 @@ export const NODE_STUDIO_ASSISTANT_MESSAGE_ROLES = [
 ] as const
 
 export const NODE_STUDIO_ASSISTANT_LIMITS = {
-  maxMessages: 16,
-  maxMessageLength: 4000,
+  // Conversation has no product UX cap — these are DoS / payload guards only.
+  // Keep high enough that multi-turn canvas chats never 400 on history length.
+  maxMessages: 500,
+  maxMessageLength: 100_000,
   maxNodes: 32,
   maxNodeLabelLength: 160,
   maxNodeSummaryLength: 900,
   maxSelectedNodes: 12,
   maxReferences: 8,
-  maxOutputTokens: 900,
+  // gpt-5 / o-series spend completion budget on hidden reasoning tokens first.
+  // 900 was enough for Gemini/Qwen but often returned empty text on gpt-5.5
+  // (finish_reason=length, reasoning_tokens≈budget, content=null). Align with
+  // LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING so BYOK + gateway both work.
+  maxOutputTokens: 4096,
   // Research turns return analysis + suggestions + prompt seeds + sources, so
   // they need a larger budget than a normal canvas reply.
-  maxResearchOutputTokens: 2000,
+  maxResearchOutputTokens: 6000,
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {

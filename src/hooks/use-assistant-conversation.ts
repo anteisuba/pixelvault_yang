@@ -11,9 +11,11 @@ import {
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import type {
   NodeAssistantMessage,
+  NodeAssistantMediaReference,
   NodeAssistantNodeContext,
   NodeAssistantRequest,
 } from '@/types/node-assistant'
@@ -23,16 +25,23 @@ export interface AssistantNodeReference {
   nodeId: string
 }
 
+export interface AssistantCapabilityReference {
+  capability: 'upscale' | 'remove-background'
+  nodeId: string
+}
+
 export interface AssistantConversationMessage {
   id: string
   role: NodeAssistantMessage['role']
   content: string
   references: AssistantNodeReference[]
+  capabilities: AssistantCapabilityReference[]
 }
 
 export interface AssistantConversationContext {
   nodes: NodeAssistantNodeContext[]
   selectedNodeIds: string[]
+  references?: NodeAssistantMediaReference[]
   locale: AppLocale
   apiKeyId?: string
   /** Reference-research turn (study a film/anime/short → original suggestions). */
@@ -93,8 +102,35 @@ function extractNodeReferences(content: string): AssistantNodeReference[] {
   return references
 }
 
+function extractCapabilityReferences(
+  content: string,
+): AssistantCapabilityReference[] {
+  const references: AssistantCapabilityReference[] = []
+  const matches = content.matchAll(
+    /\[\[capability:(upscale|remove-background):([^\]\s]+)\]\]/g,
+  )
+  for (const match of matches) {
+    const capability = match[1] as AssistantCapabilityReference['capability']
+    const nodeId = match[2]?.trim()
+    if (
+      !nodeId ||
+      references.some(
+        (reference) =>
+          reference.nodeId === nodeId && reference.capability === capability,
+      )
+    ) {
+      continue
+    }
+    references.push({ capability, nodeId })
+  }
+  return references
+}
+
 function stripNodeReferenceMarkers(content: string): string {
-  return content.replace(/\[\[node:[^\]]+\]\]/g, '').replace(/\n{3,}/g, '\n\n')
+  return content
+    .replace(/\[\[node:[^\]]+\]\]/g, '')
+    .replace(/\[\[capability:(?:upscale|remove-background):[^\]]+\]\]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
 }
 
 function toDisplayAssistantMessage(
@@ -106,6 +142,7 @@ function toDisplayAssistantMessage(
     role: 'assistant',
     content: stripNodeReferenceMarkers(rawContent).trim(),
     references: extractNodeReferences(rawContent),
+    capabilities: extractCapabilityReferences(rawContent),
   }
 }
 
@@ -233,6 +270,10 @@ export function useAssistantConversation(
               message.role === 'assistant'
                 ? extractNodeReferences(message.content)
                 : [],
+            capabilities:
+              message.role === 'assistant'
+                ? extractCapabilityReferences(message.content)
+                : [],
           })),
         )
       } else {
@@ -284,6 +325,7 @@ export function useAssistantConversation(
         role: 'user',
         content: trimmedContent,
         references: [],
+        capabilities: [],
       }
       const assistantMessageId = createConversationMessageId('assistant')
       const priorMessages = messagesRef.current
@@ -296,18 +338,27 @@ export function useAssistantConversation(
           role: 'assistant',
           content: '',
           references: [],
+          capabilities: [],
         },
       ])
       setIsLoading(true)
       setError(null)
 
-      const request: NodeAssistantRequest = {
+      const request = sanitizeNodeAssistantRequest({
         messages: nextMessages.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
+        references: context.references ?? [],
         locale: context.locale,
         apiKeyId: context.apiKeyId,
         research: context.research,
+      })
+
+      if (request.messages.length === 0) {
+        setMessages(priorMessages)
+        setIsLoading(false)
+        setError(t('assistant.streamFailed'))
+        return
       }
 
       const response = await streamNodeAssistantAPI(request)
@@ -332,10 +383,23 @@ export function useAssistantConversation(
         const completed = finalAssistant
           ? [...nextMessages, finalAssistant]
           : nextMessages
-        const nextSessionId = await persistMessages(completed, sessionId)
+        // Drop empty assistant shell if the stream produced no text.
+        const completedWithoutEmpty =
+          finalAssistant && finalAssistant.content.trim().length === 0
+            ? nextMessages
+            : completed
+        const nextSessionId = await persistMessages(
+          completedWithoutEmpty,
+          sessionId,
+        )
         if (nextSessionId) setSessionId(nextSessionId)
+        if (finalAssistant && finalAssistant.content.trim().length === 0) {
+          setMessages(nextMessages)
+          setError(t('assistant.streamFailed'))
+        }
       } catch (caughtError) {
         setIsLoading(false)
+        setMessages(nextMessages)
         setError(
           caughtError instanceof Error
             ? caughtError.message
@@ -357,7 +421,6 @@ export function useAssistantConversation(
         .find(({ message }) => message.role === 'user')?.index
       if (lastUserIndex === undefined) return
 
-      const lastUser = current[lastUserIndex]
       const withoutTrailingAssistant = current.slice(0, lastUserIndex + 1)
       setMessages(withoutTrailingAssistant)
       messagesRef.current = withoutTrailingAssistant
@@ -371,18 +434,27 @@ export function useAssistantConversation(
           role: 'assistant',
           content: '',
           references: [],
+          capabilities: [],
         },
       ])
       setIsLoading(true)
       setError(null)
 
-      const request: NodeAssistantRequest = {
+      const request = sanitizeNodeAssistantRequest({
         messages: withoutTrailingAssistant.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
+        references: context.references ?? [],
         locale: context.locale,
         apiKeyId: context.apiKeyId,
         research: context.research,
+      })
+
+      if (request.messages.length === 0) {
+        setMessages(withoutTrailingAssistant)
+        setIsLoading(false)
+        setError(t('assistant.streamFailed'))
+        return
       }
 
       const response = await streamNodeAssistantAPI(request)
@@ -406,18 +478,28 @@ export function useAssistantConversation(
         const completed = finalAssistant
           ? [...withoutTrailingAssistant, finalAssistant]
           : withoutTrailingAssistant
-        const nextSessionId = await persistMessages(completed, sessionId)
+        const completedWithoutEmpty =
+          finalAssistant && finalAssistant.content.trim().length === 0
+            ? withoutTrailingAssistant
+            : completed
+        const nextSessionId = await persistMessages(
+          completedWithoutEmpty,
+          sessionId,
+        )
         if (nextSessionId) setSessionId(nextSessionId)
+        if (finalAssistant && finalAssistant.content.trim().length === 0) {
+          setMessages(withoutTrailingAssistant)
+          setError(t('assistant.streamFailed'))
+        }
       } catch (caughtError) {
         setIsLoading(false)
+        setMessages(withoutTrailingAssistant)
         setError(
           caughtError instanceof Error
             ? caughtError.message
             : t('assistant.streamFailed'),
         )
       }
-
-      void lastUser
     },
     [persistMessages, sessionId, t],
   )
@@ -463,6 +545,10 @@ export function useAssistantConversation(
           references:
             message.role === 'assistant'
               ? extractNodeReferences(message.content)
+              : [],
+          capabilities:
+            message.role === 'assistant'
+              ? extractCapabilityReferences(message.content)
               : [],
         })),
       )

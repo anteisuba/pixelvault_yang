@@ -5,6 +5,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { NodeAssistantRequestSchema } from '@/types/node-assistant'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import { logger } from '@/lib/logger'
+import { sanitizeNodeAssistantRequestBody } from '@/lib/node-assistant-request'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
@@ -35,14 +36,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     )
   }
 
-  const body = await request.json().catch(() => null)
+  const body = sanitizeNodeAssistantRequestBody(
+    await request.json().catch(() => null),
+  )
   const parsed = NodeAssistantRequestSchema.safeParse(body)
   if (!parsed.success) {
+    const issues = parsed.error.issues.slice(0, 8).map((issue) => ({
+      path: issue.path.join('.') || '(root)',
+      code: issue.code,
+      message: issue.message,
+    }))
+    logger.warn(`${routeName} validation failed`, {
+      userId: clerkId,
+      issues,
+    })
     return NextResponse.json(
       {
         success: false,
         error: 'Invalid request body',
         errorCode: 'VALIDATION_ERROR',
+        // First issue path helps the client/dev tools without dumping full Zod.
+        details: issues[0]
+          ? `${issues[0].path}: ${issues[0].message}`
+          : undefined,
       },
       { status: 400 },
     )

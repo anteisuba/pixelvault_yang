@@ -15,12 +15,14 @@ const publicLocaleRoutes = LOCALES.flatMap((locale) => [
   `/${locale}${ROUTES.SIGN_IN}(.*)`,
   `/${locale}${ROUTES.SIGN_UP}(.*)`,
   `/${locale}${ROUTES.CREATOR_PROFILE}/(.*)`,
+  `/${locale}/assistant/share/(.*)`,
 ])
 
 const isPublicRoute = createRouteMatcher([
   '/',
   ...publicLocaleRoutes,
   '/api/images',
+  '/api/assistant/share',
   '/api/voices',
   '/api/voices/(.*)',
   '/api/webhooks/clerk',

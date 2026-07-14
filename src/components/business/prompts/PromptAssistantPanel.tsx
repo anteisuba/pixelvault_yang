@@ -118,6 +118,8 @@ interface PromptAssistantPanelProps {
   onAppendPrompt?: (prompt: string) => void
   /** Called when panel is closed */
   onClose?: () => void
+  /** Exposes the persisted Studio conversation to the shared shell. */
+  onSessionIdChange?: (sessionId: string | null) => void
   /**
    * External reference injection (assistant dock drop zone). Each drop bumps
    * `token`, and the panel replaces its single reference slot with `url`
@@ -134,13 +136,18 @@ export function PromptAssistantPanel({
   llmApiKeys,
   onUsePrompt,
   onAppendPrompt,
+  onSessionIdChange,
   injectedReference,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
   const locale = useLocale()
-  const { messages, isLoading, error, send, applyPreset, clear } =
+  const { messages, sessionId, isLoading, error, send, applyPreset, clear } =
     usePromptAssistant()
+
+  useEffect(() => {
+    onSessionIdChange?.(sessionId)
+  }, [onSessionIdChange, sessionId])
 
   const [inputValue, setInputValue] = useState('')
   const [responseLanguage, setResponseLanguage] =

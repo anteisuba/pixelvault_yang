@@ -137,7 +137,15 @@ export function NodeMediaPreview({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
 
   return (
-    <NodeShell nodeId={id} type={type} selected={selected} status={data.status}>
+    <NodeShell
+      nodeId={id}
+      type={type}
+      selected={selected}
+      status={data.status}
+      imageEditData={
+        kind === NODE_MEDIA_KIND_IDS.image && mediaUrl ? data : undefined
+      }
+    >
       <NodeShell.Header
         type={type}
         status={data.status}

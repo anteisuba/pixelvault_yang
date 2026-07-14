@@ -24,6 +24,15 @@ import {
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
+import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
+import {
+  HUGGINGFACE_LORA_DEFAULT_FAMILY,
+  HUGGINGFACE_LORA_DEFAULT_LIMIT,
+  HUGGINGFACE_LORA_FAMILY_VALUES,
+  HUGGINGFACE_LORA_MAX_CURSOR_LENGTH,
+  HUGGINGFACE_LORA_MAX_LIMIT,
+  HUGGINGFACE_LORA_MAX_SEARCH_LENGTH,
+} from '@/constants/lora'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
@@ -170,12 +179,45 @@ export const RunnerCheckpointSpecSchema = z.object({
 })
 export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
 
+const RUNNER_UINT64_MAX = '18446744073709551615'
+
+/** Decimal string avoids JavaScript precision loss for ComfyUI's uint64 seed. */
+export const RunnerSeedStringSchema = z
+  .string()
+  .regex(/^(0|[1-9]\d{0,19})$/)
+  .refine(
+    (value) =>
+      value.length < RUNNER_UINT64_MAX.length ||
+      (value.length === RUNNER_UINT64_MAX.length &&
+        value.localeCompare(RUNNER_UINT64_MAX) <= 0),
+    { message: 'Runner seed must fit in uint64' },
+  )
+
+const RunnerDimensionSchema = z
+  .number()
+  .int()
+  .min(64)
+  .max(4096)
+  .refine((value) => value % 8 === 0, {
+    message: 'Runner dimensions must be multiples of 8',
+  })
+
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
   negativePrompt: z.string().max(2000).optional(),
   guidanceScale: z.number().min(0).max(30).optional(),
   steps: z.number().int().min(1).max(100).optional(),
   seed: z.number().int().min(-1).max(4294967295).optional(),
+  /** Runner-only exact seed. String transport preserves all 64 bits. */
+  runnerSeed: RunnerSeedStringSchema.optional(),
+  /** Runner-only allowlisted ComfyUI sampling controls. */
+  runnerSampler: z.enum(RUNNER_SAMPLERS).optional(),
+  runnerScheduler: z.enum(RUNNER_SCHEDULERS).optional(),
+  /** Runner-only source generation dimensions (not the final upscaled image). */
+  runnerWidth: RunnerDimensionSchema.optional(),
+  runnerHeight: RunnerDimensionSchema.optional(),
+  /** Runner-only post-decode super-resolution model. */
+  runnerUpscaler: z.enum(['4x-AnimeSharp']).optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
   quality: z.enum(['auto', 'low', 'medium', 'high']).optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
@@ -228,7 +270,7 @@ export const RunnerRecipeRequestSchema = z.object({
   negativePrompt: z.string().optional(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
-  seed: z.number().int().optional(),
+  seed: z.union([z.number().int(), RunnerSeedStringSchema]).optional(),
   steps: z.number().int().min(1).max(100).optional(),
   cfg: z.number().min(0).max(30).optional(),
   sampler: z.string().optional(),
@@ -842,6 +884,8 @@ export interface ImageDecomposeResult {
   psdUrl: string
   /** Total number of layers extracted */
   layerCount: number
+  /** Generation record for the persisted PSD/batch lineage */
+  generationId?: string
 }
 
 // ─── Video Queue (submit + poll) ─────────────────────────────────
@@ -3670,6 +3714,74 @@ export const LoraAssetRecordSchema = z.object({
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
 
+// ─── Hugging Face LoRA discovery ─────────────────────────────────
+
+/** A concrete SafeTensors file inside a public Hugging Face model repo. */
+export const HuggingFaceLoraFileSchema = z.object({
+  filename: z.string().min(1),
+  downloadUrl: z.string().url(),
+  sizeBytes: z.number().int().nonnegative().nullable(),
+  baseModelFamily: LoraAssetBaseFamilySchema,
+})
+export type HuggingFaceLoraFile = z.infer<typeof HuggingFaceLoraFileSchema>
+
+/**
+ * Search result shown by the LoRA library before the user favorites a file.
+ * `files` is an array because a single HF repo may contain multiple LoRA
+ * weights; selecting the exact file is part of making the import reproducible.
+ */
+export const HuggingFaceLoraSearchItemSchema = z.object({
+  repoId: z.string().min(1),
+  name: z.string().min(1),
+  modelPageUrl: z.string().url(),
+  revision: z.string().min(1),
+  files: z.array(HuggingFaceLoraFileSchema).min(1),
+  triggerWord: z.string(),
+  type: LoraAssetTypeSchema,
+  baseModelFamily: LoraAssetBaseFamilySchema,
+  coverImageUrl: z.string().url().nullable(),
+  tags: z.array(z.string()),
+  downloads: z.number().int().nonnegative(),
+  likes: z.number().int().nonnegative(),
+  license: z.string().nullable(),
+  gated: z.boolean(),
+  private: z.boolean(),
+})
+export type HuggingFaceLoraSearchItem = z.infer<
+  typeof HuggingFaceLoraSearchItemSchema
+>
+
+export const HuggingFaceLoraSearchResultSchema = z.object({
+  items: z.array(HuggingFaceLoraSearchItemSchema),
+  // Hub cursor responses do not expose a reliable global total.
+  total: z.number().int().nonnegative().nullable(),
+  page: z.number().int().positive(),
+  limit: z.number().int().positive(),
+  hasNextPage: z.boolean(),
+  nextCursor: z.string().nullable(),
+})
+export type HuggingFaceLoraSearchResult = z.infer<
+  typeof HuggingFaceLoraSearchResultSchema
+>
+
+export const HuggingFaceLoraSearchQuerySchema = z.object({
+  search: z.string().trim().max(HUGGINGFACE_LORA_MAX_SEARCH_LENGTH).default(''),
+  baseModelFamily: z
+    .enum(HUGGINGFACE_LORA_FAMILY_VALUES)
+    .default(HUGGINGFACE_LORA_DEFAULT_FAMILY),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(HUGGINGFACE_LORA_MAX_LIMIT)
+    .default(HUGGINGFACE_LORA_DEFAULT_LIMIT),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  cursor: z.string().trim().max(HUGGINGFACE_LORA_MAX_CURSOR_LENGTH).optional(),
+})
+export type HuggingFaceLoraSearchQuery = z.infer<
+  typeof HuggingFaceLoraSearchQuerySchema
+>
+
 export const FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH = 4000
 
 export const FavoriteLoraRequestSchema = z.object({
@@ -3677,11 +3789,7 @@ export const FavoriteLoraRequestSchema = z.object({
   // Civitai 上很多 LoRA 把整段推荐 prompt 当作 trigger word。数据库列是
   // 无长度的 text，所以收藏外部 LoRA 允许更长的触发词；用户自训练
   // trigger 仍由 LoraTrainingPayloadSchema 维持短词限制。
-  triggerWord: z
-    .string()
-    .trim()
-    .min(1)
-    .max(FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH),
+  triggerWord: z.string().trim().max(FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH),
   loraUrl: z.string().url(),
   type: LoraAssetTypeSchema,
   baseModelFamily: LoraAssetBaseFamilySchema,
@@ -3808,19 +3916,24 @@ export type CivitaiRecipeExtraLora = z.infer<
 // prompt 是配方存在的前提，必填）。
 export const CivitaiImageRecipeSchema = z.object({
   imageUrl: z.string().url(),
+  /** Final stored image dimensions; may include hires/upscale. */
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  /** Original generation dimensions parsed from meta.Size. */
+  baseWidth: z.number().int().positive().optional(),
+  baseHeight: z.number().int().positive().optional(),
   // ai_inferred = 无配方数据时由 vision 反推的伪配方（解法三）：仅有
   // prompt、无参数，UI 必须标注"AI 推测"，绝不能伪装成 Civitai 来源。
   source: z.enum(['model_version_image', 'community_image', 'ai_inferred']),
   // 已过 cleanRecommendedPrompt（去 <lora:..> 标签等）的正向 prompt。
   prompt: z.string().min(1),
   negativePrompt: z.string().optional(),
-  seed: z.number().int().optional(),
+  seed: z.union([z.number().int(), RunnerSeedStringSchema]).optional(),
   steps: z.number().int().optional(),
   cfgScale: z.number().optional(),
   // sampler/clipSkip 当前生成链路不支持 — 保留供 UI 列入"未应用参数"。
   sampler: z.string().optional(),
+  scheduler: z.string().optional(),
   clipSkip: z.number().int().optional(),
   // meta.Size 原文（如 "512x768"），映射层负责换算最近比例档。
   sizeRaw: z.string().optional(),
@@ -3831,6 +3944,11 @@ export const CivitaiImageRecipeSchema = z.object({
   // meta.Model 名字准、比 meta.hashes 作者本地 hash 可靠），并借此根治 Anima
   // 命名撞车。仅站内(onsite)生成图有；离线上传图靠 checkpoint 名兜底。
   checkpointVersionId: z.number().int().positive().optional(),
+  /** Preserved for truthful display; hires execution remains separately gated. */
+  hiresUpscale: z.number().positive().optional(),
+  hiresUpscaler: z.string().optional(),
+  denoisingStrength: z.number().min(0).max(1).optional(),
+  hiresSteps: z.number().int().positive().optional(),
   // 目标 LoRA 在该图中的真实权重（meta.resources hash 匹配）。
   loraWeight: z.number().optional(),
   extraLoras: z.array(CivitaiRecipeExtraLoraSchema).optional(),

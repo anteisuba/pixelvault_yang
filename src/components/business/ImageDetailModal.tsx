@@ -26,7 +26,7 @@ import { useAuth } from '@clerk/nextjs'
 import {
   galleryGenerationPath,
   promptCreatePath,
-  studioImageEditPath,
+  studioCanvasEditPath,
 } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
@@ -413,7 +413,7 @@ export function ImageDetailModal({
       {generation.outputType === 'IMAGE' && (
         <Button variant="outline" size="sm" className="rounded-full" asChild>
           <Link
-            href={studioImageEditPath({
+            href={studioCanvasEditPath({
               generationId: generation.id,
               sourceUrl: generation.url,
               width: generation.width,

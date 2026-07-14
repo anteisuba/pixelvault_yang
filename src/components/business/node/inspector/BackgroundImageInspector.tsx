@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { IMEAwareInput } from './IMEAwareField'
@@ -52,6 +53,44 @@ export function BackgroundImageInspector({
   const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData, extractReference, focusNode, setExpandedNodeId } =
     useNodeWorkflowActions()
+  const { cards } = useBackgroundCards()
+  const boundCard = node.data.cardId
+    ? (cards.find((card) => card.id === node.data.cardId) ?? null)
+    : null
+
+  useEffect(() => {
+    if (
+      !boundCard ||
+      node.data.cardId !== boundCard.id ||
+      !boundCard.sourceImageUrl
+    ) {
+      return
+    }
+
+    updateNodeData(node.id, {
+      cardId: boundCard.id,
+      backgroundName: boundCard.name,
+      prompt: node.data.prompt || boundCard.backgroundPrompt,
+      imageSource: 'existing',
+      mediaKind: NODE_MEDIA_KIND_IDS.image,
+      mediaLabel: boundCard.name,
+      mediaUrl: boundCard.sourceImageUrl,
+      imageUrl: boundCard.sourceImageUrl,
+      sourceGenerationId: undefined,
+      sourceLabel: boundCard.name,
+      referenceAssets: [
+        {
+          id: `card-${boundCard.id}`,
+          url: boundCard.sourceImageUrl,
+          role: 'background',
+          weight: 1,
+          source: 'asset',
+          sourceId: boundCard.id,
+          name: boundCard.name,
+        },
+      ],
+    })
+  }, [boundCard, node.data.cardId, node.data.prompt, node.id, updateNodeData])
 
   const backgroundName =
     typeof node.data.backgroundName === 'string' ? node.data.backgroundName : ''
@@ -102,6 +141,30 @@ export function BackgroundImageInspector({
         referenceGalleryMode="gallery"
         onExtractReference={handleExtractReference}
       />
+
+      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+        <p className="text-sm font-semibold text-node-foreground">
+          {tDossier('backgroundCardTitle')}
+        </p>
+        <select
+          value={node.data.cardId ?? ''}
+          onChange={(event) =>
+            updateNodeData(node.id, { cardId: event.target.value || undefined })
+          }
+          aria-label={tDossier('backgroundCardTitle')}
+          className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+        >
+          <option value="">{tDossier('backgroundCardHint')}</option>
+          {cards.map((card) => (
+            <option key={card.id} value={card.id}>
+              {card.name}
+            </option>
+          ))}
+        </select>
+        {boundCard ? (
+          <p className="text-2xs text-node-muted">{boundCard.name}</p>
+        ) : null}
+      </div>
 
       {/* 出演区 */}
       <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">

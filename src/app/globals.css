@@ -308,6 +308,15 @@
      （暖炭，§2.1 调值 2026-07-10 S1）；card-* = 纸卡材质（S2 起消费）；
      paint = 石绿颜料（唯一高光，§5 克制档五落点）。 */
   --node-canvas: #14120f;
+  /* Canvas workspace surface tokens stay separate from --node-canvas because
+     that legacy token also colors handles, scrims, and inverse button text. */
+  --canvas-surface: #14120f;
+  --canvas-grid-dot: rgba(235, 229, 216, 0.18);
+  --canvas-safe-left: 1rem;
+  --canvas-safe-right: 1rem;
+  --canvas-top-inset: 4.5rem;
+  --canvas-bottom-inset: 4rem;
+  --canvas-minimap-width: 12rem;
   --node-panel: #191612;
   --node-panel-inner: #221f1b;
   --node-panel-soft: #1c1915;
@@ -334,6 +343,9 @@
   --node-paint: #3e8c6c;
   --node-paint-fg: #ebf3ee;
   --node-shadow: rgb(0 0 0 / 0.5);
+  --shadow-canvas-control: 0 10px 28px rgb(0 0 0 / 0.22);
+  --shadow-canvas-menu: 0 12px 26px rgb(0 0 0 / 0.2);
+  --shadow-canvas-task: 0 18px 44px rgb(0 0 0 / 0.28);
   /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相 */
   --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
   --node-edge-active: #e8e6de; /* = foreground，流动/hover/选中提亮 */

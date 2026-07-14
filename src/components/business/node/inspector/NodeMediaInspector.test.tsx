@@ -147,6 +147,7 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   updateNodeData,
   setScriptDoc: vi.fn(),
   setDefaultVideoModel: vi.fn(),
+  setCanvasAppearance: vi.fn(),
   defaultVideoModel: undefined,
   setScriptDocStage: vi.fn(),
   setScriptDocDepth: vi.fn(),

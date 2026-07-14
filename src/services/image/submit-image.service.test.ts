@@ -242,6 +242,53 @@ describe('submitImageGeneration', () => {
     )
   })
 
+  it('fails the GenerationJob when runner LoRA prep throws (no zombie RUNNING)', async () => {
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      route: {
+        modelId: 'anima-pencil-xl-runner',
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        providerConfig: { label: 'PixelVault Runner' },
+        creditCost: 1,
+        isFreeGeneration: false,
+        resolvedApiKeyId: null,
+      } as never,
+      provider: 'RUNNER',
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(prepareRunnerLoras).mockRejectedValue(
+      new Error(
+        'Runner LoRA is 3988 MB, over the 512 MB limit. Base checkpoints belong in the checkpoint path, not as LoRA attachments.',
+      ),
+    )
+
+    await expect(
+      submitImageGeneration('clerk-1', {
+        ...INPUT,
+        modelId: 'anima-pencil-xl-runner',
+        advancedParams: {
+          loras: [
+            {
+              url: 'https://huggingface.co/LyliaEngine/anima_baseV10/resolve/main/anima_baseV10.safetensors',
+              scale: 1,
+            },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'PROVIDER_ERROR',
+      message: expect.stringContaining('512 MB'),
+    })
+
+    expect(failGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({
+        errorMessage: expect.stringContaining('512 MB'),
+      }),
+    )
+    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+  })
+
   it('still throws MISSING_API_KEY for a non-free, non-runner route with no user key', async () => {
     vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
       dbUser: { id: 'user-1' } as never,

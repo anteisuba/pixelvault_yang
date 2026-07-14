@@ -22,7 +22,7 @@
 
 - **无彩中性**：UI 只用中性灰阶；彩色只留给状态语义与用户作品。
 - **反相 CTA**：最高优先级控件用黑/白反相丸。**例外见 §1**。
-- **手感即品质**：Figma 级交互细节（焦点环 / 键盘可达 / 44px 触达 / 光标语义），画布尤甚。
+- **手感即品质**：Figma 级交互细节（焦点环 / 键盘可达 / 自适应命中区：fine 32/36、coarse 44 / 光标语义），画布尤甚。
 - **动效三用途**：只为状态澄清 / 空间连续性 / 操作反馈；缓动 `cubic-bezier(0.22,1,0.36,1)`，时长刻度 fast120/base200/slow320，接 `useReducedMotion`。
   - **画布动效标准（实现落地 · 2026-06-19）**：尺寸/位置形变**复用全站动效 canon**，不自造数值——缓动 `var(--ease-standard)`，时长 `var(--duration-*)`（token 在 `globals.css @theme`，常量在 `src/constants/motion.ts`；**面板展开折叠用 `slow` / 320ms**）。画布面板的尺寸形变统一挂工具类 **`.node-canvas-panel-motion`**（`globals.css`，只过渡 `width`）；**连续拖拽**（如 dock 宽度把手、分栏把手）时置 `data-resizing="true"` 关闭过渡，让面板/把手 1:1 贴住光标——拖拽要瞬时、切换才动画。`transform`/`opacity` 形变改用 Tailwind `duration-slow ease-standard` 工具类（v4 由 `@theme` 自动生成，勿用 `transition-[...]` 任意值）。reduced-motion 由 `globals.css` 全局 `@media (prefers-reduced-motion)` 兜底，无需逐组件处理。**首落地** = 助手 dock 展开⤢↔dock 宽度形变（修「切大小很僵硬」）。**待补**（同标准逐步推）：dock open/close（需 `AnimatePresence` 出入场）、顶栏展开/收起、加节点菜单 open/close、minimap、节点 hover/选中。
 - **圆角阶梯**：面板 `rounded-2xl` · 卡片 `rounded-xl` · 控件 `rounded-lg` · chip `rounded-full`。
@@ -131,14 +131,14 @@
 
 ## 5. 右栏 IA：参数在节点 + 右侧纯助手（D4）
 
-现状（`StudioNodeAssistantDock.tsx`）：Inspector 与 Assistant **焊死在同一列**（默认 55/45 分屏，仅一根 2.5px 把手分隔，两者永远同时渲染）→ 这就是 owner 说的「两个粘在一起」。
+历史现状（2026-06-15，**已过时**）：Inspector 与 Assistant 曾焊死在同一列。2026-07-13 代码复核确认 `StudioNodeAssistantDock.tsx` 现为纯助手：默认约 448px 可调的浮动 overlay，expanded 为约 820px 的对话 + ScriptDoc 双栏；参数不再与助手 55/45 堆叠。下述“右栏纯助手”方向已落地，下一步是把默认浮层改成 Haivis 对标的稳定分栏，详见 `references/pages/node-canvas.md` §3.1。
 
 **基准（updream 模式）：**
 
 1. **参数上节点**：每个生成节点底部挂一个自带 composer（生成模式 / 模型 / 比例·时长 / 积分 / 生成按钮），重参数（如音频音色/情绪）点 ⤢ 展开全屏。**复用 Studio 的 composer / `tool-surface` 契约**（`direction.md` 决议 5），不新发明一套。
 2. **右栏固定 = 纯助手**：只放对话 / 建议 chips / 输入。**参数永不进右栏** → 「粘在一起」从根上消失。**默认安静**(1 句起手 + 3 短 chips + 精简输入 `/`技能 · `@`素材);**反问澄清卡 = 对话中按需浮现、不常驻**(出题跳选项 → 填 ScriptDoc;产出走 `llm-output-validator` 校验);头部 = 多 LLM **自动路由** + 新建 / 对话管理。
 3. **助手三态:折叠 `»` / 默认窄 dock / 展开 `⤢`**。展开 = **左对话 + 右剧本/大纲(ScriptDoc)工作区**并排,边聊边看剧本成形,确认 → 触发自动生成节点;折叠后画布全宽。移动端 = 底部抽屉(ResponsiveOverlay)。与节点「轻在卡 / 重进 ⤢」同一种克制。
-4. **重构方向**：把 `StudioNodeAssistantDock` 里的 `InspectorPanel` 堆叠拆除，参数迁到节点 composer；右栏组件只保留 `AssistantConversation`。（具体改名/拆分留实现阶段，按高危模块先 grep 再动。）
+4. **当前重构方向**：保留现有纯 `AssistantConversation` 与 ScriptDoc 能力；默认窄态改稳定 grid 列，收起后画布真实扩宽。820px ScriptDoc 只进扩展 workspace/大面板，不直接成为窄视口 grid 列。
 
 ---
 
@@ -199,7 +199,7 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 ## 9. 验证基准（Step 3，需 dev server）
 
 - **视觉回归快照**：`e2e/visual.spec.ts` 增画布专属用例，截图基线按 OS 分套（`-win32` / `-darwin`），锁死防跑偏。
-- **断言具体值**：间距 / token / 触达区用 `toHaveCSS` / `getByRole` 断言（呼应 Hard Rule 5 与 44px）。
+- **断言具体值**：间距 / token / 命中区用 `toHaveCSS` / `getByRole` 断言（fine pointer 紧凑 32px/常规 36px，coarse pointer 44px，绝对底线 24px）。
 - **交互验证**：中键平移 / 框选 / 空格平移 / 工具条 实跑（`verify` skill 或 Chrome MCP）。
 - 机械门：`npm run lint && npm run build`（dev server 在跑时勿并行 build）。
 
@@ -225,12 +225,13 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 ## 11. 来源（Source of Truth）
 
 - 设计方向：[`direction.md`](direction.md)、[`system/css-and-tokens.md`](system/css-and-tokens.md)、[`pages/node-workflow.md`](pages/node-workflow.md)
-- 代码（2026-06-15 审查）：`src/app/globals.css`（L255–266 node tokens）、`src/constants/node-studio.ts`（edge/canvas/dock）、`src/constants/node-tokens.ts`（accents/status/edge colors）、`src/components/business/node/StudioNodeWorkbench.tsx`（ReactFlow 配置 L1005–1033）、`src/components/business/node/nodes/NodeShell.tsx`（卡 anatomy/尺寸）、`src/components/business/node/CanvasBottomDock.tsx`（工具条占位）、`src/components/business/node/CanvasMiniMap.tsx`、`src/components/business/node/StudioNodeAssistantDock.tsx`（右栏 55/45 堆叠）、`src/components/business/node/inspector/SeedanceInspector.tsx`（生成按钮 amber/green）
+- 代码（2026-06-15 审查；助手现状由 2026-07-13 复核覆盖）：`src/app/globals.css`（node tokens）、`src/constants/node-studio.ts`（edge/canvas/dock）、`src/constants/node-tokens.ts`（accents/status/edge colors）、`src/components/business/node/StudioNodeWorkbench.tsx`（ReactFlow/布局）、`src/components/business/node/nodes/NodeShell.tsx`（卡 anatomy/尺寸）、`src/components/business/node/CanvasBottomDock.tsx`、`src/components/business/node/CanvasMiniMap.tsx`、`src/components/business/node/StudioNodeAssistantDock.tsx`（纯助手浮层 + ScriptDoc 扩展）、`src/components/business/node/inspector/SeedanceInspector.tsx`。
 
 ## 12. Last Verified
 
 - 2026-06-15：基于代码层审查（4 路）与 owner 现状审查决策落成 v1 草案。未跑浏览器截图（Step 3 待 dev server）。
 - 2026-06-16：补全模型切换器/作用域/能力契约（§5.1）、元素视觉+听觉对称、节点 ⤢ 展开、助手三态；落定全套视觉草稿（见 §13）；视频阵容定为 Seedance/Kling/Veo 3.1/Vidu Q2（Wan/Hunyuan 稍后）。
+- 2026-07-13：复核现役 Node 助手与 Haivis live UI，修正 §5/§11 已过时的 Inspector+Assistant 焊死描述；目标改为默认 360px 稳定分栏、ScriptDoc 独立宽态。
 
 ---
 
@@ -268,4 +269,4 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 **待 owner 拍板**：暖灰中性化（§2.2-1，推荐做）· `--node-lipsync` 紫去留 · 卡宽 400 · 端口色「极淡类型色+图标 vs 纯无彩」。
 
-**UI 实现契约**：UI-only **不碰** `src/app/api/**` / `prisma/**` / `src/services/**` / Clerk / credit；一次一个组件；每步 `npm run lint && npm run build`（dev server 在跑勿并行 build）+ `e2e/visual.spec.ts`（有意改动 `--update-snapshots` 并点名，基线按 OS 分套 win32/darwin）+ 44px/a11y 断言。建议起点：去黄橙 token + 中键平移（低风险、影响面大）。
+**UI 实现契约**：UI-only **不碰** `src/app/api/**` / `prisma/**` / `src/services/**` / Clerk / credit；一次一个组件；每步 `npm run lint && npm run build`（dev server 在跑勿并行 build）+ `e2e/visual.spec.ts`（有意改动 `--update-snapshots` 并点名，基线按 OS 分套 win32/darwin）+ 自适应命中区/a11y 断言。建议起点：去黄橙 token + 中键平移（低风险、影响面大）。

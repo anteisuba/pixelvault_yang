@@ -17,7 +17,8 @@
 - **字体方向（已拍板 2026-07-10 晚，取代早间"明朝体标题"设想）**：双层系统——内容层（标题+正文+批注+空态文案）= 日常手写体，潦草但完全可读（zh 鸿雷行书简体 / ja Zen Kurenaido / latin Caveat）；控件层与数据层 = 现代无衬线维持现状（Geist + Noto Sans）。数据字段（seed/参数/数字）永不手写；手写正文字号地板 15px。施工图：`plans/font-handwriting-foundation-2026-07.md`。
 - **装帧语言**：裱框 / 贴入 / 盖章 / 标签纸 / 藏书票。
 - **动效性格**：手作动作（贴上、翻页、盖章）取代机械过渡；仍只服务状态澄清 / 连续性 / 反馈，不做无意义装饰。**细则待深挖。**
-- **交互底线（继承 v1，不随方向变）**：焦点环 · 键盘可达 · 44px 触达区 · ResponsiveOverlay 披露 · 空态起手势 · 不支持不渲染 · 触屏软键盘只在直接点输入框时弹。
+- **交互底线（2026-07-13 owner 修订）**：焦点环 · 键盘可达 · **自适应命中区**（fine pointer 紧凑控件 ≥32px、常规控件 ≥36px；coarse pointer/touch ≥44px；任何 pointer 目标不得低于 WCAG 2.2 AA 的 24px，例外必须有足够间距/等价入口并测试）· ResponsiveOverlay 披露 · 空态起手势 · 不支持不渲染 · 触屏软键盘只在直接点输入框时弹。视觉 glyph 可小于命中区；专业桌面不再被一刀切 44px 牺牲密度。
+  - 依据：[WCAG 2.2 SC 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum) 的 AA 最低目标为 24×24 CSS px，[SC 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced) 的增强目标为 44×44；[Apple Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility) 的触屏指南采用 44×44pt。PixelVault 的 32/36/44 分档在专业桌面密度和触屏舒适度之间取中间解。
 
 ## 房间层（草案 — 每页动工时先工作流调研，再定稿到页级文档）
 
@@ -65,4 +66,4 @@
 
 ## Last Verified
 
-- Date: 2026-07-10 · Method: owner 方向拍板；代码现状事实沿用 v1 文档核验结论
+- Date: 2026-07-13 · Method: owner 授权按最佳专业桌面体验调整旧硬规则；依据 WCAG 2.2 与 Apple 触屏基准，把一刀切 44px 修订为 32/36/44px 自适应命中区。

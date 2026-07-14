@@ -11,6 +11,7 @@ import { LoraWorkbench } from './LoraWorkbench'
 // 次搭起来，覆盖：网格渲染、点卡开详情、收藏切换、分页按钮状态。
 
 const mockFavoriteCivitaiLora = vi.hoisted(() => vi.fn())
+const mockFavoriteExternalLora = vi.hoisted(() => vi.fn())
 const mockUnfavoriteByUrl = vi.hoisted(() => vi.fn())
 const mockStackPush = vi.hoisted(() => vi.fn())
 const mockNextPage = vi.hoisted(() => vi.fn())
@@ -21,6 +22,7 @@ const mockSetSort = vi.hoisted(() => vi.fn())
 const mockSetBaseModel = vi.hoisted(() => vi.fn())
 const mockSetNsfwFilter = vi.hoisted(() => vi.fn())
 const mockUseCivitaiLoraLibrary = vi.hoisted(() => vi.fn())
+const mockUseHuggingFaceLoraLibrary = vi.hoisted(() => vi.fn())
 
 let mockSection = 'community'
 // P1-5 深链测试用：family/q/sort/nsfw 查询串（不含 `section=`，由下面拼接）。
@@ -77,6 +79,7 @@ vi.mock('@/hooks/use-lora-assets', () => ({
     errorMine: null,
     refresh: vi.fn(),
     setVisibility: vi.fn(),
+    favoriteExternalLora: mockFavoriteExternalLora,
     favoriteCivitaiLora: mockFavoriteCivitaiLora,
     unfavoriteAsset: vi.fn(),
     unfavoriteByUrl: mockUnfavoriteByUrl,
@@ -125,6 +128,10 @@ vi.mock('@/hooks/use-civitai-lora-library', () => ({
   useCivitaiLoraLibrary: mockUseCivitaiLoraLibrary,
 }))
 
+vi.mock('@/hooks/use-huggingface-lora-library', () => ({
+  useHuggingFaceLoraLibrary: mockUseHuggingFaceLoraLibrary,
+}))
+
 function makeLibraryItem(
   overrides: Partial<CivitaiLoraLibraryItem> & { id: string; name: string },
 ): CivitaiLoraLibraryItem {
@@ -169,6 +176,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     mockSection = 'community'
     mockLibraryQuery = ''
     mockFavoriteCivitaiLora.mockReset()
+    mockFavoriteExternalLora.mockReset()
     mockUnfavoriteByUrl.mockReset()
     mockStackPush.mockReset()
     mockSelectItem.mockReset()
@@ -179,6 +187,23 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     mockSetBaseModel.mockReset()
     mockSetNsfwFilter.mockReset()
     mockUseCivitaiLoraLibrary.mockReset()
+    mockUseHuggingFaceLoraLibrary.mockReset()
+    mockUseHuggingFaceLoraLibrary.mockReturnValue({
+      items: [],
+      search: '',
+      baseModelFamily: 'all',
+      total: null,
+      page: 1,
+      hasNextPage: false,
+      isLoading: false,
+      isRevalidating: false,
+      error: null,
+      setSearch: vi.fn(),
+      setBaseModelFamily: vi.fn(),
+      nextPage: vi.fn(),
+      previousPage: vi.fn(),
+      refresh: vi.fn(),
+    })
     mockFavoritedUrls = new Set()
     mockLibraryItems = [
       makeLibraryItem({ id: '1', name: 'Perlica' }),
@@ -244,6 +269,21 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     // Cards are plain buttons keyed by name — no separate "row" chrome
     // (trigger word / creator line) should be present on the grid tile.
     expect(screen.getByRole('button', { name: 'Perlica' })).toBeInTheDocument()
+  })
+
+  it('switches the public library between Civitai and Hugging Face', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.mouseDown(
+      screen.getByRole('tab', {
+        name: 'LoraWorkbench:librarySourceHuggingFace',
+      }),
+    )
+
+    expect(
+      screen.getByText('LoraWorkbench:huggingFacePublic'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Perlica')).not.toBeInTheDocument()
   })
 
   it('opens the detail sheet when a card is clicked, and it stays closed until then', () => {

@@ -215,7 +215,7 @@
       }
     },
     "node": {
-      "label": "Node workflow guide",
+      "label": "Canvas guide",
       "slides": {
         "add": {
           "title": "Add the first node",
@@ -415,8 +415,8 @@
         "description": "Edit generated images with inpaint, outpaint, super resolution, background removal, and layer tools."
       },
       "node": {
-        "title": "Node Studio — PixelVault",
-        "description": "Build visual AI creation workflows on a node canvas."
+        "title": "Canvas — PixelVault",
+        "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
       }
     },
     "gallery": {
@@ -1365,7 +1365,11 @@
       "recipeApply": "Use this recipe",
       "recipeUseSeed": "Use source seed",
       "recipeApplied": "Source recipe applied",
-      "recipeSkipped": "Not applied: {params}",
+      "recipeSkipped": "Currently unsupported: {params}",
+      "recipeWillApply": "One-click clone will apply: {params}",
+      "recipeApplied": "Written into this generation: {params}",
+      "recipeSourceModel": "Civitai source-image recipe",
+      "recipeSourceCommunity": "Civitai community recipe",
       "recipeAppendTriggersHint": "Recipe from \"{name}\" · applying auto-adds the other mounts' triggers: {triggers}",
       "recipeExtraLoras": "This image stacked {count} other LoRA(s) — reproduction with only this one is limited",
       "recipeExtraMount": "Mount",
@@ -1430,15 +1434,15 @@
       "public": "Public"
     },
     "generate": {
-      "placeholderTitle": "Pick a LoRA first",
-      "placeholderBody": "Choose a LoRA in Library, then come back here to generate.",
+      "placeholderTitle": "Generate with the base model",
+      "placeholderBody": "No LoRA is mounted. Generate directly with the base model, or add a LoRA from Library.",
       "run": "Generate",
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",
       "runnerBudgetRemaining": "Runner: {remaining}/{limit} left this month (shared)",
       "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
       "resultEmptyTitle": "No result yet",
-      "resultEmptyHint": "Pick a recipe, then hit Generate",
+      "resultEmptyHint": "Enter a prompt, then hit Generate",
       "resultPreviewLabel": "Enlarge generation result",
       "promptModeLabel": "Prompt source",
       "promptModeRecommend": "Recommended",
@@ -1454,13 +1458,39 @@
       "resultHistoryMeta": "Strength ×{scale} · seed {seed}",
       "recipeGroupActive": "Showing source images for \"{name}\"",
       "recipeTriggersAppended": "Auto-added trigger words: {triggers}",
-      "recipeTriggersUndo": "Undo"
+      "recipeTriggersUndo": "Undo",
+      "advanced": {
+        "title": "Runner parameters",
+        "defaultSummary": "Using base defaults",
+        "customSummary": "{count} customized",
+        "modelDefault": "Base default",
+        "seed": "Seed (blank = random)",
+        "randomSeed": "Use a random seed",
+        "steps": "Steps",
+        "cfg": "CFG",
+        "sampler": "Sampler",
+        "scheduler": "Scheduler",
+        "width": "Width",
+        "height": "Height",
+        "seedError": "Seed must be a non-negative integer in the uint64 range.",
+        "stepsError": "Steps must be an integer from 1 to 100.",
+        "cfgError": "CFG must be between 0 and 30.",
+        "dimensionPairError": "Width and height must be entered together.",
+        "dimensionError": "Dimensions must be multiples of 8 between 512 and {max}.",
+        "postprocess": "Post-processing",
+        "upscaler": "Upscale model",
+        "upscalerNone": "None",
+        "upscalerHint": "4x-AnimeSharp applies ESRGAN after VAE decode; it is not a second diffusion refinement pass.",
+        "upscaleSummary": "{width}×{height} → {outputWidth}×{outputHeight}",
+        "upscaleLargeWarning": "The final image is large and will use noticeably more time and VRAM."
+      }
     },
     "spine": {
+      "sourceCheckpointAuto": "Source image checkpoint (Auto)",
       "currentLora": "Current LoRA",
       "baseModel": "Base model",
-      "baseModelPending": "Matched to your LoRA",
-      "empty": "No LoRA selected — pick one in Library",
+      "baseModelPending": "No base model is available",
+      "empty": "None mounted (base only)",
       "fast": "Fast",
       "faithful": "Faithful",
       "comingSoon": "Coming soon",
@@ -1601,6 +1631,33 @@
     "useExternal": "Open in Civitai",
     "externalBadgeHint": "This base model isn't supported in PixelVault — generate on Civitai instead",
     "externalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to generate on Civitai.",
+    "librarySourceCivitai": "Civitai",
+    "librarySourceHuggingFace": "Hugging Face",
+    "huggingFacePublic": "Public Hugging Face LoRAs",
+    "huggingFaceDescription": "Browse public Hugging Face image LoRAs and add an exact weight file to your library; generation bases are configured separately.",
+    "huggingFaceSearchPlaceholder": "Search Hugging Face image LoRAs…",
+    "huggingFaceNoResults": "No matching public LoRAs found.",
+    "huggingFaceLoadFailed": "Couldn't load Hugging Face LoRAs.",
+    "huggingFaceLoading": "Searching Hugging Face…",
+    "huggingFaceSelectFile": "Weight file",
+    "huggingFaceImport": "Add to My Library",
+    "huggingFaceImporting": "Adding…",
+    "huggingFaceInLibrary": "In My Library",
+    "huggingFaceTrigger": "Trigger",
+    "huggingFaceNoTrigger": "Not provided (nothing is auto-added)",
+    "huggingFaceOpenRepo": "Open Hugging Face repository",
+    "huggingFaceFamilyFilter": "Filter by base-model family",
+    "huggingFaceFamilyAll": "All",
+    "huggingFaceFamilyAnima": "Anima",
+    "huggingFaceFamilyIllustrious": "Illustrious",
+    "huggingFaceFamilyPony": "Pony",
+    "huggingFaceFamilySdxl": "SDXL",
+    "huggingFaceFamilyFlux": "Flux",
+    "huggingFaceFamilySd15": "SD 1.5",
+    "huggingFaceFamilyQwenImage": "Qwen Image",
+    "huggingFaceFamilyZImage": "Z-Image",
+    "huggingFaceFamilyOther": "Other image models",
+    "huggingFaceUnsupportedFamily": "You can save this LoRA, but PixelVault does not currently have a compatible generation base",
     "communityOpenInCivitai": "Generate on Civitai",
     "externalUseRedirect": "Opening on Civitai: {name}"
   },
@@ -3157,9 +3214,9 @@
         "description": "Train, manage, and use public community LoRAs."
       },
       "node": {
-        "label": "Node Editor",
-        "title": "Node Editor",
-        "description": "Build visual workflows that chain generation, editing, and analysis steps."
+        "label": "Canvas",
+        "title": "Canvas",
+        "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
       }
     }
   },
@@ -3170,11 +3227,34 @@
       "chatOutline": "Chat the outline with the assistant",
       "addNode": "Add a node manually (character / background / shot / image…)"
     },
-    "eyebrow": "Node workflow",
+    "appearance": {
+      "trigger": "Set canvas appearance",
+      "title": "Canvas appearance",
+      "description": "Color and wallpaper are saved with this project.",
+      "colorLabel": "Background color",
+      "customColor": "Custom color",
+      "colorValueLabel": "Color value",
+      "invalidColor": "Enter a color in #RRGGBB format.",
+      "presetColor": "Use color {color}",
+      "imageLabel": "Background image",
+      "chooseImage": "Choose or upload image",
+      "replaceImage": "Replace image",
+      "removeImage": "Remove image",
+      "fitLabel": "Fit",
+      "fitCover": "Fill canvas",
+      "fitContain": "Show full image",
+      "opacityLabel": "Image opacity",
+      "restoreDefault": "Restore default appearance",
+      "dialogTitle": "Choose canvas background",
+      "dialogDescription": "Select from assets or upload a background image.",
+      "previewAlt": "Canvas background preview",
+      "triggerShort": "Surface"
+    },
+    "eyebrow": "Canvas",
     "projectUntitled": "Untitled project",
     "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
-    "addMenuTitle": "Add node",
+    "addMenuTitle": "Add to canvas",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3202,6 +3282,53 @@
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
       "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
       "videoMerge": "Concatenate multiple upstream videos into one long clip (~$0.001/run, up to 9 clips)."
+    },
+    "addCatalog": {
+      "groups": {
+        "image": "Images",
+        "video": "Video",
+        "audio": "Sound",
+        "organize": "Organize"
+      },
+      "items": {
+        "imageAsset": {
+          "label": "Image",
+          "helper": "Upload, paste, choose an asset, or generate with AI later."
+        },
+        "imageShot": {
+          "label": "Shot image",
+          "helper": "Generate a still from shot direction plus character and scene references."
+        },
+        "imageKeyframe": {
+          "label": "Keyframe",
+          "helper": "Add a key image that constrains a video's framing and composition."
+        },
+        "videoGenerate": {
+          "label": "Generate video",
+          "helper": "Combine a prompt with visual and sound references to create a video shot."
+        },
+        "videoReference": {
+          "label": "Reference video",
+          "helper": "Upload a clip as motion or visual guidance for downstream generation."
+        },
+        "videoMerge": {
+          "label": "Compose videos",
+          "helper": "Join 2–9 clips in order, with optional per-clip ranges."
+        },
+        "audioVoiceProfile": {
+          "label": "Voice profile",
+          "helper": "Choose a system voice or upload reference audio as a reusable identity."
+        },
+        "organizeCharacter": {
+          "label": "Character profile",
+          "helper": "Collect a character's hero image, references, close-ups, and bound voice."
+        },
+        "organizeScene": {
+          "label": "Scene profile",
+          "helper": "Collect scene images, location, mood, and lighting direction."
+        }
+      },
+      "cast": "Cast tray"
     },
     "statuses": {
       "idle": "Idle",
@@ -3781,7 +3908,14 @@
     },
     "nodeToolbar": {
       "expand": "Expand",
-      "delete": "Delete"
+      "delete": "Delete",
+      "imageEditToolbar": "Image edit tools",
+      "more": "More",
+      "quickEdit": "Quick edit",
+      "download": "Download",
+      "rename": "Name",
+      "category": "Category",
+      "moreEdits": "Edit tools"
     },
     "nodeDetail": {
       "backToCanvas": "Back to canvas",
@@ -3941,7 +4075,7 @@
       "defaultModel": "Default",
       "createProjectPrompt": "Project name",
       "renameProjectPrompt": "Rename project",
-      "deleteProjectConfirm": "Delete \"{name}\"? This removes its local Node Studio canvas."
+      "deleteProjectConfirm": "Delete \"{name}\"? This removes this canvas project."
     },
     "projectMenu": {
       "triggerLabel": "Open project menu",
@@ -3976,6 +4110,9 @@
         "cut": "Click an edge"
       },
       "zoomLevel": "{percent}%",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Fit canvas",
       "undo": "Undo",
       "redo": "Redo"
     },
@@ -4063,6 +4200,14 @@
         "firstPhase": {
           "label": "First phase",
           "prompt": "Let's plan the first phase — a short series of shots (≤60s)."
+        },
+        "videoShot": {
+          "label": "Plan a shot",
+          "prompt": "Help me plan a video shot on this canvas: subject, motion, camera, and duration."
+        },
+        "videoMerge": {
+          "label": "Merge clips",
+          "prompt": "Help me order and merge video clips already on the canvas into a short sequence."
         }
       },
       "welcomeTitle": "Select a node to inspect it",
@@ -4098,7 +4243,16 @@
       "modeHint": "Ask before applying",
       "research": "Reference work",
       "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
-      "send": "Send"
+      "send": "Send",
+      "references": "Canvas references",
+      "addReference": "Attach an image or video reference",
+      "removeReference": "Remove reference",
+      "capabilityUnavailable": "That canvas image is no longer available.",
+      "capabilityFailed": "The canvas capability failed. Try again.",
+      "modalityPrefix": {
+        "image": "[Image mode]",
+        "video": "[Video mode]"
+      }
     },
     "minimapTitle": "Minimap",
     "castDock": {
@@ -4158,6 +4312,8 @@
       "galleryAddAria": "Add a reference image",
       "primaryBadge": "Primary",
       "identityVisualSeedLabel": "Visual seed (set by the assistant)",
+      "backgroundCardTitle": "Scene card",
+      "backgroundCardHint": "Select a scene card to hydrate this node",
       "voiceSection": "Voice identity",
       "voiceBind": "Bind voice",
       "voiceBindDialogDescription": "Pick a generated or uploaded audio clip as this character's voice reference.",
@@ -4183,6 +4339,28 @@
       "projectCreated": "Project \"{name}\" created.",
       "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted."
+    },
+    "quickEdit": {
+      "placeholder": "Describe how you want to edit this image",
+      "editing": "Editing [{name}]",
+      "run": "Run",
+      "back": "Back to tools",
+      "title": "Quick edit",
+      "hint": "Describe the element to extract. Result is a new image on the canvas."
+    },
+    "history": {
+      "title": "History",
+      "search": "Search conversations",
+      "empty": "No conversations yet",
+      "new": "New chat",
+      "share": "Share read-only link",
+      "shareCopied": "Read-only link copied",
+      "shareFailed": "Could not create a share link"
+    },
+    "modality": {
+      "image": "Image",
+      "video": "Video",
+      "label": "Generation type"
     }
   },
   "StudioV2": {
@@ -4564,6 +4742,10 @@
     "openSavedGeneration": "Open saved generation",
     "downloadPsd": "Download PSD",
     "layersTitle": "Layers",
+    "decomposePreviewTitle": "Choose layers to place",
+    "decomposeSelectAll": "Select all",
+    "decomposeClear": "Clear",
+    "decomposePlace": "Place selected layers",
     "layerCount": "{count} layers extracted",
     "success": {
       "upscale": "Super resolution complete.",
@@ -4683,6 +4865,7 @@
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
+      "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",

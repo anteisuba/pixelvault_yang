@@ -248,7 +248,7 @@ describe('llmTextCompletion - OpenAI', () => {
     expect(result).toBe('openai content part reply')
   })
 
-  it('classifies empty OpenAI 200 responses as provider failures', async () => {
+  it('classifies length+reasoning empty OpenAI responses as output budget exhaustion', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -283,10 +283,45 @@ describe('llmTextCompletion - OpenAI', () => {
         apiKey: 'sk-test',
       }),
     ).rejects.toMatchObject({
-      errorCode: 'PROVIDER_ERROR',
+      errorCode: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
       httpStatus: 502,
-      i18nKey: 'errors.provider.failed',
+      i18nKey: 'errors.provider.outputBudgetExhausted',
     })
+  })
+
+  it('floors low maxTokens for gpt-5 reasoning models', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'ok' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+      modelId: 'gpt-5.5',
+      maxTokens: 900,
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected OpenAI request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      max_completion_tokens?: number
+    }
+
+    expect(payload.max_completion_tokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING,
+    )
   })
 
   it('uses the chat API root when given the shared OpenAI image base URL', async () => {
@@ -310,7 +345,8 @@ describe('llmTextCompletion - OpenAI', () => {
       },
       apiKey: 'sk-test',
       modelId: 'gpt-5.2',
-      maxTokens: 3500,
+      // Above OPENAI_REASONING floor — must pass through unchanged.
+      maxTokens: 5000,
       responseFormat: 'json_object',
     })
 
@@ -331,7 +367,7 @@ describe('llmTextCompletion - OpenAI', () => {
       expect.any(Object),
     )
     expect(payload.model).toBe('gpt-5.2')
-    expect(payload.max_completion_tokens).toBe(3500)
+    expect(payload.max_completion_tokens).toBe(5000)
     expect(payload.response_format?.type).toBe('json_object')
   })
 

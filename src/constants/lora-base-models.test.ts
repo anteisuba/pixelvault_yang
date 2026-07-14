@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 
 import {
   LORA_BASE_MODELS,
+  LORA_BASE_ONLY_DEFAULT_ID,
+  getBaseOnlyGenerationBases,
   getCompatibleBases,
+  getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
   normalizeToLoraBaseFamily,
 } from '@/constants/lora-base-models'
@@ -29,6 +32,7 @@ describe('normalizeToLoraBaseFamily', () => {
     // 工作流）。用精确值判，别碰 "anima" 子串，免误判 Animagine 这类 SDXL。
     expect(normalizeToLoraBaseFamily('Anima')).toBe('anima-dit')
     expect(normalizeToLoraBaseFamily('anima')).toBe('anima-dit')
+    expect(normalizeToLoraBaseFamily('anima-dit')).toBe('anima-dit')
     expect(normalizeToLoraBaseFamily('  ANIMA ')).toBe('anima-dit')
     // 名字含 "anima" 但架构是 SDXL 的仍归 'anima'（走 anima_pencil）。
     expect(normalizeToLoraBaseFamily('anima_pencil-XL')).toBe('anima')
@@ -69,6 +73,10 @@ describe('getCompatibleBases', () => {
     expect(bases.length).toBeGreaterThan(0)
     expect(bases.every((b) => b.family === 'anima-dit')).toBe(true)
     expect(bases.some((b) => b.id === 'anima-dit-runner')).toBe(true)
+    expect(bases.map((b) => b.recipeCheckpointMode)).toEqual([
+      'source',
+      'fixed',
+    ])
   })
 })
 
@@ -95,6 +103,24 @@ describe('getDefaultBase', () => {
 
   it('returns null when no family matches', () => {
     expect(getDefaultBase('nonsense')).toBeNull()
+  })
+})
+
+describe('pure-base generation catalog', () => {
+  it('defaults to the fixed Anima Base v1.0 runner entry', () => {
+    const base = getDefaultBaseOnlyGenerationBase()
+    expect(base?.id).toBe(LORA_BASE_ONLY_DEFAULT_ID)
+    expect(base?.family).toBe('anima-dit')
+    expect(base?.recipeCheckpointMode).toBe('fixed')
+  })
+
+  it('excludes bases that depend on a source recipe', () => {
+    const bases = getBaseOnlyGenerationBases()
+    expect(bases.length).toBeGreaterThan(0)
+    expect(bases.every((base) => base.recipeCheckpointMode !== 'source')).toBe(
+      true,
+    )
+    expect(bases.some((base) => base.id === 'anima-dit-runner')).toBe(false)
   })
 })
 

@@ -47,9 +47,8 @@ export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
 
 // ── 助手右侧 dock（施工基准 docs/design/reviews/2026-07-07-studio-assistant-dock-redesign.md）──
 /**
- * Values mirror NODE_STUDIO_DOCK_RESIZE so the resize gesture feels identical
- * across surfaces, but the constant stays independent on purpose — the two
- * docks must not share a storage key or couple their tuning.
+ * The Studio composer keeps a user-resizable assistant. Canvas intentionally
+ * uses a fixed rail, so this preference remains Studio-only.
  */
 export const STUDIO_ASSISTANT_DOCK_RESIZE = {
   defaultWidthPx: 448,

@@ -11,9 +11,16 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import { Bot, GripVertical, ImageDown, PanelRightClose } from 'lucide-react'
+import {
+  Bot,
+  GripVertical,
+  ImageDown,
+  PanelRightClose,
+  Share2,
+} from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   STUDIO_ASSISTANT_DOCK_RESIZE,
@@ -24,6 +31,11 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
 import { readImageFileAsBase64 } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
+import {
+  AssistantShell,
+  AssistantShellHeader,
+} from '@/components/business/assistant/AssistantShell'
+import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
 
 const ASSISTANT_DOCK_FILE_MAX_BYTES = 10 * 1024 * 1024
 
@@ -240,6 +252,7 @@ function useDockLayout() {
  */
 export function StudioAssistantDock() {
   const t = useTranslations('PromptAssistant')
+  const tHistory = useTranslations('StudioNode.history')
   const isMobile = useIsMobile()
   const {
     open,
@@ -257,6 +270,9 @@ export function StudioAssistantDock() {
     { url: string; token: number } | undefined
   >(undefined)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [assistantSessionId, setAssistantSessionId] = useState<string | null>(
+    null,
+  )
   const dockRef = useRef<HTMLElement>(null)
 
   // Keep the panel's dynamic chunk lazy (loads on first open, or earlier if
@@ -331,10 +347,30 @@ export function StudioAssistantDock() {
     [injectReference],
   )
 
+  const handleShareAssistant = useCallback(async () => {
+    if (!assistantSessionId) {
+      toast.error(tHistory('shareFailed'))
+      return
+    }
+    const result = await createAssistantConversationShareAPI(assistantSessionId)
+    if (!result.success) {
+      toast.error(tHistory('shareFailed'))
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/${window.location.pathname.split('/')[1] || 'en'}/assistant/share/${result.data.token}`,
+      )
+      toast.success(tHistory('shareCopied'))
+    } catch {
+      toast.error(tHistory('shareFailed'))
+    }
+  }, [assistantSessionId, tHistory])
+
   if (isMobile) return null
 
   return (
-    <aside
+    <AssistantShell
       ref={dockRef}
       role="complementary"
       aria-label={t('dockLabel')}
@@ -368,24 +404,35 @@ export function StudioAssistantDock() {
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Bot className="size-4 shrink-0 text-primary" />
-          <p className="truncate text-sm font-semibold text-foreground">
-            {t('dockTitle')}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={t('dockCollapse')}
-          onClick={() => setOpen(false)}
-          className="rounded-xl text-muted-foreground hover:text-foreground"
-        >
-          <PanelRightClose className="size-4" />
-        </Button>
-      </div>
+      <AssistantShellHeader
+        title={t('dockTitle')}
+        leading={<Bot className="size-4 shrink-0 text-primary" />}
+        actions={
+          <>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={tHistory('share')}
+              title={tHistory('share')}
+              onClick={() => void handleShareAssistant()}
+              className="rounded-xl text-muted-foreground hover:text-foreground"
+            >
+              <Share2 className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('dockCollapse')}
+              onClick={() => setOpen(false)}
+              className="rounded-xl text-muted-foreground hover:text-foreground"
+            >
+              <PanelRightClose className="size-4" />
+            </Button>
+          </>
+        }
+      />
 
       <div
         className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 transition-opacity duration-slow ease-standard"
@@ -399,6 +446,7 @@ export function StudioAssistantDock() {
             llmApiKeys={llmApiKeys}
             onUsePrompt={onUsePrompt}
             onAppendPrompt={onAppendPrompt}
+            onSessionIdChange={setAssistantSessionId}
             injectedReference={injectedReference}
           />
         )}
@@ -412,6 +460,6 @@ export function StudioAssistantDock() {
           </span>
         </div>
       ) : null}
-    </aside>
+    </AssistantShell>
   )
 }

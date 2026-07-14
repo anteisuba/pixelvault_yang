@@ -195,89 +195,93 @@ export async function submitImageGeneration(
     externalRequestId: JSON.stringify(metadata),
   })
 
-  // v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md V2-2c）：RUNNER 路径把每把
-  // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
-  // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
-  // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
-  let runnerAdvancedParams = input.advancedParams
-  if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
-    const loras = input.advancedParams?.loras ?? []
-    if (loras.length > 0) {
-      try {
-        const runnerLoras = await prepareRunnerLoras(loras)
-        runnerAdvancedParams = { ...input.advancedParams, runnerLoras }
-      } catch (error) {
-        // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
-        throw new GenerateImageServiceError(
-          'PROVIDER_ERROR',
-          error instanceof Error
-            ? error.message
-            : 'Failed to prepare runner LoRA',
-          502,
-        )
-      }
-    }
-    // v3（docs/plans/comfy-runner-v3-checkpoint-ondemand.md V3-2c）：配方带底模引用时
-    // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
-    // 无引用（非配方生成）则维持现状，用选中的预烤底模。
-    const adv = runnerAdvancedParams
-    if (adv && (adv.checkpointVersionId != null || adv.checkpointName)) {
-      try {
-        const prepared = await prepareRunnerCheckpoint({
-          checkpointVersionId: adv.checkpointVersionId,
-          checkpointName: adv.checkpointName,
-          loraBaseModel: adv.loraBaseModel,
-        })
-        runnerAdvancedParams = {
-          ...adv,
-          runnerCheckpoint: prepared.runnerCheckpoint,
-          runnerCheckpointApproximate: prepared.approximate || undefined,
-        }
-      } catch (error) {
-        throw new GenerateImageServiceError(
-          'PROVIDER_ERROR',
-          error instanceof Error
-            ? error.message
-            : 'Failed to prepare runner checkpoint',
-          502,
-        )
-      }
-    }
-  }
-
-  const runContext: WorkerRunContext = {
-    runId: job.id,
-    workflowId: EXECUTION_WORKFLOW_IDS.IMAGE_QUEUE,
-    outputType: 'IMAGE',
-    providerId: route.adapterType,
-    apiKeyId: apiKeyId ?? undefined,
-    useSystemKey: useSystemKey || undefined,
-    callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
-    resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
-    timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
-    maxAttempts:
-      route.adapterType === AI_ADAPTER_TYPES.FAL ||
-      route.adapterType === AI_ADAPTER_TYPES.REPLICATE ||
-      // RunPod cold starts (scale-to-zero) can run 150s+ before the job even
-      // starts running — needs the full poll window, not the single-shot
-      // path used by adapters that resolve synchronously inside one step.do.
-      route.adapterType === AI_ADAPTER_TYPES.RUNNER
-        ? EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS
-        : 1,
-    pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
-    providerInput: {
-      prompt: input.prompt,
-      modelId: route.modelId,
-      externalModelId: getExecutionModelId(route.modelId),
-      aspectRatio: input.aspectRatio,
-      referenceImage: referenceImageUrl,
-      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-      advancedParams: runnerAdvancedParams,
-      outputStorageKey,
-    },
-  }
-
+  // Everything after create must mark the job FAILED on error — otherwise a
+  // Vercel timeout / prepareRunnerLoras failure leaves a permanent RUNNING row
+  // (seen with multi-GB files mis-attached as LoRAs).
   try {
+    // v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md V2-2c）：RUNNER 路径把每把
+    // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
+    // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
+    // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
+    let runnerAdvancedParams = input.advancedParams
+    if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
+      const loras = input.advancedParams?.loras ?? []
+      if (loras.length > 0) {
+        try {
+          const runnerLoras = await prepareRunnerLoras(loras)
+          runnerAdvancedParams = { ...input.advancedParams, runnerLoras }
+        } catch (error) {
+          // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
+          throw new GenerateImageServiceError(
+            'PROVIDER_ERROR',
+            error instanceof Error
+              ? error.message
+              : 'Failed to prepare runner LoRA',
+            502,
+          )
+        }
+      }
+      // v3（docs/plans/comfy-runner-v3-checkpoint-ondemand.md V3-2c）：配方带底模引用时
+      // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
+      // 无引用（非配方生成）则维持现状，用选中的预烤底模。
+      const adv = runnerAdvancedParams
+      if (adv && (adv.checkpointVersionId != null || adv.checkpointName)) {
+        try {
+          const prepared = await prepareRunnerCheckpoint({
+            checkpointVersionId: adv.checkpointVersionId,
+            checkpointName: adv.checkpointName,
+            loraBaseModel: adv.loraBaseModel,
+          })
+          runnerAdvancedParams = {
+            ...adv,
+            runnerCheckpoint: prepared.runnerCheckpoint,
+            runnerCheckpointApproximate: prepared.approximate || undefined,
+          }
+        } catch (error) {
+          throw new GenerateImageServiceError(
+            'PROVIDER_ERROR',
+            error instanceof Error
+              ? error.message
+              : 'Failed to prepare runner checkpoint',
+            502,
+          )
+        }
+      }
+    }
+
+    const runContext: WorkerRunContext = {
+      runId: job.id,
+      workflowId: EXECUTION_WORKFLOW_IDS.IMAGE_QUEUE,
+      outputType: 'IMAGE',
+      providerId: route.adapterType,
+      apiKeyId: apiKeyId ?? undefined,
+      useSystemKey: useSystemKey || undefined,
+      callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
+      resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
+      timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
+      maxAttempts:
+        route.adapterType === AI_ADAPTER_TYPES.FAL ||
+        route.adapterType === AI_ADAPTER_TYPES.REPLICATE ||
+        // RunPod cold starts (scale-to-zero) can run 150s+ before the job even
+        // starts running — needs the full poll window, not the single-shot
+        // path used by adapters that resolve synchronously inside one step.do.
+        route.adapterType === AI_ADAPTER_TYPES.RUNNER
+          ? EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS
+          : 1,
+      pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+      providerInput: {
+        prompt: input.prompt,
+        modelId: route.modelId,
+        externalModelId: getExecutionModelId(route.modelId),
+        aspectRatio: input.aspectRatio,
+        referenceImage: referenceImageUrl,
+        referenceImages:
+          referenceImages.length > 0 ? referenceImages : undefined,
+        advancedParams: runnerAdvancedParams,
+        outputStorageKey,
+      },
+    }
+
     const dispatchResult = await dispatchImageWorkerRun(runContext)
 
     await db.generationJob.update({
@@ -300,7 +304,9 @@ export async function submitImageGeneration(
     return { jobId: job.id, requestId: dispatchResult.workflowInstanceId }
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to dispatch image worker'
+      error instanceof Error
+        ? error.message
+        : 'Failed to prepare or dispatch image worker'
     await failGenerationJob(job.id, { errorMessage: message })
     throw error
   }

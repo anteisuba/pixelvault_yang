@@ -215,7 +215,7 @@
       }
     },
     "node": {
-      "label": "节点编辑操作教程",
+      "label": "画布操作教程",
       "slides": {
         "add": {
           "title": "先添加第一个节点",
@@ -415,8 +415,8 @@
         "description": "使用局部重绘、扩图、超分、去背景和图层工具编辑生成图片。"
       },
       "node": {
-        "title": "节点工作台 — PixelVault",
-        "description": "在节点画布上搭建可视化 AI 创作工作流。"
+        "title": "画布 — PixelVault",
+        "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
       }
     },
     "gallery": {
@@ -1365,7 +1365,11 @@
       "recipeApply": "一键同款",
       "recipeUseSeed": "使用原图 seed",
       "recipeApplied": "已应用来源图配方",
-      "recipeSkipped": "未应用：{params}",
+      "recipeSkipped": "当前暂不支持：{params}",
+      "recipeWillApply": "一键同款将应用：{params}",
+      "recipeApplied": "已写入本次生成：{params}",
+      "recipeSourceModel": "Civitai 来源图配方",
+      "recipeSourceCommunity": "Civitai 社区生成配方",
       "recipeAppendTriggersHint": "配方来自「{name}」·同款时自动补上其他挂载的触发词：{triggers}",
       "recipeExtraLoras": "该图叠加了 {count} 个其他 LoRA，仅挂载当前 LoRA 还原度有限",
       "recipeExtraMount": "挂载",
@@ -1430,15 +1434,15 @@
       "public": "公开"
     },
     "generate": {
-      "placeholderTitle": "先选一个 LoRA",
-      "placeholderBody": "去「库」挑一个 LoRA，回到这里就能出图。",
+      "placeholderTitle": "可直接使用底模生成",
+      "placeholderBody": "当前未挂载 LoRA，可直接使用底模出图，也可以去「库」添加 LoRA。",
       "run": "出图",
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",
       "runnerBudgetRemaining": "本月 Runner 剩余 {remaining}/{limit} 次（全站共享）",
       "runnerBudgetExhausted": "本月 Runner 生成额度已用完，下月重置或改用托管底模",
       "resultEmptyTitle": "还没有生成结果",
-      "resultEmptyHint": "选好配方后点「出图」",
+      "resultEmptyHint": "输入提示词后点「出图」",
       "resultPreviewLabel": "放大查看生成结果",
       "promptModeLabel": "提示词来源",
       "promptModeRecommend": "推荐",
@@ -1454,13 +1458,39 @@
       "resultHistoryMeta": "强度 ×{scale} · 种子 {seed}",
       "recipeGroupActive": "正在看「{name}」的来源图",
       "recipeTriggersAppended": "已自动补上触发词：{triggers}",
-      "recipeTriggersUndo": "撤销"
+      "recipeTriggersUndo": "撤销",
+      "advanced": {
+        "title": "Runner 参数",
+        "defaultSummary": "使用底模默认值",
+        "customSummary": "已自定义 {count} 项",
+        "modelDefault": "底模默认",
+        "seed": "Seed（留空为随机）",
+        "randomSeed": "恢复随机 Seed",
+        "steps": "Steps",
+        "cfg": "CFG",
+        "sampler": "Sampler",
+        "scheduler": "Scheduler",
+        "width": "宽度",
+        "height": "高度",
+        "seedError": "Seed 必须是 uint64 范围内的非负整数。",
+        "stepsError": "Steps 必须是 1–100 的整数。",
+        "cfgError": "CFG 必须在 0–30 之间。",
+        "dimensionPairError": "宽度和高度需要同时填写。",
+        "dimensionError": "尺寸必须在 512–{max} 之间，并且是 8 的倍数。",
+        "postprocess": "后处理",
+        "upscaler": "放大模型",
+        "upscalerNone": "无",
+        "upscalerHint": "4x-AnimeSharp 在 VAE 解码后进行 ESRGAN 放大，不是二次扩散修复。",
+        "upscaleSummary": "{width}×{height} → {outputWidth}×{outputHeight}",
+        "upscaleLargeWarning": "最终尺寸较大，耗时和显存占用会明显增加。"
+      }
     },
     "spine": {
+      "sourceCheckpointAuto": "来源图底模（自动）",
       "currentLora": "当前 LoRA",
       "baseModel": "底模",
-      "baseModelPending": "选好 LoRA 自动匹配",
-      "empty": "还没选 LoRA，去「库」挑一个",
+      "baseModelPending": "当前没有可用底模",
+      "empty": "未挂载（纯底模）",
       "fast": "极速",
       "faithful": "忠实还原",
       "comingSoon": "即将",
@@ -1601,6 +1631,33 @@
     "useExternal": "在 Civitai 打开",
     "externalBadgeHint": "这个基础模型在 PixelVault 不支持，需要去 Civitai 生成",
     "externalInspectorHint": "{family} 系列 LoRA 在 PixelVault 暂无可用推理端点，点击下方按钮跳转 Civitai 生成。",
+    "librarySourceCivitai": "Civitai",
+    "librarySourceHuggingFace": "Hugging Face",
+    "huggingFacePublic": "Hugging Face 公共 LoRA",
+    "huggingFaceDescription": "浏览 Hugging Face 公共图片 LoRA，选择精确权重文件加入我的库；底模由生成端独立配置。",
+    "huggingFaceSearchPlaceholder": "搜索 Hugging Face 图片 LoRA…",
+    "huggingFaceNoResults": "没有找到匹配的公开 LoRA。",
+    "huggingFaceLoadFailed": "Hugging Face LoRA 加载失败。",
+    "huggingFaceLoading": "正在搜索 Hugging Face…",
+    "huggingFaceSelectFile": "权重文件",
+    "huggingFaceImport": "加入我的库",
+    "huggingFaceImporting": "正在加入…",
+    "huggingFaceInLibrary": "已在我的库",
+    "huggingFaceTrigger": "触发词",
+    "huggingFaceNoTrigger": "作者未提供（无需自动追加）",
+    "huggingFaceOpenRepo": "打开 Hugging Face 仓库",
+    "huggingFaceFamilyFilter": "按底模系列筛选",
+    "huggingFaceFamilyAll": "全部",
+    "huggingFaceFamilyAnima": "Anima",
+    "huggingFaceFamilyIllustrious": "Illustrious",
+    "huggingFaceFamilyPony": "Pony",
+    "huggingFaceFamilySdxl": "SDXL",
+    "huggingFaceFamilyFlux": "Flux",
+    "huggingFaceFamilySd15": "SD 1.5",
+    "huggingFaceFamilyQwenImage": "Qwen Image",
+    "huggingFaceFamilyZImage": "Z-Image",
+    "huggingFaceFamilyOther": "其他图片模型",
+    "huggingFaceUnsupportedFamily": "可以收藏，但 PixelVault 当前没有兼容的生成底模",
     "communityOpenInCivitai": "在 Civitai 生成",
     "externalUseRedirect": "正在跳转 Civitai：{name}"
   },
@@ -3157,9 +3214,9 @@
         "description": "训练、管理并使用社区公开的 LoRA。"
       },
       "node": {
-        "label": "节点编辑",
-        "title": "节点编辑器",
-        "description": "可视化工作流，串联生成、编辑、解析等步骤。"
+        "label": "画布",
+        "title": "画布",
+        "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
       }
     }
   },
@@ -3170,11 +3227,34 @@
       "chatOutline": "跟助手聊大纲",
       "addNode": "手动加节点（角色 / 背景 / 镜头 / 图像…）"
     },
-    "eyebrow": "节点工作流",
+    "appearance": {
+      "trigger": "设置画布外观",
+      "title": "画布外观",
+      "description": "颜色与背景图会随当前项目保存。",
+      "colorLabel": "背景颜色",
+      "customColor": "自定义颜色",
+      "colorValueLabel": "颜色值",
+      "invalidColor": "请输入 #RRGGBB 格式的颜色值。",
+      "presetColor": "使用颜色 {color}",
+      "imageLabel": "背景图片",
+      "chooseImage": "选择或上传图片",
+      "replaceImage": "更换图片",
+      "removeImage": "移除图片",
+      "fitLabel": "适配方式",
+      "fitCover": "填满画布",
+      "fitContain": "完整显示",
+      "opacityLabel": "图片透明度",
+      "restoreDefault": "恢复默认外观",
+      "dialogTitle": "选择画布背景",
+      "dialogDescription": "从素材库选择，或上传一张背景图片。",
+      "previewAlt": "画布背景预览",
+      "triggerShort": "桌面"
+    },
+    "eyebrow": "画布",
     "projectUntitled": "未命名项目",
     "projectNewDefaultName": "未命名项目 {n}",
     "nodeCount": "{count} 个节点",
-    "addMenuTitle": "添加节点",
+    "addMenuTitle": "添加到画布",
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
@@ -3202,6 +3282,53 @@
       "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
       "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。",
       "videoMerge": "把多个上游视频按顺序拼接成一段长视频（~$0.001 / 次，≤9 段）。"
+    },
+    "addCatalog": {
+      "groups": {
+        "image": "图片",
+        "video": "视频",
+        "audio": "声音",
+        "organize": "组织"
+      },
+      "items": {
+        "imageAsset": {
+          "label": "图片",
+          "helper": "上传、粘贴、从素材选择，或稍后使用 AI 生成。"
+        },
+        "imageShot": {
+          "label": "镜头图",
+          "helper": "用镜头描述和角色、场景参考生成单张画面。"
+        },
+        "imageKeyframe": {
+          "label": "关键帧",
+          "helper": "添加用于约束视频画面与构图的关键图像。"
+        },
+        "videoGenerate": {
+          "label": "视频生成",
+          "helper": "组合提示词与画面、声音参考，生成一个视频镜头。"
+        },
+        "videoReference": {
+          "label": "参考视频",
+          "helper": "上传一段视频，作为下游生成的运动或画面参考。"
+        },
+        "videoMerge": {
+          "label": "视频合成",
+          "helper": "按顺序合并 2–9 个视频片段，可先设置片段范围。"
+        },
+        "audioVoiceProfile": {
+          "label": "音色档案",
+          "helper": "选择系统音色或上传参考音频，保存可复用的声音身份。"
+        },
+        "organizeCharacter": {
+          "label": "角色档案",
+          "helper": "收集角色主图、参考图、特写与绑定音色。"
+        },
+        "organizeScene": {
+          "label": "场景档案",
+          "helper": "收集场景图、地点、氛围与光线设定。"
+        }
+      },
+      "cast": "卡匣"
     },
     "statuses": {
       "idle": "空闲",
@@ -3781,7 +3908,14 @@
     },
     "nodeToolbar": {
       "expand": "展开",
-      "delete": "删除"
+      "delete": "删除",
+      "imageEditToolbar": "图片编辑工具",
+      "more": "更多",
+      "quickEdit": "快捷编辑",
+      "download": "下载",
+      "rename": "命名",
+      "category": "分类",
+      "moreEdits": "编辑能力"
     },
     "nodeDetail": {
       "backToCanvas": "返回画布",
@@ -3941,7 +4075,7 @@
       "defaultModel": "默认",
       "createProjectPrompt": "项目名称",
       "renameProjectPrompt": "重命名项目",
-      "deleteProjectConfirm": "确定删除「{name}」吗？这个项目的本地节点画布会被移除。"
+      "deleteProjectConfirm": "确定删除「{name}」吗？这个画布项目会被移除。"
     },
     "projectMenu": {
       "triggerLabel": "打开项目菜单",
@@ -3976,6 +4110,9 @@
         "cut": "点击连线"
       },
       "zoomLevel": "{percent}%",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fitView": "适应画布",
       "undo": "撤销",
       "redo": "重做"
     },
@@ -4063,6 +4200,14 @@
         "firstPhase": {
           "label": "第一阶段",
           "prompt": "先规划第一阶段——一组短镜头（≤60 秒）。"
+        },
+        "videoShot": {
+          "label": "规划镜头",
+          "prompt": "帮我在画布上规划一个视频镜头：主体、运动、机位与时长。"
+        },
+        "videoMerge": {
+          "label": "合成片段",
+          "prompt": "帮我把画布上已有视频片段排序并合成为短片。"
         }
       },
       "welcomeTitle": "选择节点查看检查器",
@@ -4098,7 +4243,16 @@
       "modeHint": "应用前先询问",
       "research": "参考作品",
       "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
-      "send": "发送"
+      "send": "发送",
+      "references": "鐢诲竷鍙傝€?",
+      "addReference": "娣诲姞鍥剧墖鎴栬棰戝弬鑰?",
+      "removeReference": "绉婚櫎鍙傝€?",
+      "capabilityUnavailable": "鐢诲竷涓婄殑杩欏紶鍥剧墖宸蹭笉鍙敤銆?",
+      "capabilityFailed": "鐢诲竷鑳藉姏鎵ц澶辫触锛岃閲嶈瘯銆?",
+      "modalityPrefix": {
+        "image": "[图像模式]",
+        "video": "[视频模式]"
+      }
     },
     "minimapTitle": "小地图",
     "castDock": {
@@ -4158,6 +4312,8 @@
       "galleryAddAria": "添加参考图",
       "primaryBadge": "主图",
       "identityVisualSeedLabel": "视觉种子（助手设定）",
+      "backgroundCardTitle": "场景卡",
+      "backgroundCardHint": "选择场景卡并完整载入节点",
       "voiceSection": "听觉身份",
       "voiceBind": "绑定音色",
       "voiceBindDialogDescription": "从已生成或已上传的音频里选一段作为这个角色的音色参考。",
@@ -4183,6 +4339,28 @@
       "projectCreated": "项目「{name}」已创建。",
       "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。"
+    },
+    "quickEdit": {
+      "placeholder": "描述你想如何编辑这张图片",
+      "editing": "正在编辑 [{name}]",
+      "run": "运行",
+      "back": "返回工具条",
+      "title": "快捷编辑",
+      "hint": "描述要提取的元素。结果会作为新图片放在画布上。"
+    },
+    "history": {
+      "title": "历史对话",
+      "search": "请输入搜索关键词",
+      "empty": "暂无历史对话",
+      "new": "新对话",
+      "share": "分享只读链接",
+      "shareCopied": "只读链接已复制",
+      "shareFailed": "无法创建分享链接"
+    },
+    "modality": {
+      "image": "图像",
+      "video": "视频",
+      "label": "生成模态"
     }
   },
   "StudioV2": {
@@ -4564,6 +4742,10 @@
     "openSavedGeneration": "打开已保存作品",
     "downloadPsd": "下载 PSD",
     "layersTitle": "图层",
+    "decomposePreviewTitle": "选择要放置的图层",
+    "decomposeSelectAll": "全选",
+    "decomposeClear": "清除选择",
+    "decomposePlace": "放置选中图层",
     "layerCount": "已提取 {count} 个图层",
     "success": {
       "upscale": "超分完成。",
@@ -4683,6 +4865,7 @@
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
+      "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",

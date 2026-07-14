@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type {
@@ -8,7 +8,11 @@ import type {
   PromptAssistantMode,
   PromptAssistantResponseLanguage,
 } from '@/types'
-import { chatPromptAssistantAPI } from '@/lib/api-client'
+import {
+  chatPromptAssistantAPI,
+  getAssistantConversationAPI,
+  upsertAssistantConversationAPI,
+} from '@/lib/api-client'
 
 /** Style preset shortcuts — must stay in sync with prompt-assistant.service */
 export const STYLE_SHORTCUTS = {
@@ -28,12 +32,14 @@ export const STYLE_SHORTCUTS = {
 
 interface PromptAssistantState {
   messages: PromptAssistantMessage[]
+  sessionId: string | null
   isLoading: boolean
   error: string | null
 }
 
 const INITIAL_STATE: PromptAssistantState = {
   messages: [],
+  sessionId: null,
   isLoading: false,
   error: null,
 }
@@ -81,6 +87,28 @@ export function usePromptAssistant() {
     getPromptAssistantSnapshot,
     getServerPromptAssistantSnapshot,
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void getAssistantConversationAPI({ surface: 'STUDIO' }).then((result) => {
+      if (cancelled || !result.success || !result.data) return
+      const conversation = result.data
+      setPromptAssistantState((prev) => {
+        if (prev.messages.length > 0) return prev
+        return {
+          ...prev,
+          sessionId: conversation.id,
+          messages: conversation.messages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        }
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const send = useCallback(
     async (
@@ -130,11 +158,29 @@ export function usePromptAssistant() {
           role: 'assistant',
           content: result.data.prompt,
         }
+        const nextMessages = [
+          ...promptAssistantState.messages,
+          assistantMessage,
+        ]
         setPromptAssistantState((prev) => ({
           ...prev,
-          messages: [...prev.messages, assistantMessage],
+          messages: nextMessages,
           isLoading: false,
         }))
+        const persisted = await upsertAssistantConversationAPI({
+          ...(promptAssistantState.sessionId
+            ? { id: promptAssistantState.sessionId }
+            : {}),
+          surface: 'STUDIO',
+          projectId: null,
+          messages: nextMessages,
+        })
+        if (persisted.success) {
+          setPromptAssistantState((prev) => ({
+            ...prev,
+            sessionId: persisted.data.id,
+          }))
+        }
       } else {
         setPromptAssistantState((prev) => ({
           ...prev,

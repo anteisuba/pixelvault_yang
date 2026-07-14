@@ -14,6 +14,7 @@
 | providers.md     | AI provider 接入契约 / BYOK / 错误信息全链路（✅ 已写）                                                                   | `src/constants/providers.ts`                                |
 | product.md       | 产品边界与主线（✅ 已写，2026-07-10 四项重核更新）                                                                        | 本文件即现行契约；详版 `archive/product/`                   |
 | domains/         | 各业务域契约（负责什么 / 不负责什么 / 不能破坏什么）——高频 4 篇 ✅：studio · assets · gallery · prompts；其余域待需要时补 | `src/` 对应域代码                                           |
+| ui-inspiration/  | owner 策展的 UI 参考与模式拆解；**不是规范或施工图**                                                                      | owner 截图 · 来源页面 · `brand-dna.md` 设计边界             |
 
 **设计文档两层原则**（owner 2026-07-10 拍板）：`frontend.md` 定共同部分，**不要限制得太死**——它是默认值和共享词汇表，不是枷锁；页面文档可以有意破格，但破格必须记录理由。每页 UI 文档动笔前必须先做该页工作流程调研。
 

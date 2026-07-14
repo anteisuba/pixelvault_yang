@@ -20,7 +20,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { promptCreatePath, studioImageEditPath } from '@/constants/routes'
+import { promptCreatePath, studioCanvasEditPath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -238,7 +238,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const handleEdit = useCallback(
     (generation: GenerationRecord) => {
       router.push(
-        studioImageEditPath({
+        studioCanvasEditPath({
           generationId: generation.id,
           sourceUrl: generation.url,
           width: generation.width,

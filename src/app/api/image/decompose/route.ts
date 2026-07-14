@@ -33,6 +33,8 @@ export const POST = createApiRoute({
       data.seed,
       hfToken ?? undefined,
       data.modelId,
+      data.generationId,
+      data.persist,
     )
   },
 })

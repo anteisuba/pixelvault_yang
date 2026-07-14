@@ -579,6 +579,8 @@ export interface AudioBinding {
   /** Voice cover — `voiceCoverImage` (system voice) or `voiceReferenceCoverImage`
    *  (user reference audio's asset-library cover), for the token thumbnail (§8.2). */
   coverImage?: string
+  /** Distinguishes a finished Audio Clip from a Voice Profile donor sample. */
+  sourceKind?: 'audio-clip' | 'voice-profile'
 }
 
 function readCharacterName(node: NodeWorkflowNode): string | undefined {
@@ -599,11 +601,28 @@ function readCharacterName(node: NodeWorkflowNode): string | undefined {
 
 export function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
   if (!isVoiceProfileNode(node)) return undefined
+  const audioClipUrl =
+    node.data.audioClip && typeof node.data.audioClip === 'object'
+      ? (node.data.audioClip as { url?: unknown }).url
+      : undefined
+  if (typeof audioClipUrl === 'string' && audioClipUrl.trim()) {
+    return audioClipUrl.trim()
+  }
   const url =
     typeof node.data.voiceReferenceAudioUrl === 'string'
       ? node.data.voiceReferenceAudioUrl.trim()
       : ''
   return url || undefined
+}
+
+function getAudioBindingSourceKind(
+  node: NodeWorkflowNode,
+): AudioBinding['sourceKind'] {
+  return node.data.audioClip && typeof node.data.audioClip === 'object'
+    ? 'audio-clip'
+    : node.data.voiceReferenceAudioUrl
+      ? 'voice-profile'
+      : undefined
 }
 
 export function readVoiceCoverImage(
@@ -649,6 +668,9 @@ export function harvestUpstreamAudioBindings(
     bindings.push({
       url,
       nodeId: voiceNode.id,
+      ...(getAudioBindingSourceKind(voiceNode) === 'audio-clip'
+        ? { sourceKind: 'audio-clip' as const }
+        : {}),
       ...(characterName ? { characterName } : {}),
       ...(readVoiceCoverImage(voiceNode)
         ? { coverImage: readVoiceCoverImage(voiceNode) }

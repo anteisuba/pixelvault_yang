@@ -223,12 +223,12 @@ describe('ImageDetailModal', () => {
     expect(screen.queryByText('Delete')).not.toBeInTheDocument()
   })
 
-  it('links IMAGE output type to the dedicated Studio editor', () => {
+  it('links IMAGE output type to the Canvas image editor', () => {
     renderModal()
     const link = screen.getByRole('link', { name: /edit in studio/i })
     expect(link).toHaveAttribute(
       'href',
-      expect.stringContaining('/studio/edit'),
+      expect.stringContaining('/studio/node?canvasTool=image-edit'),
     )
     expect(link).toHaveAttribute(
       'href',

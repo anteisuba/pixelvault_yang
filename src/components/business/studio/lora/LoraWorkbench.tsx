@@ -11,8 +11,10 @@ import {
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import {
+  Boxes,
   AlertCircle,
   ArrowUpRight,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Compass,
@@ -30,6 +32,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -49,6 +52,7 @@ import {
   LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_NSFW_PARAM,
   LORA_LIBRARY_SEARCH_PARAM,
+  LORA_LIBRARY_SOURCES,
   LORA_LIBRARY_SORT_PARAM,
   LORA_NSFW_FILTER_VALUES,
   LORA_RESULT_HISTORY_MAX,
@@ -59,25 +63,34 @@ import {
   isCivitaiLoraBaseModel,
   isCivitaiLoraSort,
   isLoraNsfwFilter,
+  isLoraLibrarySource,
   isLoraWorkbenchSection,
   type CivitaiLoraBaseModel,
   type LoraNsfwFilter,
+  type LoraLibrarySource,
   type LoraWorkbenchSection,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
 import {
+  getBaseOnlyGenerationBases,
   getCompatibleBases,
+  getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
+import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
-import type {
-  CivitaiImageRecipe,
-  CivitaiLoraLibraryItem,
-  CivitaiMinedPromptsResult,
-  CivitaiRecipeExtraLora,
-  LoraAssetRecord,
+import {
+  AdvancedParamsSchema,
+  RunnerSeedStringSchema,
+  type AdvancedParams,
+  type CivitaiImageRecipe,
+  type CivitaiLoraLibraryItem,
+  type CivitaiMinedPromptsResult,
+  type CivitaiRecipeExtraLora,
+  type FavoriteLoraRequest,
+  type LoraAssetRecord,
 } from '@/types'
 import {
   LORA_STACK_MAX,
@@ -85,6 +98,7 @@ import {
 } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
+import { HuggingFaceLoraLibrary } from '@/components/business/studio/lora/HuggingFaceLoraLibrary'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
@@ -135,7 +149,10 @@ import {
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { appendMissingTriggers } from '@/lib/lora-prompt-triggers'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
-import { buildCivitaiRecipeGenerationPlan } from '@/lib/civitai-recipe-to-generation'
+import {
+  applyRecipePlanToAdvancedParams,
+  buildCivitaiRecipeGenerationPlan,
+} from '@/lib/civitai-recipe-to-generation'
 import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
 import {
   mountRecipeExtraLoras,
@@ -186,6 +203,7 @@ export function LoraWorkbench() {
     errorMine,
     refresh,
     setVisibility,
+    favoriteExternalLora,
     favoriteCivitaiLora,
     unfavoriteAsset,
     unfavoriteByUrl,
@@ -334,8 +352,9 @@ export function LoraWorkbench() {
                   isFavorited={isFavorited}
                 />
               ) : (
-                <CivitaiCommunityBranch
+                <CommunitySourceBranch
                   onFavorite={favoriteCivitaiLora}
+                  onImport={favoriteExternalLora}
                   onUnfavoriteByUrl={unfavoriteByUrl}
                   isFavorited={isFavorited}
                 />
@@ -368,17 +387,59 @@ interface LoraResultHistoryItem {
   id: string
   url: string
   scale: number | null
-  seed: number | null
+  seed: string | null
 }
 
-/** GenerationRecord.seed is bigint|string|number|null (bigint from DB, string
- *  after JSON). Normalize to a finite number for the filmstrip label, or null. */
+/** Preserve exact uint64 seeds in the filmstrip instead of rounding via Number. */
 function normalizeRecordSeed(
   seed: bigint | string | number | null | undefined,
-): number | null {
+): string | null {
   if (seed == null) return null
-  const n = typeof seed === 'bigint' ? Number(seed) : Number(seed)
-  return Number.isFinite(n) ? n : null
+  if (typeof seed === 'bigint') return seed.toString()
+  if (typeof seed === 'number') {
+    return Number.isFinite(seed) ? String(seed) : null
+  }
+  return seed.trim() || null
+}
+
+const RUNNER_DEFAULT_SELECT_VALUE = '__model_default__'
+
+function parseOptionalRunnerNumber(value: string): number | undefined {
+  if (!value.trim()) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function getRunnerPreviewDimensions(
+  aspectRatio: AspectRatio,
+  isAnima: boolean,
+): { width: number; height: number } {
+  if (isAnima) {
+    switch (aspectRatio) {
+      case '16:9':
+        return { width: 1344, height: 768 }
+      case '9:16':
+        return { width: 768, height: 1344 }
+      case '4:3':
+        return { width: 1152, height: 864 }
+      case '3:4':
+        return { width: 864, height: 1152 }
+      default:
+        return { width: 1024, height: 1024 }
+    }
+  }
+  switch (aspectRatio) {
+    case '16:9':
+      return { width: 1792, height: 1024 }
+    case '9:16':
+      return { width: 1024, height: 1792 }
+    case '4:3':
+      return { width: 1024, height: 768 }
+    case '3:4':
+      return { width: 768, height: 1024 }
+    default:
+      return { width: 1024, height: 1024 }
+  }
 }
 
 /**
@@ -456,11 +517,14 @@ function GenerateBranch() {
   }, [healthMap, imageModels, keys])
 
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null
+  const baseOnlyBases = useMemo(() => getBaseOnlyGenerationBases(), [])
   const compatibleBases = useMemo(
-    () => (loraFamily ? getCompatibleBases(loraFamily) : []),
-    [loraFamily],
+    () => (loraFamily ? getCompatibleBases(loraFamily) : baseOnlyBases),
+    [baseOnlyBases, loraFamily],
   )
-  const defaultBase = loraFamily ? getDefaultBase(loraFamily) : null
+  const defaultBase = loraFamily
+    ? getDefaultBase(loraFamily)
+    : getDefaultBaseOnlyGenerationBase()
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null)
   const selectedBase =
     compatibleBases.find((b) => b.id === selectedBaseId) ?? defaultBase
@@ -588,7 +652,109 @@ function GenerateBranch() {
   const [includeSeed, setIncludeSeed] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [seed, setSeed] = useState<number | undefined>(undefined)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [runnerSeed, setRunnerSeed] = useState('')
+  const [runnerSteps, setRunnerSteps] = useState('')
+  const [runnerCfg, setRunnerCfg] = useState('')
+  const [runnerSampler, setRunnerSampler] = useState('')
+  const [runnerScheduler, setRunnerScheduler] = useState('')
+  const [runnerWidth, setRunnerWidth] = useState('')
+  const [runnerHeight, setRunnerHeight] = useState('')
+  const [runnerUpscaler, setRunnerUpscaler] = useState<
+    'none' | '4x-AnimeSharp'
+  >('none')
+  const [appliedRecipe, setAppliedRecipe] = useState<{
+    groupAssetId: string
+    recipe: CivitaiImageRecipe
+    params: AdvancedParams
+    includeSeed: boolean
+  } | null>(null)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
+
+  const runnerParameterError = useMemo(() => {
+    if (!isRunnerBase) return null
+    if (
+      runnerSeed.trim() &&
+      !RunnerSeedStringSchema.safeParse(runnerSeed.trim()).success
+    ) {
+      return t('generate.advanced.seedError')
+    }
+    const steps = parseOptionalRunnerNumber(runnerSteps)
+    if (
+      runnerSteps.trim() &&
+      !AdvancedParamsSchema.shape.steps.safeParse(steps).success
+    ) {
+      return t('generate.advanced.stepsError')
+    }
+    const cfg = parseOptionalRunnerNumber(runnerCfg)
+    if (
+      runnerCfg.trim() &&
+      !AdvancedParamsSchema.shape.guidanceScale.safeParse(cfg).success
+    ) {
+      return t('generate.advanced.cfgError')
+    }
+    const hasWidth = runnerWidth.trim().length > 0
+    const hasHeight = runnerHeight.trim().length > 0
+    if (hasWidth !== hasHeight) {
+      return t('generate.advanced.dimensionPairError')
+    }
+    if (hasWidth && hasHeight) {
+      const width = parseOptionalRunnerNumber(runnerWidth)
+      const height = parseOptionalRunnerNumber(runnerHeight)
+      const max = selectedBase?.family === 'anima-dit' ? 1536 : 2048
+      const isValidDimension = (value: number | undefined) =>
+        value !== undefined &&
+        Number.isInteger(value) &&
+        value >= 512 &&
+        value <= max &&
+        value % 8 === 0
+      if (!isValidDimension(width) || !isValidDimension(height)) {
+        return t('generate.advanced.dimensionError', { max })
+      }
+    }
+    return null
+  }, [
+    isRunnerBase,
+    runnerCfg,
+    runnerHeight,
+    runnerSeed,
+    runnerSteps,
+    runnerWidth,
+    selectedBase?.family,
+    t,
+  ])
+
+  const advancedCustomCount = [
+    runnerSeed,
+    runnerSteps,
+    runnerCfg,
+    runnerSampler,
+    runnerScheduler,
+    runnerWidth && runnerHeight ? 'size' : '',
+    runnerUpscaler === '4x-AnimeSharp' ? runnerUpscaler : '',
+  ].filter(Boolean).length
+
+  const previewDimensions = useMemo(() => {
+    const exactWidth = parseOptionalRunnerNumber(runnerWidth)
+    const exactHeight = parseOptionalRunnerNumber(runnerHeight)
+    if (exactWidth && exactHeight && !runnerParameterError) {
+      return { width: exactWidth, height: exactHeight }
+    }
+    return getRunnerPreviewDimensions(
+      aspectRatio,
+      selectedBase?.family === 'anima-dit',
+    )
+  }, [
+    aspectRatio,
+    runnerHeight,
+    runnerParameterError,
+    runnerWidth,
+    selectedBase?.family,
+  ])
+  const upscaleFinalWidth = previewDimensions.width * 4
+  const upscaleFinalHeight = previewDimensions.height * 4
+  const upscaleOutputIsLarge =
+    upscaleFinalWidth > 6144 || upscaleFinalHeight > 6144
 
   // ── B10 (D7③) 结果历史 filmstrip ─────────────────────────────────────
   // 会话级缩略条：每次出图成功后 prepend（新→旧），FIFO 上限
@@ -671,6 +837,7 @@ function GenerateBranch() {
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
+      const params = applyRecipePlanToAdvancedParams(undefined, plan, options)
       // B10 (D7④/§2②) 一键同款自动补齐触发词：配方来自某个分组 LoRA，但纸上
       // 还挂着其他 LoRA——把它们缺失的触发词 append 到配方 prompt 末尾，否则
       // 多挂载出图会漏掉别的 LoRA 的激活词。语义只承诺还原单主体（§2③）。
@@ -679,14 +846,35 @@ function GenerateBranch() {
         stack.items.map((it) => it.asset.triggerWord),
       )
       setPrompt(appended.prompt)
-      setNegativePrompt(plan.advancedParams?.negativePrompt ?? '')
+      setNegativePrompt(params.negativePrompt ?? '')
       if (plan.aspectRatio) setAspectRatio(plan.aspectRatio)
       // Scale applies to the group the recipe came from (per-mount), not
       // always the primary — multi-mount tunes each LoRA independently.
       if (plan.loraScale != null && recipeGroupAsset) {
         stack.setScale(recipeGroupAsset.id, plan.loraScale)
       }
-      setSeed(options.includeSeed ? plan.advancedParams?.seed : undefined)
+      setSeed(options.includeSeed ? params.seed : undefined)
+      setRunnerSeed(params.runnerSeed ?? '')
+      setRunnerSteps(params.steps != null ? String(params.steps) : '')
+      setRunnerCfg(
+        params.guidanceScale != null ? String(params.guidanceScale) : '',
+      )
+      setRunnerSampler(params.runnerSampler ?? '')
+      setRunnerScheduler(params.runnerScheduler ?? '')
+      setRunnerWidth(
+        params.runnerWidth != null ? String(params.runnerWidth) : '',
+      )
+      setRunnerHeight(
+        params.runnerHeight != null ? String(params.runnerHeight) : '',
+      )
+      if (recipeGroupAsset) {
+        setAppliedRecipe({
+          groupAssetId: recipeGroupAsset.id,
+          recipe,
+          params,
+          includeSeed: options.includeSeed,
+        })
+      }
       // Undoable toast when we actually appended other mounts' triggers
       // (single-mount → nothing appended → no toast).
       if (appended.appendedTriggers.length > 0) {
@@ -738,10 +926,10 @@ function GenerateBranch() {
 
   const hasLora = stack.items.length > 0
   const canGenerate =
-    hasLora &&
     !!selectedBase?.available &&
     !!selectedBase.providerModelId &&
     !isGenerating &&
+    runnerParameterError === null &&
     // 缺 key 时按钮仍可点——点击路由到 QuickSetupDialog（Hard Rule 8），
     // 不强求先填提示词。
     (needsKeySetup || prompt.trim().length > 0)
@@ -761,7 +949,16 @@ function GenerateBranch() {
       selectedTags: promptTags.allSelections(),
       existingNegativePrompt: negativePrompt,
     })
-    const advanced: Record<string, unknown> = {}
+    const activeAppliedRecipe =
+      appliedRecipe &&
+      stack.items.some((entry) => entry.asset.id === appliedRecipe.groupAssetId)
+        ? appliedRecipe
+        : null
+    const recipeParams = activeAppliedRecipe?.params
+    const advanced: Record<string, unknown> = { ...recipeParams }
+    // These are supplied by the visible prompt/negative/seed controls below.
+    delete advanced.negativePrompt
+    delete advanced.seed
     if (loras.length > 0) advanced.loras = loras
     if (compiled.negativePrompt)
       advanced.negativePrompt = compiled.negativePrompt
@@ -774,13 +971,47 @@ function GenerateBranch() {
     // v3：runner + 源图配方时，把配方记录的底模引用传给服务端分级（T1 下对底模
     // 忠实还原 / T2 近似 / T3 拦）。非 runner 或无配方不传 → 维持现状用预烤底模。
     if (isRunnerBase) {
-      const activeRecipe = selectedImageUrl
-        ? mined.recipes.find((recipe) => recipe.imageUrl === selectedImageUrl)
-        : undefined
-      if (activeRecipe?.checkpointVersionId != null)
+      delete advanced.runnerSeed
+      delete advanced.runnerSampler
+      delete advanced.runnerScheduler
+      delete advanced.runnerWidth
+      delete advanced.runnerHeight
+      delete advanced.runnerUpscaler
+      delete advanced.steps
+      delete advanced.guidanceScale
+
+      const exactSeed = runnerSeed.trim()
+      const steps = parseOptionalRunnerNumber(runnerSteps)
+      const cfg = parseOptionalRunnerNumber(runnerCfg)
+      const width = parseOptionalRunnerNumber(runnerWidth)
+      const height = parseOptionalRunnerNumber(runnerHeight)
+      if (exactSeed) advanced.runnerSeed = exactSeed
+      if (steps !== undefined) advanced.steps = steps
+      if (cfg !== undefined) advanced.guidanceScale = cfg
+      if (runnerSampler) advanced.runnerSampler = runnerSampler
+      if (runnerScheduler) advanced.runnerScheduler = runnerScheduler
+      if (width !== undefined && height !== undefined) {
+        advanced.runnerWidth = width
+        advanced.runnerHeight = height
+      }
+      if (runnerUpscaler === '4x-AnimeSharp') {
+        advanced.runnerUpscaler = runnerUpscaler
+      }
+
+      const activeRecipe = activeAppliedRecipe?.recipe
+      // Runner-only fields never leak into hosted provider payloads.
+      if (
+        activeRecipe?.checkpointVersionId != null &&
+        selectedBase?.recipeCheckpointMode !== 'fixed'
+      ) {
         advanced.checkpointVersionId = activeRecipe.checkpointVersionId
-      if (activeRecipe?.checkpoint)
+      }
+      if (
+        activeRecipe?.checkpoint &&
+        selectedBase?.recipeCheckpointMode !== 'fixed'
+      ) {
         advanced.checkpointName = activeRecipe.checkpoint
+      }
       // 带上 LoRA 的 baseModel 作权威架构信号：无精确底模时服务端按它判 T2/T3，
       // 既能正确拦 DiT，又不会因配方 checkpoint 名字含 "anima"(如 Animagine) 误拦
       // 合法 SDXL 生成。
@@ -789,6 +1020,13 @@ function GenerateBranch() {
         loraFamily
       )
         advanced.loraBaseModel = loraFamily
+    } else {
+      delete advanced.runnerSeed
+      delete advanced.runnerSampler
+      delete advanced.runnerScheduler
+      delete advanced.runnerWidth
+      delete advanced.runnerHeight
+      delete advanced.runnerUpscaler
     }
     const record = await generate({
       mode: 'image',
@@ -814,7 +1052,9 @@ function GenerateBranch() {
             id: record.id,
             url: record.url,
             scale: primaryScale,
-            seed: normalizeRecordSeed(record.seed) ?? seed ?? null,
+            seed:
+              normalizeRecordSeed(record.seed) ??
+              (seed != null ? String(seed) : null),
           },
           ...prev.filter((item) => item.id !== record.id),
         ].slice(0, LORA_RESULT_HISTORY_MAX),
@@ -823,18 +1063,25 @@ function GenerateBranch() {
     }
   }, [
     aspectRatio,
+    appliedRecipe,
     generate,
     imageUpload.referenceImages,
     isRunnerBase,
     loraFamily,
-    mined.recipes,
     negativePrompt,
     prompt,
     promptTags,
     referenceStrength,
+    runnerCfg,
+    runnerHeight,
+    runnerSampler,
+    runnerScheduler,
+    runnerSeed,
+    runnerSteps,
+    runnerUpscaler,
+    runnerWidth,
     seed,
     selectedBase,
-    selectedImageUrl,
     stack,
   ])
 
@@ -1191,6 +1438,269 @@ function GenerateBranch() {
                     })}
               </p>
             ) : null}
+            {isRunnerBase ? (
+              <div className="border-t border-surface-composer-foreground/10 pt-2">
+                <button
+                  type="button"
+                  aria-expanded={advancedOpen}
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                  className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-surface-composer-foreground"
+                >
+                  <SlidersHorizontal className="size-3.5" aria-hidden />
+                  <span>{t('generate.advanced.title')}</span>
+                  <span className="text-2xs font-normal text-surface-composer-foreground/55">
+                    {advancedCustomCount > 0
+                      ? t('generate.advanced.customSummary', {
+                          count: advancedCustomCount,
+                        })
+                      : t('generate.advanced.defaultSummary')}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'ml-auto size-3.5 transition-transform',
+                      advancedOpen && 'rotate-180',
+                    )}
+                    aria-hidden
+                  />
+                </button>
+
+                {advancedOpen ? (
+                  <div className="space-y-3 pt-2">
+                    {runnerParameterError ? (
+                      <p
+                        role="alert"
+                        className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
+                      >
+                        {runnerParameterError}
+                      </p>
+                    ) : null}
+
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65 sm:col-span-2">
+                        <span>{t('generate.advanced.seed')}</span>
+                        <div className="flex gap-1.5">
+                          <Input
+                            value={runnerSeed}
+                            onChange={(event) => {
+                              setRunnerSeed(event.target.value.trim())
+                              setSeed(undefined)
+                            }}
+                            inputMode="numeric"
+                            placeholder={t('generate.advanced.modelDefault')}
+                            aria-label={t('generate.advanced.seed')}
+                            className="h-8 border-surface-composer-foreground/15 bg-transparent font-mono text-xs"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              setRunnerSeed('')
+                              setSeed(undefined)
+                            }}
+                            title={t('generate.advanced.randomSeed')}
+                            aria-label={t('generate.advanced.randomSeed')}
+                            className="size-8 shrink-0"
+                          >
+                            <RefreshCw className="size-3.5" aria-hidden />
+                          </Button>
+                        </div>
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65">
+                        <span>{t('generate.advanced.steps')}</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={100}
+                          step={1}
+                          value={runnerSteps}
+                          onChange={(event) =>
+                            setRunnerSteps(event.target.value)
+                          }
+                          placeholder={t('generate.advanced.modelDefault')}
+                          aria-label={t('generate.advanced.steps')}
+                          className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65">
+                        <span>{t('generate.advanced.cfg')}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={30}
+                          step={0.1}
+                          value={runnerCfg}
+                          onChange={(event) => setRunnerCfg(event.target.value)}
+                          placeholder={t('generate.advanced.modelDefault')}
+                          aria-label={t('generate.advanced.cfg')}
+                          className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65 sm:col-span-2">
+                        <span>{t('generate.advanced.sampler')}</span>
+                        <Select
+                          value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
+                          onValueChange={(value) =>
+                            setRunnerSampler(
+                              value === RUNNER_DEFAULT_SELECT_VALUE
+                                ? ''
+                                : value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label={t('generate.advanced.sampler')}
+                            className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                              {t('generate.advanced.modelDefault')}
+                            </SelectItem>
+                            {RUNNER_SAMPLERS.map((sampler) => (
+                              <SelectItem key={sampler} value={sampler}>
+                                {sampler}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65 sm:col-span-2">
+                        <span>{t('generate.advanced.scheduler')}</span>
+                        <Select
+                          value={runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE}
+                          onValueChange={(value) =>
+                            setRunnerScheduler(
+                              value === RUNNER_DEFAULT_SELECT_VALUE
+                                ? ''
+                                : value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label={t('generate.advanced.scheduler')}
+                            className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                              {t('generate.advanced.modelDefault')}
+                            </SelectItem>
+                            {RUNNER_SCHEDULERS.map((scheduler) => (
+                              <SelectItem key={scheduler} value={scheduler}>
+                                {scheduler}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65">
+                        <span>{t('generate.advanced.width')}</span>
+                        <Input
+                          type="number"
+                          min={512}
+                          max={
+                            selectedBase?.family === 'anima-dit' ? 1536 : 2048
+                          }
+                          step={8}
+                          value={runnerWidth}
+                          onChange={(event) =>
+                            setRunnerWidth(event.target.value)
+                          }
+                          placeholder={String(previewDimensions.width)}
+                          aria-label={t('generate.advanced.width')}
+                          className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-2xs font-medium text-surface-composer-foreground/65">
+                        <span>{t('generate.advanced.height')}</span>
+                        <Input
+                          type="number"
+                          min={512}
+                          max={
+                            selectedBase?.family === 'anima-dit' ? 1536 : 2048
+                          }
+                          step={8}
+                          value={runnerHeight}
+                          onChange={(event) =>
+                            setRunnerHeight(event.target.value)
+                          }
+                          placeholder={String(previewDimensions.height)}
+                          aria-label={t('generate.advanced.height')}
+                          className="h-8 border-surface-composer-foreground/15 bg-transparent text-xs"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="rounded-lg border border-surface-composer-foreground/12 p-2.5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-surface-composer-foreground">
+                            {t('generate.advanced.postprocess')}
+                          </p>
+                          <p className="text-2xs text-surface-composer-foreground/55">
+                            {t('generate.advanced.upscalerHint')}
+                          </p>
+                        </div>
+                        <Select
+                          value={runnerUpscaler}
+                          onValueChange={(value) =>
+                            setRunnerUpscaler(
+                              value === '4x-AnimeSharp'
+                                ? '4x-AnimeSharp'
+                                : 'none',
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label={t('generate.advanced.upscaler')}
+                            className="h-8 w-full border-surface-composer-foreground/15 bg-transparent text-xs sm:w-48"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              {t('generate.advanced.upscalerNone')}
+                            </SelectItem>
+                            <SelectItem value="4x-AnimeSharp">
+                              4x-AnimeSharp
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {runnerUpscaler === '4x-AnimeSharp' ? (
+                        <p
+                          className={cn(
+                            'mt-2 text-2xs',
+                            upscaleOutputIsLarge
+                              ? 'text-amber-700 dark:text-amber-400'
+                              : 'text-surface-composer-foreground/60',
+                          )}
+                        >
+                          {t('generate.advanced.upscaleSummary', {
+                            width: previewDimensions.width,
+                            height: previewDimensions.height,
+                            outputWidth: upscaleFinalWidth,
+                            outputHeight: upscaleFinalHeight,
+                          })}
+                          {upscaleOutputIsLarge
+                            ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <Button
@@ -1445,6 +1955,8 @@ function LoraSpineBar({
 
   const fidelityLabel = (b: LoraBaseModel) =>
     b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
+  const baseDisplayName = (b: LoraBaseModel) =>
+    b.translationKey ? t(`spine.${b.translationKey}`) : b.displayName
 
   return (
     // D8 细则① 去盒化：脊柱条不再套圆角面板，改底部发丝线（白 8%）+ 留白节奏。
@@ -1562,7 +2074,7 @@ function LoraSpineBar({
                 >
                   <span className="flex items-center gap-1.5">
                     <span>
-                      {base.displayName} · {fidelityLabel(base)}
+                      {baseDisplayName(base)} · {fidelityLabel(base)}
                       {base.available ? '' : ` · ${t('spine.comingSoon')}`}
                     </span>
                     {/* 命名 A：把「免费额度 / 需 API Key」做成徽标，让 runner(平台免费·
@@ -2216,6 +2728,60 @@ interface CivitaiCommunityBranchProps {
   onFavorite: (item: CivitaiLoraLibraryItem) => Promise<LoraAssetRecord | null>
   onUnfavoriteByUrl: (loraUrl: string) => Promise<boolean>
   isFavorited: (loraUrl: string) => boolean
+}
+
+interface CommunitySourceBranchProps extends CivitaiCommunityBranchProps {
+  onImport: (input: FavoriteLoraRequest) => Promise<LoraAssetRecord | null>
+}
+
+function CommunitySourceBranch({
+  onFavorite,
+  onImport,
+  onUnfavoriteByUrl,
+  isFavorited,
+}: CommunitySourceBranchProps) {
+  const t = useTranslations('LoraWorkbench')
+  const [source, setSource] = useState<LoraLibrarySource>(
+    LORA_LIBRARY_SOURCES.CIVITAI,
+  )
+
+  return (
+    <div className="space-y-3">
+      <Tabs
+        value={source}
+        onValueChange={(value) => {
+          if (isLoraLibrarySource(value)) setSource(value)
+        }}
+      >
+        <TabsList className="h-9 bg-muted/40">
+          <TabsTrigger
+            value={LORA_LIBRARY_SOURCES.CIVITAI}
+            className="h-7 px-3 text-xs"
+          >
+            <Compass className="size-3.5" aria-hidden />
+            {t('librarySourceCivitai')}
+          </TabsTrigger>
+          <TabsTrigger
+            value={LORA_LIBRARY_SOURCES.HUGGINGFACE}
+            className="h-7 px-3 text-xs"
+          >
+            <Boxes className="size-3.5" aria-hidden />
+            {t('librarySourceHuggingFace')}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {source === LORA_LIBRARY_SOURCES.HUGGINGFACE ? (
+        <HuggingFaceLoraLibrary onImport={onImport} isFavorited={isFavorited} />
+      ) : (
+        <CivitaiCommunityBranch
+          onFavorite={onFavorite}
+          onUnfavoriteByUrl={onUnfavoriteByUrl}
+          isFavorited={isFavorited}
+        />
+      )}
+    </div>
+  )
 }
 
 const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {

@@ -42,6 +42,19 @@ export const LORA_LIBRARY_FAMILY_PARAM = 'family'
 export const LORA_LIBRARY_SEARCH_PARAM = 'q'
 export const LORA_LIBRARY_SORT_PARAM = 'sort'
 export const LORA_LIBRARY_NSFW_PARAM = 'nsfw'
+export const LORA_LIBRARY_SOURCES = {
+  CIVITAI: 'civitai',
+  HUGGINGFACE: 'huggingface',
+} as const
+
+export type LoraLibrarySource =
+  (typeof LORA_LIBRARY_SOURCES)[keyof typeof LORA_LIBRARY_SOURCES]
+
+export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
+  return Object.values(LORA_LIBRARY_SOURCES).includes(
+    value as LoraLibrarySource,
+  )
+}
 
 // ── 挂载可见性（M2a，docs/plans/lora-recipe-workflow.md）──────────────
 // Studio chip 卡片 48px 缩略图请求宽度，96 覆盖 2x 屏。
@@ -66,6 +79,47 @@ export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
 // P2-6：10 条/页在 2xl:6 列网格下永远残行；12 在 6/4/3/2 列下都能整行
 // （5 列容忍最后一行留 2 空位）。
 export const CIVITAI_LORA_PAGE_SIZE = 12
+
+// Hugging Face LoRA browser/import contract. The Hub remains the source of
+// truth; PixelVault admits public image-diffusion SafeTensors adapters and
+// caches the exact file selected by the user in R2.
+export const HUGGINGFACE_LORA_API_BASE_URL = 'https://huggingface.co/api'
+export const HUGGINGFACE_LORA_BASE_MODEL_FAMILY = 'anima-dit'
+export const HUGGINGFACE_LORA_DEFAULT_FAMILY = 'all'
+export const HUGGINGFACE_LORA_FAMILY_VALUES = [
+  'all',
+  'anima-dit',
+  'illustrious',
+  'pony',
+  'sdxl',
+  'flux',
+  'sd15',
+  'qwen-image',
+  'z-image',
+  'other',
+] as const
+export type HuggingFaceLoraFamily =
+  (typeof HUGGINGFACE_LORA_FAMILY_VALUES)[number]
+export const HUGGINGFACE_LORA_ANIMA_ADAPTER_FILTER =
+  'base_model:adapter:circlestone-labs/Anima'
+export const HUGGINGFACE_LORA_CURATED_ANIMA_REPOS = [
+  'circlestone-labs/Anima-Official-LoRAs',
+] as const
+export const HUGGINGFACE_LORA_DEFAULT_LIMIT = 12
+export const HUGGINGFACE_LORA_MAX_LIMIT = 40
+// A Hub page can contain non-image LoRAs or weights that fail our file-size
+// verification. Continue through a bounded number of cursor pages to fill one
+// PixelVault page without ever skipping accepted results.
+export const HUGGINGFACE_LORA_MAX_CURSOR_SCANS = 8
+export const HUGGINGFACE_LORA_MAX_SEARCH_LENGTH = 120
+export const HUGGINGFACE_LORA_MAX_CURSOR_LENGTH = 4096
+export const HUGGINGFACE_LORA_ALLOWED_EXTENSION = '.safetensors'
+// Hub repositories are community-authored and can be mistagged as `lora`.
+// Anima's complete UNET is ~4.18 GB while even the published rank-512
+// extracted adapters stay below 2 GiB, so files above this boundary belong in
+// the Runner base-model catalog rather than the user LoRA library.
+export const HUGGINGFACE_LORA_MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024
+export const HUGGINGFACE_LORA_DETAIL_CONCURRENCY = 4
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =
   'https://raw.githubusercontent.com/mix1009/model-keyword/main/lora-keyword.txt'

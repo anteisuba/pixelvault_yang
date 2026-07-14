@@ -5,7 +5,10 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  CANVAS_ADD_GROUP_IDS,
+  CANVAS_ADD_INTENT_IDS,
+} from '@/constants/canvas-add-catalog'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
 
@@ -26,7 +29,7 @@ describe('CanvasAddMenu', () => {
     window.cancelAnimationFrame = originalCancelAnimationFrame
   })
 
-  it('keeps manual shot creation inside the image node instead of a standalone shot-text entry', () => {
+  it('renders compact insert intents without a cast tray entry', () => {
     render(
       <CanvasAddMenu
         open
@@ -36,14 +39,20 @@ describe('CanvasAddMenu', () => {
       />,
     )
 
-    expect(screen.getByText('nodeTypes.image')).toBeInTheDocument()
-    expect(screen.queryByText('nodeTypes.shotText')).not.toBeInTheDocument()
+    for (const groupId of Object.values(CANVAS_ADD_GROUP_IDS)) {
+      expect(
+        screen.getByText(`addCatalog.groups.${groupId}`),
+      ).toBeInTheDocument()
+    }
+    // Primary upload + 8 remaining catalog rows (image.asset not duplicated).
+    expect(screen.getAllByRole('menuitem')).toHaveLength(9)
+    expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('addCatalog.items.shotText.label'),
+    ).not.toBeInTheDocument()
   })
 
-  // S5d ③「添加菜单更名区分」: the old single "image" row splits into
-  // 图片（素材，role-less）and 镜头图（生成，role=shot）— two distinct rows
-  // sharing the unified `image` node type.
-  it('splits into a role-less 图片 row and a role=shot 镜头图 row', () => {
+  it('returns stable intent ids for image, keyframe, and organization entries', () => {
     const onSelect = vi.fn()
     render(
       <CanvasAddMenu
@@ -54,20 +63,27 @@ describe('CanvasAddMenu', () => {
       />,
     )
 
-    expect(screen.getByText('nodeTypes.image')).toBeInTheDocument()
-    expect(screen.getByText('nodeTypes.shot')).toBeInTheDocument()
-
     fireEvent.click(
-      screen.getByText('nodeTypes.image').closest('button') as HTMLElement,
+      screen
+        .getByText('addCatalog.items.imageAsset.label')
+        .closest('button') as HTMLElement,
     )
-    expect(onSelect).toHaveBeenCalledWith(NODE_TYPE_IDS.image, undefined)
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
 
     fireEvent.click(
-      screen.getByText('nodeTypes.shot').closest('button') as HTMLElement,
+      screen
+        .getByText('addCatalog.items.imageKeyframe.label')
+        .closest('button') as HTMLElement,
+    )
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageKeyframe)
+
+    fireEvent.click(
+      screen
+        .getByText('addCatalog.items.organizeCharacter.label')
+        .closest('button') as HTMLElement,
     )
     expect(onSelect).toHaveBeenCalledWith(
-      NODE_TYPE_IDS.image,
-      NODE_IMAGE_ROLE_IDS.shot,
+      CANVAS_ADD_INTENT_IDS.organizeCharacter,
     )
   })
 })

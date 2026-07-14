@@ -723,10 +723,6 @@ export type EnumGenerationJobStatusFieldUpdateOperationsInput = {
   set?: $Enums.GenerationJobStatus
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type GenerationJobCreateNestedOneWithoutExecutionOutboxInput = {
   create?: Prisma.XOR<Prisma.GenerationJobCreateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedCreateWithoutExecutionOutboxInput>
   connectOrCreate?: Prisma.GenerationJobCreateOrConnectWithoutExecutionOutboxInput

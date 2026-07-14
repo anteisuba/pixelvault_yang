@@ -76,14 +76,49 @@ adapter / Worker 抛错
 - `ModelOption.cost` 是平台额度单位，**不是** provider 计费真值。
 - LLM text 路由 fallback（用户 BYOK 优先 → 平台 Gemini）在扩画布 planner/助手用量前需复核。
 
+## Runner recipe contract (2026-07-14)
+
+- `AdvancedParams` uses `runnerSeed` as a decimal string so ComfyUI uint64 seeds are not rounded by JavaScript. The fork validates and converts it to a Python integer immediately before the official handler.
+- Civitai sampler labels are normalized into explicit allowlisted `runnerSampler` / `runnerScheduler` values; the Worker validates both again. Exact `runnerWidth` / `runnerHeight` use source `meta.Size`, with Anima constrained to 512–1536 per side and multiples of 8.
+- The LoRA workbench base selector has two Anima meanings: source checkpoint auto mode forwards the applied recipe's checkpoint; fixed Anima Base v1.0 ignores that override. SDXL Anima Pencil remains a separate incompatible family.
+- The Runner accepts an empty LoRA list. Pure Anima Base generation therefore uses `UNETLoader → ModelSamplingAuraFlow` directly, without creating `LoraLoaderModelOnly` nodes.
+- Optional `runnerUpscaler = 4x-AnimeSharp` adds `UpscaleModelLoader → ImageUpscaleWithModel` after VAE decode. The fork accepts only the pinned `Kim2091/AnimeSharp` file and verifies SHA-256 before caching it under `models/upscale_models/`.
+- The RunPod fork keeps an 8GiB free-space reserve by evicting only managed dynamic `civitai-*`, `hf-*`, and `civitai-ckpt-*` files in LRU order. Unknown/manual/preloaded files are never eviction candidates. It persists a physical snapshot to `/runpod-volume/pixelvault-cache-manifest.json` and secret-free append-only events to `/runpod-volume/pixelvault-download-history.jsonl`.
+
+## Hugging Face LoRA discovery (2026-07-14)
+
+- `/api/lora-assets/huggingface` is a public **image-generation LoRA adapter** discovery endpoint, not a base-model catalog. The default feed spans all recognized image families; language-model, audio, video, ControlNet, IP-Adapter, T2I-Adapter, private, and gated repositories are excluded before import.
+- Pagination follows Hugging Face's `Link: rel=next` cursor instead of slicing a fixed first result set. The UI exposes All / Anima / Illustrious / Pony / SDXL / Flux / SD 1.5 / Qwen Image / Z-Image / Other family filters and retains the cursor for back/forward navigation.
+- Anima uses the Hub's exact `base_model:adapter:circlestone-labs/Anima` relation and also pins `circlestone-labs/Anima-Official-LoRAs`, whose card lacks a normal `lora` tag. Missing trigger metadata remains empty; repository names are never invented as trigger words.
+- A repository may contain weights for several architectures. File-name metadata is used to refine the family per SafeTensors file; a family-filtered page exposes only matching files, and import persists the selected file's family instead of blindly reusing the repository-level family.
+- Every accepted repository must expose a concrete SafeTensors file with a verified size. Files larger than 2 GiB are excluded, removing the 4.18 GB (3.90 GiB) `LyliaEngine/anima_baseV10` checkpoint that is incorrectly tagged as `lora` while retaining adapter weights.
+- The client bypasses stale browser HTTP responses so a server-side reclassification is reflected immediately. Imported families without a compatible PixelVault base can be stored in My Library but are not presented as locally generatable. Base models remain owned by the separate Runner/base catalog.
+
+### RunPod volume inventory (verified 2026-07-14)
+
+- Volume `rk3t3mb1ko`, datacenter `US-CA-2`: 22 objects, 50,572,049,990 bytes (~47.09 GiB) via RunPod S3 API.
+- Anima runtime is complete: `models/unet/anima-base-v1.0.safetensors`, `models/clip/qwen_3_06b_base.safetensors`, and `models/vae/qwen_image_vae.safetensors`.
+- No `models/upscale_models/` directory existed at the last S3 inspection. The local Worker/fork now has a hash-pinned 4x-AnimeSharp download/workflow path, but it is not live until deployment and the first requesting job.
+- Cached Civitai LoRAs by official model-version metadata:
+
+| Base        | Version IDs and models                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Illustrious | `1463317` Enchanting Eyes; `2212079` Hands Illu; `2819970` Nivora; `2889186` Feranmut Proxy; `2933454` Silver Wolf LV.999 |
+| Anima       | `2946543` Aemeath; `2982337` Denia; `3026574` Little Aemeath; `3042035` Xinyuehu; `3116881` Phrolova                      |
+
+- Dynamic checkpoints: `2940478` Nova Anime XL IL v19.0 (Illustrious, checkpoints); `3108589` Anima Turbo v1.0 (currently in `models/checkpoints/`, not the Anima UNET path); `3107122` MiaoMiao Harem Anima 1.4 (in `models/unet/`). Do not expose Turbo as a fixed Anima option until it is in the UNET path or fixed selections can self-fetch.
+
 ## Source of Truth
 
 - `src/constants/{providers,config,generation-errors,provider-capabilities}.ts` · `src/constants/models/`
 - `src/services/providers/`（registry / types / 10 adapter）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`
 - `src/lib/{errors,api-error-message,platform-keys}.ts`
+- HF LoRA discovery: `src/services/huggingface-lora.service.ts` · `src/app/api/lora-assets/huggingface/route.ts` · `src/hooks/use-huggingface-lora-library.ts` · `src/constants/lora.ts`
 - 历史详版（含 worker 迁移逐条清单）：`git show cddc4384:docs/integrations/providers.md`
 
 ## Last Verified
+
+- Date: 2026-07-14 · Method: official Hub cursor response plus live local API page 1/page 2 and Anima-family requests; focused service/hook/component tests verify modality filtering, file-size hydration, cursor continuity, family switching, exact file import, and overflow containment.
 
 - Date: 2026-07-10 · Method: registry（10 adapter）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
 - **payload 字段级事实一律以改动当时的官方文档为准**——本文件不承诺字段级新鲜度。

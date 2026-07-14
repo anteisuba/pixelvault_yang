@@ -9,6 +9,10 @@ FROM runpod/worker-comfyui:5.8.6-base
 
 # 保留官方 handler，再把 wrapper 放到官方入口路径。
 RUN mv /handler.py /handler_base.py
+# rp_handler imports sibling modules at import time — copy them next to /handler.py.
 COPY rp_handler.py /handler.py
+COPY runner_payload.py /runner_payload.py
+COPY cache_policy.py /cache_policy.py
+COPY cache_manifest.py /cache_manifest.py
 
 # 不设 CMD / ENTRYPOINT —— 继承官方 `CMD ["/start.sh"]`。

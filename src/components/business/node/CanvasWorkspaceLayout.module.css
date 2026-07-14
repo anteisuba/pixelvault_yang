@@ -1,0 +1,28 @@
+.workspace {
+  --canvas-assistant-width: 0px;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stage {
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--canvas-assistant-width);
+    transition: grid-template-columns var(--duration-slow) var(--ease-standard);
+  }
+
+  .workspace[data-assistant-mode='chat'] {
+    --canvas-assistant-width: 22.5rem;
+  }
+
+  .workspace[data-assistant-mode='script'] {
+    --canvas-assistant-width: min(51.25rem, 56vw);
+  }
+}

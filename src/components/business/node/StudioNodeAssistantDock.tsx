@@ -1,52 +1,62 @@
 'use client'
 
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   Bot,
   Globe,
-  GripVertical,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
   PanelRightClose,
+  Share2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
-  NODE_STUDIO_DOCK_RESIZE,
 } from '@/constants/node-studio'
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
+import {
+  useAssistantConversation,
+  type AssistantCapabilityReference,
+} from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
+import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import type { AppLocale } from '@/i18n/routing'
-import type { NodeAssistantNodeContext } from '@/types/node-assistant'
+import type {
+  NodeAssistantMediaReference,
+  NodeAssistantNodeContext,
+} from '@/types/node-assistant'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
+import { CanvasAssistantHistory } from './CanvasAssistantHistory'
+import {
+  CanvasAssistantModalityMenu,
+  type CanvasAssistantModality,
+} from './CanvasAssistantModalityMenu'
 import {
   CanvasAssistantRouteSelector,
   type NodeAssistantRouteSelection,
 } from './CanvasAssistantRouteSelector'
 import { ScriptDocWorkspace } from './ScriptDocWorkspace'
+import {
+  AssistantShell,
+  AssistantShellHeader,
+} from '@/components/business/assistant/AssistantShell'
+import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
 
 interface StudioNodeAssistantDockProps {
   open: boolean
   expanded: boolean
+  projectId: string
   projectName: string
   nodes: NodeWorkflowNode[]
   scriptDoc: ScriptDoc | undefined
@@ -55,17 +65,6 @@ interface StudioNodeAssistantDockProps {
   onExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
 }
-
-interface DockLayout {
-  widthPx: number
-}
-
-const DEFAULT_DOCK_LAYOUT: DockLayout = {
-  widthPx: NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
-}
-
-let storedLayout: DockLayout | null = null
-const layoutListeners = new Set<() => void>()
 
 function truncateNodeText(value: string, maxLength: number): string {
   const trimmed = value.trim()
@@ -106,174 +105,76 @@ function getNodeSummary(node: NodeWorkflowNode): string | undefined {
   return node.data.prompt
 }
 
-function clamp(value: number, min: number, max: number): number {
-  if (value < min) return min
-  if (value > max) return max
-  return value
-}
-
-function readWidthPx(value: unknown): number | undefined {
-  if (typeof value !== 'object' || value === null || !('widthPx' in value)) {
-    return undefined
-  }
-  const candidate = value as { widthPx?: unknown }
-  return typeof candidate.widthPx === 'number' ? candidate.widthPx : undefined
-}
-
-function readStoredDockLayout(): DockLayout {
-  if (typeof window === 'undefined') {
-    return DEFAULT_DOCK_LAYOUT
-  }
-
+function isHttpMediaUrl(value: string): boolean {
   try {
-    const raw = window.localStorage.getItem(NODE_STUDIO_DOCK_RESIZE.storageKey)
-    if (!raw) return DEFAULT_DOCK_LAYOUT
-    const widthPx = readWidthPx(JSON.parse(raw))
-    return {
-      widthPx: clamp(
-        widthPx ?? NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
-        NODE_STUDIO_DOCK_RESIZE.minWidthPx,
-        NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
-      ),
-    }
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
   } catch {
-    return DEFAULT_DOCK_LAYOUT
+    return false
   }
 }
 
-function getLayoutSnapshot(): DockLayout {
-  if (!storedLayout) {
-    storedLayout = readStoredDockLayout()
+function getAssistantMediaReferences(
+  nodes: NodeWorkflowNode[],
+  getNodeTypeLabel: (type: NodeWorkflowNode['type']) => string,
+): NodeAssistantMediaReference[] {
+  const references: NodeAssistantMediaReference[] = []
+
+  for (const node of nodes) {
+    const url =
+      typeof node.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
+        ? node.data.mediaUrl.trim()
+        : typeof node.data.imageUrl === 'string' && node.data.imageUrl.trim()
+          ? node.data.imageUrl.trim()
+          : ''
+    // Schema requires absolute http(s) URLs — skip data/blob/relative paths.
+    if (!url || !isHttpMediaUrl(url)) continue
+
+    const kind =
+      node.data.mediaKind === NODE_MEDIA_KIND_IDS.video ||
+      node.type === NODE_TYPE_IDS.seedance ||
+      node.type === NODE_TYPE_IDS.videoReference ||
+      node.type === NODE_TYPE_IDS.videoMerge
+        ? 'video'
+        : node.data.mediaKind === NODE_MEDIA_KIND_IDS.image ||
+            node.type === NODE_TYPE_IDS.image ||
+            node.type === NODE_TYPE_IDS.characterImage ||
+            node.type === NODE_TYPE_IDS.backgroundImage ||
+            node.type === NODE_TYPE_IDS.frameImage ||
+            node.type === NODE_TYPE_IDS.shot
+          ? 'image'
+          : null
+    if (!kind) continue
+
+    const label =
+      node.data.mediaLabel?.trim() ||
+      node.data.sourceLabel?.trim() ||
+      getNodeTypeLabel(node.type)
+    const videoThumb =
+      typeof node.data.videoThumbnailUrl === 'string'
+        ? node.data.videoThumbnailUrl.trim()
+        : ''
+    references.push({
+      id: `node-reference:${node.id}`,
+      nodeId: node.id,
+      kind,
+      url,
+      ...(kind === 'video' && videoThumb && isHttpMediaUrl(videoThumb)
+        ? { thumbnailUrl: videoThumb }
+        : kind === 'image'
+          ? { thumbnailUrl: url }
+          : {}),
+      label,
+    })
   }
-  return storedLayout
-}
 
-function getServerLayoutSnapshot(): DockLayout {
-  return DEFAULT_DOCK_LAYOUT
-}
-
-function subscribeLayout(listener: () => void): () => void {
-  layoutListeners.add(listener)
-  return () => {
-    layoutListeners.delete(listener)
-  }
-}
-
-function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
-  const next = updater(getLayoutSnapshot())
-  if (storedLayout && storedLayout.widthPx === next.widthPx) {
-    return
-  }
-
-  storedLayout = next
-  if (typeof window !== 'undefined') {
-    try {
-      window.localStorage.setItem(
-        NODE_STUDIO_DOCK_RESIZE.storageKey,
-        JSON.stringify(next),
-      )
-    } catch {
-      // Session-only fallback is acceptable for a UI preference.
-    }
-  }
-  for (const listener of layoutListeners) {
-    listener()
-  }
-}
-
-function useDockLayout() {
-  const layout = useSyncExternalStore(
-    subscribeLayout,
-    getLayoutSnapshot,
-    getServerLayoutSnapshot,
-  )
-  const [isResizing, setIsResizing] = useState(false)
-  const widthDragRef = useRef<{
-    pointerId: number
-    startX: number
-    startWidth: number
-  } | null>(null)
-
-  const setWidth = useCallback((next: number) => {
-    setStoredLayout((prev) => ({
-      ...prev,
-      widthPx: clamp(
-        next,
-        NODE_STUDIO_DOCK_RESIZE.minWidthPx,
-        NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
-      ),
-    }))
-  }, [])
-
-  const handleWidthPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault()
-      event.currentTarget.setPointerCapture(event.pointerId)
-      setIsResizing(true)
-      widthDragRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startWidth: layout.widthPx,
-      }
-    },
-    [layout.widthPx, widthDragRef],
-  )
-
-  const handleWidthPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = widthDragRef.current
-      if (!drag || drag.pointerId !== event.pointerId) return
-      setWidth(drag.startWidth + (drag.startX - event.clientX))
-    },
-    [setWidth, widthDragRef],
-  )
-
-  const handleWidthPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (widthDragRef.current?.pointerId === event.pointerId) {
-        widthDragRef.current = null
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }
-      setIsResizing(false)
-    },
-    [widthDragRef],
-  )
-
-  const handleWidthKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        setWidth(layout.widthPx + NODE_STUDIO_DOCK_RESIZE.widthStepPx)
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        setWidth(layout.widthPx - NODE_STUDIO_DOCK_RESIZE.widthStepPx)
-      } else if (event.key === 'Home') {
-        event.preventDefault()
-        setWidth(NODE_STUDIO_DOCK_RESIZE.maxWidthPx)
-      } else if (event.key === 'End') {
-        event.preventDefault()
-        setWidth(NODE_STUDIO_DOCK_RESIZE.minWidthPx)
-      }
-    },
-    [layout.widthPx, setWidth],
-  )
-
-  return {
-    layout,
-    isResizing,
-    widthHandlers: {
-      onPointerDown: handleWidthPointerDown,
-      onPointerMove: handleWidthPointerMove,
-      onPointerUp: handleWidthPointerUp,
-      onPointerCancel: handleWidthPointerUp,
-      onKeyDown: handleWidthKeyDown,
-    },
-  }
+  return references.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
 }
 
 export function StudioNodeAssistantDock({
   open,
   expanded,
+  projectId,
   projectName,
   nodes,
   scriptDoc,
@@ -284,35 +185,31 @@ export function StudioNodeAssistantDock({
 }: StudioNodeAssistantDockProps) {
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
+  const tHistory = useTranslations('StudioNode.history')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const tConversation = useTranslations('StudioNode.conversation')
   const selection = useNodeSelection()
-  const conversation = useAssistantConversation()
+  const { placeDerivedImages, focusNode } = useNodeWorkflowActions()
+  const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
   const [researchEnabled, setResearchEnabled] = useState(false)
-  const { layout, isResizing, widthHandlers } = useDockLayout()
+  const [modality, setModality] = useState<CanvasAssistantModality>('image')
+  const [lastReferences, setLastReferences] = useState<
+    NodeAssistantMediaReference[]
+  >([])
   const isMobile = useIsMobile()
 
-  const dockStyle = useMemo<CSSProperties>(
-    () =>
-      isMobile
-        ? {
-            bottom: 'var(--keyboard-inset, 0px)',
-            height:
-              'min(65svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
-            maxHeight: 'calc(100svh - var(--keyboard-inset, 0px) - 0.75rem)',
-          }
-        : expanded
-          ? {
-              width: `${NODE_STUDIO_DOCK_RESIZE.expandedWidthPx}px`,
-              maxWidth: 'calc(100vw - 6rem)',
-            }
-          : { width: `${layout.widthPx}px` },
-    [expanded, isMobile, layout.widthPx],
-  )
+  const dockStyle = isMobile
+    ? {
+        bottom: 'var(--keyboard-inset, 0px)',
+        height:
+          'min(65svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+        maxHeight: 'calc(100svh - var(--keyboard-inset, 0px) - 0.75rem)',
+      }
+    : undefined
 
   const nodeContexts = useMemo<NodeAssistantNodeContext[]>(
     () =>
@@ -340,14 +237,23 @@ export function StudioNodeAssistantDock({
   )
 
   const selectedNodeIds = useMemo(
-    () => selection.nodes.map((node) => node.id),
+    () =>
+      selection.nodes
+        .map((node) => node.id)
+        .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes),
     [selection.nodes],
+  )
+
+  const referenceOptions = useMemo(
+    () => getAssistantMediaReferences(nodes, tNodeTypes),
+    [nodes, tNodeTypes],
   )
 
   const buildConversationContext = useCallback(
     () => ({
       nodes: nodeContexts,
       selectedNodeIds,
+      references: lastReferences,
       locale,
       apiKeyId: assistantRoute.apiKeyId,
       research: researchEnabled,
@@ -356,21 +262,135 @@ export function StudioNodeAssistantDock({
       assistantRoute.apiKeyId,
       locale,
       nodeContexts,
+      lastReferences,
       researchEnabled,
       selectedNodeIds,
     ],
   )
 
   const handleSend = useCallback(
-    async (content: string) => {
-      await conversation.send(content, buildConversationContext())
+    async (content: string, references?: NodeAssistantMediaReference[]) => {
+      const prefix =
+        modality === 'video'
+          ? tConversation('modalityPrefix.video')
+          : tConversation('modalityPrefix.image')
+      const body =
+        content.startsWith('[') || !prefix ? content : `${prefix}\n${content}`
+      setLastReferences(references ?? [])
+      await conversation.send(body, {
+        ...buildConversationContext(),
+        references: references ?? [],
+      })
     },
-    [buildConversationContext, conversation],
+    [buildConversationContext, conversation, modality, tConversation],
   )
 
   const handleRetry = useCallback(async () => {
     await conversation.retry(buildConversationContext())
   }, [buildConversationContext, conversation])
+
+  const handleRunCapability = useCallback(
+    async ({ capability, nodeId }: AssistantCapabilityReference) => {
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+      const sourceUrl =
+        typeof node?.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
+          ? node.data.mediaUrl.trim()
+          : typeof node?.data.imageUrl === 'string' && node.data.imageUrl.trim()
+            ? node.data.imageUrl.trim()
+            : ''
+      if (!node || !sourceUrl) {
+        toast.error(tConversation('capabilityUnavailable'))
+        return
+      }
+
+      const sourceWidth =
+        typeof node.data.mediaWidth === 'number' && node.data.mediaWidth > 0
+          ? node.data.mediaWidth
+          : 1024
+      const sourceHeight =
+        typeof node.data.mediaHeight === 'number' && node.data.mediaHeight > 0
+          ? node.data.mediaHeight
+          : 1024
+      const descriptor = canvasCapabilityRuntime.open(capability)
+      const response = await canvasCapabilityRuntime.run(
+        capability === 'upscale'
+          ? {
+              capability,
+              target: {
+                sourceUrl,
+                sourceGenerationId: node.data.generationId,
+                sourceWidth,
+                sourceHeight,
+              },
+              targetScale: '4x',
+              modelId: descriptor.defaultModelId ?? '',
+            }
+          : {
+              capability,
+              target: {
+                sourceUrl,
+                sourceGenerationId: node.data.generationId,
+                sourceWidth,
+                sourceHeight,
+              },
+              modelId: descriptor.defaultModelId ?? '',
+            },
+      )
+      if (!response.success || response.outputs.length === 0) {
+        toast.error(response.error || tConversation('capabilityFailed'))
+        return
+      }
+      const derivedNodeIds =
+        placeDerivedImages?.(node.id, response.outputs) ?? []
+      if (derivedNodeIds[0]) focusNode?.(derivedNodeIds[0])
+    },
+    [focusNode, nodes, placeDerivedImages, tConversation],
+  )
+
+  const handleNewConversation = useCallback(() => {
+    conversation.clear()
+  }, [conversation])
+
+  const handleSelectHistory = useCallback(
+    (id: string) => {
+      void conversation.selectSession(id)
+    },
+    [conversation],
+  )
+
+  const handleShareConversation = useCallback(async () => {
+    if (!conversation.sessionId) {
+      toast.error(tHistory('shareFailed'))
+      return
+    }
+
+    const result = await createAssistantConversationShareAPI(
+      conversation.sessionId,
+    )
+    if (!result.success) {
+      toast.error(tHistory('shareFailed'))
+      return
+    }
+
+    const shareUrl = `${window.location.origin}/${locale}/assistant/share/${result.data.token}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success(tHistory('shareCopied'))
+    } catch {
+      toast.error(tHistory('shareFailed'))
+    }
+  }, [conversation.sessionId, locale, tHistory])
+
+  const historySessions = useMemo(
+    () =>
+      conversation.sessions.map((session) => ({
+        id: session.id,
+        title: session.title ?? tHistory('new'),
+        updatedAt: session.updatedAt,
+        messages: [],
+      })),
+    [conversation.sessions, tHistory],
+  )
 
   const getNodeLabel = useCallback(
     (nodeId: string) => {
@@ -380,8 +400,27 @@ export function StudioNodeAssistantDock({
     [nodeContexts],
   )
 
-  const dockStarters = useMemo(
-    () => [
+  const dockStarters = useMemo(() => {
+    if (modality === 'video') {
+      return [
+        {
+          id: 'videoShot',
+          label: t('starters.videoShot.label'),
+          prompt: t('starters.videoShot.prompt'),
+        },
+        {
+          id: 'videoMerge',
+          label: t('starters.videoMerge.label'),
+          prompt: t('starters.videoMerge.prompt'),
+        },
+        {
+          id: 'firstPhase',
+          label: t('starters.firstPhase.label'),
+          prompt: t('starters.firstPhase.prompt'),
+        },
+      ]
+    }
+    return [
       {
         id: 'scriptOutline',
         label: t('starters.scriptOutline.label'),
@@ -397,9 +436,8 @@ export function StudioNodeAssistantDock({
         label: t('starters.firstPhase.label'),
         prompt: t('starters.firstPhase.prompt'),
       },
-    ],
-    [t],
-  )
+    ]
+  }, [modality, t])
 
   // The opener line must reflect canvas state — claiming "still empty" while the
   // user has nodes (or an outline) reads as a bug. Switch to an active opener
@@ -407,131 +445,164 @@ export function StudioNodeAssistantDock({
   const opener =
     nodes.length > 0 || scriptDoc ? t('leanOpenerActive') : t('leanOpener')
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpenChange(true)}
-        aria-label={tAssistant('toggle')}
-        title={tAssistant('toggle')}
-        style={
-          isMobile
-            ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
-            : undefined
-        }
-        className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-edge hover:bg-node-panel-inner md:bottom-auto md:right-6 md:top-24 md:size-auto md:h-10 md:rounded-xl md:px-3 md:text-xs md:font-semibold"
-      >
-        <Bot className="size-5 text-node-muted md:size-4" />
-        <span className="hidden md:inline">{tAssistant('toggle')}</span>
-      </button>
-    )
-  }
-
   return (
-    <aside
-      style={dockStyle}
-      data-resizing={isResizing ? 'true' : undefined}
-      className="node-canvas-panel-motion pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl fade-in slide-in-from-bottom-4 duration-300 md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b md:slide-in-from-right-4"
-    >
-      <button
-        type="button"
-        onClick={() => onOpenChange(false)}
-        aria-label={t('collapse')}
-        className="flex h-5 shrink-0 items-center justify-center md:hidden"
-      >
-        <span
-          className="h-1 w-10 rounded-full bg-node-panel-inner"
-          aria-hidden
-        />
-      </button>
+    <>
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => onOpenChange(true)}
+          aria-label={tAssistant('toggle')}
+          title={tAssistant('toggle')}
+          style={
+            isMobile
+              ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
+              : undefined
+          }
+          className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner bg-node-panel text-node-foreground shadow-sm transition-colors hover:border-node-edge hover:bg-node-panel-inner lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
+        >
+          <Bot className="size-5 text-node-muted lg:size-4" />
+          <span className="hidden lg:inline">{tAssistant('toggle')}</span>
+        </button>
+      ) : null}
 
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t('resize.widthLabel')}
-        aria-valuemin={NODE_STUDIO_DOCK_RESIZE.minWidthPx}
-        aria-valuemax={NODE_STUDIO_DOCK_RESIZE.maxWidthPx}
-        aria-valuenow={layout.widthPx}
-        tabIndex={0}
-        {...widthHandlers}
-        title={t('resize.widthLabel')}
-        className="group absolute inset-y-0 left-0 z-10 hidden w-2.5 cursor-col-resize items-center justify-center focus:outline-none md:flex"
+      <AssistantShell
+        style={dockStyle}
+        inert={!open}
+        aria-hidden={!open}
+        data-mode={expanded ? 'script' : 'chat'}
+        className={cn(
+          // Haivis §3.1: desktop rail is a plain full-height column (1px left
+          // edge, no radius/blur/heavy shadow). Mobile keeps a sheet chrome.
+          'pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner bg-node-panel text-node-foreground shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:border-node-panel-inner lg:bg-node-panel lg:shadow-none',
+          !open && 'hidden lg:flex lg:pointer-events-none lg:opacity-0',
+        )}
       >
-        <span className="flex h-14 w-1.5 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-edge group-hover:text-node-canvas group-focus-visible:bg-node-edge-active group-focus-visible:text-node-canvas">
-          <GripVertical className="size-3" />
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner px-3 py-2.5 md:px-4 md:py-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-node-foreground">
-            {projectName}
-          </p>
-          <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-            {t('title')}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5 md:gap-1">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={t('newConversation')}
-            onClick={conversation.clear}
-            className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
-          >
-            <MessageSquarePlus className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={tConversation('research')}
-            aria-pressed={researchEnabled}
-            title={tConversation('researchHint')}
-            onClick={() => setResearchEnabled((prev) => !prev)}
-            className={cn(
-              'rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
-              researchEnabled &&
-                'bg-node-foreground text-node-canvas hover:bg-node-foreground hover:text-node-canvas',
-            )}
-          >
-            <Globe className="size-4" />
-          </Button>
-          <CanvasAssistantRouteSelector
-            value={assistantRoute}
-            onChange={setAssistantRoute}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label={t('collapse')}
+          className="flex h-5 shrink-0 items-center justify-center lg:hidden"
+        >
+          <span
+            className="h-1 w-10 rounded-full bg-node-panel-inner"
+            aria-hidden
           />
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={expanded ? t('restore') : t('expand')}
-            onClick={() => onExpandedChange(!expanded)}
-            className="hidden rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground md:inline-flex"
-          >
-            {expanded ? (
-              <Minimize2 className="size-4" />
-            ) : (
-              <Maximize2 className="size-4" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={t('collapse')}
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
-          >
-            <PanelRightClose className="size-4" />
-          </Button>
-        </div>
-      </div>
+        </button>
 
-      {expanded && !isMobile ? (
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 flex-1 flex-col border-r border-node-panel-inner">
+        <AssistantShellHeader
+          title={tHistory('new')}
+          subtitle={projectName}
+          className="border-node-panel-inner px-3 py-2.5 lg:px-4 lg:py-3 [&_p]:text-node-foreground [&_p+ p]:text-node-muted"
+          actions={
+            <>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={tHistory('new')}
+                onClick={handleNewConversation}
+                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+              >
+                <MessageSquarePlus className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={tConversation('research')}
+                aria-pressed={researchEnabled}
+                title={tConversation('researchHint')}
+                onClick={() => setResearchEnabled((prev) => !prev)}
+                className={cn(
+                  'rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
+                  researchEnabled &&
+                    'bg-node-foreground text-node-canvas hover:bg-node-foreground hover:text-node-canvas',
+                )}
+              >
+                <Globe className="size-4" />
+              </Button>
+              <CanvasAssistantRouteSelector
+                value={assistantRoute}
+                onChange={setAssistantRoute}
+              />
+              <CanvasAssistantHistory
+                sessions={historySessions}
+                activeSessionId={conversation.sessionId}
+                onSelect={handleSelectHistory}
+              />
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={tHistory('share')}
+                title={tHistory('share')}
+                onClick={() => void handleShareConversation()}
+                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+              >
+                <Share2 className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={expanded ? t('restore') : t('expand')}
+                onClick={() => onExpandedChange(!expanded)}
+                className="hidden rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground lg:inline-flex"
+              >
+                {expanded ? (
+                  <Minimize2 className="size-4" />
+                ) : (
+                  <Maximize2 className="size-4" />
+                )}
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={t('collapse')}
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+              >
+                <PanelRightClose className="size-4" />
+              </Button>
+            </>
+          }
+        />
+
+        {expanded && !isMobile ? (
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-h-0 flex-1 flex-col border-r border-node-panel-inner">
+              <AssistantConversation
+                messages={conversation.messages}
+                isLoading={conversation.isLoading}
+                error={conversation.error}
+                onSend={handleSend}
+                onRetry={handleRetry}
+                onFocusNode={onFocusNode}
+                getNodeLabel={getNodeLabel}
+                emptyHint={opener}
+                starters={dockStarters}
+                composerTools={
+                  <CanvasAssistantModalityMenu
+                    value={modality}
+                    onChange={setModality}
+                  />
+                }
+                referenceOptions={referenceOptions}
+                onRunCapability={handleRunCapability}
+              />
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <ScriptDocWorkspace
+                scriptDoc={scriptDoc}
+                messages={conversation.messages}
+                locale={locale}
+                apiKeyId={assistantRoute.apiKeyId}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col">
             <AssistantConversation
               messages={conversation.messages}
               isLoading={conversation.isLoading}
@@ -542,32 +613,18 @@ export function StudioNodeAssistantDock({
               getNodeLabel={getNodeLabel}
               emptyHint={opener}
               starters={dockStarters}
+              composerTools={
+                <CanvasAssistantModalityMenu
+                  value={modality}
+                  onChange={setModality}
+                />
+              }
+              referenceOptions={referenceOptions}
+              onRunCapability={handleRunCapability}
             />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ScriptDocWorkspace
-              scriptDoc={scriptDoc}
-              messages={conversation.messages}
-              locale={locale}
-              apiKeyId={assistantRoute.apiKeyId}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <AssistantConversation
-            messages={conversation.messages}
-            isLoading={conversation.isLoading}
-            error={conversation.error}
-            onSend={handleSend}
-            onRetry={handleRetry}
-            onFocusNode={onFocusNode}
-            getNodeLabel={getNodeLabel}
-            emptyHint={opener}
-            starters={dockStarters}
-          />
-        </div>
-      )}
-    </aside>
+        )}
+      </AssistantShell>
+    </>
   )
 }

@@ -121,6 +121,12 @@ interface CastDockProps {
    *  during such a drag, the strip auto-expands (and re-collapses on drag
    *  end) so a card can be grabbed without breaking the drag. */
   canvasDragActive?: boolean
+  /**
+   * `inline` — sit next to CanvasBottomDock in the shared bottom row
+   * (handle always; strip expands upward). `absolute` — legacy free-floating
+   * strip with inset positioning.
+   */
+  layout?: 'absolute' | 'inline'
 }
 
 /**
@@ -144,6 +150,7 @@ export function CastDock({
   insetLeft,
   insetRight,
   canvasDragActive = false,
+  layout = 'absolute',
 }: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
   const nodes = useNodes<NodeWorkflowNode>()
@@ -152,6 +159,15 @@ export function CastDock({
   const { dragState } = useIngestDrag()
   const [collapsed, setCollapsed] = useState(false)
   const collapsedHandleRef = useRef<HTMLButtonElement | null>(null)
+
+  // Canvas insert menu can request the 卡匣 strip (Haivis companion entry).
+  useEffect(() => {
+    const expand = () => setCollapsed(false)
+    window.addEventListener('pixelvault:expand-cast-dock', expand)
+    return () => {
+      window.removeEventListener('pixelvault:expand-cast-dock', expand)
+    }
+  }, [])
   // S5f B4: remembers a drag-triggered auto-expand so the strip re-collapses
   // when the drag ends (a manual expand mid-drag would NOT set this, so it
   // stays open — only the automatic one snaps back).
@@ -274,33 +290,189 @@ export function CastDock({
   }
 
   const barLeft = Math.max(insetLeft, NODE_STUDIO_CAST_DOCK.minimapClearancePx)
+  const isInline = layout === 'inline'
 
-  // 【紧急修复②】collapsed vs expanded now anchor at DIFFERENT bottom
-  // offsets on purpose: the small pill sits at the SAME height as the
-  // toolbar row (`collapsedBottomOffsetPx`, reads as "part of the bottom
-  // chrome," never floats over arbitrary canvas content mid-height) and
-  // doesn't need the minimap horizontal clearance either — at that height
-  // it's well below the minimap's vertical footprint regardless of left
-  // offset. The expanded strip keeps floating just above the toolbar
-  // (`barBottomOffsetPx` + minimap-cleared `barLeft`), unchanged from before.
-  return collapsed ? (
+  const handleButton = (
     <button
       ref={collapsedHandleRef}
       type="button"
-      aria-label={t('expand')}
-      aria-expanded={false}
-      title={t('expand')}
-      onClick={() => setCollapsed(false)}
-      className="pointer-events-auto absolute z-10 inline-flex h-9 items-center gap-1.5 rounded-2xl border border-node-panel-inner/70 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:bg-node-panel-inner md:h-10"
-      style={{
-        left: insetLeft,
-        bottom: NODE_STUDIO_CAST_DOCK.collapsedBottomOffsetPx,
-      }}
+      aria-label={collapsed ? t('expand') : t('collapse')}
+      aria-expanded={!collapsed}
+      title={collapsed ? t('expand') : t('collapse')}
+      onClick={() => setCollapsed((value) => !value)}
+      className={cn(
+        'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs font-semibold text-node-foreground shadow-sm transition-colors hover:bg-node-panel-inner md:h-10',
+        !isInline &&
+          'absolute z-10 rounded-2xl border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl',
+      )}
+      style={
+        isInline
+          ? undefined
+          : {
+              left: insetLeft,
+              bottom: NODE_STUDIO_CAST_DOCK.collapsedBottomOffsetPx,
+            }
+      }
     >
       <LayoutGrid className="size-3.5" aria-hidden />
       {t('handle', { count: totalCount })}
     </button>
-  ) : (
+  )
+
+  const stripBody = (
+    <div
+      className={cn(
+        'pointer-events-auto flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl transition-opacity duration-base',
+        isInline ? 'max-w-[min(40rem,calc(100vw-8rem))]' : 'w-full',
+        dragState.active && 'opacity-40',
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5">
+        <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+          <LayoutGrid className="size-3" aria-hidden />
+          {t('title')} · {totalCount}
+        </span>
+        <button
+          type="button"
+          aria-label={t('collapse')}
+          aria-expanded={true}
+          title={t('collapse')}
+          onClick={() => setCollapsed(true)}
+          className="flex size-6 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+        >
+          <ChevronDown className="size-3.5" aria-hidden />
+        </button>
+      </div>
+
+      <div className="flex items-stretch gap-3 overflow-x-auto p-3">
+        {/* No explicit height here — the row sizes naturally to its
+                tallest child (CastCard's own `h-36`); a fixed row height
+                would clip the cards under this row's own padding. */}
+        {visibleSections.map((section, sectionIndex) => (
+          <div key={section.id} className="flex shrink-0 items-stretch gap-2">
+            {sectionIndex > 0 ? (
+              <div
+                className="my-1 w-px shrink-0 bg-node-panel-inner"
+                aria-hidden
+              />
+            ) : null}
+            <div
+              className={cn(
+                'flex shrink-0 flex-col items-center justify-center gap-1 rounded-md text-node-muted',
+                NODE_STUDIO_CAST_DOCK.barSectionLabelWidthClass,
+              )}
+            >
+              <section.Icon className="size-4" aria-hidden />
+              <span className="text-2xs font-semibold">
+                {t(`sections.${section.id}`)}
+              </span>
+              <span className="tabular-nums text-2xs">
+                {section.cards.length}
+              </span>
+            </div>
+            {section.cards.map((node) => {
+              const badgeStats = identityBadgeStatsByNodeId.get(node.id)
+              const referenceAssetCount = Array.isArray(
+                node.data.referenceAssets,
+              )
+                ? node.data.referenceAssets.length
+                : 0
+              return (
+                <div
+                  key={node.id}
+                  className={cn(
+                    'shrink-0',
+                    NODE_STUDIO_CAST_DOCK.barCardWidthClass,
+                  )}
+                >
+                  <CastCard
+                    node={node}
+                    sectionId={section.id}
+                    Icon={section.Icon}
+                    performanceCount={
+                      performanceCountBySourceId.get(node.id) ?? 0
+                    }
+                    referenceCount={
+                      referenceAssetCount + (badgeStats?.referenceCount ?? 0)
+                    }
+                    hasVoice={badgeStats?.hasVoice ?? false}
+                    selected={node.id === expandedNodeId}
+                    onSelect={() => setExpandedNodeId(node.id)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        ))}
+
+        {/* §6.0 修正①「＋新建收敛为匣尾一个统一入口」: one trailing tile,
+                opens a 2-item type picker (角色/场景) instead of each section
+                owning its own ＋. Popover (not a hand-rolled absolute div) —
+                portals past the strip's own overflow-hidden/overflow-x-auto
+                ancestors, which otherwise clip it invisible (owner-caught). */}
+        <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('create')}
+              title={t('create')}
+              className={cn(
+                'flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-node-panel-inner text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
+                NODE_STUDIO_CAST_DOCK.barCardWidthClass,
+              )}
+            >
+              <Plus className="size-4" aria-hidden />
+              <span className="text-2xs font-medium">{t('create')}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-36 rounded-xl border-node-panel-inner/80 bg-node-panel p-1 text-node-foreground shadow-node-panel"
+          >
+            {CAST_SECTIONS.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => {
+                  onCreateCard(section.id)
+                  setAddMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
+              >
+                <section.Icon
+                  className="size-3.5 text-node-muted"
+                  aria-hidden
+                />
+                {t(`sections.${section.id}`)}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  )
+
+  if (isInline) {
+    return (
+      <div className="pointer-events-none relative flex flex-col items-end">
+        {!collapsed ? (
+          <div className="pointer-events-none absolute bottom-full right-0 mb-2">
+            {stripBody}
+          </div>
+        ) : null}
+        {handleButton}
+      </div>
+    )
+  }
+
+  // Absolute layout: handle when collapsed; full-width strip when open.
+  if (collapsed) {
+    return handleButton
+  }
+
+  return (
     <div
       className="pointer-events-none absolute z-10"
       style={{
@@ -309,137 +481,7 @@ export function CastDock({
         bottom: NODE_STUDIO_CAST_DOCK.barBottomOffsetPx,
       }}
     >
-      <div
-        className={cn(
-          'pointer-events-auto flex w-full flex-col overflow-hidden rounded-2xl border border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl transition-opacity duration-base',
-          dragState.active && 'opacity-40',
-        )}
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5">
-          <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-            <LayoutGrid className="size-3" aria-hidden />
-            {t('title')} · {totalCount}
-          </span>
-          <button
-            type="button"
-            aria-label={t('collapse')}
-            aria-expanded={true}
-            title={t('collapse')}
-            onClick={() => setCollapsed(true)}
-            className="flex size-6 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-          >
-            <ChevronDown className="size-3.5" aria-hidden />
-          </button>
-        </div>
-
-        <div className="flex items-stretch gap-3 overflow-x-auto p-3">
-          {/* No explicit height here — the row sizes naturally to its
-                tallest child (CastCard's own `h-36`); a fixed row height
-                would clip the cards under this row's own padding. */}
-          {visibleSections.map((section, sectionIndex) => (
-            <div key={section.id} className="flex shrink-0 items-stretch gap-2">
-              {sectionIndex > 0 ? (
-                <div
-                  className="my-1 w-px shrink-0 bg-node-panel-inner"
-                  aria-hidden
-                />
-              ) : null}
-              <div
-                className={cn(
-                  'flex shrink-0 flex-col items-center justify-center gap-1 rounded-md text-node-muted',
-                  NODE_STUDIO_CAST_DOCK.barSectionLabelWidthClass,
-                )}
-              >
-                <section.Icon className="size-4" aria-hidden />
-                <span className="text-2xs font-semibold">
-                  {t(`sections.${section.id}`)}
-                </span>
-                <span className="tabular-nums text-2xs">
-                  {section.cards.length}
-                </span>
-              </div>
-              {section.cards.map((node) => {
-                const badgeStats = identityBadgeStatsByNodeId.get(node.id)
-                const referenceAssetCount = Array.isArray(
-                  node.data.referenceAssets,
-                )
-                  ? node.data.referenceAssets.length
-                  : 0
-                return (
-                  <div
-                    key={node.id}
-                    className={cn(
-                      'shrink-0',
-                      NODE_STUDIO_CAST_DOCK.barCardWidthClass,
-                    )}
-                  >
-                    <CastCard
-                      node={node}
-                      sectionId={section.id}
-                      Icon={section.Icon}
-                      performanceCount={
-                        performanceCountBySourceId.get(node.id) ?? 0
-                      }
-                      referenceCount={
-                        referenceAssetCount + (badgeStats?.referenceCount ?? 0)
-                      }
-                      hasVoice={badgeStats?.hasVoice ?? false}
-                      selected={node.id === expandedNodeId}
-                      onSelect={() => setExpandedNodeId(node.id)}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-
-          {/* §6.0 修正①「＋新建收敛为匣尾一个统一入口」: one trailing tile,
-                opens a 2-item type picker (角色/场景) instead of each section
-                owning its own ＋. Popover (not a hand-rolled absolute div) —
-                portals past the strip's own overflow-hidden/overflow-x-auto
-                ancestors, which otherwise clip it invisible (owner-caught). */}
-          <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('create')}
-                title={t('create')}
-                className={cn(
-                  'flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-node-panel-inner text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
-                  NODE_STUDIO_CAST_DOCK.barCardWidthClass,
-                )}
-              >
-                <Plus className="size-4" aria-hidden />
-                <span className="text-2xs font-medium">{t('create')}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="top"
-              align="start"
-              sideOffset={8}
-              className="w-36 rounded-xl border-node-panel-inner/80 bg-node-panel p-1 text-node-foreground shadow-node-panel"
-            >
-              {CAST_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => {
-                    onCreateCard(section.id)
-                    setAddMenuOpen(false)
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
-                >
-                  <section.Icon
-                    className="size-3.5 text-node-muted"
-                    aria-hidden
-                  />
-                  {t(`sections.${section.id}`)}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
+      {stripBody}
     </div>
   )
 }

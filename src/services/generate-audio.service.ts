@@ -60,6 +60,7 @@ import {
 import {
   buildInternalUrl,
   dispatchWorkerRun,
+  shouldUseInlineExecutionFallback,
 } from '@/services/execution-worker.service'
 import {
   annotateExecutionOutbox,
@@ -789,6 +790,17 @@ export async function submitAudioGeneration(
   }
 
   if (modelConfig && canSubmitAudioViaExecutionWorker(route)) {
+    if (shouldUseInlineExecutionFallback()) {
+      logger.warn(
+        'Execution worker unavailable in development; using inline audio generation',
+        {
+          model: route.modelId,
+          adapterType: route.adapterType,
+        },
+      )
+      return generateAudioForUser(clerkId, request)
+    }
+
     return submitAudioWorkerRun({
       request,
       userId,

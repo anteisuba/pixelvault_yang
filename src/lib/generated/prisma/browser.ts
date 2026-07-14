@@ -23,6 +23,17 @@ export * from './enums';
  */
 export type User = Prisma.UserModel
 /**
+ * Model AssistantConversation
+ * Persisted assistant chat (Node canvas and Studio). Messages are JSON
+ * text-only (plus remote media URLs) — never base64 payloads.
+ */
+export type AssistantConversation = Prisma.AssistantConversationModel
+/**
+ * Model AssistantConversationShare
+ * Unauthenticated, read-only snapshots shared by an assistant conversation owner.
+ */
+export type AssistantConversationShare = Prisma.AssistantConversationShareModel
+/**
  * Model NodeWorkflowProject
  * Node Studio workflow project — persists the React Flow canvas state
  * (nodes + edges + per-node data) per user so a workflow survives across

@@ -8,7 +8,7 @@
 - [ ] `npx playwright test e2e/visual.spec.ts` diff 为空；有意改动已 `--update-snapshots` 并在报告里点名改了哪些快照
 - [ ] 对照 `forbidden.md` UI 节逐条无违反（无渐变/霓虹/任意值/硬编码色/死按钮/装饰动效）
 - [ ] 符合该页现行体系：未改版页 = v1 现状约定（双面模式归属正确，暗面有 `color-scheme: dark`）；已按房间文档改版页 = 符合该页施工图；**不许混搭**
-- [ ] 触达区 ≥ 44px；键盘可达 + 焦点环完整
+- [ ] 命中区符合自适应规则：fine pointer 紧凑控件 ≥32px / 常规 ≥36px，coarse pointer/touch ≥44px；任何 pointer 目标 ≥24px 或满足 WCAG spacing/equivalent 例外；键盘可达 + 焦点环完整
 - [ ] i18n 三语同步（en/ja/zh messages 全改，跑 i18n-check）
 - [ ] 涉及间距/颜色/断点/role 时用 `toHaveCSS`/`toHaveClass`/`getByRole` 断言具体值
 - [ ] `prefers-reduced-motion` 生效（framer-motion 接 useReducedMotion）

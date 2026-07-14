@@ -691,6 +691,8 @@ export async function uploadBufferedHttpToR2(params: {
   mimeType?: string
   fetchHeaders?: Record<string, string>
   timeoutMs?: number
+  /** Reject before/after download when the remote file exceeds this size. */
+  maxBytes?: number
 }): Promise<{ publicUrl: string; mimeType: string; sizeBytes: number }> {
   assertSafeUrl(params.sourceUrl)
 
@@ -706,8 +708,25 @@ export async function uploadBufferedHttpToR2(params: {
         )
       }
 
+      if (params.maxBytes !== undefined) {
+        const declared = Number(response.headers.get('content-length'))
+        if (Number.isFinite(declared) && declared > params.maxBytes) {
+          throw new Error(
+            `Remote file exceeds maximum size of ${params.maxBytes} bytes (declared ${declared}).`,
+          )
+        }
+      }
+
       const arrayBuffer = await response.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
+      if (
+        params.maxBytes !== undefined &&
+        buffer.byteLength > params.maxBytes
+      ) {
+        throw new Error(
+          `Remote file exceeds maximum size of ${params.maxBytes} bytes (got ${buffer.byteLength}).`,
+        )
+      }
       const mimeType =
         params.mimeType ??
         response.headers.get('content-type') ??

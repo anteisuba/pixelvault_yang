@@ -7,6 +7,7 @@ import {
   NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
@@ -17,6 +18,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
+import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 
 import { useNodeWorkflow } from './use-node-workflow'
@@ -28,6 +30,15 @@ const DEFAULT_PROJECT_NAME = 'Untitled project'
 const TEST_CLERK_ID = 'user_test_clerk_1'
 const OTHER_CLERK_ID = 'user_test_clerk_2'
 const TEST_STORAGE_KEY = getNodeStudioWorkflowStorageKey(TEST_CLERK_ID)
+const TEST_CANVAS_APPEARANCE = {
+  backgroundColor: '#171A16',
+  image: {
+    url: 'https://cdn.example.com/canvas-wallpaper.jpg',
+    sourceGenerationId: 'generation-wallpaper-1',
+    fit: 'cover' as const,
+    opacity: 0.35,
+  },
+}
 
 const FAKE_BREAKDOWN: ScriptBreakdownResult = {
   title: 'Quiet Orbit',
@@ -129,10 +140,89 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
   window.localStorage.clear()
 })
 
 describe('useNodeWorkflow', () => {
+  it('exposes hydration only after the active user server hydrate completes', async () => {
+    let resolveFirst: (response: Response) => void = () => undefined
+    let resolveSecond: (response: Response) => void = () => undefined
+    let resolveThird: (response: Response) => void = () => undefined
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirst = resolve
+    })
+    const secondResponse = new Promise<Response>((resolve) => {
+      resolveSecond = resolve
+    })
+    const thirdResponse = new Promise<Response>((resolve) => {
+      resolveThird = resolve
+    })
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(() => secondResponse)
+      .mockImplementationOnce(() => thirdResponse)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result, rerender } = renderHook(
+      ({ clerkId }: { clerkId: string | null }) =>
+        useNodeWorkflow({
+          defaultProjectName: DEFAULT_PROJECT_NAME,
+          clerkId,
+        }),
+      {
+        initialProps: {
+          clerkId: TEST_CLERK_ID,
+        } as { clerkId: string | null },
+      },
+    )
+
+    expect(result.current.isHydrated).toBe(false)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      resolveFirst(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+
+    rerender({ clerkId: OTHER_CLERK_ID })
+    expect(result.current.isHydrated).toBe(false)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    act(() => {
+      resolveSecond(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+
+    rerender({ clerkId: null })
+    expect(result.current.isHydrated).toBe(false)
+
+    rerender({ clerkId: TEST_CLERK_ID })
+    expect(result.current.isHydrated).toBe(false)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+
+    act(() => {
+      resolveThird(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+  })
+
   it('starts with an empty workflow when localStorage is empty', async () => {
     const { result } = renderNodeWorkflowHook()
 
@@ -144,6 +234,8 @@ describe('useNodeWorkflow', () => {
     expect(result.current.edges).toEqual([])
     expect(result.current.currentProjectName).toBe(DEFAULT_PROJECT_NAME)
     expect(result.current.projects).toHaveLength(1)
+    expect(result.current.canvasAppearance).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('canvasAppearance')
   })
 
   it('adds a composer node with default data', () => {
@@ -307,6 +399,159 @@ describe('useNodeWorkflow', () => {
       sourceLabel: 'Existing portrait',
       status: NODE_STATUS_IDS.done,
     })
+  })
+
+  it('places one derived image to the source right without replacing the source', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let sourceId = ''
+    let derivedIds: string[] = []
+    act(() => {
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      result.current.updateNodeData(sourceId, {
+        generationId: 'generation-source',
+        generationStatus: NODE_GENERATION_STATUS_IDS.success,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        mediaUrl: 'https://cdn.example.com/source.png',
+        mediaLabel: 'Source image',
+        status: NODE_STATUS_IDS.done,
+      })
+    })
+    const sourceBefore = result.current.nodes[0]
+
+    act(() => {
+      derivedIds = result.current.placeDerivedImages(sourceId, [
+        {
+          imageUrl: 'https://cdn.example.com/upscaled.png',
+          width: 2048,
+          height: 2048,
+          generationId: 'generation-derived',
+          label: 'Upscaled image',
+          editCapability: 'upscale',
+        },
+      ])
+    })
+
+    expect(derivedIds).toHaveLength(1)
+    expect(result.current.nodes.find((node) => node.id === sourceId)).toEqual(
+      sourceBefore,
+    )
+    expect(
+      result.current.nodes.find((node) => node.id === derivedIds[0]),
+    ).toMatchObject({
+      type: NODE_TYPE_IDS.image,
+      position: {
+        x: FIRST_POSITION.x + NODE_STUDIO_NODE_PLACEMENT.derivedImage.offsetX,
+        y: FIRST_POSITION.y,
+      },
+      data: {
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        mediaUrl: 'https://cdn.example.com/upscaled.png',
+        mediaWidth: 2048,
+        mediaHeight: 2048,
+        generationId: 'generation-derived',
+        generationStatus: NODE_GENERATION_STATUS_IDS.success,
+        derivedFromNodeId: sourceId,
+        derivedFromGenerationId: 'generation-source',
+        editCapability: 'upscale',
+        status: NODE_STATUS_IDS.done,
+      },
+    })
+  })
+
+  it('fans out a derived image batch and removes the full batch with one undo', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let sourceId = ''
+    act(() => {
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      result.current.updateNodeData(sourceId, {
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        mediaUrl: 'https://cdn.example.com/source.png',
+        status: NODE_STATUS_IDS.done,
+      })
+    })
+
+    let derivedIds: string[] = []
+    act(() => {
+      derivedIds = result.current.placeDerivedImages(
+        sourceId,
+        Array.from({ length: 4 }, (_, index) => ({
+          imageUrl: `https://cdn.example.com/layer-${index + 1}.png`,
+          label: `Layer ${index + 1}`,
+          editCapability: 'decompose' as const,
+        })),
+      )
+    })
+
+    const placement = NODE_STUDIO_NODE_PLACEMENT.derivedImage
+    expect(derivedIds).toHaveLength(4)
+    expect(
+      result.current.nodes
+        .filter((node) => derivedIds.includes(node.id))
+        .map((node) => node.position),
+    ).toEqual([
+      { x: FIRST_POSITION.x + placement.offsetX, y: FIRST_POSITION.y },
+      {
+        x: FIRST_POSITION.x + placement.offsetX + placement.columnOffsetX,
+        y: FIRST_POSITION.y,
+      },
+      {
+        x: FIRST_POSITION.x + placement.offsetX + placement.columnOffsetX * 2,
+        y: FIRST_POSITION.y,
+      },
+      {
+        x: FIRST_POSITION.x + placement.offsetX,
+        y: FIRST_POSITION.y + placement.rowOffsetY,
+      },
+    ])
+
+    act(() => {
+      result.current.undo()
+    })
+
+    expect(result.current.nodes.map((node) => node.id)).toEqual([sourceId])
+    expect(result.current.canRedo).toBe(true)
+  })
+
+  it('rejects a malformed derived image batch atomically without recording history', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let sourceId = ''
+    act(() => {
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      result.current.updateNodeData(sourceId, {
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        mediaUrl: 'https://cdn.example.com/source.png',
+      })
+    })
+
+    const malformedOutputs = [
+      {
+        imageUrl: 'https://cdn.example.com/valid.png',
+        editCapability: 'upscale',
+      },
+      {
+        imageUrl: '',
+        editCapability: 'object-replace',
+      },
+    ] as unknown as CanvasDerivedImageOutput[]
+    let derivedIds: string[] = []
+    act(() => {
+      derivedIds = result.current.placeDerivedImages(sourceId, malformedOutputs)
+    })
+
+    expect(derivedIds).toEqual([])
+    expect(result.current.nodes.map((node) => node.id)).toEqual([sourceId])
+
+    act(() => {
+      result.current.undo()
+    })
+
+    expect(result.current.nodes).toEqual([])
   })
 
   it('deletes a node and removes connected edges', () => {
@@ -590,6 +835,108 @@ describe('useNodeWorkflow', () => {
       brand: 'Seedance',
       variant: 'standard',
     })
+  })
+
+  it('persists and resets the project canvas appearance outside graph undo', async () => {
+    vi.useFakeTimers()
+    const { result } = renderNodeWorkflowHook()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.setCanvasAppearance(TEST_CANVAS_APPEARANCE)
+    })
+
+    expect(result.current.canvasAppearance).toEqual(TEST_CANVAS_APPEARANCE)
+    expect(result.current.canUndo).toBe(false)
+
+    act(() => {
+      result.current.setCanvasAppearance(undefined)
+    })
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+    })
+
+    expect(result.current.canvasAppearance).toBeUndefined()
+    expect(readStoredCurrentState()).not.toHaveProperty('canvasAppearance')
+  })
+
+  it('keeps project metadata when deleting a node', async () => {
+    const { result } = renderNodeWorkflowHook()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let nodeId = ''
+    act(() => {
+      result.current.setCanvasAppearance(TEST_CANVAS_APPEARANCE)
+      result.current.setScriptDoc({
+        title: 'Saved outline',
+        logline: 'A persistent story fact.',
+        roles: [],
+        shots: [],
+      })
+      nodeId = result.current.addNode(NODE_TYPE_IDS.shotText, FIRST_POSITION)
+    })
+
+    act(() => {
+      result.current.deleteNode(nodeId)
+    })
+
+    expect(result.current.nodes).toEqual([])
+    expect(result.current.canvasAppearance).toEqual(TEST_CANVAS_APPEARANCE)
+    expect(result.current.scriptDoc?.title).toBe('Saved outline')
+  })
+
+  it('drops malformed canvas appearance without emptying a valid graph', async () => {
+    window.localStorage.setItem(
+      TEST_STORAGE_KEY,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: TEST_CLERK_ID,
+        currentProjectId: 'project-bad-appearance',
+        projects: [
+          {
+            id: 'project-bad-appearance',
+            name: 'Recovered canvas',
+            createdAt: '2026-01-02T00:00:00.000Z',
+            updatedAt: '2026-01-02T00:00:00.000Z',
+            state: {
+              nodes: [
+                {
+                  id: 'node-kept',
+                  type: NODE_TYPE_IDS.shotText,
+                  position: FIRST_POSITION,
+                  data: {
+                    prompt: 'Keep this node',
+                    status: NODE_STATUS_IDS.idle,
+                  },
+                },
+              ],
+              edges: [],
+              canvasAppearance: {
+                backgroundColor: 'not-a-hex-color',
+                image: {
+                  url: 'file:///unsafe-wallpaper.png',
+                  fit: 'stretch',
+                  opacity: 2,
+                },
+              },
+            },
+          },
+        ],
+      }),
+    )
+
+    const { result } = renderNodeWorkflowHook()
+
+    await waitFor(() => {
+      expect(result.current.currentProjectName).toBe('Recovered canvas')
+    })
+    expect(result.current.nodes).toHaveLength(1)
+    expect(result.current.nodes[0]?.data.prompt).toBe('Keep this node')
+    expect(result.current.canvasAppearance).toBeUndefined()
   })
 
   it('retires composer/agent nodes and folds the breakdown into a ScriptDoc on hydration', async () => {

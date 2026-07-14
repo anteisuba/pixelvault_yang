@@ -113,10 +113,14 @@ export const API_ENDPOINTS = {
   PROMPT_ASSISTANT: '/api/prompt/assistant',
   /** Node Studio script breakdown */
   SCRIPT_BREAKDOWN: '/api/script-breakdown',
+  /** Read-only assistant conversation shares */
+  ASSISTANT_SHARE: '/api/assistant/share',
   /** Node Studio Seedance prompt planning */
   SEEDANCE_PROMPT_PLAN: '/api/studio/seedance-prompt-plan',
   /** Node Studio assistant conversation */
   NODE_ASSISTANT: '/api/studio/node-assistant',
+  /** Persisted assistant chat transcripts (Node canvas + Studio) */
+  ASSISTANT_CONVERSATION: '/api/assistant/conversation',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */
@@ -271,6 +275,8 @@ export const API_ENDPOINTS = {
   LORA_ASSETS: '/api/lora-assets',
   /** Public Civitai LoRA browser */
   LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
+  /** Public Hugging Face LoRA browser/import source */
+  LORA_ASSETS_HUGGINGFACE: '/api/lora-assets/huggingface',
   /** Redirect a Civitai model version download id to its concrete model page */
   LORA_ASSETS_CIVITAI_SOURCE: '/api/lora-assets/civitai/source',
   /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */
@@ -281,7 +287,7 @@ export const API_ENDPOINTS = {
   LORA_ASSETS_CIVITAI_RESOLVE: '/api/lora-assets/civitai/resolve',
   /** Resolve a style-code share-link → LoraAsset */
   LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
-  /** Import an external (Civitai) LoRA into the viewer's favorites */
+  /** Import an external (Civitai/Hugging Face) LoRA into the viewer's favorites */
   LORA_ASSETS_FAVORITE: '/api/lora-assets/favorite',
 
   /** "Use this image" payload — style codes (and later prompt/seed/model) */

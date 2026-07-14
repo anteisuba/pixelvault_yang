@@ -1,13 +1,13 @@
 'use client'
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type DragEvent as ReactDragEvent,
-  type RefObject,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import {
@@ -26,17 +26,21 @@ import {
   type XYPosition,
 } from '@xyflow/react'
 import { useAuth } from '@clerk/nextjs'
-import { PanelTopOpen } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import {
+  CANVAS_ADD_INTENT_IDS,
+  getCanvasAddCatalogItem,
+  type CanvasAddIntentId,
+} from '@/constants/canvas-add-catalog'
 import {
   NODE_STUDIO_BOTTOM_DOCK,
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DOCK,
-  NODE_STUDIO_DOCK_RESIZE,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_INGEST_REJECT_REASON_IDS,
@@ -57,8 +61,6 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
-  type NodeImageRole,
-  type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
 import { INGEST_MOTION } from '@/constants/motion'
@@ -91,6 +93,12 @@ import {
 } from '@/hooks/node/use-node-workflow'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
+import {
+  decideCanvasImageEditHandoffSession,
+  getCanvasImageEditHandoffRequestKey,
+  readCanvasImageEditHandoff,
+  resolveCanvasImageEditHandoff,
+} from '@/lib/canvas-image-edit-handoff'
 import {
   buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
@@ -136,8 +144,10 @@ import {
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
+import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
-import { CastDock, isCastIdentityNode, type CastSectionId } from './CastDock'
+import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
+import { CastDock, type CastSectionId } from './CastDock'
 import { createReferenceAsset } from './CharacterImageReferenceControls'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
@@ -333,11 +343,8 @@ function isLegalLooseImageFuseTarget(
 }
 
 export function StudioNodeWorkbench() {
-  const canvasRef = useRef<HTMLElement | null>(null)
-
   return (
     <section
-      ref={canvasRef}
       // The canvas is a dark surface, but `.dark` only remaps color tokens — it
       // doesn't set `color-scheme`, so native UI (scrollbars, form controls)
       // inside it fell back to the OS light scheme and painted a white scrollbar
@@ -348,20 +355,24 @@ export function StudioNodeWorkbench() {
       className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground lg:h-svh"
     >
       <ReactFlowProvider>
-        <StudioNodeCanvas canvasRef={canvasRef} />
+        <Suspense fallback={null}>
+          <StudioNodeCanvas />
+        </Suspense>
       </ReactFlowProvider>
     </section>
   )
 }
 
-interface StudioNodeCanvasProps {
-  canvasRef: RefObject<HTMLElement | null>
-}
-
-function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
+function StudioNodeCanvas() {
+  const canvasRef = useRef<HTMLDivElement | null>(null)
   const t = useTranslations('StudioNode')
   const tErrors = useTranslations('Errors')
   const locale = useLocale()
+  const searchParams = useSearchParams()
+  const imageEditHandoff = useMemo(
+    () => readCanvasImageEditHandoff(searchParams),
+    [searchParams],
+  )
   // Clerk userId scopes every localStorage slot and server call the hook
   // makes — passing null until Clerk loads parks the hook in an empty
   // state instead of leaking the previous account's snapshot.
@@ -402,21 +413,22 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   // The node whose ⤢ detail panel is open (B3 shared floating panel). One id
   // because a single shared panel renders the one expanded node.
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
+  const imageEditNodeByRequestRef = useRef(new Map<string, string>())
+  const activeImageEditRequestKeyRef = useRef<string | null>(null)
+  const pendingImageEditRequestKeyRef = useRef<string | null>(null)
   const [toolMode, setToolMode] = useState<NodeStudioToolMode>(
     NODE_STUDIO_TOOL_MODE_IDS.pointer,
   )
-  const [topbarOpen, setTopbarOpen] = useState(true)
   const [projectDialogMode, setProjectDialogMode] = useState<
     'create' | 'rename' | null
   >(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
-  // Mobile UX: the AssistantDock spans left-4 → right-4 below md, so leaving
-  // it default-open hides the canvas entirely on a phone. Close it on first
-  // paint when the viewport is narrow; desktop keeps the default-open layout.
+  // Below the desktop rail breakpoint the assistant is an overlay. Start it
+  // closed so tablet and phone users land on the canvas instead of a sheet.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (window.matchMedia('(max-width: 767px)').matches) {
+    if (window.matchMedia('(max-width: 1023px)').matches) {
       setAssistantDockOpen(false)
       setAssistantExpanded(false)
     }
@@ -545,26 +557,33 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [getCanvasLocalPosition, openAddMenu, screenToFlowPosition],
   )
 
+  const createCanvasObject = useCallback(
+    (intentId: CanvasAddIntentId, position: XYPosition): string => {
+      const item = getCanvasAddCatalogItem(intentId)
+      const newId = workflow.addNode(item.nodeType, position)
+
+      if (item.role) {
+        workflow.updateNodeData(newId, {
+          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[item.role]),
+          role: item.role,
+        })
+      }
+
+      return newId
+    },
+    [workflow],
+  )
+
   const handleAddNode = useCallback(
-    (type: NodeWorkflowNodeType, role?: NodeImageRole) => {
+    (intentId: CanvasAddIntentId) => {
       if (!addMenu) {
         return
       }
 
-      const newId = workflow.addNode(type, addMenu.flowPosition)
-      // S5d ③「镜头图（生成）」add-menu row: stamp role immediately (same
-      // role-preset-on-creation pattern CastDock.handleCastCreate uses for
-      // character/background) so it never passes through the (now retired)
-      // on-canvas role picker.
-      if (role) {
-        workflow.updateNodeData(newId, {
-          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[role]),
-          role,
-        })
-      }
+      createCanvasObject(intentId, addMenu.flowPosition)
       closeAddMenu()
     },
-    [addMenu, closeAddMenu, workflow],
+    [addMenu, closeAddMenu, createCanvasObject],
   )
 
   const handleNodesDelete = useCallback(
@@ -1251,7 +1270,29 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
           ...(isVideoMediaNode
-            ? { videoThumbnailUrl: result.thumbnailUrl }
+            ? {
+                videoThumbnailUrl: result.thumbnailUrl,
+                lineage: {
+                  operation: 'generate' as const,
+                  sourceUrls: [
+                    ...effectiveReferenceImages,
+                    ...upstreamVideoUrls,
+                    ...upstreamAudioUrls,
+                  ].slice(0, 9),
+                },
+              }
+            : {}),
+          ...(isAudioMediaNode
+            ? {
+                audioClip: {
+                  url: result.mediaUrl,
+                  generationId: result.generation.id,
+                  role: 'speech' as const,
+                  ...(typeof result.generation.duration === 'number'
+                    ? { durationSeconds: result.generation.duration }
+                    : {}),
+                },
+              }
             : {}),
           mediaLabel: result.generation.model,
           // seed 复现闭环：回写 provider 实际用的 seed 供前端展示 +「锁定」。
@@ -1337,6 +1378,68 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     },
     [fitView, workflow],
   )
+
+  useEffect(() => {
+    if (!isLoaded || !userId || !workflow.isHydrated || !imageEditHandoff) {
+      activeImageEditRequestKeyRef.current = null
+      pendingImageEditRequestKeyRef.current = null
+      return
+    }
+
+    const requestKey = getCanvasImageEditHandoffRequestKey(
+      userId,
+      workflow.currentProjectId,
+      imageEditHandoff.signature,
+    )
+    const rememberedNodeId = imageEditNodeByRequestRef.current.get(requestKey)
+    const rememberedNode = rememberedNodeId
+      ? workflow.nodes.find((node) => node.id === rememberedNodeId)
+      : undefined
+
+    const sessionDecision = decideCanvasImageEditHandoffSession({
+      requestKey,
+      activeRequestKey: activeImageEditRequestKeyRef.current,
+      pendingRequestKey: pendingImageEditRequestKeyRef.current,
+      rememberedNodeId,
+      rememberedNodeExists: rememberedNode !== undefined,
+    })
+    if (sessionDecision.kind === 'skip') return
+    if (sessionDecision.kind === 'focus') {
+      pendingImageEditRequestKeyRef.current = null
+      activeImageEditRequestKeyRef.current = requestKey
+      setExpandedNodeId(sessionDecision.nodeId)
+      handleFocusNode(sessionDecision.nodeId)
+      return
+    }
+    if (sessionDecision.staleNodeId) {
+      imageEditNodeByRequestRef.current.delete(requestKey)
+    }
+
+    const resolution = resolveCanvasImageEditHandoff(
+      workflow.nodes,
+      imageEditHandoff,
+    )
+    if (resolution.kind === 'reuse') {
+      imageEditNodeByRequestRef.current.set(requestKey, resolution.nodeId)
+      pendingImageEditRequestKeyRef.current = null
+      activeImageEditRequestKeyRef.current = requestKey
+      setExpandedNodeId(resolution.nodeId)
+      handleFocusNode(resolution.nodeId)
+      return
+    }
+
+    const newNodeId = workflow.addNode(
+      NODE_TYPE_IDS.image,
+      NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition,
+    )
+    if (Object.keys(resolution.patch).length > 0) {
+      workflow.updateNodeData(newNodeId, resolution.patch)
+    }
+    // The next render sees the newly created node, then performs selection,
+    // fitView, and panel expansion through the same remembered-node path.
+    imageEditNodeByRequestRef.current.set(requestKey, newNodeId)
+    pendingImageEditRequestKeyRef.current = requestKey
+  }, [handleFocusNode, imageEditHandoff, isLoaded, userId, workflow])
 
   // §7.1 部门条 ＋添加位: create an upstream reference node from an already
   // resolved asset (uploaded or picked from the library) and wire it into the
@@ -1438,23 +1541,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
       }
 
-      if (
-        sectionId === NODE_IMAGE_ROLE_IDS.character ||
-        sectionId === NODE_IMAGE_ROLE_IDS.background
-      ) {
-        const newId = workflow.addNode(NODE_TYPE_IDS.image, position)
-        workflow.updateNodeData(newId, {
-          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[sectionId]),
-          role: sectionId,
-        })
-        handleFocusNode(newId)
-        return
-      }
-
-      const newId = workflow.addNode(sectionId, position)
+      const intentId =
+        sectionId === NODE_IMAGE_ROLE_IDS.character
+          ? CANVAS_ADD_INTENT_IDS.organizeCharacter
+          : sectionId === NODE_IMAGE_ROLE_IDS.background
+            ? CANVAS_ADD_INTENT_IDS.organizeScene
+            : sectionId === NODE_TYPE_IDS.voice
+              ? CANVAS_ADD_INTENT_IDS.audioVoiceProfile
+              : CANVAS_ADD_INTENT_IDS.videoReference
+      const newId = createCanvasObject(intentId, position)
       handleFocusNode(newId)
     },
-    [handleFocusNode, workflow],
+    [createCanvasObject, handleFocusNode, workflow.nodes.length],
   )
 
   const handleFocusGeneratedNodes = useCallback(() => {
@@ -1547,8 +1645,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     () =>
       workflow.nodes.map((node) => {
         const hasOutgoingEdge = nodeIdsWithOutgoingEdge.has(node.id)
+        // Cast identity cards (角色/场景) stay on the canvas even when eaten —
+        // the 卡匣 is a mirror tray, not the only surface. Only fused loose
+        // images (referenceAssets path) and loose images with an outgoing edge
+        // fold hidden.
         const shouldFold =
-          (isCastIdentityNode(node) && hasOutgoingEdge) ||
           Boolean(node.data.fusedIntoNodeId) ||
           (isLooseImageNode(node) && hasOutgoingEdge)
         return shouldFold ? { ...node, hidden: true } : node
@@ -1566,20 +1667,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [workflow.edges],
   )
 
-  // S5b B0: shared inset for the merged bottom row (toolbar + Cast handle) —
-  // the same "clear the assistant dock" math CanvasBottomDock/CastDock used
-  // to each compute on their own before the merge.
-  const bottomRowInsetPx = useMemo(() => {
-    const assistantDockWidthPx = assistantExpanded
-      ? NODE_STUDIO_DOCK_RESIZE.expandedWidthPx
-      : NODE_STUDIO_DOCK_RESIZE.defaultWidthPx
-    const right = assistantDockOpen
-      ? assistantDockWidthPx +
-        NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx +
-        NODE_STUDIO_BOTTOM_DOCK.assistantGapPx
-      : NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx
-    return { left: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx, right }
-  }, [assistantDockOpen, assistantExpanded])
+  // WorkspaceLayout owns assistant geometry, so stage chrome only needs its
+  // local edge inset. No control guesses or duplicates the rail width.
+  const bottomRowInsetPx = {
+    left: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx,
+    right: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx,
+  }
 
   // 落卡 = 建边（B1-4）: the ingest engine's ONLY data mutation, reusing the
   // exact same addEdge path onConnect already uses (idempotent — a duplicate
@@ -2048,8 +2141,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
+      placeDerivedImages: workflow.placeDerivedImages,
       setScriptDoc: workflow.setScriptDoc,
       setDefaultVideoModel: workflow.setDefaultVideoModel,
+      setCanvasAppearance: workflow.setCanvasAppearance,
       setScriptDocStage: workflow.setScriptDocStage,
       setScriptDocDepth: workflow.setScriptDocDepth,
       setScriptDocLocks: workflow.setScriptDocLocks,
@@ -2095,9 +2190,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.canUndo,
       workflow.deleteEdge,
       workflow.deleteNode,
+      workflow.placeDerivedImages,
       workflow.redo,
       workflow.setScriptDoc,
       workflow.setDefaultVideoModel,
+      workflow.setCanvasAppearance,
       workflow.setScriptDocStage,
       workflow.setScriptDocDepth,
       workflow.setScriptDocLocks,
@@ -2111,15 +2208,45 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     ],
   )
 
+  const assistantMode = !assistantDockOpen
+    ? 'closed'
+    : assistantExpanded
+      ? 'script'
+      : 'chat'
+
+  const canvasStageStyle = useMemo(
+    () => getCanvasAppearanceCssVars(workflow.canvasAppearance),
+    [workflow.canvasAppearance],
+  )
+
   return (
-    <>
-      <NodeWorkflowActionsProvider value={workflowActions}>
+    <NodeWorkflowActionsProvider value={workflowActions}>
+      <CanvasWorkspaceLayout
+        assistantMode={assistantMode}
+        stageRef={canvasRef}
+        stageStyle={canvasStageStyle}
+        assistant={
+          <StudioNodeAssistantDock
+            open={assistantDockOpen}
+            expanded={assistantExpanded}
+            projectId={workflow.currentProjectId}
+            projectName={workflow.currentProjectName}
+            nodes={workflow.nodes}
+            scriptDoc={workflow.scriptDoc}
+            locale={appLocale}
+            onOpenChange={setAssistantDockOpen}
+            onExpandedChange={setAssistantExpanded}
+            onFocusNode={handleFocusNode}
+          />
+        }
+      >
         <IngestDragProvider
           nodes={workflow.nodes}
           edges={workflow.edges}
           onConnect={handleIngestConnect}
           quickThrowApiRef={quickThrowApiRef}
         >
+          <CanvasSurface appearance={workflow.canvasAppearance} />
           <ReactFlow
             nodes={renderedNodes}
             edges={renderedEdges}
@@ -2154,18 +2281,19 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             selectionMode={SelectionMode.Partial}
             zoomOnScroll
             fitView={false}
-            className="bg-node-canvas"
+            className="h-full w-full !bg-transparent"
+            style={{ backgroundColor: 'transparent' }}
           >
             <Background
               variant={BackgroundVariant.Dots}
               gap={NODE_STUDIO_CANVAS.background.gap}
               size={NODE_STUDIO_CANVAS.background.size}
-              color={NODE_STUDIO_CANVAS.background.color}
+              color="var(--canvas-grid-dot)"
             />
             <CanvasMiniMap />
           </ReactFlow>
           {workflow.nodes.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:left-8 md:right-[30rem] md:bottom-16 md:top-24">
+            <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-[5] flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
               <NodeCanvasEmptyGuide
                 onChatOutline={() => {
                   setAssistantDockOpen(true)
@@ -2176,53 +2304,25 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             </div>
           )}
           <div className="pointer-events-none absolute inset-0 z-10">
-            {topbarOpen ? (
-              <CanvasTopBar
-                nodeCount={workflow.nodes.length}
-                projectName={workflow.currentProjectName}
-                projects={workflow.projects}
-                currentProjectId={workflow.currentProjectId}
-                onAddClick={handleTopbarAddClick}
-                onArrange={handleTidyLayout}
-                onSave={handleSaveNow}
-                isSaving={isSaving}
-                onCreateProject={handleCreateProject}
-                onRenameProject={handleRenameProject}
-                onDeleteProject={handleDeleteProject}
-                onSwitchProject={handleSwitchProject}
-                onCollapse={() => setTopbarOpen(false)}
-              />
-            ) : (
-              <button
-                type="button"
-                aria-label={t('topbar.expand')}
-                title={t('topbar.expand')}
-                onClick={() => setTopbarOpen(true)}
-                className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-focus-ring/40 hover:bg-node-panel-inner md:left-6"
-              >
-                <PanelTopOpen className="size-4 text-node-foreground" />
-                <span className="truncate">{workflow.currentProjectName}</span>
-              </button>
-            )}
-            <StudioNodeAssistantDock
-              open={assistantDockOpen}
-              expanded={assistantExpanded}
+            <CanvasTopBar
+              nodeCount={workflow.nodes.length}
               projectName={workflow.currentProjectName}
-              nodes={workflow.nodes}
-              scriptDoc={workflow.scriptDoc}
-              locale={appLocale}
-              onOpenChange={setAssistantDockOpen}
-              onExpandedChange={setAssistantExpanded}
-              onFocusNode={handleFocusNode}
+              projects={workflow.projects}
+              currentProjectId={workflow.currentProjectId}
+              canvasAppearance={workflow.canvasAppearance}
+              onCanvasAppearanceChange={workflow.setCanvasAppearance}
+              onAddClick={handleTopbarAddClick}
+              onArrange={handleTidyLayout}
+              onSave={handleSaveNow}
+              isSaving={isSaving}
+              onCreateProject={handleCreateProject}
+              onRenameProject={handleRenameProject}
+              onDeleteProject={handleDeleteProject}
+              onSwitchProject={handleSwitchProject}
             />
-            {/* Toolbar row — shares the assistant-dock-clearance inset math
-                (`bottomRowInsetPx`) that used to also carry the Cast dock's
-                pill before S5d ①「卡匣回横匣」moved it back to its own
-                horizontal strip (see below), a separate positioned layer so
-                it can float ABOVE this row instead of being squeezed inline
-                next to it. */}
+            {/* Bottom chrome: tools + 卡匣 handle share one centered row. */}
             <div
-              className="pointer-events-none absolute bottom-3 z-10 flex items-center justify-center gap-2"
+              className="pointer-events-none absolute bottom-3 z-10 flex items-end justify-center gap-2"
               style={{
                 left: bottomRowInsetPx.left,
                 right: bottomRowInsetPx.right,
@@ -2232,18 +2332,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
                 activeMode={toolMode}
                 canUndo={workflow.canUndo}
                 canRedo={workflow.canRedo}
-                assistantExpanded={assistantExpanded}
                 onModeChange={setToolMode}
                 onUndo={workflow.undo}
                 onRedo={workflow.redo}
               />
+              <CastDock
+                onCreateCard={handleCastCreate}
+                insetLeft={0}
+                insetRight={0}
+                canvasDragActive={canvasNodeDragActive}
+                layout="inline"
+              />
             </div>
-            <CastDock
-              onCreateCard={handleCastCreate}
-              insetLeft={bottomRowInsetPx.left}
-              insetRight={bottomRowInsetPx.right}
-              canvasDragActive={canvasNodeDragActive}
-            />
             <CanvasAddMenu
               open={Boolean(addMenu)}
               screenPosition={addMenu?.menuPosition ?? null}
@@ -2312,7 +2412,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             </AlertDialogContent>
           </AlertDialog>
         </IngestDragProvider>
-      </NodeWorkflowActionsProvider>
-    </>
+      </CanvasWorkspaceLayout>
+    </NodeWorkflowActionsProvider>
   )
 }

@@ -85,6 +85,12 @@ enum VideoScriptStatus {
   FAILED
 }
 
+/// Surface that owns an assistant chat transcript (Node canvas vs Studio).
+enum AssistantSurface {
+  STUDIO
+  NODE_CANVAS
+}
+
 enum VideoScriptSceneStatus {
   PENDING
   FRAME_GENERATING
@@ -138,9 +144,45 @@ model User {
   videoScripts       VideoScript[]
   extractedElements  ExtractedElement[]
   nodeWorkflowProjects NodeWorkflowProject[]
+  assistantConversations AssistantConversation[]
 
   @@index([username])
   @@index([isDeleted])
+}
+
+/// Persisted assistant chat (Node canvas and Studio). Messages are JSON
+/// text-only (plus remote media URLs) — never base64 payloads.
+model AssistantConversation {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surface   AssistantSurface
+  /// NODE_CANVAS: NodeWorkflowProject.id (weak ref, no FK). STUDIO: null.
+  projectId String?
+  /// Truncated first user message for list UI.
+  title     String?
+  /// [{ id?, role, content, createdAt? }]
+  messages  Json
+  shares    AssistantConversationShare[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId, surface, updatedAt(sort: Desc)])
+  @@index([projectId])
+}
+
+/// Unauthenticated, read-only snapshots shared by an assistant conversation owner.
+model AssistantConversationShare {
+  id             String              @id @default(uuid())
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tokenHash      String              @unique
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime             @default(now())
+
+  @@index([conversationId])
+  @@index([expiresAt])
 }
 
 /// Node Studio workflow project — persists the React Flow canvas state

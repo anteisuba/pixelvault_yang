@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import {
   DEFAULT_LORA_NSFW_FILTER,
+  HUGGINGFACE_LORA_DEFAULT_FAMILY,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
@@ -10,6 +11,7 @@ import type {
   CivitaiLoraLibraryResult,
   CivitaiMinedPromptsResult,
   CivitaiModelDescriptionResult,
+  HuggingFaceLoraSearchResult,
   RunnerUsageResult,
   FavoriteLoraRequest,
   LoraAssetRecord,
@@ -34,6 +36,12 @@ interface SingleResponse {
 interface CivitaiListResponse {
   success: boolean
   data?: CivitaiLoraLibraryResult
+  error?: string
+}
+
+interface HuggingFaceListResponse {
+  success: boolean
+  data?: HuggingFaceLoraSearchResult
   error?: string
 }
 
@@ -120,6 +128,52 @@ export async function listCivitaiLoraAssetsAPI(params: {
       }
     }
     return (await response.json()) as CivitaiListResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+/** Search public Hugging Face LoRA repositories and their concrete files. */
+export async function listHuggingFaceLoraAssetsAPI(params: {
+  search?: string
+  baseModelFamily?: string
+  limit?: number
+  page?: number
+  cursor?: string
+}): Promise<HuggingFaceListResponse> {
+  try {
+    const query = new URLSearchParams()
+    if (params.search) query.set('search', params.search)
+    query.set(
+      'baseModelFamily',
+      params.baseModelFamily ?? HUGGINGFACE_LORA_DEFAULT_FAMILY,
+    )
+    if (params.limit) query.set('limit', String(params.limit))
+    if (params.page) query.set('page', String(params.page))
+    if (params.cursor) query.set('cursor', params.cursor)
+
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_HUGGINGFACE}?${query.toString()}`,
+      {
+        // Repository classification can change when Hub metadata is corrected
+        // or when our server-side safety filter is tightened. Do not let a
+        // browser HTTP cache keep a removed checkpoint visible as a LoRA.
+        cache: 'no-store',
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as HuggingFaceListResponse
   } catch (error) {
     return {
       success: false,

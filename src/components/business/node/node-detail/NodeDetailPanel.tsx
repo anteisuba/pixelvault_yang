@@ -126,7 +126,8 @@ export function NodeDetailPanel({
             style={{ maxWidth: 'calc(100vw - 2rem)' }}
             className={cn(
               'relative flex max-h-[80svh] flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl',
-              node.type === NODE_TYPE_IDS.seedance
+              node.type === NODE_TYPE_IDS.seedance ||
+                node.type === NODE_TYPE_IDS.videoMerge
                 ? 'w-node-detail-panel-wide'
                 : 'w-node-detail-panel',
             )}

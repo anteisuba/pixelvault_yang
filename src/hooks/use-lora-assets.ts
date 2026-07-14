@@ -26,6 +26,9 @@ export interface UseLoraAssetsReturn {
   errorMine: string | null
   refresh: () => Promise<void>
   setVisibility: (assetId: string, isPublic: boolean) => Promise<boolean>
+  favoriteExternalLora: (
+    input: FavoriteLoraRequest,
+  ) => Promise<LoraAssetRecord | null>
   favoriteCivitaiLora: (
     item: LoraAssetRecord,
   ) => Promise<LoraAssetRecord | null>
@@ -115,6 +118,28 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   // 参数类型放宽到 LoraAssetRecord —— CivitaiLoraLibraryItem（公开库卡片）
   // 和 discoverAssets 里的记录（我的页「推荐你收藏」条）结构上都满足
   // FavoriteLoraRequest 所需字段，两处收藏入口共用同一个实现。
+  const favoriteExternalLora = useCallback(
+    async (payload: FavoriteLoraRequest): Promise<LoraAssetRecord | null> => {
+      const result = await favoriteLoraAPI(payload)
+      if (!result.success || !result.data) {
+        toast.error(result.error ?? t('favoriteFailed'), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
+        return null
+      }
+      setMyAssets((prev) => {
+        if (prev.some((a) => a.id === result.data!.id)) return prev
+        return [result.data!, ...prev]
+      })
+      toast.success(t('favoriteAdded'), { duration: LORA_TOAST_DURATION_MS })
+      return result.data
+    },
+    [t],
+  )
+
+  // Keep the existing Civitai callback shape for the public library and
+  // discover feed. HF imports use the generic request above because the user
+  // must choose a concrete repository file before importing it.
   const favoriteCivitaiLora = useCallback(
     async (item: LoraAssetRecord): Promise<LoraAssetRecord | null> => {
       const payload: FavoriteLoraRequest = {
@@ -133,21 +158,9 @@ export function useLoraAssets(): UseLoraAssetsReturn {
         modelVersionId: item.modelVersionId,
         fileHashAutoV3: item.fileHashAutoV3,
       }
-      const result = await favoriteLoraAPI(payload)
-      if (!result.success || !result.data) {
-        toast.error(result.error ?? t('favoriteFailed'), {
-          duration: LORA_TOAST_DURATION_MS,
-        })
-        return null
-      }
-      setMyAssets((prev) => {
-        if (prev.some((a) => a.id === result.data!.id)) return prev
-        return [result.data!, ...prev]
-      })
-      toast.success(t('favoriteAdded'), { duration: LORA_TOAST_DURATION_MS })
-      return result.data
+      return favoriteExternalLora(payload)
     },
-    [t],
+    [favoriteExternalLora],
   )
 
   const unfavoriteAsset = useCallback(
@@ -222,6 +235,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     errorMine,
     refresh,
     setVisibility,
+    favoriteExternalLora,
     favoriteCivitaiLora,
     unfavoriteAsset,
     unfavoriteByUrl,

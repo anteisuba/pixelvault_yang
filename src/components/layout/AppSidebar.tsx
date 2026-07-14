@@ -26,7 +26,6 @@ import {
   User,
   UserCircle,
   Video,
-  Wand2,
   Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -215,8 +214,8 @@ function AppSidebarContent() {
   ] as const
 
   // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
-  // their per-media-type routes; Edit is the dedicated image editor while
-  // Enhance / Analyze / LoRA / Node stay discoverable as later-phase tools.
+  // their per-media-type routes. Image edit lives on Canvas (legacy /studio/edit
+  // deep links redirect there). Enhance / Analyze / LoRA / Node stay discoverable.
   const toolLinks = [
     {
       href: ROUTES.STUDIO_IMAGE,
@@ -245,13 +244,6 @@ function AppSidebarContent() {
       icon: Box,
       comingSoon: false,
       activePaths: [ROUTES.STUDIO_3D],
-    },
-    {
-      href: ROUTES.STUDIO_EDIT,
-      label: tTools('tools.edit.label'),
-      icon: Wand2,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_EDIT],
     },
     {
       href: ROUTES.STUDIO_ENHANCE,

@@ -72,6 +72,22 @@ export const NodeWorkflowCharacterReferenceSchema = z.object({
   visualSeed: z.string().trim().min(1).max(2000),
 })
 
+export const NodeWorkflowAudioClipRoleSchema = z.enum([
+  'speech',
+  'voice-profile',
+  'sfx',
+  'music',
+  'ambience',
+])
+
+/** Finished, playable audio. Kept separate from Voice Profile donor audio. */
+export const NodeWorkflowAudioClipSchema = z.object({
+  url: z.string().trim().min(1).max(4000),
+  generationId: z.string().trim().min(1).max(160).optional(),
+  role: NodeWorkflowAudioClipRoleSchema.default('speech'),
+  durationSeconds: z.number().nonnegative().max(3600).optional(),
+})
+
 export const NodeWorkflowReferenceRoleSchema = z.enum(
   NODE_STUDIO_REFERENCE_ROLES,
 )
@@ -168,6 +184,8 @@ export const NodeWorkflowNodeDataSchema = z
     voiceReferenceAudioUrl: z.string().trim().min(1).optional(),
     voiceReferenceAudioName: z.string().trim().min(1).max(160).optional(),
     voiceReferenceAudioMimeType: z.string().trim().min(1).max(120).optional(),
+    /** Finished playable clip; never reuse Voice Profile reference audio here. */
+    audioClip: NodeWorkflowAudioClipSchema.optional(),
     motion: z.string().optional(),
     duration: z.string().optional(),
     // videoMerge node: per-upstream-clip trim overrides. The Inspector keys
@@ -251,6 +269,17 @@ export const NodeWorkflowNodeDataSchema = z
     generationStatus: NodeWorkflowGenerationStatusSchema.optional(),
     generationError: z.string().optional(),
     generationId: z.string().trim().min(1).optional(),
+    /** Generation-level lineage for composed/merged media outputs. */
+    lineage: z
+      .object({
+        operation: z.enum(['generate', 'merge', 'compose']).optional(),
+        sourceUrls: z
+          .array(z.string().trim().min(1).max(4000))
+          .max(9)
+          .optional(),
+      })
+      .optional()
+      .catch(undefined),
     sourceGenerationId: z.string().trim().min(1).max(160).optional(),
     sourceLabel: z.string().trim().min(1).max(160).optional(),
     /** Immediate canvas lineage for a non-destructive image edit result. */
@@ -262,6 +291,14 @@ export const NodeWorkflowNodeDataSchema = z
       .optional()
       .catch(undefined),
     derivedFromGenerationId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .optional()
+      .catch(undefined),
+    /** Operation id shared by a multi-output edit such as layer decomposition. */
+    derivedBatchId: z
       .string()
       .trim()
       .min(1)

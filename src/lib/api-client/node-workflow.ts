@@ -191,6 +191,11 @@ export interface MergeVideoResult {
   durationSeconds?: number
   fps?: number
   requestId: string
+  generationId?: string
+  lineage?: {
+    operation: 'merge' | 'compose'
+    sourceUrls: string[]
+  }
 }
 
 export interface MergeVideoResponse {

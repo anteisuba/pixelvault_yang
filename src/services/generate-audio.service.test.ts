@@ -6,6 +6,7 @@ const mockGenerationJobFindUnique = vi.fn()
 const mockGenerationJobUpdate = vi.fn()
 const mockGenerationJobUpdateMany = vi.fn()
 const mockDispatchWorkerRun = vi.fn()
+const mockShouldUseInlineExecutionFallback = vi.fn(() => false)
 const mockTransaction = vi.fn(
   async (callback: (tx: object) => Promise<unknown>) => callback({}),
 )
@@ -41,6 +42,8 @@ vi.mock('@/services/execution-outbox.service', () => ({
 vi.mock('@/services/execution-worker.service', () => ({
   buildInternalUrl: (path: string) => `http://localhost:3000${path}`,
   dispatchWorkerRun: (...args: unknown[]) => mockDispatchWorkerRun(...args),
+  shouldUseInlineExecutionFallback: () =>
+    mockShouldUseInlineExecutionFallback(),
 }))
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
@@ -799,6 +802,40 @@ describe('submitAudioGeneration', () => {
         }),
       }),
     )
+  })
+
+  it('falls back to inline Fish Audio generation when the local worker is unavailable', async () => {
+    mockShouldUseInlineExecutionFallback.mockReturnValueOnce(true)
+    const generateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 3.5,
+      requestCount: 1,
+    })
+    vi.mocked(resolveGenerationRoute).mockResolvedValue(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({ generateAudio } as never)
+    vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
+    vi.mocked(createGenerationJob).mockResolvedValue(FAKE_SYNC_JOB as never)
+    vi.mocked(fetchAsBuffer).mockResolvedValue({
+      buffer: Buffer.from('fake-audio'),
+      mimeType: 'audio/mpeg',
+    } as never)
+    vi.mocked(generateStorageKey).mockReturnValue('audio/user-1/gen.mp3')
+    vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/audio.mp3')
+    vi.mocked(createGeneration).mockResolvedValue(FAKE_GENERATION as never)
+    vi.mocked(createApiUsageEntry).mockResolvedValue(FAKE_USAGE as never)
+    vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
+
+    const result = await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      voiceId: 'voice-1',
+    })
+
+    expect(result).toEqual({ jobId: FAKE_SYNC_JOB.id })
+    expect(generateAudio).toHaveBeenCalled()
+    expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
   })
 
   it('rejects Fish Audio worker submissions without voice or reference input', async () => {

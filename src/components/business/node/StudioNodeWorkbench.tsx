@@ -147,7 +147,7 @@ import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
-import { CastDock, isCastIdentityNode, type CastSectionId } from './CastDock'
+import { CastDock, type CastSectionId } from './CastDock'
 import { createReferenceAsset } from './CharacterImageReferenceControls'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
@@ -1270,7 +1270,29 @@ function StudioNodeCanvas() {
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
           ...(isVideoMediaNode
-            ? { videoThumbnailUrl: result.thumbnailUrl }
+            ? {
+                videoThumbnailUrl: result.thumbnailUrl,
+                lineage: {
+                  operation: 'generate' as const,
+                  sourceUrls: [
+                    ...effectiveReferenceImages,
+                    ...upstreamVideoUrls,
+                    ...upstreamAudioUrls,
+                  ].slice(0, 9),
+                },
+              }
+            : {}),
+          ...(isAudioMediaNode
+            ? {
+                audioClip: {
+                  url: result.mediaUrl,
+                  generationId: result.generation.id,
+                  role: 'speech' as const,
+                  ...(typeof result.generation.duration === 'number'
+                    ? { durationSeconds: result.generation.duration }
+                    : {}),
+                },
+              }
             : {}),
           mediaLabel: result.generation.model,
           // seed 复现闭环：回写 provider 实际用的 seed 供前端展示 +「锁定」。

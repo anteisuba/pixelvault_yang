@@ -132,6 +132,7 @@ export function IdentityCollectorCard({
       type={legacyType}
       selected={selected}
       status={data.status}
+      imageEditData={data}
     >
       <NodeShell.Header
         type={legacyType}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { Mic2, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -16,6 +16,7 @@ import {
 } from '@/lib/node-workflow-graph'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { IMEAwareInput } from './IMEAwareField'
@@ -73,6 +74,48 @@ export function CharacterImageInspector({
     setExpandedNodeId,
   } = useNodeWorkflowActions()
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false)
+  const { cards, findCard } = useCharacterCards()
+  const boundCard = node.data.cardId ? findCard(node.data.cardId) : null
+
+  useEffect(() => {
+    if (!boundCard || node.data.cardId !== boundCard.id) return
+
+    const imageUrls = [
+      boundCard.sourceImageUrl,
+      ...boundCard.sourceImages,
+      ...(boundCard.referenceImages ?? []),
+    ].filter((url, index, urls) => Boolean(url) && urls.indexOf(url) === index)
+    const [primaryUrl, ...referenceUrls] = imageUrls
+    if (!primaryUrl) return
+
+    updateNodeData(node.id, {
+      cardId: boundCard.id,
+      characterName: boundCard.name,
+      character: {
+        characterId: boundCard.id,
+        name: boundCard.name,
+        visualSeed:
+          boundCard.characterPrompt || boundCard.description || boundCard.name,
+      },
+      prompt: node.data.prompt || boundCard.characterPrompt,
+      imageSource: 'existing',
+      mediaKind: NODE_MEDIA_KIND_IDS.image,
+      mediaLabel: boundCard.name,
+      mediaUrl: primaryUrl,
+      imageUrl: primaryUrl,
+      sourceGenerationId: undefined,
+      sourceLabel: boundCard.name,
+      referenceAssets: referenceUrls.map((url, index) => ({
+        id: `card-${boundCard.id}-${index}`,
+        url,
+        role: 'identity' as const,
+        weight: 1,
+        source: 'asset' as const,
+        sourceId: boundCard.id,
+        name: boundCard.name,
+      })),
+    })
+  }, [boundCard, node.data.cardId, node.data.prompt, node.id, updateNodeData])
 
   const characterName =
     typeof node.data.characterName === 'string'
@@ -222,6 +265,34 @@ export function CharacterImageInspector({
           </>
         }
       />
+
+      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+        <p className="text-sm font-semibold text-node-foreground">
+          {t('cardLibrary.title')}
+        </p>
+        <select
+          value={node.data.cardId ?? ''}
+          onChange={(event) =>
+            updateNodeData(node.id, { cardId: event.target.value || undefined })
+          }
+          aria-label={t('cardLibrary.title')}
+          className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+        >
+          <option value="">{t('cardLibrary.hint')}</option>
+          {cards
+            .flatMap((card) => [card, ...card.variants])
+            .map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+              </option>
+            ))}
+        </select>
+        {boundCard ? (
+          <p className="text-2xs text-node-muted">
+            {t('cardLibrary.bound', { name: boundCard.name })}
+          </p>
+        ) : null}
+      </div>
 
       {/* 听觉身份区 */}
       <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">

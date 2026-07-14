@@ -950,6 +950,29 @@ describe('mergePromptWithUpstreamText', () => {
 })
 
 describe('harvestUpstreamAudioBindings', () => {
+  it('prefers a finished Audio Clip over a Voice Profile donor sample', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        audioClip: {
+          url: 'https://cdn/finished.mp3',
+          generationId: 'audio-generation-1',
+          role: 'speech',
+        },
+        voiceReferenceAudioUrl: 'https://cdn/donor.mp3',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voiceA', 'seedance')]
+
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      {
+        url: 'https://cdn/finished.mp3',
+        nodeId: 'voiceA',
+        sourceKind: 'audio-clip',
+      },
+    ])
+  })
+
   it('attaches character names to voices routed through a character node', () => {
     const nodes = [
       makeNode('voiceA', NODE_TYPE_IDS.voice, {

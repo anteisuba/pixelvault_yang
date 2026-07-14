@@ -176,6 +176,10 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         mediaLabel: t('mediaLabel', { count: upstreamVideoUrls.length }),
         generationStatus: NODE_GENERATION_STATUS_IDS.success,
         status: NODE_STATUS_IDS.done,
+        ...(response.data.generationId
+          ? { generationId: response.data.generationId }
+          : {}),
+        ...(response.data.lineage ? { lineage: response.data.lineage } : {}),
         generationError: undefined,
       })
       toast.success(t('merged'), {

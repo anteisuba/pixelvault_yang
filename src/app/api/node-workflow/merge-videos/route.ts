@@ -16,6 +16,7 @@ import {
   MergeVideoServiceError,
 } from '@/services/video-merge.service'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
+import { createGeneration } from '@/services/generation.service'
 
 /**
  * Inputs split by intent:
@@ -125,6 +126,32 @@ export const POST = createApiRoute({
             resolution: data.resolution,
           })
 
+      const sourceUrls = data.clips
+        ? data.clips.map((clip) => clip.url)
+        : (data.videoUrls ?? [])
+      const generation = await createGeneration({
+        url: result.url,
+        storageKey: result.storageKey,
+        mimeType: result.mimeType,
+        width: result.width ?? 0,
+        height: result.height ?? 0,
+        duration: result.durationSeconds,
+        prompt: data.clips ? '[video-compose]' : '[video-merge]',
+        model: data.clips
+          ? 'fal-ai/ffmpeg-api/compose'
+          : 'fal-ai/ffmpeg-api/merge-videos',
+        provider: 'fal',
+        requestCount: 0,
+        outputType: 'VIDEO',
+        userId: dbUser.id,
+        sourceSurface: 'CANVAS',
+        snapshot: {
+          operation: data.clips ? 'compose' : 'merge',
+          sourceUrls,
+          requestId: result.requestId,
+        },
+      })
+
       return {
         url: result.url,
         sizeBytes: result.sizeBytes,
@@ -134,6 +161,11 @@ export const POST = createApiRoute({
         durationSeconds: result.durationSeconds,
         fps: result.fps,
         requestId: result.requestId,
+        generationId: generation.id,
+        lineage: {
+          operation: data.clips ? 'compose' : 'merge',
+          sourceUrls,
+        },
       }
     } catch (error) {
       if (error instanceof MergeVideoServiceError) {

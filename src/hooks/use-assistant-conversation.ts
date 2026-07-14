@@ -370,30 +370,31 @@ export function useAssistantConversation(
       }
 
       try {
-        let finalAssistant: AssistantConversationMessage | null = null
+        // Object holder so TS tracks callback mutations across the await.
+        const streamState: { message: AssistantConversationMessage | null } = {
+          message: null,
+        }
         await readTextStream(response.stream, (rawContent) => {
-          finalAssistant = toDisplayAssistantMessage(
+          streamState.message = toDisplayAssistantMessage(
             assistantMessageId,
             rawContent,
           )
-          setMessages([...nextMessages, finalAssistant])
+          setMessages([...nextMessages, streamState.message])
         })
         setIsLoading(false)
 
-        const completed = finalAssistant
-          ? [...nextMessages, finalAssistant]
-          : nextMessages
+        const finalAssistant = streamState.message
         // Drop empty assistant shell if the stream produced no text.
         const completedWithoutEmpty =
-          finalAssistant && finalAssistant.content.trim().length === 0
-            ? nextMessages
-            : completed
+          finalAssistant && finalAssistant.content.trim().length > 0
+            ? [...nextMessages, finalAssistant]
+            : nextMessages
         const nextSessionId = await persistMessages(
           completedWithoutEmpty,
           sessionId,
         )
         if (nextSessionId) setSessionId(nextSessionId)
-        if (finalAssistant && finalAssistant.content.trim().length === 0) {
+        if (!finalAssistant || finalAssistant.content.trim().length === 0) {
           setMessages(nextMessages)
           setError(t('assistant.streamFailed'))
         }
@@ -466,28 +467,28 @@ export function useAssistantConversation(
       }
 
       try {
-        let finalAssistant: AssistantConversationMessage | null = null
+        const streamState: { message: AssistantConversationMessage | null } = {
+          message: null,
+        }
         await readTextStream(response.stream, (rawContent) => {
-          finalAssistant = toDisplayAssistantMessage(
+          streamState.message = toDisplayAssistantMessage(
             assistantMessageId,
             rawContent,
           )
-          setMessages([...withoutTrailingAssistant, finalAssistant])
+          setMessages([...withoutTrailingAssistant, streamState.message])
         })
         setIsLoading(false)
-        const completed = finalAssistant
-          ? [...withoutTrailingAssistant, finalAssistant]
-          : withoutTrailingAssistant
+        const finalAssistant = streamState.message
         const completedWithoutEmpty =
-          finalAssistant && finalAssistant.content.trim().length === 0
-            ? withoutTrailingAssistant
-            : completed
+          finalAssistant && finalAssistant.content.trim().length > 0
+            ? [...withoutTrailingAssistant, finalAssistant]
+            : withoutTrailingAssistant
         const nextSessionId = await persistMessages(
           completedWithoutEmpty,
           sessionId,
         )
         if (nextSessionId) setSessionId(nextSessionId)
-        if (finalAssistant && finalAssistant.content.trim().length === 0) {
+        if (!finalAssistant || finalAssistant.content.trim().length === 0) {
           setMessages(withoutTrailingAssistant)
           setError(t('assistant.streamFailed'))
         }

@@ -3,6 +3,8 @@
 > 状态：**现状调查完成，模块边界与最优施工顺序已拟定；待 owner 目验模块概念稿后启动 W0**（2026-07-13）。
 > 本包是 `/studio/node` 的画布总计划；`canvas-image-edit-convergence-2026-07.md`、视频引用/合成计划、音频域计划是纵向子计划。当前只授权文档、概念与切片定义，不授权删除 `/studio/edit`、修改 provider/计费/权限契约或直接大改产品代码。
 
+> **Execution status supersedes the planning header (2026-07-14):** I3, E1, V2, A1, AS1, and R1 are implemented on `codex/canvas-modular-redesign`; E2 remains partial and S6 awaits owner visual QA.
+
 ## Goal
 
 - 把用户可见的“节点编辑”升级为 **画布**，让 `/studio/node` 成为图片、视频、声音和剧本编排的高级创作工作区。
@@ -237,6 +239,18 @@ run(capabilityId, target, typedInput)
 `NodeWorkflowActionsContext` 不继续加入每个图片/视频/声音动作的 callback；对象工具条只消费 capability 列表与统一 run/open。
 
 ## Delivery Order
+
+### Implementation status (2026-07-14)
+
+The execution slice is now in progress on `codex/canvas-modular-redesign`:
+
+- **I3 complete**: layer decomposition returns `batchId`/`sourceGenerationId`; the canvas previews and selects layers before one-undo placement.
+- **E1 complete; E2 partial**: `CanvasCapabilityRuntime` owns capability descriptors, execution, and image result placement. Image editing is migrated; some video/audio generation orchestration remains in `StudioNodeWorkbench`.
+- **V2 complete**: video merge/compose persists `Generation` and returns `generationId` plus `lineage`; generated video nodes retain upstream media lineage.
+- **A1 minimum contract complete**: generated speech is stored as an `Audio Clip`; video graph binding prefers the clip and only falls back to legacy Voice Profile audio.
+- **AS1 first slice complete**: assistant can attach canvas image/video references and run controlled upscale/remove-background capability markers through the runtime; Studio and Canvas share the assistant shell.
+- **R1 complete**: legacy edit task shells and context are deleted while `/studio/edit` remains a compatibility redirect with query migration.
+- **S6 pending owner visual QA**: history is aligned inside the assistant rail; empty-state illustration, real Fish provider request, and final canvas visual acceptance remain.
 
 ```text
 G0  总计划、现状基线、旧计划冲突标记

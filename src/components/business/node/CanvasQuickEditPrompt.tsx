@@ -8,8 +8,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capabilities'
-import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import { createExtractedElementAPI, extractElementAPI } from '@/lib/api-client'
+import { runCanvasCapability } from '@/lib/canvas-capability-runtime'
 import { logger } from '@/lib/logger'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
@@ -32,6 +31,12 @@ function getSourceUrl(data: NodeWorkflowNodeData): string {
   return ''
 }
 
+function getPositiveDimension(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.round(value)
+    : 1024
+}
+
 /**
  * Haivis L3 quick-edit panel under the selected image:
  * back → object tools, target filename, single Run action.
@@ -45,7 +50,6 @@ export function CanvasQuickEditPrompt({
 }: CanvasQuickEditPromptProps) {
   const t = useTranslations('StudioNode.quickEdit')
   const tEdit = useTranslations('StudioImageEdit')
-  const tErrors = useTranslations('Errors')
   const { placeDerivedImages, focusNode } = useNodeWorkflowActions()
   const [prompt, setPrompt] = useState('')
   const [running, setRunning] = useState(false)
@@ -56,6 +60,8 @@ export function CanvasQuickEditPrompt({
       : typeof data.sourceGenerationId === 'string'
         ? data.sourceGenerationId
         : undefined
+  const sourceWidth = getPositiveDimension(data.mediaWidth ?? data.width)
+  const sourceHeight = getPositiveDimension(data.mediaHeight ?? data.height)
 
   const run = useCallback(async () => {
     const trimmed = prompt.trim()
@@ -65,31 +71,26 @@ export function CanvasQuickEditPrompt({
     try {
       const modelId =
         getCanvasImageEditCapability('extract-element').defaultModelId ?? ''
-      const response = await extractElementAPI({
-        imageUrl: sourceUrl,
+      const response = await runCanvasCapability({
+        capability: 'extract-element',
+        target: { sourceUrl, sourceGenerationId, sourceWidth, sourceHeight },
         prompt: trimmed,
         invert: false,
-        sourceGenerationId,
         modelId,
       })
-      if (!response.success || !response.data) {
-        toast.error(
-          getGenerationErrorMessage(tErrors, response, tEdit('extractFailed')),
-        )
+      if (!response.success || response.outputs.length === 0) {
+        toast.error(response.error || tEdit('extractFailed'))
         return
       }
 
       const derivedIds =
-        placeDerivedImages?.(nodeId, [
-          {
-            imageUrl: response.data.imageUrl,
-            width: response.data.width,
-            height: response.data.height,
-            generationId: response.data.generation?.id,
-            label: tEdit('tasks.extract-element.label'),
-            editCapability: 'extract-element',
-          },
-        ]) ?? []
+        placeDerivedImages?.(
+          nodeId,
+          response.outputs.map((output) => ({
+            ...output,
+            label: output.label ?? tEdit('tasks.extract-element.label'),
+          })),
+        ) ?? []
 
       if (derivedIds.length === 0) {
         toast.error(tEdit('extractFailed'))
@@ -98,18 +99,8 @@ export function CanvasQuickEditPrompt({
 
       focusNode?.(derivedIds[0])
 
-      const saveResponse = await createExtractedElementAPI({
-        extractedImageUrl: response.data.imageUrl,
-        sourceImageUrl: sourceUrl,
-        sourceGenerationId,
-        prompt: trimmed,
-        invert: false,
-        modelId,
-      })
-      if (!saveResponse.success) {
-        logger.warn('[canvas-quick-edit] extracted element save failed', {
-          error: saveResponse.error,
-        })
+      if (response.saveWarning) {
+        logger.warn('[canvas-quick-edit] extracted element save failed')
         toast.warning(tEdit('extract.success'), {
           description: tEdit('extract.saveFailed'),
         })
@@ -131,9 +122,10 @@ export function CanvasQuickEditPrompt({
     prompt,
     running,
     sourceGenerationId,
+    sourceHeight,
     sourceUrl,
+    sourceWidth,
     tEdit,
-    tErrors,
   ])
 
   return (

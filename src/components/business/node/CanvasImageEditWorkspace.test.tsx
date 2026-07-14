@@ -213,23 +213,33 @@ describe('CanvasImageEditWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'actions.decompose' }))
 
     await waitFor(() => {
-      expect(mocks.placeDerivedImages).toHaveBeenCalledWith('source-node', [
-        {
-          imageUrl: 'https://cdn.example.com/front-hair.png',
-          width: 640,
-          height: 480,
-          label: 'front hair',
-          editCapability: 'decompose',
-        },
-        {
-          imageUrl: 'https://cdn.example.com/body.png',
-          width: 640,
-          height: 480,
-          label: 'body',
-          editCapability: 'decompose',
-        },
-      ])
+      expect(
+        screen.getByRole('button', { name: 'decomposePlace' }),
+      ).toBeTruthy()
     })
+
+    fireEvent.click(screen.getByRole('button', { name: 'decomposePlace' }))
+
+    expect(mocks.placeDerivedImages).toHaveBeenCalledWith('source-node', [
+      {
+        imageUrl: 'https://cdn.example.com/front-hair.png',
+        width: 640,
+        height: 480,
+        label: 'front hair',
+        editCapability: 'decompose',
+        batchId: expect.any(String),
+        sourceGenerationId: 'source-generation',
+      },
+      {
+        imageUrl: 'https://cdn.example.com/body.png',
+        width: 640,
+        height: 480,
+        label: 'body',
+        editCapability: 'decompose',
+        batchId: expect.any(String),
+        sourceGenerationId: 'source-generation',
+      },
+    ])
     expect(mocks.focusNode).toHaveBeenCalledWith('layer-1')
     expect(mocks.decomposeImageAPI).toHaveBeenCalledWith(SOURCE_DATA.mediaUrl, {
       modelId: 'xiuruisu/see-through',

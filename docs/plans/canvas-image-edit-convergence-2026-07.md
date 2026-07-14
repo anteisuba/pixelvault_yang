@@ -3,6 +3,8 @@
 > 状态：**画布总计划下的图片纵向子包；待 Workspace/Surface/Capability seam 完成后启动 I1**（2026-07-13）。总顺序与跨模块边界以 `canvas-modular-redesign-2026-07.md` 为准；本包只拥有六项真实图片编辑能力、图片结果放置与旧编辑页迁移。
 > owner 已确认 Haivis 工作区的 UI、CSS 密度与助手交互作为画布重构对标，并授权按最佳专业桌面体验修订旧硬规则；现采用自适应 32/36/44px 命中区，品牌材质与其余 a11y 底线继续成立。本稿不授权删除路由、改 provider 契约或绕过总计划直接施工 UI。
 
+> **Execution status supersedes the planning header (2026-07-14):** the image vertical slice is implemented through runtime-backed editing, layer preview/placement, assistant references, and legacy edit redirect. Remaining checks are owner visual QA and real Fish provider validation.
+
 ## Goal
 
 - 将用户可见的“节点编辑”统一命名为**画布**，让 `/studio/node` 成为 PixelVault 的主力高级创作工作区。
@@ -167,6 +169,8 @@ type CanvasImageEditCapability = {
 - 自动模型只有真实存在、可解释且结果能追溯最终模型时才显示。
 
 ## Delivery Slices
+
+> **Execution update (2026-07-14):** C1/C1a/C1b are covered by the shared assistant shell, conversation persistence/share, and capability runtime. C2/C3/C4 image capabilities use the runtime; C5 has preview → select → place with one undo; C6 deletes the old edit shells and keeps `/studio/edit` compatibility redirect. C7 (object replace, style transfer, text/poster) remains a follow-up.
 
 ### C0 · 拍板与基线
 

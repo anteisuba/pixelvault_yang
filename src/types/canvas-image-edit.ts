@@ -65,6 +65,10 @@ export const CanvasDerivedImageOutputSchema = z.object({
   generationId: z.string().trim().min(1).max(160).optional(),
   label: z.string().trim().min(1).max(160).optional(),
   editCapability: ReadyCanvasImageEditCapabilityIdSchema,
+  /** One operation id for a multi-layer result. Used for atomic placement and undo. */
+  batchId: z.string().trim().min(1).max(160).optional(),
+  /** The source generation that produced this derived result, when known. */
+  sourceGenerationId: z.string().trim().min(1).max(160).optional(),
 })
 
 export const CanvasDerivedImageOutputsSchema = z

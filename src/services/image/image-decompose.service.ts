@@ -51,6 +51,8 @@ export async function decomposeImage(
    * can pass a fork or upgraded space ID through the provider picker.
    */
   modelId: string = SEE_THROUGH_SPACE,
+  sourceGenerationId?: string,
+  persist = false,
 ): Promise<ImageDecomposeResult> {
   logger.info('[image-decompose] Starting decomposition', {
     imageUrl: imageUrl.slice(0, 80),
@@ -153,7 +155,7 @@ export async function decomposeImage(
     ? { Authorization: `Bearer ${hfToken}` }
     : undefined
 
-  const [persistedLayers, persistedPsdUrl] = await Promise.all([
+  const [persistedLayers, persistedPsd] = await Promise.all([
     // Upload each layer PNG to R2 in parallel
     Promise.all(
       rawLayers.map(async (layer) => {
@@ -177,11 +179,16 @@ export async function decomposeImage(
         psdFile.url,
         fetchHeaders,
       )
-      return uploadToR2({
+      const url = await uploadToR2({
         data: buffer,
         key,
         mimeType: mimeType || 'application/octet-stream',
       })
+      return {
+        url,
+        storageKey: key,
+        mimeType: mimeType || 'application/octet-stream',
+      }
     })(),
   ])
 
@@ -189,10 +196,46 @@ export async function decomposeImage(
     layerCount: persistedLayers.length,
   })
 
+  if (!persist) {
+    return {
+      layers: persistedLayers,
+      psdUrl: persistedPsd.url,
+      layerCount: persistedLayers.length,
+    }
+  }
+
+  const generation = await createGeneration({
+    url: persistedPsd.url,
+    storageKey: persistedPsd.storageKey,
+    mimeType: persistedPsd.mimeType,
+    width: resolution,
+    height: resolution,
+    prompt: sourceGenerationId
+      ? `[decompose] from generation ${sourceGenerationId}`
+      : '[decompose] canvas layer decomposition',
+    model: modelId,
+    provider: 'huggingface',
+    requestCount: 0,
+    outputType: 'IMAGE',
+    sourceSurface: 'CANVAS',
+    userId,
+    snapshot: {
+      operation: 'decompose',
+      sourceGenerationId: sourceGenerationId ?? null,
+      psdUrl: persistedPsd.url,
+      layerCount: persistedLayers.length,
+      layers: persistedLayers.map((layer) => ({
+        name: layer.name,
+        imageUrl: layer.imageUrl,
+      })),
+    },
+  })
+
   return {
     layers: persistedLayers,
-    psdUrl: persistedPsdUrl,
+    psdUrl: persistedPsd.url,
     layerCount: persistedLayers.length,
+    generationId: generation.id,
   }
 }
 

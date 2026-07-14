@@ -32,16 +32,7 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
-import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import {
-  createExtractedElementAPI,
-  decomposeImageAPI,
-  editImageAPI,
-  extractElementAPI,
-  inpaintImageAPI,
-  outpaintImageAPI,
-} from '@/lib/api-client'
-import { isRemoteImageUrl } from '@/lib/image-input'
+import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
 import type {
@@ -59,13 +50,6 @@ interface CanvasImageEditWorkspaceProps {
   defaultTask?: ReadyCanvasImageEditCapabilityId
   open?: boolean
   onOpenChange?: (open: boolean) => void
-}
-
-interface SingleImageResult {
-  imageUrl: string
-  width?: number
-  height?: number
-  generationId?: string
 }
 
 type TargetScale = '2x' | '4x'
@@ -114,7 +98,6 @@ export function CanvasImageEditWorkspace({
 }: CanvasImageEditWorkspaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tCommon = useTranslations('Common')
-  const tErrors = useTranslations('Errors')
   const { placeDerivedImages, focusNode, updateNodeData } =
     useNodeWorkflowActions()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(true)
@@ -126,6 +109,10 @@ export function CanvasImageEditWorkspace({
   const [extractPrompt, setExtractPrompt] = useState('clothing')
   const [extractInvert, setExtractInvert] = useState(false)
   const [extractPreset, setExtractPreset] = useState<string | null>('clothing')
+  const [decomposePreview, setDecomposePreview] = useState<{
+    outputs: CanvasDerivedImageOutput[]
+    selected: Set<string>
+  } | null>(null)
   const runningRef = useRef(false)
 
   const dialogOpen = open ?? uncontrolledOpen
@@ -142,6 +129,7 @@ export function CanvasImageEditWorkspace({
 
   useEffect(() => {
     setActiveTask(defaultTask)
+    setDecomposePreview(null)
   }, [defaultTask])
 
   const handleOpenChange = useCallback(
@@ -204,156 +192,119 @@ export function CanvasImageEditWorkspace({
     [focusNode, nodeId, placeDerivedImages],
   )
 
-  const placeSingleResult = useCallback(
-    (
-      task: ReadyCanvasImageEditCapabilityId,
-      result: SingleImageResult,
+  const runCapability = useCallback(
+    async (
+      request: Parameters<typeof canvasCapabilityRuntime.run>[0],
       fallbackMessage: string,
-    ): boolean =>
-      placeOutputs(
-        [
-          {
-            imageUrl: result.imageUrl,
-            width: result.width,
-            height: result.height,
-            generationId: result.generationId,
-            label: t(`tasks.${task}.label`),
-            editCapability: task,
-          },
-        ],
-        fallbackMessage,
-      ),
+    ): Promise<boolean> => {
+      const response = await canvasCapabilityRuntime.run(request)
+      if (!response.success || response.outputs.length === 0) {
+        toast.error(response.error || fallbackMessage)
+        return false
+      }
+      const outputs = response.outputs.map((output) => ({
+        ...output,
+        label: output.label ?? t(`tasks.${request.capability}.label`),
+      }))
+      if (!placeOutputs(outputs, fallbackMessage)) return false
+      if (response.saveWarning) {
+        toast.warning(t('extract.success'), {
+          description: t('extract.saveFailed'),
+        })
+      }
+      return true
+    },
     [placeOutputs, t],
   )
 
   const runUpscale = useCallback(() => {
     void runExclusive('upscale', t('editFailed'), async () => {
-      const response = await editImageAPI('upscale', sourceUrl, {
-        generationId: sourceGenerationId,
-        targetScale,
-        ...(targetScale === '4x' && {
-          modelId: getDefaultModelId('upscale'),
-        }),
-      })
-      if (!response.success || !response.data) {
-        toast.error(
-          getGenerationErrorMessage(tErrors, response, t('editFailed')),
-        )
-        return false
-      }
-
       if (
-        !placeSingleResult(
-          'upscale',
+        !(await runCapability(
           {
-            imageUrl: response.data.imageUrl,
-            width: response.data.width,
-            height: response.data.height,
-            generationId: response.data.generation?.id,
+            capability: 'upscale',
+            target: {
+              sourceUrl,
+              sourceGenerationId,
+              sourceWidth,
+              sourceHeight,
+            },
+            targetScale,
+            modelId: getDefaultModelId('upscale'),
           },
           t('editFailed'),
-        )
-      ) {
+        ))
+      )
         return false
-      }
       toast.success(t('success.upscale'))
       return true
     })
   }, [
-    placeSingleResult,
-    runExclusive,
-    sourceGenerationId,
-    sourceUrl,
-    t,
-    tErrors,
-    targetScale,
-  ])
-
-  const runRemoveBackground = useCallback(() => {
-    void runExclusive('remove-background', t('editFailed'), async () => {
-      const response = await editImageAPI('remove-background', sourceUrl, {
-        generationId: sourceGenerationId,
-        modelId: getDefaultModelId('remove-background'),
-      })
-      if (!response.success || !response.data) {
-        toast.error(
-          getGenerationErrorMessage(tErrors, response, t('editFailed')),
-        )
-        return false
-      }
-
-      if (
-        !placeSingleResult(
-          'remove-background',
-          {
-            imageUrl: response.data.imageUrl,
-            width: response.data.width,
-            height: response.data.height,
-            generationId: response.data.generation?.id,
-          },
-          t('editFailed'),
-        )
-      ) {
-        return false
-      }
-      toast.success(t('success.removeBg'))
-      return true
-    })
-  }, [
-    placeSingleResult,
-    runExclusive,
-    sourceGenerationId,
-    sourceUrl,
-    t,
-    tErrors,
-  ])
-
-  const runDecompose = useCallback(() => {
-    void runExclusive('decompose', t('decomposeFailed'), async () => {
-      const response = await decomposeImageAPI(sourceUrl, {
-        modelId: getDefaultModelId('decompose'),
-        ...(sourceGenerationId && {
-          persist: true,
-          generationId: sourceGenerationId,
-        }),
-      })
-      if (!response.success || !response.data) {
-        toast.error(
-          getGenerationErrorMessage(tErrors, response, t('decomposeFailed')),
-        )
-        return false
-      }
-
-      const outputs = response.data.layers
-        .filter((layer) => isRemoteImageUrl(layer.imageUrl))
-        .map(
-          (layer): CanvasDerivedImageOutput => ({
-            imageUrl: layer.imageUrl,
-            width: sourceWidth,
-            height: sourceHeight,
-            label: layer.name,
-            editCapability: 'decompose',
-          }),
-        )
-
-      if (outputs.length === 0) {
-        toast.error(t('decomposeFailed'))
-        return false
-      }
-      if (!placeOutputs(outputs, t('decomposeFailed'))) return false
-
-      toast.success(t('decomposeDone', { count: outputs.length }))
-      return true
-    })
-  }, [
-    placeOutputs,
+    runCapability,
     runExclusive,
     sourceGenerationId,
     sourceHeight,
     sourceUrl,
     sourceWidth,
     t,
-    tErrors,
+    targetScale,
+  ])
+
+  const runRemoveBackground = useCallback(() => {
+    void runExclusive('remove-background', t('editFailed'), async () => {
+      if (
+        !(await runCapability(
+          {
+            capability: 'remove-background',
+            target: {
+              sourceUrl,
+              sourceGenerationId,
+              sourceWidth,
+              sourceHeight,
+            },
+            modelId: getDefaultModelId('remove-background'),
+          },
+          t('editFailed'),
+        ))
+      )
+        return false
+      toast.success(t('success.removeBg'))
+      return true
+    })
+  }, [
+    runCapability,
+    runExclusive,
+    sourceGenerationId,
+    sourceHeight,
+    sourceUrl,
+    sourceWidth,
+    t,
+  ])
+
+  const runDecompose = useCallback(() => {
+    void runExclusive('decompose', t('decomposeFailed'), async () => {
+      const response = await canvasCapabilityRuntime.run({
+        capability: 'decompose',
+        target: { sourceUrl, sourceGenerationId, sourceWidth, sourceHeight },
+        modelId: getDefaultModelId('decompose'),
+      })
+      if (!response.success || response.outputs.length === 0) {
+        toast.error(response.error || t('decomposeFailed'))
+        return false
+      }
+      setDecomposePreview({
+        outputs: response.outputs,
+        selected: new Set(response.outputs.map((output) => output.imageUrl)),
+      })
+      return true
+    })
+  }, [
+    runExclusive,
+    sourceGenerationId,
+    sourceHeight,
+    sourceUrl,
+    sourceWidth,
+    t,
   ])
 
   const runExtractElement = useCallback(() => {
@@ -362,48 +313,21 @@ export function CanvasImageEditWorkspace({
 
     void runExclusive('extract-element', t('extractFailed'), async () => {
       const modelId = getDefaultModelId('extract-element')
-      const response = await extractElementAPI({
-        imageUrl: sourceUrl,
-        prompt,
-        invert: extractInvert,
-        sourceGenerationId,
-        modelId,
-      })
-      if (!response.success || !response.data) {
-        toast.error(
-          getGenerationErrorMessage(tErrors, response, t('extractFailed')),
-        )
-        return false
-      }
-
-      if (
-        !placeSingleResult(
-          'extract-element',
-          {
-            imageUrl: response.data.imageUrl,
-            width: response.data.width,
-            height: response.data.height,
-            generationId: response.data.generation?.id,
-          },
-          t('extractFailed'),
-        )
-      ) {
-        return false
-      }
-
-      const saveResponse = await createExtractedElementAPI({
-        extractedImageUrl: response.data.imageUrl,
-        sourceImageUrl: sourceUrl,
-        sourceGenerationId,
+      const response = await canvasCapabilityRuntime.run({
+        capability: 'extract-element',
+        target: { sourceUrl, sourceGenerationId, sourceWidth, sourceHeight },
         prompt,
         invert: extractInvert,
         modelId,
       })
+      if (!response.success || response.outputs.length === 0) {
+        toast.error(response.error || t('extractFailed'))
+        return false
+      }
+      if (!placeOutputs(response.outputs, t('extractFailed'))) return false
 
-      if (!saveResponse.success || !saveResponse.data) {
-        logger.warn('[canvas-image-edit] extracted element save failed', {
-          error: saveResponse.error,
-        })
+      if (response.saveWarning) {
+        logger.warn('[canvas-image-edit] extracted element save failed')
         toast.warning(t('extract.success'), {
           description: t('extract.saveFailed'),
         })
@@ -416,101 +340,98 @@ export function CanvasImageEditWorkspace({
   }, [
     extractInvert,
     extractPrompt,
-    placeSingleResult,
+    placeOutputs,
     runExclusive,
     sourceGenerationId,
+    sourceHeight,
     sourceUrl,
+    sourceWidth,
     t,
-    tErrors,
   ])
+
+  const placeSelectedLayers = useCallback(() => {
+    if (!decomposePreview) return
+    const outputs = decomposePreview.outputs.filter((output) =>
+      decomposePreview.selected.has(output.imageUrl),
+    )
+    if (outputs.length === 0) {
+      toast.error(t('decomposeFailed'))
+      return
+    }
+    if (!placeOutputs(outputs, t('decomposeFailed'))) return
+    toast.success(t('decomposeDone', { count: outputs.length }))
+    setDecomposePreview(null)
+  }, [decomposePreview, placeOutputs, t])
 
   const applyInpaint = useCallback(
     (maskDataUrl: string, prompt: string) => {
       void runExclusive('inpaint', t('editFailed'), async () => {
-        const response = await inpaintImageAPI({
-          imageUrl: sourceUrl,
-          maskImageUrl: maskDataUrl,
-          prompt,
-          sourceGenerationId,
-          modelId: getDefaultModelId('inpaint'),
-        })
-        if (!response.success || !response.data) {
-          toast.error(
-            getGenerationErrorMessage(tErrors, response, t('editFailed')),
-          )
-          return false
-        }
-
         if (
-          !placeSingleResult(
-            'inpaint',
+          !(await runCapability(
             {
-              imageUrl: response.data.imageUrl,
-              width: response.data.width,
-              height: response.data.height,
-              generationId: response.data.generation?.id,
+              capability: 'inpaint',
+              target: {
+                sourceUrl,
+                sourceGenerationId,
+                sourceWidth,
+                sourceHeight,
+              },
+              maskImageUrl: maskDataUrl,
+              prompt,
+              modelId: getDefaultModelId('inpaint'),
             },
             t('editFailed'),
-          )
-        ) {
+          ))
+        )
           return false
-        }
         toast.success(t('savedToGallery'))
         return true
       })
     },
     [
-      placeSingleResult,
+      runCapability,
       runExclusive,
       sourceGenerationId,
+      sourceHeight,
       sourceUrl,
+      sourceWidth,
       t,
-      tErrors,
     ],
   )
 
   const applyOutpaint = useCallback(
     (padding: OutpaintPadding, prompt: string) => {
       void runExclusive('outpaint', t('editFailed'), async () => {
-        const response = await outpaintImageAPI({
-          imageUrl: sourceUrl,
-          padding,
-          prompt,
-          sourceGenerationId,
-          modelId: getDefaultModelId('outpaint'),
-        })
-        if (!response.success || !response.data) {
-          toast.error(
-            getGenerationErrorMessage(tErrors, response, t('editFailed')),
-          )
-          return false
-        }
-
         if (
-          !placeSingleResult(
-            'outpaint',
+          !(await runCapability(
             {
-              imageUrl: response.data.imageUrl,
-              width: response.data.width,
-              height: response.data.height,
-              generationId: response.data.generation?.id,
+              capability: 'outpaint',
+              target: {
+                sourceUrl,
+                sourceGenerationId,
+                sourceWidth,
+                sourceHeight,
+              },
+              padding,
+              prompt,
+              modelId: getDefaultModelId('outpaint'),
             },
             t('editFailed'),
-          )
-        ) {
+          ))
+        )
           return false
-        }
         toast.success(t('savedToGallery'))
         return true
       })
     },
     [
-      placeSingleResult,
+      runCapability,
       runExclusive,
       sourceGenerationId,
+      sourceHeight,
       sourceUrl,
+      sourceWidth,
       t,
-      tErrors,
     ],
   )
 
@@ -579,6 +500,116 @@ export function CanvasImageEditWorkspace({
           </Button>
         )
       case 'decompose':
+        if (decomposePreview) {
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-node-foreground">
+                    {t('decomposePreviewTitle')}
+                  </h3>
+                  <p className="mt-1 text-xs text-node-muted">
+                    {t('layerCount', {
+                      count: decomposePreview.outputs.length,
+                    })}
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setDecomposePreview((current) =>
+                        current
+                          ? {
+                              ...current,
+                              selected: new Set(
+                                current.outputs.map(
+                                  (output) => output.imageUrl,
+                                ),
+                              ),
+                            }
+                          : current,
+                      )
+                    }
+                  >
+                    {t('decomposeSelectAll')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setDecomposePreview((current) =>
+                        current ? { ...current, selected: new Set() } : current,
+                      )
+                    }
+                  >
+                    {t('decomposeClear')}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {decomposePreview.outputs.map((output) => {
+                  const selected = decomposePreview.selected.has(
+                    output.imageUrl,
+                  )
+                  return (
+                    <button
+                      key={output.imageUrl}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setDecomposePreview((current) => {
+                          if (!current) return current
+                          const next = new Set(current.selected)
+                          if (next.has(output.imageUrl))
+                            next.delete(output.imageUrl)
+                          else next.add(output.imageUrl)
+                          return { ...current, selected: next }
+                        })
+                      }
+                      className={cn(
+                        'group overflow-hidden rounded-xl border text-left transition-colors',
+                        selected
+                          ? 'border-node-edge bg-node-panel-inner'
+                          : 'border-node-panel-inner/60 bg-node-panel-soft/40 opacity-60 hover:opacity-100',
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={output.imageUrl}
+                        alt={output.label ?? ''}
+                        className="aspect-square w-full object-contain"
+                      />
+                      <span className="block truncate px-2 py-1.5 text-2xs font-medium text-node-muted">
+                        {output.label ?? t('layersTitle')}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDecomposePreview(null)}
+                >
+                  {t('decomposeClear')}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={decomposePreview.selected.size === 0}
+                  onClick={placeSelectedLayers}
+                >
+                  <Layers3 className="size-4" />
+                  {t('decomposePlace')}
+                </Button>
+              </div>
+            </div>
+          )
+        }
         return (
           <Button type="button" disabled={isRunning} onClick={runDecompose}>
             {runningTask === 'decompose' ? (

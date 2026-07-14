@@ -4865,7 +4865,7 @@
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
-      "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
+      "outputBudgetExhausted": "该模型在写出回复前就用尽了输出额度（常被隐藏推理占用）。请重试、换模型，或缩短提示词。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",

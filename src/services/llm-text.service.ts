@@ -62,21 +62,36 @@ export interface ResolvedLlmTextRoute {
 
 // ─── Response Schemas ────────────────────────────────────────────
 
+const GeminiTextPartSchema = z.object({
+  text: z.string().optional(),
+  /** Gemini 2.5/3 thinking parts — not user-visible answer text. */
+  thought: z.boolean().optional(),
+})
+
 const GeminiTextResponseSchema = z.object({
   candidates: z
     .array(
       z.object({
+        finishReason: z.string().optional(),
         content: z
           .object({
-            parts: z.array(
-              z.object({
-                text: z.string().optional(),
-              }),
-            ),
+            parts: z.array(GeminiTextPartSchema).optional(),
           })
           .optional(),
       }),
     )
+    .optional(),
+  promptFeedback: z
+    .object({
+      blockReason: z.string().optional(),
+    })
+    .optional(),
+  usageMetadata: z
+    .object({
+      thoughtsTokenCount: z.number().optional(),
+      candidatesTokenCount: z.number().optional(),
+      totalTokenCount: z.number().optional(),
+    })
     .optional(),
 })
 
@@ -184,7 +199,7 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
   failed:
     'The selected planner provider rejected the request. Try another Agent Key.',
   outputBudgetExhausted:
-    'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.',
+    'This model used up its output budget (often on hidden reasoning) before writing a reply. Retry, switch model, or shorten the prompt.',
 } as const
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
@@ -503,10 +518,109 @@ async function toGeminiInlinePart(
   }
 }
 
+function isGeminiThinkingModel(modelId: string): boolean {
+  // Gemini 2.5 / 3.x flash-pro families routinely emit hidden thought tokens.
+  return /^gemini-(2\.5|3)(?:[.-]|$)/i.test(modelId)
+}
+
+/**
+ * Gemini thinking models can spend most of maxOutputTokens on thoughts and
+ * return candidates with no visible text when the budget is too tight.
+ */
+function resolveGeminiOutputTokenBudget(
+  modelId: string,
+  maxTokens?: number,
+): number {
+  if (isGeminiThinkingModel(modelId)) {
+    const requested = maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.GEMINI_THINKING
+    return Math.max(requested, LLM_TEXT_DEFAULT_MAX_TOKENS.GEMINI_THINKING)
+  }
+  return maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT
+}
+
+function extractGeminiVisibleText(
+  data: z.infer<typeof GeminiTextResponseSchema>,
+): string | null {
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const visible = parts
+    .filter((part) => Boolean(part.text?.trim()) && part.thought !== true)
+    .map((part) => part.text!.trim())
+  if (visible.length > 0) {
+    return visible.join('\n').trim()
+  }
+  // No non-thought text — do not fall back to thought-only content as the reply.
+  return null
+}
+
+function throwNoGeminiTextResponse(
+  data: z.infer<typeof GeminiTextResponseSchema>,
+  modelId: string,
+): never {
+  const candidate = data.candidates?.[0]
+  const finishReason = candidate?.finishReason
+  const blockReason = data.promptFeedback?.blockReason
+  const thoughtsTokenCount = data.usageMetadata?.thoughtsTokenCount
+  const candidatesTokenCount = data.usageMetadata?.candidatesTokenCount
+  const partCount = candidate?.content?.parts?.length ?? 0
+  const thoughtParts =
+    candidate?.content?.parts?.filter((part) => part.thought === true).length ??
+    0
+
+  logger.warn('Gemini text completion returned no visible text', {
+    modelId,
+    finishReason,
+    blockReason,
+    partCount,
+    thoughtParts,
+    thoughtsTokenCount,
+    candidatesTokenCount,
+  })
+
+  const budgetExhausted =
+    finishReason === 'MAX_TOKENS' ||
+    finishReason === 'LENGTH' ||
+    (typeof thoughtsTokenCount === 'number' &&
+      thoughtsTokenCount > 0 &&
+      (candidatesTokenCount == null || candidatesTokenCount === 0))
+
+  if (budgetExhausted) {
+    throw new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.outputBudgetExhausted,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.outputBudgetExhausted,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.outputBudgetExhausted,
+    )
+  }
+
+  if (
+    blockReason ||
+    finishReason === 'SAFETY' ||
+    finishReason === 'BLOCKLIST'
+  ) {
+    throw new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.failed,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
+      'Gemini blocked or filtered this reply. Try rephrasing or switch model.',
+    )
+  }
+
+  throw new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.failed,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
+    'Gemini returned no text. Retry or switch model.',
+  )
+}
+
 async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
   const endpoint = `${baseUrl}/${modelId}:generateContent`
+  const maxOutputTokens = resolveGeminiOutputTokenBudget(
+    modelId,
+    input.maxTokens,
+  )
 
   const parts: Array<Record<string, unknown>> = []
 
@@ -533,7 +647,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ['TEXT'],
-        ...(input.maxTokens ? { maxOutputTokens: input.maxTokens } : {}),
+        maxOutputTokens,
         ...(input.responseFormat === 'json_object'
           ? { responseMimeType: 'application/json' }
           : {}),
@@ -551,13 +665,13 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   const data = GeminiTextResponseSchema.parse(await response.json())
-  const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
+  const text = extractGeminiVisibleText(data)
 
-  if (!textPart?.text) {
-    throw new Error('No text response from Gemini')
+  if (!text) {
+    throwNoGeminiTextResponse(data, modelId)
   }
 
-  return textPart.text.trim()
+  return text
 }
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {

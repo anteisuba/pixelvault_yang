@@ -89,6 +89,96 @@ describe('llmTextCompletion - Gemini', () => {
     expect(result).toBe('hello world')
   })
 
+  it('prefers non-thought Gemini parts and floors gemini-3 maxOutputTokens', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: 'STOP',
+              content: {
+                parts: [
+                  { text: 'hidden reasoning', thought: true },
+                  { text: 'visible reply' },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'hi',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+      },
+      apiKey: 'test-key',
+      modelId: 'gemini-3.5-flash',
+      maxTokens: 900,
+    })
+
+    const body = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    if (typeof body?.body !== 'string') {
+      throw new Error('Expected Gemini request body')
+    }
+    const payload = JSON.parse(body.body) as {
+      generationConfig: { maxOutputTokens?: number }
+    }
+
+    expect(result).toBe('visible reply')
+    expect(payload.generationConfig.maxOutputTokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.GEMINI_THINKING,
+    )
+  })
+
+  it('classifies thought-only MAX_TOKENS Gemini responses as budget exhaustion', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: 'MAX_TOKENS',
+                content: {
+                  parts: [{ text: 'only thoughts', thought: true }],
+                },
+              },
+            ],
+            usageMetadata: {
+              thoughtsTokenCount: 4096,
+              candidatesTokenCount: 0,
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'hi',
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: {
+          label: 'Gemini',
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+        },
+        apiKey: 'test-key',
+        modelId: 'gemini-3.5-flash',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
+      i18nKey: 'errors.provider.outputBudgetExhausted',
+    })
+  })
+
   it('fetches http image URLs before sending them to Gemini inlineData', async () => {
     const imageBytes = new Uint8Array([1, 2, 3])
     const fetchMock = vi

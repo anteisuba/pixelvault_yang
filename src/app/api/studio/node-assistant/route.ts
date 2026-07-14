@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { NodeAssistantRequestSchema } from '@/types/node-assistant'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
+import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { sanitizeNodeAssistantRequestBody } from '@/lib/node-assistant-request'
 import { rateLimit } from '@/lib/rate-limit'
@@ -84,6 +85,18 @@ export async function POST(request: NextRequest): Promise<Response> {
       error: message,
       durationMs: Date.now() - startedAt,
     })
+
+    if (error instanceof ApiRequestError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          errorCode: error.errorCode,
+          i18nKey: error.i18nKey,
+        },
+        { status: error.httpStatus },
+      )
+    }
 
     // Surface guard/validation messages (e.g. prompt length) so the dock
     // does not only show a generic "Node assistant failed".

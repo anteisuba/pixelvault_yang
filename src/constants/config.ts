@@ -448,6 +448,8 @@ export const LLM_TEXT_MODEL_IDS = {
 export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   DEFAULT: 1024,
   OPENAI_REASONING: 4096,
+  /** Gemini 3.x thinking can burn thousands of tokens before visible text. */
+  GEMINI_THINKING: 8192,
 } as const
 
 export const RUNWAY_API = {

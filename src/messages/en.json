@@ -4865,7 +4865,7 @@
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
-      "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
+      "outputBudgetExhausted": "This model used up its output budget (often on hidden reasoning) before writing a reply. Retry, switch model, or shorten the prompt.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",

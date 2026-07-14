@@ -159,11 +159,9 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   maxNodeSummaryLength: 900,
   maxSelectedNodes: 12,
   maxReferences: 8,
-  // gpt-5 / o-series spend completion budget on hidden reasoning tokens first.
-  // 900 was enough for Gemini/Qwen but often returned empty text on gpt-5.5
-  // (finish_reason=length, reasoning_tokens≈budget, content=null). Align with
-  // LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING so BYOK + gateway both work.
-  maxOutputTokens: 4096,
+  // gpt-5 / Gemini 3 thinking spend completion budget on hidden reasoning first.
+  // Keep high enough that assistant replies still emit visible text after thought.
+  maxOutputTokens: 8192,
   // Research turns return analysis + suggestions + prompt seeds + sources, so
   // they need a larger budget than a normal canvas reply.
   maxResearchOutputTokens: 6000,

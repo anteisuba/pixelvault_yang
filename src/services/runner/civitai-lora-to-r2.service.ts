@@ -55,7 +55,7 @@ function toRunnerLoraTooLargeError(sizeBytes: number): RunnerLoraR2Error {
   )
 }
 
-function isRemoteFileTooLargeError(error: unknown): boolean {
+function isRemoteFileTooLargeError(error: unknown): error is Error {
   return (
     error instanceof Error && error.message.includes('exceeds maximum size of')
   )

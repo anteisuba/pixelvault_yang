@@ -17,7 +17,6 @@ import type {
   NodeAssistantMessage,
   NodeAssistantMediaReference,
   NodeAssistantNodeContext,
-  NodeAssistantRequest,
 } from '@/types/node-assistant'
 import type { AppLocale } from '@/i18n/routing'
 

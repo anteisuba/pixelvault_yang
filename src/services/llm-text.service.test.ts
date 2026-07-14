@@ -289,6 +289,47 @@ describe('llmTextCompletion - OpenAI', () => {
     })
   })
 
+  it('rejects default-guard oversize user prompts but allows maxUserPromptLength override', async () => {
+    const longPrompt = 'x'.repeat(4989)
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'ok' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: longPrompt,
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'sk-test',
+      }),
+    ).rejects.toThrow(/Prompt rejected by guard/)
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: longPrompt,
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'sk-test',
+        maxUserPromptLength: 10_000,
+      }),
+    ).resolves.toBe('ok')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('floors low maxTokens for gpt-5 reasoning models', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

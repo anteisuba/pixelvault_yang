@@ -231,6 +231,8 @@ export async function createNodeAssistantStream(
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
         maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxResearchOutputTokens,
+        maxUserPromptLength:
+          NODE_STUDIO_ASSISTANT_LIMITS.maxAssembledUserPromptLength,
       })
 
       return streamFromText(text)
@@ -250,6 +252,8 @@ export async function createNodeAssistantStream(
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,
       maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxResearchOutputTokens,
+      maxUserPromptLength:
+        NODE_STUDIO_ASSISTANT_LIMITS.maxAssembledUserPromptLength,
       useGrounding,
     })
 
@@ -279,6 +283,8 @@ export async function createNodeAssistantStream(
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
     maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxOutputTokens,
+    maxUserPromptLength:
+      NODE_STUDIO_ASSISTANT_LIMITS.maxAssembledUserPromptLength,
   })
 
   return streamFromText(text)

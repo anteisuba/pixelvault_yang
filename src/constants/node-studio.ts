@@ -148,6 +148,12 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   // Keep high enough that multi-turn canvas chats never 400 on history length.
   maxMessages: 500,
   maxMessageLength: 100_000,
+  /**
+   * Assembled user prompt sent to the LLM (history + canvas node context).
+   * Must exceed maxMessageLength — prompt-guard defaults to 4k and would reject
+   * multi-turn replies that already cleared the request schema.
+   */
+  maxAssembledUserPromptLength: 500_000,
   maxNodes: 32,
   maxNodeLabelLength: 160,
   maxNodeSummaryLength: 900,

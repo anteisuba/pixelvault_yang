@@ -48,7 +48,7 @@ handler 包一层下载再 `serverless.start`。
 }
 ```
 
-- `filename` 由 app `prepareRunnerLoras` 派生（`civitai-<versionId>.safetensors`），workflow 的
+- `filename` 由 app `prepareRunnerLoras` 派生（Civitai 使用 version id，HF 使用来源哈希 + 文件名），workflow 的
   LoraLoader 也用它。
 - `source` 恒为 `"r2"`——handler 拒绝其它来源（防 SSRF）；文件名须纯 basename（防目录穿越）。
 
@@ -97,14 +97,21 @@ RunPod → **Serverless → New Endpoint** →
 3. 端点设置：
    - **Endpoint Name**：`pixelvault-runner-v2`（随意）。**Type**：`Queue`。
    - **GPU**：选便宜档（16–24GB 够 SDXL；如 RTX 4090 / A5000）。
-   - **⚠ Network Volume**：挂现有的 **`rk3t3mb1ko`（US-CA-2，40GB，装着 4 底模）**。
+   - **⚠ Network Volume**：挂现有的 **`rk3t3mb1ko`（US-CA-2，80GB）**。
      挂了卷，GPU 会被过滤到该卷所在数据中心（US-CA-2）——正常，选那里的 GPU。
    - **Max Workers**：1–2。**Active（min）Workers**：0（省钱，冷启动换钱）。
    - **Execution Timeout**：**300 秒**（冷启动＋下载 LoRA＋出图，默认 120 可能不够）。
    - **Environment Variables**：一般不用加。如需覆盖：`RUNNER_LORA_DIR` /
-     `RUNNER_LORA_DL_TIMEOUT`（默认已对，通常留空）。
-   - **不用**给 fork 配 Civitai key——它只从 **R2** 拉（app 侧已用 `CIVITAI_API_TOKEN`
-     把 LoRA 下到 R2）；R2 预签名链自带鉴权，worker 不需 R2 凭证。
+     `RUNNER_LORA_DL_TIMEOUT` / `RUNNER_CACHE_RESERVE_BYTES`（默认保留 8GiB
+     空闲）。LRU 只会删除 PixelVault 动态命名的 `civitai-*`、`hf-*` LoRA 和
+     `civitai-ckpt-*` checkpoint；不会删除手工放入或预置的模型。
+     每次下载准备完成后会原子更新 `/runpod-volume/pixelvault-cache-manifest.json`，
+     下载/淘汰事件追加到 `/runpod-volume/pixelvault-download-history.jsonl`；两者都不写
+     下载 URL 或密钥。路径可用 `RUNNER_CACHE_MANIFEST_PATH` / `RUNNER_DOWNLOAD_HISTORY_PATH`
+     覆盖。
+   - LoRA 从 **R2** 预签名链拉取，fork 不需要 R2 凭证。源图精确 checkpoint 会由
+     fork 直接访问 Civitai；公开文件可匿名下载，gated/限流文件需要把 `CIVITAI_KEY`
+     配成 RunPod endpoint secret（不要写进普通环境变量或仓库）。
 4. **Deploy Endpoint**。首次构建要几分钟（RunPod build，超时 30min/单次、总 160min）。
 
 ### A4. 记下新端点 ID → 接线

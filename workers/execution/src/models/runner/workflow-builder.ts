@@ -28,7 +28,8 @@ export interface RunnerWorkflowInput {
   negativePrompt?: string
   width: number
   height: number
-  seed: number
+  /** Decimal strings preserve full uint64 seeds across JavaScript JSON. */
+  seed: number | string
   steps: number
   cfg: number
   samplerName: string
@@ -51,6 +52,8 @@ export interface RunnerWorkflowInput {
    * reference-strength-mapped value (lower = keep more of the reference).
    */
   denoise?: number
+  /** Optional post-decode super-resolution model in models/upscale_models/. */
+  upscalerModelFilename?: string
 }
 
 const NODE_ID = {
@@ -64,6 +67,8 @@ const NODE_ID = {
   vaeEncode: 'vae-encode',
   sampler: 'sampler',
   vaeDecode: 'vae-decode',
+  upscaleModel: 'upscale-model',
+  upscaleImage: 'upscale-image',
   saveImage: 'save-image',
 } as const
 
@@ -192,10 +197,26 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
     },
   }
 
+  let outputImageSource: [string, number] = [NODE_ID.vaeDecode, 0]
+  if (input.upscalerModelFilename) {
+    workflow[NODE_ID.upscaleModel] = {
+      class_type: 'UpscaleModelLoader',
+      inputs: { model_name: input.upscalerModelFilename },
+    }
+    workflow[NODE_ID.upscaleImage] = {
+      class_type: 'ImageUpscaleWithModel',
+      inputs: {
+        upscale_model: [NODE_ID.upscaleModel, 0],
+        image: [NODE_ID.vaeDecode, 0],
+      },
+    }
+    outputImageSource = [NODE_ID.upscaleImage, 0]
+  }
+
   workflow[NODE_ID.saveImage] = {
     class_type: 'SaveImage',
     inputs: {
-      images: [NODE_ID.vaeDecode, 0],
+      images: outputImageSource,
       filename_prefix: input.filenamePrefix ?? 'pixelvault',
     },
   }

@@ -12,6 +12,7 @@ import {
   type AnimaWorkflowLora,
 } from './anima-workflow-builder'
 import { getRunnerCheckpointById } from './checkpoints'
+import type { RunnerSampler, RunnerScheduler } from './sampling'
 import {
   buildComfyWorkflow,
   type ComfyWorkflow,
@@ -51,9 +52,11 @@ export interface RunnerGenerationRequestInput {
   width: number
   height: number
   /** Omit to let the caller supply a random seed (not generated here — see `buildRunnerWorkflowFromRequest`'s `randomSeed` param). */
-  seed?: number
+  seed?: number | string
   steps?: number
   cfg?: number
+  sampler?: RunnerSampler
+  scheduler?: RunnerScheduler
   loras: readonly RunnerLoraRequestInput[]
   /**
    * img2img: filename of the reference image uploaded alongside the workflow
@@ -77,6 +80,8 @@ export interface RunnerGenerationRequestInput {
    * ModelSamplingAuraFlow）。缺省 'sdxl' 走原 CheckpointLoaderSimple 图（向后兼容）。
    */
   architecture?: RunnerArchitecture
+  /** Exact post-decode model filename in models/upscale_models/. */
+  upscalerModelFilename?: string
 }
 
 export class RunnerUnknownCheckpointError extends Error {
@@ -122,6 +127,8 @@ export function buildRunnerWorkflowFromRequest(
     scheduler = checkpoint.recommendedScheduler
     clipSkip = checkpoint.clipSkip
   }
+  samplerName = input.sampler ?? samplerName
+  scheduler = input.scheduler ?? scheduler
 
   const loras: RunnerWorkflowLora[] = input.loras.map((lora) => {
     const strength = lora.scale ?? 1
@@ -147,6 +154,7 @@ export function buildRunnerWorkflowFromRequest(
     loras,
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,
+    upscalerModelFilename: input.upscalerModelFilename,
   })
 }
 
@@ -175,6 +183,8 @@ function buildAnimaWorkflowFromRequest(
     samplerName = checkpoint.recommendedSampler
     scheduler = checkpoint.recommendedScheduler
   }
+  samplerName = input.sampler ?? samplerName
+  scheduler = input.scheduler ?? scheduler
 
   const loras: AnimaWorkflowLora[] = input.loras.map((lora) => ({
     filename: lora.filename,
@@ -198,5 +208,6 @@ function buildAnimaWorkflowFromRequest(
     loras,
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,
+    upscalerModelFilename: input.upscalerModelFilename,
   })
 }

@@ -83,6 +83,25 @@ describe('buildComfyWorkflow', () => {
     expect(workflow['save-image'].inputs.filename_prefix).toBe('clone')
   })
 
+  it('routes the decoded image through an optional upscale model', () => {
+    const workflow = buildComfyWorkflow(
+      baseInput({ upscalerModelFilename: '4x-AnimeSharp.pth' }),
+    )
+
+    expect(workflow['upscale-model']).toEqual({
+      class_type: 'UpscaleModelLoader',
+      inputs: { model_name: '4x-AnimeSharp.pth' },
+    })
+    expect(workflow['upscale-image']).toEqual({
+      class_type: 'ImageUpscaleWithModel',
+      inputs: {
+        upscale_model: ['upscale-model', 0],
+        image: ['vae-decode', 0],
+      },
+    })
+    expect(workflow['save-image'].inputs.images).toEqual(['upscale-image', 0])
+  })
+
   it('chains a single LoRA between the checkpoint and CLIPSetLastLayer/KSampler', () => {
     const workflow = buildComfyWorkflow(
       baseInput({

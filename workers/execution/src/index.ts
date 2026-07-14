@@ -14,7 +14,18 @@ import { getRunnerCheckpointById } from './models/runner/checkpoints'
 import {
   buildRunnerWorkflowFromRequest,
   RunnerUnknownCheckpointError,
+  type RunnerArchitecture,
 } from './models/runner/request-builder'
+import {
+  isRunnerSampler,
+  isRunnerScheduler,
+  type RunnerSampler,
+  type RunnerScheduler,
+} from './models/runner/sampling'
+import {
+  isRunnerUpscaler,
+  RUNNER_UPSCALER_MANIFEST,
+} from './models/runner/upscalers'
 
 const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
@@ -5075,6 +5086,125 @@ interface RunnerSubmitResult {
   id: string
 }
 
+const RUNNER_UINT64_MAX = '18446744073709551615'
+
+function isRunnerUint64Seed(value: string): boolean {
+  return (
+    /^(0|[1-9]\d{0,19})$/.test(value) &&
+    (value.length < RUNNER_UINT64_MAX.length ||
+      (value.length === RUNNER_UINT64_MAX.length &&
+        value.localeCompare(RUNNER_UINT64_MAX) <= 0))
+  )
+}
+
+function readRunnerSeed(
+  advancedParams: Record<string, unknown>,
+): number | string | undefined {
+  const exact = readStringField(advancedParams, 'runnerSeed')
+  if (exact) {
+    if (!isRunnerUint64Seed(exact)) {
+      throw new WorkerProviderError({
+        message: 'Runner seed is outside the supported uint64 range.',
+        provider: 'runner',
+        phase: 'request_validation',
+      })
+    }
+    return exact
+  }
+  const seed = readNumberField(advancedParams, 'seed')
+  return seed != null && seed >= 0 ? Math.round(seed) : undefined
+}
+
+function getRunnerDefaultDimensions(
+  aspectRatio: string,
+  architecture: RunnerArchitecture,
+): { width: number; height: number } {
+  if (architecture !== 'anima') return getStandardImageDimensions(aspectRatio)
+  switch (aspectRatio) {
+    case '16:9':
+      return { width: 1344, height: 768 }
+    case '9:16':
+      return { width: 768, height: 1344 }
+    case '4:3':
+      return { width: 1152, height: 864 }
+    case '3:4':
+      return { width: 864, height: 1152 }
+    default:
+      return { width: 1024, height: 1024 }
+  }
+}
+
+function getRunnerDimensions(
+  advancedParams: Record<string, unknown>,
+  aspectRatio: string,
+  architecture: RunnerArchitecture,
+): { width: number; height: number } {
+  const width = readNumberField(advancedParams, 'runnerWidth')
+  const height = readNumberField(advancedParams, 'runnerHeight')
+  if (width == null && height == null) {
+    return getRunnerDefaultDimensions(aspectRatio, architecture)
+  }
+  const max = architecture === 'anima' ? 1536 : 2048
+  if (
+    width == null ||
+    height == null ||
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width % 8 !== 0 ||
+    height % 8 !== 0 ||
+    width < 512 ||
+    height < 512 ||
+    width > max ||
+    height > max
+  ) {
+    throw new WorkerProviderError({
+      message: `Runner dimensions must be multiples of 8 between 512 and ${max}.`,
+      provider: 'runner',
+      phase: 'request_validation',
+    })
+  }
+  return { width, height }
+}
+
+function readRunnerSampling(advancedParams: Record<string, unknown>): {
+  sampler?: RunnerSampler
+  scheduler?: RunnerScheduler
+} {
+  const sampler = readStringField(advancedParams, 'runnerSampler')
+  const scheduler = readStringField(advancedParams, 'runnerScheduler')
+  if (sampler && !isRunnerSampler(sampler)) {
+    throw new WorkerProviderError({
+      message: `Unsupported Runner sampler: ${sampler}`,
+      provider: 'runner',
+      phase: 'request_validation',
+    })
+  }
+  if (scheduler && !isRunnerScheduler(scheduler)) {
+    throw new WorkerProviderError({
+      message: `Unsupported Runner scheduler: ${scheduler}`,
+      provider: 'runner',
+      phase: 'request_validation',
+    })
+  }
+  return {
+    sampler: sampler as RunnerSampler | undefined,
+    scheduler: scheduler as RunnerScheduler | undefined,
+  }
+}
+
+function readRunnerUpscaler(advancedParams: Record<string, unknown>) {
+  const value = readStringField(advancedParams, 'runnerUpscaler')
+  if (!value) return null
+  if (!isRunnerUpscaler(value)) {
+    throw new WorkerProviderError({
+      message: `Unsupported Runner upscaler: ${value}`,
+      provider: 'runner',
+      phase: 'request_validation',
+    })
+  }
+  return RUNNER_UPSCALER_MANIFEST[value]
+}
+
 /**
  * Builds the ComfyUI workflow via the pure recipe→workflow mapping, then
  * POSTs it to RunPod's `/run` endpoint. Unlike Replicate/fal, the runner has
@@ -5091,19 +5221,22 @@ async function submitRunnerImageJob(
     throw new Error('RUNPOD_ENDPOINT is not configured.')
   }
 
-  const dimensions = getStandardImageDimensions(
-    context.providerInput.aspectRatio,
-  )
   const advancedParams = readAdvancedRecord(context)
   const runnerLoras = getRunnerLoraSpecs(context)
   const runnerCheckpoint = getRunnerCheckpointSpec(context)
-  const seed = readNumberField(advancedParams, 'seed')
   // v4：底模架构由 manifest 条目决定（anima-dit 底模 → Anima DiT 工作流）。即便走
   // T1 override（用下载的精确 Anima checkpoint），externalModelId 仍是 anima 家族的
   // manifest id，据此选 Anima 工作流。缺省 sdxl。
-  const architecture = getRunnerCheckpointById(
-    context.providerInput.externalModelId,
-  )?.architecture
+  const architecture =
+    getRunnerCheckpointById(context.providerInput.externalModelId)
+      ?.architecture ?? 'sdxl'
+  const dimensions = getRunnerDimensions(
+    advancedParams,
+    context.providerInput.aspectRatio,
+    architecture,
+  )
+  const sampling = readRunnerSampling(advancedParams)
+  const upscaler = readRunnerUpscaler(advancedParams)
 
   // img2img: when the request carries a reference image (base-model capability
   // maxReferenceImages > 0), fetch it to base64 for RunPod's `input.images`
@@ -5137,9 +5270,11 @@ async function submitRunnerImageJob(
           readStringField(advancedParams, 'negativePrompt') ?? undefined,
         width: dimensions.width,
         height: dimensions.height,
-        seed: seed != null && seed >= 0 ? Math.round(seed) : undefined,
+        seed: readRunnerSeed(advancedParams),
         steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
         cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
+        sampler: sampling.sampler,
+        scheduler: sampling.scheduler,
         loras: runnerLoras.map((lora) => ({
           filename: lora.filename,
           scale: lora.scale,
@@ -5148,6 +5283,7 @@ async function submitRunnerImageJob(
         architecture,
         referenceImageName,
         denoise: referenceDenoise,
+        upscalerModelFilename: upscaler?.filename,
       },
       randomUint32,
     )
@@ -5194,6 +5330,15 @@ async function submitRunnerImageJob(
     runpodInput.companions_to_fetch = runnerCheckpoint
       ? ANIMA_SHARED_COMPANIONS
       : [...ANIMA_SHARED_COMPANIONS, ANIMA_BASE_COMPANION]
+  }
+  if (upscaler) {
+    runpodInput.upscaler_to_fetch = {
+      filename: upscaler.filename,
+      url: upscaler.downloadUrl,
+      source: 'huggingface' as const,
+      sha256: upscaler.sha256,
+      size_bytes: upscaler.sizeBytes,
+    }
   }
 
   const response = await fetch(

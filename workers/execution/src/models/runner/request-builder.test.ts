@@ -54,6 +54,23 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.seed).toBe(42)
   })
 
+  it('preserves an exact uint64 seed string for fork-side conversion', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({ seed: '5536891017203' }),
+      fixedRandomSeed,
+    )
+    expect(workflow.sampler.inputs.seed).toBe('5536891017203')
+  })
+
+  it('applies allowlisted sampler and scheduler overrides', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({ sampler: 'dpmpp_2m', scheduler: 'karras' }),
+      fixedRandomSeed,
+    )
+    expect(workflow.sampler.inputs.sampler_name).toBe('dpmpp_2m')
+    expect(workflow.sampler.inputs.scheduler).toBe('karras')
+  })
+
   it('applies default steps/cfg when not provided', () => {
     const workflow = buildRunnerWorkflowFromRequest(
       baseRequest(),
@@ -168,6 +185,38 @@ describe('buildRunnerWorkflowFromRequest', () => {
       expect(workflow.sampler.inputs.sampler_name).toBe('er_sde')
       expect(workflow.sampler.inputs.scheduler).toBe('simple')
       expect(workflow.sampler.inputs.cfg).toBe(4)
+    })
+
+    it('supports pure Anima Base generation with an empty LoRA list', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+          loras: [],
+        }),
+        fixedRandomSeed,
+      )
+
+      expect(workflow['lora-0']).toBeUndefined()
+      expect(workflow['model-sampling'].inputs.model).toEqual(['unet', 0])
+      expect(workflow.sampler.inputs.model).toEqual(['model-sampling', 0])
+    })
+
+    it('applies 4x-AnimeSharp after Anima VAE decode when requested', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+          upscalerModelFilename: '4x-AnimeSharp.pth',
+        }),
+        fixedRandomSeed,
+      )
+
+      expect(workflow['upscale-model'].inputs.model_name).toBe(
+        '4x-AnimeSharp.pth',
+      )
+      expect(workflow['upscale-image'].inputs.image).toEqual(['vae-decode', 0])
+      expect(workflow['save-image'].inputs.images).toEqual(['upscale-image', 0])
     })
 
     it('T1 override: downloaded Anima checkpoint feeds UNETLoader + Anima override sampler', () => {

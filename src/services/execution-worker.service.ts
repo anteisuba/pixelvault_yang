@@ -37,6 +37,28 @@ export function isExecutionWorkerDispatchConfigured(): boolean {
   )
 }
 
+/**
+ * The local worker is an optional development dependency. When it is not
+ * running, synchronous providers (such as Fish Audio voice previews) can
+ * still complete through the in-process provider adapter. Production always
+ * keeps the worker as the durable execution boundary.
+ */
+export function shouldUseInlineExecutionFallback(): boolean {
+  if (process.env.NODE_ENV !== 'development') return false
+
+  const configuredBaseUrl = process.env.EXECUTION_WORKER_BASE_URL
+  if (!configuredBaseUrl) return false
+
+  try {
+    const hostname = new URL(configuredBaseUrl).hostname.toLowerCase()
+    return (
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    )
+  } catch {
+    return false
+  }
+}
+
 function getWorkerBaseUrl(): string {
   const workerBaseUrl = process.env.EXECUTION_WORKER_BASE_URL
 
@@ -108,14 +130,25 @@ async function dispatchSignedWorkerRun(
   path: string,
 ): Promise<WorkerDispatchResult> {
   const body = JSON.stringify(runContext)
-  const response = await fetch(`${getWorkerBaseUrl()}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
-    },
-    body,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${getWorkerBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
+      },
+      body,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown network error'
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      `Execution worker dispatch failed: ${message}`,
+      502,
+    )
+  }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')

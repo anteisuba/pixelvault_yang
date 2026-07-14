@@ -108,7 +108,8 @@ describe('useAssistantConversation', () => {
     })
     expect(result.current.messages[1]).toMatchObject({
       role: 'assistant',
-      content: 'Check .',
+      // Raw model text is kept for multi-turn history; UI strips markers.
+      content: 'Check [[node:node-1]].',
       references: [{ nodeId: 'node-1' }],
     })
     expect(mockStreamNodeAssistantAPI).toHaveBeenCalledWith(
@@ -134,7 +135,7 @@ describe('useAssistantConversation', () => {
     })
 
     expect(result.current.messages[1]).toMatchObject({
-      content: 'Run it',
+      content: 'Run it [[capability:upscale:node-1]]',
       capabilities: [{ capability: 'upscale', nodeId: 'node-1' }],
     })
   })

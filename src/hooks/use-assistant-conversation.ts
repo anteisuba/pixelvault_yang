@@ -125,24 +125,39 @@ function extractCapabilityReferences(
   return references
 }
 
-function stripNodeReferenceMarkers(content: string): string {
+/** Strip canvas action markers for on-screen rendering only. */
+export function stripNodeReferenceMarkers(content: string): string {
   return content
     .replace(/\[\[node:[^\]]+\]\]/g, '')
     .replace(/\[\[capability:(?:upscale|remove-background):[^\]]+\]\]/g, '')
     .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
-function toDisplayAssistantMessage(
+/**
+ * Keep the raw model text (including [[node:]] markers) as `content` so the
+ * next turn re-sends full history. Markers are stripped only in the UI.
+ */
+function toAssistantMessageFromStream(
   id: string,
   rawContent: string,
 ): AssistantConversationMessage {
   return {
     id,
     role: 'assistant',
-    content: stripNodeReferenceMarkers(rawContent).trim(),
+    content: rawContent,
     references: extractNodeReferences(rawContent),
     capabilities: extractCapabilityReferences(rawContent),
   }
+}
+
+function hasUsableAssistantContent(
+  message: AssistantConversationMessage | null,
+): message is AssistantConversationMessage {
+  if (!message) return false
+  if (message.content.trim().length > 0) return true
+  // Marker-only replies still count (chips / capabilities, no prose).
+  return message.references.length > 0 || message.capabilities.length > 0
 }
 
 function toApiMessage(
@@ -374,37 +389,35 @@ export function useAssistantConversation(
           message: null,
         }
         await readTextStream(response.stream, (rawContent) => {
-          streamState.message = toDisplayAssistantMessage(
+          streamState.message = toAssistantMessageFromStream(
             assistantMessageId,
             rawContent,
           )
           setMessages([...nextMessages, streamState.message])
         })
-        setIsLoading(false)
 
         const finalAssistant = streamState.message
-        // Drop empty assistant shell if the stream produced no text.
-        const completedWithoutEmpty =
-          finalAssistant && finalAssistant.content.trim().length > 0
-            ? [...nextMessages, finalAssistant]
-            : nextMessages
-        const nextSessionId = await persistMessages(
-          completedWithoutEmpty,
-          sessionId,
-        )
-        if (nextSessionId) setSessionId(nextSessionId)
-        if (!finalAssistant || finalAssistant.content.trim().length === 0) {
+        if (!hasUsableAssistantContent(finalAssistant)) {
           setMessages(nextMessages)
           setError(t('assistant.streamFailed'))
+          return
         }
+
+        const completed = [...nextMessages, finalAssistant]
+        setMessages(completed)
+        const nextSessionId = await persistMessages(completed, sessionId)
+        if (nextSessionId) setSessionId(nextSessionId)
       } catch (caughtError) {
-        setIsLoading(false)
         setMessages(nextMessages)
         setError(
           caughtError instanceof Error
             ? caughtError.message
             : t('assistant.streamFailed'),
         )
+      } finally {
+        // Always unlock the composer — a hung/errored stream must not leave
+        // isLoading true and block the second user turn forever.
+        setIsLoading(false)
       }
     },
     [isLoading, persistMessages, sessionId, t],
@@ -470,35 +483,33 @@ export function useAssistantConversation(
           message: null,
         }
         await readTextStream(response.stream, (rawContent) => {
-          streamState.message = toDisplayAssistantMessage(
+          streamState.message = toAssistantMessageFromStream(
             assistantMessageId,
             rawContent,
           )
           setMessages([...withoutTrailingAssistant, streamState.message])
         })
-        setIsLoading(false)
+
         const finalAssistant = streamState.message
-        const completedWithoutEmpty =
-          finalAssistant && finalAssistant.content.trim().length > 0
-            ? [...withoutTrailingAssistant, finalAssistant]
-            : withoutTrailingAssistant
-        const nextSessionId = await persistMessages(
-          completedWithoutEmpty,
-          sessionId,
-        )
-        if (nextSessionId) setSessionId(nextSessionId)
-        if (!finalAssistant || finalAssistant.content.trim().length === 0) {
+        if (!hasUsableAssistantContent(finalAssistant)) {
           setMessages(withoutTrailingAssistant)
           setError(t('assistant.streamFailed'))
+          return
         }
+
+        const completed = [...withoutTrailingAssistant, finalAssistant]
+        setMessages(completed)
+        const nextSessionId = await persistMessages(completed, sessionId)
+        if (nextSessionId) setSessionId(nextSessionId)
       } catch (caughtError) {
-        setIsLoading(false)
         setMessages(withoutTrailingAssistant)
         setError(
           caughtError instanceof Error
             ? caughtError.message
             : t('assistant.streamFailed'),
         )
+      } finally {
+        setIsLoading(false)
       }
     },
     [persistMessages, sessionId, t],

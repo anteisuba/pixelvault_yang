@@ -79,18 +79,27 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     })
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     logger.error(`${routeName} unhandled error`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
       durationMs: Date.now() - startedAt,
     })
+
+    // Surface guard/validation messages (e.g. prompt length) so the dock
+    // does not only show a generic "Node assistant failed".
+    const isClientRejection =
+      message.startsWith('Prompt rejected by guard:') ||
+      message.includes('Invalid request')
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Node assistant failed',
-        errorCode: 'NODE_ASSISTANT_FAILED',
+        error: isClientRejection ? message : 'Node assistant failed',
+        errorCode: isClientRejection
+          ? 'VALIDATION_ERROR'
+          : 'NODE_ASSISTANT_FAILED',
       },
-      { status: 500 },
+      { status: isClientRejection ? 400 : 500 },
     )
   }
 }

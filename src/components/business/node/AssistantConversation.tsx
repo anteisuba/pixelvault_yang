@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/responsive-popover'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
+import { stripNodeReferenceMarkers } from '@/hooks/use-assistant-conversation'
 import { cn } from '@/lib/utils'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 
@@ -142,14 +143,30 @@ export function AssistantConversation({
                     : 'border border-node-panel-inner bg-node-panel-soft text-node-foreground',
                 )}
               >
-                {message.content ? (
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                ) : (
-                  <div className="flex items-center gap-2 text-node-muted">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    {t('thinking')}
-                  </div>
-                )}
+                {(() => {
+                  const displayContent =
+                    message.role === 'assistant'
+                      ? stripNodeReferenceMarkers(message.content)
+                      : message.content.trim()
+                  if (displayContent) {
+                    return (
+                      <p className="whitespace-pre-wrap">{displayContent}</p>
+                    )
+                  }
+                  if (
+                    message.role === 'assistant' &&
+                    (message.references?.length > 0 ||
+                      message.capabilities?.length > 0)
+                  ) {
+                    return null
+                  }
+                  return (
+                    <div className="flex items-center gap-2 text-node-muted">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      {t('thinking')}
+                    </div>
+                  )
+                })()}
                 {message.references?.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {message.references.map((reference) => (

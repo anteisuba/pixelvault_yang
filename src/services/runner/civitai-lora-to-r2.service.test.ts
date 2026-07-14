@@ -8,6 +8,7 @@ import {
 } from '@/services/storage/r2'
 
 import {
+  RUNNER_LORA_MAX_BYTES,
   deriveRunnerLoraFilename,
   deriveRunnerHuggingFaceLoraFilename,
   ensureCivitaiLoraInR2,
@@ -110,6 +111,7 @@ describe('civitai-lora-to-r2.service', () => {
         sourceUrl: URL_3118200,
         key: R2_KEY,
         fetchHeaders: { Authorization: 'Bearer civitai-token' },
+        maxBytes: RUNNER_LORA_MAX_BYTES,
       }),
     )
   })
@@ -139,6 +141,20 @@ describe('civitai-lora-to-r2.service', () => {
     })
   })
 
+  it('maps oversized remote files to TOO_LARGE (base checkpoint mis-attached as LoRA)', async () => {
+    mockExists.mockResolvedValue(false)
+    mockUpload.mockRejectedValue(
+      new Error(
+        `Remote file exceeds maximum size of ${RUNNER_LORA_MAX_BYTES} bytes (declared 4182218328).`,
+      ),
+    )
+
+    await expect(ensureHuggingFaceLoraInR2(HF_URL)).rejects.toMatchObject({
+      code: 'TOO_LARGE',
+      message: expect.stringContaining('512 MB'),
+    })
+  })
+
   it('caches a public Hugging Face LoRA without a provider token', async () => {
     mockExists.mockResolvedValue(false)
     mockUpload.mockResolvedValue({
@@ -156,6 +172,7 @@ describe('civitai-lora-to-r2.service', () => {
       expect.objectContaining({
         sourceUrl: HF_URL,
         key: result.r2Key,
+        maxBytes: RUNNER_LORA_MAX_BYTES,
       }),
     )
     expect(mockUpload.mock.calls[0]?.[0]).not.toHaveProperty('fetchHeaders')

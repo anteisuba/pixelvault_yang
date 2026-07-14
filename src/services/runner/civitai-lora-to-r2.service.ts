@@ -19,6 +19,14 @@ const RUNNER_LORA_R2_PREFIX = 'runner-loras/'
 const CIVITAI_DOWNLOAD_VERSION_PATTERN =
   /civitai\.com\/api\/download\/models\/(\d+)/
 
+/**
+ * Hard cap for a single LoRA weight cached into R2 for the Runner path.
+ * Real LoRAs are typically tens–hundreds of MB; multi-GB files are almost
+ * always base checkpoints mis-attached as LoRAs (which used to hang the
+ * Vercel request and leave GenerationJob stuck RUNNING forever).
+ */
+export const RUNNER_LORA_MAX_BYTES = 512 * 1024 * 1024
+
 export interface EnsuredRunnerLora {
   /** ComfyUI 挂载用文件名（fork worker 下到 models/loras/ 后按此名挂）。 */
   filename: string
@@ -31,11 +39,26 @@ export interface EnsuredRunnerLora {
 export class RunnerLoraR2Error extends Error {
   constructor(
     message: string,
-    readonly code: 'INVALID_LORA_URL' | 'DOWNLOAD_FAILED',
+    readonly code: 'INVALID_LORA_URL' | 'DOWNLOAD_FAILED' | 'TOO_LARGE',
   ) {
     super(message)
     this.name = 'RunnerLoraR2Error'
   }
+}
+
+function toRunnerLoraTooLargeError(sizeBytes: number): RunnerLoraR2Error {
+  const sizeMb = Math.round(sizeBytes / (1024 * 1024))
+  const maxMb = Math.round(RUNNER_LORA_MAX_BYTES / (1024 * 1024))
+  return new RunnerLoraR2Error(
+    `Runner LoRA is ${sizeMb} MB, over the ${maxMb} MB limit. Base checkpoints belong in the checkpoint path, not as LoRA attachments.`,
+    'TOO_LARGE',
+  )
+}
+
+function isRemoteFileTooLargeError(error: unknown): boolean {
+  return (
+    error instanceof Error && error.message.includes('exceeds maximum size of')
+  )
 }
 
 export interface HuggingFaceLoraReference {
@@ -161,12 +184,18 @@ export async function ensureCivitaiLoraInR2(
       key: r2Key,
       mimeType: 'application/octet-stream',
       fetchHeaders,
+      maxBytes: RUNNER_LORA_MAX_BYTES,
     })
   } catch (error) {
     logger.warn('Failed to cache Civitai LoRA to R2', {
       versionId,
       error: error instanceof Error ? error.message : 'Unknown',
     })
+    if (isRemoteFileTooLargeError(error)) {
+      const match = error.message.match(/declared (\d+)|got (\d+)/)
+      const size = Number(match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1)
+      throw toRunnerLoraTooLargeError(size)
+    }
     throw new RunnerLoraR2Error(
       `Failed to download Civitai LoRA ${versionId} to R2`,
       'DOWNLOAD_FAILED',
@@ -204,6 +233,7 @@ export async function ensureHuggingFaceLoraInR2(
       sourceUrl: loraDownloadUrl,
       key: r2Key,
       mimeType: 'application/octet-stream',
+      maxBytes: RUNNER_LORA_MAX_BYTES,
     })
   } catch (error) {
     logger.warn('Failed to cache Hugging Face LoRA to R2', {
@@ -212,6 +242,14 @@ export async function ensureHuggingFaceLoraInR2(
       filename: reference.filename,
       error: error instanceof Error ? error.message : 'Unknown',
     })
+    if (isRemoteFileTooLargeError(error)) {
+      const match =
+        error instanceof Error
+          ? error.message.match(/declared (\d+)|got (\d+)/)
+          : null
+      const size = Number(match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1)
+      throw toRunnerLoraTooLargeError(size)
+    }
     throw new RunnerLoraR2Error(
       `Failed to download Hugging Face LoRA ${reference.repoId}/${reference.filename} to R2`,
       'DOWNLOAD_FAILED',

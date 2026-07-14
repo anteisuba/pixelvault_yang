@@ -2254,6 +2254,19 @@ function coerceInteger(value: unknown): number | undefined {
   return Number.isInteger(parsed) ? parsed : Math.round(parsed)
 }
 
+function coerceSeed(value: unknown): CivitaiImageRecipe['seed'] {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : undefined
+  }
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) return undefined
+  const normalized = trimmed.replace(/^0+(?=\d)/, '')
+  return normalized.length <= 10 && Number(normalized) <= 4_294_967_295
+    ? Number(normalized)
+    : normalized
+}
+
 function coerceTrimmedString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
@@ -2267,11 +2280,32 @@ type RecipeMetaParams = Pick<
   | 'steps'
   | 'cfgScale'
   | 'sampler'
+  | 'scheduler'
   | 'clipSkip'
   | 'sizeRaw'
+  | 'baseWidth'
+  | 'baseHeight'
   | 'checkpoint'
   | 'checkpointVersionId'
+  | 'hiresUpscale'
+  | 'hiresUpscaler'
+  | 'denoisingStrength'
+  | 'hiresSteps'
 >
+
+const RECIPE_SIZE_PATTERN = /^(\d+)\s*[x×]\s*(\d+)$/i
+
+function extractRecipeBaseDimensions(sizeRaw?: string): {
+  baseWidth?: number
+  baseHeight?: number
+} {
+  const match = sizeRaw ? RECIPE_SIZE_PATTERN.exec(sizeRaw) : null
+  if (!match) return {}
+  const baseWidth = Number(match[1])
+  const baseHeight = Number(match[2])
+  if (!Number.isInteger(baseWidth) || !Number.isInteger(baseHeight)) return {}
+  return { baseWidth, baseHeight }
+}
 
 // civitaiResources[type=checkpoint].modelVersionId — 站内生成图的精确底模引用
 // （比 meta.Model 名字准、比 meta.hashes 作者本地 hash 可靠）。V3 checkpoint
@@ -2290,16 +2324,31 @@ function extractCheckpointVersionId(
 function extractRecipeMetaParams(
   meta: Record<string, unknown>,
 ): RecipeMetaParams {
+  const sizeRaw = coerceTrimmedString(meta.Size ?? meta.size)
   return {
     negativePrompt: coerceTrimmedString(meta.negativePrompt),
-    seed: coerceInteger(meta.seed),
+    seed: coerceSeed(meta.seed),
     steps: coerceInteger(meta.steps),
     cfgScale: coerceFiniteNumber(meta.cfgScale),
-    sampler: coerceTrimmedString(meta.sampler),
+    sampler: coerceTrimmedString(meta.sampler ?? meta.Sampler),
+    scheduler: coerceTrimmedString(
+      meta.scheduler ?? meta.Scheduler ?? meta['Schedule type'],
+    ),
     clipSkip: coerceInteger(meta.clipSkip ?? meta['Clip skip']),
-    sizeRaw: coerceTrimmedString(meta.Size ?? meta.size),
+    sizeRaw,
+    ...extractRecipeBaseDimensions(sizeRaw),
     checkpoint: coerceTrimmedString(meta.Model),
     checkpointVersionId: extractCheckpointVersionId(meta),
+    hiresUpscale: coerceFiniteNumber(
+      meta['Hires upscale'] ?? meta.hiresUpscale,
+    ),
+    hiresUpscaler: coerceTrimmedString(
+      meta['Hires upscaler'] ?? meta.hiresUpscaler,
+    ),
+    denoisingStrength: coerceFiniteNumber(
+      meta['Denoising strength'] ?? meta.denoisingStrength,
+    ),
+    hiresSteps: coerceInteger(meta['Hires steps'] ?? meta.hiresSteps),
   }
 }
 

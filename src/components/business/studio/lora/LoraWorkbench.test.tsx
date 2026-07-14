@@ -1,10 +1,31 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
 
 import { LoraWorkbench } from './LoraWorkbench'
+
+beforeAll(() => {
+  Object.defineProperties(HTMLElement.prototype, {
+    hasPointerCapture: {
+      configurable: true,
+      value: () => false,
+    },
+    releasePointerCapture: {
+      configurable: true,
+      value: () => undefined,
+    },
+    setPointerCapture: {
+      configurable: true,
+      value: () => undefined,
+    },
+    scrollIntoView: {
+      configurable: true,
+      value: () => undefined,
+    },
+  })
+})
 
 // ── Issue 2 (Hard Rule 8) + 用户反馈迭代：API key 配置入口挂在「选底模」
 // 这一步（LoraSpineBar 的 needsKey 徽章），不挂在出图按钮上——出图按钮
@@ -18,6 +39,15 @@ const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
 const mockAddTag = vi.hoisted(() => vi.fn())
 const mockRouterReplace = vi.hoisted(() => vi.fn())
 const mockRouterPush = vi.hoisted(() => vi.fn())
+
+vi.mock('@/constants/feature-flags', () => ({
+  FEATURE_FLAGS: {
+    promptAssist: true,
+    promptLibrary: true,
+    loraStudio: true,
+    comfyRunner: true,
+  },
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -72,10 +102,14 @@ const stackAsset = {
   fileHashAutoV3: 'hash-1',
 }
 
+let mockStackItems = [{ asset: stackAsset, scale: 1 }]
+
 vi.mock('@/hooks/use-active-lora-stack', () => ({
   LORA_STACK_MAX: 3,
   useActiveLoraStack: () => ({
-    items: [{ asset: stackAsset, scale: 1 }],
+    get items() {
+      return mockStackItems
+    },
     push: vi.fn(),
     setScale: vi.fn(),
     remove: vi.fn(),
@@ -202,6 +236,7 @@ vi.mock('@/hooks/use-image-upload', () => ({
 
 beforeEach(() => {
   mockReferenceImages = []
+  mockStackItems = [{ asset: stackAsset, scale: 1 }]
 })
 
 const quickSetupSpy = vi.hoisted(() => vi.fn())
@@ -326,6 +361,51 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
   })
 
+  it('applies Civitai recipe steps and CFG to the real generation request', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'best quality, 1girl',
+        negativePrompt: 'worst quality',
+        steps: 32,
+        cfgScale: 4,
+      },
+    ]
+
+    render(<LoraWorkbench />)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    const call = mockGenerate.mock.calls[0]?.[0]
+    expect(call.image.advancedParams).toMatchObject({
+      negativePrompt: 'worst quality',
+      steps: 32,
+      guidanceScale: 4,
+    })
+  })
+
   it('B9: threads the reference image + strength into the generate request when one is attached', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
@@ -437,6 +517,111 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         name: /LoraWorkbench:generate\.resultPreviewLabel/,
       }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    mockLastGeneration = null
+    mockMinedRecipes = []
+    mockMinedPreviewImages = []
+    mockStackItems = []
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  it('defaults an empty LoRA stack to Anima Base and generates without a fake LoRA', () => {
+    render(<LoraWorkbench />)
+
+    expect(screen.getByText('LoraWorkbench:spine.empty')).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toHaveTextContent('Anima Base v1.0')
+
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'sunset railway, anime girl' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    const request = mockGenerate.mock.calls[0][0]
+    expect(request.image.modelId).toBe(AI_MODELS.ANIMA_DIT_RUNNER)
+    expect(request.image.advancedParams?.loras).toBeUndefined()
+  })
+
+  it('sends manually edited Runner controls and 4x-AnimeSharp in the real request', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraWorkbench:generate\.advanced\.title/,
+      }),
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.seed'),
+      { target: { value: '5536891017203' } },
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.steps'),
+      { target: { value: '32' } },
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.cfg'),
+      { target: { value: '4' } },
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.width'),
+      { target: { value: '1024' } },
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.height'),
+      { target: { value: '1024' } },
+    )
+
+    const upscaler = screen.getByRole('combobox', {
+      name: 'LoraWorkbench:generate.advanced.upscaler',
+    })
+    fireEvent.keyDown(upscaler, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: '4x-AnimeSharp' }))
+
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'cinematic anime city' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    expect(mockGenerate.mock.calls[0][0].image.advancedParams).toMatchObject({
+      runnerSeed: '5536891017203',
+      steps: 32,
+      guidanceScale: 4,
+      runnerWidth: 1024,
+      runnerHeight: 1024,
+      runnerUpscaler: '4x-AnimeSharp',
+    })
+  })
+
+  it('blocks generation when only one exact dimension is entered', () => {
+    render(<LoraWorkbench />)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraWorkbench:generate\.advanced\.title/,
+      }),
+    )
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.advanced.width'),
+      { target: { value: '1024' } },
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'LoraWorkbench:generate.advanced.dimensionPairError',
+    )
+    expect(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    ).toBeDisabled()
   })
 })
 

@@ -28,7 +28,7 @@ interface ErrorBody {
 /**
  * POST /api/lora-assets/favorite
  *
- * Import an external (Civitai) LoRA into the viewer's "Favorites".
+ * Import an external (Civitai/Hugging Face) LoRA into the viewer's "Favorites".
  * Creates a personal LoraAsset row with source='imported'; idempotent
  * on (userId, loraUrl) so re-favoriting returns the existing row.
  */

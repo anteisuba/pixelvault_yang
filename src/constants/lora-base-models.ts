@@ -31,11 +31,13 @@ export type LoraBaseFamily = (typeof LORA_BASE_FAMILIES)[number]
 
 export type LoraBaseBackend = 'hosted' | 'runner'
 export type LoraBaseFidelity = 'fast' | 'faithful'
+export type LoraRecipeCheckpointMode = 'source' | 'fixed'
 
 export interface LoraBaseModel {
   /** 选择器 option 值（底模×后端 唯一） */
   id: string
   displayName: string
+  translationKey?: 'sourceCheckpointAuto'
   family: LoraBaseFamily
   backend: LoraBaseBackend
   fidelity: LoraBaseFidelity
@@ -44,6 +46,8 @@ export interface LoraBaseModel {
   providerModelId?: AI_MODELS
   /** runner → 未来 RUNNER_CHECKPOINTS（暂未实现） */
   runnerCheckpointId?: string
+  /** source = use the selected Civitai image checkpoint when available. */
+  recipeCheckpointMode?: LoraRecipeCheckpointMode
   /** 该家族的推荐默认 */
   recommended?: boolean
 }
@@ -161,16 +165,59 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
   // baseModel 值 "Anima" 的 LoRA（本月最热 ~47%，如心月狐）归此家族。
   {
     id: 'anima-dit-runner',
-    displayName: 'Anima (Cosmos DiT)',
+    displayName: '来源图底模（自动）',
+    translationKey: 'sourceCheckpointAuto',
     family: 'anima-dit',
     backend: 'runner',
     fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.ANIMA_DIT_RUNNER),
     providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
     runnerCheckpointId: 'animaBase_v10',
+    recipeCheckpointMode: 'source',
     recommended: true,
   },
+  {
+    id: 'anima-dit-base-v10-runner',
+    displayName: 'Anima Base v1.0',
+    family: 'anima-dit',
+    backend: 'runner',
+    fidelity: 'faithful',
+    available: runnerAvailable(AI_MODELS.ANIMA_DIT_RUNNER),
+    providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
+    runnerCheckpointId: 'animaBase_v10',
+    recipeCheckpointMode: 'fixed',
+  },
 ]
+
+/**
+ * Pure-base generation has no source LoRA recipe from which to resolve a
+ * checkpoint. Keep its default explicit and stable: Anima Base v1.0 is the
+ * fixed Cosmos DiT checkpoint already provisioned by the Runner.
+ */
+export const LORA_BASE_ONLY_DEFAULT_ID = 'anima-dit-base-v10-runner'
+
+/**
+ * Bases that can generate without a mounted LoRA. Source-checkpoint entries
+ * are intentionally excluded because they require Civitai image metadata.
+ * Keep unavailable entries in the catalog so the selector can explain why a
+ * configured base is disabled instead of silently replacing the default.
+ */
+export function getBaseOnlyGenerationBases(): LoraBaseModel[] {
+  return LORA_BASE_MODELS.filter(
+    (model) => model.recipeCheckpointMode !== 'source',
+  )
+}
+
+export function getDefaultBaseOnlyGenerationBase(): LoraBaseModel | null {
+  const bases = getBaseOnlyGenerationBases()
+  return (
+    bases.find((model) => model.id === LORA_BASE_ONLY_DEFAULT_ID) ??
+    bases.find((model) => model.available && model.recommended) ??
+    bases.find((model) => model.available) ??
+    bases[0] ??
+    null
+  )
+}
 
 /**
  * 把 LoRA 的原始 baseModel 字符串（Civitai 值 / `LoraAsset.baseModelFamily`）
@@ -192,7 +239,7 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   // SDXL——它们名字含 "anima" 但架构是 SDXL，走下面的 includes 归 'anima'（anima_pencil）。
   // 判据用**精确值** s === 'anima'（Civitai 的 DiT baseModel 枚举值），不碰子串，
   // 免误杀 Animagine（超热门 SDXL，名字含 "anima"）。
-  if (s === 'anima') return 'anima-dit'
+  if (s === 'anima' || s === 'anima-dit') return 'anima-dit'
   if (s.includes('anima')) return 'anima'
   if (s.includes('flux')) return 'flux'
   if (

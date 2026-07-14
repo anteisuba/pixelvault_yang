@@ -104,6 +104,7 @@ export function LoraSourceRecipeStrip({
 }: LoraSourceRecipeStripProps) {
   const t = useTranslations('LoraPromptControl.generate')
   const [preview, setPreview] = useState<SourceImagePreview | null>(null)
+  const [appliedRecipeKey, setAppliedRecipeKey] = useState<string | null>(null)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const selected = selectedImageUrl
@@ -145,6 +146,8 @@ export function LoraSourceRecipeStrip({
         selected.seed !== undefined ? `seed ${selected.seed}` : null,
         selected.steps !== undefined ? `steps ${selected.steps}` : null,
         selected.cfgScale !== undefined ? `cfg ${selected.cfgScale}` : null,
+        selected.sampler ? `sampler ${selected.sampler}` : null,
+        selected.scheduler ? `scheduler ${selected.scheduler}` : null,
         selected.sizeRaw ??
           (selected.width && selected.height
             ? `${selected.width}x${selected.height}`
@@ -153,6 +156,13 @@ export function LoraSourceRecipeStrip({
         .filter(Boolean)
         .join(' | ')
     : ''
+
+  const currentRecipeKey = selected
+    ? `${selected.imageUrl}|${includeSeed ? 'seed' : 'random'}`
+    : null
+  const visibleAppliedParams = plan
+    ? plan.appliedParams.filter((param) => param !== 'seed' || includeSeed)
+    : []
 
   return (
     <div className="mt-2.5">
@@ -210,12 +220,23 @@ export function LoraSourceRecipeStrip({
 
       {selected && plan ? (
         <div className="mt-1.5 space-y-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
-          {selected.source === 'ai_inferred' ? (
-            <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300">
+          <p
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-medium',
+              selected.source === 'ai_inferred'
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                : 'bg-primary/10 text-primary',
+            )}
+          >
+            {selected.source === 'ai_inferred' ? (
               <Wand2 className="size-2.5" aria-hidden />
-              {t('recipeInferredBadge')}
-            </p>
-          ) : null}
+            ) : null}
+            {selected.source === 'model_version_image'
+              ? t('recipeSourceModel')
+              : selected.source === 'community_image'
+                ? t('recipeSourceCommunity')
+                : t('recipeInferredBadge')}
+          </p>
           <div className="flex items-start justify-between gap-2">
             <p className="break-words font-mono text-2xs leading-relaxed text-foreground">
               {plan.prompt}
@@ -243,6 +264,24 @@ export function LoraSourceRecipeStrip({
             </p>
           ) : null}
 
+          {selected.hiresUpscale !== undefined ||
+          selected.hiresUpscaler ||
+          selected.denoisingStrength !== undefined ? (
+            <p className="font-mono text-2xs text-muted-foreground">
+              {[
+                selected.hiresUpscale !== undefined
+                  ? `hires ×${selected.hiresUpscale}`
+                  : null,
+                selected.hiresUpscaler ?? null,
+                selected.denoisingStrength !== undefined
+                  ? `denoise ${selected.denoisingStrength}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' | ')}
+            </p>
+          ) : null}
+
           {plan.extraLoras.length > 0 ? (
             <ExtraLoraList
               disabled={disabled}
@@ -259,6 +298,17 @@ export function LoraSourceRecipeStrip({
             </p>
           ) : null}
 
+          {visibleAppliedParams.length > 0 ? (
+            <p className="text-2xs text-emerald-700 dark:text-emerald-300">
+              {t(
+                appliedRecipeKey === currentRecipeKey
+                  ? 'recipeApplied'
+                  : 'recipeWillApply',
+                { params: visibleAppliedParams.join(', ') },
+              )}
+            </p>
+          ) : null}
+
           {otherMountTriggers && otherMountTriggers.length > 0 ? (
             <p className="text-2xs text-muted-foreground">
               {t('recipeAppendTriggersHint', {
@@ -269,7 +319,7 @@ export function LoraSourceRecipeStrip({
           ) : null}
 
           <div className="flex items-center justify-between gap-2">
-            {plan.advancedParams?.seed !== undefined ? (
+            {plan.advancedParams?.runnerSeed !== undefined ? (
               <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
                 <input
                   type="checkbox"
@@ -289,7 +339,10 @@ export function LoraSourceRecipeStrip({
               variant="outline"
               size="xs"
               disabled={disabled}
-              onClick={() => onApplyRecipe(selected, { includeSeed })}
+              onClick={() => {
+                onApplyRecipe(selected, { includeSeed })
+                setAppliedRecipeKey(currentRecipeKey)
+              }}
             >
               <Check className="size-3.5" aria-hidden />
               {t('recipeApply')}

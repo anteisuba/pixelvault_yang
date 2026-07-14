@@ -2715,10 +2715,16 @@ describe('mineCivitaiUserPrompts', () => {
                 '<lora:waiIllustriousSDXL_v160:0.9>, detached sleeves, dragon girl, <lora:ææ¥æ¹èç»æ«å°å²ä»£çäºº:0.8>, white dress',
               negativePrompt:
                 'bad proportions,out of focus,username,text,bad anatomy',
-              seed: '3839998829',
+              seed: '5536891017203',
               steps: '24',
               cfgScale: '3.5',
+              sampler: 'DPM++ 2M Karras',
+              Scheduler: 'Karras',
               Size: '832x1216',
+              'Hires upscale': '2',
+              'Hires upscaler': '4x-AnimeSharp',
+              'Denoising strength': '0.35',
+              'Hires steps': '12',
               Model: 'éç¨æ´æ°å¿«waiIllustriousSDXL_v160',
               resources: [
                 {
@@ -2747,10 +2753,18 @@ describe('mineCivitaiUserPrompts', () => {
 
     expect(result.recipes?.[0]).toMatchObject({
       checkpoint: '通用更新快waiIllustriousSDXL_v160',
-      seed: 3839998829,
+      seed: '5536891017203',
       steps: 24,
       cfgScale: 3.5,
+      sampler: 'DPM++ 2M Karras',
+      scheduler: 'Karras',
       sizeRaw: '832x1216',
+      baseWidth: 832,
+      baseHeight: 1216,
+      hiresUpscale: 2,
+      hiresUpscaler: '4x-AnimeSharp',
+      denoisingStrength: 0.35,
+      hiresSteps: 12,
       loraWeight: 0.9,
       extraLoras: [
         {

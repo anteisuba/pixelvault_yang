@@ -398,7 +398,8 @@ export async function updateLoraAssetCover(
 }
 
 /**
- * Import a Civitai LoRA into the viewer's "Favorites" (source = 'imported').
+ * Import an external LoRA (Civitai, Hugging Face, or another supported source)
+ * into the viewer's "Favorites" (source = 'imported').
  * Idempotent on (userId, loraUrl): returns the existing row if present.
  * Visible only to the owner — favorites are personal, not republished.
  */

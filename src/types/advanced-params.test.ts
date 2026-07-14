@@ -58,6 +58,17 @@ describe('AdvancedParamsSchema', () => {
     expect(result.data?.negativePrompt).toBeUndefined()
   })
 
+  it('accepts only the allowlisted Runner upscaler', () => {
+    expect(
+      AdvancedParamsSchema.safeParse({ runnerUpscaler: '4x-AnimeSharp' })
+        .success,
+    ).toBe(true)
+    expect(
+      AdvancedParamsSchema.safeParse({ runnerUpscaler: 'arbitrary.pth' })
+        .success,
+    ).toBe(false)
+  })
+
   it('rejects guidanceScale out of range', () => {
     const result = AdvancedParamsSchema.safeParse({ guidanceScale: 999 })
     expect(result.success).toBe(false)

@@ -38,6 +38,7 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
       guidanceScale: 6.5,
       steps: 28,
       seed: 1234567890,
+      runnerSeed: '1234567890',
     })
     expect(plan.loraScale).toBe(0.85)
     // 832/1216 ≈ 0.684 → nearest supported ratio is 3:4 (0.75), not 9:16
@@ -46,13 +47,22 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
     expect(plan.extraLoras).toEqual([])
   })
 
-  it('lists unsupported params (sampler/clipSkip) as skipped instead of dropping silently', () => {
+  it('normalizes Civitai sampler+scheduler and keeps unsupported clipSkip visible', () => {
     const plan = buildCivitaiRecipeGenerationPlan(
-      makeRecipe({ sampler: 'DPM++ 2M Karras', clipSkip: 2, steps: 30 }),
+      makeRecipe({
+        sampler: 'DPM++ 2M Karras',
+        scheduler: 'Karras',
+        clipSkip: 2,
+        steps: 30,
+      }),
     )
 
-    expect(plan.advancedParams).toEqual({ steps: 30 })
-    expect(plan.skippedParams).toContain('sampler')
+    expect(plan.advancedParams).toEqual({
+      steps: 30,
+      runnerSampler: 'dpmpp_2m',
+      runnerScheduler: 'karras',
+    })
+    expect(plan.skippedParams).not.toContain('sampler')
     expect(plan.skippedParams).toContain('clipSkip')
   })
 
@@ -61,7 +71,7 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
       makeRecipe({
         cfgScale: 45, // schema max 30
         steps: 150, // schema max 100
-        seed: 99999999999, // schema max 4294967295
+        seed: '18446744073709551616', // above uint64 max
         loraWeight: 3, // LoraSchema scale max 2
       }),
     )
@@ -78,6 +88,10 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
       makeRecipe({ sizeRaw: '512x768' }),
     )
     expect(plan.aspectRatio).toBe('3:4')
+    expect(plan.advancedParams).toMatchObject({
+      runnerWidth: 512,
+      runnerHeight: 768,
+    })
 
     const landscape = buildCivitaiRecipeGenerationPlan(
       makeRecipe({ sizeRaw: '1920 x 1080' }),
@@ -93,9 +107,35 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
     expect(plan.skippedParams).toContain('size')
   })
 
-  it('keeps seed -1 (random) since the schema allows it', () => {
+  it('rejects negative/random sentinel seeds for exact replay', () => {
     const plan = buildCivitaiRecipeGenerationPlan(makeRecipe({ seed: -1 }))
-    expect(plan.advancedParams?.seed).toBe(-1)
+    expect(plan.advancedParams).toBeUndefined()
+    expect(plan.skippedParams).toContain('seed')
+  })
+
+  it('preserves a large Civitai seed as an exact decimal string', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({ seed: '5536891017203' }),
+    )
+    expect(plan.advancedParams).toEqual({ runnerSeed: '5536891017203' })
+    expect(plan.appliedParams).toContain('seed')
+  })
+
+  it('prefers meta.Size base dimensions over the final upscaled image size', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({
+        width: 1664,
+        height: 2432,
+        baseWidth: 832,
+        baseHeight: 1216,
+        sizeRaw: '832x1216',
+      }),
+    )
+    expect(plan.advancedParams).toMatchObject({
+      runnerWidth: 832,
+      runnerHeight: 1216,
+    })
+    expect(plan.aspectRatio).toBe('3:4')
   })
 
   it('passes extraLoras through so the UI can warn about limited fidelity', () => {
@@ -138,6 +178,7 @@ describe('applyRecipePlanToAdvancedParams', () => {
     expect(next.guidanceScale).toBe(6.5)
     expect(next.steps).toBe(28)
     expect(next.seed).toBe(42)
+    expect(next.runnerSeed).toBe('42')
     // unrelated existing params untouched
     expect(next.quality).toBe('high')
   })

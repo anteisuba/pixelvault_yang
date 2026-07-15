@@ -4244,6 +4244,8 @@
       "research": "Reference work",
       "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
       "send": "Send",
+      "expandMessage": "Show full reply",
+      "collapseMessage": "Show one paragraph",
       "references": "Canvas references",
       "addReference": "Attach an image or video reference",
       "removeReference": "Remove reference",

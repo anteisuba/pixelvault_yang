@@ -4244,6 +4244,8 @@
       "research": "参考作品",
       "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
       "send": "发送",
+      "expandMessage": "展开全文",
+      "collapseMessage": "收成一段",
       "references": "鐢诲竷鍙傝€?",
       "addReference": "娣诲姞鍥剧墖鎴栬棰戝弬鑰?",
       "removeReference": "绉婚櫎鍙傝€?",

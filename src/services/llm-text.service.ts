@@ -25,6 +25,12 @@ import { fetchAsBuffer } from '@/services/storage/r2'
 export interface LlmTextInput {
   systemPrompt: string
   userPrompt: string
+  /**
+   * Optional bounded override for callers that compose structured context
+   * around user messages. Injection checks still run; only the length ceiling
+   * changes from the generic prompt default.
+   */
+  promptGuardMaxLength?: number
   /** Optional per-call model override for specialized LLM tasks. */
   modelId?: string
   /** Optional per-call token budget. */
@@ -764,9 +770,9 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
  * to remember to call `validatePrompt` themselves — this is the single
  * choke-point every LLM request flows through.
  */
-function guardUserPrompt(prompt: string): void {
+function guardUserPrompt(prompt: string, maxLength?: number): void {
   if (!prompt) return
-  const result = validatePrompt(prompt)
+  const result = validatePrompt(prompt, maxLength)
   if (!result.valid) {
     throw new Error(`Prompt rejected by guard: ${result.reason}`)
   }
@@ -780,7 +786,7 @@ function guardUserPrompt(prompt: string): void {
  * Supports pure text and multimodal (image + text) input.
  */
 export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
-  guardUserPrompt(input.userPrompt)
+  guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
       return geminiTextCompletion(input)

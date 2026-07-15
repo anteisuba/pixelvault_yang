@@ -81,13 +81,18 @@ const nextConfig: NextConfig = {
     //                             that browsers honour over the legacy
     //                             header.
     //   - upgrade-insecure-requests — coerces any stray http:// URL to
-    //                             https:// before the request fires.
+    //                             https:// before the request fires. Keep it
+    //                             production-only: mobile browser emulation
+    //                             otherwise upgrades localhost dev assets and
+    //                             leaves the page permanently unstyled.
     const cspDirectives = [
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      'upgrade-insecure-requests',
+      ...(process.env.NODE_ENV === 'development'
+        ? []
+        : ['upgrade-insecure-requests']),
     ].join('; ')
 
     return [

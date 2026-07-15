@@ -28,6 +28,7 @@ import {
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
 } from '@/constants/config'
+import { MAX_COMPILED_PROMPT_LENGTH } from '@/services/kernel/prompt-guard'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -64,6 +65,33 @@ describe('resolveLlmTextRoute', () => {
 })
 
 describe('llmTextCompletion - Gemini', () => {
+  it('accepts a composed prompt above the default guard when the caller supplies a bounded override', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'long context ok' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'a'.repeat(5000),
+      promptGuardMaxLength: MAX_COMPILED_PROMPT_LENGTH,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    expect(result).toBe('long context ok')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('returns text content from a successful Gemini API response', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

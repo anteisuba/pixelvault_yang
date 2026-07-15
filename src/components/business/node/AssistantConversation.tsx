@@ -4,6 +4,8 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Image as ImageIcon,
   Loader2,
   Paperclip,
@@ -23,6 +25,7 @@ import {
 } from '@/components/ui/responsive-popover'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
+import { NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 
@@ -49,6 +52,19 @@ interface AssistantConversationProps {
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
 }
 
+function getAssistantMessagePreview(content: string): string {
+  const firstParagraph = content.trim().split(/\r?\n\s*\r?\n/, 1)[0] ?? ''
+  const normalized = firstParagraph.replace(/\s+/g, ' ').trim()
+  if (
+    normalized.length <= NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW.maxPreviewChars
+  ) {
+    return normalized
+  }
+  return `${normalized
+    .slice(0, NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW.maxPreviewChars)
+    .trimEnd()}…`
+}
+
 export function AssistantConversation({
   messages,
   isLoading,
@@ -65,6 +81,9 @@ export function AssistantConversation({
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
   const [draft, setDraft] = useState('')
+  const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [selectedReferences, setSelectedReferences] = useState<
     NodeAssistantMediaReference[]
   >([])
@@ -81,6 +100,18 @@ export function AssistantConversation({
     setSelectedReferences((current) =>
       current.filter((reference) => reference.id !== referenceId),
     )
+  }, [])
+
+  const toggleMessageExpanded = useCallback((messageId: string) => {
+    setExpandedMessageIds((current) => {
+      const next = new Set(current)
+      if (next.has(messageId)) {
+        next.delete(messageId)
+      } else {
+        next.add(messageId)
+      }
+      return next
+    })
   }, [])
 
   const handleSubmit = useCallback(
@@ -126,64 +157,98 @@ export function AssistantConversation({
             ) : null}
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                'flex',
-                message.role === 'user' ? 'justify-end' : 'justify-start',
-              )}
-            >
+          messages.map((message, index) => {
+            const isStreamingMessage =
+              isLoading &&
+              index === messages.length - 1 &&
+              message.role === 'assistant'
+            const isCollapsible =
+              message.role === 'assistant' &&
+              !isStreamingMessage &&
+              message.content.length >=
+                NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW.collapseThresholdChars
+            const isExpanded = expandedMessageIds.has(message.id)
+
+            return (
               <div
+                key={message.id}
                 className={cn(
-                  'max-w-sm rounded-2xl px-3 py-2 text-sm leading-6',
-                  message.role === 'user'
-                    ? 'bg-node-foreground text-node-canvas'
-                    : 'border border-node-panel-inner bg-node-panel-soft text-node-foreground',
+                  'flex',
+                  message.role === 'user' ? 'justify-end' : 'justify-start',
                 )}
               >
-                {message.content ? (
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                ) : (
-                  <div className="flex items-center gap-2 text-node-muted">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    {t('thinking')}
-                  </div>
-                )}
-                {message.references?.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {message.references.map((reference) => (
-                      <button
-                        key={reference.nodeId}
-                        type="button"
-                        onClick={() => onFocusNode(reference.nodeId)}
-                        className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground"
-                      >
-                        {getNodeLabel(reference.nodeId)}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {message.capabilities?.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {message.capabilities.map((reference) => (
-                      <button
-                        key={`${reference.capability}:${reference.nodeId}`}
-                        type="button"
-                        disabled={!onRunCapability}
-                        onClick={() =>
-                          onRunCapability && void onRunCapability(reference)
-                        }
-                        className="rounded-full border border-node-edge/50 bg-node-edge/10 px-2 py-1 text-2xs font-semibold text-node-foreground transition-colors hover:bg-node-edge/20 disabled:cursor-default disabled:opacity-60"
-                      >
-                        {reference.capability}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+                <div
+                  className={cn(
+                    'max-w-sm rounded-2xl px-3 py-2 text-sm leading-6',
+                    message.role === 'user'
+                      ? 'bg-node-foreground text-node-canvas'
+                      : 'border border-node-panel-inner bg-node-panel-soft text-node-foreground',
+                  )}
+                >
+                  {message.content ? (
+                    <p className="whitespace-pre-wrap">
+                      {isCollapsible && !isExpanded
+                        ? getAssistantMessagePreview(message.content)
+                        : message.content}
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-2 text-node-muted">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      {t('thinking')}
+                    </div>
+                  )}
+                  {isCollapsible ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggleMessageExpanded(message.id)}
+                      className="mt-1 h-8 rounded-lg px-2 text-2xs text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="size-3.5" />
+                      ) : (
+                        <ChevronDown className="size-3.5" />
+                      )}
+                      {isExpanded ? t('collapseMessage') : t('expandMessage')}
+                    </Button>
+                  ) : null}
+                  {message.references?.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {message.references.map((reference) => (
+                        <button
+                          key={reference.nodeId}
+                          type="button"
+                          onClick={() => onFocusNode(reference.nodeId)}
+                          className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground"
+                        >
+                          {getNodeLabel(reference.nodeId)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {message.capabilities?.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {message.capabilities.map((reference) => (
+                        <button
+                          key={`${reference.capability}:${reference.nodeId}`}
+                          type="button"
+                          disabled={!onRunCapability}
+                          onClick={() =>
+                            onRunCapability && void onRunCapability(reference)
+                          }
+                          className="rounded-full border border-node-edge/50 bg-node-edge/10 px-2 py-1 text-2xs font-semibold text-node-foreground transition-colors hover:bg-node-edge/20 disabled:cursor-default disabled:opacity-60"
+                        >
+                          {reference.capability}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
 
         {error ? (

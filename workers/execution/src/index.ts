@@ -5084,6 +5084,8 @@ function extractReplicateImageUrl(output: unknown): string {
 
 interface RunnerSubmitResult {
   id: string
+  width: number
+  height: number
 }
 
 const RUNNER_UINT64_MAX = '18446744073709551615'
@@ -5366,16 +5368,35 @@ async function submitRunnerImageJob(
   if (!id) {
     throw new Error('Runner submit response did not include a job id.')
   }
-  return { id }
+  const outputScale = upscaler?.scale ?? 1
+  return {
+    id,
+    width: dimensions.width * outputScale,
+    height: dimensions.height * outputScale,
+  }
 }
 
 type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 
-interface RunnerPollResult {
-  status: RunnerPollStatus
-  imageBase64?: string
-  error?: string
-}
+type RunnerPollResult =
+  | { status: 'IN_QUEUE' | 'IN_PROGRESS' }
+  | { status: 'FAILED'; error: string }
+  | { status: 'COMPLETED'; imageBase64: string }
+
+type PersistedRunnerPollResult =
+  | { status: 'IN_QUEUE' | 'IN_PROGRESS' }
+  | { status: 'FAILED'; error: string }
+  | {
+      status: 'COMPLETED'
+      artifactUrl: string
+      imageR2Key: string
+      mimeType: string
+    }
+
+type CompletedPersistedRunnerPollResult = Extract<
+  PersistedRunnerPollResult,
+  { status: 'COMPLETED' }
+>
 
 function normalizeRunPodStatus(raw: string): RunnerPollStatus {
   const normalized = raw.toUpperCase()
@@ -5442,6 +5463,25 @@ async function pollRunnerImageJob(
   }
 
   return { status: 'COMPLETED', imageBase64 }
+}
+
+export async function pollAndPersistRunnerImageJob(
+  jobId: string,
+  env: ExecutionEnv,
+  apiKey: string,
+  imageR2Key: string,
+): Promise<PersistedRunnerPollResult> {
+  const pollResult = await pollRunnerImageJob(jobId, env, apiKey)
+  if (pollResult.status !== 'COMPLETED') return pollResult
+
+  const uploaded = await uploadImageBytesToKey(
+    env,
+    base64ToBytes(pollResult.imageBase64),
+    'image/png',
+    imageR2Key,
+  )
+
+  return { status: 'COMPLETED', ...uploaded }
 }
 
 function isNovelAiV4Model(externalModelId: string): boolean {
@@ -5771,7 +5811,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             `poll-fal-image-${attempt}`,
             {
               retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-              timeout: '30 seconds',
+              timeout: '120 seconds',
             },
             async () => {
               const apiKey = await decryptStateString(encryptedApiKey, this.env)
@@ -5936,7 +5976,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           },
         )
 
-        let completed: RunnerPollResult | undefined
+        let completed: CompletedPersistedRunnerPollResult | undefined
         for (
           let attempt = 1;
           !completed && attempt <= context.maxAttempts;
@@ -5955,7 +5995,15 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             },
             async () => {
               const apiKey = await decryptStateString(encryptedApiKey, this.env)
-              return pollRunnerImageJob(submitted.id, this.env, apiKey)
+              // A completed RunPod response contains the full image as base64.
+              // Persist it before this step returns so Workflow state only stores
+              // the compact R2 reference (non-stream step results are capped at 1 MiB).
+              return pollAndPersistRunnerImageJob(
+                submitted.id,
+                this.env,
+                apiKey,
+                getWorkerImageOutputKey(context),
+              )
             },
           )
 
@@ -5973,33 +6021,18 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           }
         }
 
-        if (!completed?.imageBase64) {
+        if (!completed) {
           throw new Error(
             'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
           )
         }
 
-        const runnerDimensions = getStandardImageDimensions(
-          context.providerInput.aspectRatio,
-        )
-        const uploaded = await step.do(
-          'upload-runner-image',
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '60 seconds',
-          },
-          () =>
-            uploadImageBytesToKey(
-              this.env,
-              base64ToBytes(completed!.imageBase64!),
-              'image/png',
-              getWorkerImageOutputKey(context),
-            ),
-        )
-
         result = {
-          ...uploaded,
-          ...runnerDimensions,
+          artifactUrl: completed.artifactUrl,
+          imageR2Key: completed.imageR2Key,
+          mimeType: completed.mimeType,
+          width: submitted.width,
+          height: submitted.height,
           providerMetadata: { runpodJobId: submitted.id },
         }
       } else if (context.providerId === 'gemini') {

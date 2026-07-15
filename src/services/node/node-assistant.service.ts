@@ -61,23 +61,76 @@ function buildNodeSummary(nodes: NodeAssistantNodeContext[]): string {
     return 'No nodes on the canvas yet.'
   }
 
-  return nodes
+  const summary = nodes
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes)
     .map((node) => {
       const summary = node.summary ? ` — ${node.summary}` : ''
       return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${summary}`
     })
     .join('\n')
+
+  return truncateContextBlock(
+    summary,
+    NODE_STUDIO_ASSISTANT_LIMITS.maxNodeContextPromptLength,
+    'Additional canvas nodes omitted to fit the assistant context window.',
+  )
 }
 
-function buildConversation(messages: NodeAssistantMessage[]): string {
-  // Full transcript — request schema already applied the DoS maxMessages guard.
-  return messages
-    .map((message) => {
-      const label = message.role === 'user' ? 'User' : 'Assistant'
-      return `${label}: ${message.content}`
-    })
-    .join('\n\n')
+function truncateContextBlock(
+  value: string,
+  maxLength: number,
+  omissionMessage: string,
+): string {
+  if (value.length <= maxLength) return value
+
+  const marker = `\n[${omissionMessage}]`
+  const contentLength = Math.max(0, maxLength - marker.length)
+  return `${value.slice(0, contentLength).trimEnd()}${marker}`
+}
+
+function buildConversation(
+  messages: NodeAssistantMessage[],
+  maxLength: number,
+): string {
+  const entries = messages.map((message) => {
+    const label = message.role === 'user' ? 'User' : 'Assistant'
+    return `${label}: ${message.content}`
+  })
+  const kept: string[] = []
+  let keptLength = 0
+
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (!entry) continue
+
+    const separatorLength = kept.length > 0 ? 2 : 0
+    if (keptLength + separatorLength + entry.length > maxLength) {
+      break
+    }
+
+    kept.unshift(entry)
+    keptLength += separatorLength + entry.length
+  }
+
+  // A single oversized latest message should still reach the prompt guard and
+  // fail explicitly instead of disappearing from the model request.
+  if (kept.length === 0) {
+    return entries.at(-1) ?? ''
+  }
+
+  let omittedCount = entries.length - kept.length
+  if (omittedCount === 0) return kept.join('\n\n')
+
+  let marker = `[${omittedCount} earlier messages omitted to fit the assistant context window.]`
+  while (kept.length > 1 && marker.length + 2 + keptLength > maxLength) {
+    const removed = kept.shift()
+    if (!removed) break
+    keptLength -= removed.length + (kept.length > 0 ? 2 : 0)
+    omittedCount += 1
+    marker = `[${omittedCount} earlier messages omitted to fit the assistant context window.]`
+  }
+
+  return `${marker}\n\n${kept.join('\n\n')}`
 }
 
 function buildSelectedNodeText(selectedNodeIds: string[]): string {
@@ -96,7 +149,7 @@ function buildReferenceSummary(
 ): string {
   if (references.length === 0) return 'No image or video references attached.'
 
-  return references
+  const summary = references
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
     .map((reference) => {
       const poster = reference.thumbnailUrl
@@ -105,6 +158,12 @@ function buildReferenceSummary(
       return `- [${reference.kind}] ${reference.label} (node ${reference.nodeId})\n  url: ${reference.url}${poster}`
     })
     .join('\n')
+
+  return truncateContextBlock(
+    summary,
+    NODE_STUDIO_ASSISTANT_LIMITS.maxReferenceContextPromptLength,
+    'Additional media reference details omitted to fit the assistant context window.',
+  )
 }
 
 function buildNodeAssistantSystemPrompt(request: NodeAssistantRequest): string {
@@ -159,7 +218,7 @@ ${formatWebContext(webContext)}`
 }
 
 function buildNodeAssistantUserPrompt(request: NodeAssistantRequest): string {
-  return `CURRENT CANVAS NODES:
+  const prefix = `CURRENT CANVAS NODES:
 ${buildNodeSummary(request.nodes)}
 
 SELECTED NODES:
@@ -168,10 +227,17 @@ ${buildSelectedNodeText(request.selectedNodeIds)}
 ATTACHED IMAGE / VIDEO REFERENCES:
 ${buildReferenceSummary(request.references ?? [])}
 
-CONVERSATION:
-${buildConversation(request.messages)}
+CONVERSATION:\n`
+  const suffix = '\n\nRespond to the latest user message.'
+  const conversationBudget = Math.max(
+    1,
+    NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength -
+      prefix.length -
+      suffix.length,
+  )
+  const conversation = buildConversation(request.messages, conversationBudget)
 
-Respond to the latest user message.`
+  return `${prefix}${conversation}${suffix}`
 }
 
 function streamFromText(text: string): ReadableStream<Uint8Array> {
@@ -231,6 +297,7 @@ export async function createNodeAssistantStream(
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
         maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxResearchOutputTokens,
+        promptGuardMaxLength: NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
       })
 
       return streamFromText(text)
@@ -251,6 +318,7 @@ export async function createNodeAssistantStream(
       apiKey: route.apiKey,
       maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxResearchOutputTokens,
       useGrounding,
+      promptGuardMaxLength: NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
     })
 
     return streamFromText(text)
@@ -279,6 +347,7 @@ export async function createNodeAssistantStream(
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
     maxTokens: NODE_STUDIO_ASSISTANT_LIMITS.maxOutputTokens,
+    promptGuardMaxLength: NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
   })
 
   return streamFromText(text)

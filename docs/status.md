@@ -1,12 +1,14 @@
 # 项目状态
 
-最后更新：2026-07-14
+最后更新：2026-07-15
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
-## Latest implementation status (2026-07-14)
+## Latest implementation status (2026-07-15)
 
-- LoRA source-image replay writes steps/CFG, exact uint64 seed, allowlisted sampler/scheduler, and source dimensions into the Runner request. HF discovery now defaults to public image-generation LoRAs across multiple base families, uses the Hub's real next cursor, provides family filters and exact file selection, excludes non-image adapters and the mis-tagged 4.18 GB (3.90 GiB) Anima Base checkpoint, and keeps missing trigger words empty. The LoRA workbench also supports zero-LoRA Anima Base generation, editable Runner parameters, exact-dimension validation, and an independent `4x-AnimeSharp` post-process control; the Runner path is hash pinned. RunPod S3 last verified 22 objects / ~47.09 GiB and still had no installed upscaler. Worker/fork deployment, the first live large-seed/upscale job, and owner visual QA remain.
+- LoRA source-image replay writes steps/CFG, exact uint64 seed, allowlisted sampler/scheduler, and source dimensions into the Runner request. HF discovery supports public image-generation LoRAs across multiple base families with real cursor pagination, family filters, and exact file selection. The LoRA workbench supports zero-LoRA Anima Base generation, editable Runner parameters, exact-dimension validation, and independent `4x-AnimeSharp` post-processing. Execution Worker version `b5d08a0e-d7c6-4d1e-88d4-c0ed77bbc505` was deployed on 2026-07-15; completed Runner images are now persisted to R2 inside the polling step so Workflow state only carries compact metadata (avoids the 1 MiB non-stream step-result limit). Exact live replay job `21d9d401-74e2-4d1b-b848-603ef08b1606` completed through RunPod + production callback at 6144×2592. RunPod S3 confirmed `models/upscale_models/4x-AnimeSharp.pth` at 67,010,245 bytes. App/frontend changes remain local pending owner-approved commit/push.
+- Mobile Gallery E2E no longer misclassifies an unstyled localhost page as horizontal overflow: development omits CSP `upgrade-insecure-requests`, while production retains it. The release mobile suite passes 23/23, including Gallery at 375/390/430/820 px.
+- Node assistant model context is bounded independently from the stored transcript, and long assistant replies can collapse to a one-paragraph preview. Focused tests, full Vitest (3358 tests), typecheck, lint, and live browser checks pass; these app changes remain local pending owner-approved commit/push.
 - `.next` was removed, Next route types regenerated, and `npm run typecheck` passes.
 - Audio previews now use an inline Fish Audio adapter only when development points at a loopback execution worker; production still requires the worker. Network failures are surfaced as structured 502 errors.
 - Canvas and Studio assistants now share the `AssistantShell` frame and `AssistantShellHeader`; canvas history/share controls are anchored at the rail edge. Read-only conversation shares use expiring hashed tokens, an authenticated create API, a public read API, and a locale-aware share page.

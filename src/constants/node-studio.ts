@@ -145,7 +145,9 @@ export const NODE_STUDIO_ASSISTANT_MESSAGE_ROLES = [
 
 export const NODE_STUDIO_ASSISTANT_LIMITS = {
   // Conversation has no product UX cap — these are DoS / payload guards only.
-  // Keep high enough that multi-turn canvas chats never 400 on history length.
+  // Keep high enough that multi-turn canvas chats never 400 on stored history.
+  // The model-facing prompt is bounded separately below, so the UI can retain
+  // the full transcript without sending an ever-growing request to providers.
   maxMessages: 500,
   maxMessageLength: 100_000,
   maxNodes: 32,
@@ -153,6 +155,9 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   maxNodeSummaryLength: 900,
   maxSelectedNodes: 12,
   maxReferences: 8,
+  maxInputPromptLength: 32_000,
+  maxNodeContextPromptLength: 8000,
+  maxReferenceContextPromptLength: 6000,
   // gpt-5 / o-series spend completion budget on hidden reasoning tokens first.
   // 900 was enough for Gemini/Qwen but often returned empty text on gpt-5.5
   // (finish_reason=length, reasoning_tokens≈budget, content=null). Align with
@@ -166,6 +171,11 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
 export const NODE_STUDIO_ASSISTANT = {
   gatewayModelId: 'openai/gpt-5.5',
   fallbackModelLabel: 'Workspace BYOK route',
+} as const
+
+export const NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW = {
+  collapseThresholdChars: 360,
+  maxPreviewChars: 220,
 } as const
 
 export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {

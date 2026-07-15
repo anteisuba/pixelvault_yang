@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   computeTieredDimensions,
@@ -13,6 +13,7 @@ import {
   parseLongVideoPipelineRunContext,
   parseModel3DRunContext,
   parseWorkerRunContext,
+  pollAndPersistRunnerImageJob,
   signBody,
   tieredGeminiDimensions,
   tieredOpenAISize,
@@ -20,6 +21,10 @@ import {
   toHex,
   verifySignedBody,
 } from './index'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 // Mirrors index.ts's EXECUTION_SIGNATURE_HEADER — not exported, so the
 // literal is duplicated here rather than exporting it just for tests.
@@ -267,6 +272,53 @@ describe('parseModel3DRunContext', () => {
     })
     delete (input.providerInput as Record<string, unknown>).imageUrl
     expect(parseModel3DRunContext(input)).toBeNull()
+  })
+})
+
+describe('pollAndPersistRunnerImageJob', () => {
+  it('stores completed Runner image bytes in R2 and returns only compact metadata', async () => {
+    const imageBase64 = Buffer.alloc(1_100_000, 7).toString('base64')
+    const put = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'COMPLETED',
+            output: { images: [{ data: imageBase64 }] },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    )
+
+    const env = {
+      RUNPOD_ENDPOINT: 'runner-endpoint',
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      GENERATION_BUCKET: { put },
+    } as unknown as Parameters<typeof pollAndPersistRunnerImageJob>[1]
+
+    const result = await pollAndPersistRunnerImageJob(
+      'runner-job-1',
+      env,
+      'runpod-key',
+      'image/run-1.png',
+    )
+
+    expect(result).toEqual({
+      status: 'COMPLETED',
+      artifactUrl: 'https://cdn.example.com/image/run-1.png',
+      imageR2Key: 'image/run-1.png',
+      mimeType: 'image/png',
+    })
+    expect(JSON.stringify(result).length).toBeLessThan(1024)
+    expect(put).toHaveBeenCalledWith(
+      'image/run-1.png',
+      expect.any(Uint8Array),
+      { httpMetadata: { contentType: 'image/png' } },
+    )
+    const uploadedBytes = put.mock.calls[0]?.[1] as Uint8Array
+    expect(uploadedBytes.byteLength).toBe(1_100_000)
   })
 })
 

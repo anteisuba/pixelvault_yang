@@ -38,6 +38,7 @@ vi.mock('@/services/web-research.service', () => ({
 }))
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
@@ -153,6 +154,38 @@ describe('createNodeAssistantStream', () => {
       'db_user_1',
       'key-selected',
     )
+  })
+
+  it('bounds long conversation context while preserving the latest user turn', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Continue from the latest turn.')
+    const oldestMarker = 'oldest-history-marker'
+    const latestMarker = 'latest-user-turn-marker'
+    const messages = [
+      { role: 'user' as const, content: `${oldestMarker} ${'a'.repeat(1200)}` },
+      ...Array.from({ length: 40 }, (_, index) => ({
+        role: (index % 2 === 0 ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: `history-${index} ${'b'.repeat(1200)}`,
+      })),
+      { role: 'user' as const, content: latestMarker },
+    ]
+
+    await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      messages,
+    })
+
+    const input = mockLlmTextCompletion.mock.calls[0]?.[0] as
+      | { promptGuardMaxLength?: number; userPrompt?: string }
+      | undefined
+    expect(input?.promptGuardMaxLength).toBe(
+      NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
+    )
+    expect(input?.userPrompt?.length).toBeLessThanOrEqual(
+      NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
+    )
+    expect(input?.userPrompt).toContain(latestMarker)
+    expect(input?.userPrompt).not.toContain(oldestMarker)
+    expect(input?.userPrompt).toContain('earlier messages omitted')
   })
 })
 

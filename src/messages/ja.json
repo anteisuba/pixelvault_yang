@@ -4244,6 +4244,8 @@
       "research": "参考作品",
       "researchHint": "映画/アニメ/短編をWeb検索し、オリジナル脚本のアイデアに変換（Gemini/OpenAIルート）",
       "send": "送信",
+      "expandMessage": "全文を表示",
+      "collapseMessage": "1段落に戻す",
       "references": "銈儯銉炽儛銈广伄鍙傝€?",
       "addReference": "鐢诲儚銇嬪嫊鐢画伄鍙傝€冦倰娣诲姞",
       "removeReference": "鍙傝€冦倰蜿夊幓",

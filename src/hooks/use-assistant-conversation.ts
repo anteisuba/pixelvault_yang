@@ -11,6 +11,7 @@ import {
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import type {
@@ -197,6 +198,7 @@ export function useAssistantConversation(
 ): UseAssistantConversationValue {
   const { projectId = null, persist = true } = options
   const t = useTranslations('StudioNode')
+  const tErrors = useTranslations('Errors')
   const [messages, setMessages] = useState<AssistantConversationMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isHydrating, setIsHydrating] = useState(Boolean(persist && projectId))
@@ -364,7 +366,9 @@ export function useAssistantConversation(
       if (!response.success) {
         setMessages(nextMessages)
         setIsLoading(false)
-        setError(response.error)
+        setError(
+          getApiErrorMessage(tErrors, response, t('assistant.streamFailed')),
+        )
         return
       }
 
@@ -407,7 +411,7 @@ export function useAssistantConversation(
         )
       }
     },
-    [isLoading, persistMessages, sessionId, t],
+    [isLoading, persistMessages, sessionId, t, tErrors],
   )
 
   const retry = useCallback(
@@ -461,7 +465,9 @@ export function useAssistantConversation(
       if (!response.success) {
         setMessages(withoutTrailingAssistant)
         setIsLoading(false)
-        setError(response.error)
+        setError(
+          getApiErrorMessage(tErrors, response, t('assistant.streamFailed')),
+        )
         return
       }
 
@@ -501,7 +507,7 @@ export function useAssistantConversation(
         )
       }
     },
-    [persistMessages, sessionId, t],
+    [persistMessages, sessionId, t, tErrors],
   )
 
   const clear = useCallback(() => {

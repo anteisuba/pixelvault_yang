@@ -22,7 +22,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 vi.mock('next-intl', () => {
-  const t = (key: string) => key
+  const t = Object.assign((key: string) => key, { has: () => true })
 
   return {
     useTranslations: () => t,
@@ -161,6 +161,25 @@ describe('useAssistantConversation', () => {
       role: 'user',
       content: 'hello',
     })
+  })
+
+  it('localizes structured provider errors from the Node assistant route', async () => {
+    mockStreamNodeAssistantAPI.mockResolvedValue({
+      success: false,
+      error: 'raw provider error',
+      errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+      i18nKey: 'errors.provider.contextLimitExceeded',
+    })
+
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
+
+    await act(async () => {
+      await result.current.send('hello', CONTEXT)
+    })
+
+    expect(result.current.error).toBe('provider.contextLimitExceeded')
   })
 
   it('forwards the selected assistant api key route', async () => {

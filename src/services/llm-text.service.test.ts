@@ -20,6 +20,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  isLlmTextContextLimitError,
   resolveLlmTextRoute,
   llmTextCompletion,
 } from '@/services/llm-text.service'
@@ -39,6 +40,20 @@ const GEMINI_KEY = {
   adapterType: AI_ADAPTER_TYPES.GEMINI,
   encryptedKey: 'enc',
   isActive: true,
+}
+
+function readFetchJson(
+  fetchMock: ReturnType<typeof vi.fn>,
+  callIndex = 0,
+): Record<string, unknown> {
+  const requestInit = fetchMock.mock.calls[callIndex]?.[1] as
+    | RequestInit
+    | undefined
+  const body = requestInit?.body
+  if (typeof body !== 'string') {
+    throw new Error('Expected provider request body to be a JSON string')
+  }
+  return JSON.parse(body) as Record<string, unknown>
 }
 
 describe('resolveLlmTextRoute', () => {
@@ -64,7 +79,48 @@ describe('resolveLlmTextRoute', () => {
   })
 })
 
+describe('isLlmTextContextLimitError', () => {
+  it('recognizes AI SDK errors that carry provider detail in responseBody', () => {
+    const error = Object.assign(new Error('Bad Request'), {
+      responseBody: JSON.stringify({
+        error: { message: 'Maximum context length exceeded.' },
+      }),
+    })
+
+    expect(isLlmTextContextLimitError(error)).toBe(true)
+  })
+})
+
 describe('llmTextCompletion - Gemini', () => {
+  it('omits the app output cap when the provider manages the budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'provider managed' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      generationConfig?: { maxOutputTokens?: number }
+    }
+    expect(payload.generationConfig?.maxOutputTokens).toBeUndefined()
+  })
+
   it('accepts a composed prompt above the default guard when the caller supplies a bounded override', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -206,9 +262,75 @@ describe('llmTextCompletion - Gemini', () => {
         'The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.',
     })
   })
+
+  it('classifies Gemini input-token failures as context-limit errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              message:
+                'The input token count exceeds the maximum context length for this model.',
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+    )
+
+    let caught: unknown
+    try {
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: {
+          label: 'Gemini',
+          baseUrl: 'https://generativelanguage.googleapis.com',
+        },
+        apiKey: 'test-key',
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught).toMatchObject({
+      errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+      httpStatus: 400,
+      i18nKey: 'errors.provider.contextLimitExceeded',
+    })
+    expect(isLlmTextContextLimitError(caught)).toBe(true)
+  })
 })
 
 describe('llmTextCompletion - OpenAI', () => {
+  it('omits the app output cap when the provider manages the budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'provider managed' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+    })
+
+    const payload = readFetchJson(fetchMock)
+    expect(payload.max_completion_tokens).toBeUndefined()
+    expect(payload.max_tokens).toBeUndefined()
+  })
+
   it('returns content from a successful OpenAI response', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -315,6 +437,39 @@ describe('llmTextCompletion - OpenAI', () => {
       httpStatus: 502,
       i18nKey: 'errors.provider.outputBudgetExhausted',
     })
+  })
+
+  it('does not classify output-budget exhaustion as an input context limit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ finish_reason: 'length', message: { content: null } }],
+            usage: { completion_tokens_details: { reasoning_tokens: 4096 } },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    let caught: unknown
+    try {
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'sk-test',
+      })
+    } catch (error) {
+      caught = error
+    }
+
+    expect(isLlmTextContextLimitError(caught)).toBe(false)
   })
 
   it('floors low maxTokens for gpt-5 reasoning models', async () => {
@@ -439,6 +594,32 @@ describe('llmTextCompletion - OpenAI', () => {
 })
 
 describe('llmTextCompletion - DeepSeek', () => {
+  it('omits the app output cap when the provider manages the budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'provider managed' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+    })
+
+    expect(readFetchJson(fetchMock).max_tokens).toBeUndefined()
+  })
+
   it('calls the DeepSeek chat API with JSON response format', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -539,6 +720,32 @@ describe('llmTextCompletion - DeepSeek', () => {
 })
 
 describe('llmTextCompletion - DashScope (Qwen)', () => {
+  it('omits the app output cap when the provider manages the budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'provider managed' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+      providerConfig: {
+        label: 'Qwen',
+        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      },
+      apiKey: 'sk-qwen',
+    })
+
+    expect(readFetchJson(fetchMock).max_tokens).toBeUndefined()
+  })
+
   it('calls the Qwen chat API and injects json + enable_thinking for JSON mode', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

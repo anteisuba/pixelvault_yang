@@ -6,7 +6,6 @@ import {
   useRef,
   useEffect,
   useState,
-  type ChangeEvent,
   type KeyboardEvent,
 } from 'react'
 import TextareaAutosize from 'react-textarea-autosize'
@@ -18,7 +17,6 @@ import {
   Copy,
   Globe,
   ImagePlus,
-  Images,
   Languages,
   Loader2,
   Plus,
@@ -29,7 +27,7 @@ import {
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssistantReferencePicker } from '@/components/business/assistant/AssistantReferencePicker'
 import { Button } from '@/components/ui/button'
 import { Message, MessageContent } from '@/components/ui/message'
 import {
@@ -38,12 +36,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import {
   usePromptAssistant,
@@ -488,9 +480,6 @@ function AssistantAnimatedInput({
 }: AssistantAnimatedInputProps) {
   const tForm = useTranslations('StudioForm')
   const [isComposing, setIsComposing] = useState(false)
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
-  const [imagePopoverOpen, setImagePopoverOpen] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const responseLanguageOption = responseLanguageOptions.find(
     (option) => option.value === responseLanguage,
   )
@@ -503,17 +492,6 @@ function AssistantAnimatedInput({
     if (!canSubmit || disabled) return
     event.preventDefault()
     onSubmit()
-  }
-
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (file) void onReferenceFile(file)
-  }
-
-  const handleAssetSelect = (generation: GenerationRecord) => {
-    if (generation.outputType !== 'IMAGE') return
-    void onReferenceAsset(generation)
   }
 
   // Pasting an image into the composer fills the reference slot — mirrors
@@ -636,54 +614,24 @@ function AssistantAnimatedInput({
               <Globe className="size-4" />
             </Button>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
+            <AssistantReferencePicker
               disabled={disabled}
+              hasSelection={hasReferenceImage}
+              labels={{
+                trigger: imageButtonLabel,
+                triggerTitle: attachLabel,
+                title: imageButtonLabel,
+                imageDropHint,
+                recentImages: recentAssetsLabel,
+                recentImagesEmpty: recentAssetsEmptyLabel,
+                openLibrary: openLibraryLabel,
+                libraryTitle: assetDialogTitle,
+                libraryDescription: assetDialogDescription,
+              }}
+              onPickImageFile={onReferenceFile}
+              onPickImageAsset={onReferenceAsset}
+              triggerClassName="size-8 rounded-lg p-0 hover:bg-background/70"
             />
-            {/* 图片入口收敛为一个按钮 → 素材 popover（拖/粘/传 + 最近素材 + 素材库） */}
-            <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={imageButtonLabel}
-                  title={attachLabel}
-                  disabled={disabled}
-                  className={cn(
-                    'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                    hasReferenceImage && 'bg-primary/10 text-primary',
-                  )}
-                >
-                  <Images className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" sideOffset={8} className="w-72 p-3">
-                <ImagePickerPopoverBody
-                  dropHint={imageDropHint}
-                  recentLabel={recentAssetsLabel}
-                  recentEmptyLabel={recentAssetsEmptyLabel}
-                  openLibraryLabel={openLibraryLabel}
-                  onPickFile={() => fileInputRef.current?.click()}
-                  onDropFile={(file) => {
-                    void onReferenceFile(file)
-                    setImagePopoverOpen(false)
-                  }}
-                  onPickAsset={(generation) => {
-                    void onReferenceAsset(generation)
-                    setImagePopoverOpen(false)
-                  }}
-                  onOpenLibrary={() => {
-                    setImagePopoverOpen(false)
-                    setAssetDialogOpen(true)
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
 
             {showClear && (
               <Button
@@ -711,14 +659,6 @@ function AssistantAnimatedInput({
           </Button>
         </div>
       </div>
-      <AssetSelectorDialog
-        open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
-        onSelect={handleAssetSelect}
-        title={assetDialogTitle}
-        description={assetDialogDescription}
-        mediaType="image"
-      />
     </div>
   )
 }

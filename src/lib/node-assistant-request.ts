@@ -70,10 +70,12 @@ function sanitizeReferences(
           ? reference.thumbnailUrl.trim()
           : ''
       const label = reference.label.trim() || reference.kind
+      const nodeId = reference.nodeId?.trim()
 
       return {
         id: reference.id.trim(),
-        nodeId: reference.nodeId.trim(),
+        ...(nodeId ? { nodeId } : {}),
+        ...(reference.source ? { source: reference.source } : {}),
         kind: reference.kind,
         url: url.slice(0, 4000),
         ...(thumbnail && isHttpUrl(thumbnail)
@@ -83,7 +85,7 @@ function sanitizeReferences(
       } satisfies NodeAssistantMediaReference
     })
     .filter((reference): reference is NodeAssistantMediaReference =>
-      Boolean(reference?.id && reference.nodeId),
+      Boolean(reference?.id),
     )
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
 

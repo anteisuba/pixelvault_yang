@@ -5,6 +5,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { NodeAssistantRequestSchema } from '@/types/node-assistant'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import { logger } from '@/lib/logger'
+import { isGenerationError } from '@/lib/errors'
 import { sanitizeNodeAssistantRequestBody } from '@/lib/node-assistant-request'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -79,6 +80,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     })
   } catch (error) {
+    if (isGenerationError(error)) {
+      logger.warn(`${routeName} provider error`, {
+        errorCode: error.errorCode,
+        httpStatus: error.httpStatus,
+        durationMs: Date.now() - startedAt,
+      })
+      return NextResponse.json(error.toJSON(), { status: error.httpStatus })
+    }
+
     logger.error(`${routeName} unhandled error`, {
       error: error instanceof Error ? error.message : String(error),
       durationMs: Date.now() - startedAt,

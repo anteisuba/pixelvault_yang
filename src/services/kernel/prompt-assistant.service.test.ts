@@ -13,9 +13,15 @@ vi.mock('@/services/user.service', () => ({
 
 const mockLlmCompletion = vi.fn()
 const mockResolveLlmRoute = vi.fn()
+const mockIsContextLimitError = vi.fn(
+  (error: unknown) =>
+    error instanceof Error && error.message === 'context limit',
+)
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
   resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
+  isLlmTextContextLimitError: (error: unknown) =>
+    mockIsContextLimitError(error),
 }))
 
 const mockBuildInspirationContext = vi.fn()
@@ -78,6 +84,54 @@ describe('chatPromptAssistant', () => {
     expect(result.prompt).toBe(
       'a cat sitting under a tree, golden hour lighting',
     )
+    expect(mockLlmCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
+      }),
+    )
+  })
+
+  it('sends full history first, then compacts once on a provider context error', async () => {
+    mockLlmCompletion
+      .mockRejectedValueOnce(new Error('context limit'))
+      .mockResolvedValueOnce('```\nrecovered prompt\n```')
+    const oldestMarker = 'studio-oldest-marker'
+    const latestMarker = 'studio-latest-marker'
+    const messages = [
+      { role: 'user' as const, content: `${oldestMarker} ${'a'.repeat(1800)}` },
+      ...Array.from({ length: 30 }, (_, index) => ({
+        role: (index % 2 === 0 ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: `history-${index} ${'b'.repeat(1800)}`,
+      })),
+      { role: 'user' as const, content: latestMarker },
+    ]
+
+    await expect(chatPromptAssistant('clerk_1', messages)).resolves.toEqual({
+      prompt: 'recovered prompt',
+    })
+
+    expect(mockLlmCompletion).toHaveBeenCalledTimes(2)
+    expect(mockLlmCompletion.mock.calls[0]?.[0]?.userPrompt).toContain(
+      oldestMarker,
+    )
+    expect(mockLlmCompletion.mock.calls[1]?.[0]?.userPrompt).toContain(
+      'earlier messages compacted',
+    )
+    expect(mockLlmCompletion.mock.calls[1]?.[0]?.userPrompt).toContain(
+      latestMarker,
+    )
+  })
+
+  it('does not retry failures unrelated to the provider input context', async () => {
+    mockLlmCompletion.mockRejectedValue(new Error('provider unavailable'))
+
+    await expect(
+      chatPromptAssistant('clerk_1', [
+        { role: 'user', content: 'keep this request' },
+      ]),
+    ).rejects.toThrow('provider unavailable')
+    expect(mockLlmCompletion).toHaveBeenCalledTimes(1)
   })
 
   it('falls back to raw text when no code block is present', async () => {

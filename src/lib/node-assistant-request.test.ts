@@ -78,6 +78,34 @@ describe('sanitizeNodeAssistantRequest', () => {
     ])
   })
 
+  it('keeps uploaded assistant media even when it is not a canvas node', () => {
+    const result = sanitizeNodeAssistantRequest(
+      baseRequest({
+        references: [
+          {
+            id: 'uploaded-image:1',
+            source: 'upload',
+            kind: 'image',
+            url: 'https://cdn.example.com/reference.png',
+            thumbnailUrl: 'https://cdn.example.com/reference-thumb.png',
+            label: 'reference.png',
+          },
+        ],
+      }),
+    )
+
+    expect(result.references).toEqual([
+      {
+        id: 'uploaded-image:1',
+        source: 'upload',
+        kind: 'image',
+        url: 'https://cdn.example.com/reference.png',
+        thumbnailUrl: 'https://cdn.example.com/reference-thumb.png',
+        label: 'reference.png',
+      },
+    ])
+  })
+
   it('caps selectedNodeIds', () => {
     const selectedNodeIds = Array.from(
       { length: NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes + 5 },

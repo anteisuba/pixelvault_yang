@@ -47,7 +47,9 @@ export const NodeAssistantNodeContextSchema = z.object({
  */
 export const NodeAssistantMediaReferenceSchema = z.object({
   id: z.string().trim().min(1).max(160),
-  nodeId: z.string().trim().min(1).max(160),
+  /** Present for references selected from an existing canvas node. */
+  nodeId: z.string().trim().min(1).max(160).optional(),
+  source: z.enum(['canvas', 'upload', 'gallery']).optional(),
   kind: z.enum(['image', 'video']),
   url: z.string().trim().url().max(4000),
   thumbnailUrl: z.string().trim().url().max(4000).optional(),

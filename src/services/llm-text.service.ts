@@ -30,11 +30,13 @@ export interface LlmTextInput {
    * around user messages. Injection checks still run; only the length ceiling
    * changes from the generic prompt default.
    */
-  promptGuardMaxLength?: number
+  promptGuardMaxLength?: number | null
   /** Optional per-call model override for specialized LLM tasks. */
   modelId?: string
   /** Optional per-call token budget. */
   maxTokens?: number
+  /** Omit app-level output caps and let the selected model apply its own limit. */
+  providerManagedOutput?: boolean
   /** Request strict JSON where the provider supports it. */
   responseFormat?: 'json_object'
   /**
@@ -145,6 +147,7 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
 const LLM_TEXT_PROVIDER_HTTP_STATUS = {
+  invalidRequest: 400,
   unauthorized: 401,
   forbidden: 403,
   paymentRequired: 402,
@@ -161,6 +164,8 @@ const LLM_TEXT_PROVIDER_ERROR_CODES = {
   failed: 'PROVIDER_ERROR',
   /** Completion budget used up (often by reasoning) before any visible text. */
   outputBudgetExhausted: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
+  /** The provider rejected the request because its input context was too long. */
+  contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
@@ -170,6 +175,7 @@ const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   temporarilyUnavailable: 'errors.provider.temporarilyUnavailable',
   failed: 'errors.provider.failed',
   outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
+  contextLimitExceeded: 'errors.provider.contextLimitExceeded',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
@@ -185,7 +191,71 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
     'The selected planner provider rejected the request. Try another Agent Key.',
   outputBudgetExhausted:
     'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.',
+  contextLimitExceeded:
+    'The selected model rejected the input because its context window was exceeded. PixelVault already compacted older history and retried once; start a new conversation or remove large references.',
 } as const
+
+const LLM_TEXT_CONTEXT_LIMIT_PATTERNS = [
+  /maximum context length/i,
+  /context (?:length|window).*(?:exceed|too (?:large|long)|maximum)/i,
+  /(?:exceed|too (?:large|long)|maximum).*context (?:length|window)/i,
+  /input token count.*(?:exceed|maximum|too (?:large|long))/i,
+  /too many input tokens/i,
+  /prompt (?:is )?too long/i,
+  /maximum input (?:length|tokens?)/i,
+  /range of input length/i,
+] as const
+
+function containsContextLimitMessage(value: string): boolean {
+  return LLM_TEXT_CONTEXT_LIMIT_PATTERNS.some((pattern) => pattern.test(value))
+}
+
+function stringifyClassificationData(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (!value) return ''
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
+  }
+}
+
+function getErrorClassificationText(error: unknown): string {
+  if (error instanceof Error) {
+    const errorRecord = error as Error & {
+      cause?: unknown
+      responseBody?: unknown
+      data?: unknown
+    }
+    const cause = errorRecord.cause
+    const responseBody =
+      typeof errorRecord.responseBody === 'string'
+        ? errorRecord.responseBody
+        : ''
+    const data = stringifyClassificationData(errorRecord.data)
+    return `${error.name} ${error.message} ${responseBody} ${data} ${
+      cause && cause !== error ? getErrorClassificationText(cause) : ''
+    }`
+  }
+  if (error && typeof error === 'object') {
+    const record = error as { responseBody?: unknown; message?: unknown }
+    return [record.message, record.responseBody]
+      .filter((value): value is string => typeof value === 'string')
+      .join(' ')
+  }
+  return typeof error === 'string' ? error : ''
+}
+
+export function isLlmTextContextLimitError(error: unknown): boolean {
+  if (
+    error instanceof ApiRequestError &&
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.contextLimitExceeded
+  ) {
+    return true
+  }
+
+  return containsContextLimitMessage(getErrorClassificationText(error))
+}
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
   switch (adapterType) {
@@ -366,6 +436,15 @@ function toLlmTextProviderError(
     )
   }
 
+  if (containsContextLimitMessage(errorBody)) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.contextLimitExceeded,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.contextLimitExceeded,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.contextLimitExceeded,
+    )
+  }
+
   if (
     parsedCode === GENERATION_ERROR_CODES.PROVIDER_OVERLOADED ||
     responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.temporarilyUnavailable
@@ -533,7 +612,9 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ['TEXT'],
-        ...(input.maxTokens ? { maxOutputTokens: input.maxTokens } : {}),
+        ...(!input.providerManagedOutput && input.maxTokens
+          ? { maxOutputTokens: input.maxTokens }
+          : {}),
         ...(input.responseFormat === 'json_object'
           ? { responseMimeType: 'application/json' }
           : {}),
@@ -595,10 +676,12 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     body: JSON.stringify({
       model: requestModelId,
       messages,
-      ...getOpenAiTokenLimit(
-        requestModelId,
-        resolveOpenAiCompletionBudget(requestModelId, input.maxTokens),
-      ),
+      ...(!input.providerManagedOutput
+        ? getOpenAiTokenLimit(
+            requestModelId,
+            resolveOpenAiCompletionBudget(requestModelId, input.maxTokens),
+          )
+        : {}),
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
@@ -649,7 +732,11 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
         { role: 'system', content: input.systemPrompt },
         { role: 'user', content: input.userPrompt },
       ],
-      max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+      ...(!input.providerManagedOutput
+        ? {
+            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+          }
+        : {}),
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
@@ -732,7 +819,11 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
     body: JSON.stringify({
       model: modelId,
       messages,
-      max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+      ...(!input.providerManagedOutput
+        ? {
+            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+          }
+        : {}),
       ...(wantsJson
         ? { response_format: { type: 'json_object' }, enable_thinking: false }
         : {}),
@@ -770,7 +861,7 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
  * to remember to call `validatePrompt` themselves — this is the single
  * choke-point every LLM request flows through.
  */
-function guardUserPrompt(prompt: string, maxLength?: number): void {
+function guardUserPrompt(prompt: string, maxLength?: number | null): void {
   if (!prompt) return
   const result = validatePrompt(prompt, maxLength)
   if (!result.valid) {

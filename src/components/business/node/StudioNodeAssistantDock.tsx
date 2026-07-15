@@ -39,10 +39,6 @@ import type { ScriptDoc } from '@/types/script-doc'
 import { AssistantConversation } from './AssistantConversation'
 import { CanvasAssistantHistory } from './CanvasAssistantHistory'
 import {
-  CanvasAssistantModalityMenu,
-  type CanvasAssistantModality,
-} from './CanvasAssistantModalityMenu'
-import {
   CanvasAssistantRouteSelector,
   type NodeAssistantRouteSelection,
 } from './CanvasAssistantRouteSelector'
@@ -157,6 +153,7 @@ function getAssistantMediaReferences(
     references.push({
       id: `node-reference:${node.id}`,
       nodeId: node.id,
+      source: 'canvas',
       kind,
       url,
       ...(kind === 'video' && videoThumb && isHttpMediaUrl(videoThumb)
@@ -196,7 +193,6 @@ export function StudioNodeAssistantDock({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
   const [researchEnabled, setResearchEnabled] = useState(false)
-  const [modality, setModality] = useState<CanvasAssistantModality>('image')
   const [lastReferences, setLastReferences] = useState<
     NodeAssistantMediaReference[]
   >([])
@@ -270,19 +266,13 @@ export function StudioNodeAssistantDock({
 
   const handleSend = useCallback(
     async (content: string, references?: NodeAssistantMediaReference[]) => {
-      const prefix =
-        modality === 'video'
-          ? tConversation('modalityPrefix.video')
-          : tConversation('modalityPrefix.image')
-      const body =
-        content.startsWith('[') || !prefix ? content : `${prefix}\n${content}`
       setLastReferences(references ?? [])
-      await conversation.send(body, {
+      await conversation.send(content, {
         ...buildConversationContext(),
         references: references ?? [],
       })
     },
-    [buildConversationContext, conversation, modality, tConversation],
+    [buildConversationContext, conversation],
   )
 
   const handleRetry = useCallback(async () => {
@@ -401,25 +391,6 @@ export function StudioNodeAssistantDock({
   )
 
   const dockStarters = useMemo(() => {
-    if (modality === 'video') {
-      return [
-        {
-          id: 'videoShot',
-          label: t('starters.videoShot.label'),
-          prompt: t('starters.videoShot.prompt'),
-        },
-        {
-          id: 'videoMerge',
-          label: t('starters.videoMerge.label'),
-          prompt: t('starters.videoMerge.prompt'),
-        },
-        {
-          id: 'firstPhase',
-          label: t('starters.firstPhase.label'),
-          prompt: t('starters.firstPhase.prompt'),
-        },
-      ]
-    }
     return [
       {
         id: 'scriptOutline',
@@ -427,9 +398,9 @@ export function StudioNodeAssistantDock({
         prompt: t('starters.scriptOutline.prompt'),
       },
       {
-        id: 'castStyle',
-        label: t('starters.castStyle.label'),
-        prompt: t('starters.castStyle.prompt'),
+        id: 'videoShot',
+        label: t('starters.videoShot.label'),
+        prompt: t('starters.videoShot.prompt'),
       },
       {
         id: 'firstPhase',
@@ -437,7 +408,7 @@ export function StudioNodeAssistantDock({
         prompt: t('starters.firstPhase.prompt'),
       },
     ]
-  }, [modality, t])
+  }, [t])
 
   // The opener line must reflect canvas state — claiming "still empty" while the
   // user has nodes (or an outline) reads as a bug. Switch to an active opener
@@ -582,12 +553,6 @@ export function StudioNodeAssistantDock({
                 getNodeLabel={getNodeLabel}
                 emptyHint={opener}
                 starters={dockStarters}
-                composerTools={
-                  <CanvasAssistantModalityMenu
-                    value={modality}
-                    onChange={setModality}
-                  />
-                }
                 referenceOptions={referenceOptions}
                 onRunCapability={handleRunCapability}
               />
@@ -613,12 +578,6 @@ export function StudioNodeAssistantDock({
               getNodeLabel={getNodeLabel}
               emptyHint={opener}
               starters={dockStarters}
-              composerTools={
-                <CanvasAssistantModalityMenu
-                  value={modality}
-                  onChange={setModality}
-                />
-              }
               referenceOptions={referenceOptions}
               onRunCapability={handleRunCapability}
             />

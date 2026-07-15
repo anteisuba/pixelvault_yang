@@ -7,6 +7,31 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+vi.mock('./CanvasAssistantReferencePicker', () => ({
+  CanvasAssistantReferencePicker: (props: {
+    onAddReference(reference: {
+      id: string
+      kind: 'image'
+      url: string
+      label: string
+    }): void
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        props.onAddReference({
+          id: 'uploaded-image:1',
+          kind: 'image',
+          url: 'https://cdn.example.com/reference.png',
+          label: 'reference.png',
+        })
+      }
+    >
+      addReference
+    </button>
+  ),
+}))
+
 describe('AssistantConversation', () => {
   it('prefills a starter and sends it from the compact composer', async () => {
     const onSend = vi.fn().mockResolvedValue(undefined)
@@ -66,5 +91,32 @@ describe('AssistantConversation', () => {
     expect(
       screen.getByRole('button', { name: 'collapseMessage' }),
     ).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('can send an uploaded reference without requiring typed text', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined)
+    render(
+      <AssistantConversation
+        messages={[]}
+        isLoading={false}
+        error={null}
+        onSend={onSend}
+        onRetry={vi.fn()}
+        onFocusNode={vi.fn()}
+        getNodeLabel={(id) => id}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'addReference' }))
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+
+    await waitFor(() =>
+      expect(onSend).toHaveBeenCalledWith(
+        'referenceOnlyPrompt',
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'uploaded-image:1' }),
+        ]),
+      ),
+    )
   })
 })

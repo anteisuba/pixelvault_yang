@@ -1,14 +1,11 @@
 'use client'
-/* eslint-disable @next/next/no-img-element -- canvas reference thumbnails are user-owned remote URLs. */
 
-import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import {
-  Check,
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
   Loader2,
-  Paperclip,
   RefreshCcw,
   SendHorizontal,
   Video,
@@ -18,16 +15,13 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  ResponsivePopover,
-  ResponsivePopoverContent,
-  ResponsivePopoverTrigger,
-} from '@/components/ui/responsive-popover'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
 import { NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
+
+import { CanvasAssistantReferencePicker } from './CanvasAssistantReferencePicker'
 
 interface AssistantConversationProps {
   messages: AssistantConversationMessage[]
@@ -45,8 +39,6 @@ interface AssistantConversationProps {
   /** Optional starter chips shown in the empty state; clicking prefills the
    *  draft so the user can review before sending (E1 「1 句起手 + 3 短 chips」). */
   starters?: { id: string; label: string; prompt: string }[]
-  /** Haivis-style composer tool slot (modality / attachments). */
-  composerTools?: ReactNode
   /** Image/video nodes available as references for the next assistant turn. */
   referenceOptions?: NodeAssistantMediaReference[]
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
@@ -75,7 +67,6 @@ export function AssistantConversation({
   getNodeLabel,
   emptyHint,
   starters,
-  composerTools,
   referenceOptions = [],
   onRunCapability,
 }: AssistantConversationProps) {
@@ -117,7 +108,9 @@ export function AssistantConversation({
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
-      const nextDraft = draft.trim()
+      const nextDraft =
+        draft.trim() ||
+        (selectedReferences.length > 0 ? t('referenceOnlyPrompt') : '')
       if (!nextDraft || isLoading) {
         return
       }
@@ -130,7 +123,7 @@ export function AssistantConversation({
       }
       setSelectedReferences([])
     },
-    [draft, isLoading, onSend, selectedReferences],
+    [draft, isLoading, onSend, selectedReferences, t],
   )
 
   return (
@@ -305,77 +298,22 @@ export function AssistantConversation({
           />
           <div className="mt-1 flex items-center justify-between gap-2 px-1">
             <div className="flex min-w-0 items-center gap-0.5">
-              {composerTools}
-              {referenceOptions.length > 0 ? (
-                <ResponsivePopover>
-                  <ResponsivePopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={t('addReference')}
-                      title={t('addReference')}
-                      className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
-                    >
-                      <Paperclip className="size-4" />
-                    </Button>
-                  </ResponsivePopoverTrigger>
-                  <ResponsivePopoverContent
-                    label={t('references')}
-                    align="start"
-                    sideOffset={8}
-                    className="w-72 border-node-panel-inner bg-node-panel p-2 text-node-foreground shadow-node-panel"
-                  >
-                    <p className="px-2 pb-1.5 text-2xs font-semibold uppercase tracking-wide text-node-muted">
-                      {t('references')}
-                    </p>
-                    <div className="max-h-56 space-y-1 overflow-y-auto">
-                      {referenceOptions.map((reference) => {
-                        const Icon =
-                          reference.kind === 'video' ? Video : ImageIcon
-                        const isSelected = selectedReferences.some(
-                          (item) => item.id === reference.id,
-                        )
-                        return (
-                          <button
-                            key={reference.id}
-                            type="button"
-                            disabled={isSelected}
-                            onClick={() => addReference(reference)}
-                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground disabled:cursor-default disabled:opacity-60"
-                          >
-                            {reference.thumbnailUrl ? (
-                              <img
-                                src={reference.thumbnailUrl}
-                                alt=""
-                                className="size-7 shrink-0 rounded object-cover"
-                              />
-                            ) : (
-                              <span className="flex size-7 shrink-0 items-center justify-center rounded bg-node-panel-inner">
-                                <Icon className="size-3.5" />
-                              </span>
-                            )}
-                            <span className="min-w-0 flex-1 truncate">
-                              {reference.label}
-                            </span>
-                            {isSelected ? <Check className="size-3.5" /> : null}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </ResponsivePopoverContent>
-                </ResponsivePopover>
-              ) : null}
-              {!composerTools ? (
-                <span className="min-w-0 truncate text-2xs font-medium text-node-subtle">
-                  {t('modeHint')}
-                </span>
-              ) : null}
+              <CanvasAssistantReferencePicker
+                disabled={isLoading}
+                references={referenceOptions}
+                selectedReferences={selectedReferences}
+                onAddReference={addReference}
+              />
+              <span className="min-w-0 truncate text-2xs font-medium text-node-subtle">
+                {t('modeHint')}
+              </span>
             </div>
             <Button
               type="submit"
               size="icon"
-              disabled={!draft.trim() || isLoading}
+              disabled={
+                (!draft.trim() && selectedReferences.length === 0) || isLoading
+              }
               aria-label={t('send')}
               className="size-10 shrink-0 rounded-full bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
             >

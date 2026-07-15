@@ -1254,12 +1254,15 @@ export async function chatPromptAssistantAPI(
     })
 
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Assistant failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Assistant failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
 

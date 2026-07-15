@@ -14,9 +14,15 @@ vi.mock('@/services/user.service', () => ({
 
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
+const mockIsLlmTextContextLimitError = vi.fn(
+  (error: unknown) =>
+    error instanceof Error && error.message === 'context limit',
+)
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
+  isLlmTextContextLimitError: (error: unknown) =>
+    mockIsLlmTextContextLimitError(error),
 }))
 
 const mockFindActiveKeyForAdapter = vi.fn()
@@ -83,6 +89,8 @@ async function* createTextStream(chunks: string[]): AsyncIterable<string> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockLlmTextCompletion.mockReset()
+  mockStreamText.mockReset()
   vi.unstubAllEnvs()
   vi.stubEnv('AI_GATEWAY_API_KEY', '')
   vi.stubEnv('VERCEL', '')
@@ -113,11 +121,41 @@ describe('createNodeAssistantStream', () => {
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.GEMINI,
         apiKey: 'gemini-key',
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
         // label≠actual fix: the Gemini assistant route resolves to the
         // assistant-table model (3.5 Flash), not the generic text default.
         modelId: 'gemini-3.5-flash',
       }),
     )
+  })
+
+  it('includes directly uploaded media references without requiring a canvas node id', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Use the attached image.')
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      references: [
+        {
+          id: 'uploaded-image:1',
+          source: 'upload',
+          kind: 'image',
+          url: 'https://cdn.example.com/reference.png',
+          label: 'reference.png',
+        },
+      ],
+    })
+
+    await readStream(stream)
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt).toContain(
+      '[image] reference.png (upload)',
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt).toContain(
+      'https://cdn.example.com/reference.png',
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.imageData).toEqual([
+      'https://cdn.example.com/reference.png',
+    ])
   })
 
   it('streams through AI Gateway when configured', async () => {
@@ -134,6 +172,9 @@ describe('createNodeAssistantStream', () => {
         model: 'openai/gpt-5.5',
         prompt: expect.stringContaining('[[node:node-1]]'),
       }),
+    )
+    expect(mockStreamText.mock.calls[0]?.[0]).not.toHaveProperty(
+      'maxOutputTokens',
     )
     expect(mockEnsureUser).not.toHaveBeenCalled()
   })
@@ -156,7 +197,7 @@ describe('createNodeAssistantStream', () => {
     )
   })
 
-  it('bounds long conversation context while preserving the latest user turn', async () => {
+  it('sends full conversation context and lets the provider enforce its model limit', async () => {
     mockLlmTextCompletion.mockResolvedValue('Continue from the latest turn.')
     const oldestMarker = 'oldest-history-marker'
     const latestMarker = 'latest-user-turn-marker'
@@ -175,17 +216,118 @@ describe('createNodeAssistantStream', () => {
     })
 
     const input = mockLlmTextCompletion.mock.calls[0]?.[0] as
-      | { promptGuardMaxLength?: number; userPrompt?: string }
+      | {
+          promptGuardMaxLength?: number | null
+          providerManagedOutput?: boolean
+          maxTokens?: number
+          userPrompt?: string
+        }
       | undefined
-    expect(input?.promptGuardMaxLength).toBe(
-      NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
-    )
-    expect(input?.userPrompt?.length).toBeLessThanOrEqual(
-      NODE_STUDIO_ASSISTANT_LIMITS.maxInputPromptLength,
-    )
+    expect(input?.promptGuardMaxLength).toBeNull()
+    expect(input?.providerManagedOutput).toBe(true)
+    expect(input?.maxTokens).toBeUndefined()
     expect(input?.userPrompt).toContain(latestMarker)
-    expect(input?.userPrompt).not.toContain(oldestMarker)
-    expect(input?.userPrompt).toContain('earlier messages omitted')
+    expect(input?.userPrompt).toContain(oldestMarker)
+    expect(input?.userPrompt).not.toContain('earlier messages omitted')
+  })
+
+  it('compacts older conversation and retries once after a provider context-limit error', async () => {
+    mockLlmTextCompletion
+      .mockRejectedValueOnce(new Error('context limit'))
+      .mockResolvedValueOnce('Recovered after compaction.')
+    const oldestMarker = 'oldest-history-marker'
+    const latestMarker = 'latest-user-turn-marker'
+    const messages = [
+      { role: 'user' as const, content: `${oldestMarker} ${'a'.repeat(1200)}` },
+      ...Array.from({ length: 40 }, (_, index) => ({
+        role: (index % 2 === 0 ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: `history-${index} ${'b'.repeat(1200)}`,
+      })),
+      { role: 'user' as const, content: latestMarker },
+    ]
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      messages,
+    })
+
+    await expect(readStream(stream)).resolves.toBe(
+      'Recovered after compaction.',
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    const firstPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    const retryPrompt = mockLlmTextCompletion.mock.calls[1]?.[0]?.userPrompt
+    expect(firstPrompt).toContain(oldestMarker)
+    expect(retryPrompt).toContain(oldestMarker)
+    expect(retryPrompt).toContain(latestMarker)
+    expect(retryPrompt).toContain('earlier messages compacted')
+    expect(retryPrompt.length).toBeLessThanOrEqual(
+      NODE_STUDIO_ASSISTANT_LIMITS.contextCompactionTargetLength,
+    )
+  })
+
+  it('does not retry errors that are unrelated to the input context limit', async () => {
+    mockLlmTextCompletion.mockRejectedValueOnce(new Error('provider offline'))
+
+    await expect(
+      createNodeAssistantStream('clerk_user_1', REQUEST),
+    ).rejects.toThrow('provider offline')
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+  })
+
+  it('bounds an oversized latest message on the context-limit retry', async () => {
+    mockLlmTextCompletion
+      .mockRejectedValueOnce(new Error('context limit'))
+      .mockResolvedValueOnce('Recovered after compacting the latest message.')
+    const latestMessage = `latest-head ${'x'.repeat(60_000)} latest-tail`
+
+    await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      messages: [{ role: 'user', content: latestMessage }],
+    })
+
+    const retryPrompt = mockLlmTextCompletion.mock.calls[1]?.[0]?.userPrompt
+    expect(retryPrompt.length).toBeLessThanOrEqual(
+      NODE_STUDIO_ASSISTANT_LIMITS.contextCompactionTargetLength,
+    )
+    expect(retryPrompt).toContain('latest-head')
+    expect(retryPrompt).toContain('latest-tail')
+    expect(retryPrompt).toContain('middle compacted')
+  })
+
+  it('compacts and retries an AI Gateway stream only before output starts', async () => {
+    vi.stubEnv('AI_GATEWAY_API_KEY', 'gateway-key')
+    async function* failBeforeOutput(): AsyncIterable<string> {
+      throw new Error('context limit')
+    }
+    mockStreamText
+      .mockReturnValueOnce({ textStream: failBeforeOutput() })
+      .mockReturnValueOnce({
+        textStream: createTextStream(['Gateway recovered']),
+      })
+    const oldestMarker = 'gateway-oldest-marker'
+    const latestMarker = 'gateway-latest-marker'
+    const messages = [
+      { role: 'user' as const, content: `${oldestMarker} ${'a'.repeat(1200)}` },
+      ...Array.from({ length: 40 }, (_, index) => ({
+        role: (index % 2 === 0 ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: `history-${index} ${'b'.repeat(1200)}`,
+      })),
+      { role: 'user' as const, content: latestMarker },
+    ]
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      messages,
+    })
+
+    await expect(readStream(stream)).resolves.toBe('Gateway recovered')
+    expect(mockStreamText).toHaveBeenCalledTimes(2)
+    expect(mockStreamText.mock.calls[0]?.[0]?.prompt).toContain(oldestMarker)
+    expect(mockStreamText.mock.calls[1]?.[0]?.prompt).toContain(
+      'earlier messages compacted',
+    )
+    expect(mockStreamText.mock.calls[1]?.[0]?.prompt).toContain(latestMarker)
   })
 })
 

@@ -4246,15 +4246,23 @@
       "send": "发送",
       "expandMessage": "展开全文",
       "collapseMessage": "收成一段",
-      "references": "鐢诲竷鍙傝€?",
-      "addReference": "娣诲姞鍥剧墖鎴栬棰戝弬鑰?",
-      "removeReference": "绉婚櫎鍙傝€?",
-      "capabilityUnavailable": "鐢诲竷涓婄殑杩欏紶鍥剧墖宸蹭笉鍙敤銆?",
-      "capabilityFailed": "鐢诲竷鑳藉姏鎵ц澶辫触锛岃閲嶈瘯銆?",
-      "modalityPrefix": {
-        "image": "[图像模式]",
-        "video": "[视频模式]"
-      }
+      "references": "画布参考素材",
+      "addReference": "添加图片或视频参考",
+      "removeReference": "移除参考素材",
+      "capabilityUnavailable": "画布上的这张图片已不可用。",
+      "capabilityFailed": "画布能力执行失败，请重试。",
+      "referencePickerTitle": "添加参考素材",
+      "imageDropHint": "拖入、粘贴或上传图片",
+      "recentImages": "最近图片",
+      "recentImagesEmpty": "还没有最近图片",
+      "openImageLibrary": "打开图片素材库",
+      "imageLibraryTitle": "选择参考图片",
+      "imageLibraryDescription": "从已有素材中选择一张图片，附加到本轮助手对话。",
+      "canvasReferences": "当前画布素材",
+      "uploadVideo": "上传参考视频",
+      "galleryImageLabel": "素材库图片",
+      "referenceUploadFailed": "参考素材上传失败",
+      "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。"
     },
     "minimapTitle": "小地图",
     "castDock": {
@@ -4358,11 +4366,6 @@
       "share": "分享只读链接",
       "shareCopied": "只读链接已复制",
       "shareFailed": "无法创建分享链接"
-    },
-    "modality": {
-      "image": "图像",
-      "video": "视频",
-      "label": "生成模态"
     }
   },
   "StudioV2": {
@@ -4868,6 +4871,7 @@
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
       "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
+      "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",

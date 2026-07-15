@@ -2214,6 +2214,8 @@ export interface PromptAssistantResponse {
   success: boolean
   data?: PromptAssistantResponseData
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 // ─── Prompt Feedback ─────────────────────────────────────────────

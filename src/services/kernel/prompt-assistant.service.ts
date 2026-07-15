@@ -4,13 +4,15 @@ import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import {
+  buildAssistantConversation,
+  completeAssistantTextWithContextRetry,
+  truncateAssistantContextBlock,
+} from '@/services/kernel/assistant-completion.service'
+import {
   formatWebContext,
   resolveResearchRoute,
 } from '@/services/kernel/research-route.service'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveLlmTextRoute } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import {
   gatherWebContext,
@@ -24,6 +26,8 @@ import type {
   PromptAssistantMessage,
   PromptAssistantResponseLanguage,
 } from '@/types'
+
+const PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH = 32_000
 
 // ─── Style preset shortcuts ────────────────────────────────────
 
@@ -115,6 +119,7 @@ If the user is iterating on a previous prompt, build on the last version: keep w
 function flattenConversation(
   messages: PromptAssistantMessage[],
   currentPrompt?: string,
+  maxLength?: number,
 ): string {
   const parts: string[] = []
 
@@ -122,21 +127,77 @@ function flattenConversation(
     parts.push(`[Current prompt in the editor]: ${currentPrompt.trim()}`)
   }
 
+  let fullPrompt: string
   if (messages.length === 1) {
-    // Single turn — just pass the message directly
-    return currentPrompt?.trim()
+    fullPrompt = currentPrompt?.trim()
       ? `${parts[0]}\n\n${messages[0].content}`
       : messages[0].content
+  } else {
+    parts.push('[Conversation history]:')
+    for (const msg of messages) {
+      const label = msg.role === 'user' ? 'User' : 'Assistant'
+      parts.push(`${label}: ${msg.content}`)
+    }
+    fullPrompt = parts.join('\n')
+  }
+  if (maxLength === undefined || fullPrompt.length <= maxLength) {
+    return fullPrompt
   }
 
-  // Multi-turn — flatten with role labels
-  parts.push('[Conversation history]:')
-  for (const msg of messages) {
-    const label = msg.role === 'user' ? 'User' : 'Assistant'
-    parts.push(`${label}: ${msg.content}`)
+  const currentBlock = currentPrompt?.trim()
+    ? `[Current prompt in the editor]: ${currentPrompt.trim()}`
+    : ''
+  const compactedCurrent = currentBlock
+    ? truncateAssistantContextBlock(
+        currentBlock,
+        Math.max(1, Math.floor(maxLength * 0.2)),
+        'Additional editor prompt details compacted for the retry.',
+      )
+    : ''
+  const historyLabel = '[Conversation history]:'
+  const fixedLength =
+    compactedCurrent.length + historyLabel.length + (compactedCurrent ? 4 : 1)
+  const conversation = buildAssistantConversation(
+    messages,
+    Math.max(1, maxLength - fixedLength),
+  )
+
+  return [compactedCurrent, `${historyLabel}\n${conversation}`]
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+function buildPromptAssistantUserPrompt(
+  messages: PromptAssistantMessage[],
+  currentPrompt?: string,
+  webContext?: WebContext,
+  maxLength?: number,
+): string {
+  if (!webContext || !hasWebContext(webContext)) {
+    return flattenConversation(messages, currentPrompt, maxLength)
   }
 
-  return parts.join('\n')
+  const webBlock = `WEB CONTEXT (use this as your primary evidence for factual claims):
+${formatWebContext(webContext)}`
+  if (maxLength === undefined) {
+    return `${flattenConversation(messages, currentPrompt)}\n\n${webBlock}`
+  }
+
+  const webBudget = Math.max(1, Math.floor(maxLength * 0.25))
+  const compactedWebBlock = truncateAssistantContextBlock(
+    webBlock,
+    webBudget,
+    'Additional web research context compacted for the retry.',
+  )
+  const conversationBudget = Math.max(
+    1,
+    maxLength - compactedWebBlock.length - 2,
+  )
+  return `${flattenConversation(
+    messages,
+    currentPrompt,
+    conversationBudget,
+  )}\n\n${compactedWebBlock}`
 }
 
 // ─── Extract prompt from LLM response ──────────────────────────
@@ -181,25 +242,21 @@ export async function chatPromptAssistant(
     if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
   }
 
-  let userPrompt = flattenConversation(messages, currentPrompt)
-
   // Research turn — same two-tier policy as the node assistant:
   // Serper-gathered context lets ANY writing model (incl. DeepSeek/Qwen)
   // answer; otherwise borrow provider-native grounding when possible.
   let route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
   let useGrounding: boolean | undefined
+  let webContext: WebContext | undefined
   if (research) {
     const latestUserText =
       [...messages].reverse().find((msg) => msg.role === 'user')?.content ?? ''
-    const webContext: WebContext = latestUserText
+    const gatheredContext: WebContext = latestUserText
       ? await gatherWebContext(latestUserText)
       : { results: [], pages: [] }
 
-    if (hasWebContext(webContext)) {
-      userPrompt = `${userPrompt}
-
-WEB CONTEXT (use this as your primary evidence for factual claims):
-${formatWebContext(webContext)}`
+    if (hasWebContext(gatheredContext)) {
+      webContext = gatheredContext
     } else {
       const researchRoute = await resolveResearchRoute(dbUser.id, apiKeyId)
       route = researchRoute.route
@@ -207,13 +264,19 @@ ${formatWebContext(webContext)}`
     }
   }
 
-  const rawResult = await llmTextCompletion({
+  const rawResult = await completeAssistantTextWithContextRetry({
     systemPrompt,
-    userPrompt,
+    buildUserPrompt: (maxLength) =>
+      buildPromptAssistantUserPrompt(
+        messages,
+        currentPrompt,
+        webContext,
+        maxLength,
+      ),
+    route,
+    contextCompactionTargetLength:
+      PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
     imageData: referenceImageData || undefined,
-    adapterType: route.adapterType,
-    providerConfig: route.providerConfig,
-    apiKey: route.apiKey,
     useGrounding,
   })
 

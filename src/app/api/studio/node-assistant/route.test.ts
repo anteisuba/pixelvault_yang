@@ -15,6 +15,7 @@ vi.mock('@/services/node/node-assistant.service', () => ({
 }))
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { ApiRequestError } from '@/lib/errors'
 
 import { POST } from './route'
 
@@ -108,5 +109,29 @@ describe('POST /api/studio/node-assistant', () => {
     const body = await parseJSON<{ success: boolean; error: string }>(response)
     expect(body.success).toBe(false)
     expect(body.error).toBeTruthy()
+  })
+
+  it('preserves structured provider errors for client localization', async () => {
+    mockAuthenticated()
+    mockCreateNodeAssistantStream.mockRejectedValue(
+      new ApiRequestError(
+        'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+        400,
+        'errors.provider.contextLimitExceeded',
+        'The model context limit was exceeded.',
+      ),
+    )
+
+    const response = await POST(
+      createPOST('/api/studio/node-assistant', REQUEST_BODY),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'The model context limit was exceeded.',
+      errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+      i18nKey: 'errors.provider.contextLimitExceeded',
+    })
   })
 })

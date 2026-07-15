@@ -4246,15 +4246,23 @@
       "send": "送信",
       "expandMessage": "全文を表示",
       "collapseMessage": "1段落に戻す",
-      "references": "銈儯銉炽儛銈广伄鍙傝€?",
-      "addReference": "鐢诲儚銇嬪嫊鐢画伄鍙傝€冦倰娣诲姞",
-      "removeReference": "鍙傝€冦倰蜿夊幓",
-      "capabilityUnavailable": "銈儯銉炽儛銈广伄鐢诲儚銇亾銇嫊浣滄媴銇屻仹銇嶃伨銇涖倱銆?",
-      "capabilityFailed": "鐢诲竷鑳藉姏銇疄琛屻伀澶辨晽銇椼伨銇椼仧銆傚啀搴﹁│琛屻仐銇︺亸銇犮仌銇?",
-      "modalityPrefix": {
-        "image": "[画像モード]",
-        "video": "[動画モード]"
-      }
+      "references": "キャンバスの参照素材",
+      "addReference": "画像または動画の参照を追加",
+      "removeReference": "参照素材を削除",
+      "capabilityUnavailable": "キャンバス上の画像は利用できなくなりました。",
+      "capabilityFailed": "キャンバス機能の実行に失敗しました。もう一度お試しください。",
+      "referencePickerTitle": "参照素材を追加",
+      "imageDropHint": "画像をドロップ、貼り付け、またはアップロード",
+      "recentImages": "最近の画像",
+      "recentImagesEmpty": "最近の画像はありません",
+      "openImageLibrary": "画像ライブラリを開く",
+      "imageLibraryTitle": "参照画像を選択",
+      "imageLibraryDescription": "既存の画像を選び、このアシスタントのターンに添付します。",
+      "canvasReferences": "現在のキャンバス",
+      "uploadVideo": "参照動画をアップロード",
+      "galleryImageLabel": "ギャラリー画像",
+      "referenceUploadFailed": "参照素材のアップロードに失敗しました",
+      "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。"
     },
     "minimapTitle": "ミニマップ",
     "castDock": {
@@ -4358,11 +4366,6 @@
       "share": "読み取り専用リンクを共有",
       "shareCopied": "読み取り専用リンクをコピーしました",
       "shareFailed": "共有リンクを作成できませんでした"
-    },
-    "modality": {
-      "image": "画像",
-      "video": "動画",
-      "label": "生成モード"
     }
   },
   "StudioV2": {
@@ -4868,6 +4871,7 @@
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
       "outputBudgetExhausted": "この推論モデルは、返信を書く前に出力枠を使い切りました。再試行するか、非推論モデル（例: Gemini / Qwen）に切り替えるか、プロンプトを短くしてください。",
+      "contextLimitExceeded": "PixelVault が古い履歴を圧縮して一度再試行した後も、このモデルのコンテキスト上限を超えました。新しい会話を始めるか、大きな参照を削除してください。",
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
       "callbackTimeout": "生成 Worker から時間内に結果が返りませんでした。もう一度試すか、Worker ログを確認してください。",
       "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",

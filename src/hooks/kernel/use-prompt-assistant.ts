@@ -13,6 +13,7 @@ import {
   getAssistantConversationAPI,
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 
 /** Style preset shortcuts — must stay in sync with prompt-assistant.service */
 export const STYLE_SHORTCUTS = {
@@ -82,6 +83,7 @@ function setPromptAssistantState(
 
 export function usePromptAssistant() {
   const t = useTranslations('PromptAssistant')
+  const tErrors = useTranslations('Errors')
   const state = useSyncExternalStore(
     subscribePromptAssistant,
     getPromptAssistantSnapshot,
@@ -185,11 +187,11 @@ export function usePromptAssistant() {
         setPromptAssistantState((prev) => ({
           ...prev,
           isLoading: false,
-          error: result.error ?? t('failed'),
+          error: getApiErrorMessage(tErrors, result, t('failed')),
         }))
       }
     },
-    [t],
+    [t, tErrors],
   )
 
   const applyPreset = useCallback(

@@ -4247,14 +4247,22 @@
       "expandMessage": "Show full reply",
       "collapseMessage": "Show one paragraph",
       "references": "Canvas references",
-      "addReference": "Attach an image or video reference",
+      "addReference": "Add an image or video reference",
       "removeReference": "Remove reference",
       "capabilityUnavailable": "That canvas image is no longer available.",
       "capabilityFailed": "The canvas capability failed. Try again.",
-      "modalityPrefix": {
-        "image": "[Image mode]",
-        "video": "[Video mode]"
-      }
+      "referencePickerTitle": "Add reference media",
+      "imageDropHint": "Drop, paste, or upload an image",
+      "recentImages": "Recent images",
+      "recentImagesEmpty": "No recent images",
+      "openImageLibrary": "Open image library",
+      "imageLibraryTitle": "Select a reference image",
+      "imageLibraryDescription": "Choose an existing image to attach to this assistant turn.",
+      "canvasReferences": "On this canvas",
+      "uploadVideo": "Upload reference video",
+      "galleryImageLabel": "Gallery image",
+      "referenceUploadFailed": "Reference upload failed",
+      "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps."
     },
     "minimapTitle": "Minimap",
     "castDock": {
@@ -4358,11 +4366,6 @@
       "share": "Share read-only link",
       "shareCopied": "Read-only link copied",
       "shareFailed": "Could not create a share link"
-    },
-    "modality": {
-      "image": "Image",
-      "video": "Video",
-      "label": "Generation type"
     }
   },
   "StudioV2": {
@@ -4868,6 +4871,7 @@
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
+      "contextLimitExceeded": "This model's context window is still too small after PixelVault compacted older history and retried once. Start a new conversation or remove large references.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",

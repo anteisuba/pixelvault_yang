@@ -52,7 +52,7 @@ export interface PromptValidationResult {
 /** Validate a user-provided prompt. Returns structured result. */
 export function validatePrompt(
   prompt: string,
-  maxLength: number = MAX_PROMPT_LENGTH,
+  maxLength: number | null = MAX_PROMPT_LENGTH,
 ): PromptValidationResult {
   const warnings: string[] = []
 
@@ -62,7 +62,7 @@ export function validatePrompt(
   }
 
   // Length check
-  if (prompt.length > maxLength) {
+  if (maxLength !== null && prompt.length > maxLength) {
     return {
       valid: false,
       reason: `Prompt exceeds maximum length of ${maxLength} characters (got ${prompt.length})`,
@@ -86,7 +86,7 @@ export function validatePrompt(
   }
 
   // Warnings (non-blocking)
-  if (prompt.length > maxLength * 0.8) {
+  if (maxLength !== null && prompt.length > maxLength * 0.8) {
     warnings.push(
       `Prompt is ${Math.round((prompt.length / maxLength) * 100)}% of max length`,
     )

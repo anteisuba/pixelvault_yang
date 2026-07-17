@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Check,
   ExternalLink,
-  Loader2,
   Plus,
   Wand2,
   X,
@@ -31,6 +30,7 @@ import {
 } from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   Dialog,
   DialogContent,
@@ -57,12 +57,6 @@ interface LoraSourceRecipeStripProps {
   extraMountStatusByKey: Record<string, ExtraMountStatus>
   extraStackFull: boolean
   disabled?: boolean
-  /**
-   * B10 (§2②): other mounted LoRAs' trigger words. When non-empty (multi-mount),
-   * the recipe panel shows a forward-looking hint that applying will auto-append
-   * these triggers — the parent's onApplyRecipe does the actual appending.
-   */
-  otherMountTriggers?: readonly string[]
   onSelectedImageUrlChange: (imageUrl: string | null) => void
   onIncludeSeedChange: (includeSeed: boolean) => void
   onMountExtraLora: (extra: CivitaiRecipeExtraLora) => void
@@ -93,7 +87,6 @@ export function LoraSourceRecipeStrip({
   extraMountStatusByKey,
   extraStackFull,
   disabled,
-  otherMountTriggers,
   onSelectedImageUrlChange,
   onIncludeSeedChange,
   onMountExtraLora,
@@ -309,15 +302,6 @@ export function LoraSourceRecipeStrip({
             </p>
           ) : null}
 
-          {otherMountTriggers && otherMountTriggers.length > 0 ? (
-            <p className="text-2xs text-muted-foreground">
-              {t('recipeAppendTriggersHint', {
-                name: assetName,
-                triggers: otherMountTriggers.join(', '),
-              })}
-            </p>
-          ) : null}
-
           <div className="flex items-center justify-between gap-2">
             {plan.advancedParams?.runnerSeed !== undefined ? (
               <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
@@ -475,7 +459,7 @@ function ExtraLoraList({
                     onClick={() => onMountExtraLora(extra)}
                   >
                     {status === 'loading' ? (
-                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                      <Spinner size="sm" aria-hidden />
                     ) : (
                       <Plus className="size-3" aria-hidden />
                     )}

@@ -132,4 +132,37 @@ describe('GET /api/lora-assets/civitai', () => {
       expect.objectContaining({ source: undefined }),
     )
   })
+
+  // S2（docs/references/pages/lora-workbench.md §2.5/§3）：URL `type=` 直通
+  // 到 service 的 `contentType` 字段（改名，不是同名透传）。
+  it('defaults contentType to all when type is absent', async () => {
+    const response = await GET(createGET('/api/lora-assets/civitai', {}))
+
+    expect(response.status).toBe(200)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: 'all' }),
+    )
+  })
+
+  it('passes type=clothing through to the service as contentType', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai', { type: 'clothing' }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: 'clothing' }),
+    )
+  })
+
+  it('rejects an invalid type value', async () => {
+    const response = await GET(
+      createGET('/api/lora-assets/civitai', { type: 'not-a-type' }),
+    )
+    const body = await parseJSON<{ success: boolean }>(response)
+
+    expect(response.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(mockListCivitaiLoras).not.toHaveBeenCalled()
+  })
 })

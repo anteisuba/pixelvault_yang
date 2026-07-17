@@ -1,10 +1,13 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import {
+  DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
+  type HuggingFaceLoraSort,
+  type LoraContentType,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import type {
@@ -101,6 +104,8 @@ export async function listCivitaiLoraAssetsAPI(params: {
    * 到结果后回填，第 2+ 页原样带上，防止会话中途换后端打乱分页契约。
    */
   source?: CivitaiSearchBackend
+  /** S2 内容类型筛选（lora-workbench.md §3）。'all'（默认）不入 URL/请求。 */
+  contentType?: LoraContentType
 }): Promise<CivitaiListResponse> {
   try {
     const query = new URLSearchParams()
@@ -114,6 +119,12 @@ export async function listCivitaiLoraAssetsAPI(params: {
       query.set('nsfw', params.nsfwFilter)
     }
     if (params.source) query.set('source', params.source)
+    if (
+      params.contentType &&
+      params.contentType !== DEFAULT_LORA_CONTENT_TYPE
+    ) {
+      query.set('type', params.contentType)
+    }
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,
@@ -140,6 +151,9 @@ export async function listCivitaiLoraAssetsAPI(params: {
 export async function listHuggingFaceLoraAssetsAPI(params: {
   search?: string
   baseModelFamily?: string
+  sort?: HuggingFaceLoraSort
+  /** S2 内容类型筛选（lora-workbench.md §3）。'all'（默认）不入请求。 */
+  contentType?: LoraContentType
   limit?: number
   page?: number
   cursor?: string
@@ -151,6 +165,13 @@ export async function listHuggingFaceLoraAssetsAPI(params: {
       'baseModelFamily',
       params.baseModelFamily ?? HUGGINGFACE_LORA_DEFAULT_FAMILY,
     )
+    if (params.sort) query.set('sort', params.sort)
+    if (
+      params.contentType &&
+      params.contentType !== DEFAULT_LORA_CONTENT_TYPE
+    ) {
+      query.set('type', params.contentType)
+    }
     if (params.limit) query.set('limit', String(params.limit))
     if (params.page) query.set('page', String(params.page))
     if (params.cursor) query.set('cursor', params.cursor)

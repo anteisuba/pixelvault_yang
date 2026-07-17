@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
+import type { PromptTagSelection } from '@/types/prompt-tags'
 
 import { LoraWorkbench } from './LoraWorkbench'
 
@@ -125,6 +126,10 @@ vi.mock('@/contexts/api-keys-context', () => ({
 // here (covered separately by prompt-tag-search/compiler/stack's own
 // suites), so a minimal empty-stack stub keeps these tests focused on the
 // key-gate behavior instead of re-testing the tag-stack engine.
+// S5: allSelections() reads a mutable module-level array so the compile
+// order test (trigger chips → tray tags → free text) can inject a tray
+// selection without re-testing the tag-stack engine itself.
+let mockTraySelections: PromptTagSelection[] = []
 vi.mock('@/hooks/use-prompt-tag-stack', () => ({
   usePromptTagStack: () => ({
     positive: [],
@@ -135,7 +140,7 @@ vi.mock('@/hooks/use-prompt-tag-stack', () => ({
     removeTag: vi.fn(),
     clearTags: vi.fn(),
     setWeight: vi.fn(),
-    allSelections: () => [],
+    allSelections: () => mockTraySelections,
   }),
 }))
 
@@ -162,6 +167,10 @@ vi.mock('@/hooks/use-civitai-lora-library', () => ({
     setSort: vi.fn(),
     baseModel: 'all',
     setBaseModel: vi.fn(),
+    nsfwFilter: 'safe',
+    setNsfwFilter: vi.fn(),
+    contentType: 'all',
+    setContentType: vi.fn(),
     page: 1,
     total: 0,
     hasNextPage: false,
@@ -237,6 +246,7 @@ vi.mock('@/hooks/use-image-upload', () => ({
 beforeEach(() => {
   mockReferenceImages = []
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
+  mockTraySelections = []
 })
 
 const quickSetupSpy = vi.hoisted(() => vi.fn())
@@ -361,6 +371,135 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
   })
 
+  // S5 触发词 chips 化：正文不再 prefill 触发词，触发词改走独立的
+  // TriggerChipRow chip → compilePromptTags selections 管线。
+  it('S5: shows a trigger chip for the mounted LoRA and leaves the prompt textarea empty (no more prefill)', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+    ).toHaveValue('')
+
+    const chip = screen.getByRole('button', { name: /Test LoRA/ })
+    expect(chip).toHaveTextContent('testlora')
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('S5: stays enabled and compiles just the trigger word when the prompt textarea is left empty', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+
+    render(<LoraWorkbench />)
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe('testlora')
+  })
+
+  it('S5: compiles the request prompt as trigger chips (enabled) → tray tags → free text, comma-joined', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockTraySelections = [
+      {
+        id: 'sel-1',
+        tagId: 'tag-1',
+        promptText: 'tray_tag',
+        label: 'Tray Tag',
+        polarity: 'positive',
+        source: 'danbooru',
+        type: 'quality',
+        enabled: true,
+        orderIndex: 0,
+        insertedAt: new Date().toISOString(),
+      },
+    ]
+
+    render(<LoraWorkbench />)
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'my free text' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
+      'testlora, tray_tag, my free text',
+    )
+  })
+
+  it('S5: disabling a trigger chip drops its word from the compiled prompt; re-enabling restores it, ordered first', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+
+    render(<LoraWorkbench />)
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'my free text' } },
+    )
+
+    const chip = screen.getByRole('button', { name: /Test LoRA/ })
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+
+    const generateButton = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.run/,
+    })
+    fireEvent.click(generateButton)
+    expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe('my free text')
+
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(generateButton)
+    expect(mockGenerate.mock.calls[1][0].image.freePrompt).toBe(
+      'testlora, my free text',
+    )
+  })
+
   it('applies Civitai recipe steps and CFG to the real generation request', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
@@ -404,6 +543,54 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       steps: 32,
       guidanceScale: 4,
     })
+  })
+
+  // S5: 一键同款只替换正文，不碰触发词 chips 行——触发词已经从旧版
+  // appendMissingTriggers（拼进 plan.prompt）迁到独立的 chip，chip 在应用
+  // 配方前后都保持挂载/启用，且仍然独立进入编译后的 prompt（排在正文前）。
+  it('S5: applying a recipe only replaces the free text — the trigger chip stays mounted and still compiles into the request', () => {
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'best quality, 1girl',
+      },
+    ]
+
+    render(<LoraWorkbench />)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    )
+
+    expect(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+    ).toHaveValue('best quality, 1girl')
+    const chip = screen.getByRole('button', { name: /Test LoRA/ })
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
+      'testlora, best quality, 1girl',
+    )
   })
 
   it('B9: threads the reference image + strength into the generate request when one is attached', () => {

@@ -95,6 +95,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 1,
     })
@@ -142,6 +144,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'anima-dit',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 1,
     })
@@ -193,6 +197,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: 'test',
       baseModelFamily: 'sdxl',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 1,
     })
@@ -226,6 +232,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: 'size',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 2,
       cursor: 'after-curated',
@@ -267,12 +275,16 @@ describe('huggingface-lora.service', () => {
     const first = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      type: 'all',
       limit: 1,
       page: 1,
     })
     const second = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      type: 'all',
       limit: 1,
       page: 2,
       cursor: first.nextCursor ?? undefined,
@@ -306,6 +318,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'pony',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 1,
     })
@@ -313,6 +327,34 @@ describe('huggingface-lora.service', () => {
     expect(result.items.map((item) => item.repoId)).toEqual([
       'author/pony-style',
     ])
+  })
+
+  // S1 统一外壳：HF 排序实测（lora-workbench.md §2.1）确认 trendingScore /
+  // downloads / lastModified 三值都被 Hub 接受，服务端把选中的排序原样转发
+  // 给 /api/models（此前硬编码 'downloads'）。
+  it('forwards the requested sort to the Hub models endpoint', async () => {
+    mockSafeFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/models/circlestone-labs/Anima-Official-LoRAs')) {
+        return notFoundResponse()
+      }
+      return jsonResponse([])
+    })
+
+    await searchHuggingFaceLoras({
+      search: '',
+      baseModelFamily: 'all',
+      sort: 'trendingScore',
+      type: 'all',
+      limit: 12,
+      page: 1,
+    })
+
+    expect(
+      mockSafeFetch.mock.calls.some(([input]) =>
+        String(input).includes('sort=trendingScore'),
+      ),
+    ).toBe(true)
   })
 
   it('scopes multi-family repositories to the exact selected weight family', async () => {
@@ -341,6 +383,8 @@ describe('huggingface-lora.service', () => {
     const result = await searchHuggingFaceLoras({
       search: '',
       baseModelFamily: 'pony',
+      sort: 'downloads',
+      type: 'all',
       limit: 12,
       page: 1,
     })
@@ -351,5 +395,96 @@ describe('huggingface-lora.service', () => {
         baseModelFamily: 'pony',
       }),
     ])
+  })
+
+  // S2（docs/references/pages/lora-workbench.md §3）：内容类型筛选走既有的
+  // 「抓 Hub 页 + 服务端过滤」架构（isPotentialLoraCandidate 新增
+  // modelMatchesContentType 判据），L1=hfTags、L2=repoId/模型名/tags/文件名
+  // 子串匹配。
+  describe('S2 content type filter', () => {
+    it('keeps a repository whose name matches an L2 keyword for the requested type', async () => {
+      mockSafeFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('/models/circlestone-labs/Anima-Official-LoRAs')) {
+          return notFoundResponse()
+        }
+        return jsonResponse([
+          imageLora({
+            id: 'author/sailor-outfit-lora',
+            baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
+          }),
+        ])
+      })
+
+      const result = await searchHuggingFaceLoras({
+        search: '',
+        baseModelFamily: 'all',
+        sort: 'downloads',
+        type: 'clothing',
+        limit: 12,
+        page: 1,
+      })
+
+      expect(result.items.map((item) => item.repoId)).toEqual([
+        'author/sailor-outfit-lora',
+      ])
+    })
+
+    it('drops a repository that matches neither hfTags nor nameKeywords for the requested type', async () => {
+      mockSafeFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('/models/circlestone-labs/Anima-Official-LoRAs')) {
+          return notFoundResponse()
+        }
+        return jsonResponse([
+          imageLora({
+            id: 'author/generic-lora',
+            baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
+          }),
+        ])
+      })
+
+      const result = await searchHuggingFaceLoras({
+        search: '',
+        baseModelFamily: 'all',
+        sort: 'downloads',
+        type: 'clothing',
+        limit: 12,
+        page: 1,
+      })
+
+      expect(result.items).toEqual([])
+    })
+
+    it('keeps a repository tagged with an hfTag for the requested type (L1)', async () => {
+      mockSafeFetch.mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('/models/circlestone-labs/Anima-Official-LoRAs')) {
+          return notFoundResponse()
+        }
+        return jsonResponse([
+          {
+            ...imageLora({
+              id: 'author/tagged-character',
+              baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
+            }),
+            tags: ['lora', 'diffusers', 'character'],
+          },
+        ])
+      })
+
+      const result = await searchHuggingFaceLoras({
+        search: '',
+        baseModelFamily: 'all',
+        sort: 'downloads',
+        type: 'character',
+        limit: 12,
+        page: 1,
+      })
+
+      expect(result.items.map((item) => item.repoId)).toEqual([
+        'author/tagged-character',
+      ])
+    })
   })
 })

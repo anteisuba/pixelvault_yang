@@ -77,6 +77,8 @@ describe('useHuggingFaceLoraLibrary', () => {
     expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenCalledWith({
       search: undefined,
       baseModelFamily: 'all',
+      sort: 'downloads',
+      contentType: 'all',
       limit: undefined,
       page: 1,
       cursor: undefined,
@@ -95,6 +97,8 @@ describe('useHuggingFaceLoraLibrary', () => {
     expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenLastCalledWith({
       search: 'hoshino',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      contentType: 'all',
       limit: undefined,
       page: 1,
       cursor: undefined,
@@ -127,6 +131,8 @@ describe('useHuggingFaceLoraLibrary', () => {
     expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenLastCalledWith({
       search: undefined,
       baseModelFamily: 'all',
+      sort: 'downloads',
+      contentType: 'all',
       limit: undefined,
       page: 2,
       cursor: 'cursor-page-two',
@@ -147,6 +153,33 @@ describe('useHuggingFaceLoraLibrary', () => {
       expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenLastCalledWith(
         expect.objectContaining({
           baseModelFamily: 'anima-dit',
+          page: 1,
+          cursor: undefined,
+        }),
+      )
+    })
+  })
+
+  // S1 统一外壳：HF 排序控件——setSort 切换 sort 值并重置分页，与
+  // setBaseModelFamily 同一套契约。
+  it('resets pagination when the sort changes and forwards it to the API', async () => {
+    const { result } = renderHook(() =>
+      useHuggingFaceLoraLibrary({ initialSort: 'trendingScore' }),
+    )
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1)
+    })
+    expect(result.current.sort).toBe('trendingScore')
+
+    act(() => {
+      result.current.setSort('lastModified')
+    })
+
+    expect(result.current.sort).toBe('lastModified')
+    await waitFor(() => {
+      expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          sort: 'lastModified',
           page: 1,
           cursor: undefined,
         }),

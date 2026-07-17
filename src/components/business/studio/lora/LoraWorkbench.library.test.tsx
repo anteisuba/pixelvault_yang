@@ -21,6 +21,7 @@ const mockSetSearch = vi.hoisted(() => vi.fn())
 const mockSetSort = vi.hoisted(() => vi.fn())
 const mockSetBaseModel = vi.hoisted(() => vi.fn())
 const mockSetNsfwFilter = vi.hoisted(() => vi.fn())
+const mockSetContentType = vi.hoisted(() => vi.fn())
 const mockUseCivitaiLoraLibrary = vi.hoisted(() => vi.fn())
 const mockUseHuggingFaceLoraLibrary = vi.hoisted(() => vi.fn())
 
@@ -191,7 +192,10 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     mockUseHuggingFaceLoraLibrary.mockReturnValue({
       items: [],
       search: '',
+      debouncedSearch: '',
       baseModelFamily: 'all',
+      sort: 'downloads',
+      contentType: 'all',
       total: null,
       page: 1,
       hasNextPage: false,
@@ -200,6 +204,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
       error: null,
       setSearch: vi.fn(),
       setBaseModelFamily: vi.fn(),
+      setSort: vi.fn(),
+      setContentType: mockSetContentType,
       nextPage: vi.fn(),
       previousPage: vi.fn(),
       refresh: vi.fn(),
@@ -250,10 +256,12 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
       get nsfwFilter() {
         return mockLibraryNsfwFilter
       },
+      contentType: 'all',
       setSearch: mockSetSearch,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
+      setContentType: mockSetContentType,
       selectItem: mockSelectItem,
       nextPage: mockNextPage,
       previousPage: mockPreviousPage,
@@ -271,19 +279,41 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     expect(screen.getByRole('button', { name: 'Perlica' })).toBeInTheDocument()
   })
 
-  it('switches the public library between Civitai and Hugging Face', () => {
+  it('renders the Hugging Face tab as selected and its pane as active', () => {
     render(<LoraWorkbench />)
 
-    fireEvent.mouseDown(
+    const hfTab = screen.getByRole('tab', {
+      name: 'LoraWorkbench:librarySourceHuggingFace',
+    })
+    expect(hfTab).toHaveAttribute('aria-selected', 'false')
+    // Clicking calls the URL-sync setter (router.replace) — this component's
+    // `source` is derived from the URL (S1, same pattern as the top-level
+    // `activeSection`), so a mocked no-op router can't reflect the switch
+    // back into `useSearchParams()` inside this test harness. The actual
+    // switch-on-click behaviour is covered by claude-in-chrome manual
+    // verification; the URL-seeded render path below is what this suite can
+    // assert deterministically.
+    fireEvent.mouseDown(hfTab)
+  })
+
+  it('switches the public library to Hugging Face when source=huggingface is in the URL', () => {
+    mockLibraryQuery = 'source=huggingface'
+    render(<LoraWorkbench />)
+
+    // S1: HF pane 的独立标题栏（huggingFacePublic）已退役，换成和 civitai
+    // 同一套形制——用它的搜索框（aria-label = 搜索占位符）作为「HF 面板已
+    // 渲染」的信号。
+    expect(
+      screen.getByRole('textbox', {
+        name: 'LoraWorkbench:huggingFaceSearchPlaceholder',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Perlica')).not.toBeInTheDocument()
+    expect(
       screen.getByRole('tab', {
         name: 'LoraWorkbench:librarySourceHuggingFace',
       }),
-    )
-
-    expect(
-      screen.getByText('LoraWorkbench:huggingFacePublic'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Perlica')).not.toBeInTheDocument()
+    ).toHaveAttribute('aria-selected', 'true')
   })
 
   it('opens the detail sheet when a card is clicked, and it stays closed until then', () => {
@@ -396,10 +426,12 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
       sort: mockLibrarySort,
       baseModel: mockLibraryBaseModel,
       nsfwFilter: mockLibraryNsfwFilter,
+      contentType: 'all',
       setSearch: mockSetSearch,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
+      setContentType: mockSetContentType,
       selectItem: mockSelectItem,
       nextPage: mockNextPage,
       previousPage: mockPreviousPage,
@@ -473,10 +505,12 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
       sort: mockLibrarySort,
       baseModel: mockLibraryBaseModel,
       nsfwFilter: mockLibraryNsfwFilter,
+      contentType: 'all',
       setSearch: mockSetSearch,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
+      setContentType: mockSetContentType,
       selectItem: mockSelectItem,
       nextPage: mockNextPage,
       previousPage: mockPreviousPage,
@@ -605,10 +639,12 @@ describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
       sort: mockLibrarySort,
       baseModel: mockLibraryBaseModel,
       nsfwFilter: mockLibraryNsfwFilter,
+      contentType: 'all',
       setSearch: mockSetSearch,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
+      setContentType: mockSetContentType,
       selectItem: mockSelectItem,
       nextPage: mockNextPage,
       previousPage: mockPreviousPage,
@@ -619,8 +655,9 @@ describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
   it('P2-1: external family badge uses the black nacre, never an amber solid', () => {
     render(<LoraWorkbench />)
 
-    // "Pony" also appears as a filter chip (a <button role=radio>); the card
-    // badge is the <span> overlay — pick that one.
+    // S1: family filter chip label is now a translated familyLabel.* key,
+    // not the raw "Pony" string — the card badge (a <span> overlay showing
+    // item.baseModelFamily verbatim) is the only "Pony" text left.
     const badge = screen
       .getAllByText('Pony')
       .find((el) => el.tagName === 'SPAN')
@@ -639,8 +676,10 @@ describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
   it('P1-9: family filter chips carry the touch (coarse) hit-area expansion', () => {
     render(<LoraWorkbench />)
 
-    const allChip = screen.getByRole('radio', {
-      name: 'LoraWorkbench:baseModelFilterAll',
+    // S1: chip 行统一改成 role="group" + aria-pressed 的 FamilyChipRow
+    // （lora-workbench.md §7），不再是 role="radio"；label 走 familyLabel.*。
+    const allChip = screen.getByRole('button', {
+      name: 'LoraWorkbench:familyLabel.all',
     })
     expect(allChip.className).toContain('coarse:before:')
   })

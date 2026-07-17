@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_SORT_VALUES,
+  LORA_CONTENT_TYPE_EXCLUDES,
+  LORA_CONTENT_TYPE_OVERRIDES,
 } from '@/constants/lora'
 
 vi.mock('@/lib/logger', () => ({
@@ -3315,5 +3317,247 @@ describe('getCivitaiModelDescription', () => {
     const result = await getCivitaiModelDescription(998)
 
     expect(result.descriptionText).toBeNull()
+  })
+})
+
+// S2（docs/references/pages/lora-workbench.md §3.2）：内容类型筛选路由到
+// listCivitaiLorasByContentType，走 meilisearch 的 L1(tag)+L2(关键词) 两
+// query 合并 + L3 exclude/override 纠错。这条路径不消费 REST，也没有
+// REST 回落——失败直接向上抛。
+describe('listCivitaiLoras — S2 content type filter', () => {
+  afterEach(() => {
+    delete LORA_CONTENT_TYPE_EXCLUDES[900001]
+    delete LORA_CONTENT_TYPE_OVERRIDES[900002]
+  })
+
+  const baseVersion = {
+    id: 600001,
+    name: 'v1',
+    baseModel: 'Illustrious',
+    trainedWords: ['sailor outfit'],
+    metrics: { downloadCount: 90, thumbsUpCount: 9 },
+    createdAt: '2025-01-01T00:00:00.000Z',
+  }
+
+  function typeHitFixture(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 500001,
+      name: 'Sailor Outfit LoRA',
+      type: 'LORA',
+      nsfw: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      metrics: { downloadCount: 100, thumbsUpCount: 10 },
+      user: { username: 'creator-a', image: null },
+      permissions: { allowCommercialUse: [], allowDerivatives: false },
+      tags: [{ name: 'clothing' }],
+      images: [{ id: 1, url: 'img-uuid', nsfwLevel: 1 }],
+      version: baseVersion,
+      versions: [],
+      ...overrides,
+    }
+  }
+
+  function versionDownloadResponse(versionId: number, downloadUrl: string) {
+    return {
+      id: versionId,
+      name: 'v1',
+      baseModel: 'Illustrious',
+      downloadUrl,
+      files: [{ type: 'Model', primary: true, downloadUrl }],
+      modelId: 500001,
+      model: { name: 'Fixture LoRA', type: 'LORA' },
+    }
+  }
+
+  // Routes by URL: multi-search POST / per-version download-url GET / a
+  // direct single-model REST GET used by the L3 override resolver. `handler`
+  // gets first refusal so each test only has to describe what's special.
+  function mockContentTypeFetch(
+    handler: (url: string) => Response | null,
+  ): void {
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      const custom = handler(url)
+      if (custom) return custom
+      const versionMatch = url.match(/model-versions\/(\d+)/)
+      if (versionMatch) {
+        const versionId = Number(versionMatch[1])
+        return jsonResponse(
+          versionDownloadResponse(
+            versionId,
+            `https://civitai.com/api/download/models/${versionId}`,
+          ),
+        )
+      }
+      return jsonResponse({ error: 'unhandled request in test' }, 500)
+    })
+  }
+
+  it('sends both an L1 tag query and an L2 keyword query for a type with civitaiTags', async () => {
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [typeHitFixture()], estimatedTotalHits: 1 },
+          { hits: [], estimatedTotalHits: 0 },
+        ],
+      })
+    })
+
+    await listCivitaiLoras({ contentType: 'clothing' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    expect(searchCall).toBeDefined()
+    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+    expect(body.queries).toHaveLength(2)
+    expect(body.queries[0].filter).toEqual(
+      expect.arrayContaining([expect.stringContaining('tags.name IN')]),
+    )
+    expect(body.queries[1].q).toContain('outfit')
+  })
+
+  it('sends only the L2 keyword query for a type whose civitaiTags were pruned (expression)', async () => {
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({ results: [{ hits: [], estimatedTotalHits: 0 }] })
+    })
+
+    await listCivitaiLoras({ contentType: 'expression' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+    expect(body.queries).toHaveLength(1)
+    expect(body.queries[0].q).toContain('expression')
+  })
+
+  it('merges and dedupes a hit returned by both the L1 and L2 queries', async () => {
+    const hit = typeHitFixture()
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [hit], estimatedTotalHits: 1 },
+          { hits: [hit], estimatedTotalHits: 1 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items).toHaveLength(1)
+    // 两个独立分页窗口的并集无法精确推出总数——如实报 null。
+    expect(result.total).toBeNull()
+  })
+
+  it('re-sorts the merged hit set by the requested sort field', async () => {
+    // version.metrics.downloadCount (not the top-level hit.metrics) is what
+    // hitToLibraryItem actually displays — vary *that* field so this test
+    // would catch a regression back to reading only the top-level one
+    // (real Civitai meilisearch hits often have a stale/missing top-level
+    // hit.metrics while version.metrics carries the real number).
+    const lowDownloads = typeHitFixture({
+      id: 500001,
+      metrics: { downloadCount: 999 },
+      version: { ...baseVersion, id: 600001, metrics: { downloadCount: 10 } },
+    })
+    const highDownloads = typeHitFixture({
+      id: 500002,
+      metrics: { downloadCount: 10 },
+      version: { ...baseVersion, id: 600002, metrics: { downloadCount: 999 } },
+    })
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          {
+            hits: [lowDownloads, highDownloads],
+            estimatedTotalHits: 2,
+          },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({
+      contentType: 'expression',
+      sort: 'Most Downloaded',
+    })
+
+    expect(result.items.map((item) => item.modelId)).toEqual([500002, 500001])
+  })
+
+  it('drops a model listed in LORA_CONTENT_TYPE_EXCLUDES for the active type', async () => {
+    LORA_CONTENT_TYPE_EXCLUDES[900001] = 'clothing'
+    const excludedHit = typeHitFixture({ id: 900001 })
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [excludedHit], estimatedTotalHits: 1 },
+          { hits: [], estimatedTotalHits: 0 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items).toHaveLength(0)
+  })
+
+  it('resolves and appends a model listed in LORA_CONTENT_TYPE_OVERRIDES even when search misses it', async () => {
+    LORA_CONTENT_TYPE_OVERRIDES[900002] = 'clothing'
+    mockContentTypeFetch((url) => {
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({
+          results: [
+            { hits: [], estimatedTotalHits: 0 },
+            { hits: [], estimatedTotalHits: 0 },
+          ],
+        })
+      }
+      if (url.includes('/api/v1/models/900002')) {
+        return jsonResponse({
+          id: 900002,
+          name: 'Override LoRA',
+          type: 'LORA',
+          tags: [],
+          stats: {},
+          modelVersions: [
+            {
+              id: 700002,
+              name: 'v1',
+              baseModel: 'Illustrious',
+              files: [
+                {
+                  type: 'Model',
+                  primary: true,
+                  downloadUrl: 'https://civitai.com/api/download/models/700002',
+                },
+              ],
+              images: [],
+            },
+          ],
+        })
+      }
+      return null
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items.map((item) => item.modelId)).toContain(900002)
+  })
+
+  it('propagates a meilisearch failure instead of silently falling back to REST', async () => {
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({ message: 'down' }, 503)
+    })
+
+    await expect(
+      listCivitaiLoras({ contentType: 'clothing' }),
+    ).rejects.toThrow()
   })
 })

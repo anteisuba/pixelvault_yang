@@ -78,6 +78,45 @@ export function isLoraBaseModelMountCompatible(
   return loraBucket === baseBucket
 }
 
+/**
+ * §4.1 挂载栈 vs 选中底模的兼容摘要（lora-workbench.md §4.1/§4.2）：脊柱条
+ * 圆点 + 出图键上方警示行共用同一份判定，抽成纯函数方便脱离 UI 单测。
+ *
+ * - `incompatibleCount`：挂载栈里有多少项与 `selectedBaseFamily` 不兼容
+ *   （粗粒度架构桶不同，见 isLoraBaseModelMountCompatible）。
+ * - `mutuallyExclusive`：挂载栈里存在 2+ 个不同的粗架构桶（`other` 桶不计入，
+ *   因为它本来就永不兼容任何底模，不构成"桶冲突"）——此时没有单一底模能
+ *   同时满足全部挂载，警示行退化成"卸载其一"而不是给一个只能救一半的假
+ *   建议。
+ *
+ * `selectedBaseFamily` 为 null（底模未选）时不判定，两个字段都归零/false。
+ */
+export interface LoraStackCompatibilitySummary {
+  incompatibleCount: number
+  mutuallyExclusive: boolean
+}
+
+export function summarizeLoraStackCompatibility(
+  mountBaseModelFamilies: readonly string[],
+  selectedBaseFamily: string | null,
+): LoraStackCompatibilitySummary {
+  if (!selectedBaseFamily) {
+    return { incompatibleCount: 0, mutuallyExclusive: false }
+  }
+  const incompatibleCount = mountBaseModelFamilies.filter(
+    (family) => !isLoraBaseModelMountCompatible(family, selectedBaseFamily),
+  ).length
+  const buckets = new Set(
+    mountBaseModelFamilies
+      .map((family) => getLoraFamilyBucket(family))
+      .filter((bucket) => bucket !== 'other'),
+  )
+  return {
+    incompatibleCount,
+    mutuallyExclusive: buckets.size > 1,
+  }
+}
+
 export function findUsableRecommendedLoraRoute(
   options: readonly LoraRouteOption[],
   rawBaseModel: string,

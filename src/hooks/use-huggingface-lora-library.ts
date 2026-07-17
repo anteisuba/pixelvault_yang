@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  DEFAULT_HUGGINGFACE_LORA_SORT,
+  DEFAULT_LORA_CONTENT_TYPE,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
   type HuggingFaceLoraFamily,
+  type HuggingFaceLoraSort,
+  type LoraContentType,
 } from '@/constants/lora'
 import { listHuggingFaceLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -15,13 +19,22 @@ const SEARCH_DEBOUNCE_MS = 300
 export interface UseHuggingFaceLoraLibraryOptions {
   initialSearch?: string
   initialBaseModelFamily?: HuggingFaceLoraFamily
+  initialSort?: HuggingFaceLoraSort
+  /** S2 内容类型筛选（lora-workbench.md §3）。 */
+  initialContentType?: LoraContentType
   limit?: number
 }
 
 export interface UseHuggingFaceLoraLibraryReturn {
   items: HuggingFaceLoraSearchItem[]
   search: string
+  /** Debounced/committed search term — what the URL sync and the fetch both
+   *  key off, mirroring useCivitaiLoraLibrary's split (S1 统一外壳，两个
+   *  tab 的 URL 写回都用这个而不是逐字符更新的 `search`）。 */
+  debouncedSearch: string
   baseModelFamily: HuggingFaceLoraFamily
+  sort: HuggingFaceLoraSort
+  contentType: LoraContentType
   total: number | null
   page: number
   hasNextPage: boolean
@@ -30,6 +43,8 @@ export interface UseHuggingFaceLoraLibraryReturn {
   error: string | null
   setSearch: (value: string) => void
   setBaseModelFamily: (value: HuggingFaceLoraFamily) => void
+  setSort: (value: HuggingFaceLoraSort) => void
+  setContentType: (value: LoraContentType) => void
   nextPage: () => void
   previousPage: () => void
   refresh: () => Promise<void>
@@ -51,6 +66,12 @@ export function useHuggingFaceLoraLibrary(
     useState<HuggingFaceLoraFamily>(
       options.initialBaseModelFamily ?? HUGGINGFACE_LORA_DEFAULT_FAMILY,
     )
+  const [sort, setSortValue] = useState<HuggingFaceLoraSort>(
+    options.initialSort ?? DEFAULT_HUGGINGFACE_LORA_SORT,
+  )
+  const [contentType, setContentTypeValue] = useState<LoraContentType>(
+    options.initialContentType ?? DEFAULT_LORA_CONTENT_TYPE,
+  )
   const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
@@ -70,6 +91,8 @@ export function useHuggingFaceLoraLibrary(
     const response = await listHuggingFaceLoraAssetsAPI({
       search: debouncedSearch || undefined,
       baseModelFamily,
+      sort,
+      contentType,
       limit: options.limit,
       page,
       cursor: cursorsByPageRef.current.get(page),
@@ -90,7 +113,7 @@ export function useHuggingFaceLoraLibrary(
       setError(response.error ?? 'Hugging Face LoRA search failed')
     }
     setIsRevalidating(false)
-  }, [baseModelFamily, debouncedSearch, options.limit, page])
+  }, [baseModelFamily, contentType, debouncedSearch, options.limit, page, sort])
 
   useEffect(() => {
     const trimmed = search.trim()
@@ -121,6 +144,20 @@ export function useHuggingFaceLoraLibrary(
     setIsRevalidating(true)
   }, [])
 
+  const setSort = useCallback((value: HuggingFaceLoraSort) => {
+    cursorsByPageRef.current = new Map([[1, undefined]])
+    setSortValue(value)
+    setPage(1)
+    setIsRevalidating(true)
+  }, [])
+
+  const setContentType = useCallback((value: LoraContentType) => {
+    cursorsByPageRef.current = new Map([[1, undefined]])
+    setContentTypeValue(value)
+    setPage(1)
+    setIsRevalidating(true)
+  }, [])
+
   const nextPage = useCallback(() => {
     if (isRevalidating || !hasNextPage) return
     setIsRevalidating(true)
@@ -136,7 +173,10 @@ export function useHuggingFaceLoraLibrary(
   return {
     items,
     search,
+    debouncedSearch,
     baseModelFamily,
+    sort,
+    contentType,
     total,
     page,
     hasNextPage,
@@ -145,6 +185,8 @@ export function useHuggingFaceLoraLibrary(
     error,
     setSearch,
     setBaseModelFamily,
+    setSort,
+    setContentType,
     nextPage,
     previousPage,
     refresh,

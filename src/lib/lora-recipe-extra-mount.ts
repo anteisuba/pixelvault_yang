@@ -1,5 +1,10 @@
 import {
+  LORA_OFTEN_MOUNTED_MAX_RESULTS,
+  LORA_OFTEN_MOUNTED_MIN_COUNT,
+} from '@/constants/lora'
+import {
   LoraSchema,
+  type CivitaiImageRecipe,
   type CivitaiRecipeExtraLora,
   type LoraAssetRecord,
 } from '@/types'
@@ -199,4 +204,49 @@ export async function mountRecipeExtraLoras({
   }
 
   return { newlyMounted, missing, incompatible }
+}
+
+// ── §4.2「常与它同挂」聚合（lora-workbench.md §4.2）──────────────────────
+// 当前分组 LoRA 的全部来源图配方(mined.recipes)里，配方作者实际共挂的其他
+// LoRA 是最真实的搭配信号——零新后端，直接在已经拉到的 extraLoras 上按
+// modelId/hash/name 去重计数。
+
+export interface OftenMountedExtra {
+  extra: CivitaiRecipeExtraLora
+  /** 出现在几张不同来源图配方里（同一张图内重复的 extra 只计一次）。 */
+  count: number
+}
+
+/**
+ * 聚合 recipes[].extraLoras 的共现计数，取 Top N 且计数 ≥ 最小阈值——单例
+ * 噪音（只在一张图里出现过）不进结果。无法定位（既无 hash/modelVersionId
+ * 也无名字）的 extra 直接跳过，避免推荐一个点了也挂不上的东西。
+ */
+export function aggregateOftenMountedExtras(
+  recipes: readonly Pick<CivitaiImageRecipe, 'extraLoras'>[],
+): OftenMountedExtra[] {
+  const byKey = new Map<string, OftenMountedExtra>()
+
+  for (const recipe of recipes) {
+    // 同一张图里重复出现的 extra（理论上不该有，防御性去重）不重复计数。
+    const seenInRecipe = new Set<string>()
+    for (const extra of recipe.extraLoras ?? []) {
+      if (!isRecipeExtraResolvable(extra)) continue
+      const key = extraLoraKey(extra)
+      if (seenInRecipe.has(key)) continue
+      seenInRecipe.add(key)
+
+      const existing = byKey.get(key)
+      if (existing) {
+        existing.count += 1
+      } else {
+        byKey.set(key, { extra, count: 1 })
+      }
+    }
+  }
+
+  return Array.from(byKey.values())
+    .filter((entry) => entry.count >= LORA_OFTEN_MOUNTED_MIN_COUNT)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, LORA_OFTEN_MOUNTED_MAX_RESULTS)
 }

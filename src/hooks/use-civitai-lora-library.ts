@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
+  DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
+  type LoraContentType,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
@@ -28,6 +30,8 @@ export interface UseCivitaiLoraLibraryOptions {
   initialSort?: CivitaiLoraSort
   initialSearch?: string
   initialNsfwFilter?: LoraNsfwFilter
+  /** S2 内容类型筛选（lora-workbench.md §3）。 */
+  initialContentType?: LoraContentType
 }
 
 export interface UseCivitaiLoraLibraryReturn {
@@ -62,10 +66,12 @@ export interface UseCivitaiLoraLibraryReturn {
   sort: CivitaiLoraSort
   baseModel: CivitaiLoraBaseModel
   nsfwFilter: LoraNsfwFilter
+  contentType: LoraContentType
   setSearch: (value: string) => void
   setSort: (value: CivitaiLoraSort) => void
   setBaseModel: (value: CivitaiLoraBaseModel) => void
   setNsfwFilter: (value: LoraNsfwFilter) => void
+  setContentType: (value: LoraContentType) => void
   selectItem: (item: CivitaiLoraLibraryItem) => void
   nextPage: () => void
   previousPage: () => void
@@ -101,6 +107,7 @@ function buildCacheKey(params: {
   sort: CivitaiLoraSort
   search: string
   nsfwFilter: LoraNsfwFilter
+  contentType: LoraContentType
   page: number
   cursor: string | null
 }): string {
@@ -109,6 +116,7 @@ function buildCacheKey(params: {
     params.sort,
     params.search,
     params.nsfwFilter,
+    params.contentType,
     params.page,
     params.cursor ?? '',
   ].join('|')
@@ -173,6 +181,9 @@ export function useCivitaiLoraLibrary(
   const [nsfwFilter, setNsfwFilterValue] = useState<LoraNsfwFilter>(
     options.initialNsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
   )
+  const [contentType, setContentTypeValue] = useState<LoraContentType>(
+    options.initialContentType ?? DEFAULT_LORA_CONTENT_TYPE,
+  )
   const requestIdRef = useRef(0)
   const paginationPendingRef = useRef(false)
   const cursorByPageRef = useRef<Map<number, string | null>>(
@@ -229,6 +240,7 @@ export function useCivitaiLoraLibrary(
       sort,
       search: activeSearch,
       nsfwFilter,
+      contentType,
       page,
       cursor,
     })
@@ -265,9 +277,12 @@ export function useCivitaiLoraLibrary(
       sort,
       baseModel,
       nsfwFilter,
+      contentType,
       // Issue C: undefined on the session's first request (free choice,
       // same as today); locked to whatever backend served the previous
-      // page for the rest of the session.
+      // page for the rest of the session. Harmless no-op when contentType
+      // is active — the service routes on contentType first and never
+      // reads `source` for that branch.
       source: activeSearch
         ? (searchBackendRef.current ?? undefined)
         : undefined,
@@ -301,6 +316,7 @@ export function useCivitaiLoraLibrary(
   }, [
     applyResult,
     baseModel,
+    contentType,
     debouncedSearch,
     nsfwFilter,
     page,
@@ -378,6 +394,18 @@ export function useCivitaiLoraLibrary(
     [clearFacetResults, nsfwFilter],
   )
 
+  const setContentType = useCallback(
+    (value: LoraContentType) => {
+      if (value === contentType) return
+      cursorByPageRef.current = new Map([[1, null]])
+      searchBackendRef.current = null
+      setPage(1)
+      clearFacetResults()
+      setContentTypeValue(value)
+    },
+    [clearFacetResults, contentType],
+  )
+
   const selectItem = useCallback((item: CivitaiLoraLibraryItem) => {
     setSelectedItemId(item.id)
   }, [])
@@ -436,10 +464,12 @@ export function useCivitaiLoraLibrary(
     sort,
     baseModel,
     nsfwFilter,
+    contentType,
     setSearch,
     setSort,
     setBaseModel,
     setNsfwFilter,
+    setContentType,
     selectItem,
     nextPage,
     previousPage,

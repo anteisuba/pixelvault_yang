@@ -26,12 +26,16 @@ import { AI_MODELS, getModelById } from '@/constants/models'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
+  DEFAULT_HUGGINGFACE_LORA_SORT,
+  DEFAULT_LORA_CONTENT_TYPE,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
   HUGGINGFACE_LORA_DEFAULT_LIMIT,
   HUGGINGFACE_LORA_FAMILY_VALUES,
   HUGGINGFACE_LORA_MAX_CURSOR_LENGTH,
   HUGGINGFACE_LORA_MAX_LIMIT,
   HUGGINGFACE_LORA_MAX_SEARCH_LENGTH,
+  HUGGINGFACE_LORA_SORT_VALUES,
+  LORA_CONTENT_TYPE_VALUES,
 } from '@/constants/lora'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
@@ -3771,6 +3775,18 @@ export const HuggingFaceLoraSearchQuerySchema = z.object({
   baseModelFamily: z
     .enum(HUGGINGFACE_LORA_FAMILY_VALUES)
     .default(HUGGINGFACE_LORA_DEFAULT_FAMILY),
+  // S1 统一外壳：HF 排序实测（lora-workbench.md §2.1）三值全部生效，
+  // 复用 civitai 排序的三个 labelKey。默认沿用此前服务端硬编码的
+  // 'downloads'，不改变现状行为。
+  sort: z
+    .enum(HUGGINGFACE_LORA_SORT_VALUES)
+    .default(DEFAULT_HUGGINGFACE_LORA_SORT),
+  // S2 内容类型筛选（lora-workbench.md §3）。字段名与 civitai 路由的 URL
+  // `type=` 参数一一对应（api-route-factory 用 URL 查询键名直接绑定 schema
+  // 字段名）——注意这与 `HuggingFaceLoraSearchItemSchema.type`
+  // （LoraAssetType：subject/style）是两个完全不同的对象上的同名字段，不
+  // 要混淆；`searchHuggingFaceLoras` 内部会把它解构成 `contentType` 变量。
+  type: z.enum(LORA_CONTENT_TYPE_VALUES).default(DEFAULT_LORA_CONTENT_TYPE),
   limit: z.coerce
     .number()
     .int()
@@ -3831,6 +3847,10 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'Sell'（出售模型本身）。我们在 UI 上用这个字段做 license 徽章 + 过滤。
   allowCommercialUse: z.array(z.string()),
   allowDerivatives: z.boolean(),
+  // S3 授权徽标行（lora-workbench.md §2.4「P0-2 规范」）：Civitai 的「需署名」
+  // 声明。undefined/缺失（Civitai 省略该字段、旧缓存、旧测试 fixture）按
+  // true（无需署名）处理——避免对没有该字段的历史数据误判出「需署名」警示。
+  allowNoCredit: z.boolean().optional(),
   // P1-6：civitai 模型级 NSFW 标记（原样透传，供 UI 展示用）。Issue B
   // （docs/plans/lora-search-image-audit-2026-07.md）实测这个布尔值本身
   // 不可靠（双向误判：有 XXX-only 图片的模型仍标 false，也有全 SFW 图片

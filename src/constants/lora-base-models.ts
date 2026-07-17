@@ -271,3 +271,19 @@ export function getDefaultBase(rawBaseModel: string): LoraBaseModel | null {
     null
   )
 }
+
+/**
+ * §4.4 底模选择器分组：runner 组内再按架构系分「SDXL 系 / DiT 系」。DiT 家族
+ * 显式列举（目前只有 `anima-dit`——Cosmos-Predict2，UNET-only 无 CLIP/VAE，
+ * 跑不了 SDXL 的 CheckpointLoaderSimple 图）；其余全部归 SDXL 系，新增架构
+ * 家族默认落 SDXL 桶，除非显式加进这张表。
+ */
+export const LORA_BASE_DIT_FAMILIES: readonly LoraBaseFamily[] = ['anima-dit']
+
+export type LoraBaseArchitectureGroup = 'sdxl' | 'dit'
+
+export function getLoraBaseArchitectureGroup(
+  family: LoraBaseFamily,
+): LoraBaseArchitectureGroup {
+  return LORA_BASE_DIT_FAMILIES.includes(family) ? 'dit' : 'sdxl'
+}

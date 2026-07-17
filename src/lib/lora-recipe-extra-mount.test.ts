@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { LoraAssetRecord } from '@/types'
+import type { CivitaiImageRecipe, LoraAssetRecord } from '@/types'
 
 import {
+  aggregateOftenMountedExtras,
   extraLoraKey,
   extraLoraLabel,
   mountRecipeExtraLoras,
@@ -254,5 +255,90 @@ describe('mountRecipeExtraLoras', () => {
     expect(extraLoraKey({ name: ' ææ¥æ¹èç»æ«å°å²ä»£çäºº ' })).toBe(
       'n:明日方舟终末地岁代理人',
     )
+  })
+})
+
+describe('aggregateOftenMountedExtras', () => {
+  function makeRecipe(
+    extraLoras: CivitaiImageRecipe['extraLoras'],
+  ): Pick<CivitaiImageRecipe, 'extraLoras'> {
+    return { extraLoras }
+  }
+
+  it('counts co-occurrence across recipes and returns Top N ≥ min count, sorted desc', () => {
+    const recipes = [
+      makeRecipe([
+        { modelVersionId: 1, name: 'Jinhsi' },
+        { modelVersionId: 2, name: 'Danjin' },
+      ]),
+      makeRecipe([{ modelVersionId: 1, name: 'Jinhsi' }]),
+      makeRecipe([
+        { modelVersionId: 1, name: 'Jinhsi' },
+        { modelVersionId: 2, name: 'Danjin' },
+      ]),
+      makeRecipe([{ modelVersionId: 1, name: 'Jinhsi' }]),
+      // Singleton — filtered out by the ≥2 threshold.
+      makeRecipe([{ modelVersionId: 3, name: 'Once Only' }]),
+    ]
+
+    const result = aggregateOftenMountedExtras(recipes)
+
+    expect(result).toEqual([
+      { extra: { modelVersionId: 1, name: 'Jinhsi' }, count: 4 },
+      { extra: { modelVersionId: 2, name: 'Danjin' }, count: 2 },
+    ])
+  })
+
+  it('does not double-count a duplicate extra within the same recipe', () => {
+    const recipes = [
+      makeRecipe([
+        { modelVersionId: 1, name: 'Dup' },
+        { modelVersionId: 1, name: 'Dup' },
+      ]),
+      makeRecipe([{ modelVersionId: 1, name: 'Dup' }]),
+    ]
+
+    expect(aggregateOftenMountedExtras(recipes)).toEqual([
+      { extra: { modelVersionId: 1, name: 'Dup' }, count: 2 },
+    ])
+  })
+
+  it('skips extras with no hash/modelVersionId/name (unresolvable)', () => {
+    const recipes = [
+      makeRecipe([{ weight: 0.6 }]),
+      makeRecipe([{ weight: 0.6 }]),
+    ]
+
+    expect(aggregateOftenMountedExtras(recipes)).toEqual([])
+  })
+
+  it('returns an empty array when no extra clears the min-count threshold', () => {
+    const recipes = [makeRecipe([{ modelVersionId: 5, name: 'Solo' }])]
+    expect(aggregateOftenMountedExtras(recipes)).toEqual([])
+  })
+
+  it('returns an empty array for recipes with no extraLoras', () => {
+    expect(
+      aggregateOftenMountedExtras([makeRecipe(undefined), { extraLoras: [] }]),
+    ).toEqual([])
+  })
+
+  it('caps results at the Top 3 by count', () => {
+    const recipes = [
+      makeRecipe([
+        { modelVersionId: 1 },
+        { modelVersionId: 2 },
+        { modelVersionId: 3 },
+        { modelVersionId: 4 },
+      ]),
+      makeRecipe([
+        { modelVersionId: 1 },
+        { modelVersionId: 2 },
+        { modelVersionId: 3 },
+        { modelVersionId: 4 },
+      ]),
+    ]
+
+    expect(aggregateOftenMountedExtras(recipes)).toHaveLength(3)
   })
 })

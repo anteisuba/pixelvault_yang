@@ -35,13 +35,15 @@ export const LORA_GENERATE_ASPECT_RATIOS = [
   '9:16',
 ] as const satisfies readonly AspectRatio[]
 
-// ── 库筛选深链（P1-5 方案 A）────────────────────────────────────────────
-// family/q/sort/nsfw 全部入 URL query，与上面的 section 参数同一套「默认值
-// 不入 URL」约定：值等于默认时从 query 里删掉，保持深链干净。
+// ── 库筛选深链（P1-5 方案 A + S1 §2.5 扩展）──────────────────────────────
+// family/q/sort/nsfw/source 全部入 URL query，与上面的 section 参数同一套
+// 「默认值不入 URL」约定：值等于默认时从 query 里删掉，保持深链干净。
 export const LORA_LIBRARY_FAMILY_PARAM = 'family'
 export const LORA_LIBRARY_SEARCH_PARAM = 'q'
 export const LORA_LIBRARY_SORT_PARAM = 'sort'
 export const LORA_LIBRARY_NSFW_PARAM = 'nsfw'
+// source= 语义 = tab 切换（civitai/huggingface），默认 civitai 不入 URL。
+export const LORA_LIBRARY_SOURCE_PARAM = 'source'
 export const LORA_LIBRARY_SOURCES = {
   CIVITAI: 'civitai',
   HUGGINGFACE: 'huggingface',
@@ -49,6 +51,9 @@ export const LORA_LIBRARY_SOURCES = {
 
 export type LoraLibrarySource =
   (typeof LORA_LIBRARY_SOURCES)[keyof typeof LORA_LIBRARY_SOURCES]
+
+export const DEFAULT_LORA_LIBRARY_SOURCE: LoraLibrarySource =
+  LORA_LIBRARY_SOURCES.CIVITAI
 
 export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
   return Object.values(LORA_LIBRARY_SOURCES).includes(
@@ -75,6 +80,11 @@ export const LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST = 3
 
 // 配方 extras 自动定位全部失败时的逃生口：跳 Civitai 站内搜索让用户自查。
 export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
+
+// §4.2「常与它同挂」：聚合当前分组全部来源图配方的 extraLoras 共现计数，
+// 取 Top N 且计数 ≥ 最小阈值——单例噪音（只在一张图里出现过一次）不显示。
+export const LORA_OFTEN_MOUNTED_MIN_COUNT = 2
+export const LORA_OFTEN_MOUNTED_MAX_RESULTS = 3
 
 // P2-6：10 条/页在 2xl:6 列网格下永远残行；12 在 6/4/3/2 列下都能整行
 // （5 列容忍最后一行留 2 空位）。
@@ -120,6 +130,38 @@ export const HUGGINGFACE_LORA_ALLOWED_EXTENSION = '.safetensors'
 // the Runner base-model catalog rather than the user LoRA library.
 export const HUGGINGFACE_LORA_MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024
 export const HUGGINGFACE_LORA_DETAIL_CONCURRENCY = 4
+
+// HF Hub `/api/models` 排序实测（2026-07-17，S1 开工验证，见
+// docs/references/pages/lora-workbench.md §2.1/§10）：`sort=trending` 不被
+// Hub 接受（400 Invalid sort parameter），真实的「推荐」排序参数是
+// `trendingScore`；`downloads`/`lastModified` 均验证可用，且都能与
+// `filter`/`search` 组合。三值全部实测生效，不需要「不支持不渲染」回落。
+// UI 复用 civitai 排序的三个 labelKey（推荐/最多下载/最新），顺序对齐两个
+// tab 保持视觉一致。`downloads` 是现状默认（服务端此前硬编码），保持不变。
+export const HUGGINGFACE_LORA_SORT_VALUES = [
+  'trendingScore',
+  'downloads',
+  'lastModified',
+] as const
+
+export type HuggingFaceLoraSort = (typeof HUGGINGFACE_LORA_SORT_VALUES)[number]
+
+export const HUGGINGFACE_LORA_SORT_OPTIONS = [
+  { value: 'trendingScore', labelKey: 'sortHighestRated' },
+  { value: 'downloads', labelKey: 'sortMostDownloaded' },
+  { value: 'lastModified', labelKey: 'sortNewest' },
+] as const satisfies readonly {
+  value: HuggingFaceLoraSort
+  labelKey: string
+}[]
+
+export const DEFAULT_HUGGINGFACE_LORA_SORT: HuggingFaceLoraSort = 'downloads'
+
+export function isHuggingFaceLoraSort(
+  value: string,
+): value is HuggingFaceLoraSort {
+  return (HUGGINGFACE_LORA_SORT_VALUES as readonly string[]).includes(value)
+}
 
 export const MODEL_KEYWORD_LORA_KEYWORD_RAW_URL =
   'https://raw.githubusercontent.com/mix1009/model-keyword/main/lora-keyword.txt'
@@ -328,6 +370,331 @@ export function isCivitaiBaseModelGeneratable(rawBaseModel: string): boolean {
     }
   }
   return false
+}
+
+// ── 库 · 授权徽标（S3 统一详情抽屉，lora-workbench.md §2.4「P0-2 规范」）──
+// Civitai `allowCommercialUse` 枚举值：'Image'（卖生成图）/ 'Rent'（任意
+// 第三方推理服务）/ 'Sell'（出售模型本身）/ 'RentCivit'（仅限 Civitai 平台
+// 内部租 GPU）。P0-2 的「可商用」判定只看前三个——RentCivit 是站内限定权
+// 限，不构成用户理解的「可以拿去商用」。
+export const CIVITAI_COMMERCIAL_USE_VALUES = ['Image', 'Rent', 'Sell'] as const
+
+export function isCivitaiLoraCommerciallyUsable(
+  allowCommercialUse: readonly string[],
+): boolean {
+  return allowCommercialUse.some((value) =>
+    (CIVITAI_COMMERCIAL_USE_VALUES as readonly string[]).includes(value),
+  )
+}
+
+// ── 库 · family slug 值域（S1 统一外壳，2026-07-17）─────────────────────
+// docs/references/pages/lora-workbench.md §2.2：UI/URL 层统一用小写 slug；
+// civitai/HF 各自的 API 层值域（CIVITAI_LORA_BASE_MODEL_VALUES /
+// HUGGINGFACE_LORA_FAMILY_VALUES，above）保留不变、不动 service 契约——
+// 这层只做纯翻译。'chroma' 只有 civitai 有供给，HF 端没有对应值。
+export const LORA_LIBRARY_FAMILY_VALUES = [
+  'all',
+  'illustrious',
+  'flux',
+  'sdxl',
+  'pony',
+  'sd15',
+  'anima',
+  'qwen',
+  'z-image',
+  'chroma',
+  'other',
+] as const
+
+export type LoraLibraryFamily = (typeof LORA_LIBRARY_FAMILY_VALUES)[number]
+
+export function isLoraLibraryFamily(value: string): value is LoraLibraryFamily {
+  return (LORA_LIBRARY_FAMILY_VALUES as readonly string[]).includes(value)
+}
+
+const CIVITAI_BASE_MODEL_TO_FAMILY_SLUG: Record<
+  CivitaiLoraBaseModel,
+  LoraLibraryFamily
+> = {
+  all: 'all',
+  Illustrious: 'illustrious',
+  'Flux.1 D': 'flux',
+  'SDXL 1.0': 'sdxl',
+  Pony: 'pony',
+  'SD 1.5': 'sd15',
+  Anima: 'anima',
+  Qwen: 'qwen',
+  'Z-Image': 'z-image',
+  Chroma: 'chroma',
+  other: 'other',
+}
+
+export function civitaiBaseModelToFamilySlug(
+  value: CivitaiLoraBaseModel,
+): LoraLibraryFamily {
+  return CIVITAI_BASE_MODEL_TO_FAMILY_SLUG[value]
+}
+
+const FAMILY_SLUG_TO_CIVITAI_BASE_MODEL: Record<
+  LoraLibraryFamily,
+  CivitaiLoraBaseModel
+> = {
+  all: 'all',
+  illustrious: 'Illustrious',
+  flux: 'Flux.1 D',
+  sdxl: 'SDXL 1.0',
+  pony: 'Pony',
+  sd15: 'SD 1.5',
+  anima: 'Anima',
+  qwen: 'Qwen',
+  'z-image': 'Z-Image',
+  chroma: 'Chroma',
+  other: 'other',
+}
+
+export function familySlugToCivitaiBaseModel(
+  slug: LoraLibraryFamily,
+): CivitaiLoraBaseModel {
+  return FAMILY_SLUG_TO_CIVITAI_BASE_MODEL[slug]
+}
+
+const HUGGINGFACE_FAMILY_TO_FAMILY_SLUG: Record<
+  HuggingFaceLoraFamily,
+  LoraLibraryFamily
+> = {
+  all: 'all',
+  'anima-dit': 'anima',
+  illustrious: 'illustrious',
+  pony: 'pony',
+  sdxl: 'sdxl',
+  flux: 'flux',
+  sd15: 'sd15',
+  'qwen-image': 'qwen',
+  'z-image': 'z-image',
+  other: 'other',
+}
+
+export function huggingFaceFamilyToFamilySlug(
+  value: HuggingFaceLoraFamily,
+): LoraLibraryFamily {
+  return HUGGINGFACE_FAMILY_TO_FAMILY_SLUG[value]
+}
+
+// HF 值域没有 chroma——落在这张表外的 slug（目前只有 'chroma'）统一回落
+// HUGGINGFACE_LORA_DEFAULT_FAMILY（'all'），不抛错也不静默丢弃筛选状态。
+const FAMILY_SLUG_TO_HUGGINGFACE_FAMILY: Partial<
+  Record<LoraLibraryFamily, HuggingFaceLoraFamily>
+> = {
+  all: 'all',
+  illustrious: 'illustrious',
+  flux: 'flux',
+  sdxl: 'sdxl',
+  pony: 'pony',
+  sd15: 'sd15',
+  anima: 'anima-dit',
+  qwen: 'qwen-image',
+  'z-image': 'z-image',
+  other: 'other',
+}
+
+export function familySlugToHuggingFaceFamily(
+  slug: LoraLibraryFamily,
+): HuggingFaceLoraFamily {
+  return (
+    FAMILY_SLUG_TO_HUGGINGFACE_FAMILY[slug] ?? HUGGINGFACE_LORA_DEFAULT_FAMILY
+  )
+}
+
+// 每源在 chip 行里实际能筛的 slug 子集——§2.1「某源不支持的 family chip 在
+// 该源下隐藏」。civitai 覆盖全集；HF 没有 chroma 供给。
+export const LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE: Record<
+  LoraLibrarySource,
+  readonly LoraLibraryFamily[]
+> = {
+  [LORA_LIBRARY_SOURCES.CIVITAI]: LORA_LIBRARY_FAMILY_VALUES,
+  [LORA_LIBRARY_SOURCES.HUGGINGFACE]: LORA_LIBRARY_FAMILY_VALUES.filter(
+    (slug) => slug !== 'chroma',
+  ),
+}
+
+// ── 库 · 内容类型筛选（S2，docs/references/pages/lora-workbench.md §3）───
+// 7 类：人物/服装/表情/姿势/风格/概念/场景。civitaiTags 是三重兜底的 L1
+// tag 下推候选；2026-07-17 S2 开工用 meilisearch estimatedTotalHits 实测
+// （POST search-new.civitai.com/multi-search，filter `tags.name IN [...]` +
+// `type = LoRA`，回写 lora-workbench.md §3.1）：
+//   character 100000(封顶) · clothing 25838 · outfit 1220 · costume 1100 ·
+//   expressions 46 · emotion 37 · poses 5059 · pose 1847 · style 100000(封顶)
+//   · concept 45368 · background 6830 · scenery 1851
+// 供给 <500 的 tag（expressions/emotion）从 civitaiTags 剔除，只靠
+// nameKeywords（L2）+ override（L3）兜底——L2 用 meilisearch q= 全文近似
+// 测得 expression/smile/face/emotion 分别 1388/6626/11004/164，合计供给
+// 健康，未触发"三层合计供给仍稀薄"的首发隐藏门槛，故「表情」保留渲染
+// （不并入「概念」，与文档草稿的默认假设不同——供给实测推翻了它）。
+export const LORA_CONTENT_TYPES = [
+  {
+    id: 'character',
+    labelKey: 'typeCharacter',
+    civitaiTags: ['character'],
+    hfTags: ['character'],
+    nameKeywords: ['character', 'oc'],
+    searchFallbackTerm: 'character',
+  },
+  {
+    id: 'clothing',
+    labelKey: 'typeClothing',
+    civitaiTags: ['clothing', 'outfit', 'costume'],
+    hfTags: [],
+    nameKeywords: ['outfit', 'dress', 'uniform', 'costume'],
+    searchFallbackTerm: 'outfit',
+  },
+  {
+    id: 'expression',
+    labelKey: 'typeExpression',
+    // expressions(46) / emotion(37) 供给 <500，从 L1 下推集合剔除（上方
+    // 注释），只靠 nameKeywords + override 兜底。
+    civitaiTags: [],
+    hfTags: [],
+    nameKeywords: ['expression', 'smile', 'face', 'emotion'],
+    searchFallbackTerm: 'expression',
+  },
+  {
+    id: 'pose',
+    labelKey: 'typePose',
+    civitaiTags: ['poses', 'pose'],
+    hfTags: [],
+    nameKeywords: ['pose', 'posture', 'position'],
+    searchFallbackTerm: 'pose',
+  },
+  {
+    id: 'style',
+    labelKey: 'typeStyle',
+    civitaiTags: ['style'],
+    hfTags: ['style'],
+    nameKeywords: ['style', 'artstyle', 'aesthetic'],
+    searchFallbackTerm: 'art style',
+  },
+  {
+    id: 'concept',
+    labelKey: 'typeConcept',
+    civitaiTags: ['concept'],
+    hfTags: ['concept'],
+    nameKeywords: ['concept'],
+    searchFallbackTerm: 'concept',
+  },
+  {
+    id: 'scene',
+    labelKey: 'typeScene',
+    civitaiTags: ['background', 'scenery'],
+    hfTags: [],
+    nameKeywords: ['background', 'scenery', 'landscape'],
+    searchFallbackTerm: 'background',
+  },
+] as const satisfies readonly {
+  id: string
+  labelKey: string
+  civitaiTags: readonly string[]
+  hfTags: readonly string[]
+  nameKeywords: readonly string[]
+  searchFallbackTerm: string
+}[]
+
+export type LoraContentTypeDefinition = (typeof LORA_CONTENT_TYPES)[number]
+export type LoraContentTypeId = LoraContentTypeDefinition['id']
+export type LoraContentType = LoraContentTypeId | 'all'
+
+export const LORA_CONTENT_TYPE_VALUES = [
+  'all',
+  ...LORA_CONTENT_TYPES.map((definition) => definition.id),
+] as const satisfies readonly LoraContentType[]
+
+export const DEFAULT_LORA_CONTENT_TYPE: LoraContentType = 'all'
+
+// URL `type=` 深链参数（§2.5）。
+export const LORA_LIBRARY_TYPE_PARAM = 'type'
+
+export function isLoraContentType(value: string): value is LoraContentType {
+  return (LORA_CONTENT_TYPE_VALUES as readonly string[]).includes(value)
+}
+
+/** URL `type=` 解析：未知值静默按 'all'（沿用 family/P1-5 的约定）。 */
+export function parseLoraLibraryTypeParam(
+  raw: string | null | undefined,
+): LoraContentType {
+  if (!raw) return DEFAULT_LORA_CONTENT_TYPE
+  const trimmed = raw.trim().toLowerCase()
+  return isLoraContentType(trimmed) ? trimmed : DEFAULT_LORA_CONTENT_TYPE
+}
+
+export function getLoraContentTypeDefinition(
+  type: LoraContentTypeId,
+): LoraContentTypeDefinition {
+  const found = LORA_CONTENT_TYPES.find((definition) => definition.id === type)
+  if (!found) {
+    throw new Error(`Unknown LoRA content type: ${type}`)
+  }
+  return found
+}
+
+// per-source 可用性（与 family 同机制，§2.1）：2026-07-17 HF 供给实测
+// （Hub `/api/models?filter=lora&search=<关键词>` 近似，回写 §3.1）未发现
+// 任何类型完全 0 供给（character 266 · outfit 115 · dress 155 · uniform 75
+// · costume 41 · expression 31 · smile 31 · face 433 · emotion 81 · pose 95
+// · posture 2 · style 1000(封顶) · concept 279 · background 83 · scenery 13
+// · landscape 46）——7 类在 HF tab 下全部保留渲染，机制留着供未来实测收窄。
+export const LORA_CONTENT_TYPE_VALUES_BY_SOURCE: Record<
+  LoraLibrarySource,
+  readonly LoraContentType[]
+> = {
+  [LORA_LIBRARY_SOURCES.CIVITAI]: LORA_CONTENT_TYPE_VALUES,
+  [LORA_LIBRARY_SOURCES.HUGGINGFACE]: LORA_CONTENT_TYPE_VALUES,
+}
+
+// L3 自建映射（§3.2）：人工/挖掘维护的纠错层，优先级最高——L2 误报进
+// exclude、L1/L2 都漏的热门模型进 override。首发允许空表，机制先立起来。
+// civitai 用 modelId（数字，稳定）；HF 没有稳定数字 id，用 repoId。
+export const LORA_CONTENT_TYPE_OVERRIDES: Record<number, LoraContentTypeId> = {}
+
+export const LORA_CONTENT_TYPE_EXCLUDES: Record<number, LoraContentTypeId> = {}
+
+export const LORA_CONTENT_TYPE_OVERRIDES_HF: Record<string, LoraContentTypeId> =
+  {}
+
+export const LORA_CONTENT_TYPE_EXCLUDES_HF: Record<string, LoraContentTypeId> =
+  {}
+
+function normalizeFamilyMatchToken(value: string): string {
+  return value.toLowerCase().replace(/[\s.]+/g, '')
+}
+
+/**
+ * URL `family=` 解析：新深链直接是 slug；旧深链（P1-5 时代）存的是 civitai
+ * 原始 baseModel 字符串（如 `Illustrious`、`Flux.1 D`）。大小写不敏感 +
+ * 空格/点容错，未知值静默按 'all'（P1-5「非法值静默按默认」约定的延伸）。
+ */
+export function parseLoraLibraryFamilyParam(
+  raw: string | null | undefined,
+): LoraLibraryFamily {
+  if (!raw) return 'all'
+  const trimmed = raw.trim()
+  if (!trimmed) return 'all'
+  const normalized = normalizeFamilyMatchToken(trimmed)
+
+  const slugMatch = LORA_LIBRARY_FAMILY_VALUES.find(
+    (slug) => normalizeFamilyMatchToken(slug) === normalized,
+  )
+  if (slugMatch) return slugMatch
+
+  const civitaiMatch = CIVITAI_LORA_BASE_MODEL_VALUES.find(
+    (value) => normalizeFamilyMatchToken(value) === normalized,
+  )
+  if (civitaiMatch) return civitaiBaseModelToFamilySlug(civitaiMatch)
+
+  const hfMatch = HUGGINGFACE_LORA_FAMILY_VALUES.find(
+    (value) => normalizeFamilyMatchToken(value) === normalized,
+  )
+  if (hfMatch) return huggingFaceFamilyToFamilySlug(hfMatch)
+
+  return 'all'
 }
 
 // 训练预设 — 给「我想训一个 X」的用户一个不用调任何 dial 的入口。点一张卡，

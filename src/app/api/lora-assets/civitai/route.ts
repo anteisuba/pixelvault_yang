@@ -7,7 +7,9 @@ import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
+  DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
+  LORA_CONTENT_TYPE_VALUES,
   isCivitaiSearchBackend,
   isLoraNsfwFilter,
 } from '@/constants/lora'
@@ -32,6 +34,11 @@ const ListCivitaiLoraQuerySchema = z.object({
   search: z.string().trim().optional(),
   baseModel: z.enum(CIVITAI_LORA_BASE_MODEL_VALUES).default('all'),
   sort: z.enum(CIVITAI_LORA_SORT_VALUES).default('Highest Rated'),
+  // S2 内容类型筛选（lora-workbench.md §3）。URL `type=`（§2.5）直通到这
+  // 里——客户端（ContentTypeChipRow/URL 同步 effect）总是先经
+  // isLoraContentType 校验过才发请求，这里的 enum+default 与 baseModel/
+  // sort 同一套防线（外部畸形请求会 400，符合现状约定）。
+  type: z.enum(LORA_CONTENT_TYPE_VALUES).default(DEFAULT_LORA_CONTENT_TYPE),
   // P1-6 三态（unrestricted/nsfwOnly/safe）——未知/缺失值静默落回默认，
   // 不透传给 civitai。
   nsfwFilter: z
@@ -77,6 +84,7 @@ export async function GET(
       sort: searchParams.get('sort') ?? undefined,
       nsfwFilter: searchParams.get('nsfw') ?? undefined,
       source: searchParams.get('source') ?? undefined,
+      type: searchParams.get('type') ?? undefined,
     })
 
     if (!parsed.success) {
@@ -86,7 +94,17 @@ export async function GET(
       )
     }
 
-    const data = await listCivitaiLoras(parsed.data)
+    const data = await listCivitaiLoras({
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      cursor: parsed.data.cursor,
+      search: parsed.data.search,
+      baseModel: parsed.data.baseModel,
+      sort: parsed.data.sort,
+      nsfwFilter: parsed.data.nsfwFilter,
+      source: parsed.data.source,
+      contentType: parsed.data.type,
+    })
     const response = NextResponse.json<SuccessBody>({ success: true, data })
     response.headers.set('Cache-Control', CACHE_CONTROL)
     return response

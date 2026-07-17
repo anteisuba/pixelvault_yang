@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest'
 
 import {
+  LORA_BASE_FAMILIES,
   LORA_BASE_MODELS,
   LORA_BASE_ONLY_DEFAULT_ID,
   getBaseOnlyGenerationBases,
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
+  getLoraBaseArchitectureGroup,
   normalizeToLoraBaseFamily,
 } from '@/constants/lora-base-models'
 
@@ -121,6 +123,23 @@ describe('pure-base generation catalog', () => {
       true,
     )
     expect(bases.some((base) => base.id === 'anima-dit-runner')).toBe(false)
+  })
+})
+
+describe('getLoraBaseArchitectureGroup', () => {
+  it('routes anima-dit to the DiT group', () => {
+    expect(getLoraBaseArchitectureGroup('anima-dit')).toBe('dit')
+  })
+
+  it('routes every other known family to the SDXL group', () => {
+    // §4.4 底模 Select 分组：anima-dit 是唯一的 DiT 家族，其余（含 SDXL 系的
+    // "anima" = Anima Pencil XL）全部落 SDXL 桶——新增架构默认也走这条路，
+    // 除非显式加进 LORA_BASE_DIT_FAMILIES。
+    const nonDit = LORA_BASE_FAMILIES.filter((f) => f !== 'anima-dit')
+    expect(nonDit.length).toBeGreaterThan(0)
+    for (const family of nonDit) {
+      expect(getLoraBaseArchitectureGroup(family)).toBe('sdxl')
+    }
   })
 })
 

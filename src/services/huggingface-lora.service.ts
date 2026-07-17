@@ -11,7 +11,12 @@ import {
   HUGGINGFACE_LORA_DETAIL_CONCURRENCY,
   HUGGINGFACE_LORA_MAX_FILE_BYTES,
   HUGGINGFACE_LORA_MAX_CURSOR_SCANS,
+  LORA_CONTENT_TYPE_EXCLUDES_HF,
+  LORA_CONTENT_TYPE_OVERRIDES_HF,
+  getLoraContentTypeDefinition,
   type HuggingFaceLoraFamily,
+  type HuggingFaceLoraSort,
+  type LoraContentType,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
 import { safeFetch } from '@/lib/url-guard'
@@ -374,9 +379,53 @@ function hasExplicitLoraTag(
   return model.tags.some((tag) => tag.trim().toLowerCase() === 'lora')
 }
 
+// S2 内容类型筛选（lora-workbench.md §3）L1+L2：hfTags 命中（HF Hub 标签，
+// 供给普遍稀薄，允许空数组）或 nameKeywords 对 repoId/模型名/tags/文件名
+// 的子串匹配——不像 civitai 走 meilisearch 下推，HF 这条本来就是"抓一批
+// Hub 页 + 服务端过滤"的既有架构（isPotentialLoraCandidate 的其余判据同一
+// 模式），复用同一个 haystack 构造方式（matchesRepositorySearch 用的那套）
+// 保持风格一致，不新开一条 over-fetch 路径。
+function repositoryMatchesContentTypeKeywords(
+  model: z.infer<typeof HuggingFaceModelSchema>,
+  contentType: Exclude<LoraContentType, 'all'>,
+): boolean {
+  const definition = getLoraContentTypeDefinition(contentType)
+  const normalizedTags = model.tags.map((tag) => tag.trim().toLowerCase())
+  if (
+    definition.hfTags.some((tag) => normalizedTags.includes(tag.toLowerCase()))
+  ) {
+    return true
+  }
+  const haystack = [
+    model.id,
+    getModelName(model.id),
+    ...model.tags,
+    ...model.siblings.map((file) => file.rfilename),
+  ]
+    .join(' ')
+    .toLowerCase()
+  return definition.nameKeywords.some((keyword) =>
+    haystack.includes(keyword.toLowerCase()),
+  )
+}
+
+// L3（§3.2）：repoId 键的 exclude/override 表，优先级最高，首发空表——
+// exclude 剔除 L1/L2 误报，override 补 L1/L2 都漏的模型。
+function modelMatchesContentType(
+  model: z.infer<typeof HuggingFaceModelSchema>,
+  contentType: LoraContentType,
+): boolean {
+  if (contentType === 'all') return true
+  const repoKey = model.id.toLowerCase()
+  if (LORA_CONTENT_TYPE_EXCLUDES_HF[repoKey] === contentType) return false
+  if (LORA_CONTENT_TYPE_OVERRIDES_HF[repoKey] === contentType) return true
+  return repositoryMatchesContentTypeKeywords(model, contentType)
+}
+
 function isPotentialLoraCandidate(
   model: z.infer<typeof HuggingFaceModelSchema>,
   baseModelFamily: string,
+  contentType: LoraContentType,
 ): boolean {
   return (
     !model.private &&
@@ -384,6 +433,7 @@ function isPotentialLoraCandidate(
     (hasExplicitLoraTag(model) || isCuratedAnimaLoraRepo(model.id)) &&
     isSupportedDiffusionLora(model) &&
     modelHasBaseFamily(model, baseModelFamily) &&
+    modelMatchesContentType(model, contentType) &&
     model.siblings.some((file) =>
       file.rfilename.toLowerCase().endsWith(HUGGINGFACE_LORA_ALLOWED_EXTENSION),
     )
@@ -477,8 +527,9 @@ async function hydrateCandidateFileSizes(
 function toSearchItem(
   model: z.infer<typeof HuggingFaceModelSchema>,
   baseModelFamily: string,
+  contentType: LoraContentType,
 ): HuggingFaceLoraSearchItem | null {
-  if (!isPotentialLoraCandidate(model, baseModelFamily)) {
+  if (!isPotentialLoraCandidate(model, baseModelFamily, contentType)) {
     return null
   }
 
@@ -541,6 +592,7 @@ async function fetchHuggingFaceModelList(input: {
   filter: string
   search: string
   limit: number
+  sort: HuggingFaceLoraSort
   cursor?: string
 }): Promise<{
   models: z.infer<typeof HuggingFaceModelSchema>[]
@@ -550,7 +602,7 @@ async function fetchHuggingFaceModelList(input: {
     filter: input.filter,
     full: 'true',
     limit: String(input.limit),
-    sort: 'downloads',
+    sort: input.sort,
     direction: '-1',
   })
   if (input.search) params.set('search', input.search)
@@ -654,7 +706,7 @@ export async function searchHuggingFaceLoras(
     if (includeCuratedAnima) {
       const curatedModels = await fetchCuratedAnimaLoraRepos(query.search)
       for (const model of curatedModels) {
-        const item = toSearchItem(model, query.baseModelFamily)
+        const item = toSearchItem(model, query.baseModelFamily, query.type)
         if (!item || items.length >= query.limit) continue
         items.push(item)
         seenRepoIds.add(item.repoId.toLowerCase())
@@ -671,6 +723,7 @@ export async function searchHuggingFaceLoras(
         filter: getDiscoveryFilter(query.baseModelFamily),
         search: query.search,
         limit: remaining,
+        sort: query.sort,
         cursor: nextCursor ?? undefined,
       })
       nextCursor = hubPage.nextCursor
@@ -678,11 +731,11 @@ export async function searchHuggingFaceLoras(
       const candidates = hubPage.models.filter(
         (model) =>
           !seenRepoIds.has(model.id.toLowerCase()) &&
-          isPotentialLoraCandidate(model, query.baseModelFamily),
+          isPotentialLoraCandidate(model, query.baseModelFamily, query.type),
       )
       const verifiedModels = await hydrateCandidateFileSizes(candidates)
       for (const model of verifiedModels) {
-        const item = toSearchItem(model, query.baseModelFamily)
+        const item = toSearchItem(model, query.baseModelFamily, query.type)
         if (!item || items.length >= query.limit) continue
         items.push(item)
         seenRepoIds.add(item.repoId.toLowerCase())
@@ -704,6 +757,7 @@ export async function searchHuggingFaceLoras(
     logger.warn('Hugging Face LoRA search failed', {
       search: query.search,
       baseModelFamily: query.baseModelFamily,
+      contentType: query.type,
       error: error instanceof Error ? error.message : 'Unknown',
     })
     throw error

@@ -11,11 +11,16 @@ import {
   CIVITAI_OTHER_BASE_MODEL_MEMBERS,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
+  DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
+  LORA_CONTENT_TYPE_EXCLUDES,
+  LORA_CONTENT_TYPE_OVERRIDES,
+  getLoraContentTypeDefinition,
   isNsfwNamedModel,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
+  type LoraContentType,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import {
@@ -180,6 +185,8 @@ const CivitaiModelSchema = z
       z.array(z.string()).optional(),
     ),
     allowDerivatives: z.boolean().optional(),
+    // S3 授权徽标「需署名」判定（lora-workbench.md §2.4 P0-2 规范）。
+    allowNoCredit: z.boolean().optional(),
     // civitai 模型级 NSFW 标记（与图片级 nsfwLevel 分开）——P1-6 三态里
     // 「仅 NSFW」档用它做客户端二次过滤。
     nsfw: z.boolean().optional(),
@@ -246,6 +253,7 @@ const CivitaiSearchPermissionsSchema = z
   .object({
     allowCommercialUse: z.array(z.string()).optional(),
     allowDerivatives: z.boolean().optional(),
+    allowNoCredit: z.boolean().optional(),
   })
   .passthrough()
 
@@ -942,6 +950,13 @@ export interface ListCivitaiLorasInput {
    * 首页的行为）。
    */
   source?: CivitaiSearchBackend
+  /**
+   * S2 内容类型筛选（docs/references/pages/lora-workbench.md §3）。非
+   * 'all' 时整个请求路由到 `listCivitaiLorasByContentType`——始终走
+   * meilisearch（REST `tag=` 只支持单值、表达不了多 tag 的 OR，且 REST
+   * 完全没有名称关键词兜底路径），绕开下面的 REST 浏览分支。
+   */
+  contentType?: LoraContentType
 }
 
 export interface CivitaiLoraPrewarmEntry {
@@ -1197,6 +1212,7 @@ function toLibraryItem(
       version.stats?.thumbsUpCount ?? model.stats?.thumbsUpCount ?? 0,
     allowCommercialUse: model.allowCommercialUse ?? [],
     allowDerivatives: model.allowDerivatives ?? false,
+    allowNoCredit: model.allowNoCredit ?? true,
     isNsfw: model.nsfw ?? false,
   }
 }
@@ -1340,6 +1356,7 @@ async function hitToLibraryItem(
       version.metrics?.thumbsUpCount ?? hit.metrics?.thumbsUpCount ?? 0,
     allowCommercialUse: hit.permissions?.allowCommercialUse ?? [],
     allowDerivatives: hit.permissions?.allowDerivatives ?? false,
+    allowNoCredit: hit.permissions?.allowNoCredit ?? true,
     isNsfw: hit.nsfw ?? false,
   }
 }
@@ -1465,6 +1482,257 @@ async function listCivitaiLorasBySearch({
       estimatedTotal !== null
         ? offset + hits.length < estimatedTotal
         : hits.length >= pageSize,
+    nextCursor: null,
+  }
+}
+
+function buildTagsInFilter(tags: readonly string[]): string {
+  const quoted = tags.map((tag) => JSON.stringify(tag)).join(', ')
+  return `tags.name IN [${quoted}]`
+}
+
+// 合并两个独立分页窗口（L1 tag 命中 ∪ L2 关键词命中）后，各自的 meilisearch
+// 内部排序已不再是"整体排过序"的——重新按请求的 sort 字段排一遍，跟单
+// query 路径（listCivitaiLorasBySearch）在同一 sort 值下产出一致的顺序。
+// 'Highest Rated'（相关性）没有暴露给客户端的数值分数，保留合并顺序
+// （L1 命中排在 L2 前面，各自内部仍是 meilisearch 相关性序）。
+function sortMergedSearchHits(
+  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
+  sort: CivitaiLoraSort,
+): z.infer<typeof CivitaiSearchHitSchema>[] {
+  if (sort === 'Most Downloaded') {
+    // S3 实测发现的回归修复：必须和 hitToLibraryItem 的展示值同一套优先级
+    // （version.metrics 优先、hit.metrics 兜底）——meilisearch 命中的顶层
+    // hit.metrics 在生产环境经常缺失/陈旧，只读它排出来的序和卡片上实际
+    // 显示的下载数对不上（真机验证：`type=clothing&sort=Most+Downloaded`
+    // 返回 45846/7931/39045/32605/278/19020… 完全不是降序）。
+    return [...hits].sort(
+      (a, b) =>
+        (b.version?.metrics?.downloadCount ?? b.metrics?.downloadCount ?? 0) -
+        (a.version?.metrics?.downloadCount ?? a.metrics?.downloadCount ?? 0),
+    )
+  }
+  if (sort === 'Newest') {
+    return [...hits].sort((a, b) => {
+      const aTime = Date.parse(a.version?.createdAt ?? a.createdAt ?? '') || 0
+      const bTime = Date.parse(b.version?.createdAt ?? b.createdAt ?? '') || 0
+      return bTime - aTime
+    })
+  }
+  return [...hits]
+}
+
+// L3 include 解析：override 表把某个 modelId 显式判给一个内容类型，即使
+// L1 tag / L2 关键词都没命中它。走 REST 单模型端点（不是 hitToLibraryItem
+// 那条 search-hit 路径）——override 条目稀少，不值得为它们再拼一次
+// multi-search query。
+async function resolveCivitaiLoraLibraryItemByModelId(
+  modelId: number,
+  maxImageNsfwLevel: number,
+): Promise<CivitaiLoraLibraryItem | null> {
+  const url = new URL(`${CIVITAI_MODELS_API}/${modelId}`)
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.resolveContentTypeOverride',
+    })
+  } catch (error) {
+    logger.warn('Civitai content-type override model resolve failed', {
+      modelId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+  const parsed = CivitaiModelSchema.safeParse(payload)
+  if (!parsed.success) return null
+  return toLibraryItem(parsed.data, maxImageNsfwLevel)
+}
+
+/**
+ * S2 内容类型筛选（docs/references/pages/lora-workbench.md §3.2，三重
+ * 兜底，服务端合并，客户端只见统一列表）：
+ *
+ *   L1 tag 下推：meilisearch `tags.name IN (civitaiTags)`——精确但覆盖不全。
+ *   L2 名称词表：`nameKeywords` 下推进 meilisearch 第二个 query 的 `q`
+ *     （全文，覆盖 name/tags/description，typo-tolerant）。工程选型：没有
+ *     走"对已抓取页做客户端子串过滤"，因为那需要额外的宽口径 over-fetch，
+ *     与简报 §0 明确排除的"over-fetch 根治"方向冲突；q= 下推复用同一次
+ *     HTTP round trip（multi-search 原生支持 queries 数组，实测 2026-07-17
+ *     一次 POST 可带多个独立 query 且各自返回独立 hits），零额外往返。
+ *     meilisearch 的 typo-tolerant 全文匹配是"名称/描述子串匹配"的合理
+ *     超集——宁可稍宽，多余命中交给 L3 exclude 兜底纠错。
+ *   L3 override：优先级最高。`LORA_CONTENT_TYPE_EXCLUDES` 剔除 L1/L2 误
+ *     报，`LORA_CONTENT_TYPE_OVERRIDES` 补 L1/L2 都漏的热门模型（首发空
+ *     表，机制先立起来）。
+ *
+ * 已知限制（对齐简报 §0"不做 over-fetch 根治"的范围）：L1/L2 各自独立按
+ * offset/limit 分页，合并去重后重排再裁到 pageSize——两个独立分页窗口的
+ * 并集不是精确分页，`total` 因此如实报 null（未知）而不是编造一个数字。
+ * 失败没有 REST 回落（REST `tag=` 不支持多值 OR、也没有名称关键词兜底路
+ * 径）：meilisearch 请求失败直接向上抛错，交给路由层 502——失败大声暴露
+ * 好过悄悄丢弃用户选中的类型筛选。
+ */
+async function listCivitaiLorasByContentType({
+  page,
+  pageSize,
+  search,
+  baseModel,
+  sort,
+  nsfwFilter,
+  contentType,
+}: {
+  page: number
+  pageSize: number
+  search: string
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  nsfwFilter: LoraNsfwFilter
+  contentType: Exclude<LoraContentType, 'all'>
+}): Promise<CivitaiLoraLibraryResult> {
+  const definition = getLoraContentTypeDefinition(contentType)
+  const offset = (page - 1) * pageSize
+  const baseFilters = buildCivitaiSearchFilters(
+    baseModel === 'all' ? null : baseModel,
+  )
+  appendNsfwSearchFilter(baseFilters, nsfwFilter)
+
+  interface MultiSearchQuery {
+    indexUid: string
+    q: string
+    limit: number
+    offset: number
+    filter: string[]
+    sort: string[] | undefined
+  }
+  const queries: MultiSearchQuery[] = []
+
+  if (definition.civitaiTags.length > 0) {
+    queries.push({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q: search,
+      limit: pageSize,
+      offset,
+      filter: [...baseFilters, buildTagsInFilter(definition.civitaiTags)],
+      sort: CIVITAI_SEARCH_SORT_MAP[sort],
+    })
+  }
+
+  const l2QueryText = [search, ...definition.nameKeywords]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ')
+  if (l2QueryText) {
+    queries.push({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q: l2QueryText,
+      limit: pageSize,
+      offset,
+      filter: baseFilters,
+      sort: CIVITAI_SEARCH_SORT_MAP[sort],
+    })
+  }
+
+  if (queries.length === 0) {
+    // 表里的类型定义应至少有 civitaiTags 或 nameKeywords 之一——真到这里
+    // 说明定义本身是空的（配置错误），如实返回空页而不是抛错砸整个库。
+    return {
+      items: [],
+      page,
+      pageSize,
+      total: 0,
+      hasNextPage: false,
+      nextCursor: null,
+    }
+  }
+
+  const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const payload = await withRetry(
+    () =>
+      fetchCivitaiPayload(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ queries }),
+      }),
+    {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.searchLorasByContentType',
+    },
+  )
+
+  // 与 listCivitaiLorasBySearch 同一套契约：解析失败直接抛出，不静默吞掉。
+  const parsed = CivitaiModelSearchResponseSchema.parse(payload)
+
+  const excludedForType = new Set(
+    Object.entries(LORA_CONTENT_TYPE_EXCLUDES)
+      .filter(([, excludedType]) => excludedType === contentType)
+      .map(([modelId]) => Number(modelId)),
+  )
+
+  const mergedById = new Map<number, z.infer<typeof CivitaiSearchHitSchema>>()
+  for (const result of parsed.results) {
+    const filteredHits = filterSearchHitsByNsfw(result.hits ?? [], nsfwFilter)
+    for (const hit of filteredHits) {
+      if (excludedForType.has(hit.id)) continue
+      if (!mergedById.has(hit.id)) mergedById.set(hit.id, hit)
+    }
+  }
+
+  const sortedHits = sortMergedSearchHits([...mergedById.values()], sort)
+  const pageHits = sortedHits.slice(0, pageSize)
+  const items = await hitsToLibraryItems(
+    pageHits,
+    maxImageNsfwLevelFor(nsfwFilter),
+  )
+
+  // L3 include：override 表里映射到当前类型、且这一页 L1/L2 都没捞到的
+  // 模型——首发允许空表（机制先立起来），只在表非空且这页还没填满时才
+  // 发起额外解析请求。
+  const includeModelIds = Object.entries(LORA_CONTENT_TYPE_OVERRIDES)
+    .filter(([, overriddenType]) => overriddenType === contentType)
+    .map(([modelId]) => Number(modelId))
+    .filter((modelId) => !mergedById.has(modelId))
+
+  if (includeModelIds.length > 0 && items.length < pageSize) {
+    const resolvedOverrides = await Promise.all(
+      includeModelIds
+        .slice(0, pageSize - items.length)
+        .map((modelId) =>
+          resolveCivitaiLoraLibraryItemByModelId(
+            modelId,
+            maxImageNsfwLevelFor(nsfwFilter),
+          ),
+        ),
+    )
+    for (const overrideItem of resolvedOverrides) {
+      if (overrideItem) items.push(overrideItem)
+    }
+  }
+
+  // 两个独立分页窗口的并集大小无法从各自的 estimatedTotalHits 精确推出
+  // （成员可能重叠也可能互补）——如实报 null（未知）好过编造一个数字；
+  // hasNextPage 改用"任一底层 query 在这页之后还有更多"来近似判断，外加
+  // "这页合并后本身已经溢出 pageSize"的保守信号。
+  const hasNextPage =
+    parsed.results.some(
+      (result) =>
+        result.estimatedTotalHits !== undefined &&
+        offset + pageSize < result.estimatedTotalHits,
+    ) || sortedHits.length > pageSize
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: null,
+    hasNextPage,
     nextCursor: null,
   }
 }
@@ -1885,8 +2153,25 @@ export async function listCivitaiLoras(
     sort = 'Highest Rated',
     nsfwFilter = DEFAULT_LORA_NSFW_FILTER,
     source,
+    contentType = DEFAULT_LORA_CONTENT_TYPE,
   } = input
   const normalizedSearch = input.search?.trim() ?? ''
+
+  // S2：内容类型筛选整体路由到独立的 meilisearch 合并路径（三重兜底，见
+  // listCivitaiLorasByContentType 的文档注释），绕开下面的 search/REST 双
+  // 分支——REST `tag=` 只支持单值、表达不了 civitaiTags 的多 tag OR，也没
+  // 有名称关键词兜底，type≠'all' 时统一走 meilisearch。
+  if (contentType !== 'all') {
+    return listCivitaiLorasByContentType({
+      page,
+      pageSize,
+      search: normalizedSearch,
+      baseModel,
+      sort,
+      nsfwFilter,
+      contentType,
+    })
+  }
 
   // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
   // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，

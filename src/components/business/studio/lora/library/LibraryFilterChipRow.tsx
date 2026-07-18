@@ -31,7 +31,10 @@ export function LibraryFilterChipRow<T extends string>({
 }: LibraryFilterChipRowProps<T>) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <span className="shrink-0 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+      {/* §12 行首标定宽对齐：w-7(28px，Tailwind 标准档，就近覆盖设计稿
+          26px 目标，复用现有 scale 不新开任意值)——类型/底模两行左边界
+          对齐；长译名（如 en "Base model"）超宽时自然换行，不撑破对齐。 */}
+      <span className="w-7 shrink-0 text-2xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
         {rowLabel}
       </span>
       <div

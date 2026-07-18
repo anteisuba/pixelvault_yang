@@ -40,6 +40,7 @@ const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
 const mockAddTag = vi.hoisted(() => vi.fn())
 const mockRouterReplace = vi.hoisted(() => vi.fn())
 const mockRouterPush = vi.hoisted(() => vi.fn())
+const mockUseHuggingFaceLoraShowcase = vi.hoisted(() => vi.fn())
 
 vi.mock('@/constants/feature-flags', () => ({
   FEATURE_FLAGS: {
@@ -210,6 +211,13 @@ vi.mock('@/hooks/prompts/use-runner-usage', () => ({
   useRunnerUsage: () => ({ usage: null, isLoading: false }),
 }))
 
+// H1 生成侧「样例参考」（lora-workbench.md §13）：mock 掉 README 网络抓取，
+// 这些测试只关心「HF 挂载时用这条数据渲染/填入正文」这一层 UI 接线，不是
+// README 启发式本身（那部分见 huggingface-lora.service.test.ts）。
+vi.mock('@/hooks/use-huggingface-lora-showcase', () => ({
+  useHuggingFaceLoraShowcase: mockUseHuggingFaceLoraShowcase,
+}))
+
 // B9: control the reference-image state so we can assert handleGenerate
 // threads it into the generate request. Default empty → transparent to the
 // other tests. Reset before every test via the file-level beforeEach below.
@@ -247,6 +255,11 @@ beforeEach(() => {
   mockReferenceImages = []
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
   mockTraySelections = []
+  mockUseHuggingFaceLoraShowcase.mockReset().mockReturnValue({
+    images: [],
+    prompts: [],
+    isLoading: false,
+  })
 })
 
 const quickSetupSpy = vi.hoisted(() => vi.fn())
@@ -934,6 +947,128 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
         'LoraWorkbench:generate.negativePromptPlaceholder',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+// H1 生成侧「样例参考」（lora-workbench.md §13）：挂载 HF LoRA 时配方面板区
+// 换成 README showcase（图横滚+提示词一键填入），与 civitai mined 配方链
+// 互斥——`useHuggingFaceLoraShowcase` 在这个文件里被 mock 掉（不发真网络
+// 请求），断言的是「HF 挂载→渲染这条数据→点『填入正文』替换正文」这层 UI
+// 接线，README 启发式本身在 huggingface-lora.service.test.ts 里测。
+describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
+  const hfAsset = {
+    id: 'hf-lora-1',
+    name: 'Anything2Real',
+    triggerWord: '',
+    baseModelFamily: 'flux',
+    defaultScale: 1,
+    loraUrl:
+      'https://huggingface.co/lrzjason/Anything2Real/resolve/main/f2k_anything2real.safetensors',
+    provider: 'huggingface',
+  }
+
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    mockLastGeneration = null
+    mockMinedRecipes = []
+    mockMinedPreviewImages = []
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  it('renders the showcase image strip + prompt list instead of the (empty) civitai mined panel', () => {
+    mockStackItems = [{ asset: hfAsset, scale: 1 }]
+    mockUseHuggingFaceLoraShowcase.mockReturnValue({
+      images: ['https://cdn-uploads.huggingface.co/production/uploads/a.png'],
+      prompts: ['change the picture 1 to realistic photograph, [description]'],
+      isLoading: false,
+    })
+
+    render(<LoraWorkbench />)
+
+    expect(screen.getByText('LoraWorkbench:showcaseTitle')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /LoraWorkbench:showcaseImageAlt/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'change the picture 1 to realistic photograph, [description]',
+      ),
+    ).toBeInTheDocument()
+    // civitai mined panel's own controls must not also render for an HF mount.
+    expect(
+      screen.queryByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('"填入正文" replaces the prompt textarea with the candidate prompt (D7⑤ semantics — replace, not append)', () => {
+    mockStackItems = [{ asset: hfAsset, scale: 1 }]
+    mockUseHuggingFaceLoraShowcase.mockReturnValue({
+      images: [],
+      prompts: ['1girl, solo, masterpiece'],
+      isLoading: false,
+    })
+
+    render(<LoraWorkbench />)
+
+    const promptField = screen.getByPlaceholderText(
+      'LoraWorkbench:generate.promptPlaceholder',
+    )
+    fireEvent.change(promptField, { target: { value: 'existing text' } })
+    expect(promptField).toHaveValue('existing text')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench:showcaseFillPrompt' }),
+    )
+
+    expect(promptField).toHaveValue('1girl, solo, masterpiece')
+  })
+
+  it('renders nothing (falls through to the empty-recommend copy) when the HF LoRA has no README images or prompts', () => {
+    mockStackItems = [{ asset: hfAsset, scale: 1 }]
+    mockUseHuggingFaceLoraShowcase.mockReturnValue({
+      images: [],
+      prompts: [],
+      isLoading: false,
+    })
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.queryByText('LoraWorkbench:showcaseTitle'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('LoraWorkbench:generate.recommendEmpty'),
+    ).toBeInTheDocument()
+  })
+
+  it('leaves the civitai mined panel untouched for a civitai-provider mount (no regression)', () => {
+    // Default `stackAsset` (module-level fixture) has no `provider` field —
+    // exercise it explicitly here so this test documents the civitai path
+    // stays on the pre-H1 branch instead of relying on an implicit default.
+    mockStackItems = [
+      { asset: { ...stackAsset, provider: 'civitai' }, scale: 1 },
+    ]
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'portrait, green hanfu',
+      },
+    ]
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.getByRole('button', {
+        name: /LoraPromptControl\.generate:recipeApply/,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('LoraWorkbench:showcaseTitle'),
+    ).not.toBeInTheDocument()
+    expect(mockUseHuggingFaceLoraShowcase).toHaveBeenCalledWith(null)
   })
 })
 

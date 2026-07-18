@@ -8,6 +8,7 @@ import type {
 
 import {
   extractReadmeImageUrls,
+  extractReadmePromptCandidates,
   fetchReadmeCoverImageUrl,
   getHuggingFaceRepoShowcase,
   isFallbackSocialThumbnail,
@@ -1000,6 +1001,78 @@ describe('huggingface-lora.service', () => {
     })
   })
 
+  // H1 生成侧「样例参考」提示词启发式（lora-workbench.md §13）：两路
+  // best-effort——fenced code block（含逗号、不像结构化代码）+ `prompt:`
+  // 前缀行。真实样本取自 `lrzjason/Anything2Real`（2026-07-18 实测，见
+  // handoff）：唯一一个 fence 是
+  // "change the picture 1 to realistic photograph, [description of your image]"。
+  describe('extractReadmePromptCandidates', () => {
+    it('takes a fenced code block whose content has a comma and no language hint', () => {
+      const markdown =
+        '## Usage\n\n```\nchange the picture 1 to realistic photograph, [description of your image]\n```\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([
+        'change the picture 1 to realistic photograph, [description of your image]',
+      ])
+    })
+
+    it('takes a `prompt:` prefixed line, case-insensitively', () => {
+      const markdown = 'Example:\nPrompt: 1girl, solo, masterpiece, blue hair\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([
+        '1girl, solo, masterpiece, blue hair',
+      ])
+    })
+
+    it('rejects a fenced code block tagged as json even if it has a comma', () => {
+      const markdown = '```json\n{"prompt": "a cat, sitting"}\n```\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([])
+    })
+
+    it('rejects a fenced code block that looks like yaml front matter (no comma)', () => {
+      const markdown =
+        '```\nbase_model: illustrious\nlicense: apache-2.0\n```\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([])
+    })
+
+    it('rejects a fenced code block tagged as python', () => {
+      const markdown =
+        '```python\nimport torch, diffusers\nprint("hello, world")\n```\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([])
+    })
+
+    it('rejects a fenced code block with no comma at all', () => {
+      const markdown = '```\njust one plain word\n```\n'
+      expect(extractReadmePromptCandidates(markdown)).toEqual([])
+    })
+
+    it('dedupes case-insensitively across both heuristics and caps at the candidate limit', () => {
+      const markdown = [
+        'Prompt: masterpiece, best quality',
+        'prompt: MASTERPIECE, best quality',
+        'Prompt: one girl, red dress',
+        'Prompt: two girls, blue dress',
+        'Prompt: three girls, green dress',
+        'Prompt: four girls, yellow dress',
+        'Prompt: five girls, purple dress',
+        'Prompt: six girls, pink dress',
+      ].join('\n')
+      const result = extractReadmePromptCandidates(markdown)
+      expect(result.length).toBeLessThanOrEqual(6)
+      expect(result).toContain('masterpiece, best quality')
+      expect(
+        result.filter((p) => p.toLowerCase() === 'masterpiece, best quality')
+          .length,
+      ).toBe(1)
+    })
+
+    it('returns an empty array when the README has neither heuristic', () => {
+      expect(
+        extractReadmePromptCandidates(
+          '# Title\n\nJust prose, no code, no prompt line.',
+        ),
+      ).toEqual([])
+    })
+  })
+
   // 库侧封面渐进增强（2026-07-18 方案 B）：README 挖掘从列表同步阻塞改成
   // 客户端按需懒加载调用的单仓库端点。这里测试的是新的服务函数本身——
   // 端点路由层的 auth/schema 校验见 route.test.ts。
@@ -1030,8 +1103,47 @@ describe('huggingface-lora.service', () => {
         'https://cdn-uploads.huggingface.co/production/uploads/sample-1.png',
         'https://cdn-uploads.huggingface.co/production/uploads/sample-2.png',
       ])
-      // 提示词提取是下一切片（H1）的活，这次固定返回空数组占位。
+      // 这份 fixture 里没有 fenced code block 也没有 `prompt:` 行，H1 的
+      // 启发式（见 extractReadmePromptCandidates 单测）如实提不到，返回空
+      // 数组——不是占位，是真提取的结果。
       expect(result.prompts).toEqual([])
+    })
+
+    it('wires the H1 prompt heuristic through end to end (images + prompts from the same README fetch)', async () => {
+      // 用独立 repoId（不是 "returns every README embedded image..." 用的
+      // lrzjason/Anything2Real）——`getHuggingFaceRepoShowcase` 有模块级
+      // repoId+revision 缓存，同一 key 会命中前一个测试的缓存值，与本测试
+      // 想验证的新 mock README 内容互相污染。
+      mockReadme(
+        [
+          '# Anything2Real (prompt-heuristic fixture)',
+          '',
+          '<img src="https://cdn-uploads.huggingface.co/production/uploads/sample-1.png">',
+          '',
+          '## Usage',
+          '',
+          '```',
+          'change the picture 1 to realistic photograph, [description of your image]',
+          '```',
+        ].join('\n'),
+      )
+
+      const result = await getHuggingFaceRepoShowcase(
+        'lrzjason/anything2real-prompt-fixture',
+        'main',
+      )
+
+      expect(result.images).toEqual([
+        'https://cdn-uploads.huggingface.co/production/uploads/sample-1.png',
+      ])
+      expect(result.prompts).toEqual([
+        'change the picture 1 to realistic photograph, [description of your image]',
+      ])
+      // Single README fetch feeds both extractors — not two round trips.
+      const readmeCalls = mockSafeFetch.mock.calls.filter(([input]) =>
+        String(input).includes('/README.md'),
+      ).length
+      expect(readmeCalls).toBe(1)
     })
 
     it('resolves a repo-relative README image path into a resolve URL', async () => {

@@ -1711,7 +1711,10 @@
     "licenseAttributionRequired": "要クレジット表記",
     "licenseAttributionRequiredHint": "利用時は作者/出典を明記してください",
     "huggingFaceLicenseLabel": "ライセンス",
-    "huggingFaceExternalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Hugging Face リポジトリを開いてください。"
+    "huggingFaceExternalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Hugging Face リポジトリを開いてください。",
+    "showcaseTitle": "サンプル参考",
+    "showcaseFillPrompt": "本文に入力",
+    "showcaseImageAlt": "{name} サンプル {n}"
   },
   "UseLoraButton": {
     "action": "LoRAを使う",

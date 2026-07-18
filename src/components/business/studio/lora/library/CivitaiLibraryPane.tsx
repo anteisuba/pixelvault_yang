@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -87,6 +88,13 @@ export interface CivitaiCommunityBranchProps {
   isFavorited: (loraUrl: string) => boolean
 }
 
+// §12：控件槽是 LoraLibraryTabs 传入的内部实现细节（行A 右端 portal
+// target），不进 CivitaiCommunityBranchProps——那个类型被
+// CommunitySourceBranchProps extends，混进去会逼外部调用方也要传它。
+interface CivitaiCommunityBranchOwnProps extends CivitaiCommunityBranchProps {
+  controlsSlotNode: HTMLDivElement | null
+}
+
 const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
   unrestricted: 'nsfwFilterUnrestricted',
   nsfwOnly: 'nsfwFilterNsfwOnly',
@@ -97,7 +105,8 @@ export function CivitaiCommunityBranch({
   onFavorite,
   onUnfavoriteByUrl,
   isFavorited,
-}: CivitaiCommunityBranchProps) {
+  controlsSlotNode,
+}: CivitaiCommunityBranchOwnProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
   const pathname = usePathname()
@@ -417,157 +426,93 @@ export function CivitaiCommunityBranch({
 
   return (
     <section className="space-y-3">
-      {/* S1 统一外壳（lora-workbench.md §2.1）：控件行去盒化——不再套
-          rounded-2xl 面板，顶部发丝线分区，与上面的源 tab 挨着。行1=搜索/
-          排序/NSFW/刷新，行3=底模 chips（行2 留给 S2 的「类型」chips）。 */}
+      {/* §12 压缩：行A（pills+源 segmented+排序/NSFW/刷新）已移交
+          LoraLibraryTabs 渲染，排序/NSFW/刷新通过下方 portal 挂进它的控件
+          槽——这里只剩行B（搜索，独占全宽）+ 行C（类型/底模成簇）+
+          网格 + 分页，顶部发丝线分区依旧紧贴行A。 */}
       <div className="flex min-h-0 flex-col gap-2.5 border-t border-border/60 pt-3">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div ref={searchWrapperRef} className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={library.search}
-              onChange={(event) => library.setSearch(event.target.value)}
-              onFocus={() => setHistoryOpen(true)}
-              placeholder={t('communitySearch')}
-              className="h-9 pl-9 pr-8 text-xs"
-            />
-            {/* Inline revalidation indicator — replaces the old "blank the
-                whole list and show a center loader" behaviour. Stale items
-                stay visible underneath while this spins, so the user keeps
-                context instead of seeing a 300–900 ms white flash. */}
-            {library.isRevalidating && library.items.length > 0 ? (
-              <Spinner
-                size="sm"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-            ) : null}
-            {historyOpen && history.length > 0 ? (
-              <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
-                <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <History className="size-3" aria-hidden />
-                    {t('searchHistoryTitle')}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleHistoryClear}
-                    className="text-2xs text-muted-foreground hover:text-foreground"
-                  >
-                    {t('searchHistoryClear')}
-                  </button>
-                </div>
-                <ul className="max-h-48 overflow-y-auto">
-                  {history.map((entry) => (
-                    <li key={entry}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          // Use mousedown so we beat the input's blur,
-                          // which would close the popup before click fires.
-                          e.preventDefault()
-                          handleHistoryPick(entry)
-                        }}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
-                      >
-                        <Search
-                          className="size-3 shrink-0 text-muted-foreground"
-                          aria-hidden
-                        />
-                        <span className="truncate">{entry}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-          <Select value={library.sort} onValueChange={handleSortChange}>
-            <SelectTrigger
+        <div ref={searchWrapperRef} className="relative min-w-0 w-full">
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={library.search}
+            onChange={(event) => library.setSearch(event.target.value)}
+            onFocus={() => setHistoryOpen(true)}
+            placeholder={t('communitySearch')}
+            className="h-9 pl-9 pr-8 text-xs"
+          />
+          {/* Inline revalidation indicator — replaces the old "blank the
+              whole list and show a center loader" behaviour. Stale items
+              stay visible underneath while this spins, so the user keeps
+              context instead of seeing a 300–900 ms white flash. */}
+          {library.isRevalidating && library.items.length > 0 ? (
+            <Spinner
               size="sm"
-              className="w-full border-border/60 text-xs sm:w-40"
-              aria-label={t('communitySortFilter')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CIVITAI_LORA_SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* B11 兜底：meilisearch 挂了回落 REST 搜索路径，此时排序请求
-              被 civitai 静默忽略——如实告知，别让用户以为选的排序生效了。 */}
-          {library.sortFellBackToRelevance ? (
-            <span
-              className="inline-flex h-9 shrink-0 items-center whitespace-nowrap text-2xs text-muted-foreground"
-              title={t('sortFallbackHint')}
-            >
-              {t('sortFallbackLabel')}
-            </span>
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
           ) : null}
-          {/* P1-6（三态循环，2026-07-04 改稿）：不设限（默认）→ 仅NSFW
-              （过滤掉安全内容）→ 安全 → 循环。仅 NSFW 态琥珀描边示警，
-              安全态用与其它筛选 chip 一致的 primary 高亮。仅 civitai 源
-              渲染——HF Hub 无分级数据（lora-workbench.md §2.1）。 */}
-          <button
-            type="button"
-            onClick={handleNsfwToggle}
-            aria-label={`${t('nsfwToggleHint')}：${t(
-              NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
-            )}`}
-            title={t('nsfwToggleHint')}
-            className={cn(
-              'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
-              library.nsfwFilter === 'nsfwOnly'
-                ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                : library.nsfwFilter === 'safe'
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
-            )}
-          >
-            {library.nsfwFilter === 'nsfwOnly' ? (
-              <ShieldAlert className="size-3.5" aria-hidden />
-            ) : library.nsfwFilter === 'safe' ? (
-              <ShieldCheck className="size-3.5" aria-hidden />
-            ) : (
-              <Shield className="size-3.5" aria-hidden />
-            )}
-            {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
-          </button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void library.refresh()}
-            aria-label={t('refresh')}
-            className="shrink-0"
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-          </Button>
+          {historyOpen && history.length > 0 ? (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
+              <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <History className="size-3" aria-hidden />
+                  {t('searchHistoryTitle')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleHistoryClear}
+                  className="text-2xs text-muted-foreground hover:text-foreground"
+                >
+                  {t('searchHistoryClear')}
+                </button>
+              </div>
+              <ul className="max-h-48 overflow-y-auto">
+                {history.map((entry) => (
+                  <li key={entry}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        // Use mousedown so we beat the input's blur,
+                        // which would close the popup before click fires.
+                        e.preventDefault()
+                        handleHistoryPick(entry)
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+                    >
+                      <Search
+                        className="size-3 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span className="truncate">{entry}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
 
-        {/* 行2=类型（S2），行3=底模（S1）——顺序对齐 lora-workbench.md §2.1
-            控件行示意图。 */}
-        <ContentTypeChipRow
-          value={library.contentType}
-          availableValues={
-            LORA_CONTENT_TYPE_VALUES_BY_SOURCE[LORA_LIBRARY_SOURCES.CIVITAI]
-          }
-          onChange={library.setContentType}
-        />
+        {/* 行C：类型/底模两行紧贴成一簇（gap-1.5），与行B/网格保持外层
+            gap-2.5（10px）节奏。 */}
+        <div className="flex flex-col gap-1.5">
+          <ContentTypeChipRow
+            value={library.contentType}
+            availableValues={
+              LORA_CONTENT_TYPE_VALUES_BY_SOURCE[LORA_LIBRARY_SOURCES.CIVITAI]
+            }
+            onChange={library.setContentType}
+          />
 
-        <FamilyChipRow
-          value={civitaiBaseModelToFamilySlug(library.baseModel)}
-          availableValues={
-            LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE[LORA_LIBRARY_SOURCES.CIVITAI]
-          }
-          onChange={(slug) =>
-            handleBaseModelChange(familySlugToCivitaiBaseModel(slug))
-          }
-        />
+          <FamilyChipRow
+            value={civitaiBaseModelToFamilySlug(library.baseModel)}
+            availableValues={
+              LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE[LORA_LIBRARY_SOURCES.CIVITAI]
+            }
+            onChange={(slug) =>
+              handleBaseModelChange(familySlugToCivitaiBaseModel(slug))
+            }
+          />
+        </div>
 
         <div
           className={cn(
@@ -664,6 +609,82 @@ export function CivitaiCommunityBranch({
           onNextPage={library.nextPage}
         />
       </div>
+
+      {/* §12 行A 右端控件：portal 进 LoraLibraryTabs 渲染的控件槽，与
+          pills/源 segmented 同行。控件槽未挂载（首渲染 ref 回调尚未跑）时
+          不渲染，避免 SSR/首帧报错。 */}
+      {controlsSlotNode
+        ? createPortal(
+            <>
+              <Select value={library.sort} onValueChange={handleSortChange}>
+                <SelectTrigger
+                  size="sm"
+                  className="w-full border-border/60 text-xs sm:w-40"
+                  aria-label={t('communitySortFilter')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CIVITAI_LORA_SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {t(option.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* B11 兜底：meilisearch 挂了回落 REST 搜索路径，此时排序请求
+                  被 civitai 静默忽略——如实告知，别让用户以为选的排序生效了。 */}
+              {library.sortFellBackToRelevance ? (
+                <span
+                  className="inline-flex h-9 shrink-0 items-center whitespace-nowrap text-2xs text-muted-foreground"
+                  title={t('sortFallbackHint')}
+                >
+                  {t('sortFallbackLabel')}
+                </span>
+              ) : null}
+              {/* P1-6（三态循环，2026-07-04 改稿）：不设限（默认）→ 仅NSFW
+                  （过滤掉安全内容）→ 安全 → 循环。仅 NSFW 态琥珀描边示警，
+                  安全态用与其它筛选 chip 一致的 primary 高亮。仅 civitai 源
+                  渲染——HF Hub 无分级数据（lora-workbench.md §2.1）。 */}
+              <button
+                type="button"
+                onClick={handleNsfwToggle}
+                aria-label={`${t('nsfwToggleHint')}：${t(
+                  NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
+                )}`}
+                title={t('nsfwToggleHint')}
+                className={cn(
+                  'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
+                  library.nsfwFilter === 'nsfwOnly'
+                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    : library.nsfwFilter === 'safe'
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+                )}
+              >
+                {library.nsfwFilter === 'nsfwOnly' ? (
+                  <ShieldAlert className="size-3.5" aria-hidden />
+                ) : library.nsfwFilter === 'safe' ? (
+                  <ShieldCheck className="size-3.5" aria-hidden />
+                ) : (
+                  <Shield className="size-3.5" aria-hidden />
+                )}
+                {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
+              </button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void library.refresh()}
+                aria-label={t('refresh')}
+                className="shrink-0"
+              >
+                <RefreshCw className="size-3.5" aria-hidden />
+              </Button>
+            </>,
+            controlsSlotNode,
+          )
+        : null}
 
       {/* 详情按需抽屉——手机端 Vaul 底部 Drawer，桌面端右侧滑入 Sheet
           （lora-domain-wireframes.md §4.5 动效规范：320ms 滑入 + scrim，

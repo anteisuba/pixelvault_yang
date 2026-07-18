@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { RefreshCw, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -66,12 +67,16 @@ interface HuggingFaceLoraLibraryProps {
   onImport: (input: FavoriteLoraRequest) => Promise<LoraAssetRecord | null>
   onUnfavoriteByUrl: (loraUrl: string) => Promise<boolean>
   isFavorited: (loraUrl: string) => boolean
+  /** §12：行A 右端控件槽（LoraLibraryTabs 渲染），排序/刷新 portal 进去，
+   *  与 pills/源 segmented 同行。HF 无分级数据，不渲染 NSFW chip。 */
+  controlsSlotNode: HTMLDivElement | null
 }
 
 export function HuggingFaceLoraLibrary({
   onImport,
   onUnfavoriteByUrl,
   isFavorited,
+  controlsSlotNode,
 }: HuggingFaceLoraLibraryProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
@@ -286,87 +291,58 @@ export function HuggingFaceLoraLibrary({
 
   return (
     <section className="space-y-3">
-      {/* S1 统一外壳（lora-workbench.md §2.1）：HF 自有面板壳/标题/家族横滚
-          行退役，换成和 civitai pane 同一套去盒化三行控件——行1 搜索/排序/
-          刷新（HF 无分级数据，不渲染 NSFW chip）、行3 底模 chips。 */}
+      {/* §12 压缩：行A（pills+源 segmented+排序/刷新）已移交 LoraLibraryTabs
+          渲染，排序/刷新通过下方 portal 挂进它的控件槽——这里只剩行B（搜索，
+          独占全宽）+ 行C（类型/底模成簇）+ 网格 + 分页。 */}
       <div className="flex min-h-0 flex-col gap-2.5 border-t border-border/60 pt-3">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative min-w-0 flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+        <div className="relative min-w-0 w-full">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={library.search}
+            onChange={(event) => library.setSearch(event.target.value)}
+            placeholder={t('huggingFaceSearchPlaceholder')}
+            aria-label={t('huggingFaceSearchPlaceholder')}
+            className="h-9 pl-9 pr-8 text-xs"
+          />
+          {library.isRevalidating ? (
+            <Spinner
+              size="sm"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
-            <Input
-              value={library.search}
-              onChange={(event) => library.setSearch(event.target.value)}
-              placeholder={t('huggingFaceSearchPlaceholder')}
-              aria-label={t('huggingFaceSearchPlaceholder')}
-              className="h-9 pl-9 pr-8 text-xs"
-            />
-            {library.isRevalidating ? (
-              <Spinner
-                size="sm"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-            ) : null}
-          </div>
-          <Select
-            value={library.sort}
-            onValueChange={(value) => {
-              if (isHuggingFaceLoraSort(value)) library.setSort(value)
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-full border-border/60 text-xs sm:w-40"
-              aria-label={t('communitySortFilter')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {HUGGINGFACE_LORA_SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void library.refresh()}
-            aria-label={t('refresh')}
-            className="shrink-0"
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-          </Button>
+          ) : null}
         </div>
 
-        {/* 行2=类型（S2），行3=底模（S1）——顺序对齐 lora-workbench.md §2.1
-            控件行示意图。availableValues 走 per-source 可用性表，某类型在
-            HF 完全无供给时会在这里被剔除（§3.1 实测：本批未发现零供给类
-            型，全部 7 类渲染，机制留着供未来收窄）。 */}
-        <ContentTypeChipRow
-          value={library.contentType}
-          availableValues={
-            LORA_CONTENT_TYPE_VALUES_BY_SOURCE[LORA_LIBRARY_SOURCES.HUGGINGFACE]
-          }
-          onChange={library.setContentType}
-        />
+        {/* 行C：类型/底模两行紧贴成一簇（gap-1.5）。availableValues 走
+            per-source 可用性表，某类型在 HF 完全无供给时会在这里被剔除
+            （§3.1 实测：本批未发现零供给类型，全部 7 类渲染，机制留着供
+            未来收窄）。 */}
+        <div className="flex flex-col gap-1.5">
+          <ContentTypeChipRow
+            value={library.contentType}
+            availableValues={
+              LORA_CONTENT_TYPE_VALUES_BY_SOURCE[
+                LORA_LIBRARY_SOURCES.HUGGINGFACE
+              ]
+            }
+            onChange={library.setContentType}
+          />
 
-        <FamilyChipRow
-          value={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
-          availableValues={
-            LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE[
-              LORA_LIBRARY_SOURCES.HUGGINGFACE
-            ]
-          }
-          onChange={(slug) =>
-            library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
-          }
-        />
+          <FamilyChipRow
+            value={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
+            availableValues={
+              LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE[
+                LORA_LIBRARY_SOURCES.HUGGINGFACE
+              ]
+            }
+            onChange={(slug) =>
+              library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
+            }
+          />
+        </div>
 
         {library.error ? (
           <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
@@ -457,6 +433,47 @@ export function HuggingFaceLoraLibrary({
           onNextPage={library.nextPage}
         />
       </div>
+
+      {/* §12 行A 右端控件：portal 进 LoraLibraryTabs 渲染的控件槽，与
+          pills/源 segmented 同行；控件槽未挂载时不渲染。 */}
+      {controlsSlotNode
+        ? createPortal(
+            <>
+              <Select
+                value={library.sort}
+                onValueChange={(value) => {
+                  if (isHuggingFaceLoraSort(value)) library.setSort(value)
+                }}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="w-full border-border/60 text-xs sm:w-40"
+                  aria-label={t('communitySortFilter')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HUGGINGFACE_LORA_SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {t(option.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void library.refresh()}
+                aria-label={t('refresh')}
+                className="shrink-0"
+              >
+                <RefreshCw className="size-3.5" aria-hidden />
+              </Button>
+            </>,
+            controlsSlotNode,
+          )
+        : null}
 
       {/* 详情按需抽屉——与 civitai pane 同一套形制（手机 Drawer / 桌面
           Sheet），S3 统一抽屉组件双源装配（lora-workbench.md §2.4）。 */}

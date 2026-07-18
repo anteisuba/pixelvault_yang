@@ -131,11 +131,17 @@ function libraryState(item = makeItem()) {
 function renderLibrary(
   isFavorited: (loraUrl: string) => boolean = () => false,
 ) {
+  // §12：排序/刷新挪去调用方（LoraLibraryTabs/LoraWorkbench）持有的行A
+  // 控件槽，通过 portal 挂进去——测试里手动接一个真实 DOM 节点当槽位，
+  // 内容仍会落在 document 里，screen 查询照常能命中。
+  const controlsSlotNode = document.createElement('div')
+  document.body.appendChild(controlsSlotNode)
   return render(
     <HuggingFaceLoraLibrary
       onImport={mockImport}
       onUnfavoriteByUrl={mockUnfavoriteByUrl}
       isFavorited={isFavorited}
+      controlsSlotNode={controlsSlotNode}
     />,
   )
 }

@@ -1711,7 +1711,10 @@
     "licenseAttributionRequired": "Attribution required",
     "licenseAttributionRequiredHint": "Credit the author/source when you use this",
     "huggingFaceLicenseLabel": "License",
-    "huggingFaceExternalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to open the Hugging Face repository."
+    "huggingFaceExternalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to open the Hugging Face repository.",
+    "showcaseTitle": "Sample references",
+    "showcaseFillPrompt": "Fill into prompt",
+    "showcaseImageAlt": "{name} sample {n}"
   },
   "UseLoraButton": {
     "action": "Use LoRA",

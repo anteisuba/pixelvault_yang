@@ -68,6 +68,7 @@ import {
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import {
@@ -127,6 +128,8 @@ import {
   summarizeLoraStackCompatibility,
 } from '@/lib/lora-model-compatibility'
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
+import { parseHuggingFaceLoraSourceUrl } from '@/lib/huggingface-lora-source'
+import { LoraHuggingFaceShowcaseStrip } from '@/components/business/studio/prompt-tags/LoraHuggingFaceShowcaseStrip'
 import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagAutocomplete } from '@/components/business/studio/prompt-tags/PromptTagAutocomplete'
@@ -179,6 +182,16 @@ export function LoraWorkbench() {
     deleteAsset,
     isFavorited,
   } = useLoraAssets()
+
+  // §12 行A 压缩：源 segmented（导航）+ 排序/NSFW/刷新（控件）两个槽由本
+  // 组件持有，常驻渲染在不随 section 重挂载的行A 里；`CommunitySourceBranch`
+  // 及更深的两个 pane 通过这两个节点 portal 内容进来，state 仍留在原本层级
+  // （不上提 hook），只有 DOM 落点挪到这里——保住「pills 壳不动，只内层
+  // crossfade」的既有动效约定，行A 的源 tab/控件不属于内层，不应跟着闪。
+  const [librarySourceNavSlot, setLibrarySourceNavSlot] =
+    useState<HTMLDivElement | null>(null)
+  const [libraryControlsSlot, setLibraryControlsSlot] =
+    useState<HTMLDivElement | null>(null)
 
   const sectionParam = searchParams.get(LORA_WORKBENCH_SEARCH_PARAM)
   const activeSection = isLoraWorkbenchSection(sectionParam)
@@ -268,39 +281,64 @@ export function LoraWorkbench() {
         ) : null}
 
         {isLibrary ? (
-          <section className="space-y-4">
-            <div className="inline-flex gap-1 rounded-lg bg-muted/40 p-1">
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
-                }
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
-                  activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
-                    ? 'bg-background font-medium text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Compass className="size-3.5" aria-hidden />
-                {t('library.public')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSection(LORA_WORKBENCH_SECTIONS.MINE)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
-                  activeSection === LORA_WORKBENCH_SECTIONS.MINE
-                    ? 'bg-background font-medium text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Library className="size-3.5" aria-hidden />
-                {t('tabs.mine')}
-              </button>
+          <section className="space-y-3">
+            {/* §12 行A 导航合流：公开/我的 pills + 竖发丝线 + 源 segmented
+                左簇，控件槽（排序/NSFW/刷新）右簇——这整行常驻不随 section
+                切换重挂载（下面 crossfade 只包内层内容），源 segmented/
+                控件槽两个节点空的时候（「我的」子态）不占视觉空间，行A
+                自然只剩 pills，无需额外分支渲染。 */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex gap-1 rounded-lg bg-muted/40 p-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
+                    }
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                      activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
+                        ? 'bg-background font-medium text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Compass className="size-3.5" aria-hidden />
+                    {t('library.public')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveSection(LORA_WORKBENCH_SECTIONS.MINE)
+                    }
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs transition-colors',
+                      activeSection === LORA_WORKBENCH_SECTIONS.MINE
+                        ? 'bg-background font-medium text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Library className="size-3.5" aria-hidden />
+                    {t('tabs.mine')}
+                  </button>
+                </div>
+                {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
+                  <span
+                    className="hidden h-5 w-px shrink-0 bg-border/60 sm:block"
+                    aria-hidden
+                  />
+                ) : null}
+                <div
+                  ref={setLibrarySourceNavSlot}
+                  className="flex shrink-0 flex-wrap items-center gap-2"
+                />
+              </div>
+              <div
+                ref={setLibraryControlsSlot}
+                className="flex shrink-0 flex-wrap items-center gap-2"
+              />
             </div>
 
-            {/* 公开↔我的：pills 是壳保持不动，只让内层内容 crossfade。 */}
+            {/* 公开↔我的：行A 是壳保持不动，只让内层内容 crossfade。 */}
             <div
               key={activeSection}
               className="animate-in fade-in duration-200"
@@ -326,6 +364,8 @@ export function LoraWorkbench() {
                   onImport={favoriteExternalLora}
                   onUnfavoriteByUrl={unfavoriteByUrl}
                   isFavorited={isFavorited}
+                  navSlotNode={librarySourceNavSlot}
+                  controlsSlotNode={libraryControlsSlot}
                 />
               )}
             </div>
@@ -686,6 +726,20 @@ function GenerateBranch() {
     () => aggregateOftenMountedExtras(mined.recipes),
     [mined.recipes],
   )
+  // H1 生成侧「样例参考」（lora-workbench.md §13）：当前分组挂载是不是 HF
+  // 资产，用 provider 判定（收藏/导入时写死的字段，比正则嗅探 loraUrl 更
+  // 可靠）；是的话再从 loraUrl（HF resolve 直链）反解析 repoId/revision。
+  // useMemo 稳住对象引用——同一挂载重渲染不应该让下面的懒取 effect 重新
+  // 判断依赖变化。civitai 挂载 / 未挂载 LoRA 时 hfSource=null，hook 直接
+  // 空转不发请求。
+  const hfSource = useMemo(
+    () =>
+      recipeGroupAsset?.provider === 'huggingface'
+        ? parseHuggingFaceLoraSourceUrl(recipeGroupAsset.loraUrl)
+        : null,
+    [recipeGroupAsset],
+  )
+  const hfShowcase = useHuggingFaceLoraShowcase(hfSource)
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
   // B10 (D7④)：进推荐 tab / 切分组后默认选中第一张来源图，消灭左栏空态。
   // 每个分组只默认一次（recipeDefaultedFor 记住已默认过的分组 key）——用户手动
@@ -1260,7 +1314,35 @@ function GenerateBranch() {
                       })}
                     </p>
                   ) : null}
-                  {mined.isLoading ? (
+                  {hfSource ? (
+                    // H1 生成侧「样例参考」（lora-workbench.md §13）：当前
+                    // 分组挂载是 HF 资产——civitai 的 mined 配方链对它恒空
+                    // （modelId/modelVersionId 未设），换成 HF README
+                    // showcase。与下面 civitai 链互斥（hfSource 非空时不会
+                    // 落进 mined.* 分支），civitai LoRA 零回归。
+                    hfShowcase.isLoading ? (
+                      <div className="mt-1 flex gap-1.5" aria-hidden>
+                        {Array.from({ length: 4 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
+                          />
+                        ))}
+                      </div>
+                    ) : hfShowcase.images.length > 0 ||
+                      hfShowcase.prompts.length > 0 ? (
+                      <LoraHuggingFaceShowcaseStrip
+                        assetName={recipeGroupAsset?.name ?? ''}
+                        images={hfShowcase.images}
+                        prompts={hfShowcase.prompts}
+                        onFillPrompt={setPrompt}
+                      />
+                    ) : (
+                      <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                        {t('generate.recommendEmpty')}
+                      </p>
+                    )
+                  ) : mined.isLoading ? (
                     <div className="mt-1 flex gap-1.5" aria-hidden>
                       {Array.from({ length: 4 }).map((_, idx) => (
                         <div

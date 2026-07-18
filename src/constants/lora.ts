@@ -168,6 +168,11 @@ export const HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH = 200
 // `rootMargin: '200px'` 同量级保持一致体感。
 export const HUGGINGFACE_SHOWCASE_LAZY_LOAD_ROOT_MARGIN = '200px'
 
+// H1 生成侧「样例参考」（lora-workbench.md §13）：README 提示词启发式提取
+// 的候选条数上限——防止个别 README 塞几十个 fenced block/prompt 行把面板
+// 撑爆，6 条足够覆盖常见「示例画廊配文案」场景。
+export const HUGGINGFACE_README_PROMPT_CANDIDATE_MAX = 6
+
 /**
  * 判定封面 URL 是否落在 Hub 社交缩略图兜底域——服务端 `resolveCoverImageUrl`
  * 精确按 repoId 拼出兜底 URL 做等值比较（见 huggingface-lora.service.ts 的

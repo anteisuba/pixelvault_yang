@@ -18,6 +18,7 @@ import {
   HUGGINGFACE_README_ALLOWED_IMAGE_HOSTS,
   HUGGINGFACE_README_FILENAME,
   HUGGINGFACE_README_MAX_READ_CHARS,
+  HUGGINGFACE_README_PROMPT_CANDIDATE_MAX,
   HUGGINGFACE_README_REQUEST_TIMEOUT_MS,
   HUGGINGFACE_SHOWCASE_CACHE_TTL_MS,
   HUGGINGFACE_SOCIAL_THUMBNAIL_BASE_URL,
@@ -209,15 +210,92 @@ export function extractReadmeImageUrls(
   return urls
 }
 
+// H1 生成侧「样例参考」（lora-workbench.md §13）：提示词候选启发式提取，
+// 两路 best-effort，都提不到就空数组（不硬造）——① fenced code block，内容
+// 含逗号（danbooru/自然语言提示词的典型标志）且不像 json/yaml/python 代码
+// 片段；② `prompt:` 前缀行（大小写不敏感，常见于示例画廊的配文）。
+const README_CODE_FENCE_PATTERN = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g
+const README_PROMPT_LINE_PATTERN = /^\s*prompt\s*:\s*(.+)$/i
+const README_STRUCTURED_CODE_LANGUAGES = new Set([
+  'json',
+  'yaml',
+  'yml',
+  'python',
+  'py',
+  'js',
+  'javascript',
+  'ts',
+  'typescript',
+  'bash',
+  'sh',
+  'shell',
+])
+
 /**
- * README 增强级的共享抓取器：拉 README.md、按文档顺序挖全部内嵌图。失败/
- * 超时/无图一律静默返回空数组——调用方（单图取首图 / 全量 showcase）各自
- * 决定怎么用，都不能因为这一级增强请求失败就让上层报错。
+ * fenced block 的内容像不像结构化代码（而不是一段自然语言/danbooru 提示
+ * 词）——语言标签命中已知代码语言直接排除；没标语言时用形状粗判：JSON
+ * 对象/数组开头、Python import/def/class 起手式、或「key: value」且不含
+ * 逗号（典型 YAML front-matter 形状，正经提示词几乎总带逗号分隔的多个
+ * 描述词）。宁可放过一些边界案例，也不为了精确牺牲纯函数的简单性——这
+ * 一级是 best-effort 启发式，不是解析器。
  */
-async function fetchReadmeImageUrls(
+function looksLikeStructuredCodeBlock(
+  language: string,
+  content: string,
+): boolean {
+  if (README_STRUCTURED_CODE_LANGUAGES.has(language.trim().toLowerCase())) {
+    return true
+  }
+  const trimmed = content.trim()
+  if (!trimmed) return true
+  if (/^[{[]/.test(trimmed)) return true
+  if (/^(import|from|def|class)\s/m.test(trimmed)) return true
+  if (/^[\w.-]+:\s*\S/m.test(trimmed) && !trimmed.includes(',')) return true
+  return false
+}
+
+/**
+ * README markdown 正文里挖候选提示词，按文档顺序去重（大小写不敏感）返回，
+ * 上限 `HUGGINGFACE_README_PROMPT_CANDIDATE_MAX` 条。纯函数，不发请求，
+ * 方便单测——真实网络抓取见 `getHuggingFaceRepoShowcase`。
+ */
+export function extractReadmePromptCandidates(markdown: string): string[] {
+  const candidates: string[] = []
+  const seen = new Set<string>()
+  const pushCandidate = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    const dedupeKey = trimmed.toLowerCase()
+    if (seen.has(dedupeKey)) return
+    seen.add(dedupeKey)
+    candidates.push(trimmed)
+  }
+
+  for (const match of markdown.matchAll(README_CODE_FENCE_PATTERN)) {
+    const language = match[1] ?? ''
+    const content = match[2] ?? ''
+    if (!content.includes(',')) continue
+    if (looksLikeStructuredCodeBlock(language, content)) continue
+    pushCandidate(content)
+  }
+
+  for (const line of markdown.split(/\r?\n/)) {
+    const match = README_PROMPT_LINE_PATTERN.exec(line)
+    if (match?.[1]) pushCandidate(match[1])
+  }
+
+  return candidates.slice(0, HUGGINGFACE_README_PROMPT_CANDIDATE_MAX)
+}
+
+/**
+ * README 增强级的共享抓取器：拉 README.md 原文，截断到读取上限。失败/超时
+ * 一律静默返回 null——调用方（图片 / 提示词两路提取）各自决定怎么用，都
+ * 不能因为这一级增强请求失败就让上层报错。
+ */
+async function fetchReadmeMarkdown(
   repoId: string,
   revision: string,
-): Promise<string[]> {
+): Promise<string | null> {
   try {
     const url = buildHuggingFaceResolveUrl(
       repoId,
@@ -228,20 +306,32 @@ async function fetchReadmeImageUrls(
       allowedProtocols: ['https:'],
       signal: AbortSignal.timeout(HUGGINGFACE_README_REQUEST_TIMEOUT_MS),
     })
-    if (!response.ok) return []
+    if (!response.ok) return null
     const text = await response.text()
-    const markdown =
-      text.length > HUGGINGFACE_README_MAX_READ_CHARS
-        ? text.slice(0, HUGGINGFACE_README_MAX_READ_CHARS)
-        : text
-    return extractReadmeImageUrls(markdown, repoId, revision)
+    return text.length > HUGGINGFACE_README_MAX_READ_CHARS
+      ? text.slice(0, HUGGINGFACE_README_MAX_READ_CHARS)
+      : text
   } catch (error) {
-    logger.warn('Hugging Face LoRA README image extraction failed', {
+    logger.warn('Hugging Face LoRA README fetch failed', {
       repoId,
       error: error instanceof Error ? error.message : 'Unknown',
     })
-    return []
+    return null
   }
+}
+
+/**
+ * README 增强级的共享抓取器：拉 README.md、按文档顺序挖全部内嵌图。失败/
+ * 超时/无图一律静默返回空数组——调用方（单图取首图 / 全量 showcase）各自
+ * 决定怎么用，都不能因为这一级增强请求失败就让上层报错。
+ */
+async function fetchReadmeImageUrls(
+  repoId: string,
+  revision: string,
+): Promise<string[]> {
+  const markdown = await fetchReadmeMarkdown(repoId, revision)
+  if (!markdown) return []
+  return extractReadmeImageUrls(markdown, repoId, revision)
 }
 
 /**
@@ -359,10 +449,10 @@ function getShowcaseCacheKey(repoId: string, revision: string): string {
 }
 
 /**
- * 单仓库 README showcase：README 全量内嵌图（供懒加载封面取首图、未来生成
- * 侧横滚复用同一批）+ 提示词占位。提示词提取是下一切片（H1）的活，这里
- * 固定返回空数组，不做启发式——这个函数只负责"这个 repo 有没有真图"，不
- * 负责"这些图配什么词"。
+ * 单仓库 README showcase：README 全量内嵌图（供懒加载封面取首图、生成侧
+ * H1「样例参考」横滚复用同一批）+ 启发式提取的候选提示词（H1，best-effort，
+ * 提不到就空数组，不硬造）。图片/提示词共用同一次 README 抓取——两个都是
+ * 纯函数处理同一份 markdown，零额外网络往返。
  */
 export async function getHuggingFaceRepoShowcase(
   repoId: string,
@@ -374,10 +464,14 @@ export async function getHuggingFaceRepoShowcase(
     return cached.value
   }
 
-  const images = await fetchReadmeImageUrls(repoId, revision)
+  const markdown = await fetchReadmeMarkdown(repoId, revision)
+  const images = markdown
+    ? extractReadmeImageUrls(markdown, repoId, revision)
+    : []
+  const prompts = markdown ? extractReadmePromptCandidates(markdown) : []
   const result = HuggingFaceRepoShowcaseSchema.parse({
     images,
-    prompts: [],
+    prompts,
   })
   huggingFaceShowcaseCache.set(cacheKey, {
     value: result,

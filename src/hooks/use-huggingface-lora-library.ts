@@ -76,6 +76,12 @@ export function useHuggingFaceLoraLibrary(
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [isRevalidating, setIsRevalidating] = useState(false)
+  // "Has a fetch ever resolved for this hook instance?" Gates the first-paint
+  // loader independently of `isRevalidating`, which only commits true *after*
+  // the mount fetch is dispatched via `deferEffectTask` — closing the window
+  // where the first request is in flight but the empty-state branch would
+  // render over it. Mirrors useCivitaiLoraLibrary. See the regression test.
+  const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
   const cursorsByPageRef = useRef<Map<number, string | undefined>>(
@@ -113,6 +119,7 @@ export function useHuggingFaceLoraLibrary(
       setError(response.error ?? 'Hugging Face LoRA search failed')
     }
     setIsRevalidating(false)
+    setHasResolvedOnce(true)
   }, [baseModelFamily, contentType, debouncedSearch, options.limit, page, sort])
 
   useEffect(() => {
@@ -180,7 +187,11 @@ export function useHuggingFaceLoraLibrary(
     total,
     page,
     hasNextPage,
-    isLoading: items.length === 0 && isRevalidating,
+    // See `hasResolvedOnce` above — the `!hasResolvedOnce` half keeps the
+    // loader up during the initial mount fetch, before `isRevalidating` has
+    // committed true, so the empty state never flashes over an in-flight
+    // first request.
+    isLoading: items.length === 0 && (isRevalidating || !hasResolvedOnce),
     isRevalidating,
     error,
     setSearch,

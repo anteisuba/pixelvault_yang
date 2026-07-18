@@ -453,6 +453,80 @@ describe('useCivitaiLoraLibrary', () => {
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
   })
 
+  // Loading-flicker regression:
+  // the mount fetch is dispatched a macrotask after mount (via deferEffectTask),
+  // so `isRevalidating` is still false on first paint. `isLoading` must NOT be
+  // gated on `isRevalidating` alone — otherwise the pane falls through to the
+  // empty state ("没有找到匹配的公开 LoRA" / type-empty-state) while the first
+  // request is still in flight.
+  describe('first-load loader (no empty-state flash)', () => {
+    it('shows the loader on first paint, before the mount fetch is even dispatched', () => {
+      // Never resolves — nothing may race the synchronous assertions below.
+      mockListCivitaiLoraAssetsAPI.mockReturnValue(new Promise(() => {}))
+
+      const { result, unmount } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialContentType: 'clothing' }),
+      )
+
+      // The deferred refresh has not fired yet: no request, isRevalidating
+      // has not committed true...
+      expect(mockListCivitaiLoraAssetsAPI).not.toHaveBeenCalled()
+      expect(result.current.isRevalidating).toBe(false)
+      expect(result.current.items).toHaveLength(0)
+      // ...but we still render the loader rather than the empty state.
+      expect(result.current.isLoading).toBe(true)
+
+      // Cleanup cancels the pending deferEffectTask timer so the never-
+      // resolving promise is never even requested.
+      unmount()
+    })
+
+    it('keeps the loader up while the first request is in flight, then shows the empty state only once it resolves empty', async () => {
+      let resolveFirst:
+        | ((
+            value: Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>,
+          ) => void)
+        | undefined
+      mockListCivitaiLoraAssetsAPI.mockReturnValueOnce(
+        new Promise<Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>>(
+          (resolve) => {
+            resolveFirst = resolve
+          },
+        ),
+      )
+
+      const { result } = renderHook(() => useCivitaiLoraLibrary())
+
+      // Wait until the deferred mount fetch has actually been dispatched.
+      await waitFor(() =>
+        expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1),
+      )
+
+      // Request in flight + no items → loader, never the empty state.
+      expect(result.current.items).toHaveLength(0)
+      expect(result.current.isLoading).toBe(true)
+
+      // Resolve with a genuinely empty result → now the empty state may show.
+      act(() => {
+        resolveFirst?.({
+          success: true,
+          data: {
+            items: [],
+            page: 1,
+            pageSize: 10,
+            total: 0,
+            hasNextPage: false,
+            nextCursor: null,
+          },
+        })
+      })
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+      expect(result.current.items).toHaveLength(0)
+      expect(result.current.isRevalidating).toBe(false)
+    })
+  })
+
   // Issue C (docs/plans/lora-search-image-audit-2026-07.md): once a search
   // session falls back to REST, every subsequent page in that same session
   // must keep requesting the REST backend explicitly — letting a later page

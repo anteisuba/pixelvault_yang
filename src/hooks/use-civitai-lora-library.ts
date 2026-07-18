@@ -174,6 +174,15 @@ export function useCivitaiLoraLibrary(
   // the section render normal content + a small spinner instead of a white
   // flash every time the search debounce kicks in.
   const [isRevalidating, setIsRevalidating] = useState(false)
+  // "Has a fetch ever resolved for this hook instance?" Starts false and flips
+  // true the first time a response is applied (cache hit, network success, or
+  // network error). Gates the first-paint loader independently of
+  // `isRevalidating`, which only commits true *after* the mount fetch is
+  // dispatched via `deferEffectTask` — leaving a window where a request is in
+  // flight but `isRevalidating` is still false, so the empty-state branch would
+  // render over an in-flight request. See the "first-load loader (no empty-state
+  // flash)" regression tests.
+  const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearchValue] = useState(options.initialSearch ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(
@@ -272,6 +281,7 @@ export function useCivitaiLoraLibrary(
       paginationPendingRef.current = false
       setError(null)
       setIsRevalidating(false)
+      setHasResolvedOnce(true)
       return
     }
 
@@ -322,6 +332,7 @@ export function useCivitaiLoraLibrary(
     }
     paginationPendingRef.current = false
     setIsRevalidating(false)
+    setHasResolvedOnce(true)
   }, [
     applyResult,
     baseModel,
@@ -457,10 +468,16 @@ export function useCivitaiLoraLibrary(
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? items[0] ?? null
 
-  // First-paint loader: only when we have literally nothing to render AND a
-  // fetch is in progress. As soon as any items exist (incl. stale), the UI
-  // should keep rendering them and only show the small revalidation spinner.
-  const isLoading = items.length === 0 && isRevalidating
+  // First-paint loader: whenever we have nothing to render AND either a fetch
+  // is in progress OR no fetch has resolved yet. The `!hasResolvedOnce` half is
+  // what closes the mount-flicker gap: the initial fetch is dispatched a
+  // macrotask after mount (via `deferEffectTask`), so `isRevalidating` is still
+  // false for that first window — without it we'd fall through to the empty
+  // state while the very first request is in flight. Once any items exist
+  // (incl. stale) this is false and the small revalidation spinner takes over;
+  // once the first response resolves empty, `hasResolvedOnce` lets the genuine
+  // empty state show.
+  const isLoading = items.length === 0 && (isRevalidating || !hasResolvedOnce)
 
   return {
     items,

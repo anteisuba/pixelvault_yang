@@ -186,4 +186,68 @@ describe('useHuggingFaceLoraLibrary', () => {
       )
     })
   })
+
+  // Loading-flicker regression (mirrors useCivitaiLoraLibrary): the mount fetch
+  // is dispatched a macrotask after mount (deferEffectTask), so `isRevalidating`
+  // is still false on first paint. `isLoading` must stay true until the first
+  // response resolves, or the pane flashes its empty state over an in-flight
+  // first request.
+  describe('first-load loader (no empty-state flash)', () => {
+    it('shows the loader on first paint, before the mount fetch is even dispatched', () => {
+      mockListHuggingFaceLoraAssetsAPI.mockReturnValue(new Promise(() => {}))
+
+      const { result, unmount } = renderHook(() =>
+        useHuggingFaceLoraLibrary({ initialContentType: 'clothing' }),
+      )
+
+      expect(mockListHuggingFaceLoraAssetsAPI).not.toHaveBeenCalled()
+      expect(result.current.isRevalidating).toBe(false)
+      expect(result.current.items).toHaveLength(0)
+      expect(result.current.isLoading).toBe(true)
+
+      unmount()
+    })
+
+    it('keeps the loader up while the first request is in flight, then shows the empty state only once it resolves empty', async () => {
+      let resolveFirst:
+        | ((
+            value: Awaited<ReturnType<typeof listHuggingFaceLoraAssetsAPI>>,
+          ) => void)
+        | undefined
+      mockListHuggingFaceLoraAssetsAPI.mockReturnValueOnce(
+        new Promise<Awaited<ReturnType<typeof listHuggingFaceLoraAssetsAPI>>>(
+          (resolve) => {
+            resolveFirst = resolve
+          },
+        ),
+      )
+
+      const { result } = renderHook(() => useHuggingFaceLoraLibrary())
+
+      await waitFor(() =>
+        expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenCalledTimes(1),
+      )
+
+      expect(result.current.items).toHaveLength(0)
+      expect(result.current.isLoading).toBe(true)
+
+      act(() => {
+        resolveFirst?.({
+          success: true,
+          data: {
+            items: [],
+            total: 0,
+            page: 1,
+            limit: 12,
+            hasNextPage: false,
+            nextCursor: null,
+          },
+        })
+      })
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+      expect(result.current.items).toHaveLength(0)
+      expect(result.current.isRevalidating).toBe(false)
+    })
+  })
 })

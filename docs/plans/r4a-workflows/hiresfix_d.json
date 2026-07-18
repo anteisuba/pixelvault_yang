@@ -1,0 +1,79 @@
+{
+  "checkpoint": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "waiIllustriousSDXL_v150.safetensors"
+    }
+  },
+  "clip-skip": {
+    "class_type": "CLIPSetLastLayer",
+    "inputs": {
+      "clip": ["checkpoint", 1],
+      "stop_at_clip_layer": -2
+    }
+  },
+  "positive-prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["clip-skip", 0],
+      "text": "1girl, solo, short silver hair, school uniform, standing in a sunlit courtyard, cherry blossoms, best quality, masterpiece"
+    }
+  },
+  "negative-prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["clip-skip", 0],
+      "text": "worst quality, low quality, blurry, extra limbs, bad anatomy, watermark"
+    }
+  },
+  "latent": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "sampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 424242424242,
+      "steps": 24,
+      "cfg": 6.0,
+      "sampler_name": "ddim",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["checkpoint", 0],
+      "positive": ["positive-prompt", 0],
+      "negative": ["negative-prompt", 0],
+      "latent_image": ["latent", 0]
+    }
+  },
+  "vae-decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["checkpoint", 2]
+    }
+  },
+  "save-image": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["upscale-image", 0],
+      "filename_prefix": "r4a-hiresfix-d"
+    }
+  },
+  "upscale-model": {
+    "class_type": "UpscaleModelLoader",
+    "inputs": {
+      "model_name": "4x-AnimeSharp.pth"
+    }
+  },
+  "upscale-image": {
+    "class_type": "ImageUpscaleWithModel",
+    "inputs": {
+      "upscale_model": ["upscale-model", 0],
+      "image": ["vae-decode", 0]
+    }
+  }
+}

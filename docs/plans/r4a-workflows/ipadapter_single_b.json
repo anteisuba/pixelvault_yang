@@ -1,0 +1,94 @@
+{
+  "checkpoint": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "waiIllustriousSDXL_v150.safetensors"
+    }
+  },
+  "clip-skip": {
+    "class_type": "CLIPSetLastLayer",
+    "inputs": {
+      "clip": ["checkpoint", 1],
+      "stop_at_clip_layer": -2
+    }
+  },
+  "positive-prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["clip-skip", 0],
+      "text": "a character portrait, dynamic pose, best quality, masterpiece, highly detailed"
+    }
+  },
+  "negative-prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["clip-skip", 0],
+      "text": "worst quality, low quality, blurry, extra limbs, bad anatomy, watermark"
+    }
+  },
+  "latent": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "sampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 424242424242,
+      "steps": 24,
+      "cfg": 6.0,
+      "sampler_name": "ddim",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["ipadapter-apply", 0],
+      "positive": ["positive-prompt", 0],
+      "negative": ["negative-prompt", 0],
+      "latent_image": ["latent", 0]
+    }
+  },
+  "vae-decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["checkpoint", 2]
+    }
+  },
+  "save-image": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["vae-decode", 0],
+      "filename_prefix": "r4a-ipadapter-single-b"
+    }
+  },
+  "ipadapter-loader": {
+    "class_type": "IPAdapterUnifiedLoader",
+    "inputs": {
+      "model": ["checkpoint", 0],
+      "preset": "PLUS (high strength)"
+    }
+  },
+  "load-image-1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "ref_warm_circle.png",
+      "upload": "image"
+    }
+  },
+  "ipadapter-apply": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "model": ["ipadapter-loader", 0],
+      "ipadapter": ["ipadapter-loader", 1],
+      "image": ["load-image-1", 0],
+      "weight": 0.75,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0.0,
+      "end_at": 1.0,
+      "embeds_scaling": "V only"
+    }
+  }
+}

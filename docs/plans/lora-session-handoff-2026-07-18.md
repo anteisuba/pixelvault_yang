@@ -8,7 +8,7 @@
 
 ## 0. 一句话现状
 
-S1–S6 库/生成页重设计**已进 main**（`b3e1452d`）；第二波三份设计**已拍板待建**；一批 bug 修复（**5 件**）+封面渐进增强**在工作区未提交、已全部验证绿**（tsc+vitest+浏览器，见 §4），等 owner 点头打一个 fixes commit。
+main 进度链：S1–S6（`b3e1452d`）→ 五件 fixes（`3dabd1fe`）→ **§12 控件压缩 + H1 样例参考（`0318fecf`）→ 空态闪烁修复 cherry-pick（`b39ee5d0`，Fable review 通过后合入）**。剩余主线：F1–F4 助手线（施工图已拍板）；runner r4 立项（Krea2+多参考+hires-fix+容量水位，实证清单 `docs/plans/runner-r4-krea2-multiref-2026-07.md`，P1–P6 实证先行）。runner 运维已收口（volume 46.7/80GB·旧端点退役·turbo 归位 unet/·注册表指新端点）。
 
 ---
 

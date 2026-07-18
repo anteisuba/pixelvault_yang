@@ -2178,6 +2178,38 @@ export const PromptAssistantResponseLanguageSchema = z.enum([
 ])
 export const PromptAssistantModeSchema = z.enum(['general', 'lora'])
 
+// ─── LoRA assistant context (F1 转换引擎 v2, docs/plans/lora-assistant-nl2tag-2026-07.md §2.2) ───
+//
+// Additive-only: when a `mode:'lora'` request carries `loraContext`, the
+// service takes the new grounding + structured-output path (§2). When it's
+// absent, `mode:'lora'` behaves exactly as before (code-block text output) —
+// the `/prompts` page's `presetLora` consumer relies on that legacy shape and
+// never sends this field.
+
+export const LoraAssistantMountSchema = z.object({
+  /** Display name of the mounted LoRA (asset.name). */
+  name: z.string().trim().min(1),
+  /** All trigger words/phrases the client already renders as chips — the v2
+   *  engine must never re-emit any of these in its output. */
+  triggerWords: z.array(z.string().trim().min(1)).default([]),
+  /** LoRA base model family (e.g. 'illustrious' / 'pony' / 'sdxl' / 'anima'),
+   *  free string — see `LoraAssetBaseFamilySchema` / `normalizeToLoraBaseFamily`. */
+  family: z.string().trim().min(1).optional(),
+})
+export type LoraAssistantMount = z.infer<typeof LoraAssistantMountSchema>
+
+export const LoraAssistantContextSchema = z.object({
+  /** LoRAs currently mounted on the generate branch (spine row). */
+  mounts: z.array(LoraAssistantMountSchema).default([]),
+  /** Currently selected base model family, when known. */
+  baseFamily: z.string().trim().min(1).optional(),
+  /** Tag text already sitting in the tray — the engine must not repeat these. */
+  trayTags: z.array(z.string().trim().min(1)).default([]),
+  /** Current positive prompt textarea contents, for continuity. */
+  currentPrompt: z.string().optional(),
+})
+export type LoraAssistantContext = z.infer<typeof LoraAssistantContextSchema>
+
 export const PromptAssistantRequestSchema = z.object({
   messages: z.array(PromptAssistantMessageSchema).min(1),
   /** Current generation model (for model-aware prompt formatting) */
@@ -2199,6 +2231,9 @@ export const PromptAssistantRequestSchema = z.object({
    *  provider-native grounding fallback — same policy as the node
    *  assistant's research turns). */
   research: z.boolean().optional(),
+  /** Opt-in v2 LoRA conversion engine (§2) — only meaningful with
+   *  `mode: 'lora'`. Omitting it keeps the legacy `mode:'lora'` behavior. */
+  loraContext: LoraAssistantContextSchema.optional(),
 })
 
 export type PromptAssistantRequest = z.infer<
@@ -2212,8 +2247,36 @@ export type PromptAssistantResponseLanguage = z.infer<
 >
 export type PromptAssistantMode = z.infer<typeof PromptAssistantModeSchema>
 
+/** A single normalized tag from the F1 v2 output pipeline — see
+ *  `src/lib/prompt-tag-normalize.ts`. Exactly one of `canonical`/`free` is
+ *  meaningful: a vocabulary hit always carries `canonical`; an unmatched
+ *  free word carries `free: true` and no `canonical`. */
+export interface PromptAssistantLoraTag {
+  /** Raw text as produced by the LLM (post trigger/tray filtering). */
+  text: string
+  /** Vocabulary canonical form (underscore style), when matched. */
+  canonical?: string
+  category?: string
+  popularity?: number
+  /** True when `canonical` came from a fuzzy (not exact) vocabulary match. */
+  normalized?: boolean
+  /** True when no vocabulary entry matched — `text` is kept as-is. */
+  free?: boolean
+}
+
+export interface PromptAssistantLoraResult {
+  positive: PromptAssistantLoraTag[]
+  negative: PromptAssistantLoraTag[]
+  /** One human-readable sentence explaining a notable trade-off, e.g.
+   *  "Left identity to the LoRA, only wrote outfit and lighting." */
+  note?: string
+}
+
 export interface PromptAssistantResponseData {
   prompt: string
+  /** v2 structured result (§2.3) — present only when the request carried
+   *  `loraContext`; undefined on the legacy `mode:'lora'`/`'general'` path. */
+  lora?: PromptAssistantLoraResult
 }
 
 export interface PromptAssistantResponse {

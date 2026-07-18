@@ -104,7 +104,14 @@ const stackAsset = {
   fileHashAutoV3: 'hash-1',
 }
 
-let mockStackItems = [{ asset: stackAsset, scale: 1 }]
+// H1 的 HF/civitai 分流判据是挂载资产的 `provider` 字段（收藏/导入时写死,
+// 见 LoraWorkbench.tsx hfSource useMemo）——mock 类型显式带上可选 provider,
+// 否则从 stackAsset 字面量推断的窄类型会拒绝 HF fixture。
+type MockStackAsset = typeof stackAsset & { provider?: string }
+
+let mockStackItems: { asset: MockStackAsset; scale: number }[] = [
+  { asset: stackAsset, scale: 1 },
+]
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({
   LORA_STACK_MAX: 3,
@@ -956,7 +963,10 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
 // 请求），断言的是「HF 挂载→渲染这条数据→点『填入正文』替换正文」这层 UI
 // 接线，README 启发式本身在 huggingface-lora.service.test.ts 里测。
 describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
-  const hfAsset = {
+  // provider='huggingface' 触发 H1 分支（再由 loraUrl 反解析 repoId）；
+  // modelId/modelVersionId/fileHashAutoV3 是挂载类型必填位（civitai 语义,
+  // HF 挂载给空串）——mined hook 在本文件被 mock,不会用它们发真请求。
+  const hfAsset: MockStackAsset = {
     id: 'hf-lora-1',
     name: 'Anything2Real',
     triggerWord: '',
@@ -964,6 +974,9 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
     defaultScale: 1,
     loraUrl:
       'https://huggingface.co/lrzjason/Anything2Real/resolve/main/f2k_anything2real.safetensors',
+    modelId: '',
+    modelVersionId: '',
+    fileHashAutoV3: '',
     provider: 'huggingface',
   }
 
@@ -1044,9 +1057,8 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
   })
 
   it('leaves the civitai mined panel untouched for a civitai-provider mount (no regression)', () => {
-    // Default `stackAsset` (module-level fixture) has no `provider` field —
-    // exercise it explicitly here so this test documents the civitai path
-    // stays on the pre-H1 branch instead of relying on an implicit default.
+    // 显式 provider='civitai'（≠'huggingface'）落在 pre-H1 的 civitai mined
+    // 分支——不依赖 stackAsset 的隐式 undefined。
     mockStackItems = [
       { asset: { ...stackAsset, provider: 'civitai' }, scale: 1 },
     ]

@@ -376,4 +376,179 @@ describe('chatPromptAssistant', () => {
       }),
     )
   })
+
+  // ── F1 v2 engine (docs/plans/lora-assistant-nl2tag-2026-07.md §2) ──────
+  // Additive opt-in: only reached when `mode:'lora'` carries `loraContext`.
+
+  describe('loraContext (v2 structured engine)', () => {
+    it('keeps the legacy code-block output when loraContext is omitted, even in lora mode', async () => {
+      mockLlmCompletion.mockResolvedValue('```\nold style output\n```')
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: 'a cat' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'english',
+        'lora',
+      )
+
+      expect(result.prompt).toBe('old style output')
+      expect(result.lora).toBeUndefined()
+      expect(mockLlmCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemPrompt: expect.stringContaining(
+            'Output ONLY the final prompt text inside a markdown code block',
+          ),
+          responseFormat: undefined,
+        }),
+      )
+    })
+
+    it('switches to the structured JSON engine when loraContext is provided', async () => {
+      mockLlmCompletion.mockResolvedValue(
+        JSON.stringify({
+          positive: ['1girl', 'outdoors'],
+          negative: ['lowres'],
+          note: 'Kept it simple.',
+        }),
+      )
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: '雪地里的少女' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'english',
+        'lora',
+        undefined,
+        undefined,
+        { mounts: [], trayTags: [] },
+      )
+
+      expect(mockLlmCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          responseFormat: 'json_object',
+          systemPrompt: expect.stringContaining('structured output mode'),
+        }),
+      )
+      expect(result.lora?.positive.map((t) => t.text)).toEqual([
+        '1girl',
+        'outdoors',
+      ])
+      expect(result.lora?.negative.map((t) => t.text)).toEqual(['lowres'])
+      expect(result.lora?.note).toBe('Kept it simple.')
+    })
+
+    it('strips mounted LoRA trigger words from the output even if the model emits them', async () => {
+      mockLlmCompletion.mockResolvedValue(
+        JSON.stringify({
+          positive: ['silver hair', 'masterpiece', '1girl'],
+          negative: [],
+        }),
+      )
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: 'silver haired girl in the snow' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'english',
+        'lora',
+        undefined,
+        undefined,
+        {
+          mounts: [
+            {
+              name: 'Augusta',
+              triggerWords: ['silver hair'],
+              family: 'illustrious',
+            },
+          ],
+          trayTags: [],
+        },
+      )
+
+      const positiveTexts = result.lora?.positive.map((t) => t.text) ?? []
+      expect(positiveTexts).not.toContain('silver hair')
+      expect(
+        result.lora?.positive.some((t) => t.canonical === 'silver_hair'),
+      ).toBe(false)
+    })
+
+    it('drops tags that are already in the tray before normalizing', async () => {
+      mockLlmCompletion.mockResolvedValue(
+        JSON.stringify({ positive: ['1girl', 'outdoors'], negative: [] }),
+      )
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: 'a girl outdoors' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'english',
+        'lora',
+        undefined,
+        undefined,
+        { mounts: [], trayTags: ['1girl'] },
+      )
+
+      expect(result.lora?.positive.map((t) => t.text)).toEqual(['outdoors'])
+    })
+
+    it('retries once when the model returns non-JSON, then succeeds', async () => {
+      mockLlmCompletion
+        .mockResolvedValueOnce('not json at all')
+        .mockResolvedValueOnce(
+          JSON.stringify({ positive: ['1girl'], negative: [] }),
+        )
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: 'a girl' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'english',
+        'lora',
+        undefined,
+        undefined,
+        { mounts: [], trayTags: [] },
+      )
+
+      expect(mockLlmCompletion).toHaveBeenCalledTimes(2)
+      expect(result.lora?.positive.map((t) => t.text)).toEqual(['1girl'])
+    })
+
+    it('throws a loud error after the retry is exhausted on persistently invalid output', async () => {
+      mockLlmCompletion.mockResolvedValue('still not json')
+
+      await expect(
+        chatPromptAssistant(
+          'clerk_1',
+          [{ role: 'user', content: 'a girl' }],
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          'english',
+          'lora',
+          undefined,
+          undefined,
+          { mounts: [], trayTags: [] },
+        ),
+      ).rejects.toThrow()
+
+      expect(mockLlmCompletion).toHaveBeenCalledTimes(2)
+    })
+  })
 })

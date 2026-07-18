@@ -21,6 +21,7 @@ export const POST = createApiRoute({
       data.mode,
       data.useInspirationContext,
       data.research,
+      data.loraContext,
     )
   },
 })

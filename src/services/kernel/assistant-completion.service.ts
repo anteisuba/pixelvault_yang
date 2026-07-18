@@ -20,6 +20,8 @@ interface CompleteAssistantTextOptions {
   modelId?: string
   imageData?: LlmTextInput['imageData']
   useGrounding?: boolean
+  /** Request strict JSON where the provider supports it (F1 结构化输出). */
+  responseFormat?: LlmTextInput['responseFormat']
 }
 
 export function truncateAssistantContextBlock(
@@ -118,6 +120,7 @@ export async function completeAssistantTextWithContextRetry({
   modelId,
   imageData,
   useGrounding,
+  responseFormat,
 }: CompleteAssistantTextOptions): Promise<string> {
   const complete = (userPrompt: string) =>
     llmTextCompletion({
@@ -131,6 +134,7 @@ export async function completeAssistantTextWithContextRetry({
       useGrounding,
       providerManagedOutput: true,
       promptGuardMaxLength: null,
+      responseFormat,
     })
 
   const fullPrompt = buildUserPrompt()

@@ -504,6 +504,37 @@ describe('chatPromptAssistant', () => {
       expect(result.lora?.positive.map((t) => t.text)).toEqual(['outdoors'])
     })
 
+    it('translates the note field to the requested response language', async () => {
+      mockLlmCompletion.mockResolvedValue(
+        JSON.stringify({
+          positive: ['1girl'],
+          negative: [],
+          note: '身份交给了 LoRA。',
+        }),
+      )
+
+      const result = await chatPromptAssistant(
+        'clerk_1',
+        [{ role: 'user', content: '雪地里的少女' }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'chinese',
+        'lora',
+        undefined,
+        undefined,
+        { mounts: [], trayTags: [] },
+      )
+
+      const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+      }
+      expect(call.systemPrompt).toContain('Simplified Chinese')
+      expect(call.systemPrompt).toContain('Always English regardless')
+      expect(result.lora?.note).toBe('身份交给了 LoRA。')
+    })
+
     it('retries once when the model returns non-JSON, then succeeds', async () => {
       mockLlmCompletion
         .mockResolvedValueOnce('not json at all')

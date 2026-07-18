@@ -2673,7 +2673,22 @@
     "dockTitle": "Assistant",
     "dockCollapse": "Collapse assistant",
     "dockResizeLabel": "Resize assistant panel",
-    "dockDropHint": "Drop to set as assistant reference"
+    "dockDropHint": "Drop to set as assistant reference",
+    "assistantResultPositive": "Positive",
+    "assistantResultNegative": "Negative",
+    "assistantFreeWord": "Free word",
+    "assistantNormalized": "Normalized",
+    "assistantTriggerNote": "Trigger words are handled by the chip row above — they won't be repeated here.",
+    "assistantRemoveChip": "Remove {tag}",
+    "assistantEmptyHint": "Describe what you want in your own words — mounted LoRAs, base model, and tray tags are read automatically.",
+    "assistantStarterA": "Silver-haired girl in the snow, dusk backlighting",
+    "assistantStarterB": "Change the outfit to a rain-soaked trench coat, keep the pose",
+    "assistantRefineLabel": "Keep tuning:",
+    "assistantRefineComposition": "Change the composition",
+    "assistantRefineLighting": "Add more dramatic lighting",
+    "assistantRefineStyle": "Lean harder into the LoRA's style",
+    "assistantRetry": "Retry",
+    "assistantEscapeToSelfBuild": "Switch to build-your-own"
   },
   "LayerDecompose": {
     "title": "Layer Decompose",

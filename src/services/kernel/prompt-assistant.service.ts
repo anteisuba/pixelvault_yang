@@ -169,10 +169,15 @@ function buildLoraGroundingBlock(nlText: string): string | null {
 /**
  * §2.2 v2 系统提示：挂载上下文注入 + 触发词/身份词规则 + 结构化输出契约。
  * 全新函数，不改 §2 以上的旧 `mode:'lora'` 提示词。
+ *
+ * F2 遗留②修复：`note` 现跟随 `responseLanguage` 走用户 UI 语言——正向/
+ * 负向 tag 数组本身必须保持英文（danbooru 词库是英文规范形，翻译会破坏
+ * §2.1 grounding 命中率），只有这一句人话解释需要本地化。
  */
 function buildLoraAssistantSystemPromptV2(
   loraContext: LoraAssistantContext,
   groundingBlock: string | null,
+  responseLanguage: PromptAssistantResponseLanguage = 'english',
 ): string {
   const mountLines = loraContext.mounts.map((mount) => {
     const triggerList =
@@ -213,8 +218,8 @@ function buildLoraAssistantSystemPromptV2(
     groundingBlock ?? '',
     'OUTPUT FORMAT — respond with ONLY a single JSON object, no markdown code fences, no commentary before or after it:',
     '{ "positive": string[], "negative": string[], "note"?: string }',
-    '- positive / negative: short English tag fragments (1-4 words each, comma-vocabulary style), not full sentences.',
-    '- note: one short human-readable sentence explaining a notable omission or trade-off (e.g. "Left identity to the LoRA, only wrote outfit and lighting."). Omit the field entirely if there is nothing notable.',
+    '- positive / negative: short English tag fragments (1-4 words each, comma-vocabulary style), not full sentences. Always English regardless of response language.',
+    `- note: one short human-readable sentence explaining a notable omission or trade-off (e.g. "Left identity to the LoRA, only wrote outfit and lighting."). Write it in ${RESPONSE_LANGUAGE_LABELS[responseLanguage]}. Omit the field entirely if there is nothing notable.`,
   ]
     .filter((block) => block.length > 0)
     .join('\n\n')
@@ -330,11 +335,18 @@ async function chatLoraAssistantStructured(
     referenceImageData?: string
     currentPrompt?: string
     apiKeyId?: string
+    responseLanguage: PromptAssistantResponseLanguage
     loraContext: LoraAssistantContext
   },
 ): Promise<PromptAssistantResponseData> {
-  const { messages, referenceImageData, currentPrompt, apiKeyId, loraContext } =
-    params
+  const {
+    messages,
+    referenceImageData,
+    currentPrompt,
+    apiKeyId,
+    responseLanguage,
+    loraContext,
+  } = params
   const route = await resolveLlmTextRoute(dbUserId, apiKeyId)
 
   const latestUserText =
@@ -343,6 +355,7 @@ async function chatLoraAssistantStructured(
   const systemPrompt = buildLoraAssistantSystemPromptV2(
     loraContext,
     groundingBlock,
+    responseLanguage,
   )
   const effectiveCurrentPrompt = loraContext.currentPrompt ?? currentPrompt
 
@@ -534,6 +547,7 @@ export async function chatPromptAssistant(
       referenceImageData,
       currentPrompt,
       apiKeyId,
+      responseLanguage,
       loraContext,
     })
   }

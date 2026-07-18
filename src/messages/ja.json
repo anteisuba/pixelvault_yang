@@ -2673,7 +2673,22 @@
     "dockTitle": "アシスタント",
     "dockCollapse": "アシスタントを閉じる",
     "dockResizeLabel": "アシスタントパネルの幅を調整",
-    "dockDropHint": "ドロップしてアシスタントの参考画像に設定"
+    "dockDropHint": "ドロップしてアシスタントの参考画像に設定",
+    "assistantResultPositive": "ポジティブ",
+    "assistantResultNegative": "ネガティブ",
+    "assistantFreeWord": "自由語",
+    "assistantNormalized": "正規化済み",
+    "assistantTriggerNote": "トリガーワードは上のchip行が担当するため、ここには重複表示されません。",
+    "assistantRemoveChip": "{tag} を削除",
+    "assistantEmptyHint": "自由な言葉で説明してください——装着中のLoRA・ベースモデル・トレイのタグは自動で読み取られます。",
+    "assistantStarterA": "雪の中の銀髪の少女、夕暮れの逆光",
+    "assistantStarterB": "衣装を雨に濡れたトレンチコートに変更、ポーズはそのまま",
+    "assistantRefineLabel": "さらに調整：",
+    "assistantRefineComposition": "構図を変える",
+    "assistantRefineLighting": "光の演出をもっと強く",
+    "assistantRefineStyle": "LoRAのスタイルにもっと寄せる",
+    "assistantRetry": "再試行",
+    "assistantEscapeToSelfBuild": "自分で組み立てるに切り替え"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",

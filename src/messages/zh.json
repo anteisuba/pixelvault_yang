@@ -2673,7 +2673,22 @@
     "dockTitle": "助手",
     "dockCollapse": "收起助手",
     "dockResizeLabel": "调整助手面板宽度",
-    "dockDropHint": "松开，设为助手参考图"
+    "dockDropHint": "松开，设为助手参考图",
+    "assistantResultPositive": "正向",
+    "assistantResultNegative": "负向",
+    "assistantFreeWord": "自由词",
+    "assistantNormalized": "已规范化",
+    "assistantTriggerNote": "触发词由上方 chips 行负责，这里不会重复写入。",
+    "assistantRemoveChip": "删除 {tag}",
+    "assistantEmptyHint": "用自己的话描述想要的画面——已挂载的 LoRA、底模、tray 标签会自动读取。",
+    "assistantStarterA": "银发少女在雪地里，黄昏逆光",
+    "assistantStarterB": "把服装换成雨中风衣，姿势不变",
+    "assistantRefineLabel": "继续调：",
+    "assistantRefineComposition": "换一个构图",
+    "assistantRefineLighting": "加强一点光影氛围",
+    "assistantRefineStyle": "再贴近 LoRA 的风格一些",
+    "assistantRetry": "重试",
+    "assistantEscapeToSelfBuild": "切到自己搭配"
   },
   "LayerDecompose": {
     "title": "图层分解",

@@ -27,6 +27,7 @@ import {
   STUDIO_REFERENCE_DRAG_TYPE,
 } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
 import { readImageFileAsBase64 } from '@/lib/image-input'
@@ -42,7 +43,7 @@ const ASSISTANT_DOCK_FILE_MAX_BYTES = 10 * 1024 * 1024
 function PanelLoadingFallback() {
   return (
     <div className="flex h-32 items-center justify-center">
-      <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-transparent" />
+      <Spinner size="lg" className="text-muted-foreground" />
     </div>
   )
 }
@@ -141,7 +142,13 @@ function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
   }
 }
 
-function useDockLayout() {
+/**
+ * Exported so `LoraAssistantDock` (docs/plans/lora-assistant-nl2tag-2026-07.md
+ * F2, `studio/lora/LoraAssistantDock.tsx`) can share the same width memory —
+ * the `useSyncExternalStore`-backed module store below is safe to subscribe
+ * to from more than one component; both stay in sync automatically.
+ */
+export function useDockLayout() {
   const layout = useSyncExternalStore(
     subscribeLayout,
     getLayoutSnapshot,

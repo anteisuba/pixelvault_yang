@@ -18,18 +18,22 @@ import {
   Globe,
   ImagePlus,
   Languages,
-  Loader2,
   Plus,
+  RefreshCw,
   Sparkles,
   Tag,
+  TriangleAlert,
   WandSparkles,
   X,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { LORA_ASSISTANT_ERROR_CODES } from '@/constants/lora-assistant'
 import { AssistantReferencePicker } from '@/components/business/assistant/AssistantReferencePicker'
+import { PromptAssistantLoraResultCard } from '@/components/business/prompts/PromptAssistantLoraResultCard'
 import { Button } from '@/components/ui/button'
 import { Message, MessageContent } from '@/components/ui/message'
+import { Spinner } from '@/components/ui/spinner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,13 +44,14 @@ import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import {
   usePromptAssistant,
   STYLE_SHORTCUTS,
+  type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
 import { readImageFileAsBase64 } from '@/lib/image-input'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
   GenerationRecord,
-  PromptAssistantMessage,
+  LoraAssistantMount,
   PromptAssistantResponseLanguage,
 } from '@/types'
 
@@ -88,6 +93,17 @@ const ACTION_PRESETS: {
 /** 空态起手势示例（i18n 键，点击后直接交给 LLM 扩写）。 */
 const STARTER_KEYS = ['starterA', 'starterB', 'starterC'] as const
 
+/** F2 LoRA 人格空态示例（点击填入输入框，不自动发送——与通用人格的
+ *  STARTER_KEYS 自动发送行为不同，见 §1.2 空态段落）。 */
+const LORA_STARTER_KEYS = ['assistantStarterA', 'assistantStarterB'] as const
+
+/** F2「继续调」快捷 chips——同样是填入不自动发送。 */
+const LORA_REFINE_KEYS = [
+  'assistantRefineComposition',
+  'assistantRefineLighting',
+  'assistantRefineStyle',
+] as const
+
 interface AssistantReferenceImage {
   data: string
   previewUrl: string
@@ -95,7 +111,26 @@ interface AssistantReferenceImage {
 
 // ─── Component ──────────────────────────────────────────────────
 
-interface PromptAssistantPanelProps {
+/**
+ * F2 LoRA 人格（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）：LoRA
+ * 生成页把这个对象传进来即默认激活——每次发送都会强制 `mode:'lora'` 并带上
+ * 一份用调用时刻的实时值现组的 `loraContext`（mounts/baseFamily/trayTags 由
+ * 调用方每次渲染重算，currentPrompt 复用 panel 自己的 `currentPrompt` prop，
+ * 天然保证"每次发送取实时值"，不需要额外的失效/刷新机制）。
+ */
+export interface PromptAssistantLoraPersona {
+  mounts: LoraAssistantMount[]
+  baseFamily?: string
+  trayTags: string[]
+  /** 结果卡「填入正文」「追加到正文」的负向对应动作（拍板③：负向落负向框，
+   *  不进 tray）。 */
+  onUseNegativePrompt: (text: string) => void
+  onAppendNegativePrompt: (text: string) => void
+  /** §6「输出验证失败」逃生口——切到自己搭配 tab。 */
+  onEscapeToSelfBuild: () => void
+}
+
+export interface PromptAssistantPanelProps {
   /** Current prompt in the editor */
   currentPrompt: string
   /** Currently selected model ID */
@@ -119,6 +154,10 @@ interface PromptAssistantPanelProps {
    * never trigger generation.
    */
   injectedReference?: { url: string; token: number }
+  /** F2: supplying this activates the LoRA persona (see
+   *  `PromptAssistantLoraPersona`). Omitted everywhere else — zero
+   *  regression for the generic Studio dock. */
+  loraPersona?: PromptAssistantLoraPersona
 }
 
 export function PromptAssistantPanel({
@@ -130,12 +169,22 @@ export function PromptAssistantPanel({
   onAppendPrompt,
   onSessionIdChange,
   injectedReference,
+  loraPersona,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
   const locale = useLocale()
-  const { messages, sessionId, isLoading, error, send, applyPreset, clear } =
-    usePromptAssistant()
+  const {
+    messages,
+    sessionId,
+    isLoading,
+    error,
+    errorCode,
+    send,
+    retry,
+    applyPreset,
+    clear,
+  } = usePromptAssistant()
 
   useEffect(() => {
     onSessionIdChange?.(sessionId)
@@ -186,6 +235,9 @@ export function PromptAssistantPanel({
     ? getTranslatedModelLabel(tModels, modelId)
     : null
 
+  // F2: the LoRA persona forces every turn onto the v2 structured engine and
+  // assembles `loraContext` fresh from the caller's live props/state on each
+  // call (never memoized past this closure) — "每次发送时取实时值" (§1.2).
   const sendOpts = useCallback(
     () => ({
       modelId,
@@ -194,6 +246,15 @@ export function PromptAssistantPanel({
       apiKeyId: selectedApiKeyId,
       responseLanguage,
       research: researchEnabled,
+      mode: loraPersona ? ('lora' as const) : undefined,
+      loraContext: loraPersona
+        ? {
+            mounts: loraPersona.mounts,
+            baseFamily: loraPersona.baseFamily,
+            trayTags: loraPersona.trayTags,
+            currentPrompt,
+          }
+        : undefined,
     }),
     [
       modelId,
@@ -202,6 +263,7 @@ export function PromptAssistantPanel({
       selectedApiKeyId,
       responseLanguage,
       researchEnabled,
+      loraPersona,
     ],
   )
 
@@ -222,6 +284,15 @@ export function PromptAssistantPanel({
     },
     [effectiveReferenceImageData, isLoading, applyPreset, sendOpts],
   )
+
+  const handleRetry = useCallback(() => {
+    if (isLoading) return
+    void retry(sendOpts())
+  }, [isLoading, retry, sendOpts])
+
+  const handleRefineFill = useCallback((text: string) => {
+    setInputValue(text)
+  }, [])
 
   const handleReferenceFile = useCallback(
     async (file: File) => {
@@ -257,7 +328,12 @@ export function PromptAssistantPanel({
       {/* ── Header: style presets + API key selector ── */}
       <div className="shrink-0 space-y-2 rounded-2xl border border-border/45 bg-muted/20 p-2.5 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
         <div className="flex flex-wrap gap-1.5">
-          {ACTION_PRESETS.map(({ key, icon: Icon, labelKey }) => {
+          {/* F2: LoRA 人格下整个面板已经是 LoRA 转换器，"presetLora" 一次性
+              预设按钮跟常驻的人格重复，隐藏它避免双重入口。 */}
+          {(loraPersona
+            ? ACTION_PRESETS.filter((preset) => preset.key !== 'lora')
+            : ACTION_PRESETS
+          ).map(({ key, icon: Icon, labelKey }) => {
             const presetDisabled =
               isLoading ||
               (key === 'imageStyle' && !effectiveReferenceImageData)
@@ -301,42 +377,69 @@ export function PromptAssistantPanel({
           {messages.length === 0 && !isLoading && (
             <div className="space-y-3 py-3 sm:py-6">
               <p className="text-center text-sm text-muted-foreground">
-                {t('emptyHint')}
+                {loraPersona ? t('assistantEmptyHint') : t('emptyHint')}
               </p>
-              {/* 空态起手势：点一个示例，AI 直接扩成完整提示词（决议 5②） */}
+              {/* 空态起手势：LoRA 人格点示例只填入输入框（不自动发送，用户
+                  可先改再发）；通用人格保留原有"点即发送"行为（决议 5②）。 */}
               <div className="mx-auto flex w-full max-w-md flex-col gap-2">
-                {STARTER_KEYS.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => void send(t(key), sendOpts())}
-                    className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {t(key)}
-                  </button>
-                ))}
+                {loraPersona
+                  ? LORA_STARTER_KEYS.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleRefineFill(t(key))}
+                        className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        {t(key)}
+                      </button>
+                    ))
+                  : STARTER_KEYS.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => void send(t(key), sendOpts())}
+                        className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        {t(key)}
+                      </button>
+                    ))}
               </div>
             </div>
           )}
 
-          {messages.map((msg: PromptAssistantMessage, i: number) => (
-            <MessageBubble
-              key={i}
-              message={msg}
-              onUsePrompt={onUsePrompt}
-              onAppendPrompt={onAppendPrompt}
-              useLabel={t('usePrompt')}
-              appendLabel={t('appendPrompt')}
-              copyLabel={t('copyPrompt')}
-              copiedLabel={t('copied')}
-            />
-          ))}
+          {messages.map((msg: PromptAssistantDisplayMessage, i: number) =>
+            loraPersona && msg.role === 'assistant' && msg.lora ? (
+              <PromptAssistantLoraResultCard
+                key={i}
+                positive={msg.lora.positive}
+                negative={msg.lora.negative}
+                note={msg.lora.note}
+                hasMounts={loraPersona.mounts.length > 0}
+                onFillPrompt={onUsePrompt}
+                onAppendPrompt={onAppendPrompt ?? (() => {})}
+                onFillNegativePrompt={loraPersona.onUseNegativePrompt}
+                onAppendNegativePrompt={loraPersona.onAppendNegativePrompt}
+              />
+            ) : (
+              <MessageBubble
+                key={i}
+                message={msg}
+                onUsePrompt={onUsePrompt}
+                onAppendPrompt={onAppendPrompt}
+                useLabel={t('usePrompt')}
+                appendLabel={t('appendPrompt')}
+                copyLabel={t('copyPrompt')}
+                copiedLabel={t('copied')}
+              />
+            ),
+          )}
 
           {isLoading && (
             <Message className="justify-start">
               <div className="flex items-center gap-2 rounded-lg bg-secondary p-2 text-sm text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
                 {t('loading')}
               </div>
             </Message>
@@ -345,10 +448,60 @@ export function PromptAssistantPanel({
       </div>
 
       {/* ── Error ── */}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {/* §6 状态规范：LoRA 人格下引擎失败/输出验证失败一律琥珀（守 v1"琥珀
+          仅警示"约定），带重试文字链；输出验证失败（结构化 JSON 校验重试
+          后仍非法）额外给"切到自己搭配"逃生口。通用人格保留原有 destructive
+          红色文字，零回归。 */}
+      {error && loraPersona ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-amber-700 dark:text-amber-400">
+          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={handleRetry}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1 font-medium underline underline-offset-2 hover:no-underline disabled:pointer-events-none disabled:opacity-50"
+          >
+            <RefreshCw className="size-3" aria-hidden />
+            {t('assistantRetry')}
+          </button>
+          {errorCode === LORA_ASSISTANT_ERROR_CODES.invalidStructuredOutput ? (
+            <button
+              type="button"
+              onClick={loraPersona.onEscapeToSelfBuild}
+              className="font-medium underline underline-offset-2 hover:no-underline"
+            >
+              {t('assistantEscapeToSelfBuild')}
+            </button>
+          ) : null}
+        </div>
+      ) : error ? (
+        <p className="text-xs text-destructive">{error}</p>
+      ) : null}
       {referenceError && (
         <p className="text-xs text-destructive">{referenceError}</p>
       )}
+
+      {/* ── F2「继续调」快捷 chips（§1.2）：挂在输入框上方，点击只填入不
+          自动发送——用户可先看一眼再决定发不发。 */}
+      {loraPersona ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-2xs uppercase tracking-wide text-muted-foreground/70">
+            {t('assistantRefineLabel')}
+          </span>
+          {LORA_REFINE_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleRefineFill(t(key))}
+              className="rounded-full border border-border/60 px-2.5 py-1 text-2xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              {t(key)}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <AssistantAnimatedInput
         value={inputValue}
@@ -674,7 +827,7 @@ function MessageBubble({
   copyLabel,
   copiedLabel,
 }: {
-  message: PromptAssistantMessage
+  message: PromptAssistantDisplayMessage
   onUsePrompt: (prompt: string) => void
   onAppendPrompt?: (prompt: string) => void
   useLabel: string

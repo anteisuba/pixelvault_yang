@@ -4,6 +4,8 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type {
+  LoraAssistantContext,
+  PromptAssistantLoraResult,
   PromptAssistantMessage,
   PromptAssistantMode,
   PromptAssistantResponseLanguage,
@@ -31,11 +33,29 @@ export const STYLE_SHORTCUTS = {
   tags: 'Convert to danbooru-style comma-separated tags for NovelAI.',
 } as const
 
+/**
+ * Display-only superset of `PromptAssistantMessage` — carries the F2
+ * structured LoRA result (docs/plans/lora-assistant-nl2tag-2026-07.md §1.2)
+ * alongside the plain-text `content` fallback so `PromptAssistantPanel` can
+ * render a result card instead of a text bubble. `lora` never leaves the
+ * client: `toWireMessages` strips it before every network call (server
+ * schemas only know `{role, content}` and would silently drop it anyway —
+ * stripping client-side just avoids re-serializing tag arrays on every
+ * subsequent turn).
+ */
+export interface PromptAssistantDisplayMessage extends PromptAssistantMessage {
+  lora?: PromptAssistantLoraResult
+}
+
 interface PromptAssistantState {
-  messages: PromptAssistantMessage[]
+  messages: PromptAssistantDisplayMessage[]
   sessionId: string | null
   isLoading: boolean
   error: string | null
+  /** Set alongside `error` when the last request failed — lets callers
+   *  distinguish the F1 structured-output validation failure (escape-hatch
+   *  eligible, §6) from generic engine/network failures (retry only). */
+  errorCode: string | null
 }
 
 const INITIAL_STATE: PromptAssistantState = {
@@ -43,6 +63,29 @@ const INITIAL_STATE: PromptAssistantState = {
   sessionId: null,
   isLoading: false,
   error: null,
+  errorCode: null,
+}
+
+function toWireMessages(
+  messages: readonly PromptAssistantDisplayMessage[],
+): PromptAssistantMessage[] {
+  return messages.map(({ role, content }) => ({ role, content }))
+}
+
+/** Shared `send`/`applyPreset`/`retry` options. `loraContext` is the F2 LoRA
+ *  persona's opt-in (docs/plans/lora-assistant-nl2tag-2026-07.md §1.2) — only
+ *  meaningful together with `mode: 'lora'`; omitting it keeps the legacy
+ *  `mode:'lora'` code-block behavior (F1 zero-regression contract). */
+export interface PromptAssistantSendOptions {
+  modelId?: string
+  referenceImageData?: string
+  currentPrompt?: string
+  apiKeyId?: string
+  responseLanguage?: PromptAssistantResponseLanguage
+  mode?: PromptAssistantMode
+  useInspirationContext?: boolean
+  research?: boolean
+  loraContext?: LoraAssistantContext
 }
 
 // ─── Module-level store ──────────────────────────────────────────
@@ -112,39 +155,25 @@ export function usePromptAssistant() {
     }
   }, [])
 
-  const send = useCallback(
+  // Runs the actual completion + persistence for a fully-assembled message
+  // list — shared by `send` (which first optimistically appends the new
+  // user turn) and `retry` (which reuses the trailing user message already
+  // in state instead of pushing a duplicate bubble).
+  const runTurn = useCallback(
     async (
-      text: string,
-      opts?: {
-        modelId?: string
-        referenceImageData?: string
-        currentPrompt?: string
-        apiKeyId?: string
-        responseLanguage?: PromptAssistantResponseLanguage
-        mode?: PromptAssistantMode
-        useInspirationContext?: boolean
-        research?: boolean
-      },
+      allMessages: PromptAssistantDisplayMessage[],
+      opts?: PromptAssistantSendOptions,
     ) => {
-      if (!text.trim()) return
-
-      const userMessage: PromptAssistantMessage = {
-        role: 'user',
-        content: text.trim(),
-      }
-
-      const allMessages = [...promptAssistantState.messages, userMessage]
-
-      // Optimistically add user message
       setPromptAssistantState((prev) => ({
         ...prev,
         messages: allMessages,
         isLoading: true,
         error: null,
+        errorCode: null,
       }))
 
       const result = await chatPromptAssistantAPI({
-        messages: allMessages,
+        messages: toWireMessages(allMessages),
         modelId: opts?.modelId,
         referenceImageData: opts?.referenceImageData,
         currentPrompt: opts?.currentPrompt,
@@ -153,17 +182,16 @@ export function usePromptAssistant() {
         mode: opts?.mode,
         useInspirationContext: opts?.useInspirationContext,
         research: opts?.research,
+        loraContext: opts?.loraContext,
       })
 
       if (result.success && result.data) {
-        const assistantMessage: PromptAssistantMessage = {
+        const assistantMessage: PromptAssistantDisplayMessage = {
           role: 'assistant',
           content: result.data.prompt,
+          lora: result.data.lora,
         }
-        const nextMessages = [
-          ...promptAssistantState.messages,
-          assistantMessage,
-        ]
+        const nextMessages = [...allMessages, assistantMessage]
         setPromptAssistantState((prev) => ({
           ...prev,
           messages: nextMessages,
@@ -175,7 +203,7 @@ export function usePromptAssistant() {
             : {}),
           surface: 'STUDIO',
           projectId: null,
-          messages: nextMessages,
+          messages: toWireMessages(nextMessages),
         })
         if (persisted.success) {
           setPromptAssistantState((prev) => ({
@@ -188,25 +216,43 @@ export function usePromptAssistant() {
           ...prev,
           isLoading: false,
           error: getApiErrorMessage(tErrors, result, t('failed')),
+          errorCode: result.errorCode ?? null,
         }))
       }
     },
     [t, tErrors],
   )
 
+  const send = useCallback(
+    async (text: string, opts?: PromptAssistantSendOptions) => {
+      if (!text.trim()) return
+
+      const userMessage: PromptAssistantDisplayMessage = {
+        role: 'user',
+        content: text.trim(),
+      }
+      await runTurn([...promptAssistantState.messages, userMessage], opts)
+    },
+    [runTurn],
+  )
+
+  // §6 状态规范：引擎失败/输出验证失败的重试文字链——复用最后一条已在
+  // state 里的用户消息，不重新 push（避免重试把同一句话的用户气泡复制
+  // 一份）。只有「最后一条是用户消息且带着错误」时才有意义，否则是 no-op。
+  const retry = useCallback(
+    async (opts?: PromptAssistantSendOptions) => {
+      const current = promptAssistantState.messages
+      const last = current[current.length - 1]
+      if (!last || last.role !== 'user') return
+      await runTurn(current, opts)
+    },
+    [runTurn],
+  )
+
   const applyPreset = useCallback(
     (
       style: keyof typeof STYLE_SHORTCUTS,
-      opts?: {
-        modelId?: string
-        referenceImageData?: string
-        currentPrompt?: string
-        apiKeyId?: string
-        responseLanguage?: PromptAssistantResponseLanguage
-        mode?: PromptAssistantMode
-        useInspirationContext?: boolean
-        research?: boolean
-      },
+      opts?: PromptAssistantSendOptions,
     ) => {
       const text = STYLE_SHORTCUTS[style]
       if (text) {
@@ -226,6 +272,7 @@ export function usePromptAssistant() {
   return {
     ...state,
     send,
+    retry,
     applyPreset,
     clear,
   }

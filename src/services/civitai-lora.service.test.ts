@@ -3560,4 +3560,140 @@ describe('listCivitaiLoras — S2 content type filter', () => {
       listCivitaiLoras({ contentType: 'clothing' }),
     ).rejects.toThrow()
   })
+
+  // Bug 修复（owner 报告：类型筛选后不满 12 张 + 下一页不可点）：L1/L2 两条
+  // 子 query 此前各自独立按 (page-1)*pageSize 分页，重叠命中被去重后当页
+  // 凑不满。修复后两条子 query 都从 offset 0 重新扫到「当前页末尾+缓冲」，
+  // 合并去重→全局重排→按页切片。
+  describe('merge-window pagination fix (Bug 2)', () => {
+    function buildHits(ids: number[]) {
+      return ids.map((id) =>
+        typeHitFixture({
+          id,
+          name: `Type filter item ${id}`,
+          version: { ...baseVersion, id: 600000 + id },
+        }),
+      )
+    }
+
+    it('fills a full 12-item page from the merged, globally re-sorted window even when L1/L2 windows overlap', async () => {
+      // L1 命中 1..10，L2 命中 6..15——6..10 是两条 query 都命中的重叠区，
+      // 旧版按各自独立小窗口去重会让当页缺量；新版从 0 扫到 fetchLimit 再
+      // 切片，1..15 合并去重后有 15 个唯一条目，足够填满一整页 12 张。
+      const l1Hits = buildHits([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      const l2Hits = buildHits([6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+      mockContentTypeFetch((url) => {
+        if (!url.includes('search-new.civitai.com')) return null
+        return jsonResponse({
+          results: [
+            { hits: l1Hits, estimatedTotalHits: 10 },
+            { hits: l2Hits, estimatedTotalHits: 10 },
+          ],
+        })
+      })
+
+      const page1 = await listCivitaiLoras({
+        contentType: 'clothing',
+        page: 1,
+      })
+      expect(page1.items).toHaveLength(12)
+      expect(page1.items.map((item) => item.modelId)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      ])
+      expect(page1.hasNextPage).toBe(true)
+      expect(page1.offsetPaginationSupported).toBe(true)
+    })
+
+    it('continues onto the remaining unique items on page 2 with no repeats and no gaps', async () => {
+      const l1Hits = buildHits([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      const l2Hits = buildHits([6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+      mockContentTypeFetch((url) => {
+        if (!url.includes('search-new.civitai.com')) return null
+        return jsonResponse({
+          results: [
+            { hits: l1Hits, estimatedTotalHits: 10 },
+            { hits: l2Hits, estimatedTotalHits: 10 },
+          ],
+        })
+      })
+
+      const page1 = await listCivitaiLoras({
+        contentType: 'clothing',
+        page: 1,
+      })
+      const page2 = await listCivitaiLoras({
+        contentType: 'clothing',
+        page: 2,
+      })
+
+      expect(page2.items).toHaveLength(3)
+      expect(page2.items.map((item) => item.modelId)).toEqual([13, 14, 15])
+      expect(page2.hasNextPage).toBe(false)
+
+      const allIds = [...page1.items, ...page2.items].map(
+        (item) => item.modelId,
+      )
+      expect(new Set(allIds).size).toBe(15)
+      expect(allIds).toHaveLength(15)
+    })
+
+    it('derives hasNextPage from estimatedTotalHits when the merged set has not yet caught up to the fetch window', async () => {
+      // 只喂 5 条命中，但 estimatedTotalHits 报 100——merged 集合(5)还没
+      // 超过这页窗口末尾(12)，但上游供给明显比这次实际取到的量(fetchLimit
+      // = 12+24 = 36)多，据此仍应判 hasNextPage=true。
+      const hits = buildHits([1, 2, 3, 4, 5])
+      mockContentTypeFetch((url) => {
+        if (!url.includes('search-new.civitai.com')) return null
+        return jsonResponse({
+          results: [
+            { hits, estimatedTotalHits: 100 },
+            { hits: [], estimatedTotalHits: 0 },
+          ],
+        })
+      })
+
+      const result = await listCivitaiLoras({
+        contentType: 'clothing',
+        page: 1,
+      })
+      expect(result.items).toHaveLength(5)
+      expect(result.hasNextPage).toBe(true)
+    })
+
+    it('reports hasNextPage=false when supply is fully exhausted within the fetch window', async () => {
+      const hits = buildHits([1, 2, 3, 4, 5])
+      mockContentTypeFetch((url) => {
+        if (!url.includes('search-new.civitai.com')) return null
+        return jsonResponse({
+          results: [
+            { hits, estimatedTotalHits: 5 },
+            { hits: [], estimatedTotalHits: 0 },
+          ],
+        })
+      })
+
+      const result = await listCivitaiLoras({
+        contentType: 'clothing',
+        page: 1,
+      })
+      expect(result.items).toHaveLength(5)
+      expect(result.hasNextPage).toBe(false)
+    })
+
+    it('marks the content-type result as offset-paginable so the client can page without a cursor', async () => {
+      mockContentTypeFetch((url) => {
+        if (!url.includes('search-new.civitai.com')) return null
+        return jsonResponse({
+          results: [
+            { hits: buildHits([1]), estimatedTotalHits: 1 },
+            { hits: [], estimatedTotalHits: 0 },
+          ],
+        })
+      })
+
+      const result = await listCivitaiLoras({ contentType: 'clothing' })
+      expect(result.offsetPaginationSupported).toBe(true)
+      expect(result.nextCursor).toBeNull()
+    })
+  })
 })

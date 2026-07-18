@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, type Ref } from 'react'
 
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export interface LoraCoverTileProps {
   /** Rendered cover URL, or null to show the fallback icon. */
@@ -33,6 +34,13 @@ export interface LoraCoverTileProps {
   interactiveLabel?: string
   /** Primary selection ring (public library marks the open inspector's card). */
   selected?: boolean
+  /** HF 库侧封面渐进增强专用（懒加载 README showcase 期间）：忽略
+   *  `coverUrl`/`fallbackIcon`，渲染骨架占位，避免"先闪兜底横幅再变真
+   *  图"的跳变（docs 内联记录，owner 2026-07-18 拍板方案 B）。 */
+  isLoadingCover?: boolean
+  /** 挂到外层容器 DOM 节点——HF 渐进增强用 IntersectionObserver 判定卡片
+   *  是否进入视口，其余调用方不传，无副作用。 */
+  containerRef?: Ref<HTMLDivElement>
   className?: string
 }
 
@@ -55,6 +63,8 @@ export function LoraCoverTile({
   onClick,
   interactiveLabel,
   selected,
+  isLoadingCover,
+  containerRef,
   className,
 }: LoraCoverTileProps) {
   // P1-1: some CDNs take seconds to deliver — pulse the placeholder while
@@ -73,7 +83,9 @@ export function LoraCoverTile({
   const resolvedUrl = coverUrl ? proxyCivitaiImageUrl(coverUrl) : null
   const showImage = resolvedUrl !== null && status !== 'error'
 
-  const cover = showImage ? (
+  const cover = isLoadingCover ? (
+    <Skeleton className="size-full rounded-none" />
+  ) : showImage ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={resolvedUrl}
@@ -95,9 +107,13 @@ export function LoraCoverTile({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         'group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted',
-        resolvedUrl !== null && status === 'loading' && 'animate-pulse',
+        !isLoadingCover &&
+          resolvedUrl !== null &&
+          status === 'loading' &&
+          'animate-pulse',
         selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
         className,
       )}

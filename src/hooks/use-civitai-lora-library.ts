@@ -162,6 +162,13 @@ export function useCivitaiLoraLibrary(
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [sortFellBackToRelevance, setSortFellBackToRelevance] = useState(false)
+  // Bug 修复（类型筛选「下一页不可点」的真根因，见
+  // CivitaiLoraLibraryResultSchema.offsetPaginationSupported 的注释）：此前
+  // nextPage() 用「有没有输入搜索词」当「后端是否支持按页码直接翻页」的代
+  // 理判断——类型筛选场景即使没搜索词也恒走 offset 分页的合并路径，代理
+  // 判断失真导致点击下一页静默无效。改为直接读服务端回传的显式信号。
+  const [offsetPaginationSupported, setOffsetPaginationSupported] =
+    useState(false)
   // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
   // running, possibly while stale items remain visible". Splitting them lets
   // the section render normal content + a small spinner instead of a white
@@ -204,6 +211,7 @@ export function useCivitaiLoraLibrary(
     setTotal(result.total)
     setHasNextPage(result.hasNextPage)
     setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
+    setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
     setSelectedItemId((current) => {
       if (current && result.items.some((item) => item.id === current)) {
         return current
@@ -219,6 +227,7 @@ export function useCivitaiLoraLibrary(
     setTotal(null)
     setHasNextPage(false)
     setSortFellBackToRelevance(false)
+    setOffsetPaginationSupported(false)
     setError(null)
     setIsRevalidating(true)
   }, [])
@@ -417,17 +426,22 @@ export function useCivitaiLoraLibrary(
 
     const targetPage = page + 1
     const cursorReady = cursorByPageRef.current.has(targetPage)
+    // offsetPaginationSupported 是服务端的显式信号（这次结果是不是走按页码
+    // 直接 offset 分页的后端）——不再用「有没有搜索词」当代理判断，类型
+    // 筛选浏览（无搜索词）也会正确落进这个分支。sortFellBackToRelevance
+    // 仍保留一层防御：REST 回落理论上不会同时置 offsetPaginationSupported，
+    // 但两个信号都检查更稳。
     const canUseOffsetPagination =
-      debouncedSearch.trim().length > 0 && !sortFellBackToRelevance
+      offsetPaginationSupported && !sortFellBackToRelevance
     if (!canUseOffsetPagination && !cursorReady) return
 
     paginationPendingRef.current = true
     setIsRevalidating(true)
     setPage(targetPage)
   }, [
-    debouncedSearch,
     hasNextPage,
     isRevalidating,
+    offsetPaginationSupported,
     page,
     sortFellBackToRelevance,
   ])

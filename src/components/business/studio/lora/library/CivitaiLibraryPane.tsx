@@ -587,9 +587,19 @@ export function CivitaiCommunityBranch({
               <Spinner size="lg" className="text-muted-foreground" />
             </div>
           ) : library.error && library.items.length === 0 ? (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-              <span>{t('communityLoadFailed')}</span>
+            <div className="flex flex-col gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <span className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                {t('communityLoadFailed')}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void library.refresh()}
+              >
+                {t('refresh')}
+              </Button>
             </div>
           ) : library.items.length === 0 && isTypeOnlyFilter ? (
             // S2（§3.3）：type 是唯一生效筛选时的专属三件套空态。

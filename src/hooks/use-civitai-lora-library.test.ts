@@ -235,6 +235,75 @@ describe('useCivitaiLoraLibrary', () => {
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
   })
 
+  // Bug 修复（owner 报告：类型筛选下「下一页」不可点）：listCivitaiLoras
+  // ByContentType 恒走 meilisearch 按页码 offset 分页、从不返回 nextCursor
+  // ——纯浏览（无搜索词）时旧版 nextPage() 用「有没有搜索词」当「是否支持
+  // 直接翻页」的代理判断，代理判断失真导致点击静默无效。服务端现在显式
+  // 回传 offsetPaginationSupported，hook 应据此翻页，不再要求 cursor 就绪。
+  describe('offset pagination without a cursor (Bug 2)', () => {
+    it('advances to the next page when offsetPaginationSupported is true, even with no search term and no cursor', async () => {
+      const page1Item = createItem('type-filter-1', 'Type filter page 1')
+      const page2Item = createItem('type-filter-2', 'Type filter page 2')
+
+      mockListCivitaiLoraAssetsAPI
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(page1Item, 1, null),
+            hasNextPage: true,
+            offsetPaginationSupported: true,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(page2Item, 2, null),
+            hasNextPage: false,
+            offsetPaginationSupported: true,
+          },
+        })
+
+      const { result } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialContentType: 'clothing' }),
+      )
+      await waitFor(() => expect(result.current.items).toEqual([page1Item]))
+
+      act(() => {
+        result.current.nextPage()
+      })
+
+      await waitFor(() => expect(result.current.items).toEqual([page2Item]))
+      expect(result.current.page).toBe(2)
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2, contentType: 'clothing' }),
+      )
+    })
+
+    it('still refuses to advance without offsetPaginationSupported and without a cursor (unchanged REST-browse behaviour)', async () => {
+      const item = createItem('rest-browse-1', 'REST browse page 1')
+
+      mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...createResult(item, 1, null),
+          hasNextPage: true,
+        },
+      })
+
+      const { result } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialContentType: 'clothing' }),
+      )
+      await waitFor(() => expect(result.current.items).toEqual([item]))
+
+      act(() => {
+        result.current.nextPage()
+      })
+
+      expect(result.current.page).toBe(1)
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('does not skip cursor pages on rapid next clicks', async () => {
     const firstPageItem = createItem('page-1', 'Browse page 1')
     const secondPageItem = createItem('page-2', 'Browse page 2')

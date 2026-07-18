@@ -90,10 +90,98 @@ export const LORA_OFTEN_MOUNTED_MAX_RESULTS = 3
 // （5 列容忍最后一行留 2 空位）。
 export const CIVITAI_LORA_PAGE_SIZE = 12
 
+// Bug 修复（2026-07-18，owner 报「类型筛选后不满 12 张 + 下一页不可点」）：
+// listCivitaiLorasByContentType 此前让 L1(tag)/L2(关键词) 两条 meilisearch
+// 子 query 各自独立按 `offset=(page-1)*pageSize, limit=pageSize` 分页，
+// 合并去重后再裁到一页——两个独立窗口有重叠时，去重会让当页凑不满
+// pageSize（重叠越多缺得越多）。修复：两条子 query 改成每次都从 offset 0
+// 扫到"当前页末尾 + 缓冲"，合并去重→全局重排→再按页切片，缓冲量吸收
+// L1/L2 重叠造成的去重损耗。深页成本：这个策略随 page 增长线性变贵（子
+// query limit = page×pageSize+缓冲），12/页 × 常见浏览深度（几十页内）仍
+// 可接受；MAX_FETCH_LIMIT 兜底极端深页（如 URL 篡改 page=99999）不会打出
+// 天价请求——触顶后深页可能提前报 hasNextPage=false，是已知取舍。
+export const CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER = 24
+export const CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT = 480
+
 // Hugging Face LoRA browser/import contract. The Hub remains the source of
 // truth; PixelVault admits public image-diffusion SafeTensors adapters and
 // caches the exact file selected by the user in R2.
 export const HUGGINGFACE_LORA_API_BASE_URL = 'https://huggingface.co/api'
+// 封面解析链（thumbnail → widget → 仓内图片文件 → 社交缩略图兜底）。社交
+// 缩略图由 Hub 为每个公开 repo 自动生成，保证 HF 卡面 100% 有图可挂；
+// 加载失败仍由 LoraCoverTile 的 onError 退回占位图标。
+export const HUGGINGFACE_SOCIAL_THUMBNAIL_BASE_URL =
+  'https://cdn-thumbnails.huggingface.co/social-thumbnails/models'
+export const HUGGINGFACE_COVER_IMAGE_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+] as const
+// 仓内多图时优先挑名字带这些词的（更像展示图而非训练素材）。
+export const HUGGINGFACE_COVER_FILENAME_HINTS = [
+  'cover',
+  'preview',
+  'thumb',
+  'sample',
+  'example',
+  'showcase',
+] as const
+
+// 增量（2026-07-18，owner 追加：`lrzjason/Anything2Real` 这类 repo 落到了
+// 社交横幅，但 README 里其实有真样例图——实测图片托管在
+// cdn-uploads.huggingface.co（HF 网页附件上传，不在 siblings 清单里），
+// README.md 用 `<img src>`/markdown `![]()` 两种形式内嵌）：封面链在「仓内
+// 图片文件」与「社交缩略图」之间插一级——thumbnail/widget/仓内图三级全空
+// 时才读 README 挖第一张图，读不到/解析失败静默退回社交横幅（README 是
+// 增强，不能因为它失败就让整页发现结果炸掉）。
+export const HUGGINGFACE_README_FILENAME = 'README.md'
+// README 请求超时给比 HUGGINGFACE_REQUEST_TIMEOUT_MS（15s）更短的独立值：
+// 这一级只在前三级都落空时才触发、又是并发批量发，单个请求拖太久会连累
+// 一整批（HUGGINGFACE_LORA_DETAIL_CONCURRENCY 并发窗口内互不等待，但整页
+// 请求要等最慢的那批完成）。
+export const HUGGINGFACE_README_REQUEST_TIMEOUT_MS = 6_000
+// README 正文读取上限（近似按字符数截断，多数模型卡远小于这个量级）：
+// 防止个别仓库塞超大 README 拖慢解析，超限部分直接丢弃再解析。
+export const HUGGINGFACE_README_MAX_READ_CHARS = 256 * 1024
+// README 里的绝对图片 URL 只收这个白名单域（含子域，如
+// cdn-uploads.huggingface.co）——README 是仓库作者可自由编辑的自由文本，
+// 不像 cardData.thumbnail/widget 那样结构化，任意外链图片会变成对第三方
+// 站点的热链（隐私/可用性风险），只收 HF 自己域下的图片。
+export const HUGGINGFACE_README_ALLOWED_IMAGE_HOSTS = [
+  'huggingface.co',
+  'cdn-uploads.huggingface.co',
+] as const
+
+// 库侧封面渐进增强（README 挖掘从同步阻塞改客户端懒加载，owner 2026-07-18
+// 拍板方案 B——根因：曾经的 `hydrateReadmeCoverImages` 在列表请求里 await
+// 对每张落到社交横幅兜底的卡拉 README，N 个往返的尾延迟把 HF 库首屏拖到
+// 5–31s；单仓库 README 往返实测只要 0.28s，瓶颈是"同步阻塞做 N 个往返"不
+// 是"单个慢"）。列表改秒回，客户端对落空卡按需懒加载真图，见
+// `getHuggingFaceRepoShowcase` + `/api/lora-assets/huggingface/showcase`。
+export const HUGGINGFACE_SHOWCASE_CACHE_TTL_MS = 15 * 60 * 1000
+export const HUGGINGFACE_SHOWCASE_REPO_ID_MAX_LENGTH = 200
+export const HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH = 200
+// 客户端 IntersectionObserver 提前量——卡片进视口前这个距离就开始预取，
+// 避免用户刚好滚到卡片时才看见骨架到真图的切换。与 GalleryGrid 的
+// `rootMargin: '200px'` 同量级保持一致体感。
+export const HUGGINGFACE_SHOWCASE_LAZY_LOAD_ROOT_MARGIN = '200px'
+
+/**
+ * 判定封面 URL 是否落在 Hub 社交缩略图兜底域——服务端 `resolveCoverImageUrl`
+ * 精确按 repoId 拼出兜底 URL 做等值比较（见 huggingface-lora.service.ts 的
+ * `isFallbackSocialThumbnail`），客户端只有最终 URL 字符串、没必要重新实
+ * 现 repoId→URL 的编码逻辑，做域名前缀匹配即可——两种判法对同一个真实兜
+ * 底 URL 结果一致。库卡片用这个决定是否需要懒加载 README showcase。
+ */
+export function isHuggingFaceSocialThumbnailCoverUrl(
+  url: string | null | undefined,
+): boolean {
+  if (!url) return false
+  return url.startsWith(`${HUGGINGFACE_SOCIAL_THUMBNAIL_BASE_URL}/`)
+}
+
 export const HUGGINGFACE_LORA_BASE_MODEL_FAMILY = 'anima-dit'
 export const HUGGINGFACE_LORA_DEFAULT_FAMILY = 'all'
 export const HUGGINGFACE_LORA_FAMILY_VALUES = [
@@ -112,6 +200,33 @@ export type HuggingFaceLoraFamily =
   (typeof HUGGINGFACE_LORA_FAMILY_VALUES)[number]
 export const HUGGINGFACE_LORA_ANIMA_ADAPTER_FILTER =
   'base_model:adapter:circlestone-labs/Anima'
+// Bug 修复（2026-07-18，owner 报「HF + Illustrious → 没有找到匹配的公开
+// LoRA」）：非 anima-dit 家族的发现请求只传 `filter=lora` 全局盲扫
+// （getDiscoveryFilter），在 HUGGINGFACE_LORA_MAX_CURSOR_SCANS 扫描窗口内
+// 按下载量排完全没命中该家族就报空——但 Hub 供给其实存在（实测
+// `?filter=lora&search=illustrious` 命中 calcuis/illustrious、
+// OnomaAIResearch/Illustrious-xl-* 等大量仓库）。用家族关键词播种 Hub
+// `search` 参数，把扫描窗口对准供给存在的页面；本地 inferBaseModelFamily
+// 仍是最终闸门，种子词命中的非该家族仓库照常被滤掉，不会放宽准确性。
+// 种子词与用户搜索词按空格拼接（HF Hub search 语义实测为 AND：多词必须
+// 同时出现在 id/tags/等可搜字段里，见 2026-07-18 curl 实测：
+// `search=illustrious naruto` 只返回同时匹配两个词的仓库）。
+// 逐个实测（2026-07-18，`GET /api/models?filter=lora&search=<词>&limit=100`
+// 取样核对 base_model 标签）：illustrious/pony/sdxl/flux/sd15/qwen-image/
+// z-image 均命中良好、样本 base_model 与家族对应；'sd 1.5'（带空格）会连带
+// 命中大量多家族混标仓库（噪音更高），改用无空格的 'sd15' 更准。'other'
+// 是不属于任何命名家族的兜底桶，没有语义种子词，保持现状盲扫。
+export const HUGGINGFACE_LORA_FAMILY_SEARCH_SEEDS: Partial<
+  Record<Exclude<HuggingFaceLoraFamily, 'all'>, string>
+> = {
+  illustrious: 'illustrious',
+  pony: 'pony',
+  sdxl: 'sdxl',
+  flux: 'flux',
+  sd15: 'sd15',
+  'qwen-image': 'qwen-image',
+  'z-image': 'z-image',
+}
 export const HUGGINGFACE_LORA_CURATED_ANIMA_REPOS = [
   'circlestone-labs/Anima-Official-LoRAs',
 ] as const
@@ -661,6 +776,29 @@ export const LORA_CONTENT_TYPE_OVERRIDES_HF: Record<string, LoraContentTypeId> =
 
 export const LORA_CONTENT_TYPE_EXCLUDES_HF: Record<string, LoraContentTypeId> =
   {}
+
+// HF 类型检索播种（owner 2026-07-18 报告：HF「风格」类型每页只出 3-4
+// 张）。根因：`buildDiscoverySearchTerm` 此前只对家族播种，类型无播种——
+// 选某个类型时 Hub `search` 若为空就按下载量全局盲扫，本地
+// `modelMatchesContentType` 再过滤该类型，盲扫窗口里该类型供给稀薄，凑不
+// 满一页。实测（`GET /api/models?filter=lora&search=<词>&limit=100`）：类
+// 型种子单用命中充足——style=100(封顶)/character=100/outfit=100/
+// concept=100；家族+类型双种子 AND 也够用——pony style=100/
+// illustrious art style=26/sdxl character=13，都远好于盲扫命中 0。风格用
+// 单词 'style'（不是 searchFallbackTerm 的 'art style' 两词）——AND 组合
+// 更宽（pony style=100 vs illustrious art style=26）。expression 供给
+// <500（同上方 §3.1 表），播种反而在 AND 组合下拉空，不设种子、继续靠本
+// 地 nameKeywords 兜底。
+export const HUGGINGFACE_LORA_CONTENT_TYPE_SEARCH_SEEDS: Partial<
+  Record<LoraContentTypeId, string>
+> = {
+  character: 'character',
+  clothing: 'outfit',
+  pose: 'pose',
+  style: 'style',
+  concept: 'concept',
+  scene: 'background',
+}
 
 function normalizeFamilyMatchToken(value: string): string {
   return value.toLowerCase().replace(/[\s.]+/g, '')

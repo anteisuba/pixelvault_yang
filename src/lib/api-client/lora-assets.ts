@@ -15,6 +15,7 @@ import type {
   CivitaiMinedPromptsResult,
   CivitaiModelDescriptionResult,
   HuggingFaceLoraSearchResult,
+  HuggingFaceRepoShowcase,
   RunnerUsageResult,
   FavoriteLoraRequest,
   LoraAssetRecord,
@@ -45,6 +46,12 @@ interface CivitaiListResponse {
 interface HuggingFaceListResponse {
   success: boolean
   data?: HuggingFaceLoraSearchResult
+  error?: string
+}
+
+interface HuggingFaceShowcaseResponse {
+  success: boolean
+  data?: HuggingFaceRepoShowcase
   error?: string
 }
 
@@ -195,6 +202,41 @@ export async function listHuggingFaceLoraAssetsAPI(params: {
       }
     }
     return (await response.json()) as HuggingFaceListResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+/**
+ * README showcase images for a single HF repo — library cover progressive
+ * enhancement (2026-07-18 方案 B). Called lazily, client-side, only for
+ * cards whose cover currently falls back to the Hub social thumbnail.
+ */
+export async function fetchHuggingFaceShowcaseAPI(params: {
+  repoId: string
+  revision: string
+}): Promise<HuggingFaceShowcaseResponse> {
+  try {
+    const query = new URLSearchParams({
+      repoId: params.repoId,
+      revision: params.revision,
+    })
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_HUGGINGFACE_SHOWCASE}?${query.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as HuggingFaceShowcaseResponse
   } catch (error) {
     return {
       success: false,

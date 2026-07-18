@@ -35,6 +35,8 @@ import {
   HUGGINGFACE_LORA_MAX_LIMIT,
   HUGGINGFACE_LORA_MAX_SEARCH_LENGTH,
   HUGGINGFACE_LORA_SORT_VALUES,
+  HUGGINGFACE_SHOWCASE_REPO_ID_MAX_LENGTH,
+  HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH,
   LORA_CONTENT_TYPE_VALUES,
 } from '@/constants/lora'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
@@ -3800,6 +3802,34 @@ export type HuggingFaceLoraSearchQuery = z.infer<
   typeof HuggingFaceLoraSearchQuerySchema
 >
 
+// ─── Hugging Face repo showcase (README embedded images) ─────────
+/**
+ * 库侧封面渐进增强端点的返回类型（owner 2026-07-18 拍板方案 B）：`images`
+ * 是 README 全量内嵌图（按文档顺序），供懒加载封面取首图、未来生成侧
+ * showcase 横滚复用同一批图。`prompts` 是下一切片（H1）的活——本次固定
+ * 返回空数组占位，不在这里做提示词启发式提取。
+ */
+export const HuggingFaceRepoShowcaseSchema = z.object({
+  images: z.array(z.string().url()),
+  prompts: z.array(z.string()),
+})
+export type HuggingFaceRepoShowcase = z.infer<
+  typeof HuggingFaceRepoShowcaseSchema
+>
+
+export const HuggingFaceRepoShowcaseQuerySchema = z.object({
+  repoId: z.string().trim().min(1).max(HUGGINGFACE_SHOWCASE_REPO_ID_MAX_LENGTH),
+  revision: z
+    .string()
+    .trim()
+    .min(1)
+    .max(HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH)
+    .default('main'),
+})
+export type HuggingFaceRepoShowcaseQuery = z.infer<
+  typeof HuggingFaceRepoShowcaseQuerySchema
+>
+
 export const FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH = 4000
 
 export const FavoriteLoraRequestSchema = z.object({
@@ -4037,6 +4067,15 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   // B11：搜索路径的 civitai meilisearch 端点挂了，回落到忽略 sort 的 REST
   // 搜索路径时置 true——UI 用它把排序控件降级显示成「按相关性」。
   sortFellBackToRelevance: z.boolean().optional(),
+  // Bug 修复（2026-07-18，类型筛选「下一页不可点」的真根因）：true = 这个
+  // 结果来自按页码直接 offset 分页的后端（meilisearch 搜索路径 /
+  // 内容类型合并路径），client 翻页可以直接 setPage(page+1) 重新请求，不
+  // 需要先拿到 nextCursor。false/undefined = 走 REST cursor 扫描，必须先
+  // 有上一页返回的 nextCursor 才能翻页。此前 client 用「有没有输入搜索
+  // 词」当代理判断是否支持 offset 分页——类型筛选场景即使没搜索词也是走
+  // 内容类型合并路径（恒 offset 分页），代理判断失真导致翻页静默失败
+  // （按钮不会被禁用，点击只是不生效）；这个字段替换那个不准的代理判断。
+  offsetPaginationSupported: z.boolean().optional(),
 })
 
 export type CivitaiLoraLibraryResult = z.infer<

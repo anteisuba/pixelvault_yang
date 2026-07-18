@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import { isCivitaiBaseModelGeneratable } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
+import { useHuggingFaceShowcaseCover } from '@/hooks/use-huggingface-showcase-cover'
 import { cn } from '@/lib/utils'
 import type { CivitaiLoraLibraryItem, HuggingFaceLoraSearchItem } from '@/types'
 import { LoraCoverTile } from '@/components/business/studio/lora/LoraCoverTile'
@@ -43,12 +44,22 @@ export function LoraLibraryCard(props: LoraLibraryCardProps) {
   const { isSelected, isFavorited, onSelect, onFavorite } = props
   const isCivitai = props.source === 'civitai'
 
+  // HF 库侧封面渐进增强（owner 2026-07-18 拍板方案 B）：hook 必须无条件调
+  // 用（Rules of Hooks）——civitai 卡传空 repoId/null 封面，让它在
+  // `isHuggingFaceSocialThumbnailCoverUrl(null) === false` 分支透传原样、
+  // 不发任何请求，civitai 路径零改动。
+  const showcase = useHuggingFaceShowcaseCover(
+    isCivitai ? '' : props.item.repoId,
+    isCivitai ? '' : props.item.revision,
+    isCivitai ? null : props.item.coverImageUrl,
+  )
+
   // HF 卡片家族角标/生成性判定用仓库级 baseModelFamily（多文件仓库各文件
   // 家族可能不同，精确的按文件判定留给抽屉的文件选择器；卡面只给一个代表
   // 值——与 HF 家族筛选 chip 用的同一个字段，语义一致）。
   const coverUrl = isCivitai
     ? (props.item.cardImageUrl ?? props.item.coverImageUrl)
-    : props.item.coverImageUrl
+    : showcase.coverUrl
   const familyLabel = props.item.baseModelFamily
   const isGeneratable = isCivitai
     ? isCivitaiBaseModelGeneratable(props.item.baseModelFamily)
@@ -64,6 +75,8 @@ export function LoraLibraryCard(props: LoraLibraryCardProps) {
     <div className="min-w-0">
       <LoraCoverTile
         coverUrl={coverUrl}
+        isLoadingCover={!isCivitai && showcase.isPending}
+        containerRef={isCivitai ? undefined : showcase.setObservedElement}
         alt=""
         fallbackIcon={
           isCivitai ? (

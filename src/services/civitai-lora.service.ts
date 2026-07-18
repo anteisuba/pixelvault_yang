@@ -9,6 +9,8 @@ import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_NAMED_BASE_MODEL_MEMBER_SET,
   CIVITAI_OTHER_BASE_MODEL_MEMBERS,
+  CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT,
+  CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -1483,6 +1485,9 @@ async function listCivitaiLorasBySearch({
         ? offset + hits.length < estimatedTotal
         : hits.length >= pageSize,
     nextCursor: null,
+    // 这条路径也是按页码直接 offset 分页（meilisearch `offset`/`limit`），
+    // 同一份根因修复，见 listCivitaiLorasByContentType 里的字段注释。
+    offsetPaginationSupported: true,
   }
 }
 
@@ -1593,7 +1598,16 @@ async function listCivitaiLorasByContentType({
   contentType: Exclude<LoraContentType, 'all'>
 }): Promise<CivitaiLoraLibraryResult> {
   const definition = getLoraContentTypeDefinition(contentType)
-  const offset = (page - 1) * pageSize
+  const windowStart = (page - 1) * pageSize
+  const windowEnd = page * pageSize
+  // 每条子 query 都从 0 重新扫到「当前页末尾 + 缓冲」——不是增量分页，是
+  // 每次都重新裁一个更大的前缀窗口。这样合并去重后再切片才能保证跨页无
+  // 跳漏（旧版各自独立的 offset 窗口一旦 L1/L2 有重叠，去重会让当页缺量，
+  // 见上方常量注释）。MAX_FETCH_LIMIT 兜底极端深页。
+  const fetchLimit = Math.min(
+    windowEnd + CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER,
+    CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT,
+  )
   const baseFilters = buildCivitaiSearchFilters(
     baseModel === 'all' ? null : baseModel,
   )
@@ -1613,8 +1627,8 @@ async function listCivitaiLorasByContentType({
     queries.push({
       indexUid: CIVITAI_MODEL_SEARCH_INDEX,
       q: search,
-      limit: pageSize,
-      offset,
+      limit: fetchLimit,
+      offset: 0,
       filter: [...baseFilters, buildTagsInFilter(definition.civitaiTags)],
       sort: CIVITAI_SEARCH_SORT_MAP[sort],
     })
@@ -1628,8 +1642,8 @@ async function listCivitaiLorasByContentType({
     queries.push({
       indexUid: CIVITAI_MODEL_SEARCH_INDEX,
       q: l2QueryText,
-      limit: pageSize,
-      offset,
+      limit: fetchLimit,
+      offset: 0,
       filter: baseFilters,
       sort: CIVITAI_SEARCH_SORT_MAP[sort],
     })
@@ -1645,6 +1659,7 @@ async function listCivitaiLorasByContentType({
       total: 0,
       hasNextPage: false,
       nextCursor: null,
+      offsetPaginationSupported: true,
     }
   }
 
@@ -1685,8 +1700,11 @@ async function listCivitaiLorasByContentType({
     }
   }
 
+  // 全局重排后再按页切片（不是 slice(0, pageSize)）——两条子 query 这次都
+  // 是从 0 扫到 fetchLimit 的同一份前缀窗口，切 [windowStart, windowEnd)
+  // 才能拿到「这一页」应有的条目，避免旧版每页各自独立小窗口去重后缺量。
   const sortedHits = sortMergedSearchHits([...mergedById.values()], sort)
-  const pageHits = sortedHits.slice(0, pageSize)
+  const pageHits = sortedHits.slice(windowStart, windowEnd)
   const items = await hitsToLibraryItems(
     pageHits,
     maxImageNsfwLevelFor(nsfwFilter),
@@ -1716,16 +1734,20 @@ async function listCivitaiLorasByContentType({
     }
   }
 
-  // 两个独立分页窗口的并集大小无法从各自的 estimatedTotalHits 精确推出
-  // （成员可能重叠也可能互补）——如实报 null（未知）好过编造一个数字；
-  // hasNextPage 改用"任一底层 query 在这页之后还有更多"来近似判断，外加
-  // "这页合并后本身已经溢出 pageSize"的保守信号。
+  // 合并集大小无法精确换算成总数（L1/L2 成员可能重叠也可能互补）——如实
+  // 报 null（未知）好过编造一个数字。hasNextPage 两个信号任一为真即可：
+  //   1. 合并去重后的集合本身已经超出这一页的窗口末尾——说明我们已经拿
+  //      在手上的数据就够填下一页，不用等下次请求验证。
+  //   2. 某条子 query 报的 estimatedTotalHits 超过了这次实际取的量
+  //      （fetchLimit）——命中了 MAX_FETCH_LIMIT 兜底或缓冲不够宽的边界
+  //      情况：这一页数据虽已到手，但上游供给比我们这次扫到的还多。
   const hasNextPage =
+    sortedHits.length > windowEnd ||
     parsed.results.some(
       (result) =>
         result.estimatedTotalHits !== undefined &&
-        offset + pageSize < result.estimatedTotalHits,
-    ) || sortedHits.length > pageSize
+        result.estimatedTotalHits > fetchLimit,
+    )
 
   return {
     items,
@@ -1734,6 +1756,10 @@ async function listCivitaiLorasByContentType({
     total: null,
     hasNextPage,
     nextCursor: null,
+    // Bug 修复（下一页不可点的真根因）：这条路径恒走 meilisearch 按页码
+    // offset 分页（never 靠 cursor），client 侧可以直接翻页请求下一页，见
+    // CivitaiLoraLibraryResultSchema.offsetPaginationSupported 的注释。
+    offsetPaginationSupported: true,
   }
 }
 

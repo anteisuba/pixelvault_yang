@@ -54,6 +54,21 @@ describe('LoraCoverTile — shared LoRA card base (B8)', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('renders a skeleton instead of the fallback icon while isLoadingCover is true', () => {
+    render(
+      <LoraCoverTile
+        coverUrl={null}
+        alt=""
+        fallbackIcon={<span data-testid="fallback" />}
+        badgeLabel="Style"
+        isLoadingCover
+      />,
+    )
+
+    expect(screen.queryByTestId('fallback')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
   it('renders the top-right slot and applies the selection ring', () => {
     const { container } = render(
       <LoraCoverTile

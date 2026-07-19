@@ -1,13 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import {
-  KeyRound,
-  Loader2,
-  Plus,
-  SlidersHorizontal,
-  Trash2,
-} from 'lucide-react'
+import { KeyRound, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -26,6 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import { cn } from '@/lib/utils'
@@ -185,7 +180,7 @@ export function CharacterImageLoraControls({
     if (loading) {
       return (
         <div className="flex items-center gap-2 rounded-xl bg-node-panel-soft px-3 py-3 text-xs text-node-muted">
-          <Loader2 className="size-3.5 animate-spin" />
+          <Spinner size="sm" />
           {t('loading')}
         </div>
       )

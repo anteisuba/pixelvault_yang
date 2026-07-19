@@ -7,6 +7,7 @@ import {
   EASE_INGEST_CSS,
   EASE_SOFT_RETURN_CSS,
   INGEST_MOTION,
+  NODE_EDGE_SIGNING_MOTION,
 } from '@/constants/motion'
 import {
   NODE_STUDIO_INGEST_MAGNET,
@@ -16,7 +17,11 @@ import {
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { canConnectNodeTypes } from '@/lib/node-connection-rules'
-import { getUpstreamNodes } from '@/lib/node-workflow-graph'
+import {
+  getNodeStageMediaUrls,
+  getSeedanceReferenceKind,
+  getUpstreamNodes,
+} from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import type { CastSectionId } from '@/components/business/node/CastDock'
 
@@ -80,6 +85,23 @@ function isImageContributingNode(node: NodeWorkflowNode): boolean {
 }
 
 /**
+ * R3-6 出场组: how many image_urls SLOTS one upstream node actually occupies
+ * — a collector (character/background) contributes its whole onStage set
+ * (`getNodeStageMediaUrls`), everything else contributes exactly 1, same as
+ * before R3-6. `Math.max(1, …)` keeps a media-less collector counted as 1
+ * (matches the pre-R3-6 "count nodes, not images" approximation this preview
+ * always used — an edge already committed to the graph still occupies a
+ * conceptual slot even before its image loads).
+ */
+function countImageContribution(node: NodeWorkflowNode): number {
+  const kind = getSeedanceReferenceKind(node)
+  if (kind === 'character' || kind === 'background') {
+    return Math.max(1, getNodeStageMediaUrls(node.data).length)
+  }
+  return 1
+}
+
+/**
  * §6.3 张口预览 / 咬不动「参考位已满 n/m」的容量来源: only checked when the
  * target is an image-reference consumer (video/shot) AND already has a model
  * selected (an unset model has no knowable cap — the check is skipped
@@ -111,9 +133,12 @@ export function previewIngestCapacity(
   const limit = getMaxReferenceImages(model.adapterType, model.modelId)
   if (!Number.isFinite(limit) || limit <= 0) return null
 
-  const current = getUpstreamNodes(targetNode.id, edges, nodes).filter(
-    isImageContributingNode,
-  ).length
+  // R3-6 出场组: count SLOTS, not nodes — a collector with several onStage
+  // images occupies that many image_urls positions, so the "参考位 n/m"
+  // preview stays honest once a card curates more than its ★ primary.
+  const current = getUpstreamNodes(targetNode.id, edges, nodes)
+    .filter(isImageContributingNode)
+    .reduce((sum, node) => sum + countImageContribution(node), 0)
   return { current, limit }
 }
 
@@ -220,7 +245,12 @@ export function clearAllMagnetHighlights(): void {
     .forEach((el) => el.classList.remove(INGEST_MAGNET_CLASS))
 }
 
-function prefersReducedMotion(): boolean {
+/** Exported for callers outside the WAAPI keyframe functions below that need
+ *  the same check BEFORE deciding whether to even start a signing/unsigning
+ *  episode (R3-2, `StudioNodeWorkbench`'s scheduling of the 墨线签署/褪去 hold
+ *  windows) — `canAnimate` bundles this with an element+WAAPI-support check
+ *  that only makes sense once an element is already in hand. */
+export function prefersReducedMotion(): boolean {
   return (
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -233,7 +263,16 @@ function prefersReducedMotion(): boolean {
  *  throw instead of just skipping the keyframe flourish (§8's
  *  prefers-reduced-motion "降级淡入淡出" degrades further here to "no
  *  animation", the connection itself still completes normally). */
-function canAnimate(el: Element | null): el is HTMLElement {
+/**
+ * Narrows to `Element` (not `HTMLElement`) so the SAME guard covers both the
+ * ingest engine's `.node-card-paper` targets AND R3-2's SVG `<path>` edge
+ * elements (`playInkSignAnimation`/`playInkUnsignAnimation`) — TS intersects
+ * a custom predicate with the argument's static type, so an `HTMLElement |
+ * null` caller still narrows to `HTMLElement` and an `SVGPathElement | null`
+ * caller still narrows to `SVGPathElement`; only the guard body needs to stay
+ * generic.
+ */
+function canAnimate(el: Element | null): el is Element {
   return (
     Boolean(el) && typeof el?.animate === 'function' && !prefersReducedMotion()
   )
@@ -396,6 +435,158 @@ export function playCanvasFuseSwallowAnimation(
     )
     .finished.catch(() => undefined)
     .finally(cleanup)
+}
+
+/**
+ * R3-2「墨线签署」目标轻咽（canvas-relationship-v3 §2.7）: the target's own
+ * subtle acknowledgement pulse for a NON-folding source (collector card /
+ * voice / videoReference dragged onto a shot/video/character target) — the
+ * source doesn't disappear this time, so the target doesn't get the full
+ * 消化落定 gulp (that overshoot reads as "I just swallowed something",
+ * dishonest here). `handleNodeDragStop`'s bite-hover cleanup always runs
+ * first and resets the target's inline transform to `''`, so this starts
+ * clean from `scale(1)` — unlike `playTargetGulpAnimation`, which continues
+ * from the 张口 bite scale a fuse/ingest gulp is chained after.
+ */
+export function playTargetSigningSettleAnimation(
+  targetEl: Element | null,
+): void {
+  if (!canAnimate(targetEl)) return
+  targetEl.animate(
+    [
+      { transform: 'scale(1)', offset: 0 },
+      {
+        transform: `scale(${NODE_EDGE_SIGNING_MOTION.targetSettleScaleDown})`,
+        offset: 0.4,
+      },
+      {
+        transform: `scale(${NODE_EDGE_SIGNING_MOTION.targetSettleScaleUp})`,
+        offset: 0.75,
+      },
+      { transform: 'scale(1)', offset: 1 },
+    ],
+    { duration: NODE_EDGE_SIGNING_MOTION.targetSettleMs, easing: 'ease-out' },
+  )
+}
+
+/**
+ * R3-2「本体归位」: the dragged node's OWN rendered `.node-card-paper` (not a
+ * ghost — the real card never disappears for a non-folding source) slides
+ * from wherever the native drag left it back to where it started, then
+ * `onSettle` writes the real `position` data back to the drag-start value.
+ * `dx`/`dy` are a caller-computed SCREEN-PIXEL delta (origin - drop, in that
+ * order) — deliberately not flow-space, so the animation is correct
+ * regardless of current zoom/pan without this function needing to know about
+ * either. Data commits only in `onSettle` (mirrors
+ * `playCanvasFuseSwallowAnimation`'s own onSettle-after-flight contract) —
+ * skipped/failed animation still calls `onSettle` immediately so the data
+ * layer is never left stale (§8 red line: "动画失败或被跳过时数据结果必须完全
+ * 一致").
+ */
+export function playNodeBounceBack(
+  cardEl: HTMLElement | null,
+  dx: number,
+  dy: number,
+  onSettle: () => void,
+): void {
+  if (!canAnimate(cardEl) || (dx === 0 && dy === 0)) {
+    onSettle()
+    return
+  }
+  cardEl
+    .animate(
+      [
+        { transform: 'translate(0px, 0px)', offset: 0 },
+        { transform: `translate(${dx}px, ${dy}px)`, offset: 1 },
+      ],
+      {
+        duration: NODE_EDGE_SIGNING_MOTION.bounceBackMs,
+        easing: EASE_SOFT_RETURN_CSS,
+        fill: 'forwards',
+      },
+    )
+    .finished.catch(() => undefined)
+    .finally(() => {
+      cardEl.style.transform = ''
+      onSettle()
+    })
+}
+
+/**
+ * R3-2「墨线画入」: draws an edge's already-rendered SVG `<path>` from nothing
+ * to its full stroke via `stroke-dashoffset`, using the path's OWN measured
+ * length (`getTotalLength`) so it works for any smoothstep geometry without a
+ * static keyframe table. Called by `NodeWorkflowStatusEdge` when
+ * `data.justSigned` rises — the edge itself owns the timing, this is just the
+ * WAAPI primitive. Leaves the dasharray/offset cleared on finish so the path
+ * falls back to its normal (fully solid) rendering once the draw-in is done —
+ * a later 关系线 toggle / selection-driven reveal of the SAME edge must not
+ * inherit a stale dasharray.
+ */
+export function playInkSignAnimation(pathEl: SVGPathElement | null): void {
+  if (!pathEl || !canAnimate(pathEl)) return
+  let length: number
+  try {
+    length = pathEl.getTotalLength()
+  } catch {
+    return
+  }
+  if (!Number.isFinite(length) || length <= 0) return
+
+  pathEl.style.strokeDasharray = `${length}`
+  pathEl
+    .animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], {
+      duration: NODE_EDGE_SIGNING_MOTION.inkDrawMs,
+      easing: EASE_INGEST_CSS,
+      fill: 'forwards',
+    })
+    .finished.catch(() => undefined)
+    .finally(() => {
+      pathEl.style.strokeDasharray = ''
+      pathEl.style.strokeDashoffset = ''
+    })
+}
+
+/**
+ * R3-2「墨线反向褪去」: the unbind mirror of `playInkSignAnimation` — dashoffset
+ * retreats from fully-drawn back to nothing. Called on a `data.unsigning`
+ * edge, which `StudioNodeWorkbench` keeps rendering for exactly this long
+ * AFTER the real edge is already gone from `workflow.edges` (§2.7 "数据先删,
+ * 动画只是视觉层") — `onSettle` here is purely a courtesy callback (there is
+ * nothing left to commit; the caller only uses it, if at all, for cleanup),
+ * unlike `playNodeBounceBack`'s onSettle which carries a real data write.
+ */
+export function playInkUnsignAnimation(
+  pathEl: SVGPathElement | null,
+  onSettle?: () => void,
+): void {
+  if (!pathEl || !canAnimate(pathEl)) {
+    onSettle?.()
+    return
+  }
+  let length: number
+  try {
+    length = pathEl.getTotalLength()
+  } catch {
+    onSettle?.()
+    return
+  }
+  if (!Number.isFinite(length) || length <= 0) {
+    onSettle?.()
+    return
+  }
+
+  pathEl.style.strokeDasharray = `${length}`
+  pathEl
+    .animate([{ strokeDashoffset: 0 }, { strokeDashoffset: length }], {
+      duration: NODE_EDGE_SIGNING_MOTION.unsignFadeMs,
+      easing: EASE_INGEST_CSS,
+      fill: 'forwards',
+    })
+    .finished.catch(() => undefined)
+    .finally(() => {
+      onSettle?.()
+    })
 }
 
 /** One legal drop target collected at drag start — kept with its element so

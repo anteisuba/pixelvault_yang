@@ -7,8 +7,10 @@ import {
   buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
+  getEdgeStageOverrideUrls,
   getNodeMediaUrl,
   getNodePrimaryMediaUrl,
+  getNodeStageMediaUrls,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
@@ -53,8 +55,9 @@ function makeEdge(
   id: string,
   source: string,
   target: string,
+  data?: Record<string, unknown>,
 ): NodeWorkflowEdge {
-  return { id, source, target } as NodeWorkflowEdge
+  return { id, source, target, ...(data ? { data } : {}) } as NodeWorkflowEdge
 }
 
 describe('node-workflow-graph predicates', () => {
@@ -273,6 +276,239 @@ describe('getNodePrimaryMediaUrl (V-2 主图)', () => {
   })
 })
 
+describe('getNodeStageMediaUrls (R3-6 出场组)', () => {
+  it('degrades to exactly [primary] when no entry carries onStage (旧存档零漂移)', () => {
+    expect(
+      getNodeStageMediaUrls({
+        prompt: '',
+        status: 'idle',
+        mediaUrl: 'https://cdn/media.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/ref1.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+    ).toEqual(['https://cdn/media.png'])
+  })
+
+  it('returns [] for a fully empty card', () => {
+    expect(getNodeStageMediaUrls({ prompt: '', status: 'idle' })).toEqual([])
+  })
+
+  it('puts the ★-starred primary first, then onStage entries in array order', () => {
+    expect(
+      getNodeStageMediaUrls({
+        prompt: '',
+        status: 'idle',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/extra1.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/primary.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+          },
+          {
+            id: 'r3',
+            url: 'https://cdn/extra2.png',
+            role: 'style',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r4',
+            url: 'https://cdn/notstaged.png',
+            role: 'costume',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+    ).toEqual([
+      'https://cdn/primary.png',
+      'https://cdn/extra1.png',
+      'https://cdn/extra2.png',
+    ])
+  })
+
+  it('dedupes when the primary entry is ALSO marked onStage', () => {
+    expect(
+      getNodeStageMediaUrls({
+        prompt: '',
+        status: 'idle',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/primary.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ).toEqual(['https://cdn/primary.png', 'https://cdn/extra.png'])
+  })
+
+  // R3-6b §3 每镜覆写
+  it('override branch: forces the primary into position 0 even when the override array omits it', () => {
+    expect(
+      getNodeStageMediaUrls(
+        {
+          prompt: '',
+          status: 'idle',
+          referenceAssets: [
+            {
+              id: 'r1',
+              url: 'https://cdn/primary.png',
+              role: 'identity',
+              weight: 0.72,
+              source: 'upload',
+              isPrimary: true,
+            },
+            {
+              id: 'r2',
+              url: 'https://cdn/onstage-but-ignored.png',
+              role: 'pose',
+              weight: 0.72,
+              source: 'upload',
+              onStage: true,
+            },
+          ],
+        },
+        ['https://cdn/override1.png', 'https://cdn/override2.png'],
+      ),
+    ).toEqual([
+      'https://cdn/primary.png',
+      'https://cdn/override1.png',
+      'https://cdn/override2.png',
+    ])
+  })
+
+  it('override branch: an EMPTY override array resolves to [primary] only, ignoring the card onStage set', () => {
+    expect(
+      getNodeStageMediaUrls(
+        {
+          prompt: '',
+          status: 'idle',
+          referenceAssets: [
+            {
+              id: 'r1',
+              url: 'https://cdn/primary.png',
+              role: 'identity',
+              weight: 0.72,
+              source: 'upload',
+              isPrimary: true,
+            },
+            {
+              id: 'r2',
+              url: 'https://cdn/onstage-but-ignored.png',
+              role: 'pose',
+              weight: 0.72,
+              source: 'upload',
+              onStage: true,
+            },
+          ],
+        },
+        [],
+      ),
+    ).toEqual(['https://cdn/primary.png'])
+  })
+
+  it('overrideUrls omitted entirely (undefined) keeps the pre-R3-6b onStage fallback', () => {
+    expect(
+      getNodeStageMediaUrls({
+        prompt: '',
+        status: 'idle',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/primary.png',
+            role: 'identity',
+            weight: 0.72,
+            source: 'upload',
+            isPrimary: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ).toEqual(['https://cdn/primary.png', 'https://cdn/extra.png'])
+  })
+})
+
+describe('getEdgeStageOverrideUrls (R3-6b §3)', () => {
+  it('reads a well-formed stageOverrideUrls array off edge.data', () => {
+    const edge = makeEdge('e1', 'char1', 'video1', {
+      stageOverrideUrls: ['https://cdn/a.png', 'https://cdn/b.png'],
+    })
+    expect(getEdgeStageOverrideUrls(edge)).toEqual([
+      'https://cdn/a.png',
+      'https://cdn/b.png',
+    ])
+  })
+
+  it('returns undefined for an edge with no data / no override field', () => {
+    expect(getEdgeStageOverrideUrls(makeEdge('e1', 'a', 'b'))).toBeUndefined()
+  })
+
+  it('returns undefined for a missing edge', () => {
+    expect(getEdgeStageOverrideUrls(undefined)).toBeUndefined()
+  })
+
+  it('degrades a malformed (non-array) value to undefined instead of throwing', () => {
+    const edge = makeEdge('e1', 'char1', 'video1', {
+      stageOverrideUrls: 'not-an-array',
+    })
+    expect(getEdgeStageOverrideUrls(edge)).toBeUndefined()
+  })
+
+  it('filters out non-string entries from a mixed-type array', () => {
+    const edge = makeEdge('e1', 'char1', 'video1', {
+      stageOverrideUrls: ['https://cdn/a.png', 42, null, 'https://cdn/b.png'],
+    })
+    expect(getEdgeStageOverrideUrls(edge)).toEqual([
+      'https://cdn/a.png',
+      'https://cdn/b.png',
+    ])
+  })
+
+  it('an explicit empty array stays an empty array (not coerced to undefined)', () => {
+    const edge = makeEdge('e1', 'char1', 'video1', { stageOverrideUrls: [] })
+    expect(getEdgeStageOverrideUrls(edge)).toEqual([])
+  })
+})
+
 describe('getUpstreamNodes', () => {
   it('returns only direct upstream nodes for a target', () => {
     const nodes = [
@@ -395,6 +631,136 @@ describe('harvestUpstreamImageUrls', () => {
     ]
     expect(harvestUpstreamImageUrls(upstream)).toEqual([
       'https://cdn/fused.png',
+    ])
+  })
+
+  it('R3-6 出场组: a collector expands to its full onStage set (primary first)', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/extra1.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/notstaged.png',
+            role: 'style',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/extra1.png',
+    ])
+  })
+
+  it('R3-6 出场组: a shot card (visual reference, not a collector) still sends only its primary', () => {
+    const upstream = [
+      makeNode('shot', NODE_TYPE_IDS.shot, {
+        mediaUrl: 'https://cdn/shot.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/shot-extra.png',
+            role: 'style',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual(['https://cdn/shot.png'])
+  })
+
+  // R3-6b §3 每镜覆写
+  it('honors a collector→video edge stageOverrideUrls when edges + focalNodeId are supplied', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/card-default-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    const edges = [
+      makeEdge('e-char', 'char', 'video1', {
+        stageOverrideUrls: ['https://cdn/override-extra.png'],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video1')).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/override-extra.png',
+    ])
+  })
+
+  it('falls back to the card onStage set when edges/focalNodeId are omitted (shot path zero-drift)', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/card-default-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/card-default-extra.png',
+    ])
+  })
+
+  it('a per-edge override only affects THAT edge — a second video keeps the card default', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/card-default-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    const edges = [
+      makeEdge('e-char-v1', 'char', 'video1', {
+        stageOverrideUrls: ['https://cdn/override-extra.png'],
+      }),
+      makeEdge('e-char-v2', 'char', 'video2'),
+    ]
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video1')).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/override-extra.png',
+    ])
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video2')).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/card-default-extra.png',
     ])
   })
 })
@@ -551,6 +917,66 @@ describe('harvestUpstreamImageReferences', () => {
     ]
     expect(harvestUpstreamImageReferences(upstream)).toEqual([
       { url: 'https://cdn/bg.png', kind: 'background', name: undefined },
+    ])
+  })
+
+  it('R3-6 出场组: expands a collector to primary + onStage extras, category-labeled when resolvable', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/prop.png',
+            role: 'prop',
+            weight: 0.72,
+            source: 'upload',
+            name: '古剑',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/plain-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
+      { url: 'https://cdn/prop.png', name: '古剑', category: '道具' },
+      // No asset.name on this extra → falls back to the SAME kind+name format
+      // as the primary (§3.0a "无分类则同名同 kind 格式").
+      {
+        url: 'https://cdn/plain-extra.png',
+        kind: 'character',
+        name: 'yangyang',
+      },
+    ])
+  })
+
+  it('R3-6 出场组: a card with no onStage entries degrades to one entry per node (旧存档零漂移)', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/gallery-only.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+      { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
     ])
   })
 })
@@ -710,6 +1136,237 @@ describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', ()
       name: undefined,
     })
   })
+
+  it('R3-6 出场组: expands a collector to primary + onStage extras, category-labeled when resolvable', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '剑修',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/prop.png',
+            role: 'prop',
+            weight: 0.72,
+            source: 'upload',
+            name: '古剑',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/plain-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e-char', 'char1', 'video1')]
+    const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+    expect(map.get('https://cdn/char.png')).toEqual({
+      kind: 'character',
+      name: '剑修',
+    })
+    expect(map.get('https://cdn/prop.png')).toEqual({
+      kind: 'character',
+      name: '古剑',
+      category: '道具',
+    })
+    // No asset.name → falls back to the SAME kind+name as the primary.
+    expect(map.get('https://cdn/plain-extra.png')).toEqual({
+      kind: 'character',
+      name: '剑修',
+    })
+  })
+
+  it('R3-6 出场组: a card with no onStage entries degrades to one map entry (旧存档零漂移)', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '剑修',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/gallery-only.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e-char', 'char1', 'video1')]
+    const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+    expect(map.size).toBe(1)
+    expect(map.get('https://cdn/char.png')).toEqual({
+      kind: 'character',
+      name: '剑修',
+    })
+  })
+
+  // R3-6b §3 每镜覆写
+  it('honors the collector→video edge stageOverrideUrls over the card onStage set', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '剑修',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/card-default-extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn/override-extra.png',
+            role: 'prop',
+            weight: 0.72,
+            source: 'upload',
+            name: '古剑',
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e-char', 'char1', 'video1', {
+        stageOverrideUrls: ['https://cdn/override-extra.png'],
+      }),
+    ]
+    const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+    // The override-selected extra is present, category-labeled from its own
+    // referenceAssets entry (same fallback harvestUpstreamImageReferences uses).
+    expect(map.get('https://cdn/override-extra.png')).toEqual({
+      kind: 'character',
+      name: '古剑',
+      category: '道具',
+    })
+    // The card-default extra (onStage=true but NOT in the override) is absent
+    // — the override REPLACES the card's own curation for this one edge.
+    expect(map.has('https://cdn/card-default-extra.png')).toBe(false)
+  })
+
+  // SF-2b (canvas-shot-frame-fold-2026-07 §-1): 镜头/首帧被 @token 引用时必须
+  // 带上分类，与 imageCategory 图片同格式同管线（"名字（分类）"）。
+  describe('SF-2b 镜头/首帧分类映射', () => {
+    it('a directly-referenced shot (unified image role=shot) carries category 镜头', () => {
+      const nodes = [
+        makeNode('shot1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+          mediaUrl: 'https://cdn/shot.png',
+          shotName: '开场镜头',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-shot', 'shot1', 'video1')]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/shot.png')).toEqual({
+        kind: 'shot',
+        name: '开场镜头',
+        category: '镜头',
+      })
+    })
+
+    it('legacy shot type produces the SAME categorized entry as image role=shot (engine equivalence)', () => {
+      const nodes = [
+        makeNode('shot1', NODE_TYPE_IDS.shot, {
+          mediaUrl: 'https://cdn/shot.png',
+          shotName: '开场镜头',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-shot', 'shot1', 'video1')]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/shot.png')).toEqual({
+        kind: 'shot',
+        name: '开场镜头',
+        category: '镜头',
+      })
+    })
+
+    it('a directly-referenced frame (unified image role=frame) carries category 首帧, named via mediaLabel', () => {
+      const nodes = [
+        makeNode('frame1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.frame,
+          mediaUrl: 'https://cdn/frame.png',
+          mediaLabel: '开场首帧',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-frame', 'frame1', 'video1')]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/frame.png')).toEqual({
+        name: '开场首帧',
+        category: '首帧',
+      })
+    })
+
+    it('legacy frameImage type produces the SAME categorized entry as image role=frame (engine equivalence)', () => {
+      const nodes = [
+        makeNode('frame1', NODE_TYPE_IDS.frameImage, {
+          mediaUrl: 'https://cdn/frame.png',
+          mediaLabel: '开场首帧',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-frame', 'frame1', 'video1')]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/frame.png')).toEqual({
+        name: '开场首帧',
+        category: '首帧',
+      })
+    })
+
+    it('an unnamed frame falls back to an ordinal placeholder name instead of dropping the entry', () => {
+      const nodes = [
+        makeNode('frame1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.frame,
+          mediaUrl: 'https://cdn/frame.png',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-frame', 'frame1', 'video1')]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/frame.png')).toEqual({
+        name: '首帧1',
+        category: '首帧',
+      })
+    })
+
+    it('a role-less image classified imageCategory=frameStart/frameEnd resolves the MORE SPECIFIC 关键帧首/关键帧尾 label', () => {
+      const nodes = [
+        makeNode('kf1', NODE_TYPE_IDS.image, {
+          mediaUrl: 'https://cdn/kf-start.png',
+          imageCategory: 'frameStart',
+        }),
+        makeNode('kf2', NODE_TYPE_IDS.image, {
+          mediaUrl: 'https://cdn/kf-end.png',
+          imageCategory: 'frameEnd',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [
+        makeEdge('e-kf1', 'kf1', 'video1'),
+        makeEdge('e-kf2', 'kf2', 'video1'),
+      ]
+      const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      expect(map.get('https://cdn/kf-start.png')).toEqual({
+        name: '关键帧首1',
+        category: '关键帧首',
+      })
+      expect(map.get('https://cdn/kf-end.png')).toEqual({
+        name: '关键帧尾2',
+        category: '关键帧尾',
+      })
+    })
+  })
 })
 
 describe('buildVideoReferenceLegend (§7.2⑦ / §9 D)', () => {
@@ -784,6 +1441,101 @@ describe('buildVideoReferenceLegend (§7.2⑦ / §9 D)', () => {
         labels,
       }),
     ).toBe('')
+  })
+
+  // R3-6 出场组: an EXTRA onStage image carrying a resolved category prints
+  // "@ImageN = 名字（分类）" instead of the kind-based line — same branch
+  // buildShotReferenceLegend already has, just under this legend's own
+  // @Image-style imagePrefix (V-1 positional token).
+  it('labels a category-carrying image reference with "prefixN = 名字（分类）"', () => {
+    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
+      ['https://cdn/char.png', { kind: 'character', name: '剑修' }],
+      [
+        'https://cdn/prop.png',
+        { kind: 'character', name: '古剑', category: '道具' },
+      ],
+    ])
+    const legend = buildVideoReferenceLegend({
+      referenceImages: ['https://cdn/char.png', 'https://cdn/prop.png'],
+      imageRefByUrl,
+      videoUrls: [],
+      audioBindings: [],
+      labels,
+    })
+    expect(legend).toBe('参考素材说明：\n图1：角色「剑修」\n图2 = 古剑（道具）')
+  })
+
+  // SF-2b (canvas-shot-frame-fold-2026-07 §-1): a category-only entry (no
+  // `kind` at all — a keyframe/首帧's shape) still prints the "=（分类）" line,
+  // never the kind-based bracket wording (which would throw/undefined without
+  // this branch, since there's no `labels.kindLabel[undefined]`).
+  it('labels a kind-less category-only entry (keyframe shape) the same way', () => {
+    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
+      ['https://cdn/frame.png', { name: '开场首帧', category: '首帧' }],
+    ])
+    const legend = buildVideoReferenceLegend({
+      referenceImages: ['https://cdn/frame.png'],
+      imageRefByUrl,
+      videoUrls: [],
+      audioBindings: [],
+      labels,
+    })
+    expect(legend).toBe('参考素材说明：\n图1 = 开场首帧（首帧）')
+  })
+
+  // SF-2b end-to-end: the REAL harvest (harvestUpstreamVideoImageReferences)
+  // feeding the REAL legend builder — locks in owner's literal quoted format
+  // "图N = 名字（镜头/首帧）" for both shot and frame, not just a hand-built map.
+  describe('SF-2b end-to-end: 镜头/首帧引用后的图例文本含分类', () => {
+    it('a directly-referenced shot prints "图N = 名字（镜头）"', () => {
+      const nodes = [
+        makeNode('shot1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+          mediaUrl: 'https://cdn/shot.png',
+          shotName: '开场镜头',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-shot', 'shot1', 'video1')]
+      const imageRefByUrl = harvestUpstreamVideoImageReferences(
+        'video1',
+        edges,
+        nodes,
+      )
+      const legend = buildVideoReferenceLegend({
+        referenceImages: ['https://cdn/shot.png'],
+        imageRefByUrl,
+        videoUrls: [],
+        audioBindings: [],
+        labels,
+      })
+      expect(legend).toBe('参考素材说明：\n图1 = 开场镜头（镜头）')
+    })
+
+    it('a directly-referenced frame prints "图N = 名字（首帧）"', () => {
+      const nodes = [
+        makeNode('frame1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.frame,
+          mediaUrl: 'https://cdn/frame.png',
+          mediaLabel: '开场首帧',
+        }),
+        makeNode('video1', NODE_TYPE_IDS.seedance),
+      ]
+      const edges = [makeEdge('e-frame', 'frame1', 'video1')]
+      const imageRefByUrl = harvestUpstreamVideoImageReferences(
+        'video1',
+        edges,
+        nodes,
+      )
+      const legend = buildVideoReferenceLegend({
+        referenceImages: ['https://cdn/frame.png'],
+        imageRefByUrl,
+        videoUrls: [],
+        audioBindings: [],
+        labels,
+      })
+      expect(legend).toBe('参考素材说明：\n图1 = 开场首帧（首帧）')
+    })
   })
 })
 
@@ -1202,5 +1954,39 @@ describe('summarizeUpstreamSeedanceReferences', () => {
       videoCount: 0,
       audio: [{}],
     })
+  })
+
+  // R3-6b §3: the image count reflects a per-edge stage override, not just
+  // the card's own onStage curation — this is the same harvest the actual
+  // send path (harvestUpstreamImageUrls with edges+focalNodeId) uses.
+  it('counts a per-edge stageOverrideUrls expansion, not the card onStage set', () => {
+    const nodes = [
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        imageUrl: 'https://cdn/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn/card-default.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char', 'seedance', {
+        stageOverrideUrls: [
+          'https://cdn/override1.png',
+          'https://cdn/override2.png',
+        ],
+      }),
+    ]
+
+    expect(
+      summarizeUpstreamSeedanceReferences('seedance', edges, nodes).imageCount,
+    ).toBe(3)
   })
 })

@@ -9,6 +9,7 @@ import {
   Plus,
   UserRound,
 } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -16,6 +17,7 @@ import {
   NODE_STUDIO_INGEST_MAGNET,
 } from '@/constants/node-studio'
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { motionTransition } from '@/constants/motion'
 import {
   Popover,
   PopoverContent,
@@ -127,6 +129,22 @@ interface CastDockProps {
    * strip with inset positioning.
    */
   layout?: 'absolute' | 'inline'
+  /**
+   * R3-4 (canvas-relationship-v3 §4.2): the workbench flips this true when a
+   * higher tier claims the L5/L6 slot (add menu opens, 详情面板/重编辑工作区
+   * opens) — the strip collapses itself in response. Auto-expand-during-drag
+   * stays this component's own business; this is only ever a request to shut
+   * on the strip's manually-opened state.
+   */
+  forceCollapse?: boolean
+  /**
+   * R3-4: reports every collapsed⇄expanded transition upward so the
+   * workbench can (a) close the other L5 citizen (add menu) when this one
+   * opens, and (b) fold "cast dock expanded" into the Esc ladder + focus
+   * return. CastDock stays the owner of `collapsed` itself — this is a
+   * one-way mirror, not a lift.
+   */
+  onExpandedChange?(expanded: boolean): void
 }
 
 /**
@@ -151,6 +169,8 @@ export function CastDock({
   insetRight,
   canvasDragActive = false,
   layout = 'absolute',
+  forceCollapse = false,
+  onExpandedChange,
 }: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
   const nodes = useNodes<NodeWorkflowNode>()
@@ -159,6 +179,10 @@ export function CastDock({
   const { dragState } = useIngestDrag()
   const [collapsed, setCollapsed] = useState(false)
   const collapsedHandleRef = useRef<HTMLButtonElement | null>(null)
+  // A4: 展开/收起过渡走全站 motion 刻度（面板展开折叠档 = slow/320ms，同
+  // NodeDetailPanel 的 AnimatePresence 用法），reducedMotion 时长自动归零。
+  const reducedMotion = useReducedMotion()
+  const expandTransition = motionTransition('slow', reducedMotion)
 
   // Canvas insert menu can request the 卡匣 strip (Haivis companion entry).
   useEffect(() => {
@@ -168,6 +192,21 @@ export function CastDock({
       window.removeEventListener('pixelvault:expand-cast-dock', expand)
     }
   }, [])
+
+  // R3-4 §4.2 rule 3: a higher tier (add menu / 详情面板 / 重编辑工作区) just
+  // claimed the L5/L6 slot — collapse regardless of how we got expanded.
+  useEffect(() => {
+    if (forceCollapse) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to a parent-owned external signal (higher overlay tier opened), same pattern as the drag-triggered re-collapse effect above
+      setCollapsed(true)
+    }
+  }, [forceCollapse])
+
+  // R3-4 §4.2: report every transition upward (see prop doc for why this is
+  // a mirror, not a lift).
+  useEffect(() => {
+    onExpandedChange?.(!collapsed)
+  }, [collapsed, onExpandedChange])
   // S5f B4: remembers a drag-triggered auto-expand so the strip re-collapses
   // when the drag ends (a manual expand mid-drag would NOT set this, so it
   // stays open — only the automatic one snaps back).
@@ -289,7 +328,16 @@ export function CastDock({
     return null
   }
 
+  // A4 ①: 展开横匣撑满画布列——barLeft 复用与底部工具条行同一套 inset
+  // （StudioNodeWorkbench 传入的 insetLeft/insetRight = NODE_STUDIO_BOTTOM_DOCK.
+  // canvasInsetPx，与助手 rail 已经隔开的画布列边界），再 max 上既有
+  // minimapClearancePx 语义，保证撑满后不压 minimap（右端保持贴 insetRight，
+  // 只有左端在需要时让给 minimap）。`inline` 布局下把手仍嵌在工具条行内，
+  // 但展开条脱离把手自身的窄框，改为相对底部工具条行本身定位（详见下方
+  // isInline 分支），所以这里额外把 barLeft 换算成"行内局部坐标"
+  // （减去行自身已经带的 insetLeft）。
   const barLeft = Math.max(insetLeft, NODE_STUDIO_CAST_DOCK.minimapClearancePx)
+  const inlineStripLeftPx = Math.max(0, barLeft - insetLeft)
   const isInline = layout === 'inline'
 
   const handleButton = (
@@ -301,9 +349,11 @@ export function CastDock({
       title={collapsed ? t('expand') : t('collapse')}
       onClick={() => setCollapsed((value) => !value)}
       className={cn(
-        'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs font-semibold text-node-foreground shadow-sm transition-colors hover:bg-node-panel-inner md:h-10',
+        'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs font-semibold text-node-foreground shadow-sm transition-all duration-fast ease-standard hover:bg-node-panel-inner active:scale-95 md:h-10',
+        // R3-4 §4.1 L4: 折叠态的把手是常驻工作区 chrome（legacy `absolute`
+        // layout；当前生产用法走 `inline`，见下方 stripBody 的 L5 展开层）。
         !isInline &&
-          'absolute z-10 rounded-2xl border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl',
+          'absolute z-canvas-chrome rounded-2xl border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl',
       )}
       style={
         isInline
@@ -320,12 +370,22 @@ export function CastDock({
   )
 
   const stripBody = (
+    // A4 ②: 半透明 L4 chrome（owner 实测反馈——之前 `/95` 太实）。降到 `/90`
+    // + 轻 `backdrop-blur-sm`（不回到 L5 曾经的重玻璃档，R3-4 已把那个减
+    // 掉）。对比度自查（确定性计算，见任务报告）：worst case = 一张
+    // 纸卡 `--node-card-paper` #ebe5d8 整面填在条底正后方，`/90` 混合后背景
+    // ≈#2e2a25，header 的 `text-node-muted` 在该底上仍 ≈4.9:1（AA 达标）；
+    // `+新建` 原用更弱的 `text-node-subtle`（同底只 ≈2.6:1，且在不透明
+    // `/95` 原状下本就只有 ≈3.4:1），随手升到 `text-node-muted` 一并修
+    // （见下方按钮）。卡面本体（CastCard）挂 `.node-card-paper` 局部变量
+    // 覆写、自带不透明 `bg-node-panel`（解析成纸面色，非本容器的深色
+    // token），完全不受这层透明度影响，无需改动。
     <div
       className={cn(
-        'pointer-events-auto flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl transition-opacity duration-base',
-        isInline ? 'max-w-[min(40rem,calc(100vw-8rem))]' : 'w-full',
+        'pointer-events-auto flex w-full flex-col overflow-hidden rounded-2xl border border-node-panel-inner/70 bg-node-panel/90 backdrop-blur-sm transition-opacity duration-base',
         dragState.active && 'opacity-40',
       )}
+      style={{ boxShadow: 'var(--shadow-canvas-menu)' }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5">
         <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
@@ -338,7 +398,7 @@ export function CastDock({
           aria-expanded={true}
           title={t('collapse')}
           onClick={() => setCollapsed(true)}
-          className="flex size-6 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+          className="flex size-6 items-center justify-center rounded-lg text-node-muted transition-all duration-fast ease-standard hover:bg-node-panel-inner hover:text-node-foreground active:scale-90"
         >
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
@@ -417,7 +477,9 @@ export function CastDock({
               aria-label={t('create')}
               title={t('create')}
               className={cn(
-                'flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-node-panel-inner text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
+                // A4 ②对比度自查：半透明条底上 text-node-subtle 太弱（见
+                // stripBody 顶部注释），升一档到 text-node-muted。
+                'flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-node-panel-inner text-node-muted transition-all duration-fast ease-standard hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60 active:scale-95',
                 NODE_STUDIO_CAST_DOCK.barCardWidthClass,
               )}
             >
@@ -429,7 +491,11 @@ export function CastDock({
             side="top"
             align="start"
             sideOffset={8}
-            className="w-36 rounded-xl border-node-panel-inner/80 bg-node-panel p-1 text-node-foreground shadow-node-panel"
+            // A4 ③新建菜单弹出过渡：ui/popover.tsx 的 PopoverContent 已带
+            // data-[state]:animate-in/out（tw-animate-css），这里补
+            // duration-base 对齐全站 motion 刻度（popover/menu 档），不用改
+            // 共享的 ui/popover.tsx 本体。
+            className="w-36 rounded-xl border-node-panel-inner/80 bg-node-panel p-1 text-node-foreground shadow-node-panel duration-base"
           >
             {CAST_SECTIONS.map((section) => (
               <button
@@ -456,12 +522,35 @@ export function CastDock({
 
   if (isInline) {
     return (
-      <div className="pointer-events-none relative flex flex-col items-end">
-        {!collapsed ? (
-          <div className="pointer-events-none absolute bottom-full right-0 mb-2">
-            {stripBody}
-          </div>
-        ) : null}
+      // A4 ①: 这层故意不再是 `relative`——展开条要撑满到工具条行本身的宽度
+      // （助手 rail 边界），而不是被这个把手窄框限死。不设 `relative` 后，
+      // 下面 motion.div 的 `absolute` 会往上找最近的已定位祖先，落在
+      // StudioNodeWorkbench 里那条 `bottom-3` 工具条行上（它本身就是
+      // `absolute` + 与 CastDock 同一份 insetLeft/insetRight），于是
+      // `left: inlineStripLeftPx, right: 0` 就是"行内局部坐标"，天然等价
+      // 于 barLeft/insetRight 在整条画布列坐标系下的位置——助手宽度不用在
+      // 这里重算一遍。
+      <div className="pointer-events-none flex flex-col items-end">
+        <AnimatePresence>
+          {!collapsed ? (
+            // R3-4 §4.1 L5: 卡匣展开浮层——CanvasAddMenu 打开时会强制收起这个
+            // 展开态（互踢，见 StudioNodeWorkbench 的 castDockExpanded 协调）。
+            // A4 ③: 展开/收起挂载与卸载都走 AnimatePresence，不再是硬切—
+            // 透明度 + 轻微上滑，slow(320ms) 面板展开折叠档，
+            // useReducedMotion 时长自动归零。
+            <motion.div
+              key="cast-dock-strip"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={expandTransition}
+              className="pointer-events-none absolute bottom-full z-canvas-transient mb-2"
+              style={{ left: inlineStripLeftPx, right: 0 }}
+            >
+              {stripBody}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
         {handleButton}
       </div>
     )
@@ -474,7 +563,7 @@ export function CastDock({
 
   return (
     <div
-      className="pointer-events-none absolute z-10"
+      className="pointer-events-none absolute z-canvas-transient"
       style={{
         left: barLeft,
         right: insetRight,

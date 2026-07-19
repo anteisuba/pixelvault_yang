@@ -91,7 +91,7 @@ export function CanvasAddMenu({
     }
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.isComposing) {
         onClose()
       }
     }
@@ -177,7 +177,8 @@ export function CanvasAddMenu({
       ref={menuRef}
       role="menu"
       aria-label={t('addMenuTitle')}
-      className="pointer-events-auto absolute z-20 w-56 overflow-y-auto overscroll-contain rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground [scrollbar-width:none] sm:w-64 [&::-webkit-scrollbar]:hidden"
+      // R3-4 §4.1 L5: 瞬时浮层，与 CastDock 展开浮层同刻互斥（见 StudioNodeWorkbench）。
+      className="pointer-events-auto absolute z-canvas-transient w-56 overflow-y-auto overscroll-contain rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground [scrollbar-width:none] sm:w-64 [&::-webkit-scrollbar]:hidden"
       style={{
         left: activeLayout?.left ?? screenPosition.x,
         top: activeLayout?.top ?? screenPosition.y,

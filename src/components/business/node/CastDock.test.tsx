@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -54,9 +55,17 @@ function makeNode(
   }
 }
 
-function renderDock(onCreateCard = vi.fn()) {
+function renderDock(
+  onCreateCard = vi.fn(),
+  extraProps: Partial<ComponentProps<typeof CastDock>> = {},
+) {
   return render(
-    <CastDock onCreateCard={onCreateCard} insetLeft={16} insetRight={16} />,
+    <CastDock
+      onCreateCard={onCreateCard}
+      insetLeft={16}
+      insetRight={16}
+      {...extraProps}
+    />,
   )
 }
 
@@ -239,6 +248,57 @@ describe('CastDock', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'expand' }))
     expect(screen.getByTitle('黛西')).toBeInTheDocument()
+  })
+
+  // R3-4 (canvas-relationship-v3 §4.2 rule 3/1): a higher tier (add menu /
+  // 详情面板 / 重编辑工作区) claims the L5 slot — CastDock collapses itself.
+  it('collapses when forceCollapse flips true, even though nothing inside CastDock asked for it', () => {
+    flowState.nodes = [
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+        characterName: '黛西',
+      }),
+    ]
+
+    const { rerender } = render(
+      <CastDock
+        onCreateCard={vi.fn()}
+        insetLeft={16}
+        insetRight={16}
+        forceCollapse={false}
+      />,
+    )
+    expect(screen.getByTitle('黛西')).toBeInTheDocument()
+
+    rerender(
+      <CastDock
+        onCreateCard={vi.fn()}
+        insetLeft={16}
+        insetRight={16}
+        forceCollapse
+      />,
+    )
+    expect(screen.queryByTitle('黛西')).not.toBeInTheDocument()
+  })
+
+  // R3-4 §4.2: the mirror half of the same contract — every collapsed⇄
+  // expanded transition is reported upward so the workbench can close the
+  // other L5 citizen (add menu) and fold this into the Esc ladder.
+  it('reports its own collapsed/expanded transitions via onExpandedChange', () => {
+    flowState.nodes = [
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+        characterName: '黛西',
+      }),
+    ]
+    const onExpandedChange = vi.fn()
+
+    renderDock(vi.fn(), { onExpandedChange })
+    expect(onExpandedChange).toHaveBeenCalledWith(true)
+
+    onExpandedChange.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'collapse' }))
+    expect(onExpandedChange).toHaveBeenCalledWith(false)
   })
 })
 

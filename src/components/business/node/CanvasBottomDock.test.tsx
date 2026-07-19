@@ -34,6 +34,8 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        relationsCollapsed={false}
+        onRelationsCollapsedChange={vi.fn()}
       />,
     )
 
@@ -63,6 +65,8 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        relationsCollapsed={false}
+        onRelationsCollapsedChange={vi.fn()}
       />,
     )
 
@@ -74,6 +78,53 @@ describe('CanvasBottomDock', () => {
 
     expect(zoomOut).toHaveBeenCalledWith({ duration: 160 })
     expect(zoomIn).toHaveBeenCalledWith({ duration: 160 })
-    expect(fitView).toHaveBeenCalledWith({ padding: 0.16, duration: 220 })
+    expect(fitView).toHaveBeenCalledWith({
+      padding: 0.16,
+      duration: 220,
+      maxZoom: 2,
+    })
+  })
+
+  it('toggles the 关系线 collapse switch and reflects its pressed (收起) state', () => {
+    // FB-B（真机反馈拍板反转默认）: default `relationsCollapsed={false}` =
+    // 全显 → aria-pressed starts false; clicking collapses (aria-pressed
+    // becomes true).
+    const onRelationsCollapsedChange = vi.fn()
+    const { rerender } = render(
+      <CanvasBottomDock
+        activeMode="pointer"
+        canUndo={false}
+        canRedo={false}
+        onModeChange={vi.fn()}
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+        relationsCollapsed={false}
+        onRelationsCollapsedChange={onRelationsCollapsedChange}
+      />,
+    )
+
+    const toggle = screen.getByRole('button', {
+      name: 'bottomDock.relationsCollapse',
+    })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(toggle)
+    expect(onRelationsCollapsedChange).toHaveBeenCalledWith(true)
+
+    rerender(
+      <CanvasBottomDock
+        activeMode="pointer"
+        canUndo={false}
+        canRedo={false}
+        onModeChange={vi.fn()}
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+        relationsCollapsed
+        onRelationsCollapsedChange={onRelationsCollapsedChange}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'bottomDock.relationsCollapse' }),
+    ).toHaveAttribute('aria-pressed', 'true')
   })
 })

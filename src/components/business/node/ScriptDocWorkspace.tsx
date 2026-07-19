@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Clock,
   Film,
-  Loader2,
   Lock,
   Mic,
   Plus,
@@ -22,7 +21,6 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import type { LucideIcon } from 'lucide-react'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import {
@@ -56,6 +54,7 @@ import {
   type ScriptDocTextField,
 } from '@/lib/script-doc-edit'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
@@ -1282,11 +1281,7 @@ function FocusBox({
         title={sendLabel}
         className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg bg-node-foreground text-node-canvas disabled:bg-node-panel-inner disabled:text-node-subtle"
       >
-        {busy ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <Send className="size-3.5" />
-        )}
+        {busy ? <Spinner size="sm" /> : <Send className="size-3.5" />}
       </button>
       <button
         type="button"
@@ -1358,7 +1353,7 @@ function OutlineStageActions({
         className={SECONDARY_BUTTON_CLASS}
       >
         {isDrafting ? (
-          <Loader2 className="mr-1.5 size-4 animate-spin" />
+          <Spinner size="md" className="mr-1.5" />
         ) : (
           <Wand2 className="mr-1.5 size-4" />
         )}
@@ -1396,7 +1391,6 @@ function ShotStageActions({
   breakLabel: string
   confirmLabel: string
 }) {
-  const BreakIcon: LucideIcon = isDrafting ? Loader2 : Wand2
   return (
     <>
       <Button
@@ -1414,9 +1408,11 @@ function ShotStageActions({
         disabled={isDrafting}
         className={SECONDARY_BUTTON_CLASS}
       >
-        <BreakIcon
-          className={cn('mr-1.5 size-4', isDrafting && 'animate-spin')}
-        />
+        {isDrafting ? (
+          <Spinner size="md" className="mr-1.5" />
+        ) : (
+          <Wand2 className="mr-1.5 size-4" />
+        )}
         {breakLabel}
       </Button>
       <Button

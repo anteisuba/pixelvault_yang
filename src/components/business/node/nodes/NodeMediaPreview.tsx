@@ -7,7 +7,6 @@ import {
   AlertCircle,
   FileText,
   ImageIcon,
-  Loader2,
   Mic2,
   Video,
   WandSparkles,
@@ -19,24 +18,18 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
-  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
-  NODE_WORKFLOW_FIELD_IDS,
-  type NodeWorkflowFieldId,
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
-import {
-  buildNodeWorkflowPrompt,
-  getNodeWorkflowFieldValue,
-} from '@/lib/node-workflow-prompt'
+import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+import { Spinner } from '@/components/ui/spinner'
 
 import { NodeShell } from './NodeShell'
-import { NodeExpandButton } from './NodeCardControls'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
   type: NodeWorkflowNodeType
@@ -68,6 +61,12 @@ function getEmptyIcon(kind: NodeWorkflowMediaKind, type: NodeWorkflowNodeType) {
  * Per-role header title — nodes with a user-editable identity (character name,
  * background name) show it on the card so renames in the Inspector track here;
  * other roles fall back to the localized type label inside NodeShell.Header.
+ *
+ * FB-4: frameImage/videoMerge have no dedicated name field — they fall back to
+ * the generic `mediaLabel` (the same field the toolbar's rename input now
+ * writes for these types, and the same field LooseImageCard already reads for
+ * a media-bearing card of the same type), so renaming stays visible once media
+ * arrives and the card switches away from this component.
  */
 function getHeaderTitle(
   type: NodeWorkflowNodeType,
@@ -84,6 +83,9 @@ function getHeaderTitle(
   if (type === NODE_TYPE_IDS.shot) {
     return data.shotName?.trim() || undefined
   }
+  if (type === NODE_TYPE_IDS.frameImage || type === NODE_TYPE_IDS.videoMerge) {
+    return data.mediaLabel?.trim() || undefined
+  }
   return undefined
 }
 
@@ -98,14 +100,6 @@ function getMediaStatusLabelKey(
   return hasMedia ? 'statusSuccess' : 'statusIdle'
 }
 
-function getSummaryFields(
-  type: NodeWorkflowNodeType,
-): readonly NodeWorkflowFieldId[] {
-  return (
-    NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[type] ?? [NODE_WORKFLOW_FIELD_IDS.prompt]
-  ).slice(0, 3)
-}
-
 export function NodeMediaPreview({
   id,
   type,
@@ -115,14 +109,12 @@ export function NodeMediaPreview({
 }: NodeMediaPreviewProps) {
   const [videoAspect, setVideoAspect] = useState<number | null>(null)
   const t = useTranslations('StudioNode.mediaNodes')
-  const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
       ? data.videoThumbnailUrl
       : undefined
-  const summaryFields = getSummaryFields(type)
   const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
   const generationStatus =
     data.generationStatus ??
@@ -142,15 +134,12 @@ export function NodeMediaPreview({
       type={type}
       selected={selected}
       status={data.status}
-      imageEditData={
-        kind === NODE_MEDIA_KIND_IDS.image && mediaUrl ? data : undefined
-      }
+      toolbarData={data}
     >
       <NodeShell.Header
         type={type}
         status={data.status}
         title={getHeaderTitle(type, data)}
-        action={<NodeExpandButton nodeId={id} />}
       />
       <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
@@ -215,7 +204,7 @@ export function NodeMediaPreview({
 
           {isPending ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Loader2 className="size-5 animate-spin text-node-foreground" />
+              <Spinner size="lg" className="text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
               {/* Fixed dark track (not the scope-relative bg-node-panel-inner): this
                   sits inside the deep window (.node-card-window), where the sweep
@@ -225,23 +214,6 @@ export function NodeMediaPreview({
               <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-canvas" />
             </div>
           ) : null}
-        </div>
-
-        <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-          {summaryFields.map((fieldId) => {
-            const value = getNodeWorkflowFieldValue(data, fieldId)
-
-            return (
-              <div key={fieldId}>
-                <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                  {tFields(`${fieldId}.label`)}
-                </p>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-node-foreground">
-                  {value || tFields(`${fieldId}.placeholder`)}
-                </p>
-              </div>
-            )
-          })}
         </div>
 
         {isError ? (

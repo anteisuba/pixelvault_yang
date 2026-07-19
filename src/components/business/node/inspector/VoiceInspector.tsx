@@ -4,7 +4,6 @@ import { useCallback, useRef, useState, type ChangeEvent } from 'react'
 import {
   ExternalLink,
   IdCard,
-  Loader2,
   Mic2,
   Music2,
   Sparkles,
@@ -17,6 +16,7 @@ import { toast } from 'sonner'
 import { FishVoiceLibraryDialog } from '@/components/business/node/FishVoiceLibraryDialog'
 import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import { AUDIO_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
@@ -423,7 +423,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
                   className="rounded-xl border-node-panel-inner bg-node-panel text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-60"
                 >
                   {isGeneratingReference ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner size="md" />
                   ) : (
                     <Sparkles className="size-4" />
                   )}
@@ -441,7 +441,7 @@ export function VoiceInspector({ node }: VoiceInspectorProps) {
                 className="rounded-xl border-node-panel-inner bg-node-panel text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-60"
               >
                 {isUploading ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                 ) : (
                   <Upload className="size-4" />
                 )}

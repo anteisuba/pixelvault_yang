@@ -48,10 +48,14 @@ interface NodeShellRootProps {
   nodeId?: string
   selected?: boolean
   /**
-   * When provided and the node carries an image URL, the selection toolbar
-   * expands into the Haivis-aligned image-edit capability strip.
+   * The node's own data, read by the selection toolbar (R3-3
+   * `NodeSelectionToolbarChrome`): when it carries an image URL the toolbar
+   * expands into the Haivis-aligned image-edit capability strip; for every
+   * other type it feeds the registry-driven identity/capability/universal
+   * regions (rename field, generate/合成/更换 buttons, download). Renamed
+   * from `imageEditData` — it's no longer image-specific.
    */
-  imageEditData?: NodeWorkflowNodeData
+  toolbarData?: NodeWorkflowNodeData
   /** When `failed`, the card gets a red border (must-1 失败态). Optional so
    *  existing callers are unaffected; node cards pass their `data.status`. */
   status?: NodeWorkflowStatus
@@ -61,6 +65,13 @@ interface NodeShellRootProps {
   /** Shot-override signal (§5.1): the node's model differs from the canvas
    *  default → a neutral dashed border (no amber, per D1) so it's scannable. */
   overridden?: boolean
+  /**
+   * True only for the character/background archive-card face
+   * (`IdentityCollectorCard`) — see `NodeSelectionToolbarChrome`'s doc for
+   * why this can't be inferred from `type` alone (a `closeup` image node
+   * shares the same legacy `characterImage` type).
+   */
+  isCollector?: boolean
   /** Extra classes on the card root — e.g. an override width when expanded. */
   className?: string
 }
@@ -100,29 +111,43 @@ const PORT_GLYPHS: Partial<Record<NodeTokenType, LucideIcon>> = {
   video: Play,
 }
 
-// 公共 handle 基样式：尺寸 + 与画板分隔的 canvas 环 + hover 放大（125% 为标准 scale
-// 档，避免 arbitrary value）。输出/输入再各自叠加实心/描边。
+// R3-1 端口锚点化退场（canvas-relationship-v3 §2.4）: the Handle DOM stays —
+// ReactFlow still anchors edges to its bounding box — but it's visually
+// inert. No type-color dot, no glyph, no hover affordance, not connectable
+// (binding only happens via 吞噬/快投 now). The 墨点 that used to live here
+// moved onto the edge itself (NodeWorkflowStatusEdge's target-end dot), so it
+// only appears where an edge is actually visible, not on every idle port.
+// Kept at the same footprint as the old dot (`!size-5`) so the edge anchor
+// point doesn't shift.
+// R3-4 §4.1 L3: 端口是节点自身内容之上的选中/连接 chrome，只需盖过卡片内
+// 无显式层级的兄弟元素——token 化不改变数值关系（局部栈内任意正值皆可）。
 const HANDLE_BASE =
-  '!z-10 flex !size-5 items-center justify-center ring-2 ring-node-canvas transition-transform hover:!scale-125'
+  '!z-canvas-selection !size-5 !border-0 !bg-transparent pointer-events-none'
 
 function NodeShellRoot({
   type,
   nodeId,
   selected,
-  imageEditData,
+  toolbarData,
   status,
   children,
   showSourceHandle = true,
   showTargetHandle = true,
   overridden = false,
+  isCollector,
   className,
 }: NodeShellRootProps) {
-  const accent = NODE_ACCENTS[type]
-  const Glyph = PORT_GLYPHS[type]
   const isFailed = status === NODE_STATUS_IDS.failed
+  // R3-7 §7 red line: suppress this card's own single-node toolbar while a
+  // multi-select is active, so it can never overlap the selection-bounding-
+  // box "合成 N 段" bar (or just clutter the canvas with N floating
+  // toolbars) — see `multiSelectActive`'s doc comment for why this can't
+  // just rely on NodeToolbar's own library default.
+  const { multiSelectActive } = useNodeWorkflowActions()
 
   return (
     <article
+      data-node-type={type}
       className={cn(
         // node-card-paper = S2 场记卡作用域（容器级变量覆盖，globals.css）。
         // rounded-sm（非 rounded-md）：本项目 --radius-md 被 shadcn --radius 公式
@@ -142,14 +167,16 @@ function NodeShellRoot({
       {nodeId ? (
         <NodeToolbar
           nodeId={nodeId}
-          isVisible={Boolean(selected)}
+          isVisible={Boolean(selected) && !multiSelectActive}
           position={Position.Top}
           offset={8}
         >
           <NodeSelectionToolbarChrome
             nodeId={nodeId}
-            data={imageEditData}
+            data={toolbarData}
             selected={selected}
+            nodeType={type}
+            isCollector={isCollector}
           />
         </NodeToolbar>
       ) : null}
@@ -157,33 +184,17 @@ function NodeShellRoot({
         <Handle
           type="target"
           position={Position.Left}
-          className={cn(
-            HANDLE_BASE,
-            '!border-2 !bg-node-canvas',
-            accent.dotRing,
-          )}
-        >
-          {Glyph ? (
-            <Glyph
-              className={cn('pointer-events-none size-3', accent.iconText)}
-            />
-          ) : null}
-        </Handle>
+          isConnectable={false}
+          className={HANDLE_BASE}
+        />
       ) : null}
       {showSourceHandle ? (
         <Handle
           type="source"
           position={Position.Right}
-          className={cn(
-            HANDLE_BASE,
-            '!border-2 !border-node-canvas',
-            accent.dot,
-          )}
-        >
-          {Glyph ? (
-            <Glyph className="pointer-events-none size-3 text-node-canvas" />
-          ) : null}
-        </Handle>
+          isConnectable={false}
+          className={HANDLE_BASE}
+        />
       ) : null}
       {children}
     </article>

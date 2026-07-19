@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react'
+import { ArrowLeft, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capabilities'
 import { runCanvasCapability } from '@/lib/canvas-capability-runtime'
@@ -169,7 +170,7 @@ export function CanvasQuickEditPrompt({
             className="h-9 shrink-0 rounded-xl bg-node-paint px-3 text-xs font-semibold text-node-paint-fg hover:bg-node-paint/90"
           >
             {running ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <Spinner size="sm" />
             ) : (
               <Sparkles className="size-3.5" />
             )}

@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { SendHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -8,9 +9,8 @@ import { NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeShell } from './NodeShell'
-import { NodeExpandButton } from './NodeCardControls'
 
-export function ComposerNode({
+export const ComposerNode = memo(function ComposerNode({
   id,
   data,
   selected,
@@ -25,11 +25,7 @@ export function ComposerNode({
       selected={selected}
       status={data.status}
     >
-      <NodeShell.Header
-        type={NODE_TYPE_IDS.composer}
-        status={data.status}
-        action={<NodeExpandButton nodeId={id} />}
-      />
+      <NodeShell.Header type={NODE_TYPE_IDS.composer} status={data.status} />
       <NodeShell.Body className="space-y-3">
         <div className="min-h-32 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
           <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
@@ -50,4 +46,4 @@ export function ComposerNode({
       </NodeShell.Footer>
     </NodeShell>
   )
-}
+})

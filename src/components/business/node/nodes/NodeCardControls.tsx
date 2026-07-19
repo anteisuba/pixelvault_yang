@@ -5,7 +5,6 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react'
-import { Maximize2, Minimize2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -22,10 +21,6 @@ import { Textarea } from '@/components/ui/textarea'
 
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-
-interface NodeExpandButtonProps {
-  nodeId: string
-}
 
 interface NodeFieldEditorProps {
   nodeId: string
@@ -47,29 +42,6 @@ interface NodeModelSelectorProps {
 
 function stopCanvasKeyboardEvent(event: ReactKeyboardEvent<HTMLElement>): void {
   event.stopPropagation()
-}
-
-export function NodeExpandButton({ nodeId }: NodeExpandButtonProps) {
-  const t = useTranslations('StudioNode.videoComposer')
-  const { expandedNodeId, setExpandedNodeId } = useNodeWorkflowActions()
-  const expanded = expandedNodeId === nodeId
-
-  return (
-    <button
-      type="button"
-      onClick={() => setExpandedNodeId(expanded ? null : nodeId)}
-      onKeyDownCapture={stopCanvasKeyboardEvent}
-      aria-label={expanded ? t('collapseCard') : t('expandCard')}
-      title={expanded ? t('collapseCard') : t('expandCard')}
-      className="nodrag flex size-7 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-    >
-      {expanded ? (
-        <Minimize2 className="size-4" />
-      ) : (
-        <Maximize2 className="size-4" />
-      )}
-    </button>
-  )
 }
 
 export function NodeFieldEditor({

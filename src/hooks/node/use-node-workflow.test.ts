@@ -625,6 +625,60 @@ describe('useNodeWorkflow', () => {
     })
   })
 
+  // R3-6b §3 每镜覆写
+  it('updateEdgeData shallow-merges a patch into the edge data and persists it', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let sourceId = ''
+    let targetId = ''
+    let edgeId = ''
+    act(() => {
+      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      targetId = result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+      result.current.onConnect({
+        source: sourceId,
+        target: targetId,
+        sourceHandle: null,
+        targetHandle: null,
+      })
+    })
+    act(() => {
+      edgeId = result.current.edges[0]?.id ?? ''
+    })
+
+    act(() => {
+      result.current.updateEdgeData(edgeId, {
+        stageOverrideUrls: ['https://cdn/a.png', 'https://cdn/b.png'],
+      })
+    })
+
+    expect(result.current.edges[0]?.data).toMatchObject({
+      stageOverrideUrls: ['https://cdn/a.png', 'https://cdn/b.png'],
+    })
+
+    // Clearing (the panel's "恢复默认") reverts to the inherited state.
+    act(() => {
+      result.current.updateEdgeData(edgeId, { stageOverrideUrls: undefined })
+    })
+    expect(result.current.edges[0]?.data?.stageOverrideUrls).toBeUndefined()
+  })
+
+  it('updateEdgeData is a no-op for an id that does not exist', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+
+    act(() => {
+      result.current.updateEdgeData('missing-edge', {
+        stageOverrideUrls: ['https://cdn/a.png'],
+      })
+    })
+
+    expect(result.current.edges).toEqual([])
+  })
+
   it('finds the first outgoing target by node type', () => {
     const { result } = renderNodeWorkflowHook()
 

@@ -9,7 +9,6 @@ import {
   FolderOpen,
   FolderPlus,
   LayoutTemplate,
-  Loader2,
   Pencil,
   Plus,
   Save,
@@ -21,6 +20,7 @@ import { toast } from 'sonner'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,7 +119,7 @@ export function CanvasTopBar({
                   {projectName}
                 </span>
                 {isSaving ? (
-                  <Loader2 className="size-3 animate-spin text-node-muted" />
+                  <Spinner size="sm" className="text-node-muted" />
                 ) : null}
                 <ChevronDown className="size-3.5 shrink-0 text-node-muted transition group-data-[state=open]:rotate-180" />
               </button>
@@ -247,11 +247,7 @@ export function CanvasTopBar({
           disabled={isSaving}
           className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-50"
         >
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
+          {isSaving ? <Spinner size="md" /> : <Save className="size-4" />}
         </Button>
       </div>
     </header>

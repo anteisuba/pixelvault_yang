@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { AlertTriangle, Film, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -14,10 +15,11 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeExpandButton } from './NodeCardControls'
 import { NodeShell } from './NodeShell'
 
-export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
+export const SeedanceNode = memo(function SeedanceNode(
+  props: NodeProps<NodeWorkflowNode>,
+) {
   const { id, data, selected } = props
   const t = useTranslations('StudioNode.videoGeneration')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
@@ -49,22 +51,21 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
       selected={selected}
       status={data.status}
       overridden={isOverridden}
+      toolbarData={data}
     >
       <NodeShell.Header
         type={NODE_TYPE_IDS.seedance}
         status={data.status}
+        title={data.mediaLabel?.trim() || undefined}
         action={
-          <div className="flex items-center gap-1">
-            {isOverridden ? (
-              <span
-                title={t('overrideHint')}
-                className="flex size-6 items-center justify-center rounded-lg border border-node-muted/50 bg-node-panel-inner text-node-foreground"
-              >
-                <AlertTriangle className="size-3.5" />
-              </span>
-            ) : null}
-            <NodeExpandButton nodeId={id} />
-          </div>
+          isOverridden ? (
+            <span
+              title={t('overrideHint')}
+              className="flex size-6 items-center justify-center rounded-lg border border-node-muted/50 bg-node-panel-inner text-node-foreground"
+            >
+              <AlertTriangle className="size-3.5" />
+            </span>
+          ) : null
         }
       />
       <NodeShell.Ingredients nodeId={id} />
@@ -121,4 +122,4 @@ export function SeedanceNode(props: NodeProps<NodeWorkflowNode>) {
       </NodeShell.Footer>
     </NodeShell>
   )
-}
+})

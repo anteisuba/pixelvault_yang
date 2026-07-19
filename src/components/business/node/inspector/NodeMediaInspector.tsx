@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import {
   AlertCircle,
-  Loader2,
   Mic2,
   Trash2,
   Upload,
@@ -53,6 +52,7 @@ import {
   type CharacterReferenceGalleryExtraItem,
 } from '@/components/business/node/CharacterImageReferenceControls'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import {
   Tooltip,
@@ -504,7 +504,7 @@ export function NodeMediaInspector({
                 className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
               >
                 {isExistingImageUploading ? (
-                  <Loader2 className="size-7 animate-spin text-node-muted" />
+                  <Spinner size="lg" className="text-node-muted" />
                 ) : (
                   <Upload className="size-7 text-node-muted" />
                 )}
@@ -580,7 +580,7 @@ export function NodeMediaInspector({
 
             {isPending ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-                <Loader2 className="size-5 animate-spin text-node-muted" />
+                <Spinner size="lg" className="text-node-muted" />
                 <span className="text-xs font-semibold">{t('generating')}</span>
               </div>
             ) : null}
@@ -725,7 +725,7 @@ export function NodeMediaInspector({
                         className="h-10 w-full rounded-2xl bg-node-foreground text-sm font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
                       >
                         {isPending ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          <Spinner size="md" className="mr-2" />
                         ) : (
                           <WandSparkles className="mr-2 size-4" />
                         )}

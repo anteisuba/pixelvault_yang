@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
-  Loader2,
   RefreshCcw,
   SendHorizontal,
   Video,
@@ -14,6 +13,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
@@ -186,7 +186,7 @@ export function AssistantConversation({
                     </p>
                   ) : (
                     <div className="flex items-center gap-2 text-node-muted">
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <Spinner size="sm" />
                       {t('thinking')}
                     </div>
                   )}
@@ -318,7 +318,7 @@ export function AssistantConversation({
               className="size-10 shrink-0 rounded-full bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
             >
               {isLoading ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <SendHorizontal className="size-4" />
               )}

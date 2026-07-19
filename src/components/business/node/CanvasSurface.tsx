@@ -98,11 +98,12 @@ export function CanvasSurface({ appearance }: CanvasSurfaceProps) {
     backgroundColor: 'var(--canvas-surface)',
   } as CSSProperties
 
+  // R3-4 §4.1 L0: 暖炭表面，画布覆盖层阶梯最底层。
   return (
     <div
       data-testid="canvas-surface"
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-canvas-surface overflow-hidden"
       style={style}
     >
       {resolved.image ? (

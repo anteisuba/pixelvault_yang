@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { Library, Loader2, Upload, WandSparkles } from 'lucide-react'
+import { Library, Upload, WandSparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -19,6 +19,7 @@ import {
   NODE_STUDIO_PLACEHOLDER_TOAST,
 } from '@/constants/node-studio'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { Spinner } from '@/components/ui/spinner'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 
@@ -29,6 +30,9 @@ interface ImageSourceStarterProps {
   nodeId: string
   selected?: boolean
   status: NodeWorkflowStatus
+  /** owner 真机: 空态图片工具条改名写 mediaLabel（IdentityRegion image→mediaLabel）——
+   *  卡头读同一字段，改完卡上标题即刻反映；未命名时回落到类型名「图片」。 */
+  mediaLabel?: string
 }
 
 /**
@@ -49,6 +53,7 @@ export function ImageSourceStarter({
   nodeId,
   selected,
   status,
+  mediaLabel,
 }: ImageSourceStarterProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
   const { updateNodeData, setExpandedNodeId } = useNodeWorkflowActions()
@@ -130,7 +135,11 @@ export function ImageSourceStarter({
       showSourceHandle={false}
       showTargetHandle={false}
     >
-      <NodeShell.Header type={NODE_TYPE_IDS.image} status={status} />
+      <NodeShell.Header
+        type={NODE_TYPE_IDS.image}
+        status={status}
+        title={mediaLabel?.trim() || undefined}
+      />
       <NodeShell.Body className="space-y-2">
         <div
           role="button"
@@ -153,7 +162,7 @@ export function ImageSourceStarter({
           className={`node-card-window flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-node-panel-inner bg-node-card-window text-center outline-none transition-colors hover:border-node-paint/50 focus-visible:ring-2 focus-visible:ring-node-paint/60 ${isDragOver ? 'border-node-paint/60' : ''}`}
         >
           {isUploading ? (
-            <Loader2 className="size-6 animate-spin text-node-foreground" />
+            <Spinner size="lg" className="text-node-foreground" />
           ) : (
             <Upload className="size-6 text-node-foreground" />
           )}

@@ -1,7 +1,12 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -51,13 +56,23 @@ function makeEdge(
   id: string,
   source: string,
   target: string,
+  data?: Record<string, unknown>,
 ): NodeWorkflowEdge {
-  return { id, source, target } as NodeWorkflowEdge
+  return { id, source, target, ...(data ? { data } : {}) } as NodeWorkflowEdge
 }
 
 function renderComposer(prompt = '') {
   const data = { prompt, status: 'idle' } as NodeWorkflowNodeData
   return renderHook(() => useVideoComposer('video1', data)).result.current
+}
+
+function renderComposerWithData(data: Partial<NodeWorkflowNodeData>) {
+  const fullData = {
+    prompt: '',
+    status: 'idle',
+    ...data,
+  } as NodeWorkflowNodeData
+  return renderHook(() => useVideoComposer('video1', fullData)).result.current
 }
 
 describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
@@ -403,5 +418,193 @@ describe('useVideoComposer referencedTokenIds (V-3a 管理素材面板)', () => 
     graphState.nodes = [makeNode('video1', NODE_TYPE_IDS.seedance)]
     graphState.edges = []
     expect(renderComposer('').referencedTokenIds.size).toBe(0)
+  })
+})
+
+const SEEDANCE_MODEL = {
+  optionId: 'seedance-ref',
+  modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+  adapterType: AI_ADAPTER_TYPES.FAL,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+}
+
+describe('useVideoComposer maxReferenceImages (R3-6b §1)', () => {
+  it('resolves the model cap from data.model', () => {
+    graphState.nodes = [makeNode('video1', NODE_TYPE_IDS.seedance)]
+    graphState.edges = []
+    const composer = renderComposerWithData({ model: SEEDANCE_MODEL })
+    expect(composer.maxReferenceImages).toBe(9)
+  })
+
+  it('is undefined when no model is selected', () => {
+    graphState.nodes = [makeNode('video1', NODE_TYPE_IDS.seedance)]
+    graphState.edges = []
+    expect(renderComposer().maxReferenceImages).toBeUndefined()
+  })
+})
+
+describe('useVideoComposer sendPreview (R3-6b §2 发送图例预览)', () => {
+  it('reflects the live translated prompt + legend for a named reference', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '凛',
+        mediaUrl: 'https://cdn.test/char.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-char', 'char1', 'video1')]
+
+    const composer = renderComposerWithData({
+      prompt: '@凛 走进房间',
+      model: SEEDANCE_MODEL,
+    })
+
+    expect(composer.sendPreview.translatedPrompt).toContain('@Image1')
+    expect(composer.sendPreview.images).toEqual([
+      expect.objectContaining({ url: 'https://cdn.test/char.png', index: 1 }),
+    ])
+    expect(composer.sendPreview.overflow).toEqual([])
+  })
+
+  it('surfaces cap-truncated candidates as overflow, matching the model cap', () => {
+    const nodes = [
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+      ...Array.from({ length: 3 }, (_, i) =>
+        makeNode(`char${i}`, NODE_TYPE_IDS.characterImage, {
+          mediaUrl: `https://cdn.test/char${i}.png`,
+        }),
+      ),
+    ]
+    graphState.nodes = nodes
+    graphState.edges = [0, 1, 2].map((i) =>
+      makeEdge(`e${i}`, `char${i}`, 'video1'),
+    )
+
+    // maxReferenceImages resolves from getMaxReferenceImages — use a model
+    // whose cap is smaller than the 3 connected candidates by picking a
+    // non-reference model id via the same adapter (default cap = 1).
+    const composer = renderComposerWithData({
+      model: {
+        optionId: 'seedream',
+        modelId: 'unknown-model-not-in-overrides',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+      },
+    })
+
+    expect(composer.maxReferenceImages).toBe(1)
+    expect(composer.sendPreview.assembledImageCount).toBe(1)
+    expect(composer.sendPreview.overflow).toHaveLength(2)
+  })
+})
+
+describe('useVideoComposer R3-6b §3 每镜覆写 (galleryAssets.stagedForVideo / stageOverrideActive)', () => {
+  it('defaults stagedForVideo to the card onStage set when the edge carries no override', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '凛',
+        mediaUrl: 'https://cdn.test/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn.test/extra1.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn.test/extra2.png',
+            role: 'style',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-char', 'char1', 'video1')]
+
+    const character = renderComposer().referenceTokens.find(
+      (token) => token.kind === 'character',
+    )
+    expect(character?.stageOverrideActive).toBe(false)
+    expect(character?.galleryAssets).toEqual([
+      expect.objectContaining({ id: 'r1', stagedForVideo: true }),
+      expect.objectContaining({ id: 'r2', stagedForVideo: false }),
+    ])
+  })
+
+  it('an active edge override replaces the card onStage set and flags stageOverrideActive', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '凛',
+        mediaUrl: 'https://cdn.test/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn.test/card-default.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+          {
+            id: 'r2',
+            url: 'https://cdn.test/override-pick.png',
+            role: 'style',
+            weight: 0.72,
+            source: 'upload',
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-char', 'char1', 'video1', {
+        stageOverrideUrls: ['https://cdn.test/override-pick.png'],
+      }),
+    ]
+
+    const character = renderComposer().referenceTokens.find(
+      (token) => token.kind === 'character',
+    )
+    expect(character?.stageOverrideActive).toBe(true)
+    expect(character?.galleryAssets).toEqual([
+      expect.objectContaining({ id: 'r1', stagedForVideo: false }),
+      expect.objectContaining({ id: 'r2', stagedForVideo: true }),
+    ])
+  })
+
+  it('an explicit empty override array stages only the primary (stageOverrideActive still true)', () => {
+    graphState.nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: '凛',
+        mediaUrl: 'https://cdn.test/char.png',
+        referenceAssets: [
+          {
+            id: 'r1',
+            url: 'https://cdn.test/extra.png',
+            role: 'pose',
+            weight: 0.72,
+            source: 'upload',
+            onStage: true,
+          },
+        ],
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-char', 'char1', 'video1', { stageOverrideUrls: [] }),
+    ]
+
+    const character = renderComposer().referenceTokens.find(
+      (token) => token.kind === 'character',
+    )
+    expect(character?.stageOverrideActive).toBe(true)
+    expect(character?.galleryAssets).toEqual([
+      expect.objectContaining({ id: 'r1', stagedForVideo: false }),
+    ])
   })
 })

@@ -1,12 +1,16 @@
 /**
- * Edge visual state resolver (canvas-baseline §2.3 / §6, draft C).
+ * Edge visual state resolver (canvas-baseline §2.3 / §6, draft C; extended by
+ * canvas-relationship-v3 §2.3 R3-1 for the two-tier "墨线" system).
  *
- * Edges are neutral: default / hover / selected / running differ by BRIGHTNESS,
- * never hue (the only colored edge state is an illegal connection = red, handled
- * by ReactFlow's connection line, not here). "Running" = the edge feeds a node
- * that is generating; it gets the bright stroke plus a neutral pulse.
+ * A backbone edge's default state is neutral (brightness-only, never hue) —
+ * the only colored states are `revealed` (an ingredient edge shown because an
+ * endpoint node is selected) and `selected` (the edge itself is selected),
+ * both of which ride the room's single 石绿 accent (node-canvas.md §5 落点③
+ * "selected"). "Running" = the edge feeds a node that is generating; it wins
+ * over every other state and pulses.
  *
- * Pure + React-free so the 4-state precedence is unit-testable in isolation.
+ * Precedence: running > selected > revealed > hover > default. Pure +
+ * React-free so it's unit-testable in isolation.
  */
 
 import {
@@ -28,12 +32,19 @@ export function isNodeWorkflowGenerating(
 
 export interface EdgeVisualInputs {
   running: boolean
+  /** The edge itself is selected (clicked) — Del/Backspace unbinds it. */
   selected: boolean
+  /**
+   * An ingredient edge made visible because one of its endpoint nodes is
+   * currently selected (§2.2 "显现") — NOT set for a backbone edge (always
+   * visible already) or for the "关系线" global toggle (neutral, not tinted).
+   */
+  revealed: boolean
   hovered: boolean
 }
 
 export interface EdgeVisual {
-  /** CSS color token for the stroke (neutral; brightness conveys state). */
+  /** CSS color token for the stroke. */
   color: string
   strokeWidth: number
   /** Whether to attach the neutral-pulse animation class. */
@@ -41,21 +52,48 @@ export interface EdgeVisual {
 }
 
 /**
- * Resolve an edge's stroke from its state. Any active state (running / selected
- * / hovered) lifts the stroke to the bright neutral; selection also thickens it;
- * only running pulses.
+ * Resolve an edge's stroke from its state, precedence running > selected >
+ * revealed > hover > default (§2.3). Only `running` pulses; `revealed` /
+ * `selected` are the two 石绿-tinted states, everything else is neutral
+ * brightness.
  */
 export function resolveNodeWorkflowEdgeVisual({
   running,
   selected,
+  revealed,
   hovered,
 }: EdgeVisualInputs): EdgeVisual {
-  const active = running || selected || hovered
+  if (running) {
+    return {
+      color: NODE_STUDIO_EDGE_VISUALS.previewColor,
+      strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+      pulsing: true,
+    }
+  }
+  if (selected) {
+    return {
+      color: NODE_STUDIO_EDGE_VISUALS.selectedColor,
+      strokeWidth: NODE_STUDIO_EDGE_VISUALS.selectedStrokeWidth,
+      pulsing: false,
+    }
+  }
+  if (revealed) {
+    return {
+      color: NODE_STUDIO_EDGE_VISUALS.revealedColor,
+      strokeWidth: NODE_STUDIO_EDGE_VISUALS.revealedStrokeWidth,
+      pulsing: false,
+    }
+  }
+  if (hovered) {
+    return {
+      color: NODE_STUDIO_EDGE_VISUALS.previewColor,
+      strokeWidth: NODE_STUDIO_EDGE_VISUALS.hoverStrokeWidth,
+      pulsing: false,
+    }
+  }
   return {
-    color: active ? 'var(--node-edge-active)' : 'var(--node-edge)',
-    strokeWidth: selected
-      ? NODE_STUDIO_EDGE_VISUALS.strokeWidth + 0.5
-      : NODE_STUDIO_EDGE_VISUALS.strokeWidth,
-    pulsing: running,
+    color: NODE_STUDIO_EDGE_VISUALS.color,
+    strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+    pulsing: false,
   }
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
@@ -15,7 +16,9 @@ import { NodeMediaPreview } from './NodeMediaPreview'
  * nodeTypes fallback; new graphs use the unified `image` type (role=character),
  * and `migrateImageRoles` converts any legacy node on load.
  */
-export function CharacterImageNode(props: NodeProps<NodeWorkflowNode>) {
+export const CharacterImageNode = memo(function CharacterImageNode(
+  props: NodeProps<NodeWorkflowNode>,
+) {
   return (
     <NodeMediaPreview
       {...props}
@@ -23,4 +26,4 @@ export function CharacterImageNode(props: NodeProps<NodeWorkflowNode>) {
       kind={NODE_MEDIA_KIND_IDS.image}
     />
   )
-}
+})

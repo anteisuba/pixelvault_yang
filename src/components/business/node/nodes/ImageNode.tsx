@@ -1,11 +1,13 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 
 import {
   NODE_IMAGE_ROLE_IDS,
   NODE_IMAGE_ROLE_TO_LEGACY_TYPE,
   NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
 } from '@/constants/node-types'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -24,7 +26,9 @@ import { NodeMediaPreview } from './NodeMediaPreview'
  * - shot/frame/closeup + has media → pure-image `LooseImageCard`（与散图同选中态）
  * - shot/frame/closeup + no media → `NodeMediaPreview`（生成表单）
  */
-export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
+export const ImageNode = memo(function ImageNode(
+  props: NodeProps<NodeWorkflowNode>,
+) {
   const role = props.data.role
 
   const hasMedia =
@@ -42,6 +46,7 @@ export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
           selected={props.selected}
           width={props.width}
           height={props.height}
+          nodeType={NODE_TYPE_IDS.image}
         />
       )
     }
@@ -50,6 +55,11 @@ export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
         nodeId={props.id}
         selected={props.selected}
         status={props.data.status}
+        mediaLabel={
+          typeof props.data.mediaLabel === 'string'
+            ? props.data.mediaLabel
+            : undefined
+        }
       />
     )
   }
@@ -77,6 +87,7 @@ export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
         selected={props.selected}
         width={props.width}
         height={props.height}
+        nodeType={NODE_IMAGE_ROLE_TO_LEGACY_TYPE[role]}
       />
     )
   }
@@ -88,4 +99,4 @@ export function ImageNode(props: NodeProps<NodeWorkflowNode>) {
       kind={NODE_MEDIA_KIND_IDS.image}
     />
   )
-}
+})

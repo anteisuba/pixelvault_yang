@@ -134,6 +134,9 @@ function renderInspector(initialNode: NodeWorkflowNode) {
       setToolMode: vi.fn(),
       expandedNodeId: null,
       setExpandedNodeId: vi.fn(),
+      heavyOverlayOpen: false,
+      setImageEditWorkspaceOpen: vi.fn(),
+      transientLayerOpen: false,
       modelOptionsByType: {
         [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
       },

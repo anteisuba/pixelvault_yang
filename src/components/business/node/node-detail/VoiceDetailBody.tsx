@@ -12,7 +12,6 @@ import {
   IdCard,
   ImagePlus,
   Library,
-  Loader2,
   Mic2,
   Music2,
   Trash2,
@@ -42,6 +41,7 @@ import {
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { Spinner } from '@/components/ui/spinner'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
@@ -376,7 +376,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
           />
         </>
       ) : isCoverUploading ? (
-        <Loader2 className="size-5 animate-spin" />
+        <Spinner size="lg" />
       ) : (
         <Mic2 className="size-7" />
       )}
@@ -532,7 +532,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
                   className="nodrag flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground disabled:opacity-60"
                 >
                   {isUploading ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner size="md" />
                   ) : (
                     <Upload className="size-4" />
                   )}
@@ -580,7 +580,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
             className="nodrag flex w-full items-center justify-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs font-semibold text-node-foreground transition-colors hover:bg-node-panel-inner disabled:opacity-60"
           >
             {isGeneratingSample ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <WandSparkles className="size-4" />
             )}

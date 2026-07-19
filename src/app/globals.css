@@ -86,6 +86,31 @@
   --width-node-detail-panel: 34rem;
   /* 视频详情用宽版 = 双栏（左创作 / 右参数）。其它节点体保持窄版单列。 */
   --width-node-detail-panel-wide: 56rem;
+  /*
+   * 画布覆盖层 z 阶梯（canvas-relationship-v3 §4.1 R3-4，domain-scoped，不
+   * 外泄通用页）。L0-L6 全部落在 CanvasWorkspaceLayout 的 isolated `stage`
+   * 容器内（`isolation: isolate`）——彼此的相对次序只需在这一个隔离栈内成立，
+   * 不会漏到页面其它地方，所以 0/10/20… 这套小台阶足够，也留了插层空间。
+   * L7（重编辑工作区）与 L8（拖拽 ghost / 吞噬 portal）通过 Radix
+   * Dialog.Portal / `createPortal` 直接挂到 document.body，逃出了
+   * isolate——这两级因此必须能压过全局共享 UI 的 z-50（shadcn
+   * dialog/popover/dropdown 基线），80/70 两档特意选在 50 之上。
+   * - L1（边层）/L2（节点层）由 React Flow 自己管理内部 pane
+   *   （.react-flow__pane=1 / __viewport=2 / __renderer=4 等），我们不越权
+   *   接管，这两个 token 只做文档占位，当前没有类消费。
+   * - L7（重编辑工作区，CanvasImageEditWorkspace/ScriptDocWorkspace）今天
+   *   靠 isolate + Radix 共享 z-50 免费拿到「盖过 L6」的效果，token 同样只
+   *   是占位，留给未来自建 workspace host 时用。
+   */
+  --z-index-canvas-surface: 0; /* L0 CanvasSurface 暖炭表面 */
+  --z-index-canvas-edges: 10; /* L1 墨线边层（React Flow 内部管理，占位） */
+  --z-index-canvas-nodes: 20; /* L2 节点卡层（React Flow 内部管理，占位） */
+  --z-index-canvas-selection: 30; /* L3 选中 chrome：描边/工具条/近场面板 */
+  --z-index-canvas-chrome: 40; /* L4 工作区 chrome：顶栏/底部工具条/卡匣/minimap */
+  --z-index-canvas-transient: 50; /* L5 瞬时浮层：添加菜单/卡匣展开浮层 */
+  --z-index-canvas-panel: 60; /* L6 对象任务面板：NodeDetailPanel（唯一 backdrop） */
+  --z-index-canvas-workspace: 70; /* L7 重编辑工作区（占位，见上方说明） */
+  --z-index-canvas-drag: 80; /* L8 拖拽 ghost / 吞噬 portal，恒压过共享 UI z-50 */
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -1424,6 +1449,19 @@ html:lang(zh) {
   animation: node-canvas-edge-pulse 1.4s ease-in-out infinite;
 }
 
+/* R3-2 墨线签署「淡出隐藏」(canvas-relationship-v3 §2.7): once a just-signed
+   ingredient edge's ink draw-in finishes, if it won't otherwise qualify to
+   stay visible (not selected, generating, or 关系线-toggled), it gets this
+   class for its last ~200ms before StudioNodeWorkbench actually flips it
+   `hidden` — a plain opacity transition on the existing --duration-base/
+   --ease-standard tokens, not a new curve. reduced-motion collapses the
+   transition to ~0 via the global block above, matching every other
+   CSS-driven canvas motion in this file. */
+.node-canvas-edge-signing-fade-out {
+  transition: opacity var(--duration-base) var(--ease-standard);
+  opacity: 0;
+}
+
 /* must-1 「进度在节点」: an indeterminate generating bar on the node card. A real
    percentage needs backend progress events; this neutral sweep at least shows
    work-in-progress on the card itself. reduced-motion disabled globally. */
@@ -1497,7 +1535,9 @@ html:lang(zh) {
   position: absolute;
   top: -0.625rem;
   left: -0.625rem;
-  z-index: 10;
+  /* R3-4 §4.1 L3: badge sits above this one card's own content, same tier
+     as the selection chrome it rides alongside (magnet highlight). */
+  z-index: var(--z-index-canvas-selection);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1518,7 +1558,7 @@ html:lang(zh) {
   position: absolute;
   top: -0.625rem;
   left: -0.625rem;
-  z-index: 10;
+  z-index: var(--z-index-canvas-selection);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1601,6 +1641,49 @@ html:lang(zh) {
   border-top: none;
 }
 
+/* FB-4 高级上传加载 — a frosted veil over a media window while a clip uploads.
+   A diagonal light band sweeps across (::before) over a translucent card-window
+   wash; the glyph / label / filename / indeterminate bar the JSX layers on top
+   ride above it (z-10). Reduced-motion freezes the sweep to a static dim veil. */
+.node-upload-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--node-card-window) 78%, transparent);
+  backdrop-filter: blur(2px);
+}
+.node-upload-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    color-mix(in oklab, var(--node-foreground) 14%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: node-upload-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes node-upload-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-upload-loading::before {
+    animation: none;
+    transform: none;
+    opacity: 0.5;
+  }
+}
+
 /* Neutralise the shared radix Slider inside the video detail panel (去黄橙 D1):
    the default uses --primary/--muted; here the duration slider is pure neutral. */
 .node-duration-slider [data-slot='slider-track'] {
@@ -1670,32 +1753,6 @@ html:lang(zh) {
   animation: studio-generation-image-in 360ms ease-out both;
 }
 
-.studio-generation-status-line {
-  animation: studio-generation-status-sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1)
-    infinite;
-  transform: translateX(-110%);
-}
-
-.studio-generation-scan {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    oklch(from var(--primary) l c h / 0.03) 34%,
-    oklch(from var(--primary) l c h / 0.18) 48%,
-    oklch(from var(--background) l c h / 0.2) 52%,
-    oklch(from var(--primary) l c h / 0.08) 62%,
-    transparent 100%
-  );
-  mix-blend-mode: screen;
-  opacity: 0.82;
-  transform: translateY(-70%);
-  animation: studio-generation-scan 3.8s ease-in-out infinite;
-}
-
-.studio-generation-dot {
-  animation: studio-generation-dot 1.35s ease-in-out infinite;
-}
-
 @keyframes studio-generation-image-in {
   0% {
     opacity: 0;
@@ -1707,42 +1764,95 @@ html:lang(zh) {
   }
 }
 
-@keyframes studio-generation-status-sweep {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(320%);
-  }
-}
-
-@keyframes studio-generation-scan {
-  0% {
-    transform: translateY(-78%);
-  }
-  100% {
-    transform: translateY(132%);
-  }
-}
-
-@keyframes studio-generation-dot {
-  0%,
-  100% {
-    opacity: 0.55;
-    box-shadow: 0 0 0 0 oklch(from var(--primary) l c h / 0);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.14);
-  }
-}
-
 @keyframes studio-reveal-sweep {
   0% {
     background-position: 130% 0;
   }
   100% {
     background-position: -30% 0;
+  }
+}
+
+/* ── Studio generating — "裱框显影" progress frame ─────────────────
+   docs/plans/loading-language-2026-07.md §2. Shared by GenerationPreview's
+   placeholder + image/video/audio regenerate overlays via
+   StudioGeneratingProgress. rx/ry read a per-instance custom property so
+   the frame can hug either rounded-xl or rounded-2xl art boxes. */
+.studio-generation-frame-track,
+.studio-generation-frame {
+  fill: none;
+  rx: var(--studio-generation-frame-radius, var(--radius-xl));
+  ry: var(--studio-generation-frame-radius, var(--radius-xl));
+}
+
+.studio-generation-frame-track {
+  x: 0.5px;
+  y: 0.5px;
+  width: calc(100% - 1px);
+  height: calc(100% - 1px);
+  stroke: oklch(from var(--border) l c h / 0.6);
+  stroke-width: 1;
+}
+
+.studio-generation-frame {
+  x: 1px;
+  y: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  stroke: oklch(from var(--primary) l c h / 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studio-generation-frame {
+    transition: stroke-dashoffset 600ms linear;
+  }
+
+  .studio-generation-frame--closing {
+    transition: stroke-dashoffset 260ms var(--ease-standard);
+  }
+
+  .studio-generation-frame--waiting {
+    animation: studio-generation-frame-breathe 2.6s ease-in-out infinite;
+  }
+
+  .studio-generation-stage-in {
+    animation: studio-generation-stage-in 200ms var(--ease-standard) both;
+  }
+
+  .studio-generation-stage-out {
+    animation: studio-generation-stage-out 120ms ease-out both;
+  }
+}
+
+@keyframes studio-generation-frame-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes studio-generation-stage-in {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes studio-generation-stage-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
@@ -1762,6 +1872,24 @@ html:lang(zh) {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+}
+
+/* ── LoRA 库 · 详情原位展开/收起的平滑高度过渡 ────────────────────
+   owner 2026-07-19「点击 LoRA 没有过渡、需要高级 css 设计」+「收起也要
+   平滑、不能闪」。grid-template-rows 0fr↔1fr 过渡是现代 CSS 无需 JS 测量
+   的双向高度动画：外层 grid 在 0fr/1fr 间过渡（由组件切换 inline 值），
+   内层 overflow:hidden 子元素随之平滑伸缩，下方结果行被顺滑推开/收回。
+   收起由 `LoraLibraryDetailReveal` 组件持有「先播过渡、transitionEnd 再
+   卸载」的时序，收起期间不与未展开行叠现（无闪）。作用域仅 `.lora-*`，
+   不改任何其他域皮肤；reduced-motion 由文件末尾全局 `*` 块统一降级。 */
+.lora-detail-reveal {
+  display: grid;
+  transition: grid-template-rows 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lora-detail-reveal > * {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── B7: Reduced motion preference ──────────────────────────────── */

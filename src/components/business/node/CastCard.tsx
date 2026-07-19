@@ -177,12 +177,26 @@ export function CastCard({
       // 读这个属性（StudioNodeWorkbench 的 onNodeDragStop），不吃 React state。
       data-cast-card-node-id={node.id}
       data-cast-section-id={sectionId}
+      // A4 ③按下反馈实测发现：`.node-card-paper`（globals.css，未入
+      // @layer，S2 场记卡作用域）自带 `transition: rotate var(--duration-base)
+      // ...`——未分层的 CSS 优先级恒高于 Tailwind 生成的分层 utility 类，导致
+      // 挂在同一元素上的 `transition-all duration-fast` className 从未真正
+      // 生效（DevTools 确定性验证：computed transitionProperty 一直是
+      // `rotate`，hover 上浮/边框变色全程硬切，只有微倾 rotate 真的在过渡）。
+      // 用行内 style 覆盖（行内样式恒压过外部样式表，不分层级）拿回
+      // `transition: all`，press/hover/归正才真正跑动画；ReactFlow 的拖拽回
+      // 正选择器（`.react-flow__node.dragging .node-card-paper`）只命中真实
+      // 画布节点卡（NodeShell），不命中卡匣里的这张镜像卡，互不干扰，也不改
+      // 这条全局共享规则本身（NodeShell 等其它消费者维持原样）。
+      style={{ transition: 'all var(--duration-fast) var(--ease-standard)' }}
       className={cn(
         // S5c 一.1/一.2：宽度改跟随网格列（w-full）而不是固定 w-24——固定宽度
         // 曾比 CastDock 算出的实际列宽还宽，被网格强制 overflow-x:auto 裁切
         // （DOM 实测 scrollWidth 368 > clientWidth 348，即微倾卡被裁切的根因）。
         // 高度 h-32→h-36：给新增的徽章行留出空间，不挤压已有的名字/@token/出演行。
-        'node-card-paper group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 rounded-md border bg-node-panel p-1.5 pt-2 text-center shadow-node-panel transition-all duration-base ease-standard hover:-translate-y-0.5 hover:rotate-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
+        // A4 ③按下反馈：active:scale-95，与工具条按压同规格 fast(120ms，见
+        // 上方 style 覆盖注释)。
+        'node-card-paper group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 rounded-md border bg-node-panel p-1.5 pt-2 text-center shadow-node-panel hover:-translate-y-0.5 hover:rotate-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
         selected
           ? 'border-node-paint/70 ring-2 ring-node-paint/60'
           : 'border-node-card-line hover:border-node-card-ink-subtle',
@@ -198,7 +212,9 @@ export function CastCard({
           event.stopPropagation()
           deleteNode(node.id)
         }}
-        className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover:opacity-100"
+        // R3-4 §4.1 L3: hover-reveal chrome riding above this card's own
+        // thumbnail content, same tier as the selection/magnet badges.
+        className="absolute -right-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover:opacity-100"
       >
         <X className="size-3" aria-hidden />
       </button>
@@ -214,7 +230,7 @@ export function CastCard({
           event.stopPropagation()
           enterQuickThrow(quickThrowSourceInfo)
         }}
-        className="absolute -left-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-paint focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute -left-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-paint focus-visible:opacity-100 group-hover:opacity-100"
       >
         <Send className="size-2.5" aria-hidden />
       </button>

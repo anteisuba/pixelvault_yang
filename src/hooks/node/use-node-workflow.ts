@@ -40,6 +40,7 @@ import {
   NodeWorkflowStorageSchema,
   type CanvasAppearance,
   type NodeWorkflowEdge,
+  type NodeWorkflowEdgeData,
   type NodeWorkflowNode,
   type NodeWorkflowNodeData,
   type NodeWorkflowProject,
@@ -88,6 +89,17 @@ export interface UseNodeWorkflowOptions {
 
 export interface NodeWorkflowActions {
   updateNodeData(id: string, patch: Partial<NodeWorkflowNodeData>): void
+  /**
+   * R3-6b §3 每镜覆写: patch an edge's `data` (currently only
+   * `stageOverrideUrls` — see `NodeWorkflowEdgeDataSchema`). Mirrors
+   * `updateNodeData`'s shallow-merge-and-persist shape; a no-op on an id that
+   * doesn't exist. Setting `stageOverrideUrls: undefined` clears the override
+   * back to the card's own onStage curation (the panel's "恢复默认" action).
+   * Optional so the many existing `NodeWorkflowCanvasActions`-typed test
+   * mocks (CharacterImageInspector.test / NodeMediaInspector.test) don't need
+   * updating for a capability only the video composer's 管理素材 panel uses.
+   */
+  updateEdgeData?(id: string, patch: Partial<NodeWorkflowEdgeData>): void
   /**
    * Atomically place one or more non-destructive image edit results. Optional
    * on the shared canvas context until the UI wiring slice adopts the action;
@@ -151,6 +163,7 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
     sourceNodeId: string,
     outputs: readonly CanvasDerivedImageOutput[],
   ): string[]
+  updateEdgeData(id: string, patch: Partial<NodeWorkflowEdgeData>): void
   createProject(name: string): string
   switchProject(id: string): void
   renameCurrentProject(name: string): void
@@ -963,15 +976,20 @@ export function useNodeWorkflow({
   const addNode = useCallback(
     (type: NodeWorkflowNodeType, position: XYPosition) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-      // Loose pure-image nodes need an explicit RF size so corner NodeResizer
-      // can scale them; role-stamped cards keep measuring from content.
-      const isLooseImageShell = type === NODE_TYPE_IDS.image
+      // Resizable card shells (loose pure-image AND — after the 2026-07-19
+      // rewrite — videoReference's template card) need an explicit RF size at
+      // creation so the corner NodeResizer has dimensions to scale and a
+      // freshly-added node renders at a real size; role-stamped cards keep
+      // measuring from content. Without this a menu-created videoReference had
+      // no width/height and broke (owner 真机: "参考视频无法新建").
+      const needsExplicitSize =
+        type === NODE_TYPE_IDS.image || type === NODE_TYPE_IDS.videoReference
       const nextNode: NodeWorkflowNode = {
         id: nodeId,
         type,
         position,
         data: createDefaultNodeData(type),
-        ...(isLooseImageShell
+        ...(needsExplicitSize
           ? {
               width: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
               height: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
@@ -1269,6 +1287,37 @@ export function useNodeWorkflow({
                     },
                   }
                 : node,
+            ),
+          }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  // R3-6b §3 每镜覆写: shallow-merges `patch` into the edge's `data`, same
+  // "no history entry" treatment as `updateNodeData` (a checkbox toggle
+  // shouldn't spam the undo stack any more than typing in a prompt field
+  // does — structural ops like onConnect/deleteEdge still go through
+  // `commitCurrentProjectState`, which DOES record history).
+  const updateEdgeData = useCallback(
+    (id: string, patch: Partial<NodeWorkflowEdgeData>) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({
+            ...currentState,
+            edges: currentState.edges.map((edge) =>
+              edge.id === id
+                ? {
+                    ...edge,
+                    data: {
+                      ...edge.data,
+                      ...patch,
+                    },
+                  }
+                : edge,
             ),
           }),
         ),
@@ -1692,6 +1741,7 @@ export function useNodeWorkflow({
       renameCurrentProject,
       deleteProject,
       updateNodeData,
+      updateEdgeData,
       setScriptDoc,
       setDefaultVideoModel,
       setCanvasAppearance,
@@ -1743,6 +1793,7 @@ export function useNodeWorkflow({
       switchProject,
       tidyLayout,
       undo,
+      updateEdgeData,
       updateNodeData,
     ],
   )

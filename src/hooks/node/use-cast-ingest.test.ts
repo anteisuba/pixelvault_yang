@@ -5,7 +5,7 @@ import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
-import { evaluateCastIngest } from './use-cast-ingest'
+import { evaluateCastIngest, previewIngestCapacity } from './use-cast-ingest'
 
 function makeNode(
   id: string,
@@ -130,6 +130,58 @@ describe('evaluateCastIngest', () => {
     )
     expect(result.limit).toBeGreaterThan(0)
     expect(result.current).toBeGreaterThanOrEqual(result.limit ?? 0)
+  })
+
+  it("R3-6 出场组: previewIngestCapacity counts a collector's full onStage set, not just 1 per node", () => {
+    const character = makeNode('character-2', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+    })
+    const video = makeNode('video-1', NODE_TYPE_IDS.seedance, {
+      model: {
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        modelId: 'gemini-3.1-flash-image-preview',
+        apiKeyId: 'key-1',
+      },
+    })
+    // One collector, no onStage — pre-R3-6 baseline: 1 node = 1 slot.
+    const plainCollector = makeNode('plain', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.background,
+      mediaUrl: 'https://cdn/plain.png',
+    })
+    // A second collector with two onStage extras — should count as 3 slots
+    // (primary + 2 extras), not 1.
+    const stagedCollector = makeNode('staged', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      mediaUrl: 'https://cdn/staged-primary.png',
+      referenceAssets: [
+        {
+          id: 'r1',
+          url: 'https://cdn/staged-extra1.png',
+          role: 'pose',
+          weight: 0.72,
+          source: 'upload',
+          onStage: true,
+        },
+        {
+          id: 'r2',
+          url: 'https://cdn/staged-extra2.png',
+          role: 'style',
+          weight: 0.72,
+          source: 'upload',
+          onStage: true,
+        },
+      ],
+    })
+    const nodes = [character, video, plainCollector, stagedCollector]
+    const edges = [
+      makeEdge('e1', plainCollector.id, video.id),
+      makeEdge('e2', stagedCollector.id, video.id),
+    ]
+    const result = previewIngestCapacity(character, video, edges, nodes)
+    expect(result).not.toBeNull()
+    // plainCollector contributes 1 (no onStage extras), stagedCollector
+    // contributes 3 (primary + 2 onStage extras) → 4 total, not 2.
+    expect(result?.current).toBe(4)
   })
 
   it('never raises capacityFull for a voice source (no known cap for that pool)', () => {

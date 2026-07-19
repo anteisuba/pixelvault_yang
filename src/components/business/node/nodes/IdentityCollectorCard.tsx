@@ -19,7 +19,6 @@ import {
 } from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
-import { NodeExpandButton } from './NodeCardControls'
 import { NodeShell } from './NodeShell'
 
 interface IdentityCollectorCardProps {
@@ -105,21 +104,26 @@ export function IdentityCollectorCard({
     return getUpstreamNodes(id, edges, nodes).some(isVoiceProfileNode)
   }, [edges, id, legacyType, nodes])
 
-  const thumbnails = useMemo(() => {
-    const urls: string[] = []
-    if (typeof data.mediaUrl === 'string' && data.mediaUrl.trim()) {
-      urls.push(data.mediaUrl.trim())
-    }
-    for (const reference of referenceAssets) {
-      if (urls.length >= MAX_THUMBNAILS) break
-      if (!urls.includes(reference.url)) urls.push(reference.url)
-    }
-    return urls.slice(0, MAX_THUMBNAILS)
+  // 图集（referenceAssets）是收集器卡图片的唯一事实源；mediaUrl 只是它的封面，
+  // 通常就是图集里某张图的另一个 url 串。以前 mediaUrl 与图集两个来源都 push，
+  // 封面与图集副本 url 不完全相等时去重抓不住 → 一张图的卡渲染出两个缩略图
+  // （owner 真机"卡片只有一张图，缩小图展示两张"）。改为：以图集为准去重，
+  // mediaUrl 仅在图集为空时兜底（迁移前老卡只在 mediaUrl 存单图），永不叠加。
+  const galleryUrls = useMemo(() => {
+    const fromAssets = [
+      ...new Set(
+        referenceAssets
+          .map((reference) => reference.url.trim())
+          .filter(Boolean),
+      ),
+    ]
+    if (fromAssets.length > 0) return fromAssets
+    const media = typeof data.mediaUrl === 'string' ? data.mediaUrl.trim() : ''
+    return media ? [media] : []
   }, [data.mediaUrl, referenceAssets])
 
-  const totalImageCount =
-    (typeof data.mediaUrl === 'string' && data.mediaUrl.trim() ? 1 : 0) +
-    referenceAssets.length
+  const thumbnails = galleryUrls.slice(0, MAX_THUMBNAILS)
+  const totalImageCount = galleryUrls.length
   const overflowCount = Math.max(0, totalImageCount - thumbnails.length)
   // V-2 主图角标 — only worth showing once there's an actual choice among
   // several collected images (a single-image card has nothing to disambiguate).
@@ -132,14 +136,10 @@ export function IdentityCollectorCard({
       type={legacyType}
       selected={selected}
       status={data.status}
-      imageEditData={data}
+      toolbarData={data}
+      isCollector
     >
-      <NodeShell.Header
-        type={legacyType}
-        status={data.status}
-        title={name}
-        action={<NodeExpandButton nodeId={id} />}
-      />
+      <NodeShell.Header type={legacyType} status={data.status} title={name} />
       <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
         {thumbnails.length > 0 ? (

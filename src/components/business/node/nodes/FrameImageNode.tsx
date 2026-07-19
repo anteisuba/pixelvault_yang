@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
@@ -16,7 +17,9 @@ function hasImageMedia(data: NodeWorkflowNode['data']): boolean {
 }
 
 /** Legacy `frameImage` type — pure-image when media exists. */
-export function FrameImageNode(props: NodeProps<NodeWorkflowNode>) {
+export const FrameImageNode = memo(function FrameImageNode(
+  props: NodeProps<NodeWorkflowNode>,
+) {
   if (hasImageMedia(props.data)) {
     return (
       <LooseImageCard
@@ -25,6 +28,7 @@ export function FrameImageNode(props: NodeProps<NodeWorkflowNode>) {
         selected={props.selected}
         width={props.width}
         height={props.height}
+        nodeType={NODE_TYPE_IDS.frameImage}
       />
     )
   }
@@ -36,4 +40,4 @@ export function FrameImageNode(props: NodeProps<NodeWorkflowNode>) {
       kind={NODE_MEDIA_KIND_IDS.image}
     />
   )
-}
+})

@@ -5,7 +5,6 @@ import {
   Eraser,
   Expand,
   Layers3,
-  Loader2,
   Paintbrush,
   Scissors,
   Sparkles,
@@ -23,6 +22,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import {
   getCanvasImageEditCapability,
@@ -476,7 +476,7 @@ export function CanvasImageEditWorkspace({
             </div>
             <Button type="button" disabled={isRunning} onClick={runUpscale}>
               {runningTask === 'upscale' ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <Sparkles className="size-4" />
               )}
@@ -492,7 +492,7 @@ export function CanvasImageEditWorkspace({
             onClick={runRemoveBackground}
           >
             {runningTask === 'remove-background' ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <Eraser className="size-4" />
             )}
@@ -613,7 +613,7 @@ export function CanvasImageEditWorkspace({
         return (
           <Button type="button" disabled={isRunning} onClick={runDecompose}>
             {runningTask === 'decompose' ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <Layers3 className="size-4" />
             )}
@@ -687,7 +687,7 @@ export function CanvasImageEditWorkspace({
               onClick={runExtractElement}
             >
               {runningTask === 'extract-element' ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <Scissors className="size-4" />
               )}
@@ -726,6 +726,9 @@ export function CanvasImageEditWorkspace({
         closeLabel={tCommon('close')}
         className="dark h-[min(760px,calc(100svh-2rem))] w-[min(1120px,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden border-node-panel-inner bg-node-panel p-0 text-node-foreground shadow-node-panel"
         mobileBodyClassName="px-0 pt-0"
+        // R3-4 §4.2 rule 4: 档3 重编辑工作区只认显式关闭（Esc / X / 取消按
+        // 钮）——防止误触画布空白区把重绘/扩图/图层进度点没了。
+        preventOutsideDismiss
       >
         <ResponsiveDialogHeader className="min-h-11 justify-center border-b border-node-panel-inner px-4 py-2.5 text-left">
           <ResponsiveDialogTitle className="text-sm font-semibold text-node-foreground">

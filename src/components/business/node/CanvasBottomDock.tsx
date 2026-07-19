@@ -7,6 +7,7 @@ import {
   MousePointer2,
   Redo2,
   Undo2,
+  Waypoints,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -14,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { useReactFlow, useViewport } from '@xyflow/react'
 
 import {
+  NODE_STUDIO_CANVAS,
   NODE_STUDIO_TOOL_MODES,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
@@ -34,6 +36,15 @@ const TOOL_MODE_ICONS: Record<
   hand: Hand,
 }
 
+// A3: 「适应画布」两处触发（zoom-level 文本 + Focus 图标按钮）共用同一份
+// options——显式 maxZoom 让 fit 稳定停在 200% 舒适档（NODE_STUDIO_CANVAS.
+// fitViewMaxZoom），不随手动滚轮上限（maxZoom: 4）一起被推高。
+const FIT_VIEW_OPTIONS = {
+  padding: 0.16,
+  duration: 220,
+  maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
+} as const
+
 interface CanvasBottomDockProps {
   activeMode: NodeStudioToolMode
   canUndo: boolean
@@ -41,6 +52,14 @@ interface CanvasBottomDockProps {
   onModeChange(mode: NodeStudioToolMode): void
   onUndo(): void
   onRedo(): void
+  /**
+   * R3-1「关系线」总开关（§2.5），反转 by FB-B（真机反馈）: 会话级双态，
+   * **默认 `false` = 全显**（骨干+成分边都常显，成分选中时仍升级石绿）；
+   * `true` = **收起**（回到骨干常显 / 成分仅选中或生成中显现的旧默认），
+   * 给想要干净画布的时候用。
+   */
+  relationsCollapsed: boolean
+  onRelationsCollapsedChange(next: boolean): void
 }
 
 /**
@@ -57,6 +76,8 @@ export function CanvasBottomDock({
   onModeChange,
   onUndo,
   onRedo,
+  relationsCollapsed,
+  onRelationsCollapsedChange,
 }: CanvasBottomDockProps) {
   const t = useTranslations('StudioNode')
   const { fitView, zoomIn, zoomOut } = useReactFlow()
@@ -119,7 +140,7 @@ export function CanvasBottomDock({
           </Tooltip>
           <button
             type="button"
-            onClick={() => void fitView({ padding: 0.16, duration: 220 })}
+            onClick={() => void fitView(FIT_VIEW_OPTIONS)}
             aria-label={t('bottomDock.fitView')}
             title={t('bottomDock.fitView')}
             className="min-w-12 rounded-lg px-1.5 py-1 text-center text-xs font-semibold tabular-nums text-node-foreground transition-colors hover:bg-node-panel-inner"
@@ -148,7 +169,7 @@ export function CanvasBottomDock({
                 size="icon-sm"
                 variant="ghost"
                 aria-label={t('bottomDock.fitView')}
-                onClick={() => void fitView({ padding: 0.16, duration: 220 })}
+                onClick={() => void fitView(FIT_VIEW_OPTIONS)}
                 className="rounded-lg text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
               >
                 <Focus className="size-4" />
@@ -159,6 +180,35 @@ export function CanvasBottomDock({
             </TooltipContent>
           </Tooltip>
         </div>
+
+        <div className="h-6 w-px bg-node-panel-inner" aria-hidden />
+
+        {/* R3-1「关系线」总开关（§2.5），反转 by FB-B（真机反馈）: 默认
+            (aria-pressed=false) = 全显——骨干 + 成分墨线都常显，成分选中时
+            仍升级石绿；按下 (aria-pressed=true) = 收起——回到骨干常显 / 成
+            分仅选中或生成中显现的旧默认，给想要干净画布的时候用。 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('bottomDock.relationsCollapse')}
+              aria-pressed={relationsCollapsed}
+              onClick={() => onRelationsCollapsedChange(!relationsCollapsed)}
+              className={cn(
+                'rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
+                relationsCollapsed &&
+                  'bg-node-foreground text-node-canvas hover:bg-node-foreground hover:text-node-canvas',
+              )}
+            >
+              <Waypoints className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {t('bottomDock.relationsCollapse')}
+          </TooltipContent>
+        </Tooltip>
 
         <div className="h-6 w-px bg-node-panel-inner" aria-hidden />
 

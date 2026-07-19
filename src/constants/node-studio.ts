@@ -1,14 +1,19 @@
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import type { NodeImageRole } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /** Default on-canvas size for role-less pure images (px). NodeResizer grows from here. */
 export const NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE = 320
 
 export const NODE_STUDIO_CANVAS = {
+  // A3（canvas-relationship-v3 §7b）：owner 手动缩到 200% 实测拍板为舒适基准，
+  // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow.ts），
+  // 所以这只是 ReactFlow 挂载时的初始值——同一会话内切换项目不会重置视口
+  // （ReactFlow 实例不重挂载），新开页面/新项目都落在这个基准上。
   defaultViewport: {
     x: 0,
     y: 0,
-    zoom: 0.8,
+    zoom: 2,
   },
   background: {
     // Wider spacing so the grid reads as a navigation field, not noise.
@@ -18,7 +23,16 @@ export const NODE_STUDIO_CANVAS = {
     // S1 首落 #26231e 对比仅 1.19:1 几乎不可见，owner 目验后加深（~1.6:1）。
     color: '#403a2f',
   },
-  defaultZoomPercent: 80,
+  defaultZoomPercent: 200,
+  // A3: 手动缩放边界（滚轮/±按钮），显式收进常量避免依赖库默认值（之前未传
+  // minZoom/maxZoom 给 <ReactFlow>，隐式吃 @xyflow/react 的 0.5/2 默认档）。
+  // 下限放宽到 30% 方便看全局；上限放到 200% 基准之上留手动继续放大的余量。
+  minZoom: 0.3,
+  maxZoom: 4,
+  // A3: 「适应画布」按钮/自动 fit 的独立放大上限——与上面手动滚轮上限
+  // (maxZoom) 分开，让 fitView 稳定停在 200% 舒适档，不因为 maxZoom 提到 4
+  // 而在节点很少时把画布怼到 400%。
+  fitViewMaxZoom: 2,
   // D3 Figma 级平移：中键(1)+右键(2) 拖拽平移画板；左键留给选择/框选。
   panOnDragButtons: [1, 2],
   // 空格 + 左键拖 = 临时平移（对齐 Figma）。
@@ -460,6 +474,15 @@ export const NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS = {
  */
 export const REFERENCE_VIDEO_MAX_DURATION_SECONDS = 15
 
+/**
+ * Default poster aspect ratio for the R3-5 参考视频「视频模板卡」省略态
+ * (canvas-relationship-v3 §3.0/§7 R3-5) before a real clip has loaded its own
+ * dimensions — portrait, matching the owner's 即梦-style reference screenshot.
+ * Once a clip is playing, `onLoadedMetadata` measures its real aspect ratio
+ * and this fallback stops applying.
+ */
+export const NODE_STUDIO_VIDEO_REFERENCE_TEMPLATE_ASPECT_RATIO = 9 / 16
+
 export const NODE_STUDIO_IMAGE_OUTPUT_SOURCES = [
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
@@ -547,6 +570,36 @@ export const NODE_STUDIO_VIDEO_REFERENCE_LEGEND = {
   narration: '旁白',
 } as const
 
+/**
+ * SF-2b（canvas-shot-frame-fold-2026-07 §-1，owner 2026-07-19 拍板的核心目的）:
+ * model-facing category label for a directly-referenced shot/frame IMAGE-ROLE
+ * node (`NODE_IMAGE_ROLE_IDS.shot`/`.frame` — the node's own connection/
+ * harvest role, NOT `NODE_STUDIO_REFERENCE_ROLES`, a referenceAsset's own
+ * classification enum). Feeds `harvestUpstreamVideoImageReferences`'s
+ * `category` field so a directly-referenced shot/frame node's
+ * `buildVideoReferenceLegend` line goes through the SAME "名字（分类）" pipeline
+ * `resolveReferenceAssetCategory` already gives imageCategory-tagged
+ * referenceAssets / R3-6 出场组 extras, instead of the older kind「名字」bracket
+ * wording — owner: "写 prompt 的时候直接引用这个 token 后，Seedance 那边可以
+ * 直接知道这个图片的名字以及分类".
+ *
+ * `frame` is the net-new case: a keyframe/首帧 node was previously OMITTED
+ * from this legend entirely (see `isKeyframeNode`'s / `harvestUpstreamVideoImageReferences`'s
+ * old docstring — "no name/token"). It still carries no `@token` mention (that
+ * stays projection-only per cast-redesign §3/§4 — an unrelated system, the
+ * composer's `referenceTokens`), but it now gets a category-only legend line.
+ * A role-less loose image classified via `data.imageCategory` (S5d ③
+ * 关键帧首/尾) resolves its OWN more specific label instead — this constant is
+ * only the fallback for the plain role=frame / legacy frameImage case.
+ */
+export const NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY: Record<
+  Extract<NodeImageRole, 'shot' | 'frame'>,
+  string
+> = {
+  shot: '镜头',
+  frame: '首帧',
+}
+
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
   maxItems: 5,
   defaultScale: 1,
@@ -587,6 +640,14 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     offsetX: -420,
     rowOffsetY: 200,
   },
+  // R3-7 一键成盒 (canvas-relationship-v3 §3.0b/§7): the auto-created
+  // videoMerge node lands to the RIGHT of the multi-selection's bounding box
+  // — same "results land to the source's right" convention as
+  // `derivedImage.offsetX` below (same value, not a coincidence: both clear
+  // one `--width-node-card` (25rem/400px) plus a comfortable gap).
+  videoMergeCompose: {
+    offsetX: 460,
+  },
   // Image edits never replace their source. A single result lands to the
   // source's right; multi-output edits (for example decompose) fan out into a
   // compact grid so the entire batch remains one spatial/undo operation.
@@ -607,15 +668,33 @@ export const NODE_STUDIO_ID_PREFIXES = {
 
 // §2.3 去黄：连线中性灰（--node-edge），preview/选中靠明度提亮（--node-edge-active）；
 // glow 去霓虹（anti-slop），改 foreground 基的极淡中性光晕。
+//
+// R3-1 两级墨线（canvas-relationship-v3 §2.3）：骨干默认降为常显后的克制宽度
+// （2，非"仅预览时代"的 3）；显现（成分边因选中而现身）用石绿 80% 混墨线的细线；
+// 边自身被选中用纯石绿、hover 用中性提亮——running 复用 previewColor 的脉冲。
+// `glowFilter` / `markerEndType` 等仍留给 edge-creation 调用点（use-node-workflow
+// 的 onConnect、node-workflow-script-doc 的 createWorkflowEdge）写进持久化的
+// edge.style/markerEnd——那两处未改，只是渲染层的 NodeWorkflowStatusEdge 不再
+// 读它们（无 glow、端标改墨点不用箭头），保持数据层不动。
 export const NODE_STUDIO_EDGE_VISUALS = {
   type: 'smoothstep',
   color: 'var(--node-edge)',
   previewColor: 'var(--node-edge-active)',
+  // 显现（成分边被选中节点带出）：石绿 80% 混中性墨线——node-canvas.md §5 落点③
+  // 「选中态」覆盖，不新增颜料落点。
+  revealedColor: 'color-mix(in oklab, var(--node-paint) 80%, var(--node-edge))',
+  // 边自身被选中（点选一条边，Del 可解绑）：纯石绿。
+  selectedColor: 'var(--node-paint)',
   glowFilter:
     'drop-shadow(0 0 4px color-mix(in oklab, var(--node-edge-active) 28%, transparent))',
-  strokeWidth: 3,
-  previewStrokeWidth: 3.5,
+  strokeWidth: 2,
+  hoverStrokeWidth: 2.5,
+  selectedStrokeWidth: 2.5,
+  revealedStrokeWidth: 1.5,
+  previewStrokeWidth: 2.5,
   interactionWidth: 28,
+  // 端标墨点半径（替代箭头 markerEnd）。
+  endDotRadius: 3.5,
   markerSize: 20,
   markerStrokeWidth: 1.8,
   previewDash: '9 7',

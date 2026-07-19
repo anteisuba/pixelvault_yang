@@ -138,6 +138,17 @@ export const NodeWorkflowReferenceAssetSchema = z.object({
    * `getNodePrimaryMediaUrl`'s fallback chain).
    */
   isPrimary: z.boolean().optional(),
+  /**
+   * R3-6 出场组（canvas-relationship-v3-2026-07 §3.0a）: marks this entry as
+   * ALSO riding a downstream harvest alongside the card's ★ primary — a
+   * collector (character/background) can curate several images that all
+   * "appear" together (a consistency-preserving multi-angle set), not just
+   * the one primary. `getNodeStageMediaUrls` (`lib/node-workflow-graph.ts`)
+   * expands `[primary, ...onStage entries]` in array order. Additive/optional
+   * and absent on every reference saved before R3-6, which keeps resolving to
+   * `[primary]` only — zero behavior change for every existing project.
+   */
+  onStage: z.boolean().optional(),
 })
 
 export const NodeWorkflowLoraSelectionSchema = z.object({
@@ -373,6 +384,28 @@ export const NodeWorkflowNodeSchema = z
   })
   .passthrough()
 
+/**
+ * R3-6b §3 每镜覆写（canvas-relationship-v3-2026-07 §3.0a/§7 R3-6b）: additive
+ * edge-level data. `stageOverrideUrls`, when present, REPLACES the source
+ * collector's own `onStage` curation for THIS ONE `收集器→视频` edge — "每镜"
+ * because a different edge from the same collector (a different downstream
+ * video) keeps resolving its own override, or the card default when it has
+ * none. `.catch(undefined)` degrades a malformed persisted value instead of
+ * failing the whole-state parse (same seatbelt pattern as `lineage` /
+ * `mediaWidth` above). Absent on every edge saved before R3-6b, and on every
+ * non-collector-source edge — `getNodeStageMediaUrls` / the harvest functions
+ * that read it via `getEdgeStageOverrideUrls` fall back to the card's own
+ * onStage set whenever it's missing, so zero drift for existing projects.
+ */
+export const NodeWorkflowEdgeDataSchema = z
+  .object({
+    stageOverrideUrls: z
+      .array(z.string().trim().min(1).max(4000))
+      .max(9)
+      .optional(),
+  })
+  .passthrough()
+
 export const NodeWorkflowEdgeSchema = z
   .object({
     id: z.string().min(1),
@@ -380,6 +413,7 @@ export const NodeWorkflowEdgeSchema = z
     target: z.string().min(1),
     sourceHandle: z.string().nullable().optional(),
     targetHandle: z.string().nullable().optional(),
+    data: NodeWorkflowEdgeDataSchema.optional().catch(undefined),
   })
   .passthrough()
 
@@ -587,6 +621,8 @@ export type NodeWorkflowImageOutputSource = z.infer<
 export type NodeWorkflowReferenceAsset = z.infer<
   typeof NodeWorkflowReferenceAssetSchema
 >
+export type NodeWorkflowEdgeData = z.infer<typeof NodeWorkflowEdgeDataSchema> &
+  Record<string, unknown>
 export type NodeWorkflowLoraSelection = z.infer<
   typeof NodeWorkflowLoraSelectionSchema
 >

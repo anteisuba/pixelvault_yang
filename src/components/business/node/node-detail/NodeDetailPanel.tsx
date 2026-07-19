@@ -93,7 +93,9 @@ export function NodeDetailPanel({
   useEffect(() => {
     if (!node) return
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      // R3-4 §4.2: don't eat the Escape a CJK IME uses to cancel its own
+      // composition inside a field this panel hosts (e.g. a rename input).
+      if (event.key === 'Escape' && !event.isComposing) onClose()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
@@ -110,7 +112,8 @@ export function NodeDetailPanel({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={transition}
-          className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center p-4"
+          // R3-4 §4.1 L6: 对象任务面板，画布内唯一带 backdrop 的层。
+          className="pointer-events-auto absolute inset-0 z-canvas-panel flex items-center justify-center p-4"
         >
           <button
             type="button"

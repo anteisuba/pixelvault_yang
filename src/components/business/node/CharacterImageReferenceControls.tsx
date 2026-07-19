@@ -12,9 +12,9 @@ import {
 import {
   ArrowUpRight,
   Clipboard,
+  Flag,
   ImagePlus,
   Library,
-  Loader2,
   Star,
   Trash2,
   Upload,
@@ -36,6 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { cn } from '@/lib/utils'
@@ -74,6 +75,14 @@ interface CharacterImageReferenceControlsProps {
   /** Gallery mode only: 拆出 (§三.4) — omitted entries get no extract button
    *  (there's nothing to wire it to outside the dossier body). */
   onExtract?(reference: NodeWorkflowReferenceAsset): void
+  /**
+   * Popover mode only: overrides the trigger chip's visible text (default:
+   * the "Refs {count}/{max}" chip label). R3-3's collector selection-toolbar
+   * capability button reuses this exact trigger + its upload/asset/paste
+   * panel wholesale, just under a task-appropriate label ("Add material")
+   * instead of a reference count.
+   */
+  triggerLabel?: string
 }
 
 export function createReferenceId(): string {
@@ -121,6 +130,7 @@ export function CharacterImageReferenceControls({
   mode = 'popover',
   extraItems,
   onExtract,
+  triggerLabel,
 }: CharacterImageReferenceControlsProps) {
   const t = useTranslations('StudioNode.characterImage.reference')
   // Gallery-only strings live in the `dossier` ns (Allowed File Scope keeps
@@ -171,6 +181,26 @@ export function CharacterImageReferenceControls({
           ...reference,
           isPrimary: reference.id === id ? !reference.isPrimary : undefined,
         })),
+      )
+    },
+    [onChange, references],
+  )
+
+  /**
+   * R3-6a §4 出场组 — 〈出场〉toggle: independent per entry (not mutually
+   * exclusive like ★主图 above — a card can curate several images that all
+   * ride along, see `getNodeStageMediaUrls`). The ★ primary entry has no
+   * button for this (always implicitly on stage, see the always-on badge
+   * below), so this only ever flips a NON-primary entry's `onStage`.
+   */
+  const toggleOnStage = useCallback(
+    (id: string) => {
+      onChange(
+        references.map((reference) =>
+          reference.id === id
+            ? { ...reference, onStage: !reference.onStage }
+            : reference,
+        ),
       )
     },
     [onChange, references],
@@ -345,7 +375,7 @@ export function CharacterImageReferenceControls({
           className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle"
         >
           {isUploading ? (
-            <Loader2 className="size-5 animate-spin text-node-muted" />
+            <Spinner size="lg" className="text-node-muted" />
           ) : (
             <Upload className="size-5 text-node-muted" />
           )}
@@ -384,7 +414,7 @@ export function CharacterImageReferenceControls({
           className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
         >
           {isUploading ? (
-            <Loader2 className="size-5 animate-spin text-node-muted" />
+            <Spinner size="lg" className="text-node-muted" />
           ) : (
             <Clipboard className="size-5 text-node-muted" />
           )}
@@ -457,6 +487,34 @@ export function CharacterImageReferenceControls({
                     {tDossier('primaryBadge')}
                   </span>
                 ) : null}
+                {/* R3-6a §4 出场组〈出场〉章 — 中性墨盖章语言（rounded-none +
+                    微倾），常显（不依赖 hover）。已出场/★主图=实心加重，
+                    未出场=淡描边；石绿纪律：这不是选中态，不用 --node-paint。 */}
+                <span
+                  title={
+                    reference.isPrimary
+                      ? tDossier('onStageAlwaysOn')
+                      : reference.onStage
+                        ? tDossier('onStageOn')
+                        : tDossier('onStageOff')
+                  }
+                  className={cn(
+                    'absolute bottom-1 left-1 inline-flex h-5 -rotate-2 items-center gap-0.5 rounded-none border px-1.5 text-2xs font-semibold',
+                    reference.isPrimary || reference.onStage
+                      ? 'border-node-foreground/70 bg-node-foreground/10 text-node-foreground'
+                      : 'border-node-panel-inner/70 text-node-subtle',
+                  )}
+                >
+                  <Flag
+                    className={cn(
+                      'size-2.5',
+                      (reference.isPrimary || reference.onStage) &&
+                        'fill-current',
+                    )}
+                    aria-hidden
+                  />
+                  {tDossier('onStageBadge')}
+                </span>
                 <div className="absolute inset-0 flex flex-col justify-between bg-node-canvas/0 opacity-0 transition-opacity group-hover:bg-node-canvas/55 group-hover:opacity-100">
                   <div className="flex items-center justify-end gap-1 p-1">
                     <button
@@ -486,6 +544,35 @@ export function CharacterImageReferenceControls({
                         )}
                       />
                     </button>
+                    {!reference.isPrimary ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleOnStage(reference.id)}
+                        aria-label={
+                          reference.onStage
+                            ? tDossier('onStageToggleOff')
+                            : tDossier('onStageToggleOn')
+                        }
+                        title={
+                          reference.onStage
+                            ? tDossier('onStageToggleOff')
+                            : tDossier('onStageToggleOn')
+                        }
+                        className={cn(
+                          'nodrag flex size-6 items-center justify-center rounded-full bg-node-panel/90 transition-colors',
+                          reference.onStage
+                            ? 'text-node-foreground'
+                            : 'text-node-muted hover:text-node-foreground',
+                        )}
+                      >
+                        <Flag
+                          className={cn(
+                            'size-3.5',
+                            reference.onStage && 'fill-current',
+                          )}
+                        />
+                      </button>
+                    ) : null}
                     {onExtract ? (
                       <button
                         type="button"
@@ -622,10 +709,11 @@ export function CharacterImageReferenceControls({
             )}
           >
             <ImagePlus className="size-3.5 shrink-0" />
-            {t('chip', {
-              count: references.length,
-              max: effectiveMaxItems,
-            })}
+            {triggerLabel ??
+              t('chip', {
+                count: references.length,
+                max: effectiveMaxItems,
+              })}
           </button>
         </PopoverTrigger>
         <PopoverContent

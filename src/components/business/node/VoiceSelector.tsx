@@ -4,7 +4,6 @@ import { memo, useState, useEffect, useCallback, useRef } from 'react'
 import {
   AlertCircle,
   Check,
-  Loader2,
   Mic,
   Pause,
   Play,
@@ -52,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 
 type VoiceTab = 'public' | 'favorites' | 'cloned'
 
@@ -580,7 +580,7 @@ export const VoiceSelector = memo(function VoiceSelector({
       >
         {listIsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : listError ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
@@ -719,7 +719,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     )}
                   >
                     {isPending ? (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <Spinner size="sm" />
                     ) : tab === 'cloned' ? (
                       <Trash2 className="size-3.5" />
                     ) : (
@@ -870,7 +870,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   )}
                 >
                   {isFavoritePending ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Spinner size="sm" />
                   ) : (
                     <Star
                       className={cn(

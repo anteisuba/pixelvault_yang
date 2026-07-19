@@ -5,6 +5,7 @@ import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_TYPE_IDS, NODE_WORKFLOW_FIELD_IDS } from '@/constants/node-types'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_BRAND_IDS,
@@ -14,10 +15,16 @@ import {
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
+import {
+  buildVideoSendPreview,
+  type VideoSendPreview,
+} from '@/lib/node-video-send-preview'
 import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
 import {
+  getEdgeStageOverrideUrls,
   getNodeMediaUrl,
   getNodePrimaryMediaUrl,
+  getNodeStageMediaUrls,
   getSeedanceReferenceKind,
   getUpstreamNodes,
   harvestUpstreamAudioBindings,
@@ -64,6 +71,28 @@ export interface BoundVoice {
   edgeId?: string
 }
 
+/** A5 (canvas-relationship-v3 §7b): read-only preview of one entry in a
+ *  collector's `referenceAssets` gallery — just enough for the 管理素材 overlay's
+ *  folder row to render a thumbnail grid. Not the full
+ *  `NodeWorkflowReferenceAssetSchema` shape (weight/role/source stay in the
+ *  card's own detail panel, `CharacterImageReferenceControls`). */
+export interface ComposerGalleryAssetPreview {
+  id: string
+  url: string
+  isPrimary?: boolean
+  /** R3-6a §4: read-only mirror of the asset's `onStage` curation — lets the
+   *  folder row's thumbnail grid show which extras ride along in the harvest
+   *  alongside the ★ primary. The checkbox to TOGGLE it here is R3-6b (see
+   *  the reserved gutter in `FolderRow`); this panel only displays it. */
+  onStage?: boolean
+  /** R3-6b §3 每镜覆写: whether this URL is in THIS video's resolved stage set
+   *  RIGHT NOW — override-aware (falls back to the card's own `onStage` set
+   *  when the collector→video edge carries no override). Drives the
+   *  per-thumbnail checkbox's checked state in `FolderRow`; distinct from
+   *  `onStage` (the card's OWN default, unaware of any particular video). */
+  stagedForVideo?: boolean
+}
+
 /** A reference token enriched with generate-payload bookkeeping (§7 部门条):
  *  `imageSlotIndex`/`audioSlotIndex`/`videoSlotIndex` tie the slot badge to
  *  the real payload order (image_urls / audio_urls / video_urls); `edgeId` is
@@ -78,6 +107,17 @@ export interface ComposerReferenceToken extends ReferenceTokenData {
   /** For a closeup token (§9 B): the character node it wires into, so the strip
    *  can group it under that character's identity unit. */
   parentCharacterId?: string
+  /** A5: only set for collector kinds (character/background) — the card's full
+   *  `referenceAssets` gallery, read-only, so the 管理素材 overlay's folder row
+   *  can show "图集 N 张" + an expandable thumbnail grid without the video node
+   *  reaching into `referenceAssets` shape itself. undefined for file kinds
+   *  (shot/keyframe/closeup/voice/video), which aren't collectors. */
+  galleryAssets?: ComposerGalleryAssetPreview[]
+  /** R3-6b §3: true when the collector→video edge feeding THIS token carries
+   *  an explicit `stageOverrideUrls` (vs inheriting the card's own onStage
+   *  set). Only ever set for a collector kind (character/background) — same
+   *  scope as `galleryAssets`. Drives the folder row's "恢复默认" button. */
+  stageOverrideActive?: boolean
 }
 
 function toSelection(
@@ -185,8 +225,11 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     // image_urls order = keyframes → main refs → 1-hop closeups, matching the
     // generate path (StudioNodeWorkbench). Closeups append last so 特写N's slot
     // number lines up with its 图N badge and the model's cap keeps main refs.
+    // R3-6b §3: edges + nodeId thread through so a collector's contribution
+    // honors its per-edge stageOverrideUrls — otherwise the slot badges shown
+    // here would disagree with what an active override actually sends.
     const payloadImageUrls = [
-      ...harvestUpstreamImageUrls(incoming),
+      ...harvestUpstreamImageUrls(incoming, edges, nodeId),
       ...harvestUpstreamCloseupUrls(nodeId, edges, nodes),
     ]
     const directEdgeBySource = new Map<string, string>()
@@ -280,6 +323,38 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         edgeId: directEdgeBySource.get(node.id),
         ...(kind === 'character'
           ? { boundVoice: resolveBoundVoice(node.id) }
+          : {}),
+        // A5: collectors (character/background) carry their gallery for the
+        // 管理素材 folder row — `shot` isn't a collector (§3.0 档案卡 vs 产出立
+        // 卡), so it's left unset there even though the schema technically
+        // allows referenceAssets on any image node.
+        // R3-6b §3 每镜覆写: the SAME collector→video edge override
+        // (`getEdgeStageOverrideUrls`) the actual harvest resolves is read
+        // here too, so the folder row's per-thumbnail checkbox state never
+        // disagrees with what will actually be sent.
+        ...(kind === 'character' || kind === 'background'
+          ? (() => {
+              const edgeId = directEdgeBySource.get(node.id)
+              const edge = edgeId
+                ? edges.find((candidate) => candidate.id === edgeId)
+                : undefined
+              const overrideUrls = getEdgeStageOverrideUrls(edge)
+              const stagedUrls = new Set(
+                getNodeStageMediaUrls(node.data, overrideUrls),
+              )
+              return {
+                galleryAssets: (node.data.referenceAssets ?? []).map(
+                  (asset) => ({
+                    id: asset.id,
+                    url: asset.url,
+                    isPrimary: asset.isPrimary,
+                    onStage: asset.onStage,
+                    stagedForVideo: stagedUrls.has(asset.url),
+                  }),
+                ),
+                stageOverrideActive: overrideUrls !== undefined,
+              }
+            })()
           : {}),
       })
 
@@ -555,6 +630,41 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     updateNodeData,
   ])
 
+  // V-3b 容量护栏 / R3-6b §1: single source for the model's reference-image
+  // cap — VideoComposer.tsx used to compute this itself from `data.model`,
+  // a second independent copy of the exact same ternary. Hoisted here so
+  // BOTH the panel's capacity math AND `sendPreview` below read the same
+  // value; undefined (model unknown) degrades to "no cap known", never a
+  // guessed number.
+  const maxReferenceImages = data.model?.adapterType
+    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
+    : undefined
+
+  // R3-6b §2 发送图例预览: reactive, read-only mirror of exactly what
+  // StudioNodeWorkbench.handleGenerateMediaNode's video branch would send
+  // RIGHT NOW — same harvest + assemble + legend + translate pipeline (see
+  // node-video-send-preview.ts), recomputed live off the same edges/nodes
+  // this hook already reads. `overflow` doubles as ReferenceManagerPanel's
+  // "N/max ⚠" capacity fact source (§1) — one assembly call, two UI surfaces.
+  const sendPreview: VideoSendPreview = useMemo(
+    () =>
+      buildVideoSendPreview({
+        nodeId,
+        data,
+        edges,
+        nodes,
+        maxReferenceImages,
+        autoNamePrefix: {
+          character: tc('autoName.character'),
+          background: tc('autoName.background'),
+          shot: tc('autoName.shot'),
+          closeup: tc('autoName.closeup'),
+          video: tc('autoName.video'),
+        },
+      }),
+    [nodeId, data, edges, nodes, maxReferenceImages, tc],
+  )
+
   return {
     options,
     brands,
@@ -570,5 +680,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     selectVariant,
     selectProvider,
     previewBrandModelId,
+    maxReferenceImages,
+    sendPreview,
   }
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
@@ -14,7 +15,9 @@ import { NodeMediaPreview } from './NodeMediaPreview'
  * Output is itself a video URL so downstream Seedance Reference / further
  * merges can consume it via the existing video_urls pipeline.
  */
-export function VideoMergeNode(props: NodeProps<NodeWorkflowNode>) {
+export const VideoMergeNode = memo(function VideoMergeNode(
+  props: NodeProps<NodeWorkflowNode>,
+) {
   return (
     <NodeMediaPreview
       {...props}
@@ -22,4 +25,4 @@ export function VideoMergeNode(props: NodeProps<NodeWorkflowNode>) {
       kind={NODE_MEDIA_KIND_IDS.video}
     />
   )
-}
+})

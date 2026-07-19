@@ -167,6 +167,9 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   setToolMode: vi.fn(),
   expandedNodeId: null,
   setExpandedNodeId: vi.fn(),
+  heavyOverlayOpen: false,
+  setImageEditWorkspaceOpen: vi.fn(),
+  transientLayerOpen: false,
   modelOptionsByType: {
     [NODE_TYPE_IDS.shot]: [IMAGE_OPTION],
     [NODE_TYPE_IDS.backgroundImage]: [IMAGE_OPTION],

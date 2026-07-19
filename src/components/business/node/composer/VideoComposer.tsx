@@ -14,9 +14,9 @@ import {
   Check,
   ChevronDown,
   Dices,
+  Eye,
   Film,
   KeyRound,
-  Loader2,
   Lock,
   Wand2,
 } from 'lucide-react'
@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { PROMPT_ENHANCE, type AspectRatio } from '@/constants/config'
 import { motionTransition } from '@/constants/motion'
@@ -38,7 +39,6 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowFieldId,
 } from '@/constants/node-types'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   getVideoModelCapabilities,
   videoModelSupportsSeed,
@@ -168,6 +168,62 @@ function ComposerField({
   )
 }
 
+// C5 参数 OSD 胶囊（v4 §4 C5 捞回，R3-8）: one segment of the collapsed
+// model/duration/resolution/aspect summary row — 20-24px tall (h-6), shows
+// the current value, `aria-label` carries the field's name for a11y (the
+// visible label lives in the expanded `.node-collapsible` body below, not
+// duplicated here to keep the pill single-line per the v4 spec).
+// FB-6 极简修（2026-07-19，owner 真机实测"右栏空 / 自动自动哑胶囊读不懂"）:
+// 从紧凑哑胶囊改为整宽「标签 · 当前值」设置行——与下方种子行同款解剖，四个参
+// 数（模型/时长/分辨率/画幅）各占一行、标签与值恒可读、点行展开精调。竖排把稀
+// 疏的右栏填满，去掉"自动 自动"两个无标签胶囊的困惑。纯 token 内重排，不新造视
+// 觉隐喻（对齐 canvas-relationship-v3 §7b A6 的极简修口径 + 2026-07-19 皮肤限定）。
+function OsdPill({
+  label,
+  value,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string
+  value: string
+  active: boolean
+  onClick: () => void
+  icon?: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      {...KEY_GUARD}
+      onClick={onClick}
+      aria-expanded={active}
+      aria-label={`${label}: ${value}`}
+      className={cn(
+        'flex w-full items-center justify-between gap-2 rounded-lg border bg-node-panel-soft px-3 py-2 text-left transition-colors',
+        active
+          ? 'border-node-edge'
+          : 'border-node-panel-inner hover:border-node-edge',
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="shrink-0 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+          {label}
+        </span>
+        {icon}
+        <span className="truncate text-xs font-semibold text-node-foreground">
+          {value}
+        </span>
+      </span>
+      <ChevronDown
+        className={cn(
+          'size-3.5 shrink-0 text-node-muted transition-transform',
+          active && 'rotate-180',
+        )}
+      />
+    </button>
+  )
+}
+
 // Seconds since `active` last flipped to true, ticking every second. Resets to
 // 0 when generation stops. Client-observed elapsed time (not a backend-tracked
 // duration — F7 real progress/cancel is P2, out of scope here); the REC dot
@@ -207,7 +263,11 @@ function useElapsedSeconds(active: boolean): number {
 
 // C4 监视器：预览升级为"导演监视器"语言——四角取景框、生成中 REC+TC、无媒体时的
 // 空态提示。取代 VideoDetailBody 里原先裸的 aspect-video 预览块（§9.3：所有视频
-// 预览统一走 videoThumbnailUrl 作 poster）。
+// 预览统一走 videoThumbnailUrl 作 poster）。A6：详情态里升为面板顶部整宽 hero——
+// aspect-video 定 16:9 基准，max-h-80（20rem）钳制上限，让下半区（prompt/设置）
+// 默认可见而不必先滚过一整块 16:9；宽面板下监视器因而比 16:9 更矮更宽（C4 规格
+// 本就写"≥16:9，全宽"），窄容器（@container 单列降级）宽度更小则钳制不生效，
+// 天然保持 16:9。
 function VideoMonitor({
   mediaUrl,
   thumbnailUrl,
@@ -221,7 +281,7 @@ function VideoMonitor({
   const elapsedSeconds = useElapsedSeconds(isGenerating)
 
   return (
-    <div className="node-monitor-matte relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas">
+    <div className="node-monitor-matte relative aspect-video max-h-80 overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas">
       {mediaUrl ? (
         <video
           src={mediaUrl}
@@ -233,7 +293,10 @@ function VideoMonitor({
           preload="metadata"
         />
       ) : (
-        <div className="flex h-full items-center justify-center px-4 text-center">
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+          {/* FB-6 极简修: 空态给一枚克制的胶片图标，让监视器读成"待录制"而非
+              一块纯黑洞（owner 真机"监视器像黑洞"）——不新造视觉隐喻，只补占位。 */}
+          <Film className="size-6 text-node-subtle/60" aria-hidden />
           <span className="text-3xs text-node-subtle">
             {tc('monitor.empty')}
           </span>
@@ -256,6 +319,70 @@ function VideoMonitor({
   )
 }
 
+// C1 场记条（v4 §4 C1 捞回，R3-8）：视频详情 body 顶部一条 44px 结构条，读现有字
+// 段——项目名走 actions context（NodeWorkflowActionsContext.projectName，即
+// CanvasTopBar 已经在用的同一个 `workflow.currentProjectName`）、上游镜头名走
+// composer 的 shot 引用 token、模式=有无参考输入、状态=data.status。任一段缺席
+// （没挂镜头图 / 项目名未知）诚实省略，不留白凑数、不编造。与 NodeDetailPanel
+// 头部的面包屑（画布 / 节点名）不重复：面包屑答"这是哪个节点"，本条答"归哪个
+// 项目 · 接哪个镜头 · 什么生成模式"——所以本条不再复述节点类型名。
+function VideoSlateStrip({
+  projectName,
+  shotName,
+  isReferenceMode,
+  status,
+}: {
+  projectName?: string
+  shotName?: string
+  isReferenceMode: boolean
+  status: NodeWorkflowNodeData['status']
+}) {
+  const t = useTranslations('StudioNode.statuses')
+  const tc = useTranslations('StudioNode.videoComposer')
+  const isRunning = status === NODE_STATUS_IDS.running
+  const isFailed = status === NODE_STATUS_IDS.failed
+
+  return (
+    <div className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3">
+      {/* 三道斜纹场记记号 — 结构表达，纯 CSS，不是插画资产。 */}
+      <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
+        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
+        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
+        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
+      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {projectName ? (
+          <span className="truncate text-sm font-semibold text-node-foreground">
+            {projectName}
+          </span>
+        ) : null}
+        {shotName ? (
+          <span className="truncate text-xs text-node-muted">{shotName}</span>
+        ) : null}
+        <span className="shrink-0 text-3xs text-node-subtle">
+          {isReferenceMode ? tc('slate.modeReference') : tc('slate.modeText')}
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className={cn(
+            'size-1.5 rounded-full',
+            isRunning
+              ? 'animate-pulse bg-node-paint'
+              : isFailed
+                ? 'bg-node-status-failed'
+                : 'bg-node-muted',
+          )}
+        />
+        <span className="font-mono text-3xs uppercase text-node-muted">
+          {t(status)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Model-aware video composer mounted on the node card (density='card') and, for
  * now, hosted in a slimmed inspector (density='expand'). Reuses the same
@@ -268,11 +395,13 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const tc = useTranslations('StudioNode.videoComposer')
   const {
     updateNodeData,
+    updateEdgeData,
     generateMediaNode,
     setExpandedNodeId,
     focusNode,
     deleteEdge,
     spawnReference,
+    projectName,
   } = useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
   const reducedMotion = useReducedMotion()
@@ -283,10 +412,31 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
   // to the prompt, cleared once its fly+glow finishes. null when idle.
   const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
-  // In-composer disclosure for the compact model picker (detail mode). Default
-  // open only when no brand is committed yet, so first-run users see the list;
-  // it collapses after a brand is committed (ready-key click or rebind confirm).
-  const [pickerOpen, setPickerOpen] = useState(() => !composer.state.brand)
+  // C5 参数 OSD（v4 §4 C5 捞回，R3-8）: the settings column collapses model /
+  // duration / resolution / aspect behind one capsule row — `openSection`
+  // is the single accordion driving all four (same `.node-collapsible`
+  // grid-rows mechanism the model rail already used pre-R3-8, just shared
+  // across the four segments instead of owned by one). Default open only
+  // when no brand is committed yet, so first-run users still land on the
+  // model rail; it collapses after a brand is committed (ready-key click or
+  // rebind confirm) — same rule the old standalone `pickerOpen` had.
+  const [openSection, setOpenSection] = useState<
+    'model' | 'duration' | 'resolution' | 'aspect' | null
+  >(() => (composer.state.brand ? null : 'model'))
+  // Seed's collapsed summary row is intentionally its own toggle, not a 5th
+  // OSD segment — §4 C5 keeps 生成音频/种子 out of the OSD capsule group and
+  // gives seed its own "另起常驻空间" entry, so it doesn't fight the OSD
+  // accordion for the open slot.
+  const [seedOpen, setSeedOpen] = useState(false)
+  const toggleSection = useCallback(
+    (section: 'model' | 'duration' | 'resolution' | 'aspect') => {
+      setOpenSection((current) => (current === section ? null : section))
+    },
+    [],
+  )
+  // R3-6b §2 发送图例预览: closed by default (diagnostic, not primary flow) —
+  // "查看发送内容" opens a read-only mirror of `composer.sendPreview`.
+  const [sendPreviewOpen, setSendPreviewOpen] = useState(false)
   // Pending brand switch awaiting confirmation because it would ignore a bound
   // reference under the new model's capability contract (§5.1 不静默丢).
   const [pendingBrand, setPendingBrand] = useState<{
@@ -330,9 +480,9 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       if (pending) composer.selectBrand(pending.brand)
       return null
     })
-    // Collapse the compact picker on a confirmed rebind, matching the
+    // Collapse the OSD model section on a confirmed rebind, matching the
     // ready-key brand-pick path (so every commit route collapses).
-    setPickerOpen(false)
+    setOpenSection(null)
   }, [composer])
 
   const cancelPendingBrand = useCallback(() => setPendingBrand(null), [])
@@ -389,15 +539,13 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   const supportsSeed = selectedModelId
     ? videoModelSupportsSeed(selectedModelId, composer.hasReferenceInputs)
     : false
-  // V-3b 容量护栏 (设计稿 §3.6): the manager panel warns when 已引用图 exceeds
-  // the CURRENT model's actual cap (Seedance ≤9) rather than a hardcoded
-  // number — undefined model = unknown cap = warning suppressed, not guessed.
-  // Guards on `adapterType` specifically (not just `data.model`): a legacy /
-  // partially-migrated persisted node can carry a `model` object without one,
-  // and `getMaxReferenceImages` has no undefined-safe fallback of its own.
-  const maxReferenceImages = data.model?.adapterType
-    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
-    : undefined
+  // V-3b 容量护栏 (设计稿 §3.6) / R3-6b §1: the manager panel warns when 已引用图
+  // exceeds the CURRENT model's actual cap (Seedance ≤9) rather than a
+  // hardcoded number — undefined model = unknown cap = warning suppressed,
+  // not guessed. Resolved once inside `useVideoComposer` (single source,
+  // also feeds `sendPreview`'s capping) instead of a second independent copy
+  // of the same `getMaxReferenceImages` ternary.
+  const maxReferenceImages = composer.maxReferenceImages
   const resolutionOptions =
     capabilities?.supportedResolutions ?? VIDEO_RESOLUTIONS
   const aspectOptions =
@@ -425,6 +573,13 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     data.status === NODE_STATUS_IDS.running
   const hasMedia = typeof data.mediaUrl === 'string' && data.mediaUrl.length > 0
+  // C1 场记条「镜头」段: the upstream shot-image reference feeding this video,
+  // if any — same `kind: 'shot'` token the reference strip already resolves
+  // (name or auto-numbered @镜头N). No shot upstream / unnamed with no slot ⇒
+  // empty label ⇒ honestly omitted, not a new field.
+  const shotReferenceLabel =
+    composer.referenceTokens.find((token) => token.kind === 'shot')?.label ||
+    undefined
   const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, data)
   const promptFieldValue = getNodeWorkflowFieldValue(
     data,
@@ -621,6 +776,43 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     [deleteEdge, tc],
   )
 
+  // R3-6b §3 每镜覆写: toggling a gallery thumbnail's checkbox writes the
+  // collector→video edge's `stageOverrideUrls` — the FIRST toggle on an
+  // inherited (no-override) card seeds the override from the CURRENT
+  // effective stage set (`galleryAssets[].stagedForVideo`, already
+  // override-aware) so a single click only changes the one asset the user
+  // touched, not the whole set.
+  const handleToggleStage = useCallback(
+    (token: ComposerReferenceToken, assetUrl: string, checked: boolean) => {
+      if (!token.edgeId || !updateEdgeData) return
+      const effective = new Set(
+        (token.galleryAssets ?? [])
+          .filter((asset) => asset.stagedForVideo)
+          .map((asset) => asset.url),
+      )
+      if (checked) effective.add(assetUrl)
+      else effective.delete(assetUrl)
+      updateEdgeData(token.edgeId, {
+        stageOverrideUrls: Array.from(effective),
+      })
+    },
+    [updateEdgeData],
+  )
+
+  const handleRestoreDefaultStage = useCallback(
+    (token: ComposerReferenceToken) => {
+      if (!token.edgeId || !updateEdgeData) return
+      updateEdgeData(token.edgeId, { stageOverrideUrls: undefined })
+    },
+    [updateEdgeData],
+  )
+
+  // R3-6b §1 容量透明: `imageOverflow` is `sendPreview.overflow` reshaped into
+  // a Map for O(1) per-thumbnail lookups — same fact, no recomputation.
+  const imageOverflow = new Map(
+    composer.sendPreview.overflow.map((entry) => [entry.url, entry.name]),
+  )
+
   const handleResolutionToggle = useCallback(
     (value: VideoResolution) => {
       updateNodeData(id, {
@@ -670,6 +862,16 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     0,
     durationOptions.indexOf(currentDurationSeconds),
   )
+  // C5 OSD 摘要文案 — all three derive from state already computed above for
+  // the 1:1 controls; the OSD pill just renders the same fact as one line
+  // instead of a full field. Resolution/aspect unset both mean "provider
+  // decides", so they share the existing `aspectAuto` copy rather than
+  // inventing a second "unset" string for the same concept.
+  const durationSummary = isAutoDuration
+    ? tFields('duration.auto')
+    : tFields('duration.seconds', { value: String(currentDurationSeconds) })
+  const resolutionSummary = currentResolution ?? tc('aspectAuto')
+  const aspectSummary = currentAspect ?? tc('aspectAuto')
 
   // Plain handlers (not useCallback): under the current hook graph the React
   // Compiler can't preserve a manual memoization that closes over the derived
@@ -709,11 +911,7 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
       disabled={Boolean(disabledReason)}
       className="h-10 w-full rounded-xl bg-node-paint text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
     >
-      {isPending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <Film className="size-4" />
-      )}
+      {isPending ? <Spinner size="md" /> : <Film className="size-4" />}
       {disabledReason ?? generateLabel}
     </Button>
   )
@@ -772,13 +970,37 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
   }
 
   return (
-    <div className="nodrag space-y-4">
-      {/* Two-pane layout: left = text inputs (references + prompt + negative),
-          right = model + render settings. The @container collapses to one column
-          when the panel narrows; the generate button spans full width below. */}
+    <div className="nodrag relative space-y-4">
+      {/* A6 骨架：监视器 hero 顶部整宽，下方 prompt(左·写作) / 设置(右·调参) 双栏。
+          @container 窄断点降级为单列，DOM 顺序即视觉顺序：监视器 → 提示词 → 设置。
+          A5: relative 是「管理素材」右半覆盖层的定位锚——ReferenceManagerPanel 深
+          嵌在下方左列里，但它的覆盖层用 absolute inset-y-0 right-0，靠 CSS 的"就近
+          已定位祖先"规则直接贴到这层，覆盖监视器→双栏→生成键的整个可见高度，不
+          用把状态提升到这里、也不用穿透传 ref。 */}
+      <VideoSlateStrip
+        projectName={projectName}
+        shotName={shotReferenceLabel}
+        isReferenceMode={composer.hasReferenceInputs}
+        status={data.status}
+      />
+      <VideoMonitor
+        mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
+        thumbnailUrl={
+          typeof data.videoThumbnailUrl === 'string'
+            ? data.videoThumbnailUrl
+            : undefined
+        }
+        isGenerating={isPending}
+      />
+
+      {/* Two-pane layout below the monitor: left = text inputs (references +
+          prompt + negative), right = model + render settings. 3:2 列宽比照顾
+          提示词书写密度（textarea/管理素材条更需要横向空间，设置区都是紧凑
+          chips/滑杆）。The @container collapses to one column when the panel
+          narrows; the generate button spans full width below. */}
       <div className="@container">
-        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
-          <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-5">
+          <div className="space-y-3 @2xl:col-span-3">
             {/* V-3a 管理素材面板 — 取代五分区部门条：始终可见的「已引用」条
                 （点击重新插入 / hover × 删连线）+「管理素材」抽屉（已连接 N 全量列
                 + 类型 tab + 搜索 + 每行插入/已引用状态 + ⋮ 定位/断连/加音色/加特写）。
@@ -793,6 +1015,12 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               onAddVoice={spawnReference ? handleAddVoice : undefined}
               onAddCloseup={spawnReference ? handleAddCloseup : undefined}
               maxReferenceImages={maxReferenceImages}
+              imageOverflow={imageOverflow}
+              assembledImageCount={composer.sendPreview.assembledImageCount}
+              onToggleStage={updateEdgeData ? handleToggleStage : undefined}
+              onRestoreDefaultStage={
+                updateEdgeData ? handleRestoreDefaultStage : undefined
+              }
             />
             {composer.hasReferenceInputs ? (
               <p className="px-0.5 text-2xs leading-4 text-node-subtle">
@@ -864,167 +1092,165 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
             </ComposerField>
           </div>
 
-          <div className="space-y-3">
-            {/* C4 监视器 — 右列第一个区块，"看片"先于"调参"。 */}
-            <VideoMonitor
-              mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
-              thumbnailUrl={
-                typeof data.videoThumbnailUrl === 'string'
-                  ? data.videoThumbnailUrl
-                  : undefined
-              }
-              isGenerating={isPending}
-            />
-
-            {/* Compact model picker — collapsed chip below the prompt; expands the
-          full brand/variant/provider rail and collapses again after a commit. */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                {...KEY_GUARD}
-                onClick={() => setPickerOpen((open) => !open)}
-                aria-expanded={pickerOpen}
-                className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
-              >
-                <span className="flex min-w-0 items-center gap-1.5">
-                  {pickerStatus ? (
+          <div className="space-y-3 @2xl:col-span-2">
+            {/* C5 参数设置（v4 §4 C5，R3-8 起；FB-6 极简修 2026-07-19）: 模型/时
+                长/分辨率/画幅各一整宽「标签 · 值」行，点击展开下方 1:1 现有控件
+                （同一 openSection 手风琴，点新段自动收起上一段）。竖排让右设置栏
+                不再稀疏、四个值恒可读。生成音频/种子刻意不在这组里（见下方两处
+                独立区块），与 v4 §4 C5 原文一致。 */}
+            <div className="space-y-1.5">
+              <OsdPill
+                label={tc('modelRail.label')}
+                value={pickerLabel}
+                icon={
+                  pickerStatus ? (
                     pickerStatus.ready ? (
                       <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
                     ) : (
-                      <KeyRound className="size-3 shrink-0 text-node-muted" />
+                      <KeyRound className="size-3 shrink-0" />
                     )
-                  ) : null}
-                  <span className="truncate">{pickerLabel}</span>
-                </span>
-                <ChevronDown
-                  className={cn(
-                    'size-3.5 shrink-0 text-node-muted transition-transform',
-                    pickerOpen && 'rotate-180',
-                  )}
-                />
-              </button>
+                  ) : null
+                }
+                active={openSection === 'model'}
+                onClick={() => toggleSection('model')}
+              />
+              <OsdPill
+                label={tFields('duration.label')}
+                value={durationSummary}
+                active={openSection === 'duration'}
+                onClick={() => toggleSection('duration')}
+              />
+              <OsdPill
+                label={t('resolutionLabel')}
+                value={resolutionSummary}
+                active={openSection === 'resolution'}
+                onClick={() => toggleSection('resolution')}
+              />
+              <OsdPill
+                label={t('aspectRatioLabel')}
+                value={aspectSummary}
+                active={openSection === 'aspect'}
+                onClick={() => toggleSection('aspect')}
+              />
+            </div>
 
-              <div
-                className="node-collapsible"
-                data-open={pickerOpen || undefined}
-              >
-                <div>
-                  <div className="mt-2 space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
-                    <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                      {tc('modelRail.label')}
-                    </span>
-                    <div className="space-y-1">
-                      {composer.brands.map((brand) => {
-                        const isCurrent = composer.state.brand === brand
-                        const status = getBrandKeyStatus(
-                          brand,
-                          composer.options,
-                        )
-                        return (
-                          <div
-                            key={brand}
-                            className={cn(
-                              'overflow-hidden rounded-lg border transition-colors',
-                              isCurrent
-                                ? 'border-node-edge bg-node-panel'
-                                : 'border-node-panel-inner',
-                            )}
+            <div
+              className="node-collapsible"
+              data-open={openSection === 'model' || undefined}
+            >
+              <div>
+                <div className="mt-2 space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
+                  <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {tc('modelRail.label')}
+                  </span>
+                  <div className="space-y-1">
+                    {composer.brands.map((brand) => {
+                      const isCurrent = composer.state.brand === brand
+                      const status = getBrandKeyStatus(brand, composer.options)
+                      return (
+                        <div
+                          key={brand}
+                          className={cn(
+                            'overflow-hidden rounded-lg border transition-colors',
+                            isCurrent
+                              ? 'border-node-edge bg-node-panel'
+                              : 'border-node-panel-inner',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            {...KEY_GUARD}
+                            onClick={() => {
+                              handleBrandClick(brand, status)
+                              if (status.ready) setOpenSection(null)
+                            }}
+                            className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
                           >
-                            <button
-                              type="button"
-                              {...KEY_GUARD}
-                              onClick={() => {
-                                handleBrandClick(brand, status)
-                                if (status.ready) setPickerOpen(false)
-                              }}
-                              className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
-                            >
-                              <span
-                                className={cn(
-                                  'text-xs font-semibold',
-                                  isCurrent
-                                    ? 'text-node-foreground'
-                                    : 'text-node-muted',
-                                )}
-                              >
-                                {brand}
-                              </span>
-                              {status.ready ? (
-                                <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
-                                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                  <span className="max-w-24 truncate">
-                                    {status.keyLabel ?? tc('modelRail.ready')}
-                                  </span>
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
-                                  <KeyRound className="size-3 shrink-0" />
-                                  {tc('modelRail.needsKey')}
-                                </span>
+                            <span
+                              className={cn(
+                                'text-xs font-semibold',
+                                isCurrent
+                                  ? 'text-node-foreground'
+                                  : 'text-node-muted',
                               )}
-                            </button>
-                            {isCurrent && status.ready ? (
-                              <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
-                                {composer.variants.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {composer.variants.map((variant) => {
-                                      const on =
-                                        composer.state.variant === variant
-                                      return (
-                                        <button
-                                          key={variant}
-                                          type="button"
-                                          {...KEY_GUARD}
-                                          onClick={() =>
-                                            composer.selectVariant(variant)
-                                          }
-                                          className={cn(
-                                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                            on
-                                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                          )}
-                                        >
-                                          {tc(`variant.${variant}`)}
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                ) : null}
-                                {composer.isDualProvider ? (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {providers.map((provider) => {
-                                      const on =
-                                        composer.state.provider === provider
-                                      return (
-                                        <button
-                                          key={provider}
-                                          type="button"
-                                          {...KEY_GUARD}
-                                          onClick={() =>
-                                            composer.selectProvider(provider)
-                                          }
-                                          className={cn(
-                                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                            on
-                                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                          )}
-                                        >
-                                          {tc(
-                                            `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
-                                          )}
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
-                          </div>
-                        )
-                      })}
-                    </div>
+                            >
+                              {brand}
+                            </span>
+                            {status.ready ? (
+                              <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
+                                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                <span className="max-w-24 truncate">
+                                  {status.keyLabel ?? tc('modelRail.ready')}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
+                                <KeyRound className="size-3 shrink-0" />
+                                {tc('modelRail.needsKey')}
+                              </span>
+                            )}
+                          </button>
+                          {isCurrent && status.ready ? (
+                            <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
+                              {composer.variants.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {composer.variants.map((variant) => {
+                                    const on =
+                                      composer.state.variant === variant
+                                    return (
+                                      <button
+                                        key={variant}
+                                        type="button"
+                                        {...KEY_GUARD}
+                                        onClick={() =>
+                                          composer.selectVariant(variant)
+                                        }
+                                        className={cn(
+                                          'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                          on
+                                            ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                        )}
+                                      >
+                                        {tc(`variant.${variant}`)}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                              {composer.isDualProvider ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {providers.map((provider) => {
+                                    const on =
+                                      composer.state.provider === provider
+                                    return (
+                                      <button
+                                        key={provider}
+                                        type="button"
+                                        {...KEY_GUARD}
+                                        onClick={() =>
+                                          composer.selectProvider(provider)
+                                        }
+                                        className={cn(
+                                          'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                          on
+                                            ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                        )}
+                                      >
+                                        {tc(
+                                          `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -1075,121 +1301,146 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
               </div>
             ) : null}
 
-            <ComposerField label={tFields('duration.label')}>
-              <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold tabular-nums text-node-foreground">
-                    {isAutoDuration
-                      ? tFields('duration.auto')
-                      : tFields('duration.seconds', {
-                          value: String(currentDurationSeconds),
-                        })}
-                  </span>
-                  <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
-                    {tFields('duration.auto')}
-                    <Switch
-                      checked={isAutoDuration}
-                      onCheckedChange={handleDurationAuto}
-                      aria-label={tFields('duration.auto')}
-                    />
-                  </label>
-                </div>
-                <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
-                  <Slider
-                    min={0}
-                    max={Math.max(0, durationOptions.length - 1)}
-                    step={1}
-                    value={[durationIndex]}
-                    onValueChange={(vals) => handleDurationSlide(vals[0] ?? 0)}
-                    disabled={isAutoDuration}
-                    aria-label={tFields('duration.label')}
-                  />
-                </div>
-                <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
-                  <span>{durationOptions[0]}</span>
-                  <span>{durationOptions[durationOptions.length - 1]}</span>
-                </div>
+            <div
+              className="node-collapsible"
+              data-open={openSection === 'duration' || undefined}
+            >
+              <div>
+                <ComposerField label={tFields('duration.label')}>
+                  <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold tabular-nums text-node-foreground">
+                        {isAutoDuration
+                          ? tFields('duration.auto')
+                          : tFields('duration.seconds', {
+                              value: String(currentDurationSeconds),
+                            })}
+                      </span>
+                      <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
+                        {tFields('duration.auto')}
+                        <Switch
+                          checked={isAutoDuration}
+                          onCheckedChange={handleDurationAuto}
+                          aria-label={tFields('duration.auto')}
+                        />
+                      </label>
+                    </div>
+                    <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
+                      <Slider
+                        min={0}
+                        max={Math.max(0, durationOptions.length - 1)}
+                        step={1}
+                        value={[durationIndex]}
+                        onValueChange={(vals) =>
+                          handleDurationSlide(vals[0] ?? 0)
+                        }
+                        disabled={isAutoDuration}
+                        aria-label={tFields('duration.label')}
+                      />
+                    </div>
+                    <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
+                      <span>{durationOptions[0]}</span>
+                      <span>{durationOptions[durationOptions.length - 1]}</span>
+                    </div>
+                  </div>
+                </ComposerField>
               </div>
-            </ComposerField>
+            </div>
 
-            <ComposerField label={t('resolutionLabel')}>
-              <div className="flex flex-wrap gap-1.5">
-                {resolutionOptions.map((option) => {
-                  const isSelected = currentResolution === option
-                  return (
+            <div
+              className="node-collapsible"
+              data-open={openSection === 'resolution' || undefined}
+            >
+              <div>
+                <ComposerField label={t('resolutionLabel')}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {resolutionOptions.map((option) => {
+                      const isSelected = currentResolution === option
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() => handleResolutionToggle(option)}
+                          className={cn(
+                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                            isSelected
+                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                          )}
+                        >
+                          {option}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </ComposerField>
+              </div>
+            </div>
+
+            <div
+              className="node-collapsible"
+              data-open={openSection === 'aspect' || undefined}
+            >
+              <div>
+                <ComposerField label={t('aspectRatioLabel')}>
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      key={option}
                       type="button"
                       {...KEY_GUARD}
-                      onClick={() => handleResolutionToggle(option)}
-                      className={cn(
-                        'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                        isSelected
-                          ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                      )}
-                    >
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-            </ComposerField>
-
-            <ComposerField label={t('aspectRatioLabel')}>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  onClick={() => updateNodeData(id, { aspectRatio: undefined })}
-                  aria-pressed={currentAspect === undefined}
-                  className={cn(
-                    'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                    currentAspect === undefined
-                      ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
-                      : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                  )}
-                >
-                  <Wand2 className="size-4" />
-                  <span className="text-2xs font-semibold">
-                    {tc('aspectAuto')}
-                  </span>
-                </button>
-                {aspectOptions.map((option) => {
-                  const isSelected = currentAspect === option
-                  const box = aspectBoxStyle(option)
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      {...KEY_GUARD}
-                      onClick={() => handleAspectToggle(option)}
-                      aria-pressed={isSelected}
+                      onClick={() =>
+                        updateNodeData(id, { aspectRatio: undefined })
+                      }
+                      aria-pressed={currentAspect === undefined}
                       className={cn(
                         'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                        isSelected
+                        currentAspect === undefined
                           ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
                           : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
                       )}
                     >
-                      <span
-                        aria-hidden
-                        style={{ width: box.width, height: box.height }}
-                        className={cn(
-                          'rounded-sm border',
-                          isSelected
-                            ? 'border-node-foreground'
-                            : 'border-node-muted',
-                        )}
-                      />
-                      <span className="text-2xs font-semibold tabular-nums">
-                        {option}
+                      <Wand2 className="size-4" />
+                      <span className="text-2xs font-semibold">
+                        {tc('aspectAuto')}
                       </span>
                     </button>
-                  )
-                })}
+                    {aspectOptions.map((option) => {
+                      const isSelected = currentAspect === option
+                      const box = aspectBoxStyle(option)
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() => handleAspectToggle(option)}
+                          aria-pressed={isSelected}
+                          className={cn(
+                            'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                            isSelected
+                              ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            style={{ width: box.width, height: box.height }}
+                            className={cn(
+                              'rounded-sm border',
+                              isSelected
+                                ? 'border-node-foreground'
+                                : 'border-node-muted',
+                            )}
+                          />
+                          <span className="text-2xs font-semibold tabular-nums">
+                            {option}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </ComposerField>
               </div>
-            </ComposerField>
+            </div>
 
             <div
               className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
@@ -1212,60 +1463,107 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
             </div>
 
             {supportsSeed ? (
-              <ComposerField label={tc('seedLabel')}>
-                <div className="flex items-center gap-1.5">
-                  <IMEAwareInput
-                    value={
-                      typeof data.seed === 'number' ? String(data.seed) : ''
-                    }
-                    onValueChange={(next) => {
-                      const trimmed = next.trim()
-                      const parsed = Number(trimmed)
-                      updateNodeData(id, {
-                        seed:
-                          trimmed && Number.isInteger(parsed) && parsed >= 0
-                            ? Math.min(parsed, 2147483647)
-                            : undefined,
-                      })
-                    }}
-                    inputMode="numeric"
-                    aria-label={tc('seedLabel')}
-                    placeholder={tc('seedRandom')}
-                    {...KEY_GUARD}
-                    className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+              <div className="space-y-2">
+                {/* 种子 — v4 §4 C5: 生成音频+种子不进 OSD 摘要，另起常驻空间；种
+                    子默认收起为可点摘要行「种子 · 随机/数值」，独立于上面的 OSD
+                    手风琴（不抢它的展开位）。 */}
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  onClick={() => setSeedOpen((open) => !open)}
+                  aria-expanded={seedOpen}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {tc('seedLabel')}
+                    </span>
+                    <span className="truncate font-mono tabular-nums">
+                      {typeof data.seed === 'number'
+                        ? data.seed
+                        : tc('seedRandom')}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 shrink-0 text-node-muted transition-transform',
+                      seedOpen && 'rotate-180',
+                    )}
                   />
-                  <button
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={() =>
-                      updateNodeData(id, {
-                        seed: Math.floor(Math.random() * 2147483647),
-                      })
-                    }
-                    aria-label={tc('seedRandomize')}
-                    title={tc('seedRandomize')}
-                    className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
-                  >
-                    <Dices className="size-4" />
-                  </button>
+                </button>
+                <div
+                  className="node-collapsible"
+                  data-open={seedOpen || undefined}
+                >
+                  <div>
+                    {/* No ComposerField label here — the trigger row above
+                        already reads "种子 · 随机/数值", so repeating the
+                        "种子(seed)" heading in the expanded body would just be
+                        the same fact twice; the 1:1 controls (input/dice/
+                        lastSeed) are otherwise untouched. */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <IMEAwareInput
+                          value={
+                            typeof data.seed === 'number'
+                              ? String(data.seed)
+                              : ''
+                          }
+                          onValueChange={(next) => {
+                            const trimmed = next.trim()
+                            const parsed = Number(trimmed)
+                            updateNodeData(id, {
+                              seed:
+                                trimmed &&
+                                Number.isInteger(parsed) &&
+                                parsed >= 0
+                                  ? Math.min(parsed, 2147483647)
+                                  : undefined,
+                            })
+                          }}
+                          inputMode="numeric"
+                          aria-label={tc('seedLabel')}
+                          placeholder={tc('seedRandom')}
+                          {...KEY_GUARD}
+                          className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                        />
+                        <button
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() =>
+                            updateNodeData(id, {
+                              seed: Math.floor(Math.random() * 2147483647),
+                            })
+                          }
+                          aria-label={tc('seedRandomize')}
+                          title={tc('seedRandomize')}
+                          className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
+                        >
+                          <Dices className="size-4" />
+                        </button>
+                      </div>
+                      {hasMedia && typeof data.lastSeed === 'number' ? (
+                        <button
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() =>
+                            updateNodeData(id, { seed: data.lastSeed })
+                          }
+                          className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
+                        >
+                          <span>
+                            {tc('lastSeedLabel')}: {data.lastSeed}
+                          </span>
+                          <span className="flex items-center gap-1 text-node-foreground">
+                            <Lock className="size-3" />
+                            {tc('seedLock')}
+                          </span>
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-                {hasMedia && typeof data.lastSeed === 'number' ? (
-                  <button
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={() => updateNodeData(id, { seed: data.lastSeed })}
-                    className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
-                  >
-                    <span>
-                      {tc('lastSeedLabel')}: {data.lastSeed}
-                    </span>
-                    <span className="flex items-center gap-1 text-node-foreground">
-                      <Lock className="size-3" />
-                      {tc('seedLock')}
-                    </span>
-                  </button>
-                ) : null}
-              </ComposerField>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1276,6 +1574,121 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
           {data.generationError}
         </div>
       ) : null}
+
+      {/* R3-6b §2 发送图例预览（防黑盒）: read-only mirror of
+          `composer.sendPreview` — same finalPrompt/legend/image_urls pipeline
+          `handleGenerateMediaNode` assembles for real, recomputed live off the
+          same graph state, so it never lies about the覆写/截断-adjusted set
+          that will actually ship. */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          {...KEY_GUARD}
+          onClick={() => setSendPreviewOpen((open) => !open)}
+          aria-expanded={sendPreviewOpen}
+          className="nodrag flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-2xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+        >
+          <span className="flex items-center gap-1.5">
+            <Eye className="size-3.5 shrink-0" />
+            {tc('sendPreview.toggle')}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-3.5 shrink-0 transition-transform',
+              sendPreviewOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        <div
+          className="node-collapsible"
+          data-open={sendPreviewOpen || undefined}
+        >
+          <div>
+            <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2.5 text-2xs leading-5 text-node-foreground">
+              <div>
+                <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {tc('sendPreview.promptLabel')}
+                </p>
+                <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
+                  {composer.sendPreview.translatedPrompt ||
+                    tc('sendPreview.empty')}
+                </p>
+              </div>
+
+              {composer.sendPreview.legend ? (
+                <div>
+                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {tc('sendPreview.legendLabel')}
+                  </p>
+                  <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
+                    {composer.sendPreview.legend}
+                  </p>
+                </div>
+              ) : null}
+
+              {composer.sendPreview.images.length > 0 ? (
+                <div>
+                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {tc('sendPreview.imagesLabel', {
+                      count: composer.sendPreview.images.length,
+                    })}
+                  </p>
+                  <ol className="mt-1 flex flex-wrap gap-1.5">
+                    {composer.sendPreview.images.map((image) => (
+                      <li
+                        key={image.url}
+                        className="flex w-16 flex-col items-center gap-1"
+                      >
+                        <span className="node-card-window relative aspect-square w-full overflow-hidden rounded-md border border-node-panel-inner bg-node-card-window">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={image.url}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                          <span className="absolute left-0.5 top-0.5 rounded-full bg-node-canvas/80 px-1 text-3xs font-semibold text-node-foreground">
+                            {tc('sendPreview.imageBadge', {
+                              index: image.index,
+                            })}
+                          </span>
+                        </span>
+                        <span className="w-full truncate text-center text-3xs text-node-subtle">
+                          {image.name ?? tc('sendPreview.unnamed')}
+                          {image.category ? `（${image.category}）` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+
+              {composer.sendPreview.videoUrls.length > 0 ||
+              composer.sendPreview.audioEntries.length > 0 ? (
+                <div>
+                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {tc('sendPreview.avLabel')}
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-3xs text-node-subtle">
+                    {composer.sendPreview.videoUrls.map((url, index) => (
+                      <li key={url}>
+                        {tc('sendPreview.videoBadge', { index: index + 1 })}
+                      </li>
+                    ))}
+                    {composer.sendPreview.audioEntries.map((entry) => (
+                      <li key={entry.index}>
+                        {tc('sendPreview.audioBadge', {
+                          index: entry.index,
+                        })}
+                        {` · ${entry.label}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {generateButton}
 

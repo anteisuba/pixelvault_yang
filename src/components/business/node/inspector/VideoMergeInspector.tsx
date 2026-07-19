@@ -1,25 +1,18 @@
 'use client'
 
-import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
-import { useEdges, useNodes } from '@xyflow/react'
-import { Layers, Loader2, Sparkles, Trash2, Video } from 'lucide-react'
+import { useCallback, type ChangeEvent } from 'react'
+import { Layers, Sparkles, Trash2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
-import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
-import { mergeVideosAPI } from '@/lib/api-client'
-import type { MergeVideoClipInput } from '@/lib/api-client/node-workflow'
-import {
-  getUpstreamNodes,
-  harvestUpstreamVideoUrls,
-} from '@/lib/node-workflow-graph'
+import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 
@@ -27,15 +20,20 @@ interface VideoMergeInspectorProps {
   node: NodeWorkflowNode
 }
 
-const MIN_CLIPS = 2
-const MAX_CLIPS = 9
-
 export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
   const t = useTranslations('StudioNode.videoMerge')
-  const allNodes = useNodes<NodeWorkflowNode>()
-  const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData } = useNodeWorkflowActions()
-  const [isMerging, setIsMerging] = useState(false)
+  const {
+    upstreamVideoUrls,
+    clipCount,
+    maxClips,
+    clipOverrides,
+    hasAnyTrim,
+    canMerge,
+    isMerging,
+    disabledReason: mergeDisabledReason,
+    handleMerge,
+  } = useVideoMergeAction(node)
 
   const mediaUrl =
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
@@ -45,62 +43,16 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
       ? NODE_GENERATION_STATUS_IDS.success
       : NODE_GENERATION_STATUS_IDS.idle)
 
-  // Walk upstream once + reuse for both the clip-list rendering and the
-  // merge request payload, so what users see in the Inspector is exactly
-  // what fal receives.
-  const upstreamVideoUrls = useMemo(() => {
-    const upstream = getUpstreamNodes(node.id, edges, allNodes)
-    return harvestUpstreamVideoUrls(upstream)
-  }, [allNodes, edges, node.id])
-
-  // Trim overrides are keyed by source URL so re-ordering the upstream
-  // doesn't lose user edits. When the upstream is disconnected the entry
-  // simply doesn't render — it stays in the node's data so reconnecting
-  // restores the trim.
-  const clipOverrides = useMemo(() => {
-    const map = new Map<string, { startSec?: number; endSec?: number }>()
-    for (const clip of node.data.mergeSettings?.clips ?? []) {
-      map.set(clip.url, { startSec: clip.startSec, endSec: clip.endSec })
-    }
-    return map
-  }, [node.data.mergeSettings])
-
-  const hasAnyTrim = useMemo(() => {
-    for (const clip of node.data.mergeSettings?.clips ?? []) {
-      if (typeof clip.startSec === 'number' && clip.startSec > 0) return true
-      if (typeof clip.endSec === 'number') return true
-    }
-    return false
-  }, [node.data.mergeSettings])
-
-  const hasInvalidTrim = useMemo(
-    () =>
-      upstreamVideoUrls.some((url) => {
-        const override = clipOverrides.get(url)
-        return (
-          typeof override?.startSec === 'number' &&
-          typeof override.endSec === 'number' &&
-          override.endSec <= override.startSec
-        )
-      }),
-    [clipOverrides, upstreamVideoUrls],
-  )
-
-  const clipCount = upstreamVideoUrls.length
-  const canMerge =
-    clipCount >= MIN_CLIPS &&
-    clipCount <= MAX_CLIPS &&
-    !hasInvalidTrim &&
-    !isMerging
-
-  const disabledReason =
-    clipCount < MIN_CLIPS
-      ? t('errors.tooFewClips', { min: MIN_CLIPS })
-      : clipCount > MAX_CLIPS
-        ? t('errors.tooManyClips', { max: MAX_CLIPS })
-        : hasInvalidTrim
-          ? t('trim.rangeWarning')
-          : null
+  // Translate the hook's UI-agnostic reason into this Inspector's copy —
+  // the toolbar's compact 合成 button (R3-3) translates the same shape
+  // differently (a short tooltip, not a full sentence).
+  const disabledReason = mergeDisabledReason
+    ? mergeDisabledReason.kind === 'tooFewClips'
+      ? t('errors.tooFewClips', { min: mergeDisabledReason.min })
+      : mergeDisabledReason.kind === 'tooManyClips'
+        ? t('errors.tooManyClips', { max: mergeDisabledReason.max })
+        : t('trim.rangeWarning')
+    : null
 
   const handleTrimChange = useCallback(
     (url: string, field: 'startSec' | 'endSec', rawValue: string) => {
@@ -131,84 +83,6 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
     },
     [node.data.mergeSettings, node.id, updateNodeData],
   )
-
-  const handleMerge = useCallback(async () => {
-    if (!canMerge) return
-    setIsMerging(true)
-    updateNodeData(node.id, {
-      generationStatus: NODE_GENERATION_STATUS_IDS.pending,
-      status: NODE_STATUS_IDS.running,
-      generationError: undefined,
-    })
-
-    try {
-      const payload = hasAnyTrim
-        ? {
-            clips: upstreamVideoUrls.map<MergeVideoClipInput>((url) => {
-              const override = clipOverrides.get(url)
-              return {
-                url,
-                startSec: override?.startSec,
-                endSec: override?.endSec,
-              }
-            }),
-          }
-        : { videoUrls: upstreamVideoUrls }
-
-      const response = await mergeVideosAPI(payload)
-
-      if (!response.success || !response.data) {
-        const errorMessage = response.error ?? t('errors.mergeFailed')
-        updateNodeData(node.id, {
-          generationStatus: NODE_GENERATION_STATUS_IDS.error,
-          status: NODE_STATUS_IDS.failed,
-          generationError: errorMessage,
-        })
-        toast.error(errorMessage, {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      updateNodeData(node.id, {
-        mediaUrl: response.data.url,
-        mediaLabel: t('mediaLabel', { count: upstreamVideoUrls.length }),
-        generationStatus: NODE_GENERATION_STATUS_IDS.success,
-        status: NODE_STATUS_IDS.done,
-        ...(response.data.generationId
-          ? { generationId: response.data.generationId }
-          : {}),
-        ...(response.data.lineage ? { lineage: response.data.lineage } : {}),
-        generationError: undefined,
-      })
-      toast.success(t('merged'), {
-        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-      })
-    } catch {
-      const errorMessage = t('errors.mergeFailed')
-      updateNodeData(node.id, {
-        generationStatus: NODE_GENERATION_STATUS_IDS.error,
-        status: NODE_STATUS_IDS.failed,
-        generationError: errorMessage,
-      })
-      toast.error(errorMessage, {
-        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-      })
-    } finally {
-      setIsMerging(false)
-    }
-  }, [
-    canMerge,
-    clipOverrides,
-    hasAnyTrim,
-    node.id,
-    t,
-    updateNodeData,
-    upstreamVideoUrls,
-  ])
 
   const handleClear = useCallback(() => {
     updateNodeData(node.id, {
@@ -251,7 +125,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         )}
         {isMerging ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Loader2 className="size-5 animate-spin text-node-muted" />
+            <Spinner size="lg" className="text-node-muted" />
             <span className="text-xs font-semibold">{t('merging')}</span>
           </div>
         ) : null}
@@ -264,7 +138,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
             {t('upstreamHeader')}
           </span>
           <span className="rounded-full border border-node-panel-inner bg-node-panel px-2 py-0.5 normal-case tracking-normal">
-            {t('clipCount', { count: clipCount, max: MAX_CLIPS })}
+            {t('clipCount', { count: clipCount, max: maxClips })}
           </span>
         </div>
         {clipCount > 0 ? (

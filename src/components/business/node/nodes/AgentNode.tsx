@@ -1,18 +1,23 @@
 'use client'
 
+import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
-import { AlertCircle, Bot, Film, Loader2 } from 'lucide-react'
+import { AlertCircle, Bot, Film } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_AGENT_MODE_IDS } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { SCRIPT_BREAKDOWN_SUMMARY_FIELDS } from '@/constants/script-breakdown'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { Spinner } from '@/components/ui/spinner'
 
 import { NodeShell } from './NodeShell'
-import { NodeExpandButton } from './NodeCardControls'
 
-export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
+export const AgentNode = memo(function AgentNode({
+  id,
+  data,
+  selected,
+}: NodeProps<NodeWorkflowNode>) {
   const t = useTranslations('StudioNode.agent')
   const breakdown = data.breakdown
   const seedancePromptPlan = data.seedancePromptPlan
@@ -29,15 +34,11 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
       selected={selected}
       status={data.status}
     >
-      <NodeShell.Header
-        type={NODE_TYPE_IDS.agent}
-        status={data.status}
-        action={<NodeExpandButton nodeId={id} />}
-      />
+      <NodeShell.Header type={NODE_TYPE_IDS.agent} status={data.status} />
       <NodeShell.Body className="space-y-3">
         {isRunning ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
-            <Loader2 className="size-5 animate-spin text-node-foreground" />
+            <Spinner size="lg" className="text-node-foreground" />
             <div>
               <p className="text-sm font-semibold text-node-foreground">
                 {isSeedancePromptMode
@@ -159,4 +160,4 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
       </NodeShell.Body>
     </NodeShell>
   )
-}
+})

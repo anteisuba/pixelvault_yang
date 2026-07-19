@@ -1,16 +1,13 @@
 'use client'
 
-import { useCallback, useRef, useState, type ChangeEvent } from 'react'
-import { Loader2, Trash2, Upload, Video } from 'lucide-react'
+import { useCallback, useRef, type ChangeEvent } from 'react'
+import { Trash2, Upload, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { NODE_STATUS_IDS } from '@/constants/node-types'
-import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
-import { uploadReferenceVideoAPI } from '@/lib/api-client'
-import { captureVideoThumbnail } from '@/lib/video-thumbnail'
-import { REFERENCE_VIDEO_MAX_DURATION_SECONDS } from '@/constants/node-studio'
+import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -27,40 +24,13 @@ function formatBytes(bytes: number | undefined): string {
   return `${mb.toFixed(1)} MB`
 }
 
-/**
- * Read a File's playback duration in the browser by loading it into a hidden
- * <video> element. We need this to enforce fal's per-clip cap (≤15s) before
- * sending bytes over the wire.
- */
-async function readVideoDurationSeconds(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video')
-    video.preload = 'metadata'
-    video.muted = true
-    const cleanup = () => {
-      URL.revokeObjectURL(video.src)
-      video.remove()
-    }
-    video.onloadedmetadata = () => {
-      const duration = Number.isFinite(video.duration) ? video.duration : 0
-      cleanup()
-      resolve(duration)
-    }
-    video.onerror = () => {
-      cleanup()
-      reject(new Error('Failed to read video metadata'))
-    }
-    video.src = URL.createObjectURL(file)
-  })
-}
-
 export function VideoReferenceInspector({
   node,
 }: VideoReferenceInspectorProps) {
   const t = useTranslations('StudioNode.videoReference')
   const { updateNodeData } = useNodeWorkflowActions()
+  const { uploadFile, isUploading } = useReferenceVideoUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isUploading, setIsUploading] = useState(false)
 
   const mediaUrl =
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
@@ -77,63 +47,12 @@ export function VideoReferenceInspector({
       event.target.value = ''
       if (!file) return
 
-      // Validate duration client-side so we don't ship a 30s clip across the
-      // wire only to get it rejected at the fal layer.
-      let durationSeconds = 0
-      try {
-        durationSeconds = await readVideoDurationSeconds(file)
-      } catch {
-        toast.error(t('errors.metadataFailed'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
+      const patch = await uploadFile(file)
+      if (!patch) return
 
-      if (durationSeconds > REFERENCE_VIDEO_MAX_DURATION_SECONDS) {
-        toast.error(
-          t('errors.tooLong', {
-            max: REFERENCE_VIDEO_MAX_DURATION_SECONDS,
-            actual: durationSeconds.toFixed(1),
-          }),
-          {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          },
-        )
-        return
-      }
-
-      setIsUploading(true)
-      try {
-        // Grab a poster frame client-side so the manually-uploaded clip carries
-        // the same thumbnail the AI-generated path gets (§9.2). Best-effort:
-        // a null capture just means no poster, never a failed upload.
-        const thumbnailBlob = await captureVideoThumbnail(file)
-        const response = await uploadReferenceVideoAPI(file, thumbnailBlob)
-        if (!response.success || !response.data) {
-          toast.error(response.error ?? t('errors.uploadFailed'), {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          })
-          return
-        }
-
-        updateNodeData(node.id, {
-          mediaUrl: response.data.url,
-          mediaLabel: response.data.fileName,
-          videoThumbnailUrl: response.data.thumbnailUrl,
-          status: NODE_STATUS_IDS.done,
-        })
-        toast.success(t('uploaded'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-      } finally {
-        setIsUploading(false)
-      }
+      updateNodeData(node.id, { ...patch, status: NODE_STATUS_IDS.done })
     },
-    [node.id, t, updateNodeData],
+    [node.id, updateNodeData, uploadFile],
   )
 
   const handleClear = useCallback(() => {
@@ -188,7 +107,7 @@ export function VideoReferenceInspector({
         )}
         {isUploading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Loader2 className="size-5 animate-spin text-node-muted" />
+            <Spinner size="lg" className="text-node-muted" />
             <span className="text-xs font-semibold">{t('uploading')}</span>
           </div>
         ) : null}

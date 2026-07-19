@@ -46,7 +46,15 @@ export function buildReferenceImageIndexByName(
   referenceImages.forEach((url, index) => {
     const ref = imageRefByUrl.get(url)
     if (!ref) return
-    const name = ref.name || `${autoNamePrefix[ref.kind]}${index + 1}`
+    // SF-2b: `ref.kind` is optional (a category-only entry, e.g. a keyframe,
+    // never carries one — see `VideoLegendImageReference`); that shape always
+    // has a real `ref.name` set at harvest time, so this branch is typed-safe
+    // dead code for it, not a real runtime path. No `@token` ever mentions an
+    // un-kinded name (keyframes have no insertable mention), so a generic
+    // positional fallback here can't collide with a real translation.
+    const name =
+      ref.name ||
+      (ref.kind ? `${autoNamePrefix[ref.kind]}${index + 1}` : `${index + 1}`)
     if (indexByName.has(name)) return
     indexByName.set(name, index + 1)
   })

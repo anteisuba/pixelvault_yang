@@ -1,4 +1,5 @@
 import {
+  NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
   NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
@@ -176,6 +177,74 @@ export function getNodePrimaryMediaUrl(
   return getNodeMediaUrl(data) ?? assets[0]?.url
 }
 
+/**
+ * R3-6 出场组（canvas-relationship-v3-2026-07 §3.0a）: the ORDERED set of
+ * images a collector card (character/background identity node) contributes
+ * to a downstream harvest once its gallery entries are curated with
+ * `onStage`. The V-2 主图 (`getNodePrimaryMediaUrl`) is ALWAYS first —
+ * starring stays the "which one is canonical" signal, `onStage` layers "which
+ * others also ride along". Default (no `referenceAssets` entry carries
+ * `onStage`) degrades to exactly `[primary]`, byte-identical to calling
+ * `getNodePrimaryMediaUrl` alone — every project saved before R3-6 has no
+ * `onStage` field anywhere, so every existing card's harvest is unchanged.
+ *
+ * R3-6b §3 每镜覆写: `overrideUrls`, when passed, REPLACES the card's own
+ * onStage curation for this one call (an edge-level override — see
+ * `getEdgeStageOverrideUrls`). The ★ primary is still forced into position 0
+ * even when `overrideUrls` omits it — 覆写不能让主图消失, only add/drop
+ * EXTRAS. `overrideUrls: []` is a valid, meaningful input (the user unchecked
+ * every extra for this video) and resolves to `[primary]`, same as the
+ * no-override default — the difference only matters once other edges of the
+ * same source node carry a DIFFERENT override (每镜 = per-edge, not global).
+ * `undefined` (the param omitted entirely) keeps the pre-R3-6b behavior: fall
+ * through to the card's own onStage set.
+ */
+export function getNodeStageMediaUrls(
+  data: NodeWorkflowNodeData,
+  overrideUrls?: readonly string[],
+): string[] {
+  const result: string[] = []
+  pushUnique(result, getNodePrimaryMediaUrl(data))
+  if (overrideUrls) {
+    for (const url of overrideUrls) {
+      pushUnique(result, url)
+    }
+    return result
+  }
+  for (const asset of data.referenceAssets ?? []) {
+    if (asset.onStage) pushUnique(result, asset.url)
+  }
+  return result
+}
+
+/**
+ * R3-6b §3 每镜覆写: read a `收集器→视频` edge's stage override, when it has
+ * one. Defensive on the raw `edge.data` shape (React Flow edge data is
+ * `Record<string, unknown>`, only loosely validated by
+ * `NodeWorkflowEdgeSchema`'s `.catch(undefined)` seatbelt on load) — a
+ * non-array or a mixed-type array degrades to `undefined` (= "no override,
+ * inherit the card's onStage set") rather than throwing or silently coercing
+ * garbage into the harvest. Returns `undefined` for a missing edge too, so
+ * callers can pass the result of an `Array#find` straight through.
+ */
+export function getEdgeStageOverrideUrls(
+  edge: NodeWorkflowEdge | undefined,
+): string[] | undefined {
+  const raw = edge?.data?.stageOverrideUrls
+  if (!Array.isArray(raw)) return undefined
+  return raw.filter((value): value is string => typeof value === 'string')
+}
+
+function findEdgeBetween(
+  edges: readonly NodeWorkflowEdge[],
+  sourceId: string,
+  targetId: string,
+): NodeWorkflowEdge | undefined {
+  return edges.find(
+    (edge) => edge.source === sourceId && edge.target === targetId,
+  )
+}
+
 export function getUpstreamNodes(
   nodeId: string,
   edges: readonly NodeWorkflowEdge[],
@@ -204,9 +273,21 @@ function pushUnique(target: string[], value: string | undefined): void {
  * reference nodes (character / background / shot). Duplicates are dropped and
  * empty `mediaUrl` / `imageUrl` are skipped. Callers should `.slice(0, max)`
  * against the chosen video model's reference-image cap.
+ *
+ * R3-6b §3 每镜覆写: `edges` + `focalNodeId` are OPTIONAL and, when both are
+ * supplied, let a collector's (character/background) contribution honor a
+ * per-edge `stageOverrideUrls` on the specific `collector → focalNodeId` edge
+ * (§ `getEdgeStageOverrideUrls`) instead of the card's own onStage curation —
+ * "每镜" = the override is scoped to THIS one downstream node, other edges
+ * from the same collector keep resolving their own override (or the card
+ * default). Omitting either param (the shot-image harvest path, which does
+ * NOT get per-edge overrides per §3.0a's "shot 路径不做覆写") falls back to
+ * the pre-R3-6b behavior byte-for-byte.
  */
 export function harvestUpstreamImageUrls(
   upstreamNodes: readonly NodeWorkflowNode[],
+  edges?: readonly NodeWorkflowEdge[],
+  focalNodeId?: string,
 ): string[] {
   const result: string[] = []
 
@@ -214,12 +295,27 @@ export function harvestUpstreamImageUrls(
     if (!isKeyframeNode(node)) continue
     pushUnique(result, getNodeMediaUrl(node.data))
   }
-  // V-2 主图: character/background/shot cards send their ★-starred
-  // referenceAssets entry (falls back to mediaUrl / first collected image —
-  // see getNodePrimaryMediaUrl), not just the raw mediaUrl.
+  // V-2 主图 + R3-6 出场组: a COLLECTOR card (character/background — the
+  // "身份档案夹" with a curatable gallery) expands to its full onStage set
+  // (primary first, see getNodeStageMediaUrls); a shot card is a visual
+  // reference too but not a collector (no gallery-of-the-same-subject
+  // semantics), so it still sends only its ★-starred/primary image.
   for (const node of upstreamNodes) {
     if (!isVisualReferenceNode(node)) continue
-    pushUnique(result, getNodePrimaryMediaUrl(node.data))
+    const kind = getSeedanceReferenceKind(node)
+    if (kind === 'character' || kind === 'background') {
+      const override =
+        edges && focalNodeId
+          ? getEdgeStageOverrideUrls(
+              findEdgeBetween(edges, node.id, focalNodeId),
+            )
+          : undefined
+      for (const url of getNodeStageMediaUrls(node.data, override)) {
+        pushUnique(result, url)
+      }
+    } else {
+      pushUnique(result, getNodePrimaryMediaUrl(node.data))
+    }
   }
 
   return result
@@ -302,11 +398,37 @@ function readBackgroundName(node: NodeWorkflowNode): string | undefined {
 }
 
 /**
+ * S5d ③ / R3-6 出场组: resolve a reference asset's model-facing category label
+ * — `NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[role]`, or the user-typed
+ * `customLabel` for a `custom`-role asset. Undefined when neither resolves
+ * (a `custom` role with no typed label yet — never guesses one). Shared by
+ * `buildReferenceAssetLegendEntries` (a node's own referenceAssets) and the
+ * out-of-stage-group harvest expansion below (a collector's EXTRA onStage
+ * images, labeled the same way).
+ */
+function resolveReferenceAssetCategory(
+  asset: NodeWorkflowReferenceAsset,
+): string | undefined {
+  return asset.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
+    ? asset.customLabel
+    : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[asset.role]
+}
+
+/**
  * Harvest named character/background image references from a shot node's
  * upstream nodes. Each entry pairs the reference URL with its subject name so
  * the caller can both pass the URL to the image model AND label it in the
  * prompt legend. Empty media and duplicate URLs are dropped; edge/graph order
  * is preserved so the legend numbering is stable.
+ *
+ * R3-6 出场组: a collector (character/background) expands to its full
+ * onStage set (`getNodeStageMediaUrls`), primary first — unchanged single
+ * `{url, kind, name}` entry for the primary; each EXTRA onStage image gets
+ * its own entry, labeled either "名字（分类）" (via the asset's own `role` +
+ * name, S5d ③ category mechanism) when both resolve, or the SAME kind+name
+ * format as the primary when they don't (§3.0a "无分类则同名同 kind 格式").
+ * A card with no onStage entries degrades to exactly one entry per node,
+ * byte-identical to the pre-R3-6 behavior.
  */
 export function harvestUpstreamImageReferences(
   upstreamNodes: readonly NodeWorkflowNode[],
@@ -317,12 +439,26 @@ export function harvestUpstreamImageReferences(
   for (const node of upstreamNodes) {
     const kind = getSeedanceReferenceKind(node)
     if (kind !== 'character' && kind !== 'background') continue
-    const url = getNodePrimaryMediaUrl(node.data)
-    if (!url || seen.has(url)) continue
-    seen.add(url)
     const name =
       kind === 'character' ? readCharacterName(node) : readBackgroundName(node)
-    result.push({ url, kind, name })
+    const stageUrls = getNodeStageMediaUrls(node.data)
+    stageUrls.forEach((url, index) => {
+      if (!url || seen.has(url)) return
+      seen.add(url)
+      if (index === 0) {
+        result.push({ url, kind, name })
+        return
+      }
+      const asset = (node.data.referenceAssets ?? []).find(
+        (candidate) => candidate.url === url,
+      )
+      const category = asset ? resolveReferenceAssetCategory(asset) : undefined
+      if (category && asset?.name) {
+        result.push({ url, name: asset.name, category })
+      } else {
+        result.push({ url, kind, name })
+      }
+    })
   }
 
   return result
@@ -376,10 +512,7 @@ export function buildReferenceAssetLegendEntries(
   const map = new Map<string, UpstreamImageReference>()
   for (const asset of referenceAssets ?? []) {
     if (!asset.name) continue
-    const category =
-      asset.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
-        ? asset.customLabel
-        : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[asset.role]
+    const category = resolveReferenceAssetCategory(asset)
     if (!category) continue
     map.set(asset.url, { url: asset.url, name: asset.name, category })
   }
@@ -393,19 +526,80 @@ export type VideoLegendImageKind =
   | 'closeup'
 
 export interface VideoLegendImageReference {
-  kind: VideoLegendImageKind
+  /**
+   * SF-2b: optional — a `category`-only entry (a directly-referenced
+   * shot/frame role node, see `NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY`)
+   * never needs the bracket "kind「name」" wording, only a fallback source for
+   * the auto-name prefix. `shot` keeps `kind` set (unchanged) so its existing
+   * unnamed-fallback (`autoNamePrefix.shot`) still resolves; `frame` carries
+   * no `kind` at all — it's never a `VideoLegendImageKind` member, and its
+   * `name` is always populated at harvest time instead (see
+   * `harvestUpstreamVideoImageReferences`'s keyframe pass), so the
+   * kind-driven fallback path is never actually reached for it.
+   */
+  kind?: VideoLegendImageKind
   /** User-given name, or undefined when unnamed (the legend then falls back to
    *  the same auto-name the composer's token uses). */
   name?: string
+  /**
+   * R3-6 出场组: set on a collector's EXTRA onStage image (never the primary)
+   * when its own `role` resolves a category label (S5d ③ mechanism,
+   * `resolveReferenceAssetCategory`). `buildVideoReferenceLegend` checks this
+   * first and prints "名字（分类）" instead of the kind-based line, mirroring
+   * `UpstreamImageReference.category` / `buildShotReferenceLegend`.
+   *
+   * SF-2b: ALSO set unconditionally on a directly-referenced shot/frame
+   * role node (`NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY`) — not just a
+   * collector's extras — so "@token 引用后 Seedance 知道名字+分类" holds for
+   * every shot/frame reference, not only onStage extras.
+   */
+  category?: string
+}
+
+/**
+ * SF-2b: resolve the model-facing category label for a directly-referenced
+ * KEYFRAME node (`isKeyframeNode` — role=frame / legacy frameImage OR a
+ * role-less loose image classified `imageCategory: 'frameStart'|'frameEnd'`).
+ * A role-less S5d ③ classification wins when present (more specific —
+ * 关键帧首/关键帧尾 vs the generic 首帧); a plain role=frame/frameImage node
+ * (no `imageCategory`) falls back to `NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame`.
+ */
+function resolveKeyframeLegendCategory(node: NodeWorkflowNode): string {
+  const nodeCategory = node.data.imageCategory
+  if (nodeCategory) {
+    const resolved =
+      nodeCategory === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
+        ? node.data.imageCategoryLabel
+        : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[nodeCategory]
+    if (resolved) return resolved
+  }
+  return NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame
 }
 
 /**
  * Map every named image reference a VIDEO node sends to its subject, keyed by
  * URL. Covers direct visual refs (character / background / shot) AND 1-hop
- * closeups (closeup → character), so the legend can bind `@特写N` too. Keyframes
- * are omitted — they occupy an image slot but carry no name/token. The caller
- * looks each sent URL up by its FINAL position in `referenceImages`, so this
- * map's own iteration order doesn't matter (mirrors buildShotReferenceLegend).
+ * closeups (closeup → character), so the legend can bind `@特写N` too. The
+ * caller looks each sent URL up by its FINAL position in `referenceImages`,
+ * so this map's own iteration order doesn't matter (mirrors
+ * buildShotReferenceLegend).
+ *
+ * SF-2b: keyframes are NO LONGER omitted — see the dedicated keyframe pass
+ * at the top of the function body below, which gives every sent keyframe/
+ * 首帧 a category-only entry (`resolveKeyframeLegendCategory`).
+ *
+ * R3-6 出场组: a collector (character/background) expands to its full
+ * onStage set (`getNodeStageMediaUrls`), primary first — unchanged single
+ * map entry for the primary; each EXTRA onStage image gets its own entry via
+ * the same category-or-kind fallback `harvestUpstreamImageReferences` uses.
+ * `shot` stays single-image (not a collector). A card with no onStage entries
+ * degrades to exactly one map entry per node, byte-identical to pre-R3-6.
+ *
+ * R3-6b §3 每镜覆写: a collector's expansion honors the `collector →
+ * focalNodeId` edge's `stageOverrideUrls` when present (§
+ * `getEdgeStageOverrideUrls`), so this legend never disagrees with what
+ * `harvestUpstreamImageUrls(..., edges, focalNodeId)` actually sends for the
+ * SAME video node.
  */
 export function harvestUpstreamVideoImageReferences(
   focalNodeId: string,
@@ -418,25 +612,90 @@ export function harvestUpstreamVideoImageReferences(
   const readName = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim() ? value.trim() : undefined
 
+  // SF-2b (canvas-shot-frame-fold-2026-07 §-1): keyframe/首帧 nodes used to be
+  // entirely OMITTED from this map (see the old docstring — "no name/token").
+  // They still carry no `@token` mention (projection-only, cast-redesign
+  // §3/§4 — a separate system, use-video-composer.ts's `referenceTokens`),
+  // but they now get a category-only legend line so a sent keyframe still
+  // tells the model "this image is a 首帧/关键帧首/关键帧尾". Named via the
+  // SAME generic `mediaLabel` rename field LooseImageCard/the selection
+  // toolbar already read+write for a shot/frame card; an unnamed one falls
+  // back to `${category}${ordinal}` — a cosmetic-only fallback (no composer
+  // auto-name to byte-match, since keyframes have no insertable token).
+  let keyframeOrdinal = 0
+  for (const node of directUpstream) {
+    if (!isKeyframeNode(node)) continue
+    const url = getNodeMediaUrl(node.data)
+    if (!url || map.has(url)) continue
+    keyframeOrdinal += 1
+    const category = resolveKeyframeLegendCategory(node)
+    map.set(url, {
+      name: readName(node.data.mediaLabel) ?? `${category}${keyframeOrdinal}`,
+      category,
+    })
+  }
+
   for (const node of directUpstream) {
     const kind = getSeedanceReferenceKind(node)
     if (kind !== 'character' && kind !== 'background' && kind !== 'shot') {
       continue
     }
-    // V-2 主图: key by the SAME primary-aware URL harvestUpstreamImageUrls
-    // puts in referenceImages — otherwise this map misses every card whose
-    // ★ pick differs from its raw mediaUrl, and the V-1 name→@ImageN
-    // translation (buildReferenceImageIndexByName) silently fails to bind it.
-    const url = getNodePrimaryMediaUrl(node.data)
-    if (url && !map.has(url)) {
-      const name =
-        kind === 'character'
-          ? readName(node.data.characterName)
-          : kind === 'background'
-            ? readName(node.data.backgroundName)
-            : readName(node.data.shotName)
-      map.set(url, { kind, name })
+    const name =
+      kind === 'character'
+        ? readName(node.data.characterName)
+        : kind === 'background'
+          ? readName(node.data.backgroundName)
+          : readName(node.data.shotName)
+
+    if (kind === 'character' || kind === 'background') {
+      // R3-6b §3 每镜覆写: this legend is always built FOR a specific
+      // `focalNodeId`, so the override lookup is unconditional here (unlike
+      // harvestUpstreamImageUrls, which is also called from the shot-image
+      // path where overrides don't apply).
+      const override = getEdgeStageOverrideUrls(
+        findEdgeBetween(edges, node.id, focalNodeId),
+      )
+      const stageUrls = getNodeStageMediaUrls(node.data, override)
+      stageUrls.forEach((url, index) => {
+        if (!url || map.has(url)) return
+        if (index === 0) {
+          map.set(url, { kind, name })
+          return
+        }
+        const asset = (node.data.referenceAssets ?? []).find(
+          (candidate) => candidate.url === url,
+        )
+        const category = asset
+          ? resolveReferenceAssetCategory(asset)
+          : undefined
+        map.set(
+          url,
+          category && asset?.name
+            ? { kind, name: asset.name, category }
+            : { kind, name },
+        )
+      })
+    } else {
+      // V-2 主图: key by the SAME primary-aware URL harvestUpstreamImageUrls
+      // puts in referenceImages — otherwise this map misses every card whose
+      // ★ pick differs from its raw mediaUrl, and the V-1 name→@ImageN
+      // translation (buildReferenceImageIndexByName) silently fails to bind it.
+      const url = getNodePrimaryMediaUrl(node.data)
+      if (url && !map.has(url)) {
+        // SF-2b: a directly-referenced shot ALSO carries the role→category
+        // mapping (NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.shot, '镜头')
+        // so it prints through the SAME "名字（分类）" pipeline as an
+        // imageCategory-tagged referenceAsset, not the older kind「名字」
+        // bracket wording — `kind` stays set too so the unnamed-fallback
+        // (`autoNamePrefix.shot`) is unchanged for the rare unnamed shot.
+        map.set(url, {
+          kind,
+          name,
+          category: NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.shot,
+        })
+      }
     }
+
     if (kind !== 'character') continue
     for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
       if (!isCloseupNode(upstream)) continue
@@ -470,8 +729,16 @@ export interface VideoReferenceLegendLabels {
  * Each sent slot → `图N：角色「名字」` / `视N：视频「视频N」` / `音N：角色「名字」的音色`,
  * where an unnamed slot falls back to `${autoNamePrefix}${N}` — byte-identical to
  * the composer's auto-numbered @token, so the model binds them. `N` is the slot's
- * FINAL position in the sent payload (keyframes count toward it but are skipped),
- * matching the 图N/视N/音N slot badges. Returns '' when nothing is nameable.
+ * FINAL position in the sent payload, matching the 图N/视N/音N slot badges.
+ * Returns '' when nothing is nameable.
+ *
+ * SF-2b: a keyframe/首帧 slot is no longer silently skipped — its map entry
+ * (see `harvestUpstreamVideoImageReferences`'s keyframe pass) always carries a
+ * `category` and a `name` (real or ordinal-fallback), so it prints a
+ * "@ImageN = 名字（首帧）" line through the SAME branch below a shot/imageCategory
+ * reference uses, even though it's still never an insertable `@token` mention
+ * (that stays projection-only, an unrelated system — see
+ * `use-video-composer.ts`'s `referenceTokens`).
  */
 export function buildVideoReferenceLegend(input: {
   referenceImages: readonly string[]
@@ -487,7 +754,27 @@ export function buildVideoReferenceLegend(input: {
   referenceImages.forEach((url, index) => {
     const ref = imageRefByUrl.get(url)
     if (!ref) return
-    const name = ref.name || `${labels.autoNamePrefix[ref.kind]}${index + 1}`
+    // SF-2b: `kind` is optional now (a category-only entry, e.g. a keyframe,
+    // never carries one — see `VideoLegendImageReference`). Its `name` is
+    // always populated at harvest time for that case, so this fallback is
+    // typed-safe dead code for it, not a real runtime path.
+    const name =
+      ref.name ||
+      (ref.kind
+        ? `${labels.autoNamePrefix[ref.kind]}${index + 1}`
+        : `${labels.imagePrefix}${index + 1}`)
+    // R3-6 出场组 + SF-2b: a category-labeled entry (an onStage EXTRA, or a
+    // directly-referenced shot/frame role node) prints "@ImageN = 名字（分类）",
+    // mirroring buildShotReferenceLegend's category branch but keeping this
+    // legend's own imagePrefix (@Image — the V-1 positional token Seedance
+    // actually resolves, not the shot legend's Chinese "图").
+    if (ref.category) {
+      lines.push(
+        `${labels.imagePrefix}${index + 1} = ${name}（${ref.category}）`,
+      )
+      return
+    }
+    if (!ref.kind) return
     lines.push(
       `${labels.imagePrefix}${index + 1}：${labels.kindLabel[ref.kind]}「${name}」`,
     )
@@ -754,7 +1041,10 @@ export function summarizeUpstreamSeedanceReferences(
   const upstream = getUpstreamNodes(focalNodeId, edges, nodes)
 
   return {
-    imageCount: Math.min(9, harvestUpstreamImageUrls(upstream).length),
+    imageCount: Math.min(
+      9,
+      harvestUpstreamImageUrls(upstream, edges, focalNodeId).length,
+    ),
     videoCount: Math.min(3, harvestUpstreamVideoUrls(upstream).length),
     audio: harvestUpstreamAudioBindings(focalNodeId, edges, nodes)
       .slice(0, 3)

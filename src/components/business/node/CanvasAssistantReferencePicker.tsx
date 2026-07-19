@@ -7,10 +7,7 @@ import {
   AssistantReferencePicker,
   type AssistantReferenceOption,
 } from '@/components/business/assistant/AssistantReferencePicker'
-import {
-  NODE_STUDIO_PLACEHOLDER_TOAST,
-  REFERENCE_VIDEO_MAX_DURATION_SECONDS,
-} from '@/constants/node-studio'
+import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { uploadReferenceVideoAPI } from '@/lib/api-client'
 import { captureVideoThumbnail } from '@/lib/video-thumbnail'
@@ -22,28 +19,6 @@ interface CanvasAssistantReferencePickerProps {
   references: readonly NodeAssistantMediaReference[]
   selectedReferences: readonly NodeAssistantMediaReference[]
   onAddReference(reference: NodeAssistantMediaReference): void
-}
-
-async function readVideoDurationSeconds(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video')
-    video.preload = 'metadata'
-    video.muted = true
-    const cleanup = () => {
-      URL.revokeObjectURL(video.src)
-      video.remove()
-    }
-    video.onloadedmetadata = () => {
-      const duration = Number.isFinite(video.duration) ? video.duration : 0
-      cleanup()
-      resolve(duration)
-    }
-    video.onerror = () => {
-      cleanup()
-      reject(new Error('Failed to read video metadata'))
-    }
-    video.src = URL.createObjectURL(file)
-  })
 }
 
 function createReferenceId(prefix: string): string {
@@ -98,31 +73,10 @@ export function CanvasAssistantReferencePicker({
   }
 
   const uploadVideo = async (file: File) => {
-    let durationSeconds = 0
-    try {
-      durationSeconds = await readVideoDurationSeconds(file)
-    } catch {
-      toast.error(tVideo('errors.metadataFailed'), {
-        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-      })
-      return false
-    }
-
-    if (durationSeconds > REFERENCE_VIDEO_MAX_DURATION_SECONDS) {
-      toast.error(
-        tVideo('errors.tooLong', {
-          max: REFERENCE_VIDEO_MAX_DURATION_SECONDS,
-          actual: durationSeconds.toFixed(1),
-        }),
-        {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        },
-      )
-      return false
-    }
-
+    // No client-side duration cap (owner call, FB-1): the card/inspector upload
+    // path dropped its 15s gate; this assistant path drops the matching one so
+    // "no 15s limit" holds everywhere. fal's downstream per-clip limit still
+    // applies at generation time, just isn't pre-validated here.
     const thumbnailBlob = await captureVideoThumbnail(file)
     const response = await uploadReferenceVideoAPI(file, thumbnailBlob)
     if (!response.success || !response.data) {

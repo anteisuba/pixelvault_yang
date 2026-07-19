@@ -208,7 +208,9 @@ export function IngestDragProvider({
   useEffect(() => {
     if (!quickThrowSource) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setQuickThrowSource(null)
+      if (event.key === 'Escape' && !event.isComposing) {
+        setQuickThrowSource(null)
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -322,9 +324,12 @@ export function IngestDragProvider({
       {children}
       <IngestMouthPreview preview={engine.dragState.active ? preview : null} />
       {quickThrowSource ? (
+        // R3-4 §4.1 L8: portaled to document.body — escapes the canvas
+        // stage's `isolate` boundary, so this has to outrank the SHARED
+        // shadcn UI z-50 ceiling too, not just the in-stage ladder.
         <div
           role="status"
-          className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-node-paint/60 bg-node-panel px-3 py-1.5 text-xs font-semibold text-node-foreground shadow-node-panel"
+          className="pointer-events-none fixed left-1/2 top-4 z-canvas-drag -translate-x-1/2 whitespace-nowrap rounded-full border border-node-paint/60 bg-node-panel px-3 py-1.5 text-xs font-semibold text-node-foreground shadow-node-panel"
         >
           {t('quickThrow.hint', {
             name:
@@ -362,13 +367,15 @@ function IngestGhostPortal({
     return null
   }
 
+  // R3-4 §4.1 L8: 拖拽 ghost / 吞噬 portal，恒在最上——document.body portal
+  // 逃出了 stage 的 isolate 边界，token 值特意压过共享 shadcn UI 的 z-50。
   return createPortal(
     <>
       {dragState.ghost ? (
         <div
           ref={registerGhostElement}
           aria-hidden
-          className="node-card-paper pointer-events-none fixed left-0 top-0 z-50 flex items-center justify-center overflow-hidden rounded-md border border-node-card-line bg-node-panel shadow-node-panel"
+          className="node-card-paper pointer-events-none fixed left-0 top-0 z-canvas-drag flex items-center justify-center overflow-hidden rounded-md border border-node-card-line bg-node-panel shadow-node-panel"
           style={{
             width: dragState.ghost.width,
             height: dragState.ghost.height,
@@ -394,7 +401,7 @@ function IngestGhostPortal({
       {dragState.reason ? (
         <div
           role="status"
-          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-node-panel px-3 py-1.5 text-xs font-semibold text-node-status-failed shadow-node-panel"
+          className="pointer-events-none fixed z-canvas-drag -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-node-panel px-3 py-1.5 text-xs font-semibold text-node-status-failed shadow-node-panel"
           style={{ left: dragState.reason.x, top: dragState.reason.y - 8 }}
         >
           {dragState.reason.text}
@@ -425,7 +432,7 @@ function IngestMouthPreview({
     <div
       role="status"
       className={cn(
-        'pointer-events-none fixed z-50 flex -translate-x-1/2 -translate-y-full items-center gap-1.5 whitespace-nowrap rounded-lg border bg-node-panel px-2.5 py-1 text-2xs font-medium shadow-node-panel',
+        'pointer-events-none fixed z-canvas-drag flex -translate-x-1/2 -translate-y-full items-center gap-1.5 whitespace-nowrap rounded-lg border bg-node-panel px-2.5 py-1 text-2xs font-medium shadow-node-panel',
         preview.overLimit
           ? 'border-node-status-failed/60 text-node-status-failed'
           : 'border-node-panel-inner/70 text-node-foreground',

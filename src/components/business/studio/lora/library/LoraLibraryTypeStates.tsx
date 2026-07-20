@@ -17,10 +17,10 @@ interface LoraLibraryTypeSparseCardProps {
 }
 
 /**
- * 稀疏态（本页 1–5 条）：网格尾部追加一张与卡片同尺寸、虚线描边、无封面的
- * 引导卡——civitai/HF 标注不全，提示用户还可以用关键词兜底搜索。渲染条件
- * 由调用方判断（type≠all 且本页结果数 1–5，不管家族/搜索/NSFW 是否同时
- * 激活——见 §3.3 验收「冷门类型+家族组合见引导卡」）。
+ * 稀疏态（本页 1–5 条）：R1 单列结果流尾部追加一条虚线引导行——civitai/HF
+ * 标注不全，提示用户还可以用关键词兜底搜索。渲染条件由调用方判断（type≠all
+ * 且本页结果数 1–5，不管家族/搜索/NSFW 是否同时激活——见 §3.3 验收「冷门
+ * 类型+家族组合见引导卡」）。
  */
 export function LoraLibraryTypeSparseCard({
   source,
@@ -34,17 +34,19 @@ export function LoraLibraryTypeSparseCard({
       : 'typeSparseBody'
 
   return (
-    <div className="flex aspect-[3/4] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 p-3 text-center">
-      <p className="text-xs font-medium text-foreground">
-        {t('typeSparseTitle')}
-      </p>
-      <p className="text-2xs leading-relaxed text-muted-foreground">
-        {t(bodyKey)}
-      </p>
+    <div className="mt-1 flex flex-col gap-1 rounded-xl border border-dashed border-border/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-foreground">
+          {t('typeSparseTitle')}
+        </p>
+        <p className="text-2xs leading-relaxed text-muted-foreground">
+          {t(bodyKey)}
+        </p>
+      </div>
       <button
         type="button"
         onClick={onSearchFallback}
-        className="text-2xs font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+        className="shrink-0 text-left text-2xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 sm:text-right"
       >
         {t('typeSparseAction', { term: searchFallbackTerm })}
       </button>

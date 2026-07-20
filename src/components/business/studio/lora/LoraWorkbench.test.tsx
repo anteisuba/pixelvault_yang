@@ -287,6 +287,28 @@ vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   },
 }))
 
+// G3b: the inline recipe panel is retired — applying a source recipe now goes
+// through the source-image thumbnail → shared recipe modal → 做同款 (which runs
+// the same handleApplyRecipe on the parent). Helper for tests that apply the
+// first mined recipe as a setup step. Assumes a single mined recipe (one
+// thumbnail); the modal mounts synchronously on click (Radix Dialog).
+function applyFirstRecipeViaModal() {
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+    }),
+  )
+  fireEvent.click(
+    screen.getByRole('button', { name: 'LoraWorkbench:sourceRecipeRemake' }),
+  )
+}
+
+// G3b-2b: 触发词 chips now live inside the collapsed 搭配 status bar — expand it
+// (click 查看) before reaching for a trigger chip.
+function expandCollocation() {
+  fireEvent.click(screen.getByRole('button', { name: /collocation:view/ }))
+}
+
 describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   beforeEach(() => {
     mockGenerate.mockReset()
@@ -297,7 +319,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockMinedPreviewImages = []
   })
 
-  it('D7④: default-selects the first source image so the recipe panel is not empty', () => {
+  it('G3b: renders the source-image thumbnail band (opens the shared recipe modal)', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
     mockMinedRecipes = [
       {
@@ -309,12 +331,16 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
     render(<LoraWorkbench />)
 
-    // Without any manual thumbnail click, the recipe card (its Apply button)
-    // is already rendered → the first source image was auto-selected.
+    // The source band is just thumbnails now — no inline recipe panel. The
+    // thumbnail button is present; clicking it opens the shared recipe modal
+    // (full recipe on the right), the only place the recipe/params live.
+    const thumbnail = screen.getByRole('button', {
+      name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+    })
+    expect(thumbnail).toBeInTheDocument()
+    fireEvent.click(thumbnail)
     expect(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
-      }),
+      screen.getByRole('button', { name: 'LoraWorkbench:sourceRecipeRemake' }),
     ).toBeInTheDocument()
   })
 
@@ -402,6 +428,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
     ).toHaveValue('')
 
+    expandCollocation()
     const chip = screen.getByRole('button', { name: /Test LoRA/ })
     expect(chip).toHaveTextContent('testlora')
     expect(chip).toHaveAttribute('aria-pressed', 'true')
@@ -502,6 +529,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       { target: { value: 'my free text' } },
     )
 
+    expandCollocation()
     const chip = screen.getByRole('button', { name: /Test LoRA/ })
     fireEvent.click(chip)
     expect(chip).toHaveAttribute('aria-pressed', 'false')
@@ -548,11 +576,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     ]
 
     render(<LoraWorkbench />)
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
-      }),
-    )
+    applyFirstRecipeViaModal()
     fireEvent.click(
       screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
     )
@@ -593,15 +617,12 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     ]
 
     render(<LoraWorkbench />)
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
-      }),
-    )
+    applyFirstRecipeViaModal()
 
     expect(
       screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
     ).toHaveValue('best quality, 1girl')
+    expandCollocation()
     const chip = screen.getByRole('button', { name: /Test LoRA/ })
     expect(chip).toHaveAttribute('aria-pressed', 'true')
 
@@ -611,6 +632,33 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
       'testlora, best quality, 1girl',
     )
+  })
+
+  it('G3b-2b: the 搭配 status bar undo restores the pre-做同款 prompt snapshot', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'best quality, 1girl',
+      },
+    ]
+
+    render(<LoraWorkbench />)
+
+    // Draft some free text — this is what undo should bring back.
+    const promptField = screen.getByPlaceholderText(
+      'LoraWorkbench:generate.promptPlaceholder',
+    )
+    fireEvent.change(promptField, { target: { value: 'my draft' } })
+
+    // 做同款 overwrites the prompt with the recipe text and marks it applied.
+    applyFirstRecipeViaModal()
+    expect(promptField).toHaveValue('best quality, 1girl')
+
+    // Undo rolls the input snapshot back to the pre-apply draft.
+    fireEvent.click(screen.getByRole('button', { name: /collocation:undo/ }))
+    expect(promptField).toHaveValue('my draft')
   })
 
   it('B9: threads the reference image + strength into the generate request when one is attached', () => {
@@ -840,14 +888,10 @@ describe('LoraWorkbench GenerateBranch — 自己搭配 tag picker', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
   })
 
-  it('switches to 自己搭配 and adds a curated tag from search results', () => {
+  it('adds a curated tag from the always-visible 词库 search results', () => {
     render(<LoraWorkbench />)
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'LoraWorkbench:generate.promptModeSelfBuild',
-      }),
-    )
+    // G3b-2: 词库（tag picker）常驻左栏底部，无「自己搭配」tab 可切。
 
     // Empty-query results rank system/curated tags highest — "Masterpiece"
     // (id: system:quality:masterpiece) should be visible without typing.
@@ -866,11 +910,7 @@ describe('LoraWorkbench GenerateBranch — 自己搭配 tag picker', () => {
   it('filters results by search query', () => {
     render(<LoraWorkbench />)
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'LoraWorkbench:generate.promptModeSelfBuild',
-      }),
-    )
+    // G3b-2: 词库（tag picker）常驻左栏底部，无「自己搭配」tab 可切。
 
     const searchInput = screen.getByPlaceholderText(
       'PromptTags:library.searchPlaceholder',
@@ -914,25 +954,9 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
       ),
     ).not.toBeInTheDocument()
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
-      }),
-    )
-    // Clicking the thumbnail both selects the recipe and opens the
-    // picture-frame lightbox (Dialog) — Radix marks the rest of the page
-    // aria-hidden while it's open, same as real screen-reader/interaction
-    // behavior, so close it before reaching for the recipe card underneath.
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:sourceImagePreviewClose/,
-      }),
-    )
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
-      }),
-    )
+    // G3b: applying via the shared modal's 做同款 sets the negative prompt
+    // (and closes the modal) — there is no inline recipe panel underneath.
+    applyFirstRecipeViaModal()
 
     const negativeField = screen.getByPlaceholderText(
       'LoraWorkbench:generate.negativePromptPlaceholder',
@@ -1007,10 +1031,10 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
         'change the picture 1 to realistic photograph, [description]',
       ),
     ).toBeInTheDocument()
-    // civitai mined panel's own controls must not also render for an HF mount.
+    // civitai source band must not also render for an HF mount.
     expect(
       screen.queryByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
+        name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
       }),
     ).not.toBeInTheDocument()
   })
@@ -1074,7 +1098,7 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
 
     expect(
       screen.getByRole('button', {
-        name: /LoraPromptControl\.generate:recipeApply/,
+        name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
       }),
     ).toBeInTheDocument()
     expect(

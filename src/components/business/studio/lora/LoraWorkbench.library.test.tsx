@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CivitaiLoraLibraryItem } from '@/types'
@@ -103,8 +109,13 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
 vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   useCivitaiMinedPrompts: () => ({
     outfits: [],
+    recipes: [],
+    previewImages: [],
+    descriptionText: null,
     totalSampled: 0,
     isLoading: false,
+    hasFetched: false,
+    error: null,
   }),
 }))
 
@@ -172,7 +183,7 @@ function makeLibraryItem(
   }
 }
 
-describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', () => {
+describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place detail', () => {
   beforeEach(() => {
     mockSection = 'community'
     mockLibraryQuery = ''
@@ -269,76 +280,68 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     }))
   })
 
-  it('renders a cover card per library item instead of a row list', () => {
+  it('renders one collapsed row per library item (not a cover grid)', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.getByText('Perlica')).toBeInTheDocument()
-    expect(screen.getByText('Detail Tweaker')).toBeInTheDocument()
-    // Cards are plain buttons keyed by name — no separate "row" chrome
-    // (trigger word / creator line) should be present on the grid tile.
-    expect(screen.getByRole('button', { name: 'Perlica' })).toBeInTheDocument()
-  })
-
-  it('renders the Hugging Face tab as selected and its pane as active', () => {
-    render(<LoraWorkbench />)
-
-    const hfTab = screen.getByRole('tab', {
-      name: 'LoraWorkbench:librarySourceHuggingFace',
-    })
-    expect(hfTab).toHaveAttribute('aria-selected', 'false')
-    // Clicking calls the URL-sync setter (router.replace) — this component's
-    // `source` is derived from the URL (S1, same pattern as the top-level
-    // `activeSection`), so a mocked no-op router can't reflect the switch
-    // back into `useSearchParams()` inside this test harness. The actual
-    // switch-on-click behaviour is covered by claude-in-chrome manual
-    // verification; the URL-seeded render path below is what this suite can
-    // assert deterministically.
-    fireEvent.mouseDown(hfTab)
+    // Each item is a single expandable row button keyed by name.
+    expect(screen.getByRole('button', { name: 'Perlica' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Detail Tweaker' }),
+    ).toHaveAttribute('aria-expanded', 'false')
+    // Collapsed rows do NOT carry the favorite action — that lives in the
+    // in-place expanded detail only (confirmed Library key slice).
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:favorite' }),
+    ).not.toBeInTheDocument()
   })
 
   it('switches the public library to Hugging Face when source=huggingface is in the URL', () => {
     mockLibraryQuery = 'source=huggingface'
     render(<LoraWorkbench />)
 
-    // S1: HF pane 的独立标题栏（huggingFacePublic）已退役，换成和 civitai
-    // 同一套形制——用它的搜索框（aria-label = 搜索占位符）作为「HF 面板已
-    // 渲染」的信号。
+    // Source is a dropdown now (not a tab). The HF search input (portaled into
+    // the shared top-bar slot) is the deterministic signal the HF pane rendered.
     expect(
       screen.getByRole('textbox', {
         name: 'LoraWorkbench:huggingFaceSearchPlaceholder',
       }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Perlica')).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('tab', {
-        name: 'LoraWorkbench:librarySourceHuggingFace',
-      }),
-    ).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('opens the detail sheet when a card is clicked, and it stays closed until then', () => {
+  it('expands the detail in place when a row is clicked — no dialog, no jump', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // Nothing is expanded and no dialog exists before interaction.
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Perlica' }))
 
     expect(mockSelectItem).toHaveBeenCalledWith(
       expect.objectContaining({ id: '1', name: 'Perlica' }),
     )
-    // Dialog content (CivitaiLoraInspector) likely repeats the LoRA name
-    // visibly alongside the sr-only SheetTitle — assert the sheet opened
-    // for the right item rather than pin an exact text match count.
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getAllByText('Perlica').length).toBeGreaterThan(0)
+    // In-place detail exposes the three confirmed actions; it is NOT a dialog.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:collapseDetail' }),
+    ).toBeInTheDocument()
   })
 
-  it('toggles favorite from the card without opening the detail sheet', () => {
+  it('favorites from the expanded detail (favorite is not on the collapsed row)', () => {
     render(<LoraWorkbench />)
 
-    // Both seed items are unfavorited, so both cards render a "favorite"
-    // button — click the first one (Perlica's).
-    const [favoriteButton] = screen.getAllByRole('button', {
+    // Expand the selected item's detail first (mock selectedItem === item 1).
+    fireEvent.click(screen.getByRole('button', { name: 'Perlica' }))
+
+    const favoriteButton = screen.getByRole('button', {
       name: 'LoraWorkbench:favorite',
     })
     fireEvent.click(favoriteButton)
@@ -347,8 +350,33 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail sheet', (
     expect(mockFavoriteCivitaiLora).toHaveBeenCalledWith(
       expect.objectContaining({ id: '1', name: 'Perlica' }),
     )
-    expect(mockSelectItem).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('collapses the expanded detail back to a row', async () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Perlica' }))
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).toBeInTheDocument()
+
+    // Collapse plays a height transition, then unmounts the detail
+    // (LoraLibraryDetailReveal keeps it mounted until the transition/fallback
+    // completes so the row doesn't flash in over the shrinking detail).
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench:collapseDetail' }),
+    )
+    // The detail unmounts after the collapse transition's fallback timer
+    // (~340ms); allow generous headroom so a loaded CI box (timers starved by
+    // a concurrent typecheck etc.) doesn't flake this.
+    await waitFor(
+      () =>
+        expect(
+          screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+        ).not.toBeInTheDocument(),
+      { timeout: 3000 },
+    )
   })
 
   it('disables Previous on page 1 and enables Next when hasNextPage is true', () => {
@@ -597,12 +625,9 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
   })
 })
 
-// B7 form-batch card visuals: P2-1 (external family badge unified to the
-// black nacre, no amber solid) + P1-9 (touch hit-area expansion classes on
-// the favorite heart and family chips). The exact ≥44px measurement is a
-// visual/Playwright concern; these are cheap regression guards against a
-// revert of the intentional classes.
-describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
+// R1 单列行视觉：未展开行显示序号 + 名称 + 家族标 + 源，external 家族
+// （Pony）行照常渲染、不崩，且行内不带收藏心（收藏在展开详情里）。
+describe('LoraWorkbench CivitaiCommunityBranch — single-column row visuals', () => {
   beforeEach(() => {
     mockSection = 'community'
     mockLibraryQuery = ''
@@ -615,8 +640,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
     mockLibrarySort = 'Highest Rated'
     mockLibraryBaseModel = 'all'
     mockLibraryNsfwFilter = 'unrestricted'
-    // Pony is an external (non-generatable) family — used to prove the badge
-    // is NOT amber for external items.
+    // Pony is an external (non-generatable) family.
     mockLibraryItems = [
       makeLibraryItem({
         id: 'ext-1',
@@ -652,35 +676,35 @@ describe('LoraWorkbench CivitaiCommunityBranch — B7 card visuals', () => {
     }))
   })
 
-  it('P2-1: external family badge uses the black nacre, never an amber solid', () => {
+  it('renders an external-family row as a collapsed expandable row', () => {
     render(<LoraWorkbench />)
 
-    // S1: family filter chip label is now a translated familyLabel.* key,
-    // not the raw "Pony" string — the card badge (a <span> overlay showing
-    // item.baseModelFamily verbatim) is the only "Pony" text left.
-    const badge = screen
-      .getAllByText('Pony')
-      .find((el) => el.tagName === 'SPAN')
-    expect(badge).toBeDefined()
-    expect(badge?.className).toContain('bg-black/55')
-    expect(badge?.className).not.toContain('amber')
+    const row = screen.getByRole('button', { name: 'Pony Card' })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    // Family label shown verbatim on the row.
+    expect(within(row).getByText('Pony')).toBeInTheDocument()
   })
 
-  it('P1-9: favorite heart carries the touch (coarse) hit-area expansion', () => {
+  it('keeps the favorite action off the collapsed row', () => {
     render(<LoraWorkbench />)
 
-    const heart = screen.getByRole('button', { name: 'LoraWorkbench:favorite' })
-    expect(heart.className).toContain('coarse:before:')
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:favorite' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('P1-9: family filter chips carry the touch (coarse) hit-area expansion', () => {
+  it('surfaces the type and base-model filters as dropdown triggers', () => {
     render(<LoraWorkbench />)
 
-    // S1: chip 行统一改成 role="group" + aria-pressed 的 FamilyChipRow
-    // （lora-workbench.md §7），不再是 role="radio"；label 走 familyLabel.*。
-    const allChip = screen.getByRole('button', {
-      name: 'LoraWorkbench:familyLabel.all',
-    })
-    expect(allChip.className).toContain('coarse:before:')
+    expect(
+      screen.getByRole('button', {
+        name: /LoraWorkbench:typeFilterLabel/,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: /LoraWorkbench:baseModelFilterLabel/,
+      }),
+    ).toBeInTheDocument()
   })
 })

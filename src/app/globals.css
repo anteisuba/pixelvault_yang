@@ -947,6 +947,39 @@ html:lang(zh) {
     caret-color: var(--surface-composer-foreground);
   }
 
+  /* R5（owner 拍板）：LoRA 横滑带（装配行 / 来源图 / 结果缩略 等）隐藏滚动条，
+     iOS 式无边框滑动。作用域仅 LoRA 横滑带。 */
+  .lora-scrollbar-hide {
+    scrollbar-width: none;
+  }
+  .lora-scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* R5 移动端「出图」常驻底部动作条（iOS 式）：< md 固定视口底、模糊玻璃 +
+     底部安全区；≥ md 退回内联（桌面保持自然流单出图动作，不双出图）。作用域
+     仅 LoRA composer 动作行。 */
+  .lora-mobile-actionbar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 30;
+    border-top: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 90%, transparent);
+    backdrop-filter: blur(12px);
+    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+  @media (min-width: 768px) {
+    .lora-mobile-actionbar {
+      position: static;
+      z-index: auto;
+      border-top: 0;
+      background: transparent;
+      backdrop-filter: none;
+      padding: 0;
+    }
+  }
+
   /* ── Touch-device utility: make hover-only elements always visible ── */
   @media (hover: none) {
     .card-actions {

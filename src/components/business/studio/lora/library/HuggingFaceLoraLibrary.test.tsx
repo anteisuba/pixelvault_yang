@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HuggingFaceLoraSearchItem } from '@/types'
@@ -131,9 +125,11 @@ function libraryState(item = makeItem()) {
 function renderLibrary(
   isFavorited: (loraUrl: string) => boolean = () => false,
 ) {
-  // §12：排序/刷新挪去调用方（LoraLibraryTabs/LoraWorkbench）持有的行A
-  // 控件槽，通过 portal 挂进去——测试里手动接一个真实 DOM 节点当槽位，
-  // 内容仍会落在 document 里，screen 查询照常能命中。
+  // R1：搜索/排序/刷新挪去调用方（LoraLibraryTabs/LoraWorkbench）持有的常驻
+  // 顶栏槽，通过 portal 挂进去——测试里手动接真实 DOM 节点当槽位，内容仍落
+  // 在 document 里，screen 查询照常命中。
+  const searchSlotNode = document.createElement('div')
+  document.body.appendChild(searchSlotNode)
   const controlsSlotNode = document.createElement('div')
   document.body.appendChild(controlsSlotNode)
   return render(
@@ -141,6 +137,7 @@ function renderLibrary(
       onImport={mockImport}
       onUnfavoriteByUrl={mockUnfavoriteByUrl}
       isFavorited={isFavorited}
+      searchSlotNode={searchSlotNode}
       controlsSlotNode={controlsSlotNode}
     />,
   )
@@ -149,6 +146,17 @@ function renderLibrary(
 describe('HuggingFaceLoraLibrary', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn()
+    // jsdom has no ResizeObserver; cmdk (the base-model filter combobox) calls
+    // it on mount. Stub a no-op so opening the dropdown doesn't crash.
+    if (typeof globalThis.ResizeObserver === 'undefined') {
+      class ResizeObserverStub {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      globalThis.ResizeObserver =
+        ResizeObserverStub as unknown as typeof ResizeObserver
+    }
     mockLibraryQuery = ''
     mockImport.mockReset().mockResolvedValue(null)
     mockUnfavoriteByUrl.mockReset().mockResolvedValue(true)
@@ -159,38 +167,40 @@ describe('HuggingFaceLoraLibrary', () => {
     mockUseHuggingFaceLoraLibrary.mockReset().mockReturnValue(libraryState())
   })
 
-  it('opens the detail sheet when a card is clicked, without file-select chrome on the card itself', () => {
+  it('expands the detail in place when a row is clicked, with no file-select chrome on the collapsed row', () => {
     renderLibrary()
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(
       screen.queryByText('weights/anima-style.safetensors'),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
 
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getAllByText('anima style').length).toBeGreaterThan(0)
+    // In-place detail — not a dialog — with the confirmed primary action.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).toBeInTheDocument()
   })
 
-  it('imports the exact SafeTensors file selected inside the drawer (never the first one silently)', async () => {
+  it('imports the exact SafeTensors file selected in the expanded detail (never files[0] silently)', async () => {
     renderLibrary()
 
     fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
-    const dialog = screen.getByRole('dialog')
 
-    // Multi-file repo: the select starts unselected — clicking the
-    // favorite action before picking a file must not silently import
-    // files[0]; it should surface the "select a file first" guard.
+    // Multi-file repo: the select starts unselected — clicking favorite before
+    // picking a file must not silently import files[0].
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: 'LoraWorkbench:favorite',
-      }),
+      screen.getByRole('button', { name: 'LoraWorkbench:favorite' }),
     )
     expect(mockImport).not.toHaveBeenCalled()
 
     fireEvent.click(
-      within(dialog).getByRole('combobox', {
+      screen.getByRole('combobox', {
         name: 'LoraWorkbench:huggingFaceSelectFile',
       }),
     )
@@ -200,9 +210,7 @@ describe('HuggingFaceLoraLibrary', () => {
       }),
     )
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: 'LoraWorkbench:favorite',
-      }),
+      screen.getByRole('button', { name: 'LoraWorkbench:favorite' }),
     )
 
     await waitFor(() => {
@@ -229,13 +237,18 @@ describe('HuggingFaceLoraLibrary', () => {
     ).toBeInTheDocument()
   })
 
-  it('exposes family filter chips using the shared slug labels', () => {
+  it('maps the base-model dropdown selection to the hub family slug', () => {
     renderLibrary()
 
-    // S1: family chip row 换成 group + aria-pressed 的共享 FamilyChipRow，
-    // label 走统一的 familyLabel.* key（不再是 huggingFaceFamilyAnima）。
+    // R1: family filter is a searchable dropdown now (not a chip row). Open it
+    // and pick the Anima option → hook receives the source-specific family.
     fireEvent.click(
       screen.getByRole('button', {
+        name: /LoraWorkbench:baseModelFilterLabel/,
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('option', {
         name: 'LoraWorkbench:familyLabel.anima',
       }),
     )
@@ -295,7 +308,7 @@ describe('HuggingFaceLoraLibrary', () => {
     )
   })
 
-  it('toggles favorite from the card directly for single-file repositories', () => {
+  it('favorites a single-file repo from its expanded detail (auto-selected file)', () => {
     const singleFileItem: HuggingFaceLoraSearchItem = {
       ...makeItem(),
       files: [makeItem().files[0]!],
@@ -304,6 +317,9 @@ describe('HuggingFaceLoraLibrary', () => {
 
     renderLibrary()
 
+    // Expand the row first — favorite lives in the in-place detail. Single-file
+    // repos auto-select the only file, so no explicit pick is needed.
+    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench:favorite' }),
     )
@@ -314,8 +330,6 @@ describe('HuggingFaceLoraLibrary', () => {
         baseModelFamily: 'anima-dit',
       }),
     )
-    // Single-file favorite is a direct card action — it must not open the
-    // drawer (that's reserved for the ambiguous multi-file case).
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

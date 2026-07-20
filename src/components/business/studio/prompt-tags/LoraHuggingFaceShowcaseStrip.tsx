@@ -44,7 +44,7 @@ export function LoraHuggingFaceShowcaseStrip({
       </p>
 
       {images.length > 0 ? (
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="lora-scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
           {images.map((url, idx) => (
             <button
               key={url}

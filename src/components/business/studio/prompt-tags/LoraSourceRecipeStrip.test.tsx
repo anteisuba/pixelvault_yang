@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CivitaiImageRecipe } from '@/types'
@@ -18,89 +24,88 @@ const SOURCE_RECIPE: CivitaiImageRecipe = {
 }
 
 describe('LoraSourceRecipeStrip', () => {
-  it('selects a source recipe and opens a keyboard-dismissible image preview', async () => {
-    const onSelectedImageUrlChange = vi.fn()
-
+  it('opens the shared source-recipe modal on image click and dismisses it', async () => {
     render(
       <LoraSourceRecipeStrip
         assetName="Lin Pianpian"
+        baseModelFamily="Illustrious"
+        sourceUrl="https://example.com/lora"
         recipes={[SOURCE_RECIPE]}
-        selectedImageUrl={null}
-        includeSeed={false}
-        extraMountStatusByKey={{}}
-        extraStackFull={false}
-        onSelectedImageUrlChange={onSelectedImageUrlChange}
-        onIncludeSeedChange={vi.fn()}
-        onMountExtraLora={vi.fn()}
         onApplyRecipe={vi.fn()}
       />,
     )
 
-    const previewButton = screen.getByRole('button', {
-      name: /sourceImagePreviewLabel/,
-    })
-
-    fireEvent.click(previewButton)
-
-    expect(onSelectedImageUrlChange).toHaveBeenCalledWith(
-      SOURCE_RECIPE.imageUrl,
-    )
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /sourceImageAlt/ })).toHaveAttribute(
-      'src',
-      SOURCE_RECIPE.imageUrl,
-    )
-
+    // G3b (R3): the strip is now just a thumbnail band — no inline recipe
+    // panel. Clicking a source image opens the shared recipe modal (full
+    // recipe on the right), the only place the recipe/params live.
     fireEvent.click(
-      screen.getByRole('button', { name: 'sourceImagePreviewClose' }),
+      screen.getByRole('button', { name: /sourceImagePreviewLabel/ }),
     )
 
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(previewButton).toHaveFocus()
-    })
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(SOURCE_RECIPE.prompt)).toBeInTheDocument()
 
-    fireEvent.click(previewButton)
+    // Close button (Radix DialogContent close, sr-only labelled).
+    fireEvent.click(screen.getByRole('button', { name: 'sourceRecipeClose' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    // Re-open, then Esc dismisses (Radix Dialog).
+    fireEvent.click(
+      screen.getByRole('button', { name: /sourceImagePreviewLabel/ }),
+    )
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
-
     fireEvent.keyDown(document, { key: 'Escape' })
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(previewButton).toHaveFocus()
-    })
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
   })
 
-  it('shows executable versus unsupported fields and accepts a large seed', () => {
+  it('做同款 applies with a fresh seed by default and the original seed when 用原图 seed is checked', async () => {
     const recipe: CivitaiImageRecipe = {
       ...SOURCE_RECIPE,
       seed: '5536891017203',
       steps: 32,
       cfgScale: 4,
       sampler: 'DPM++ 2M Karras',
-      clipSkip: 2,
     }
     const onApplyRecipe = vi.fn()
 
     render(
       <LoraSourceRecipeStrip
         assetName="Aisha"
+        baseModelFamily="Illustrious"
+        sourceUrl="https://example.com/lora"
         recipes={[recipe]}
-        selectedImageUrl={recipe.imageUrl}
-        includeSeed={true}
-        extraMountStatusByKey={{}}
-        extraStackFull={false}
-        onSelectedImageUrlChange={vi.fn()}
-        onIncludeSeedChange={vi.fn()}
-        onMountExtraLora={vi.fn()}
         onApplyRecipe={onApplyRecipe}
       />,
     )
 
-    expect(screen.getByText(/recipeWillApply/)).toHaveTextContent('seed')
-    expect(screen.getByText(/recipeSkipped/)).toHaveTextContent('clipSkip')
-    fireEvent.click(screen.getByRole('button', { name: 'recipeApply' }))
-    expect(onApplyRecipe).toHaveBeenCalledWith(recipe, { includeSeed: true })
-    expect(screen.getByText(/recipeApplied/)).toHaveTextContent('sampler')
+    // Default: 做同款 applies the real recipe with a fresh seed and closes the
+    // modal — it never generates directly.
+    fireEvent.click(
+      screen.getByRole('button', { name: /sourceImagePreviewLabel/ }),
+    )
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'sourceRecipeRemake' }),
+    )
+    expect(onApplyRecipe).toHaveBeenLastCalledWith(recipe, {
+      includeSeed: false,
+    })
+
+    // G3b-seed: checking 用原图 seed locks the recipe's original seed.
+    fireEvent.click(
+      screen.getByRole('button', { name: /sourceImagePreviewLabel/ }),
+    )
+    dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'sourceRecipeRemake' }),
+    )
+    expect(onApplyRecipe).toHaveBeenLastCalledWith(recipe, {
+      includeSeed: true,
+    })
   })
 })

@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { useImageUpload } from '@/hooks/use-image-upload'
 
-import { LoraReferenceImageChip } from './LoraReferenceImageChip'
+import { LoraReferenceImageCards } from './LoraReferenceImageCards'
 
-// The chip composes standalone pieces (ImagePickerPopoverBody, AssetSelectorDialog)
-// that have their own suites and heavier deps; stub them so this test stays a
-// focused smoke test of the chip's own trigger/badge logic and, crucially,
-// that it mounts without any Studio-context coupling.
+// The cards compose standalone pieces (ImagePickerPopoverBody, AssetSelectorDialog)
+// that have their own suites and heavier deps; stub them so this stays a focused
+// smoke test of the cards' own empty/filled presentation, and that it mounts
+// without any Studio-context coupling.
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => `ImageChip:${key}`,
 }))
@@ -52,10 +52,23 @@ function makeImageUpload(
   } as unknown as ReturnType<typeof useImageUpload>
 }
 
-describe('LoraReferenceImageChip (B9)', () => {
-  it('renders the trigger chip without any Studio context', () => {
+// jsdom lacks ResizeObserver, which the ParamSlider (Radix Slider) touches on
+// mount when a reference is attached (filled state).
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  )
+})
+
+describe('LoraReferenceImageCards (G3c)', () => {
+  it('empty state: only a low add-reference entry, no big cards or strength', () => {
     render(
-      <LoraReferenceImageChip
+      <LoraReferenceImageCards
         imageUpload={makeImageUpload([])}
         strength={0.7}
         onStrengthChange={vi.fn()}
@@ -64,15 +77,17 @@ describe('LoraReferenceImageChip (B9)', () => {
     )
 
     expect(
-      screen.getByRole('button', { name: 'ImageChip:label' }),
+      screen.getByRole('button', { name: 'ImageChip:addReference' }),
     ).toBeInTheDocument()
-    // No attachment yet → no count badge.
-    expect(screen.queryByText('1')).not.toBeInTheDocument()
+    // No filled card preview → no strength slider label reserved.
+    expect(
+      screen.queryByText('ImageChip:referenceStrength'),
+    ).not.toBeInTheDocument()
   })
 
-  it('shows a count badge reflecting the number of attached entries', () => {
+  it('filled state: renders a preview card, remove + add cards, and the strength slider', () => {
     render(
-      <LoraReferenceImageChip
+      <LoraReferenceImageCards
         imageUpload={makeImageUpload(['https://example.com/a.png'])}
         strength={0.7}
         onStrengthChange={vi.fn()}
@@ -80,7 +95,17 @@ describe('LoraReferenceImageChip (B9)', () => {
       />,
     )
 
-    const trigger = screen.getByRole('button', { name: 'ImageChip:label' })
-    expect(trigger).toHaveTextContent('1')
+    expect(
+      screen.getByRole('button', { name: 'ImageChip:previewReferenceImage' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'ImageChip:removeReferenceImage' }),
+    ).toBeInTheDocument()
+    // Same-size ＋ add card at the end of the row.
+    expect(
+      screen.getByRole('button', { name: 'ImageChip:add' }),
+    ).toBeInTheDocument()
+    // Strength slider shows once there is a usable reference.
+    expect(screen.getByText('ImageChip:referenceStrength')).toBeInTheDocument()
   })
 })

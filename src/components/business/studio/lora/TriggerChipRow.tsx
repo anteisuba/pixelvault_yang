@@ -46,7 +46,7 @@ export function TriggerChipRow({
       aria-label={t('generate.triggerChipRowLabel')}
       className="flex flex-wrap items-center gap-1.5"
     >
-      <span className="text-2xs uppercase tracking-wide text-surface-composer-foreground/50">
+      <span className="text-2xs uppercase tracking-wide text-muted-foreground">
         {t('generate.triggerChipRowLabel')}
       </span>
       {entries.map((entry) => {
@@ -65,8 +65,8 @@ export function TriggerChipRow({
             className={cn(
               'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 text-2xs transition-colors',
               isDisabled
-                ? 'border-dashed border-surface-composer-foreground/20 text-surface-composer-foreground/40 line-through'
-                : 'border-surface-composer-foreground/25 text-surface-composer-foreground hover:border-surface-composer-foreground/40',
+                ? 'border-dashed border-border text-muted-foreground/60 line-through'
+                : 'border-border text-foreground hover:border-foreground/40',
             )}
           >
             <span className="max-w-20 truncate">{entry.name}</span>

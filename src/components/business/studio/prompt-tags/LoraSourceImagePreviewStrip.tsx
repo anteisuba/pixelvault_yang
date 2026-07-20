@@ -73,7 +73,7 @@ export function LoraSourceImagePreviewStrip({
           <p className="text-2xs leading-relaxed text-muted-foreground">
             {t('previewOnlyHint')}
           </p>
-          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
+          <div className="lora-scrollbar-hide mt-1 flex gap-1.5 overflow-x-auto pb-1">
             {previewImages.map((image, idx) => {
               const imageLabel = t('sourceImageAlt', {
                 name: assetName,

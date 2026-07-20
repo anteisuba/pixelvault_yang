@@ -3,10 +3,11 @@
 import { useId, useRef, useState, type ChangeEvent } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { Loader2, Camera } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { updateProfileAPI, uploadAvatarAPI } from '@/lib/api-client'
@@ -301,7 +302,7 @@ export function ProfileEditModal({
             {t('cancel')}
           </Button>
           <Button onClick={() => void handleSave()} disabled={isSaving}>
-            {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+            {isSaving ? <Spinner size="md" /> : null}
             {t('save')}
           </Button>
         </DialogFooter>

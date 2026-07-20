@@ -14,7 +14,6 @@ import {
   Layers,
   LayoutGrid,
   Library,
-  Loader2,
   LogOut,
   Box,
   Lock,
@@ -47,6 +46,7 @@ const ApiKeyManager = dynamic(
 import { Button } from '@/components/ui/button'
 import { HyperText } from '@/components/ui/hyper-text'
 import { NumberTicker } from '@/components/ui/number-ticker'
+import { Spinner } from '@/components/ui/spinner'
 import {
   Sheet,
   SheetContent,
@@ -757,7 +757,7 @@ function SidebarFooterUserMenu() {
               className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent disabled:cursor-wait disabled:opacity-70"
             >
               {isProfileNavigationPending ? (
-                <Loader2 className="size-4 animate-spin text-sidebar-foreground/70" />
+                <Spinner size="md" className="text-sidebar-foreground/70" />
               ) : (
                 <User className="size-4 text-sidebar-foreground/70" />
               )}

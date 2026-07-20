@@ -5,7 +5,6 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import {
   Check,
   Image as ImageIcon,
-  Loader2,
   Paperclip,
   Upload,
   Video,
@@ -19,6 +18,7 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
@@ -169,11 +169,7 @@ export function AssistantReferencePicker({
         onClick={() => videoInputRef.current?.click()}
         className="h-9 w-full gap-1.5 rounded-lg text-xs"
       >
-        {isWorking ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <Upload className="size-3.5" />
-        )}
+        {isWorking ? <Spinner size="sm" /> : <Upload className="size-3.5" />}
         <Video className="size-3.5" />
         {labels.uploadVideo}
       </Button>
@@ -216,7 +212,7 @@ export function AssistantReferencePicker({
             )}
           >
             {isWorking ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <Paperclip className="size-4" />
             )}

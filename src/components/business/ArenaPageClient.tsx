@@ -1,10 +1,11 @@
 'use client'
 
-import { BarChart3, Clock, Loader2, RotateCcw, Trophy } from 'lucide-react'
+import { BarChart3, Clock, RotateCcw, Trophy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { ArenaForm } from '@/components/business/ArenaForm'
 import { ArenaGrid } from '@/components/business/ArenaGrid'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
@@ -71,7 +72,7 @@ export function ArenaPageClient() {
           {step === 'generating' && entryProgress.length > 0 && (
             <div className="space-y-4">
               <div className="text-center">
-                <Loader2 className="mx-auto size-6 animate-spin text-primary" />
+                <Spinner size="lg" className="mx-auto text-muted-foreground" />
                 <p className="mt-3 text-sm font-medium text-foreground">
                   {t('generatingEntries')}
                 </p>

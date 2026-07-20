@@ -1,11 +1,12 @@
 'use client'
 
 import Image from 'next/image'
-import { Loader2, ImageIcon } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useCharacterCardGallery } from '@/hooks/cards/use-character-card-gallery'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 
 interface CharacterCardGalleryProps {
@@ -26,7 +27,7 @@ export function CharacterCardGallery({
   if (isLoading && generations.length === 0) {
     return (
       <div className="flex items-center justify-center py-6">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <Spinner size="lg" className="text-muted-foreground" />
       </div>
     )
   }
@@ -89,9 +90,7 @@ export function CharacterCardGallery({
             disabled={isLoading}
             onClick={loadMore}
           >
-            {isLoading ? (
-              <Loader2 className="mr-1 size-3 animate-spin" />
-            ) : null}
+            {isLoading ? <Spinner size="sm" className="mr-1" /> : null}
             {t('loadMore')}
           </Button>
         </div>

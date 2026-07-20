@@ -12,7 +12,6 @@ import {
   Globe,
   Heart,
   Image as ImageIcon,
-  Loader2,
   Lock,
   Mic,
   Plus,
@@ -48,6 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
@@ -1336,7 +1336,7 @@ export function KreaAssetBrowser({
                       className="h-10 rounded-lg px-3.5"
                     >
                       {isUploading ? (
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <Spinner size="sm" />
                       ) : (
                         <UploadCloud className="size-3.5" />
                       )}
@@ -1439,7 +1439,7 @@ export function KreaAssetBrowser({
                   className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                 >
                   {isUploading ? (
-                    <Loader2 className="size-5 animate-spin" />
+                    <Spinner size="lg" />
                   ) : (
                     <UploadCloud className="size-5" />
                   )}
@@ -1643,7 +1643,7 @@ export function KreaAssetBrowser({
 
           {isLoading && generations.length > 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             </div>
           )}
         </main>
@@ -1787,7 +1787,7 @@ export function KreaAssetBrowser({
                   className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
                 >
                   {isBulkMoving ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Spinner size="sm" />
                   ) : (
                     <FolderInput className="size-3.5" />
                   )}
@@ -1822,7 +1822,7 @@ export function KreaAssetBrowser({
               className="flex items-center gap-1.5 rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
             >
               {isBulkFavoriting ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 <Heart className="size-3.5" />
               )}
@@ -1835,7 +1835,7 @@ export function KreaAssetBrowser({
               className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isBulkPublishing ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 <Globe className="size-3.5" />
               )}
@@ -1848,7 +1848,7 @@ export function KreaAssetBrowser({
               className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               {isBulkDeleting ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 <Trash2 className="size-3.5" />
               )}

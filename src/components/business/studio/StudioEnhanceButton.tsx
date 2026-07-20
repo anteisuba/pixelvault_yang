@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -12,6 +12,7 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTrigger,
 } from '@/components/ui/responsive-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { useStudioData } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
@@ -26,7 +27,7 @@ import {
 function PanelLoadingFallback() {
   return (
     <div className="flex h-32 items-center justify-center">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      <Spinner size="lg" className="text-muted-foreground" />
     </div>
   )
 }

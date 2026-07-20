@@ -11,7 +11,6 @@ import {
   GlobeLock,
   Heart,
   ImagePlus,
-  Loader2,
   Mic,
   Sparkles,
   Trash2,
@@ -28,6 +27,7 @@ import {
 } from '@/components/business/MediaDetailViewer'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -433,7 +433,7 @@ export function AssetDetailSheet({
               disabled={isMoving}
             >
               {isMoving ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <FolderInput className="size-4" />
               )}
@@ -485,7 +485,7 @@ export function AssetDetailSheet({
           aria-pressed={generation.isPublic}
         >
           {isPublishing ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           ) : generation.isPublic ? (
             <GlobeLock className="size-4" />
           ) : (
@@ -505,7 +505,7 @@ export function AssetDetailSheet({
           aria-pressed={!!generation.isLiked}
         >
           {isFavoriting ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           ) : (
             <Heart
               className={cn('size-4', generation.isLiked && 'fill-current')}
@@ -521,7 +521,7 @@ export function AssetDetailSheet({
           disabled={isSavingRecipe}
         >
           {isSavingRecipe ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           ) : (
             <FileText className="size-4" />
           )}
@@ -536,7 +536,7 @@ export function AssetDetailSheet({
             disabled={isSettingCover}
           >
             {isSettingCover ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <ImagePlus className="size-4" />
             )}
@@ -558,7 +558,7 @@ export function AssetDetailSheet({
               disabled={isDeleting}
             >
               {isDeleting ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <Trash2 className="size-4" />
               )}

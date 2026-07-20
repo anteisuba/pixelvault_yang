@@ -7,7 +7,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Loader2,
   Plus,
   SlidersHorizontal,
   XCircle,
@@ -35,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { validateKeyFormat } from '@/lib/validate-api-key'
 
@@ -404,7 +404,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
               {t('addForm.savingAction')}
             </>
           ) : (

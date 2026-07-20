@@ -6,7 +6,6 @@ import {
   Copy,
   Globe,
   ImageOff,
-  Loader2,
   Lock,
   Pencil,
   RotateCcw,
@@ -59,6 +58,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ResponsiveDialog,
@@ -305,7 +305,7 @@ export function PromptTemplateDetailDialog({
 
       {isLoadingAssets ? (
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
+          <Spinner size="lg" />
           {t('loadingAssets')}
         </div>
       ) : generations.length === 0 ? (
@@ -536,11 +536,7 @@ export function PromptTemplateDetailDialog({
                 disabled={isSaving}
                 onClick={() => void saveChanges()}
               >
-                {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
+                {isSaving ? <Spinner size="md" /> : <Save className="size-4" />}
                 {isSaving ? t('createSaving') : t('editSubmit')}
               </Button>
             </div>
@@ -581,7 +577,7 @@ export function PromptTemplateDetailDialog({
                 title={t('publishHint')}
               >
                 {isPublishing ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                 ) : visibility === RECIPE_VISIBILITY.PUBLIC ? (
                   <Lock className="size-4" />
                 ) : (

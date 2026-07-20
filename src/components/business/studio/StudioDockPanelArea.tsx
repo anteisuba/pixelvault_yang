@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useState } from 'react'
-import { Key, Loader2 } from 'lucide-react'
+import { Key } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
@@ -22,6 +22,7 @@ import {
   ResponsiveDialogContent,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import {
   StudioPanelHeader,
   studioDialogBaseClass,
@@ -40,7 +41,7 @@ import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
 function PanelLoadingFallback() {
   return (
     <div className="flex h-40 items-center justify-center">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      <Spinner size="lg" className="text-muted-foreground" />
     </div>
   )
 }

@@ -2,10 +2,11 @@
 /* eslint-disable @next/next/no-img-element -- recent-asset thumbnails are remote URLs */
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Library, Loader2, UploadCloud } from 'lucide-react'
+import { Library, UploadCloud } from 'lucide-react'
 
 import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
@@ -111,7 +112,7 @@ export function ImagePickerPopoverBody({
         </p>
         {assets === null ? (
           <div className="flex h-16 items-center justify-center">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <Spinner size="md" className="text-muted-foreground" />
           </div>
         ) : assets.length === 0 ? (
           <p className="py-3 text-center text-xs text-muted-foreground">

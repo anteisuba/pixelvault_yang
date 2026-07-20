@@ -2,18 +2,12 @@
 /* eslint-disable @next/next/no-img-element -- layer preview thumbnails */
 
 import { useCallback, useRef } from 'react'
-import {
-  Download,
-  ImagePlus,
-  Layers,
-  Loader2,
-  RotateCcw,
-  Upload,
-} from 'lucide-react'
+import { Download, ImagePlus, Layers, RotateCcw, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { useLayerDecompose } from '@/hooks/use-layer-decompose'
 import { downloadRemoteAsset } from '@/lib/api-client'
@@ -188,7 +182,7 @@ export function LayerDecomposePanel({
         )}
 
         <div className="flex flex-col items-center gap-2 py-4">
-          <Loader2 className="size-6 animate-spin text-primary" />
+          <Spinner size="lg" className="text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
             {t('decomposing')}
           </p>

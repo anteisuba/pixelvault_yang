@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Folder,
   FolderX,
-  Loader2,
   Pencil,
   Plus,
   Search,
@@ -24,6 +23,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Spinner } from '@/components/ui/spinner'
 import { TreeView, type TreeNode } from '@/components/ui/tree-view'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
@@ -643,7 +643,7 @@ function ProjectRenameTreeContent({
         className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       >
         {disabled ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Spinner size="sm" />
         ) : (
           <CheckCircle2 className="size-3.5" />
         )}

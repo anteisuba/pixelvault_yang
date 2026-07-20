@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileText, Loader2, Plus, Save, X } from 'lucide-react'
+import { FileText, Plus, Save, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import type { CreateRecipeRequest, OutputType } from '@/types'
 
@@ -360,11 +361,7 @@ export function PromptTemplateCreatePanel({
             className="rounded-full px-5"
             disabled={isSaving}
           >
-            {isSaving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
-            )}
+            {isSaving ? <Spinner size="md" /> : <Save className="size-4" />}
             {isSaving ? t('createSaving') : t('createSubmit')}
           </Button>
         </div>

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Check,
   ImageIcon,
-  Loader2,
   Paintbrush,
   RotateCcw,
   Sparkles,
@@ -24,6 +23,7 @@ import type {
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { VariationGrid } from '@/components/business/VariationGrid'
 import { useReverseImage } from '@/hooks/image/use-reverse-image'
@@ -342,7 +342,7 @@ export function ReverseEngineerPanel({
         )}
 
         <div className="flex items-center justify-center gap-2 py-4">
-          <Loader2 className="size-5 animate-spin text-primary" />
+          <Spinner size="lg" className="text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t('analyzing')}</p>
         </div>
       </div>
@@ -461,7 +461,7 @@ export function ReverseEngineerPanel({
       {/* Loading */}
       {step === 'generating' && (
         <div className="flex items-center justify-center gap-2 py-4">
-          <Loader2 className="size-5 animate-spin text-primary" />
+          <Spinner size="lg" className="text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             {t('generatingVariations')}
           </p>

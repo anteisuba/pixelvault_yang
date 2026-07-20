@@ -1,10 +1,11 @@
 'use client'
 
 import { memo } from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { RunItem } from '@/types'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 interface AudioVariantGridProps {
@@ -41,7 +42,7 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
 
             {item.status === 'generating' && (
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="size-4 animate-spin text-primary/60" />
+                <Spinner size="md" />
                 <span className="font-serif text-xs">{t('generating')}</span>
               </div>
             )}

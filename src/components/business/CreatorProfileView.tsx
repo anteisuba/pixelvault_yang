@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
@@ -13,6 +12,7 @@ import { useFollow } from '@/hooks/use-follow'
 import { invalidateMyProfile } from '@/hooks/use-my-profile'
 import { ProfileHeader } from '@/components/business/ProfileHeader'
 import { PolaroidGrid } from '@/components/business/PolaroidGrid'
+import { Spinner } from '@/components/ui/spinner'
 import type { CreatorProfilePageData } from '@/types'
 
 interface CreatorProfileViewProps {
@@ -26,6 +26,7 @@ export function CreatorProfileView({
   initialData,
 }: CreatorProfileViewProps) {
   const tToasts = useTranslations('Toasts')
+  const tCommon = useTranslations('Common')
 
   const {
     profile,
@@ -98,8 +99,9 @@ export function CreatorProfileView({
 
   if (isLoading && !data) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center gap-2 min-h-[60vh]">
+        <Spinner size="lg" className="text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">{tCommon('loading')}</p>
       </div>
     )
   }

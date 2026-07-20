@@ -1,9 +1,10 @@
 'use client'
 
-import { Check, ImageIcon, Loader2, RefreshCw, X } from 'lucide-react'
+import { Check, ImageIcon, RefreshCw, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 interface CardifyPreviewProps {
@@ -76,7 +77,7 @@ export function CardifyPreview({
           className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {isSubmitting ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <Check className="size-3.5" />
           )}
@@ -128,7 +129,7 @@ function PreviewPane({
       <div className="relative aspect-[3/4] overflow-hidden rounded-md border border-border/60 bg-muted/30">
         {isLoading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
+            <Spinner size="lg" />
             {placeholder && (
               <p className="px-3 text-center text-xs">{placeholder}</p>
             )}

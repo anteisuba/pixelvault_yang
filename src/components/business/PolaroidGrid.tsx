@@ -1,10 +1,11 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Loader2, ImageIcon } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { PolaroidCard } from '@/components/business/PolaroidCard'
 import type { CreatorProfileWithImages } from '@/types'
 
@@ -93,7 +94,7 @@ export function PolaroidGrid({
           >
             {isLoadingMore ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
                 {t('loading')}
               </>
             ) : (

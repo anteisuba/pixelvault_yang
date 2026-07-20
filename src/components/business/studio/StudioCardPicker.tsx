@@ -5,7 +5,6 @@ import Image from 'next/image'
 import {
   ArrowUpRight,
   ImageIcon,
-  Loader2,
   Palette,
   PanelsTopLeft,
   Search,
@@ -20,6 +19,7 @@ import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
 import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
+import { Spinner } from '@/components/ui/spinner'
 
 type CardKind = 'character' | 'style' | 'background'
 
@@ -303,7 +303,7 @@ export function StudioCardPicker() {
 
         {activeGroup.isLoading ? (
           <div className="flex h-32 items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : visibleCards.length === 0 ? (
           query.trim() ? (

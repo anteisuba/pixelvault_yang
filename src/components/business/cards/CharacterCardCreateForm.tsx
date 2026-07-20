@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Plus, Trash2, Loader2, Globe, Upload, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Globe, Upload, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
@@ -20,6 +20,7 @@ import {
   generateImageAPI,
 } from '@/lib/api-client'
 import { CardifyPreview } from '@/components/business/cards/CardifyPreview'
+import { Spinner } from '@/components/ui/spinner'
 
 interface CharacterCardCreateFormProps {
   onSubmit: (
@@ -346,7 +347,7 @@ export function CharacterCardCreateForm({
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
               {t('creatingWithSearch')}
             </>
           ) : (

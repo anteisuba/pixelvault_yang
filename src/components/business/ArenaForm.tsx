@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, Swords } from 'lucide-react'
+import { Swords } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -46,6 +46,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import type { StartBattleInput } from '@/hooks/use-arena'
@@ -510,7 +511,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
       >
         {isCreating ? (
           <>
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
             {t('creating')}
           </>
         ) : (

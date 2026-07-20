@@ -1,12 +1,13 @@
 'use client'
 
-import { Clock, Loader2, RefreshCcw, Trophy } from 'lucide-react'
+import { Clock, RefreshCcw, Trophy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import type { ArenaHistoryEntry } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useArenaHistory } from '@/hooks/use-arena-history'
 
 function getModelDisplayName(
@@ -141,7 +142,7 @@ export function ArenaHistory() {
           >
             {isLoading ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
                 {t('loadingMore')}
               </>
             ) : (

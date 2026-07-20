@@ -6,7 +6,6 @@ import {
   Edit3,
   Check,
   Upload,
-  Loader2,
   X,
   Image as ImageIcon,
   Palette,
@@ -29,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Spinner } from '@/components/ui/spinner'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
@@ -434,7 +434,7 @@ export function SimpleCardManager({
                 className="flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground disabled:opacity-50"
               >
                 {isCreating ? (
-                  <Loader2 className="size-3 animate-spin" />
+                  <Spinner size="sm" />
                 ) : (
                   <Check className="size-3" />
                 )}
@@ -460,7 +460,7 @@ export function SimpleCardManager({
 
         {isLoading && (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <Spinner size="md" className="text-muted-foreground" />
           </div>
         )}
 

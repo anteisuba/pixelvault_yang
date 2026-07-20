@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ExternalLink, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
@@ -18,6 +18,7 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 interface QuickSetupDialogProps {
@@ -359,7 +360,7 @@ export function QuickSetupDialog({
           >
             {step === 'verifying' ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
                 {t('verifying')}
               </>
             ) : step === 'success' ? (

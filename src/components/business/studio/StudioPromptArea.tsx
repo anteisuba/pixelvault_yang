@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
-import { Loader2, Send } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
@@ -79,6 +79,7 @@ import {
   PromptInputTextarea,
   PromptInputActions,
 } from '@/components/ui/prompt-input'
+import { Spinner } from '@/components/ui/spinner'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
@@ -1165,7 +1166,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                         exit={{ opacity: 0, scale: 0.92 }}
                         transition={motionTransition('fast', reducedMotion)}
                       >
-                        <Loader2 className="size-4 animate-spin" />
+                        <Spinner size="md" />
                         {elapsedSeconds > 0 && (
                           <span className="sr-only">
                             {t('generating')} {elapsedSeconds}s

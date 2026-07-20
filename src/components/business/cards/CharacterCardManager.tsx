@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Sparkles, User, Loader2, Plus } from 'lucide-react'
+import { Sparkles, User, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type {
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
 import { CharacterCardItem } from '@/components/business/cards/CharacterCardItem'
@@ -159,7 +160,7 @@ export function CharacterCardManager({
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : cards.length === 0 && !showCreateForm ? (
           <button

@@ -11,12 +11,12 @@ import {
   Heart,
   Users,
   Camera,
-  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
 import { uploadBannerAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
@@ -119,7 +119,7 @@ export function ProfileHeader({
             >
               <span className="flex items-center gap-2 rounded-full bg-black/40 px-4 py-2 text-sm font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">
                 {isUploadingBanner ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                 ) : (
                   <Camera className="size-4" />
                 )}

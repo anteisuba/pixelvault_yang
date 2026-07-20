@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -16,6 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { isTouchPrimary } from '@/lib/touch'
 import { createProjectAPI } from '@/lib/api-client'
 import type { ProjectRecord } from '@/types'
@@ -112,7 +112,7 @@ export function ProjectCreateDialog({
             <Button type="submit" disabled={!canSubmit}>
               {isCreating ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                   {t('projectCreating')}
                 </>
               ) : (

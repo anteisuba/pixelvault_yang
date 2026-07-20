@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, Pencil, ShieldCheck, Trash2, X, Check } from 'lucide-react'
+import { Pencil, ShieldCheck, Trash2, X, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getProviderLabel } from '@/constants/providers'
@@ -14,6 +14,7 @@ import type {
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
@@ -78,7 +79,7 @@ export function ApiKeyRow({
     >
       <div className="flex items-center gap-2 sm:w-8">
         {isPending ? (
-          <Loader2 className="size-4 animate-spin" />
+          <Spinner size="md" />
         ) : (
           <Switch
             size="sm"
@@ -133,7 +134,7 @@ export function ApiKeyRow({
               className="text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
             >
               {isPending ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 <Check className="size-3.5" />
               )}
@@ -174,7 +175,7 @@ export function ApiKeyRow({
           title={t('actions.verifyKey')}
         >
           {isVerifying ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           ) : (
             <ShieldCheck className="size-4" />
           )}
@@ -189,7 +190,7 @@ export function ApiKeyRow({
               title={t('actions.deleteKey')}
             >
               {isDeleting ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <Trash2 className="size-4" />
               )}

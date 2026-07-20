@@ -1,6 +1,5 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
 
@@ -10,6 +9,7 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import type { GenerationRecord } from '@/types'
 
@@ -114,7 +114,7 @@ export function GalleryFeed({
               disabled
               className="rounded-full border-border/80 bg-card/74 px-6"
             >
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="md" />
               {t('loadingMore')}
             </Button>
           ) : (

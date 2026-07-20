@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Loader2, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getAvailableModels } from '@/constants/models'
@@ -20,6 +20,7 @@ import { ApiKeyForm } from '@/components/business/ApiKeyForm'
 import { ApiKeyRow } from '@/components/business/ApiKeyRow'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 
 interface ProviderRouteGroup {
@@ -191,7 +192,7 @@ export function ApiKeyManager() {
 
       {isLoading ? (
         <div className="flex items-center gap-2 rounded-3xl border border-border/70 bg-card/84 px-4 py-6 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
+          <Spinner size="md" />
           {t('loading')}
         </div>
       ) : (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpRight, FileText, Loader2, Save, Sparkles } from 'lucide-react'
+import { ArrowUpRight, FileText, Save, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -20,6 +20,7 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTrigger,
 } from '@/components/ui/responsive-dialog'
+import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   StudioPanelHeader,
@@ -395,7 +396,7 @@ function MineTabBody({
           )}
         >
           {isSavingCurrent ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           ) : (
             <Save className="size-4" />
           )}
@@ -415,7 +416,7 @@ function MineTabBody({
         <CommandList className="max-h-none overflow-visible overscroll-auto">
           {isLoading && !hasRecipes ? (
             <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner size="lg" />
               <span>{t('loadingTemplates')}</span>
             </div>
           ) : (
@@ -472,7 +473,7 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
           </div>
         ) : isLoading && items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="lg" />
             <span>{t('inspirationLoadingMore')}</span>
           </div>
         ) : items.length === 0 ? (

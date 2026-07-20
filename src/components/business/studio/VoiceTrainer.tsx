@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect, useRef, useState } from 'react'
-import { Loader2, Mic, Plus, Trash2, Upload } from 'lucide-react'
+import { Mic, Plus, Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 
 interface UploadedFile {
@@ -277,7 +278,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
           disabled={!canTranscribe}
           className="h-8 w-fit gap-2 text-xs"
         >
-          {isTranscribing && <Loader2 className="size-3.5 animate-spin" />}
+          {isTranscribing && <Spinner size="sm" />}
           {files.length > 1 ? t('voiceTranscribeFirst') : t('voiceTranscribe')}
         </Button>
       </div>
@@ -308,7 +309,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
           </>
         ) : (
           <>
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
             {trainStage === 'uploading'
               ? t('voiceTrainStageUploading')
               : t('voiceTraining')}

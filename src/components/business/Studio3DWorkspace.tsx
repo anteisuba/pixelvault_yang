@@ -10,7 +10,6 @@ import {
   Download,
   FolderOpen,
   ImageIcon,
-  Loader2,
   Sparkles,
   Upload,
   Wand2,
@@ -87,6 +86,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerate3D } from '@/hooks/use-generate-3d'
@@ -204,7 +204,7 @@ function RodinAngleSlot({
   if (isUploading) {
     return (
       <div className="flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-border/60 bg-muted/20">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <Spinner size="md" className="text-muted-foreground" />
       </div>
     )
   }
@@ -1584,7 +1584,7 @@ export function Studio3DWorkspace({
                         title={uploading ? t('uploading') : t('uploadButton')}
                       >
                         {uploading ? (
-                          <Loader2 className="size-3.5 animate-spin" />
+                          <Spinner size="sm" />
                         ) : (
                           <Upload className="size-3.5" />
                         )}
@@ -1692,7 +1692,7 @@ export function Studio3DWorkspace({
                       >
                         {isGeneratingViews ? (
                           <>
-                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                            <Spinner size="sm" className="mr-1.5" />
                             {t('multiViewLoading')}
                           </>
                         ) : (
@@ -1768,7 +1768,7 @@ export function Studio3DWorkspace({
                       >
                         {isGeneratingViews ? (
                           <>
-                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                            <Spinner size="sm" className="mr-1.5" />
                             {t('multiViewLoading')}
                           </>
                         ) : (
@@ -1868,7 +1868,7 @@ export function Studio3DWorkspace({
                                 className="h-7 rounded-full px-2 text-[10px]"
                               >
                                 {isUploading ? (
-                                  <Loader2 className="mr-1 size-3 animate-spin" />
+                                  <Spinner size="sm" className="mr-1" />
                                 ) : (
                                   <Upload className="mr-1 size-3" />
                                 )}

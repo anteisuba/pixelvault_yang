@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock,
   ImagePlus,
-  Loader2,
   RefreshCw,
   Sparkles,
   Star,
@@ -50,6 +49,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
@@ -631,7 +631,7 @@ export function LoraTrainingForm({
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
               >
                 {uploadsInFlight > 0 ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <Spinner size="sm" />
                 ) : (
                   <Upload className="size-3.5" />
                 )}
@@ -773,7 +773,7 @@ export function LoraTrainingForm({
                     <CheckCircle2 className="size-3.5 text-emerald-500" />
                   )}
                   {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
-                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                    <Spinner size="sm" className="text-primary" />
                   )}
                   {job.status === 'FAILED' && (
                     <XCircle className="size-3.5 text-destructive" />
@@ -857,7 +857,7 @@ export function LoraTrainingForm({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                   {t('submitting')}
                 </>
               ) : (
@@ -932,7 +932,7 @@ export function LoraTrainingHistorySidebar() {
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="md" />
           </div>
         ) : jobs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-2xs text-muted-foreground">
@@ -958,7 +958,7 @@ export function LoraTrainingHistorySidebar() {
                   <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
                 )}
                 {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
-                  <Loader2 className="size-3 shrink-0 animate-spin text-primary" />
+                  <Spinner size="sm" className="shrink-0 text-primary" />
                 )}
                 {job.status === 'FAILED' && (
                   <XCircle className="size-3 shrink-0 text-destructive" />

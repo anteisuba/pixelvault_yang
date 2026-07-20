@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Wand2, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { Wand2, Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import type {
 } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { useImageUpload } from '@/hooks/use-image-upload'
@@ -332,11 +333,7 @@ export function StyleCardEditor({
           disabled={isLoading || !name.trim() || !stylePrompt.trim()}
           className="bg-primary hover:bg-primary/90 text-white"
         >
-          {isLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            (tv2('save') ?? '保存')
-          )}
+          {isLoading ? <Spinner size="sm" /> : (tv2('save') ?? '保存')}
         </Button>
       </div>
     </div>

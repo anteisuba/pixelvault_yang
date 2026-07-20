@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import NextImage from 'next/image'
-import { BookOpen, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, ImagePlus, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { StoryCard } from '@/components/business/StoryCard'
 import { useStoryList } from '@/hooks/use-storyboard'
@@ -176,7 +177,7 @@ export default function StoryboardPage() {
                 className="gap-2 rounded-full"
               >
                 {isCreating ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size="md" />
                 ) : (
                   <Plus className="size-4" />
                 )}
@@ -197,7 +198,7 @@ export default function StoryboardPage() {
           {/* Loading */}
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <Spinner size="lg" className="text-muted-foreground" />
             </div>
           )}
 

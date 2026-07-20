@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useRef, useState } from 'react'
-import { FileAudio2, Loader2, Trash2, Upload } from 'lucide-react'
+import { FileAudio2, Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -10,6 +10,7 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 
 const ACCEPTED_AUDIO_MIME = 'audio/*'
 // Fish Audio ASR rejects payloads over ~25 MB; bound the client too so the
@@ -162,7 +163,7 @@ export const AudioTranscribeDialog = memo(function AudioTranscribeDialog({
           className="h-8 gap-1.5 px-3 text-xs"
         >
           {isTranscribing ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <FileAudio2 className="size-3.5" />
           )}

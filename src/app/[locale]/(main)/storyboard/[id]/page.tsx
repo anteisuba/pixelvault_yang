@@ -1,13 +1,14 @@
 'use client'
 
 import { use, useRef } from 'react'
-import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 import { ROUTES } from '@/constants/routes'
 import type { NarrativeTone } from '@/types'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { StoryScrollRenderer } from '@/components/business/StoryScrollRenderer'
 import { StoryComicRenderer } from '@/components/business/StoryComicRenderer'
 import { StoryImagePicker } from '@/components/business/StoryImagePicker'
@@ -43,7 +44,7 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
     return (
       <div className="editorial-page">
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <Spinner size="lg" className="text-muted-foreground" />
         </div>
       </div>
     )
@@ -146,7 +147,7 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
                     className="gap-1.5 rounded-full"
                   >
                     {isGeneratingNarrative ? (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <Spinner size="sm" />
                     ) : (
                       <span>{option.emoji}</span>
                     )}

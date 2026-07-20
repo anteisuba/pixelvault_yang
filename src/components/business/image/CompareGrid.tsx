@@ -1,13 +1,14 @@
 'use client'
 
 import { memo } from 'react'
-import { Check, Loader2, AlertTriangle } from 'lucide-react'
+import { Check, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
 import type { RunItem } from '@/types'
 import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 interface CompareGridProps {
@@ -70,7 +71,7 @@ export const CompareGrid = memo(function CompareGrid({
             {/* Generating */}
             {item.status === 'generating' && (
               <div className="flex flex-col items-center justify-center gap-2 py-20">
-                <Loader2 className="size-6 animate-spin text-primary/60" />
+                <Spinner size="lg" className="text-muted-foreground" />
                 <p className="text-xs text-muted-foreground font-serif">
                   {t('generating')}
                 </p>

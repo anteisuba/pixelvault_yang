@@ -1,9 +1,10 @@
 'use client'
 
-import { Loader2, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 
 import { InspirationCard } from './InspirationCard'
 import { InspirationFilters } from './InspirationFilters'
@@ -69,9 +70,7 @@ export function InspirationGrid() {
                 onClick={() => void loadMore()}
                 className="h-10 rounded-full px-6"
               >
-                {isLoadingMore ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : null}
+                {isLoadingMore ? <Spinner size="md" /> : null}
                 {isLoadingMore
                   ? t('inspirationLoadingMore')
                   : t('inspirationLoadMore')}

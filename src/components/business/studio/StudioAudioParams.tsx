@@ -15,7 +15,6 @@ import {
   ChevronDown,
   FileAudio2,
   HelpCircle,
-  Loader2,
   MessagesSquare,
   Mic2,
   MinusCircle,
@@ -67,6 +66,7 @@ import { uploadReferenceAudioAPI } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import {
   Select,
@@ -534,7 +534,7 @@ function ReferenceAudioField({
           )}
         >
           {isUploading ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <Upload className="size-3.5" />
           )}

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Loader2 } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { BRAND_BG } from '@/lib/design-tokens'
 import { toastError } from '@/lib/toast'
 
@@ -52,11 +53,7 @@ export function StoryExportButton({
       onClick={handleExportPng}
       className="gap-1.5 rounded-full"
     >
-      {isExporting ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : (
-        <Download className="size-3.5" />
-      )}
+      {isExporting ? <Spinner size="sm" /> : <Download className="size-3.5" />}
       {t('exportPng')}
     </Button>
   )

@@ -1,13 +1,14 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- inspiration images are external */
 
-import { Copy, ExternalLink, Heart, Loader2, Sparkles } from 'lucide-react'
+import { Copy, ExternalLink, Heart, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   MediaDetailViewer,
   toMediaTransitionOrigin,
@@ -148,7 +149,7 @@ export function InspirationCard({
               className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs"
             >
               {isCloning ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 <Sparkles className="size-3.5" />
               )}
@@ -238,7 +239,7 @@ export function InspirationCard({
               className="h-10 rounded-full"
             >
               {isCloning ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner size="md" />
               ) : (
                 <Sparkles className="size-4" />
               )}

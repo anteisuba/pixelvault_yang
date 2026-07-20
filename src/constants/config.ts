@@ -277,6 +277,9 @@ export const API_ENDPOINTS = {
   LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
   /** Public Hugging Face LoRA browser/import source */
   LORA_ASSETS_HUGGINGFACE: '/api/lora-assets/huggingface',
+  /** README showcase images for one HF repo — library cover progressive
+   *  enhancement (2026-07-18 方案 B), lazily fetched client-side */
+  LORA_ASSETS_HUGGINGFACE_SHOWCASE: '/api/lora-assets/huggingface/showcase',
   /** Redirect a Civitai model version download id to its concrete model page */
   LORA_ASSETS_CIVITAI_SOURCE: '/api/lora-assets/civitai/source',
   /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */

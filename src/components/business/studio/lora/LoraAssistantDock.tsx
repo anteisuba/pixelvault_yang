@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Bot, GripVertical, PanelRightClose, Share2 } from 'lucide-react'
+import { Bot, GripVertical, PanelRightClose, Share2, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { STUDIO_ASSISTANT_DOCK_RESIZE } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Spinner } from '@/components/ui/spinner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -112,8 +113,6 @@ export function LoraAssistantDock({
     }
   }, [assistantSessionId, tHistory])
 
-  if (isMobile) return null
-
   const panelProps: PromptAssistantPanelProps = {
     currentPrompt,
     modelId,
@@ -123,6 +122,49 @@ export function LoraAssistantDock({
     onAppendPrompt,
     onSessionIdChange: setAssistantSessionId,
     loraPersona: persona,
+  }
+
+  // 移动端（< 1024，owner 2026-07-20 拍板「近全屏」）：助手改近全屏底部 sheet
+  // （vaul Drawer，iOS 风）——桌面停靠不适用。Drawer 自带抓手 / 圆角顶 / 遮罩 /
+  // 软键盘避让（--keyboard-inset）/ 下滑关闭；触控开场不自动聚焦（不弹键盘）。
+  // top-14 留顶部缺口 = 近全屏；mt-0 覆盖 drawer 默认 mt-24。
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="top-14 mt-0">
+          <div className="flex items-center gap-2 border-b border-border/60 px-4 pb-3 pt-1">
+            <Bot className="size-4 shrink-0 text-primary" aria-hidden />
+            <DrawerTitle className="flex-1 text-sm font-medium">
+              {t('dockTitle')}
+            </DrawerTitle>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={tHistory('share')}
+              title={tHistory('share')}
+              onClick={() => void handleShareAssistant()}
+              className="rounded-xl text-muted-foreground hover:text-foreground"
+            >
+              <Share2 className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('dockCollapse')}
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
+            {hasOpenedOnce && <PromptAssistantPanel {...panelProps} />}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    )
   }
 
   return (

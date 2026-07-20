@@ -37,3 +37,4 @@ export * from './workflow/StudioWorkflowSummary'
 
 // primitives — small atomic UI shared across tools
 export * from './primitives/tool-surface'
+export * from './primitives/StudioGeneratingProgress'

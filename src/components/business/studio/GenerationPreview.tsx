@@ -23,6 +23,7 @@ import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { StudioEmptyState } from '@/components/business/studio/StudioEmptyState'
+import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import {
   Drawer,
   DrawerContent,
@@ -33,6 +34,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
+import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
@@ -45,15 +48,6 @@ interface GenerationPreviewProps {
   onEdit?: (generation: GenerationRecord) => void
   onSaveRecipe?: (generation: GenerationRecord) => void
   onRetry?: () => void
-}
-
-type GeneratingStageKey = 'preparing' | 'connecting' | 'rendering' | 'waiting'
-
-function getGeneratingStageKey(elapsedSeconds: number): GeneratingStageKey {
-  if (elapsedSeconds < 2) return 'preparing'
-  if (elapsedSeconds < 8) return 'connecting'
-  if (elapsedSeconds < 45) return 'rendering'
-  return 'waiting'
 }
 
 /**
@@ -100,9 +94,10 @@ export const GenerationPreview = memo(function GenerationPreview({
   onSaveRecipe,
   onRetry,
 }: GenerationPreviewProps) {
-  const { error, isGenerating, elapsedSeconds } = useStudioGen()
+  const { error, isGenerating, elapsedSeconds, activeRun } = useStudioGen()
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV3')
+  const tModels = useTranslations('Models')
   const isMobile = useIsMobile()
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
@@ -110,12 +105,39 @@ export const GenerationPreview = memo(function GenerationPreview({
   const generatingStageLabel = t(
     `generatingOverlayStages.${generatingStageKey}` as const,
   )
-  const elapsedLabel =
-    elapsedSeconds > 0
-      ? t('elapsed', {
-          seconds: formatDuration(elapsedSeconds),
-        })
-      : undefined
+
+  // 裱框显影参数行 — "{elapsed}s · {模型显示名} · {比例}"（loading-language §2.1）。
+  // activeRun 与 isGenerating 在同一次同步 setState 批次里落地，故 isGenerating
+  // 为 true 时 activeRun 必然已可用；items[0] 兜底 selectedItemId 尚未命中的边界。
+  const activeRunModelId =
+    activeRun?.items.find((item) => item.id === activeRun.selectedItemId)
+      ?.modelId ?? activeRun?.items[0]?.modelId
+  const activeRunModelLabel = activeRunModelId
+    ? getTranslatedModelLabel(tModels, activeRunModelId)
+    : null
+  const generatingParamsLine = activeRunModelLabel
+    ? `${Math.floor(elapsedSeconds)}s · ${activeRunModelLabel} · ${state.aspectRatio}`
+    : undefined
+
+  // ── Completion beat: keep the progress chrome mounted a beat past
+  // isGenerating→false so StudioGeneratingProgress can play its close→hold→
+  // fade sequence over the freshly-revealed media (loading-language §2.3).
+  // Adjust-state-during-render (not useEffect) per the "you might not need
+  // an effect" pattern — reacting to a prop transition, not synchronizing
+  // with an external system, so react-hooks/set-state-in-effect stays clean.
+  const [completingGenerationId, setCompletingGenerationId] = useState<
+    string | null
+  >(null)
+  const [prevIsGenerating, setPrevIsGenerating] = useState(isGenerating)
+  if (isGenerating !== prevIsGenerating) {
+    setPrevIsGenerating(isGenerating)
+    if (prevIsGenerating && !isGenerating && generation && !error) {
+      setCompletingGenerationId(generation.id)
+    }
+  }
+  const isCompletingThisGeneration =
+    completingGenerationId !== null && completingGenerationId === generation?.id
+  const showGeneratingOverlay = isGenerating || isCompletingThisGeneration
 
   const dragRef = useStudioDraggable({
     url: generation?.url ?? undefined,
@@ -193,9 +215,12 @@ export const GenerationPreview = memo(function GenerationPreview({
           style={{ aspectRatio: aspectRatioValue, maxWidth: '100%' }}
         >
           <div className="studio-reveal-shimmer absolute inset-0" />
-          <GenerationStatusChrome
+          <StudioGeneratingProgress
+            elapsedSeconds={elapsedSeconds}
             stageLabel={generatingStageLabel}
-            elapsedLabel={elapsedLabel}
+            paramsLine={generatingParamsLine}
+            variant="full"
+            cornerRadiusVar="--radius-xl"
           />
         </div>
       </div>
@@ -314,23 +339,28 @@ export const GenerationPreview = memo(function GenerationPreview({
         </TransformComponent>
 
         {/* Drag hint — desktop only */}
-        {!isMobile && !isGenerating && generation.outputType === 'IMAGE' && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
-              <GripHorizontal className="size-3" />
-              {t('dragHint')}
-            </span>
-          </div>
-        )}
+        {!isMobile &&
+          !showGeneratingOverlay &&
+          generation.outputType === 'IMAGE' && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
+                <GripHorizontal className="size-3" />
+                {t('dragHint')}
+              </span>
+            </div>
+          )}
 
-        {/* Generating overlay */}
-        {isGenerating && (
-          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+        {/* Regenerate overlay — dim + "裱框显影" frame described on the media edge */}
+        {showGeneratingOverlay && (
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
             <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
-            <div className="studio-generation-scan absolute inset-0" />
-            <GenerationStatusChrome
+            <StudioGeneratingProgress
+              elapsedSeconds={elapsedSeconds}
               stageLabel={generatingStageLabel}
-              elapsedLabel={elapsedLabel}
+              variant="compact"
+              cornerRadiusVar="--radius-2xl"
+              isCompleting={isCompletingThisGeneration}
+              onCompleteAnimationDone={() => setCompletingGenerationId(null)}
             />
           </div>
         )}
@@ -340,25 +370,55 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Audio container ───────────────────────────────────────────────
   const audioContainer = (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/60 bg-muted/10 py-12 sm:py-16">
-      <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-        <Download className="size-7 text-primary/60" />
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10">
+      <div className="flex flex-col items-center justify-center gap-4 py-12 sm:py-16">
+        <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
+          <Download className="size-7 text-primary/60" />
+        </div>
+        <div className="w-full max-w-md px-6">
+          <AudioPlayer src={generation.url} segments={audioSegments} />
+        </div>
+        {generation.duration && (
+          <p className="font-serif text-xs text-muted-foreground">
+            {formatDuration(generation.duration)}
+          </p>
+        )}
       </div>
-      <div className="w-full max-w-md px-6">
-        <AudioPlayer src={generation.url} segments={audioSegments} />
-      </div>
-      {generation.duration && (
-        <p className="font-serif text-xs text-muted-foreground">
-          {formatDuration(generation.duration)}
-        </p>
+
+      {showGeneratingOverlay && (
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
+          <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
+          <StudioGeneratingProgress
+            elapsedSeconds={elapsedSeconds}
+            stageLabel={generatingStageLabel}
+            variant="compact"
+            cornerRadiusVar="--radius-2xl"
+            isCompleting={isCompletingThisGeneration}
+            onCompleteAnimationDone={() => setCompletingGenerationId(null)}
+          />
+        </div>
       )}
     </div>
   )
 
   // ── Video container ───────────────────────────────────────────────
   const videoContainer = (
-    <div className="rounded-2xl border border-border/60 bg-muted/10 p-2">
+    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/10 p-2">
       <VideoPlayer src={generation.url ?? ''} className="rounded-xl" />
+
+      {showGeneratingOverlay && (
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
+          <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
+          <StudioGeneratingProgress
+            elapsedSeconds={elapsedSeconds}
+            stageLabel={generatingStageLabel}
+            variant="compact"
+            cornerRadiusVar="--radius-2xl"
+            isCompleting={isCompletingThisGeneration}
+            onCompleteAnimationDone={() => setCompletingGenerationId(null)}
+          />
+        </div>
+      )}
     </div>
   )
 
@@ -636,38 +696,5 @@ function CanvasToolButton({
         {label}
       </span>
     </button>
-  )
-}
-
-interface GenerationStatusChromeProps {
-  stageLabel: string
-  elapsedLabel?: string
-}
-
-function GenerationStatusChrome({
-  stageLabel,
-  elapsedLabel,
-}: GenerationStatusChromeProps) {
-  return (
-    <>
-      <div
-        className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-background/40"
-        role="progressbar"
-        aria-label={stageLabel}
-      >
-        <span className="studio-generation-status-line block h-full w-1/3 rounded-full bg-primary/70" />
-      </div>
-      <div className="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-3">
-        <span className="inline-flex h-7 min-w-0 items-center gap-2 rounded-full border border-border/45 bg-background/82 px-3 text-2xs font-medium text-foreground shadow-sm backdrop-blur-md">
-          <span className="studio-generation-dot size-1.5 shrink-0 rounded-full bg-primary" />
-          <span className="truncate">{stageLabel}</span>
-        </span>
-        {elapsedLabel && (
-          <span className="shrink-0 rounded-full border border-border/35 bg-background/68 px-2.5 py-1 text-2xs tabular-nums text-muted-foreground backdrop-blur-md">
-            {elapsedLabel}
-          </span>
-        )}
-      </div>
-    </>
   )
 }

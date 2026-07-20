@@ -51,6 +51,21 @@ vi.mock('@/constants/feature-flags', () => ({
   },
 }))
 
+// This integration suite exercises Workbench wiring, not the full 4k-tag
+// catalog (covered by prompt-tag-search tests). Keep the two real curated tags
+// used below so accessible queries do not repeatedly traverse 60 unrelated
+// result rows in every Workbench render.
+vi.mock('@/constants/prompt-tags', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/constants/prompt-tags')>()
+  return {
+    ...actual,
+    PROMPT_TAG_DEFINITIONS: actual.PROMPT_TAG_DEFINITIONS.filter((tag) =>
+      ['system:quality:masterpiece', 'system:lighting:rim'].includes(tag.id),
+    ),
+  }
+})
+
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
@@ -294,13 +309,11 @@ vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
 // thumbnail); the modal mounts synchronously on click (Radix Dialog).
 function applyFirstRecipeViaModal() {
   fireEvent.click(
-    screen.getByRole('button', {
-      name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
-    }),
+    screen.getByLabelText(
+      /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+    ),
   )
-  fireEvent.click(
-    screen.getByRole('button', { name: 'LoraWorkbench:sourceRecipeRemake' }),
-  )
+  fireEvent.click(screen.getByText('LoraWorkbench:sourceRecipeRemake'))
 }
 
 // G3b-2b: 触发词 chips now live inside the collapsed 搭配 status bar — expand it

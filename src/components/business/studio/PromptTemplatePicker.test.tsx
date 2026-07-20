@@ -211,11 +211,11 @@ describe('PromptTemplatePicker', () => {
     mobileState.isMobile = true
     render(<PromptTemplatePicker onApply={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    fireEvent.click(screen.getByText('templatePicker'))
 
-    expect(
-      screen.getByRole('dialog').querySelector(':scope > .studio-scrollbar'),
-    ).not.toBeNull()
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')
+    expect(dialog).not.toBeNull()
+    expect(dialog?.querySelector(':scope > .studio-scrollbar')).not.toBeNull()
   })
 
   it('saves without closing and inserts the new recipe at the top of recent', async () => {

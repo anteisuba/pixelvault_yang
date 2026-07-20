@@ -45,6 +45,7 @@ flowchart LR
 - 🎯 你想做：UI 升级；每个介绍面板升级；整体布局升级；展示公开资源。参考 [haivis-landing](ui-inspiration/haivis-landing-2026-07.md)（你喜欢的登录页 UI）。
 - 📍 现状：首页「白厅画廊」已成型——整页米白 + 头尾暗书挡（hero/footer）+ 6 个真功能两栏交替（图/视频/音频/画布/LoRA/图生3D）+ 深窗 Step1–4 流程。组件 `HomepageCapabilityMatrix` / `HomepageMenu` / `HomepageRevealMotion` / `CapabilityForm`；登录 `AuthPageShell`。
 - 💡 衔接：haivis-landing 你已标注（2026-07-13）——**登录改 modal 窗**、元素拆分/前后对比/文字图层/魔法擦除的**动效语法 = 喜欢**；纯黑大衬线 + 超大留白 = 仅参考。施工落点已指向 `docs/references/pages/home.md`。"展示公开资源"可复用 Gallery 公开 feed 的作品做证据。
+- 登录状态
 
 ### 🎬 画布　🔧
 

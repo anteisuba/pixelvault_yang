@@ -75,6 +75,16 @@ interface ResponsiveDialogContentProps extends React.ComponentProps<
 > {
   /** Mobile drawer scroll/body styles. Use for full-bleed browser surfaces. */
   mobileBodyClassName?: string
+  /**
+   * Desktop-only: swallow the outside pointerdown that would otherwise close
+   * the dialog, keeping Escape and the explicit close affordances (X button,
+   * caller-provided cancel actions) as the only ways out. For a heavy,
+   * stateful surface (e.g. canvas-relationship-v3 §4.2 rule 4's 档3 重编辑
+   * 工作区) an accidental backdrop click shouldn't silently discard in-flight
+   * edits. Mobile keeps its normal swipe-to-dismiss Drawer behavior — that's
+   * a deliberate gesture, not a stray click, so it's left alone.
+   */
+  preventOutsideDismiss?: boolean
 }
 
 function ResponsiveDialogContent({
@@ -83,7 +93,9 @@ function ResponsiveDialogContent({
   showCloseButton,
   closeLabel,
   mobileBodyClassName,
+  preventOutsideDismiss,
   style,
+  onPointerDownOutside,
   ...props
 }: ResponsiveDialogContentProps) {
   const { isMobile } = React.useContext(ResponsiveDialogContext)
@@ -118,6 +130,10 @@ function ResponsiveDialogContent({
       showCloseButton={showCloseButton}
       closeLabel={closeLabel}
       style={style}
+      onPointerDownOutside={(event) => {
+        if (preventOutsideDismiss) event.preventDefault()
+        onPointerDownOutside?.(event)
+      }}
       {...props}
     >
       {children}

@@ -106,3 +106,30 @@ export const INGEST_MOTION = {
   /** 拖拽判定阈值（§6.3：pointerdown 超过阈值才进入拖拽，否则按普通点击处理）。 */
   dragThresholdPx: 6,
 } as const
+
+/**
+ * 墨线签署 / 褪去 + 本体软回弹数值表（canvas-relationship-v3 §2.7 R3-2，非折叠源
+ * 落卡的动效分流——目标本体不消失，动画从"播吞掉动画但卡还在"改成"目标轻咽 +
+ * 墨线画入 + 拖拽物软回弹回起点"）。时长全部snap到既有四档刻度
+ * （fast120/base200/slow320），不自创数值：
+ * - targetSettleMs = fast×2 = 240（spec"约240ms"的最近可组合档）
+ * - inkDrawMs = slow = 320（spec 原文件直接给了 320，且明确"--ease-ingest 沿用"）
+ * - inkHoldFadeMs = base = 200（spec"若不会常显，再 ~200ms 淡出隐藏"）
+ * - unsignFadeMs = fast×2 = 240（spec"解绑反放 ~240ms"）
+ * - bounceBackMs = slow = 320（spec"~300ms 软回弹"，snap 到最近档，非精确值——
+ *   偏差在实现报告中点名）
+ */
+export const NODE_EDGE_SIGNING_MOTION = {
+  /** 目标轻咽：scale 1→0.98→1.02→1。 */
+  targetSettleMs: DURATION_MS.fast * 2,
+  targetSettleScaleDown: 0.98,
+  targetSettleScaleUp: 1.02,
+  /** 墨线画入：来源锚点→目标锚点 stroke-dashoffset 满长→0。 */
+  inkDrawMs: DURATION_MS.slow,
+  /** 画入完成后，若判定不会常显（非选中的成分边），再淡出这么久后才真正隐藏。 */
+  inkHoldFadeMs: DURATION_MS.base,
+  /** 解绑：dashoffset 反放（0→满长）。 */
+  unsignFadeMs: DURATION_MS.fast * 2,
+  /** 被拖节点本体从落点软回弹回拖拽起点。 */
+  bounceBackMs: DURATION_MS.slow,
+} as const

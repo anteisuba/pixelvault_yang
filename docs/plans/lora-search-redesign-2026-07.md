@@ -118,7 +118,7 @@
 
 ## 6 · 交接边界
 
-- **给 Fable 的输入**：本文档 §3（参考模式）+ §4（缺口）+ §5 设计线；产出 = `/studio/lora` 库 + 生成页组合区的**页级施工图**（落 `docs/references/pages/` 或 `docs/design/reviews/`）。约束：读 `brand-dna.md` / `forbidden.md`（anti-slop）；别重造已有的多挂/配方/词库引擎。
+- **当前业务收口输入**：本文档 §3（参考模式）+ §4（缺口）+ §5 工程/功能线；已确认施工契约落 `docs/references/pages/lora-workbench.md`。2026-07-19 起，本文不再授权继续扩展旧视觉皮肤；LoRA 业务完成后的视觉改版必须重新读 `brand-dna.md` / `scenes/ui-page.md` 并提出三个结构方向。别重造已有的多挂/配方/词库引擎。
 - **给 Sonnet 的输入**：§5 工程线 + §2 audit 文档；工程线可与设计线并行（先修 bug 地基不阻塞设计）。收尾全量 tsc + vitest 双绿，别提交等 owner。
 - **建议顺序**：C 工程线的 audit 3 bug 可**立即并行开工**（不依赖设计）；A/B 待 Fable 施工图定稿再进 Sonnet。
 

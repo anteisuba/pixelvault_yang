@@ -1,6 +1,7 @@
 # LoRA 域会话交接 — 2026-07-18
 
 > 用途：本次会话（LoRA 库+生成页重设计执行 + 第二波 owner 反馈处理）的完整状态快照，供**新对话第一时间读取接续**。
+> 设计权力限定（2026-07-19）：本交接只接续 LoRA 功能与当前 UI 回归，不接续旧视觉方向。业务完成后的 LoRA 改版必须重新走域定义、三方向和关键切片确认。
 > 阅读顺序：本文 → `docs/references/pages/lora-workbench.md`（施工基准 v1.1 + §12/§13）→ 三份第二波施工图（见 §3）。
 > 角色分工：4.8 调查+架构 / Fable 设计 / Sonnet 执行；本会话 Fable 统管「设计→编排 Sonnet→汇总」。
 
@@ -124,7 +125,7 @@ S1–S6 要点（施工基准 `docs/references/pages/lora-workbench.md` §10 各
 - **验证闸门**（每片收尾，声称绿之前）：lint + 全量 tsc（后台跑显式捕获 exit code，~4min，禁超时跳过）+ 全量 vitest（`--maxWorkers=4`，~4.5min，禁只跑子集）+ claude-in-chrome 真机 + i18n-check 三语。
 - **源码只用 Edit/Write 改**（PowerShell 默认编码毁 UTF-8 中文注释）。
 - **Hard Rules**：no magic value（进 constants）/ no any（Zod+z.infer）/ no fetch in components（走 api-client）/ server-only / no Tailwind 任意值（进 @theme）。
-- **守 v1 暗房工作台身份**：非房间改版，不引入紫矿釉料房；零新颜料，琥珀仅警示。
+- **当前回归不换皮**：本轮仍对照 v1 暗房工作台检查，避免业务施工被视觉改版打断；该约束在业务收口后失效，不构成下一版身份。
 - **编排纪律**：多切片改同文件时**串行**（并行互踩同文件/同浏览器/全量测试）；subagent 报告只回本会话，跨会话靠文档交接不靠会话记忆。
 
 ---

@@ -72,3 +72,10 @@ next-env.d.ts
 
 # generated monitor outputs (model-doc-monitor snapshots/reports — regenerated, not tracked)
 /artifacts/
+
+# design-sync (claude.ai/design) — staged scripts, build output, machine state
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules

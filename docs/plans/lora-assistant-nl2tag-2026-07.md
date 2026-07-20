@@ -2,7 +2,7 @@
 
 > 状态：**v1.1 已拍板（2026-07-18，Fable；§7 五项当日过 owner——宿主 = A 右侧 dock）**，可交 Sonnet 按 §8 切片执行（F1→F2→F3 串行，F4 独立）。
 > 来源：owner 2026-07-18 反馈图四（生成页加 LoRA 专属助手）+ 图五（自己搭配难用 / 像 NovelAI 那样生成 / 自然语言→LoRA 语言是攻克难题）。
-> 页面：`/studio/lora?section=generate`。守 v1 暗房工作台（无彩灰阶 · 琥珀仅警示 · 去盒化），零新颜料。
+> 页面：`/studio/lora?section=generate`。本轮只完成助手与自然语言→tag 业务，并按当前 v1 UI 做回归；暗房、灰阶、琥珀与去盒化不再是业务完成后的 LoRA 视觉约束。
 > 姊妹文档：多参考图可行性调研 `docs/plans/lora-multi-reference-feasibility-2026-07.md`。
 
 ## 0. 核心判断

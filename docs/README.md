@@ -1,6 +1,6 @@
 # PixelVault 文档入口
 
-本目录是 Agent 可执行的标准体系，参照 [Esther 设计系统](https://hiesther.me/tutorials/esther-design-system/) 的「流程 + 规范 + 起点」模型并扩展到全栈。核心逻辑：**限制自由度 = 保证质量**。
+本目录是 Agent 可执行的标准体系，参照 [Esther 设计系统](https://hiesther.me/tutorials/esther-design-system/) 的「流程 + 规范 + 起点」模型并扩展到全栈。核心逻辑：**流程与品质底线保持一致，视觉答案按业务域形成**。
 
 ## 结构
 
@@ -8,7 +8,7 @@
 docs/
 ├── PLAYBOOK.md      owner 起手式手册：每类任务怎么开口、agent 会先做什么
 ├── WORKFLOW.md      任务怎么做：七步骨架 + 5 问硬门 + 任务类型×业务域路由矩阵
-├── brand-dna.md     我们是谁：视觉基因（双面模式/色彩配比/字体/动效）+ 工程气质
+├── brand-dna.md     薄品牌脊柱 + 设计权力分层 + 域级确认流程 + 工程气质
 ├── forbidden.md     禁忌清单：AVOID/PREFER 成对，分域（UI/代码/架构/DB/CI/测试）
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release
@@ -22,6 +22,8 @@ docs/
 ## 怎么进入
 
 任何任务从 [`WORKFLOW.md`](WORKFLOW.md) 开始：判断任务类型 → 进对应 scene → 按路由矩阵读最小文档集。**不要通读整个 docs/。**
+
+UI 设计文档按职责读取：`brand-dna.md` 管全局不变量与设计权力边界，`references/frontend.md` 管实现事实与共享行为，`references/domains/` 管业务域责任，`references/pages/` 只保存 owner 已确认的页面方向与施工契约。`archive/` 和 `references/ui-inspiration/` 只作证据，不得成为新页面的造型规范。
 
 ## 文档原则
 

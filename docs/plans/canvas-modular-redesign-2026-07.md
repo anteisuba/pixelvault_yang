@@ -104,20 +104,20 @@ CanvasWorkspace
 
 ## Axis A · 用户可见模块
 
-| ID  | 模块                | 当前问题                                                    | 目标边界                                                                              | 优先级           |
-| --- | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------- |
-| W0  | WorkspaceLayout     | 所有层在同一绝对坐标系，助手改变宽度不让画布真实重排        | 桌面 `minmax(0,1fr) + 360px` 真分栏；容器不足时默认收起/overlay，移动端 drawer        | P0               |
-| S1  | CanvasSurface       | 背景与端口/遮罩共用 token；section 与 React Flow 重复设底色 | 只拥有表面、点阵与背景 token；不读取选择、provider、助手或节点数量                    | P0，首个视觉模块 |
-| V1  | ViewportNavigation  | 固定 80% 文案；minimap 与 Cast 手算避让                     | 真实 zoom、fit view、pan、select、minimap 共用 geometry；触屏/键盘不冲突              | P0               |
-| C1  | ProjectHeader       | 81px 大浮卡压住画布并与助手相叠                             | 48–52px 紧凑工作区 header，仅占画布列；项目名左、关键动作右                           | P1               |
-| O1  | ObjectFrame         | 纸卡、媒体窗和内部表单耦合；展开动作重复                    | 稳定 `NodeFrame / Preview / Composer / Status`；先保持 400px 逻辑宽                   | P1               |
-| O2  | SelectionToolbar    | 只有展开/删除，28px；后续能力容易硬塞 callback              | 按 selection + capability 动态生成；桌面 32/36、触屏 44；同一时刻一套工具             | P1               |
-| B1  | AddCatalog          | 六个内部类型扁平列出                                        | 按创作意图分组：添加素材、生成媒体、组织流程；不显示 provider/legacy type             | P1               |
-| B2  | Relationship/Ingest | 数据边隐藏但连接/剪线仍露出                                 | 延续“吞噬取代连线”canon：默认不显示线；移除无效连接/剪线，端口只在兼容拖拽/诊断时出现 | P0               |
-| B3  | CastTray            | 展开后占 217px 且浮压节点；同时像第二套节点视图             | 固定高度、可折叠的素材/身份托盘；由 shell 预留空间，保留现有拖拽协议                  | P1，高交互风险   |
-| D1  | DetailWorkspace     | 详情、菜单同层级；重编辑继续堆 overlay 会失控               | 轻菜单、对象任务面板、重编辑工作区三档；统一焦点、Esc、点外与恢复                     | P1               |
-| A1  | AssistantRail       | 448px 浮窗覆盖画布，320–720 调宽与避让脱节                  | 默认 360px 稳定列；低 chrome、单分隔线；收起后画布真实扩宽                            | P0               |
-| F1  | StateFeedback       | 同一生成同时靠节点、toast、边动效表达；toast 可落在助手后   | 进度/失败归节点，保存归 header，拖拽拒绝跟指针，系统级失败才 toast                    | P1               |
+| ID  | 模块                | 当前问题                                                    | 目标边界                                                                                                                              | 优先级           |
+| --- | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| W0  | WorkspaceLayout     | 所有层在同一绝对坐标系，助手改变宽度不让画布真实重排        | 桌面 `minmax(0,1fr) + 360px` 真分栏；容器不足时默认收起/overlay，移动端 drawer                                                        | P0               |
+| S1  | CanvasSurface       | 背景与端口/遮罩共用 token；section 与 React Flow 重复设底色 | 只拥有表面、点阵与背景 token；不读取选择、provider、助手或节点数量                                                                    | P0，首个视觉模块 |
+| V1  | ViewportNavigation  | 固定 80% 文案；minimap 与 Cast 手算避让                     | 真实 zoom、fit view、pan、select、minimap 共用 geometry；触屏/键盘不冲突                                                              | P0               |
+| C1  | ProjectHeader       | 81px 大浮卡压住画布并与助手相叠                             | 48–52px 紧凑工作区 header，仅占画布列；项目名左、关键动作右                                                                           | P1               |
+| O1  | ObjectFrame         | 纸卡、媒体窗和内部表单耦合；展开动作重复                    | 稳定 `NodeFrame / Preview / Composer / Status`；先保持 400px 逻辑宽                                                                   | P1               |
+| O2  | SelectionToolbar    | 只有展开/删除，28px；后续能力容易硬塞 callback              | 按 selection + capability 动态生成；桌面 32/36、触屏 44；同一时刻一套工具                                                             | P1               |
+| B1  | AddCatalog          | 六个内部类型扁平列出                                        | 按创作意图分组：添加素材、生成媒体、组织流程；不显示 provider/legacy type                                                             | P1               |
+| B2  | Relationship/Ingest | 数据边隐藏但连接/剪线仍露出                                 | v3 修订（2026-07-17，`canvas-relationship-v3-2026-07.md`）：手势=吞噬保留；**两级墨线**（骨干常显/成分选显+双态开关）；端口锚点化退场 | P0               |
+| B3  | CastTray            | 展开后占 217px 且浮压节点；同时像第二套节点视图             | 固定高度、可折叠的素材/身份托盘；由 shell 预留空间，保留现有拖拽协议                                                                  | P1，高交互风险   |
+| D1  | DetailWorkspace     | 详情、菜单同层级；重编辑继续堆 overlay 会失控               | 轻菜单、对象任务面板、重编辑工作区三档；统一焦点、Esc、点外与恢复                                                                     | P1               |
+| A1  | AssistantRail       | 448px 浮窗覆盖画布，320–720 调宽与避让脱节                  | 默认 360px 稳定列；低 chrome、单分隔线；收起后画布真实扩宽                                                                            | P0               |
+| F1  | StateFeedback       | 同一生成同时靠节点、toast、边动效表达；toast 可落在助手后   | 进度/失败归节点，保存归 header，拖拽拒绝跟指针，系统级失败才 toast                                                                    | P1               |
 
 ### 模块边界硬规则
 

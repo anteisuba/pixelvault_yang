@@ -1,24 +1,25 @@
 # 画布 UI 基准 v1（草案）
 
 > 日期：2026-06-15
-> 状态：**草案（待 owner 逐节确认）**。本文件是「只针对画布（`/studio/node` Node 导演台）」的设计基准，约束未来所有画布 UI 改动。
-> 依据：继承 [`direction.md`](direction.md) 主基调 v1（已确认）；2026-06-15 owner 对现状画布的审查 + 决策；代码层审查（见 §11 来源）。
+> 状态：**当前业务收口的 legacy 执行基线，不是未来视觉规范（2026-07-19）**。本文只用于解释 `/studio/node` 已实现结构、当前回归目标和未完成业务；Canvas 业务收口后，视觉改版必须重新按 `docs/scenes/ui-page.md` 走域定义、三方向和关键切片确认。
+> 设计权力限定：下文所有关于深色暗房、无彩、反相 CTA、统一圆角、纸卡、固定动效或“必须继承”的表述，**均不再拥有未来视觉约束力**。它们只能描述当前代码与本轮回归，禁止传播为全站或下一版 Canvas 的默认答案。
+> 历史依据：旧 `docs/archive/design/direction.md` + 2026-06-15 owner 对当时画布的审查；现行设计治理见 `docs/brand-dna.md`。
 > 范围：**面向目标导演台（Shot Board 主视图 + Node Graph 高级视图），但先落到今天能跑的 Node Graph**。Board 的视觉规范随 `ScriptDoc` 地基跟上后补（§8 占位）。
-> 配套阅读：[`pages/node-workflow.md`](pages/node-workflow.md)（现状事实）、[`system/css-and-tokens.md`](system/css-and-tokens.md)（token 现状）。
+> 配套阅读：[`references/pages/node-canvas.md`](../references/pages/node-canvas.md)（当前业务施工与回归）、[`references/frontend.md`](../references/frontend.md)（token 与共享行为现状）。
 
 > **🟢 新 chat 从这开始（续接入口）**
 >
 > 1. 读本文件全文（决策 §1、模型切换器/作用域/契约 §5.1、元素视觉+听觉 §5、状态 §6、草稿清单 §13、进度+续接 §14）。
-> 2. 看视觉稿：[`canvas-drafts/README.md`](canvas-drafts/README.md)（**28 张**草稿,分 5 区:UI 9 / 原理 6 / 必画 5 / 节点详样 1 / 补画 7）。
-> 3. 引擎路线：[`docs/plans/execution-roadmap-2026-06.md`](../plans/execution-roadmap-2026-06.md)。memory：`project-canvas-ui-baseline` / `project-video-systems-convergence`。
+> 2. 历史视觉稿：[`archive/canvas-drafts/README.md`](../archive/canvas-drafts/README.md)（只作当前回归证据，不得生成未来方向）。
+> 3. 历史引擎路线：[`archive/plans/execution-roadmap-2026-06.md`](../archive/plans/execution-roadmap-2026-06.md)。
 > 4. 现状：**草稿阶段已闭环**。下一步 = Step 3 视觉快照基准（需 dev server）**或** 按草稿落地（起点建议:去黄 token + 中键平移,走 UI 契约 §14）。
 > 5. 分工(`feedback-ui-on-claude`):UI 走 Claude;引擎(ScriptDoc/Planner/契约/lineage)= Codex,清单见 §14。
 
 ---
 
-## 0. 继承声明
+## 0. 历史继承声明（仅解释当前实现，不再约束未来设计）
 
-画布是 `direction.md`「双面模式」里的**工作面 = 深色暗房工作台**，必须继承全局基调，不另起炉灶：
+下列内容记录旧 `direction.md`「双面模式」如何形成当前画布实现。自 2026-07-19 起，它们不得用于生成下一版 Canvas 视觉方向：
 
 - **无彩中性**：UI 只用中性灰阶；彩色只留给状态语义与用户作品。
 - **反相 CTA**：最高优先级控件用黑/白反相丸。**例外见 §1**。
@@ -183,7 +184,7 @@
 
 ## 7. Board ↔ Graph 视觉对应（占位）
 
-Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-2026-06.md` 的 VID-UI-1/2）。地基落地后补：Board 行卡 与 Graph 节点的视觉对应（同 `Shot.id`）、审阅循环（approve/retry/regenerate）的状态色与按钮层级。本基准先约束 Graph，Board 视觉规范留此节。
+Board 主视图依赖 `ScriptDoc` 地基（历史路线见 `docs/archive/plans/execution-roadmap-2026-06.md` 的 VID-UI-1/2）。地基落地后补：Board 行卡 与 Graph 节点的视觉对应（同 `Shot.id`）、审阅循环（approve/retry/regenerate）的状态色与按钮层级。本基准先记录 Graph 当前实现，Board 未来视觉另走现行确认流程。
 
 ---
 
@@ -224,7 +225,7 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 ## 11. 来源（Source of Truth）
 
-- 设计方向：[`direction.md`](direction.md)、[`system/css-and-tokens.md`](system/css-and-tokens.md)、[`pages/node-workflow.md`](pages/node-workflow.md)
+- 历史方向：[`archive/design/direction.md`](../archive/design/direction.md)（不得施工）；当前事实：[`references/frontend.md`](../references/frontend.md)、[`references/pages/node-canvas.md`](../references/pages/node-canvas.md)
 - 代码（2026-06-15 审查；助手现状由 2026-07-13 复核覆盖）：`src/app/globals.css`（node tokens）、`src/constants/node-studio.ts`（edge/canvas/dock）、`src/constants/node-tokens.ts`（accents/status/edge colors）、`src/components/business/node/StudioNodeWorkbench.tsx`（ReactFlow/布局）、`src/components/business/node/nodes/NodeShell.tsx`（卡 anatomy/尺寸）、`src/components/business/node/CanvasBottomDock.tsx`、`src/components/business/node/CanvasMiniMap.tsx`、`src/components/business/node/StudioNodeAssistantDock.tsx`（纯助手浮层 + ScriptDoc 扩展）、`src/components/business/node/inspector/SeedanceInspector.tsx`。
 
 ## 12. Last Verified
@@ -237,7 +238,7 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 ## 13. 草稿清单（视觉稿速查 · 文字规格）
 
-> 这些是会话里逐张确认过的视觉稿（SVG mockup）。**视觉稿文件 = [`canvas-drafts/`](canvas-drafts/README.md)（共 28 张,5 区:UI 9 / 原理 6 / 必画 5 / 节点详样 1 / 补画 7;VS Code 打开 README 预览一次看全）**；下表是核心几张的文字规格（稿子丢了可据此重画）。**实操态(必画:节点态/加节点/参考填充/缺key引导/成片审阅)、节点详样、打磨态(补画:接线/批量分组/合成/风格挂载/token实样/顶栏对话/项目管理)详见 `canvas-drafts/README.md`。** 状态：✅=已确认。
+> 这些是历史会话逐张确认过的 SVG mockup，已归档到 [`archive/canvas-drafts/`](../archive/canvas-drafts/README.md)。它们只用于核对当前代码来源，不能据此重画下一版 Canvas。下表状态只表示当时确认记录。
 
 - **A1 · 整体布局** ✅：近黑去暖 + 点阵网格；左轨 = 全站共享 app 侧栏（现状，瘦身属 app-shell 决定，超画布范围）；顶栏 = 项目名 + **默认模型 chip** + 添加节点；中区 = 节点 + 自带 composer + 中性连线；右栏 = 固定纯助手；底部工具条（中键平移）；左下 minimap 放大。
 - **A2 · 空画布引导** ✅：空态不留死白 = 一句引导 +「🗨 跟助手聊大纲」**反相白丸**（主）+「＋ 手动加节点」（次）；助手 dock 默认开、起手「看了你的画布，还空着。先聊大纲?」呼应。默认走助手（剧本脑）。
@@ -257,12 +258,12 @@ Board 主视图依赖 `ScriptDoc` 地基（见 `docs/plans/execution-roadmap-202
 
 ## 14. 进度 · 下一步 · 续接指南
 
-**进度**：Step 1 代码层审查 ✅ · Step 2 基准文档（本文档）+ **全套视觉草稿 28 张 ✅（`canvas-drafts/`）—— 草稿阶段已闭环** · **Step 3 视觉快照基准（待，需起 dev server）** · 落地实现（待，一次一个组件，走 UI 契约）。仅剩延后 3 张（Board 主视图 / 移动端只读 Board / 角色多音色集管理）依赖未建的 ScriptDoc 地基。
+**历史进度**：Step 1 代码层审查 ✅ · Step 2 基准文档 + 28 张视觉草稿 ✅（已入 `docs/archive/canvas-drafts/`）。未完成业务以当前 active Canvas 任务包为准；旧 Step 3 与“据稿继续落地”不再自动生效。
 
 **续接（换一个 chat 继续）——读这三处即可接上**：
 
-1. **本文档 `docs/design/canvas-baseline.md`** —— 全部决策 + 草稿清单（§13）+ 待办（本节）。
-2. `docs/plans/execution-roadmap-2026-06.md` —— 视频收敛的**引擎/后端路线**（ScriptDoc/Planner/lineage/VID-UI/DIR-DATA）。
+1. **本文档 `docs/plans/canvas-baseline.md`** —— legacy 决策 + 草稿清单（§13）+ 当前收口待办（本节）。
+2. `docs/archive/plans/execution-roadmap-2026-06.md` —— 历史视频收敛路线（只作背景）。
 3. memory：`project-canvas-ui-baseline`、`project-video-systems-convergence`、`feedback-ui-on-claude`、`feedback-prefer-direct-api`。
 
 **引擎待办（交 Codex/roadmap，不挡 UI 实现）**：Kling `extend-video` 删 · Seedance（duration 传字符串 / 标准档 1080p 先验 / audio 需配图视频 / seed 接线）· Veo 补 Fast/Lite + 时长×分辨率约束 + 首尾帧模式 · 能力契约 + 类型化绑定重映射 · 自动生成投影 `scriptDocToGraph` · ScriptDoc 地基（VID-UI-1 / DIR-DATA-01）· Vidu Q2 新 builder（`reference_image_urls`）。

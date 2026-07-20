@@ -10,14 +10,16 @@
 
 1. 任何任务从 [`docs/WORKFLOW.md`](docs/WORKFLOW.md) 开始：七步骨架 + **问 5 问硬门** + 任务类型×业务域路由矩阵。
 2. 按类型进 `docs/scenes/<场景>.md`（自带专属工作流 / 5 问 / 必读清单 / 模板 / checklist / 禁改范围）。
-3. Hard Rules 与高风险模块表见 [`CLAUDE.md`](CLAUDE.md)（对 Codex 同样生效）；禁忌见 [`docs/forbidden.md`](docs/forbidden.md)；收尾对照 `docs/checklists/` P0 打回制。
-4. 在飞任务包 `docs/plans/` 优先级高于一切长期文档。
-5. **不确定即停止**：产品方向 / API 契约 / provider 能力 / 计费 / 权限 / 数据持久化不许猜；provider/model/API 改动前必须查官方一手资料（细则在 WORKFLOW）。
+3. **UI 改版硬门**：用户说“重构 / 升级 / 重做页面 UI”时，默认先设计，不直接修改 `src/**`。必须依次完成业务域定义 → 三个结构明显不同的方向 → 一个关键切片 → owner 确认 → 写入 `docs/references/pages/<page>.md`，之后才可进入完整实现。只有约 10 行内机械小修，或 owner 明确要求按已确认 page 文档/task packet 实现时，才能直接改代码。
+4. Hard Rules 与高风险模块表见 [`claude.md`](claude.md)（对 Codex 同样生效）；禁忌见 [`docs/forbidden.md`](docs/forbidden.md)；收尾对照 `docs/checklists/` P0 打回制。
+5. 在飞任务包 `docs/plans/` 优先级高于长期文档，但只能约束自身任务范围；不得用旧 task packet 恢复已退役的全局视觉规则。
+6. **不确定即停止**：产品方向 / API 契约 / provider 能力 / 计费 / 权限 / 数据持久化不许猜；provider/model/API 改动前必须查官方一手资料（细则在 WORKFLOW）。
 
-## 角色分工（2026-07-10 现行）
+## 角色分工（2026-07-19 现行）
 
-- **Claude Code**：调查 + 顶层设计（Fable 档：方向拍板、设计系统、施工图、评审）→ 执行实现（Sonnet 档）。**UI 重构归 Claude**；画布域 Claude 端到端（含引擎）。
-- **Codex**：service / 后端 / 业务逻辑执行面。
+- **UI 方向讨论不绑定固定模型**：由 owner 与当前设计会话按 `docs/scenes/ui-page.md` 逐项确认。只有 owner 明确点名，或常规设计多轮仍无法收口时，才把 `templates/ui-redesign-brief.md` 交给 Fable 升级探索；Fable 不是必经门。
+- **Claude Code**：按已确认 page 文档承担 UI 实现；画布域实现端到端（含引擎）。Sonnet 可执行施工，Fable 仅作为可选设计/评审档。
+- **Codex**：service / 后端 / 业务逻辑执行面；也可协助 owner 做 UI 事实审计、逐项设计讨论和文档记录，但没有已确认 page 文档与实现授权时不修改 UI 代码。
 - 混合任务拆两半；非 trivial 变更走 task packet（`docs/templates/task-packet.md`）交接；trivial（约 10 行内机械改动）可直接做但要在报告里说明。
 
 ## 操作纪律（对所有 agent 生效）

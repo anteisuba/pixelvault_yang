@@ -216,7 +216,7 @@ PixelVault 当前主轴仍在重议，并已单独拍板“人声手写 / 机器
 
 - 视觉证据：本目录 `assets/haivis/01`–`06` 六张 owner 提供截图。
 - 来源页面：[haivis.ai/en](https://haivis.ai/en)（本次未以实时网页核验交互细节，结论以截图可见内容为准）。
-- PixelVault 设计边界：`docs/brand-dna.md`、`docs/forbidden.md`、`docs/plans/design-direction-worknotes-2026-07.md`。
+- PixelVault 设计边界：`docs/brand-dna.md`、`docs/forbidden.md` 与对应 domain/page 文档；旧方向见 `docs/archive/design/design-direction-worknotes-2026-07.md`，仅作历史证据。
 
 ## Last Verified
 

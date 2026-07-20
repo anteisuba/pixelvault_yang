@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-07-15
+最后更新：2026-07-20
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
@@ -18,7 +18,15 @@
 
 ## Current Focus
 
+- **2026-07-20 发布收口中**：UI 治理重建本身只改文档；其后已按确认页落地 LoRA/Canvas 交互契约、LoRA 移动助手与 HF showcase 配置，并统一 Studio 生成进度与全站加载 Spinner。当前先拆分并审查提交，再跑 release P0、推送 `main` 并跟踪 GitHub CI 与 Vercel 部署。
+- **UI 设计治理硬重建完成（2026-07-19）**：旧全站视觉造型规则已从 active 核心文档移除；`AGENTS.md` 与 `claude.md` 均已写入“改版先设计、关键切片确认后实现”的入口硬门。现行体系采用“薄品牌脊柱 + 业务域级视觉身份 + 共享行为不共享皮肤”，旧字体与视觉方向计划已移入 `archive/design/`。LoRA 已进入逐项设计，Canvas 新设计先核对业务收口状态并冻结 UI 代码，其余域按 owner 排序启动。
+- **通用 UI 改版流程已从 LoRA 过程沉淀（2026-07-19）**：`scenes/ui-page.md` 现明确冻结代码、事实审计、域定义、单项结构决策账本、审美方法、同内容三方向、关键切片、page 文档和授权实现的完整门序；局部确认图只约束标明区域，设计会话不得顺手改 `src/**`。新增 `templates/ui-redesign-brief.md` 供新设计任务复用；Fable 仅在 owner 点名或常规设计多轮仍不满意时作为升级选项，不是必经门。后续 Canvas、Prompts、Gallery、Assets、Studio 等域均按同一流程推进，但不共享 LoRA 的视觉答案。
+- **LoRA Generate 方向 A 桌面关键切片已确认（2026-07-19）**：owner 已确认 A「并排监视台」修订稿并沉淀到 `references/pages/lora-generate.md`。顶部为无卡片装配行 + 独立来源图带；桌面主台输入 60% / 结果 40%；左侧保留大参考图、200–240px Prompt、折叠 Negative/参数和自然流出图动作；右侧只保留大图预览、简洁元信息和本次会话缩略历史。助手约 380px，主台不足 900px 时覆盖。确认图位于 `references/pages/assets/lora-generate-parallel-monitor-desktop-2026-07.png`。运行 UI 只按 Claude 实施任务包授权已确认桌面范围；移动端、助手高保真状态、token 数值与 Train 关键切片待后续。
+- **LoRA UI Claude 实施交接已整理（2026-07-19）**：`plans/lora-ui-refactor-claude-handoff-2026-07.md` 汇总 Library“聚焦浏览”、Generate A“并排监视台”、共享来源配方 modal、五状态、允许/禁改范围、R0–R5 小切片和验收命令。可实现范围仅为 Library、Generate 与共享 modal 的已确认桌面结构；Train、移动端最终结构、未确认助手皮肤和业务/API/provider 契约不得由实现会话自行补造。
+
 - **Canvas modular execution update (2026-07-14, `codex/canvas-modular-redesign`)**: I3 layer decomposition, E1 runtime seam, V2 video Generation/lineage, A1 Audio Clip semantics, AS1 assistant references/capability actions, and R1 legacy edit cleanup are implemented and verified. E2 is intentionally marked partial because video/audio orchestration still has Workbench-owned paths. Remaining S6 work is owner visual QA for history/empty state/canvas polish plus real Fish provider request validation.
+
+> 下列画布长段只记录旧施工与业务实现事实。深炭桌、纸场记卡、石绿、Haivis 对标等视觉描述已退役，不得作为下一轮画布 UI 的生成、选向或验收依据；新设计必须从 `scenes/ui-page.md` 阶段 0 重新开始。
 
 - **画布间改版启动（2026-07-10）**：概念稿四分叉 + 吞噬交互 v2 均已拍板（深炭桌+纸场记卡 / 石绿克制档 / **吞噬取代连线**——数据层边保留、作用域=省略模式、食物链=connection-rules 矩阵翻译、动效 demo 手感定稿），施工图落 `references/pages/node-canvas.md`（S1–S6，S5a 卡匣四分区 / S5b 吞噬手势）。**S1–S4 已 commit（`2b4906a4`/`98a7bab1`）；S5a+S5b(B0+B1)+「暂无引用」修复+S5c 已完成，待 owner 目验浮层后合并 commit**（最终全绿 391 文件/3111 测试）。S5c 落地：浮层修缮（裁切真根因=固定卡宽 96px 超列宽被 overflow 裁，改 w-full 根治）、角色/背景档案面板（视觉图集网格[加/拆/权重/分类+closeup 并陈]/听觉绑定/词条/出演四区聚合，数据层零新建）、卡匣肚子徽章 📷N ♪、散图一等公民（LooseImageCard+本地文件拖入画布 R2 直传）、融合/拆分无损循环（fusedIntoNodeId 回溯，source:canvas 枚举）。**S5d 模型对齐已完成（2026-07-11）**：六条修正+两缺陷+卡匣新结构（只放收集器卡两分区/音色·参考视频回归素材/upload-first+分类11项+custom 进图例/收集器档案卡面/融合画布化+三拍补齐/把手双锚点）全落地；lint/tsc 绿；**vitest 2 失败归属 comfy-runner 会话遗留**（RUNNER 枚举缺 PROVIDER_CAPABILITIES 配置+三语 i18n，须该会话补齐后才能全绿 push）。**S1–S5d 已全部进 main（`5b8cdfe1` 画布批 / `ee745b79` runner 批 / `81f229ef` assistant 批，owner 自提）；S5f-A 画布吞噬全覆盖已完成（2026-07-11 全绿 391/3143）**：五行手势齐（收集器卡→镜头/视频、音色→卡/视频、参考视频→视频、散图→视频；散图→镜头图按矩阵正确拒绝）；「鸣潮」数据复原（唯节点像素位置漂移无数据损伤）。**S5f-B 全部完成（2026-07-11，Fable/Opus 接手）**：子代理撞 Fable 限额断在半途留编译不过（PendingDrag 缺字段）已修回绿；四项全落地——B1 磁吸✅、B3 张口预览（卡匣卡路径）✅、**B2 快投模式**✅（CastCard hover Send 钮/长按 onLongPress→进模式；合法目标绿框+序号角标、已含⊘暗；workbench onNodeClick=feed / onPaneClick+Esc=exit；quickThrowApiRef 桥接 provider↔workbench 外部事件）、**B4 把手热区**✅（canvasNodeDragActive→CastDock 折叠态近把手自动展开、拖拽结束回折叠）。tsc/lint/**vitest 392 文件 3168 测试全绿**；B2 chrome 实测确认（进模式 banner+目标绿框序号角标+Esc 退出，DOM 逐项核）；B4 代码绿（真机拖拽近把手需 owner 实测）。⚠ 张口预览仅覆盖卡匣卡路径，画布节点拖拽路径未接（handleNodeDrag 走引擎外）。**待 commit**。
 - **画布模块化重构 / Haivis 对标（2026-07-14，分支 `codex/canvas-modular-redesign`）**：W0 分栏壳、CanvasSurface 外观、散图/镜头纯图选中+四角缩放、对象工具条、C2 超分/去背景（源节点 running 态 + placeDerivedImages）、legacy edit 兼容跳转、卡匣并排底栏、**助手会话 DB 持久化与共享**（`AssistantConversation` + 过期哈希分享 token + 本地化只读页）、Studio/Canvas 共享助手 shell、通用 `CanvasCapabilityRuntime` 编辑 API、角色/场景卡纯图选择与完整 hydration。**仍欠**：S6 空态插画、真实 Fish provider 请求联调、owner 对助手历史浮层与画布视觉的最终验收。
@@ -27,12 +35,12 @@
 - **文档标准重建三批全部完成（2026-07-10）**：批 1 骨架+迁移 · 批 2 references 十二篇 · 批 3 scenes 九篇（专属 5 问逐篇过审）+ templates 代码骨架 ×4（真实样例抽取）+ CLAUDE.md（287→约 100 行）/ AGENTS.md（2016→约 40 行）激进瘦身成路由。**整个重建是一个完整切片，待 owner 确认后 commit。**z+
 - 待 owner 拍板/启动：Seedream 5.0 接入建议表（model-catalog.md）· 三个 Sonnet 任务 chip（Satoshi 清理 / hydration 修复 / 三篇文档校验+周检基线）· dependabot 分流（#204/#201 不能合，#200/#202/#203 测绿可合）。
 - 在飞任务包（plans/）：Comfy runner（RunPod）· 画布重构（ScriptDoc+autospawn 引擎）· 音频域 Phase A · 节点收敛方案 B。
-- UI 改版（工坊宅邸 E+F）：大致方向已入 brand-dna，深挖与概念稿等 owner 启动改版时再做；过渡期守 v1 现状。
+- Canvas 与 LoRA 当前只完成既定业务收口；其现有施工稿中的视觉描述只用于本轮回归，不作为未来改版依据。两域业务完成后按新治理重新定义。
 
 ## Next
 
 - Finish E2 extraction for the remaining video/audio generation orchestration, then run S6 owner visual QA (history placement, empty-state illustration, responsive canvas/assistant rail) and a real Fish provider request.
-- 画布 G0：Claude/Fable 输出一张同屏模块板（当前冲突、W0/S1 背景、助手收展、对象选中、I/V/A 最小线路）；owner 目验后拆 W0 与 S1，不先并行改图片/视频/声音。
+- 画布下一轮 UI 设计：新设计任务先核对当前业务收口与未完成项，只做事实审计和设计文档，不先修改 `src/**`；随后按 `scenes/ui-page.md` 从域定义与状态矩阵逐项确认。常规设计无法收口时再由 owner 决定是否升级给 Fable。
 - owner 核对后 commit 文档重建切片。
 - 模型月审下次 2026-08 初（model-catalog.md）。
 
@@ -42,5 +50,5 @@
 
 ## Recently Changed
 
-- 2026-07-10 文档体系 v2 完成：WORKFLOW（七步+5 问+路由矩阵+Commit/Push 规则）· brand-dna（工坊宅邸大致方向+过渡期规则）· forbidden（AVOID/PREFER ×7 域）· checklists ×4 · scenes ×9 · references ×13（含 model-catalog 月审与 cicd 排障手册）· templates ×5 · CLAUDE.md/AGENTS.md 瘦身。旧文档：拍板决策在 archive/，全量可从快照 `cddc4384` 找回。
+- 2026-07-19 UI 设计治理重建：`brand-dna`、UI scenes、UI checklist、UI forbidden 与 frontend 参考均已重写；2026-07-10 的“工坊宅邸/全局手写字体”方向仅保留在 `archive/design/` 作为历史证据。
 - 产品四项重核：双轨用户 / 北极星=画布+LoRA 双核 / 3D 搁置（远期=导演台 3D 镜头控制）/ Arena·Storyboard 等图片 LoRA 完善。

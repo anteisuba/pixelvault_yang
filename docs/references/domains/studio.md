@@ -16,13 +16,15 @@
 
 `use-unified-generate.ts`（客户端编排）→ `studioGenerateAPI` → `POST /api/studio/generate` → `studio-generate.service`（quick=直接提交 worker job；card=先 `compileRecipe`）→ Cloudflare Worker 执行 → 签名回调 → `Generation`。视频/音频走各自 API + service，**同样返回 job id 轮询**；Next.js 不做同步 provider 执行（Worker-only，见 `../providers.md`）。
 
-## UI 现状要点（2026-07-10 浏览器目检）
+## UI 现状事实（2026-07-10 浏览器目检；不是未来设计规范）
+
+以下内容只用于定位当前代码、测试与回归。Studio Image、Video、Audio 的后续视觉方向分别定义，不得把当前 dock、亮纸 composer、chips 或历史评审当作跨域默认皮肤。
 
 - dock 六位工具栏：模型 / 模板 / 助手 / 图像 / 卡片 / 1:1；chip 三态（空/已设值/不支持不渲染）。
 - composer = 暗面上唯一「亮纸」（`--surface-composer` 象牙 + 黑丸 CTA，B4 已实装）。
 - 空态起手势：eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口（施工报告在 `archive/reviews/2026-07-05-studio-empty-state.md`）。
 - 助手宿主 = 右侧 dock（施工基准 `archive/reviews/2026-07-07-studio-assistant-dock-redesign.md`）。
-- 工具面板七条统一契约见 `archive/design/direction.md` 决议 5 附则。
+- 工具面板当前行为与实现见 `references/frontend.md` 及对应代码；旧 `archive/design/direction.md` 仅作历史证据，不再提供视觉契约。
 
 ## 不能破坏
 

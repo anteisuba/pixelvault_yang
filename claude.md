@@ -67,7 +67,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Design / Testing / Ship（指针）
 
-- **UI 任务**：先读 `docs/brand-dna.md` + `docs/forbidden.md`，按 `docs/scenes/ui-page.md`（或 ui-marketing.md）执行，收尾过 `docs/checklists/ui.md`。Anti-slop 红线：禁紫蓝渐变/霓虹/玻璃滥用/装饰动效。
+- **UI 任务（现行设计治理）**：先读 `docs/brand-dna.md`，再按 `docs/scenes/ui-page.md`（或 ui-marketing.md）进入对应业务域，并过 `docs/checklists/ui.md`。改版必须先完成域定义 → 三方向 → 关键切片 → owner 确认，之后才实现。全局只统一薄品牌脊柱、行为与品质底线；旧方向、当前页面和共享组件皮肤均不能充当新设计答案。
 - **测试**：策略与闸门见 `docs/references/testing.md`；声称绿之前全量 vitest；视觉基线按 OS 分套；测试 key 一次性 dev 实例。
 - **Commit / Push**：规则见 `docs/WORKFLOW.md`——owner 点头才提交；push main = 生产部署，先过 `docs/checklists/release.md`。
 - **CI/CD 与部署状态查询**：`docs/references/cicd.md`（gh CLI + Vercel MCP 操作手册）。

@@ -24,9 +24,14 @@
 
 filter 维度：search / model / sort / outputType / timeRange / liked / published / projectId。
 
-## 已拍板方向（未实施）
+## 已拍板方向（未实施，2026-07-19）
 
-详情页目标形态 = **MeiGen 式 route-backed overlay**（overlay 体验 + 可分享真实 URL，与 Prompts 详情共模板，两颗大按钮=「使用 Prompt / 用作参考图」）——见 `archive/design/direction.md` MeiGen 拆解节；工坊宅邸房间定位 = 展厅（画册跨页/藏书票，草案）。
+- Gallery 成为**公开作品与公开配方的唯一发现入口**；不再由 Prompts 维护第二套共享 feed。
+- 公开单位仍是 Generation/作品或图集，不是脱离作品的 Prompt 卡。配方是作品的可展开、可比较、可复用层。
+- 仅在 `isPublic=true` 且对应内容得到公开授权时展示；继续允许“作品公开、Prompt/配方保密”。
+- 可公开配方目标包含 Prompt、Negative Prompt、模型、允许公开的生成参数、seed、LoRA 依赖与来源；必须通过专用 public projection 清洗，禁止直接返回完整 `snapshot` / `recipeSnapshot` / 私有引用。
+- Gallery 负责浏览、搜索、比较和“使用这套配方”；执行后保存到用户自己的 Prompts 工作区，私有编辑/版本管理仍不属于 Gallery。
+- 旧 MeiGen 造型、展厅/画册跨页/藏书票隐喻随视觉规则重建废止；route-backed 详情只作为可分享 URL 与交互连续性的候选行为重新评估。
 
 ## Source of Truth
 
@@ -34,4 +39,4 @@ filter 维度：search / model / sort / outputType / timeRange / liked / publish
 
 ## Last Verified
 
-2026-07-10 · 沿用 2026-06-02 口径；prompt redaction 与公开路由边界为安全相关事实，改动前先对代码。
+2026-07-19 · 当前代码仍是公开 Generation feed/详情；owner 已拍板公共配方发现从 Prompts 合并到 Gallery，尚未实施。Prompt redaction 与公开路由边界仍是安全红线。

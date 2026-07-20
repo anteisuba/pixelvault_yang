@@ -3,6 +3,7 @@
 > **本文是音频域的最新施工基准**，合并了方向调研与情绪控制专题（背景与来源见
 > [`audio-domain-direction-2026-07.md`](audio-domain-direction-2026-07.md)）。
 > 改音频相关的模型 / 服务 / UI 前先读本文。
+> 视觉权力限定（2026-07-19）：本文保留音频业务、模型、数据和功能信息架构决策；下文基于旧双面模式的外观描述已经废止。未来 Audio 视觉需独立完成域定义、三个结构方向与关键切片确认，不能继承 Studio Image、Canvas 或旧暗面工作台皮肤。
 >
 > 图解：[`svg/audio-domain-blueprint.svg`](svg/audio-domain-blueprint.svg)（架构总览）、
 > [`svg/audio-studio-ui-wireframe.svg`](svg/audio-studio-ui-wireframe.svg)（语音 kind UI 线框）、
@@ -61,9 +62,9 @@
 - **克隆引导**：VoiceTrainer 上传页加提示——含情绪起伏的样本决定克隆音色的情绪上限（L0 地基）。
 - **试听规范**：每张卡用统一试听句生成 中性 + 激动 + 耳语 三段缓存试听，选卡即可预判情绪表现（分摊成本：懒生成 + 缓存）。
 
-## 4. UI 设计
+## 4. UI 功能需求（旧外观规则已退役）
 
-遵循 `docs/design/direction.md` 双面模式（Studio = 暗面工作台）与 anti-slop 红线；改 UI 前照常读 `docs/design/README.md` + 最新 review。
+本节只保留 audio kind、字段、状态和工作流等功能需求。segmented、chip、popover、卡片等形态是旧方案记录，不是未来视觉答案；进入视觉改版时以 `docs/brand-dna.md`、`docs/scenes/ui-page.md` 与新的 Audio 域/page 文档为准。
 
 > ⚠ **kind 切换与音效参数的落地细则已被
 > [`../design/reviews/2026-07-06-audio-kind-ui-redesign.md`](../design/reviews/2026-07-06-audio-kind-ui-redesign.md)

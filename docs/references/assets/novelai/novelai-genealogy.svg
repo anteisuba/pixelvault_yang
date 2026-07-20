@@ -1,0 +1,82 @@
+<svg viewBox="0 0 940 680" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','Helvetica Neue',system-ui,'Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5b5348"/>
+    </marker>
+    <marker id="arG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6d8b66"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="940" height="680" rx="18" fill="#f7f3ea"/>
+  <rect x="1" y="1" width="938" height="678" rx="17" fill="none" stroke="#e0d8c6" stroke-width="2"/>
+
+  <text x="40" y="46" font-size="25" font-weight="700" fill="#26221b">NovelAI 血统树 —— 为什么「用 LoRA 的都在用 NovelAI」</text>
+  <text x="40" y="72" font-size="14" fill="#7a7264">闭源线是标杆底模，开源线才是 LoRA 真正的家；两条线同源，语法相通。</text>
+
+  <!-- Root -->
+  <rect x="300" y="96" width="340" height="66" rx="12" fill="#2f3b4a"/>
+  <text x="470" y="124" font-size="16" font-weight="700" fill="#f7f3ea" text-anchor="middle">V1 · animefull（SD 1.5 微调）· 2022</text>
+  <text x="470" y="146" font-size="12.5" fill="#c7d0da" text-anchor="middle">NovelAI 首发底模 —— 也是当年被泄露的那一版</text>
+
+  <!-- fork lines -->
+  <path d="M340 162 L180 210" stroke="#5b5348" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+  <path d="M600 162 L760 210" stroke="#6d8b66" stroke-width="2.4" fill="none" marker-end="url(#arG)"/>
+  <text x="230" y="196" font-size="12.5" fill="#5b5348" font-weight="600">官方迭代</text>
+  <rect x="628" y="176" width="150" height="24" rx="12" fill="#e7efe2" stroke="#6d8b66"/>
+  <text x="703" y="192" font-size="12.5" fill="#41603a" text-anchor="middle" font-weight="700">2022-10 模型泄露</text>
+
+  <!-- ===== LEFT LANE: closed ===== -->
+  <rect x="40" y="212" width="380" height="428" rx="14" fill="#eef1f5" stroke="#c6d0dc"/>
+  <text x="60" y="240" font-size="15" font-weight="700" fill="#2f3b4a">闭源线 · NovelAI 官方</text>
+  <text x="60" y="260" font-size="12.5" fill="#7a7264">不吃用户 LoRA · 权重不开放 · 付费服务</text>
+
+  <rect x="70" y="278" width="320" height="52" rx="10" fill="#ffffff" stroke="#c6d0dc"/>
+  <text x="86" y="300" font-size="14" font-weight="600" fill="#26221b">V2</text>
+  <text x="86" y="320" font-size="12" fill="#7a7264">过渡代，很快被 V3 取代</text>
+
+  <rect x="70" y="344" width="320" height="60" rx="10" fill="#ffffff" stroke="#c6d0dc"/>
+  <text x="86" y="366" font-size="14" font-weight="600" fill="#26221b">V3 · Anime</text>
+  <text x="86" y="386" font-size="12" fill="#7a7264">基于 SDXL 魔改 · CLIP · v-pred+ztSNR · Vibe Transfer</text>
+
+  <rect x="70" y="418" width="320" height="52" rx="10" fill="#ffffff" stroke="#c6d0dc"/>
+  <text x="86" y="440" font-size="14" font-weight="600" fill="#26221b">V4 / V4 Curated</text>
+  <text x="86" y="460" font-size="12" fill="#7a7264">「完全原创」架构 · T5 编码器 · 多角色 prompt</text>
+
+  <rect x="70" y="484" width="320" height="62" rx="10" fill="#dfe8f2" stroke="#2f5d8a" stroke-width="2"/>
+  <text x="86" y="507" font-size="14.5" font-weight="700" fill="#1f4368">V4.5 Full / Curated ★ 当前主力</text>
+  <text x="86" y="528" font-size="12" fill="#3c556e">原创架构 · T5(512) · 自定义 VAE · Director Reference</text>
+
+  <line x1="230" y1="330" x2="230" y2="344" stroke="#5b5348" stroke-width="1.6" marker-end="url(#ar)"/>
+  <line x1="230" y1="404" x2="230" y2="418" stroke="#5b5348" stroke-width="1.6" marker-end="url(#ar)"/>
+  <line x1="230" y1="470" x2="230" y2="484" stroke="#5b5348" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="70" y="568" font-size="12" fill="#8a5a2b">定制手段 = Vibe Transfer / Director Reference / img2img（不是 LoRA）</text>
+
+  <!-- ===== RIGHT LANE: open ===== -->
+  <rect x="520" y="212" width="380" height="428" rx="14" fill="#edf2ea" stroke="#c3d3bd"/>
+  <text x="540" y="240" font-size="15" font-weight="700" fill="#41603a">开源线 · LoRA 真正的家（NAI 血统）</text>
+  <text x="540" y="260" font-size="12.5" fill="#7a7264">泄露点燃 → 全行业动漫底模的祖先</text>
+
+  <rect x="550" y="278" width="320" height="60" rx="10" fill="#ffffff" stroke="#c3d3bd"/>
+  <text x="566" y="300" font-size="14" font-weight="600" fill="#26221b">SD 1.5 时代</text>
+  <text x="566" y="320" font-size="12" fill="#7a7264">Anything V3 · AbyssOrangeMix …（NAI 微调/融合产物）</text>
+
+  <rect x="550" y="352" width="320" height="72" rx="10" fill="#ffffff" stroke="#c3d3bd"/>
+  <text x="566" y="374" font-size="14" font-weight="600" fill="#26221b">SDXL 时代</text>
+  <text x="566" y="394" font-size="12.5" fill="#7a7264">Pony Diffusion V6 XL</text>
+  <text x="566" y="412" font-size="12.5" fill="#7a7264">Illustrious XL → NoobAI XL</text>
+
+  <rect x="550" y="438" width="320" height="62" rx="10" fill="#dcebd4" stroke="#4f7a45" stroke-width="2"/>
+  <text x="566" y="461" font-size="14.5" font-weight="700" fill="#33602a">Civitai 动漫 LoRA 生态 ⭐</text>
+  <text x="566" y="482" font-size="12" fill="#3f5b38">绝大多数动漫 LoRA 都基于上面三家底模训练/挂载</text>
+
+  <line x1="710" y1="338" x2="710" y2="352" stroke="#6d8b66" stroke-width="1.8" marker-end="url(#arG)"/>
+  <line x1="710" y1="424" x2="710" y2="438" stroke="#6d8b66" stroke-width="1.8" marker-end="url(#arG)"/>
+  <text x="550" y="524" font-size="12" fill="#8a5a2b">全部沿用 NAI 的 Danbooru tag 语法 · 质量 tag · {}/[] 权重</text>
+  <text x="550" y="544" font-size="12" fill="#41603a" font-weight="600">↑ LoRA 从来不在 novelai.net 里挂，而是挂在这条线上</text>
+
+  <!-- bottom banner -->
+  <rect x="40" y="600" width="860" height="56" rx="12" fill="#2f3b4a"/>
+  <text x="470" y="626" font-size="14.5" font-weight="700" fill="#f7f3ea" text-anchor="middle">PixelVault 已「双线接入」</text>
+  <text x="470" y="646" font-size="12.5" fill="#c7d0da" text-anchor="middle">novelai.adapter（V4.5 闭源锚点）　＋　runner（Illustrious / NoobAI / Pony ＋ LoRA · 开源可定制）</text>
+</svg>

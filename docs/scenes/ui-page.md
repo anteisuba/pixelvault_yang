@@ -1,37 +1,135 @@
 # Scene · 产品内页 UI（ui-page.md）
 
-> 覆盖：Studio / 画布 / LoRA / Assets / Gallery / Prompts / Cards 等**应用型页面**的 UI 新建与改动。营销页走 `ui-marketing.md`。对应 checklist：`checklists/ui.md`（P0 不过打回）。
+> 覆盖：Studio、Canvas、LoRA、Assets、Gallery、Prompts、Cards 等应用型页面。营销页走 `ui-marketing.md`；对应验收为 `checklists/ui.md`。
 
-## 专属 5 问（开工硬门，与通用 5 问叠加；没有答案就停下来问 owner）
+## 专属 5 问（开工硬门）
 
-1. **哪个页面/组件？该页现行体系是什么？**——未改版页 = v1 现状约定（双面模式/反相 CTA/无彩灰阶）；已按房间文档改版页 = 该页施工图。**禁止混搭**（brand-dna 过渡期规则）。
-2. **有没有施工基准或设计稿？**——先查 `archive/reviews/` 对应篇和 `references/pages/<页>.md`；有 Figma 稿用 `get_design_context` 拉。都没有且改动非琐碎 → 先出方案图给 owner 拍板，再动代码。
-3. **成功标准是什么？**——可勾选的验收项 + 视觉回归基线怎么处理（diff 应为空？还是有意改动需 `--update-snapshots` 并点名哪些快照）。
-4. **禁改范围？**——默认红线见下方「禁改范围默认值」，任务有额外红线在此确认。
-5. **交互态覆盖要求？**——hover / focus / loading / error / 空态 / 键盘 / 移动端 375，哪些必须实跑验证（claude-in-chrome），哪些本次豁免。
+1. **业务域负责什么、不负责什么？** 页面核心对象、最高频任务以及与其他域的边界必须明确。
+2. **这是维护还是改版？** 小修默认保持局部现状以控制范围；改版不得从当前皮肤推导新方向。
+3. **域级方向确认到哪一步？** 尚未确认域定义/概念方向/关键切片时，只做调查与方案，不实现整页。
+4. **共享与专属边界是什么？** 哪些复用行为/API/状态/可访问性，哪些外观由 domain/page variant 和 token 独立负责。
+5. **成功与验证证据是什么？** 包括关键状态、桌面/移动端、键盘、真机辨识度和明确禁改范围。
 
-## 本场景工作流（七步骨架的 UI 具体化）
+## 改版级标准工作流
 
-1. **问 5 问**（上方）。
-2. **读规矩**：`brand-dna.md`（含过渡期规则）→ `forbidden.md` UI 节 → `references/frontend.md`（覆层强约定矩阵 + token 四层治理 + 组件清单）→ `references/domains/<域>.md` → 对应 archive 施工基准。
-3. **从既有起步**：先查 frontend.md 组件清单——覆层选型走强约定矩阵（ResponsiveDialog / ResponsivePopover / tool-surface / AssetSelectorDialog…），禁止重造已有组件；新组件用 `templates/component.md` 骨架并按层级判据放对目录。
-4. **设计先行（非琐碎改动）**：Fable 出方案/线框图（show_widget 内联渲染）→ owner 拍板 → 落成可执行描述交 Sonnet；琐碎改动可直接做但报告里说明。
-5. **实现**：匹配该页现行体系；token 走 `@theme inline` 不用任意值；i18n 三语同步；触屏键盘策略与自适应命中区不破坏（fine pointer 紧凑 32px/常规 36px，coarse pointer 44px）。
-6. **自检**：`checklists/ui.md` 逐项过——机械项跑命令（lint/build/visual），判断项逐条给结论。
-7. **交付报告**：改动清单 + checklist 逐项结论 + 截图/图示对比 + **手动验证步骤**（点哪/看什么/DevTools 看哪个请求）。
+这套流程适用于所有业务域。LoRA、Canvas、Prompts、Gallery、Assets、Studio 等可以得到不同的视觉答案，但必须经过相同的确认门。
 
-## Skill 路由（本场景专用）
+### 阶段 0 · 定性与冻结
 
-定调/出设计系统 → `ui-ux-pro-max`；在系统内实现 → `frontend-design`；收尾检查 → `polish` / `audit`；存量整体升级 → `redesign-existing-projects`（audit-first）。审查类 skill 默认只出清单不改代码。
+1. 判断是局部维护还是改版。约 10 行内机械调整可以保持现状直接修；改变页面层级、布局骨架或视觉身份均属于改版。
+2. 改版默认冻结 `src/**`。业务功能仍在收口时，可以并行做事实审计、文档和概念探索，但不能让视觉试验覆盖在飞功能代码。
+3. 明确目标、影响路由、成功标准、禁改范围和验证证据。缺少产品/API/provider/计费/权限事实时停止，不用设计稿掩盖不确定性。
 
-## 必读清单
+### 阶段 1 · 事实审计，不继承皮肤
 
-`brand-dna.md` · `forbidden.md`（UI 节）· `references/frontend.md` · `references/domains/<域>.md` · 对应 `archive/reviews/` 施工基准 · 画布任务另加 `plans/canvas-baseline.md`
+1. 读取 `references/product.md`、对应 `references/domains/<域>.md`、实际代码和运行页面；再读 `brand-dna.md`、`forbidden.md` UI 节、`references/frontend.md` 与 active plan。
+2. 盘点：核心对象、最高频任务、默认入口、真实能力、输入/输出、关键数据、现有共享行为和所有会改变布局的状态。
+3. 建立状态矩阵，至少覆盖默认、空、已有内容、loading、error、disabled/unsupported、overlay/assistant 展开以及桌面/移动端差异；只保留该页面真实存在的状态。
+4. 当前截图、代码皮肤、旧页面、`archive/` 和 UI inspiration 只作为功能或审美证据，不得直接成为新造型答案。
 
-## 禁改范围默认值（UI-only 任务）
+### 阶段 2 · 定义业务域
 
-**不动**：`src/app/api/**` · `prisma/**` · `src/services/**` · Clerk 配线 · credit/billing。全局字体/材质切换是独立地基工程，不随单页顺带改。需要越界时停下来 surface 冲突。
+逐项确认该域负责什么、不负责什么、核心用户、核心对象、最高频任务、默认入口、与其他域的流转边界和希望形成的使用感受。稳定结论写入 `references/domains/<域>.md`；页面不能为了“功能齐全”把别的域能力藏进高级设置。
 
-## 验证命令
+### 阶段 3 · 建立结构决策账本
 
-`npm run lint && npm run build`（dev 跑着时不 build）→ `npx playwright test e2e/visual.spec.ts` → 涉及移动端加 `e2e/mobile.spec.ts --project=mobile` → 交互态用 claude-in-chrome 实跑（本机 preview\_\* 不可用）。
+1. 在一个 active plan 中记录待确认问题、推荐答案、owner 结论和仍未决定的事项；产品事实、结构契约、视觉偏好分开记录。
+2. **一次只确认一项**。Agent 给出推荐答案与理由，等待 owner 回答后立即写入账本；“确认”只覆盖当前问题，不得批量推定后续决定。
+3. 先确认结构，再画整页：信息主次、始终可见/按需出现、输入与结果关系、空态/有内容态、overlay/assistant、展开/折叠、响应式和动作优先级。
+4. 单个区域的确认图只约束该区域。除非 owner 明确确认整页方向，不得把上下文稿中的其他布局、颜色或组件提升为页面规范。
+5. 发现功能事实与讨论冲突时，回到事实审计；不要在视觉稿里自行补造能力。
+
+### 阶段 4 · 确认审美方法与禁区
+
+确认参考的是哪类产品界面、借鉴其什么方法、明暗/密度/情绪基调以及明确拒绝什么。参考用于说明任务聚焦、排版、比例或交互节奏，不用于复制品牌皮肤；此阶段不预先锁死全域圆角、卡片、pill、字体或材质答案。
+
+### 阶段 5 · 三个完整结构方向
+
+1. 结构契约稳定后，使用同一组真实内容和同一状态矩阵提出 A/B/C 三个方向。
+2. 差异必须来自空间结构、比例、信息层级和交互关系，不能只是换色、换圆角、换卡片样式。
+3. 每个方向至少提供：一张桌面主状态图、一张简化状态图证明其余关键状态可进入同一骨架、空间说明、优点、风险和适用行为。
+4. 第一轮不做完整施工稿、不写 `references/pages/`、不修改代码。当前设计会话即可完成本阶段。三方向默认用 **Claude Design 出可交互高保真原型**（取代静态 SVG 意象），载体、桥接与红线见下文「设计工具与产出载体」；新开设计任务时使用 `templates/ui-redesign-brief.md` 交接。只有 owner 明确要求，或常规设计多轮仍不满意时，才用同一模板升级给 Fable 探索；Fable 不是流程硬门。若输出未覆盖状态矩阵或三个方向结构同质，直接打回。
+
+### 阶段 6 · 选向与关键切片
+
+1. owner 从三方向中选择一个，或明确组合哪些结构原则；没有选择就继续讨论，不默认采用 agent 推荐。
+2. 只深化一个最能暴露风险的关键切片，并补齐与它直接相关的空/有、开/关或桌面/移动状态。
+3. 在真实视口或浏览器上下文验证比例、辨识度、可用性和 overlay/focus 行为（Claude Design 高保真原型可直接充当此验证载体）；静态图不能证明的行为必须写成可验证契约。
+4. owner 确认后，关键切片才获得页面规范权力；被否决和未选择方向继续留在 active plan 作比较证据，不进入默认实现阅读链。
+
+### 阶段 7 · 页面施工文档
+
+把已确认方向写入 `references/pages/<页>.md`，并明确引用确认图、状态矩阵、共享/专属边界、响应式和验收路径。只有 page 文档与 owner 明确授权同时成立，才可进入整页实现。
+
+### 阶段 8 · 实现交接与落地
+
+1. 非 trivial 实现使用 `templates/task-packet.md`；交接必须列明必读文档、确认图、不可变契约、非目标、允许修改范围和验证命令。
+2. 方向、施工图与评审由当前设计会话按本流程完成（高保真走 Claude Design，必要时升级给 Fable）；**Claude Design 原型是方向证据，不是可合入代码**——Sonnet 按已确认 page 文档把它翻译成 shadcn + domain/page token，不直接 import 进 `src/`；service/后端或业务逻辑拆给 Codex。设计会话不得顺手修改 `src/**`。
+3. 实现按可真机验证的小切片推进。复用组件的行为、API、状态与可访问性；通过 variant、slot、data attribute、domain/component/page token 实现页面身份。
+4. 覆盖 hover、focus、active、loading、empty、error、disabled、selected；验证桌面、平板、375px 手机和触屏键盘。
+5. 第二个真实消费者出现且视觉需求一致后，才提取共享视觉 variant；在此之前只共享行为，不预先统一皮肤。
+6. 逐项通过 `checklists/ui.md`，交付改动清单、验证证据、截图/切片对比、手动步骤和未验证边界。
+
+## 设计工具与产出载体（阶段 5–6）
+
+**三方分工**：前门（阶段 0–4）由 Opus 4.8 守——调查、事实审计、域定义、结构账本、审美方法；中段（阶段 5–6）由 **Claude Design** 出高保真方向；后门（阶段 7–8）由 Sonnet 翻译落地。Claude Design 是阶段 5–6 的默认高保真载体，取代过去的静态 SVG 意象；Fable 仅在常规多轮仍不满意时按 `templates/ui-redesign-brief.md` 升级，不是流程硬门。（2026-07-20 owner 拍板）
+
+**Claude Design 用法与红线**：
+
+- **web capture 只取事实，不继承皮肤**：抓现有页面是为了拿真实内容与功能事实，不是把当前造型当答案（见 `brand-dna.md`「不继承皮肤」）；抓进来后必须主动改结构、比例、层级。
+- **设计系统提取只吃脊柱**：让 Claude Design 提取的是 primitive/semantic 层（色阶、间距、字体尺度、状态语义），不把某业务域皮肤当全站模板套到别的域；提取错层级等于把治理退回全站统一皮肤。
+- **不前移、不越门**：Claude Design 从 prompt 到高保真只要几分钟，禁止用它跳过阶段 1–4 直接出整页再倒推需求；owner 选向仍是硬门。
+
+**设计 → 代码桥接**：
+
+- `DesignSync`（配 `/design-sync` skill）：把 Claude Design 项目当组件库跟本地增量对齐，一次一个组件，适合沉淀设计系统。
+- `import-claude-design-from-url`：把某设计一键推成 Vercel 预览，适合阶段 6 给 owner 在真链接上点选比较。
+- 真正合进 `src/` 的仍是 Sonnet 按 `references/pages/<页>.md` 手工翻译——原型是方向证据，不是合入通道；合入前照常过 `checklists/ui.md` 与真机验证。
+
+**首个试点**：LoRA 生成页（门禁 ①–⑥ 已过、方向已锁、尚未实现，见 `docs/plans/lora-visual-redesign-2026-07.md`），用于验证工具链而非方向。
+
+## 文档与设计稿的权力边界
+
+| 载体                            | 负责什么                               | 是否可授权实现                 |
+| ------------------------------- | -------------------------------------- | ------------------------------ |
+| `references/domains/<域>.md`    | 域职责、对象、工作流、稳定边界         | 否，缺少页面方向               |
+| active `plans/<任务>.md`        | 逐项确认账本、候选方向、未决事项       | 否，除非另有已确认 page 文档   |
+| 候选图/截图/UI inspiration      | 证据、比较材料、局部确认切片           | 默认否；局部确认只约束标明区域 |
+| `references/pages/<页>.md`      | owner 已确认的页面方向、状态与施工契约 | 是，但仍需明确实现授权         |
+| `templates/task-packet.md` 实例 | 某次实现的范围、禁改项和验收           | 是，不能扩张 page 文档范围     |
+
+## 页面文档最低结构
+
+`references/pages/<页>.md` 至少写清：
+
+- 域职责、核心对象、首要任务和非目标。
+- 继承的全局行为与共享组件契约。
+- 覆盖的 domain/page token 与理由。
+- 三个标志性视觉组件。
+- 本页不能长得像哪些现有业务域，以及差异来自哪里。
+- 桌面/移动端结构、关键状态和验收证据。
+
+## 组件复用判据
+
+- `ui/`：无业务纯原语，提供中性 fallback 和完整状态。
+- `layout/`：应用壳与导航行为。
+- `business/`：业务域组件，可拥有完整域级皮肤。
+- 跨域复用前先判断共享的是行为还是外观；只共享行为时不得把页面 class/token 提升到全局。
+- 第二个真实消费者出现且视觉需求一致后，才提取视觉 variant。
+
+## 禁改范围默认值（UI-only）
+
+不动 `src/app/api/**`、`prisma/**`、`src/services/**`、Clerk、credit/billing、provider 契约。需要越界时停止并拆 task packet。
+
+Canvas、LoRA 当前业务收口期间，功能任务按各自在飞 task packet 执行；这些施工文档不自动成为未来视觉重设计依据。
+
+## 验证
+
+- 代码：lint、typecheck、相关 Vitest；dev 未运行时按需 build。
+- 视觉：`e2e/visual.spec.ts`；移动端涉及则加 `e2e/mobile.spec.ts --project=mobile`。
+- 交互：真机或浏览器实跑键盘、hover/focus、overlay、触屏和关键状态。
+
+## Last Verified
+
+- 2026-07-20 · owner 拍板 Claude Design 为阶段 5–6 高保真主力载体、Fable 降为疑难升级；新增「设计工具与产出载体」节，明确 web capture / 设计系统提取红线与 DesignSync·import 桥接；首个试点 = LoRA 生成页。
+- 2026-07-19 · 根据 LoRA 逐项设计过程补齐通用改版工作流：事实审计 → 域定义 → 单项结构账本 → 审美方法 → 三方向 → 关键切片 → page 文档 → 授权实现。

@@ -1,6 +1,19 @@
-# Frontend 参考 — 统一共同设计文档（现状事实）
+# Frontend 参考 — 实现事实与共享行为契约
 
-> 定位：全站共享的前端现状事实 + 共同约定。**宽松原则**：本文件是默认值和共享词汇表，不是枷锁——页面可以有意破格，破格写进该页 `pages/<页>.md` 并记录理由。方向层（工坊宅邸）见 `brand-dna.md`；本文件只记录代码现状，过渡期 UI 改动以此为准。
+> 定位：记录当前前端实现、token 层级、共享组件行为和高风险复用点。本文不定义页面视觉身份；新 UI 的品牌与设计权力边界见 `brand-dna.md`，域级方向见对应 `references/domains/` 与 `references/pages/`。
+
+## Token 与组件治理
+
+```text
+primitive → semantic → domain/component → page
+```
+
+- **Primitive**：原始色阶、间距、尺寸、字体尺度、半径、阴影和时长，只提供可用值。
+- **Semantic**：foreground、surface、border、focus、success、warning、destructive 等用途语义，提供中性 fallback。
+- **Domain / Component**：业务域与组件状态的外观实现，可以完整覆盖 semantic fallback。
+- **Page**：页面结构和标志性局部值；只有第二个真实消费者出现且视觉需求一致时才提升。
+- 共享组件固定行为、API、状态优先级、ARIA、键盘、focus return 和响应式；颜色、字体、材质、圆角、阴影、密度、布局与动效由域/page variant 和 token 决定。
+- `className`、slot、data attribute 和 CSS variable 是允许的域级外观接缝；页面 class/token 不得无意泄漏全局。
 
 ## CSS 与 token 现状
 
@@ -9,14 +22,14 @@
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
 - ⚠ globals.css 首行仍 `@import` Fontshare Satoshi，但全 src 无任何 `Satoshi` font-family 引用（字体栈已迁 Geist）——死引用，已立清理任务。
 
-### Token 四层治理模型
+### 当前 token 实现清单
 
-| 层            | 内容                                                                                                                                                                                                                                   | 使用规则                               |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| 1 shadcn 语义 | `bg-background` / `bg-card` / `border-border` / `bg-muted`…                                                                                                                                                                            | 默认选择                               |
-| 2 域 token    | `sidebar-*`（壳）· `node-*`（画布：`--node-panel` #1a1a1a 系 + `shadow-node-panel`）· `--surface-composer`（oklch 96% 0.008 95 象牙输入条，**B4 决议已实装**：暗面 Studio 上唯一亮纸 + 黑丸 CTA，2026-07-10 目检）· `--width-studio-*` | 只在所属域用，不外溢                   |
-| 3 页面局部    | `homepage-*` / `--home-*`                                                                                                                                                                                                              | 留在页内；第二个页面需要同模式时才提取 |
-| 4 工具类      | `max-w-content` / `max-w-gallery` · `text-3xs`(10px) / `text-2xs`(11px) / `text-nav` · `tracking-nav(-dense)`                                                                                                                          | 小标签/宽度的首选路径                  |
+| 层                | 当前内容                                                                 | 新设计使用规则                               |
+| ----------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
+| Semantic fallback | `bg-background` / `bg-card` / `border-border` / `bg-muted`…              | 无域级方向时的中性实现，不是视觉上限         |
+| Domain            | `sidebar-*` · `node-*` · `--surface-composer` · `--width-studio-*`       | 只在所属域使用；当前值不外溢为全站默认       |
+| Page              | `homepage-*` / `--home-*`                                                | 留在页内；第二个页面需要同模式时仍先分别验证 |
+| Utility           | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav` | 共享尺度工具，不表达品牌性格                 |
 
 - `editorial-*` 类族（globals.css 33 处）：跨 prompts / arena / storyboard / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
 - **弱/孤 token**（2026-06-02 审计口径，构建新 UI 前先核实用量）：`--text-hero-*`、`--h-hero-btn`、`--text-tab`、`--overlay-chip`、`--surface-highlight`、`--home-surface-soft`、`--width-studio-left/sidebar`。
@@ -33,7 +46,7 @@
 | `--font-geist-mono`                            | Geist Mono                               | 代码 / 参数                                          |
 | `--font-japanese-sans` / `--font-chinese-sans` | Noto Sans JP / SC                        | `html:lang(ja/zh)` 覆盖 sans/display 栈              |
 
-- zh / ja 没有真正的标题字身份（衬线场景由系统栈兜底）——DNA v2「待深挖」项，选型前维持现状。
+- zh / ja 当前没有独立标题字体身份（衬线场景由系统栈兜底）。这是实现事实；各业务域可在页级设计确认后定义自己的字体表达。
 
 ## 布局壳（2026-07-10 核验 `(main)/layout.tsx`）
 
@@ -47,18 +60,18 @@
 
 层级判据：`ui/` = 无业务纯原语 · `layout/` = 壳 · `business/` = 域组件 · `business/studio-shared/` = 跨 Studio 复用 · `business/node/` = 画布域。
 
-### 覆层（披露）矩阵 — 强约定
+### 覆层行为矩阵 — 强约定
 
-| 场景                               | 用什么                                                                                          |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 桌面居中弹窗 ↔ 手机底部抽屉        | **ResponsiveDialog**（勿 `defaultOpen`）                                                        |
-| 桌面 Popover ↔ 手机抽屉            | **ResponsivePopover**                                                                           |
-| Studio 工具面板（chip 锚定轻面板） | `studio-shared/primitives/tool-surface`（七条契约见 `archive/design/direction.md` 决议 5 附则） |
-| 选素材                             | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                                 |
-| 选模型                             | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）                               |
-| 缺 API key                         | **QuickSetupDialog**（Hard Rule 8：不禁用 UI，内联配置）                                        |
-| 确认 / 危险操作                    | `confirm-dialog` / `alert-dialog`                                                               |
-| Toast                              | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`）         |
+| 场景                        | 用什么                                                                                  |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| 桌面居中弹窗 ↔ 手机底部抽屉 | **ResponsiveDialog**（勿 `defaultOpen`）                                                |
+| 桌面 Popover ↔ 手机抽屉     | **ResponsivePopover**                                                                   |
+| Studio 当前工具面板         | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板  |
+| 选素材                      | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                         |
+| 选模型                      | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）                       |
+| 缺 API key                  | **QuickSetupDialog**（Hard Rule 8：不禁用 UI，内联配置）                                |
+| 确认 / 危险操作             | `confirm-dialog` / `alert-dialog`                                                       |
+| Toast                       | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`） |
 
 ### `ui/` 原语分类（58 文件，2026-07-10 清点）
 
@@ -67,7 +80,7 @@
 - **反馈**：skeleton（单一 pulse 原语）· progress · badge · error-alert · sonner
 - **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare · tree-view · collapsible-panel · animated-collapse
 - **输入复合**：prompt-input（约 41 处）· placeholders-input · image-drop-zone · reference-image-section
-- **装饰/动效**：blur-fade · hyper-text · number-ticker · particles · pulsating-button · brand-mark —— ⚠ 受 forbidden 动效红线约束，新用途先对照 brand-dna 动效性格
+- **装饰/动效**：blur-fade · hyper-text · number-ticker · particles · pulsating-button · brand-mark；使用时验证任务价值、性能与 reduced-motion，不因存在而默认复用
 
 ### Studio 共享 chrome（`studio-shared/chrome`）
 
@@ -103,3 +116,4 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 - 2026-07-10 浏览器目检（claude-in-chrome，owner dev 实例，桌面 1568 宽）：侧栏分组结构 ✓ · Studio 空态起手势（eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口）✓ · dock 六位工具栏（模型/模板/助手/图像/卡片/1:1）✓ · composer 象牙纸 + 黑丸 ✓ · 画布空态前门 + 助手右侧 dock + 底部工具条 ✓ · 登录态侧栏 footer（额度徽标/今日免费/用户菜单/语言切换）✓。**移动端壳未目检**（浏览器窗口受管理无法缩放）；发现 MobileRailAccountButton hydration mismatch（已立修复任务）。
 - 引用计数（39/44/29/41 处等）与弱 token 清单沿用 2026-06-02 系统审计口径；据此新建 UI 前遇疑先对代码。
 - 2026-07-13：owner 授权调整旧 UI 硬规则；依据 WCAG 2.2 / Apple 触屏基准，把一刀切 44px 同步为 fine 32/36px、coarse 44px、AA 24px 底线。其余组件清点事实未重跑。
+- 2026-07-19：重写 token 与组件治理口径；共享组件固定行为/API/状态/a11y，外观由 domain/page variant 与 token 覆盖。现状组件与 token 数值不再构成跨域视觉模板。

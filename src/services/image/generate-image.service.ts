@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { API_USAGE, FREE_TIER } from '@/constants/config'
-import { getModelById } from '@/constants/models'
+import { getModelById, type ModelOption } from '@/constants/models'
 import {
   getImageReferenceCapability,
   getReferenceCapabilityMax,
@@ -50,6 +50,7 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
+import { getResolvedModelOption } from '@/services/model-config.service'
 import {
   GENERATION_STAGE,
   GenerationStageTimer,
@@ -58,6 +59,7 @@ import {
 
 export interface ResolvedGenerationRoute {
   modelId: string
+  externalModelId: string
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
@@ -65,6 +67,8 @@ export interface ResolvedGenerationRoute {
   isFreeGeneration?: boolean
   /** Credit cost for this generation (from model config, fallback 1) */
   creditCost: number
+  /** DB-first catalog entry, including hardcoded capability fallbacks. */
+  modelConfig?: ModelOption
 }
 
 type GenerateImageServiceErrorCode =
@@ -119,7 +123,7 @@ export async function resolveGenerationRoute(
   userId: string,
   { modelId, apiKeyId }: Pick<GenerateRequest, 'modelId' | 'apiKeyId'>,
 ): Promise<ResolvedGenerationRoute> {
-  const builtInModel = getModelById(modelId)
+  const builtInModel = await getResolvedModelOption(modelId)
 
   if (builtInModel && !builtInModel.available) {
     throw new GenerateImageServiceError(
@@ -165,12 +169,14 @@ export async function resolveGenerationRoute(
 
     return {
       modelId,
+      externalModelId: builtInModel?.externalModelId ?? modelId,
       adapterType: selectedApiKey.adapterType,
       providerConfig: selectedApiKey.providerConfig,
       apiKey: selectedApiKey.keyValue,
       resolvedApiKeyId: selectedApiKey.id,
       creditCost:
         builtInModel?.cost ?? API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      modelConfig: builtInModel,
     }
   }
 
@@ -211,12 +217,14 @@ export async function resolveGenerationRoute(
 
     return {
       modelId,
+      externalModelId: builtInModel.externalModelId,
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: builtInModel.providerConfig,
       apiKey: platformKey,
       resolvedApiKeyId: null,
       isFreeGeneration: false,
       creditCost: builtInModel.cost,
+      modelConfig: builtInModel,
     }
   }
 
@@ -245,11 +253,16 @@ export async function resolveGenerationRoute(
 
     return {
       modelId: effectiveModelId,
+      externalModelId:
+        effectiveModelId === modelId
+          ? builtInModel.externalModelId
+          : effectiveModelId,
       adapterType: autoKey.adapterType,
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
       resolvedApiKeyId: autoKey.id,
       creditCost: builtInModel.cost,
+      modelConfig: builtInModel,
     }
   }
 
@@ -288,12 +301,14 @@ export async function resolveGenerationRoute(
 
     return {
       modelId,
+      externalModelId: builtInModel.externalModelId,
       adapterType: builtInModel.adapterType,
       providerConfig: builtInModel.providerConfig,
       apiKey: platformKey,
       resolvedApiKeyId: null,
       isFreeGeneration: true,
       creditCost: builtInModel.cost,
+      modelConfig: builtInModel,
     }
   }
 
@@ -357,12 +372,14 @@ function buildFreeTierFallbackRoute(
 
   return {
     modelId: fallbackModelId,
+    externalModelId: fallbackModel.externalModelId,
     adapterType: fallbackModel.adapterType,
     providerConfig: fallbackModel.providerConfig,
     apiKey: platformKey,
     resolvedApiKeyId: null,
     isFreeGeneration: true,
     creditCost: fallbackModel.cost,
+    modelConfig: fallbackModel,
   }
 }
 
@@ -406,6 +423,7 @@ async function invokeProvider(params: {
         providerAdapter.generateImage({
           prompt: input.prompt,
           modelId: route.modelId,
+          externalModelId: route.externalModelId,
           aspectRatio: input.aspectRatio,
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,

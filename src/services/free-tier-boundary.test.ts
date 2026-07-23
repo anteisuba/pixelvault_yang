@@ -10,6 +10,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const mockGetResolvedModelOption = vi.hoisted(() => vi.fn())
+
 // ─── Mocks ──────────────────────────────────────────────────────
 
 vi.mock('@/services/user.service', () => ({
@@ -55,6 +57,10 @@ vi.mock('@/lib/circuit-breaker', () => ({
 vi.mock('@/services/kernel/prompt-guard', () => ({
   validatePrompt: vi.fn(() => ({ valid: true })),
 }))
+vi.mock('@/services/model-config.service', () => ({
+  getResolvedModelOption: (...args: unknown[]) =>
+    mockGetResolvedModelOption(...args),
+}))
 
 // Mock models — getModelById returns free-tier-eligible model
 const { modelsMock } = vi.hoisted(() => ({
@@ -97,6 +103,10 @@ function freeLimitError(message = 'Free tier limit reached (20/day).') {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockGetResolvedModelOption.mockImplementation(async (modelId: string) => {
+    const model = modelsMock.realGetModelById?.(modelId)
+    return model ? { ...(model as object), freeTier: true } : undefined
+  })
   mockFindKey.mockResolvedValue(null) // No user key → free tier path
   mockReserve.mockResolvedValue(undefined)
   mockGetPlatformKey.mockReturnValue('platform-test-key')

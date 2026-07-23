@@ -46,6 +46,20 @@ export class ApiRequestError extends GenerationError {
   }
 }
 
+/**
+ * Explicitly safe transient provider message for legacy call sites that have
+ * not yet migrated to ApiRequestError. Never construct this from a raw
+ * upstream response; callers must provide controlled copy.
+ */
+export class ProviderTransientError extends Error {
+  readonly errorCode = 'PROVIDER_TRANSIENT' as const
+
+  constructor(publicMessage: string) {
+    super(publicMessage)
+    this.name = 'ProviderTransientError'
+  }
+}
+
 // ─── Concrete Error Types ────────────────────────────────────────
 
 export class ProviderError extends GenerationError {

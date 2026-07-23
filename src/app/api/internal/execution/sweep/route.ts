@@ -4,8 +4,10 @@ import { NextResponse } from 'next/server'
 
 import { logger } from '@/lib/logger'
 import { sweepStaleExecutions } from '@/services/execution-sweeper.service'
+import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export async function GET(request: Request): Promise<NextResponse> {
   const cronSecret = process.env.CRON_SECRET
@@ -25,7 +27,17 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const data = await sweepStaleExecutions()
+    const sweepResult = await sweepStaleExecutions()
+    const previewResults = await processPendingImagePreviewDerivativeOutboxes({
+      limit: 5,
+    })
+    const data = {
+      ...sweepResult,
+      previewDerivativeOutboxesAttempted: previewResults.length,
+      previewDerivativeOutboxesCompleted: previewResults.filter(
+        (result) => result.status === 'completed',
+      ).length,
+    }
     return NextResponse.json({ success: true, data })
   } catch (error) {
     const message =

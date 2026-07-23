@@ -1,10 +1,9 @@
-import { createHmac } from 'node:crypto'
-
 import { NextRequest } from 'next/server'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { EXECUTION_INTERNAL } from '@/constants/execution'
 import { ApiRequestError } from '@/lib/errors'
+import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import { resolveExecutionApiKey } from '@/services/api-key-resolver.service'
 import { parseJSON } from '@/test/api-helpers'
 import type { ResolveKeyResponse } from '@/types'
@@ -29,6 +28,7 @@ const mockResolveExecutionApiKey = vi.mocked(resolveExecutionApiKey)
 
 interface CallbackRequestOptions {
   signature?: string | null
+  nonce?: string
 }
 
 interface ApiEnvelope<TData> {
@@ -36,12 +36,6 @@ interface ApiEnvelope<TData> {
   data?: TData
   error?: string
   errorCode?: string
-}
-
-function signBody(body: string, secret = CALLBACK_SECRET): string {
-  return createHmac(EXECUTION_INTERNAL.SIGNATURE_ALGORITHM, secret)
-    .update(body, 'utf8')
-    .digest('hex')
 }
 
 function createResolveKeyRequestFromBody(
@@ -53,8 +47,19 @@ function createResolveKeyRequestFromBody(
   }
 
   if (options.signature !== null) {
-    headers[EXECUTION_INTERNAL.SIGNATURE_HEADER] =
-      options.signature ?? signBody(body)
+    Object.assign(
+      headers,
+      createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url: RESOLVE_KEY_URL,
+        secret: CALLBACK_SECRET,
+        nonce: options.nonce,
+      }),
+    )
+    if (options.signature) {
+      headers[EXECUTION_INTERNAL.SIGNATURE_HEADER] = options.signature
+    }
   }
 
   return new NextRequest(RESOLVE_KEY_URL, {
@@ -108,6 +113,21 @@ describe('POST /api/internal/execution/resolve-key', () => {
     expect(mockResolveExecutionApiKey).toHaveBeenCalledWith(VALID_PAYLOAD)
   })
 
+  it('rejects replaying the same signed resolve-key request', async () => {
+    const body = JSON.stringify(VALID_PAYLOAD)
+    const nonce = 'resolve-key-replay-123456'
+    const first = createResolveKeyRequestFromBody(body, { nonce })
+    const replay = createResolveKeyRequestFromBody(body, { nonce })
+
+    expect((await POST(first)).status).toBe(200)
+    const replayResponse = await POST(replay)
+    const replayJson = await parseJSON<ApiEnvelope<never>>(replayResponse)
+
+    expect(replayResponse.status).toBe(401)
+    expect(replayJson.errorCode).toBe('EXECUTION_REPLAY_DETECTED')
+    expect(mockResolveExecutionApiKey).toHaveBeenCalledTimes(1)
+  })
+
   it('returns 403 when runId does not match a generationJob', async () => {
     mockResolveExecutionApiKey.mockRejectedValue(forbiddenError())
 
@@ -145,7 +165,7 @@ describe('POST /api/internal/execution/resolve-key', () => {
   })
 
   it('returns 401 for an invalid execution signature', async () => {
-    const req = createResolveKeyRequest(VALID_PAYLOAD, signBody('forged-body'))
+    const req = createResolveKeyRequest(VALID_PAYLOAD, 'a'.repeat(64))
     const res = await POST(req)
     const json = await parseJSON<ApiEnvelope<never>>(res)
 

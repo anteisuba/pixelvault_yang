@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockSweep = vi.fn()
+const mockProcessPreviewOutboxes = vi.fn()
 
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -8,6 +9,11 @@ vi.mock('@/lib/logger', () => ({
 
 vi.mock('@/services/execution-sweeper.service', () => ({
   sweepStaleExecutions: (...args: unknown[]) => mockSweep(...args),
+}))
+
+vi.mock('@/services/image/image-preview-derivative.service', () => ({
+  processPendingImagePreviewDerivativeOutboxes: (...args: unknown[]) =>
+    mockProcessPreviewOutboxes(...args),
 }))
 
 import { GET } from './route'
@@ -28,6 +34,7 @@ describe('GET /api/internal/execution/sweep', () => {
       staleJobsReaped: 0,
       expiredOutboxesReaped: 0,
     })
+    mockProcessPreviewOutboxes.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -52,6 +59,10 @@ describe('GET /api/internal/execution/sweep', () => {
       staleJobsReaped: 2,
       expiredOutboxesReaped: 1,
     })
+    mockProcessPreviewOutboxes.mockResolvedValue([
+      { outboxId: 'preview-1', status: 'completed' },
+      { outboxId: 'preview-2', status: 'failed' },
+    ])
 
     const res = await GET(buildRequest('Bearer test-secret'))
 
@@ -59,9 +70,15 @@ describe('GET /api/internal/execution/sweep', () => {
     const body = await res.json()
     expect(body).toEqual({
       success: true,
-      data: { staleJobsReaped: 2, expiredOutboxesReaped: 1 },
+      data: {
+        staleJobsReaped: 2,
+        expiredOutboxesReaped: 1,
+        previewDerivativeOutboxesAttempted: 2,
+        previewDerivativeOutboxesCompleted: 1,
+      },
     })
     expect(mockSweep).toHaveBeenCalledOnce()
+    expect(mockProcessPreviewOutboxes).toHaveBeenCalledWith({ limit: 5 })
   })
 
   it('returns 500 when the sweep throws', async () => {

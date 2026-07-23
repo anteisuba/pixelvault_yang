@@ -6,11 +6,14 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VOICE_API_ERROR_CODES,
   VOICE_LIBRARY_SORT_BY_VALUES,
+  VOICE_TRAIN_MAX_FILES,
+  VOICE_TRAIN_MAX_FILE_BYTES,
 } from '@/constants/voice-cards'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
 import { createClonedVoiceCard } from '@/services/cards/voice-card.service'
+import { isSupportedAudioMime } from '@/services/audio-reference.service'
 import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 
@@ -29,6 +32,24 @@ const PUBLIC_VOICE_LIBRARY_UNAVAILABLE_ERROR = {
   errorCode: VOICE_API_ERROR_CODES.PUBLIC_LIBRARY_UNAVAILABLE,
   error: 'Fish Audio public voice library is unavailable.',
 } as const
+
+const VOICE_TRAIN_MAX_TOTAL_BYTES =
+  VOICE_TRAIN_MAX_FILES * VOICE_TRAIN_MAX_FILE_BYTES
+
+function isUploadedAudio(value: FormDataEntryValue): value is File {
+  if (typeof value !== 'object' || value === null) return false
+
+  const candidate = value as {
+    arrayBuffer?: unknown
+    size?: unknown
+    type?: unknown
+  }
+  return (
+    typeof candidate.arrayBuffer === 'function' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.type === 'string'
+  )
+}
 
 // ─── GET /api/voices — list voices (public + my voices) ──────────
 
@@ -146,6 +167,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(FISH_AUDIO_KEY_REQUIRED_ERROR, { status: 400 })
     }
 
+    const contentLength = Number(request.headers.get('content-length') ?? 0)
+    if (contentLength > VOICE_TRAIN_MAX_TOTAL_BYTES * 1.05) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Voice upload exceeds the total size limit.',
+          errorCode: 'VOICE_UPLOAD_TOO_LARGE',
+        },
+        { status: 413 },
+      )
+    }
+
     const formData = await request.formData()
     const title = formData.get('title')
     if (!title || typeof title !== 'string' || !title.trim()) {
@@ -156,12 +189,58 @@ export async function POST(request: NextRequest) {
     }
 
     // Collect voice files
-    const voiceFiles = formData.getAll('voices') as File[]
+    const voiceEntries = formData.getAll('voices')
+    const voiceFiles = voiceEntries.filter(isUploadedAudio)
     if (voiceFiles.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one voice audio file is required' },
         { status: 400 },
       )
+    }
+    if (voiceFiles.length !== voiceEntries.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Every voice upload must be an audio file.',
+          errorCode: 'UNSUPPORTED_VOICE_FILE_TYPE',
+        },
+        { status: 400 },
+      )
+    }
+    if (voiceFiles.length > VOICE_TRAIN_MAX_FILES) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `A maximum of ${VOICE_TRAIN_MAX_FILES} voice files is allowed.`,
+          errorCode: 'TOO_MANY_VOICE_FILES',
+        },
+        { status: 413 },
+      )
+    }
+
+    for (const file of voiceFiles) {
+      if (!isSupportedAudioMime(file.type)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Every voice upload must be an audio file.',
+            errorCode: 'UNSUPPORTED_VOICE_FILE_TYPE',
+          },
+          { status: 400 },
+        )
+      }
+      if (file.size > VOICE_TRAIN_MAX_FILE_BYTES) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Each voice file must be ${Math.round(
+              VOICE_TRAIN_MAX_FILE_BYTES / 1024 / 1024,
+            )} MB or smaller.`,
+            errorCode: 'VOICE_FILE_TOO_LARGE',
+          },
+          { status: 413 },
+        )
+      }
     }
 
     const voices: Buffer[] = []

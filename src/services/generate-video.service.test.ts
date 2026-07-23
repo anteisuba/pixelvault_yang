@@ -142,6 +142,9 @@ describe('generate-video.service worker dispatch', () => {
       status: 'RUNNING',
     })
     mockGenerationJobUpdate.mockResolvedValue({ id: 'job-1' })
+    vi.mocked(db.generationJob.updateMany).mockResolvedValue({
+      count: 0,
+    } as never)
     mockFailGenerationJob.mockResolvedValue({ id: 'job-1', status: 'FAILED' })
     mockFetchAsBuffer.mockResolvedValue({
       buffer: Buffer.from('reference'),
@@ -220,6 +223,68 @@ describe('generate-video.service worker dispatch', () => {
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
     expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).toHaveBeenCalled()
+  })
+
+  it('dispatches a DB-only video model using its resolved catalog capabilities', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: 'db-only-video',
+      externalModelId: 'fal-ai/db-only-video/v2',
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
+      creditCost: 6,
+      modelConfig: {
+        id: 'db-only-video',
+        externalModelId: 'fal-ai/db-only-video/v2',
+        adapterType: 'fal',
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        outputType: 'VIDEO',
+        available: true,
+        cost: 6,
+        timeoutMs: 420_000,
+      },
+    })
+
+    const result = await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({ modelId: 'db-only-video' as never }),
+    )
+
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
+    const dispatchBody = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as { body: string }).body,
+    ) as { timeoutMs: number; providerInput: Record<string, unknown> }
+    expect(dispatchBody.timeoutMs).toBe(420_000)
+    expect(dispatchBody.providerInput.externalModelId).toBe(
+      'fal-ai/db-only-video/v2',
+    )
+  })
+
+  it('keeps the video job active when the worker acknowledgement may be lost', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('fetch failed')),
+    )
+
+    await expect(
+      submitVideoGeneration('clerk-1', buildVideoRequest()),
+    ).rejects.toMatchObject({ outcome: 'unknown' })
+
+    expect(mockFailGenerationJob).not.toHaveBeenCalled()
+  })
+
+  it('does not fail an accepted video job when workflow metadata persistence fails', async () => {
+    mockGenerationJobUpdate.mockRejectedValueOnce(
+      new Error('database write failed'),
+    )
+
+    await expect(
+      submitVideoGeneration('clerk-1', buildVideoRequest()),
+    ).resolves.toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
+
+    expect(mockFailGenerationJob).not.toHaveBeenCalled()
   })
 
   it('fails when the execution worker URL is not configured', async () => {
@@ -403,6 +468,31 @@ describe('generate-video.service worker dispatch', () => {
       jobId: 'job-video-1',
       status: 'FAILED',
       error: 'fal.ai video queue failed with status 422',
+    })
+  })
+
+  it('lazily returns FAILED for a stale worker-managed video job', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-video-1',
+      userId: 'user-1',
+      status: 'RUNNING',
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      externalRequestId: JSON.stringify({ workerManaged: true }),
+      generation: null,
+    } as never)
+    vi.mocked(db.generationJob.updateMany).mockResolvedValue({
+      count: 1,
+    } as never)
+
+    const result = await checkVideoGenerationStatusForUserId(
+      'user-1',
+      'job-video-1',
+    )
+
+    expect(result).toMatchObject({
+      jobId: 'job-video-1',
+      status: 'FAILED',
+      errorCode: 'callback_timeout',
     })
   })
 })

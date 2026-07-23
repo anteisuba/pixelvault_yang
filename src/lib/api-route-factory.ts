@@ -15,6 +15,7 @@ import {
   GenerationError,
   RateLimitError,
   GenerationValidationError,
+  ProviderTransientError,
   isGenerationError,
 } from '@/lib/errors'
 import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
@@ -70,7 +71,7 @@ interface InternalRouteConfig<TSchema extends z.ZodType, TResult> {
   /** Route name for logging (e.g. 'POST /api/internal/execution/callback') */
   routeName: string
   /** Verifies the raw body before JSON parsing. Throw to reject the request. */
-  verifySignature: (rawBody: string, request: Request) => void
+  verifySignature: (rawBody: string, request: Request) => void | Promise<void>
   /** Handler receives the validated body. No Clerk identity is provided. */
   handler: (args: {
     request: Request
@@ -244,10 +245,7 @@ function handleRouteError(
   // Everything else collapses to a generic string — provider names, internal
   // paths, and SQL error fragments must never reach response bodies. The
   // logger above keeps the real error for operators.
-  const isTransientUpstream =
-    errorMessage.includes('temporarily unavailable') ||
-    errorMessage.includes('high demand') ||
-    errorMessage.includes('rate limit')
+  const isTransientUpstream = error instanceof ProviderTransientError
 
   if (isTransientUpstream) {
     // Hand the upstream message through verbatim. We deliberately OMIT
@@ -611,7 +609,7 @@ export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
 
     try {
       const rawBody = await request.text()
-      config.verifySignature(rawBody, request)
+      await config.verifySignature(rawBody, request)
 
       const body = parseRawJsonBody(rawBody)
       const parseResult = config.schema.safeParse(body)

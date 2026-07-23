@@ -31,6 +31,7 @@ import {
 import {
   ApiRequestError,
   ProviderError,
+  ProviderTransientError,
   InsufficientCreditsError,
   GenerationValidationError,
 } from '@/lib/errors'
@@ -410,7 +411,7 @@ describe('createApiRoute', () => {
     // i18nKey is set, otherwise the client's getApiErrorMessage would resolve
     // it and override the message.
     mockHandler.mockRejectedValue(
-      new Error(
+      new ProviderTransientError(
         'The selected Gemini model is temporarily unavailable because Google is experiencing high demand.',
       ),
     )
@@ -430,7 +431,7 @@ describe('createApiRoute', () => {
     expect(json.error).toContain('high demand')
   })
 
-  it('also surfaces rate-limit upstream messages verbatim', async () => {
+  it('does not surface an unstructured rate-limit upstream message', async () => {
     mockHandler.mockRejectedValue(
       new Error('OpenAI returned: rate limit exceeded, try again in 20s'),
     )
@@ -443,10 +444,29 @@ describe('createApiRoute', () => {
       i18nKey?: string
     }>(res)
 
-    expect(res.status).toBe(503)
-    expect(json.errorCode).toBe('PROVIDER_TRANSIENT')
-    expect(json.i18nKey).toBeUndefined()
-    expect(json.error).toContain('rate limit')
+    expect(res.status).toBe(500)
+    expect(json.errorCode).toBe('INTERNAL_ERROR')
+    expect(json.error).toBe('An unexpected error occurred. Please try again.')
+  })
+
+  it('does not leak an internal error just because it contains a transient keyword', async () => {
+    mockHandler.mockRejectedValue(
+      new Error(
+        'Database rate limit table query failed at postgres://internal-host/private',
+      ),
+    )
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode: string
+    }>(res)
+
+    expect(res.status).toBe(500)
+    expect(json.errorCode).toBe('INTERNAL_ERROR')
+    expect(json.error).toBe('An unexpected error occurred. Please try again.')
+    expect(json.error).not.toContain('internal-host')
   })
 
   it('returns 503 for database quota errors', async () => {

@@ -123,7 +123,6 @@ function validateSeedancePromptPlanOutput(rawOutput: string) {
   } catch (error) {
     logger.warn('Seedance prompt plan JSON parse failed', {
       rawOutputLength: rawOutput.length,
-      rawOutputSnippet: rawOutput.slice(0, 800),
     })
     throw error
   }
@@ -137,7 +136,6 @@ function validateSeedancePromptPlanOutput(rawOutput: string) {
     logger.warn('Seedance prompt plan schema validation failed', {
       reason: validation.reason,
       rawOutputLength: rawOutput.length,
-      rawOutputSnippet: rawOutput.slice(0, 800),
     })
     throw createInvalidPlannerOutputError()
   }

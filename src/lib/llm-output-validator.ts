@@ -110,7 +110,7 @@ export function validateLlmPromptOutput(
     if (pattern.test(cleaned)) {
       logger.warn('LLM output contains system prompt leakage', {
         pattern: pattern.source,
-        preview: cleaned.slice(0, 100),
+        outputLength: cleaned.length,
       })
       return {
         usable: false,
@@ -176,9 +176,9 @@ export function validateRecipeFusion(
       const retention = presentCount / charKeywords.length
       if (retention < 0.2) {
         logger.warn('Recipe fusion lost character identity', {
-          charKeywords,
+          characterKeywordCount: charKeywords.length,
+          outputLength: cleaned.length,
           retention,
-          fusedPreview: cleaned.slice(0, 100),
         })
         return {
           usable: false,

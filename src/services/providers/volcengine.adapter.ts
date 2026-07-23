@@ -283,6 +283,7 @@ export const volcengineAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId: catalogExternalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -291,7 +292,8 @@ export const volcengineAdapter: ProviderAdapter = {
     advancedParams,
   }: ProviderGenerationInput) {
     const baseUrl = buildBaseUrl(providerConfig.baseUrl)
-    const externalModelId = getExecutionModelId(modelId)
+    const externalModelId =
+      catalogExternalModelId ?? getExecutionModelId(modelId)
     const endpoint = `${baseUrl}/images/generations`
 
     const sizeEntry =

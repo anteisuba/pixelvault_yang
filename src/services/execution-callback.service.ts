@@ -29,7 +29,7 @@ import {
 import {
   completeGenerationJob,
   createApiUsageEntry,
-  failGenerationJob,
+  failActiveGenerationJob,
 } from '@/services/usage.service'
 
 const GENERATION_JOB_STATUSES = [
@@ -287,6 +287,56 @@ class ConcurrentCallbackError extends Error {
   }
 }
 
+async function getConcurrentCallbackResult(
+  runId: string,
+): Promise<CallbackResult> {
+  const persisted = await db.generationJob.findUnique({
+    where: { id: runId },
+    select: { status: true },
+  })
+
+  if (!persisted) {
+    throw new ApiRequestError(
+      'EXECUTION_RUN_NOT_FOUND',
+      404,
+      'errors.execution.runNotFound',
+      'Execution run not found.',
+    )
+  }
+
+  return {
+    runId,
+    jobStatus: toExecutionCallbackJobStatus(persisted.status),
+    action: 'ignored-concurrent',
+  }
+}
+
+async function failCallbackJob(
+  runId: string,
+  input: Parameters<typeof failActiveGenerationJob>[1],
+): Promise<CallbackResult> {
+  const failure = await failActiveGenerationJob(runId, input)
+
+  if (failure.transitioned) {
+    return { runId, jobStatus: 'FAILED', action: 'failed' }
+  }
+
+  if (!failure.status) {
+    throw new ApiRequestError(
+      'EXECUTION_RUN_NOT_FOUND',
+      404,
+      'errors.execution.runNotFound',
+      'Execution run not found.',
+    )
+  }
+
+  return {
+    runId,
+    jobStatus: toExecutionCallbackJobStatus(failure.status),
+    action: 'ignored-concurrent',
+  }
+}
+
 /**
  * CAS guard used inside finalize transactions. Atomically flips the job
  * RUNNING → COMPLETED; a concurrent duplicate `result` callback that loses the
@@ -322,7 +372,7 @@ async function finalizeExecutionResult(
   const errorResult = ExecutionCallbackErrorDataSchema.safeParse(payload.data)
 
   if (errorResult.success) {
-    await failGenerationJob(job.id, {
+    const failure = await failActiveGenerationJob(job.id, {
       requestCount: errorResult.data.requestCount,
       errorMessage: errorResult.data.error,
       errorCode: errorResult.data.errorCode,
@@ -333,6 +383,32 @@ async function finalizeExecutionResult(
         providerMetadata: errorResult.data.providerMetadata,
       }),
     })
+
+    if (!failure.transitioned) {
+      if (!failure.status) {
+        throw new ApiRequestError(
+          'EXECUTION_RUN_NOT_FOUND',
+          404,
+          'errors.execution.runNotFound',
+          'Execution run not found.',
+        )
+      }
+
+      const persistedStatus = toExecutionCallbackJobStatus(failure.status)
+      logger.info(
+        'Late provider failure callback ignored after status changed',
+        {
+          runId: job.id,
+          previousJobStatus: jobStatus,
+          persistedJobStatus: persistedStatus,
+        },
+      )
+      return {
+        runId: job.id,
+        jobStatus: persistedStatus,
+        action: 'ignored-concurrent',
+      }
+    }
 
     logger.error('Execution callback result reported provider failure', {
       runId: job.id,
@@ -535,11 +611,7 @@ async function finalizeExecutionResult(
       logger.info('Concurrent execution callback ignored (already finalized)', {
         runId: job.id,
       })
-      return {
-        runId: job.id,
-        jobStatus: 'COMPLETED',
-        action: 'ignored-concurrent',
-      }
+      return getConcurrentCallbackResult(job.id)
     }
 
     const message =
@@ -547,7 +619,7 @@ async function finalizeExecutionResult(
         ? error.message
         : 'Execution result finalization failed'
 
-    await failGenerationJob(job.id, {
+    const failureResult = await failCallbackJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
       errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
@@ -566,11 +638,7 @@ async function finalizeExecutionResult(
       error: message,
     })
 
-    return {
-      runId: job.id,
-      jobStatus: 'FAILED',
-      action: 'failed',
-    }
+    return failureResult
   }
 }
 
@@ -592,7 +660,7 @@ async function finalizeModel3DResult(
 ): Promise<CallbackResult> {
   if (!resultData.glbR2Key) {
     const message = 'MODEL_3D callback missing glbR2Key'
-    await failGenerationJob(job.id, {
+    const failureResult = await failCallbackJob(job.id, {
       errorMessage: message,
       errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
       providerFailure: buildProviderFailureJson({
@@ -610,7 +678,7 @@ async function finalizeModel3DResult(
         error: message,
       },
     )
-    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
+    return failureResult
   }
 
   const timer = new GenerationStageTimer({
@@ -720,11 +788,7 @@ async function finalizeModel3DResult(
       logger.info('Concurrent execution callback ignored (already finalized)', {
         runId: job.id,
       })
-      return {
-        runId: job.id,
-        jobStatus: 'COMPLETED',
-        action: 'ignored-concurrent',
-      }
+      return getConcurrentCallbackResult(job.id)
     }
 
     const message =
@@ -732,7 +796,7 @@ async function finalizeModel3DResult(
         ? error.message
         : 'MODEL_3D result finalization failed'
 
-    await failGenerationJob(job.id, {
+    const failureResult = await failCallbackJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
       errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
@@ -750,7 +814,7 @@ async function finalizeModel3DResult(
       error: message,
     })
 
-    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
+    return failureResult
   }
 }
 
@@ -786,7 +850,9 @@ async function finalizeImageResult(
   const workerUploadedKey = resultData.imageR2Key
   const storageKey =
     workerUploadedKey ?? generateStorageKey('IMAGE', job.userId)
-  const requestCount = resultData.requestCount ?? metadata.creditCost ?? 1
+  // Billing units are sealed by the server before dispatch. The worker's
+  // requestCount describes provider attempts and must not override pricing.
+  const requestCount = metadata.creditCost ?? resultData.requestCount ?? 1
   const seedValue = (metadata.advancedParams as { seed?: number } | undefined)
     ?.seed
 
@@ -864,6 +930,7 @@ async function finalizeImageResult(
                   ts: payload.ts,
                   artifactUrl: resultData.artifactUrl,
                   providerMetadata: resultData.providerMetadata,
+                  providerRequestCount: resultData.requestCount,
                   cost: resultData.cost,
                 },
               },
@@ -929,11 +996,7 @@ async function finalizeImageResult(
       logger.info('Concurrent execution callback ignored (already finalized)', {
         runId: job.id,
       })
-      return {
-        runId: job.id,
-        jobStatus: 'COMPLETED',
-        action: 'ignored-concurrent',
-      }
+      return getConcurrentCallbackResult(job.id)
     }
 
     const message =
@@ -941,7 +1004,7 @@ async function finalizeImageResult(
         ? error.message
         : 'IMAGE result finalization failed'
 
-    await failGenerationJob(job.id, {
+    const failureResult = await failCallbackJob(job.id, {
       requestCount: resultData.requestCount,
       errorMessage: message,
       errorCode: GENERATION_ERROR_CODES.STORAGE_UPLOAD_FAILED,
@@ -959,6 +1022,6 @@ async function finalizeImageResult(
       error: message,
     })
 
-    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
+    return failureResult
   }
 }

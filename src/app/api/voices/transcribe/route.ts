@@ -5,6 +5,10 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { transcribeAudio } from '@/services/fish-audio-voice.service'
+import {
+  REFERENCE_AUDIO_MAX_BYTES,
+  validateReferenceAudio,
+} from '@/services/audio-reference.service'
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 
@@ -56,6 +60,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(FISH_AUDIO_KEY_REQUIRED_ERROR, { status: 400 })
     }
 
+    const contentLength = Number(request.headers.get('content-length') ?? 0)
+    if (contentLength > REFERENCE_AUDIO_MAX_BYTES * 1.05) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Audio file exceeds the ${Math.round(
+            REFERENCE_AUDIO_MAX_BYTES / 1024 / 1024,
+          )} MB limit.`,
+          errorCode: 'AUDIO_TOO_LARGE',
+        },
+        { status: 413 },
+      )
+    }
+
     const formData = await request.formData()
     const audio = formData.get('audio')
     if (!isUploadedAudio(audio)) {
@@ -67,8 +85,21 @@ export async function POST(request: NextRequest) {
 
     const language = formData.get('language')
     const ignoreTimestamps = formData.get('ignore_timestamps')
+    const audioBuffer = Buffer.from(await audio.arrayBuffer())
+    const validationError = validateReferenceAudio(audioBuffer, audio.type)
+    if (validationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: validationError.message,
+          errorCode: validationError.code,
+        },
+        { status: validationError.code === 'AUDIO_TOO_LARGE' ? 413 : 400 },
+      )
+    }
+
     const result = await transcribeAudio(apiKey.keyValue, {
-      audio: Buffer.from(await audio.arrayBuffer()),
+      audio: audioBuffer,
       fileName: getUploadedAudioFileName(audio),
       language: typeof language === 'string' ? language : undefined,
       ignoreTimestamps: ignoreTimestamps !== 'false',

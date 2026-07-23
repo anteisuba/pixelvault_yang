@@ -59,6 +59,29 @@ jobs:
         env:
           NODE_ENV: test
 
+  worker-test:
+    name: Execution Worker Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/execution
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workers/execution/package-lock.json
+
+      - name: Install Worker dependencies
+        run: npm ci
+
+      - name: Run Worker tests
+        run: npm test
+
   audit:
     name: Security & Schema Check
     runs-on: ubuntu-latest
@@ -93,6 +116,9 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
+      - name: Block critical dependency vulnerabilities
+        run: npm audit --audit-level=critical
+
       - name: Create CI databases
         run: |
           node --input-type=module <<'EOF'
@@ -125,11 +151,16 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_main?schema=public"
           SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_shadow?schema=public"
 
+      - name: Rebuild a fresh database from migration history
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_main?schema=public"
+
   build:
     name: Production Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [lint, test]
+    needs: [lint, test, worker-test]
 
     steps:
       - uses: actions/checkout@v4

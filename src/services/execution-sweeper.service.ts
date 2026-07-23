@@ -1,16 +1,70 @@
 import 'server-only'
 
-import { EXECUTION_SWEEPER } from '@/constants/execution'
+import {
+  EXECUTION_OUTBOX_KINDS,
+  EXECUTION_SWEEPER,
+} from '@/constants/execution'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
-const SWEEP_FAILURE_MESSAGE =
+export const STALE_EXECUTION_FAILURE_MESSAGE =
   'Reaped by execution sweeper: no worker callback within the stale threshold'
+
+const staleFailureData = (now: Date) => ({
+  status: 'FAILED' as const,
+  completedAt: now,
+  errorMessage: STALE_EXECUTION_FAILURE_MESSAGE,
+  errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+})
 
 export interface SweepResult {
   staleJobsReaped: number
   expiredOutboxesReaped: number
+}
+
+export interface ReconcileGenerationJobInput {
+  id: string
+  status: string
+  startedAt: Date | null
+}
+
+/**
+ * Authenticated status endpoints call this as a lazy backstop. It keeps the
+ * daily Hobby-compatible cron useful while ensuring a user who is actively
+ * polling does not wait until the next daily sweep to see a terminal state.
+ */
+export async function reconcileStaleGenerationJob(
+  job: ReconcileGenerationJobInput,
+  now = new Date(),
+): Promise<boolean> {
+  const cutoff = new Date(
+    now.getTime() - EXECUTION_SWEEPER.STALE_JOB_THRESHOLD_MS,
+  )
+  if (
+    job.status !== 'RUNNING' ||
+    !job.startedAt ||
+    job.startedAt.getTime() >= cutoff.getTime()
+  ) {
+    return false
+  }
+
+  const reaped = await db.generationJob.updateMany({
+    where: {
+      id: job.id,
+      status: 'RUNNING',
+      startedAt: { lt: cutoff },
+    },
+    data: staleFailureData(now),
+  })
+
+  if (reaped.count > 0) {
+    logger.warn('Execution status poll reaped orphaned job', {
+      jobId: job.id,
+    })
+  }
+
+  return reaped.count > 0
 }
 
 /**
@@ -36,19 +90,36 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
 
   const reapedJobs = await db.generationJob.updateMany({
     where: { status: 'RUNNING', startedAt: { lt: jobCutoff } },
+    data: staleFailureData(now),
+  })
+
+  // Preview generation is idempotent (the processor first checks whether both
+  // derivative URLs already exist), so an expired lease is safe to requeue.
+  // Provider-submit outboxes are not retried here: a lost provider response is
+  // ambiguous and blindly resubmitting could double-charge the user.
+  const requeuedPreviewOutboxes = await db.executionOutbox.updateMany({
+    where: {
+      kind: EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES,
+      status: 'PROCESSING',
+      leaseExpiresAt: { lt: now },
+    },
     data: {
-      status: 'FAILED',
-      completedAt: now,
-      errorMessage: SWEEP_FAILURE_MESSAGE,
-      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+      status: 'PENDING',
+      lastError: STALE_EXECUTION_FAILURE_MESSAGE,
+      leaseExpiresAt: null,
+      processedAt: null,
     },
   })
 
-  const reapedOutboxes = await db.executionOutbox.updateMany({
-    where: { status: 'PROCESSING', leaseExpiresAt: { lt: now } },
+  const failedAmbiguousOutboxes = await db.executionOutbox.updateMany({
+    where: {
+      kind: { not: EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES },
+      status: 'PROCESSING',
+      leaseExpiresAt: { lt: now },
+    },
     data: {
       status: 'FAILED',
-      lastError: SWEEP_FAILURE_MESSAGE,
+      lastError: STALE_EXECUTION_FAILURE_MESSAGE,
       leaseExpiresAt: null,
       processedAt: now,
     },
@@ -56,7 +127,8 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
 
   const result: SweepResult = {
     staleJobsReaped: reapedJobs.count,
-    expiredOutboxesReaped: reapedOutboxes.count,
+    expiredOutboxesReaped:
+      requeuedPreviewOutboxes.count + failedAmbiguousOutboxes.count,
   }
 
   if (result.staleJobsReaped > 0 || result.expiredOutboxesReaped > 0) {

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   computeTieredDimensions,
+  createSignedRequestHeaders,
   decryptStateString,
   encryptStateString,
   hexToBytes,
@@ -14,21 +15,17 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
-  signBody,
   tieredGeminiDimensions,
   tieredOpenAISize,
   timingSafeEqualHex,
   toHex,
   verifySignedBody,
 } from './index'
+import executionWorker from './index'
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
-
-// Mirrors index.ts's EXECUTION_SIGNATURE_HEADER — not exported, so the
-// literal is duplicated here rather than exporting it just for tests.
-const SIGNATURE_HEADER = 'X-Execution-Signature'
 
 type EncryptEnv = Parameters<typeof encryptStateString>[1]
 
@@ -132,6 +129,58 @@ function makeModel3DInput(overrides: Record<string, unknown> = {}) {
     },
   }
 }
+
+function makeImageInput(overrides: Record<string, unknown> = {}) {
+  return {
+    runId: 'run-image',
+    workflowId: 'IMAGE_QUEUE',
+    outputType: 'IMAGE',
+    providerId: 'fal',
+    apiKeyId: 'key-image',
+    callbackUrl: 'https://cb.example.com',
+    resolveKeyUrl: 'https://resolve.example.com',
+    timeoutMs: 60000,
+    maxAttempts: 5,
+    pollIntervalMs: 2000,
+    ...overrides,
+    providerInput: {
+      prompt: 'a lighthouse at dusk',
+      modelId: 'flux-2-pro',
+      externalModelId: 'fal-ai/flux-2-pro',
+      aspectRatio: '1:1',
+      ...(overrides.providerInput as Record<string, unknown> | undefined),
+    },
+  }
+}
+
+describe('workflow dispatch', () => {
+  it('returns an existing image workflow when a retry reuses the run id', async () => {
+    const secret = 'test-execution-secret'
+    const body = JSON.stringify(makeImageInput())
+    const url = 'https://execution.example.com/workflows/image-queue'
+    const create = vi.fn().mockRejectedValue(new Error('instance id exists'))
+    const get = vi.fn().mockResolvedValue({ id: 'run-image' })
+    const request = new Request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await createSignedRequestHeaders({ secret, body, url })),
+      },
+      body,
+    })
+
+    const response = await executionWorker.fetch(request, {
+      INTERNAL_CALLBACK_SECRET: secret,
+      IMAGE_QUEUE_WORKFLOW: { create, get },
+    } as never)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      workflowInstanceId: 'run-image',
+    })
+    expect(get).toHaveBeenCalledWith('run-image')
+  })
+})
 
 describe('type guards', () => {
   it('isCallbackKind accepts only the known kinds', () => {
@@ -347,11 +396,11 @@ describe('signBody / verifySignedBody', () => {
   it('accepts a request whose signature matches the shared secret', async () => {
     const secret = 'top-secret'
     const body = JSON.stringify({ hello: 'world' })
-    const signature = await signBody(secret, body)
+    const url = 'https://execution.example.com/echo'
 
-    const request = new Request('https://execution.example.com/echo', {
+    const request = new Request(url, {
       method: 'POST',
-      headers: { [SIGNATURE_HEADER]: signature },
+      headers: await createSignedRequestHeaders({ secret, body, url }),
       body,
     })
 
@@ -360,11 +409,15 @@ describe('signBody / verifySignedBody', () => {
 
   it('rejects a request signed with a different secret', async () => {
     const body = JSON.stringify({ hello: 'world' })
-    const signature = await signBody('secret-a', body)
+    const url = 'https://execution.example.com/echo'
 
-    const request = new Request('https://execution.example.com/echo', {
+    const request = new Request(url, {
       method: 'POST',
-      headers: { [SIGNATURE_HEADER]: signature },
+      headers: await createSignedRequestHeaders({
+        secret: 'secret-a',
+        body,
+        url,
+      }),
       body,
     })
 
@@ -378,6 +431,24 @@ describe('signBody / verifySignedBody', () => {
     })
 
     await expect(verifySignedBody(request, 'top-secret')).resolves.toBeNull()
+  })
+
+  it('rejects a request after its timestamp expires', async () => {
+    const secret = 'top-secret'
+    const body = JSON.stringify({ hello: 'world' })
+    const url = 'https://execution.example.com/echo'
+    const request = new Request(url, {
+      method: 'POST',
+      headers: await createSignedRequestHeaders({
+        secret,
+        body,
+        url,
+        timestamp: Date.now() - 5 * 60 * 1000 - 1,
+      }),
+      body,
+    })
+
+    await expect(verifySignedBody(request, secret)).resolves.toBeNull()
   })
 })
 

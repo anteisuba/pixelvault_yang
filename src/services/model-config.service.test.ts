@@ -3,12 +3,19 @@ import { describe, it, expect, vi } from 'vitest'
 const mockFindMany = vi.fn()
 const mockFindUnique = vi.fn()
 const mockUpdateMany = vi.fn()
+const mockUpdate = vi.fn()
+const mockInvalidateModelsCache = vi.fn()
+
+vi.mock('@/lib/cache-tags', () => ({
+  invalidateModelsCache: () => mockInvalidateModelsCache(),
+}))
 
 vi.mock('@/lib/db', () => ({
   db: {
     modelConfig: {
       findMany: (...a: unknown[]) => mockFindMany(...a),
       findUnique: (...a: unknown[]) => mockFindUnique(...a),
+      update: (...a: unknown[]) => mockUpdate(...a),
       updateMany: (...a: unknown[]) => mockUpdateMany(...a),
     },
   },
@@ -18,7 +25,9 @@ import { AI_MODELS } from '@/constants/models'
 import {
   getAllModelConfigs,
   getModelConfigById,
+  getResolvedModelOption,
   getResolvedModelOptions,
+  updateModelConfig,
   updateModelHealthStatus,
 } from '@/services/model-config.service'
 
@@ -99,6 +108,47 @@ describe('getResolvedModelOptions', () => {
       available: false,
       externalModelId: 'lucataco/animapencil-xl-v4',
     })
+  })
+})
+
+describe('getResolvedModelOption', () => {
+  it('applies DB execution overrides to the canonical built-in model', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...FAKE_ROW,
+      modelId: 'flux-2-pro',
+      externalModelId: 'fal-ai/flux-pro/new-version',
+      adapterType: 'replicate',
+      cost: 7,
+      available: false,
+      providerConfig: {
+        label: 'Replicate',
+        baseUrl: 'https://api.replicate.com',
+      },
+    })
+
+    const result = await getResolvedModelOption('flux-2-pro')
+
+    expect(result).toMatchObject({
+      id: 'flux-2-pro',
+      externalModelId: 'fal-ai/flux-pro/new-version',
+      adapterType: 'replicate',
+      cost: 7,
+      available: false,
+      providerConfig: {
+        label: 'Replicate',
+        baseUrl: 'https://api.replicate.com',
+      },
+    })
+  })
+})
+
+describe('model catalog mutation cache invalidation', () => {
+  it('invalidates the public catalog after a model update', async () => {
+    mockUpdate.mockResolvedValue({ ...FAKE_ROW, available: false })
+
+    await updateModelConfig('flux-2-pro', { available: false })
+
+    expect(mockInvalidateModelsCache).toHaveBeenCalledOnce()
   })
 })
 

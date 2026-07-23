@@ -28,6 +28,10 @@ const SUPPORTED_AUDIO_MIMES = new Set([
   'audio/x-flac',
 ])
 
+export function isSupportedAudioMime(mimeType: string): boolean {
+  return SUPPORTED_AUDIO_MIMES.has(mimeType.toLowerCase())
+}
+
 function pickAudioExtension(mimeType: string): string {
   if (mimeType.includes('mp3') || mimeType === 'audio/mpeg') return 'mp3'
   if (mimeType.includes('wav') || mimeType.includes('wave')) return 'wav'
@@ -71,7 +75,7 @@ export function validateReferenceAudio(
       )} MB limit.`,
     }
   }
-  if (!SUPPORTED_AUDIO_MIMES.has(mimeType.toLowerCase())) {
+  if (!isSupportedAudioMime(mimeType)) {
     return {
       code: 'UNSUPPORTED_AUDIO_TYPE',
       message: `Unsupported audio MIME type: ${mimeType}`,

@@ -166,6 +166,57 @@ describe('image-preview-derivative.service', () => {
     )
   })
 
+  it('requeues a transient derivative failure while retry attempts remain', async () => {
+    mockExecutionOutboxFindUnique.mockResolvedValue(buildOutbox())
+    mockExecutionOutboxUpdateMany.mockResolvedValue({ count: 1 })
+    mockGenerationFindUnique.mockResolvedValue({
+      id: 'gen-1',
+      outputType: 'IMAGE',
+      thumbnailUrl: null,
+      previewUrl: null,
+    })
+    mockFetchAsBuffer.mockRejectedValue(new Error('R2 temporarily unavailable'))
+
+    const result = await processImagePreviewDerivativeOutbox('outbox-1')
+
+    expect(result).toMatchObject({
+      outboxId: 'outbox-1',
+      status: 'retrying',
+      generationId: 'gen-1',
+    })
+    expect(mockExecutionOutboxUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'outbox-1' },
+        data: expect.objectContaining({ status: 'PENDING' }),
+      }),
+    )
+  })
+
+  it('dead-ends a derivative failure after the third attempt', async () => {
+    mockExecutionOutboxFindUnique.mockResolvedValue({
+      ...buildOutbox(),
+      attemptCount: 2,
+    })
+    mockExecutionOutboxUpdateMany.mockResolvedValue({ count: 1 })
+    mockGenerationFindUnique.mockResolvedValue({
+      id: 'gen-1',
+      outputType: 'IMAGE',
+      thumbnailUrl: null,
+      previewUrl: null,
+    })
+    mockFetchAsBuffer.mockRejectedValue(new Error('R2 unavailable'))
+
+    const result = await processImagePreviewDerivativeOutbox('outbox-1')
+
+    expect(result).toMatchObject({ status: 'failed' })
+    expect(mockExecutionOutboxUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'outbox-1' },
+        data: expect.objectContaining({ status: 'FAILED' }),
+      }),
+    )
+  })
+
   it('processes pending derivative outboxes in created order', async () => {
     mockExecutionOutboxFindMany.mockResolvedValue([
       { id: 'outbox-1' },

@@ -375,8 +375,9 @@ async function applyLoraParams(
     )
 
     input.loras = JSON.stringify(resolved)
-    logger.info('[Replicate] Final LoRA payload', {
-      loras: input.loras,
+    logger.info('[Replicate] LoRA payload prepared', {
+      loraCount: resolved.length,
+      schema,
     })
     return
   }
@@ -435,6 +436,7 @@ export const replicateAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId: catalogExternalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -445,7 +447,8 @@ export const replicateAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
-    const externalModelId = getExecutionModelId(modelId)
+    const externalModelId =
+      catalogExternalModelId ?? getExecutionModelId(modelId)
     const endpoint = `${baseUrl}/predictions`
     const imageSchema = getReplicateImageSchema(modelId, externalModelId)
 
@@ -461,9 +464,6 @@ export const replicateAdapter: ProviderAdapter = {
     if (advancedParams?.loras?.length) {
       logger.info('[Replicate] Applying LoRA params', {
         loraCount: advancedParams.loras.length,
-        urls: advancedParams.loras.map((l: { url: string }) =>
-          l.url.slice(0, 80),
-        ),
         imageSchema,
       })
       await applyLoraParams(

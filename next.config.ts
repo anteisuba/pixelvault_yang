@@ -82,17 +82,20 @@ const nextConfig: NextConfig = {
     //                             header.
     //   - upgrade-insecure-requests — coerces any stray http:// URL to
     //                             https:// before the request fires. Keep it
-    //                             production-only: mobile browser emulation
-    //                             otherwise upgrades localhost dev assets and
-    //                             leaves the page permanently unstyled.
+    //                             only on HTTPS-backed Vercel deployments.
+    //                             `vercel env pull` can copy VERCEL_ENV into
+    //                             local production env files, while VERCEL_URL
+    //                             is only present for a real deployment.
+    const isHttpsVercelDeployment =
+      Boolean(process.env.VERCEL_URL) &&
+      (process.env.VERCEL_ENV === 'production' ||
+        process.env.VERCEL_ENV === 'preview')
     const cspDirectives = [
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      ...(process.env.NODE_ENV === 'development'
-        ? []
-        : ['upgrade-insecure-requests']),
+      ...(isHttpsVercelDeployment ? ['upgrade-insecure-requests'] : []),
     ].join('; ')
 
     return [

@@ -10,10 +10,19 @@ vi.mock('@/lib/db', () => ({
     generationJob: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }))
 vi.mock('@/services/execution-worker.service', () => ({
+  ExecutionWorkerDispatchError: class ExecutionWorkerDispatchError extends Error {
+    readonly outcome: 'rejected' | 'unknown'
+    constructor(message: string, outcome: 'rejected' | 'unknown') {
+      super(message)
+      this.name = 'ExecutionWorkerDispatchError'
+      this.outcome = outcome
+    }
+  },
   isExecutionWorkerDispatchConfigured: vi.fn(),
   dispatchImageWorkerRun: vi.fn(),
   buildInternalUrl: (path: string) => `https://app.example.com${path}`,
@@ -61,6 +70,7 @@ vi.mock('@/lib/logger', () => ({
 import { db } from '@/lib/db'
 import {
   dispatchImageWorkerRun,
+  ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import {
@@ -116,6 +126,9 @@ beforeEach(() => {
     workflowInstanceId: 'wf-1',
   })
   vi.mocked(db.generationJob.update).mockResolvedValue({} as never)
+  vi.mocked(db.generationJob.updateMany).mockResolvedValue({
+    count: 0,
+  } as never)
   vi.mocked(ensureUser).mockResolvedValue({ id: 'user-1' } as never)
 })
 
@@ -357,6 +370,36 @@ describe('submitImageGeneration', () => {
     })
   })
 
+  it('keeps the job active when dispatch may already have been accepted', async () => {
+    setupResolve(AI_ADAPTER_TYPES.OPENAI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(dispatchImageWorkerRun).mockRejectedValue(
+      new ExecutionWorkerDispatchError(
+        'worker acknowledgement was lost',
+        'unknown',
+      ),
+    )
+
+    await expect(submitImageGeneration('clerk-1', INPUT)).rejects.toThrow(
+      'worker acknowledgement was lost',
+    )
+    expect(failGenerationJob).not.toHaveBeenCalled()
+  })
+
+  it('does not fail an accepted job when workflow metadata persistence fails', async () => {
+    setupResolve(AI_ADAPTER_TYPES.OPENAI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(db.generationJob.update).mockRejectedValue(
+      new Error('database write failed'),
+    )
+
+    await expect(submitImageGeneration('clerk-1', INPUT)).resolves.toEqual({
+      jobId: 'job-1',
+      requestId: 'wf-1',
+    })
+    expect(failGenerationJob).not.toHaveBeenCalled()
+  })
+
   it('dispatches reference-image requests with stable uploaded references', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
@@ -481,6 +524,27 @@ describe('checkImageGenerationStatus', () => {
     const result = await checkImageGenerationStatus('clerk-1', 'job-1')
 
     expect(result).toEqual({ jobId: 'job-1', status: 'IN_PROGRESS' })
+  })
+
+  it('lazily returns FAILED for a stale running job', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'RUNNING',
+      generationId: null,
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    } as never)
+    vi.mocked(db.generationJob.updateMany).mockResolvedValue({
+      count: 1,
+    } as never)
+
+    const result = await checkImageGenerationStatus('clerk-1', 'job-1')
+
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'FAILED',
+      errorCode: 'callback_timeout',
+    })
   })
 
   it('throws JOB_NOT_FOUND when the job belongs to another user', async () => {

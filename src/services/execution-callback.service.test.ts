@@ -18,6 +18,7 @@ const mockCreateGeneration = vi.fn()
 const mockCompleteGenerationJob = vi.fn()
 const mockCreateApiUsageEntry = vi.fn()
 const mockFailGenerationJob = vi.fn()
+const mockFailActiveGenerationJob = vi.fn()
 const mockTxUpdateMany = vi.fn()
 const mockEnqueuePreview = vi.fn()
 const mockBuildRecipeSnapshot = vi.fn()
@@ -58,6 +59,8 @@ vi.mock('@/services/usage.service', () => ({
     mockCompleteGenerationJob(...args),
   createApiUsageEntry: (...args: unknown[]) => mockCreateApiUsageEntry(...args),
   failGenerationJob: (...args: unknown[]) => mockFailGenerationJob(...args),
+  failActiveGenerationJob: (...args: unknown[]) =>
+    mockFailActiveGenerationJob(...args),
 }))
 
 vi.mock('@/services/prompts/recipe.service', () => ({
@@ -147,6 +150,10 @@ describe('execution-callback.service', () => {
     })
     mockCreateApiUsageEntry.mockResolvedValue({ id: 'usage-1' })
     mockFailGenerationJob.mockResolvedValue({ id: 'job-1', status: 'FAILED' })
+    mockFailActiveGenerationJob.mockResolvedValue({
+      transitioned: true,
+      status: 'FAILED',
+    })
     mockEnqueuePreview.mockResolvedValue({ id: 'outbox-1' })
     mockBuildRecipeSnapshot.mockResolvedValue(undefined)
   })
@@ -557,6 +564,50 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('records server-sealed image billing units instead of worker request attempts', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'fal',
+      provider: 'fal.ai',
+      modelId: 'flux-2-pro',
+      prompt: 'image prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 3,
+        aspectRatio: '1:1',
+        originalModelId: 'flux-2-pro',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-image-1',
+      outputType: 'IMAGE',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        requestCount: 1,
+      },
+    })
+
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ requestCount: 3 }),
+      expect.anything(),
+    )
+    expect(mockCompleteGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ requestCount: 3 }),
+      expect.anything(),
+    )
+    expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ requestCount: 3 }),
+      expect.anything(),
+    )
+  })
+
   it('ignores result callbacks for an already COMPLETED job idempotently', async () => {
     mockFindUnique.mockResolvedValue(buildJob('COMPLETED'))
 
@@ -615,7 +666,7 @@ describe('execution-callback.service', () => {
       jobStatus: 'FAILED',
       action: 'failed',
     })
-    expect(mockFailGenerationJob).toHaveBeenCalledWith(
+    expect(mockFailActiveGenerationJob).toHaveBeenCalledWith(
       'job-1',
       expect.objectContaining({
         requestCount: 1,
@@ -641,6 +692,28 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('reports the persisted terminal status when a late provider failure loses the CAS race', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+    mockFailActiveGenerationJob.mockResolvedValue({
+      transitioned: false,
+      status: 'COMPLETED',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        error: 'late provider failure',
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'ignored-concurrent',
+    })
+  })
+
   it('marks the job failed when R2 upload fails', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
     mockStreamUploadToR2.mockRejectedValue(new Error('R2 upload failed'))
@@ -658,7 +731,7 @@ describe('execution-callback.service', () => {
       jobStatus: 'FAILED',
       action: 'failed',
     })
-    expect(mockFailGenerationJob).toHaveBeenCalledWith('job-1', {
+    expect(mockFailActiveGenerationJob).toHaveBeenCalledWith('job-1', {
       requestCount: 1,
       errorMessage: 'R2 upload failed',
       errorCode: 'storage_upload_failed',
@@ -669,6 +742,29 @@ describe('execution-callback.service', () => {
         error: 'R2 upload failed',
         errorCode: 'storage_upload_failed',
       }),
+    })
+  })
+
+  it('does not overwrite a completed job when finalization failure loses the CAS race', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+    mockStreamUploadToR2.mockRejectedValue(new Error('R2 upload failed'))
+    mockFailActiveGenerationJob.mockResolvedValue({
+      transitioned: false,
+      status: 'COMPLETED',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/video.mp4',
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'ignored-concurrent',
     })
   })
 
@@ -726,13 +822,13 @@ describe('execution-callback.service', () => {
 
       expect(mockDbTransaction).toHaveBeenCalledOnce()
       expect(result.action).toBe('failed')
-      expect(mockFailGenerationJob).toHaveBeenCalledWith(
+      expect(mockFailActiveGenerationJob).toHaveBeenCalledWith(
         'job-1',
         expect.objectContaining({ errorMessage: expect.any(String) }),
       )
     })
 
-    it('calls failGenerationJob when the entire finalize transaction throws', async () => {
+    it('conditionally fails the active job when the entire finalize transaction throws', async () => {
       mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
       mockStreamUploadToR2.mockResolvedValue({
         publicUrl: 'https://cdn.example.com/video.mp4',
@@ -758,11 +854,13 @@ describe('execution-callback.service', () => {
 
       expect(mockDbTransaction).toHaveBeenCalledOnce()
       expect(result.action).toBe('failed')
-      expect(mockFailGenerationJob).toHaveBeenCalledOnce()
+      expect(mockFailActiveGenerationJob).toHaveBeenCalledOnce()
     })
 
     it('ignores a concurrent duplicate result callback without double-writing (CAS guard)', async () => {
-      mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+      mockFindUnique
+        .mockResolvedValueOnce(buildJob('RUNNING'))
+        .mockResolvedValueOnce(buildJob('COMPLETED'))
       // This callback loses the RUNNING→COMPLETED race: the CAS update matches
       // zero rows because a concurrent callback already finalized the job.
       mockTxUpdateMany.mockResolvedValue({ count: 0 })
@@ -790,6 +888,30 @@ describe('execution-callback.service', () => {
       expect(mockCreateApiUsageEntry).not.toHaveBeenCalled()
       // And the job must NOT be marked FAILED - it was already finalized.
       expect(mockFailGenerationJob).not.toHaveBeenCalled()
+    })
+
+    it('reports FAILED when a success callback loses the CAS race to a failure', async () => {
+      mockFindUnique
+        .mockResolvedValueOnce(buildJob('RUNNING'))
+        .mockResolvedValueOnce(buildJob('FAILED'))
+      mockTxUpdateMany.mockResolvedValue({ count: 0 })
+
+      const result = await handleExecutionCallback({
+        ...buildPayload('result'),
+        data: {
+          artifactUrl: 'https://provider.com/video.mp4',
+          mimeType: 'video/mp4',
+          requestCount: 1,
+        },
+      })
+
+      expect(result).toEqual({
+        runId: 'job-1',
+        jobStatus: 'FAILED',
+        action: 'ignored-concurrent',
+      })
+      expect(mockCreateGeneration).not.toHaveBeenCalled()
+      expect(mockCreateApiUsageEntry).not.toHaveBeenCalled()
     })
   })
 })

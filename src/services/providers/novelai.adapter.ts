@@ -365,6 +365,7 @@ export const novelAiAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId: catalogExternalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -377,7 +378,8 @@ export const novelAiAdapter: ProviderAdapter = {
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.NOVELAI
     const endpoint = `${baseUrl}/ai/generate-image`
 
-    const externalModelId = getExecutionModelId(modelId)
+    const externalModelId =
+      catalogExternalModelId ?? getExecutionModelId(modelId)
     const negative = advancedParams?.negativePrompt || DEFAULT_NEGATIVE
     const seed =
       advancedParams?.seed != null && advancedParams.seed >= 0

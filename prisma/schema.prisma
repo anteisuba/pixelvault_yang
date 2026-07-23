@@ -454,8 +454,8 @@ model Recipe {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  // ── 与线上 DB 对齐：孤儿 migration 20260531090000_prompt_core_recipe_assets
-  //    已应用到 DB 但从未提交进 git，故此处按 DB 实际列手动补齐（见 lora-domain-split 备注）。
+  // ── Recipe assets：历史孤儿 migration 已于 2026-06 恢复入库
+  //    （prisma/migrations/20260531090000_prompt_core_recipe_assets）。
   coverGenerationId   String?
   coverImageUrl       String?
   favoriteCount       Int        @default(0)

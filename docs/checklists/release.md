@@ -9,6 +9,10 @@ Ship / push / 部署前逐项过。
 - [ ] `npm run lint && npm run build` 绿（dev server 跑着时不 build）
 - [ ] GitHub CI 绿：`ci.yml`（type check + lint + unit tests）
 - [ ] `npx playwright test e2e/mobile.spec.ts --project=mobile` 绿
+- [ ] 公开体验上线前，在正确的 Clerk **Production instance** 启用 Restricted 或 Waitlist、注册 Smart Bot Protection，并验证邮箱校验与一次真实注册；仓库使用 Clerk 预构建 `<SignIn />` / `<SignUp />`，无需自建 CAPTCHA DOM
+- [ ] 生产已配置 Upstash Redis、`INTERNAL_CALLBACK_SECRET` 和 `EXECUTION_WORKER_BASE_URL`；内部签名防重放在生产缺 Redis 时会 fail closed
+- [ ] 首次部署保持 `PLATFORM_GENERATION_ENABLED=false`；确认 Clerk 门禁、全局日预算告警、Provider/Worker/Redis 健康后再显式改为 `true`
+- [ ] 核对免费体验保护值符合当次活动：全局每天 500 个免费位、每用户每天 20 次、每用户最多 2 个活动 Job
 
 ## P1（应过）
 

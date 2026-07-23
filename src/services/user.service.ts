@@ -155,6 +155,85 @@ export async function getUserByClerkId(clerkId: string): Promise<User | null> {
   })
 }
 
+interface ProvisionVerifiedClerkUserParams {
+  clerkId: string
+  email: string
+  emailVerificationStatus: string | null | undefined
+  displayName?: string | null
+  avatarUrl?: string | null
+}
+
+/**
+ * Provision a Clerk user from a verified primary email.
+ *
+ * Production may atomically relink an existing email to a new Clerk instance
+ * ID while preserving the internal User.id and every relation attached to it.
+ * Non-production environments must never take that mapping back.
+ */
+export async function provisionVerifiedClerkUser(
+  params: ProvisionVerifiedClerkUserParams,
+): Promise<User> {
+  if (params.emailVerificationStatus !== 'verified') {
+    throw new Error(
+      'A verified primary email is required to provision a Clerk user',
+    )
+  }
+
+  const email = params.email.trim().toLowerCase()
+  const existingByClerkId = await db.user.findUnique({
+    where: { clerkId: params.clerkId },
+  })
+
+  if (existingByClerkId) {
+    const updates: Partial<Pick<User, 'email' | 'displayName' | 'avatarUrl'>> =
+      {}
+
+    if (existingByClerkId.email !== email) updates.email = email
+    if (
+      existingByClerkId.displayName === null &&
+      params.displayName !== undefined
+    ) {
+      updates.displayName = params.displayName
+    }
+    if (!existingByClerkId.avatarUrl && params.avatarUrl !== undefined) {
+      updates.avatarUrl = params.avatarUrl
+    }
+
+    if (Object.keys(updates).length === 0) return existingByClerkId
+
+    return db.user.update({
+      where: { id: existingByClerkId.id },
+      data: updates,
+    })
+  }
+
+  const createData = {
+    clerkId: params.clerkId,
+    email,
+    ...(params.displayName !== undefined && {
+      displayName: params.displayName,
+    }),
+    ...(params.avatarUrl !== undefined && { avatarUrl: params.avatarUrl }),
+  }
+
+  if (process.env.VERCEL_ENV === 'production') {
+    return db.user.upsert({
+      where: { email },
+      // This is the migration: update only the external identity pointer.
+      // Profile fields and the internal User.id remain untouched.
+      update: { clerkId: params.clerkId },
+      create: createData,
+    })
+  }
+
+  const existingByEmail = await db.user.findUnique({ where: { email } })
+  if (existingByEmail) {
+    throw new Error('Verified email relinking is only allowed in Production')
+  }
+
+  return db.user.create({ data: createData })
+}
+
 /**
  * Get or create a DB user for the given Clerk ID (JIT provisioning).
  * Now also syncs displayName, avatarUrl, and derives username on first visit.
@@ -201,36 +280,46 @@ export const ensureUser = cache(async (clerkId: string): Promise<User> => {
   // New user — create with Clerk data
   const client = await clerkClient()
   const clerkUser = await client.users.getUser(clerkId)
-  const email = clerkUser.emailAddresses[0]?.emailAddress
-  if (!email) throw new Error('No email found for Clerk user')
+  const primaryEmail = clerkUser.emailAddresses.find(
+    (emailAddress) => emailAddress.id === clerkUser.primaryEmailAddressId,
+  )
+  if (!primaryEmail) throw new Error('No email found for Clerk user')
 
-  const username = await deriveUsername(clerkUser.username, email)
-
-  return db.user.upsert({
-    where: { clerkId },
-    update: {},
-    create: {
-      clerkId,
-      email,
-      username,
-      displayName:
-        clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null,
-      avatarUrl: clerkUser.imageUrl ?? null,
-    },
+  const provisionedUser = await provisionVerifiedClerkUser({
+    clerkId,
+    email: primaryEmail.emailAddress,
+    emailVerificationStatus: primaryEmail.verification?.status,
+    displayName:
+      clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null,
+    avatarUrl: clerkUser.imageUrl ?? null,
   })
+
+  const updates: Partial<Pick<User, 'username' | 'displayName' | 'avatarUrl'>> =
+    {}
+
+  if (!provisionedUser.username) {
+    updates.username = await deriveUsername(
+      clerkUser.username,
+      provisionedUser.email,
+    )
+  }
+  if (provisionedUser.displayName === null) {
+    updates.displayName =
+      clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null
+  }
+  if (!provisionedUser.avatarUrl) {
+    updates.avatarUrl = clerkUser.imageUrl ?? null
+  }
+
+  if (Object.keys(updates).length > 0) {
+    return db.user.update({
+      where: { id: provisionedUser.id },
+      data: updates,
+    })
+  }
+
+  return provisionedUser
 })
-
-export async function createUser(params: {
-  clerkId: string
-  email: string
-}): Promise<User> {
-  return db.user.create({
-    data: {
-      clerkId: params.clerkId,
-      email: params.email,
-    },
-  })
-}
 
 // ─── Profile Functions ───────────────────────────────────────────
 
@@ -580,34 +669,6 @@ export async function refreshAvatarFromClerk(
   }
 
   return user
-}
-
-/**
- * Sync user profile data from a Clerk webhook event.
- */
-export async function syncUserFromClerk(
-  clerkId: string,
-  data: {
-    email?: string
-    displayName?: string | null
-    avatarUrl?: string | null
-    username?: string | null
-  },
-): Promise<void> {
-  const user = await db.user.findUnique({ where: { clerkId } })
-  if (!user) return
-
-  const updates: Record<string, unknown> = {}
-  if (data.email !== undefined) updates.email = data.email
-  if (data.displayName !== undefined) updates.displayName = data.displayName
-  if (data.avatarUrl !== undefined) updates.avatarUrl = data.avatarUrl
-  if (data.username !== undefined) {
-    updates.username = data.username ? data.username.toLowerCase() : null
-  }
-
-  if (Object.keys(updates).length > 0) {
-    await db.user.update({ where: { id: user.id }, data: updates })
-  }
 }
 
 /**

@@ -11,10 +11,12 @@ import {
   completeExecutionOutbox,
   createExecutionOutbox,
   failExecutionOutbox,
+  requeueExecutionOutbox,
 } from '@/services/execution-outbox.service'
 
 const IMAGE_PREVIEW_SOURCE_MAX_BYTES = 40 * 1024 * 1024
 const DEFAULT_PROCESS_LIMIT = 2
+const MAX_DERIVATIVE_ATTEMPTS = 3
 
 const ImagePreviewDerivativePayloadSchema = z.object({
   generationId: z.string().min(1),
@@ -40,6 +42,7 @@ export type ImagePreviewDerivativeProcessStatus =
   | 'failed'
   | 'ignored'
   | 'not-found'
+  | 'retrying'
   | 'skipped'
 
 export interface ImagePreviewDerivativeProcessResult {
@@ -248,15 +251,23 @@ export async function processImagePreviewDerivativeOutbox(
       error instanceof Error
         ? error.message
         : 'Image preview derivative processing failed'
-    await failExecutionOutbox(outboxId, { lastError: message })
+    const attemptCount = outbox.attemptCount + 1
+    const shouldRetry = attemptCount < MAX_DERIVATIVE_ATTEMPTS
+    if (shouldRetry) {
+      await requeueExecutionOutbox(outboxId, message)
+    } else {
+      await failExecutionOutbox(outboxId, { lastError: message })
+    }
     logger.warn('Image preview derivative processing failed', {
       outboxId,
       generationId: payload.generationId,
       error: message,
+      attemptCount,
+      willRetry: shouldRetry,
     })
     return {
       outboxId,
-      status: 'failed',
+      status: shouldRetry ? 'retrying' : 'failed',
       generationId: payload.generationId,
       error: message,
     }

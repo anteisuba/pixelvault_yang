@@ -40,6 +40,14 @@ vi.mock('@/services/execution-outbox.service', () => ({
   annotateExecutionOutbox: vi.fn(),
 }))
 vi.mock('@/services/execution-worker.service', () => ({
+  ExecutionWorkerDispatchError: class ExecutionWorkerDispatchError extends Error {
+    readonly outcome: 'rejected' | 'unknown'
+    constructor(message: string, outcome: 'rejected' | 'unknown') {
+      super(message)
+      this.name = 'ExecutionWorkerDispatchError'
+      this.outcome = outcome
+    }
+  },
   buildInternalUrl: (path: string) => `http://localhost:3000${path}`,
   dispatchWorkerRun: (...args: unknown[]) => mockDispatchWorkerRun(...args),
   shouldUseInlineExecutionFallback: () =>
@@ -135,6 +143,7 @@ import {
 } from '@/services/usage.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { ProviderError } from '@/services/providers/types'
+import { ExecutionWorkerDispatchError } from '@/services/execution-worker.service'
 
 // ─── Fixtures ──────────────────────────────────────────────────
 
@@ -804,6 +813,50 @@ describe('submitAudioGeneration', () => {
     )
   })
 
+  it('keeps the audio job active when the worker acknowledgement may be lost', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+    mockDispatchWorkerRun.mockRejectedValueOnce(
+      new ExecutionWorkerDispatchError(
+        'worker acknowledgement was lost',
+        'unknown',
+      ),
+    )
+
+    await expect(
+      submitAudioGeneration('clerk-1', {
+        ...BASE_SYNC_REQUEST,
+        voiceId: 'voice-1',
+      }),
+    ).rejects.toThrow('worker acknowledgement was lost')
+
+    expect(failGenerationJob).not.toHaveBeenCalled()
+  })
+
+  it('does not fail an accepted audio job when workflow metadata persistence fails', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+    mockGenerationJobUpdate.mockRejectedValueOnce(
+      new Error('database write failed'),
+    )
+
+    await expect(
+      submitAudioGeneration('clerk-1', {
+        ...BASE_SYNC_REQUEST,
+        voiceId: 'voice-1',
+      }),
+    ).resolves.toEqual({
+      jobId: 'job-async-1',
+      requestId: 'wf-audio-1',
+    })
+
+    expect(failGenerationJob).not.toHaveBeenCalled()
+  })
+
   it('falls back to inline Fish Audio generation when the local worker is unavailable', async () => {
     mockShouldUseInlineExecutionFallback.mockReturnValueOnce(true)
     const generateAudio = vi.fn().mockResolvedValue({
@@ -1040,6 +1093,28 @@ describe('checkAudioGenerationStatus', () => {
     })
     expect(checkAudioQueueStatus).not.toHaveBeenCalled()
     expect(getApiKeyValueById).not.toHaveBeenCalled()
+  })
+
+  it('lazily returns FAILED for a stale worker-managed audio job', async () => {
+    const staleWorkerManagedJob = {
+      ...FAKE_ASYNC_JOB,
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      externalRequestId: JSON.stringify({
+        workerManaged: true,
+        outputType: 'AUDIO',
+        workflowInstanceId: 'wf-audio-1',
+      }),
+    }
+    mockGenerationJobFindUnique.mockResolvedValue(staleWorkerManagedJob)
+    mockGenerationJobUpdateMany.mockResolvedValue({ count: 1 })
+
+    const result = await checkAudioGenerationStatus('clerk-1', 'job-async-1')
+
+    expect(result).toMatchObject({
+      jobId: 'job-async-1',
+      status: 'FAILED',
+      errorCode: 'callback_timeout',
+    })
   })
 
   it('returns IN_PROGRESS when another request already claimed finalization', async () => {

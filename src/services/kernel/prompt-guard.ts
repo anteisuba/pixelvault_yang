@@ -75,7 +75,7 @@ export function validatePrompt(
     if (pattern.test(prompt)) {
       logger.warn('Prompt injection pattern detected', {
         pattern: pattern.source,
-        promptPreview: prompt.slice(0, 100),
+        promptLength: prompt.length,
       })
       return {
         valid: false,
@@ -163,9 +163,12 @@ export function validateCompiledPrompt(
 
   if (retentionRate < minKeywordRetention) {
     logger.warn('Low keyword retention in compiled prompt', {
-      original: original.slice(0, 100),
+      originalLength: original.length,
+      compiledLength: compiled.length,
+      keywordCount: keywords.length,
       retentionRate,
-      missingKeywords: keywords.filter((kw) => !compiledLower.includes(kw)),
+      missingKeywordCount: keywords.filter((kw) => !compiledLower.includes(kw))
+        .length,
     })
     return {
       valid: false,

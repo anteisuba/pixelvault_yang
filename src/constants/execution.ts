@@ -16,9 +16,15 @@ export const EXECUTION_SWEEPER = {
 } as const
 
 export const EXECUTION_INTERNAL = {
+  SIGNATURE_VERSION: 'v1',
   SIGNATURE_HEADER: 'X-Execution-Signature',
+  VERSION_HEADER: 'X-Execution-Signature-Version',
+  TIMESTAMP_HEADER: 'X-Execution-Timestamp',
+  NONCE_HEADER: 'X-Execution-Nonce',
   SIGNATURE_ALGORITHM: 'sha256',
   SIGNATURE_HEX_LENGTH: 64,
+  MAX_CLOCK_SKEW_MS: 5 * 60 * 1000,
+  NONCE_TTL_SECONDS: 10 * 60,
   CALLBACK_PATH: '/api/internal/execution/callback',
   RESOLVE_KEY_PATH: '/api/internal/execution/resolve-key',
   LONG_VIDEO_ADVANCE_PATH: '/api/internal/execution/long-video/advance',
@@ -43,6 +49,9 @@ export const EXECUTION_WORKER = {
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,
+  DISPATCH_TIMEOUT_MS: 10_000,
+  DISPATCH_MAX_ATTEMPTS: 2,
+  DISPATCH_RETRY_DELAY_MS: 250,
 } as const
 
 export const EXECUTION_WORKFLOW_IDS = {

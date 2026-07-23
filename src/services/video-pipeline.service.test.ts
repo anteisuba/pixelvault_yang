@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AI_MODELS } from '@/constants/models'
+import { AI_MODELS, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { LongVideoRequest } from '@/types'
 
@@ -24,6 +24,7 @@ const mockSubmitVideoToQueue = vi.hoisted(() => vi.fn())
 const mockSubmitExtendVideoToQueue = vi.hoisted(() => vi.fn())
 const mockCheckVideoQueueStatus = vi.hoisted(() => vi.fn())
 const mockDispatchLongVideoPipelineWorkerRun = vi.hoisted(() => vi.fn())
+const mockGetResolvedModelOption = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -50,6 +51,11 @@ vi.mock('@/services/video-generation-validation.service', () => ({
     mockValidateVideoGenerationInput(...args),
 }))
 
+vi.mock('@/services/model-config.service', () => ({
+  getResolvedModelOption: (...args: unknown[]) =>
+    mockGetResolvedModelOption(...args),
+}))
+
 vi.mock('@/services/storage/r2', () => ({
   generateStorageKey: (...args: unknown[]) => mockGenerateStorageKey(...args),
   fetchAsBuffer: (...args: unknown[]) => mockFetchAsBuffer(...args),
@@ -66,6 +72,14 @@ vi.mock('@/services/generation.service', () => ({
 }))
 
 vi.mock('@/services/execution-worker.service', () => ({
+  ExecutionWorkerDispatchError: class ExecutionWorkerDispatchError extends Error {
+    readonly outcome: 'rejected' | 'unknown'
+    constructor(message: string, outcome: 'rejected' | 'unknown') {
+      super(message)
+      this.name = 'ExecutionWorkerDispatchError'
+      this.outcome = outcome
+    }
+  },
   buildInternalUrl: (path: string) => `https://app.example.com${path}`,
   dispatchLongVideoPipelineWorkerRun: (...args: unknown[]) =>
     mockDispatchLongVideoPipelineWorkerRun(...args),
@@ -96,6 +110,7 @@ import {
   createLongVideoPipeline,
   retryPipelineClip,
 } from './video-pipeline.service'
+import { ExecutionWorkerDispatchError } from '@/services/execution-worker.service'
 
 const BASE_INPUT: LongVideoRequest = {
   prompt: 'cinematic long shot over a neon city',
@@ -186,6 +201,9 @@ function pipeline(overrides: Record<string, unknown> = {}) {
 describe('video-pipeline.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetResolvedModelOption.mockImplementation((modelId: string) =>
+      Promise.resolve(getModelById(modelId)),
+    )
     mockEnsureUser.mockResolvedValue({ id: 'user-1' })
     mockResolveGenerationRoute.mockResolvedValue(EXECUTION_ROUTE)
     mockGetProviderAdapter.mockReturnValue({
@@ -284,6 +302,22 @@ describe('video-pipeline.service', () => {
           }),
         }),
       )
+    })
+
+    it('keeps the pipeline active when the worker acknowledgement may be lost', async () => {
+      mockDispatchLongVideoPipelineWorkerRun.mockRejectedValueOnce(
+        new ExecutionWorkerDispatchError(
+          'worker acknowledgement was lost',
+          'unknown',
+        ),
+      )
+
+      await expect(
+        createLongVideoPipeline('clerk-1', BASE_INPUT),
+      ).rejects.toThrow('worker acknowledgement was lost')
+
+      expect(mockVideoPipelineUpdate).not.toHaveBeenCalled()
+      expect(mockVideoPipelineClipUpdateMany).not.toHaveBeenCalled()
     })
 
     it('rejects target durations above the model extension limit', async () => {

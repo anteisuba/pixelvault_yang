@@ -91,6 +91,22 @@ export async function failExecutionOutbox(
   })
 }
 
+export async function requeueExecutionOutbox(
+  id: string,
+  lastError: string,
+  client: ExecutionOutboxMutationClient = db,
+): Promise<ExecutionOutbox> {
+  return client.executionOutbox.update({
+    where: { id },
+    data: {
+      status: 'PENDING',
+      lastError,
+      leaseExpiresAt: null,
+      processedAt: null,
+    },
+  })
+}
+
 export async function annotateExecutionOutbox(
   id: string,
   input: CompleteExecutionOutboxInput,

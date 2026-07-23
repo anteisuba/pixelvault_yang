@@ -59,6 +59,14 @@ vi.mock('@/services/image/image-3d-prep.service', () => ({
 }))
 
 vi.mock('@/services/execution-worker.service', () => ({
+  ExecutionWorkerDispatchError: class ExecutionWorkerDispatchError extends Error {
+    readonly outcome: 'rejected' | 'unknown'
+    constructor(message: string, outcome: 'rejected' | 'unknown') {
+      super(message)
+      this.name = 'ExecutionWorkerDispatchError'
+      this.outcome = outcome
+    }
+  },
   buildInternalUrl: vi.fn((path: string) => `https://app.test${path}`),
   dispatchHyper3DRodinWorkerRun: vi.fn().mockResolvedValue({
     workflowInstanceId: 'wf-rodin-1',
@@ -123,7 +131,10 @@ import {
   streamUploadToR2,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
-import { dispatchHunyuan3DWorkerRun } from '@/services/execution-worker.service'
+import {
+  dispatchHunyuan3DWorkerRun,
+  ExecutionWorkerDispatchError,
+} from '@/services/execution-worker.service'
 
 const mockFindJob = vi.mocked(db.generationJob.findUnique)
 const mockUpdateJob = vi.mocked(db.generationJob.update)
@@ -210,6 +221,7 @@ describe('check3DGenerationStatusForUserId', () => {
     mockCompleteJob.mockResolvedValue({ id: 'job-1' } as never)
     mockResolveRoute.mockResolvedValue({
       modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
+      externalModelId: 'fal-ai/hunyuan3d-v3.1/pro',
       adapterType: AI_ADAPTER_TYPES.FAL,
       providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
       apiKey: 'fal-key',
@@ -242,6 +254,7 @@ describe('check3DGenerationStatusForUserId', () => {
     async (modelId) => {
       mockResolveRoute.mockResolvedValue({
         modelId,
+        externalModelId: modelId,
         adapterType: AI_ADAPTER_TYPES.FAL,
         providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
         apiKey: 'fal-key',
@@ -283,8 +296,48 @@ describe('check3DGenerationStatusForUserId', () => {
       }
       expect(meta.workerDispatched).toBe(true)
       expect(meta.sourceImageUrl).toBe('https://cdn.test/source.png')
+      expect(mockUpdateJob.mock.invocationCallOrder[0]).toBeLessThan(
+        mockDispatchHunyuan3D.mock.invocationCallOrder[0],
+      )
     },
   )
+
+  it('keeps the 3D job active when the worker acknowledgement may be lost', async () => {
+    mockDispatchHunyuan3D.mockRejectedValueOnce(
+      new ExecutionWorkerDispatchError(
+        'worker acknowledgement was lost',
+        'unknown',
+      ),
+    )
+
+    await expect(
+      submit3DGenerationForUserId('user-1', {
+        imageUrl: 'https://cdn.test/source.png',
+        modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
+        apiKeyId: 'fal-key-id',
+      }),
+    ).rejects.toThrow('worker acknowledgement was lost')
+
+    expect(mockFailJob).not.toHaveBeenCalled()
+  })
+
+  it('does not dispatch 3D work before callback metadata is durable', async () => {
+    mockUpdateJob.mockRejectedValueOnce(new Error('database write failed'))
+
+    await expect(
+      submit3DGenerationForUserId('user-1', {
+        imageUrl: 'https://cdn.test/source.png',
+        modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
+        apiKeyId: 'fal-key-id',
+      }),
+    ).rejects.toThrow('database write failed')
+
+    expect(mockDispatchHunyuan3D).not.toHaveBeenCalled()
+    expect(mockFailJob).toHaveBeenCalledWith(
+      'job-submit',
+      expect.objectContaining({ errorMessage: 'database write failed' }),
+    )
+  })
 
   it('starts the final textured job after mesh preview completes', async () => {
     mockFindJob.mockResolvedValue({

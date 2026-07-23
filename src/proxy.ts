@@ -35,10 +35,26 @@ const isPublicRoute = createRouteMatcher([
   '/api/internal/execution/callback',
   '/api/internal/execution/resolve-key',
   '/api/internal/execution/long-video/advance',
+  // Vercel Cron authenticates with Authorization: Bearer CRON_SECRET inside
+  // the route; it has no Clerk session and must reach that verifier first.
+  '/api/internal/execution/sweep',
   '/api/internal/fal/webhook',
 ])
 
-const isDev = process.env.NODE_ENV === 'development'
+function isDevelopmentEnvironment() {
+  return process.env.NODE_ENV === 'development'
+}
+
+function isAuthBypassEnabled() {
+  return (
+    isDevelopmentEnvironment() && process.env.AUTH_BYPASS_FOR_E2E === 'true'
+  )
+}
+
+function isPublicUserProfileApi(pathname: string) {
+  const match = pathname.match(/^\/api\/users\/([^/]+)\/?$/)
+  return Boolean(match && match[1] !== 'me')
+}
 
 function resolveLocale(pathname: string) {
   return (
@@ -55,11 +71,15 @@ export default clerkMiddleware(
 
     // Skip i18n handling for API routes
     if (pathname.startsWith('/api')) {
-      // /api/users/:username is public, but /api/users/me/* requires auth
-      const isPublicUserApi =
-        pathname.startsWith('/api/users/') &&
-        !pathname.startsWith('/api/users/me')
-      if (!isDev && !isPublicRoute(request) && !isPublicUserApi) {
+      // Only the exact /api/users/:username profile route is public. Nested
+      // routes stay protected so future admin/export endpoints cannot inherit
+      // public access from a broad path prefix.
+      const isPublicUserApi = isPublicUserProfileApi(pathname)
+      if (
+        !isAuthBypassEnabled() &&
+        !isPublicRoute(request) &&
+        !isPublicUserApi
+      ) {
         await auth.protect()
       }
       // Explicit NextResponse.next() ensures public API routes (e.g. /api/health)
@@ -77,7 +97,7 @@ export default clerkMiddleware(
       return response
     }
 
-    if (!isDev && !isPublicRoute(request)) {
+    if (!isAuthBypassEnabled() && !isPublicRoute(request)) {
       await auth.protect()
     }
 
@@ -88,7 +108,7 @@ export default clerkMiddleware(
 
     return {
       authorizedParties: getClerkAllowedOrigins(
-        isDev ? [request.nextUrl.origin] : [],
+        isDevelopmentEnvironment() ? [request.nextUrl.origin] : [],
       ),
       signInUrl: `/${locale}${ROUTES.SIGN_IN}`,
       signUpUrl: `/${locale}${ROUTES.SIGN_UP}`,

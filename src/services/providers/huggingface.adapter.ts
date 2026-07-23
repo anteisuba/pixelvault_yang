@@ -24,6 +24,7 @@ export const huggingFaceAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -33,7 +34,7 @@ export const huggingFaceAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.HUGGINGFACE
-    const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}`
+    const endpoint = `${baseUrl}/${externalModelId ?? getExecutionModelId(modelId)}`
     const params: Record<string, unknown> = { width, height }
 
     if (advancedParams?.negativePrompt) {

@@ -56,10 +56,12 @@ import { buildGenerationFailureResponseFields } from '@/services/generation-fail
 import {
   resolveGenerationRoute,
   GenerateImageServiceError,
+  type ResolvedGenerationRoute,
 } from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
   dispatchWorkerRun,
+  ExecutionWorkerDispatchError,
   shouldUseInlineExecutionFallback,
 } from '@/services/execution-worker.service'
 import {
@@ -72,6 +74,10 @@ import {
 } from '@/services/execution-outbox.service'
 import { getApiKeyValueById } from '@/services/apiKey.service'
 import { ensureUser } from '@/services/user.service'
+import {
+  reconcileStaleGenerationJob,
+  STALE_EXECUTION_FAILURE_MESSAGE,
+} from '@/services/execution-sweeper.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -771,7 +777,8 @@ export async function submitAudioGeneration(
         userId: dbUser.id,
         route: resolvedRoute,
         providerLabel: getProviderLabel(resolvedRoute.providerConfig),
-        modelConfig: getModelById(resolvedRoute.modelId),
+        modelConfig:
+          resolvedRoute.modelConfig ?? getModelById(resolvedRoute.modelId),
         adapter,
       }
     })
@@ -880,13 +887,14 @@ async function submitAudioWorkerRun(params: {
     modelId: string
     adapterType: AI_ADAPTER_TYPES
     providerConfig: ProviderConfig
+    externalModelId?: string
     resolvedApiKeyId?: string | null
     isFreeGeneration?: boolean
   }
   providerLabel: string
   apiKeyId?: string | null
   useSystemKey: boolean
-  modelConfig: NonNullable<ReturnType<typeof getModelById>>
+  modelConfig: NonNullable<ResolvedGenerationRoute['modelConfig']>
   timer: GenerationStageTimer
 }): Promise<AudioSubmitResponseData> {
   const {
@@ -953,7 +961,8 @@ async function submitAudioWorkerRun(params: {
     providerInput: {
       prompt: providerPrompt,
       modelId: route.modelId,
-      externalModelId: getExecutionModelId(route.modelId),
+      externalModelId:
+        route.externalModelId ?? getExecutionModelId(route.modelId),
       referenceAudioUrl: request.referenceAudioUrl,
       referenceText: request.referenceText,
       voiceId: request.voiceId,
@@ -983,17 +992,28 @@ async function submitAudioWorkerRun(params: {
       () => dispatchWorkerRun(runContext),
     )
 
-    await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
-      db.generationJob.update({
-        where: { id: job.id },
-        data: {
-          externalRequestId: serializeAudioQueueMetadata({
-            ...metadata,
-            workflowInstanceId: dispatchResult.workflowInstanceId,
-          }),
+    try {
+      await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+        db.generationJob.update({
+          where: { id: job.id },
+          data: {
+            externalRequestId: serializeAudioQueueMetadata({
+              ...metadata,
+              workflowInstanceId: dispatchResult.workflowInstanceId,
+            }),
+          },
+        }),
+      )
+    } catch (error) {
+      logger.warn(
+        'Audio workflow accepted but workflow metadata persistence failed',
+        {
+          jobId: job.id,
+          workflowInstanceId: dispatchResult.workflowInstanceId,
+          error: error instanceof Error ? error.message : String(error),
         },
-      }),
-    )
+      )
+    }
 
     logger.info('Audio dispatched to execution worker', {
       jobId: job.id,
@@ -1008,6 +1028,21 @@ async function submitAudioWorkerRun(params: {
       requestId: dispatchResult.workflowInstanceId,
     }
   } catch (error) {
+    if (
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown'
+    ) {
+      logger.warn(
+        'Audio worker dispatch outcome is unknown; preserving active job for a late callback',
+        {
+          jobId: job.id,
+          error: error.message,
+          upstreamStatus: error.upstreamStatus,
+        },
+      )
+      throw error
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -1042,6 +1077,15 @@ export async function checkAudioGenerationStatus(
       'Audio generation job not found',
       404,
     )
+  }
+
+  if (await reconcileStaleGenerationJob(job)) {
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: STALE_EXECUTION_FAILURE_MESSAGE,
+      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+    }
   }
 
   if (job.status === 'COMPLETED' && job.generation) {

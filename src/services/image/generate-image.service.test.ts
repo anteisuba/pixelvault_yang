@@ -87,6 +87,9 @@ vi.mock('@/constants/models', async () => {
   modelsMock.realGetModelById = actual.getModelById
   return { ...actual, getModelById: vi.fn(actual.getModelById) }
 })
+vi.mock('@/services/model-config.service', () => ({
+  getResolvedModelOption: vi.fn(),
+}))
 
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -123,6 +126,7 @@ import {
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { ProviderError } from '@/services/providers/types'
+import { getResolvedModelOption } from '@/services/model-config.service'
 
 // ─── Test Fixtures ─────────────────────────────────────────────
 
@@ -167,6 +171,9 @@ function setupBYOKRoute() {
 function setupHappyPath() {
   // Restore getModelById to real implementation (previous test may have overridden it)
   vi.mocked(getModelById).mockImplementation(modelsMock.realGetModelById!)
+  vi.mocked(getResolvedModelOption).mockImplementation(async (modelId) =>
+    modelsMock.realGetModelById!(modelId),
+  )
   vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
   vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
   vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
@@ -209,7 +216,12 @@ function setupHappyPath() {
 // ─── Tests ─────────────────────────────────────────────────────
 
 describe('resolveGenerationRoute', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(getResolvedModelOption).mockImplementation(async (modelId) =>
+      modelsMock.realGetModelById!(modelId),
+    )
+  })
 
   it('uses user API key when apiKeyId is provided', async () => {
     vi.mocked(getApiKeyValueById).mockResolvedValue({
@@ -315,6 +327,50 @@ describe('resolveGenerationRoute', () => {
     expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
   })
 
+  it('rejects a model immediately when the DB catalog marks it unavailable', async () => {
+    vi.mocked(getResolvedModelOption).mockResolvedValue({
+      ...modelsMock.realGetModelById!('flux-2-pro')!,
+      available: false,
+    })
+
+    await expect(
+      resolveGenerationRoute('user-1', { modelId: 'flux-2-pro' }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'UNSUPPORTED_MODEL' }))
+
+    expect(getApiKeyValueById).not.toHaveBeenCalled()
+    expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
+  })
+
+  it('uses DB catalog adapter, external model id, and cost in the execution route', async () => {
+    vi.mocked(getResolvedModelOption).mockResolvedValue({
+      ...modelsMock.realGetModelById!('flux-2-pro')!,
+      adapterType: AI_ADAPTER_TYPES.REPLICATE,
+      externalModelId: 'owner/flux-new-version',
+      cost: 7,
+    })
+    vi.mocked(getApiKeyValueById).mockResolvedValue({
+      id: 'replicate-key-1',
+      adapterType: AI_ADAPTER_TYPES.REPLICATE,
+      providerConfig: {
+        label: 'Replicate',
+        baseUrl: 'https://api.replicate.com',
+      },
+      keyValue: 'replicate-key',
+      modelId: 'flux-2-pro',
+    } as never)
+
+    const route = await resolveGenerationRoute('user-1', {
+      modelId: 'flux-2-pro',
+      apiKeyId: 'replicate-key-1',
+    })
+
+    expect(route).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.REPLICATE,
+      externalModelId: 'owner/flux-new-version',
+      creditCost: 7,
+    })
+  })
+
   it('throws MISSING_API_KEY when no user key and model is not free-tier', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
 
@@ -351,7 +407,7 @@ describe('resolveGenerationRoute', () => {
     }
 
     it('routes to the system key without a per-day free-tier reservation', async () => {
-      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
       vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
         undefined,
       )
@@ -370,7 +426,7 @@ describe('resolveGenerationRoute', () => {
     })
 
     it('throws RUNNER_MONTHLY_LIMIT_EXCEEDED when the monthly budget cap is hit', async () => {
-      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
       vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockRejectedValue(
         new MockRunnerMonthlyLimitExceededError('Runner monthly limit reached'),
       )
@@ -385,7 +441,7 @@ describe('resolveGenerationRoute', () => {
     })
 
     it('throws PLATFORM_KEY_MISSING when RUNPOD_KEY is not configured', async () => {
-      vi.mocked(getModelById).mockReturnValue(RUNNER_MODEL as never)
+      vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
       vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
         undefined,
       )

@@ -284,7 +284,7 @@ function parseLoraAssistantOutput(rawOutput: string): LoraAssistantRawOutput {
   if (!validation.usable || !validation.data) {
     logger.warn('LoRA assistant structured output failed schema validation', {
       reason: validation.reason,
-      rawOutputSnippet: rawOutput.slice(0, 500),
+      rawOutputLength: rawOutput.length,
     })
     throw new LoraAssistantStructuredOutputError(
       validation.reason ?? 'LoRA assistant structured output invalid',

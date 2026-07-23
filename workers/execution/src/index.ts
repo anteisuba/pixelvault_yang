@@ -34,9 +34,14 @@ const FAL_QUEUE_PATH = '/workflows/fal-queue'
 const LONG_VIDEO_PIPELINE_PATH = '/workflows/long-video-pipeline'
 const HYPER3D_RODIN_PATH = '/workflows/hyper3d-rodin'
 const HUNYUAN3D_PATH = '/workflows/hunyuan3d'
+const EXECUTION_SIGNATURE_VERSION = 'v1'
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
+const EXECUTION_SIGNATURE_VERSION_HEADER = 'X-Execution-Signature-Version'
+const EXECUTION_TIMESTAMP_HEADER = 'X-Execution-Timestamp'
+const EXECUTION_NONCE_HEADER = 'X-Execution-Nonce'
 const EXECUTION_SIGNATURE_ALGORITHM = 'HMAC'
 const EXECUTION_SIGNATURE_HASH = 'SHA-256'
+const EXECUTION_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
 const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
 const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
@@ -500,16 +505,96 @@ export async function signBody(secret: string, body: string): Promise<string> {
   return toHex(signature)
 }
 
+async function hashBody(body: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(body),
+  )
+  return toHex(digest)
+}
+
+async function buildCanonicalSignedRequest(input: {
+  body: string
+  method: string
+  pathname: string
+  timestamp: string
+  nonce: string
+}): Promise<string> {
+  return [
+    EXECUTION_SIGNATURE_VERSION,
+    input.timestamp,
+    input.nonce,
+    input.method.toUpperCase(),
+    input.pathname,
+    await hashBody(input.body),
+  ].join('\n')
+}
+
+export async function createSignedRequestHeaders(input: {
+  secret: string
+  body: string
+  url: string
+  method?: string
+  timestamp?: number
+  nonce?: string
+}): Promise<Record<string, string>> {
+  const method = input.method ?? 'POST'
+  const timestamp = String(input.timestamp ?? Date.now())
+  const nonce = input.nonce ?? crypto.randomUUID()
+  const canonical = await buildCanonicalSignedRequest({
+    body: input.body,
+    method,
+    pathname: new URL(input.url).pathname,
+    timestamp,
+    nonce,
+  })
+
+  return {
+    [EXECUTION_SIGNATURE_VERSION_HEADER]: EXECUTION_SIGNATURE_VERSION,
+    [EXECUTION_TIMESTAMP_HEADER]: timestamp,
+    [EXECUTION_NONCE_HEADER]: nonce,
+    [EXECUTION_SIGNATURE_HEADER]: await signBody(input.secret, canonical),
+  }
+}
+
 export async function verifySignedBody(
   request: Request,
   secret: string,
 ): Promise<string | null> {
   const rawBody = await readText(request)
   const signature = request.headers.get(EXECUTION_SIGNATURE_HEADER)
+  const version = request.headers.get(EXECUTION_SIGNATURE_VERSION_HEADER)
+  const timestamp = request.headers.get(EXECUTION_TIMESTAMP_HEADER)
+  const nonce = request.headers.get(EXECUTION_NONCE_HEADER)
 
-  if (!rawBody || !signature) return null
+  if (
+    !rawBody ||
+    !signature ||
+    version !== EXECUTION_SIGNATURE_VERSION ||
+    !timestamp ||
+    !/^\d{13}$/.test(timestamp) ||
+    !nonce ||
+    !/^[a-zA-Z0-9_-]{16,128}$/.test(nonce)
+  ) {
+    return null
+  }
 
-  const expectedSignature = await signBody(secret, rawBody)
+  const timestampMs = Number(timestamp)
+  if (
+    !Number.isSafeInteger(timestampMs) ||
+    Math.abs(Date.now() - timestampMs) > EXECUTION_MAX_CLOCK_SKEW_MS
+  ) {
+    return null
+  }
+
+  const canonical = await buildCanonicalSignedRequest({
+    body: rawBody,
+    method: request.method,
+    pathname: new URL(request.url).pathname,
+    timestamp,
+    nonce,
+  })
+  const expectedSignature = await signBody(secret, canonical)
   return timingSafeEqualHex(signature, expectedSignature) ? rawBody : null
 }
 
@@ -552,13 +637,17 @@ async function postSignedJson(
   payload: unknown,
 ): Promise<Response> {
   const body = JSON.stringify(payload)
-  const signature = await signBody(secret, body)
+  const signatureHeaders = await createSignedRequestHeaders({
+    secret,
+    body,
+    url,
+  })
 
   return fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': JSON_CONTENT_TYPE,
-      [EXECUTION_SIGNATURE_HEADER]: signature,
+      ...signatureHeaders,
     },
     body,
   })
@@ -1667,6 +1756,25 @@ async function downloadAndUploadModel3DArtifact(
   }
 }
 
+async function getOrCreateWorkflowInstance<TParams>(
+  workflow: Workflow<TParams>,
+  runId: string,
+  params: TParams,
+): Promise<{ id: string }> {
+  try {
+    return await workflow.create({ id: runId, params })
+  } catch (createError) {
+    // A dispatch response can be lost after Cloudflare accepted the instance.
+    // Replays use GenerationJob.id as the deterministic Workflow id, so return
+    // that existing instance instead of turning an accepted run into a 5xx.
+    try {
+      return await workflow.get(runId)
+    } catch {
+      throw createError
+    }
+  }
+}
+
 async function handleHyper3DRodinDispatch(
   request: Request,
   env: ExecutionEnv,
@@ -1705,10 +1813,11 @@ async function handleHyper3DRodinDispatch(
     )
   }
 
-  const instance = await env.HYPER3D_RODIN_WORKFLOW.create({
-    id: runContext.runId,
-    params: runContext,
-  })
+  const instance = await getOrCreateWorkflowInstance(
+    env.HYPER3D_RODIN_WORKFLOW,
+    runContext.runId,
+    runContext,
+  )
 
   return jsonResponse({ workflowInstanceId: instance.id })
 }
@@ -1751,10 +1860,11 @@ async function handleHunyuan3DDispatch(
     )
   }
 
-  const instance = await env.HUNYUAN3D_WORKFLOW.create({
-    id: runContext.runId,
-    params: runContext,
-  })
+  const instance = await getOrCreateWorkflowInstance(
+    env.HUNYUAN3D_WORKFLOW,
+    runContext.runId,
+    runContext,
+  )
 
   return jsonResponse({ workflowInstanceId: instance.id })
 }
@@ -1797,10 +1907,11 @@ async function handleLongVideoPipelineDispatch(
     )
   }
 
-  const instance = await env.LONG_VIDEO_PIPELINE_WORKFLOW.create({
-    id: runContext.runId,
-    params: runContext,
-  })
+  const instance = await getOrCreateWorkflowInstance(
+    env.LONG_VIDEO_PIPELINE_WORKFLOW,
+    runContext.runId,
+    runContext,
+  )
 
   return jsonResponse({ workflowInstanceId: instance.id })
 }
@@ -1843,10 +1954,11 @@ async function handleFalQueueDispatch(
     )
   }
 
-  const instance = await env.CINEMATIC_SHORT_VIDEO_WORKFLOW.create({
-    id: runContext.runId,
-    params: runContext,
-  })
+  const instance = await getOrCreateWorkflowInstance(
+    env.CINEMATIC_SHORT_VIDEO_WORKFLOW,
+    runContext.runId,
+    runContext,
+  )
 
   return jsonResponse({ workflowInstanceId: instance.id })
 }
@@ -6170,10 +6282,11 @@ async function handleImageQueueDispatch(
     )
   }
 
-  const instance = await env.IMAGE_QUEUE_WORKFLOW.create({
-    id: runContext.runId,
-    params: runContext,
-  })
+  const instance = await getOrCreateWorkflowInstance(
+    env.IMAGE_QUEUE_WORKFLOW,
+    runContext.runId,
+    runContext,
+  )
 
   return jsonResponse({ workflowInstanceId: instance.id })
 }

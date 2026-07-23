@@ -35,10 +35,10 @@ app/api routes（149 个 route.ts）      ← 只做三件事，不含业务逻�
 ## 认证与边界（现状，改权限策略先问 owner）
 
 - Provider：`ClerkProvider` 按 locale 配置（localization / sign-in URL / redirect origins）。
-- Middleware = `src/proxy.ts`（Clerk + next-intl 合体）：API 路由跳过 i18n；**production 对非公开路由 `auth.protect()`，development 跳过 middleware 级保护**（⚠ dev/prod 行为差异，安全验证必须在 preview/prod 做）。
+- Middleware = `src/proxy.ts`（Clerk + next-intl 合体）：API 路由跳过 i18n；非公开路由默认执行 `auth.protect()`。仅 development 且显式设置 `AUTH_BYPASS_FOR_E2E=true` 时允许 E2E 绕过；普通本地开发与生产使用同一认证边界。
 - 公开路由（2026-06-02 口径）：首页 / gallery(+详情) / sign-in / sign-up / creator profile；公开 API：`/api/images`、`/api/voices(/*)`、`/api/webhooks/clerk`、`/api/health(/providers)`、`/api/internal/*`（走签名不走 Clerk）。`/api/users/:username` 公开、`/api/users/me/*` 要登录。
-- 内部签名：`src/lib/signature-verifiers/`（`internal-execution`、`fal-webhook`）；Clerk webhook 走 svix 三头验签（`CLERK_WEBHOOK_SECRET`）。
-- 用户映射：`User.clerkId`；`user.service.ensureUser(clerkId)` JIT 建档（查→补同步→缺则建）；service 层收 clerkId，经 `ensureUser` 解析内部 `User.id`。
+- 内部签名：`src/lib/signature-verifiers/`（`internal-execution`、`fal-webhook`）；Clerk webhook 走 svix 三头验签（`CLERK_WEBHOOK_SECRET`）。Execution v1 签名绑定 timestamp、nonce、HTTP method、pathname 与 body SHA-256；应用侧通过 Upstash Redis 原子消费 nonce，拒绝过期、重放和跨路由请求，生产缺 Redis 时 fail closed。
+- 用户映射：`User.clerkId`；`user.service.ensureUser(clerkId)` JIT 建档（查→补同步→缺则建）；service 层收 clerkId，经 `ensureUser` 解析内部 `User.id`。Clerk Production 切换实例时，`provisionVerifiedClerkUser` 只接受已验证的主邮箱，并按邮箱原子更新旧记录的 `clerkId`，保持内部 `User.id` 与全部资产关系不变；该同邮箱重绑定仅允许在 `VERCEL_ENV=production`，Preview/Development 遇到已有邮箱会拒绝，避免测试与生产 Clerk ID 来回覆盖。
 
 ## Service 纪律
 
@@ -55,11 +55,16 @@ app/api routes（149 个 route.ts）      ← 只做三件事，不含业务逻�
 - `image/generate-image.service` = orchestrator（**高风险，8+ 依赖**）。
 - **`Generation` = 全模态统一资产记录**（outputType / status / url+storageKey / 缩略图 / 尺寸时长 / 3D 模型字段 / prompt / model+provider / 可见性 / userId / projectId / 卡片-配方-runGroup 元数据）；`generation.service` 拥有创建/查询/可见性/列表/删除。
 - 异步执行骨架：`GenerationJob` + `ApiUsageLedger`（`usage.service`：免费位预留 / job 创建 / 完成 / 失败 / 账本挂接）+ `execution-outbox` / `execution-callback` / `execution-sweeper` services + `/api/internal/execution/*`（签名回调）。**Comfy runner 复用此骨架**（见 `plans/comfy-runner-HANDOFF-2026-07.md`）。
+- 无付费公开体验保护：生产环境未显式设置 `PLATFORM_GENERATION_ENABLED=true` 时平台生成 fail closed；免费位在同一数据库 advisory lock 内执行全局日预算（500）与用户日额度（20）检查；创建 Job 时按用户串行限制最多 2 个 `QUEUED/RUNNING` 任务。
+- Worker 实例 ID 固定使用 `GenerationJob.id`；Worker 对重复 ID 返回既有实例。应用侧把超时、网络失败、5xx 与无效 ACK 视为“接收结果未知”，只做同 ID 有界重试，不把可能已执行的 Job 误标为确定失败。
+- 成功、失败回调与 stale reconciliation 都通过状态条件更新（CAS）竞争终态；CAS 失败后重新读取数据库真实状态。平台计费使用服务端模型目录的 `creditCost`，Worker 的 provider 请求次数不能覆盖计费单位。
+- 模型执行目录由 `model-config.service` 解析：数据库 `ModelConfig` 覆盖内置 bootstrap 配置，并把 `available`、adapter、external model ID、cost、timeout 与 provider config 一致传入实际执行面；后台变更会失效模型缓存。
 - 存储：`storage/r2.ts`（55 importers，高风险）；provider URL 只能作 ingestion source，成功作品永久保存进 R2。
 
 ## Provider 接入（现状）
 
 - Adapter 目录 `src/services/providers/`（2026-07-10 清点）：elevenlabs · fal（含子目录）· fish-audio · gemini · huggingface · novelai · openai · replicate · runway · volcengine + `registry.ts` + `types.ts`；adapter type 集中 `src/constants/providers.ts`。
+- Provider adapter 输入包含解析后的 `externalModelId`；adapter 优先使用该值，不能重新从硬编码目录取执行模型 ID。
 - BYOK：`api-key-resolver.service`；**显式 `apiKeyId` 不可 fallback 到平台 key**；平台 key 在 `lib/platform-keys`。
 - 加模型四件套必须同步：`AI_MODELS` enum + 模型配置 + i18n ×3 + provider adapter。
 - 接入优先直连官方 API；只在没直连或 FAL 唯一/更优时走 FAL（owner 拍板）。
@@ -76,7 +81,7 @@ app/api routes（149 个 route.ts）      ← 只做三件事，不含业务逻�
 
 ## 安全红线
 
-`NEXT_PUBLIC_` 只准 Clerk public key / CDN domain / App URL · credit 只在服务端 · ownership（userId）服务端校验 · rate-limit 用户维度 · 测试 key 一次性 dev 实例。
+`NEXT_PUBLIC_` 只准 Clerk public key / CDN domain / App URL · credit 只在服务端 · ownership（userId）服务端校验 · rate-limit 用户维度 · 测试 key 一次性 dev 实例 · 日志一律经过 `lib/logger` 递归脱敏，不记录 prompt/LLM 原文、Authorization/Cookie、密钥或签名 URL 查询参数。
 
 ## Source of Truth
 
@@ -86,5 +91,4 @@ app/api routes（149 个 route.ts）      ← 只做三件事，不含业务逻�
 
 ## Last Verified
 
-- Date: 2026-07-10 · Method: route 清点（149）/ service 清点（101）/ 工厂导出与三类 config 读源码 / providers、kernel、image、storage、signature-verifiers 目录清点 / proxy.ts、studio-generate 等关键文件存在性核验。
-- middleware 公开路由清单、用户映射函数名、高风险引用计数沿用 2026-06-02/03 审计口径（快照）；据此改动前先对 `src/proxy.ts` 与实际代码。
+- Date: 2026-07-23 · Method: 核验执行 Worker 幂等创建、应用派发分类、回调 CAS、DB-first 模型解析、平台免费体验闸门、Execution v1 防重放协议、日志脱敏、认证边界、Clerk Production 已验证邮箱重绑定和对应回归测试。route/service 数量与高风险引用计数仍沿用 2026-07-10 快照；据此改动前先对实际代码。

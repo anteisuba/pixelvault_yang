@@ -24,6 +24,7 @@ import { GenerationStageTimer } from '@/lib/generation-observability'
 import {
   buildInternalUrl,
   dispatchImageWorkerRun,
+  ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import {
@@ -42,6 +43,11 @@ import { ensureUser } from '@/services/user.service'
 import { generateStorageKey } from '@/services/storage/r2'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
 import { prepareRunnerCheckpoint } from '@/services/runner/prepare-runner-checkpoint.service'
+import {
+  reconcileStaleGenerationJob,
+  STALE_EXECUTION_FAILURE_MESSAGE,
+} from '@/services/execution-sweeper.service'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 
 /**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
@@ -272,7 +278,8 @@ export async function submitImageGeneration(
       providerInput: {
         prompt: input.prompt,
         modelId: route.modelId,
-        externalModelId: getExecutionModelId(route.modelId),
+        externalModelId:
+          route.externalModelId ?? getExecutionModelId(route.modelId),
         aspectRatio: input.aspectRatio,
         referenceImage: referenceImageUrl,
         referenceImages:
@@ -284,15 +291,30 @@ export async function submitImageGeneration(
 
     const dispatchResult = await dispatchImageWorkerRun(runContext)
 
-    await db.generationJob.update({
-      where: { id: job.id },
-      data: {
-        externalRequestId: JSON.stringify({
-          ...metadata,
+    try {
+      await db.generationJob.update({
+        where: { id: job.id },
+        data: {
+          externalRequestId: JSON.stringify({
+            ...metadata,
+            workflowInstanceId: dispatchResult.workflowInstanceId,
+          }),
+        },
+      })
+    } catch (error) {
+      // The workflow id is the GenerationJob id by contract, so this field is
+      // audit metadata rather than callback correlation. Once the worker has
+      // accepted the run, a secondary metadata write must never turn the
+      // business job into FAILED and cause its eventual callback to be ignored.
+      logger.warn(
+        'Image workflow accepted but workflow metadata persistence failed',
+        {
+          jobId: job.id,
           workflowInstanceId: dispatchResult.workflowInstanceId,
-        }),
-      },
-    })
+          error: error instanceof Error ? error.message : String(error),
+        },
+      )
+    }
 
     logger.info('Image generation dispatched to execution worker', {
       jobId: job.id,
@@ -303,6 +325,21 @@ export async function submitImageGeneration(
 
     return { jobId: job.id, requestId: dispatchResult.workflowInstanceId }
   } catch (error) {
+    if (
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown'
+    ) {
+      logger.warn(
+        'Image worker dispatch outcome is unknown; preserving active job for a late callback',
+        {
+          jobId: job.id,
+          error: error.message,
+          upstreamStatus: error.upstreamStatus,
+        },
+      )
+      throw error
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -330,6 +367,7 @@ export async function checkImageGenerationStatus(
       generationId: true,
       errorMessage: true,
       errorCode: true,
+      startedAt: true,
     },
   })
 
@@ -339,6 +377,15 @@ export async function checkImageGenerationStatus(
       'Image generation job not found',
       404,
     )
+  }
+
+  if (await reconcileStaleGenerationJob(job)) {
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: STALE_EXECUTION_FAILURE_MESSAGE,
+      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+    }
   }
 
   if (job.status === 'COMPLETED' && job.generationId) {

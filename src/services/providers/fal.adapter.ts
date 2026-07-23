@@ -355,7 +355,7 @@ function warnUnverifiedFalVideoBody(
   logger.warn('fal.ai video request body uses unverified provider schema', {
     modelId,
     endpoint,
-    body,
+    bodyKeys: Object.keys(body),
   })
 }
 
@@ -600,6 +600,7 @@ export const falAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId: catalogExternalModelId,
     aspectRatio,
     apiKey,
     referenceImage,
@@ -608,7 +609,8 @@ export const falAdapter: ProviderAdapter = {
     civitaiToken,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
-    const externalModelId = getExecutionModelId(modelId)
+    const externalModelId =
+      catalogExternalModelId ?? getExecutionModelId(modelId)
     // B9: flux-lora targets its `/image-to-image` endpoint when a reference
     // image is present; every other model keeps its own external id.
     const effectiveRefImage = referenceImages?.[0] ?? referenceImage
@@ -1216,7 +1218,10 @@ export const falAdapter: ProviderAdapter = {
     const statusJson = await statusResponse.json()
     logger.debug('fal.ai 3D status response', {
       statusUrl,
-      body: JSON.stringify(statusJson).slice(0, 1500),
+      bodyKeys:
+        statusJson && typeof statusJson === 'object'
+          ? Object.keys(statusJson)
+          : [],
     })
     const statusParse = FAL_QUEUE_STATUS_SCHEMA.safeParse(statusJson)
     if (!statusParse.success) {
@@ -1254,7 +1259,10 @@ export const falAdapter: ProviderAdapter = {
       logger.warn('fal.ai 3D queue returned terminal unknown status', {
         status: statusData.status,
         statusUrl,
-        body: JSON.stringify(statusJson).slice(0, 1000),
+        bodyKeys:
+          statusJson && typeof statusJson === 'object'
+            ? Object.keys(statusJson)
+            : [],
       })
       const message = `Queue request failed with status ${statusData.status}`
       return {
@@ -1293,7 +1301,6 @@ export const falAdapter: ProviderAdapter = {
       httpStatus: resultResponse.status,
       responseUrl,
       bodyLength: resultRawText.length,
-      bodyExcerpt: resultRawText.slice(0, 2000),
     })
 
     if (!resultResponse.ok) {

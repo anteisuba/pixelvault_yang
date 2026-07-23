@@ -62,6 +62,7 @@ export const openAiAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId: catalogExternalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -72,6 +73,8 @@ export const openAiAdapter: ProviderAdapter = {
     const { width, height, size } =
       OPENAI_IMAGE_SIZES[aspectRatio] ?? OPENAI_IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI
+    const executionModelId =
+      catalogExternalModelId ?? getExecutionModelId(modelId)
     const referenceImageInputs = getReferenceImageInputs(
       referenceImage,
       referenceImages,
@@ -84,7 +87,7 @@ export const openAiAdapter: ProviderAdapter = {
       const imageFieldName =
         referenceImageInputs.length > 1 ? 'image[]' : 'image'
 
-      formData.append('model', getExecutionModelId(modelId))
+      formData.append('model', executionModelId)
       formData.append('prompt', prompt)
       formData.append('size', size)
 
@@ -113,7 +116,7 @@ export const openAiAdapter: ProviderAdapter = {
       })
     } else {
       const jsonBody: Record<string, unknown> = {
-        model: getExecutionModelId(modelId),
+        model: executionModelId,
         prompt,
         size,
       }

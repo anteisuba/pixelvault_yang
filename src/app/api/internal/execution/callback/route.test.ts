@@ -1,10 +1,9 @@
-import { createHmac } from 'node:crypto'
-
 import { NextRequest } from 'next/server'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { parseJSON } from '@/test/api-helpers'
 import { ApiRequestError } from '@/lib/errors'
+import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import {
   handleExecutionCallback,
   type CallbackResult,
@@ -18,7 +17,6 @@ vi.mock('@/services/execution-callback.service', () => ({
 
 const CALLBACK_URL = 'http://localhost:3000/api/internal/execution/callback'
 const CALLBACK_SECRET = 'test-internal-callback-secret'
-const SIGNATURE_HEADER = 'X-Execution-Signature'
 
 const ORIGINAL_CALLBACK_SECRET = process.env.INTERNAL_CALLBACK_SECRET
 
@@ -48,10 +46,6 @@ const VALID_CALLBACK_RESULT: CallbackResult = {
 
 const mockHandleExecutionCallback = vi.mocked(handleExecutionCallback)
 
-function signBody(body: string, secret = CALLBACK_SECRET): string {
-  return createHmac('sha256', secret).update(body, 'utf8').digest('hex')
-}
-
 function createCallbackRequestFromBody(
   body: string,
   options: CallbackRequestOptions = {},
@@ -61,7 +55,18 @@ function createCallbackRequestFromBody(
   }
 
   if (options.signature !== null) {
-    headers[SIGNATURE_HEADER] = options.signature ?? signBody(body)
+    Object.assign(
+      headers,
+      createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url: CALLBACK_URL,
+        secret: CALLBACK_SECRET,
+      }),
+    )
+    if (options.signature) {
+      headers['X-Execution-Signature'] = options.signature
+    }
   }
 
   return new NextRequest(CALLBACK_URL, {
@@ -107,7 +112,7 @@ describe('POST /api/internal/execution/callback', () => {
   })
 
   it('returns 401 for a forged execution signature', async () => {
-    const req = createCallbackRequest(VALID_PAYLOAD, signBody('forged-body'))
+    const req = createCallbackRequest(VALID_PAYLOAD, 'a'.repeat(64))
     const res = await POST(req)
     const json = await parseJSON<ApiEnvelope<never>>(res)
 

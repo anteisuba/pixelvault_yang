@@ -1,9 +1,8 @@
-import { createHmac } from 'node:crypto'
-
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { parseJSON } from '@/test/api-helpers'
+import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import { applyLongVideoPipelineWorkerUpdate } from '@/services/video-pipeline.service'
 
 import { POST } from './route'
@@ -15,7 +14,6 @@ vi.mock('@/services/video-pipeline.service', () => ({
 const ADVANCE_URL =
   'http://localhost:3000/api/internal/execution/long-video/advance'
 const CALLBACK_SECRET = 'test-internal-callback-secret'
-const SIGNATURE_HEADER = 'X-Execution-Signature'
 const ORIGINAL_CALLBACK_SECRET = process.env.INTERNAL_CALLBACK_SECRET
 
 interface ApiEnvelope<TData> {
@@ -37,17 +35,24 @@ const PIPELINE_STATUS = {
 
 const mockApplyUpdate = vi.mocked(applyLongVideoPipelineWorkerUpdate)
 
-function signBody(body: string, secret = CALLBACK_SECRET): string {
-  return createHmac('sha256', secret).update(body, 'utf8').digest('hex')
-}
-
 function createAdvanceRequest(payload: unknown, signature?: string | null) {
   const body = JSON.stringify(payload)
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
   if (signature !== null) {
-    headers[SIGNATURE_HEADER] = signature ?? signBody(body)
+    Object.assign(
+      headers,
+      createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url: ADVANCE_URL,
+        secret: CALLBACK_SECRET,
+      }),
+    )
+    if (signature) {
+      headers['X-Execution-Signature'] = signature
+    }
   }
 
   return new NextRequest(ADVANCE_URL, {

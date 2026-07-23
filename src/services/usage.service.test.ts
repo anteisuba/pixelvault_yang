@@ -9,7 +9,9 @@
  *   5. attachUsageEntryToGeneration links usage→generation
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
@@ -19,6 +21,8 @@ vi.mock('@/lib/logger', () => ({
 
 const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
+const mockUpdateMany = vi.fn()
+const mockFindUnique = vi.fn()
 const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
 const mockJobCount = vi.fn()
@@ -27,6 +31,10 @@ const mockSlotCreate = vi.fn()
 const mockExecuteRaw = vi.fn().mockResolvedValue(1)
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
+    generationJob: {
+      count: (...args: unknown[]) => mockJobCount(...args),
+      create: (...args: unknown[]) => mockCreate(...args),
+    },
     freeTierSlot: {
       count: (...args: unknown[]) => mockSlotCount(...args),
       create: (...args: unknown[]) => mockSlotCreate(...args),
@@ -40,6 +48,8 @@ vi.mock('@/lib/db', () => ({
     generationJob: {
       create: (...args: unknown[]) => mockCreate(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
+      updateMany: (...args: unknown[]) => mockUpdateMany(...args),
+      findUnique: (...args: unknown[]) => mockFindUnique(...args),
       count: (...args: unknown[]) => mockJobCount(...args),
     },
     apiUsageLedger: {
@@ -64,6 +74,7 @@ import {
   createGenerationJob,
   completeGenerationJob,
   failGenerationJob,
+  failActiveGenerationJob,
   createApiUsageEntry,
   attachUsageEntryToGeneration,
   atomicReserveFreeTierSlot,
@@ -72,6 +83,9 @@ import {
   getRunnerUsage,
   assertRunnerMonthlyLimitNotExceeded,
   RunnerMonthlyLimitExceededError,
+  ActiveGenerationLimitExceededError,
+  PlatformDailyLimitExceededError,
+  PlatformGenerationDisabledError,
 } from './usage.service'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -79,7 +93,14 @@ import {
 describe('usage.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSlotCreate.mockResolvedValue({ id: 'slot-1' })
+    mockCreate.mockReset()
+    mockJobCount.mockReset().mockResolvedValue(0)
+    mockSlotCount.mockReset().mockResolvedValue(0)
+    mockSlotCreate.mockReset().mockResolvedValue({ id: 'slot-1' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   describe('createGenerationJob', () => {
@@ -111,6 +132,67 @@ describe('usage.service', () => {
           }),
         }),
       )
+    })
+
+    it('serializes the RUNNER monthly limit check and job creation in one transaction', async () => {
+      mockJobCount.mockResolvedValueOnce(299).mockResolvedValueOnce(0)
+      mockCreate.mockResolvedValue({ id: 'runner-job-1', status: 'RUNNING' })
+
+      await createGenerationJob({
+        userId: 'user-1',
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        provider: 'PixelVault Runner',
+        modelId: 'anima-pencil-xl-runner',
+      })
+
+      expect(mockDbTransaction).toHaveBeenCalledOnce()
+      expect(mockExecuteRaw).toHaveBeenCalledTimes(2)
+      expect(mockJobCount).toHaveBeenCalledTimes(2)
+      expect(mockCreate).toHaveBeenCalledOnce()
+      expect(mockExecuteRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        mockJobCount.mock.invocationCallOrder[0],
+      )
+      expect(mockJobCount.mock.invocationCallOrder[0]).toBeLessThan(
+        mockCreate.mock.invocationCallOrder[0],
+      )
+    })
+
+    it('does not create a RUNNER job when the locked monthly count is at the limit', async () => {
+      mockJobCount.mockResolvedValue(300)
+
+      await expect(
+        createGenerationJob({
+          userId: 'user-1',
+          adapterType: AI_ADAPTER_TYPES.RUNNER,
+          provider: 'PixelVault Runner',
+          modelId: 'anima-pencil-xl-runner',
+        }),
+      ).rejects.toThrow(RunnerMonthlyLimitExceededError)
+
+      expect(mockExecuteRaw).toHaveBeenCalledOnce()
+      expect(mockJobCount).toHaveBeenCalledOnce()
+      expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not create a third active job for the same user', async () => {
+      mockJobCount.mockResolvedValue(2)
+
+      await expect(
+        createGenerationJob({
+          userId: 'user-1',
+          adapterType: AI_ADAPTER_TYPES.FAL,
+          provider: 'fal.ai',
+          modelId: 'fal-ai/flux-2-pro',
+        }),
+      ).rejects.toThrow(ActiveGenerationLimitExceededError)
+
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(mockJobCount).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          status: { in: ['QUEUED', 'RUNNING'] },
+        },
+      })
     })
   })
 
@@ -172,6 +254,30 @@ describe('usage.service', () => {
           }),
         }),
       )
+    })
+  })
+
+  describe('failActiveGenerationJob', () => {
+    it('preserves a terminal job and reports its real status when the failure CAS loses', async () => {
+      mockUpdateMany.mockResolvedValue({ count: 0 })
+      mockFindUnique.mockResolvedValue({ status: 'COMPLETED' })
+
+      const result = await failActiveGenerationJob('job-1', {
+        requestCount: 1,
+        errorMessage: 'late provider failure',
+      })
+
+      expect(result).toEqual({ transitioned: false, status: 'COMPLETED' })
+      expect(mockUpdateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'job-1',
+          status: { in: ['QUEUED', 'RUNNING'] },
+        },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorMessage: 'late provider failure',
+        }),
+      })
     })
   })
 
@@ -290,6 +396,28 @@ describe('usage.service', () => {
       await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
         'connection refused',
       )
+    })
+
+    it('fails closed in production when the platform generation switch is not explicitly enabled', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('PLATFORM_GENERATION_ENABLED', '')
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
+        PlatformGenerationDisabledError,
+      )
+      expect(mockSlotCreate).not.toHaveBeenCalled()
+    })
+
+    it('rejects atomically when the global daily platform budget is exhausted', async () => {
+      mockSlotCount.mockResolvedValueOnce(500)
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
+        PlatformDailyLimitExceededError,
+      )
+      expect(mockSlotCreate).not.toHaveBeenCalled()
+      expect(mockSlotCount).toHaveBeenCalledWith({
+        where: { date: expect.any(String) },
+      })
     })
   })
 

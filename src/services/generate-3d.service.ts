@@ -65,6 +65,7 @@ import {
   buildInternalUrl,
   dispatchHyper3DRodinWorkerRun,
   dispatchHunyuan3DWorkerRun,
+  ExecutionWorkerDispatchError,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -1103,7 +1104,8 @@ async function submitWorker3DGeneration({
     modelId: executionRoute.modelId,
   })
 
-  const modelConfig = getModelById(executionRoute.modelId)
+  const modelConfig =
+    executionRoute.modelConfig ?? getModelById(executionRoute.modelId)
   const workerContext = buildModel3DWorkerContext({
     runId: generationJob.id,
     userId,
@@ -1120,9 +1122,53 @@ async function submitWorker3DGeneration({
       ? dispatchHyper3DRodinWorkerRun
       : dispatchHunyuan3DWorkerRun
 
+  // Persist callback-critical context before dispatch. Unlike the workflow id
+  // (which is always the job id), these source/lineage fields cannot be
+  // reconstructed if the worker accepts the run and the following DB write
+  // fails.
+  const isRodinMeshFirstJob =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
+    input.rodinMeshFirst === true
+
   try {
+    await db.generationJob.update({
+      where: { id: generationJob.id },
+      data: {
+        externalRequestId: serializeQueueMeta({
+          workerDispatched: true,
+          sourceImageUrl: input.imageUrl,
+          sourceGenerationId: input.sourceGenerationId,
+          projectId: input.projectId,
+          prompt: input.prompt ?? '',
+          apiKeyId: executionRoute.resolvedApiKeyId,
+          multiViewImages: input.multiViewImages,
+          sourceQuality: sourceQualityReport ?? undefined,
+          ...(isRodinMeshFirstJob && { rodinMeshFirst: true }),
+          ...(input.parentGenerationId && {
+            parentGenerationId: input.parentGenerationId,
+          }),
+        }),
+        prompt: input.prompt ?? '',
+      },
+    })
+
     await dispatch(workerContext)
   } catch (error) {
+    if (
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown'
+    ) {
+      logger.warn(
+        '3D worker dispatch outcome is unknown; preserving active job for a late callback',
+        {
+          jobId: generationJob.id,
+          error: error.message,
+          upstreamStatus: error.upstreamStatus,
+        },
+      )
+      throw error
+    }
+
     await failGenerationJob(generationJob.id, {
       errorMessage:
         error instanceof Error ? error.message : 'Worker dispatch failed',
@@ -1132,35 +1178,6 @@ async function submitWorker3DGeneration({
       error instanceof Error ? error.message : '3D generation dispatch failed'
     throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
   }
-
-  // Rodin mesh-first lineage: persisted on the job's queue meta so the
-  // callback service can mirror it onto the resulting Generation's snapshot.
-  // First-pass jobs carry `rodinMeshFirst=true`; textured continuations carry
-  // `parentGenerationId` pointing at the mesh-only Generation.
-  const isRodinMeshFirstJob =
-    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
-    input.rodinMeshFirst === true
-
-  await db.generationJob.update({
-    where: { id: generationJob.id },
-    data: {
-      externalRequestId: serializeQueueMeta({
-        workerDispatched: true,
-        sourceImageUrl: input.imageUrl,
-        sourceGenerationId: input.sourceGenerationId,
-        projectId: input.projectId,
-        prompt: input.prompt ?? '',
-        apiKeyId: executionRoute.resolvedApiKeyId,
-        multiViewImages: input.multiViewImages,
-        sourceQuality: sourceQualityReport ?? undefined,
-        ...(isRodinMeshFirstJob && { rodinMeshFirst: true }),
-        ...(input.parentGenerationId && {
-          parentGenerationId: input.parentGenerationId,
-        }),
-      }),
-      prompt: input.prompt ?? '',
-    },
-  })
 
   logger.info('3D dispatched to Worker', {
     adapter: executionRoute.adapterType,
@@ -1182,7 +1199,7 @@ function buildModel3DWorkerContext(params: {
   input: Generate3DRequest
   /** Undefined for Rodin text-to-3D mode (no source image at all). */
   preparedImageUrl: string | undefined
-  modelConfig: ReturnType<typeof getModelById>
+  modelConfig: GenerationExecutionRoute['modelConfig']
   /** Pre-resolved by submitWorker3DGeneration when input.rodinTextureOnly. */
   rodinTextureOnly?: boolean
   parentMeshUrl?: string
@@ -1227,7 +1244,9 @@ function buildModel3DWorkerContext(params: {
     providerInput: {
       imageUrl: preparedImageUrl,
       modelId: executionRoute.modelId,
-      externalModelId: getExecutionModelId(executionRoute.modelId),
+      externalModelId:
+        executionRoute.externalModelId ??
+        getExecutionModelId(executionRoute.modelId),
       seed: input.seed != null && input.seed >= 0 ? input.seed : undefined,
       // Rodin-specific
       tier: input.rodinTier,
@@ -1793,7 +1812,7 @@ async function persistCompleted3DGeneration(params: {
   }
 
   const provider = getProviderLabel(executionRoute.providerConfig)
-  const modelConfig = getModelById(job.modelId)
+  const modelConfig = executionRoute.modelConfig ?? getModelById(job.modelId)
   const requestCount = executionRoute.creditCost ?? result.requestCount
   const inputImageCount = 1 + count3DMultiViewImages(queueMeta.multiViewImages)
   const timer = new GenerationStageTimer({

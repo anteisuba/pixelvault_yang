@@ -4,9 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { POST } from './route'
 import {
-  createUser,
+  provisionVerifiedClerkUser,
   softDeleteUser,
-  syncUserFromClerk,
 } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 
@@ -24,8 +23,7 @@ vi.mock('svix', () => ({
   }),
 }))
 vi.mock('@/services/user.service', () => ({
-  createUser: vi.fn(),
-  syncUserFromClerk: vi.fn(),
+  provisionVerifiedClerkUser: vi.fn(),
   softDeleteUser: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
@@ -80,16 +78,23 @@ describe('POST /api/webhooks/clerk', () => {
     expect(res.status).toBe(400)
   })
 
-  it('handles user.created and calls createUser', async () => {
+  it('provisions user.created only from a verified primary email', async () => {
     mockHeaders()
     mockWebhookVerify({
       type: 'user.created',
       data: {
         id: 'clerk_abc',
-        email_addresses: [{ email_address: 'test@example.com' }],
+        primary_email_address_id: 'email_primary',
+        email_addresses: [
+          {
+            id: 'email_primary',
+            email_address: 'test@example.com',
+            verification: { status: 'verified' },
+          },
+        ],
         first_name: 'Test',
         last_name: 'User',
-        image_url: null,
+        image_url: 'https://example.com/avatar.jpg',
         username: null,
       },
     })
@@ -97,13 +102,46 @@ describe('POST /api/webhooks/clerk', () => {
     const res = await POST(makeFakeRequest({}))
 
     expect(res.status).toBe(200)
-    expect(createUser).toHaveBeenCalledWith({
+    expect(provisionVerifiedClerkUser).toHaveBeenCalledWith({
       clerkId: 'clerk_abc',
       email: 'test@example.com',
+      emailVerificationStatus: 'verified',
+      displayName: 'Test User',
+      avatarUrl: 'https://example.com/avatar.jpg',
     })
   })
 
-  it('handles user.updated and calls syncUserFromClerk', async () => {
+  it('returns 200 without provisioning an unverified user.created event', async () => {
+    mockHeaders()
+    mockWebhookVerify({
+      type: 'user.created',
+      data: {
+        id: 'clerk_unverified',
+        primary_email_address_id: 'email_primary',
+        email_addresses: [
+          {
+            id: 'email_primary',
+            email_address: 'unverified@example.com',
+            verification: { status: 'unverified' },
+          },
+        ],
+      },
+    })
+
+    const res = await POST(makeFakeRequest({}))
+
+    expect(res.status).toBe(200)
+    expect(provisionVerifiedClerkUser).not.toHaveBeenCalled()
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Clerk user event skipped until primary email is verified',
+      {
+        clerkId: 'clerk_unverified',
+        eventType: 'user.created',
+      },
+    )
+  })
+
+  it('provisions user.updated when its primary email is verified', async () => {
     mockHeaders()
     mockWebhookVerify({
       type: 'user.updated',
@@ -118,6 +156,7 @@ describe('POST /api/webhooks/clerk', () => {
           {
             id: 'email_primary',
             email_address: 'updated@example.com',
+            verification: { status: 'verified' },
           },
         ],
         first_name: 'Updated',
@@ -130,15 +169,16 @@ describe('POST /api/webhooks/clerk', () => {
     const res = await POST(makeFakeRequest({}))
 
     expect(res.status).toBe(200)
-    expect(syncUserFromClerk).toHaveBeenCalledWith('clerk_abc', {
+    expect(provisionVerifiedClerkUser).toHaveBeenCalledWith({
+      clerkId: 'clerk_abc',
       email: 'updated@example.com',
+      emailVerificationStatus: 'verified',
       displayName: 'Updated Name',
       avatarUrl: 'https://example.com/avatar.jpg',
-      username: 'updateduser',
     })
   })
 
-  it('does not sync email when user.updated lacks a primary email match', async () => {
+  it('skips user.updated when it lacks a verified primary email match', async () => {
     mockHeaders()
     mockWebhookVerify({
       type: 'user.updated',
@@ -161,11 +201,7 @@ describe('POST /api/webhooks/clerk', () => {
     const res = await POST(makeFakeRequest({}))
 
     expect(res.status).toBe(200)
-    expect(syncUserFromClerk).toHaveBeenCalledWith('clerk_abc', {
-      displayName: 'Updated Name',
-      avatarUrl: null,
-      username: null,
-    })
+    expect(provisionVerifiedClerkUser).not.toHaveBeenCalled()
   })
 
   it('handles user.deleted and calls softDeleteUser', async () => {
@@ -188,8 +224,7 @@ describe('POST /api/webhooks/clerk', () => {
     const res = await POST(makeFakeRequest({}))
 
     expect(res.status).toBe(200)
-    expect(createUser).not.toHaveBeenCalled()
-    expect(syncUserFromClerk).not.toHaveBeenCalled()
+    expect(provisionVerifiedClerkUser).not.toHaveBeenCalled()
     expect(softDeleteUser).not.toHaveBeenCalled()
     expect(logger.info).toHaveBeenCalledWith(
       'Unhandled Clerk webhook event ignored',

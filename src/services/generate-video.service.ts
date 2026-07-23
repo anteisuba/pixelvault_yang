@@ -30,10 +30,12 @@ import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
+  type ResolvedGenerationRoute,
 } from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
   dispatchWorkerRun,
+  ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
@@ -44,6 +46,11 @@ import {
   GenerationStageTimer,
 } from '@/lib/generation-observability'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
+import {
+  reconcileStaleGenerationJob,
+  STALE_EXECUTION_FAILURE_MESSAGE,
+} from '@/services/execution-sweeper.service'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 
 function canSubmitVideoViaExecutionWorker(route: {
   adapterType: string
@@ -113,7 +120,8 @@ export async function submitVideoGenerationForUserId(
       return {
         executionRoute: resolvedRoute,
         provider: resolvedProvider,
-        modelConfig: getModelById(resolvedRoute.modelId),
+        modelConfig:
+          resolvedRoute.modelConfig ?? getModelById(resolvedRoute.modelId),
       }
     },
   )
@@ -138,6 +146,7 @@ export async function submitVideoGenerationForUserId(
         !executionRoute.resolvedApiKeyId,
       isFreeGeneration: executionRoute.isFreeGeneration,
       modelConfig,
+      externalModelId: executionRoute.externalModelId,
       timer,
     })
   }
@@ -158,7 +167,8 @@ async function submitFalVideoWorkerRun(params: {
   apiKeyId?: string | null
   useSystemKey: boolean
   isFreeGeneration?: boolean
-  modelConfig: NonNullable<ReturnType<typeof getModelById>>
+  modelConfig: NonNullable<ResolvedGenerationRoute['modelConfig']>
+  externalModelId?: string
   timer: GenerationStageTimer
 }): Promise<VideoSubmitResponseData> {
   const {
@@ -171,6 +181,7 @@ async function submitFalVideoWorkerRun(params: {
     useSystemKey,
     isFreeGeneration,
     modelConfig,
+    externalModelId,
     timer,
   } = params
 
@@ -250,7 +261,7 @@ async function submitFalVideoWorkerRun(params: {
     providerInput: {
       prompt: input.prompt,
       modelId: routeModelId,
-      externalModelId: getExecutionModelId(routeModelId),
+      externalModelId: externalModelId ?? getExecutionModelId(routeModelId),
       aspectRatio: input.aspectRatio,
       duration: input.duration,
       referenceImage: referenceImageUrl,
@@ -286,17 +297,28 @@ async function submitFalVideoWorkerRun(params: {
       () => dispatchWorkerRun(runContext),
     )
 
-    await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
-      db.generationJob.update({
-        where: { id: generationJob.id },
-        data: {
-          externalRequestId: JSON.stringify({
-            ...metadata,
-            workflowInstanceId: dispatchResult.workflowInstanceId,
-          }),
+    try {
+      await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+        db.generationJob.update({
+          where: { id: generationJob.id },
+          data: {
+            externalRequestId: JSON.stringify({
+              ...metadata,
+              workflowInstanceId: dispatchResult.workflowInstanceId,
+            }),
+          },
+        }),
+      )
+    } catch (error) {
+      logger.warn(
+        'Video workflow accepted but workflow metadata persistence failed',
+        {
+          jobId: generationJob.id,
+          workflowInstanceId: dispatchResult.workflowInstanceId,
+          error: error instanceof Error ? error.message : String(error),
         },
-      }),
-    )
+      )
+    }
 
     logger.info('FAL video dispatched to execution worker', {
       jobId: generationJob.id,
@@ -309,6 +331,21 @@ async function submitFalVideoWorkerRun(params: {
       requestId: dispatchResult.workflowInstanceId,
     }
   } catch (error) {
+    if (
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown'
+    ) {
+      logger.warn(
+        'Video worker dispatch outcome is unknown; preserving active job for a late callback',
+        {
+          jobId: generationJob.id,
+          error: error.message,
+          upstreamStatus: error.upstreamStatus,
+        },
+      )
+      throw error
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -348,6 +385,15 @@ export async function checkVideoGenerationStatusForUserId(
       'Video generation job not found',
       404,
     )
+  }
+
+  if (await reconcileStaleGenerationJob(job)) {
+    return {
+      jobId: job.id,
+      status: 'FAILED',
+      error: STALE_EXECUTION_FAILURE_MESSAGE,
+      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+    }
   }
 
   // Already completed — return cached result

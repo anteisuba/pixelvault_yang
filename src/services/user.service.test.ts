@@ -63,13 +63,12 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import {
-  createUser,
   ensureUser,
   getCreatorProfile,
   getUserByClerkId,
+  provisionVerifiedClerkUser,
   refreshAvatarFromClerk,
   softDeleteUser,
-  syncUserFromClerk,
   updateProfile,
   uploadAvatar,
   validateUsername,
@@ -94,7 +93,8 @@ const BASE_USER = {
 
 describe('user.service', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
+    delete process.env.VERCEL_ENV
     mockGenerationCount.mockResolvedValue(0)
     mockGenerationFindMany.mockResolvedValue([])
     mockUserLikeCount.mockResolvedValue(0)
@@ -139,29 +139,73 @@ describe('user.service', () => {
         email: 'new.creator@example.com',
         username: 'newcreator',
       }
-      mockUserFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+      mockUserFindUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
       mockClerkGetUser.mockResolvedValue({
         username: 'New.Creator',
         fullName: 'New Creator',
         firstName: 'New',
         imageUrl: 'https://img.example.com/new.png',
-        emailAddresses: [{ emailAddress: 'new.creator@example.com' }],
+        primaryEmailAddressId: 'email-primary',
+        emailAddresses: [
+          {
+            id: 'email-primary',
+            emailAddress: 'new.creator@example.com',
+            verification: { status: 'verified' },
+          },
+        ],
       })
-      mockUserUpsert.mockResolvedValue(createdUser)
+      mockUserCreate.mockResolvedValue(createdUser)
 
       const result = await ensureUser('clerk-created')
 
       expect(result).toBe(createdUser)
+      expect(mockUserCreate).toHaveBeenCalledWith({
+        data: {
+          clerkId: 'clerk-created',
+          email: 'new.creator@example.com',
+          displayName: 'New Creator',
+          avatarUrl: 'https://img.example.com/new.png',
+        },
+      })
+    })
+
+    it('relinks a Production Clerk identity while preserving the existing profile and user id', async () => {
+      process.env.VERCEL_ENV = 'production'
+      const relinkedUser = {
+        ...BASE_USER,
+        clerkId: 'clerk-production-jit',
+      }
+      mockUserFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+      mockClerkGetUser.mockResolvedValue({
+        username: 'DifferentClerkName',
+        fullName: 'Different Clerk Name',
+        firstName: 'Different',
+        imageUrl: 'https://clerk.example.com/different-avatar.png',
+        primaryEmailAddressId: 'email-primary',
+        emailAddresses: [
+          {
+            id: 'email-primary',
+            emailAddress: 'artist@example.com',
+            verification: { status: 'verified' },
+          },
+        ],
+      })
+      mockUserUpsert.mockResolvedValue(relinkedUser)
+
+      const result = await ensureUser('clerk-production-jit')
+
+      expect(result).toBe(relinkedUser)
+      expect(result.id).toBe(BASE_USER.id)
+      expect(result.username).toBe(BASE_USER.username)
+      expect(result.displayName).toBe(BASE_USER.displayName)
+      expect(mockUserUpdate).not.toHaveBeenCalled()
       expect(mockUserUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { clerkId: 'clerk-created' },
-          create: expect.objectContaining({
-            clerkId: 'clerk-created',
-            email: 'new.creator@example.com',
-            username: 'newcreator',
-            displayName: 'New Creator',
-            avatarUrl: 'https://img.example.com/new.png',
-          }),
+          where: { email: 'artist@example.com' },
+          update: { clerkId: 'clerk-production-jit' },
         }),
       )
     })
@@ -173,6 +217,7 @@ describe('user.service', () => {
         fullName: null,
         firstName: null,
         imageUrl: null,
+        primaryEmailAddressId: null,
         emailAddresses: [],
       })
 
@@ -182,20 +227,112 @@ describe('user.service', () => {
     })
   })
 
-  describe('createUser', () => {
-    it('creates a user with clerkId and email', async () => {
-      mockUserCreate.mockResolvedValue(BASE_USER)
+  describe('provisionVerifiedClerkUser', () => {
+    it('relinks a production Clerk user by verified email without changing the internal user id', async () => {
+      process.env.VERCEL_ENV = 'production'
+      const relinkedUser = {
+        ...BASE_USER,
+        clerkId: 'clerk-production',
+      }
+      mockUserFindUnique.mockResolvedValue(null)
+      mockUserUpsert.mockResolvedValue(relinkedUser)
 
-      const result = await createUser({
-        clerkId: 'clerk-1',
-        email: 'artist@example.com',
+      const result = await provisionVerifiedClerkUser({
+        clerkId: 'clerk-production',
+        email: 'ARTIST@example.com ',
+        emailVerificationStatus: 'verified',
+        displayName: 'Production Name',
+        avatarUrl: 'https://clerk.example.com/avatar.png',
       })
 
-      expect(result).toBe(BASE_USER)
+      expect(result.id).toBe(BASE_USER.id)
+      expect(mockUserUpsert).toHaveBeenCalledWith({
+        where: { email: 'artist@example.com' },
+        update: { clerkId: 'clerk-production' },
+        create: {
+          clerkId: 'clerk-production',
+          email: 'artist@example.com',
+          displayName: 'Production Name',
+          avatarUrl: 'https://clerk.example.com/avatar.png',
+        },
+      })
+    })
+
+    it('rejects an unverified email before touching the database', async () => {
+      await expect(
+        provisionVerifiedClerkUser({
+          clerkId: 'clerk-unverified',
+          email: 'artist@example.com',
+          emailVerificationStatus: 'unverified',
+        }),
+      ).rejects.toThrow('verified primary email')
+
+      expect(mockUserFindUnique).not.toHaveBeenCalled()
+      expect(mockUserUpsert).not.toHaveBeenCalled()
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('is idempotent when the Clerk id is already linked', async () => {
+      const alreadyLinked = {
+        ...BASE_USER,
+        clerkId: 'clerk-production',
+      }
+      mockUserFindUnique.mockResolvedValue(alreadyLinked)
+
+      const result = await provisionVerifiedClerkUser({
+        clerkId: 'clerk-production',
+        email: 'artist@example.com',
+        emailVerificationStatus: 'verified',
+        displayName: 'Different Clerk Name',
+        avatarUrl: 'https://clerk.example.com/different-avatar.png',
+      })
+
+      expect(result).toBe(alreadyLinked)
+      expect(mockUserUpdate).not.toHaveBeenCalled()
+      expect(mockUserUpsert).not.toHaveBeenCalled()
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not let Preview relink an existing production email', async () => {
+      process.env.VERCEL_ENV = 'preview'
+      mockUserFindUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(BASE_USER)
+
+      await expect(
+        provisionVerifiedClerkUser({
+          clerkId: 'clerk-preview',
+          email: 'artist@example.com',
+          emailVerificationStatus: 'verified',
+        }),
+      ).rejects.toThrow('only allowed in Production')
+
+      expect(mockUserUpdate).not.toHaveBeenCalled()
+      expect(mockUserUpsert).not.toHaveBeenCalled()
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('creates a new local user when the verified email is not already mapped', async () => {
+      const createdUser = {
+        ...BASE_USER,
+        id: 'user-new',
+        clerkId: 'clerk-new',
+        email: 'new@example.com',
+      }
+      mockUserFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+      mockUserCreate.mockResolvedValue(createdUser)
+
+      const result = await provisionVerifiedClerkUser({
+        clerkId: 'clerk-new',
+        email: 'new@example.com',
+        emailVerificationStatus: 'verified',
+      })
+
+      expect(result).toBe(createdUser)
       expect(mockUserCreate).toHaveBeenCalledWith({
         data: {
-          clerkId: 'clerk-1',
-          email: 'artist@example.com',
+          clerkId: 'clerk-new',
+          email: 'new@example.com',
         },
       })
     })
@@ -483,39 +620,6 @@ describe('user.service', () => {
         where: { id: 'user-1' },
         data: { avatarUrl: 'https://img.example.com/latest.png' },
       })
-    })
-  })
-
-  describe('syncUserFromClerk', () => {
-    it('lowercases synced usernames and updates provided fields only', async () => {
-      mockUserFindUnique.mockResolvedValue(BASE_USER)
-      mockUserUpdate.mockResolvedValue({
-        ...BASE_USER,
-        username: 'newname',
-      })
-
-      await syncUserFromClerk('clerk-1', {
-        email: 'new@example.com',
-        username: 'NewName',
-        displayName: 'New Name',
-      })
-
-      expect(mockUserUpdate).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        data: {
-          email: 'new@example.com',
-          username: 'newname',
-          displayName: 'New Name',
-        },
-      })
-    })
-
-    it('does nothing when the user does not exist', async () => {
-      mockUserFindUnique.mockResolvedValue(null)
-
-      await syncUserFromClerk('missing-clerk', { displayName: 'Ghost' })
-
-      expect(mockUserUpdate).not.toHaveBeenCalled()
     })
   })
 

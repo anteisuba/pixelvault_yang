@@ -1,16 +1,27 @@
 import 'server-only'
 
-import { API_USAGE, FREE_TIER, RUNNER_MONTHLY_LIMIT } from '@/constants/config'
+import {
+  API_USAGE,
+  FREE_TIER,
+  PLATFORM_GENERATION_GUARD,
+  RUNNER_MONTHLY_LIMIT,
+} from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { db } from '@/lib/db'
+import { ApiRequestError } from '@/lib/errors'
 import { Prisma } from '@/lib/generated/prisma/client'
 import type {
   ApiUsageLedger,
   GenerationJob,
+  GenerationJobStatus,
 } from '@/lib/generated/prisma/client'
 import type { RunnerUsageResult } from '@/types'
 
 type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
+type GenerationJobCreateClient = Pick<
+  typeof db,
+  'generationJob' | '$executeRaw'
+>
 
 export interface CreateGenerationJobInput {
   userId: string
@@ -69,6 +80,61 @@ export class FreeTierExhaustedError extends Error {
   }
 }
 
+export class PlatformGenerationDisabledError extends ApiRequestError {
+  readonly code = 'PLATFORM_GENERATION_DISABLED' as const
+
+  constructor() {
+    super(
+      'PLATFORM_GENERATION_DISABLED',
+      503,
+      'errors.provider.failed',
+      'Platform-funded generation is temporarily unavailable.',
+    )
+    this.name = 'PlatformGenerationDisabledError'
+  }
+}
+
+export class PlatformDailyLimitExceededError extends ApiRequestError {
+  readonly code = 'PLATFORM_DAILY_LIMIT_EXCEEDED' as const
+
+  constructor(limit: number) {
+    super(
+      'PLATFORM_DAILY_LIMIT_EXCEEDED',
+      429,
+      'errors.rateLimit',
+      `The platform daily generation budget has been reached (${limit}/day).`,
+    )
+    this.name = 'PlatformDailyLimitExceededError'
+  }
+}
+
+export class ActiveGenerationLimitExceededError extends ApiRequestError {
+  readonly code = 'ACTIVE_GENERATION_LIMIT_EXCEEDED' as const
+
+  constructor(limit: number) {
+    super(
+      'ACTIVE_GENERATION_LIMIT_EXCEEDED',
+      429,
+      'errors.rateLimit',
+      `You already have ${limit} active generation jobs. Wait for one to finish before starting another.`,
+    )
+    this.name = 'ActiveGenerationLimitExceededError'
+  }
+}
+
+export function isPlatformGenerationEnabled(): boolean {
+  const configured = process.env.PLATFORM_GENERATION_ENABLED
+  if (configured === 'true') return true
+  if (configured === 'false' || configured === '') return false
+  return process.env.NODE_ENV !== 'production'
+}
+
+export function assertPlatformGenerationEnabled(): void {
+  if (!isPlatformGenerationEnabled()) {
+    throw new PlatformGenerationDisabledError()
+  }
+}
+
 /**
  * Atomically claim one free-tier slot for `(userId, today)` against a daily
  * cap, returning normally on success or throwing `FreeTierExhaustedError`
@@ -92,18 +158,29 @@ export class FreeTierExhaustedError extends Error {
  */
 export async function atomicReserveFreeTierSlot(userId: string): Promise<void> {
   if (!FREE_TIER.ENABLED) return
+  assertPlatformGenerationEnabled()
 
   const date = todayUTC()
-  const lockKey = `free-tier-slot:${userId}:${date}`
+  const lockKey = `platform-free-tier-budget:${date}`
 
   await db.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
 
-    const count = await tx.freeTierSlot.count({
+    const platformCount = await tx.freeTierSlot.count({
+      where: { date },
+    })
+
+    if (platformCount >= PLATFORM_GENERATION_GUARD.DAILY_LIMIT) {
+      throw new PlatformDailyLimitExceededError(
+        PLATFORM_GENERATION_GUARD.DAILY_LIMIT,
+      )
+    }
+
+    const userCount = await tx.freeTierSlot.count({
       where: { userId, date },
     })
 
-    if (count >= FREE_TIER.DAILY_LIMIT) {
+    if (userCount >= FREE_TIER.DAILY_LIMIT) {
       throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
     }
 
@@ -167,6 +244,7 @@ export async function getRunnerMonthlyGenerationCount(): Promise<number> {
  */
 export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
   if (!RUNNER_MONTHLY_LIMIT.ENABLED) return
+  assertPlatformGenerationEnabled()
 
   const count = await getRunnerMonthlyGenerationCount()
   if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
@@ -189,7 +267,64 @@ export async function getRunnerUsage(): Promise<RunnerUsageResult> {
 
 export async function createGenerationJob(
   input: CreateGenerationJobInput,
-  client: Pick<typeof db, 'generationJob'> = db,
+  client?: GenerationJobCreateClient,
+): Promise<GenerationJob> {
+  if (client) {
+    return createGenerationJobWithinLimits(input, client)
+  }
+
+  return db.$transaction((tx) => createGenerationJobWithinLimits(input, tx))
+}
+
+async function createGenerationJobWithinLimits(
+  input: CreateGenerationJobInput,
+  client: GenerationJobCreateClient,
+): Promise<GenerationJob> {
+  if (
+    RUNNER_MONTHLY_LIMIT.ENABLED &&
+    input.adapterType === AI_ADAPTER_TYPES.RUNNER
+  ) {
+    assertPlatformGenerationEnabled()
+    const monthStart = startOfMonthUTC()
+    const monthKey = monthStart.toISOString().slice(0, 7)
+    const lockKey = `runner-monthly-budget:${monthKey}`
+
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+
+    const count = await client.generationJob.count({
+      where: {
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        createdAt: { gte: monthStart },
+      },
+    })
+
+    if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
+      throw new RunnerMonthlyLimitExceededError(RUNNER_MONTHLY_LIMIT.LIMIT)
+    }
+  }
+
+  const activeLockKey = `active-generation-jobs:${input.userId}`
+  await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${activeLockKey}, 0))`
+
+  const activeCount = await client.generationJob.count({
+    where: {
+      userId: input.userId,
+      status: { in: [...PLATFORM_GENERATION_GUARD.ACTIVE_JOB_STATUSES] },
+    },
+  })
+
+  if (activeCount >= PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER) {
+    throw new ActiveGenerationLimitExceededError(
+      PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
+    )
+  }
+
+  return createGenerationJobRecord(input, client)
+}
+
+function createGenerationJobRecord(
+  input: CreateGenerationJobInput,
+  client: Pick<typeof db, 'generationJob'>,
 ): Promise<GenerationJob> {
   return client.generationJob.create({
     data: {
@@ -240,6 +375,48 @@ export async function failGenerationJob(
       providerFailure: input.providerFailure,
     },
   })
+}
+
+export interface FailActiveGenerationJobResult {
+  transitioned: boolean
+  status: GenerationJobStatus | null
+}
+
+/**
+ * Mark only an active job as failed. Callback and reconciliation paths must use
+ * this CAS transition so a late failure cannot overwrite a terminal success.
+ * When the CAS loses, return the persisted status for an honest callback ack.
+ */
+export async function failActiveGenerationJob(
+  id: string,
+  input: UpdateGenerationJobInput,
+  client: UsageMutationClient = db,
+): Promise<FailActiveGenerationJobResult> {
+  const result = await client.generationJob.updateMany({
+    where: {
+      id,
+      status: { in: ['QUEUED', 'RUNNING'] },
+    },
+    data: {
+      requestCount: input.requestCount,
+      status: 'FAILED',
+      completedAt: new Date(),
+      errorMessage: input.errorMessage,
+      errorCode: input.errorCode,
+      providerFailure: input.providerFailure,
+    },
+  })
+
+  if (result.count === 1) {
+    return { transitioned: true, status: 'FAILED' }
+  }
+
+  const existing = await client.generationJob.findUnique({
+    where: { id },
+    select: { status: true },
+  })
+
+  return { transitioned: false, status: existing?.status ?? null }
 }
 
 export async function createApiUsageEntry(

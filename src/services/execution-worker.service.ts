@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { createHmac } from 'node:crypto'
-
-import { EXECUTION_INTERNAL, EXECUTION_WORKER } from '@/constants/execution'
+import { EXECUTION_WORKER } from '@/constants/execution'
+import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import type {
   LongVideoPipelineWorkerRunContext,
   WorkerDispatchResult,
@@ -11,6 +10,31 @@ import type {
 } from '@/types'
 import { WorkerDispatchResultSchema } from '@/types'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
+import { withRetry } from '@/lib/with-retry'
+
+export type ExecutionWorkerDispatchOutcome = 'rejected' | 'unknown'
+
+/**
+ * Distinguishes a definite worker rejection from an ambiguous dispatch. A
+ * network error or malformed acknowledgement may happen after the worker has
+ * accepted the durable workflow, so callers must not mark the business job as
+ * failed solely from those outcomes.
+ */
+export class ExecutionWorkerDispatchError extends GenerateImageServiceError {
+  readonly outcome: ExecutionWorkerDispatchOutcome
+  readonly upstreamStatus?: number
+
+  constructor(
+    message: string,
+    outcome: ExecutionWorkerDispatchOutcome,
+    upstreamStatus?: number,
+  ) {
+    super('PROVIDER_ERROR', message, 502)
+    this.name = 'ExecutionWorkerDispatchError'
+    this.outcome = outcome
+    this.upstreamStatus = upstreamStatus
+  }
+}
 
 function getInternalCallbackSecret(): string {
   const secret = process.env.INTERNAL_CALLBACK_SECRET
@@ -73,15 +97,6 @@ function getWorkerBaseUrl(): string {
   return workerBaseUrl.replace(/\/$/, '')
 }
 
-function signBody(body: string): string {
-  return createHmac(
-    EXECUTION_INTERNAL.SIGNATURE_ALGORITHM,
-    getInternalCallbackSecret(),
-  )
-    .update(body, 'utf8')
-    .digest('hex')
-}
-
 export function buildInternalUrl(path: string): string {
   return new URL(path, getAppBaseUrl()).toString()
 }
@@ -130,35 +145,69 @@ async function dispatchSignedWorkerRun(
   path: string,
 ): Promise<WorkerDispatchResult> {
   const body = JSON.stringify(runContext)
+  const url = `${getWorkerBaseUrl()}${path}`
+
+  return withRetry(() => dispatchSignedWorkerRunOnce(url, body), {
+    maxAttempts: EXECUTION_WORKER.DISPATCH_MAX_ATTEMPTS,
+    baseDelayMs: EXECUTION_WORKER.DISPATCH_RETRY_DELAY_MS,
+    maxDelayMs: EXECUTION_WORKER.DISPATCH_RETRY_DELAY_MS,
+    label: `execution-worker.dispatch:${runContext.runId}`,
+    isRetryable: (error) =>
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown',
+  })
+}
+
+async function dispatchSignedWorkerRunOnce(
+  url: string,
+  body: string,
+): Promise<WorkerDispatchResult> {
   let response: Response
   try {
-    response = await fetch(`${getWorkerBaseUrl()}${path}`, {
+    response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
+        ...createInternalExecutionHeaders({
+          body,
+          method: 'POST',
+          url,
+          secret: getInternalCallbackSecret(),
+        }),
       },
       body,
+      signal: AbortSignal.timeout(EXECUTION_WORKER.DISPATCH_TIMEOUT_MS),
     })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown network error'
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
+    throw new ExecutionWorkerDispatchError(
       `Execution worker dispatch failed: ${message}`,
-      502,
+      'unknown',
     )
   }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
+    const outcome =
+      response.status === 429 || response.status >= 500 ? 'unknown' : 'rejected'
+    throw new ExecutionWorkerDispatchError(
       `Execution worker dispatch failed (${response.status}): ${errorBody.slice(0, 200)}`,
-      502,
+      outcome,
+      response.status,
     )
   }
 
-  const payload: unknown = await response.json()
-  return WorkerDispatchResultSchema.parse(payload)
+  try {
+    const payload: unknown = await response.json()
+    return WorkerDispatchResultSchema.parse(payload)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Invalid worker response'
+    throw new ExecutionWorkerDispatchError(
+      `Execution worker returned an invalid acknowledgement: ${message}`,
+      'unknown',
+      response.status,
+    )
+  }
 }

@@ -50,6 +50,7 @@ declare module 'cloudflare:workers' {
 
   export interface Workflow<TParams = unknown> {
     create(options: { id?: string; params: TParams }): Promise<{ id: string }>
+    get(id: string): Promise<{ id: string }>
   }
 
   export abstract class WorkflowEntrypoint<TEnv = unknown, TParams = unknown> {

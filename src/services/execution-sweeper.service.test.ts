@@ -26,7 +26,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-import { sweepStaleExecutions } from './execution-sweeper.service'
+import {
+  reconcileStaleGenerationJob,
+  sweepStaleExecutions,
+} from './execution-sweeper.service'
 
 type UpdateManyArg = {
   where: {
@@ -70,15 +73,21 @@ describe('execution-sweeper.service', () => {
   })
 
   it('reaps expired PROCESSING outboxes via a lease CAS', async () => {
-    mockOutboxUpdateMany.mockResolvedValue({ count: 2 })
+    mockOutboxUpdateMany
+      .mockResolvedValueOnce({ count: 2 })
+      .mockResolvedValueOnce({ count: 1 })
 
     const result = await sweepStaleExecutions()
 
-    expect(result.expiredOutboxesReaped).toBe(2)
+    expect(result.expiredOutboxesReaped).toBe(3)
     const arg = mockOutboxUpdateMany.mock.calls[0]?.[0] as UpdateManyArg
     expect(arg.where.status).toBe('PROCESSING')
     expect(arg.where.leaseExpiresAt?.lt).toBeInstanceOf(Date)
-    expect(arg.data.status).toBe('FAILED')
+    expect(arg.data.status).toBe('PENDING')
+
+    const destructiveArg = mockOutboxUpdateMany.mock
+      .calls[1]?.[0] as UpdateManyArg
+    expect(destructiveArg.data.status).toBe('FAILED')
   })
 
   it('stays silent when nothing is orphaned', async () => {
@@ -94,5 +103,47 @@ describe('execution-sweeper.service', () => {
     await sweepStaleExecutions()
 
     expect(mockLoggerWarn).toHaveBeenCalledOnce()
+  })
+
+  it('lazily reaps one stale job during an authenticated status poll', async () => {
+    mockJobUpdateMany.mockResolvedValue({ count: 1 })
+    const now = new Date('2026-07-23T12:00:00.000Z')
+
+    const reaped = await reconcileStaleGenerationJob(
+      {
+        id: 'job-stale',
+        status: 'RUNNING',
+        startedAt: new Date(
+          now.getTime() - EXECUTION_SWEEPER.STALE_JOB_THRESHOLD_MS - 1,
+        ),
+      },
+      now,
+    )
+
+    expect(reaped).toBe(true)
+    expect(mockJobUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'job-stale', status: 'RUNNING' }),
+        data: expect.objectContaining({ status: 'FAILED' }),
+      }),
+    )
+  })
+
+  it('does not write for a fresh or terminal job during status polling', async () => {
+    const now = new Date('2026-07-23T12:00:00.000Z')
+
+    await expect(
+      reconcileStaleGenerationJob(
+        { id: 'job-fresh', status: 'RUNNING', startedAt: now },
+        now,
+      ),
+    ).resolves.toBe(false)
+    await expect(
+      reconcileStaleGenerationJob(
+        { id: 'job-done', status: 'COMPLETED', startedAt: null },
+        now,
+      ),
+    ).resolves.toBe(false)
+    expect(mockJobUpdateMany).not.toHaveBeenCalled()
   })
 })

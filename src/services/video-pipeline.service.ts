@@ -8,7 +8,7 @@ import {
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
 import { IMAGE_SIZES, VIDEO_GENERATION } from '@/constants/config'
-import { getExecutionModelId, getModelById } from '@/constants/models'
+import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type {
   LongVideoPipelineAdvanceRequest,
@@ -33,10 +33,12 @@ import {
 import {
   buildInternalUrl,
   dispatchLongVideoPipelineWorkerRun,
+  ExecutionWorkerDispatchError,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
+import { getResolvedModelOption } from '@/services/model-config.service'
 
 // ─── Create Long Video Pipeline ─────────────────────────────────
 
@@ -46,7 +48,7 @@ export async function createLongVideoPipeline(
 ): Promise<LongVideoSubmitResponseData> {
   const dbUser = await ensureUser(clerkId)
 
-  const modelConfig = getModelById(input.modelId)
+  const modelConfig = await getResolvedModelOption(input.modelId)
   if (!modelConfig?.videoExtension) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
@@ -159,6 +161,7 @@ export async function createLongVideoPipeline(
     apiKeyId,
     useSystemKey,
     routeModelId: executionRoute.modelId,
+    externalModelId: executionRoute.externalModelId,
     prompt: input.prompt,
     aspectRatio: input.aspectRatio,
     firstClipDuration,
@@ -435,7 +438,7 @@ async function updateWorkerCompletedClip(
   const videoUrl = requireWorkerString(input.videoUrl, 'videoUrl')
   const storageKey = requireWorkerString(input.storageKey, 'storageKey')
   const durationSec = requireWorkerNumber(input.durationSec, 'durationSec')
-  const modelForProvider = getModelById(pipeline.modelId)
+  const modelForProvider = await getResolvedModelOption(pipeline.modelId)
   const provider = modelForProvider
     ? getProviderLabel(modelForProvider.providerConfig)
     : pipeline.adapterType
@@ -560,7 +563,9 @@ export async function retryPipelineClip(
     )
   }
 
-  const modelConfig = getModelById(pipeline.modelId)
+  const modelConfig =
+    executionRoute.modelConfig ??
+    (await getResolvedModelOption(pipeline.modelId))
   const extensionConfig = modelConfig?.videoExtension
   if (!modelConfig || !extensionConfig) {
     throw new GenerateImageServiceError(
@@ -629,6 +634,7 @@ export async function retryPipelineClip(
     apiKeyId,
     useSystemKey,
     routeModelId: executionRoute.modelId,
+    externalModelId: executionRoute.externalModelId,
     prompt: pipeline.prompt,
     aspectRatio: pipeline.aspectRatio,
     firstClipDuration: Math.min(
@@ -773,6 +779,7 @@ async function dispatchLongVideoPipelineWorkflow(input: {
   apiKeyId?: string | null
   useSystemKey: boolean
   routeModelId: string
+  externalModelId?: string
   prompt: string
   aspectRatio: string
   firstClipDuration: number
@@ -815,7 +822,8 @@ async function dispatchLongVideoPipelineWorkflow(input: {
       providerInput: {
         prompt: input.prompt,
         modelId: input.routeModelId,
-        externalModelId: getExecutionModelId(input.routeModelId),
+        externalModelId:
+          input.externalModelId ?? getExecutionModelId(input.routeModelId),
         aspectRatio: input.aspectRatio as
           | '1:1'
           | '16:9'
@@ -844,6 +852,21 @@ async function dispatchLongVideoPipelineWorkflow(input: {
       workflowInstanceId: result.workflowInstanceId,
     })
   } catch (error) {
+    if (
+      error instanceof ExecutionWorkerDispatchError &&
+      error.outcome === 'unknown'
+    ) {
+      logger.warn(
+        'Long-video worker dispatch outcome is unknown; preserving active pipeline',
+        {
+          pipelineId: input.pipelineId,
+          error: error.message,
+          upstreamStatus: error.upstreamStatus,
+        },
+      )
+      throw error
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -933,7 +956,7 @@ async function finalizePipeline(
     0,
   )
 
-  const modelForProvider = getModelById(pipeline.modelId)
+  const modelForProvider = await getResolvedModelOption(pipeline.modelId)
   const provider = modelForProvider
     ? getProviderLabel(modelForProvider.providerConfig)
     : pipeline.adapterType

@@ -1,34 +1,19 @@
 import { headers } from 'next/headers'
+import type { UserJSON, WebhookEvent } from '@clerk/nextjs/server'
 import { Webhook } from 'svix'
 
 import {
-  createUser,
+  provisionVerifiedClerkUser,
   softDeleteUser,
-  syncUserFromClerk,
 } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 
-// ─── Clerk event types ────────────────────────────────────────────
+function getVerifiedPrimaryEmail(data: UserJSON) {
+  const primaryEmail = data.email_addresses.find(
+    (emailAddress) => emailAddress.id === data.primary_email_address_id,
+  )
 
-interface ClerkEmailAddress {
-  id?: string
-  email_address: string
-}
-
-interface ClerkUserData {
-  id: string
-  email_addresses?: ClerkEmailAddress[]
-  primary_email_address_id?: string | null
-  first_name?: string | null
-  last_name?: string | null
-  image_url?: string | null
-  username?: string | null
-  deleted?: boolean
-}
-
-interface ClerkWebhookEvent {
-  type: string
-  data: ClerkUserData
+  return primaryEmail?.verification?.status === 'verified' ? primaryEmail : null
 }
 
 // ─── POST /api/webhooks/clerk ─────────────────────────────────────
@@ -58,55 +43,51 @@ export async function POST(request: Request) {
   // 2. Verify webhook signature
   const body = await request.text()
   const wh = new Webhook(secret)
-  let event: ClerkWebhookEvent
+  let event: WebhookEvent
 
   try {
     event = wh.verify(body, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    }) as ClerkWebhookEvent
+    }) as WebhookEvent
   } catch {
     return new Response('Invalid webhook signature', { status: 400 })
   }
 
   // 3. Route by event type
-  if (event.type === 'user.created') {
-    const { id, email_addresses } = event.data
-    const email = email_addresses?.[0]?.email_address
+  if (event.type === 'user.created' || event.type === 'user.updated') {
+    const { id, first_name, last_name, image_url } = event.data
+    const primaryEmail = getVerifiedPrimaryEmail(event.data)
 
-    if (!email) {
-      return new Response('No email address on user', { status: 400 })
+    if (!primaryEmail) {
+      logger.warn('Clerk user event skipped until primary email is verified', {
+        clerkId: id,
+        eventType: event.type,
+      })
+      return new Response(null, { status: 200 })
     }
 
-    await createUser({ clerkId: id, email })
-    logger.info('User created via Clerk webhook', { clerkId: id })
-  } else if (event.type === 'user.updated') {
-    const {
-      id,
-      email_addresses,
-      primary_email_address_id,
-      first_name,
-      last_name,
-      image_url,
-      username,
-    } = event.data
-    const primaryEmail = email_addresses?.find(
-      (emailAddress) => emailAddress.id === primary_email_address_id,
-    )
-    const email = primaryEmail?.email_address
     const displayName =
       [first_name, last_name].filter(Boolean).join(' ') || null
 
-    await syncUserFromClerk(id, {
-      ...(email && { email }),
+    await provisionVerifiedClerkUser({
+      clerkId: id,
+      email: primaryEmail.email_address,
+      emailVerificationStatus: primaryEmail.verification?.status,
       displayName,
       avatarUrl: image_url ?? null,
-      username: username ?? null,
     })
-    logger.info('User synced via Clerk webhook', { clerkId: id })
+    logger.info('User provisioned via Clerk webhook', {
+      clerkId: id,
+      eventType: event.type,
+    })
   } else if (event.type === 'user.deleted') {
-    await softDeleteUser(event.data.id)
+    if (event.data.id) {
+      await softDeleteUser(event.data.id)
+    } else {
+      logger.warn('Clerk user.deleted event missing user id')
+    }
   } else {
     logger.info('Unhandled Clerk webhook event ignored', {
       eventType: event.type,

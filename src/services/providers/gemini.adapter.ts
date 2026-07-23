@@ -77,6 +77,7 @@ export const geminiAdapter: ProviderAdapter = {
   async generateImage({
     prompt,
     modelId,
+    externalModelId,
     aspectRatio,
     providerConfig,
     apiKey,
@@ -85,7 +86,7 @@ export const geminiAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
-    const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}:generateContent`
+    const endpoint = `${baseUrl}/${externalModelId ?? getExecutionModelId(modelId)}:generateContent`
     const parts: Array<Record<string, unknown>> = [{ text: prompt }]
 
     // Multi-reference images: Gemini Pro supports up to 14 reference images

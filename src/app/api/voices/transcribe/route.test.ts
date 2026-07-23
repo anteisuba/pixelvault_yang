@@ -27,6 +27,7 @@ import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { transcribeAudio } from '@/services/fish-audio-voice.service'
 import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
+import { REFERENCE_AUDIO_MAX_BYTES } from '@/services/audio-reference.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockFindActiveKeyForAdapter = vi.mocked(findActiveKeyForAdapter)
@@ -87,6 +88,41 @@ describe('POST /api/voices/transcribe', () => {
     expect(res.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.errorCode).toBe(VOICE_API_ERROR_CODES.MISSING_API_KEY)
+    expect(mockTranscribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('rejects oversized audio before parsing the multipart body', async () => {
+    const request = new NextRequest(
+      new URL('/api/voices/transcribe', 'http://localhost:3000'),
+      {
+        method: 'POST',
+        body: 'placeholder',
+        headers: {
+          'content-length': String(REFERENCE_AUDIO_MAX_BYTES * 2),
+        },
+      },
+    )
+
+    const res = await POST(request)
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(413)
+    expect(body.errorCode).toBe('AUDIO_TOO_LARGE')
+    expect(mockTranscribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('rejects unsupported audio MIME types', async () => {
+    const formData = new FormData()
+    formData.append(
+      'audio',
+      new File(['not audio'], 'voice.txt', { type: 'text/plain' }),
+    )
+
+    const res = await POST(createTranscribePOST(formData))
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(400)
+    expect(body.errorCode).toBe('UNSUPPORTED_AUDIO_TYPE')
     expect(mockTranscribeAudio).not.toHaveBeenCalled()
   })
 

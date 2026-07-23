@@ -9,7 +9,7 @@
 - 生成的 client 在 `src/lib/generated/prisma/`——**永远不要手改**。
 - ownership（userId 归属）与 credit 计算只在服务端。
 
-## 域模型地图（30 模型 + 11 枚举，2026-07-10 对照 schema 清点，1046 行）
+## 域模型地图（38 模型 + 12 枚举，2026-07-23 对照 schema 清点）
 
 | 域          | 模型                                                                                                                               | 备注                                                                |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -24,12 +24,12 @@
 | 视频        | `VideoPipeline` / `VideoPipelineClip` · `VideoScript` / `VideoScriptScene` · `Story` / `StoryPanel`                                | 三代视频系统并存（收敛中，见 archive 路线图）                       |
 | LoRA        | `LoraAsset` · `LoraTrainingJob`                                                                                                    | Civitai 来源字段 2026-06-08 迁移加入                                |
 
-枚举 11 个：OutputType · GenerationStatus · GenerationSourceSurface · GenerationJobStatus · ExecutionOutboxStatus · CharacterCardStatus · LoraTrainingStatus · VideoPipelineStatus · PipelineClipStatus · VideoScriptStatus · VideoScriptSceneStatus。
+核心执行枚举包括 OutputType · GenerationStatus · GenerationSourceSurface · GenerationJobStatus · ExecutionOutboxStatus；其余枚举直接以 `schema.prisma` 为准。
 
 ## 迁移纪律
 
 1. **改完 `schema.prisma` 必须**：`npx prisma migrate dev --name <description>` → `npx prisma generate`（`prisma/CLAUDE.md` 就地规则）。
-2. 迁移历史 40 个（最近 `20260627180000_add_generation_source_surface`）；迁移文件是事实源，**不许手改数据库结构**——2026-06 发生过迁移漂移，靠专项恢复（教训：漂移恢复成本远高于纪律成本；历史见 `git show cddc4384:docs/plans/migration-drift-recovery-2026-06.md`）。
+2. 迁移历史 41 个；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
 3. WHERE / ORDER BY 用到的字段必须加 `@@index()`。
 4. 用户生成内容字段（prompt / 错误信息）用 `@db.Text`。
 5. 删除关系：ownership 关系 `onDelete: Cascade`；软引用 `onDelete: SetNull`——选哪个必须说得出理由（checklist P1）。
@@ -47,10 +47,10 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 ## Source of Truth
 
-- `prisma/schema.prisma`（1046 行）· `prisma/migrations/`（40 个）· `prisma/CLAUDE.md`
+- `prisma/schema.prisma` · `prisma/migrations/`（41 个）· `prisma/CLAUDE.md`
 - `src/lib/db.ts` · `src/lib/db-scope.ts`
 - 历史架构上下文：`git show cddc4384:docs/architecture/{overview,storage,credits}.md`
 
 ## Last Verified
 
-- Date: 2026-07-10 · Method: schema 模型/枚举清点（grep `^model|^enum`）、迁移目录清点、prisma/CLAUDE.md 就地规则收录。字段级细节未逐一审计——动具体模型前直接读 schema 对应段。
+- Date: 2026-07-23 · Method: schema 模型/枚举与迁移目录重新清点；`prisma validate` 通过，历史迁移恢复状态与 CI fresh-database replay 已核验。字段级细节未逐一审计——动具体模型前直接读 schema 对应段。

@@ -24,6 +24,8 @@ import type { AdvancedParams, ModelHealthStatus } from '@/types'
 export interface ProviderGenerationInput {
   prompt: string
   modelId: string
+  /** Execution id resolved from the DB-first model catalog. */
+  externalModelId?: string
   aspectRatio: AspectRatio
   providerConfig: ProviderConfig
   apiKey: string

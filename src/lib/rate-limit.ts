@@ -44,6 +44,16 @@ interface MemoryEntry {
 }
 
 const memoryStore = new Map<string, MemoryEntry>()
+const MAX_MEMORY_STORE_ENTRIES = 1_000
+
+function evictOldestMemoryEntry(): void {
+  if (memoryStore.size < MAX_MEMORY_STORE_ENTRIES) return
+
+  const oldestKey = memoryStore.keys().next().value
+  if (oldestKey !== undefined) {
+    memoryStore.delete(oldestKey)
+  }
+}
 
 function memoryRateLimit(
   key: string,
@@ -55,10 +65,15 @@ function memoryRateLimit(
 
   let entry = memoryStore.get(key)
   if (!entry) {
+    evictOldestMemoryEntry()
     entry = { tokens: limit - 1, lastRefill: now }
     memoryStore.set(key, entry)
     return { success: true, remaining: entry.tokens }
   }
+
+  // Refresh insertion order so the hard cap behaves like a small LRU cache.
+  memoryStore.delete(key)
+  memoryStore.set(key, entry)
 
   const elapsed = now - entry.lastRefill
   const refill = Math.floor((elapsed / windowMs) * limit)

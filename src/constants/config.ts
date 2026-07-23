@@ -541,6 +541,19 @@ export const FREE_TIER = {
 } as const
 
 /**
+ * Public-beta resource guardrails for platform-funded generation.
+ *
+ * `PLATFORM_GENERATION_ENABLED` is intentionally runtime configuration rather
+ * than a build-time feature flag. Production fails closed when it is missing;
+ * local/test environments remain enabled unless explicitly set to `false`.
+ */
+export const PLATFORM_GENERATION_GUARD = {
+  DAILY_LIMIT: 500,
+  MAX_ACTIVE_JOBS_PER_USER: 2,
+  ACTIVE_JOB_STATUSES: ['QUEUED', 'RUNNING'] as const,
+} as const
+
+/**
  * Comfy Runner (RunPod Serverless ComfyUI) budget guardrail.
  *
  * RunPod's panel can cap concurrency/cost per job but not "N generations per

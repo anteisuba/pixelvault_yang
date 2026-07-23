@@ -306,6 +306,76 @@ describe('POST /api/voices', () => {
     expect(mockCreateVoice).not.toHaveBeenCalled()
   })
 
+  it('rejects more than eight voice files before buffering them', async () => {
+    const formData = new FormData()
+    formData.append('title', 'Narrator')
+    for (let index = 0; index < 9; index += 1) {
+      formData.append(
+        'voices',
+        new File(['audio'], `voice-${index}.mp3`, { type: 'audio/mpeg' }),
+      )
+    }
+
+    const res = await POST(createFormPOST(formData))
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(413)
+    expect(body.errorCode).toBe('TOO_MANY_VOICE_FILES')
+    expect(mockCreateVoice).not.toHaveBeenCalled()
+  })
+
+  it('rejects an oversized voice file before buffering it', async () => {
+    const formData = new FormData()
+    formData.append('title', 'Narrator')
+    formData.append(
+      'voices',
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'voice.wav', {
+        type: 'audio/wav',
+      }),
+    )
+
+    const request = createFormPOST(formData)
+    vi.spyOn(request, 'formData').mockResolvedValue(formData)
+    const res = await POST(request)
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(413)
+    expect(body.errorCode).toBe('VOICE_FILE_TOO_LARGE')
+    expect(mockCreateVoice).not.toHaveBeenCalled()
+  })
+
+  it('rejects non-audio voice uploads', async () => {
+    const formData = new FormData()
+    formData.append('title', 'Narrator')
+    formData.append(
+      'voices',
+      new File(['not audio'], 'voice.txt', { type: 'text/plain' }),
+    )
+
+    const res = await POST(createFormPOST(formData))
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(400)
+    expect(body.errorCode).toBe('UNSUPPORTED_VOICE_FILE_TYPE')
+    expect(mockCreateVoice).not.toHaveBeenCalled()
+  })
+
+  it('rejects audio MIME types outside the supported whitelist', async () => {
+    const formData = new FormData()
+    formData.append('title', 'Narrator')
+    formData.append(
+      'voices',
+      new File(['audio'], 'voice.bin', { type: 'audio/x-unknown' }),
+    )
+
+    const res = await POST(createFormPOST(formData))
+    const body = await parseJSON<{ success: boolean; errorCode: string }>(res)
+
+    expect(res.status).toBe(400)
+    expect(body.errorCode).toBe('UNSUPPORTED_VOICE_FILE_TYPE')
+    expect(mockCreateVoice).not.toHaveBeenCalled()
+  })
+
   it('creates a private cloned voice with uploaded audio', async () => {
     const formData = new FormData()
     formData.append('title', 'Narrator')

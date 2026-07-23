@@ -3,7 +3,9 @@ import 'server-only'
 import type { Prisma } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
+import { invalidateModelsCache } from '@/lib/cache-tags'
 import {
+  getModelById,
   isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
@@ -45,6 +47,31 @@ function toRecord(row: {
   }
 }
 
+function toResolvedModelOption(
+  config: ModelConfigRecord,
+  builtIn?: ModelOption,
+): ModelOption {
+  return {
+    ...builtIn,
+    id: config.modelId as ModelOption['id'],
+    cost: config.cost,
+    adapterType: config.adapterType as ModelOption['adapterType'],
+    providerConfig: config.providerConfig,
+    externalModelId: config.externalModelId,
+    outputType: config.outputType,
+    available: config.available,
+    officialUrl: config.officialUrl ?? builtIn?.officialUrl,
+    timeoutMs: config.timeoutMs ?? builtIn?.timeoutMs,
+    qualityTier:
+      (config.qualityTier as ModelOption['qualityTier']) ??
+      builtIn?.qualityTier,
+    i2vModelId: config.i2vModelId ?? builtIn?.i2vModelId,
+    videoDefaults:
+      (config.videoDefaults as ModelOption['videoDefaults']) ??
+      builtIn?.videoDefaults,
+  }
+}
+
 // ─── CRUD ───────────────────────────────────────────────────────
 
 export async function getAllModelConfigs(): Promise<ModelConfigRecord[]> {
@@ -82,6 +109,7 @@ export async function createModelConfig(
       sortOrder: input.sortOrder,
     },
   })
+  invalidateModelsCache()
   return toRecord(row)
 }
 
@@ -110,11 +138,13 @@ export async function updateModelConfig(
     where: { modelId },
     data,
   })
+  invalidateModelsCache()
   return toRecord(row)
 }
 
 export async function deleteModelConfig(modelId: string): Promise<void> {
   await db.modelConfig.delete({ where: { modelId } })
+  invalidateModelsCache()
 }
 
 // ─── Resolved Model Options ─────────────────────────────────────
@@ -141,20 +171,7 @@ export async function getResolvedModelOptions(): Promise<ModelOption[]> {
     }
 
     seen.add(config.modelId)
-    merged.push({
-      id: config.modelId as ModelOption['id'],
-      cost: config.cost,
-      adapterType: config.adapterType as ModelOption['adapterType'],
-      providerConfig: config.providerConfig,
-      externalModelId: config.externalModelId,
-      outputType: config.outputType,
-      available: config.available,
-      officialUrl: config.officialUrl ?? undefined,
-      timeoutMs: config.timeoutMs ?? undefined,
-      qualityTier: config.qualityTier as ModelOption['qualityTier'],
-      i2vModelId: config.i2vModelId ?? undefined,
-      videoDefaults: config.videoDefaults as ModelOption['videoDefaults'],
-    })
+    merged.push(toResolvedModelOption(config, getModelById(config.modelId)))
   }
 
   // Hardcoded fallbacks for models not in DB
@@ -165,6 +182,25 @@ export async function getResolvedModelOptions(): Promise<ModelOption[]> {
   }
 
   return merged
+}
+
+/**
+ * Resolve the execution-plane model from the same DB-first catalog exposed by
+ * `/api/models`. Hardcoded options remain the bootstrap fallback and provide
+ * capabilities that are not editable in ModelConfig.
+ */
+export async function getResolvedModelOption(
+  modelId: string,
+): Promise<ModelOption | undefined> {
+  const canonicalModelId = normalizeModelId(modelId)
+  const builtIn = getModelById(canonicalModelId)
+
+  if (isRetiredModelId(canonicalModelId)) {
+    return builtIn
+  }
+
+  const config = await getModelConfigById(canonicalModelId)
+  return config ? toResolvedModelOption(config, builtIn) : builtIn
 }
 
 // ─── Update Health Status ───────────────────────────────────────

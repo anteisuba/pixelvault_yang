@@ -262,6 +262,9 @@ export function LoraWorkbench() {
   const isLibrary =
     activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
     activeSection === LORA_WORKBENCH_SECTIONS.MINE
+  // S2精修②：仅生成页桌面锁一屏高（三栏各栏内滚·出图键常驻）；库/训练/移动
+  // 正常页面流。驱动下方 shell + 三栏的条件 height 链。
+  const isGenerate = activeSection === LORA_WORKBENCH_SECTIONS.GENERATE
 
   // D7⑦: 壳（tab bar）不动，body crossfade。顶层三段（生成 / 库 / 训练）
   // 切换时整块 body 淡入；库内公开↔我的属同一壳，只让内层内容淡入、pills
@@ -272,7 +275,16 @@ export function LoraWorkbench() {
   // R1 close-review（owner 2026-07-19「左右空出这么大的空间」）：内容容器
   // max-w-6xl→7xl，宽视口下收窄两侧留白。
   return (
-    <div className="domain-lora min-h-svh w-full space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+    <div
+      className={cn(
+        'domain-lora w-full px-4 py-5 sm:px-6 lg:px-8',
+        // S2精修②：生成页桌面 = flex-col + h-svh + overflow-hidden（链头）；库/
+        // 训练/移动保持 min-h-svh 正常滚。
+        isGenerate
+          ? 'min-h-svh space-y-5 md:flex md:h-svh md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden'
+          : 'min-h-svh space-y-5',
+      )}
+    >
       {/* P2-4: 模块 tab 从三个全宽大块收成紧凑居中 segmented pill——
           `items-center` 把 content-width 的 TabsList 在 flex-col 里水平居中，
           去掉 `w-full grid-cols-3` 让它自适应内容宽度。Radix Tabs 已带
@@ -280,7 +292,7 @@ export function LoraWorkbench() {
       <Tabs
         value={tabValue}
         onValueChange={handleTabChange}
-        className="items-center"
+        className="items-center md:shrink-0"
       >
         {/* R1 close-review（owner 2026-07-19「按钮太小」）：模式导航整体放大
             ——TabsList h-9→h-11、trigger h-7→h-9 + text-sm + 更大内边距/图标，
@@ -310,7 +322,15 @@ export function LoraWorkbench() {
         </TabsList>
       </Tabs>
 
-      <div key={bodyKey} className="animate-in fade-in duration-200">
+      <div
+        key={bodyKey}
+        className={cn(
+          'animate-in fade-in duration-200',
+          // S2精修②：生成页桌面 body 填满 root 剩余高度（min-h-0 允许内层滚）。
+          isGenerate &&
+            'md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden',
+        )}
+      >
         {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
           <GenerateBranch />
         ) : null}
@@ -1494,7 +1514,7 @@ function GenerateBranch() {
     <>
       <section
         ref={mainSectionRef}
-        className="space-y-4 pb-24 transition-[margin-right] duration-slow ease-standard md:pb-0"
+        className="space-y-4 pb-24 transition-[margin-right] duration-slow ease-standard md:pb-0 md:flex md:min-h-0 md:flex-1 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden"
         style={{ marginRight: assistantMarginRight }}
       >
         {quickSetup && (
@@ -1553,8 +1573,9 @@ function GenerateBranch() {
             5col：中来源/输入 + 右结果）。移动端自然堆叠。左装配栏 = 底模/LoRA栈/
             添加(LoraSpineBar) + 参考图（S2精修①：参考图从中栏迁入左栏·组件按 300px
             窄栏 2col 适配）。参数 disclosure 待迁（S2精修①-B）。 */}
-        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-5">
-          <div className="space-y-3">
+        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-stretch md:gap-5 md:min-h-0 md:flex-1 md:overflow-hidden">
+          {/* 左装配栏：锁高时自身内滚（min-h-0 允许收缩）。 */}
+          <div className="space-y-3 md:min-h-0 md:overflow-y-auto md:pr-1">
             <LoraSpineBar
               compatibleBases={compatibleBases}
               selectedBase={selectedBase}
@@ -1592,7 +1613,7 @@ function GenerateBranch() {
             // （临时顶部=推荐/自己搭配面板，G3b 换成来源图带+搭配状态条 → composer
             // 输入），右 40% 结果监视列（跨左列两行）。空态不整块占位：composer+结果
             // 框常驻，只在推荐列给「去库挑一个 LoRA」引导（见 !hasLora 分支）。
-            <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-start">
+            <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-stretch md:min-h-0 md:h-full md:grid-rows-[auto_minmax(0,1fr)]">
               <div className="order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1">
                 {/* 来源图带（中创作面顶）：来源图缩略带常驻（挂载显示 LoRA 效果
                 证据，点图开共享配方 modal；未挂载退化成「纯底模 / 去库」引导）。
@@ -1701,7 +1722,7 @@ function GenerateBranch() {
                   )}
                 </div>
               </div>
-              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-3 md:row-start-1">
+              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-2 md:row-start-1 md:min-h-0 md:overflow-y-auto">
                 {/* G3d 结果/历史 头：结果标题 + 会话历史计数（>1 张时）。 */}
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1861,7 +1882,7 @@ function GenerateBranch() {
               走标准暗主题 token（发丝边框 border-border / 浅灰次文本 muted-foreground
               / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
               象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
-              <div className="order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
+              <div className="order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:row-start-2 md:min-h-0 md:overflow-y-auto">
                 {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}

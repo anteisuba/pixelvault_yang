@@ -1432,7 +1432,11 @@
       "community": "LoRA ライブラリ"
     },
     "library": {
-      "public": "公開"
+      "public": "公開",
+      "use": "使用",
+      "mounted": "追加済み",
+      "searchPlaceholder": "LoRA・トリガー・作者を検索…",
+      "safeMode": "セーフモード"
     },
     "generate": {
       "placeholderTitle": "ベースモデルだけで生成できます",
@@ -1743,6 +1747,8 @@
     "externalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Civitai で生成してください。",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
+    "librarySourceCivitaiShort": "CIV",
+    "librarySourceHfShort": "HF",
     "huggingFacePublic": "公開 Hugging Face LoRA",
     "huggingFaceDescription": "Hugging Face の公開画像 LoRA から正確な重みファイルを選んでライブラリに追加できます。生成ベースは別に設定します。",
     "huggingFaceSearchPlaceholder": "Hugging Face の画像 LoRA を検索…",

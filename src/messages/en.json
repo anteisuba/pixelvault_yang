@@ -1432,7 +1432,11 @@
       "community": "LoRA Library"
     },
     "library": {
-      "public": "Public"
+      "public": "Public",
+      "use": "Use",
+      "mounted": "Mounted",
+      "searchPlaceholder": "Search LoRAs, triggers, authors…",
+      "safeMode": "Safe mode"
     },
     "generate": {
       "placeholderTitle": "Generate with the base model",
@@ -1743,6 +1747,8 @@
     "externalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to generate on Civitai.",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
+    "librarySourceCivitaiShort": "CIV",
+    "librarySourceHfShort": "HF",
     "huggingFacePublic": "Public Hugging Face LoRAs",
     "huggingFaceDescription": "Browse public Hugging Face image LoRAs and add an exact weight file to your library; generation bases are configured separately.",
     "huggingFaceSearchPlaceholder": "Search Hugging Face image LoRAs…",

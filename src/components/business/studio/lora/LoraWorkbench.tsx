@@ -42,7 +42,6 @@ import {
   isLoraWorkbenchSection,
   type LoraWorkbenchSection,
 } from '@/constants/lora'
-import { ROUTES } from '@/constants/routes'
 import {
   getBaseOnlyGenerationBases,
   getCompatibleBases,
@@ -88,6 +87,16 @@ const MobileTrainingSheet = dynamic(
   () =>
     import('@/components/business/studio/lora/training/MobileTrainingSheet').then(
       (m) => m.MobileTrainingSheet,
+    ),
+  { ssr: false },
+)
+// S3 库 modal 懒加载：只在＋添加唤起时才拉进来（含 useCivitaiLoraLibrary /
+// dialog / 卡片链），不进生成页主 bundle——既是代码分割优化，也避免主 workbench
+// 的 eager import 图变重（会拖慢测试里临界的过渡计时断言）。
+const LoraLibraryModal = dynamic(
+  () =>
+    import('@/components/business/studio/lora/library/LoraLibraryModal').then(
+      (m) => m.LoraLibraryModal,
     ),
   { ssr: false },
 )
@@ -518,7 +527,6 @@ function resolveBaseKeySetup(
 function GenerateBranch() {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
-  const router = useRouter()
   const stack = useActiveLoraStack()
   const {
     generate,
@@ -1172,6 +1180,9 @@ function GenerateBranch() {
   // 宽度记忆），这里再订阅一次是为了让正文列的 marginRight 跟 dock 实际
   // 宽度同步，两处调用天然不会失步。
   const [assistantOpen, setAssistantOpen] = useState(false)
+  // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
+  // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
+  const [libraryModalOpen, setLibraryModalOpen] = useState(false)
   const isAssistantMobile = useIsMobile()
   const { layout: assistantDockLayout } = useDockLayout()
 
@@ -1531,6 +1542,13 @@ function GenerateBranch() {
           </DialogContent>
         </Dialog>
 
+        {/* S3 库 modal（＋添加 LoRA / 空态「去库」唤起）——覆盖生成页即筛即挂。
+            只在打开时挂载：useCivitaiLoraLibrary 一挂就拉数据，常驻会让每次进
+            生成页都后台打 Civitai（浪费 + 撞限流），故按需挂载（代价=无退场动画）。 */}
+        {libraryModalOpen ? (
+          <LoraLibraryModal open onOpenChange={setLibraryModalOpen} />
+        ) : null}
+
         {/* CD 装配台三栏（近炭暖灰）：外层 grid = 左装配栏(spine 竖化面板 300px) |
             右主体（内层沿用 5col：中来源/输入/词库 + 右结果）。移动端自然堆叠。
             参考图/参数暂留中输入区，后续可迁入左栏（本步先立三栏骨架，低风险）。 */}
@@ -1549,11 +1567,7 @@ function GenerateBranch() {
             onSelectRecipeGroup={setRecipeGroupAssetId}
             assistantOpen={assistantOpen}
             onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
-            onAddLora={() =>
-              router.push(
-                `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
-              )
-            }
+            onAddLora={() => setLibraryModalOpen(true)}
           />
 
           {
@@ -1657,11 +1671,7 @@ function GenerateBranch() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          router.push(
-                            `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
-                          )
-                        }
+                        onClick={() => setLibraryModalOpen(true)}
                       >
                         <Compass className="size-3.5" aria-hidden />
                         {t('tabs.library')}

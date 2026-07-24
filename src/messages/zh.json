@@ -1432,7 +1432,11 @@
       "community": "LoRA 库"
     },
     "library": {
-      "public": "公开"
+      "public": "公开",
+      "use": "使用",
+      "mounted": "已挂",
+      "searchPlaceholder": "搜索 LoRA、触发词、作者…",
+      "safeMode": "安全模式"
     },
     "generate": {
       "placeholderTitle": "可直接使用底模生成",
@@ -1743,6 +1747,8 @@
     "externalInspectorHint": "{family} 系列 LoRA 在 PixelVault 暂无可用推理端点，点击下方按钮跳转 Civitai 生成。",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
+    "librarySourceCivitaiShort": "CIV",
+    "librarySourceHfShort": "HF",
     "huggingFacePublic": "Hugging Face 公共 LoRA",
     "huggingFaceDescription": "浏览 Hugging Face 公共图片 LoRA，选择精确权重文件加入我的库；底模由生成端独立配置。",
     "huggingFaceSearchPlaceholder": "搜索 Hugging Face 图片 LoRA…",

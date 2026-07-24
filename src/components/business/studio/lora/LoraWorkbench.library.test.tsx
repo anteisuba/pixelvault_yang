@@ -368,14 +368,16 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
       screen.getByRole('button', { name: 'LoraWorkbench:collapseDetail' }),
     )
     // The detail unmounts after the collapse transition's fallback timer
-    // (~340ms); allow generous headroom so a loaded CI box (timers starved by
-    // a concurrent typecheck etc.) doesn't flake this.
+    // (~340ms); allow generous headroom so a loaded box (timers starved by a
+    // heavy module-transform graph or a concurrent typecheck) doesn't flake
+    // this. 3000ms proved too tight once the workbench's import graph grew
+    // (S3 库 modal)，故拉到 8000ms——只是给异步卸载更多余量，断言不变。
     await waitFor(
       () =>
         expect(
           screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
         ).not.toBeInTheDocument(),
-      { timeout: 3000 },
+      { timeout: 8000 },
     )
   })
 

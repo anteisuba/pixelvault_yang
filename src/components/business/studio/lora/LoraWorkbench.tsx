@@ -1549,26 +1549,43 @@ function GenerateBranch() {
           <LoraLibraryModal open onOpenChange={setLibraryModalOpen} />
         ) : null}
 
-        {/* CD 装配台三栏（近炭暖灰）：外层 grid = 左装配栏(spine 竖化面板 300px) |
-            右主体（内层沿用 5col：中来源/输入/词库 + 右结果）。移动端自然堆叠。
-            参考图/参数暂留中输入区，后续可迁入左栏（本步先立三栏骨架，低风险）。 */}
+        {/* CD 装配台三栏（近炭暖灰）：外层 grid = 左装配栏(300px) | 右主体（内层
+            5col：中来源/输入 + 右结果）。移动端自然堆叠。左装配栏 = 底模/LoRA栈/
+            添加(LoraSpineBar) + 参考图（S2精修①：参考图从中栏迁入左栏·组件按 300px
+            窄栏 2col 适配）。参数 disclosure 待迁（S2精修①-B）。 */}
         <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-5">
-          <LoraSpineBar
-            compatibleBases={compatibleBases}
-            selectedBase={selectedBase}
-            onSelectBase={handleSelectBase}
-            needsKeySetup={needsKeySetup}
-            onRequestKeySetup={() =>
-              workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
-            }
-            loraScaleConfig={loraScaleConfig}
-            maxLoras={maxLoras}
-            activeRecipeGroupId={recipeGroupKey}
-            onSelectRecipeGroup={setRecipeGroupAssetId}
-            assistantOpen={assistantOpen}
-            onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
-            onAddLora={() => setLibraryModalOpen(true)}
-          />
+          <div className="space-y-3">
+            <LoraSpineBar
+              compatibleBases={compatibleBases}
+              selectedBase={selectedBase}
+              onSelectBase={handleSelectBase}
+              needsKeySetup={needsKeySetup}
+              onRequestKeySetup={() =>
+                workspaceOptionForBase &&
+                openKeySetupFor(workspaceOptionForBase)
+              }
+              loraScaleConfig={loraScaleConfig}
+              maxLoras={maxLoras}
+              activeRecipeGroupId={recipeGroupKey}
+              onSelectRecipeGroup={setRecipeGroupAssetId}
+              assistantOpen={assistantOpen}
+              onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
+              onAddLora={() => setLibraryModalOpen(true)}
+            />
+            {/* S2精修①：参考图迁入左装配栏（能力位驱动·仅底模支持参考图 +
+                有强度配置时渲染），浮起纸面面板与脊柱条一致。 */}
+            {maxReferenceImages > 0 && referenceStrengthConfig ? (
+              <div className="rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)]">
+                <LoraReferenceImageCards
+                  imageUpload={imageUpload}
+                  strength={referenceStrength}
+                  onStrengthChange={setReferenceStrength}
+                  strengthConfig={referenceStrengthConfig}
+                  disabled={!selectedBase?.available || isGenerating}
+                />
+              </div>
+            ) : null}
+          </div>
 
           {
             // G3a 布局 A「并排监视台」：装配行下是一张 60/40 网格——左 60% 输入列
@@ -1845,19 +1862,6 @@ function GenerateBranch() {
               / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
               象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
               <div className="order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
-                {/* G3c 参考图大卡（confirmed A 左栏序：来源图 → 参考图 → 搭配 →
-                提示词）：能力位驱动，仅当底模支持参考图（maxReferenceImages > 0）
-                且有强度配置时渲染——顶部横排大预览卡 + ＋添加 + 参考强度，空态只留
-                低高度添加入口。 */}
-                {maxReferenceImages > 0 && referenceStrengthConfig ? (
-                  <LoraReferenceImageCards
-                    imageUpload={imageUpload}
-                    strength={referenceStrength}
-                    onStrengthChange={setReferenceStrength}
-                    strengthConfig={referenceStrengthConfig}
-                    disabled={!selectedBase?.available || isGenerating}
-                  />
-                ) : null}
                 {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}

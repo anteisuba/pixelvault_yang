@@ -114,7 +114,9 @@ export function LoraReferenceImageCards({
 
       {hasEntries ? (
         <>
-          <div className="flex flex-wrap gap-2">
+          {/* S2精修①：迁入 300px 左装配栏——横排大卡改 2col 网格，卡片填满格宽
+              （原 w-36 固定宽在窄栏留大量空白）。 */}
+          <div className="grid grid-cols-2 gap-2">
             {entries.map((entry, index) => {
               const isDisabled = entry.disabledReason !== null
               const tooltip =
@@ -128,7 +130,7 @@ export function LoraReferenceImageCards({
                   key={`${index}-${entry.url.slice(0, 32)}`}
                   title={tooltip}
                   className={cn(
-                    'group relative aspect-square w-36 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/35',
+                    'group relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-muted/35',
                     isDisabled && 'opacity-55',
                   )}
                 >
@@ -173,7 +175,7 @@ export function LoraReferenceImageCards({
                   type="button"
                   disabled={disabled}
                   aria-label={t('add')}
-                  className="flex aspect-square w-36 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                  className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                 >
                   <Plus className="size-5" aria-hidden />
                   <span className="text-2xs font-medium">{t('add')}</span>

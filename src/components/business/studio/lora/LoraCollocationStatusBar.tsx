@@ -25,8 +25,14 @@ interface LoraCollocationStatusBarProps {
   recipeApplied: boolean
   /** 已应用配方的来源 LoRA 名（展开区显示）。 */
   recipeName: string | null
-  /** 配方带来的参数名列表（展开区显示，如 steps / cfg / sampler）。 */
+  /** 配方带来的参数名列表（无 from→to 快照时的兜底摘要）。 */
   appliedParamLabels: readonly string[]
+  /** S5 变更审阅：逐项 from→to（做同款前快照 vs 当前值，由父层算真 diff）。 */
+  changedParams?: readonly { label: string; from: string; to: string }[]
+  /** S5 变更审阅：Prompt 被并入的新增词（null = 正文没变）。 */
+  addedPromptTags?: readonly string[] | null
+  /** S5 变更审阅：做同款没动的输入面（「保留项」）。 */
+  keptLabels?: readonly string[]
   triggerEntries: readonly TriggerChipEntry[]
   disabledTriggerIds: ReadonlySet<string>
   onToggleTrigger: (assetId: string) => void
@@ -37,6 +43,9 @@ export function LoraCollocationStatusBar({
   recipeApplied,
   recipeName,
   appliedParamLabels,
+  changedParams = [],
+  addedPromptTags = null,
+  keptLabels = [],
   triggerEntries,
   disabledTriggerIds,
   onToggleTrigger,
@@ -103,24 +112,69 @@ export function LoraCollocationStatusBar({
         ) : null}
       </div>
 
+      {/* S5 变更审阅卡（CD 配屏 5）：展开 = 结构化「做同款改了什么」——已变更项
+          逐条 from→to + Prompt 并入的新增词 + 触发词（可停用）+ 保留项（没动的
+          输入面）。数据全来自父层真 diff（快照 vs 当前值），无 diff 时退回旧的
+          参数名摘要。 */}
       {expanded && hasDetail ? (
-        <div className="space-y-2 border-t border-border px-3 py-2">
-          {recipeName ? (
-            <p className="text-muted-foreground">
-              {t('sourceRecipe', { name: recipeName })}
+        <div className="space-y-2.5 border-t border-border px-3 py-2.5">
+          {recipeApplied && recipeName ? (
+            <p className="font-medium text-foreground">
+              {t('willChange', { name: recipeName })}
             </p>
           ) : null}
-          {appliedParamLabels.length > 0 ? (
+
+          {addedPromptTags && addedPromptTags.length > 0 ? (
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0 text-muted-foreground">
+                {t('rowPrompt')}
+              </span>
+              <span className="min-w-0 flex-1 font-mono text-foreground">
+                + {addedPromptTags.join(', ')}
+                <span className="ml-1 text-muted-foreground">
+                  {t('addedWordCount', { count: addedPromptTags.length })}
+                </span>
+              </span>
+            </div>
+          ) : null}
+
+          {changedParams.length > 0 ? (
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0 text-muted-foreground">
+                {t('rowParams')}
+              </span>
+              <span className="min-w-0 flex-1 font-mono text-foreground">
+                {changedParams
+                  .map((c) => `${c.label} ${c.from}→${c.to}`)
+                  .join(' · ')}
+              </span>
+            </div>
+          ) : appliedParamLabels.length > 0 ? (
             <p className="text-muted-foreground">
               {t('appliedParams', { params: appliedParamLabels.join(', ') })}
             </p>
           ) : null}
+
           {triggerEntries.length > 0 ? (
-            <TriggerChipRow
-              entries={triggerEntries}
-              disabledIds={disabledTriggerIds}
-              onToggle={onToggleTrigger}
-            />
+            <div className="space-y-1">
+              <p className="text-muted-foreground">{t('triggerHint')}</p>
+              <TriggerChipRow
+                entries={triggerEntries}
+                disabledIds={disabledTriggerIds}
+                onToggle={onToggleTrigger}
+              />
+            </div>
+          ) : null}
+
+          {recipeApplied && keptLabels.length > 0 ? (
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0 text-muted-foreground">
+                {t('rowKept')}
+              </span>
+              <span className="min-w-0 flex-1 text-muted-foreground">
+                {t('keptUnchanged', { items: keptLabels.join(' · ') })}
+              </span>
+            </div>
           ) : null}
         </div>
       ) : null}

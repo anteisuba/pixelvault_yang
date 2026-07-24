@@ -1183,6 +1183,69 @@ function GenerateBranch() {
       ? appliedRecipe
       : null
 
+  // S5 变更审阅卡（CD 配屏 5「配方·已还原」）：把「做同款改了什么」算成结构化
+  // diff——做同款前快照 vs 当前值，逐项 from→to；没变的收进「保留项」。全部取真
+  // 实值，不构造假 diff（无快照 = 不渲染）。
+  const collocationChanges = useMemo(() => {
+    const snap = collocationRecipe?.snapshot
+    if (!snap) return { changed: [], kept: [] as string[], addedPrompt: null }
+    const changed: { label: string; from: string; to: string }[] = []
+    const kept: string[] = []
+    const pushParam = (label: string, from: string, to: string) => {
+      const f = from.trim()
+      const to2 = to.trim()
+      if (f === to2) return
+      changed.push({
+        label,
+        from: f || t('generate.advanced.modelDefault'),
+        to: to2 || t('generate.advanced.modelDefault'),
+      })
+    }
+    pushParam(t('generate.advanced.steps'), snap.runnerSteps, runnerSteps)
+    pushParam(t('generate.advanced.cfg'), snap.runnerCfg, runnerCfg)
+    pushParam(t('generate.advanced.sampler'), snap.runnerSampler, runnerSampler)
+    pushParam(
+      t('generate.advanced.scheduler'),
+      snap.runnerScheduler,
+      runnerScheduler,
+    )
+    // Prompt：算新增的逗号分片（配方还原是往正文里并入词，不是整段替换）。
+    const splitTags = (text: string) =>
+      text
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    const before = new Set(splitTags(snap.prompt))
+    const added = splitTags(prompt).filter((tag) => !before.has(tag))
+    const addedPrompt = added.length > 0 ? added : null
+    // 保留项：做同款没动的输入面（让用户确认「我原来的东西还在」）。
+    if (snap.negativePrompt.trim() === negativePrompt.trim()) {
+      kept.push(t('generate.negativePromptLabel'))
+    }
+    if (snap.aspectRatio === aspectRatio) {
+      kept.push(t('generate.collocation.keptAspectRatio'))
+    }
+    if (
+      snap.runnerWidth.trim() === runnerWidth.trim() &&
+      snap.runnerHeight.trim() === runnerHeight.trim()
+    ) {
+      kept.push(t('generate.collocation.keptSize'))
+    }
+    return { changed, kept, addedPrompt }
+  }, [
+    collocationRecipe,
+    prompt,
+    negativePrompt,
+    aspectRatio,
+    runnerSteps,
+    runnerCfg,
+    runnerSampler,
+    runnerScheduler,
+    runnerWidth,
+    runnerHeight,
+    t,
+  ])
+
   // 行内「补挂」单个额外 LoRA——与做同款共用 mountExtras。
   const handleMountExtraLora = useCallback(
     (extra: CivitaiRecipeExtraLora) => {
@@ -2130,6 +2193,9 @@ function GenerateBranch() {
                   appliedParamLabels={
                     collocationRecipe?.appliedParamLabels ?? []
                   }
+                  changedParams={collocationChanges.changed}
+                  addedPromptTags={collocationChanges.addedPrompt}
+                  keptLabels={collocationChanges.kept}
                   triggerEntries={triggerChipEntries}
                   disabledTriggerIds={disabledTriggerIds}
                   onToggleTrigger={handleToggleTriggerChip}

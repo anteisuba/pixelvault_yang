@@ -1460,7 +1460,16 @@
         "view": "查看",
         "undo": "撤销",
         "sourceRecipe": "来源配方 · {name}",
-        "appliedParams": "配方参数 · {params}"
+        "appliedParams": "配方参数 · {params}",
+        "willChange": "将变更 · 来源配方 · {name}",
+        "rowPrompt": "Prompt",
+        "rowParams": "参数",
+        "rowKept": "保留项",
+        "addedWordCount": "（{count} 词）",
+        "triggerHint": "触发词 · 自动加入，删除有风险",
+        "keptUnchanged": "{items} 不变",
+        "keptAspectRatio": "尺寸比例",
+        "keptSize": "宽高"
       },
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",

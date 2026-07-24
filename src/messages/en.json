@@ -1460,7 +1460,16 @@
         "view": "View",
         "undo": "Undo",
         "sourceRecipe": "Source recipe · {name}",
-        "appliedParams": "Recipe params · {params}"
+        "appliedParams": "Recipe params · {params}",
+        "willChange": "Changes · source recipe · {name}",
+        "rowPrompt": "Prompt",
+        "rowParams": "Params",
+        "rowKept": "Kept",
+        "addedWordCount": "({count} words)",
+        "triggerHint": "Trigger words · added automatically, removing is risky",
+        "keptUnchanged": "{items} unchanged",
+        "keptAspectRatio": "Aspect ratio",
+        "keptSize": "Size"
       },
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",

@@ -1460,7 +1460,16 @@
         "view": "表示",
         "undo": "取り消す",
         "sourceRecipe": "ソースレシピ · {name}",
-        "appliedParams": "レシピパラメータ · {params}"
+        "appliedParams": "レシピパラメータ · {params}",
+        "willChange": "変更内容 · ソースレシピ · {name}",
+        "rowPrompt": "Prompt",
+        "rowParams": "パラメータ",
+        "rowKept": "保持",
+        "addedWordCount": "（{count} 語）",
+        "triggerHint": "トリガーワード · 自動追加、削除は非推奨",
+        "keptUnchanged": "{items} は変更なし",
+        "keptAspectRatio": "アスペクト比",
+        "keptSize": "サイズ"
       },
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",

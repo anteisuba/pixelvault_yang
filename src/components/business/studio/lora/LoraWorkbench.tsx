@@ -1953,24 +1953,7 @@ function GenerateBranch() {
                       previewImages={mined.previewImages}
                       descriptionText={mined.descriptionText}
                     />
-                  ) : !hasLora ? (
-                    // 空态改造：无 LoRA 时把「先挑一个 LoRA」引导收进推荐列
-                    // （不再整页占位），composer/结果框保持可见。
-                    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border/60 px-3 py-6 text-center">
-                      <p className="text-xs text-muted-foreground">
-                        {t('generate.placeholderBody')}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setLibraryModalOpen(true)}
-                      >
-                        <Compass className="size-3.5" aria-hidden />
-                        {t('tabs.library')}
-                      </Button>
-                    </div>
-                  ) : (
+                  ) : !hasLora ? null : ( // 来源区留空 + 锁高 grid-rows auto 让 row1 收拢，composer 得更多高。 // 不再重复「去库添加」banner（与侧边栏重复，owner 2026-07-25）。 // 无 LoRA 时来源区留空——「＋添加 LoRA」入口已在左装配栏，中栏
                     <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
                       {t('generate.recommendEmpty')}
                     </p>
@@ -2390,7 +2373,77 @@ function LoraSpineBar({
     // 竖向 LoRA 栈 + 底模卡 + 触发词。（原 D8「去盒化·底部白 8% 发丝线」为冷瓷前
     // 旧线，深底上白发丝线本就近隐形，此处反转成 bg-card 浮起面板 + token 发丝边。）
     <div className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]">
+      {/* owner 2026-07-25：底模选择放最上，LoRA 栈在底模下面（先定底模·再挂
+          LoRA·贴 CD 装配栏序 底模→LoRA栈→添加→触发词）。 */}
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
+        {t('spine.baseModel')}
+      </span>
+      {compatibleBases.length > 0 ? (
+        <>
+          {/* S4 底模卡：显当前底模摘要（名 + 族·通道·忠实/快 mono），点开换底模
+              modal（两层分组 + 仅显示兼容开关）。取代原两层分组 Select 下拉。 */}
+          <button
+            type="button"
+            onClick={() => setBaseModalOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition-colors hover:border-border"
+          >
+            <span className="min-w-0 flex-1">
+              {selectedBase ? (
+                <>
+                  <span className="block truncate text-xs font-semibold text-foreground">
+                    {baseDisplayName(selectedBase)}
+                  </span>
+                  <span className="block truncate font-mono text-2xs text-muted-foreground">
+                    {selectedBase.family} ·{' '}
+                    {selectedBase.backend === 'runner'
+                      ? t('baseModal.channelRunner')
+                      : t('spine.executorCloud')}{' '}
+                    · {fidelityLabel(selectedBase)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {t('spine.baseModelPending')}
+                </span>
+              )}
+            </span>
+            <ArrowLeftRight
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          </button>
+          {needsKeySetup ? (
+            <button
+              type="button"
+              onClick={onRequestKeySetup}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+            >
+              <Key className="size-3" aria-hidden />
+              {tSetup('needsKey')}
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
+          {t('spine.baseModelPending')}
+        </span>
+      )}
+      {/* 执行通道——底模身份与执行通道分层表达（§3.3）。Anima DiT 等 runner-only
+          显示「Runner · 唯一通道」，云端底模显示「云端 API」；不伪造下拉。 */}
+      {selectedBase ? (
+        <span className="inline-flex items-center gap-1.5 text-xs">
+          <span className="uppercase tracking-wide text-muted-foreground">
+            {t('spine.executorLabel')}
+          </span>
+          <span className="text-foreground">
+            {selectedBase.backend === 'runner'
+              ? t('spine.executorRunner')
+              : t('spine.executorCloud')}
+          </span>
+        </span>
+      ) : null}
+      {/* LoRA 栈（在底模下面）。 */}
+      <span className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
         {t('spine.currentLora')}
       </span>
       {stack.items.length > 0 ? (
@@ -2610,75 +2663,6 @@ function LoraSpineBar({
           {t('spine.addLora')}
         </button>
       </span>
-      <span className="grow" />
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
-        {t('spine.baseModel')}
-      </span>
-      {compatibleBases.length > 0 ? (
-        <>
-          {/* S4 底模卡：显当前底模摘要（名 + 族·通道·忠实/快 mono），点开换底模
-              modal（两层分组 + 仅显示兼容开关）。取代原两层分组 Select 下拉。 */}
-          <button
-            type="button"
-            onClick={() => setBaseModalOpen(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition-colors hover:border-border"
-          >
-            <span className="min-w-0 flex-1">
-              {selectedBase ? (
-                <>
-                  <span className="block truncate text-xs font-semibold text-foreground">
-                    {baseDisplayName(selectedBase)}
-                  </span>
-                  <span className="block truncate font-mono text-2xs text-muted-foreground">
-                    {selectedBase.family} ·{' '}
-                    {selectedBase.backend === 'runner'
-                      ? t('baseModal.channelRunner')
-                      : t('spine.executorCloud')}{' '}
-                    · {fidelityLabel(selectedBase)}
-                  </span>
-                </>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  {t('spine.baseModelPending')}
-                </span>
-              )}
-            </span>
-            <ArrowLeftRight
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-          </button>
-          {needsKeySetup ? (
-            <button
-              type="button"
-              onClick={onRequestKeySetup}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
-            >
-              <Key className="size-3" aria-hidden />
-              {tSetup('needsKey')}
-            </button>
-          ) : null}
-        </>
-      ) : (
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
-          {t('spine.baseModelPending')}
-        </span>
-      )}
-      {/* G1（R3 装配行）：执行通道——底模身份与执行通道分层表达（§3.3）。
-          Anima DiT 等 runner-only 显示静态「Runner · 唯一通道」，云端底模显示
-          「云端 API」；不伪造 fal/Runner 下拉。底模未选时不渲染。 */}
-      {selectedBase ? (
-        <span className="inline-flex items-center gap-1.5 text-xs">
-          <span className="uppercase tracking-wide text-muted-foreground">
-            {t('spine.executorLabel')}
-          </span>
-          <span className="text-foreground">
-            {selectedBase.backend === 'runner'
-              ? t('spine.executorRunner')
-              : t('spine.executorCloud')}
-          </span>
-        </span>
-      ) : null}
       {/* F2 助手 dock 开关——studio 各页同位同形制（复用 StudioEnhanceButton
           同款视觉语言 studioToolTriggerClass/studioChipActiveClass + 文案
           StudioV2.enhance），挂在脊柱条最右侧。 */}

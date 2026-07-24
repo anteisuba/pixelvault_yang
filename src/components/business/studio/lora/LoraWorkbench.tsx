@@ -1509,6 +1509,259 @@ function GenerateBranch() {
         })
       : (selectedResult?.baseName ?? null)
 
+  // S2精修①-B：Runner 高级参数从中创作面迁到左装配栏（②锁高后左栏内滚·高度
+  // 被兜住）。300px 窄栏 → 网格 reflow 成 1col（原 sm:grid-cols-2 lg:grid-cols-4
+  // 按视口触发·塞 300px 会压爆）。isRunnerBase gated（仅 runner 底模有参数）。
+  // 抽成 const 闭包本地 state（零 props），在左装配栏渲染。
+  const runnerParamsPanel = isRunnerBase ? (
+    <div className="rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)]">
+      <button
+        type="button"
+        aria-expanded={advancedOpen}
+        onClick={() => setAdvancedOpen((open) => !open)}
+        className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
+      >
+        <SlidersHorizontal className="size-3.5" aria-hidden />
+        <span>{t('generate.advanced.title')}</span>
+        <span className="text-2xs font-normal text-muted-foreground">
+          {advancedCustomCount > 0
+            ? t('generate.advanced.customSummary', {
+                count: advancedCustomCount,
+              })
+            : t('generate.advanced.defaultSummary')}
+        </span>
+        <ChevronDown
+          className={cn(
+            'ml-auto size-3.5 transition-transform',
+            advancedOpen && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
+
+      {advancedOpen ? (
+        <div className="space-y-3 pt-2">
+          {runnerParameterError ? (
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
+            >
+              {runnerParameterError}
+            </p>
+          ) : null}
+
+          {/* 窄栏 reflow：单列堆叠（原 sm:grid-cols-2 lg:grid-cols-4）。 */}
+          <div className="grid grid-cols-1 gap-2">
+            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <span>{t('generate.advanced.seed')}</span>
+              <div className="flex gap-1.5">
+                <Input
+                  value={runnerSeed}
+                  onChange={(event) => {
+                    setRunnerSeed(event.target.value.trim())
+                    setSeed(undefined)
+                  }}
+                  inputMode="numeric"
+                  placeholder={t('generate.advanced.modelDefault')}
+                  aria-label={t('generate.advanced.seed')}
+                  className="h-8 border-border bg-transparent font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    setRunnerSeed('')
+                    setSeed(undefined)
+                  }}
+                  title={t('generate.advanced.randomSeed')}
+                  aria-label={t('generate.advanced.randomSeed')}
+                  className="size-8 shrink-0"
+                >
+                  <RefreshCw className="size-3.5" aria-hidden />
+                </Button>
+              </div>
+            </label>
+
+            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <span>{t('generate.advanced.steps')}</span>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={runnerSteps}
+                onChange={(event) => setRunnerSteps(event.target.value)}
+                placeholder={t('generate.advanced.modelDefault')}
+                aria-label={t('generate.advanced.steps')}
+                className="h-8 border-border bg-transparent text-xs"
+              />
+            </label>
+
+            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <span>{t('generate.advanced.cfg')}</span>
+              <Input
+                type="number"
+                min={0}
+                max={30}
+                step={0.1}
+                value={runnerCfg}
+                onChange={(event) => setRunnerCfg(event.target.value)}
+                placeholder={t('generate.advanced.modelDefault')}
+                aria-label={t('generate.advanced.cfg')}
+                className="h-8 border-border bg-transparent text-xs"
+              />
+            </label>
+
+            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <span>{t('generate.advanced.sampler')}</span>
+              <Select
+                value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
+                onValueChange={(value) =>
+                  setRunnerSampler(
+                    value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
+                  )
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('generate.advanced.sampler')}
+                  className="h-8 border-border bg-transparent text-xs"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                    {t('generate.advanced.modelDefault')}
+                  </SelectItem>
+                  {RUNNER_SAMPLERS.map((sampler) => (
+                    <SelectItem key={sampler} value={sampler}>
+                      {sampler}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <span>{t('generate.advanced.scheduler')}</span>
+              <Select
+                value={runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE}
+                onValueChange={(value) =>
+                  setRunnerScheduler(
+                    value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
+                  )
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('generate.advanced.scheduler')}
+                  className="h-8 border-border bg-transparent text-xs"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                    {t('generate.advanced.modelDefault')}
+                  </SelectItem>
+                  {RUNNER_SCHEDULERS.map((scheduler) => (
+                    <SelectItem key={scheduler} value={scheduler}>
+                      {scheduler}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.width')}</span>
+                <Input
+                  type="number"
+                  min={512}
+                  max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
+                  step={8}
+                  value={runnerWidth}
+                  onChange={(event) => setRunnerWidth(event.target.value)}
+                  placeholder={String(previewDimensions.width)}
+                  aria-label={t('generate.advanced.width')}
+                  className="h-8 border-border bg-transparent text-xs"
+                />
+              </label>
+
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.height')}</span>
+                <Input
+                  type="number"
+                  min={512}
+                  max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
+                  step={8}
+                  value={runnerHeight}
+                  onChange={(event) => setRunnerHeight(event.target.value)}
+                  placeholder={String(previewDimensions.height)}
+                  aria-label={t('generate.advanced.height')}
+                  className="h-8 border-border bg-transparent text-xs"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border p-2.5">
+            <div className="flex flex-col gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">
+                  {t('generate.advanced.postprocess')}
+                </p>
+                <p className="text-2xs text-muted-foreground">
+                  {t('generate.advanced.upscalerHint')}
+                </p>
+              </div>
+              <Select
+                value={runnerUpscaler}
+                onValueChange={(value) =>
+                  setRunnerUpscaler(
+                    value === '4x-AnimeSharp' ? '4x-AnimeSharp' : 'none',
+                  )
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('generate.advanced.upscaler')}
+                  className="h-8 w-full border-border bg-transparent text-xs"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {t('generate.advanced.upscalerNone')}
+                  </SelectItem>
+                  <SelectItem value="4x-AnimeSharp">4x-AnimeSharp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {runnerUpscaler === '4x-AnimeSharp' ? (
+              <p
+                className={cn(
+                  'mt-2 text-2xs',
+                  upscaleOutputIsLarge
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {t('generate.advanced.upscaleSummary', {
+                  width: previewDimensions.width,
+                  height: previewDimensions.height,
+                  outputWidth: upscaleFinalWidth,
+                  outputHeight: upscaleFinalHeight,
+                })}
+                {upscaleOutputIsLarge
+                  ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                  : ''}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  ) : null
+
   return (
     <>
       <section
@@ -1605,6 +1858,9 @@ function GenerateBranch() {
                 />
               </div>
             ) : null}
+            {/* S2精修①-B：Runner 高级参数 disclosure 迁入左装配栏（reflow 1col·
+                浮起纸面面板）。仅 runner 底模有参数（isRunnerBase gated）。 */}
+            {runnerParamsPanel}
           </div>
 
           {
@@ -1997,281 +2253,7 @@ function GenerateBranch() {
                         })}
                   </p>
                 ) : null}
-                {isRunnerBase ? (
-                  <div className="border-t border-border pt-2">
-                    <button
-                      type="button"
-                      aria-expanded={advancedOpen}
-                      onClick={() => setAdvancedOpen((open) => !open)}
-                      className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
-                    >
-                      <SlidersHorizontal className="size-3.5" aria-hidden />
-                      <span>{t('generate.advanced.title')}</span>
-                      <span className="text-2xs font-normal text-muted-foreground">
-                        {advancedCustomCount > 0
-                          ? t('generate.advanced.customSummary', {
-                              count: advancedCustomCount,
-                            })
-                          : t('generate.advanced.defaultSummary')}
-                      </span>
-                      <ChevronDown
-                        className={cn(
-                          'ml-auto size-3.5 transition-transform',
-                          advancedOpen && 'rotate-180',
-                        )}
-                        aria-hidden
-                      />
-                    </button>
-
-                    {advancedOpen ? (
-                      <div className="space-y-3 pt-2">
-                        {runnerParameterError ? (
-                          <p
-                            role="alert"
-                            className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
-                          >
-                            {runnerParameterError}
-                          </p>
-                        ) : null}
-
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                            <span>{t('generate.advanced.seed')}</span>
-                            <div className="flex gap-1.5">
-                              <Input
-                                value={runnerSeed}
-                                onChange={(event) => {
-                                  setRunnerSeed(event.target.value.trim())
-                                  setSeed(undefined)
-                                }}
-                                inputMode="numeric"
-                                placeholder={t(
-                                  'generate.advanced.modelDefault',
-                                )}
-                                aria-label={t('generate.advanced.seed')}
-                                className="h-8 border-border bg-transparent font-mono text-xs"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => {
-                                  setRunnerSeed('')
-                                  setSeed(undefined)
-                                }}
-                                title={t('generate.advanced.randomSeed')}
-                                aria-label={t('generate.advanced.randomSeed')}
-                                className="size-8 shrink-0"
-                              >
-                                <RefreshCw className="size-3.5" aria-hidden />
-                              </Button>
-                            </div>
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                            <span>{t('generate.advanced.steps')}</span>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={100}
-                              step={1}
-                              value={runnerSteps}
-                              onChange={(event) =>
-                                setRunnerSteps(event.target.value)
-                              }
-                              placeholder={t('generate.advanced.modelDefault')}
-                              aria-label={t('generate.advanced.steps')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            />
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                            <span>{t('generate.advanced.cfg')}</span>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={30}
-                              step={0.1}
-                              value={runnerCfg}
-                              onChange={(event) =>
-                                setRunnerCfg(event.target.value)
-                              }
-                              placeholder={t('generate.advanced.modelDefault')}
-                              aria-label={t('generate.advanced.cfg')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            />
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                            <span>{t('generate.advanced.sampler')}</span>
-                            <Select
-                              value={
-                                runnerSampler || RUNNER_DEFAULT_SELECT_VALUE
-                              }
-                              onValueChange={(value) =>
-                                setRunnerSampler(
-                                  value === RUNNER_DEFAULT_SELECT_VALUE
-                                    ? ''
-                                    : value,
-                                )
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={t('generate.advanced.sampler')}
-                                className="h-8 border-border bg-transparent text-xs"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                                  {t('generate.advanced.modelDefault')}
-                                </SelectItem>
-                                {RUNNER_SAMPLERS.map((sampler) => (
-                                  <SelectItem key={sampler} value={sampler}>
-                                    {sampler}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                            <span>{t('generate.advanced.scheduler')}</span>
-                            <Select
-                              value={
-                                runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE
-                              }
-                              onValueChange={(value) =>
-                                setRunnerScheduler(
-                                  value === RUNNER_DEFAULT_SELECT_VALUE
-                                    ? ''
-                                    : value,
-                                )
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={t('generate.advanced.scheduler')}
-                                className="h-8 border-border bg-transparent text-xs"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                                  {t('generate.advanced.modelDefault')}
-                                </SelectItem>
-                                {RUNNER_SCHEDULERS.map((scheduler) => (
-                                  <SelectItem key={scheduler} value={scheduler}>
-                                    {scheduler}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                            <span>{t('generate.advanced.width')}</span>
-                            <Input
-                              type="number"
-                              min={512}
-                              max={
-                                selectedBase?.family === 'anima-dit'
-                                  ? 1536
-                                  : 2048
-                              }
-                              step={8}
-                              value={runnerWidth}
-                              onChange={(event) =>
-                                setRunnerWidth(event.target.value)
-                              }
-                              placeholder={String(previewDimensions.width)}
-                              aria-label={t('generate.advanced.width')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            />
-                          </label>
-
-                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                            <span>{t('generate.advanced.height')}</span>
-                            <Input
-                              type="number"
-                              min={512}
-                              max={
-                                selectedBase?.family === 'anima-dit'
-                                  ? 1536
-                                  : 2048
-                              }
-                              step={8}
-                              value={runnerHeight}
-                              onChange={(event) =>
-                                setRunnerHeight(event.target.value)
-                              }
-                              placeholder={String(previewDimensions.height)}
-                              aria-label={t('generate.advanced.height')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            />
-                          </label>
-                        </div>
-
-                        <div className="rounded-lg border border-border p-2.5">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium text-foreground">
-                                {t('generate.advanced.postprocess')}
-                              </p>
-                              <p className="text-2xs text-muted-foreground">
-                                {t('generate.advanced.upscalerHint')}
-                              </p>
-                            </div>
-                            <Select
-                              value={runnerUpscaler}
-                              onValueChange={(value) =>
-                                setRunnerUpscaler(
-                                  value === '4x-AnimeSharp'
-                                    ? '4x-AnimeSharp'
-                                    : 'none',
-                                )
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={t('generate.advanced.upscaler')}
-                                className="h-8 w-full border-border bg-transparent text-xs sm:w-48"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">
-                                  {t('generate.advanced.upscalerNone')}
-                                </SelectItem>
-                                <SelectItem value="4x-AnimeSharp">
-                                  4x-AnimeSharp
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {runnerUpscaler === '4x-AnimeSharp' ? (
-                            <p
-                              className={cn(
-                                'mt-2 text-2xs',
-                                upscaleOutputIsLarge
-                                  ? 'text-amber-700 dark:text-amber-400'
-                                  : 'text-muted-foreground',
-                              )}
-                            >
-                              {t('generate.advanced.upscaleSummary', {
-                                width: previewDimensions.width,
-                                height: previewDimensions.height,
-                                outputWidth: upscaleFinalWidth,
-                                outputHeight: upscaleFinalHeight,
-                              })}
-                              {upscaleOutputIsLarge
-                                ? ` ${t('generate.advanced.upscaleLargeWarning')}`
-                                : ''}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
                 {/* R5：< md 收成底部常驻动作条（.lora-mobile-actionbar）；≥ md 内联
                 自然流。移动端出图 flex-1 拉宽成拇指区主 CTA，桌面保持紧凑。 */}
                 <div className="lora-mobile-actionbar flex items-center justify-between gap-2">

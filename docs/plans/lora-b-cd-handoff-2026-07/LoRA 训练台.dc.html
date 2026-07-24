@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin:0; background:oklch(0.950 0.006 235); }
+    a { color:oklch(0.335 0.022 252); text-decoration:none; }
+    a:hover { color:oklch(0.29 0.022 255); }
+    @keyframes lr-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+    @keyframes lr-fade { from { opacity:0; } to { opacity:1; } }
+    @keyframes lr-spin { to { transform:rotate(360deg); } }
+    @keyframes lr-pulse { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+    input[type="text"] { font-family:inherit; }
+    [data-motion="off"] * { transition-duration:0ms !important; animation-duration:0ms !important; }
+    @media (prefers-reduced-motion: reduce) { * { transition-duration:0ms !important; animation-duration:0ms !important; } }
+  </style>
+</helmet>
+<div data-motion="{{ motionAttr }}" style="--page:oklch(0.950 0.006 235); --panel:oklch(1 0 0); --well:oklch(0.935 0.007 235); --ink:oklch(0.29 0.022 255); --ink2:oklch(0.44 0.02 252); --muted:oklch(0.565 0.018 250); --faint:oklch(0.70 0.012 245); --hairline:oklch(0.915 0.008 240); --hairline2:oklch(0.875 0.01 240); --graphite:oklch(0.335 0.022 252); --graphite-hi:oklch(0.29 0.022 252); --ok:oklch(0.62 0.095 158); --ok-tint:oklch(0.965 0.02 155); --ok-ink:oklch(0.42 0.08 158); --warn:oklch(0.68 0.115 75); --warn-ink:oklch(0.5 0.1 70); --warn-tint:oklch(0.972 0.025 85); --warn-line:oklch(0.88 0.055 82); --sh-panel:0 1px 2px rgba(30,42,66,.06), 0 6px 16px rgba(30,42,66,.10); --sh-raise:0 1px 3px rgba(30,42,66,.09); --mono:'Geist Mono', ui-monospace, monospace; --ease:cubic-bezier(.22,1,.36,1); min-height:100vh; background:var(--page); color:var(--ink); font-family:'Geist','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; font-size:14px;" data-screen-label="LoRA 训练台">
+
+  <sc-if value="{{ showStateBar }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; align-items:center; gap:8px; padding:10px 24px; border-bottom:1px dashed var(--hairline2); flex-wrap:wrap;">
+      <span style="font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.04em;">训练状态矩阵 · 设计导航</span>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <sc-for list="{{ presets }}" as="p" hint-placeholder-count="6">
+          <button onClick="{{ p.onClick }}" style="font-family:var(--mono); font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid {{ p.borderC }}; background:{{ p.bg }}; color:{{ p.fg }}; cursor:pointer; transition:all 180ms var(--ease);">{{ p.label }}</button>
+        </sc-for>
+      </div>
+      <div style="margin-left:auto; display:flex; gap:14px; font-size:12px;">
+        <a href="LoRA 装配台.dc.html">装配台 →</a>
+        <a href="LoRA 域 Token 规格.dc.html">Token 规格 →</a>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="display:flex; align-items:center; gap:2px; padding:0 24px; height:52px;">
+    <a href="LoRA 装配台.dc.html" style="font-size:14px; color:var(--muted); padding:6px 10px;">生成</a>
+    <a href="LoRA 装配台.dc.html" style="font-size:14px; color:var(--muted); padding:6px 10px;">库</a>
+    <button style="font-size:14px; font-weight:600; color:var(--ink); background:none; border:none; padding:6px 10px; cursor:default; box-shadow:inset 0 -2px 0 var(--graphite);">训练</button>
+  </div>
+
+  <div style="max-width:1120px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start; padding:8px 24px 48px 24px;">
+
+    <div style="display:flex; flex-direction:column; gap:16px; min-width:0;">
+
+      <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:var(--well); border:1px dashed var(--hairline2); border-radius:16px; padding:56px 24px; text-align:center; animation:lr-fade 280ms var(--ease);">
+          <svg width="104" height="104" viewBox="0 0 120 120" fill="none">
+            <rect x="16" y="32" width="88" height="64" rx="8" fill="oklch(0.335 0.022 252 / 0.05)" stroke="oklch(0.335 0.022 252 / 0.25)" stroke-width="2"></rect>
+            <circle cx="60" cy="64" r="18" fill="oklch(0.335 0.022 252 / 0.08)" stroke="oklch(0.335 0.022 252 / 0.3)" stroke-width="2"></circle>
+            <circle cx="60" cy="64" r="9" fill="oklch(0.335 0.022 252 / 0.18)"></circle>
+            <rect x="46" y="22" width="28" height="14" rx="3" fill="oklch(0.335 0.022 252 / 0.08)" stroke="oklch(0.335 0.022 252 / 0.25)" stroke-width="2"></rect>
+            <path d="M92 28 L94 34 L100 36 L94 38 L92 44 L90 38 L84 36 L90 34 Z" fill="oklch(0.68 0.115 75)"></path>
+          </svg>
+          <div style="max-width:420px; display:flex; flex-direction:column; gap:8px;">
+            <h3 style="font-size:20px; font-weight:600; margin:0; letter-spacing:-.01em;">训练你自己的 LoRA</h3>
+            <p style="font-size:13.5px; color:var(--muted); margin:0; line-height:1.7;">上传 5–50 张同一角色 / 风格 / 主体的图片，训练完成后回到「我的资源」，可直接挂载进装配台继续生成。</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+            <button onClick="{{ onStart }}" style-hover="background:var(--graphite-hi)" style="display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:#fff; background:var(--graphite); border:none; border-radius:999px; padding:9px 18px; cursor:pointer; font-family:inherit; transition:background 180ms var(--ease);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
+              选择预设开始
+            </button>
+            <button onClick="{{ onStart }}" style-hover="border-color:var(--hairline2); background:var(--well)" style="display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:500; color:var(--ink); background:var(--panel); border:1px solid var(--hairline2); border-radius:999px; padding:9px 18px; cursor:pointer; font-family:inherit; transition:all 180ms var(--ease);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path></svg>
+              直接上传图片
+            </button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCompose }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:16px; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="width:20px; height:20px; flex:none; border-radius:6px; background:var(--well); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--ink2);">1</span>
+            <span style="font-size:13px; font-weight:600;">选择预设</span>
+            <span style="font-size:11.5px; color:var(--faint);">一键填好类型 · 底模 · 触发词</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px;">
+            <sc-for list="{{ presetCards }}" as="pc" hint-placeholder-count="6">
+              <button onClick="{{ pc.onClick }}" disabled="{{ pc.disabled }}" aria-pressed="{{ pc.selected }}" title="{{ pc.title }}" style-hover="border-color:{{ pc.hoverBorder }}" style="position:relative; display:flex; align-items:center; gap:8px; text-align:left; background:{{ pc.bg }}; border:1.5px solid {{ pc.border }}; border-radius:11px; box-shadow:{{ pc.shadow }}; padding:10px; cursor:{{ pc.cursor }}; font-family:inherit; opacity:{{ pc.alpha }}; transition:all 180ms var(--ease);">
+                <span style="color:{{ pc.iconC }}; flex:none; display:flex;">{{ pc.icon }}</span>
+                <span style="flex:1; min-width:0; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ pc.name }}</span>
+                <sc-if value="{{ pc.soon }}" hint-placeholder-val="{{ false }}">
+                  <span style="flex:none; font-size:9.5px; color:var(--muted); background:var(--well); border-radius:999px; padding:2px 6px;">即将</span>
+                </sc-if>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ presetNote }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0; font-size:11.5px; color:var(--muted); line-height:1.6; background:var(--well); border-radius:8px; padding:8px 10px;">{{ presetNote }}</p>
+          </sc-if>
+        </div>
+
+        <div style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:16px; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="width:20px; height:20px; flex:none; border-radius:6px; background:var(--well); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--ink2);">2</span>
+            <span style="font-size:13px; font-weight:600;">上传训练图</span>
+            <span style="margin-left:auto; font-family:var(--mono); font-size:11px; color:{{ countColor }};">{{ imageCount }} / 50 · 至少 5 张</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:8px;">
+            <sc-for list="{{ imageTiles }}" as="im" hint-placeholder-count="6">
+              <div style="position:relative; aspect-ratio:1; border-radius:9px; background:{{ im.bg }}; overflow:hidden;">
+                <sc-if value="{{ im.cover }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute; top:4px; left:4px; font-family:var(--mono); font-size:8.5px; letter-spacing:.06em; color:#fff; background:var(--graphite); border-radius:4px; padding:1px 5px;">封面</span>
+                </sc-if>
+                <button onClick="{{ im.onRemove }}" title="移除" style="position:absolute; top:3px; right:3px; width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--ink); background:oklch(1 0 0 / 0.85); border:none; border-radius:50%; cursor:pointer; padding:0;">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+            <button onClick="{{ onAddImage }}" style-hover="border-color:var(--hairline2); color:var(--ink2); background:var(--well)" style="aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--faint); background:none; border:1px dashed var(--hairline2); border-radius:9px; cursor:pointer; font-family:inherit; transition:all 180ms var(--ease);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+              <span style="font-size:9.5px;">上传</span>
+            </button>
+          </div>
+          <p style="margin:0; font-size:11px; color:var(--faint); line-height:1.6;">上传 / 粘贴 / 从素材库选。同一主体多角度、干净背景效果最好；第一张作封面，可拖拽调序。</p>
+        </div>
+
+        <div style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:16px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="width:20px; height:20px; flex:none; border-radius:6px; background:var(--well); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--ink2);">3</span>
+            <span style="font-size:13px; font-weight:600;">配置</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:11.5px; color:var(--muted); font-weight:500;">LoRA 名称</label>
+            <input type="text" value="{{ loraName }}" onInput="{{ onName }}" placeholder="例如：星见雅 v1" style="height:38px; padding:0 12px; font-size:13.5px; color:var(--ink); background:var(--well); border:1px solid transparent; border-radius:9px; outline:none;" style-focus="border-color:var(--graphite); background:var(--panel)">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:11.5px; color:var(--muted); font-weight:500;">底模</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <sc-for list="{{ baseChoices }}" as="bm" hint-placeholder-count="3">
+                <button onClick="{{ bm.onClick }}" disabled="{{ bm.disabled }}" aria-pressed="{{ bm.selected }}" style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:{{ bm.w }}; color:{{ bm.fg }}; background:{{ bm.bg }}; border:1.5px solid {{ bm.border }}; border-radius:9px; padding:6px 14px; cursor:{{ bm.cursor }}; font-family:inherit; opacity:{{ bm.alpha }}; transition:all 180ms var(--ease);">
+                  {{ bm.label }}
+                  <sc-if value="{{ bm.soon }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:9.5px; color:var(--muted); background:var(--well); border-radius:999px; padding:1px 6px;">即将</span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:11.5px; color:var(--muted); font-weight:500;">触发词</label>
+            <input type="text" value="{{ triggerWord }}" onInput="{{ onTrigger }}" placeholder="sks_character" style="height:38px; padding:0 12px; font-family:var(--mono); font-size:13px; color:var(--ink); background:var(--well); border:1px solid transparent; border-radius:9px; outline:none;" style-focus="border-color:var(--graphite); background:var(--panel)">
+            <span style="font-size:10.5px; color:var(--faint);">生成时把这个词写进 Prompt 即可唤起该 LoRA 的特征。</span>
+          </div>
+        </div>
+
+        <sc-if value="{{ gateOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid var(--hairline2); border-radius:14px; background:var(--panel); box-shadow:var(--sh-raise); padding:16px; display:flex; flex-direction:column; gap:12px; animation:lr-in 220ms var(--ease);">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:13px; font-weight:600;">即将提交训练</span>
+              <sc-if value="{{ presetBadge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:10px; color:var(--ink2); border:1px solid var(--hairline2); border-radius:999px; padding:2px 8px;">{{ presetBadge }}</span>
+              </sc-if>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+              <div style="background:var(--well); border-radius:9px; padding:9px 10px; display:flex; flex-direction:column; gap:3px;">
+                <span style="font-size:9.5px; letter-spacing:.06em; color:var(--muted);">图片</span>
+                <span style="font-family:var(--mono); font-size:14px; font-weight:500; color:var(--ink);">{{ imageCount }}</span>
+              </div>
+              <div style="background:var(--well); border-radius:9px; padding:9px 10px; display:flex; flex-direction:column; gap:3px;">
+                <span style="font-size:9.5px; letter-spacing:.06em; color:var(--muted);">底模</span>
+                <span style="font-size:12.5px; font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ baseLabel }}</span>
+              </div>
+              <div style="background:var(--well); border-radius:9px; padding:9px 10px; display:flex; flex-direction:column; gap:3px;">
+                <span style="font-size:9.5px; letter-spacing:.06em; color:var(--muted);">预计花费</span>
+                <span style="font-family:var(--mono); font-size:14px; font-weight:500; color:var(--ink);">$1.20</span>
+              </div>
+              <div style="background:var(--well); border-radius:9px; padding:9px 10px; display:flex; flex-direction:column; gap:3px;">
+                <span style="font-size:9.5px; letter-spacing:.06em; color:var(--muted);">预计耗时</span>
+                <span style="font-family:var(--mono); font-size:14px; font-weight:500; color:var(--ink);">~18 min</span>
+              </div>
+            </div>
+            <button onClick="{{ onSubmit }}" style-hover="background:var(--graphite-hi)" style="height:44px; font-size:15px; font-weight:600; letter-spacing:.1em; color:#fff; background:var(--graphite); border:none; border-radius:11px; cursor:pointer; box-shadow:0 1px 3px rgba(30,42,66,.2); font-family:inherit; transition:background 200ms var(--ease);">开始训练</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ gateClosed }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; align-items:center; gap:8px; border:1px dashed var(--hairline2); border-radius:12px; padding:14px 16px; color:var(--muted); font-size:12.5px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            {{ gateHint }}
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ isQueued }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:24px; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; animation:lr-fade 280ms var(--ease);">
+          <span style="width:34px; height:34px; border:3px solid var(--hairline2); border-top-color:var(--graphite); border-radius:50%; animation:lr-spin 900ms linear infinite;"></span>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <span style="font-size:15px; font-weight:600;">已提交 · 排队中</span>
+            <span style="font-size:12.5px; color:var(--muted);">任务已进入 Runner 队列，即将开始训练。可离开本页，完成后会通知。</span>
+          </div>
+          <span style="font-family:var(--mono); font-size:11px; color:var(--faint);">{{ jobNameLine }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTraining }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:20px; display:flex; flex-direction:column; gap:14px; animation:lr-fade 280ms var(--ease);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:var(--graphite); animation:lr-pulse 1.4s ease-in-out infinite;"></span>
+            <span style="font-size:15px; font-weight:600; flex:1;">训练中</span>
+            <span style="font-family:var(--mono); font-size:13px; color:var(--ink2);">{{ progressPct }}%</span>
+          </div>
+          <div style="height:6px; border-radius:999px; background:var(--well); overflow:hidden;">
+            <div style="height:100%; width:{{ progressPct }}%; background:var(--graphite); border-radius:999px; transition:width 400ms var(--ease);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--muted);">
+            <span>{{ jobNameLine }}</span>
+            <span>步 {{ trainStep }} / 1200 · 已用 {{ elapsedMin }} min</span>
+          </div>
+          <p style="margin:0; font-size:11.5px; color:var(--faint); line-height:1.6;">训练在后台进行，可离开本页；完成后该 LoRA 自动进入「我的资源」，可挂载进装配台。</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCompleted }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative; overflow:hidden; border:1px solid var(--ok); border-radius:16px; background:linear-gradient(135deg, var(--ok-tint), var(--panel) 60%); box-shadow:var(--sh-raise); padding:20px; display:flex; flex-direction:column; gap:14px; animation:lr-fade 320ms var(--ease);">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <span style="width:40px; height:40px; flex:none; border-radius:50%; background:oklch(0.62 0.095 158 / 0.18); color:var(--ok-ink); display:flex; align-items:center; justify-content:center;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"></path><path d="m9 11 3 3L22 4"></path></svg>
+            </span>
+            <div style="min-width:0; display:flex; flex-direction:column; gap:6px;">
+              <h3 style="font-size:16px; font-weight:600; margin:0;">你的 LoRA 已就绪</h3>
+              <p style="font-size:13px; color:var(--ink2); margin:0; line-height:1.6;">「{{ loraName }}」训练完成，已加入「我的资源」。</p>
+              <span style="font-family:var(--mono); font-size:12px; color:var(--ink); background:oklch(1 0 0 / 0.7); border-radius:7px; padding:5px 9px; align-self:flex-start;">触发词 · {{ triggerWord }}</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="LoRA 装配台.dc.html" style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:#fff; background:var(--graphite); border-radius:999px; padding:8px 18px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+              挂载去生成
+            </a>
+            <button onClick="{{ onTrainAnother }}" style-hover="border-color:var(--hairline2); background:var(--well)" style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:var(--ink); background:var(--panel); border:1px solid var(--hairline2); border-radius:999px; padding:8px 18px; cursor:pointer; font-family:inherit; transition:all 180ms var(--ease);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+              训练新的
+            </button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}">
+        <div style="border:1px solid var(--warn-line); border-radius:16px; background:var(--warn-tint); box-shadow:var(--sh-raise); padding:20px; display:flex; flex-direction:column; gap:12px; animation:lr-fade 280ms var(--ease);">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <span style="width:34px; height:34px; flex:none; border-radius:50%; background:oklch(0.68 0.115 75 / 0.18); color:var(--warn-ink); display:flex; align-items:center; justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            </span>
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <h3 style="font-size:15px; font-weight:600; margin:0; color:var(--warn-ink);">训练失败</h3>
+              <p style="font-size:12.5px; color:var(--ink2); margin:0; line-height:1.6;">Runner 训练任务中断（数据集校验未通过 / 队列超时）。图片与配置已保留，可直接重试；连续失败请检查图片是否清晰且主体一致。</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button onClick="{{ onSubmit }}" style-hover="background:var(--graphite-hi)" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--graphite); border:none; border-radius:9px; padding:7px 18px; cursor:pointer; font-family:inherit; transition:background 180ms var(--ease);">重试</button>
+            <button onClick="{{ onBackCompose }}" style-hover="border-color:var(--hairline2)" style="font-size:12.5px; font-weight:500; color:var(--ink2); background:none; border:1px solid var(--hairline2); border-radius:9px; padding:7px 16px; cursor:pointer; font-family:inherit; transition:all 180ms var(--ease);">回到配置</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div data-screen-label="训练历史" style="background:var(--panel); border-radius:14px; box-shadow:var(--sh-panel); padding:14px; display:flex; flex-direction:column; gap:12px;">
+      <div style="font-size:11px; font-weight:500; letter-spacing:.08em; color:var(--muted);">训练历史</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="4">
+          <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--hairline); border-radius:10px; box-shadow:var(--sh-raise); padding:9px 10px;">
+            <div style="width:34px; height:34px; flex:none; border-radius:8px; background:var(--well);"></div>
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+              <span style="font-size:12.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ j.name }}</span>
+              <span style="font-family:var(--mono); font-size:10px; color:var(--faint);">{{ j.meta }}</span>
+            </div>
+            <span style="flex:none; display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:500; color:{{ j.statusFg }}; background:{{ j.statusBg }}; border-radius:999px; padding:2px 8px;">
+              <span style="width:5px; height:5px; border-radius:50%; background:{{ j.dot }};"></span>{{ j.status }}
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0; font-size:11px; color:var(--faint); line-height:1.6;">完成的训练产物进入「我的资源」，在库 modal 的「我的」tab 可挂载。</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showStateBar&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;设计导航&quot;}, &quot;motion&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;柔顺连续&quot;, &quot;直切&quot;], &quot;default&quot;: &quot;柔顺连续&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;动效&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.PRESETS = [
+      { id: 'anime-character', name: '动漫角色', type: 'subject', base: 'flux-1-d', trig: 'sks_character', avail: true, icon: 'sparkles', note: '训练一个可复用的动漫角色身份：脸、发型、招牌服饰跨图保持一致。' },
+      { id: 'realistic-portrait', name: '写实人像', type: 'subject', base: 'flux-1-d', trig: 'sks_person', avail: true, icon: 'user', note: '锁住一个真人/写实主体的面部特征，适合系列写真。' },
+      { id: 'art-style', name: '艺术风格', type: 'style', base: 'flux-1-d', trig: 'sks_style', avail: true, icon: 'palette', note: '提取一种画风/笔触/配色，套到任意主体上。' },
+      { id: 'object', name: '物体', type: 'subject', base: 'flux-1-d', trig: 'sks_object', avail: true, icon: 'box', note: '训练一件特定物体/道具，用于稳定复现同一件东西。' },
+      { id: 'sdxl-coming-soon', name: 'SDXL', type: 'subject', base: 'sdxl-1.0', trig: '', avail: false, icon: 'image' },
+      { id: 'illustrious-coming-soon', name: 'Illustrious', type: 'subject', base: 'illustrious', trig: '', avail: false, icon: 'wand' },
+    ];
+    this.BASES = [
+      { id: 'flux-1-d', label: 'FLUX.1 D', avail: true },
+      { id: 'sdxl-1.0', label: 'SDXL 1.0', avail: false },
+      { id: 'illustrious', label: 'Illustrious', avail: false },
+    ];
+    this.ICONS = {
+      sparkles: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>',
+      user: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
+      palette: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"></path></svg>',
+      box: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>',
+      image: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>',
+      wand: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 9-9"></path><path d="M15 4V2"></path><path d="M15 16v-2"></path><path d="M8 9h2"></path><path d="M20 9h2"></path><path d="M17.8 11.8 19 13"></path><path d="M15 9h.01"></path><path d="M17.8 6.2 19 5"></path><path d="m3 21 9-9"></path><path d="M12.2 6.2 11 5"></path></svg>',
+    };
+    this.HISTORY = [
+      { name: '星见雅 v2', meta: 'FLUX.1 D · 32 张 · 2h 前', status: '完成', kind: 'ok' },
+      { name: 'Ink Wash 水墨风', meta: 'FLUX.1 D · 18 张 · 昨天', status: '完成', kind: 'ok' },
+      { name: '守岸人 Shorekeeper', meta: 'FLUX.1 D · 26 张 · 3 天前', status: '失败', kind: 'fail' },
+    ];
+    this.state = { stage: 'compose', motion: props.motion, presetId: 'anime-character', imageCount: 12, loraName: '', trigger: 'sks_character', baseId: 'flux-1-d', progressPct: 42, trainStep: 504, elapsedMin: 7 };
+  }
+  componentWillUnmount() { clearInterval(this._iv); clearTimeout(this._t); }
+  advance(pct) {
+    this.setState({ progressPct: pct, trainStep: Math.round(pct / 100 * 1200), elapsedMin: Math.max(1, Math.round(pct / 100 * 18)) });
+  }
+  runTimeline() {
+    clearInterval(this._iv); clearTimeout(this._t);
+    this.setState({ stage: 'queued' });
+    this._t = setTimeout(() => {
+      this.setState({ stage: 'training', progressPct: 4, trainStep: 48, elapsedMin: 1 });
+      let p = 4;
+      this._iv = setInterval(() => {
+        p += 12;
+        if (p >= 100) { p = 100; clearInterval(this._iv); this.advance(100); this._t = setTimeout(() => this.setState({ stage: 'completed' }), 500); }
+        else this.advance(p);
+      }, 500);
+    }, 1100);
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => this.setState(patch);
+    const preset = this.PRESETS.find(p => p.id === s.presetId);
+    const baseSel = this.BASES.find(b => b.id === s.baseId) || this.BASES[0];
+    const gateOpen = s.imageCount >= 5 && s.loraName.trim().length > 0;
+    const stageDefs = [['empty', '空态'], ['compose', '配置组建'], ['queued', '排队中'], ['training', '训练中'], ['completed', '完成'], ['failed', '失败']];
+    const React = this.constructor.React || window.React;
+    return {
+      motionAttr: (this.props.motion ?? '柔顺连续') === '直切' ? 'off' : 'on',
+      showStateBar: this.props.showStateBar ?? true,
+      presets: stageDefs.map(([id, label]) => ({
+        label,
+        borderC: s.stage === id ? 'var(--graphite)' : 'var(--hairline2)',
+        bg: s.stage === id ? 'var(--graphite)' : 'transparent',
+        fg: s.stage === id ? '#fff' : 'var(--muted)',
+        onClick: () => { clearInterval(this._iv); clearTimeout(this._t); set({ stage: id }); },
+      })),
+      isEmpty: s.stage === 'empty', isCompose: s.stage === 'compose',
+      isQueued: s.stage === 'queued', isTraining: s.stage === 'training',
+      isCompleted: s.stage === 'completed', isFailed: s.stage === 'failed',
+      onStart: () => set({ stage: 'compose' }),
+      onBackCompose: () => set({ stage: 'compose' }),
+      presetCards: this.PRESETS.map(p => ({
+        name: p.name, soon: !p.avail, selected: p.id === s.presetId && p.avail,
+        disabled: !p.avail, cursor: p.avail ? 'pointer' : 'not-allowed',
+        title: p.avail ? p.name : p.name + ' · 即将开放',
+        alpha: p.avail ? '1' : '0.6',
+        bg: (p.id === s.presetId && p.avail) ? 'var(--ok-tint)' : 'var(--panel)',
+        border: (p.id === s.presetId && p.avail) ? 'var(--ok)' : 'var(--hairline)',
+        hoverBorder: (p.id === s.presetId && p.avail) ? 'var(--ok)' : 'var(--hairline2)',
+        shadow: (p.id === s.presetId && p.avail) ? '0 0 0 3px oklch(0.62 0.095 158 / 0.12)' : 'var(--sh-raise)',
+        iconC: (p.id === s.presetId && p.avail) ? 'var(--ok-ink)' : 'var(--muted)',
+        icon: React.createElement('span', { dangerouslySetInnerHTML: { __html: this.ICONS[p.icon] } }),
+        onClick: () => { if (p.avail) set({ presetId: p.id, baseId: p.base, trigger: p.trig || s.trigger }); },
+      })),
+      presetNote: preset && preset.avail ? preset.note : false,
+      imageCount: s.imageCount,
+      countColor: s.imageCount < 5 ? 'var(--warn-ink)' : 'var(--muted)',
+      imageTiles: Array.from({ length: s.imageCount }).map((_, i) => ({
+        cover: i === 0,
+        bg: 'repeating-linear-gradient(135deg, oklch(0.935 0.007 235), oklch(0.935 0.007 235) 8px, oklch(0.955 0.006 235) 8px, oklch(0.955 0.006 235) 16px)',
+        onRemove: () => set({ imageCount: Math.max(0, s.imageCount - 1) }),
+      })),
+      onAddImage: () => set({ imageCount: Math.min(50, s.imageCount + 1) }),
+      loraName: s.loraName,
+      onName: (e) => set({ loraName: e.target.value }),
+      triggerWord: s.trigger,
+      onTrigger: (e) => set({ trigger: e.target.value }),
+      baseChoices: this.BASES.map(b => ({
+        label: b.label, soon: !b.avail, selected: b.id === s.baseId && b.avail,
+        disabled: !b.avail, cursor: b.avail ? 'pointer' : 'not-allowed',
+        alpha: b.avail ? '1' : '0.6',
+        w: (b.id === s.baseId && b.avail) ? '600' : '400',
+        fg: (b.id === s.baseId && b.avail) ? 'var(--ink)' : 'var(--ink2)',
+        bg: (b.id === s.baseId && b.avail) ? 'var(--ok-tint)' : 'var(--panel)',
+        border: (b.id === s.baseId && b.avail) ? 'var(--ok)' : 'var(--hairline)',
+        onClick: () => { if (b.avail) set({ baseId: b.id }); },
+      })),
+      gateOpen, gateClosed: !gateOpen,
+      gateHint: s.loraName.trim().length === 0
+        ? '给 LoRA 起个名字，并上传至少 5 张图片，即可开始训练。'
+        : '再上传 ' + (5 - s.imageCount) + ' 张图片即可开始训练（至少 5 张）。',
+      baseLabel: baseSel.label,
+      presetBadge: preset && preset.avail ? preset.name : false,
+      onSubmit: () => this.runTimeline(),
+      onTrainAnother: () => { clearInterval(this._iv); clearTimeout(this._t); set({ stage: 'compose', imageCount: 0, loraName: '', trigger: preset ? (preset.trig || '') : '' }); },
+      jobNameLine: (s.loraName.trim() || '未命名 LoRA') + ' · FLUX.1 D · ' + s.imageCount + ' 张',
+      progressPct: s.progressPct, trainStep: s.trainStep, elapsedMin: s.elapsedMin,
+      jobs: (s.stage === 'training' || s.stage === 'queued'
+        ? [{ name: s.loraName.trim() || '未命名 LoRA', meta: 'FLUX.1 D · ' + s.imageCount + ' 张 · 刚刚', status: s.stage === 'queued' ? '排队' : '训练中', kind: 'run' }]
+        : []).concat(this.HISTORY).map(j => ({
+        name: j.name, meta: j.meta, status: j.status,
+        statusFg: j.kind === 'ok' ? 'var(--ok-ink)' : (j.kind === 'fail' ? 'var(--warn-ink)' : 'var(--ink2)'),
+        statusBg: j.kind === 'ok' ? 'var(--ok-tint)' : (j.kind === 'fail' ? 'var(--warn-tint)' : 'var(--well)'),
+        dot: j.kind === 'ok' ? 'var(--ok)' : (j.kind === 'fail' ? 'var(--warn)' : 'var(--graphite)'),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

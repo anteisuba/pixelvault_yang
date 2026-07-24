@@ -174,6 +174,8 @@ import type { LoraAssistantMount } from '@/types'
 import type { PromptPolarity, PromptTagSelection } from '@/types/prompt-tags'
 import { cn } from '@/lib/utils'
 
+import '@/app/lora.css'
+
 export function LoraWorkbench() {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
@@ -261,7 +263,7 @@ export function LoraWorkbench() {
   // R1 close-review（owner 2026-07-19「左右空出这么大的空间」）：内容容器
   // max-w-6xl→7xl，宽视口下收窄两侧留白。
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+    <div className="domain-lora min-h-svh w-full space-y-5 px-4 py-5 sm:px-6 lg:px-8">
       {/* P2-4: 模块 tab 从三个全宽大块收成紧凑居中 segmented pill——
           `items-center` 把 content-width 的 TabsList 在 flex-col 里水平居中，
           去掉 `w-full grid-cols-3` 让它自适应内容宽度。Radix Tabs 已带
@@ -1531,56 +1533,82 @@ function GenerateBranch() {
           </DialogContent>
         </Dialog>
 
-        <LoraSpineBar
-          compatibleBases={compatibleBases}
-          selectedBase={selectedBase}
-          onSelectBase={handleSelectBase}
-          needsKeySetup={needsKeySetup}
-          onRequestKeySetup={() =>
-            workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
-          }
-          loraScaleConfig={loraScaleConfig}
-          maxLoras={maxLoras}
-          activeRecipeGroupId={recipeGroupKey}
-          onSelectRecipeGroup={setRecipeGroupAssetId}
-          assistantOpen={assistantOpen}
-          onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
-          onAddLora={() =>
-            router.push(
-              `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
-            )
-          }
-        />
+        {/* CD 装配台三栏（近炭暖灰）：外层 grid = 左装配栏(spine 竖化面板 300px) |
+            右主体（内层沿用 5col：中来源/输入/词库 + 右结果）。移动端自然堆叠。
+            参考图/参数暂留中输入区，后续可迁入左栏（本步先立三栏骨架，低风险）。 */}
+        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-5">
+          <LoraSpineBar
+            compatibleBases={compatibleBases}
+            selectedBase={selectedBase}
+            onSelectBase={handleSelectBase}
+            needsKeySetup={needsKeySetup}
+            onRequestKeySetup={() =>
+              workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
+            }
+            loraScaleConfig={loraScaleConfig}
+            maxLoras={maxLoras}
+            activeRecipeGroupId={recipeGroupKey}
+            onSelectRecipeGroup={setRecipeGroupAssetId}
+            assistantOpen={assistantOpen}
+            onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
+            onAddLora={() =>
+              router.push(
+                `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
+              )
+            }
+          />
 
-        {
-          // G3a 布局 A「并排监视台」：装配行下是一张 60/40 网格——左 60% 输入列
-          // （临时顶部=推荐/自己搭配面板，G3b 换成来源图带+搭配状态条 → composer
-          // 输入），右 40% 结果监视列（跨左列两行）。空态不整块占位：composer+结果
-          // 框常驻，只在推荐列给「去库挑一个 LoRA」引导（见 !hasLora 分支）。
-          <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-start">
-            <div className="order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1">
-              {/* G3b-2 来源图带（左栏顶）：删「推荐/自己搭配」下划线 tabs——
+          {
+            // G3a 布局 A「并排监视台」：装配行下是一张 60/40 网格——左 60% 输入列
+            // （临时顶部=推荐/自己搭配面板，G3b 换成来源图带+搭配状态条 → composer
+            // 输入），右 40% 结果监视列（跨左列两行）。空态不整块占位：composer+结果
+            // 框常驻，只在推荐列给「去库挑一个 LoRA」引导（见 !hasLora 分支）。
+            <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-start">
+              <div className="order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1">
+                {/* G3b-2 来源图带（左栏顶）：删「推荐/自己搭配」下划线 tabs——
                 来源图缩略带常驻左栏顶（挂载显示 LoRA 效果证据，点图开共享配方
                 modal；未挂载退化成「纯底模 / 去库」引导）。「自己搭配」词库移到
                 左栏底部（见下方 md:row-start-3 的 LoraTagPicker）。 */}
-              <div className="space-y-2">
-                {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
+                <div className="space-y-2">
+                  {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
                       即切来源图/配方）。这里只留一行说明当前展示的是哪个挂载的
                       来源图，把顶部切换动作和左栏结果连起来。单挂时隐藏。 */}
-                {stack.items.length > 1 && recipeGroupAsset ? (
-                  <p className="truncate text-2xs text-muted-foreground">
-                    {t('generate.recipeGroupActive', {
-                      name: recipeGroupAsset.name,
-                    })}
-                  </p>
-                ) : null}
-                {hfSource ? (
-                  // H1 生成侧「样例参考」（lora-workbench.md §13）：当前
-                  // 分组挂载是 HF 资产——civitai 的 mined 配方链对它恒空
-                  // （modelId/modelVersionId 未设），换成 HF README
-                  // showcase。与下面 civitai 链互斥（hfSource 非空时不会
-                  // 落进 mined.* 分支），civitai LoRA 零回归。
-                  hfShowcase.isLoading ? (
+                  {stack.items.length > 1 && recipeGroupAsset ? (
+                    <p className="truncate text-2xs text-muted-foreground">
+                      {t('generate.recipeGroupActive', {
+                        name: recipeGroupAsset.name,
+                      })}
+                    </p>
+                  ) : null}
+                  {hfSource ? (
+                    // H1 生成侧「样例参考」（lora-workbench.md §13）：当前
+                    // 分组挂载是 HF 资产——civitai 的 mined 配方链对它恒空
+                    // （modelId/modelVersionId 未设），换成 HF README
+                    // showcase。与下面 civitai 链互斥（hfSource 非空时不会
+                    // 落进 mined.* 分支），civitai LoRA 零回归。
+                    hfShowcase.isLoading ? (
+                      <div className="mt-1 flex gap-1.5" aria-hidden>
+                        {Array.from({ length: 4 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
+                          />
+                        ))}
+                      </div>
+                    ) : hfShowcase.images.length > 0 ||
+                      hfShowcase.prompts.length > 0 ? (
+                      <LoraHuggingFaceShowcaseStrip
+                        assetName={recipeGroupAsset?.name ?? ''}
+                        images={hfShowcase.images}
+                        prompts={hfShowcase.prompts}
+                        onFillPrompt={setPrompt}
+                      />
+                    ) : (
+                      <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                        {t('generate.recommendEmpty')}
+                      </p>
+                    )
+                  ) : mined.isLoading ? (
                     <div className="mt-1 flex gap-1.5" aria-hidden>
                       {Array.from({ length: 4 }).map((_, idx) => (
                         <div
@@ -1589,681 +1617,679 @@ function GenerateBranch() {
                         />
                       ))}
                     </div>
-                  ) : hfShowcase.images.length > 0 ||
-                    hfShowcase.prompts.length > 0 ? (
-                    <LoraHuggingFaceShowcaseStrip
+                  ) : mined.recipes.length > 0 ? (
+                    <>
+                      <LoraSourceRecipeStrip
+                        assetName={recipeGroupAsset?.name ?? ''}
+                        baseModelFamily={
+                          recipeGroupAsset?.baseModelFamily ?? ''
+                        }
+                        sourceUrl={recipeGroupAsset?.loraUrl ?? ''}
+                        recipes={mined.recipes}
+                        onApplyRecipe={handleApplyRecipe}
+                      />
+                      {/* §4.2「常与它同挂」：配方面板元信息区下一行，去盒化
+                          纯文本——数据不足（无 recipes/extras 全空/计数全 1）
+                          时组件自己返回 null，不额外渲染空行。 */}
+                      <LoraOftenMountedWithRow
+                        extras={oftenMountedExtras}
+                        statusByKey={extraMountStatusByKey}
+                        stackFull={stack.items.length >= LORA_STACK_MAX}
+                        onMountExtra={handleMountExtraLora}
+                      />
+                    </>
+                  ) : mined.previewImages.length > 0 ||
+                    mined.descriptionText ? (
+                    // 无配方兜底：作者示例图没带 prompt 元数据时，把这些静态图
+                    // 当纯预览图摆出来（点开看大图）+ 作者描述原样文本+复制，
+                    // 别让推荐区空着。
+                    <LoraSourceImagePreviewStrip
                       assetName={recipeGroupAsset?.name ?? ''}
-                      images={hfShowcase.images}
-                      prompts={hfShowcase.prompts}
-                      onFillPrompt={setPrompt}
+                      previewImages={mined.previewImages}
+                      descriptionText={mined.descriptionText}
                     />
+                  ) : !hasLora ? (
+                    // 空态改造：无 LoRA 时把「先挑一个 LoRA」引导收进推荐列
+                    // （不再整页占位），composer/结果框保持可见。
+                    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border/60 px-3 py-6 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        {t('generate.placeholderBody')}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
+                          )
+                        }
+                      >
+                        <Compass className="size-3.5" aria-hidden />
+                        {t('tabs.library')}
+                      </Button>
+                    </div>
                   ) : (
                     <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
                       {t('generate.recommendEmpty')}
                     </p>
-                  )
-                ) : mined.isLoading ? (
-                  <div className="mt-1 flex gap-1.5" aria-hidden>
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
-                      />
-                    ))}
-                  </div>
-                ) : mined.recipes.length > 0 ? (
-                  <>
-                    <LoraSourceRecipeStrip
-                      assetName={recipeGroupAsset?.name ?? ''}
-                      baseModelFamily={recipeGroupAsset?.baseModelFamily ?? ''}
-                      sourceUrl={recipeGroupAsset?.loraUrl ?? ''}
-                      recipes={mined.recipes}
-                      onApplyRecipe={handleApplyRecipe}
-                    />
-                    {/* §4.2「常与它同挂」：配方面板元信息区下一行，去盒化
-                          纯文本——数据不足（无 recipes/extras 全空/计数全 1）
-                          时组件自己返回 null，不额外渲染空行。 */}
-                    <LoraOftenMountedWithRow
-                      extras={oftenMountedExtras}
-                      statusByKey={extraMountStatusByKey}
-                      stackFull={stack.items.length >= LORA_STACK_MAX}
-                      onMountExtra={handleMountExtraLora}
-                    />
-                  </>
-                ) : mined.previewImages.length > 0 || mined.descriptionText ? (
-                  // 无配方兜底：作者示例图没带 prompt 元数据时，把这些静态图
-                  // 当纯预览图摆出来（点开看大图）+ 作者描述原样文本+复制，
-                  // 别让推荐区空着。
-                  <LoraSourceImagePreviewStrip
-                    assetName={recipeGroupAsset?.name ?? ''}
-                    previewImages={mined.previewImages}
-                    descriptionText={mined.descriptionText}
-                  />
-                ) : !hasLora ? (
-                  // 空态改造：无 LoRA 时把「先挑一个 LoRA」引导收进推荐列
-                  // （不再整页占位），composer/结果框保持可见。
-                  <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border/60 px-3 py-6 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      {t('generate.placeholderBody')}
+                  )}
+                </div>
+              </div>
+              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-3 md:row-start-1">
+                {/* G3d 结果/历史 头：结果标题 + 会话历史计数（>1 张时）。 */}
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('generate.resultLabel')}
+                  </p>
+                  {resultHistory.length > 1 ? (
+                    <p className="text-2xs text-muted-foreground/70">
+                      {t('generate.resultHistoryCount', {
+                        count: resultHistory.length,
+                      })}
                     </p>
+                  ) : null}
+                </div>
+                {/* 结果图裸浮暗面无底板——去边框/底板，仅圆角裁切；空态套虚线盒占位。
+                G3d：有结果时纵横比取自快照，full 图不裁；无快照退回方形。 */}
+                <div
+                  className={cn(
+                    'relative w-full overflow-hidden rounded-xl bg-cover bg-center',
+                    !displayedAspect && 'aspect-square',
+                    // 无结果时（空态/生成中）给结果框加虚线边界 + 微底色，一眼看清
+                    // 占多大空间（用户要求）；有结果时保持「裸浮无底板」。
+                    !displayedResultUrl &&
+                      'border border-dashed border-border/50 bg-muted/20',
+                  )}
+                  style={{
+                    ...(displayedAspect
+                      ? { aspectRatio: displayedAspect }
+                      : {}),
+                    ...(displayedResultUrl
+                      ? { backgroundImage: `url(${displayedResultUrl})` }
+                      : {}),
+                  }}
+                >
+                  {/* 生成中「裱框显影」——无旧图走 full(shimmer 底 + 参数行),
+                  有旧图(重生成)走 compact(dim + 框描在图边)。完成播 close→
+                  hold→fade。与 GenerationPreview 同一共享组件。 */}
+                  {showGeneratingOverlay && !displayedResultUrl && (
+                    <div
+                      className="studio-reveal-shimmer absolute inset-0"
+                      aria-hidden
+                    />
+                  )}
+                  {showGeneratingOverlay && displayedResultUrl && (
+                    <div
+                      className="absolute inset-0 bg-background/35 backdrop-blur-[1px]"
+                      aria-hidden
+                    />
+                  )}
+                  {showGeneratingOverlay ? (
+                    <StudioGeneratingProgress
+                      elapsedSeconds={elapsedSeconds}
+                      stageLabel={generatingStageLabel}
+                      paramsLine={
+                        displayedResultUrl ? undefined : generatingParamsLine
+                      }
+                      variant={displayedResultUrl ? 'compact' : 'full'}
+                      cornerRadiusVar="--radius-xl"
+                      isCompleting={isCompletingGeneration}
+                      onCompleteAnimationDone={() =>
+                        setIsCompletingGeneration(false)
+                      }
+                    />
+                  ) : !displayedResultUrl ? (
+                    <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
+                      <Sparkles
+                        className="size-7 text-muted-foreground/40"
+                        aria-hidden
+                      />
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {t('generate.resultEmptyTitle')}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">
+                        {t('generate.resultEmptyHint')}
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setResultPreviewOpen(true)}
+                      aria-label={t('generate.resultPreviewLabel')}
+                      className="absolute inset-0 cursor-zoom-in"
+                    />
+                  )}
+                </div>
+
+                {/* G3d 结果元信息：① 尺寸 · 步数 · 种子 ② 主 LoRA×强度 · 底模。
+                取自选中结果的 gen-time 快照；仅有结果时显示。 */}
+                {displayedResultUrl &&
+                (resultMetaParts.length > 0 || resultAssemblyLine) ? (
+                  <div className="space-y-0.5">
+                    {resultMetaParts.length > 0 ? (
+                      <p className="font-mono text-2xs text-muted-foreground">
+                        {resultMetaParts.join(' · ')}
+                      </p>
+                    ) : null}
+                    {resultAssemblyLine ? (
+                      <p className="text-2xs text-muted-foreground/70">
+                        {resultAssemblyLine}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* D7③: 会话级结果 filmstrip——多于一张时显示，点缩略切主图，
+                每张带 s×.×× · seed 角标。会话内存，刷新清空。 */}
+                {resultHistory.length > 1 ? (
+                  <div
+                    className="lora-scrollbar-hide flex gap-2 overflow-x-auto pb-1"
+                    role="listbox"
+                    aria-label={t('generate.resultHistoryLabel')}
+                  >
+                    {resultHistory.map((item) => {
+                      const isActive = item.id === selectedResult?.id
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          onClick={() => setSelectedResultId(item.id)}
+                          title={
+                            item.seed != null
+                              ? t('generate.resultHistoryMeta', {
+                                  scale:
+                                    item.scale != null
+                                      ? item.scale.toFixed(2)
+                                      : '—',
+                                  seed: item.seed,
+                                })
+                              : undefined
+                          }
+                          className={cn(
+                            'group relative aspect-square h-16 shrink-0 overflow-hidden rounded-lg border bg-muted/30 bg-cover bg-center transition-colors',
+                            isActive
+                              ? 'border-primary ring-1 ring-primary'
+                              : 'border-border/60 hover:border-primary/40',
+                          )}
+                          style={{ backgroundImage: `url(${item.url})` }}
+                        >
+                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-[9px] leading-tight text-white/90">
+                            {item.scale != null
+                              ? `s${item.scale.toFixed(2)}`
+                              : ''}
+                            {item.scale != null && item.seed != null
+                              ? ' · '
+                              : ''}
+                            {item.seed != null ? item.seed : ''}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* 布局 A 输入 composer = 左 60% 列第 2 行。深炭工作台输入面，语义色板
+              走标准暗主题 token（发丝边框 border-border / 浅灰次文本 muted-foreground
+              / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
+              象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
+              <div className="order-2 space-y-3 md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
+                {/* G3c 参考图大卡（confirmed A 左栏序：来源图 → 参考图 → 搭配 →
+                提示词）：能力位驱动，仅当底模支持参考图（maxReferenceImages > 0）
+                且有强度配置时渲染——顶部横排大预览卡 + ＋添加 + 参考强度，空态只留
+                低高度添加入口。 */}
+                {maxReferenceImages > 0 && referenceStrengthConfig ? (
+                  <LoraReferenceImageCards
+                    imageUpload={imageUpload}
+                    strength={referenceStrength}
+                    onStrengthChange={setReferenceStrength}
+                    strengthConfig={referenceStrengthConfig}
+                    disabled={!selectedBase?.available || isGenerating}
+                  />
+                ) : null}
+                {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
+                触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
+                做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
+                <LoraCollocationStatusBar
+                  recipeApplied={collocationRecipe != null}
+                  recipeName={collocationRecipe?.assetName ?? null}
+                  appliedParamLabels={
+                    collocationRecipe?.appliedParamLabels ?? []
+                  }
+                  triggerEntries={triggerChipEntries}
+                  disabledTriggerIds={disabledTriggerIds}
+                  onToggleTrigger={handleToggleTriggerChip}
+                  onUndo={handleUndoRecipe}
+                />
+                {/* 提示词 = 左栏主输入面（confirmed A §3.2）：带标签的高输入框，深炭面
+                上用发丝边框 + 微底圈出主编辑区，是这一列的视觉主角，不被触发词 / 参数
+                挤成短输入条（min-h ≈ 208px，可纵向拉伸）。 */}
+                <div className="space-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+                  <label
+                    htmlFor="lora-prompt"
+                    className="text-2xs font-medium uppercase tracking-wide text-muted-foreground"
+                  >
+                    {t('generate.promptLabel')}
+                  </label>
+                  <textarea
+                    id="lora-prompt"
+                    ref={promptTextareaRef}
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder={t('generate.promptPlaceholder')}
+                    className="min-h-52 w-full resize-y bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+                  />
+                  <PromptTagAutocomplete
+                    textareaRef={promptTextareaRef}
+                    value={prompt}
+                    onChange={setPrompt}
+                    polarity="positive"
+                  />
+                </div>
+                {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
+                  <div className="space-y-1 border-t border-border pt-2">
+                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t('generate.negativePromptLabel')}
+                    </p>
+                    <textarea
+                      ref={negativePromptTextareaRef}
+                      value={negativePrompt}
+                      onChange={(event) =>
+                        setNegativePrompt(event.target.value)
+                      }
+                      placeholder={t('generate.negativePromptPlaceholder')}
+                      rows={2}
+                      className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                    />
+                    <PromptTagAutocomplete
+                      textareaRef={negativePromptTextareaRef}
+                      value={negativePrompt}
+                      onChange={setNegativePrompt}
+                      polarity="negative"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setNegativePromptExpanded(true)}
+                    className="inline-flex items-center gap-1 text-2xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Plus className="size-3" aria-hidden />
+                    {t('generate.negativePromptAdd')}
+                  </button>
+                )}
+                {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
+                （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
+                {incompatibleCount > 0 ? (
+                  <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="size-3 shrink-0" aria-hidden />
+                    <span>
+                      {t('generate.incompatibleMountsWarning', {
+                        n: incompatibleCount,
+                      })}
+                    </span>
+                    {mountsMutuallyExclusive ? (
+                      <span>{t('generate.mountsMutuallyExclusive')}</span>
+                    ) : canSuggestBaseSwitch && suggestedBaseLabel ? (
+                      <button
+                        type="button"
+                        onClick={handleSwitchToSuggestedBase}
+                        className="underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
+                      >
+                        {t('generate.switchToSuggestedBase', {
+                          base: suggestedBaseLabel,
+                        })}
+                      </button>
+                    ) : null}
+                  </p>
+                ) : null}
+                {/* 主动额度提示：选中 runner 底模且额度启用时显示「本月剩余 N/300」，
+                快满/满了变琥珀提醒——撞上限前就让用户心里有数。 */}
+                {isRunnerBase && runnerUsage?.enabled ? (
+                  <p
+                    className={cn(
+                      'text-2xs',
+                      runnerUsage.remaining <= 0
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    {runnerUsage.remaining <= 0
+                      ? t('generate.runnerBudgetExhausted')
+                      : t('generate.runnerBudgetRemaining', {
+                          remaining: runnerUsage.remaining,
+                          limit: runnerUsage.limit,
+                        })}
+                  </p>
+                ) : null}
+                {isRunnerBase ? (
+                  <div className="border-t border-border pt-2">
+                    <button
+                      type="button"
+                      aria-expanded={advancedOpen}
+                      onClick={() => setAdvancedOpen((open) => !open)}
+                      className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
+                    >
+                      <SlidersHorizontal className="size-3.5" aria-hidden />
+                      <span>{t('generate.advanced.title')}</span>
+                      <span className="text-2xs font-normal text-muted-foreground">
+                        {advancedCustomCount > 0
+                          ? t('generate.advanced.customSummary', {
+                              count: advancedCustomCount,
+                            })
+                          : t('generate.advanced.defaultSummary')}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'ml-auto size-3.5 transition-transform',
+                          advancedOpen && 'rotate-180',
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+
+                    {advancedOpen ? (
+                      <div className="space-y-3 pt-2">
+                        {runnerParameterError ? (
+                          <p
+                            role="alert"
+                            className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
+                          >
+                            {runnerParameterError}
+                          </p>
+                        ) : null}
+
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
+                            <span>{t('generate.advanced.seed')}</span>
+                            <div className="flex gap-1.5">
+                              <Input
+                                value={runnerSeed}
+                                onChange={(event) => {
+                                  setRunnerSeed(event.target.value.trim())
+                                  setSeed(undefined)
+                                }}
+                                inputMode="numeric"
+                                placeholder={t(
+                                  'generate.advanced.modelDefault',
+                                )}
+                                aria-label={t('generate.advanced.seed')}
+                                className="h-8 border-border bg-transparent font-mono text-xs"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                  setRunnerSeed('')
+                                  setSeed(undefined)
+                                }}
+                                title={t('generate.advanced.randomSeed')}
+                                aria-label={t('generate.advanced.randomSeed')}
+                                className="size-8 shrink-0"
+                              >
+                                <RefreshCw className="size-3.5" aria-hidden />
+                              </Button>
+                            </div>
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                            <span>{t('generate.advanced.steps')}</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={100}
+                              step={1}
+                              value={runnerSteps}
+                              onChange={(event) =>
+                                setRunnerSteps(event.target.value)
+                              }
+                              placeholder={t('generate.advanced.modelDefault')}
+                              aria-label={t('generate.advanced.steps')}
+                              className="h-8 border-border bg-transparent text-xs"
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                            <span>{t('generate.advanced.cfg')}</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={30}
+                              step={0.1}
+                              value={runnerCfg}
+                              onChange={(event) =>
+                                setRunnerCfg(event.target.value)
+                              }
+                              placeholder={t('generate.advanced.modelDefault')}
+                              aria-label={t('generate.advanced.cfg')}
+                              className="h-8 border-border bg-transparent text-xs"
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
+                            <span>{t('generate.advanced.sampler')}</span>
+                            <Select
+                              value={
+                                runnerSampler || RUNNER_DEFAULT_SELECT_VALUE
+                              }
+                              onValueChange={(value) =>
+                                setRunnerSampler(
+                                  value === RUNNER_DEFAULT_SELECT_VALUE
+                                    ? ''
+                                    : value,
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                aria-label={t('generate.advanced.sampler')}
+                                className="h-8 border-border bg-transparent text-xs"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                                  {t('generate.advanced.modelDefault')}
+                                </SelectItem>
+                                {RUNNER_SAMPLERS.map((sampler) => (
+                                  <SelectItem key={sampler} value={sampler}>
+                                    {sampler}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
+                            <span>{t('generate.advanced.scheduler')}</span>
+                            <Select
+                              value={
+                                runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE
+                              }
+                              onValueChange={(value) =>
+                                setRunnerScheduler(
+                                  value === RUNNER_DEFAULT_SELECT_VALUE
+                                    ? ''
+                                    : value,
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                aria-label={t('generate.advanced.scheduler')}
+                                className="h-8 border-border bg-transparent text-xs"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                                  {t('generate.advanced.modelDefault')}
+                                </SelectItem>
+                                {RUNNER_SCHEDULERS.map((scheduler) => (
+                                  <SelectItem key={scheduler} value={scheduler}>
+                                    {scheduler}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                            <span>{t('generate.advanced.width')}</span>
+                            <Input
+                              type="number"
+                              min={512}
+                              max={
+                                selectedBase?.family === 'anima-dit'
+                                  ? 1536
+                                  : 2048
+                              }
+                              step={8}
+                              value={runnerWidth}
+                              onChange={(event) =>
+                                setRunnerWidth(event.target.value)
+                              }
+                              placeholder={String(previewDimensions.width)}
+                              aria-label={t('generate.advanced.width')}
+                              className="h-8 border-border bg-transparent text-xs"
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                            <span>{t('generate.advanced.height')}</span>
+                            <Input
+                              type="number"
+                              min={512}
+                              max={
+                                selectedBase?.family === 'anima-dit'
+                                  ? 1536
+                                  : 2048
+                              }
+                              step={8}
+                              value={runnerHeight}
+                              onChange={(event) =>
+                                setRunnerHeight(event.target.value)
+                              }
+                              placeholder={String(previewDimensions.height)}
+                              aria-label={t('generate.advanced.height')}
+                              className="h-8 border-border bg-transparent text-xs"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="rounded-lg border border-border p-2.5">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-foreground">
+                                {t('generate.advanced.postprocess')}
+                              </p>
+                              <p className="text-2xs text-muted-foreground">
+                                {t('generate.advanced.upscalerHint')}
+                              </p>
+                            </div>
+                            <Select
+                              value={runnerUpscaler}
+                              onValueChange={(value) =>
+                                setRunnerUpscaler(
+                                  value === '4x-AnimeSharp'
+                                    ? '4x-AnimeSharp'
+                                    : 'none',
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                aria-label={t('generate.advanced.upscaler')}
+                                className="h-8 w-full border-border bg-transparent text-xs sm:w-48"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">
+                                  {t('generate.advanced.upscalerNone')}
+                                </SelectItem>
+                                <SelectItem value="4x-AnimeSharp">
+                                  4x-AnimeSharp
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {runnerUpscaler === '4x-AnimeSharp' ? (
+                            <p
+                              className={cn(
+                                'mt-2 text-2xs',
+                                upscaleOutputIsLarge
+                                  ? 'text-amber-700 dark:text-amber-400'
+                                  : 'text-muted-foreground',
+                              )}
+                            >
+                              {t('generate.advanced.upscaleSummary', {
+                                width: previewDimensions.width,
+                                height: previewDimensions.height,
+                                outputWidth: upscaleFinalWidth,
+                                outputHeight: upscaleFinalHeight,
+                              })}
+                              {upscaleOutputIsLarge
+                                ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                                : ''}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {/* R5：< md 收成底部常驻动作条（.lora-mobile-actionbar）；≥ md 内联
+                自然流。移动端出图 flex-1 拉宽成拇指区主 CTA，桌面保持紧凑。 */}
+                <div className="lora-mobile-actionbar flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        router.push(
-                          `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`,
-                        )
-                      }
+                      className="h-10 md:h-8"
+                      disabled={!activeAsset || isGenerating}
+                      onClick={handleRestore}
                     >
-                      <Compass className="size-3.5" aria-hidden />
-                      {t('tabs.library')}
+                      <Wand2 className="size-3.5" aria-hidden />
+                      {t('generate.restore')}
                     </Button>
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
-                    {t('generate.recommendEmpty')}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="order-3 min-w-0 space-y-3 md:order-none md:col-span-2 md:col-start-4 md:row-span-3 md:row-start-1">
-              {/* G3d 结果/历史 头：结果标题 + 会话历史计数（>1 张时）。 */}
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('generate.resultLabel')}
-                </p>
-                {resultHistory.length > 1 ? (
-                  <p className="text-2xs text-muted-foreground/70">
-                    {t('generate.resultHistoryCount', {
-                      count: resultHistory.length,
-                    })}
-                  </p>
-                ) : null}
-              </div>
-              {/* 结果图裸浮暗面无底板——去边框/底板，仅圆角裁切；空态套虚线盒占位。
-                G3d：有结果时纵横比取自快照，full 图不裁；无快照退回方形。 */}
-              <div
-                className={cn(
-                  'relative w-full overflow-hidden rounded-xl bg-cover bg-center',
-                  !displayedAspect && 'aspect-square',
-                  // 无结果时（空态/生成中）给结果框加虚线边界 + 微底色，一眼看清
-                  // 占多大空间（用户要求）；有结果时保持「裸浮无底板」。
-                  !displayedResultUrl &&
-                    'border border-dashed border-border/50 bg-muted/20',
-                )}
-                style={{
-                  ...(displayedAspect ? { aspectRatio: displayedAspect } : {}),
-                  ...(displayedResultUrl
-                    ? { backgroundImage: `url(${displayedResultUrl})` }
-                    : {}),
-                }}
-              >
-                {/* 生成中「裱框显影」——无旧图走 full(shimmer 底 + 参数行),
-                  有旧图(重生成)走 compact(dim + 框描在图边)。完成播 close→
-                  hold→fade。与 GenerationPreview 同一共享组件。 */}
-                {showGeneratingOverlay && !displayedResultUrl && (
-                  <div
-                    className="studio-reveal-shimmer absolute inset-0"
-                    aria-hidden
-                  />
-                )}
-                {showGeneratingOverlay && displayedResultUrl && (
-                  <div
-                    className="absolute inset-0 bg-background/35 backdrop-blur-[1px]"
-                    aria-hidden
-                  />
-                )}
-                {showGeneratingOverlay ? (
-                  <StudioGeneratingProgress
-                    elapsedSeconds={elapsedSeconds}
-                    stageLabel={generatingStageLabel}
-                    paramsLine={
-                      displayedResultUrl ? undefined : generatingParamsLine
-                    }
-                    variant={displayedResultUrl ? 'compact' : 'full'}
-                    cornerRadiusVar="--radius-xl"
-                    isCompleting={isCompletingGeneration}
-                    onCompleteAnimationDone={() =>
-                      setIsCompletingGeneration(false)
-                    }
-                  />
-                ) : !displayedResultUrl ? (
-                  <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
-                    <Sparkles
-                      className="size-7 text-muted-foreground/40"
-                      aria-hidden
+                    {/* B10 (D7①): 比例 chip——链路早已通（handleGenerate 一直传
+                      aspectRatio），此前页面无控件把用户锁死 1:1。默认 1:1 不动。 */}
+                    <LoraAspectRatioChip
+                      value={aspectRatio}
+                      onChange={setAspectRatio}
+                      disabled={isGenerating}
                     />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('generate.resultEmptyTitle')}
-                    </p>
-                    <p className="text-xs text-muted-foreground/70">
-                      {t('generate.resultEmptyHint')}
-                    </p>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setResultPreviewOpen(true)}
-                    aria-label={t('generate.resultPreviewLabel')}
-                    className="absolute inset-0 cursor-zoom-in"
-                  />
-                )}
-              </div>
-
-              {/* G3d 结果元信息：① 尺寸 · 步数 · 种子 ② 主 LoRA×强度 · 底模。
-                取自选中结果的 gen-time 快照；仅有结果时显示。 */}
-              {displayedResultUrl &&
-              (resultMetaParts.length > 0 || resultAssemblyLine) ? (
-                <div className="space-y-0.5">
-                  {resultMetaParts.length > 0 ? (
-                    <p className="font-mono text-2xs text-muted-foreground">
-                      {resultMetaParts.join(' · ')}
-                    </p>
-                  ) : null}
-                  {resultAssemblyLine ? (
-                    <p className="text-2xs text-muted-foreground/70">
-                      {resultAssemblyLine}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {/* D7③: 会话级结果 filmstrip——多于一张时显示，点缩略切主图，
-                每张带 s×.×× · seed 角标。会话内存，刷新清空。 */}
-              {resultHistory.length > 1 ? (
-                <div
-                  className="lora-scrollbar-hide flex gap-2 overflow-x-auto pb-1"
-                  role="listbox"
-                  aria-label={t('generate.resultHistoryLabel')}
-                >
-                  {resultHistory.map((item) => {
-                    const isActive = item.id === selectedResult?.id
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="option"
-                        aria-selected={isActive}
-                        onClick={() => setSelectedResultId(item.id)}
-                        title={
-                          item.seed != null
-                            ? t('generate.resultHistoryMeta', {
-                                scale:
-                                  item.scale != null
-                                    ? item.scale.toFixed(2)
-                                    : '—',
-                                seed: item.seed,
-                              })
-                            : undefined
-                        }
-                        className={cn(
-                          'group relative aspect-square h-16 shrink-0 overflow-hidden rounded-lg border bg-muted/30 bg-cover bg-center transition-colors',
-                          isActive
-                            ? 'border-primary ring-1 ring-primary'
-                            : 'border-border/60 hover:border-primary/40',
-                        )}
-                        style={{ backgroundImage: `url(${item.url})` }}
-                      >
-                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-[9px] leading-tight text-white/90">
-                          {item.scale != null
-                            ? `s${item.scale.toFixed(2)}`
-                            : ''}
-                          {item.scale != null && item.seed != null ? ' · ' : ''}
-                          {item.seed != null ? item.seed : ''}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
-
-            {/* 布局 A 输入 composer = 左 60% 列第 2 行。深炭工作台输入面，语义色板
-              走标准暗主题 token（发丝边框 border-border / 浅灰次文本 muted-foreground
-              / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
-              象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
-            <div className="order-2 space-y-3 md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
-              {/* G3c 参考图大卡（confirmed A 左栏序：来源图 → 参考图 → 搭配 →
-                提示词）：能力位驱动，仅当底模支持参考图（maxReferenceImages > 0）
-                且有强度配置时渲染——顶部横排大预览卡 + ＋添加 + 参考强度，空态只留
-                低高度添加入口。 */}
-              {maxReferenceImages > 0 && referenceStrengthConfig ? (
-                <LoraReferenceImageCards
-                  imageUpload={imageUpload}
-                  strength={referenceStrength}
-                  onStrengthChange={setReferenceStrength}
-                  strengthConfig={referenceStrengthConfig}
-                  disabled={!selectedBase?.available || isGenerating}
-                />
-              ) : null}
-              {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
-                触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
-                做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
-              <LoraCollocationStatusBar
-                recipeApplied={collocationRecipe != null}
-                recipeName={collocationRecipe?.assetName ?? null}
-                appliedParamLabels={collocationRecipe?.appliedParamLabels ?? []}
-                triggerEntries={triggerChipEntries}
-                disabledTriggerIds={disabledTriggerIds}
-                onToggleTrigger={handleToggleTriggerChip}
-                onUndo={handleUndoRecipe}
-              />
-              {/* 提示词 = 左栏主输入面（confirmed A §3.2）：带标签的高输入框，深炭面
-                上用发丝边框 + 微底圈出主编辑区，是这一列的视觉主角，不被触发词 / 参数
-                挤成短输入条（min-h ≈ 208px，可纵向拉伸）。 */}
-              <div className="space-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
-                <label
-                  htmlFor="lora-prompt"
-                  className="text-2xs font-medium uppercase tracking-wide text-muted-foreground"
-                >
-                  {t('generate.promptLabel')}
-                </label>
-                <textarea
-                  id="lora-prompt"
-                  ref={promptTextareaRef}
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  placeholder={t('generate.promptPlaceholder')}
-                  className="min-h-52 w-full resize-y bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
-                />
-                <PromptTagAutocomplete
-                  textareaRef={promptTextareaRef}
-                  value={prompt}
-                  onChange={setPrompt}
-                  polarity="positive"
-                />
-              </div>
-              {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
-                <div className="space-y-1 border-t border-border pt-2">
-                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t('generate.negativePromptLabel')}
-                  </p>
-                  <textarea
-                    ref={negativePromptTextareaRef}
-                    value={negativePrompt}
-                    onChange={(event) => setNegativePrompt(event.target.value)}
-                    placeholder={t('generate.negativePromptPlaceholder')}
-                    rows={2}
-                    className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                  />
-                  <PromptTagAutocomplete
-                    textareaRef={negativePromptTextareaRef}
-                    value={negativePrompt}
-                    onChange={setNegativePrompt}
-                    polarity="negative"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNegativePromptExpanded(true)}
-                  className="inline-flex items-center gap-1 text-2xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <Plus className="size-3" aria-hidden />
-                  {t('generate.negativePromptAdd')}
-                </button>
-              )}
-              {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
-                （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
-              {incompatibleCount > 0 ? (
-                <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="size-3 shrink-0" aria-hidden />
-                  <span>
-                    {t('generate.incompatibleMountsWarning', {
-                      n: incompatibleCount,
-                    })}
-                  </span>
-                  {mountsMutuallyExclusive ? (
-                    <span>{t('generate.mountsMutuallyExclusive')}</span>
-                  ) : canSuggestBaseSwitch && suggestedBaseLabel ? (
-                    <button
-                      type="button"
-                      onClick={handleSwitchToSuggestedBase}
-                      className="underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
-                    >
-                      {t('generate.switchToSuggestedBase', {
-                        base: suggestedBaseLabel,
-                      })}
-                    </button>
-                  ) : null}
-                </p>
-              ) : null}
-              {/* 主动额度提示：选中 runner 底模且额度启用时显示「本月剩余 N/300」，
-                快满/满了变琥珀提醒——撞上限前就让用户心里有数。 */}
-              {isRunnerBase && runnerUsage?.enabled ? (
-                <p
-                  className={cn(
-                    'text-2xs',
-                    runnerUsage.remaining <= 0
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {runnerUsage.remaining <= 0
-                    ? t('generate.runnerBudgetExhausted')
-                    : t('generate.runnerBudgetRemaining', {
-                        remaining: runnerUsage.remaining,
-                        limit: runnerUsage.limit,
-                      })}
-                </p>
-              ) : null}
-              {isRunnerBase ? (
-                <div className="border-t border-border pt-2">
-                  <button
-                    type="button"
-                    aria-expanded={advancedOpen}
-                    onClick={() => setAdvancedOpen((open) => !open)}
-                    className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
-                  >
-                    <SlidersHorizontal className="size-3.5" aria-hidden />
-                    <span>{t('generate.advanced.title')}</span>
-                    <span className="text-2xs font-normal text-muted-foreground">
-                      {advancedCustomCount > 0
-                        ? t('generate.advanced.customSummary', {
-                            count: advancedCustomCount,
-                          })
-                        : t('generate.advanced.defaultSummary')}
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        'ml-auto size-3.5 transition-transform',
-                        advancedOpen && 'rotate-180',
-                      )}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {advancedOpen ? (
-                    <div className="space-y-3 pt-2">
-                      {runnerParameterError ? (
-                        <p
-                          role="alert"
-                          className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
-                        >
-                          {runnerParameterError}
-                        </p>
-                      ) : null}
-
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                          <span>{t('generate.advanced.seed')}</span>
-                          <div className="flex gap-1.5">
-                            <Input
-                              value={runnerSeed}
-                              onChange={(event) => {
-                                setRunnerSeed(event.target.value.trim())
-                                setSeed(undefined)
-                              }}
-                              inputMode="numeric"
-                              placeholder={t('generate.advanced.modelDefault')}
-                              aria-label={t('generate.advanced.seed')}
-                              className="h-8 border-border bg-transparent font-mono text-xs"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                setRunnerSeed('')
-                                setSeed(undefined)
-                              }}
-                              title={t('generate.advanced.randomSeed')}
-                              aria-label={t('generate.advanced.randomSeed')}
-                              className="size-8 shrink-0"
-                            >
-                              <RefreshCw className="size-3.5" aria-hidden />
-                            </Button>
-                          </div>
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                          <span>{t('generate.advanced.steps')}</span>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={100}
-                            step={1}
-                            value={runnerSteps}
-                            onChange={(event) =>
-                              setRunnerSteps(event.target.value)
-                            }
-                            placeholder={t('generate.advanced.modelDefault')}
-                            aria-label={t('generate.advanced.steps')}
-                            className="h-8 border-border bg-transparent text-xs"
-                          />
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                          <span>{t('generate.advanced.cfg')}</span>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={30}
-                            step={0.1}
-                            value={runnerCfg}
-                            onChange={(event) =>
-                              setRunnerCfg(event.target.value)
-                            }
-                            placeholder={t('generate.advanced.modelDefault')}
-                            aria-label={t('generate.advanced.cfg')}
-                            className="h-8 border-border bg-transparent text-xs"
-                          />
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                          <span>{t('generate.advanced.sampler')}</span>
-                          <Select
-                            value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
-                            onValueChange={(value) =>
-                              setRunnerSampler(
-                                value === RUNNER_DEFAULT_SELECT_VALUE
-                                  ? ''
-                                  : value,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              aria-label={t('generate.advanced.sampler')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                                {t('generate.advanced.modelDefault')}
-                              </SelectItem>
-                              {RUNNER_SAMPLERS.map((sampler) => (
-                                <SelectItem key={sampler} value={sampler}>
-                                  {sampler}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground sm:col-span-2">
-                          <span>{t('generate.advanced.scheduler')}</span>
-                          <Select
-                            value={
-                              runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE
-                            }
-                            onValueChange={(value) =>
-                              setRunnerScheduler(
-                                value === RUNNER_DEFAULT_SELECT_VALUE
-                                  ? ''
-                                  : value,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              aria-label={t('generate.advanced.scheduler')}
-                              className="h-8 border-border bg-transparent text-xs"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                                {t('generate.advanced.modelDefault')}
-                              </SelectItem>
-                              {RUNNER_SCHEDULERS.map((scheduler) => (
-                                <SelectItem key={scheduler} value={scheduler}>
-                                  {scheduler}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                          <span>{t('generate.advanced.width')}</span>
-                          <Input
-                            type="number"
-                            min={512}
-                            max={
-                              selectedBase?.family === 'anima-dit' ? 1536 : 2048
-                            }
-                            step={8}
-                            value={runnerWidth}
-                            onChange={(event) =>
-                              setRunnerWidth(event.target.value)
-                            }
-                            placeholder={String(previewDimensions.width)}
-                            aria-label={t('generate.advanced.width')}
-                            className="h-8 border-border bg-transparent text-xs"
-                          />
-                        </label>
-
-                        <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                          <span>{t('generate.advanced.height')}</span>
-                          <Input
-                            type="number"
-                            min={512}
-                            max={
-                              selectedBase?.family === 'anima-dit' ? 1536 : 2048
-                            }
-                            step={8}
-                            value={runnerHeight}
-                            onChange={(event) =>
-                              setRunnerHeight(event.target.value)
-                            }
-                            placeholder={String(previewDimensions.height)}
-                            aria-label={t('generate.advanced.height')}
-                            className="h-8 border-border bg-transparent text-xs"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="rounded-lg border border-border p-2.5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-foreground">
-                              {t('generate.advanced.postprocess')}
-                            </p>
-                            <p className="text-2xs text-muted-foreground">
-                              {t('generate.advanced.upscalerHint')}
-                            </p>
-                          </div>
-                          <Select
-                            value={runnerUpscaler}
-                            onValueChange={(value) =>
-                              setRunnerUpscaler(
-                                value === '4x-AnimeSharp'
-                                  ? '4x-AnimeSharp'
-                                  : 'none',
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              aria-label={t('generate.advanced.upscaler')}
-                              className="h-8 w-full border-border bg-transparent text-xs sm:w-48"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">
-                                {t('generate.advanced.upscalerNone')}
-                              </SelectItem>
-                              <SelectItem value="4x-AnimeSharp">
-                                4x-AnimeSharp
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {runnerUpscaler === '4x-AnimeSharp' ? (
-                          <p
-                            className={cn(
-                              'mt-2 text-2xs',
-                              upscaleOutputIsLarge
-                                ? 'text-amber-700 dark:text-amber-400'
-                                : 'text-muted-foreground',
-                            )}
-                          >
-                            {t('generate.advanced.upscaleSummary', {
-                              width: previewDimensions.width,
-                              height: previewDimensions.height,
-                              outputWidth: upscaleFinalWidth,
-                              outputHeight: upscaleFinalHeight,
-                            })}
-                            {upscaleOutputIsLarge
-                              ? ` ${t('generate.advanced.upscaleLargeWarning')}`
-                              : ''}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {/* R5：< md 收成底部常驻动作条（.lora-mobile-actionbar）；≥ md 内联
-                自然流。移动端出图 flex-1 拉宽成拇指区主 CTA，桌面保持紧凑。 */}
-              <div className="lora-mobile-actionbar flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
                   <Button
                     type="button"
-                    variant="outline"
                     size="sm"
-                    className="h-10 md:h-8"
-                    disabled={!activeAsset || isGenerating}
-                    onClick={handleRestore}
+                    className="h-10 flex-1 md:h-8 md:flex-none"
+                    disabled={!canGenerate}
+                    onClick={handleGenerateClick}
                   >
-                    <Wand2 className="size-3.5" aria-hidden />
-                    {t('generate.restore')}
+                    {isGenerating ? (
+                      <Spinner size="sm" aria-hidden />
+                    ) : (
+                      <Sparkles className="size-3.5" aria-hidden />
+                    )}
+                    {t('generate.run')}
                   </Button>
-                  {/* B10 (D7①): 比例 chip——链路早已通（handleGenerate 一直传
-                      aspectRatio），此前页面无控件把用户锁死 1:1。默认 1:1 不动。 */}
-                  <LoraAspectRatioChip
-                    value={aspectRatio}
-                    onChange={setAspectRatio}
-                    disabled={isGenerating}
-                  />
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-10 flex-1 md:h-8 md:flex-none"
-                  disabled={!canGenerate}
-                  onClick={handleGenerateClick}
-                >
-                  {isGenerating ? (
-                    <Spinner size="sm" aria-hidden />
-                  ) : (
-                    <Sparkles className="size-3.5" aria-hidden />
-                  )}
-                  {t('generate.run')}
-                </Button>
+              </div>
+              <div
+                ref={tagPickerRef}
+                className="order-4 min-w-0 md:order-none md:col-span-3 md:col-start-1 md:row-start-3"
+              >
+                {/* G3b-2：自己搭配词库落左栏底部（owner 拍板保留常驻，非按需）；
+                助手 escapeToSelfBuild 滚动定位到这里。 */}
+                <LoraTagPicker />
               </div>
             </div>
-            <div
-              ref={tagPickerRef}
-              className="order-4 min-w-0 md:order-none md:col-span-3 md:col-start-1 md:row-start-3"
-            >
-              {/* G3b-2：自己搭配词库落左栏底部（owner 拍板保留常驻，非按需）；
-                助手 escapeToSelfBuild 滚动定位到这里。 */}
-              <LoraTagPicker />
-            </div>
-          </div>
-        }
+          }
+        </div>
       </section>
       <LoraAssistantDock
         open={assistantOpen}
@@ -2521,8 +2547,10 @@ function LoraSpineBar({
   )
 
   return (
-    // D8 细则① 去盒化：脊柱条不再套圆角面板，改底部发丝线（白 8%）+ 留白节奏。
-    <div className="flex flex-wrap items-center gap-2.5 border-b border-white/[0.08] px-0.5 pb-3">
+    // CD 装配台（近炭暖灰）：脊柱条升为浮起纸面面板——左装配栏雏形，S2b 竖化成
+    // 竖向 LoRA 栈 + 底模卡 + 触发词。（原 D8「去盒化·底部白 8% 发丝线」为冷瓷前
+    // 旧线，深底上白发丝线本就近隐形，此处反转成 bg-card 浮起面板 + token 发丝边。）
+    <div className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {t('spine.currentLora')}
       </span>

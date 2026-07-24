@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   Bot,
+  Boxes,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -108,6 +109,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -1265,6 +1267,8 @@ function GenerateBranch() {
   // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
   // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
   const [libraryModalOpen, setLibraryModalOpen] = useState(false)
+  // S7：移动端装配 sheet（紧凑摘要条唤起）。
+  const [assemblySheetOpen, setAssemblySheetOpen] = useState(false)
   const isAssistantMobile = useIsMobile()
   const { layout: assistantDockLayout } = useDockLayout()
 
@@ -1825,6 +1829,42 @@ function GenerateBranch() {
     </div>
   ) : null
 
+  // S7 移动端：装配栏内容抽成单实例——桌面挂在常驻左栏，移动端挂进 sheet。
+  const assemblyColumn = (
+    <>
+      <LoraSpineBar
+        compatibleBases={compatibleBases}
+        selectedBase={selectedBase}
+        onSelectBase={handleSelectBase}
+        needsKeySetup={needsKeySetup}
+        onRequestKeySetup={() =>
+          workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
+        }
+        loraScaleConfig={loraScaleConfig}
+        maxLoras={maxLoras}
+        activeRecipeGroupId={recipeGroupKey}
+        onSelectRecipeGroup={setRecipeGroupAssetId}
+        assistantOpen={assistantOpen}
+        onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
+        onAddLora={() => setLibraryModalOpen(true)}
+      />
+      {/* S2精修①：参考图（能力位驱动·仅底模支持参考图 + 有强度配置时渲染）。 */}
+      {maxReferenceImages > 0 && referenceStrengthConfig ? (
+        <div className="rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)]">
+          <LoraReferenceImageCards
+            imageUpload={imageUpload}
+            strength={referenceStrength}
+            onStrengthChange={setReferenceStrength}
+            strengthConfig={referenceStrengthConfig}
+            disabled={!selectedBase?.available || isGenerating}
+          />
+        </div>
+      ) : null}
+      {/* S2精修①-B：Runner 高级参数 disclosure（reflow 1col·isRunnerBase gated）。 */}
+      {runnerParamsPanel}
+    </>
+  )
+
   return (
     <>
       <section
@@ -1884,46 +1924,71 @@ function GenerateBranch() {
           <LoraLibraryModal open onOpenChange={setLibraryModalOpen} />
         ) : null}
 
+        {/* S7 移动端装配 sheet：近全屏 Drawer 承载整条装配栏（底模/LoRA栈/参考图/
+            参数），由上面的紧凑摘要条唤起。仅移动端挂载（桌面走常驻左栏）。 */}
+        {isAssistantMobile ? (
+          <Drawer open={assemblySheetOpen} onOpenChange={setAssemblySheetOpen}>
+            <DrawerContent className="max-h-[88svh]">
+              <DrawerTitle className="sr-only">
+                {t('spine.currentLora')}
+              </DrawerTitle>
+              <div className="space-y-3 overflow-y-auto px-4 pb-8 pt-2">
+                {assemblyColumn}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        ) : null}
+
         {/* CD 装配台三栏（近炭暖灰）：外层 grid = 左装配栏(300px) | 右主体（内层
             5col：中来源/输入 + 右结果）。移动端自然堆叠。左装配栏 = 底模/LoRA栈/
             添加(LoraSpineBar) + 参考图（S2精修①：参考图从中栏迁入左栏·组件按 300px
             窄栏 2col 适配）。参数 disclosure 待迁（S2精修①-B）。 */}
-        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-stretch md:gap-5 md:min-h-0 md:flex-1 md:overflow-hidden">
-          {/* 左装配栏：锁高时自身内滚（min-h-0 允许收缩）。 */}
-          <div className="space-y-3 md:min-h-0 md:overflow-y-auto md:pr-1">
-            <LoraSpineBar
-              compatibleBases={compatibleBases}
-              selectedBase={selectedBase}
-              onSelectBase={handleSelectBase}
-              needsKeySetup={needsKeySetup}
-              onRequestKeySetup={() =>
-                workspaceOptionForBase &&
-                openKeySetupFor(workspaceOptionForBase)
-              }
-              loraScaleConfig={loraScaleConfig}
-              maxLoras={maxLoras}
-              activeRecipeGroupId={recipeGroupKey}
-              onSelectRecipeGroup={setRecipeGroupAssetId}
-              assistantOpen={assistantOpen}
-              onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
-              onAddLora={() => setLibraryModalOpen(true)}
-            />
-            {/* S2精修①：参考图迁入左装配栏（能力位驱动·仅底模支持参考图 +
-                有强度配置时渲染），浮起纸面面板与脊柱条一致。 */}
-            {maxReferenceImages > 0 && referenceStrengthConfig ? (
-              <div className="rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)]">
-                <LoraReferenceImageCards
-                  imageUpload={imageUpload}
-                  strength={referenceStrength}
-                  onStrengthChange={setReferenceStrength}
-                  strengthConfig={referenceStrengthConfig}
-                  disabled={!selectedBase?.available || isGenerating}
+        {/* S7 移动端：装配栏收成一条紧凑摘要（底模 + 已挂 LoRA + ＋），点开近全屏
+            装配 sheet；桌面走下面的常驻左栏。移动端主创作屏只剩 摘要条 → Prompt →
+            结果 → 底部常驻出图条（.lora-mobile-actionbar）。 */}
+        {isAssistantMobile ? (
+          <button
+            type="button"
+            onClick={() => setAssemblySheetOpen(true)}
+            aria-label={t('spine.openAssembly')}
+            className="flex w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-border bg-card px-3 py-2 text-left shadow-[var(--lora-shadow-panel)]"
+          >
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/60 px-2 py-1 text-2xs text-foreground">
+              <Boxes
+                className="size-3 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              {selectedBase
+                ? selectedBase.translationKey
+                  ? t(`spine.${selectedBase.translationKey}`)
+                  : selectedBase.displayName
+                : t('spine.baseModelPending')}
+            </span>
+            {stack.items.map((item) => (
+              <span
+                key={item.asset.id}
+                className="inline-flex max-w-28 shrink-0 items-center gap-1 truncate rounded-full border border-border/60 px-2 py-1 text-2xs text-foreground"
+              >
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
                 />
-              </div>
-            ) : null}
-            {/* S2精修①-B：Runner 高级参数 disclosure 迁入左装配栏（reflow 1col·
-                浮起纸面面板）。仅 runner 底模有参数（isRunnerBase gated）。 */}
-            {runnerParamsPanel}
+                <span className="truncate">{item.asset.name}</span>
+              </span>
+            ))}
+            <span className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border/60 text-muted-foreground">
+              <Plus className="size-3.5" aria-hidden />
+            </span>
+          </button>
+        ) : null}
+
+        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-stretch md:gap-5 md:min-h-0 md:flex-1 md:overflow-hidden">
+          {/* 左装配栏：桌面常驻（锁高时自身内滚·min-h-0 允许收缩）；移动端此格
+              空着，装配内容由上面的紧凑条唤起 sheet 承载（S7）。 */}
+          <div className="hidden space-y-3 md:block md:min-h-0 md:overflow-y-auto md:pr-1">
+            {/* 单实例：桌面渲染在这里，移动端渲染在 sheet 里（isAssistantMobile
+                二选一，避免 LoraSpineBar 被挂两份、内部状态分叉）。 */}
+            {!isAssistantMobile ? assemblyColumn : null}
           </div>
 
           {

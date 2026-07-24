@@ -5244,6 +5244,7 @@
     "presetFooterIdle": "Pick a preset above to pre-fill the form — you can always override.",
     "presetRailTitle": "Presets",
     "presetRailSubtitle": "Click a card to pre-fill the form",
+    "historyOutputHint": "Finished trainings land in My assets — mount them from the library modal's \"Mine\" tab.",
     "presetSelectedLabel": "Preset: {name}",
     "presetClear": "Clear preset",
     "submitSummaryAriaLabel": "Training submission summary",

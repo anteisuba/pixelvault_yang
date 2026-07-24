@@ -5244,6 +5244,7 @@
     "presetFooterIdle": "上のプリセットを選ぶとフォームが自動入力されます — 後で上書きも可能。",
     "presetRailTitle": "プリセット",
     "presetRailSubtitle": "カードを選ぶとフォームを自動入力",
+    "historyOutputHint": "完了した学習成果は「マイアセット」に入り、ライブラリ modal の「マイ」タブからマウントできます。",
     "presetSelectedLabel": "プリセット：{name}",
     "presetClear": "プリセットを解除",
     "submitSummaryAriaLabel": "トレーニング送信サマリー",

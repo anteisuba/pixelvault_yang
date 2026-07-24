@@ -5244,6 +5244,7 @@
     "presetFooterIdle": "上方挑一个预设，表单会自动填好 — 之后你也可以手动改。",
     "presetRailTitle": "预设",
     "presetRailSubtitle": "点一张卡，自动填好表单",
+    "historyOutputHint": "完成的训练产物进入「我的资源」，在库 modal 的「我的」tab 可挂载。",
     "presetSelectedLabel": "预设：{name}",
     "presetClear": "清除预设",
     "submitSummaryAriaLabel": "训练提交摘要",

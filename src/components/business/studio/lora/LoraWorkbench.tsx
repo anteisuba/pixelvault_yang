@@ -3487,6 +3487,19 @@ function PresetRailPanel({
   )
 }
 
+// S8（CD 训练台）：主列步骤编号——训练是有先后的流程（先选预设再填表），编号
+// 让顺序一眼可读。绝对定位在卡片左上角外沿，不挤占卡片内容宽度。
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span
+      aria-hidden
+      className="absolute -left-1 -top-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-border bg-background font-mono text-2xs font-semibold text-muted-foreground shadow-sm"
+    >
+      {n}
+    </span>
+  )
+}
+
 function TrainingBranch() {
   // 训练页对稿（lora-domain-wireframes.md §6）：稿子是两栏——左表单，右
   // 提交卡+训练任务列表，没有独立的历史/预设侧栏。以前是三栏（历史 240px·
@@ -3494,6 +3507,7 @@ function TrainingBranch() {
   // 收成两栏：左表单，右边把预设 + 训练任务列表堆在一起——功能都留着，
   // 只是不再各占一条独立的常驻侧栏。
   const isMobile = useIsMobile()
+  const tTraining = useTranslations('LoraTraining')
   const [presetId, setPresetId] = useState<LoraTrainingPresetId | null>(null)
 
   const handleSelectPreset = useCallback(
@@ -3507,29 +3521,41 @@ function TrainingBranch() {
     setPresetId(null)
   }, [])
 
-  // Form column is just the form. EmptyState + the page heading both
-  // got cut — the preset rail next to the form is its own empty state,
-  // and the tabs above already say "train", so an h2 saying the same
-  // thing is noise.
+  // S8（CD 训练台-组建）：主列 = 有编号的两步——① 选择预设（一键填好类型/底模/
+  // 触发词）② 填表单（上传训练图 + 配置 + 提交）。预设从右侧栏移到主列顶部，
+  // 因为它是流程第一步、不是参考资料；右栏只留训练历史 + 产物去向说明。
   const formColumn = (
-    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <LoraTrainingForm
-        hideRecentJobs
-        selectedPresetId={presetId}
-        onPresetClear={handleClearPreset}
-      />
+    <div className="space-y-4">
+      <div className="relative">
+        <StepBadge n={1} />
+        <PresetRailPanel
+          presetId={presetId}
+          onSelect={handleSelectPreset}
+          variant="panel"
+        />
+      </div>
+      <div className="relative">
+        <StepBadge n={2} />
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <LoraTrainingForm
+            hideRecentJobs
+            selectedPresetId={presetId}
+            onPresetClear={handleClearPreset}
+          />
+        </div>
+      </div>
     </div>
   )
 
   const sideColumn = (
     <div className="flex flex-col gap-4">
-      <PresetRailPanel
-        presetId={presetId}
-        onSelect={handleSelectPreset}
-        variant="panel"
-      />
       <aside className="rounded-2xl border border-border bg-card p-4">
         <LoraTrainingHistorySidebar />
+        {/* CD：训练产物去向——完成的 LoRA 进「我的资源」，在库 modal 的「我的」
+            tab 可挂载（把训练与生成两侧连起来）。 */}
+        <p className="mt-3 border-t border-border/60 pt-3 text-2xs leading-relaxed text-muted-foreground">
+          {tTraining('historyOutputHint')}
+        </p>
       </aside>
     </div>
   )

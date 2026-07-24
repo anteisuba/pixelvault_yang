@@ -8,10 +8,10 @@ import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 import type { CivitaiLoraLibraryItem, HuggingFaceLoraSearchItem } from '@/types'
 
-// S3 库 modal：双源同卡（配屏 3 设计）——封面 + 族角标 + 源角标(CIV/HF) +
-// runner-only 标 + 名 + 下载/喜欢 mono + 使用/已挂键。取代 LoraLibraryRow 的
-// 行形制（行留给旧「库」tab，本卡只在库 modal 用）。唯一源差异 = 源角标 + HF
-// 封面渐进增强。纯展示件，挂载/收藏动作由 onUse 上抛。
+// S3 库 modal：双源同卡（配屏 3 设计）——封面 + 族角标 + 源角标(CIV/HF) + 名 +
+// 下载/喜欢 mono + 使用/已挂键。取代 LoraLibraryRow 的行形制（行留给旧「库」
+// tab，本卡只在库 modal 用）。唯一源差异 = 源角标 + HF 封面渐进增强。纯展示件，
+// 挂载动作由 onUse 上抛。
 
 interface LoraLibraryCardBaseProps {
   /** 已挂进当前栈——使用键降级为「已挂」禁用态。 */

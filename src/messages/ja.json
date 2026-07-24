@@ -1439,6 +1439,15 @@
       "safeMode": "セーフモード",
       "mineEmpty": "お気に入り・学習済みの LoRA はまだありません"
     },
+    "baseModal": {
+      "title": "ベースモデルを変更",
+      "subtitleConstrained": "マウント中の系統の互換性に制約されます",
+      "subtitleFree": "系統の制約なし · すべてのベースモデルを選択可",
+      "onlyCompatible": "マウントと互換のみ表示",
+      "incompatible": "現在のマウントと非互換",
+      "channelRunner": "Runner",
+      "footer": "LoRA をマウントすると推奨互換ベースが自動選択されます。ここで変更できます。忠実 = Runner ネイティブ checkpoint、高速 = クラウド API。"
+    },
     "generate": {
       "placeholderTitle": "ベースモデルだけで生成できます",
       "placeholderBody": "LoRA は未装着です。ベースモデルで直接生成するか、「ライブラリ」から LoRA を追加できます。",

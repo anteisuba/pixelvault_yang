@@ -816,7 +816,11 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     render(<LoraWorkbench />)
 
     expect(screen.getByText('LoraWorkbench:spine.empty')).toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toHaveTextContent('Anima Base v1.0')
+    // S4：底模选择器从 combobox 下拉改为「底模卡」按钮（点开换底模 modal）；
+    // 默认仍是 Anima Base v1.0（纯底模空栈的自动底模）。
+    expect(
+      screen.getByRole('button', { name: /Anima Base v1\.0/ }),
+    ).toBeInTheDocument()
 
     fireEvent.change(
       screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),

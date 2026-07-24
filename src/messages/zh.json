@@ -1439,6 +1439,15 @@
       "safeMode": "安全模式",
       "mineEmpty": "还没有收藏或训练的 LoRA"
     },
+    "baseModal": {
+      "title": "换底模",
+      "subtitleConstrained": "受挂载家族兼容约束",
+      "subtitleFree": "无家族约束 · 全部底模可选",
+      "onlyCompatible": "仅显示兼容当前挂载",
+      "incompatible": "与当前挂载不兼容",
+      "channelRunner": "Runner",
+      "footer": "挂载 LoRA 后已自动选推荐兼容底模；此处用于改选。忠实 = Runner 原生 checkpoint，快 = 云端 API。"
+    },
     "generate": {
       "placeholderTitle": "可直接使用底模生成",
       "placeholderBody": "当前未挂载 LoRA，可直接使用底模出图，也可以去「库」添加 LoRA。",

@@ -1439,6 +1439,15 @@
       "safeMode": "Safe mode",
       "mineEmpty": "No favorited or trained LoRAs yet"
     },
+    "baseModal": {
+      "title": "Change base model",
+      "subtitleConstrained": "Constrained by mounted LoRA families",
+      "subtitleFree": "No family constraint · all base models available",
+      "onlyCompatible": "Only show compatible with mounts",
+      "incompatible": "Incompatible with current mounts",
+      "channelRunner": "Runner",
+      "footer": "After mounting a LoRA the recommended compatible base is auto-selected; use this to change it. Faithful = native Runner checkpoint, Fast = cloud API."
+    },
     "generate": {
       "placeholderTitle": "Generate with the base model",
       "placeholderBody": "No LoRA is mounted. Generate directly with the base model, or add a LoRA from Library.",

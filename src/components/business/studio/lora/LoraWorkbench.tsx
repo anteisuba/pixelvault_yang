@@ -12,6 +12,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowLeftRight,
   ArrowUpRight,
   Bot,
   Check,
@@ -47,7 +48,6 @@ import {
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
-  getLoraBaseArchitectureGroup,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
@@ -112,9 +112,7 @@ import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -162,6 +160,7 @@ import { useImageUpload } from '@/hooks/use-image-upload'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
+import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import { LoraCollocationStatusBar } from '@/components/business/studio/lora/LoraCollocationStatusBar'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
@@ -2393,29 +2392,16 @@ function LoraSpineBar({
     setOverId(null)
     setArmedId(null)
   }
+  // S4：换底模 modal 开关；有挂载 LoRA 才有家族约束（modal 的「仅显示兼容」开关）。
+  const [baseModalOpen, setBaseModalOpen] = useState(false)
+  const hasMountedLora = stack.items.length > 0
 
   const fidelityLabel = (b: LoraBaseModel) =>
     b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
   const baseDisplayName = (b: LoraBaseModel) =>
     b.translationKey ? t(`spine.${b.translationKey}`) : b.displayName
-
-  // §4.4 底模选择器两层分组：第一层 backend（云端 API vs runner），runner
-  // 组内再按架构系（SDXL/DiT）分——数据来源 getLoraBaseArchitectureGroup，
-  // 新增架构自动落 SDXL 桶。空组不渲染（§4.4 拍板）。
-  const cloudBases = compatibleBases.filter((b) => b.backend !== 'runner')
-  const runnerBases = compatibleBases.filter((b) => b.backend === 'runner')
-  const runnerSdxlBases = runnerBases.filter(
-    (b) => getLoraBaseArchitectureGroup(b.family) === 'sdxl',
-  )
-  const runnerDitBases = runnerBases.filter(
-    (b) => getLoraBaseArchitectureGroup(b.family) === 'dit',
-  )
-  const renderBaseItem = (base: LoraBaseModel) => (
-    <SelectItem key={base.id} value={base.id} disabled={!base.available}>
-      {baseDisplayName(base)} · {fidelityLabel(base)}
-      {base.available ? '' : ` · ${t('spine.comingSoon')}`}
-    </SelectItem>
-  )
+  // S4：两层分组选择逻辑（云端/Runner·SDXL/DiT）已搬进 LoraBaseModelModal，
+  // 脊柱条这里只留一张「底模卡」唤起 modal。
 
   return (
     // CD 装配台（近炭暖灰）：脊柱条升为浮起纸面面板——左装配栏雏形，S2b 竖化成
@@ -2648,46 +2634,38 @@ function LoraSpineBar({
       </span>
       {compatibleBases.length > 0 ? (
         <>
-          <Select value={selectedBase?.id} onValueChange={onSelectBase}>
-            <SelectTrigger className="h-7 w-auto gap-1.5 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {/* §4.4 第一层：backend（云端 API 自备 key / runner 平台免费额度）。
-                  原先逐项的「免费额度/需 API Key」徽标随组标题上移，组级信息
-                  不再逐项重复。 */}
-              {cloudBases.length > 0 ? (
-                <SelectGroup>
-                  <SelectLabel>{t('spine.baseGroupCloud')}</SelectLabel>
-                  {cloudBases.map(renderBaseItem)}
-                </SelectGroup>
-              ) : null}
-              {runnerBases.length > 0 ? (
-                <SelectGroup>
-                  <SelectLabel>{t('spine.baseGroupRunner')}</SelectLabel>
-                  {/* 第二层：runner 组内再按架构系分（SDXL 系 / DiT 系）——
-                      纯展示子标题，不是独立的 Radix Group，避免未验证过的
-                      嵌套 Select.Group 行为。 */}
-                  {runnerSdxlBases.length > 0 ? (
-                    <>
-                      <div className="px-2 pb-0.5 pt-1 text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                        {t('spine.baseGroupSdxl')}
-                      </div>
-                      {runnerSdxlBases.map(renderBaseItem)}
-                    </>
-                  ) : null}
-                  {runnerDitBases.length > 0 ? (
-                    <>
-                      <div className="px-2 pb-0.5 pt-1 text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                        {t('spine.baseGroupDit')}
-                      </div>
-                      {runnerDitBases.map(renderBaseItem)}
-                    </>
-                  ) : null}
-                </SelectGroup>
-              ) : null}
-            </SelectContent>
-          </Select>
+          {/* S4 底模卡：显当前底模摘要（名 + 族·通道·忠实/快 mono），点开换底模
+              modal（两层分组 + 仅显示兼容开关）。取代原两层分组 Select 下拉。 */}
+          <button
+            type="button"
+            onClick={() => setBaseModalOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition-colors hover:border-border"
+          >
+            <span className="min-w-0 flex-1">
+              {selectedBase ? (
+                <>
+                  <span className="block truncate text-xs font-semibold text-foreground">
+                    {baseDisplayName(selectedBase)}
+                  </span>
+                  <span className="block truncate font-mono text-2xs text-muted-foreground">
+                    {selectedBase.family} ·{' '}
+                    {selectedBase.backend === 'runner'
+                      ? t('baseModal.channelRunner')
+                      : t('spine.executorCloud')}{' '}
+                    · {fidelityLabel(selectedBase)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {t('spine.baseModelPending')}
+                </span>
+              )}
+            </span>
+            <ArrowLeftRight
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          </button>
           {needsKeySetup ? (
             <button
               type="button"
@@ -2736,6 +2714,15 @@ function LoraSpineBar({
         <Bot className="size-3.5" aria-hidden />
         {tStudioV2('enhance')}
       </button>
+      {/* S4 换底模 modal（底模卡唤起）——Dialog 走 portal，放这里不受左栏内滚裁切。 */}
+      <LoraBaseModelModal
+        open={baseModalOpen}
+        onOpenChange={setBaseModalOpen}
+        compatibleBases={compatibleBases}
+        selectedBaseId={selectedBase?.id}
+        onSelect={onSelectBase}
+        hasMountedLora={hasMountedLora}
+      />
     </div>
   )
 }

@@ -1662,6 +1662,8 @@
     "sourceRecipeCopy": "Copy",
     "sourceRecipeCopyRecipe": "Copy recipe",
     "sourceRecipeRemake": "Recreate",
+    "sourceRecipeRestoreTitle": "Recreate restores this to the assembly console",
+    "sourceRecipeApplyHint": "Only applies the recipe to the console — it does not generate. Existing input goes to the collocation review.",
     "sourceRecipeUseSeed": "Use original seed",
     "sourceRecipeRemakeHint": "Recreate applies this recipe's prompt, params and base model, and mounts its extra LoRAs. The runner doesn't support hires/denoise yet, so fidelity may differ from the source.",
     "sourceRecipePromptCopied": "Prompt copied",

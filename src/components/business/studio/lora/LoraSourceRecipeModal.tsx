@@ -132,6 +132,16 @@ export function LoraSourceRecipeModal({
   }, [open, hasMultiple, goPrev, goNext])
 
   const size = recipe ? formatSize(recipe) : null
+  // S6（CD 配方-modal）：还原摘要卡的关键参数一行——只拼真实存在的字段。
+  const restoreParamsLine = recipe
+    ? [
+        recipe.steps !== undefined ? `Steps ${recipe.steps}` : null,
+        recipe.cfgScale !== undefined ? `CFG ${recipe.cfgScale}` : null,
+        recipe.sampler ?? null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || null
+    : null
 
   const handleCopy = useCallback(
     async (text: string, successKey: string) => {
@@ -191,164 +201,224 @@ export function LoraSourceRecipeModal({
           ) : null}
         </div>
 
-        {/* 右：独立滚动的结构化配方（桌面固定 22rem 宽、独立滚动） */}
-        <div className="flex min-h-0 flex-col overflow-y-auto border-t border-border/60 md:w-88 md:shrink-0 md:border-l md:border-t-0">
+        {/* 右：结构化配方（桌面固定 22rem 宽）——内容独立滚动 + 做同款固定底栏
+            （S6 CD 配方-modal：主动作不随内容滚走）。 */}
+        <div className="flex min-h-0 flex-col border-t border-border/60 md:w-88 md:shrink-0 md:border-l md:border-t-0">
           {recipe ? (
-            <div className="space-y-4 p-4">
-              <div className="space-y-1">
-                <RecipeSourceBadge source={recipe.source} />
-                <h3 className="font-display text-base font-semibold leading-tight text-foreground">
-                  {assetName}
-                </h3>
-              </div>
+            <>
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="space-y-1">
+                  <RecipeSourceBadge source={recipe.source} />
+                  <h3 className="font-display text-base font-semibold leading-tight text-foreground">
+                    {assetName}
+                  </h3>
+                </div>
 
-              <RecipeField
-                label={t('sourceRecipePromptLabel')}
-                onCopy={() =>
-                  void handleCopy(recipe.prompt, 'sourceRecipePromptCopied')
-                }
-                copyLabel={t('sourceRecipeCopy')}
-              >
-                <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-foreground">
-                  {recipe.prompt}
-                </p>
-              </RecipeField>
+                {/* S6（CD）：前置「做同款将还原到装配台」摘要卡——先让用户看清会
+                  被还原什么（LoRA / 底模 / 关键参数），再往下读完整 prompt。
+                  仅 generate variant（library variant 不承担做同款）。 */}
+                {variant === 'generate' && onApplyRecipe ? (
+                  <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/25 p-2.5">
+                    <p className="flex items-center gap-1.5 text-2xs font-medium text-foreground">
+                      <Wand2 className="size-3" aria-hidden />
+                      {t('sourceRecipeRestoreTitle')}
+                    </p>
+                    <dl className="space-y-1 text-2xs">
+                      <div className="flex gap-2">
+                        <dt className="w-12 shrink-0 text-muted-foreground">
+                          LoRA
+                        </dt>
+                        <dd className="min-w-0 flex-1 truncate text-foreground">
+                          {assetName}
+                        </dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-12 shrink-0 text-muted-foreground">
+                          {t('sourceRecipeBaseModel')}
+                        </dt>
+                        <dd className="min-w-0 flex-1 truncate font-mono text-foreground">
+                          {recipe.checkpoint ?? baseModelFamily}
+                        </dd>
+                      </div>
+                      {restoreParamsLine ? (
+                        <div className="flex gap-2">
+                          <dt className="w-12 shrink-0 text-muted-foreground">
+                            {t('sourceRecipeParamsSection')}
+                          </dt>
+                          <dd className="min-w-0 flex-1 font-mono text-foreground">
+                            {restoreParamsLine}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </div>
+                ) : null}
 
-              {recipe.negativePrompt ? (
                 <RecipeField
-                  label={t('sourceRecipeNegativeLabel')}
+                  label={t('sourceRecipePromptLabel')}
                   onCopy={() =>
-                    void handleCopy(
-                      recipe.negativePrompt ?? '',
-                      'sourceRecipeNegativeCopied',
-                    )
+                    void handleCopy(recipe.prompt, 'sourceRecipePromptCopied')
                   }
                   copyLabel={t('sourceRecipeCopy')}
                 >
-                  <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-muted-foreground">
-                    {recipe.negativePrompt}
+                  <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-foreground">
+                    {recipe.prompt}
                   </p>
                 </RecipeField>
-              ) : null}
 
-              <div className="space-y-1.5">
-                <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('sourceRecipeModelSection')}
-                </p>
-                <dl className="space-y-1 text-xs">
-                  <RecipeRow
-                    label={t('sourceRecipeBaseModel')}
-                    value={baseModelFamily}
-                  />
-                  {recipe.checkpoint ? (
-                    <RecipeRow
-                      label={t('sourceRecipeCheckpoint')}
-                      value={recipe.checkpoint}
-                    />
-                  ) : null}
-                </dl>
-              </div>
+                {recipe.negativePrompt ? (
+                  <RecipeField
+                    label={t('sourceRecipeNegativeLabel')}
+                    onCopy={() =>
+                      void handleCopy(
+                        recipe.negativePrompt ?? '',
+                        'sourceRecipeNegativeCopied',
+                      )
+                    }
+                    copyLabel={t('sourceRecipeCopy')}
+                  >
+                    <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-muted-foreground">
+                      {recipe.negativePrompt}
+                    </p>
+                  </RecipeField>
+                ) : null}
 
-              <div className="space-y-1.5">
-                <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('sourceRecipeParamsSection')}
-                </p>
-                <dl className="space-y-1 text-xs">
-                  {size ? (
-                    <RecipeRow label={t('sourceRecipeSize')} value={size} />
-                  ) : null}
-                  {recipe.sampler ? (
-                    <RecipeRow
-                      label={t('sourceRecipeSampler')}
-                      value={recipe.sampler}
-                    />
-                  ) : null}
-                  {recipe.scheduler ? (
-                    <RecipeRow
-                      label={t('sourceRecipeScheduler')}
-                      value={recipe.scheduler}
-                    />
-                  ) : null}
-                  {recipe.steps !== undefined ? (
-                    <RecipeRow
-                      label={t('sourceRecipeSteps')}
-                      value={String(recipe.steps)}
-                    />
-                  ) : null}
-                  {recipe.cfgScale !== undefined ? (
-                    <RecipeRow
-                      label={t('sourceRecipeCfg')}
-                      value={String(recipe.cfgScale)}
-                    />
-                  ) : null}
-                  {recipe.seed !== undefined ? (
-                    <RecipeRow
-                      label={t('sourceRecipeSeed')}
-                      value={String(recipe.seed)}
-                    />
-                  ) : null}
-                </dl>
-              </div>
-
-              {tags && tags.length > 0 ? (
                 <div className="space-y-1.5">
                   <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t('sourceRecipeTags')}
+                    {t('sourceRecipeModelSection')}
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.slice(0, 8).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-muted px-2 py-0.5 text-2xs text-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  <dl className="space-y-1 text-xs">
+                    <RecipeRow
+                      label={t('sourceRecipeBaseModel')}
+                      value={baseModelFamily}
+                    />
+                    {recipe.checkpoint ? (
+                      <RecipeRow
+                        label={t('sourceRecipeCheckpoint')}
+                        value={recipe.checkpoint}
+                      />
+                    ) : null}
+                  </dl>
                 </div>
-              ) : null}
 
-              {/* R3 close-review（owner 2026-07-20「明示不匹配/不支持」）：做同款
+                <div className="space-y-1.5">
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('sourceRecipeParamsSection')}
+                  </p>
+                  <dl className="space-y-1 text-xs">
+                    {size ? (
+                      <RecipeRow label={t('sourceRecipeSize')} value={size} />
+                    ) : null}
+                    {recipe.sampler ? (
+                      <RecipeRow
+                        label={t('sourceRecipeSampler')}
+                        value={recipe.sampler}
+                      />
+                    ) : null}
+                    {recipe.scheduler ? (
+                      <RecipeRow
+                        label={t('sourceRecipeScheduler')}
+                        value={recipe.scheduler}
+                      />
+                    ) : null}
+                    {recipe.steps !== undefined ? (
+                      <RecipeRow
+                        label={t('sourceRecipeSteps')}
+                        value={String(recipe.steps)}
+                      />
+                    ) : null}
+                    {recipe.cfgScale !== undefined ? (
+                      <RecipeRow
+                        label={t('sourceRecipeCfg')}
+                        value={String(recipe.cfgScale)}
+                      />
+                    ) : null}
+                    {recipe.seed !== undefined ? (
+                      <RecipeRow
+                        label={t('sourceRecipeSeed')}
+                        value={String(recipe.seed)}
+                      />
+                    ) : null}
+                  </dl>
+                </div>
+
+                {tags && tags.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t('sourceRecipeTags')}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.slice(0, 8).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-muted px-2 py-0.5 text-2xs text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* R3 close-review（owner 2026-07-20「明示不匹配/不支持」）：做同款
                   的还原边界——底模引用会尽量还原，但 runner 不支持 hires 等，
                   效果可能与源图有差。仅 generate variant 显示。 */}
-              {variant === 'generate' && onApplyRecipe ? (
-                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
-                  {t('sourceRecipeRemakeHint')}
-                </p>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="transition-transform active:scale-[0.97]"
-                  onClick={() =>
-                    void handleCopy(
-                      buildRecipeClipboardText(recipe),
-                      'sourceRecipeCopied',
-                    )
-                  }
-                >
-                  <Copy className="size-3.5" aria-hidden />
-                  {t('sourceRecipeCopyRecipe')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="transition-transform active:scale-[0.97]"
-                >
-                  <a href={sourceUrl} target="_blank" rel="noreferrer">
-                    <ArrowUpRight className="size-3.5" aria-hidden />
-                    {t('communityOpenSource')}
-                  </a>
-                </Button>
                 {variant === 'generate' && onApplyRecipe ? (
-                  <>
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
+                    {t('sourceRecipeRemakeHint')}
+                  </p>
+                ) : null}
+
+                {/* 次级动作留在滚动区（做同款已提到固定底栏）。 */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="transition-transform active:scale-[0.97]"
+                    onClick={() =>
+                      void handleCopy(
+                        buildRecipeClipboardText(recipe),
+                        'sourceRecipeCopied',
+                      )
+                    }
+                  >
+                    <Copy className="size-3.5" aria-hidden />
+                    {t('sourceRecipeCopyRecipe')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="transition-transform active:scale-[0.97]"
+                  >
+                    <a href={sourceUrl} target="_blank" rel="noreferrer">
+                      <ArrowUpRight className="size-3.5" aria-hidden />
+                      {t('communityOpenSource')}
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              {/* S6（CD 配方-modal）：做同款固定底栏——主动作常驻可达，不随长
+                prompt 滚走；附「只应用不直接生成」说明。 */}
+              {variant === 'generate' && onApplyRecipe ? (
+                <div className="shrink-0 space-y-1.5 border-t border-border/60 bg-card px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="transition-transform active:scale-[0.97]"
+                      onClick={() => {
+                        onApplyRecipe(recipe, includeSeed)
+                        onOpenChange(false)
+                      }}
+                    >
+                      <Wand2 className="size-3.5" aria-hidden />
+                      {t('sourceRecipeRemake')}
+                    </Button>
                     {/* G3b-seed：仅当配方带 seed 时给「用原图 seed」勾选——
-                        锁原图 seed 可精确复刻同一张，默认关=只还原风格。 */}
+                      锁原图 seed 可精确复刻同一张，默认关=只还原风格。 */}
                     {recipe.seed !== undefined ? (
                       <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
                         <input
@@ -362,22 +432,13 @@ export function LoraSourceRecipeModal({
                         {t('sourceRecipeUseSeed')}
                       </label>
                     ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="transition-transform active:scale-[0.97]"
-                      onClick={() => {
-                        onApplyRecipe(recipe, includeSeed)
-                        onOpenChange(false)
-                      }}
-                    >
-                      <Wand2 className="size-3.5" aria-hidden />
-                      {t('sourceRecipeRemake')}
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            </div>
+                  </div>
+                  <p className="text-2xs leading-relaxed text-muted-foreground">
+                    {t('sourceRecipeApplyHint')}
+                  </p>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </div>
       </DialogContent>

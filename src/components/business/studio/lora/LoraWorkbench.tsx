@@ -19,7 +19,9 @@ import {
   ChevronLeft,
   Compass,
   GraduationCap,
+  GripVertical,
   Heart,
+  ImageIcon,
   Key,
   Plus,
   RefreshCw,
@@ -107,7 +109,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
@@ -1259,10 +1263,14 @@ function GenerateBranch() {
   const handleGenerate = useCallback(async () => {
     const providerModelId = selectedBase?.providerModelId
     if (!providerModelId) return
-    const loras = stack.items.map((entry) => ({
-      url: entry.asset.loraUrl,
-      scale: entry.scale ?? entry.asset.defaultScale,
-    }))
+    // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
+    // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
+    const loras = stack.items
+      .filter((entry) => entry.enabled !== false)
+      .map((entry) => ({
+        url: entry.asset.loraUrl,
+        scale: entry.scale ?? entry.asset.defaultScale,
+      }))
     // 「自己搭配」选中的标签 + 触发词 chips 在这里并入最终 prompt——compiler
     // 只读不写 selections，负向标签走 compiledNegativePrompt，和已有的
     // negativePrompt 文本框合并去重，不互相覆盖。§4.3 编译顺序 = 触发词
@@ -2340,8 +2348,16 @@ function LoraSpineBar({
   const tSetup = useTranslations('QuickSetup')
   const tStudioV2 = useTranslations('StudioV2')
   const stack = useActiveLoraStack()
-  // 多挂载时 chip 名字变成分组切换器（点它切来源图/配方）；单挂无需切换。
-  const canSwitchGroup = stack.items.length > 1
+  // 拖拽排序（原生 HTML5 DnD·仅从 grip 起手：armedId 门控 draggable，避免
+  // 滑杆/按钮/文本误触发拖拽）。dragId=正在拖的项，overId=悬停目标（画插入提示）。
+  const [armedId, setArmedId] = useState<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const endDrag = () => {
+    setDragId(null)
+    setOverId(null)
+    setArmedId(null)
+  }
 
   const fidelityLabel = (b: LoraBaseModel) =>
     b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
@@ -2376,97 +2392,186 @@ function LoraSpineBar({
       </span>
       {stack.items.length > 0 ? (
         stack.items.map((item) => {
-          const isActiveGroup =
-            canSwitchGroup && item.asset.id === activeRecipeGroupId
-          // §4.1 兼容度圆点：底模未选 → 不判定不渲染；兼容 → 淡绿/中性小点
+          // 聚焦态 = 当前展示来源图/配方的分组（单挂时回落到唯一项，见
+          // GenerateBranch recipeGroupKey）。封面按钮点击切换分组。
+          const isActiveGroup = item.asset.id === activeRecipeGroupId
+          // §4.1 兼容度圆点：底模未选 → 不判定不渲染；兼容 → 淡绿信号
           // （owner 2026-07-17 拍板"兼容也给淡信号"，与"未判定"区分）；
-          // 不兼容 → 琥珀实心点 + tooltip/aria 警示。
+          // 不兼容 → 琥珀点 + 整行琥珀底 + 警示行（CD 装配栏权重条整行）。
           const compatible = selectedBase
             ? isLoraBaseModelMountCompatible(
                 item.asset.baseModelFamily,
                 selectedBase.family,
               )
             : null
+          const effectiveScale = item.scale ?? item.asset.defaultScale
+          // enabled 缺省（旧快照/新挂载）视为启用；停用 = 留在栈里不参与出图。
+          const enabled = item.enabled !== false
           return (
-            <span
+            // CD 权重条整行：栈项由 pill 升为整行卡（拖拽柄 + 封面聚焦 + 兼容点 +
+            // 名 + ×weight popover + 启停开关 + 移除× + 常驻权重滑杆 + 不兼容琥珀
+            // 警示）。启停/拖拽走 useActiveLoraStack 新增 enabled/reorder（owner
+            // 2026-07-25 放行的 additive 增量）。
+            <div
               key={item.asset.id}
+              draggable={armedId === item.asset.id}
+              onDragStart={(e) => {
+                setDragId(item.asset.id)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(e) => {
+                if (dragId && dragId !== item.asset.id) {
+                  e.preventDefault()
+                  if (overId !== item.asset.id) setOverId(item.asset.id)
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragId && dragId !== item.asset.id) {
+                  stack.reorder(dragId, item.asset.id)
+                }
+                endDrag()
+              }}
+              onDragEnd={endDrag}
               className={cn(
-                'inline-flex items-center gap-0.5 rounded-full border py-1 pl-1 pr-1 text-xs',
-                isActiveGroup
-                  ? 'border-primary/50 bg-primary/5'
-                  : 'border-border/60 bg-background',
+                'w-full rounded-lg border p-2.5 transition-colors',
+                compatible === false
+                  ? 'border-amber-500/30 bg-amber-500/10'
+                  : isActiveGroup
+                    ? 'border-primary/40 bg-primary/5'
+                    : 'border-border/60 bg-background',
+                dragId === item.asset.id && 'opacity-50',
+                overId === item.asset.id &&
+                  dragId !== item.asset.id &&
+                  'border-primary/60',
+                !enabled && 'opacity-60',
               )}
             >
-              {/* G1（R3 装配行）：挂载 LoRA 头像——一眼认出当前装配的角色/风格。 */}
-              {item.asset.coverImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={proxyCivitaiImageUrl(item.asset.coverImageUrl)}
-                  alt=""
-                  className="ml-0.5 size-5 shrink-0 rounded-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : null}
-              {compatible === true ? (
-                <span
-                  aria-hidden
-                  className="ml-0.5 size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
-                />
-              ) : compatible === false ? (
-                <span
-                  role="img"
-                  aria-label={t('spine.compatDotWarning')}
-                  title={t('spine.compatDotWarning')}
-                  className="ml-0.5 size-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400"
-                />
-              ) : null}
-              {/* B10-8：长名（Civitai 全名带 | 段）截断到固定宽，全名进 title；
-                  多挂载时点名字切到该 LoRA 的来源图/配方分组。 */}
-              {canSwitchGroup ? (
+              <div className="flex items-center gap-1.5">
+                {/* 拖拽柄：仅从此起手（onPointerDown 武装 draggable，onPointerUp
+                    未拖走则解除），避免滑杆/按钮误触发。原生 DnD 无键盘等价，
+                    排序为鼠标增强项，启停/权重/移除均可键盘操作。 */}
+                <button
+                  type="button"
+                  aria-label={t('spine.dragReorder')}
+                  title={t('spine.dragReorder')}
+                  onPointerDown={() => setArmedId(item.asset.id)}
+                  onPointerUp={() =>
+                    setArmedId((cur) => (cur === item.asset.id ? null : cur))
+                  }
+                  className="flex shrink-0 cursor-grab touch-none text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
+                >
+                  <GripVertical className="size-3.5" aria-hidden />
+                </button>
+                {/* 封面聚焦按钮：点击切到该 LoRA 的来源图/配方分组，聚焦时石墨描边。 */}
                 <button
                   type="button"
                   onClick={() => onSelectRecipeGroup(item.asset.id)}
-                  title={item.asset.name}
+                  title={t('spine.focusSourceImages')}
                   aria-pressed={isActiveGroup}
                   className={cn(
-                    'block max-w-40 truncate rounded-full px-1.5 py-0.5 font-medium transition-colors',
+                    'flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground transition-colors',
                     isActiveGroup
-                      ? 'text-primary'
-                      : 'text-foreground hover:bg-muted',
+                      ? 'border-primary'
+                      : 'border-border/60 hover:border-border',
                   )}
                 >
-                  {item.asset.name}
+                  {item.asset.coverImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={proxyCivitaiImageUrl(item.asset.coverImageUrl)}
+                      alt=""
+                      className="size-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <ImageIcon className="size-3.5" aria-hidden />
+                  )}
                 </button>
-              ) : (
+                {compatible === true ? (
+                  <span
+                    aria-hidden
+                    className="size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
+                  />
+                ) : compatible === false ? (
+                  <span
+                    role="img"
+                    aria-label={t('spine.compatDotWarning')}
+                    title={t('spine.compatDotWarning')}
+                    className="size-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400"
+                  />
+                ) : null}
+                {/* B10-8：长名（Civitai 全名带 | 段）截断，全名进 title；停用划删。 */}
                 <span
-                  className="block max-w-52 truncate px-1.5"
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-xs font-medium',
+                    enabled
+                      ? 'text-foreground'
+                      : 'text-muted-foreground line-through',
+                  )}
                   title={item.asset.name}
                 >
                   {item.asset.name}
                 </span>
-              )}
-              {loraScaleConfig ? (
-                <LoraScaleChip
-                  name={item.asset.name}
-                  value={item.scale ?? item.asset.defaultScale}
-                  onChange={(scale) => stack.setScale(item.asset.id, scale)}
-                  config={loraScaleConfig}
+                {loraScaleConfig ? (
+                  <LoraScaleChip
+                    name={item.asset.name}
+                    value={effectiveScale}
+                    onChange={(scale) => stack.setScale(item.asset.id, scale)}
+                    config={loraScaleConfig}
+                    disabled={!enabled}
+                  />
+                ) : (
+                  <span className="font-mono text-2xs text-muted-foreground">
+                    ×{effectiveScale.toFixed(2)}
+                  </span>
+                )}
+                {/* 启停开关：停用留在栈里不参与出图（stack.setEnabled）。 */}
+                <Switch
+                  size="sm"
+                  checked={enabled}
+                  onCheckedChange={(v) => stack.setEnabled(item.asset.id, v)}
+                  aria-label={t(
+                    enabled ? 'spine.disableLora' : 'spine.enableLora',
+                    { name: item.asset.name },
+                  )}
+                  className="shrink-0"
                 />
-              ) : (
-                <span className="text-muted-foreground">
-                  ×{(item.scale ?? item.asset.defaultScale).toFixed(2)}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => stack.remove(item.asset.id)}
-                aria-label={t('spine.removeLora', { name: item.asset.name })}
-                className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="size-3" aria-hidden />
-              </button>
-            </span>
+                <button
+                  type="button"
+                  onClick={() => stack.remove(item.asset.id)}
+                  aria-label={t('spine.removeLora', { name: item.asset.name })}
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </div>
+              {/* 权重条整行：常驻滑杆，拖动即调该 LoRA 强度（写回 entry.scale）。
+                  仅当底模支持 LoRA scale 值域时渲染；否则退回上面的静态 ×N。
+                  停用时禁用（视觉降档，避免调一个不参与出图的权重）。 */}
+              {loraScaleConfig ? (
+                <div className="mt-2">
+                  <Slider
+                    aria-label={t('spine.weightBarLabel', {
+                      name: item.asset.name,
+                    })}
+                    min={loraScaleConfig.min}
+                    max={loraScaleConfig.max}
+                    step={loraScaleConfig.step}
+                    value={[effectiveScale]}
+                    onValueChange={([v]) => stack.setScale(item.asset.id, v)}
+                    disabled={!enabled}
+                  />
+                </div>
+              ) : null}
+              {/* 不兼容警示行（CD：整行琥珀 + 说明「出图时该 LoRA 不会生效」）。 */}
+              {compatible === false ? (
+                <p className="mt-1.5 text-2xs text-amber-600 dark:text-amber-400">
+                  {t('spine.compatDotWarning')}
+                </p>
+              ) : null}
+            </div>
           )
         })
       ) : (

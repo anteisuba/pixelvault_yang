@@ -26,6 +26,20 @@ beforeAll(() => {
       value: () => undefined,
     },
   })
+  // jsdom lacks ResizeObserver. The assembly-console LoRA rows now mount an
+  // always-visible Radix Slider (the weight bar) whose thumb sizing touches
+  // ResizeObserver on mount — without this stub every GenerateBranch test
+  // that mounts a LoRA throws ReferenceError. No-op is enough (jsdom never
+  // runs real layout).
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    class ResizeObserverStub {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    globalThis.ResizeObserver =
+      ResizeObserverStub as unknown as typeof ResizeObserver
+  }
 })
 
 // ── Issue 2 (Hard Rule 8) + 用户反馈迭代：API key 配置入口挂在「选底模」

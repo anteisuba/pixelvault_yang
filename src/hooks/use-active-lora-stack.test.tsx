@@ -249,6 +249,44 @@ describe('useActiveLoraStack', () => {
     expect(result.current.items).toEqual([])
   })
 
+  it('setEnabled parks/unparks a single entry without touching scale', () => {
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    act(() => {
+      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
+      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
+      result.current.setScale('1', 0.5)
+      result.current.setEnabled('1', false)
+    })
+
+    expect(result.current.items[0]?.enabled).toBe(false)
+    expect(result.current.items[0]?.scale).toBe(0.5) // scale untouched
+    expect(result.current.items[1]?.enabled).toBeUndefined() // defaults enabled
+
+    act(() => {
+      result.current.setEnabled('1', true)
+    })
+    expect(result.current.items[0]?.enabled).toBe(true)
+  })
+
+  it('reorder moves source into target slot; no-op on missing/self', () => {
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    act(() => {
+      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
+      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
+      result.current.push(makeAsset({ id: '3', styleCode: 'c3' }))
+      result.current.reorder('3', '1') // move 3 into slot 0
+    })
+    expect(result.current.items.map((i) => i.asset.id)).toEqual(['3', '1', '2'])
+
+    act(() => {
+      result.current.reorder('3', '3') // self → no-op
+      result.current.reorder('missing', '1') // absent → no-op
+    })
+    expect(result.current.items.map((i) => i.asset.id)).toEqual(['3', '1', '2'])
+  })
+
   it('resolves ?style=<code> on mount and pushes onto the stack', async () => {
     mockSearchParams.set('style', 'pv-c-test-aa11')
     const asset = makeAsset()

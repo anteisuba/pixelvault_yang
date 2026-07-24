@@ -101,6 +101,13 @@ function roundScale(n: number): string {
 interface StoredEntry {
   asset: LoraAssetRecord
   scale?: number
+  /**
+   * Whether this mounted LoRA is applied at generation time. Absent
+   * (legacy snapshots + freshly pushed entries) counts as enabled — the
+   * assembly-console toggle only writes `false` to park a LoRA without
+   * removing it, so `enabled !== false` is the single source of truth.
+   */
+  enabled?: boolean
 }
 
 /**
@@ -137,6 +144,10 @@ interface ActiveLoraStackValue {
   toActiveLoras(): ActiveLora[]
   push(asset: LoraAssetRecord, scale?: number): void
   setScale(assetId: string, scale: number): void
+  /** Toggle whether a mounted LoRA is applied at generation time. */
+  setEnabled(assetId: string, enabled: boolean): void
+  /** Drag-and-drop reorder: move sourceId into targetId's slot. */
+  reorder(sourceId: string, targetId: string): void
   remove(assetId: string): void
   clear(): void
   /** True while resolving a `?style=` query param on mount */
@@ -367,6 +378,30 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const setEnabled = useCallback((assetId: string, enabled: boolean) => {
+    setItems((prev) =>
+      prev.map((entry) =>
+        entry.asset.id === assetId ? { ...entry, enabled } : entry,
+      ),
+    )
+  }, [])
+
+  // Move sourceId into targetId's position, shifting the rest. Order is the
+  // LoRA layering order the compiler reads, so reordering is meaningful, not
+  // cosmetic. No-op when either id is missing or they're the same.
+  const reorder = useCallback((sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    setItems((prev) => {
+      const from = prev.findIndex((entry) => entry.asset.id === sourceId)
+      const to = prev.findIndex((entry) => entry.asset.id === targetId)
+      if (from === -1 || to === -1) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }, [])
+
   const remove = useCallback((assetId: string) => {
     setItems((prev) => prev.filter((entry) => entry.asset.id !== assetId))
   }, [])
@@ -408,6 +443,8 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       toActiveLoras,
       push,
       setScale,
+      setEnabled,
+      reorder,
       remove,
       clear,
       isResolvingFromUrl,
@@ -420,6 +457,8 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       toActiveLoras,
       push,
       setScale,
+      setEnabled,
+      reorder,
       remove,
       clear,
       isResolvingFromUrl,

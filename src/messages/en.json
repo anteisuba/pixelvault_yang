@@ -1436,7 +1436,8 @@
       "use": "Use",
       "mounted": "Mounted",
       "searchPlaceholder": "Search LoRAs, triggers, authors…",
-      "safeMode": "Safe mode"
+      "safeMode": "Safe mode",
+      "mineEmpty": "No favorited or trained LoRAs yet"
     },
     "generate": {
       "placeholderTitle": "Generate with the base model",

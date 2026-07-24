@@ -1436,7 +1436,8 @@
       "use": "使用",
       "mounted": "追加済み",
       "searchPlaceholder": "LoRA・トリガー・作者を検索…",
-      "safeMode": "セーフモード"
+      "safeMode": "セーフモード",
+      "mineEmpty": "お気に入り・学習済みの LoRA はまだありません"
     },
     "generate": {
       "placeholderTitle": "ベースモデルだけで生成できます",

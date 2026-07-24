@@ -1436,7 +1436,8 @@
       "use": "使用",
       "mounted": "已挂",
       "searchPlaceholder": "搜索 LoRA、触发词、作者…",
-      "safeMode": "安全模式"
+      "safeMode": "安全模式",
+      "mineEmpty": "还没有收藏或训练的 LoRA"
     },
     "generate": {
       "placeholderTitle": "可直接使用底模生成",

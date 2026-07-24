@@ -893,52 +893,6 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
   })
 })
 
-describe('LoraWorkbench GenerateBranch — 自己搭配 tag picker', () => {
-  beforeEach(() => {
-    mockGenerate.mockReset()
-    mockAddTag.mockReset()
-    mockLastGeneration = null
-    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
-  })
-
-  it('adds a curated tag from the always-visible 词库 search results', () => {
-    render(<LoraWorkbench />)
-
-    // G3b-2: 词库（tag picker）常驻左栏底部，无「自己搭配」tab 可切。
-
-    // Empty-query results rank system/curated tags highest — "Masterpiece"
-    // (id: system:quality:masterpiece) should be visible without typing.
-    const masterpieceResult = screen.getByRole('button', {
-      name: /Masterpiece/,
-    })
-    fireEvent.click(masterpieceResult)
-
-    expect(mockAddTag).toHaveBeenCalledTimes(1)
-    expect(mockAddTag.mock.calls[0][0]).toMatchObject({
-      id: 'system:quality:masterpiece',
-      promptText: 'masterpiece',
-    })
-  })
-
-  it('filters results by search query', () => {
-    render(<LoraWorkbench />)
-
-    // G3b-2: 词库（tag picker）常驻左栏底部，无「自己搭配」tab 可切。
-
-    const searchInput = screen.getByPlaceholderText(
-      'PromptTags:library.searchPlaceholder',
-    )
-    fireEvent.change(searchInput, { target: { value: 'rim lighting' } })
-
-    expect(
-      screen.getByRole('button', { name: /Rim light/ }),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /Masterpiece/ }),
-    ).not.toBeInTheDocument()
-  })
-})
-
 describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
   beforeEach(() => {
     mockGenerate.mockReset()

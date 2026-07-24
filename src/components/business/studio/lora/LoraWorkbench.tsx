@@ -21,7 +21,6 @@ import {
   GraduationCap,
   Heart,
   Key,
-  Minus,
   Plus,
   RefreshCw,
   Search,
@@ -135,7 +134,6 @@ import { LoraHuggingFaceShowcaseStrip } from '@/components/business/studio/promp
 import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
 import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagAutocomplete } from '@/components/business/studio/prompt-tags/PromptTagAutocomplete'
-import { PromptTagTray } from '@/components/business/studio/prompt-tags/PromptTagTray'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -145,7 +143,6 @@ import {
   getMaxReferenceImages,
   type NumericRange,
 } from '@/constants/provider-capabilities'
-import { PROMPT_TAG_DEFINITIONS } from '@/constants/prompt-tags'
 import { adapterHasCapability } from '@/constants/llm-capability'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageUpload } from '@/hooks/use-image-upload'
@@ -169,9 +166,8 @@ import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { appendPromptFragments } from '@/lib/prompt-text-append'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
-import { searchPromptTags } from '@/lib/prompt-tag-search'
 import type { LoraAssistantMount } from '@/types'
-import type { PromptPolarity, PromptTagSelection } from '@/types/prompt-tags'
+import type { PromptTagSelection } from '@/types/prompt-tags'
 import { cn } from '@/lib/utils'
 
 import '@/app/lora.css'
@@ -549,9 +545,6 @@ function GenerateBranch() {
   // 全域共享的，只是此前唯一的宿主 UI（TagLibrary）被删了，这里是词库导入后
   // 第一个真正接上的消费端。
   const promptTags = usePromptTagStack()
-  // G3b-2：来源图带 + 词库都常驻左栏（删「推荐/自己搭配」tabs），promptMode 退役。
-  // 助手「escapeToSelfBuild」不再切 tab，改滚到左栏底部词库（tagPickerRef）。
-  const tagPickerRef = useRef<HTMLDivElement>(null)
 
   // Issue 2 (Hard Rule 8): 缺 key 时不禁用出图按钮，改路由到 QuickSetupDialog。
   // 不能借用 useImageModelOptions() —— 它内部调 useStudioForm()，而
@@ -1236,11 +1229,8 @@ function GenerateBranch() {
     setNegativePromptExpanded(true)
   }, [])
   const handleAssistantEscapeToSelfBuild = useCallback(() => {
-    // G3b-2：词库常驻左栏底部，助手「自己搭配」不再切 tab——滚动定位到词库。
-    tagPickerRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    })
+    // 词库（LoraTagPicker）已从生成页移除，待迁入助手（owner 2026-07-24）；
+    // 迁入前「自己搭配」escape 暂为空操作。
   }, [])
   // R4：扣除助手宽后主台仍 ≥900px 才停靠(push 正文)，否则右侧覆盖(不 push,
   // fixed 助手浮在正文上，不继续压缩)。未测得宽度前默认可停靠（避免开场闪覆盖）。
@@ -1565,10 +1555,10 @@ function GenerateBranch() {
             // 框常驻，只在推荐列给「去库挑一个 LoRA」引导（见 !hasLora 分支）。
             <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-start">
               <div className="order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1">
-                {/* G3b-2 来源图带（左栏顶）：删「推荐/自己搭配」下划线 tabs——
-                来源图缩略带常驻左栏顶（挂载显示 LoRA 效果证据，点图开共享配方
-                modal；未挂载退化成「纯底模 / 去库」引导）。「自己搭配」词库移到
-                左栏底部（见下方 md:row-start-3 的 LoraTagPicker）。 */}
+                {/* 来源图带（中创作面顶）：来源图缩略带常驻（挂载显示 LoRA 效果
+                证据，点图开共享配方 modal；未挂载退化成「纯底模 / 去库」引导）。
+                （原「自己搭配」词库 LoraTagPicker 2026-07-24 已从生成页移除，
+                待迁入助手，见 handleAssistantEscapeToSelfBuild 注。） */}
                 <div className="space-y-2">
                   {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
                       即切来源图/配方）。这里只留一行说明当前展示的是哪个挂载的
@@ -1836,7 +1826,7 @@ function GenerateBranch() {
               走标准暗主题 token（发丝边框 border-border / 浅灰次文本 muted-foreground
               / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
               象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
-              <div className="order-2 space-y-3 md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
+              <div className="order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:row-start-2">
                 {/* G3c 参考图大卡（confirmed A 左栏序：来源图 → 参考图 → 搭配 →
                 提示词）：能力位驱动，仅当底模支持参考图（maxReferenceImages > 0）
                 且有强度配置时渲染——顶部横排大预览卡 + ＋添加 + 参考强度，空态只留
@@ -2279,14 +2269,6 @@ function GenerateBranch() {
                   </Button>
                 </div>
               </div>
-              <div
-                ref={tagPickerRef}
-                className="order-4 min-w-0 md:order-none md:col-span-3 md:col-start-1 md:row-start-3"
-              >
-                {/* G3b-2：自己搭配词库落左栏底部（owner 拍板保留常驻，非按需）；
-                助手 escapeToSelfBuild 滚动定位到这里。 */}
-                <LoraTagPicker />
-              </div>
             </div>
           }
         </div>
@@ -2310,168 +2292,6 @@ function GenerateBranch() {
         }}
       />
     </>
-  )
-}
-
-// ── 自己搭配 · 词库魔导书（docs/design/pages/lora-domain-wireframes.md §3）──
-// booru 搜索 + 功能分类 chip + 候选列表 + 已选 tray（直接复用
-// PromptTagTray，不重造一份选中态展示）。引擎（compiler/search/stack）本来
-// 就是全域共享模块，早就写好也测过，之前只是没有 UI 接上去。
-//
-// 范围收窄说明：文档设想的"发型/眼睛/表情/服装/姿势"等细粒度功能分类需要对
-// 每条 danbooru 词条做二次语义分类（文档 M3「配方拆层」，一个独立的
-// deterministic token classifier），现在没有那份数据。这里先按
-// PromptTagDefinition.category 现有的粗粒度值分（quality/style/scene/
-// character/camera/lighting/anatomy/artifacts）——比文档设想的粗，但每个
-//分类背后都是真数据，不是摆设 chip。"智能词条"（概念→一捆标签）同理：目前
-//没有 prompt_preset 类型的词条数据，先不做假按钮占位。
-function LoraTagPicker() {
-  const t = useTranslations('LoraWorkbench')
-  const tTags = useTranslations('PromptTags')
-  const promptTags = usePromptTagStack()
-  const [query, setQuery] = useState('')
-  const [polarity, setPolarity] = useState<PromptPolarity>('positive')
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
-
-  const categories = useMemo(() => {
-    const set = new Set<string>()
-    for (const tag of PROMPT_TAG_DEFINITIONS) {
-      if (tag.polarity === polarity) set.add(tag.category)
-    }
-    return Array.from(set).sort()
-  }, [polarity])
-
-  // 切正/负向时，之前选的分类可能在新极性下不存在——收回避免"选中一个筛不出
-  // 东西的分类"死态。render 时条件 reset（本文件已有的惯例模式）。
-  if (activeCategory && !categories.includes(activeCategory)) {
-    setActiveCategory(null)
-  }
-
-  const results = useMemo(() => {
-    const base = searchPromptTags({
-      query,
-      polarity,
-      selectedTagIds: promptTags.selectedTagIds,
-      limit: 60,
-    })
-    return activeCategory
-      ? base.filter((result) => result.tag.category === activeCategory)
-      : base
-  }, [activeCategory, polarity, promptTags.selectedTagIds, query])
-
-  return (
-    <div className="space-y-2.5">
-      <div className="flex items-center gap-1.5">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={tTags('library.searchPlaceholder')}
-            className="h-8 pl-8 text-xs"
-          />
-        </div>
-        <div className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-muted/40 p-1">
-          <button
-            type="button"
-            onClick={() => setPolarity('positive')}
-            aria-label={tTags('library.positive')}
-            className={cn(
-              'inline-flex size-6 items-center justify-center rounded-full',
-              polarity === 'positive'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Plus className="size-3.5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPolarity('negative')}
-            aria-label={tTags('library.negative')}
-            className={cn(
-              'inline-flex size-6 items-center justify-center rounded-full',
-              polarity === 'negative'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Minus className="size-3.5" aria-hidden />
-          </button>
-        </div>
-      </div>
-      <p className="text-2xs text-muted-foreground">
-        {t('generate.tagPickerHint')}
-      </p>
-
-      <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={() => setActiveCategory(null)}
-          className={cn(
-            'rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
-            activeCategory === null
-              ? 'bg-foreground text-background'
-              : 'border border-border/60 text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {t('generate.tagPickerCategoryAll')}
-        </button>
-        {categories.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => setActiveCategory(category)}
-            className={cn(
-              'rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
-              activeCategory === category
-                ? 'bg-foreground text-background'
-                : 'border border-border/60 text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {tTags(`category.${category}`)}
-          </button>
-        ))}
-      </div>
-
-      <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-border/60 p-1.5">
-        {results.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            {tTags('library.emptyTitle')}
-          </p>
-        ) : (
-          results.map((result) => (
-            <button
-              key={result.tag.id}
-              type="button"
-              disabled={result.isSelected}
-              onClick={() => promptTags.addTag(result.tag)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-50"
-            >
-              {result.tag.polarity === 'negative' ? (
-                <Minus
-                  className="size-3 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              ) : (
-                <Plus
-                  className="size-3 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              )}
-              <span className="min-w-0 flex-1 truncate">
-                {result.tag.label}
-              </span>
-              <span className="shrink-0 truncate font-mono text-2xs text-muted-foreground/70">
-                {result.tag.promptText}
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-
-      <PromptTagTray />
-    </div>
   )
 }
 

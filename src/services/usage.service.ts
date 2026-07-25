@@ -306,10 +306,16 @@ async function createGenerationJobWithinLimits(
   const activeLockKey = `active-generation-jobs:${input.userId}`
   await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${activeLockKey}, 0))`
 
+  // 只数「还可能真在跑」的 job：超过 ACTIVE_JOB_MAX_AGE_MS 仍未落终态的，几乎
+  // 一定是回调丢了的僵尸，不能让它永久扣住并发位（见常量处的事故记录）。
+  const activeSince = new Date(
+    Date.now() - PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS,
+  )
   const activeCount = await client.generationJob.count({
     where: {
       userId: input.userId,
       status: { in: [...PLATFORM_GENERATION_GUARD.ACTIVE_JOB_STATUSES] },
+      createdAt: { gte: activeSince },
     },
   })
 

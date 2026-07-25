@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { PLATFORM_GENERATION_GUARD } from '@/constants/config'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
@@ -191,8 +192,34 @@ describe('usage.service', () => {
         where: {
           userId: 'user-1',
           status: { in: ['QUEUED', 'RUNNING'] },
+          createdAt: { gte: expect.any(Date) },
         },
       })
+    })
+
+    // 2026-07-26 事故：回调丢了的 job 永远停在 RUNNING，把并发位永久扣死，
+    // 账号从此再也出不了图且不会自愈。闸必须只数还在时效内的活跃 job。
+    it('ignores active jobs older than the max age so a lost callback cannot wedge the user', async () => {
+      mockJobCount.mockResolvedValue(0)
+
+      await createGenerationJob({
+        userId: 'user-1',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        provider: 'fal.ai',
+        modelId: 'fal-ai/flux-2-pro',
+      })
+
+      const where = mockJobCount.mock.calls.at(-1)?.[0]?.where as {
+        createdAt: { gte: Date }
+      }
+      const cutoffAgeMs = Date.now() - where.createdAt.gte.getTime()
+      expect(cutoffAgeMs).toBeGreaterThan(
+        PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS - 5_000,
+      )
+      expect(cutoffAgeMs).toBeLessThan(
+        PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS + 5_000,
+      )
+      expect(mockCreate).toHaveBeenCalled()
     })
   })
 

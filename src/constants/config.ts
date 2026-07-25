@@ -551,6 +551,19 @@ export const PLATFORM_GENERATION_GUARD = {
   DAILY_LIMIT: 500,
   MAX_ACTIVE_JOBS_PER_USER: 2,
   ACTIVE_JOB_STATUSES: ['QUEUED', 'RUNNING'] as const,
+  /**
+   * 并发闸只数这个时长以内创建的活跃 job。
+   *
+   * 派发出去的任务全靠回调/轮询才会落到终态；回调丢了（Worker 未部署、dev
+   * 重启、provider 静默丢弃）那条 job 就永远停在 RUNNING，永久占掉一个并发位。
+   * 2026-07-26 就是这么被顶死的：某账号挂着 15 条 3–5 月的僵尸 job，闸上限是
+   * 2，所有出图请求一律 429，而且自己不会恢复。
+   *
+   * 加年龄上限让闸自愈：超过这个时长还没落终态的 job 不再挡新任务。这不是
+   * 「把它判成失败」——行还是 RUNNING，等真回调来了照样能正常收尾；只是不再
+   * 让一条僵尸永久扣住配额。24h 远高于最慢的正常任务（3D 纹理管线分钟级）。
+   */
+  ACTIVE_JOB_MAX_AGE_MS: 24 * 60 * 60 * 1000,
 } as const
 
 /**

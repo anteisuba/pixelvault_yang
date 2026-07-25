@@ -61,18 +61,21 @@ describe('TrainingStatusCard', () => {
       screen.getByText(en.LoraTraining.statusCardTrainingTitle),
     ).toBeInTheDocument()
     expect(screen.getByText('42%')).toBeInTheDocument()
-    // ⚠ 不断 aria-valuenow：共享原语 ui/progress.tsx 把 `value` 解构掉后从没
-    // 传给 Radix Root，Root 因此不带 aria-valuenow（原语侧的既有 a11y 缺口，
-    // 不在本组件的责任范围）。这里断真正驱动视觉的指示器位移。
-    const indicator = document.querySelector(
-      '[data-slot="progress-indicator"]',
-    ) as HTMLElement | null
-    expect(indicator?.style.transform).toBe('translateX(-58%)')
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '42',
+    )
   })
 
   it('clamps out-of-range progress instead of overflowing the bar', () => {
     renderCard(baseJob({ status: 'TRAINING', progress: 1.8 }))
     expect(screen.getByText('100%')).toBeInTheDocument()
+    // 夹紧不只是为了视觉：越界值会被 Radix 判成 indeterminate，aria-valuenow
+    // 会整个消失（辅助技术读不到完成度）。
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    )
   })
 
   it('prefers the upstream error message over the generic failure copy', () => {

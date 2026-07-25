@@ -1565,7 +1565,9 @@
       "stackTitle": "LoRA stack",
       "mountedCount": "{count} mounted",
       "addLoraFull": "Add LoRA",
-      "triggerWords": "Trigger words"
+      "triggerWords": "Trigger words",
+      "collapseAssembly": "Collapse assembly",
+      "expandAssembly": "Expand assembly"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",

@@ -24,6 +24,8 @@ import {
   Heart,
   ImageIcon,
   Key,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
@@ -1302,6 +1304,9 @@ function GenerateBranch({
   const [libraryModalOpen, setLibraryModalOpen] = useState(false)
   // S7：移动端装配 sheet（紧凑摘要条唤起）。
   const [assemblySheetOpen, setAssemblySheetOpen] = useState(false)
+  // CD：装配栏可折叠成竖向图标 rail（右上角开关）——收起时左列宽 300px→56px，
+  // 把宽度让给创作面；rail 上仍能看清底模 + 挂载 + 容量，点任一图标展回。
+  const [assemblyCollapsed, setAssemblyCollapsed] = useState(false)
   const isAssistantMobile = useIsMobile()
 
   // owner 2026-07-25：助手 dock 恒「覆盖态」——叠在生成区上方，不再挤压正文
@@ -1856,9 +1861,14 @@ function GenerateBranch({
         onSelectRecipeGroup={setRecipeGroupAssetId}
         onAddLora={() => setLibraryModalOpen(true)}
         triggerWords={triggerChipEntries.map((entry) => entry.triggerWord)}
+        collapsed={assemblyCollapsed}
+        onToggleCollapsed={() => setAssemblyCollapsed((prev) => !prev)}
       />
+      {/* 折叠态只留 rail（脊柱条本体），参考图/参数两块收起来。 */}
       {/* S2精修①：参考图（能力位驱动·仅底模支持参考图 + 有强度配置时渲染）。 */}
-      {maxReferenceImages > 0 && referenceStrengthConfig ? (
+      {!assemblyCollapsed &&
+      maxReferenceImages > 0 &&
+      referenceStrengthConfig ? (
         <div className="rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)]">
           <LoraReferenceImageCards
             imageUpload={imageUpload}
@@ -1870,7 +1880,7 @@ function GenerateBranch({
         </div>
       ) : null}
       {/* S2精修①-B：Runner 高级参数 disclosure（reflow 1col·isRunnerBase gated）。 */}
-      {runnerParamsPanel}
+      {assemblyCollapsed ? null : runnerParamsPanel}
     </>
   )
 
@@ -1989,7 +1999,15 @@ function GenerateBranch({
           </button>
         ) : null}
 
-        <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-stretch md:gap-5 md:min-h-0 md:flex-1 md:overflow-hidden">
+        <div
+          className={cn(
+            'md:grid md:min-h-0 md:flex-1 md:items-stretch md:gap-5 md:overflow-hidden',
+            // 折叠时左列收成图标 rail 宽度，创作面吃掉剩余空间。
+            assemblyCollapsed
+              ? 'md:grid-cols-[56px_minmax(0,1fr)]'
+              : 'md:grid-cols-[300px_minmax(0,1fr)]',
+          )}
+        >
           {/* 左装配栏：桌面常驻（锁高时自身内滚·min-h-0 允许收缩）；移动端此格
               空着，装配内容由上面的紧凑条唤起 sheet 承载（S7）。 */}
           <div className="hidden space-y-3 md:block md:min-h-0 md:overflow-y-auto md:pr-1">
@@ -2491,6 +2509,9 @@ interface LoraSpineBarProps {
   /** CD 装配栏「触发词」段：挂载 LoRA 带来的触发词（静态展示——启停在搭配
    *  提醒的变更审阅卡里做，这里不重复交互，避免同名按钮挂两份）。 */
   triggerWords: readonly string[]
+  /** CD：折叠成竖向图标 rail（收起时只留底模/挂载/容量的图标摘要）。 */
+  collapsed: boolean
+  onToggleCollapsed: () => void
 }
 
 // 常驻脊柱条：当前 LoRA stack（自取）+ 被 LoRA 家族约束的底模扁平选择器。
@@ -2507,6 +2528,8 @@ function LoraSpineBar({
   onSelectRecipeGroup,
   onAddLora,
   triggerWords,
+  collapsed,
+  onToggleCollapsed,
 }: LoraSpineBarProps) {
   const t = useTranslations('LoraWorkbench')
   const tSetup = useTranslations('QuickSetup')
@@ -2532,17 +2555,122 @@ function LoraSpineBar({
   // S4：两层分组选择逻辑（云端/Runner·SDXL/DiT）已搬进 LoraBaseModelModal，
   // 脊柱条这里只留一张「底模卡」唤起 modal。
 
+  // CD 收起态：竖向图标 rail——折叠开关 / 底模方块 / 挂载缩略图（带兼容点）/
+  // ＋添加 / 已挂 N。点缩略图切来源图分组、点底模开换底模 modal，信息不丢。
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card px-1.5 py-2.5 shadow-[var(--lora-shadow-panel)]">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label={t('spine.expandAssembly')}
+          title={t('spine.expandAssembly')}
+          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <PanelLeftOpen className="size-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => setBaseModalOpen(true)}
+          aria-label={
+            selectedBase
+              ? baseDisplayName(selectedBase)
+              : t('spine.baseModelPending')
+          }
+          title={
+            selectedBase
+              ? baseDisplayName(selectedBase)
+              : t('spine.baseModelPending')
+          }
+          className="flex size-9 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        >
+          <Boxes className="size-4" aria-hidden />
+        </button>
+        {stack.items.map((item) => {
+          const compatible = selectedBase
+            ? isLoraBaseModelMountCompatible(
+                item.asset.baseModelFamily,
+                selectedBase.family,
+              )
+            : null
+          return (
+            <button
+              key={item.asset.id}
+              type="button"
+              onClick={() => onSelectRecipeGroup(item.asset.id)}
+              aria-pressed={item.asset.id === activeRecipeGroupId}
+              title={item.asset.name}
+              className={cn(
+                'relative flex size-9 items-center justify-center overflow-hidden rounded-lg border bg-muted text-muted-foreground transition-colors',
+                item.asset.id === activeRecipeGroupId
+                  ? 'border-primary'
+                  : 'border-border/60 hover:border-border',
+                item.enabled === false && 'opacity-50',
+              )}
+            >
+              {item.asset.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={proxyCivitaiImageUrl(item.asset.coverImageUrl)}
+                  alt=""
+                  className="size-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <ImageIcon className="size-3.5" aria-hidden />
+              )}
+              {/* 兼容点：收起态也要能一眼看出哪个挂载会被忽略。 */}
+              {compatible !== null ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'absolute right-0.5 top-0.5 size-1.5 rounded-full ring-1 ring-card',
+                    compatible
+                      ? 'bg-emerald-500/80 dark:bg-emerald-400/80'
+                      : 'bg-amber-500 dark:bg-amber-400',
+                  )}
+                />
+              ) : null}
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={onAddLora}
+          aria-label={t('spine.addLoraFull')}
+          title={t('spine.addLoraFull')}
+          className="flex size-9 items-center justify-center rounded-lg border border-dashed border-border/60 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        >
+          <Plus className="size-4" aria-hidden />
+        </button>
+        <span className="text-center font-mono text-3xs leading-tight text-muted-foreground">
+          {t('spine.mountedCount', { count: stack.items.length })}
+        </span>
+      </div>
+    )
+  }
+
   return (
     // CD 装配台（近炭暖灰）：脊柱条升为浮起纸面面板——左装配栏雏形，S2b 竖化成
     // 竖向 LoRA 栈 + 底模卡 + 触发词。（原 D8「去盒化·底部白 8% 发丝线」为冷瓷前
     // 旧线，深底上白发丝线本就近隐形，此处反转成 bg-card 浮起面板 + token 发丝边。）
     <div className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]">
-      {/* CD 装配栏：面板标题（「装配栏」）+ 助手开关同行；下面按 底模 → LoRA 栈 →
+      {/* CD 装配栏：面板标题（「装配栏」）+ 折叠开关同行；下面按 底模 → LoRA 栈 →
           添加 → 触发词 的顺序（先定底模·再挂 LoRA）。 */}
       <div className="flex w-full items-center gap-2">
         <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {t('spine.assemblyTitle')}
         </span>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label={t('spine.collapseAssembly')}
+          title={t('spine.collapseAssembly')}
+          className="-mr-1 ml-auto flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <PanelLeftClose className="size-3.5" aria-hidden />
+        </button>
       </div>
       <span className="text-2xs uppercase tracking-wide text-muted-foreground">
         {t('spine.baseModel')}

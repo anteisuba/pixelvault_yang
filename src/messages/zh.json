@@ -1565,7 +1565,9 @@
       "stackTitle": "LoRA 栈",
       "mountedCount": "已挂 {count}",
       "addLoraFull": "添加 LoRA",
-      "triggerWords": "触发词"
+      "triggerWords": "触发词",
+      "collapseAssembly": "收起装配栏",
+      "expandAssembly": "展开装配栏"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",

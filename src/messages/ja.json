@@ -1565,7 +1565,9 @@
       "stackTitle": "LoRA スタック",
       "mountedCount": "{count} 件",
       "addLoraFull": "LoRA を追加",
-      "triggerWords": "トリガーワード"
+      "triggerWords": "トリガーワード",
+      "collapseAssembly": "組み立て台を畳む",
+      "expandAssembly": "組み立て台を開く"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",

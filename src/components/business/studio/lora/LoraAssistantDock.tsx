@@ -208,8 +208,11 @@ export function LoraAssistantDock({
       data-resizing={isResizing ? 'true' : undefined}
       style={{ width: open ? `${layout.widthPx}px` : '0px' }}
       className={cn(
-        'node-canvas-panel-motion fixed inset-y-0 right-0 z-40 hidden overflow-hidden bg-background lg:flex lg:h-svh lg:flex-col',
-        open && 'border-l border-border/60',
+        // CD 装配台：助手是一张与三栏面板对齐的浮起圆角卡（上下右留页面留白·
+        // 四边圆角+浮起投影），不是贴视口边的通高板。top-20 = py-5(20) + 模块
+        // tab h-11(44) + gap-4(16)；右侧留白跟随页面 px-4/6/8。
+        'node-canvas-panel-motion fixed bottom-5 right-4 top-20 z-40 hidden overflow-hidden rounded-xl bg-card sm:right-6 lg:flex lg:flex-col lg:right-8',
+        open && 'border border-border shadow-[var(--lora-shadow-modal)]',
       )}
     >
       <div

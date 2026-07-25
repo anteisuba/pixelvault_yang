@@ -1474,7 +1474,11 @@
         "keptSize": "宽高",
         "recipePending": "来源配方 · {name} · 待审阅",
         "apply": "应用",
-        "pendingHint": "建议先审阅再出图"
+        "pendingHint": "建议先审阅再出图",
+        "assistantPending": "助手建议 · 待审阅",
+        "assistantApplied": "已应用助手建议",
+        "willChangeAssistant": "将变更 · 助手建议",
+        "emptyValue": "（空）"
       },
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",
@@ -2804,7 +2808,9 @@
     "assistantEscapeToSelfBuild": "切到自己搭配",
     "contextMounts": "挂载 ×{count}",
     "contextTriggers": "触发词 ×{count}",
-    "contextBase": "底模"
+    "contextBase": "底模",
+    "assistantStageForReview": "加入搭配提醒",
+    "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。"
   },
   "LayerDecompose": {
     "title": "图层分解",

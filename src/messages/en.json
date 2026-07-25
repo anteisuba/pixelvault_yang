@@ -1474,7 +1474,11 @@
         "keptSize": "Size",
         "recipePending": "Source recipe · {name} · needs review",
         "apply": "Apply",
-        "pendingHint": "Review before you generate"
+        "pendingHint": "Review before you generate",
+        "assistantPending": "Assistant suggestion · needs review",
+        "assistantApplied": "Assistant suggestion applied",
+        "willChangeAssistant": "Changes · assistant suggestion",
+        "emptyValue": "(empty)"
       },
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",
@@ -2804,7 +2808,9 @@
     "assistantEscapeToSelfBuild": "Switch to build-your-own",
     "contextMounts": "Mounts ×{count}",
     "contextTriggers": "Triggers ×{count}",
-    "contextBase": "Base"
+    "contextBase": "Base",
+    "assistantStageForReview": "Add to collocation review",
+    "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying."
   },
   "LayerDecompose": {
     "title": "Layer Decompose",

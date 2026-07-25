@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Plus, X } from 'lucide-react'
+import { Check, ClipboardCheck, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
@@ -66,6 +66,12 @@ interface PromptAssistantLoraResultCardProps {
   onAppendPrompt: (text: string) => void
   onFillNegativePrompt: (text: string) => void
   onAppendNegativePrompt: (text: string) => void
+  /**
+   * CD①「加入搭配提醒」：把这条建议送进搭配提醒的待审阅态，而不是直接落进
+   * 输入框——建议先审阅再出图。只有提供了这个回调的宿主（LoRA 装配台）才出
+   * 这个按钮；通用 Studio dock 没有搭配提醒，不出。
+   */
+  onStageForReview?: (payload: { positive: string; negative: string }) => void
 }
 
 export function PromptAssistantLoraResultCard({
@@ -77,6 +83,7 @@ export function PromptAssistantLoraResultCard({
   onAppendPrompt,
   onFillNegativePrompt,
   onAppendNegativePrompt,
+  onStageForReview,
 }: PromptAssistantLoraResultCardProps) {
   const t = useTranslations('PromptAssistant')
   const tTags = useTranslations('PromptTags')
@@ -107,6 +114,14 @@ export function PromptAssistantLoraResultCard({
     if (visibleNegative.length > 0) {
       onAppendNegativePrompt(joinTagText(visibleNegative))
     }
+  }
+
+  // 送审同样只带用户没删掉的 chips——× 掉的词不该悄悄溜进待审阅的变更里。
+  const handleStage = () => {
+    onStageForReview?.({
+      positive: joinTagText(visiblePositive),
+      negative: joinTagText(visibleNegative),
+    })
   }
 
   return (
@@ -162,7 +177,26 @@ export function PromptAssistantLoraResultCard({
             <Plus className="size-3" />
             {t('appendPrompt')}
           </Button>
+          {onStageForReview ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleStage}
+              className="h-7 gap-1.5 rounded-full px-3 text-xs"
+            >
+              <ClipboardCheck className="size-3" />
+              {t('assistantStageForReview')}
+            </Button>
+          ) : null}
         </div>
+      ) : null}
+
+      {/* CD①：建议不直接出图，应用前先在搭配提醒里审阅。 */}
+      {onStageForReview && hasAnyChips ? (
+        <p className="text-2xs text-muted-foreground">
+          {t('assistantStageHint')}
+        </p>
       ) : null}
 
       {note || hasMounts ? (

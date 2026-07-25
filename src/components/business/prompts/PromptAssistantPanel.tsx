@@ -128,6 +128,9 @@ export interface PromptAssistantLoraPersona {
   onAppendNegativePrompt: (text: string) => void
   /** §6「输出验证失败」逃生口——切到自己搭配 tab。 */
   onEscapeToSelfBuild: () => void
+  /** CD①：把建议送进搭配提醒待审阅（而不是直接落输入框）。宿主没有搭配提醒
+   *  时不传，结果卡也就不出这个按钮。 */
+  onStageForReview?: (payload: { positive: string; negative: string }) => void
 }
 
 export interface PromptAssistantPanelProps {
@@ -421,6 +424,7 @@ export function PromptAssistantPanel({
                 onAppendPrompt={onAppendPrompt ?? (() => {})}
                 onFillNegativePrompt={loraPersona.onUseNegativePrompt}
                 onAppendNegativePrompt={loraPersona.onAppendNegativePrompt}
+                onStageForReview={loraPersona.onStageForReview}
               />
             ) : (
               <MessageBubble

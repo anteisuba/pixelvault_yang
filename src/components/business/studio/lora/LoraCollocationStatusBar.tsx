@@ -45,6 +45,11 @@ interface LoraCollocationStatusBarProps {
   pendingReview?: boolean
   /** 待审阅态点「应用」：确认这批变更，值保持不动，只是不再催审阅。 */
   onApplyPending?: () => void
+  /**
+   * CD①：这条搭配提醒现在讲的是谁的变更——做同款（来源配方）还是助手建议。
+   * 只影响措辞，审阅/应用/撤销的机制两边完全一样。
+   */
+  sourceKind?: 'recipe' | 'assistant'
   /** 展开态提到父层：做同款落台时要能自动摊开这张卡。 */
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
@@ -63,11 +68,13 @@ export function LoraCollocationStatusBar({
   onUndo,
   pendingReview = false,
   onApplyPending,
+  sourceKind = 'recipe',
   expanded,
   onExpandedChange,
 }: LoraCollocationStatusBarProps) {
   const t = useTranslations('LoraWorkbench.generate.collocation')
   const isPending = recipeApplied && pendingReview
+  const isAssistant = sourceKind === 'assistant'
 
   // 「已加入」= 未停用的触发词计数（停用的 chip 不进编译）。
   const activeTriggerCount = triggerEntries.reduce(
@@ -79,7 +86,13 @@ export function LoraCollocationStatusBar({
   // 无内容不渲染：既没应用配方，也没有任何触发词。
   if (!recipeApplied && triggerEntries.length === 0) return null
 
-  const hasDetail = appliedParamLabels.length > 0 || triggerEntries.length > 0
+  // 展开里有没有东西可看。助手建议既没有配方参数名也可能没有触发词，判据要
+  // 覆盖真 diff 两行（追加词 / 参数 from→to），否则那张卡根本展不开。
+  const hasDetail =
+    appliedParamLabels.length > 0 ||
+    triggerEntries.length > 0 ||
+    changedParams.length > 0 ||
+    (addedPromptTags?.length ?? 0) > 0
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 text-2xs">
@@ -98,10 +111,16 @@ export function LoraCollocationStatusBar({
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           {isPending ? (
             <span className="text-foreground">
-              {t('recipePending', { name: recipeName ?? '' })}
+              {isAssistant
+                ? t('assistantPending')
+                : t('recipePending', { name: recipeName ?? '' })}
             </span>
           ) : recipeApplied ? (
-            t('recipeApplied')
+            isAssistant ? (
+              t('assistantApplied')
+            ) : (
+              t('recipeApplied')
+            )
           ) : null}
           {recipeApplied && activeTriggerCount > 0 ? ' · ' : null}
           {activeTriggerCount > 0
@@ -150,7 +169,11 @@ export function LoraCollocationStatusBar({
       >
         <div inert={!(expanded && hasDetail)}>
           <div className="space-y-2.5 border-t border-border px-3 py-2.5">
-            {recipeApplied && recipeName ? (
+            {isAssistant ? (
+              <p className="font-medium text-foreground">
+                {t('willChangeAssistant')}
+              </p>
+            ) : recipeApplied && recipeName ? (
               <p className="font-medium text-foreground">
                 {t('willChange', { name: recipeName })}
               </p>

@@ -166,4 +166,35 @@ describe('PromptAssistantLoraResultCard', () => {
       screen.queryByText('PromptAssistant.assistantTriggerNote'),
     ).not.toBeInTheDocument()
   })
+
+  // CD①：宿主有搭配提醒时才出「加入搭配提醒」——通用 Studio dock 没有这条通道。
+  it('hides the review action and its hint when no host handler is supplied', () => {
+    renderCard()
+
+    expect(
+      screen.queryByText('PromptAssistant.assistantStageForReview'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('PromptAssistant.assistantStageHint'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('stages both groups for review, minus the chips the user removed', () => {
+    const onStageForReview = vi.fn()
+    renderCard({ onStageForReview })
+
+    expect(
+      screen.getByText('PromptAssistant.assistantStageHint'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByLabelText('PromptAssistant.assistantRemoveChip:1girl'),
+    )
+    fireEvent.click(screen.getByText('PromptAssistant.assistantStageForReview'))
+
+    expect(onStageForReview).toHaveBeenCalledWith({
+      positive: 'silver_hair, ghibli atmosphere',
+      negative: 'lowres',
+    })
+  })
 })

@@ -1129,8 +1129,21 @@ function GenerateBranch({
   // 一层，因为落台那一刻要能替用户把卡摊开。
   const [collocationPending, setCollocationPending] = useState(false)
   const [collocationExpanded, setCollocationExpanded] = useState(false)
+  // CD①：助手建议走同一条审阅通道。自带快照（撤销要能整批回滚到建议之前）
+  // 与真 diff（追加了哪些词 / 负向 from→to），不复用 appliedRecipe 那套
+  // ——它绑的是 CivitaiImageRecipe，硬塞会把「来源配方」的语义搞浑。
+  const [assistantStaged, setAssistantStaged] = useState<{
+    snapshot: {
+      prompt: string
+      negativePrompt: string
+      negativePromptExpanded: boolean
+    }
+    addedTags: string[]
+    negativeFrom: string
+    negativeTo: string
+  } | null>(null)
 
-  const handleApplyPendingRecipe = useCallback(() => {
+  const handleApplyPendingCollocation = useCallback(() => {
     setCollocationPending(false)
     setCollocationExpanded(false)
   }, [])
@@ -1258,6 +1271,36 @@ function GenerateBranch({
     setCollocationPending(false)
     setCollocationExpanded(false)
   }, [appliedRecipe, stack])
+
+  // CD①：撤销要按「当前搭配条讲的是谁」分派——助手建议在场就回滚助手那份
+  // 快照（正文 + 负向），否则走做同款的整批回滚。
+  const handleUndoCollocation = useCallback(() => {
+    if (assistantStaged) {
+      setPrompt(assistantStaged.snapshot.prompt)
+      setNegativePrompt(assistantStaged.snapshot.negativePrompt)
+      setNegativePromptExpanded(assistantStaged.snapshot.negativePromptExpanded)
+      setAssistantStaged(null)
+      setCollocationPending(false)
+      setCollocationExpanded(false)
+      return
+    }
+    handleUndoRecipe()
+  }, [assistantStaged, handleUndoRecipe])
+
+  // 助手建议的「参数」行只有负向框一项（正向走 addedPromptTags）；负向没被
+  // 改动就不出这一行，不造假 diff。
+  const assistantNegativeChange = useMemo(() => {
+    if (!assistantStaged) return []
+    const { negativeFrom, negativeTo } = assistantStaged
+    if (negativeFrom.trim() === negativeTo.trim()) return []
+    return [
+      {
+        label: t('generate.negativePromptLabel'),
+        from: negativeFrom.trim() || t('generate.collocation.emptyValue'),
+        to: negativeTo.trim() || t('generate.collocation.emptyValue'),
+      },
+    ]
+  }, [assistantStaged, t])
 
   // G3b-2b：仅当 appliedRecipe 的来源分组仍挂载时才算「已应用」（卸载后失效，
   // 与生成侧 activeAppliedRecipe 同判据）——搭配状态条据此显示「已应用/撤销」。
@@ -1400,6 +1443,38 @@ function GenerateBranch({
     // 词库（LoraTagPicker）已从生成页移除，待迁入助手（owner 2026-07-24）；
     // 迁入前「自己搭配」escape 暂为空操作。
   }, [])
+
+  // CD①「加入搭配提醒」：助手建议不再直接落进输入框，而是与做同款走同一条
+  // 审阅通道——先写进主台，同时进「待审阅」并摊开变更卡，用户点应用才收敛、
+  // 点撤销整批回滚。正向追加（不覆盖用户已写的正文）、负向填入（负向框内容
+  // 是模板化的，覆盖比追加更符合预期，与既有 onUseNegativePrompt 一致）。
+  const handleStageAssistantSuggestion = useCallback(
+    (payload: { positive: string; negative: string }) => {
+      const addedTags = payload.positive
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+      const negativeTo = payload.negative.trim()
+      if (addedTags.length === 0 && negativeTo.length === 0) return
+
+      setAssistantStaged({
+        snapshot: { prompt, negativePrompt, negativePromptExpanded },
+        addedTags,
+        negativeFrom: negativePrompt,
+        negativeTo,
+      })
+      if (addedTags.length > 0) {
+        setPrompt((prev) => appendPromptFragments(prev, addedTags.join(', ')))
+      }
+      if (negativeTo.length > 0) {
+        setNegativePrompt(negativeTo)
+        setNegativePromptExpanded(true)
+      }
+      setCollocationPending(true)
+      setCollocationExpanded(true)
+    },
+    [prompt, negativePrompt, negativePromptExpanded],
+  )
   const hasLora = stack.items.length > 0
   const canGenerate =
     !!selectedBase?.available &&
@@ -2378,20 +2453,33 @@ function GenerateBranch({
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
                 <LoraCollocationStatusBar
-                  recipeApplied={collocationRecipe != null}
+                  sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+                  recipeApplied={
+                    assistantStaged != null || collocationRecipe != null
+                  }
                   recipeName={collocationRecipe?.assetName ?? null}
                   appliedParamLabels={
-                    collocationRecipe?.appliedParamLabels ?? []
+                    assistantStaged
+                      ? []
+                      : (collocationRecipe?.appliedParamLabels ?? [])
                   }
-                  changedParams={collocationChanges.changed}
-                  addedPromptTags={collocationChanges.addedPrompt}
-                  keptLabels={collocationChanges.kept}
+                  changedParams={
+                    assistantStaged
+                      ? assistantNegativeChange
+                      : collocationChanges.changed
+                  }
+                  addedPromptTags={
+                    assistantStaged
+                      ? assistantStaged.addedTags
+                      : collocationChanges.addedPrompt
+                  }
+                  keptLabels={assistantStaged ? [] : collocationChanges.kept}
                   triggerEntries={triggerChipEntries}
                   disabledTriggerIds={disabledTriggerIds}
                   onToggleTrigger={handleToggleTriggerChip}
-                  onUndo={handleUndoRecipe}
+                  onUndo={handleUndoCollocation}
                   pendingReview={collocationPending}
-                  onApplyPending={handleApplyPendingRecipe}
+                  onApplyPending={handleApplyPendingCollocation}
                   expanded={collocationExpanded}
                   onExpandedChange={setCollocationExpanded}
                 />
@@ -2624,6 +2712,7 @@ function GenerateBranch({
           onUseNegativePrompt: handleAssistantFillNegative,
           onAppendNegativePrompt: handleAssistantAppendNegative,
           onEscapeToSelfBuild: handleAssistantEscapeToSelfBuild,
+          onStageForReview: handleStageAssistantSuggestion,
         }}
       />
     </>

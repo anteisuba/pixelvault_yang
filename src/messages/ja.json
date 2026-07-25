@@ -1474,7 +1474,11 @@
         "keptSize": "サイズ",
         "recipePending": "ソースレシピ · {name} · 未確認",
         "apply": "適用",
-        "pendingHint": "生成する前に確認をおすすめします"
+        "pendingHint": "生成する前に確認をおすすめします",
+        "assistantPending": "アシスタントの提案 · 未確認",
+        "assistantApplied": "アシスタントの提案を適用済み",
+        "willChangeAssistant": "変更内容 · アシスタントの提案",
+        "emptyValue": "（空）"
       },
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",
@@ -2804,7 +2808,9 @@
     "assistantEscapeToSelfBuild": "自分で組み立てるに切り替え",
     "contextMounts": "マウント ×{count}",
     "contextTriggers": "トリガー ×{count}",
-    "contextBase": "ベース"
+    "contextBase": "ベース",
+    "assistantStageForReview": "組み合わせの確認に追加",
+    "assistantStageHint": "すぐ生成せず、組み合わせバーで変更を確認してから適用することをおすすめします。"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",

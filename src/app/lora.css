@@ -72,9 +72,35 @@
   --input: var(--lora-hairline);
   --ring: var(--lora-ring);
 
+  /* 6 · 动效（CD 四轴之四「柔顺连续」：220–280ms 柔缓·强调空间连续）。
+   *    全局 prefers-reduced-motion 块会把它降成直切，无需在此重复。 */
+  --lora-motion: 240ms;
+  --lora-motion-ease: var(--ease-standard);
+
   /* 域根表面：整个装配台区域是近炭暖灰（满屏三栏布局在 S2 重构，此处先立底） */
   background: var(--lora-page);
   color: var(--lora-ink);
+}
+
+/* 装配栏折叠/展开：三栏列宽在 300px ↔ 56px 之间连续滑动，而不是瞬跳。 */
+.domain-lora .lora-motion-cols {
+  transition: grid-template-columns var(--lora-motion) var(--lora-motion-ease);
+}
+
+/* 可折叠区（负面 Prompt / Runner 参数 / 变更审阅卡）：grid-rows 0fr→1fr —— 本项目
+ * 已验证的高度过渡范式（见 LoraLibraryDetailReveal），不需要测量真实高度。
+ * 收起时内容仍在 DOM 里被裁掉，故配 inert 挡住焦点/读屏。 */
+.domain-lora .lora-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--lora-motion) var(--lora-motion-ease);
+}
+.domain-lora .lora-reveal[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.domain-lora .lora-reveal > * {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* S7 修（owner 2026-07-25「手机端没有出图的按钮」）：globals 的

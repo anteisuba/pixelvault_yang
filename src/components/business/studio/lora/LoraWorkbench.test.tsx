@@ -931,13 +931,14 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
 
     render(<LoraWorkbench />)
 
-    // No negative field until something actually needs it — matches the
-    // rest of the composer's "don't show empty chrome" convention.
+    // 负面区默认收起——语义从「不挂载」改成「折叠」（CD 动效轴：展开/收起要有
+    // grid-rows 过渡，内容因此常驻 DOM 并靠 inert 挡焦点），所以断言 aria-expanded
+    // 而不是断言元素缺席。
     expect(
-      screen.queryByPlaceholderText(
-        'LoraWorkbench:generate.negativePromptPlaceholder',
-      ),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', {
+        name: /LoraWorkbench:generate\.negativePromptLabel/,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false')
 
     // G3b: applying via the shared modal's 做同款 sets the negative prompt
     // (and closes the modal) — there is no inline recipe panel underneath.

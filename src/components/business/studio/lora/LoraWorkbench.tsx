@@ -1621,226 +1621,229 @@ function GenerateBranch({
         />
       </button>
 
-      {advancedOpen ? (
-        <div className="space-y-3 pt-2">
-          {runnerParameterError ? (
-            <p
-              role="alert"
-              className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
-            >
-              {runnerParameterError}
-            </p>
-          ) : null}
-
-          {/* 窄栏 reflow：单列堆叠（原 sm:grid-cols-2 lg:grid-cols-4）。 */}
-          <div className="grid grid-cols-1 gap-2">
-            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-              <span>{t('generate.advanced.seed')}</span>
-              <div className="flex gap-1.5">
-                <Input
-                  value={runnerSeed}
-                  onChange={(event) => {
-                    setRunnerSeed(event.target.value.trim())
-                    setSeed(undefined)
-                  }}
-                  inputMode="numeric"
-                  placeholder={t('generate.advanced.modelDefault')}
-                  aria-label={t('generate.advanced.seed')}
-                  className="h-8 border-border bg-transparent font-mono text-xs"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setRunnerSeed('')
-                    setSeed(undefined)
-                  }}
-                  title={t('generate.advanced.randomSeed')}
-                  aria-label={t('generate.advanced.randomSeed')}
-                  className="size-8 shrink-0"
-                >
-                  <RefreshCw className="size-3.5" aria-hidden />
-                </Button>
-              </div>
-            </label>
-
-            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-              <span>{t('generate.advanced.steps')}</span>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                step={1}
-                value={runnerSteps}
-                onChange={(event) => setRunnerSteps(event.target.value)}
-                placeholder={t('generate.advanced.modelDefault')}
-                aria-label={t('generate.advanced.steps')}
-                className="h-8 border-border bg-transparent text-xs"
-              />
-            </label>
-
-            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-              <span>{t('generate.advanced.cfg')}</span>
-              <Input
-                type="number"
-                min={0}
-                max={30}
-                step={0.1}
-                value={runnerCfg}
-                onChange={(event) => setRunnerCfg(event.target.value)}
-                placeholder={t('generate.advanced.modelDefault')}
-                aria-label={t('generate.advanced.cfg')}
-                className="h-8 border-border bg-transparent text-xs"
-              />
-            </label>
-
-            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-              <span>{t('generate.advanced.sampler')}</span>
-              <Select
-                value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
-                onValueChange={(value) =>
-                  setRunnerSampler(
-                    value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
-                  )
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('generate.advanced.sampler')}
-                  className="h-8 border-border bg-transparent text-xs"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                    {t('generate.advanced.modelDefault')}
-                  </SelectItem>
-                  {RUNNER_SAMPLERS.map((sampler) => (
-                    <SelectItem key={sampler} value={sampler}>
-                      {sampler}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-              <span>{t('generate.advanced.scheduler')}</span>
-              <Select
-                value={runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE}
-                onValueChange={(value) =>
-                  setRunnerScheduler(
-                    value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
-                  )
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('generate.advanced.scheduler')}
-                  className="h-8 border-border bg-transparent text-xs"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
-                    {t('generate.advanced.modelDefault')}
-                  </SelectItem>
-                  {RUNNER_SCHEDULERS.map((scheduler) => (
-                    <SelectItem key={scheduler} value={scheduler}>
-                      {scheduler}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            <div className="grid grid-cols-2 gap-2">
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                <span>{t('generate.advanced.width')}</span>
-                <Input
-                  type="number"
-                  min={512}
-                  max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
-                  step={8}
-                  value={runnerWidth}
-                  onChange={(event) => setRunnerWidth(event.target.value)}
-                  placeholder={String(previewDimensions.width)}
-                  aria-label={t('generate.advanced.width')}
-                  className="h-8 border-border bg-transparent text-xs"
-                />
-              </label>
-
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
-                <span>{t('generate.advanced.height')}</span>
-                <Input
-                  type="number"
-                  min={512}
-                  max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
-                  step={8}
-                  value={runnerHeight}
-                  onChange={(event) => setRunnerHeight(event.target.value)}
-                  placeholder={String(previewDimensions.height)}
-                  aria-label={t('generate.advanced.height')}
-                  className="h-8 border-border bg-transparent text-xs"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border p-2.5">
-            <div className="flex flex-col gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-foreground">
-                  {t('generate.advanced.postprocess')}
-                </p>
-                <p className="text-2xs text-muted-foreground">
-                  {t('generate.advanced.upscalerHint')}
-                </p>
-              </div>
-              <Select
-                value={runnerUpscaler}
-                onValueChange={(value) =>
-                  setRunnerUpscaler(
-                    value === '4x-AnimeSharp' ? '4x-AnimeSharp' : 'none',
-                  )
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('generate.advanced.upscaler')}
-                  className="h-8 w-full border-border bg-transparent text-xs"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    {t('generate.advanced.upscalerNone')}
-                  </SelectItem>
-                  <SelectItem value="4x-AnimeSharp">4x-AnimeSharp</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {runnerUpscaler === '4x-AnimeSharp' ? (
+      {/* 展开/收起走 grid-rows 过渡（.lora-reveal）。 */}
+      <div className="lora-reveal" data-open={advancedOpen ? 'true' : 'false'}>
+        <div inert={!advancedOpen}>
+          <div className="space-y-3 pt-2">
+            {runnerParameterError ? (
               <p
-                className={cn(
-                  'mt-2 text-2xs',
-                  upscaleOutputIsLarge
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : 'text-muted-foreground',
-                )}
+                role="alert"
+                className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
               >
-                {t('generate.advanced.upscaleSummary', {
-                  width: previewDimensions.width,
-                  height: previewDimensions.height,
-                  outputWidth: upscaleFinalWidth,
-                  outputHeight: upscaleFinalHeight,
-                })}
-                {upscaleOutputIsLarge
-                  ? ` ${t('generate.advanced.upscaleLargeWarning')}`
-                  : ''}
+                {runnerParameterError}
               </p>
             ) : null}
+
+            {/* 窄栏 reflow：单列堆叠（原 sm:grid-cols-2 lg:grid-cols-4）。 */}
+            <div className="grid grid-cols-1 gap-2">
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.seed')}</span>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={runnerSeed}
+                    onChange={(event) => {
+                      setRunnerSeed(event.target.value.trim())
+                      setSeed(undefined)
+                    }}
+                    inputMode="numeric"
+                    placeholder={t('generate.advanced.modelDefault')}
+                    aria-label={t('generate.advanced.seed')}
+                    className="h-8 border-border bg-transparent font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setRunnerSeed('')
+                      setSeed(undefined)
+                    }}
+                    title={t('generate.advanced.randomSeed')}
+                    aria-label={t('generate.advanced.randomSeed')}
+                    className="size-8 shrink-0"
+                  >
+                    <RefreshCw className="size-3.5" aria-hidden />
+                  </Button>
+                </div>
+              </label>
+
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.steps')}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={runnerSteps}
+                  onChange={(event) => setRunnerSteps(event.target.value)}
+                  placeholder={t('generate.advanced.modelDefault')}
+                  aria-label={t('generate.advanced.steps')}
+                  className="h-8 border-border bg-transparent text-xs"
+                />
+              </label>
+
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.cfg')}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={30}
+                  step={0.1}
+                  value={runnerCfg}
+                  onChange={(event) => setRunnerCfg(event.target.value)}
+                  placeholder={t('generate.advanced.modelDefault')}
+                  aria-label={t('generate.advanced.cfg')}
+                  className="h-8 border-border bg-transparent text-xs"
+                />
+              </label>
+
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.sampler')}</span>
+                <Select
+                  value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
+                  onValueChange={(value) =>
+                    setRunnerSampler(
+                      value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t('generate.advanced.sampler')}
+                    className="h-8 border-border bg-transparent text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                      {t('generate.advanced.modelDefault')}
+                    </SelectItem>
+                    {RUNNER_SAMPLERS.map((sampler) => (
+                      <SelectItem key={sampler} value={sampler}>
+                        {sampler}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <span>{t('generate.advanced.scheduler')}</span>
+                <Select
+                  value={runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE}
+                  onValueChange={(value) =>
+                    setRunnerScheduler(
+                      value === RUNNER_DEFAULT_SELECT_VALUE ? '' : value,
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t('generate.advanced.scheduler')}
+                    className="h-8 border-border bg-transparent text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={RUNNER_DEFAULT_SELECT_VALUE}>
+                      {t('generate.advanced.modelDefault')}
+                    </SelectItem>
+                    {RUNNER_SCHEDULERS.map((scheduler) => (
+                      <SelectItem key={scheduler} value={scheduler}>
+                        {scheduler}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                  <span>{t('generate.advanced.width')}</span>
+                  <Input
+                    type="number"
+                    min={512}
+                    max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
+                    step={8}
+                    value={runnerWidth}
+                    onChange={(event) => setRunnerWidth(event.target.value)}
+                    placeholder={String(previewDimensions.width)}
+                    aria-label={t('generate.advanced.width')}
+                    className="h-8 border-border bg-transparent text-xs"
+                  />
+                </label>
+
+                <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                  <span>{t('generate.advanced.height')}</span>
+                  <Input
+                    type="number"
+                    min={512}
+                    max={selectedBase?.family === 'anima-dit' ? 1536 : 2048}
+                    step={8}
+                    value={runnerHeight}
+                    onChange={(event) => setRunnerHeight(event.target.value)}
+                    placeholder={String(previewDimensions.height)}
+                    aria-label={t('generate.advanced.height')}
+                    className="h-8 border-border bg-transparent text-xs"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border p-2.5">
+              <div className="flex flex-col gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-foreground">
+                    {t('generate.advanced.postprocess')}
+                  </p>
+                  <p className="text-2xs text-muted-foreground">
+                    {t('generate.advanced.upscalerHint')}
+                  </p>
+                </div>
+                <Select
+                  value={runnerUpscaler}
+                  onValueChange={(value) =>
+                    setRunnerUpscaler(
+                      value === '4x-AnimeSharp' ? '4x-AnimeSharp' : 'none',
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t('generate.advanced.upscaler')}
+                    className="h-8 w-full border-border bg-transparent text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {t('generate.advanced.upscalerNone')}
+                    </SelectItem>
+                    <SelectItem value="4x-AnimeSharp">4x-AnimeSharp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {runnerUpscaler === '4x-AnimeSharp' ? (
+                <p
+                  className={cn(
+                    'mt-2 text-2xs',
+                    upscaleOutputIsLarge
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {t('generate.advanced.upscaleSummary', {
+                    width: previewDimensions.width,
+                    height: previewDimensions.height,
+                    outputWidth: upscaleFinalWidth,
+                    outputHeight: upscaleFinalHeight,
+                  })}
+                  {upscaleOutputIsLarge
+                    ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                    : ''}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
-      ) : null}
+      </div>
     </div>
   ) : null
 
@@ -2001,8 +2004,9 @@ function GenerateBranch({
 
         <div
           className={cn(
-            'md:grid md:min-h-0 md:flex-1 md:items-stretch md:gap-5 md:overflow-hidden',
-            // 折叠时左列收成图标 rail 宽度，创作面吃掉剩余空间。
+            'lora-motion-cols md:grid md:min-h-0 md:flex-1 md:items-stretch md:gap-5 md:overflow-hidden',
+            // 折叠时左列收成图标 rail 宽度，创作面吃掉剩余空间（列宽走过渡，
+            // 不瞬跳——CD 动效轴「柔顺连续」）。
             assemblyCollapsed
               ? 'md:grid-cols-[56px_minmax(0,1fr)]'
               : 'md:grid-cols-[300px_minmax(0,1fr)]',
@@ -2376,26 +2380,33 @@ function GenerateBranch({
                       aria-hidden
                     />
                   </button>
-                  {negativePromptExpanded ? (
-                    <div className="space-y-1 border-t border-border/60 px-3 pb-2.5 pt-2">
-                      <textarea
-                        ref={negativePromptTextareaRef}
-                        value={negativePrompt}
-                        onChange={(event) =>
-                          setNegativePrompt(event.target.value)
-                        }
-                        placeholder={t('generate.negativePromptPlaceholder')}
-                        rows={2}
-                        className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                      />
-                      <PromptTagAutocomplete
-                        textareaRef={negativePromptTextareaRef}
-                        value={negativePrompt}
-                        onChange={setNegativePrompt}
-                        polarity="negative"
-                      />
+                  {/* 展开/收起走 grid-rows 过渡（.lora-reveal），收起时 inert
+                      挡住焦点与读屏。 */}
+                  <div
+                    className="lora-reveal"
+                    data-open={negativePromptExpanded ? 'true' : 'false'}
+                  >
+                    <div inert={!negativePromptExpanded}>
+                      <div className="space-y-1 border-t border-border/60 px-3 pb-2.5 pt-2">
+                        <textarea
+                          ref={negativePromptTextareaRef}
+                          value={negativePrompt}
+                          onChange={(event) =>
+                            setNegativePrompt(event.target.value)
+                          }
+                          placeholder={t('generate.negativePromptPlaceholder')}
+                          rows={2}
+                          className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                        />
+                        <PromptTagAutocomplete
+                          textareaRef={negativePromptTextareaRef}
+                          value={negativePrompt}
+                          onChange={setNegativePrompt}
+                          polarity="negative"
+                        />
+                      </div>
                     </div>
-                  ) : null}
+                  </div>
                 </div>
                 {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
                 （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}

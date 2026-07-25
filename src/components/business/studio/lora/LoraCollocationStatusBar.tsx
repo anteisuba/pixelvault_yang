@@ -116,68 +116,74 @@ export function LoraCollocationStatusBar({
           逐条 from→to + Prompt 并入的新增词 + 触发词（可停用）+ 保留项（没动的
           输入面）。数据全来自父层真 diff（快照 vs 当前值），无 diff 时退回旧的
           参数名摘要。 */}
-      {expanded && hasDetail ? (
-        <div className="space-y-2.5 border-t border-border px-3 py-2.5">
-          {recipeApplied && recipeName ? (
-            <p className="font-medium text-foreground">
-              {t('willChange', { name: recipeName })}
-            </p>
-          ) : null}
+      {/* 展开/收起走 grid-rows 过渡（.lora-reveal，域内定义），收起时 inert。 */}
+      <div
+        className="lora-reveal"
+        data-open={expanded && hasDetail ? 'true' : 'false'}
+      >
+        <div inert={!(expanded && hasDetail)}>
+          <div className="space-y-2.5 border-t border-border px-3 py-2.5">
+            {recipeApplied && recipeName ? (
+              <p className="font-medium text-foreground">
+                {t('willChange', { name: recipeName })}
+              </p>
+            ) : null}
 
-          {addedPromptTags && addedPromptTags.length > 0 ? (
-            <div className="flex gap-2">
-              <span className="w-12 shrink-0 text-muted-foreground">
-                {t('rowPrompt')}
-              </span>
-              <span className="min-w-0 flex-1 font-mono text-foreground">
-                + {addedPromptTags.join(', ')}
-                <span className="ml-1 text-muted-foreground">
-                  {t('addedWordCount', { count: addedPromptTags.length })}
+            {addedPromptTags && addedPromptTags.length > 0 ? (
+              <div className="flex gap-2">
+                <span className="w-12 shrink-0 text-muted-foreground">
+                  {t('rowPrompt')}
                 </span>
-              </span>
-            </div>
-          ) : null}
+                <span className="min-w-0 flex-1 font-mono text-foreground">
+                  + {addedPromptTags.join(', ')}
+                  <span className="ml-1 text-muted-foreground">
+                    {t('addedWordCount', { count: addedPromptTags.length })}
+                  </span>
+                </span>
+              </div>
+            ) : null}
 
-          {changedParams.length > 0 ? (
-            <div className="flex gap-2">
-              <span className="w-12 shrink-0 text-muted-foreground">
-                {t('rowParams')}
-              </span>
-              <span className="min-w-0 flex-1 font-mono text-foreground">
-                {changedParams
-                  .map((c) => `${c.label} ${c.from}→${c.to}`)
-                  .join(' · ')}
-              </span>
-            </div>
-          ) : appliedParamLabels.length > 0 ? (
-            <p className="text-muted-foreground">
-              {t('appliedParams', { params: appliedParamLabels.join(', ') })}
-            </p>
-          ) : null}
+            {changedParams.length > 0 ? (
+              <div className="flex gap-2">
+                <span className="w-12 shrink-0 text-muted-foreground">
+                  {t('rowParams')}
+                </span>
+                <span className="min-w-0 flex-1 font-mono text-foreground">
+                  {changedParams
+                    .map((c) => `${c.label} ${c.from}→${c.to}`)
+                    .join(' · ')}
+                </span>
+              </div>
+            ) : appliedParamLabels.length > 0 ? (
+              <p className="text-muted-foreground">
+                {t('appliedParams', { params: appliedParamLabels.join(', ') })}
+              </p>
+            ) : null}
 
-          {triggerEntries.length > 0 ? (
-            <div className="space-y-1">
-              <p className="text-muted-foreground">{t('triggerHint')}</p>
-              <TriggerChipRow
-                entries={triggerEntries}
-                disabledIds={disabledTriggerIds}
-                onToggle={onToggleTrigger}
-              />
-            </div>
-          ) : null}
+            {triggerEntries.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-muted-foreground">{t('triggerHint')}</p>
+                <TriggerChipRow
+                  entries={triggerEntries}
+                  disabledIds={disabledTriggerIds}
+                  onToggle={onToggleTrigger}
+                />
+              </div>
+            ) : null}
 
-          {recipeApplied && keptLabels.length > 0 ? (
-            <div className="flex gap-2">
-              <span className="w-12 shrink-0 text-muted-foreground">
-                {t('rowKept')}
-              </span>
-              <span className="min-w-0 flex-1 text-muted-foreground">
-                {t('keptUnchanged', { items: keptLabels.join(' · ') })}
-              </span>
-            </div>
-          ) : null}
+            {recipeApplied && keptLabels.length > 0 ? (
+              <div className="flex gap-2">
+                <span className="w-12 shrink-0 text-muted-foreground">
+                  {t('rowKept')}
+                </span>
+                <span className="min-w-0 flex-1 text-muted-foreground">
+                  {t('keptUnchanged', { items: keptLabels.join(' · ') })}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }

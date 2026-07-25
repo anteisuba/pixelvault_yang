@@ -3856,6 +3856,15 @@ function TrainingBranch() {
   const isMobile = useIsMobile()
   const tTraining = useTranslations('LoraTraining')
   const [presetId, setPresetId] = useState<LoraTrainingPresetId | null>(null)
+  // CD② 空态的「挑一个预设」按钮：表单在步骤 2、预设卡在步骤 1，点了得把人送
+  // 回上面那张卡，否则空态一收表单就摊开、预设反而被越过去了。
+  const presetPanelRef = useRef<HTMLDivElement>(null)
+  const handleRequestPreset = useCallback(() => {
+    presetPanelRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }, [])
 
   const handleSelectPreset = useCallback(
     (preset: { id: LoraTrainingPresetId }) => {
@@ -3873,7 +3882,7 @@ function TrainingBranch() {
   // 因为它是流程第一步、不是参考资料；右栏只留训练历史 + 产物去向说明。
   const formColumn = (
     <div className="space-y-4">
-      <div className="relative">
+      <div className="relative" ref={presetPanelRef}>
         <StepBadge n={1} />
         <PresetRailPanel
           presetId={presetId}
@@ -3886,8 +3895,10 @@ function TrainingBranch() {
         <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <LoraTrainingForm
             hideRecentJobs
+            showEmptyState
             selectedPresetId={presetId}
             onPresetClear={handleClearPreset}
+            onRequestPreset={handleRequestPreset}
           />
         </div>
       </div>

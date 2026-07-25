@@ -68,7 +68,9 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { SubmitSummaryCard } from '@/components/business/studio/lora/training/SubmitSummaryCard'
 import { CompletionCelebration } from '@/components/business/studio/lora/training/CompletionCelebration'
-import type { GenerationRecord } from '@/types'
+import { EmptyState } from '@/components/business/studio/lora/training/EmptyState'
+import { TrainingStatusCard } from '@/components/business/studio/lora/training/TrainingStatusCard'
+import type { GenerationRecord, LoraTrainingRecord } from '@/types'
 import { cn } from '@/lib/utils'
 
 // QuickSetup target per training provider — shared by the provider picker
@@ -110,6 +112,14 @@ interface LoraTrainingFormProps {
   selectedPresetId?: LoraTrainingPresetId | null
   /** Notify parent that the user explicitly cleared the active preset. */
   onPresetClear?: () => void
+  /**
+   * S8/CD②：页面模式（/studio/lora?section=train）首次进来时，用插画空态 +
+   * 双 CTA 迎接，而不是一上来就摊开一张表。弹窗模式保持原样——用户是主动
+   * 点开弹窗的，已经表达了意图，再放一张「开始吧」的插画是多余的。
+   */
+  showEmptyState?: boolean
+  /** 空态的「挑一个预设」把用户送回表单上方的预设卡（页面模式才有）。 */
+  onRequestPreset?: () => void
 }
 
 export function LoraTrainingForm({
@@ -119,12 +129,15 @@ export function LoraTrainingForm({
   hideRecentJobs = false,
   selectedPresetId = null,
   onPresetClear,
+  showEmptyState = false,
+  onRequestPreset,
 }: LoraTrainingFormProps) {
   const t = useTranslations('LoraTraining')
   const { keys } = useApiKeysContext()
   const {
     submit,
     isSubmitting,
+    isLoading: isLoadingJobs,
     jobs,
     failed,
     uploadsInFlight,
@@ -152,6 +165,15 @@ export function LoraTrainingForm({
   const [dismissedCelebrationId, setDismissedCelebrationId] = useState<
     string | null
   >(null)
+  // 失败卡收起后就别再弹（历史列表里还留着）。与 celebration 同一套「按 job id
+  // 记一次」的语义，新的失败任务会自己覆盖掉旧 id 重新出现。
+  const [dismissedFailedId, setDismissedFailedId] = useState<string | null>(
+    null,
+  )
+  const [emptyStateDismissed, setEmptyStateDismissed] = useState(false)
+  // 空态的「上传图片」= 直接开文件选择器。ref flag 而非 state，避免
+  // set-state-in-effect；表单本体这一帧才挂上来，所以要等 commit 之后再点。
+  const openPickerAfterRevealRef = useRef(false)
   // Track which preset id we last applied so we don't re-apply on every
   // render — only on actual preset change. Re-applying every render would
   // erase the user's manual overrides whenever any unrelated state moves.
@@ -347,7 +369,72 @@ export function LoraTrainingForm({
   const showCelebration =
     latestCompletedJob && latestCompletedJob.id !== dismissedCelebrationId
 
+  // CD② 状态矩阵的中间三态：在跑的任务（排队/训练）优先，没有在跑的就看最近
+  // 一次失败。jobs 按 createdAt 倒序返回，find 拿到的就是最新的那条。
+  const activeJob = useMemo(
+    () => jobs.find((j) => j.status === 'QUEUED' || j.status === 'TRAINING'),
+    [jobs],
+  )
+  const latestFailedJob = useMemo(
+    () => jobs.find((j) => j.status === 'FAILED'),
+    [jobs],
+  )
+  const statusCardJob =
+    activeJob ??
+    (latestFailedJob && latestFailedJob.id !== dismissedFailedId
+      ? latestFailedJob
+      : undefined)
+
+  // 失败卡的「回到配置」：把这次任务的名字/触发词/类型填回表单。训练图不在
+  // 客户端记录里（DB 有 trainingImageKeys，但没有 retry 端点），所以只还原配置。
+  const handleRestoreFailedConfig = useCallback((job: LoraTrainingRecord) => {
+    setName(job.name)
+    setTriggerWord(job.triggerWord)
+    if (job.loraType === 'subject' || job.loraType === 'style') {
+      setLoraType(job.loraType)
+    }
+    setDismissedFailedId(job.id)
+    setEmptyStateDismissed(true)
+  }, [])
+
+  // 空态门：只在页面模式、任务列表确实为空、且用户还没动过任何一栏时出现。
+  // isLoadingJobs 一起看，免得老用户首帧（jobs 还没回来）闪一下插画。
+  const showEmpty =
+    showEmptyState &&
+    !emptyStateDismissed &&
+    !isLoadingJobs &&
+    jobs.length === 0 &&
+    imageUrls.length === 0 &&
+    name.trim() === '' &&
+    !activePreset
+
+  // 空态「上传图片」揭开表单后，把文件选择器接着打开。effect 无依赖数组 +
+  // ref 守卫：只在那一次 reveal 后跑一次，其余渲染直接 return。
+  useEffect(() => {
+    if (!openPickerAfterRevealRef.current) return
+    openPickerAfterRevealRef.current = false
+    fileInputRef.current?.click()
+  })
+
   const recentJobs = jobs.slice(0, 5)
+
+  // CD② 空态：页面模式首次进来只给插画 + 双 CTA，点任一个才摊开表单。走提前
+  // return 而不是把整张表包进条件 —— 空态成立时 jobs 必为空，仪式卡/状态卡本
+  // 来也渲染不出来，提前 return 表达得更直白（也不必给几百行表单加一层缩进）。
+  if (showEmpty) {
+    return (
+      <EmptyState
+        onSelectPreset={() => {
+          setEmptyStateDismissed(true)
+          onRequestPreset?.()
+        }}
+        onUploadImages={() => {
+          openPickerAfterRevealRef.current = true
+          setEmptyStateDismissed(true)
+        }}
+      />
+    )
+  }
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -369,6 +456,16 @@ export function LoraTrainingForm({
               setDismissedCelebrationId(latestCompletedJob.id)
             }}
             onDismiss={() => setDismissedCelebrationId(latestCompletedJob.id)}
+          />
+        ) : null}
+
+        {/* CD② 状态矩阵：排队中 / 训练中 / 失败三态搬到主列，不再只是右栏
+            历史里的一行小徽章。完成态仍归上面的绿色仪式卡。 */}
+        {statusCardJob ? (
+          <TrainingStatusCard
+            job={statusCardJob}
+            onRestoreConfig={handleRestoreFailedConfig}
+            onDismiss={() => setDismissedFailedId(statusCardJob.id)}
           />
         ) : null}
 

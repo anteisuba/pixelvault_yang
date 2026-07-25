@@ -5298,7 +5298,17 @@
     "errorRateLimit": "训练服务限流。等一分钟再试。",
     "errorQuotaExceeded": "训练任务配额已满。删一个旧任务或升级。",
     "errorApiKeyInvalid": "API Key 被拒绝。去设置里检查后再试。",
-    "errorGeneric": "训练启动失败。请重试，或查看 console 详情。"
+    "errorGeneric": "训练启动失败。请重试，或查看 console 详情。",
+    "statusCardQueuedTitle": "已提交 · 排队中",
+    "statusCardQueuedBody": "任务已进入训练队列，马上开始。可以离开本页，完成后会通知你。",
+    "statusCardTrainingTitle": "训练中",
+    "statusCardTrainingBody": "训练在后台进行。完成后该 LoRA 会自动进入「我的资源」，可挂载进装配栏。",
+    "statusCardElapsed": "已用 {min} 分钟",
+    "statusCardFailedTitle": "训练失败",
+    "statusCardFailedBody": "训练任务在完成前中断了。",
+    "statusCardFailedRetryHint": "配置还在，可以一键填回；训练图需要重新添加后再提交。连续失败请检查图片是否清晰、主体是否一致。",
+    "statusCardRestore": "回填配置",
+    "statusCardDismiss": "忽略"
   },
   "VideoScript": {
     "panelTitle": "剧本",

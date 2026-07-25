@@ -5298,7 +5298,17 @@
     "errorRateLimit": "トレーニングプロバイダーのレート制限に達しました。1分待ってから再試行してください。",
     "errorQuotaExceeded": "トレーニングクォータに達しました。古いジョブを削除するかアップグレードしてください。",
     "errorApiKeyInvalid": "APIキーが拒否されました。設定で確認してから再試行してください。",
-    "errorGeneric": "トレーニングを開始できませんでした。再試行するか、コンソールで詳細を確認してください。"
+    "errorGeneric": "トレーニングを開始できませんでした。再試行するか、コンソールで詳細を確認してください。",
+    "statusCardQueuedTitle": "送信済み · キュー待ち",
+    "statusCardQueuedBody": "ジョブはトレーニングのキューに入りました。まもなく開始します。このページを離れても大丈夫です。完了したらお知らせします。",
+    "statusCardTrainingTitle": "トレーニング中",
+    "statusCardTrainingBody": "トレーニングはバックグラウンドで進みます。完了すると LoRA は「マイアセット」に入り、装着バーにマウントできます。",
+    "statusCardElapsed": "経過 {min} 分",
+    "statusCardFailedTitle": "トレーニング失敗",
+    "statusCardFailedBody": "トレーニングジョブが完了前に停止しました。",
+    "statusCardFailedRetryHint": "設定は残っています。下のボタンで復元し、学習画像を入れ直してから再送信してください。何度も失敗する場合は、画像が鮮明で被写体が一致しているか確認してください。",
+    "statusCardRestore": "設定を復元",
+    "statusCardDismiss": "閉じる"
   },
   "VideoScript": {
     "panelTitle": "脚本",

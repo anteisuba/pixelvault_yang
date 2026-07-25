@@ -2000,7 +2000,15 @@ function GenerateBranch({
             // 输入），右 40% 结果监视列（跨左列两行）。空态不整块占位：composer+结果
             // 框常驻，只在推荐列给「去库挑一个 LoRA」引导（见 !hasLora 分支）。
             <div className="grid min-w-0 gap-x-6 gap-y-5 md:grid-cols-5 md:items-stretch md:min-h-0 md:h-full md:grid-rows-[auto_minmax(0,1fr)]">
-              <div className="order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1">
+              {/* 来源图带整格只在有挂载时渲染——未挂载时它内部全是 null，留个空
+                  格会被 grid 的 gap-y-5 顶出 20px，让中栏比左右两栏矮/低一截
+                  （owner 2026-07-25「中间的框和另外两个不一样」）。 */}
+              <div
+                className={cn(
+                  'order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1',
+                  !hasLora && 'hidden md:hidden',
+                )}
+              >
                 {/* 来源图带（中创作面顶）：来源图缩略带常驻（挂载显示 LoRA 效果
                 证据，点图开共享配方 modal；未挂载退化成「纯底模 / 去库」引导）。
                 （原「自己搭配」词库 LoraTagPicker 2026-07-24 已从生成页移除，
@@ -2251,7 +2259,14 @@ function GenerateBranch({
               走标准暗主题 token（发丝边框 border-border / 浅灰次文本 muted-foreground
               / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
               象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
-              <div className="order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:row-start-2 md:min-h-0 md:overflow-y-auto">
+              <div
+                className={cn(
+                  'order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:min-h-0 md:overflow-y-auto',
+                  // 有来源图带 → 占第 2 行；没有 → 跨两行从顶开始，顶边与左右两
+                  // 栏齐平（不被空行 + gap 顶下去）。
+                  hasLora ? 'md:row-start-2' : 'md:row-span-2 md:row-start-1',
+                )}
+              >
                 {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}

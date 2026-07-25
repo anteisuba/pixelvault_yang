@@ -165,6 +165,7 @@ import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspec
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import { LoraCollocationStatusBar } from '@/components/business/studio/lora/LoraCollocationStatusBar'
+import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
@@ -769,6 +770,29 @@ function GenerateBranch({
       return next
     })
   }, [])
+  // CD④：正文里要高亮的触发词 = 启用中的那些（停用的 chip 不进编译，正文里
+  // 也就不该被标成「生效中」）。
+  const triggerHighlightPhrases = useMemo(
+    () =>
+      triggerChipEntries
+        .filter((entry) => !disabledTriggerIds.has(entry.assetId))
+        .map((entry) => ({
+          phrase: entry.triggerWord,
+          ownerName: entry.name,
+        })),
+    [triggerChipEntries, disabledTriggerIds],
+  )
+  // 背板层不是 textarea，自己不会跟着滚：正文超出可视区时手动同步 scrollTop。
+  // 直接改 DOM 而不是走 state——滚动每帧都触发，走 state 会把整棵树重渲染。
+  const promptBackdropRef = useRef<HTMLDivElement>(null)
+  const handlePromptScroll = useCallback(
+    (event: React.UIEvent<HTMLTextAreaElement>) => {
+      const backdrop = promptBackdropRef.current
+      if (backdrop) backdrop.scrollTop = event.currentTarget.scrollTop
+    },
+    [],
+  )
+
   // 编译顺序 = 触发词 chips(启用的) → tray 正向 tags → 正文（§4.3）：把触发词
   // 包成 PromptTagSelection，复用 compilePromptTags 既有的 selections 管线
   // （见下方 handleGenerate），不重造合并/去重逻辑。负 orderIndex 保证排在
@@ -2381,14 +2405,25 @@ function GenerateBranch({
                   >
                     {t('generate.promptLabel')}
                   </label>
-                  <textarea
-                    id="lora-prompt"
-                    ref={promptTextareaRef}
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    placeholder={t('generate.promptPlaceholder')}
-                    className="min-h-52 w-full resize-y bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
-                  />
+                  {/* CD④：触发词在正文里高亮。背板层排同一段字（透明）只负责画
+                      底色 + 下边线，可见文字仍来自压在上面的 textarea——两层的
+                      排版类必须保持一致（text-sm / leading-relaxed / 无内边距）。 */}
+                  <div className="relative">
+                    <PromptTriggerHighlight
+                      text={prompt}
+                      phrases={triggerHighlightPhrases}
+                      backdropRef={promptBackdropRef}
+                    />
+                    <textarea
+                      id="lora-prompt"
+                      ref={promptTextareaRef}
+                      value={prompt}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      onScroll={handlePromptScroll}
+                      placeholder={t('generate.promptPlaceholder')}
+                      className="relative min-h-52 w-full resize-y bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
                   <PromptTagAutocomplete
                     textareaRef={promptTextareaRef}
                     value={prompt}

@@ -108,6 +108,16 @@
  * MobileTabBar 是 fixed bottom-0 left-11 z-40 h-12 —— 出图条整条被它盖住、左端
  * 还压在 44px 竖导航下。这里在域作用域内抬到 tab bar 之上并让开左栏（不改
  * globals 脊柱）。tab bar 自己带安全区，故这里的底部 padding 收回常规值。 */
+/* CD④ Prompt 内联触发词高亮：背板层里命中触发词的片段。只用不占宽度的装饰
+ * （底色 + 下边线），不改字体/内边距——背板必须与 textarea 逐字对齐，任何改变
+ * 字宽的样式都会让高亮块和真实文字错位。 */
+.domain-lora .lora-trigger-hl {
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+  box-shadow: inset 0 -1.5px 0
+    color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
 /* 断点统一到 1024：globals 的出图条在 768 就退回内联，但本域的「移动端形态」
  * （装配 sheet / 紧凑摘要条 / MobileTabBar / useIsMobile）全部以 1024 为界。
  * 768–1023 的平板带里装配栏已经进 sheet，出图条却提前变回内联 —— 边界不一致。

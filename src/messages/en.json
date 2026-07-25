@@ -1447,7 +1447,8 @@
       "onlyCompatible": "Only show compatible with mounts",
       "incompatible": "Incompatible with current mounts",
       "channelRunner": "Runner",
-      "footer": "After mounting a LoRA the recommended compatible base is auto-selected; use this to change it. Faithful = native Runner checkpoint, Fast = cloud API."
+      "footer": "After mounting a LoRA the recommended compatible base is auto-selected; use this to change it. Faithful = native Runner checkpoint, Fast = cloud API.",
+      "recommended": "Recommended"
     },
     "generate": {
       "placeholderTitle": "Generate with the base model",
@@ -1528,7 +1529,8 @@
         "upscalerNone": "None",
         "upscalerHint": "4x-AnimeSharp applies ESRGAN after VAE decode; it is not a second diffusion refinement pass.",
         "upscaleSummary": "{width}×{height} → {outputWidth}×{outputHeight}",
-        "upscaleLargeWarning": "The final image is large and will use noticeably more time and VRAM."
+        "upscaleLargeWarning": "The final image is large and will use noticeably more time and VRAM.",
+        "sliderLabel": "{label} slider"
       }
     },
     "spine": {
@@ -1567,7 +1569,8 @@
       "addLoraFull": "Add LoRA",
       "triggerWords": "Trigger words",
       "collapseAssembly": "Collapse assembly",
-      "expandAssembly": "Expand assembly"
+      "expandAssembly": "Expand assembly",
+      "toggleTriggerWord": "Toggle trigger word {word}"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",

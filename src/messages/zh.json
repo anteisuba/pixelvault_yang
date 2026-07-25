@@ -1447,7 +1447,8 @@
       "onlyCompatible": "仅显示兼容当前挂载",
       "incompatible": "与当前挂载不兼容",
       "channelRunner": "Runner",
-      "footer": "挂载 LoRA 后已自动选推荐兼容底模；此处用于改选。忠实 = Runner 原生 checkpoint，快 = 云端 API。"
+      "footer": "挂载 LoRA 后已自动选推荐兼容底模；此处用于改选。忠实 = Runner 原生 checkpoint，快 = 云端 API。",
+      "recommended": "推荐"
     },
     "generate": {
       "placeholderTitle": "可直接使用底模生成",
@@ -1528,7 +1529,8 @@
         "upscalerNone": "无",
         "upscalerHint": "4x-AnimeSharp 在 VAE 解码后进行 ESRGAN 放大，不是二次扩散修复。",
         "upscaleSummary": "{width}×{height} → {outputWidth}×{outputHeight}",
-        "upscaleLargeWarning": "最终尺寸较大，耗时和显存占用会明显增加。"
+        "upscaleLargeWarning": "最终尺寸较大，耗时和显存占用会明显增加。",
+        "sliderLabel": "{label} 滑杆"
       }
     },
     "spine": {
@@ -1567,7 +1569,8 @@
       "addLoraFull": "添加 LoRA",
       "triggerWords": "触发词",
       "collapseAssembly": "收起装配栏",
-      "expandAssembly": "展开装配栏"
+      "expandAssembly": "展开装配栏",
+      "toggleTriggerWord": "停用/启用触发词 {word}"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",

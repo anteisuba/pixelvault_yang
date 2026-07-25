@@ -117,6 +117,12 @@ export function LoraBaseModelModal({
           <span className="rounded-full border border-border/60 px-1.5 py-px text-3xs font-medium text-muted-foreground">
             {fidelityLabel(b)}
           </span>
+          {/* CD：该家族的推荐默认给「推荐」chip（数据源 LoraBaseModel.recommended）。 */}
+          {b.recommended ? (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-3xs font-medium text-foreground">
+              {t('baseModal.recommended')}
+            </span>
+          ) : null}
           {!b.available ? (
             <span className="text-3xs text-muted-foreground/70">
               {t('spine.comingSoon')}

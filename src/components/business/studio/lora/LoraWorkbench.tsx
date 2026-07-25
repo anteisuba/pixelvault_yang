@@ -167,6 +167,7 @@ import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseMo
 import { LoraCollocationStatusBar } from '@/components/business/studio/lora/LoraCollocationStatusBar'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
+import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
   studioChipActiveClass,
   studioToolTriggerClass,
@@ -1624,7 +1625,9 @@ function GenerateBranch({
       {/* 展开/收起走 grid-rows 过渡（.lora-reveal）。 */}
       <div className="lora-reveal" data-open={advancedOpen ? 'true' : 'false'}>
         <div inert={!advancedOpen}>
-          <div className="space-y-3 pt-2">
+          {/* CD：展开态是一块凹槽 well（比面板更沉的表面），把参数从「面板上的
+              一堆输入」变成「陷进去的调节区」。 */}
+          <div className="mt-2 space-y-3 rounded-lg bg-[var(--lora-well)] p-2.5">
             {runnerParameterError ? (
               <p
                 role="alert"
@@ -1669,32 +1672,59 @@ function GenerateBranch({
 
               <label className="space-y-1 text-2xs font-medium text-muted-foreground">
                 <span>{t('generate.advanced.steps')}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={runnerSteps}
-                  onChange={(event) => setRunnerSteps(event.target.value)}
-                  placeholder={t('generate.advanced.modelDefault')}
-                  aria-label={t('generate.advanced.steps')}
-                  className="h-8 border-border bg-transparent text-xs"
-                />
+                {/* CD：well 内滑杆。滑杆负责快调，数字框保留精确输入（也是
+                    「手改参数进请求」那条测试的抓手）。留空=底模默认，此时滑杆
+                    停在默认位但不写值。 */}
+                <div className="flex items-center gap-2">
+                  <Slider
+                    aria-label={t('generate.advanced.sliderLabel', {
+                      label: t('generate.advanced.steps'),
+                    })}
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={[Number(runnerSteps) || 30]}
+                    onValueChange={([v]) => setRunnerSteps(String(v))}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={runnerSteps}
+                    onChange={(event) => setRunnerSteps(event.target.value)}
+                    placeholder={t('generate.advanced.modelDefault')}
+                    aria-label={t('generate.advanced.steps')}
+                    className="h-8 w-16 shrink-0 border-border bg-transparent text-xs"
+                  />
+                </div>
               </label>
 
               <label className="space-y-1 text-2xs font-medium text-muted-foreground">
                 <span>{t('generate.advanced.cfg')}</span>
-                <Input
-                  type="number"
-                  min={0}
-                  max={30}
-                  step={0.1}
-                  value={runnerCfg}
-                  onChange={(event) => setRunnerCfg(event.target.value)}
-                  placeholder={t('generate.advanced.modelDefault')}
-                  aria-label={t('generate.advanced.cfg')}
-                  className="h-8 border-border bg-transparent text-xs"
-                />
+                <div className="flex items-center gap-2">
+                  <Slider
+                    aria-label={t('generate.advanced.sliderLabel', {
+                      label: t('generate.advanced.cfg'),
+                    })}
+                    min={0}
+                    max={30}
+                    step={0.1}
+                    value={[Number(runnerCfg) || 7]}
+                    onValueChange={([v]) => setRunnerCfg(String(v))}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    max={30}
+                    step={0.1}
+                    value={runnerCfg}
+                    onChange={(event) => setRunnerCfg(event.target.value)}
+                    placeholder={t('generate.advanced.modelDefault')}
+                    aria-label={t('generate.advanced.cfg')}
+                    className="h-8 w-16 shrink-0 border-border bg-transparent text-xs"
+                  />
+                </div>
               </label>
 
               <label className="space-y-1 text-2xs font-medium text-muted-foreground">
@@ -1863,7 +1893,9 @@ function GenerateBranch({
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
         onAddLora={() => setLibraryModalOpen(true)}
-        triggerWords={triggerChipEntries.map((entry) => entry.triggerWord)}
+        triggerEntries={triggerChipEntries}
+        disabledTriggerIds={disabledTriggerIds}
+        onToggleTrigger={handleToggleTriggerChip}
         collapsed={assemblyCollapsed}
         onToggleCollapsed={() => setAssemblyCollapsed((prev) => !prev)}
       />
@@ -2125,7 +2157,9 @@ function GenerateBranch({
                   )}
                 </div>
               </div>
-              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-2 md:row-start-1 md:min-h-0 md:overflow-y-auto">
+              {/* 桌面锁高时结果列是 flex 列：标题/元信息/缩略历史按内容高，
+                  中间的结果图 flex-1 吃满剩余高度（CD：随页面高度伸缩）。 */}
+              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-2 md:row-start-1 md:flex md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-y-auto">
                 {/* G3d 结果/历史 头：结果标题 + 会话历史计数（>1 张时）。 */}
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -2144,7 +2178,10 @@ function GenerateBranch({
                 <div
                   className={cn(
                     'relative w-full overflow-hidden rounded-xl bg-cover bg-center',
-                    !displayedAspect && 'aspect-square',
+                    // CD：结果图默认竖版 1024/1360，桌面锁高时 flex-1 吃满列高
+                    // （不随列宽变高）；有出图快照时改用快照自身比例。
+                    !displayedAspect && 'aspect-[1024/1360] md:aspect-auto',
+                    'md:min-h-0 md:flex-1',
                     // 无结果时（空态/生成中）给结果框加虚线边界 + 微底色，一眼看清
                     // 占多大空间（用户要求）；有结果时保持「裸浮无底板」。
                     !displayedResultUrl &&
@@ -2517,9 +2554,11 @@ interface LoraSpineBarProps {
   onSelectRecipeGroup: (assetId: string) => void
   /** G1（R3 装配行）：容量位「+添加」路由去库挑 LoRA。 */
   onAddLora: () => void
-  /** CD 装配栏「触发词」段：挂载 LoRA 带来的触发词（静态展示——启停在搭配
-   *  提醒的变更审阅卡里做，这里不重复交互，避免同名按钮挂两份）。 */
-  triggerWords: readonly string[]
+  /** CD 装配栏「触发词」段：挂载 LoRA 的触发词 chips，可单独停用（虚线 + 删除
+   *  线）。与搭配审阅卡里那份共用同一套 disabled 状态，两处互为镜像。 */
+  triggerEntries: readonly TriggerChipEntry[]
+  disabledTriggerIds: ReadonlySet<string>
+  onToggleTrigger: (assetId: string) => void
   /** CD：折叠成竖向图标 rail（收起时只留底模/挂载/容量的图标摘要）。 */
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -2538,7 +2577,9 @@ function LoraSpineBar({
   activeRecipeGroupId,
   onSelectRecipeGroup,
   onAddLora,
-  triggerWords,
+  triggerEntries,
+  disabledTriggerIds,
+  onToggleTrigger,
   collapsed,
   onToggleCollapsed,
 }: LoraSpineBarProps) {
@@ -2968,28 +3009,48 @@ function LoraSpineBar({
           })}
         </span>
       ) : null}
-      {/* CD 装配栏「触发词」段：挂载 LoRA 带来的触发词静态 chips（启停在搭配
-          提醒的变更审阅卡里做，此处不重复交互）。 */}
-      {triggerWords.length > 0 ? (
+      {/* CD 装配栏「触发词」段：可单独停用的高亮 chips（停用=虚线 + 删除线，
+          不进编译）。与搭配审阅卡里那份共用同一套 disabled 状态。 */}
+      {triggerEntries.length > 0 ? (
         <>
           <span className="mt-1 text-2xs uppercase tracking-wide text-muted-foreground">
             {t('spine.triggerWords')}
           </span>
           <div className="flex w-full flex-wrap gap-1.5">
-            {triggerWords.map((word) => (
-              // CD：触发词是高亮 chip（浅色底 + 描边），不是普通描边标签——它们
-              // 会被自动并进 prompt，视觉上要能一眼认出来。
-              <span
-                key={word}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-1 font-mono text-2xs font-medium text-foreground"
-              >
-                <span
-                  aria-hidden
-                  className="size-1 shrink-0 rounded-full bg-emerald-500/80 dark:bg-emerald-400/80"
-                />
-                {word}
-              </span>
-            ))}
+            {triggerEntries.map((entry) => {
+              const isDisabled = disabledTriggerIds.has(entry.assetId)
+              return (
+                <button
+                  key={entry.assetId}
+                  type="button"
+                  onClick={() => onToggleTrigger(entry.assetId)}
+                  aria-pressed={!isDisabled}
+                  // 与搭配审阅卡里的同名 chip 区分可访问名（那份用 LoRA 名），
+                  // 免得两处同名控件互相干扰。
+                  aria-label={t('spine.toggleTriggerWord', {
+                    word: entry.triggerWord,
+                  })}
+                  title={entry.name}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-2xs font-medium transition-colors',
+                    isDisabled
+                      ? 'border-dashed border-border text-muted-foreground/60 line-through'
+                      : 'border-primary/25 bg-primary/10 text-foreground hover:border-primary/40',
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'size-1 shrink-0 rounded-full',
+                      isDisabled
+                        ? 'bg-muted-foreground/40'
+                        : 'bg-emerald-500/80 dark:bg-emerald-400/80',
+                    )}
+                  />
+                  {entry.triggerWord}
+                </button>
+              )
+            })}
           </div>
         </>
       ) : null}

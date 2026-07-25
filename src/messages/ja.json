@@ -1447,7 +1447,8 @@
       "onlyCompatible": "マウントと互換のみ表示",
       "incompatible": "現在のマウントと非互換",
       "channelRunner": "Runner",
-      "footer": "LoRA をマウントすると推奨互換ベースが自動選択されます。ここで変更できます。忠実 = Runner ネイティブ checkpoint、高速 = クラウド API。"
+      "footer": "LoRA をマウントすると推奨互換ベースが自動選択されます。ここで変更できます。忠実 = Runner ネイティブ checkpoint、高速 = クラウド API。",
+      "recommended": "推奨"
     },
     "generate": {
       "placeholderTitle": "ベースモデルだけで生成できます",
@@ -1528,7 +1529,8 @@
         "upscalerNone": "なし",
         "upscalerHint": "4x-AnimeSharp は VAE デコード後に ESRGAN で拡大します。二次拡散の修復ではありません。",
         "upscaleSummary": "{width}×{height} → {outputWidth}×{outputHeight}",
-        "upscaleLargeWarning": "最終サイズが大きいため、処理時間と VRAM 使用量が増えます。"
+        "upscaleLargeWarning": "最終サイズが大きいため、処理時間と VRAM 使用量が増えます。",
+        "sliderLabel": "{label} スライダー"
       }
     },
     "spine": {
@@ -1567,7 +1569,8 @@
       "addLoraFull": "LoRA を追加",
       "triggerWords": "トリガーワード",
       "collapseAssembly": "組み立て台を畳む",
-      "expandAssembly": "組み立て台を開く"
+      "expandAssembly": "組み立て台を開く",
+      "toggleTriggerWord": "トリガーワード {word} を切替"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",

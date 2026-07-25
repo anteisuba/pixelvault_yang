@@ -29,12 +29,9 @@ import type {
   LoraAssetRecord,
 } from '@/types'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -66,6 +63,7 @@ export function LoraLibraryModal({
   onOpenChange,
 }: LoraLibraryModalProps) {
   const t = useTranslations('LoraWorkbench')
+  const isMobile = useIsMobile()
   const stack = useActiveLoraStack()
   // 「我的」= 收藏 + 训练；HF 挂载走「导入为收藏 → LoraAssetRecord → 挂栈」
   // （favoriteExternalLora 幂等：已收藏文件直接返回既有记录）。
@@ -205,176 +203,195 @@ export function LoraLibraryModal({
     [onOpenChange, stack, t],
   )
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <DialogHeader className="space-y-3 border-b border-border px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle className="sr-only">{t('tabs.library')}</DialogTitle>
-            <LoraLibrarySegmented
-              ariaLabel={t('librarySourceLabel')}
-              value={source}
-              onChange={setSource}
-              options={[
-                {
-                  value: LORA_LIBRARY_SOURCES.CIVITAI,
-                  label: t('librarySourceCivitai'),
-                },
-                {
-                  value: LORA_LIBRARY_SOURCES.HUGGINGFACE,
-                  label: t('librarySourceHuggingFace'),
-                },
-                { value: MINE_SOURCE, label: t('tabs.mine') },
-              ]}
-            />
-            {!isMine ? (
-              <>
-                <div className="relative min-w-0 flex-1">
-                  <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden
-                  />
-                  <Input
-                    value={lib.search}
-                    onChange={(e) => lib.setSearch(e.target.value)}
-                    placeholder={t('library.searchPlaceholder')}
-                    className="h-9 pl-8 text-sm"
-                    aria-label={t('library.searchPlaceholder')}
-                  />
-                </div>
-                {/* 安全模式仅 Civitai（HF 无分级数据）。 */}
-                {!isHf ? (
-                  <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-                    <Switch
-                      size="sm"
-                      checked={safeMode}
-                      onCheckedChange={(v) =>
-                        civitai.setNsfwFilter(v ? 'safe' : 'unrestricted')
-                      }
-                      aria-label={t('library.safeMode')}
-                    />
-                    {t('library.safeMode')}
-                  </label>
-                ) : null}
-              </>
-            ) : null}
-          </div>
+  // CD 移动端：库改成底部拉起的近全屏 sheet；桌面走 Dialog。body 抽一份两壳共用。
+  const body = (
+    <>
+      <div className="space-y-3 border-b border-border px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <LoraLibrarySegmented
+            ariaLabel={t('librarySourceLabel')}
+            value={source}
+            onChange={setSource}
+            options={[
+              {
+                value: LORA_LIBRARY_SOURCES.CIVITAI,
+                label: t('librarySourceCivitai'),
+              },
+              {
+                value: LORA_LIBRARY_SOURCES.HUGGINGFACE,
+                label: t('librarySourceHuggingFace'),
+              },
+              { value: MINE_SOURCE, label: t('tabs.mine') },
+            ]}
+          />
           {!isMine ? (
             <>
-              <LoraLibraryChipRow
-                ariaLabel={t('typeFilterLabel')}
-                options={typeOptions}
-                value={lib.contentType}
-                onChange={(value) =>
-                  lib.setContentType(
-                    value as (typeof typeOptions)[number]['value'],
-                  )
-                }
-              />
-              <LoraLibraryChipRow
-                label={t('libraryFamilyFilter')}
-                ariaLabel={t('baseModelFilterLabel')}
-                options={familyOptions}
-                value={familyValue}
-                onChange={handleFamilyChange}
-              />
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  value={lib.search}
+                  onChange={(e) => lib.setSearch(e.target.value)}
+                  placeholder={t('library.searchPlaceholder')}
+                  className="h-9 pl-8 text-sm"
+                  aria-label={t('library.searchPlaceholder')}
+                />
+              </div>
+              {/* 安全模式仅 Civitai（HF 无分级数据）。 */}
+              {!isHf ? (
+                <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                  <Switch
+                    size="sm"
+                    checked={safeMode}
+                    onCheckedChange={(v) =>
+                      civitai.setNsfwFilter(v ? 'safe' : 'unrestricted')
+                    }
+                    aria-label={t('library.safeMode')}
+                  />
+                  {t('library.safeMode')}
+                </label>
+              ) : null}
             </>
           ) : null}
-        </DialogHeader>
+        </div>
+        {!isMine ? (
+          <>
+            <LoraLibraryChipRow
+              ariaLabel={t('typeFilterLabel')}
+              options={typeOptions}
+              value={lib.contentType}
+              onChange={(value) =>
+                lib.setContentType(
+                  value as (typeof typeOptions)[number]['value'],
+                )
+              }
+            />
+            <LoraLibraryChipRow
+              label={t('libraryFamilyFilter')}
+              ariaLabel={t('baseModelFilterLabel')}
+              options={familyOptions}
+              value={familyValue}
+              onChange={handleFamilyChange}
+            />
+          </>
+        ) : null}
+      </div>
 
-        <div
-          className={cn(
-            'min-h-0 flex-1 overflow-y-auto px-4 py-4 transition-opacity',
-            !isMine && lib.isRevalidating && lib.items.length > 0
-              ? 'opacity-60'
-              : 'opacity-100',
-          )}
-          aria-busy={isMine ? isLoadingMine : lib.isRevalidating}
-        >
-          {isMine ? (
-            isLoadingMine ? (
-              <div className="flex items-center justify-center py-16">
-                <Spinner size="lg" className="text-muted-foreground" />
-              </div>
-            ) : mineItems.length === 0 ? (
-              <div className="flex items-center justify-center py-16 text-center text-xs text-muted-foreground">
-                {t('library.mineEmpty')}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {mineItems.map((asset) => (
-                  <LoraLibraryCard
-                    key={asset.id}
-                    source="mine"
-                    item={asset}
-                    mounted={mountedUrls.has(asset.loraUrl)}
-                    onUse={() => handleUseMine(asset)}
-                  />
-                ))}
-              </div>
-            )
-          ) : lib.isLoading ? (
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto px-4 py-4 transition-opacity',
+          !isMine && lib.isRevalidating && lib.items.length > 0
+            ? 'opacity-60'
+            : 'opacity-100',
+        )}
+        aria-busy={isMine ? isLoadingMine : lib.isRevalidating}
+      >
+        {isMine ? (
+          isLoadingMine ? (
             <div className="flex items-center justify-center py-16">
               <Spinner size="lg" className="text-muted-foreground" />
             </div>
-          ) : lib.error && lib.items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center text-xs text-muted-foreground">
-              <span className="flex items-center gap-2">
-                <AlertCircle className="size-4 text-destructive" aria-hidden />
-                {t('communityLoadFailed')}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void lib.refresh()}
-              >
-                {t('refresh')}
-              </Button>
-            </div>
-          ) : lib.items.length === 0 ? (
+          ) : mineItems.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-center text-xs text-muted-foreground">
-              {t('communityEmpty')}
+              {t('library.mineEmpty')}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {isHf
-                ? hf.items.map((item) => (
-                    <LoraLibraryCard
-                      key={item.repoId}
-                      source="huggingface"
-                      item={item}
-                      mounted={item.files.some((file) =>
-                        mountedUrls.has(file.downloadUrl),
-                      )}
-                      onUse={() => void handleUseHf(item)}
-                    />
-                  ))
-                : civitai.items.map((item) => (
-                    <LoraLibraryCard
-                      key={item.id}
-                      source="civitai"
-                      item={item}
-                      mounted={mountedUrls.has(item.loraUrl)}
-                      onUse={() => handleUseCivitai(item)}
-                    />
-                  ))}
+              {mineItems.map((asset) => (
+                <LoraLibraryCard
+                  key={asset.id}
+                  source="mine"
+                  item={asset}
+                  mounted={mountedUrls.has(asset.loraUrl)}
+                  onUse={() => handleUseMine(asset)}
+                />
+              ))}
             </div>
-          )}
-        </div>
-
-        {!isMine ? (
-          <div className="border-t border-border px-4 py-2.5">
-            <LoraLibraryPagination
-              page={lib.page}
-              total={lib.total}
-              hasNextPage={lib.hasNextPage}
-              isBusy={lib.isRevalidating}
-              onPreviousPage={lib.previousPage}
-              onNextPage={lib.nextPage}
-            />
+          )
+        ) : lib.isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Spinner size="lg" className="text-muted-foreground" />
           </div>
-        ) : null}
+        ) : lib.error && lib.items.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-center text-xs text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="size-4 text-destructive" aria-hidden />
+              {t('communityLoadFailed')}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void lib.refresh()}
+            >
+              {t('refresh')}
+            </Button>
+          </div>
+        ) : lib.items.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-center text-xs text-muted-foreground">
+            {t('communityEmpty')}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {isHf
+              ? hf.items.map((item) => (
+                  <LoraLibraryCard
+                    key={item.repoId}
+                    source="huggingface"
+                    item={item}
+                    mounted={item.files.some((file) =>
+                      mountedUrls.has(file.downloadUrl),
+                    )}
+                    onUse={() => void handleUseHf(item)}
+                  />
+                ))
+              : civitai.items.map((item) => (
+                  <LoraLibraryCard
+                    key={item.id}
+                    source="civitai"
+                    item={item}
+                    mounted={mountedUrls.has(item.loraUrl)}
+                    onUse={() => handleUseCivitai(item)}
+                  />
+                ))}
+          </div>
+        )}
+      </div>
+
+      {!isMine ? (
+        <div className="shrink-0 border-t border-border px-4 py-2.5">
+          <LoraLibraryPagination
+            page={lib.page}
+            total={lib.total}
+            hasNextPage={lib.hasNextPage}
+            isBusy={lib.isRevalidating}
+            onPreviousPage={lib.previousPage}
+            onNextPage={lib.nextPage}
+          />
+        </div>
+      ) : null}
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        {/* top-14 留顶部缺口 = 近全屏；mt-0 覆盖 drawer 默认 mt-24。 */}
+        <DrawerContent className="top-14 mt-0 flex flex-col overflow-hidden">
+          <DrawerTitle className="sr-only">{t('tabs.library')}</DrawerTitle>
+          {body}
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogTitle className="sr-only">{t('tabs.library')}</DialogTitle>
+        {body}
       </DialogContent>
     </Dialog>
   )

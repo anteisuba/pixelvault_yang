@@ -570,6 +570,8 @@ function GenerateBranch({
 }: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
+  // 移动端底部条的助手键复用 studio 各页同一套文案。
+  const tStudioV2 = useTranslations('StudioV2')
   const stack = useActiveLoraStack()
   const {
     generate,
@@ -2493,10 +2495,46 @@ function GenerateBranch({
                 {/* CD：出图 = 整宽主按钮压在创作面最底（唯一主动作，不与修饰控件
                     同行争位；忠实还原/比例已收进提示词卡）。< md 仍走
                     `.lora-mobile-actionbar` 收成底部常驻条。 */}
-                <div className="lora-mobile-actionbar">
+                <div className="lora-mobile-actionbar flex items-center gap-2.5">
+                  {/* CD 移动端底部常驻条 = mono 摘要（底模·挂载数·比例）+ 助手图标
+                      + 右侧定宽出图，一行。桌面（≥1024）退回整宽单主按钮。
+                      CD 样图里的「1024」是像素尺寸，本域只有比例档，照实写比例。 */}
+                  {isAssistantMobile ? (
+                    <>
+                      <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">
+                        {[
+                          selectedBase
+                            ? selectedBase.translationKey
+                              ? t(`spine.${selectedBase.translationKey}`)
+                              : selectedBase.displayName
+                            : t('spine.baseModelPending'),
+                          `×${stack.items.length}`,
+                          aspectRatio,
+                        ].join(' · ')}
+                      </span>
+                      <button
+                        type="button"
+                        aria-pressed={assistantOpen}
+                        aria-label={tStudioV2('enhance')}
+                        onClick={() => onAssistantOpenChange(!assistantOpen)}
+                        className={cn(
+                          'inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors',
+                          assistantOpen
+                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                            : 'border-transparent text-muted-foreground',
+                        )}
+                      >
+                        <Bot className="size-4" aria-hidden />
+                      </button>
+                      <div className="flex-1" />
+                    </>
+                  ) : null}
                   <Button
                     type="button"
-                    className="h-11 w-full text-sm font-semibold"
+                    className={cn(
+                      'h-11 text-sm font-semibold',
+                      isAssistantMobile ? 'shrink-0 px-8' : 'w-full',
+                    )}
                     disabled={!canGenerate}
                     onClick={handleGenerateClick}
                   >

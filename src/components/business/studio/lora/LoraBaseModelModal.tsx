@@ -9,12 +9,9 @@ import {
   getLoraBaseArchitectureGroup,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +40,7 @@ export function LoraBaseModelModal({
   hasMountedLora,
 }: LoraBaseModelModalProps) {
   const t = useTranslations('LoraWorkbench')
+  const isMobile = useIsMobile()
   // 默认只显示兼容当前挂载；关掉看全部（非兼容项标注·选了会在栈里出不兼容警示）。
   const [onlyCompatible, setOnlyCompatible] = useState(true)
 
@@ -143,71 +141,92 @@ export function LoraBaseModelModal({
     </div>
   )
 
+  // CD 移动端：唤起浮层一律改成底部拉起的近全屏 sheet；桌面走 Dialog。body 抽成
+  // 一份，两种外壳共用（各自补自己的 sr-only 标题满足 a11y 契约）。
+  const body = (
+    <>
+      <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm font-semibold text-foreground">
+            {t('baseModal.title')}
+          </span>
+          <span className="text-2xs text-muted-foreground">
+            {hasMountedLora
+              ? t('baseModal.subtitleConstrained')
+              : t('baseModal.subtitleFree')}
+          </span>
+        </div>
+        {/* 仅有挂载 LoRA（有家族约束）时才有意义。 */}
+        {hasMountedLora ? (
+          <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+            <Switch
+              size="sm"
+              checked={onlyCompatible}
+              onCheckedChange={setOnlyCompatible}
+              aria-label={t('baseModal.onlyCompatible')}
+            />
+            {t('baseModal.onlyCompatible')}
+          </label>
+        ) : null}
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        {cloudBases.length > 0 ? (
+          <section className="space-y-2">
+            <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('spine.baseGroupCloud')}
+            </p>
+            {renderGrid(cloudBases)}
+          </section>
+        ) : null}
+        {runnerBases.length > 0 ? (
+          <section className="space-y-2">
+            <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('spine.baseGroupRunner')}
+            </p>
+            {runnerSdxlBases.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
+                  {t('spine.baseGroupSdxl')}
+                </p>
+                {renderGrid(runnerSdxlBases)}
+              </div>
+            ) : null}
+            {runnerDitBases.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
+                  {t('spine.baseGroupDit')}
+                </p>
+                {renderGrid(runnerDitBases)}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+
+      <p className="shrink-0 border-t border-border px-4 py-2.5 text-2xs text-muted-foreground">
+        {t('baseModal.footer')}
+      </p>
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        {/* top-14 留顶部缺口 = 近全屏；mt-0 覆盖 drawer 默认 mt-24。 */}
+        <DrawerContent className="top-14 mt-0 flex flex-col overflow-hidden">
+          <DrawerTitle className="sr-only">{t('baseModal.title')}</DrawerTitle>
+          {body}
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="flex-row flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-3">
-          <div className="flex min-w-0 flex-col">
-            <DialogTitle className="text-sm font-semibold">
-              {t('baseModal.title')}
-            </DialogTitle>
-            <span className="text-2xs text-muted-foreground">
-              {hasMountedLora
-                ? t('baseModal.subtitleConstrained')
-                : t('baseModal.subtitleFree')}
-            </span>
-          </div>
-          {/* 仅有挂载 LoRA（有家族约束）时才有意义。 */}
-          {hasMountedLora ? (
-            <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-              <Switch
-                size="sm"
-                checked={onlyCompatible}
-                onCheckedChange={setOnlyCompatible}
-                aria-label={t('baseModal.onlyCompatible')}
-              />
-              {t('baseModal.onlyCompatible')}
-            </label>
-          ) : null}
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {cloudBases.length > 0 ? (
-            <section className="space-y-2">
-              <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('spine.baseGroupCloud')}
-              </p>
-              {renderGrid(cloudBases)}
-            </section>
-          ) : null}
-          {runnerBases.length > 0 ? (
-            <section className="space-y-2">
-              <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('spine.baseGroupRunner')}
-              </p>
-              {runnerSdxlBases.length > 0 ? (
-                <div className="space-y-1.5">
-                  <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                    {t('spine.baseGroupSdxl')}
-                  </p>
-                  {renderGrid(runnerSdxlBases)}
-                </div>
-              ) : null}
-              {runnerDitBases.length > 0 ? (
-                <div className="space-y-1.5">
-                  <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                    {t('spine.baseGroupDit')}
-                  </p>
-                  {renderGrid(runnerDitBases)}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-        </div>
-
-        <p className="border-t border-border px-4 py-2.5 text-2xs text-muted-foreground">
-          {t('baseModal.footer')}
-        </p>
+        <DialogTitle className="sr-only">{t('baseModal.title')}</DialogTitle>
+        {body}
       </DialogContent>
     </Dialog>
   )

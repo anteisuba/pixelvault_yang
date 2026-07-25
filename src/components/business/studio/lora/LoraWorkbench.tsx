@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Compass,
-  GraduationCap,
   GripVertical,
   Heart,
   ImageIcon,
@@ -187,6 +186,10 @@ import '@/app/lora.css'
 
 export function LoraWorkbench() {
   const t = useTranslations('LoraWorkbench')
+  const tStudioV2 = useTranslations('StudioV2')
+  // CD：助手开关移到模块 tab 行最右 → 状态提到 root，GenerateBranch 收 props
+  // （dock 本体仍挂在 GenerateBranch 里，那里才有 persona 上下文）。
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -285,41 +288,53 @@ export function LoraWorkbench() {
           : 'min-h-svh space-y-5',
       )}
     >
-      {/* P2-4: 模块 tab 从三个全宽大块收成紧凑居中 segmented pill——
-          `items-center` 把 content-width 的 TabsList 在 flex-col 里水平居中，
-          去掉 `w-full grid-cols-3` 让它自适应内容宽度。Radix Tabs 已带
-          role=tab / 键盘导航（P2-7 语义无需另接）。 */}
+      {/* CD 装配台：模块 tab = 左对齐下划线 tabs（无图标·variant=line），助手
+          开关在同行最右。原「居中胶囊 segmented + 图标」形制与 CD 不符
+          （owner 2026-07-25）。Radix Tabs 自带 role=tab / 键盘导航。 */}
       <Tabs
         value={tabValue}
         onValueChange={handleTabChange}
-        className="items-center md:shrink-0"
+        className="md:shrink-0"
       >
-        {/* R1 close-review（owner 2026-07-19「按钮太小」）：模式导航整体放大
-            ——TabsList h-9→h-11、trigger h-7→h-9 + text-sm + 更大内边距/图标，
-            并加点击按压过渡。 */}
-        <TabsList className="h-11 bg-muted/40">
-          <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.GENERATE}
-            className="h-9 gap-1.5 px-4 text-sm transition-transform active:scale-[0.97]"
-          >
-            <Sparkles className="size-4" aria-hidden />
-            {t('tabs.generate')}
-          </TabsTrigger>
-          <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
-            className="h-9 gap-1.5 px-4 text-sm transition-transform active:scale-[0.97]"
-          >
-            <Compass className="size-4" aria-hidden />
-            {t('tabs.library')}
-          </TabsTrigger>
-          <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.TRAIN}
-            className="h-9 gap-1.5 px-4 text-sm transition-transform active:scale-[0.97]"
-          >
-            <GraduationCap className="size-4" aria-hidden />
-            {t('tabs.train')}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex w-full items-center gap-3">
+          <TabsList variant="line" className="h-9">
+            <TabsTrigger
+              value={LORA_WORKBENCH_SECTIONS.GENERATE}
+              className="px-3 text-sm"
+            >
+              {t('tabs.generate')}
+            </TabsTrigger>
+            <TabsTrigger
+              value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
+              className="px-3 text-sm"
+            >
+              {t('tabs.library')}
+            </TabsTrigger>
+            <TabsTrigger
+              value={LORA_WORKBENCH_SECTIONS.TRAIN}
+              className="px-3 text-sm"
+            >
+              {t('tabs.train')}
+            </TabsTrigger>
+          </TabsList>
+          {/* CD：助手开关在 tab 行最右（生成页专属功能，其它 tab 不渲染）。 */}
+          {isGenerate ? (
+            <button
+              type="button"
+              aria-label={tStudioV2('enhance')}
+              aria-pressed={assistantOpen}
+              onClick={() => setAssistantOpen((prev) => !prev)}
+              className={cn(
+                studioToolTriggerClass,
+                'ml-auto h-8 shrink-0 px-3 text-xs',
+                assistantOpen && studioChipActiveClass,
+              )}
+            >
+              <Bot className="size-3.5" aria-hidden />
+              {tStudioV2('enhance')}
+            </button>
+          ) : null}
+        </div>
       </Tabs>
 
       <div
@@ -332,7 +347,10 @@ export function LoraWorkbench() {
         )}
       >
         {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
-          <GenerateBranch />
+          <GenerateBranch
+            assistantOpen={assistantOpen}
+            onAssistantOpenChange={setAssistantOpen}
+          />
         ) : null}
 
         {isLibrary ? (
@@ -537,7 +555,16 @@ function resolveBaseKeySetup(
 // advancedParams.loras、选中底模的 providerModelId 作 modelId、打
 // sourceSurface=LORA_WORKBENCH，复用 useUnifiedGenerate 发图 → 落素材。
 // recipe 源图/模式 + 暗房视觉为后续增量。
-function GenerateBranch() {
+interface GenerateBranchProps {
+  /** 助手 dock 开关——按钮在模块 tab 行最右（root 持有状态），dock 本体在这里。 */
+  assistantOpen: boolean
+  onAssistantOpenChange: (open: boolean) => void
+}
+
+function GenerateBranch({
+  assistantOpen,
+  onAssistantOpenChange,
+}: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
   const stack = useActiveLoraStack()
@@ -1264,9 +1291,9 @@ function GenerateBranch() {
   // ── F2 LoRA 助手 dock（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）──
   // 装配 loraContext 的三份实时数据（挂载/tray/底模家族——每次渲染重算，
   // PromptAssistantPanel 的 sendOpts() 在发送那一刻读到的永远是最新值）+
-  // dock 开关 + 结果卡落地正文/负向框的回调。dock 宽度只由 LoraAssistantDock
-  // 自己订阅（正文不再按宽度让位，见下方「恒覆盖态」注）。
-  const [assistantOpen, setAssistantOpen] = useState(false)
+  // 结果卡落地正文/负向框的回调。dock 开关状态在 root（按钮在模块 tab 行最右），
+  // 这里只收 props；dock 宽度由 LoraAssistantDock 自己订阅（正文不按宽度让位，
+  // 见下方「恒覆盖态」注）。
   // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
   // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
   const [libraryModalOpen, setLibraryModalOpen] = useState(false)
@@ -1823,8 +1850,6 @@ function GenerateBranch() {
         maxLoras={maxLoras}
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
-        assistantOpen={assistantOpen}
-        onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
         onAddLora={() => setLibraryModalOpen(true)}
         triggerWords={triggerChipEntries.map((entry) => entry.triggerWord)}
       />
@@ -2391,7 +2416,7 @@ function GenerateBranch() {
       </section>
       <LoraAssistantDock
         open={assistantOpen}
-        onOpenChange={setAssistantOpen}
+        onOpenChange={onAssistantOpenChange}
         currentPrompt={prompt}
         modelId={baseModelId ?? undefined}
         llmApiKeys={assistantApiKeys}
@@ -2428,10 +2453,6 @@ interface LoraSpineBarProps {
    *  chip 点名字即切换到该 LoRA 的来源图集与配方面板。 */
   activeRecipeGroupId: string | null
   onSelectRecipeGroup: (assetId: string) => void
-  /** F2 助手 dock 开关（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）——
-   *  顶栏按钮与 studio 各页同位同形制，复用 StudioV2.enhance 文案。 */
-  assistantOpen: boolean
-  onToggleAssistant: () => void
   /** G1（R3 装配行）：容量位「+添加」路由去库挑 LoRA。 */
   onAddLora: () => void
   /** CD 装配栏「触发词」段：挂载 LoRA 带来的触发词（静态展示——启停在搭配
@@ -2451,14 +2472,11 @@ function LoraSpineBar({
   maxLoras,
   activeRecipeGroupId,
   onSelectRecipeGroup,
-  assistantOpen,
-  onToggleAssistant,
   onAddLora,
   triggerWords,
 }: LoraSpineBarProps) {
   const t = useTranslations('LoraWorkbench')
   const tSetup = useTranslations('QuickSetup')
-  const tStudioV2 = useTranslations('StudioV2')
   const stack = useActiveLoraStack()
   // 拖拽排序（原生 HTML5 DnD·仅从 grip 起手：armedId 门控 draggable，避免
   // 滑杆/按钮/文本误触发拖拽）。dragId=正在拖的项，overId=悬停目标（画插入提示）。
@@ -2804,23 +2822,7 @@ function LoraSpineBar({
           </div>
         </>
       ) : null}
-      {/* F2 助手 dock 开关——studio 各页同位同形制（复用 StudioEnhanceButton
-          同款视觉语言 studioToolTriggerClass/studioChipActiveClass + 文案
-          StudioV2.enhance），挂在脊柱条最右侧。 */}
-      <button
-        type="button"
-        aria-label={tStudioV2('enhance')}
-        aria-pressed={assistantOpen}
-        onClick={onToggleAssistant}
-        className={cn(
-          studioToolTriggerClass,
-          'h-7 px-2.5 text-xs',
-          assistantOpen && studioChipActiveClass,
-        )}
-      >
-        <Bot className="size-3.5" aria-hidden />
-        {tStudioV2('enhance')}
-      </button>
+      {/* 助手开关已按 CD 移到模块 tab 行最右（owner 2026-07-25），装配栏不再重复。 */}
       {/* S4 换底模 modal（底模卡唤起）——Dialog 走 portal，放这里不受左栏内滚裁切。 */}
       <LoraBaseModelModal
         open={baseModalOpen}

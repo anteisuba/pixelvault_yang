@@ -1558,7 +1558,12 @@
       "executorLabel": "実行",
       "executorRunner": "Runner · 唯一チャンネル",
       "executorCloud": "クラウド API",
-      "openAssembly": "組み立て台を開く"
+      "openAssembly": "組み立て台を開く",
+      "assemblyTitle": "組み立て",
+      "stackTitle": "LoRA スタック",
+      "mountedCount": "{count} 件",
+      "addLoraFull": "LoRA を追加",
+      "triggerWords": "トリガーワード"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",
@@ -2785,7 +2790,10 @@
     "assistantRefineLighting": "光の演出をもっと強く",
     "assistantRefineStyle": "LoRAのスタイルにもっと寄せる",
     "assistantRetry": "再試行",
-    "assistantEscapeToSelfBuild": "自分で組み立てるに切り替え"
+    "assistantEscapeToSelfBuild": "自分で組み立てるに切り替え",
+    "contextMounts": "マウント ×{count}",
+    "contextTriggers": "トリガー ×{count}",
+    "contextBase": "ベース"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",

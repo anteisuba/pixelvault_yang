@@ -955,6 +955,19 @@ function GenerateBranch() {
   const upscaleOutputIsLarge =
     upscaleFinalWidth > 6144 || upscaleFinalHeight > 6144
 
+  // CD 装配栏参数行：摘要当前生效值（尺寸恒有——来自比例/自定义宽高；步数/CFG/
+  // 采样器只在用户设过时才进，缺省走底模默认不显示）。全真值，不编造。
+  const runnerSummaryLine = isRunnerBase
+    ? [
+        `${previewDimensions.width}×${previewDimensions.height}`,
+        runnerSteps.trim() ? `Steps ${runnerSteps.trim()}` : null,
+        runnerCfg.trim() ? `CFG ${runnerCfg.trim()}` : null,
+        runnerSampler.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null
+
   // ── B10 (D7③) 结果历史 filmstrip ─────────────────────────────────────
   // 会话级缩略条：每次出图成功后 prepend（新→旧），FIFO 上限
   // LORA_RESULT_HISTORY_MAX。scale/seed 从「本次请求 + 返回的 GenerationRecord」
@@ -1591,11 +1604,14 @@ function GenerateBranch() {
         <SlidersHorizontal className="size-3.5" aria-hidden />
         <span>{t('generate.advanced.title')}</span>
         <span className="text-2xs font-normal text-muted-foreground">
-          {advancedCustomCount > 0
-            ? t('generate.advanced.customSummary', {
-                count: advancedCustomCount,
-              })
-            : t('generate.advanced.defaultSummary')}
+          {/* CD 装配栏参数行：直接摘要生效值（1024×1360 · Steps 30 · CFG 7 ·
+              采样器），比「N 项自定义」更可读；缺省项落底模默认不显示。 */}
+          {runnerSummaryLine ??
+            (advancedCustomCount > 0
+              ? t('generate.advanced.customSummary', {
+                  count: advancedCustomCount,
+                })
+              : t('generate.advanced.defaultSummary'))}
         </span>
         <ChevronDown
           className={cn(
@@ -1847,6 +1863,7 @@ function GenerateBranch() {
         assistantOpen={assistantOpen}
         onToggleAssistant={() => setAssistantOpen((prev) => !prev)}
         onAddLora={() => setLibraryModalOpen(true)}
+        triggerWords={triggerChipEntries.map((entry) => entry.triggerWord)}
       />
       {/* S2精修①：参考图（能力位驱动·仅底模支持参考图 + 有强度配置时渲染）。 */}
       {maxReferenceImages > 0 && referenceStrengthConfig ? (
@@ -2456,6 +2473,9 @@ interface LoraSpineBarProps {
   onToggleAssistant: () => void
   /** G1（R3 装配行）：容量位「+添加」路由去库挑 LoRA。 */
   onAddLora: () => void
+  /** CD 装配栏「触发词」段：挂载 LoRA 带来的触发词（静态展示——启停在搭配
+   *  提醒的变更审阅卡里做，这里不重复交互，避免同名按钮挂两份）。 */
+  triggerWords: readonly string[]
 }
 
 // 常驻脊柱条：当前 LoRA stack（自取）+ 被 LoRA 家族约束的底模扁平选择器。
@@ -2473,6 +2493,7 @@ function LoraSpineBar({
   assistantOpen,
   onToggleAssistant,
   onAddLora,
+  triggerWords,
 }: LoraSpineBarProps) {
   const t = useTranslations('LoraWorkbench')
   const tSetup = useTranslations('QuickSetup')
@@ -2504,9 +2525,14 @@ function LoraSpineBar({
     // 竖向 LoRA 栈 + 底模卡 + 触发词。（原 D8「去盒化·底部白 8% 发丝线」为冷瓷前
     // 旧线，深底上白发丝线本就近隐形，此处反转成 bg-card 浮起面板 + token 发丝边。）
     <div className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]">
-      {/* owner 2026-07-25：底模选择放最上，LoRA 栈在底模下面（先定底模·再挂
-          LoRA·贴 CD 装配栏序 底模→LoRA栈→添加→触发词）。 */}
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+      {/* CD 装配栏：面板标题（「装配栏」）+ 助手开关同行；下面按 底模 → LoRA 栈 →
+          添加 → 触发词 的顺序（先定底模·再挂 LoRA）。 */}
+      <div className="flex w-full items-center gap-2">
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('spine.assemblyTitle')}
+        </span>
+      </div>
+      <span className="text-2xs uppercase tracking-wide text-muted-foreground">
         {t('spine.baseModel')}
       </span>
       {compatibleBases.length > 0 ? (
@@ -2518,6 +2544,11 @@ function LoraSpineBar({
             onClick={() => setBaseModalOpen(true)}
             className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition-colors hover:border-border"
           >
+            {/* CD 底模卡：左侧立方体图标（底模=一个"块"的隐喻）。 */}
+            <Boxes
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
             <span className="min-w-0 flex-1">
               {selectedBase ? (
                 <>
@@ -2573,10 +2604,15 @@ function LoraSpineBar({
           </span>
         </span>
       ) : null}
-      {/* LoRA 栈（在底模下面）。 */}
-      <span className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
-        {t('spine.currentLora')}
-      </span>
+      {/* LoRA 栈（在底模下面）。CD：标题行右侧给「已挂 N」计数。 */}
+      <div className="mt-1 flex w-full items-baseline gap-2">
+        <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+          {t('spine.stackTitle')}
+        </span>
+        <span className="ml-auto font-mono text-2xs text-muted-foreground">
+          {t('spine.mountedCount', { count: stack.items.length })}
+        </span>
+      </div>
       {stack.items.length > 0 ? (
         stack.items.map((item) => {
           // 聚焦态 = 当前展示来源图/配方的分组（单挂时回落到唯一项，见
@@ -2766,34 +2802,47 @@ function LoraSpineBar({
           {t('spine.empty')}
         </span>
       )}
-      {/* G1（R3 装配行）：容量 + 添加——确认图「1/5 · 添加」，文字计数 +
-          「＋添加」路由去库挑 LoRA（替代 D8 的 ●●○○○ 圆点计数）。 */}
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        {maxLoras && maxLoras > 1 ? (
-          <>
-            <span
-              aria-label={t('spine.mountCount', {
-                current: stack.items.length,
-                max: maxLoras,
-              })}
-            >
-              {t('spine.mountCount', {
-                current: stack.items.length,
-                max: maxLoras,
-              })}
-            </span>
-            <span aria-hidden>·</span>
-          </>
-        ) : null}
-        <button
-          type="button"
-          onClick={onAddLora}
-          className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
-        >
-          <Plus className="size-3" aria-hidden />
-          {t('spine.addLora')}
-        </button>
-      </span>
+      {/* CD：「＋ 添加 LoRA」是整宽虚线按钮（栈的收尾位·点开库 modal），容量
+          在下方小字（满栈时才是硬信息，不抢主按钮）。 */}
+      <button
+        type="button"
+        onClick={onAddLora}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        {t('spine.addLoraFull')}
+      </button>
+      {maxLoras && maxLoras > 1 ? (
+        <span className="font-mono text-2xs text-muted-foreground/70">
+          {t('spine.mountCount', {
+            current: stack.items.length,
+            max: maxLoras,
+          })}
+        </span>
+      ) : null}
+      {/* CD 装配栏「触发词」段：挂载 LoRA 带来的触发词静态 chips（启停在搭配
+          提醒的变更审阅卡里做，此处不重复交互）。 */}
+      {triggerWords.length > 0 ? (
+        <>
+          <span className="mt-1 text-2xs uppercase tracking-wide text-muted-foreground">
+            {t('spine.triggerWords')}
+          </span>
+          <div className="flex w-full flex-wrap gap-1.5">
+            {triggerWords.map((word) => (
+              <span
+                key={word}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-1 font-mono text-2xs text-foreground"
+              >
+                <span
+                  aria-hidden
+                  className="size-1 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
+                />
+                {word}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
       {/* F2 助手 dock 开关——studio 各页同位同形制（复用 StudioEnhanceButton
           同款视觉语言 studioToolTriggerClass/studioChipActiveClass + 文案
           StudioV2.enhance），挂在脊柱条最右侧。 */}

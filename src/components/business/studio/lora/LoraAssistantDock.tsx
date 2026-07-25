@@ -124,6 +124,37 @@ export function LoraAssistantDock({
     loraPersona: persona,
   }
 
+  // CD 助手 dock：正文上方一行「助手看得见什么」上下文 chips——挂载 ×N /
+  // 触发词 ×N / 底模。全部取 persona 里真实喂给模型的上下文，不额外编造。
+  const mountCount = persona.mounts?.length ?? 0
+  const triggerCount =
+    persona.mounts?.reduce(
+      (sum, mount) => sum + (mount.triggerWords?.length ?? 0),
+      0,
+    ) ?? 0
+  const contextChips = (
+    <div className="flex flex-wrap gap-1.5 pb-2">
+      {mountCount > 0 ? (
+        <span className="inline-flex items-center rounded-full border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground">
+          {t('contextMounts', { count: mountCount })}
+        </span>
+      ) : null}
+      {triggerCount > 0 ? (
+        <span className="inline-flex items-center rounded-full border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground">
+          {t('contextTriggers', { count: triggerCount })}
+        </span>
+      ) : null}
+      {persona.baseFamily ? (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground">
+          {t('contextBase')}
+          <span className="font-mono text-foreground">
+            {persona.baseFamily}
+          </span>
+        </span>
+      ) : null}
+    </div>
+  )
+
   // 移动端（< 1024，owner 2026-07-20 拍板「近全屏」）：助手改近全屏底部 sheet
   // （vaul Drawer，iOS 风）——桌面停靠不适用。Drawer 自带抓手 / 圆角顶 / 遮罩 /
   // 软键盘避让（--keyboard-inset）/ 下滑关闭；触控开场不自动聚焦（不弹键盘）。
@@ -160,6 +191,7 @@ export function LoraAssistantDock({
             </Button>
           </div>
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
+            {contextChips}
             {hasOpenedOnce && <PromptAssistantPanel {...panelProps} />}
           </div>
         </DrawerContent>
@@ -232,6 +264,7 @@ export function LoraAssistantDock({
         className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 transition-opacity duration-slow ease-standard"
         style={{ minWidth: layout.widthPx, opacity: open ? 1 : 0 }}
       >
+        {contextChips}
         {hasOpenedOnce && <PromptAssistantPanel {...panelProps} />}
       </div>
     </AssistantShell>

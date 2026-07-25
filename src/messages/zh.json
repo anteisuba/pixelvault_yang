@@ -1558,7 +1558,12 @@
       "executorLabel": "执行",
       "executorRunner": "Runner · 唯一通道",
       "executorCloud": "云端 API",
-      "openAssembly": "打开装配栏"
+      "openAssembly": "打开装配栏",
+      "assemblyTitle": "装配栏",
+      "stackTitle": "LoRA 栈",
+      "mountedCount": "已挂 {count}",
+      "addLoraFull": "添加 LoRA",
+      "triggerWords": "触发词"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",
@@ -2785,7 +2790,10 @@
     "assistantRefineLighting": "加强一点光影氛围",
     "assistantRefineStyle": "再贴近 LoRA 的风格一些",
     "assistantRetry": "重试",
-    "assistantEscapeToSelfBuild": "切到自己搭配"
+    "assistantEscapeToSelfBuild": "切到自己搭配",
+    "contextMounts": "挂载 ×{count}",
+    "contextTriggers": "触发词 ×{count}",
+    "contextBase": "底模"
   },
   "LayerDecompose": {
     "title": "图层分解",

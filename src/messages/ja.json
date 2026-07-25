@@ -1436,7 +1436,9 @@
       "mounted": "追加済み",
       "searchPlaceholder": "LoRA・トリガー・作者を検索…",
       "safeMode": "セーフモード",
-      "mineEmpty": "お気に入り・学習済みの LoRA はまだありません"
+      "mineEmpty": "お気に入り・学習済みの LoRA はまだありません",
+      "mountedToast": "{name} をマウントしました",
+      "mountedNoBase": "{name} をマウント · この系統に生成可能なベースがまだありません"
     },
     "baseModal": {
       "title": "ベースモデルを変更",
@@ -1851,7 +1853,8 @@
     "selectFromArchive": "アーカイブから選ぶ",
     "filterAll": "すべて",
     "filterImage": "画像",
-    "filterVideo": "動画"
+    "filterVideo": "動画",
+    "addReferenceLong": "参考画像を追加 · アップロード / 貼付 / アセット"
   },
   "AssetsPage": {
     "title": "アセット",

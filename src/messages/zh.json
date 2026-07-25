@@ -1436,7 +1436,9 @@
       "mounted": "已挂",
       "searchPlaceholder": "搜索 LoRA、触发词、作者…",
       "safeMode": "安全模式",
-      "mineEmpty": "还没有收藏或训练的 LoRA"
+      "mineEmpty": "还没有收藏或训练的 LoRA",
+      "mountedToast": "已挂载 {name}",
+      "mountedNoBase": "已挂载 {name} · 该族暂无可出图底模"
     },
     "baseModal": {
       "title": "换底模",
@@ -1851,7 +1853,8 @@
     "selectFromArchive": "从档案选择",
     "filterAll": "全部",
     "filterImage": "图像",
-    "filterVideo": "视频"
+    "filterVideo": "视频",
+    "addReferenceLong": "添加参考图 · 上传 / 粘贴 / 素材库"
   },
   "AssetsPage": {
     "title": "素材",

@@ -77,7 +77,8 @@ describe('LoraReferenceImageCards (G3c)', () => {
     )
 
     expect(
-      screen.getByRole('button', { name: 'ImageChip:addReference' }),
+      // 空态入口文案改为「添加参考图 · 上传 / 粘贴 / 素材库」（CD 装配栏点明三条来路）。
+      screen.getByRole('button', { name: 'ImageChip:addReferenceLong' }),
     ).toBeInTheDocument()
     // No filled card preview → no strength slider label reserved.
     expect(

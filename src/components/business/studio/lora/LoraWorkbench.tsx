@@ -1129,6 +1129,9 @@ function GenerateBranch({
       // 拼了反而会在编译后的 prompt 里重复计入一次。
       setPrompt(plan.prompt)
       setNegativePrompt(params.negativePrompt ?? '')
+      // 配方带负面时展开负面框——做同款改了它，就让用户直接看见（CD 的负面条
+      // 平时折叠 + 内容预览，这里是「有变更就摊开」的例外）。
+      if (params.negativePrompt?.trim()) setNegativePromptExpanded(true)
       if (plan.aspectRatio) setAspectRatio(plan.aspectRatio)
       // Scale applies to the group the recipe came from (per-mount), not
       // always the primary — multi-mount tunes each LoRA independently.
@@ -1591,11 +1594,11 @@ function GenerateBranch({
         onClick={() => setAdvancedOpen((open) => !open)}
         className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
       >
-        <SlidersHorizontal className="size-3.5" aria-hidden />
-        <span>{t('generate.advanced.title')}</span>
-        <span className="text-2xs font-normal text-muted-foreground">
-          {/* CD 装配栏参数行：直接摘要生效值（1024×1360 · Steps 30 · CFG 7 ·
-              采样器），比「N 项自定义」更可读；缺省项落底模默认不显示。 */}
+        {/* CD 装配栏参数行：图标 + 生效值摘要（1024×1360 · Steps 30 · CFG 7 ·
+            采样器）+ 收合角标——不再挂「Runner 参数」标题，值本身就是标题；缺省
+            项落底模默认不显示。无摘要（非 runner/无值）时才退回文字摘要。 */}
+        <SlidersHorizontal className="size-3.5 shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1 truncate font-mono text-2xs font-normal text-muted-foreground">
           {runnerSummaryLine ??
             (advancedCustomCount > 0
               ? t('generate.advanced.customSummary', {
@@ -1603,6 +1606,7 @@ function GenerateBranch({
                 })
               : t('generate.advanced.defaultSummary'))}
         </span>
+        <span className="sr-only">{t('generate.advanced.title')}</span>
         <ChevronDown
           className={cn(
             'ml-auto size-3.5 transition-transform',
@@ -2308,39 +2312,73 @@ function GenerateBranch({
                     onChange={setPrompt}
                     polarity="positive"
                   />
-                </div>
-                {negativePromptExpanded || negativePrompt.trim().length > 0 ? (
-                  <div className="space-y-1 border-t border-border pt-2">
-                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {t('generate.negativePromptLabel')}
-                    </p>
-                    <textarea
-                      ref={negativePromptTextareaRef}
-                      value={negativePrompt}
-                      onChange={(event) =>
-                        setNegativePrompt(event.target.value)
-                      }
-                      placeholder={t('generate.negativePromptPlaceholder')}
-                      rows={2}
-                      className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                    />
-                    <PromptTagAutocomplete
-                      textareaRef={negativePromptTextareaRef}
-                      value={negativePrompt}
-                      onChange={setNegativePrompt}
-                      polarity="negative"
+                  {/* owner 2026-07-25：忠实还原 / 画面比例 收进提示词卡底部——它们
+                      是「怎么画这段词」的修饰，跟 Prompt 同属一个输入面，不该和主
+                      动作抢底栏。 */}
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={!activeAsset || isGenerating}
+                      onClick={handleRestore}
+                    >
+                      <Wand2 className="size-3.5" aria-hidden />
+                      {t('generate.restore')}
+                    </Button>
+                    <LoraAspectRatioChip
+                      value={aspectRatio}
+                      onChange={setAspectRatio}
+                      disabled={isGenerating}
                     />
                   </div>
-                ) : (
+                </div>
+                {/* CD：负面 Prompt 是一条可折叠的单行摘要（Negative + 内容预览 +
+                    角标），不是「＋ 添加负面 Prompt」文字链接。 */}
+                <div className="rounded-xl border border-border bg-muted/20">
                   <button
                     type="button"
-                    onClick={() => setNegativePromptExpanded(true)}
-                    className="inline-flex items-center gap-1 text-2xs text-muted-foreground transition-colors hover:text-foreground"
+                    aria-expanded={negativePromptExpanded}
+                    onClick={() => setNegativePromptExpanded((open) => !open)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left"
                   >
-                    <Plus className="size-3" aria-hidden />
-                    {t('generate.negativePromptAdd')}
+                    <span className="shrink-0 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t('generate.negativePromptLabel')}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground/70">
+                      {negativePrompt.trim() ||
+                        t('generate.negativePromptPlaceholder')}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'size-3.5 shrink-0 text-muted-foreground transition-transform',
+                        negativePromptExpanded && 'rotate-180',
+                      )}
+                      aria-hidden
+                    />
                   </button>
-                )}
+                  {negativePromptExpanded ? (
+                    <div className="space-y-1 border-t border-border/60 px-3 pb-2.5 pt-2">
+                      <textarea
+                        ref={negativePromptTextareaRef}
+                        value={negativePrompt}
+                        onChange={(event) =>
+                          setNegativePrompt(event.target.value)
+                        }
+                        placeholder={t('generate.negativePromptPlaceholder')}
+                        rows={2}
+                        className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                      <PromptTagAutocomplete
+                        textareaRef={negativePromptTextareaRef}
+                        value={negativePrompt}
+                        onChange={setNegativePrompt}
+                        polarity="negative"
+                      />
+                    </div>
+                  ) : null}
+                </div>
                 {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
                 （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
                 {incompatibleCount > 0 ? (
@@ -2386,40 +2424,20 @@ function GenerateBranch({
                   </p>
                 ) : null}
                 {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
-                {/* R5：< md 收成底部常驻动作条（.lora-mobile-actionbar）；≥ md 内联
-                自然流。移动端出图 flex-1 拉宽成拇指区主 CTA，桌面保持紧凑。 */}
-                <div className="lora-mobile-actionbar flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 md:h-8"
-                      disabled={!activeAsset || isGenerating}
-                      onClick={handleRestore}
-                    >
-                      <Wand2 className="size-3.5" aria-hidden />
-                      {t('generate.restore')}
-                    </Button>
-                    {/* B10 (D7①): 比例 chip——链路早已通（handleGenerate 一直传
-                      aspectRatio），此前页面无控件把用户锁死 1:1。默认 1:1 不动。 */}
-                    <LoraAspectRatioChip
-                      value={aspectRatio}
-                      onChange={setAspectRatio}
-                      disabled={isGenerating}
-                    />
-                  </div>
+                {/* CD：出图 = 整宽主按钮压在创作面最底（唯一主动作，不与修饰控件
+                    同行争位；忠实还原/比例已收进提示词卡）。< md 仍走
+                    `.lora-mobile-actionbar` 收成底部常驻条。 */}
+                <div className="lora-mobile-actionbar">
                   <Button
                     type="button"
-                    size="sm"
-                    className="h-10 flex-1 md:h-8 md:flex-none"
+                    className="h-11 w-full text-sm font-semibold"
                     disabled={!canGenerate}
                     onClick={handleGenerateClick}
                   >
                     {isGenerating ? (
                       <Spinner size="sm" aria-hidden />
                     ) : (
-                      <Sparkles className="size-3.5" aria-hidden />
+                      <Sparkles className="size-4" aria-hidden />
                     )}
                     {t('generate.run')}
                   </Button>
@@ -2549,7 +2567,17 @@ function LoraSpineBar({
                   <span className="block truncate text-xs font-semibold text-foreground">
                     {baseDisplayName(selectedBase)}
                   </span>
-                  <span className="block truncate font-mono text-2xs text-muted-foreground">
+                  {/* CD：族 · 通道 · 忠实/快 合成一行 mono meta（执行通道不再
+                      单独占一行）。300px 窄栏放不下「Runner · 唯一通道」全称，
+                      通道用短标（Runner / 云端 API），全称进 title。 */}
+                  <span
+                    className="block truncate font-mono text-2xs text-muted-foreground"
+                    title={
+                      selectedBase.backend === 'runner'
+                        ? t('spine.executorRunner')
+                        : t('spine.executorCloud')
+                    }
+                  >
                     {selectedBase.family} ·{' '}
                     {selectedBase.backend === 'runner'
                       ? t('baseModal.channelRunner')
@@ -2584,20 +2612,7 @@ function LoraSpineBar({
           {t('spine.baseModelPending')}
         </span>
       )}
-      {/* 执行通道——底模身份与执行通道分层表达（§3.3）。Anima DiT 等 runner-only
-          显示「Runner · 唯一通道」，云端底模显示「云端 API」；不伪造下拉。 */}
-      {selectedBase ? (
-        <span className="inline-flex items-center gap-1.5 text-xs">
-          <span className="uppercase tracking-wide text-muted-foreground">
-            {t('spine.executorLabel')}
-          </span>
-          <span className="text-foreground">
-            {selectedBase.backend === 'runner'
-              ? t('spine.executorRunner')
-              : t('spine.executorCloud')}
-          </span>
-        </span>
-      ) : null}
+      {/* 执行通道已并入上面底模卡的 mono meta 行（CD），不再单独占一行。 */}
       {/* LoRA 栈（在底模下面）。CD：标题行右侧给「已挂 N」计数。 */}
       <div className="mt-1 flex w-full items-baseline gap-2">
         <span className="text-2xs uppercase tracking-wide text-muted-foreground">
@@ -2823,13 +2838,15 @@ function LoraSpineBar({
           </span>
           <div className="flex w-full flex-wrap gap-1.5">
             {triggerWords.map((word) => (
+              // CD：触发词是高亮 chip（浅色底 + 描边），不是普通描边标签——它们
+              // 会被自动并进 prompt，视觉上要能一眼认出来。
               <span
                 key={word}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-1 font-mono text-2xs text-foreground"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-1 font-mono text-2xs font-medium text-foreground"
               >
                 <span
                   aria-hidden
-                  className="size-1 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
+                  className="size-1 shrink-0 rounded-full bg-emerald-500/80 dark:bg-emerald-400/80"
                 />
                 {word}
               </span>

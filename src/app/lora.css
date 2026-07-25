@@ -76,3 +76,17 @@
   background: var(--lora-page);
   color: var(--lora-ink);
 }
+
+/* S7 修（owner 2026-07-25「手机端没有出图的按钮」）：globals 的
+ * `.lora-mobile-actionbar` 是 fixed bottom:0 / inset-inline:0 / z-30，而 app 的
+ * MobileTabBar 是 fixed bottom-0 left-11 z-40 h-12 —— 出图条整条被它盖住、左端
+ * 还压在 44px 竖导航下。这里在域作用域内抬到 tab bar 之上并让开左栏（不改
+ * globals 脊柱）。tab bar 自己带安全区，故这里的底部 padding 收回常规值。 */
+@media (max-width: 767px) {
+  .domain-lora .lora-mobile-actionbar {
+    /* 3rem = tab bar 的 h-12；再跟随它自己的安全区变量，刘海屏上不压住它。 */
+    bottom: calc(3rem + var(--keyboard-safe-area-bottom, 0px));
+    left: 2.75rem; /* = tab bar / 侧栏的 left-11 */
+    padding-bottom: 0.75rem; /* 安全区已由下面的 tab bar 吃掉 */
+  }
+}

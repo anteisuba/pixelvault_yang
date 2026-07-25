@@ -209,8 +209,9 @@ export function LoraReferenceImageCards({
               disabled={disabled}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
             >
-              <Plus className="size-3.5" aria-hidden />
-              {t('addReference')}
+              {/* CD 装配栏：空态点明三条来路（上传 / 粘贴 / 素材库）。 */}
+              <ImageIcon className="size-3.5" aria-hidden />
+              {t('addReferenceLong')}
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" side="bottom" className="w-72">

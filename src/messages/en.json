@@ -1436,7 +1436,9 @@
       "mounted": "Mounted",
       "searchPlaceholder": "Search LoRAs, triggers, authors…",
       "safeMode": "Safe mode",
-      "mineEmpty": "No favorited or trained LoRAs yet"
+      "mineEmpty": "No favorited or trained LoRAs yet",
+      "mountedToast": "Mounted {name}",
+      "mountedNoBase": "Mounted {name} · no runnable base for this family yet"
     },
     "baseModal": {
       "title": "Change base model",
@@ -1851,7 +1853,8 @@
     "selectFromArchive": "Pick from archive",
     "filterAll": "All",
     "filterImage": "Images",
-    "filterVideo": "Videos"
+    "filterVideo": "Videos",
+    "addReferenceLong": "Add reference · upload / paste / assets"
   },
   "AssetsPage": {
     "title": "Assets",

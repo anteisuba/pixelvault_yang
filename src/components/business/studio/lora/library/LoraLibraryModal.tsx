@@ -142,19 +142,19 @@ export function LoraLibraryModal({
 
   const handleUseCivitai = useCallback(
     (item: CivitaiLoraLibraryItem) => {
-      // 不可 fal hosted 出图的族（如 Anima DiT）——挂载会必然失败，改开 Civitai
-      // 来源页（与行 pane handleUse 同策略）。
+      // owner 2026-07-25：点「使用」一律直接挂载，不再跳 Civitai 外链。族暂无
+      // 可出图底模时照挂 + 提示（装配栏的兼容点/「当前没有可用底模」会把状态说
+      // 清楚），比把人踢去外站更诚实。
+      stack.push(item)
       if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
-        window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-        toast.info(t('externalUseRedirect', { name: item.name }), {
+        toast.info(t('library.mountedNoBase', { name: item.name }), {
           duration: LORA_TOAST_DURATION_MS,
         })
-        return
+      } else {
+        toast.success(t('library.mountedToast', { name: item.name }), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
       }
-      stack.push(item)
-      toast.success(t('addedToStack', { name: item.name }), {
-        duration: LORA_TOAST_DURATION_MS,
-      })
       onOpenChange(false)
     },
     [onOpenChange, stack, t],
@@ -164,19 +164,17 @@ export function LoraLibraryModal({
     async (item: HuggingFaceLoraSearchItem) => {
       // HF 一个模型可含多把 .safetensors（不同底模族）——卡片「使用」自动挑第一
       // 把有可用兼容底模的文件（行 pane 在展开详情里让用户手选，卡片走快捷路径）。
+      // 优先挑有可用兼容底模的文件；都没有也照挂第一个（owner：使用=直接挂载，
+      // 不跳外链），挂完给「暂无可出图底模」提示。
       const file =
         item.files.find((candidate) =>
           getCompatibleBases(candidate.baseModelFamily).some(
             (base) => base.available,
           ),
-        ) ?? null
-      if (!file) {
-        window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-        toast.info(t('externalUseRedirect', { name: item.name }), {
-          duration: LORA_TOAST_DURATION_MS,
-        })
-        return
-      }
+        ) ??
+        item.files[0] ??
+        null
+      if (!file) return
       const record = await favoriteExternalLora({
         name: item.name,
         triggerWord: item.triggerWord,
@@ -188,7 +186,7 @@ export function LoraLibraryModal({
       })
       if (!record) return
       stack.push(record)
-      toast.success(t('addedToStack', { name: record.name }), {
+      toast.success(t('library.mountedToast', { name: record.name }), {
         duration: LORA_TOAST_DURATION_MS,
       })
       onOpenChange(false)
@@ -199,7 +197,7 @@ export function LoraLibraryModal({
   const handleUseMine = useCallback(
     (asset: LoraAssetRecord) => {
       stack.push(asset)
-      toast.success(t('addedToStack', { name: asset.name }), {
+      toast.success(t('library.mountedToast', { name: asset.name }), {
         duration: LORA_TOAST_DURATION_MS,
       })
       onOpenChange(false)

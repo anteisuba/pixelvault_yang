@@ -952,12 +952,16 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
   it('manually reveals an empty negative prompt field on request', () => {
     render(<LoraWorkbench />)
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'LoraWorkbench:generate.negativePromptAdd',
-      }),
-    )
+    // CD：负面 Prompt 收成一条可折叠单行摘要（标签 + 内容预览 + 角标），点它展开
+    // 输入框——取代原来的「＋ 添加负面 Prompt」文字链接。
+    const toggle = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.negativePromptLabel/,
+    })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
 
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(
       screen.getByPlaceholderText(
         'LoraWorkbench:generate.negativePromptPlaceholder',

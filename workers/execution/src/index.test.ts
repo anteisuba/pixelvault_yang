@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  buildFalImageInput,
   computeTieredDimensions,
   createSignedRequestHeaders,
   decryptStateString,
@@ -15,6 +16,7 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
+  resolveFalImageModelId,
   tieredGeminiDimensions,
   tieredOpenAISize,
   timingSafeEqualHex,
@@ -546,5 +548,119 @@ describe('tieredGeminiDimensions', () => {
       width: 4096,
       height: 2304,
     })
+  })
+})
+
+// 2026-07-26 事故：LoRA 装配台带参考图出图，结果完全没用上参考图。参考图一路
+// 传到了 Worker（Generation.referenceImageUrl 有值），但 Worker 这份 fal 请求
+// 构造没有 app 侧 adapter 的「flux-lora → /image-to-image」端点切换，
+// 'fal-ai/flux-lora' 又在 FAL_TEXT_TO_IMAGE_ONLY_MODELS 里，于是 image_url /
+// strength 从未被写进请求体，参考图被静默丢弃。
+function makeFalImageContext(
+  providerInput: Record<string, unknown> = {},
+): Parameters<typeof buildFalImageInput>[0] {
+  return {
+    runId: 'run-1',
+    workflowId: 'IMAGE_QUEUE',
+    outputType: 'IMAGE',
+    providerId: 'fal',
+    apiKeyId: 'key-1',
+    callbackUrl: 'https://cb.example.com',
+    resolveKeyUrl: 'https://resolve.example.com',
+    timeoutMs: 60_000,
+    maxAttempts: 3,
+    pollIntervalMs: 1_000,
+    providerInput: {
+      prompt: 'a cat',
+      modelId: 'flux-lora',
+      externalModelId: 'fal-ai/flux-lora',
+      aspectRatio: '1:1',
+      ...providerInput,
+    },
+  } as Parameters<typeof buildFalImageInput>[0]
+}
+
+describe('resolveFalImageModelId', () => {
+  it('keeps the text-to-image endpoint when no reference image is attached', () => {
+    expect(resolveFalImageModelId(makeFalImageContext())).toBe(
+      'fal-ai/flux-lora',
+    )
+  })
+
+  it('swaps flux-lora to its image-to-image endpoint when a reference image is attached', () => {
+    expect(
+      resolveFalImageModelId(
+        makeFalImageContext({ referenceImages: ['https://cdn/ref.png'] }),
+      ),
+    ).toBe('fal-ai/flux-lora/image-to-image')
+  })
+
+  it('also swaps for the single referenceImage field', () => {
+    expect(
+      resolveFalImageModelId(
+        makeFalImageContext({ referenceImage: 'https://cdn/ref.png' }),
+      ),
+    ).toBe('fal-ai/flux-lora/image-to-image')
+  })
+
+  it('leaves other models alone', () => {
+    expect(
+      resolveFalImageModelId(
+        makeFalImageContext({
+          externalModelId: 'fal-ai/flux-2/flash',
+          referenceImages: ['https://cdn/ref.png'],
+        }),
+      ),
+    ).toBe('fal-ai/flux-2/flash')
+  })
+})
+
+describe('buildFalImageInput reference handling', () => {
+  it('sends image_url and inverted strength for flux-lora img2img', () => {
+    const input = buildFalImageInput(
+      makeFalImageContext({
+        referenceImages: ['https://cdn/ref.png'],
+        advancedParams: { referenceStrength: 0.7 },
+      }),
+    )
+
+    expect(input.image_url).toBe('https://cdn/ref.png')
+    // referenceStrength 0.7（越高越像参考图）→ fal 的 denoising strength 0.3。
+    expect(input.strength).toBeCloseTo(0.3, 5)
+  })
+
+  it('still sends loras alongside the reference image', () => {
+    const input = buildFalImageInput(
+      makeFalImageContext({
+        referenceImages: ['https://cdn/ref.png'],
+        advancedParams: {
+          referenceStrength: 0.7,
+          loras: [{ url: 'https://cdn/lora.safetensors', scale: 0.85 }],
+        },
+      }),
+    )
+
+    expect(input.image_url).toBe('https://cdn/ref.png')
+    expect(input.loras).toEqual([
+      { path: 'https://cdn/lora.safetensors', scale: 0.85 },
+    ])
+  })
+
+  it('omits image_url entirely when no reference image is attached', () => {
+    const input = buildFalImageInput(makeFalImageContext())
+    expect(input.image_url).toBeUndefined()
+    expect(input.strength).toBeUndefined()
+  })
+
+  it('keeps pure text-to-image models free of reference fields', () => {
+    const input = buildFalImageInput(
+      makeFalImageContext({
+        externalModelId: 'fal-ai/flux-2/flash',
+        referenceImages: ['https://cdn/ref.png'],
+        advancedParams: { referenceStrength: 0.7 },
+      }),
+    )
+
+    expect(input.image_url).toBeUndefined()
   })
 })

@@ -4127,6 +4127,25 @@ const FAL_TEXT_TO_IMAGE_ONLY_MODELS = new Set([
   'fal-ai/recraft/v4/pro/text-to-image',
 ])
 const FAL_SEEDREAM_45_MODEL_ID = 'fal-ai/bytedance/seedream/v4.5/text-to-image'
+// `fal-ai/flux-lora` 是纯文生图端点，喂 image_url 也会被忽略；带参考图时必须换到
+// `/image-to-image` 变体（同样吃 loras，所以 LoRA + img2img 能同时成立）。基础 id
+// 保留在 FAL_TEXT_TO_IMAGE_ONLY_MODELS 里——切换之后 id 就不再命中那个集合，
+// 自然落进下面的标准 img2img 分支。与 src/services/providers/fal.adapter.ts 同款，
+// 两份必须一起改（2026-07-26：app 侧 B9 改过、Worker 侧漏了，参考图被静默丢弃）。
+const FAL_FLUX_LORA_T2I_MODEL_ID = 'fal-ai/flux-lora'
+const FAL_FLUX_LORA_I2I_MODEL_ID = 'fal-ai/flux-lora/image-to-image'
+
+/**
+ * 实际要打的 fal 端点 id。目前只有 flux-lora 需要按「有没有参考图」换端点，
+ * 但请求体构造和 URL 拼接两处都得用它，所以抽出来避免只改一处。
+ */
+export function resolveFalImageModelId(context: WorkerImageRunContext): string {
+  const { externalModelId } = context.providerInput
+  if (externalModelId !== FAL_FLUX_LORA_T2I_MODEL_ID) return externalModelId
+  return getImageReferenceInputs(context).length > 0
+    ? FAL_FLUX_LORA_I2I_MODEL_ID
+    : externalModelId
+}
 
 interface FalImageResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
@@ -4316,7 +4335,7 @@ async function resolveReplicateCivitaiUrl(
   return injectCivitaiToken(url, civitaiToken)
 }
 
-function buildFalImageInput(
+export function buildFalImageInput(
   context: WorkerImageRunContext,
   civitaiToken: string | null = null,
 ): Record<string, unknown> {
@@ -4360,7 +4379,7 @@ function buildFalImageInput(
     }))
   }
 
-  const externalModelId = providerInput.externalModelId
+  const externalModelId = resolveFalImageModelId(context)
   if (FAL_KONTEXT_MULTI_IMAGE_MODELS.has(externalModelId)) {
     if (providerInput.referenceImages?.length) {
       input.image_urls = providerInput.referenceImages
@@ -4393,7 +4412,7 @@ async function submitFalImageQueue(
   civitaiToken: string | null = null,
 ): Promise<FalQueueSubmitResult> {
   const response = await fetch(
-    `https://queue.fal.run/${context.providerInput.externalModelId}`,
+    `https://queue.fal.run/${resolveFalImageModelId(context)}`,
     {
       method: 'POST',
       headers: {

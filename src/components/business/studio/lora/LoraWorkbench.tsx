@@ -166,7 +166,6 @@ import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseMo
 import { LoraCollocationStatusBar } from '@/components/business/studio/lora/LoraCollocationStatusBar'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
-import { useDockLayout } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
 import {
   studioChipActiveClass,
   studioToolTriggerClass,
@@ -438,13 +437,6 @@ const REPLAY_ASPECT_RATIOS: readonly AspectRatio[] = [
   '4:3',
   '3:4',
 ]
-
-/**
- * R4 助手停靠阈值（lora-generate.md §5）：扣除助手宽后主台需 ≥ 这个宽度才停靠
- * （push 正文），否则改右侧覆盖（不 push，fixed 助手浮在正文上）。900 = 停靠态
- * 输入底线 ~540px + 结果底线 ~360px。presentation-only，不影响业务。
- */
-const LORA_ASSISTANT_DOCK_MIN_MAIN_PX = 900
 
 /** D7③ + G3d: one entry in the session result filmstrip. `scale`/`seed` drive
  *  the corner label; `width`/`height`/`steps`/`baseName`/`loraName` are captured
@@ -1272,10 +1264,8 @@ function GenerateBranch() {
   // ── F2 LoRA 助手 dock（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）──
   // 装配 loraContext 的三份实时数据（挂载/tray/底模家族——每次渲染重算，
   // PromptAssistantPanel 的 sendOpts() 在发送那一刻读到的永远是最新值）+
-  // dock 开关/宽度状态 + 结果卡落地正文/负向框的回调。`useDockLayout` 是
-  // 模块级 useSyncExternalStore store（跟 StudioAssistantDock 共享同一份
-  // 宽度记忆），这里再订阅一次是为了让正文列的 marginRight 跟 dock 实际
-  // 宽度同步，两处调用天然不会失步。
+  // dock 开关 + 结果卡落地正文/负向框的回调。dock 宽度只由 LoraAssistantDock
+  // 自己订阅（正文不再按宽度让位，见下方「恒覆盖态」注）。
   const [assistantOpen, setAssistantOpen] = useState(false)
   // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
   // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
@@ -1283,26 +1273,10 @@ function GenerateBranch() {
   // S7：移动端装配 sheet（紧凑摘要条唤起）。
   const [assemblySheetOpen, setAssemblySheetOpen] = useState(false)
   const isAssistantMobile = useIsMobile()
-  const { layout: assistantDockLayout } = useDockLayout()
 
-  // R4：测正文列可用全宽——量父容器 clientWidth（不受本列 marginRight 影响；
-  // 助手 dock 是 fixed 出流不计入），据此决定助手停靠 vs 覆盖（见 §5 阈值）。
-  const mainSectionRef = useRef<HTMLElement>(null)
-  const [mainAvailableWidth, setMainAvailableWidth] = useState<number | null>(
-    null,
-  )
-  useEffect(() => {
-    const parent = mainSectionRef.current?.parentElement
-    if (!parent) return
-    const update = () => setMainAvailableWidth(parent.clientWidth)
-    update()
-    // 守卫 ResizeObserver（jsdom 无此 API）：无则只测一次，不订阅。
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(update)
-    observer.observe(parent)
-    return () => observer.disconnect()
-  }, [])
-
+  // owner 2026-07-25：助手 dock 恒「覆盖态」——叠在生成区上方，不再挤压正文
+  // （原 R4 的「主台扣掉助手宽仍 ≥900px 就停靠 push」阈值逻辑连同宽度测量一并
+  // 移除）。dock 本身是 fixed 出流，正文保持全宽即可被盖住。
   const assistantMounts = useMemo<LoraAssistantMount[]>(
     () =>
       stack.items.map((item) => ({
@@ -1346,17 +1320,6 @@ function GenerateBranch() {
     // 词库（LoraTagPicker）已从生成页移除，待迁入助手（owner 2026-07-24）；
     // 迁入前「自己搭配」escape 暂为空操作。
   }, [])
-  // R4：扣除助手宽后主台仍 ≥900px 才停靠(push 正文)，否则右侧覆盖(不 push,
-  // fixed 助手浮在正文上，不继续压缩)。未测得宽度前默认可停靠（避免开场闪覆盖）。
-  const assistantCanDock =
-    mainAvailableWidth == null ||
-    mainAvailableWidth - assistantDockLayout.widthPx >=
-      LORA_ASSISTANT_DOCK_MIN_MAIN_PX
-  const assistantMarginRight =
-    assistantOpen && !isAssistantMobile && assistantCanDock
-      ? assistantDockLayout.widthPx
-      : 0
-
   const hasLora = stack.items.length > 0
   const canGenerate =
     !!selectedBase?.available &&
@@ -1884,11 +1847,9 @@ function GenerateBranch() {
 
   return (
     <>
-      <section
-        ref={mainSectionRef}
-        className="space-y-4 pb-24 transition-[margin-right] duration-slow ease-standard md:pb-0 md:flex md:min-h-0 md:flex-1 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden"
-        style={{ marginRight: assistantMarginRight }}
-      >
+      {/* 正文保持全宽——助手 dock 是 fixed 覆盖层，叠在上面而不是把这里挤窄
+          （owner 2026-07-25）。 */}
+      <section className="space-y-4 pb-24 md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-4 md:space-y-0 md:overflow-hidden md:pb-0">
         {quickSetup && (
           <QuickSetupDialog
             open={quickSetup.open}

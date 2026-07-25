@@ -1471,7 +1471,10 @@
         "triggerHint": "触发词 · 自动加入，删除有风险",
         "keptUnchanged": "{items} 不变",
         "keptAspectRatio": "尺寸比例",
-        "keptSize": "宽高"
+        "keptSize": "宽高",
+        "recipePending": "来源配方 · {name} · 待审阅",
+        "apply": "应用",
+        "pendingHint": "建议先审阅再出图"
       },
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",

@@ -1471,7 +1471,10 @@
         "triggerHint": "トリガーワード · 自動追加、削除は非推奨",
         "keptUnchanged": "{items} は変更なし",
         "keptAspectRatio": "アスペクト比",
-        "keptSize": "サイズ"
+        "keptSize": "サイズ",
+        "recipePending": "ソースレシピ · {name} · 未確認",
+        "apply": "適用",
+        "pendingHint": "生成する前に確認をおすすめします"
       },
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",

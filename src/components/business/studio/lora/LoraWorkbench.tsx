@@ -1100,6 +1100,17 @@ function GenerateBranch({
     [stack, loraFamily, selectedBase],
   )
 
+  // CD③ 搭配审阅：做同款把值直接写进主台（不改），但标成「待审阅」并自动摊开
+  // 变更卡；用户点「应用」才转成「已应用」，点「撤销」整批回滚。展开态提到这
+  // 一层，因为落台那一刻要能替用户把卡摊开。
+  const [collocationPending, setCollocationPending] = useState(false)
+  const [collocationExpanded, setCollocationExpanded] = useState(false)
+
+  const handleApplyPendingRecipe = useCallback(() => {
+    setCollocationPending(false)
+    setCollocationExpanded(false)
+  }, [])
+
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
@@ -1174,6 +1185,11 @@ function GenerateBranch({
       // owner 2026-07-20：做同款 = 真还原——除了 prompt/参数/底模引用，还把配方
       // 里叠加的其他 LoRA 一起挂上（受容量与架构兼容闸约束）。
       mountExtras(plan.extraLoras)
+      // CD③：落台即进「待审阅」，并把变更卡摊开——用户得先看见改了什么。
+      if (recipeGroupAsset) {
+        setCollocationPending(true)
+        setCollocationExpanded(true)
+      }
     },
     [
       recipeGroupAsset,
@@ -1215,6 +1231,8 @@ function GenerateBranch({
     setRunnerHeight(snap.runnerHeight)
     if (snap.scale != null) stack.setScale(applied.groupAssetId, snap.scale)
     setAppliedRecipe(null)
+    setCollocationPending(false)
+    setCollocationExpanded(false)
   }, [appliedRecipe, stack])
 
   // G3b-2b：仅当 appliedRecipe 的来源分组仍挂载时才算「已应用」（卸载后失效，
@@ -2348,6 +2366,10 @@ function GenerateBranch({
                   disabledTriggerIds={disabledTriggerIds}
                   onToggleTrigger={handleToggleTriggerChip}
                   onUndo={handleUndoRecipe}
+                  pendingReview={collocationPending}
+                  onApplyPending={handleApplyPendingRecipe}
+                  expanded={collocationExpanded}
+                  onExpandedChange={setCollocationExpanded}
                 />
                 {/* 提示词 = 左栏主输入面（confirmed A §3.2）：带标签的高输入框，深炭面
                 上用发丝边框 + 微底圈出主编辑区，是这一列的视觉主角，不被触发词 / 参数

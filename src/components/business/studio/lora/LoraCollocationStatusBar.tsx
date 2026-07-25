@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, RotateCcw } from 'lucide-react'
+import { Check, ChevronDown, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -37,6 +36,18 @@ interface LoraCollocationStatusBarProps {
   disabledTriggerIds: ReadonlySet<string>
   onToggleTrigger: (assetId: string) => void
   onUndo: () => void
+  /**
+   * CD③：配方刚落台、用户还没确认过 = 待审阅。此时总览行说「…· 待审阅」，
+   * 展开区底部出「应用 / 撤销」一对；确认后才转成「已应用」。值本身在做同款
+   * 那一刻就已经写进主台了（CD 的 pending 也是这个语义）——待审阅标的是
+   * 「你还没看过」，不是「还没生效」。
+   */
+  pendingReview?: boolean
+  /** 待审阅态点「应用」：确认这批变更，值保持不动，只是不再催审阅。 */
+  onApplyPending?: () => void
+  /** 展开态提到父层：做同款落台时要能自动摊开这张卡。 */
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
 }
 
 export function LoraCollocationStatusBar({
@@ -50,9 +61,13 @@ export function LoraCollocationStatusBar({
   disabledTriggerIds,
   onToggleTrigger,
   onUndo,
+  pendingReview = false,
+  onApplyPending,
+  expanded,
+  onExpandedChange,
 }: LoraCollocationStatusBarProps) {
   const t = useTranslations('LoraWorkbench.generate.collocation')
-  const [expanded, setExpanded] = useState(false)
+  const isPending = recipeApplied && pendingReview
 
   // 「已加入」= 未停用的触发词计数（停用的 chip 不进编译）。
   const activeTriggerCount = triggerEntries.reduce(
@@ -70,14 +85,24 @@ export function LoraCollocationStatusBar({
     <div className="rounded-lg border border-border bg-muted/20 text-2xs">
       <div className="flex items-center gap-2 px-3 py-2">
         <span
-          className="size-1.5 shrink-0 rounded-full bg-primary/70"
+          className={cn(
+            'size-1.5 shrink-0 rounded-full',
+            // 待审阅时点亮成实心主色（还需要你看一眼），确认后回到常态。
+            isPending ? 'bg-primary' : 'bg-primary/70',
+          )}
           aria-hidden
         />
         <span className="shrink-0 font-medium text-foreground">
           {t('label')}
         </span>
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
-          {recipeApplied ? t('recipeApplied') : null}
+          {isPending ? (
+            <span className="text-foreground">
+              {t('recipePending', { name: recipeName ?? '' })}
+            </span>
+          ) : recipeApplied ? (
+            t('recipeApplied')
+          ) : null}
           {recipeApplied && activeTriggerCount > 0 ? ' · ' : null}
           {activeTriggerCount > 0
             ? t('triggerCount', { count: activeTriggerCount })
@@ -86,7 +111,7 @@ export function LoraCollocationStatusBar({
         {hasDetail ? (
           <button
             type="button"
-            onClick={() => setExpanded((open) => !open)}
+            onClick={() => onExpandedChange(!expanded)}
             aria-expanded={expanded}
             className="inline-flex shrink-0 items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -100,7 +125,9 @@ export function LoraCollocationStatusBar({
             />
           </button>
         ) : null}
-        {recipeApplied ? (
+        {/* 待审阅时头部只留「查看」——应用/撤销一对在展开卡底部（CD③：审阅动作
+            和它要审的内容放在一起，头部不出现两个撤销）。确认后头部才回到撤销。 */}
+        {recipeApplied && !isPending ? (
           <button
             type="button"
             onClick={onUndo}
@@ -178,6 +205,32 @@ export function LoraCollocationStatusBar({
                 </span>
                 <span className="min-w-0 flex-1 text-muted-foreground">
                   {t('keptUnchanged', { items: keptLabels.join(' · ') })}
+                </span>
+              </div>
+            ) : null}
+
+            {/* CD③ 审阅动作对：应用 = 确认这批变更（值不动，只收起催审），
+                撤销 = 回滚到做同款前的输入快照。 */}
+            {isPending ? (
+              <div className="flex items-center gap-2 border-t border-border pt-2.5">
+                <button
+                  type="button"
+                  onClick={onApplyPending}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
+                >
+                  <Check className="size-3" aria-hidden />
+                  {t('apply')}
+                </button>
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground active:scale-[0.98]"
+                >
+                  <RotateCcw className="size-3" aria-hidden />
+                  {t('undo')}
+                </button>
+                <span className="min-w-0 flex-1 text-right text-muted-foreground">
+                  {t('pendingHint')}
                 </span>
               </div>
             ) : null}

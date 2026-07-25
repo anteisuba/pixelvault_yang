@@ -1471,7 +1471,10 @@
         "triggerHint": "Trigger words · added automatically, removing is risky",
         "keptUnchanged": "{items} unchanged",
         "keptAspectRatio": "Aspect ratio",
-        "keptSize": "Size"
+        "keptSize": "Size",
+        "recipePending": "Source recipe · {name} · needs review",
+        "apply": "Apply",
+        "pendingHint": "Review before you generate"
       },
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",

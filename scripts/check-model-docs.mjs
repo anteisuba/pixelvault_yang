@@ -9,7 +9,18 @@ import typescript from 'typescript'
 
 const ts = typescript
 
-const MODELS_FILE = path.join(process.cwd(), 'src/constants/models.ts')
+// The catalog is one file per output type. `src/constants/models.ts` is now
+// only a barrel that spreads them into MODEL_OPTIONS — parsing the barrel finds
+// the array but every element is a SpreadElement, so it yields zero models
+// while still reporting success. See the zero-model guard in buildReport().
+const MODELS_DIR = path.join(process.cwd(), 'src/constants/models')
+const MODEL_ENUM_FILE = path.join(MODELS_DIR, 'enum.ts')
+const MODEL_CATALOG_FILES = [
+  path.join(MODELS_DIR, 'image.ts'),
+  path.join(MODELS_DIR, 'video.ts'),
+  path.join(MODELS_DIR, 'audio.ts'),
+  path.join(MODELS_DIR, 'model-3d.ts'),
+]
 const DEFAULT_TIMEOUT_MS = 20_000
 const USER_AGENT = 'pixelvault-model-doc-monitor/1.0'
 const DEPRECATION_KEYWORDS = [
@@ -80,7 +91,7 @@ const EXTRA_WATCH_PAGES = [
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
-  const models = await loadModels(MODELS_FILE)
+  const models = await loadModels()
   const report = await buildReport(models, args)
 
   if (args.reportJson) {
@@ -201,6 +212,24 @@ async function buildReport(models, args) {
   )
   const findings = []
 
+  // A zero-model catalog is always a bug in this script, never a real
+  // inventory: every per-model check below (preview residue, deprecation
+  // keywords, missing officialUrl) silently no-ops while the job still reports
+  // success. That is how gemini-3-pro-image-preview stayed in the catalog for a
+  // month past its 2026-06-25 shutdown — the catalog moved into
+  // src/constants/models/ and this loader kept returning [] without complaining.
+  if (models.length === 0) {
+    findings.push({
+      severity: 'error',
+      scope: 'inventory',
+      title: 'Model catalog parsed to zero models',
+      detail: `No available ModelOption entries were extracted from ${MODEL_CATALOG_FILES.map(
+        (file) => path.relative(process.cwd(), file).replaceAll('\\', '/'),
+      ).join(', ')}. The parser is out of sync with the catalog layout.`,
+      relatedModels: [],
+    })
+  }
+
   for (const model of missingOfficialUrl) {
     findings.push({
       severity: 'error',
@@ -277,7 +306,7 @@ async function buildReport(models, args) {
 
   return {
     generatedAt: new Date().toISOString(),
-    sourceFile: path.relative(process.cwd(), MODELS_FILE).replaceAll('\\', '/'),
+    sourceFile: path.relative(process.cwd(), MODELS_DIR).replaceAll('\\', '/'),
     inventory: {
       summary: inventorySummary,
       models,
@@ -688,15 +717,19 @@ function diffSnapshotItems(previousItems, currentItems) {
   return { added, removed, changed }
 }
 
-async function loadModels(filePath) {
+async function parseSourceFile(filePath) {
   const source = await fs.readFile(filePath, 'utf8')
-  const sourceFile = ts.createSourceFile(
+  return ts.createSourceFile(
     filePath,
     source,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TS,
   )
+}
+
+async function loadModelEnum(filePath) {
+  const sourceFile = await parseSourceFile(filePath)
   const enumValues = new Map()
 
   for (const statement of sourceFile.statements) {
@@ -716,6 +749,21 @@ async function loadModels(filePath) {
     }
   }
 
+  if (enumValues.size === 0) {
+    throw new Error(`Unable to locate the AI_MODELS enum in ${filePath}`)
+  }
+
+  return enumValues
+}
+
+// Each catalog file exports exactly one `<NAME>_OPTIONS: ModelOption[]`. Throw
+// instead of returning [] when that array goes missing — a silently empty parse
+// is the exact failure this loader already shipped once.
+async function loadModelsFromCatalogFile(filePath, enumValues) {
+  const sourceFile = await parseSourceFile(filePath)
+  const models = []
+  let foundCatalogArray = false
+
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) {
       continue
@@ -724,14 +772,14 @@ async function loadModels(filePath) {
     for (const declaration of statement.declarationList.declarations) {
       if (
         !ts.isIdentifier(declaration.name) ||
-        declaration.name.text !== 'MODEL_OPTIONS' ||
+        !declaration.name.text.endsWith('_OPTIONS') ||
         !declaration.initializer ||
         !ts.isArrayLiteralExpression(declaration.initializer)
       ) {
         continue
       }
 
-      const models = []
+      foundCatalogArray = true
 
       for (const element of declaration.initializer.elements) {
         if (!ts.isObjectLiteralExpression(element)) {
@@ -743,12 +791,25 @@ async function loadModels(filePath) {
           models.push(model)
         }
       }
-
-      return models
     }
   }
 
-  throw new Error('Unable to locate MODEL_OPTIONS in src/constants/models.ts')
+  if (!foundCatalogArray) {
+    throw new Error(`Unable to locate a *_OPTIONS array in ${filePath}`)
+  }
+
+  return models
+}
+
+async function loadModels() {
+  const enumValues = await loadModelEnum(MODEL_ENUM_FILE)
+  const models = []
+
+  for (const filePath of MODEL_CATALOG_FILES) {
+    models.push(...(await loadModelsFromCatalogFile(filePath, enumValues)))
+  }
+
+  return models
 }
 
 function extractModelOption(node, enumValues) {

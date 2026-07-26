@@ -33,7 +33,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
-    externalModelId: 'gemini-3-pro-image-preview',
+    // GA id — the `-preview` variant shut down 2026-06-25. Enum value keeps
+    // the old string (stable DB/i18n key); only the execution id moves.
+    externalModelId: 'gemini-3-pro-image',
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
@@ -55,28 +57,75 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     maxPromptChars: 8000,
   },
   {
+    // Seedream 5.0 Pro — #8 on the Artificial Analysis text-to-image arena.
+    // NOTE: this endpoint has NO `fal-ai/` prefix (same as `ideogram/v4`);
+    // third-party-owned fal models are addressed by owner/model directly.
+    id: AI_MODELS.SEEDREAM_50_PRO,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedream/v5/pro/text-to-image',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/bytedance/seedream/v5/pro/text-to-image',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
+    // Seedream 5.0 Lite — value tier; prompts can trigger a web search for
+    // time-sensitive subjects. $0.035/image.
+    id: AI_MODELS.SEEDREAM_50_LITE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/bytedance/seedream/v5/lite/text-to-image',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/text-to-image',
+    qualityTier: 'standard',
+    styleTag: 'artistic',
+  },
+  {
+    // VolcEngine (火山方舟) direct-API variant of Seedream 5.0 — cn region.
+    // Additive alongside the fal entries above. Adapter passes externalModelId
+    // through as the Ark `model` field.
+    id: AI_MODELS.SEEDREAM_50_VOLCENGINE,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedream-5-0-260128',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://console.volcengine.com/ark/region:ark+cn-beijing/model',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
+    // Retired 2026-07-26 — superseded by Seedream 5.0; entry kept so archived
+    // generations still resolve a label. See RETIRED_MODEL_IDS.
     id: AI_MODELS.SEEDREAM_45,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/bytedance/seedream/v4.5/text-to-image',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl: 'https://seed.bytedance.com/en/seedream4_5',
     qualityTier: 'premium',
     styleTag: 'artistic',
   },
   {
-    // VolcEngine (火山方舟) direct-API variant of Seedream 4.5 — cn region.
-    // Additive alongside the fal.ai entry above. Adapter passes externalModelId
-    // through as the Ark `model` field.
+    // Retired 2026-07-26 — superseded by SEEDREAM_50_VOLCENGINE.
     id: AI_MODELS.SEEDREAM_45_VOLCENGINE,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
     externalModelId: 'doubao-seedream-4-5-251128',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl:
       'https://console.volcengine.com/ark/region:ark+cn-beijing/model',
     qualityTier: 'premium',
@@ -89,7 +138,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'ideogram/v4',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-07-26 — outside the top 15 on blind-vote arenas and its
+    // text-rendering niche is now covered by GPT Image 2 / Seedream 5.0.
+    available: false,
     officialUrl: 'https://fal.ai/models/ideogram/v4',
     qualityTier: 'premium',
     styleTag: 'design',
@@ -100,10 +151,12 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/recraft/v4/pro/text-to-image',
+    // V4.1 (2026-05-14) — direct successor to V4, same API shape. Kept in the
+    // catalog because Recraft is the only vector/SVG-capable model here.
+    externalModelId: 'fal-ai/recraft/v4.1/pro/text-to-image',
     outputType: 'IMAGE',
     available: true,
-    officialUrl: 'https://www.recraft.ai/docs/api-reference/getting-started',
+    officialUrl: 'https://fal.ai/models/fal-ai/recraft/v4.1/pro/text-to-image',
     qualityTier: 'premium',
     styleTag: 'design',
     maxPromptChars: 10_000,
@@ -115,7 +168,10 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
     externalModelId: 'nai-diffusion-4-5-full',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-07-26 — 46% success rate in this deployment (42/91 calls)
+    // and bottom of the arena. Anime line stays covered by ILLUSTRIOUS_XL and
+    // the runner family, which is also where user LoRAs actually work.
+    available: false,
     officialUrl: 'https://docs.novelai.net/en/image/models',
     qualityTier: 'premium',
     styleTag: 'anime',
@@ -127,7 +183,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
     externalModelId: 'nai-diffusion-4-5-curated',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-07-26 — retired alongside the full variant.
+    available: false,
     officialUrl: 'https://docs.novelai.net/en/image/models',
     qualityTier: 'premium',
     styleTag: 'anime',
@@ -183,6 +240,22 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl:
       'https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image',
     qualityTier: 'standard',
+    styleTag: 'general',
+    maxPromptChars: 8000,
+  },
+  {
+    // Nano Banana 2 Lite — GA 2026-06-30. #4 on the Artificial Analysis
+    // text-to-image arena while being the cheapest Gemini image tier.
+    id: AI_MODELS.GEMINI_FLASH_LITE_IMAGE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+    externalModelId: 'gemini-3.1-flash-lite-image',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-image',
+    qualityTier: 'budget',
     styleTag: 'general',
     maxPromptChars: 8000,
   },

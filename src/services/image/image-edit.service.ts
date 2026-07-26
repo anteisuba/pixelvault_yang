@@ -261,7 +261,7 @@ function isSafetyFilterMessage(message: string): boolean {
   )
 }
 
-// ─── Gemini Nano Banana Pro (gemini-3-pro-image-preview) ────────
+// ─── Gemini Nano Banana Pro (gemini-3-pro-image) ────────
 
 const GeminiEditResponseSchema = z.object({
   candidates: z
@@ -853,7 +853,7 @@ async function extractElementWithGenerativeModel(
  *     return a binary mask; we composite source × mask into a transparent PNG.
  *     The `invert` flag negates the mask (powering the "background" preset).
  *
- *   - **Gemini / OpenAI (gpt-image-2, gemini-3-pro-image-preview)** —
+ *   - **Gemini / OpenAI (gpt-image-2, gemini-3-pro-image)** —
  *     generative edit models redraw the image with the named subject isolated
  *     on transparent background. `invert` flips the prompt to remove the
  *     subject instead of keeping it.

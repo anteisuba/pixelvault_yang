@@ -32,6 +32,10 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.IDEOGRAM_3]: 'ideogram3',
   [AI_MODELS.SEEDREAM_45]: 'seedream45',
   [AI_MODELS.SEEDREAM_45_VOLCENGINE]: 'seedream45Volcengine',
+  [AI_MODELS.SEEDREAM_50_PRO]: 'seedream50Pro',
+  [AI_MODELS.SEEDREAM_50_LITE]: 'seedream50Lite',
+  [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'seedream50Volcengine',
+  [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'geminiFlashLiteImage',
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
   [AI_MODELS.ILLUSTRIOUS_XL]: 'illustriousXl',
@@ -82,6 +86,17 @@ export const RETIRED_MODEL_IDS = [
   // Keep this disabled catalog entry so Civitai Anima base-model LoRAs can
   // route to "open in Civitai" until a commercial hosted endpoint exists.
   AI_MODELS.ANIMA_PENCIL_XL,
+  // ─── 2026-07-26 slim-down (market-mainstream audit) ───────────────
+  // Entries stay in the catalog so archived generations keep resolving a
+  // label and family — permanent archival is a product guarantee.
+  AI_MODELS.SEEDREAM_45,
+  AI_MODELS.SEEDREAM_45_VOLCENGINE,
+  AI_MODELS.IDEOGRAM_3,
+  AI_MODELS.NOVELAI_V45_FULL,
+  AI_MODELS.NOVELAI_V45_CURATED,
+  AI_MODELS.VEO_31,
+  AI_MODELS.LTX_23,
+  AI_MODELS.ELEVENLABS_V3,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)
@@ -105,6 +120,10 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.FLUX_LORA]: 'FLUX',
   [AI_MODELS.SEEDREAM_45]: 'Seedream',
   [AI_MODELS.SEEDREAM_45_VOLCENGINE]: 'Seedream',
+  [AI_MODELS.SEEDREAM_50_PRO]: 'Seedream',
+  [AI_MODELS.SEEDREAM_50_LITE]: 'Seedream',
+  [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'Seedream',
+  [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'Gemini',
   [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
   [AI_MODELS.RECRAFT_V4_PRO]: 'Recraft',
   [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',

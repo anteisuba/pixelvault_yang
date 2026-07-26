@@ -173,7 +173,12 @@ describe('falAdapter.generateImage', () => {
     [AI_MODELS.FLUX_2_FLASH, 'fal-ai/flux-2/flash'],
     [AI_MODELS.SEEDREAM_45, 'fal-ai/bytedance/seedream/v4.5/text-to-image'],
     [AI_MODELS.IDEOGRAM_3, 'ideogram/v4'],
-    [AI_MODELS.RECRAFT_V4_PRO, 'fal-ai/recraft/v4/pro/text-to-image'],
+    [AI_MODELS.RECRAFT_V4_PRO, 'fal-ai/recraft/v4.1/pro/text-to-image'],
+    [AI_MODELS.SEEDREAM_50_PRO, 'bytedance/seedream/v5/pro/text-to-image'],
+    [
+      AI_MODELS.SEEDREAM_50_LITE,
+      'fal-ai/bytedance/seedream/v5/lite/text-to-image',
+    ],
   ])(
     'does not send reference images to FAL text-to-image endpoint %s',
     async (modelId, externalModelId) => {

@@ -34,7 +34,10 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     externalModelId: 'eleven_v3',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SPEECH,
-    available: true,
+    // Retired 2026-07-26 — ~6.7x the price of Fish Audio S2 Pro ($100 vs $15
+    // per 1M chars) at comparable arena standing. The SFX variant below stays:
+    // it is the only sound-effect model in the catalog.
+    available: false,
     officialUrl:
       'https://elevenlabs.io/docs/api-reference/text-to-speech/convert',
     timeoutMs: 60_000,

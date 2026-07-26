@@ -2877,8 +2877,12 @@
       "description": "支持 LoRA 的 FLUX 模型。可加载自定义 LoRA 实现动漫、3D、角色一致性等风格控制。"
     },
     "geminiProImage": {
-      "label": "Gemini 3.1 Pro Image",
+      "label": "Gemini 3 Pro Image",
       "description": "Google 旗舰级图像模型，工作室品质 4K 视觉效果。"
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google 最快、成本最低的图像档位——适合快速草稿与大批量迭代。"
     },
     "ideogram3": {
       "label": "Ideogram V4",
@@ -2891,6 +2895,18 @@
     "seedream45Volcengine": {
       "label": "Seedream 4.5（火山引擎）",
       "description": "经火山方舟（Ark）直连 API 调用的 Seedream 4.5 — 国内区域。"
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "字节跳动旗舰图像模型——深度思考式提示词理解，14 种语言原生文字渲染。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Seedream 5.0 性价比档——提示词可触发联网搜索，适合时效性主题。"
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0（火山引擎）",
+      "description": "经火山方舟（Ark）直连 API 调用的 Seedream 5.0 — 国内区域。"
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",

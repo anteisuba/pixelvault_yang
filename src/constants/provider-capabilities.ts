@@ -245,6 +245,25 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ] as const,
     resolutionOptions: ['2K', '4K'],
   },
+  [AI_MODELS.SEEDREAM_50_PRO]: {
+    maxReferenceImages: 0,
+    // Same shape as the 4.5 override — full replacement, not a merge, because
+    // resolveConfig() swaps `capabilities` wholesale. 5.0 tops out at 2K
+    // (pricing tiers are ≤1536² and ≤2048²), so no 4K option here.
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'imageAnalysis',
+      'lora',
+      'resolution',
+    ] as const,
+    resolutionOptions: ['2K'],
+  },
+  [AI_MODELS.SEEDREAM_50_LITE]: {
+    maxReferenceImages: 0,
+  },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,
   },

@@ -136,6 +136,22 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.78,
     },
   },
+  // Added 2026-07-26. This entry was missing entirely, so the router had no
+  // styleFit signal for the model and anime intents could only ever land on
+  // NovelAI. With NovelAI retired, Illustrious/NoobAI carries the anime line —
+  // and it is tag-based (danbooru) for the same reasons NovelAI was.
+  [AI_MODELS.ILLUSTRIOUS_XL]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'NoobAI/Illustrious-family anime model driven by danbooru tags. Emit comma-separated tags with quality tags first, then character tags, then style and scene. Emphasis syntax like (feature:1.3) works.',
+    routerWeights: {
+      referenceFit: 0.6,
+      costEfficiency: 0.9,
+      latency: 0.6,
+      health: 0.8,
+    },
+  },
   [AI_MODELS.IDEOGRAM_3]: {
     bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],
     promptStyle: 'natural-language',
@@ -169,6 +185,30 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       referenceFit: 0.7,
       costEfficiency: 0.65,
       latency: 0.7,
+      health: 0.86,
+    },
+  },
+  [AI_MODELS.SEEDREAM_50_PRO]: {
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Reasoning-based model that plans before it draws. Give it dense layout and typography instructions — it renders native text in 14 languages and holds structured designs together.',
+    routerWeights: {
+      referenceFit: 0.72,
+      costEfficiency: 0.6,
+      latency: 0.65,
+      health: 0.88,
+    },
+  },
+  [AI_MODELS.SEEDREAM_50_LITE]: {
+    bestFor: ['general', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    enhanceHint:
+      'Value tier of Seedream 5.0. Keep prompts concise and concrete; it can ground time-sensitive subjects with a web search.',
+    routerWeights: {
+      referenceFit: 0.65,
+      costEfficiency: 0.85,
+      latency: 0.8,
       health: 0.86,
     },
   },

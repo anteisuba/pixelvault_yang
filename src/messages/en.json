@@ -2877,8 +2877,12 @@
       "description": "FLUX with LoRA support. Apply custom LoRA models for anime, 3D, character consistency, and more."
     },
     "geminiProImage": {
-      "label": "Gemini 3.1 Pro Image",
+      "label": "Gemini 3 Pro Image",
       "description": "Google's premium image model with studio-quality 4K visuals."
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google's fastest, lowest-cost image tier — quick drafts and high-volume iteration."
     },
     "ideogram3": {
       "label": "Ideogram V4",
@@ -2891,6 +2895,18 @@
     "seedream45Volcengine": {
       "label": "Seedream 4.5 (VolcEngine)",
       "description": "Seedream 4.5 via VolcEngine (Ark) direct API — China region."
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "ByteDance's flagship image model — deep-thinking prompt understanding and native text in 14 languages."
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Value tier of Seedream 5.0 — prompts can trigger a web search for time-sensitive subjects."
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0 (VolcEngine)",
+      "description": "Seedream 5.0 via VolcEngine (Ark) direct API — China region."
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",

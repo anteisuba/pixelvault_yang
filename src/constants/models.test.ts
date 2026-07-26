@@ -125,9 +125,10 @@ describe('models', () => {
   })
 
   it('keeps supported audio generation models active', () => {
+    // ELEVENLABS_V3 retired 2026-07-26 (priced ~6.7x Fish S2 Pro). The SFX
+    // variant stays — it is the only sound-effect model in the catalog.
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
-      AI_MODELS.ELEVENLABS_V3,
       AI_MODELS.ELEVENLABS_SFX_V2,
     ])
   })

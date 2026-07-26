@@ -70,8 +70,8 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     provider: 'fal',
     displayName: 'EVF-SAM',
   },
-  'gemini-3-pro-image-preview': {
-    id: 'gemini-3-pro-image-preview',
+  'gemini-3-pro-image': {
+    id: 'gemini-3-pro-image',
     provider: 'gemini',
     displayName: 'Nano Banana Pro',
   },

@@ -13,69 +13,101 @@
 
 月审步骤固定五问：现役哪些？官方出了什么新的？哪些该加（直连优先）？哪些该退（用量/被上位替代）？接口/错误格式变了吗？
 
-## 现役阵容（2026-07-10 盘点，`available: true`）
+## 现役阵容（2026-07-26 盘点，`available: true`）
 
-### 图像（14）
+### 图像（13 + 5 runner）
 
-| enum                         | externalModelId                              | 通道               |
-| ---------------------------- | -------------------------------------------- | ------------------ |
-| OPENAI_GPT_IMAGE_2           | （同 id）                                    | OpenAI 直连        |
-| GEMINI_PRO_IMAGE             | gemini-3-pro-image-preview                   | Gemini 直连        |
-| GEMINI_FLASH_IMAGE           | gemini-3.1-flash-image                       | Gemini 直连        |
-| FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash      | fal                |
-| FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi            | fal                |
-| FLUX_LORA                    | fal-ai/flux-lora                             | fal                |
-| **SEEDREAM_45**              | fal-ai/bytedance/seedream/v4.5/text-to-image | fal                |
-| **SEEDREAM_45_VOLCENGINE**   | doubao-seedream-4-5-251128                   | 火山方舟直连（cn） |
-| IDEOGRAM_3                   | ideogram/v4                                  | replicate          |
-| RECRAFT_V4_PRO               | fal-ai/recraft/v4/pro/text-to-image          | fal                |
-| NOVELAI_V45_FULL / \_CURATED | nai-diffusion-4-5-full · -curated            | NovelAI 直连       |
-| ILLUSTRIOUS_XL               | delta-lock/noobai-xl                         | replicate          |
+| enum                        | externalModelId                                   | 通道               |
+| --------------------------- | ------------------------------------------------- | ------------------ |
+| OPENAI_GPT_IMAGE_2          | （同 id）                                         | OpenAI 直连        |
+| GEMINI_PRO_IMAGE            | gemini-3-pro-image                                | Gemini 直连        |
+| GEMINI_FLASH_IMAGE          | gemini-3.1-flash-image                            | Gemini 直连        |
+| **GEMINI_FLASH_LITE_IMAGE** | gemini-3.1-flash-lite-image                       | Gemini 直连        |
+| FLUX_2_PRO / FLUX_2_FLASH   | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                |
+| FLUX_KONTEXT_MAX            | fal-ai/flux-pro/kontext/max/multi                 | fal                |
+| FLUX_LORA                   | fal-ai/flux-lora                                  | fal                |
+| **SEEDREAM_50_PRO**         | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                |
+| **SEEDREAM_50_LITE**        | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                |
+| **SEEDREAM_50_VOLCENGINE**  | doubao-seedream-5-0-260128                        | 火山方舟直连（cn） |
+| RECRAFT_V4_PRO              | fal-ai/recraft/v4.1/pro/text-to-image             | fal                |
+| ILLUSTRIOUS_XL              | delta-lock/noobai-xl                              | replicate          |
 
-不可用：ANIMA_PENCIL_XL（false；SDXL 系走 Comfy runner 计划，见 HANDOFF §4.2b）。
+⚠ **`bytedance/seedream/v5/pro/...` 没有 `fal-ai/` 前缀**（同 `ideogram/v4` 的模式）——fal 上第三方 owner 的模型按 owner/model 直接寻址，照 4.5 的写法抄会 404。
 
-### 视频（12）
+Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。这一族是唯一真正吃用户 LoRA 的线。
 
-| enum                                                | externalModelId                                  | 通道                    |
-| --------------------------------------------------- | ------------------------------------------------ | ----------------------- |
-| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video      | fal                     |
-| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video | fal（画布视频汇点主力） |
-| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）      |
-| VEO_31                                              | fal-ai/veo3.1                                    | fal                     |
-| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal                     |
-| HAPPYHORSE_10                                       | alibaba/happy-horse/text-to-video                | fal                     |
-| LTX_23                                              | fal-ai/ltx-2.3/text-to-video                     | fal                     |
+### 视频（10）
 
-### 音频（3）
+| enum                                                | externalModelId                                  | 通道                      |
+| --------------------------------------------------- | ------------------------------------------------ | ------------------------- |
+| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video      | fal                       |
+| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video | fal（画布视频汇点主力）   |
+| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）        |
+| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal（唯一 native extend） |
+| HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                       |
 
-FISH_AUDIO_S2_PRO（s2-pro，Fish 直连）· ELEVENLABS_V3（eleven_v3）· ELEVENLABS_SFX_V2（eleven_sfx_v2）。
+### 音频（2）
+
+FISH_AUDIO_S2_PRO（s2-pro，Fish 直连）· ELEVENLABS_SFX_V2（eleven_sfx_v2，**唯一音效模型**）。
 
 ### 3D（5）
 
 RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全 fal 系）；HUNYUAN3D_2_1 已 false（被 v3.1 上位替代）。
 
-## 本月发现（2026-07）
+## 本月发现（2026-07-26，首次全量 + 市场主流度审计）
 
-### Seedream 4.5 → 5.0（owner 点名，已官方核验 2026-07-10）
+### ① 生产事故：`gemini-3-pro-image-preview` 已被 Google 关停（已修）
 
-- **Seedream 5.0 已发布**（2026-02，经即梦/火山方舟；fal 已上架）。变体：**5.0 Lite**（text-to-image + edit）与 **5.0 Pro**（text-to-image 旗舰）。
-- 新能力：提示词触发**联网搜索**（时效性内容/公众人物）、**低幻觉可控编辑**（前后对照学变换）、生成前 **CoT 推理**（DiT + 高压缩 VAE 架构）。
-- fal endpoints：`fal-ai/bytedance/seedream/v5/lite/text-to-image` · `fal-ai/bytedance/seedream/v5/lite/edit` · `bytedance/seedream/v5/pro/text-to-image`。
-- 官方声明 API 向后兼容，迁移成本低；火山方舟侧 ark model id **待控制台核对**（沿用 additive 双版本原则）。
+`GEMINI_PRO_IMAGE.externalModelId` 一直是 preview 档，Google 停用表写明 **2026-06-25 关停**，GA 替代是 `gemini-3-pro-image`（GA 于 5-28）。同一模式的 flash 档在 2026-06 的精简报告 §310 里修过，pro 漏了。
 
-### 建议表（待 owner 拍板）
+修复面（只改 externalModelId 语义处，**enum 值不动**——它是 DB/i18n 稳定键）：
 
-| 动作 | 模型                                                             | 理由                                          |
-| ---- | ---------------------------------------------------------------- | --------------------------------------------- |
-| 添加 | SEEDREAM_50_PRO（fal `bytedance/seedream/v5/pro/text-to-image`） | 旗舰直代升级，当前 4.5 的正统后继             |
-| 添加 | SEEDREAM_50_LITE（fal `.../v5/lite/text-to-image`）              | 性价比档 + 联网搜索能力                       |
-| 添加 | SEEDREAM_50_VOLCENGINE（ark id 待控制台核对）                    | 国内直连，按 additive 双版本原则与 fal 并存   |
-| 评估 | 5.0 Lite **edit** 端点接入图像编辑链路                           | 低幻觉编辑是编辑工作台的能力升级              |
-| 保留 | SEEDREAM_45 双版本暂不退役                                       | 与 5.0 并行验证风格/成本/稳定性一个周期后再议 |
+- `src/constants/models/image.ts` — GEMINI_PRO_IMAGE 执行 id
+- `src/constants/providers.ts` — 自定义模型示例（原本给用户填的是已关停 id）
+- `src/constants/edit-tasks.ts` + `canvas-image-edit-capabilities.ts` — **这两处是直发 id**：`image-edit.service.ts` 用 `params.modelId` 直接拼 URL，不走 `getExecutionModelId`，所以只改 models/image.ts 修不到 /studio/edit 链路
 
-### 本月未覆盖（下次月审 = 首次全量）
+### ② 周检 CI 空转了约 2.5 个月（根因，修复补丁待应用）
 
-其余 provider 新版本扫描（Veo / Kling / FLUX / Recraft / NovelAI / ElevenLabs / Fish / 3D 族 / Gemini/OpenAI 图像）与各 provider 错误信息格式抽查——首次全量审计待排期。
+`scripts/check-model-docs.mjs` 读 `src/constants/models.ts`，但目录已于 2026-05-11（`0c87b256`）拆进 `models/` 子目录。实跑 `models parsed: 0`——按模型的检查（含专门防 preview 残留的第 250 行、Gemini 生命周期交叉检查的第 586 行）全部静默失效。①之所以没被 CI 抓到就是这个原因。
+
+修复要点：读 `models/enum.ts` + 四个 `*_OPTIONS` 子文件，并在**解析到 0 个模型时抛错**——原脚本的失败模式是空数组 + 报告一切正常，比直接报错危险得多。
+
+### ③ 目录是 DB-first，但 ModelConfig 表当前为空
+
+`getResolvedModelOption()` 先查 `ModelConfig` 表，命中就用 `config.externalModelId` **无条件覆盖**代码常量（`toResolvedModelOption` 不是 `??` 回退）。实测生产库 `ModelConfig` **0 行**，所以代码常量当前就是唯一事实源。⚠ 一旦有人往这张表写数据，改代码常量将不再生效。
+
+### ④ 市场主流度对账（判据：公开榜单，非本项目内部用量）
+
+图像 —— Artificial Analysis text-to-image arena（blind vote）：GPT Image 2 (high) 1338 居首，其后 Reve 2.1 · MAI-Image-2.5 · Nano Banana 2 Lite 1262 · Nano Banana 2 1261 · HiDream-O1 · **Seedream 5.0 Pro 1239（#8）** · Nano Banana Pro 1223（#9）· Recraft V4.1 1202（#13）· FLUX.2 [max] 1194（#15）。**Seedream 4.5 与 Ideogram 均未进前 15。**
+
+视频 —— **Gemini Omni Flash 三榜通杀**（T2V 无音频 1325 / T2V 有音频 1244 / I2V 1375）；HappyHorse-1.0/1.1 与 Seedance 2.0 稳居前五；**Veo 3.1 与 Kling v3 均已跌出前五**。
+
+TTS —— Fish Audio S2 Pro（#11，$15/1M 字符）对 ElevenLabs v3（$100/1M）性价比压倒，且 Inworld / Gemini 3.1 Flash TTS 在质量上已超过 v3。
+
+LoRA 底模 —— Civitai 三派系（Pony / Illustrious+NoobAI / SDXL+FLUX）中 **Illustrious/NoobAI 是当前最热的新标准**，项目的 `delta-lock/noobai-xl` 正压在这条线上。
+
+### ⑤ 本轮退役（`available: false` + 进 RETIRED_MODEL_IDS，不物理删除）
+
+| 退役                         | 理由                                                      |
+| ---------------------------- | --------------------------------------------------------- |
+| SEEDREAM_45 / \_VOLCENGINE   | 被 5.0 取代                                               |
+| IDEOGRAM_3                   | 未进前 15；文字排版位已被 GPT Image 2 / Seedream 5.0 覆盖 |
+| NOVELAI_V45_FULL / \_CURATED | 本部署 46% 成功率（42/91 次）+ 榜单垫底                   |
+| VEO_31                       | 跌出视频前五且单价最高（8 credit）                        |
+| LTX_23                       | 未上榜；budget 位由 SEEDANCE_20_FAST 承担                 |
+| ELEVENLABS_V3                | 约 6.7 倍于 Fish S2 Pro 的价格，质量不占优                |
+
+**退役 ≠ 删除**：条目保留在 enum / MODEL_OPTIONS / i18n 里，只是从选择器消失。永久归档是产品承诺，历史 Generation 记录的 `model` 字段引用着这些 id，物理删除会让旧作品失去模型标签与所属族。
+
+保留的独占能力（删除前必查）：Recraft = 唯一矢量/SVG 输出；ELEVENLABS_SFX_V2 = 唯一音效模型；KLING_V3_PRO = 退役 Veo 后唯一 native video extend；火山方舟五变体 = 唯一国内直连线。
+
+### ⑥ 待接（本轮未做，各有明确阻塞）
+
+| 模型              | 状态                                                                                                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seedance 2.5      | **未 GA**。fal 原话「announced, not yet released」；模型页 `bytedance/seedance-2.5/text-to-video` 存在但为 early access，需申请且限美国境外 B2B + 身份验证                                         |
+| Gemini Omni Flash | 视频三榜第一，但走**全新 Interactions API**（`client.interactions.create`，非 `generateContent`），返回 base64/URI 双路 + 轮询——属 adapter 级新工作，需单独排期。且为 `-preview` 档，有重蹈①的风险 |
+| Seedream 5.0 edit | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                |
 
 ## 接入执行规范（指针）
 
@@ -91,4 +123,4 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 
 ## Last Audited
 
-- Date: 2026-07-10 · 范围：全量盘点（34 现役）+ Seedream 族官方核验；其余 provider 留首次全量月审。下次月审：**2026-08 初**。
+- Date: 2026-07-26 · 范围：**首次全量**——全 provider 版本扫描 + 公开榜单主流度对账 + 生产库用量/成功率抽样。产出：修复 1 起线上失效（Gemini pro preview）、定位 1 起 CI 空转（周检脚本）、接入 4 个（Seedream 5.0 ×3 + Nano Banana 2 Lite）、升级 2 个（Recraft V4.1 / HappyHorse v1.1）、退役 7 个。下次月审：**2026-08 初**，重点跟进 Seedance 2.5 是否 GA 与 Gemini Omni Flash 接入排期。

@@ -2877,8 +2877,12 @@
       "description": "LoRA対応のFLUX。アニメ、3D、キャラクター一貫性など、カスタムLoRAモデルを適用可能。"
     },
     "geminiProImage": {
-      "label": "Gemini 3.1 Pro Image",
+      "label": "Gemini 3 Pro Image",
       "description": "Google のプレミアム画像モデル。スタジオ品質の4Kビジュアル。"
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google で最速・最安の画像ティア。ラフ生成や大量反復に最適。"
     },
     "ideogram3": {
       "label": "Ideogram V4",
@@ -2891,6 +2895,18 @@
     "seedream45Volcengine": {
       "label": "Seedream 4.5（火山エンジン）",
       "description": "火山エンジン（Ark）直接 API 経由の Seedream 4.5 — 中国リージョン。"
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "ByteDanceのフラッグシップ画像モデル。深い思考によるプロンプト理解と14言語のネイティブ文字描画。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Seedream 5.0 のコスパ重視ティア。プロンプトからWeb検索を実行し、時事的な題材にも対応。"
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由の Seedream 5.0 — 中国リージョン。"
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",

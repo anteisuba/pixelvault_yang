@@ -17,14 +17,15 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.FAL,
       AI_ADAPTER_TYPES.REPLICATE,
-      AI_ADAPTER_TYPES.NOVELAI,
+      // NOVELAI dropped out 2026-07-26: both V4.5 models retired, so no
+      // available model routes to it anymore. Existing user keys are untouched.
       // VolcEngine (火山方舟) became active once the direct-API Seedance/Seedream
       // variants shipped as available models — users need to configure its key.
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.FISH_AUDIO,
       AI_ADAPTER_TYPES.HYPER3D_RODIN,
-      // DashScope (Qwen) is active as an LLM text/vision route; ElevenLabs is
-      // active once its v3 TTS model shipped as an available audio model.
+      // DashScope (Qwen) is active as an LLM text/vision route; ElevenLabs
+      // stays active through its SFX model (the v3 TTS model was retired).
       AI_ADAPTER_TYPES.DASHSCOPE,
       AI_ADAPTER_TYPES.ELEVENLABS,
     ])

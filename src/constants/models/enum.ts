@@ -15,6 +15,14 @@ export enum AI_MODELS {
   SEEDREAM_45 = 'seedream-4.5',
   /** Seedream 4.5 via VolcEngine (火山方舟) direct API — cn region. */
   SEEDREAM_45_VOLCENGINE = 'seedream-4.5-volcengine',
+  /** Seedream 5.0 Pro — flagship successor to 4.5 (fal, no `fal-ai/` prefix). */
+  SEEDREAM_50_PRO = 'seedream-5.0-pro',
+  /** Seedream 5.0 Lite — value tier with web-search-grounded prompts. */
+  SEEDREAM_50_LITE = 'seedream-5.0-lite',
+  /** Seedream 5.0 via VolcEngine (火山方舟) direct API — cn region. */
+  SEEDREAM_50_VOLCENGINE = 'seedream-5.0-volcengine',
+  /** Nano Banana 2 Lite — ultra-low-latency Gemini image tier. */
+  GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
   ILLUSTRIOUS_XL = 'illustrious-xl',

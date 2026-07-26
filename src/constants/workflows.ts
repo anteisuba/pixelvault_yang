@@ -159,10 +159,12 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
 > = {
   [WORKFLOW_IDS.ANIME_ILLUSTRATION]: {
     recommendedModelIds: [
-      AI_MODELS.ILLUSTRIOUS_XL,
+      // ILLUSTRIOUS_XL runs NoobAI — the Illustrious/NoobAI line is the hottest
+      // anime base family on Civitai, so it carries this workflow alone now.
       // ANIMA_PENCIL_XL omitted: model is currently disabled pending a real
       // endpoint. Re-add when an Anima checkpoint mirror is wired up.
-      AI_MODELS.NOVELAI_V45_CURATED,
+      // NOVELAI_V45_CURATED removed 2026-07-26 (retired).
+      AI_MODELS.ILLUSTRIOUS_XL,
     ],
   },
   [WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE]: {
@@ -180,17 +182,21 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.POSTER_LAYOUT]: {
     openPanel: 'modelSelector',
     recommendedModelIds: [
-      AI_MODELS.IDEOGRAM_3,
+      // IDEOGRAM_3 removed 2026-07-26 (retired). Recraft keeps the vector/design
+      // slot; Seedream 5.0 Pro brings native text in 14 languages.
       AI_MODELS.RECRAFT_V4_PRO,
       AI_MODELS.OPENAI_GPT_IMAGE_2,
+      AI_MODELS.SEEDREAM_50_PRO,
     ],
   },
   [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: {
     openPanel: 'videoParams',
     recommendedModelIds: [
+      // VEO_31 removed 2026-07-26 (retired). HappyHorse v1.1 takes the slot —
+      // it sits in the arena top 5 alongside Seedance 2.0.
       AI_MODELS.SEEDANCE_20_FAST,
       AI_MODELS.SEEDANCE_20,
-      AI_MODELS.VEO_31,
+      AI_MODELS.HAPPYHORSE_10,
       AI_MODELS.KLING_V3_PRO,
     ],
   },

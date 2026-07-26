@@ -39,11 +39,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     interaction: 'mask',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: [
-      'fal-ai/flux-pro/v1/fill',
-      'gemini-3-pro-image-preview',
-      'gpt-image-2',
-    ],
+    models: ['fal-ai/flux-pro/v1/fill', 'gemini-3-pro-image', 'gpt-image-2'],
     defaultModelId: 'fal-ai/flux-pro/v1/fill',
   },
   {
@@ -52,7 +48,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     interaction: 'outpaint',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['fal-ai/image-apps-v2/outpaint', 'gemini-3-pro-image-preview'],
+    models: ['fal-ai/image-apps-v2/outpaint', 'gemini-3-pro-image'],
     defaultModelId: 'fal-ai/image-apps-v2/outpaint',
   },
   {
@@ -72,7 +68,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     output: 'single-image',
     models: [
       'gpt-image-2',
-      'gemini-3-pro-image-preview',
+      'gemini-3-pro-image',
       'fal-ai/sam-3/image',
       'fal-ai/evf-sam',
       'fal-ai/lang-segment-anything',

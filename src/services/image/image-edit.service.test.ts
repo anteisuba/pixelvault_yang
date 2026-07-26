@@ -302,12 +302,12 @@ describe('image-edit.service', () => {
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
       prompt: 'hair',
       apiKey: 'gem-key',
-      modelId: 'gemini-3-pro-image-preview',
+      modelId: 'gemini-3-pro-image',
     })
 
     expect(result.imageUrl).toBe(`data:image/png;base64,${TINY_PNG_BASE64}`)
     const [calledUrl, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
-    expect(calledUrl).toContain('gemini-3-pro-image-preview:generateContent')
+    expect(calledUrl).toContain('gemini-3-pro-image:generateContent')
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe(
       'gem-key',
     )
@@ -356,7 +356,7 @@ describe('image-edit.service', () => {
         imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
         prompt: 'person',
         apiKey: 'gem-key',
-        modelId: 'gemini-3-pro-image-preview',
+        modelId: 'gemini-3-pro-image',
       }),
     ).rejects.toBeInstanceOf(SafetyFilterError)
   })

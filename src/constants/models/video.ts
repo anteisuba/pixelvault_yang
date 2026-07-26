@@ -50,13 +50,16 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     cost: 5,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'alibaba/happy-horse/text-to-video',
+    // v1.1 (2026) — adds synchronized native audio, multilingual lip-sync and
+    // 1080p. Both v1.1 and v1.0 sit in the top 5 of the Artificial Analysis
+    // video arena; v1.1 is the direct successor so the enum id stays.
+    externalModelId: 'alibaba/happy-horse/v1.1/text-to-video',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/alibaba/happy-horse/text-to-video',
+    officialUrl: 'https://fal.ai/models/alibaba/happy-horse/v1.1/text-to-video',
     timeoutMs: 300_000,
     qualityTier: 'premium',
-    i2vModelId: 'alibaba/happy-horse/image-to-video',
+    i2vModelId: 'alibaba/happy-horse/v1.1/image-to-video',
     videoDefaults: {
       generateAudio: true,
       resolution: '720p',
@@ -69,7 +72,10 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/veo3.1',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-07-26 — dropped out of the top 5 on all three Artificial
+    // Analysis video arenas and was the priciest entry (8 credits). Native
+    // video extension stays available via KLING_V3_PRO.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/veo3.1',
     timeoutMs: 300_000,
     qualityTier: 'premium',
@@ -228,7 +234,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/ltx-2.3/text-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-07-26 — absent from the arena top ranks; the budget slot is
+    // better served by SEEDANCE_20_FAST.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/ltx-2.3/text-to-video',
     timeoutMs: 300_000,
     qualityTier: 'budget',

@@ -662,7 +662,10 @@ export const falAdapter: ProviderAdapter = {
       'fal-ai/flux-2/flash',
       'ideogram/v4',
       'fal-ai/bytedance/seedream/v4.5/text-to-image',
+      'bytedance/seedream/v5/pro/text-to-image',
+      'fal-ai/bytedance/seedream/v5/lite/text-to-image',
       'fal-ai/recraft/v4/pro/text-to-image',
+      'fal-ai/recraft/v4.1/pro/text-to-image',
     ])
 
     if (KONTEXT_MULTI_MODELS.has(resolvedModelId)) {

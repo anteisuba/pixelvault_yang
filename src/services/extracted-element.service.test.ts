@@ -140,7 +140,7 @@ describe('createExtractedElement', () => {
       sourceImageUrl: 'https://example.com/source.png',
       prompt: 'the red dress',
       invert: false,
-      modelId: 'gemini-3-pro-image-preview',
+      modelId: 'gemini-3-pro-image',
     })
 
     expect(record.name).toBe('the red dress')

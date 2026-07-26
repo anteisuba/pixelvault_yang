@@ -121,7 +121,7 @@ describe('geminiAdapter.generateImage', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${AI_PROVIDER_ENDPOINTS.GEMINI}/gemini-3-pro-image-preview:generateContent`,
+      `${AI_PROVIDER_ENDPOINTS.GEMINI}/gemini-3-pro-image:generateContent`,
       expect.any(Object),
     )
   })

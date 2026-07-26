@@ -181,9 +181,9 @@ const falBodyCases: FalBodyCase[] = [
     },
   },
   {
-    label: 'HappyHorse 1.0 T2V',
+    label: 'HappyHorse v1.1 T2V',
     modelId: AI_MODELS.HAPPYHORSE_10,
-    expectedEndpoint: 'alibaba/happy-horse/text-to-video',
+    expectedEndpoint: 'alibaba/happy-horse/v1.1/text-to-video',
     expectedMode: 'text-to-video',
     expectedBody: {
       prompt: PROMPT,
@@ -194,10 +194,10 @@ const falBodyCases: FalBodyCase[] = [
     absentFields: ['image_url', 'generate_audio'],
   },
   {
-    label: 'HappyHorse 1.0 I2V',
+    label: 'HappyHorse v1.1 I2V',
     modelId: AI_MODELS.HAPPYHORSE_10,
     referenceImage: REF,
-    expectedEndpoint: 'alibaba/happy-horse/image-to-video',
+    expectedEndpoint: 'alibaba/happy-horse/v1.1/image-to-video',
     expectedMode: 'image-to-video',
     expectedBody: {
       prompt: PROMPT,

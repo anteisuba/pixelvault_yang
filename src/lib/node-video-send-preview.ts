@@ -154,8 +154,15 @@ export function buildVideoSendPreview({
     typeof maxReferenceImages === 'number'
       ? maxReferenceImages
       : Number.POSITIVE_INFINITY
+  const referenceCandidateSources = [
+    ...ownReferenceAssetUrls,
+    ...upstreamImageUrls,
+  ]
+  // Cap-only view — `overflow`/`assembledImageCount` below are explicitly
+  // independent of the @-mention narrowing (see their doc comments), so this
+  // stays exactly as before.
   const assembly = assembleReferenceImagePayload(
-    [...ownReferenceAssetUrls, ...upstreamImageUrls],
+    referenceCandidateSources,
     effectiveMax,
   )
 
@@ -165,13 +172,34 @@ export function buildVideoSendPreview({
     nodes,
   )
 
+  // Bug fix 2026-07-27（@ 过滤顺序）: mirrors the StudioNodeWorkbench.
+  // handleGenerateMediaNode fix this module promises to mirror (see the file
+  // doc comment) — filter against every DEDUPED candidate, not just the ones
+  // that survived the cap, or an @-mentioned image ranked past `effectiveMax`
+  // gets cut before the filter can keep it for being referenced.
+  const dedupedReferenceCandidates = assembleReferenceImagePayload(
+    referenceCandidateSources,
+    Number.POSITIVE_INFINITY,
+  ).imageUrls
+
   const referencedFilter = filterReferencedImages(
     mergedPrompt,
-    assembly.imageUrls,
+    dedupedReferenceCandidates,
     videoImageRefByUrl,
     autoNamePrefix,
   )
-  const effectiveReferenceImages = referencedFilter.referenceImages
+  // Cap re-applied AFTER filtering — the entire fix. `imageIndexByName` is
+  // re-filtered to the positions that survive so a name past the real cap
+  // never resolves to an @ImageN token nothing was actually sent for.
+  const effectiveReferenceImages = referencedFilter.referenceImages.slice(
+    0,
+    effectiveMax,
+  )
+  const imageIndexByName = new Map(
+    Array.from(referencedFilter.imageIndexByName).filter(
+      ([, position]) => position <= effectiveReferenceImages.length,
+    ),
+  )
 
   const legend = buildVideoReferenceLegend({
     referenceImages: effectiveReferenceImages,
@@ -193,7 +221,7 @@ export function buildVideoSendPreview({
 
   const translatedPrompt = translatePromptTokensToPositional(
     mergedPrompt,
-    referencedFilter.imageIndexByName,
+    imageIndexByName,
   )
 
   const images: VideoSendPreviewImageEntry[] = effectiveReferenceImages.map(

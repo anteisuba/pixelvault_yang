@@ -119,4 +119,61 @@ describe('AssistantConversation', () => {
       ),
     )
   })
+
+  it('renders a message node reference as a clickable chip labeled with its resolved title', () => {
+    const onFocusNode = vi.fn()
+
+    render(
+      <AssistantConversation
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Check the node.',
+            references: [{ nodeId: 'node-1' }],
+            capabilities: [],
+          },
+        ]}
+        isLoading={false}
+        error={null}
+        onSend={vi.fn()}
+        onRetry={vi.fn()}
+        onFocusNode={onFocusNode}
+        getNodeLabel={(id) => (id === 'node-1' ? 'Opening Shot' : undefined)}
+      />,
+    )
+
+    const chip = screen.getByRole('button', { name: 'Opening Shot' })
+    fireEvent.click(chip)
+    expect(onFocusNode).toHaveBeenCalledWith('node-1')
+  })
+
+  it('renders a reference to a deleted node as a muted, non-clickable chip instead of its raw id', () => {
+    render(
+      <AssistantConversation
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Check the node.',
+            references: [{ nodeId: 'node-deleted' }],
+            capabilities: [],
+          },
+        ]}
+        isLoading={false}
+        error={null}
+        onSend={vi.fn()}
+        onRetry={vi.fn()}
+        onFocusNode={vi.fn()}
+        getNodeLabel={() => undefined}
+      />,
+    )
+
+    expect(screen.queryByText('node-deleted')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'node-deleted' }),
+    ).not.toBeInTheDocument()
+    const chip = screen.getByText('unknownNodeReference')
+    expect(chip.tagName).toBe('SPAN')
+  })
 })

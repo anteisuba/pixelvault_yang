@@ -130,6 +130,27 @@ describe('createNodeAssistantStream', () => {
     )
   })
 
+  it('includes the selected node title (not just its bare id) so the assistant can name it in its reply', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    await createNodeAssistantStream('clerk_user_1', REQUEST)
+
+    const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    expect(userPrompt).toContain('SELECTED NODES:\n[[node:node-1]] Composer')
+  })
+
+  it('falls back to a bare marker for a selected id that no longer matches any node', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      selectedNodeIds: ['node-deleted'],
+    })
+
+    const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    expect(userPrompt).toContain('SELECTED NODES:\n[[node:node-deleted]]\n')
+  })
+
   it('includes directly uploaded media references without requiring a canvas node id', async () => {
     mockLlmTextCompletion.mockResolvedValue('Use the attached image.')
 

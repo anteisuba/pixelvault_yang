@@ -93,14 +93,25 @@ function buildConversation(
   return buildAssistantConversation(messages, maxLength)
 }
 
-function buildSelectedNodeText(selectedNodeIds: string[]): string {
+function buildSelectedNodeText(
+  selectedNodeIds: string[],
+  nodes: NodeAssistantNodeContext[],
+): string {
   if (selectedNodeIds.length === 0) {
     return 'No node is selected.'
   }
 
+  // Same [[node:id]] title pairing buildNodeSummary uses above, so a
+  // selected-node reference reads with its title instead of a bare id the
+  // model has no way to name in its reply.
+  const titleById = new Map(nodes.map((node) => [node.id, node.title]))
+
   return selectedNodeIds
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes)
-    .map((id) => `[[node:${id}]]`)
+    .map((id) => {
+      const title = titleById.get(id)
+      return title ? `[[node:${id}]] ${title}` : `[[node:${id}]]`
+    })
     .join(', ')
 }
 
@@ -235,7 +246,7 @@ function buildNodeAssistantUserPrompt(
 ${buildNodeSummary(request.nodes, nodeBudget)}
 
 SELECTED NODES:
-${buildSelectedNodeText(request.selectedNodeIds)}
+${buildSelectedNodeText(request.selectedNodeIds, request.nodes)}
 
 ATTACHED IMAGE / VIDEO REFERENCES:
 ${buildReferenceSummary(request.references ?? [], referenceBudget)}

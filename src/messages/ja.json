@@ -4509,6 +4509,7 @@
       "send": "送信",
       "expandMessage": "全文を表示",
       "collapseMessage": "1段落に戻す",
+      "unknownNodeReference": "削除済みノード",
       "references": "キャンバスの参照素材",
       "addReference": "画像または動画の参照を追加",
       "removeReference": "参照素材を削除",

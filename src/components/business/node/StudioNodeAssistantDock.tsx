@@ -382,10 +382,14 @@ export function StudioNodeAssistantDock({
     [conversation.sessions, tHistory],
   )
 
+  // Bug fix 2026-07-27: return undefined (not the bare id) when the node no
+  // longer exists (e.g. deleted after the assistant referenced it) — lets
+  // AssistantConversation render a muted, non-clickable chip instead of
+  // leaking the internal node id into the chat UI.
   const getNodeLabel = useCallback(
-    (nodeId: string) => {
+    (nodeId: string): string | undefined => {
       const nodeContext = nodeContexts.find((node) => node.id === nodeId)
-      return nodeContext?.title ?? nodeId
+      return nodeContext?.title
     },
     [nodeContexts],
   )

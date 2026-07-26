@@ -18,7 +18,9 @@ import {
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
+  useNodesInitialized,
   useReactFlow,
+  useUpdateNodeInternals,
   type Connection,
   type DefaultEdgeOptions,
   type EdgeTypes,
@@ -97,6 +99,7 @@ import {
   useNodeWorkflow,
 } from '@/hooks/node/use-node-workflow'
 import { useOverlayFocusReturn } from '@/hooks/node/use-overlay-focus-return'
+import { useUpdateNodeInternalsOnInit } from '@/hooks/node/use-update-node-internals-on-init'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
@@ -504,6 +507,20 @@ function StudioNodeCanvas() {
     NodeWorkflowNode,
     NodeWorkflowEdge
   >()
+  // Bug fix 2026-07-27: React Flow doesn't measure handle bounds on first
+  // mount, so every edge silently fails to render until something incidental
+  // (e.g. a window resize) forces a ResizeObserver pass — viewport pan/zoom
+  // does NOT trigger it (those only change a CSS transform). Nudging
+  // `updateNodeInternals` once as soon as `nodesInitialized` flips true
+  // forces that recompute immediately. One-shot by construction (see the
+  // hook) so it never re-fires on ordinary re-renders, e.g. a node drag.
+  const nodesInitialized = useNodesInitialized()
+  const updateNodeInternals = useUpdateNodeInternals()
+  useUpdateNodeInternalsOnInit(
+    nodesInitialized,
+    workflow.nodes,
+    updateNodeInternals,
+  )
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   // S2a（2026-07-26）：助手默认**收起**。规格 §8 的宽度策略——左侧合体面板
   // 常驻 296px + 右助手约 420px = 716px 被 chrome 吃掉，1440 宽的屏只剩 724px
@@ -1245,14 +1262,27 @@ function StudioNodeCanvas() {
       // shows — computed independently there via the SAME function against
       // the SAME live graph state (`useVideoComposer`'s `sendPreview`), not
       // threaded through this async handler.
+      const referenceCandidateSources = [
+        existingImageReference,
+        ...(node.data.referenceAssets ?? []).map((asset) => asset.url),
+        ...upstreamImageUrls,
+        ...upstreamImageReferences.map((reference) => reference.url),
+      ]
       const referenceImages = assembleReferenceImagePayload(
-        [
-          existingImageReference,
-          ...(node.data.referenceAssets ?? []).map((asset) => asset.url),
-          ...upstreamImageUrls,
-          ...upstreamImageReferences.map((reference) => reference.url),
-        ],
+        referenceCandidateSources,
         maxReferenceImages,
+      ).imageUrls
+      // Bug fix 2026-07-27（@ 过滤顺序）: the V-3b filter below has to see every
+      // DEDUPED candidate, not just the ones that survived the cap — otherwise
+      // an @-mentioned image ranked past `maxReferenceImages` in raw priority
+      // order gets cut here before the filter ever gets a chance to keep it
+      // for being referenced. Same dedup (first-seen-wins, same priority
+      // order) as `referenceImages` above, just uncapped; the real cap is
+      // re-applied AFTER filtering — see `effectiveReferenceImages` below —
+      // so the model's actual reference-image limit still holds either way.
+      const dedupedReferenceCandidates = assembleReferenceImagePayload(
+        referenceCandidateSources,
+        Number.POSITIVE_INFINITY,
       ).imageUrls
       // Map harvested references by URL so the legend labels each by its FINAL
       // position in referenceImages (after dedup + cap). S5d ③ 分类进图例:
@@ -1293,20 +1323,29 @@ function StudioNodeCanvas() {
       // actually `@`-mentions. 迁移红线 lives inside `filterReferencedImages`
       // itself — a project with connections but no matching @-mention keeps
       // sending everything (pre-V-3 behaviour), so upgrading never silently
-      // drops a reference. `effectiveReferenceImages` is what ACTUALLY ships;
-      // `referenceImages` above stays the raw connected set (still used as-is
+      // drops a reference. Filters against `dedupedReferenceCandidates` (see
+      // above), NOT the capped `referenceImages` — an @-mentioned image
+      // ranked past the cap must still survive; `effectiveReferenceImages`
+      // below re-applies the real cap AFTER filtering (Bug fix 2026-07-27).
+      // `referenceImages` above stays the raw capped set (still used as-is
       // by the shot-image branch, which V-3b does not touch — §3 决策8 维持现状).
       const referencedFilter = isVideoMediaNode
         ? filterReferencedImages(
             mergedPrompt,
-            referenceImages,
+            dedupedReferenceCandidates,
             videoImageRefByUrl,
             videoImageAutoNamePrefix,
           )
         : null
-      const effectiveReferenceImages = referencedFilter
-        ? referencedFilter.referenceImages
-        : referenceImages
+      // `.slice(0, maxReferenceImages)` on the non-video fallback branch
+      // (`referenceImages`, already capped) is a harmless no-op — it only
+      // does real work on the video branch, where `referencedFilter` may
+      // still exceed the cap (the migration pass-through can return the full
+      // uncapped set, or the user may @-mention more distinct images than
+      // the model allows).
+      const effectiveReferenceImages = (
+        referencedFilter ? referencedFilter.referenceImages : referenceImages
+      ).slice(0, maxReferenceImages)
       const referenceLegend = isShotImageNode
         ? buildShotReferenceLegend(referenceImages, referenceByUrl)
         : isVideoMediaNode
@@ -1335,12 +1374,19 @@ function StudioNodeCanvas() {
       // rewritten to @ImageN right before it leaves the client. The node's
       // stored prompt / what the composer renders is untouched; only this
       // outbound copy (`seedanceReadyPrompt`) changes. No-op for non-video
-      // media kinds (empty map → returned verbatim). `imageIndexByName` now
-      // comes from the V-3b filter above — it's already reindexed against
-      // `effectiveReferenceImages`, so @ImageN in the translated prompt lines
-      // up with the ACTUAL sent position, not the pre-filter one.
+      // media kinds (empty map → returned verbatim). `imageIndexByName` comes
+      // from the V-3b filter above, re-filtered here to positions that
+      // survive the post-filter cap (`effectiveReferenceImages.length`): the
+      // filter above now runs against the UNCAPPED candidate set, so a name
+      // whose position lands past the real cap must be dropped here too, or
+      // it would translate into an @ImageN token nothing was actually sent
+      // for (Bug fix 2026-07-27).
       const imageIndexByName = referencedFilter
-        ? referencedFilter.imageIndexByName
+        ? new Map(
+            Array.from(referencedFilter.imageIndexByName).filter(
+              ([, position]) => position <= effectiveReferenceImages.length,
+            ),
+          )
         : new Map<string, number>()
       const seedanceReadyPrompt = translatePromptTokensToPositional(
         mergedPrompt,

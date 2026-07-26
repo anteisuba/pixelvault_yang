@@ -115,6 +115,60 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.assembledImageCount).toBe(2)
   })
 
+  it('keeps an @-mentioned candidate the raw cap would otherwise cut (Bug 3 regression: filter must run before cap)', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char1.png',
+        characterName: 'A',
+      }),
+      makeNode('char2', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char2.png',
+        characterName: 'B',
+      }),
+      makeNode('char3', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char3.png',
+        characterName: 'C',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '镜头缓缓推向@C' }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char1', 'video1'),
+      makeEdge('e2', 'char2', 'video1'),
+      makeEdge('e3', 'char3', 'video1'),
+    ]
+
+    // Raw priority order is A, B, C — C is 3rd, past a cap of 2. Capping
+    // before filtering (the bug) would drop C entirely and fall through to
+    // the "nothing matched" migration guard, silently sending A+B instead of
+    // what the user actually asked for.
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[3].data,
+      edges,
+      nodes,
+      maxReferenceImages: 2,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.images).toEqual([
+      {
+        url: 'https://cdn/char3.png',
+        index: 1,
+        name: 'C',
+        kind: 'character',
+        category: undefined,
+      },
+    ])
+    expect(preview.translatedPrompt).toBe('镜头缓缓推向@Image1（C）')
+    // Cap-only view is unaffected by the @-mention narrowing — still reports
+    // the raw cap truncation (A, B survive the cap; C is "overflow" from the
+    // cap's point of view even though it's the one actually sent).
+    expect(preview.overflow).toEqual([
+      { url: 'https://cdn/char3.png', name: 'C' },
+    ])
+    expect(preview.assembledImageCount).toBe(2)
+  })
+
   it('skips capping entirely when maxReferenceImages is undefined (model unknown)', () => {
     const nodes = [
       makeNode('char1', NODE_TYPE_IDS.characterImage, {

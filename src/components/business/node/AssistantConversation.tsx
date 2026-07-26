@@ -33,7 +33,9 @@ interface AssistantConversationProps {
   ): Promise<void>
   onRetry(): Promise<void>
   onFocusNode(nodeId: string): void
-  getNodeLabel(nodeId: string): string
+  /** undefined = the node no longer exists (e.g. deleted) — rendered as a
+   *  muted, non-clickable chip instead of a clickable one. */
+  getNodeLabel(nodeId: string): string | undefined
   /** Optional override for the empty-state opener line (E1 lean front door). */
   emptyHint?: string
   /** Optional starter chips shown in the empty state; clicking prefills the
@@ -209,16 +211,33 @@ export function AssistantConversation({
                   ) : null}
                   {message.references?.length > 0 ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {message.references.map((reference) => (
-                        <button
-                          key={reference.nodeId}
-                          type="button"
-                          onClick={() => onFocusNode(reference.nodeId)}
-                          className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground"
-                        >
-                          {getNodeLabel(reference.nodeId)}
-                        </button>
-                      ))}
+                      {message.references.map((reference) => {
+                        const label = getNodeLabel(reference.nodeId)
+                        // Node no longer exists (e.g. deleted after the
+                        // assistant referenced it) — render a muted, inert
+                        // chip instead of a clickable one that would focus
+                        // nothing, and never leak the raw node id into the UI.
+                        if (label === undefined) {
+                          return (
+                            <span
+                              key={reference.nodeId}
+                              className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-subtle"
+                            >
+                              {t('unknownNodeReference')}
+                            </span>
+                          )
+                        }
+                        return (
+                          <button
+                            key={reference.nodeId}
+                            type="button"
+                            onClick={() => onFocusNode(reference.nodeId)}
+                            className="rounded-full border border-node-panel-inner bg-node-canvas/50 px-2 py-1 text-2xs font-semibold text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground"
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
                     </div>
                   ) : null}
                   {message.capabilities?.length > 0 ? (

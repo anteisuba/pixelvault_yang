@@ -4509,6 +4509,7 @@
       "send": "发送",
       "expandMessage": "展开全文",
       "collapseMessage": "收成一段",
+      "unknownNodeReference": "已删除节点",
       "references": "画布参考素材",
       "addReference": "添加图片或视频参考",
       "removeReference": "移除参考素材",

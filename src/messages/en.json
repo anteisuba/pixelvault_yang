@@ -4509,6 +4509,7 @@
       "send": "Send",
       "expandMessage": "Show full reply",
       "collapseMessage": "Show one paragraph",
+      "unknownNodeReference": "Removed node",
       "references": "Canvas references",
       "addReference": "Add an image or video reference",
       "removeReference": "Remove reference",

@@ -17,6 +17,18 @@ const db = new PrismaClient({ adapter })
 // (happyhorse-1.0, ltx-2.3, flux-2-flash). Importing the constant keeps the DB
 // authoritative with zero manual upkeep. `sortOrder` follows array order, which
 // is already preference-ranked.
+//
+// This is the ONLY seed — do not add a hand-written copy. A `prisma/seed.mjs`
+// with an inlined catalog survived here as an unreferenced orphan until
+// 2026-07-26; by then it still listed deleted models (gpt-image-1.5, recraft-v3,
+// flux-2-dev, animagine-xl-4.0), wrong externalModelIds, and the Gemini preview
+// ids Google shut down on 2026-06-25 (bb9fba69 moved the catalog to the GA ids;
+// the orphan still held the dead ones). That matters because the catalog is
+// DB-first:
+// `getResolvedModelOption()` overwrites the code constant's `externalModelId`
+// with whatever is in ModelConfig (see `toResolvedModelOption`, direct
+// assignment, not `??`), so running an un-derived seed silently reroutes
+// production traffic to dead endpoints.
 async function main() {
   console.log(
     `Seeding ModelConfig from src/constants/models (${MODEL_OPTIONS.length} models)…`,

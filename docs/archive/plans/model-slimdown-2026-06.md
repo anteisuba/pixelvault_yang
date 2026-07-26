@@ -1207,4 +1207,5 @@ Qwen 全部进 `TEXT_MODELS` 注册表（§9.2），**不**进 `AI_MODELS`。各
 **待做（最后一块）：**
 
 - ⬜ `ApiKeyManager.tsx` / `ApiKeyForm.tsx` 对齐厂商优先视觉 + per-provider BYOK（§11.2/§11.4）。注意：`apiKeyMatchesModelOption` 改按 adapter + 选项装配让"一把 key 覆盖全厂商内建模型" + 可选 `UserApiKey.modelId` 改可空 + migration。属数据模型改动，需单独小心做 + 跑测试。
-- ⬜（遗留 low）`prisma/seed.mjs` 是未被引用的孤儿旧 catalog，建议删除（`prisma db seed` 实际只跑 `seed.ts`）。`fal.adapter.ts` F5-TTS 死代码、`models.ts` RODIN family 缺项 等 low 项。
+- ✅（2026-07-26 补做）`prisma/seed.mjs` 孤儿旧 catalog 已删除（`prisma db seed` 实际只跑 `seed.ts`）。删除理由记在 `prisma/seed.ts` 顶部注释：该文件到删除时仍列着 gpt-image-1.5 / recraft-v3 / flux-2-dev / animagine-xl-4.0 等已删模型和 Google 已关停的 Gemini preview id，而目录是 DB-first（`toResolvedModelOption` 用直接赋值覆盖 `externalModelId`），跑一次就会把线上路由指到死端点。
+- ⬜（遗留 low）`fal.adapter.ts` F5-TTS 死代码、`models.ts` RODIN family 缺项 等 low 项。

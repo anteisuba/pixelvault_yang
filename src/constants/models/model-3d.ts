@@ -18,7 +18,7 @@ export const MODEL_3D_OPTIONS: ModelOption[] = [
     externalModelId: 'rodin',
     outputType: 'MODEL_3D',
     available: true,
-    officialUrl: 'https://developer.hyper3d.ai/docs/rodin-gen-25',
+    officialUrl: 'https://developer.hyper3d.ai/api-specification/rodin-gen2.5',
     timeoutMs: 720_000,
     qualityTier: 'premium',
     requiresReferenceImage: true,

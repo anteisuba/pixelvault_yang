@@ -48,12 +48,17 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
-    externalModelId: 'eleven_sfx_v2',
+    // Upstream's documented model for POST /v1/sound-generation. The previous
+    // value `eleven_sfx_v2` does not exist at ElevenLabs; it never surfaced
+    // because generateSoundEffect() omits model_id and rides the server
+    // default. Naming it correctly keeps that from becoming a 422 the day
+    // someone wires model_id into the SFX body.
+    externalModelId: 'eleven_text_to_sound_v2',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SFX,
     available: true,
     officialUrl:
-      'https://elevenlabs.io/docs/api-reference/sound-generation/convert',
+      'https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert',
     timeoutMs: 60_000,
     qualityTier: 'premium',
   },

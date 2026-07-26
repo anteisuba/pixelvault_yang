@@ -2312,6 +2312,10 @@
         "label": "ElevenLabs",
         "description": "Use ElevenLabs v3 for premium, expressive text-to-speech with natural voices."
       },
+      "anthropic": {
+        "label": "Claude",
+        "description": "Use Anthropic Claude Sonnet 5 for the canvas assistant's structural reasoning — multi-scene continuity, character arcs, and shot planning."
+      },
       "runner": {
         "label": "PixelVault Runner",
         "description": "Self-hosted RunPod ComfyUI runner for faithful Civitai recipe clones. Platform-managed — not user-configurable."
@@ -4486,7 +4490,8 @@
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "setupQwen": "Qwen"
+      "setupQwen": "Qwen",
+      "setupClaude": "Claude"
     },
     "inspector": {
       "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",

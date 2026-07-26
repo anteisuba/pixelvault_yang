@@ -15,6 +15,14 @@ export enum AI_ADAPTER_TYPES {
   DASHSCOPE = 'dashscope',
   ELEVENLABS = 'elevenlabs',
   /**
+   * Claude (Anthropic Messages API) — BYOK, text-only. Sonnet 5 is the only
+   * model on this route (owner 2026-07-26 decree — no Opus): structural
+   * reasoning (multi-scene continuity, character arcs, shot planning) for
+   * the canvas assistant. See
+   * docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.
+   */
+  ANTHROPIC = 'anthropic',
+  /**
    * Self-hosted RunPod Serverless ComfyUI runner — faithful Civitai recipe
    * clones (checkpoint + LoRA stack) that hosted providers can't run. Not a
    * BYOK adapter: intentionally absent from `AI_ADAPTER_TYPE_OPTIONS` so it
@@ -43,6 +51,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.HYPER3D_RODIN,
   AI_ADAPTER_TYPES.DASHSCOPE,
   AI_ADAPTER_TYPES.ELEVENLABS,
+  AI_ADAPTER_TYPES.ANTHROPIC,
 ] as const
 
 export const DEFAULT_PROVIDER_CONFIGS: Record<
@@ -101,6 +110,12 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'ElevenLabs',
     baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
   },
+  // 'Claude' not 'Anthropic': the selector shows the model-family name to
+  // users, matching the existing 'Qwen' (not 'DashScope') convention.
+  [AI_ADAPTER_TYPES.ANTHROPIC]: {
+    label: 'Claude',
+    baseUrl: AI_PROVIDER_ENDPOINTS.ANTHROPIC,
+  },
   [AI_ADAPTER_TYPES.RUNNER]: {
     label: 'PixelVault Runner',
     baseUrl: AI_PROVIDER_ENDPOINTS.RUNPOD,
@@ -121,6 +136,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'sk_...',
+  [AI_ADAPTER_TYPES.ANTHROPIC]: 'sk-ant-...',
   // Platform-managed only — never entered by a user (no BYOK UI slot).
   [AI_ADAPTER_TYPES.RUNNER]: 'n/a (platform-managed)',
 }
@@ -139,6 +155,8 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
   [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
   [AI_ADAPTER_TYPES.ELEVENLABS]: 5,
+  // Same tier as OPENAI — both premium-priced text/reasoning routes.
+  [AI_ADAPTER_TYPES.ANTHROPIC]: 3,
   // Faithful recipe clone — heavier than a plain hosted call (cold-start
   // aware), priced closer to the premium tier.
   [AI_ADAPTER_TYPES.RUNNER]: 3,
@@ -158,6 +176,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
+  [AI_ADAPTER_TYPES.ANTHROPIC]: 'claude-sonnet-5',
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
 
@@ -234,6 +253,10 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.ELEVENLABS]: {
     url: 'https://elevenlabs.io/app/settings/api-keys',
     steps: 'Sign in → Settings → API Keys → Create API Key (sk_...).',
+  },
+  [AI_ADAPTER_TYPES.ANTHROPIC]: {
+    url: 'https://console.anthropic.com/settings/keys',
+    steps: 'Sign in → Settings → API Keys → Create Key (sk-ant-...).',
   },
   [AI_ADAPTER_TYPES.RUNNER]: {
     url: 'https://docs.runpod.io/serverless/overview',

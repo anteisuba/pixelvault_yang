@@ -435,6 +435,9 @@ export const AI_PROVIDER_ENDPOINTS = {
   // the CN host (dashscope.aliyuncs.com) and vice versa.
   DASHSCOPE: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   ELEVENLABS: 'https://api.elevenlabs.io',
+  // Anthropic Messages API. `llmTextCompletion`'s anthropic branch appends
+  // `/messages` — headers are `x-api-key` + `anthropic-version`, not Bearer.
+  ANTHROPIC: 'https://api.anthropic.com/v1',
   // RunPod Serverless REST API — the execution worker POSTs
   // `${RUNPOD}/{endpoint}/run` and polls `${RUNPOD}/{endpoint}/status/{id}`.
   // See docs/plans/comfy-runner-HANDOFF-2026-07.md §2.3/§7.
@@ -454,11 +457,19 @@ export const LLM_TEXT_MODEL_IDS = {
   QWEN_PLUS: 'qwen-plus',
   QWEN_FLASH: 'qwen-flash',
   QWEN3_VL_PLUS: 'qwen3-vl-plus',
+  // Anthropic (Claude). Sonnet 5 only — owner 2026-07-26 decree, no Opus
+  // tier on this route. Canvas-assistant structural reasoning.
+  CLAUDE_SONNET_5: 'claude-sonnet-5',
 } as const
 
 export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   DEFAULT: 1024,
   OPENAI_REASONING: 4096,
+  // Anthropic's Messages API requires `max_tokens` on every request — there
+  // is no "omit for provider-managed" option like OpenAI/DeepSeek/Qwen. This
+  // is the wide ceiling used when the caller asks for provider-managed
+  // output (providerManagedOutput: true).
+  ANTHROPIC_MANAGED: 8192,
 } as const
 
 export const RUNWAY_API = {

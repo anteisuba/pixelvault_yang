@@ -852,3 +852,208 @@ describe('llmTextCompletion - DashScope (Qwen)', () => {
     expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
   })
 })
+
+describe('llmTextCompletion - Claude (Anthropic)', () => {
+  const ANTHROPIC_PROVIDER_CONFIG = {
+    label: 'Claude',
+    baseUrl: 'https://api.anthropic.com/v1',
+  }
+
+  it('sends the managed ceiling as max_tokens when the provider manages the budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: 'provider managed' }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+    })
+
+    // Anthropic's Messages API requires max_tokens on every request — unlike
+    // OpenAI/DeepSeek/Qwen, providerManagedOutput can't mean "omit the field."
+    expect(readFetchJson(fetchMock).max_tokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED,
+    )
+  })
+
+  it('calls the Messages API with the system prompt as a top-level field', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: 'hello from claude' }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Say hello.',
+      maxTokens: 512,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.anthropic.com/v1/messages',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-api-key': 'sk-ant-test',
+          'anthropic-version': '2023-06-01',
+        }),
+      }),
+    )
+    const payload = readFetchJson(fetchMock) as {
+      model: string
+      max_tokens: number
+      system?: string
+      messages: Array<{ role: string; content: unknown }>
+    }
+
+    expect(result).toBe('hello from claude')
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5)
+    expect(payload.max_tokens).toBe(512)
+    // System prompt goes on the top-level `system` field — Anthropic has no
+    // role:'system' message.
+    expect(payload.system).toBe('You are helpful.')
+    expect(payload.messages).toEqual([{ role: 'user', content: 'Say hello.' }])
+  })
+
+  it('asks for JSON in the system prompt and never sends an assistant prefill', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: '{"scenes":[]}' }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'Return json.',
+      userPrompt: 'Write a script outline.',
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+      maxTokens: 2000,
+      responseFormat: 'json_object',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      system?: string
+      messages: Array<{ role: string; content: unknown }>
+    }
+
+    // ⚠ Regression guard: an assistant-turn prefill **400s on Sonnet 5**, so
+    // JSON mode must never add one. The instruction rides the system prompt.
+    expect(payload.messages).toEqual([
+      { role: 'user', content: 'Write a script outline.' },
+    ])
+    expect(payload.messages.some((m) => m.role === 'assistant')).toBe(false)
+    expect(payload.system).toContain('Return json.')
+    expect(payload.system).toContain('single valid JSON object')
+    // Passed through untouched — nothing to stitch back on any more.
+    expect(result).toBe('{"scenes":[]}')
+    expect(() => JSON.parse(result)).not.toThrow()
+  })
+
+  it('disables thinking so max_tokens is not spent on it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
+        {
+          status: 200,
+        },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'hi',
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+      maxTokens: 2000,
+    })
+
+    // Sonnet 5 thinks by default when `thinking` is omitted, and max_tokens
+    // caps thinking + answer together — every caller's budget here was sized
+    // against non-thinking adapters, so it must be explicitly off.
+    const payload = readFetchJson(fetchMock) as {
+      thinking?: { type: string }
+    }
+    expect(payload.thinking).toEqual({ type: 'disabled' })
+  })
+
+  it('rejects image input because the Claude route is text-only', async () => {
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        imageData: 'data:image/png;base64,abc',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+      }),
+    ).rejects.toThrow('does not support image input')
+  })
+
+  it('rejects grounding requests', async () => {
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        useGrounding: true,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+      }),
+    ).rejects.toThrow('does not support grounding')
+  })
+
+  it('throws a structured auth error on a 401 response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            type: 'error',
+            error: {
+              type: 'authentication_error',
+              message: 'invalid x-api-key',
+            },
+          }),
+          { status: 401 },
+        ),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-bad',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_AUTH_FAILED',
+      httpStatus: 401,
+      i18nKey: 'errors.provider.invalidApiKey',
+    })
+  })
+})

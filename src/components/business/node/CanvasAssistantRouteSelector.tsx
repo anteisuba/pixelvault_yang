@@ -25,7 +25,12 @@ export function getAssistantRouteKeyOptionId(keyId: string): string {
 
 function getSetupLabelKey(
   adapterType: AI_ADAPTER_TYPES,
-): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' | 'setupQwen' {
+):
+  | 'setupChatGpt'
+  | 'setupDeepSeek'
+  | 'setupGemini'
+  | 'setupQwen'
+  | 'setupClaude' {
   switch (adapterType) {
     case AI_ADAPTER_TYPES.OPENAI:
       return 'setupChatGpt'
@@ -33,6 +38,8 @@ function getSetupLabelKey(
       return 'setupDeepSeek'
     case AI_ADAPTER_TYPES.DASHSCOPE:
       return 'setupQwen'
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return 'setupClaude'
     default:
       return 'setupGemini'
   }

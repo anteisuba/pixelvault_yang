@@ -262,6 +262,7 @@ export type ProviderGroup =
   | 'fish_audio'
   | 'elevenlabs'
   | 'hyper3d'
+  | 'anthropic'
   | 'runner'
 
 /** Display order for provider groups. */
@@ -280,6 +281,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'replicate',
   'runner',
   'hyper3d',
+  'anthropic',
 ]
 
 /** Map adapter type to provider group. */
@@ -311,6 +313,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'elevenlabs'
     case AI_ADAPTER_TYPES.HYPER3D_RODIN:
       return 'hyper3d'
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return 'anthropic'
     case AI_ADAPTER_TYPES.RUNNER:
       return 'runner'
   }

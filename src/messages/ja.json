@@ -2312,6 +2312,10 @@
         "label": "ElevenLabs",
         "description": "ElevenLabs v3 を使用して、自然で表現豊かな高品質テキスト読み上げを行います。"
       },
+      "anthropic": {
+        "label": "Claude",
+        "description": "Anthropic Claude Sonnet 5 を使用。キャンバスアシスタントの構造的推論（複数シーンの一貫性、キャラクターアーク、ショット構成）に対応。"
+      },
       "runner": {
         "label": "PixelVault Runner",
         "description": "忠実な Civitai レシピ複製のための自己ホスト型 RunPod ComfyUI ランナー。プラットフォーム管理型で、ユーザー設定はできません。"
@@ -4486,7 +4490,8 @@
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "setupQwen": "Qwen"
+      "setupQwen": "Qwen",
+      "setupClaude": "Claude"
     },
     "inspector": {
       "multiTitle": "{count} 件のノードを選択中",

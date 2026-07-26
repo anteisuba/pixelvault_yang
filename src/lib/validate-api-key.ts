@@ -37,6 +37,8 @@ export function validateKeyFormat(
       return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.ELEVENLABS:
       return trimmed.startsWith('sk_') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return trimmed.startsWith('sk-ant-') ? 'valid' : 'invalid'
     default:
       return 'valid'
   }

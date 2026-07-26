@@ -209,18 +209,18 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'Gemini 3.5 Flash',
   },
   {
-    // The canvas assistant is text-only today (it sends node context + chat,
-    // never images), so the DashScope route uses the text flagship Qwen3 Max
-    // rather than the VL model. Swap to qwen3-vl-plus here when the assistant
-    // gains an image-reverse turn that needs vision.
-    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-    modelId: LLM_TEXT_MODEL_IDS.QWEN3_MAX,
-    label: 'Qwen3 Max',
-  },
-  {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
     modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
     label: 'DeepSeek V4 Pro',
+  },
+  {
+    // 2026-07-26: Qwen3 Max exits the assistant route (owner decree) — Claude
+    // Sonnet 5 takes its slot as the structural-reasoning route (multi-scene
+    // continuity, character arcs, shot planning). Text-only, same as the
+    // other three — no image/video input on this route yet.
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5,
+    label: 'Claude Sonnet 5',
   },
 ] as const
 

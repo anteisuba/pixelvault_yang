@@ -122,6 +122,13 @@ const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
   AI_ADAPTER_TYPES.DASHSCOPE,
+  // Appended last: lowest priority in the no-apiKeyId auto-fallback loop
+  // below, and the newest/narrowest-scope BYOK route (see
+  // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md). Still
+  // required here — the node-assistant's explicit-apiKeyId path resolves
+  // through `isLlmTextAdapter`, so a saved Claude key can't complete without
+  // this membership.
+  AI_ADAPTER_TYPES.ANTHROPIC,
 ] as const
 
 type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
@@ -135,6 +142,7 @@ const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
   [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TEXT_MODEL_IDS.QWEN_PLUS,
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
@@ -142,6 +150,7 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.DEEPSEEK]: 'DeepSeek',
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'Qwen',
+  [AI_ADAPTER_TYPES.ANTHROPIC]: 'Claude',
 }
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
@@ -267,6 +276,8 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.DEEPSEEK
     case AI_ADAPTER_TYPES.DASHSCOPE:
       return AI_PROVIDER_ENDPOINTS.DASHSCOPE
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return AI_PROVIDER_ENDPOINTS.ANTHROPIC
   }
 }
 
@@ -849,6 +860,114 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 /**
+ * Claude (Anthropic) text completion — the Messages API, NOT an
+ * OpenAI-compatible drop-in. Four deliberate differences from the branches
+ * above (docs/plans/canvas-assistant-anthropic-route-2026-07-26.md §3.5):
+ *  1. `max_tokens` is required on every request — `providerManagedOutput`
+ *     can't mean "omit the field" the way it does for OpenAI/DeepSeek/Qwen,
+ *     so it maps to a wide managed ceiling instead.
+ *  2. The system prompt is a top-level `system` field, not a `role:'system'`
+ *     message.
+ *  3. There is no `response_format`. JSON mode is forced via an assistant
+ *     prefill: append `{role:'assistant', content:'{'}`, then stitch the
+ *     leading `'{'` back onto the model's continuation. This is required,
+ *     not optional — node-script-doc.service.ts always requests
+ *     `responseFormat: 'json_object'`, so ScriptDoc drafting breaks on the
+ *     Claude route without it.
+ *     ⚠ UNVERIFIED AGAINST THE LIVE API: current Anthropic docs describe
+ *     last-assistant-turn prefill as rejected with a 400 on the Claude 4.6+
+ *     model family, Claude Sonnet 5 included — see the model-migration notes
+ *     for Claude Sonnet 5 ("assistant-turn prefills still return a 400 …
+ *     unchanged from Sonnet 4.6"). Implemented exactly as specified in the
+ *     plan doc above; if the live API does reject this, the fix is
+ *     `output_config.format` (structured outputs — needs a real JSON schema
+ *     threaded through `LlmTextInput`, not just the `'json_object'` flag) or
+ *     a system-prompt instruction instead of the prefill. Flagged, not
+ *     changed — see canvas-assistant-anthropic-route implementation report.
+ *  4. No vision, no grounding — both hard-throw, same guard style as
+ *     `deepseekTextCompletion` above.
+ */
+const AnthropicTextResponseSchema = z.object({
+  content: z.array(
+    z.object({
+      type: z.string(),
+      text: z.string().optional(),
+    }),
+  ),
+})
+
+async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.imageData) {
+    throw new Error('Claude text completion does not support image input.')
+  }
+
+  if (input.useGrounding) {
+    throw new Error('Claude text completion does not support grounding.')
+  }
+
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC]
+  const baseUrl =
+    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.ANTHROPIC
+  const endpoint = `${baseUrl.replace(/\/$/, '')}/messages`
+
+  const wantsJson = input.responseFormat === 'json_object'
+  // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
+  // a 400 on Sonnet 5** (removed across the 4.6+ family) — so the usual
+  // "prefill a `{`" trick is not available here; don't reintroduce it.
+  // The real structured-output surface is `output_config.format` with a
+  // *json_schema*, but `LlmTextInput.responseFormat` only carries the
+  // schemaless `'json_object'` flag, so there's no schema to hand it at this
+  // layer. Until a schema is threaded through, we do what the DashScope branch
+  // does — instruct in the system prompt — and lean on the existing
+  // fence-tolerant parse + `validateLlmStructuredOutput` downstream.
+  const systemPrompt = wantsJson
+    ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
+    : input.systemPrompt
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'x-api-key': input.apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      max_tokens: input.providerManagedOutput
+        ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
+        : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
+      // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
+      // `max_tokens` caps thinking + answer *together* — a 1024-token default
+      // could be spent entirely on thinking and truncate the reply. The other
+      // four adapters here don't think, and every caller's token budget was
+      // sized against that, so keep parity and turn it off. (Accepted only at
+      // effort `high` or below; we never set `effort`, and its default is
+      // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
+      thinking: { type: 'disabled' },
+      system: systemPrompt,
+      messages: [{ role: 'user', content: input.userPrompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId,
+    })
+  }
+
+  const data = AnthropicTextResponseSchema.parse(await response.json())
+  const textBlock = data.content.find((block) => block.type === 'text')
+
+  if (!textBlock?.text) {
+    throw new Error('No text response from Claude')
+  }
+
+  return textBlock.text.trim()
+}
+
+/**
  * VolcEngine (豆包) text completion — OpenAI-compatible chat API.
  * Supports vision (image_url in content) and web search via plugin.
  */
@@ -887,6 +1006,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return deepseekTextCompletion(input)
     case AI_ADAPTER_TYPES.DASHSCOPE:
       return dashscopeTextCompletion(input)
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return anthropicTextCompletion(input)
     default:
       throw new Error(
         `LLM text completion not supported for adapter: ${input.adapterType}`,

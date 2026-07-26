@@ -28,6 +28,10 @@ describe('api key adapter options', () => {
       // stays active through its SFX model (the v3 TTS model was retired).
       AI_ADAPTER_TYPES.DASHSCOPE,
       AI_ADAPTER_TYPES.ELEVENLABS,
+      // Claude (Anthropic) joined 2026-07-26 as the canvas assistant's
+      // structural-reasoning route (assistant capability) — see
+      // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.
+      AI_ADAPTER_TYPES.ANTHROPIC,
     ])
 
     expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(

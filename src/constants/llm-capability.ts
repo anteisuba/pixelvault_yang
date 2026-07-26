@@ -31,10 +31,16 @@ const ADAPTER_CAPABILITIES: Record<
   // Chinese scriptwriting / shot breakdowns and now also serves the canvas
   // assistant, which is text-only today (node context + chat, no images).
   [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
-  // DashScope (Qwen): cheap enhance + text planner + assistant. The assistant
-  // route runs the text flagship (qwen3-max); image-reverse vision turns route
-  // to Gemini/GPT/qwen3-vl-plus instead.
-  [AI_ADAPTER_TYPES.DASHSCOPE]: ['enhance', 'planner', 'assistant'],
+  // DashScope (Qwen): cheap enhance + text planner. 2026-07-26: Qwen exits
+  // the canvas assistant route (owner decree) — Claude takes its slot there.
+  // enhance/planner stay untouched.
+  [AI_ADAPTER_TYPES.DASHSCOPE]: ['enhance', 'planner'],
+  // Claude (Anthropic): canvas-assistant structural reasoning only (multi-
+  // scene continuity, character arcs, shot planning — the assistant's own
+  // job). No enhance (that line isn't short on adapters, don't expand it),
+  // no planner (SCRIPT_PLANNER_MODELS intentionally stays untouched — see
+  // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md §3.4 note).
+  [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
   [AI_ADAPTER_TYPES.HUGGINGFACE]: [],
   [AI_ADAPTER_TYPES.FAL]: [],

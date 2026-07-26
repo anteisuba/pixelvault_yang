@@ -28,7 +28,12 @@ export function CanvasMiniMap() {
       maskColor="color-mix(in oklab, var(--node-blueprint-bg) 58%, transparent)"
       maskStrokeColor="var(--node-blueprint-line)"
       bgColor="var(--node-blueprint-bg)"
-      className="!bottom-24 !left-4 !m-0 !h-32 !w-48 overflow-hidden rounded-2xl border border-node-blueprint-line/40 shadow-node-panel md:!bottom-28 md:!left-6"
+      // S2b（2026-07-26）：左下角现在被左侧合体面板占着，minimap 必须让开。
+      // 靠 --canvas-minimap-left 定位，值由 StudioNodeWorkbench 按面板展开态给：
+      // 展开 = 面板宽 + 间距，收起 = 图标轨宽 + 间距。作用域外（无该变量时）
+      // 回退到原来的贴边值，不影响任何非画布消费者。
+      style={{ left: 'var(--canvas-minimap-left, 1rem)' }}
+      className="!bottom-24 !m-0 !h-32 !w-48 overflow-hidden rounded-2xl border border-node-blueprint-line/40 shadow-node-panel md:!bottom-28"
     />
   )
 }

@@ -16,11 +16,13 @@ export const NODE_STUDIO_CANVAS = {
     zoom: 2,
   },
   background: {
-    // Wider spacing so the grid reads as a navigation field, not noise.
-    gap: 44,
-    size: 1.5,
-    // v2 制片桌（references/pages/node-canvas.md §2.1）：暖炭点阵。
-    // S1 首落 #26231e 对比仅 1.19:1 几乎不可见，owner 目验后加深（~1.6:1）。
+    // S1（2026-07-26）：44 → 48，对齐画布域皮肤 v0.2 §1（实测参考站
+    // background-size 33.74px @ 70% 缩放 → 基准 ≈48px）。
+    gap: 48,
+    // 点直径 2px（半径 1px），同规格。
+    size: 2,
+    // 点色不再写死：`CanvasSurface` 按当前底色的亮度算 `--canvas-grid-dot`，
+    // 这里只留一个底色解析失败时的兜底值。
     color: '#403a2f',
   },
   defaultZoomPercent: 200,
@@ -47,7 +49,14 @@ export const NODE_STUDIO_CANVAS_APPEARANCE_FITS = ['cover', 'contain'] as const
  * consumers resolve that absence against this constant instead.
  */
 export const NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT = {
-  backgroundColor: '#14120F',
+  /**
+   * S1（2026-07-26）：从旧皮暖炭 `#14120F` 改为画布域皮肤 v0.2 的底色。
+   * 白卡靠「比底亮一档」浮起（卡对底 1.13:1，规格 §1/§2），底若是纯白或纯黑
+   * 这个层次就塌了——所以域默认底必须和 `--canvas-bg` 同值。
+   * ⚠ 只改**默认**：项目显式设过 `canvasAppearance` 的仍然照用户的来，
+   * 由 `getCanvasCardLineColor` 在底色与卡背过近时加重卡边兜底。
+   */
+  backgroundColor: '#F1F1F1',
   image: undefined,
 } as const
 
@@ -687,12 +696,24 @@ export const NODE_STUDIO_EDGE_VISUALS = {
   selectedColor: 'var(--node-paint)',
   glowFilter:
     'drop-shadow(0 0 4px color-mix(in oklab, var(--node-edge-active) 28%, transparent))',
-  strokeWidth: 2,
-  hoverStrokeWidth: 2.5,
-  selectedStrokeWidth: 2.5,
-  revealedStrokeWidth: 1.5,
+  // S3（2026-07-26）连线语言：三个维度编码三件事（规格 §7.1）——
+  // 粗细 = 建立与否，虚实 = 就绪与否，流光 = 当前焦点。颜色只有两档，
+  // 且选中/生成中靠**明度**变化不换色相（域内 --node-edge* 已被 .domain-canvas
+  // 重映射成 v0.2 的中性值，石绿不再进入连线）。
+  strokeWidth: 3,
+  hoverStrokeWidth: 3,
+  selectedStrokeWidth: 3,
+  revealedStrokeWidth: 3,
+  /** 未就绪 / 占位关系：细虚线 + 降透明，是弱信息，允许弱。 */
+  pendingStrokeWidth: 1.5,
+  pendingDashArray: '6 5',
+  pendingOpacity: 0.6,
+  /** 已建立边用圆头端点（实测参考站同款，收口更干净）。 */
+  lineCap: 'round',
   previewStrokeWidth: 2.5,
-  interactionWidth: 28,
+  // S3：命中区收到 16px（规格 §7.1 实测参考站同款）。28 是旧皮为细线补的
+  // 过量热区，连线加粗到 3px 后不再需要那么宽，反而会抢节点的点击。
+  interactionWidth: 16,
   // 端标墨点半径（替代箭头 markerEnd）。
   endDotRadius: 3.5,
   markerSize: 20,

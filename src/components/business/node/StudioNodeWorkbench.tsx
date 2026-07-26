@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
@@ -164,7 +165,8 @@ import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
-import { CastDock, type CastSectionId } from './CastDock'
+import { CanvasLeftPanel } from './CanvasLeftPanel'
+import { CastDock, countCastCards, type CastSectionId } from './CastDock'
 import { createReferenceAsset } from './CharacterImageReferenceControls'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
@@ -503,7 +505,10 @@ function StudioNodeCanvas() {
     NodeWorkflowEdge
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
-  const [assistantDockOpen, setAssistantDockOpen] = useState(true)
+  // S2a（2026-07-26）：助手默认**收起**。规格 §8 的宽度策略——左侧合体面板
+  // 常驻 296px + 右助手约 420px = 716px 被 chrome 吃掉，1440 宽的屏只剩 724px
+  // 画布。两侧不能同时满开，默认让位给画布。
+  const [assistantDockOpen, setAssistantDockOpen] = useState(false)
   // E1b three states: collapsed (!open) / dock (open) / expanded (open+expanded).
   const [assistantExpanded, setAssistantExpanded] = useState(false)
   // The node whose ⤢ detail panel is open (B3 shared floating panel). One id
@@ -517,6 +522,9 @@ function StudioNodeCanvas() {
   // enforce the L5 mutual-exclusion + 档2/档3→L5/L3 close cascade + Esc
   // ladder without lifting either component's real state.
   const [castDockExpanded, setCastDockExpanded] = useState(false)
+  // S2b（2026-07-26）左侧合体面板的展开态。默认展开——班底架是「常驻的第二
+  // 主角」（已确认条款 5），不是随取随用的抽屉。
+  const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
   const [imageEditWorkspaceOpen, setImageEditWorkspaceOpen] = useState(false)
   const imageEditNodeByRequestRef = useRef(new Map<string, string>())
   const activeImageEditRequestKeyRef = useRef<string | null>(null)
@@ -1844,64 +1852,42 @@ function StudioNodeCanvas() {
     [toolMode],
   )
 
-  // S5d ②「隐藏条件修正」(node-canvas.md §6.0 owner 拍板，取代 S5b B1-6 的
-  // "类型一律隐藏"): a Cast identity node folds hidden only once it has been
-  // EATEN by something — i.e. it's the SOURCE of at least one edge (吞噬 =
-  // 建边，use-cast-ingest.ts 的 onConnect 恒定 source=身份节点/target=消费者)。
-  // 零引用的角色/背景/音色/参考视频卡显示在画布上；拆掉最后一条引用边（成分栏
-  // × / 胃取出）时这个 Set 自然少一个 id，卡片下一次渲染就回画布——不需要额外
-  // un-hide 逻辑，纯粹从 workflow.edges 派生。S5f A 行⑤复用同一个 Set（改名反映
-  // 新用途，不再是 "cast identity 专属"）——散图喂进视频/镜头卡后同样"被吃"。
-  const nodeIdsWithOutgoingEdge = useMemo(() => {
-    const ids = new Set<string>()
-    for (const edge of workflow.edges) {
-      ids.add(edge.source)
-    }
-    return ids
-  }, [workflow.edges])
-  // 渲染退场（node-canvas.md §6.3「吞噬是纯渲染层折叠」）: fold into ReactFlow
-  // `hidden` at RENDER TIME only — the data model (`workflow.nodes`) this
-  // derives from is untouched, so undo/save/reload all still see the real
-  // graph. Shot/frame image cards ("镜头图卡" — 中鱼) are deliberately NOT in
-  // `isCastIdentityNode`, so they stay visible regardless of edges.
-  // S5c 三.3 追加同一条规矩（S5d 对齐到同一条"有下游引用才隐藏"）: a loose
-  // image node fused into a character/background's referenceAssets
-  // (`data.fusedIntoNodeId` set) folds hidden the same way — still a
-  // `hidden` flag on the real node, never a filtered array, so 拆出
-  // (extract) just clears the flag to bring it back.
-  // S5f A 行⑤：a loose (role-less) image dragged directly into a shot/video
-  // node builds a real EDGE (not a referenceAssets fusion — see
-  // `handleNodeDragStop`), so it folds via the SAME "has an outgoing edge"
-  // rule instead of a third flag. Scoped to `isLooseImageNode` only — shot
-  // images ("镜头图卡") stay excluded on purpose, matching the comment above.
-  // Folded node ids (shared by renderedNodes below AND renderedEdges' "两端
-  // 可见" guard — the SAME 判定, not a second copy of it, per R3-1's
-  // instruction to reuse one source of truth).
+  // 渲染退场: fold into ReactFlow `hidden` at RENDER TIME only — the data
+  // model (`workflow.nodes`) this derives from is untouched, so undo/save/
+  // reload all still see the real graph.
+  //
+  // S3.5「吞噬折叠退役」(canvas-implementation-stages-2026-07-26, owner
+  // 2026-07-26 拍板「成分永不消失」): the "has an outgoing edge → fold" rule
+  // is GONE. It was the last surviving piece of the 吞噬 paradigm on the node
+  // side, and it cost more than it bought: folding the source ALSO hid the
+  // edge (via `renderedEdges`' 两端可见 guard below), so the relationship the
+  // S3 连线语言 exists to show was erased at the exact moment it was created.
+  // Verified on 「AI拟人剧场」2026-07-26 — 6 数据边只渲染 5 条，缺的正是
+  // 散图→组装台那条，源节点也一并从 9/10 消失。散图现在与 collector/voice/
+  // videoReference 走同一条路：本体留在画布上，关系由连线承担。
+  //
+  // 仍会折叠的只剩一种：a loose image FUSED into a character/background's
+  // `referenceAssets` (`data.fusedIntoNodeId` set)。那条路径根本不建边，图的
+  // 内容真的搬进了目标卡的图集里，两处同时显示才是重复——补真边是另一片工作，
+  // 不在本片范围内。Shot/frame image cards（镜头图卡）从来不折叠，照旧。
+  //
   // A1 perf fix (canvas-relationship-v3-2026-07 §7b): `workflow.nodes` gets a
   // brand new ARRAY reference on every drag frame (`applyNodeChanges` inside
   // `onNodesChange`), even though only the dragged node's x/y actually
-  // changed — but fold status only depends on `fusedIntoNodeId` + type +
-  // outgoing-edges, none of which move during a drag. Splitting this into a
-  // cheap signature string (built every render — plain string concat, no
-  // Set allocation) + a Set memo keyed on THAT primitive means the Set (and
-  // everything reading it downstream — `renderedNodes`, `renderedEdges`)
-  // only gets a new identity when a node's fold-relevant fields actually
-  // change, not on every position tick.
+  // changed — but fold status only depends on `fusedIntoNodeId`, which
+  // doesn't move during a drag. Splitting this into a cheap signature string
+  // (built every render — plain string concat, no Set allocation) + a Set
+  // memo keyed on THAT primitive means the Set (and everything reading it
+  // downstream — `renderedNodes`, `renderedEdges`) only gets a new identity
+  // when a node's fold-relevant field actually changes, not on every
+  // position tick.
   const foldedNodeIdsSignature = useMemo(() => {
     let signature = ''
     for (const node of workflow.nodes) {
-      const hasOutgoingEdge = nodeIdsWithOutgoingEdge.has(node.id)
-      // Cast identity cards (角色/场景) stay on the canvas even when eaten —
-      // the 卡匣 is a mirror tray, not the only surface. Only fused loose
-      // images (referenceAssets path) and loose images with an outgoing edge
-      // fold hidden.
-      const shouldFold =
-        Boolean(node.data.fusedIntoNodeId) ||
-        (isLooseImageNode(node) && hasOutgoingEdge)
-      if (shouldFold) signature += node.id + '|'
+      if (node.data.fusedIntoNodeId) signature += node.id + '|'
     }
     return signature
-  }, [workflow.nodes, nodeIdsWithOutgoingEdge])
+  }, [workflow.nodes])
   const foldedNodeIds = useMemo(
     () =>
       new Set(
@@ -2803,11 +2789,12 @@ function StudioNodeCanvas() {
       )
       if (!targetNode) return
 
-      // Capture the DRAGGED node's own rendered card BEFORE mutating — both
-      // branches below fold this node `hidden` on the NEXT render (fusion via
-      // `fusedIntoNodeId`, ingest via the new outgoing edge). The ghost clone
-      // is a snapshot taken while it's still on screen, so the flight starts
-      // from exactly where the node visually sits.
+      // Capture the DRAGGED node's own rendered card BEFORE mutating. Only
+      // the FUSION branch below still folds this node `hidden` on the next
+      // render (`fusedIntoNodeId`); the ghost clone is a snapshot taken while
+      // it's still on screen, so the swallow flight starts from exactly where
+      // the node visually sits. The edge branch keeps the real card and
+      // animates it home instead (S3.5), and needs the same element handle.
       const sourceEl = findNodeCardElement(node.id)
 
       if (isLooseImageNode(node) && isCollectorCardNode(targetNode)) {
@@ -2857,38 +2844,17 @@ function StudioNodeCanvas() {
       if (evaluation.legal) {
         handleIngestConnect(node.id, targetNode.id)
 
-        // 行⑤ 折叠源（loose image 直接落到 shot/video，§2.6 折叠规则：这条边一
-        // 旦建立，该节点就会在下一次渲染折叠隐藏，§2.7 动效分流表要求它"三拍吞
-        // 噬现状完全保留"）——不改。
-        if (isLooseImageNode(node)) {
-          const announceIngested = () =>
-            toast.success(t('ingest.canvasNodeIngested'), {
-              duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-              position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-            })
-          if (sourceEl) {
-            playCanvasFuseSwallowAnimation(
-              sourceEl,
-              targetNode.id,
-              announceIngested,
-            )
-          } else {
-            playTargetGulpAnimation(hit.cardElement)
-            announceIngested()
-          }
-          return
-        }
-
-        // 行①②③ 非折叠源（收集器卡/音色/参考视频）——§2.7「墨线签署」: the
-        // source node never folds (isCanvasIngestDragSource's collector/
-        // voice/videoReference branches never enter `foldedNodeIds`), so the
-        // old "fly into the target and vanish" ghost was lying — the real
-        // card sat underneath the ghost the whole time, unchanged, reading
-        // as "swallowed but still there". Replace it with the honest beats:
-        // target 轻咽 + edge draws in (via `scheduleEdgeSigning` marking the
-        // pair, `renderedEdges` force-showing it, `NodeWorkflowStatusEdge`
-        // playing the dash-in on its own) + the dragged card's OWN element
-        // sliding back to where the drag started.
+        // 行①②③⑤ 全部走「墨线签署」——§2.7: the source node never folds
+        // (nothing that builds an EDGE enters `foldedNodeIds` any more, S3.5
+        // 退役了散图那条折叠规则), so the old "fly into the target and
+        // vanish" ghost was lying — the real card sat underneath the ghost
+        // the whole time, unchanged, reading as "swallowed but still there".
+        // The honest beats instead: target 轻咽 + edge draws in (via
+        // `scheduleEdgeSigning` marking the pair, `renderedEdges`
+        // force-showing it, `NodeWorkflowStatusEdge` playing the dash-in on
+        // its own) + the dragged card's OWN element sliding back to where the
+        // drag started. 散图（行⑤）2026-07-26 起并入这条路径：它建的是真边，
+        // 边就该看得见，本体就该留下。
         toast.success(t('ingest.canvasNodeSigned'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
@@ -3106,6 +3072,39 @@ function StudioNodeCanvas() {
     ],
   )
 
+  // S2b 宽度策略（规格 §8）：左 296 + 右助手约 420 = 716px 被 chrome 吃掉，
+  // 1440 宽的屏只剩 724px 画布。所以两侧不能同时满开：
+  //   ≥1600        左面板常驻展开 + 右 dock 可同时开
+  //   1024–1600    打开助手时左面板自动收成 56px 图标轨
+  //   768–1024     左面板默认收成图标轨
+  //   <768         整个左面板不渲染（md: 以下不假装完整画布，既有约定）
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const narrow = window.matchMedia('(max-width: 1023.98px)')
+    const mid = window.matchMedia('(max-width: 1599.98px)')
+    const apply = () => {
+      if (narrow.matches) {
+        setLeftPanelExpanded(false)
+        return
+      }
+      if (mid.matches && assistantDockOpen) {
+        setLeftPanelExpanded(false)
+      }
+    }
+    apply()
+    narrow.addEventListener('change', apply)
+    mid.addEventListener('change', apply)
+    return () => {
+      narrow.removeEventListener('change', apply)
+      mid.removeEventListener('change', apply)
+    }
+  }, [assistantDockOpen])
+
+  const castCount = useMemo(
+    () => countCastCards(workflow.nodes),
+    [workflow.nodes],
+  )
+
   const assistantMode = !assistantDockOpen
     ? 'closed'
     : assistantExpanded
@@ -3203,7 +3202,8 @@ function StudioNodeCanvas() {
               size={NODE_STUDIO_CANVAS.background.size}
               color="var(--canvas-grid-dot)"
             />
-            <CanvasMiniMap />
+            {/* S2b：minimap 挪到 chrome 层（见下方带 --canvas-minimap-left 的
+                包装），这样它的左偏移能跟着左侧面板的展开态走。 */}
             <VideoMergeComposeToolbar
               nodeIds={composeSelectionNodeIds}
               onCompose={handleComposeVideoMerge}
@@ -3260,20 +3260,39 @@ function StudioNodeCanvas() {
                 relationsCollapsed={relationsCollapsed}
                 onRelationsCollapsedChange={setRelationsCollapsed}
               />
+            </div>
+            {/* S2b（2026-07-26）：卡匣从底部横匣搬进左侧合体面板。底部那行现在
+                只剩视图控制（选择·手/缩放/适应/撤销重做），符合规格 §12.2
+                「左 = 内容动作，底 = 视图控制」的职责分栏。 */}
+            {/* minimap 让开左侧面板：把它的左偏移做成变量挂在 chrome 层，
+                面板展开/收起时同一条 --canvas-dur-slow 一起动，不会错位。 */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={
+                {
+                  '--canvas-minimap-left': leftPanelExpanded
+                    ? 'calc(var(--canvas-panel-w) + var(--canvas-rail-w) + 2rem)'
+                    : 'calc(var(--canvas-rail-w) + 2rem)',
+                } as CSSProperties
+              }
+            >
+              <CanvasMiniMap />
+            </div>
+            <CanvasLeftPanel
+              expanded={leftPanelExpanded}
+              onExpandedChange={setLeftPanelExpanded}
+              castCount={castCount}
+              onAddClick={handleTopbarAddClick}
+            >
               <CastDock
                 onCreateCard={handleCastCreate}
-                // A4 ①: 之前传 0/0——展开条只顶着把手自己的窄框展开，从没真的
-                // 撑到过助手 rail 边界。改传这条行本身已经在用的 inset（同一套
-                // 安全区，助手宽度早已在 bottomRowInsetPx 里扣除，这里不重算）；
-                // CastDock 内部把它换算成"行内局部坐标"去定位展开条。
-                insetLeft={bottomRowInsetPx.left}
-                insetRight={bottomRowInsetPx.right}
+                insetLeft={0}
+                insetRight={0}
                 canvasDragActive={canvasNodeDragActive}
-                layout="inline"
-                forceCollapse={castDockForceCollapse}
+                layout="panel"
                 onExpandedChange={setCastDockExpanded}
               />
-            </div>
+            </CanvasLeftPanel>
             <CanvasAddMenu
               open={Boolean(addMenu)}
               screenPosition={addMenu?.menuPosition ?? null}

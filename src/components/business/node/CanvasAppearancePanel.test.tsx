@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT } from '@/constants/node-studio'
 import type { GenerationRecord } from '@/types'
 
 import { CanvasAppearancePanel } from './CanvasAppearancePanel'
@@ -75,7 +76,9 @@ describe('CanvasAppearancePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'select-test-asset' }))
 
     expect(onChange).toHaveBeenCalledWith({
-      backgroundColor: '#14120F',
+      // 引常量而不是硬编码色值：默认底是设计决策（S1 从旧皮暖炭改成域皮肤
+      // #F1F1F1），断言跟着常量走，以后再调默认不会莫名其妙红一次。
+      backgroundColor: NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT.backgroundColor,
       image: {
         url: 'https://cdn.example.com/wallpaper.jpg',
         sourceGenerationId: 'generation-wallpaper',

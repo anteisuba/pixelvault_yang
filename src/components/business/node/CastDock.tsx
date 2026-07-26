@@ -108,6 +108,17 @@ export function isCastIdentityNode(node: NodeWorkflowNode): boolean {
   )
 }
 
+/**
+ * S2b：面板头部要显示班底总数，但那个数必须和匣里真正渲出来的卡一致。
+ * `isCastIdentityNode` 范围更宽（还含 MATERIAL_IDENTITY_MATCHERS，那些不出
+ * 卡面），所以单独导一个只按 CAST_SECTIONS 计数的函数，避免调用方各自猜。
+ */
+export function countCastCards(nodes: readonly NodeWorkflowNode[]): number {
+  return nodes.filter((node) =>
+    CAST_SECTIONS.some((section) => section.match(node)),
+  ).length
+}
+
 interface CastDockProps {
   /** Create a role-stamped node for this section and wire it onto the
    *  canvas (role preset — see StudioNodeWorkbench.handleCastCreate). */
@@ -128,7 +139,11 @@ interface CastDockProps {
    * (handle always; strip expands upward). `absolute` — legacy free-floating
    * strip with inset positioning.
    */
-  layout?: 'absolute' | 'inline'
+  /** S2b（2026-07-26）新增 `panel`：竖向铺在左侧合体面板的内容区里。
+   *  `absolute` / `inline` 都是**横条**布局（带把手、带展开条、按 inset 定位），
+   *  panel 模式一概不要——外层面板已经提供了容器、标题与折叠控制，这里只出
+   *  内容本身。 */
+  layout?: 'absolute' | 'inline' | 'panel'
   /**
    * R3-4 (canvas-relationship-v3 §4.2): the workbench flips this true when a
    * higher tier claims the L5/L6 slot (add menu opens, 详情面板/重编辑工作区
@@ -339,6 +354,7 @@ export function CastDock({
   const barLeft = Math.max(insetLeft, NODE_STUDIO_CAST_DOCK.minimapClearancePx)
   const inlineStripLeftPx = Math.max(0, barLeft - insetLeft)
   const isInline = layout === 'inline'
+  const isPanel = layout === 'panel'
 
   const handleButton = (
     <button
@@ -382,12 +398,22 @@ export function CastDock({
     // token），完全不受这层透明度影响，无需改动。
     <div
       className={cn(
-        'pointer-events-auto flex w-full flex-col overflow-hidden rounded-2xl border border-node-panel-inner/70 bg-node-panel/90 backdrop-blur-sm transition-opacity duration-base',
+        'pointer-events-auto flex w-full flex-col overflow-hidden transition-opacity duration-base',
+        // panel 模式（S2b）：外层 CanvasLeftPanel 已经提供容器、玻璃与投影，
+        // 这里再套一层圆角深底就是「面板里又一个面板」。
+        !isPanel &&
+          'rounded-2xl border border-node-panel-inner/70 bg-node-panel/90 backdrop-blur-sm',
         dragState.active && 'opacity-40',
       )}
-      style={{ boxShadow: 'var(--shadow-canvas-menu)' }}
+      style={isPanel ? undefined : { boxShadow: 'var(--shadow-canvas-menu)' }}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5">
+      <div
+        className={cn(
+          'items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5',
+          // panel 模式的标题 + 计数 + 折叠都由 CanvasLeftPanel 的头部承担。
+          isPanel ? 'hidden' : 'flex',
+        )}
+      >
         <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
           <LayoutGrid className="size-3" aria-hidden />
           {t('title')} · {totalCount}
@@ -404,12 +430,25 @@ export function CastDock({
         </button>
       </div>
 
-      <div className="flex items-stretch gap-3 overflow-x-auto p-3">
+      <div
+        className={cn(
+          isPanel
+            ? 'flex flex-col gap-4 p-3'
+            : 'flex items-stretch gap-3 overflow-x-auto p-3',
+        )}
+      >
         {/* No explicit height here — the row sizes naturally to its
                 tallest child (CastCard's own `h-36`); a fixed row height
                 would clip the cards under this row's own padding. */}
         {visibleSections.map((section, sectionIndex) => (
-          <div key={section.id} className="flex shrink-0 items-stretch gap-2">
+          <div
+            key={section.id}
+            className={cn(
+              isPanel
+                ? 'flex flex-col gap-2'
+                : 'flex shrink-0 items-stretch gap-2',
+            )}
+          >
             {sectionIndex > 0 ? (
               <div
                 className="my-1 w-px shrink-0 bg-node-panel-inner"
@@ -418,8 +457,13 @@ export function CastDock({
             ) : null}
             <div
               className={cn(
-                'flex shrink-0 flex-col items-center justify-center gap-1 rounded-md text-node-muted',
-                NODE_STUDIO_CAST_DOCK.barSectionLabelWidthClass,
+                'text-node-muted',
+                isPanel
+                  ? 'flex items-center gap-1.5'
+                  : cn(
+                      'flex shrink-0 flex-col items-center justify-center gap-1 rounded-md',
+                      NODE_STUDIO_CAST_DOCK.barSectionLabelWidthClass,
+                    ),
               )}
             >
               <section.Icon className="size-4" aria-hidden />
@@ -441,8 +485,9 @@ export function CastDock({
                 <div
                   key={node.id}
                   className={cn(
-                    'shrink-0',
-                    NODE_STUDIO_CAST_DOCK.barCardWidthClass,
+                    isPanel
+                      ? 'w-full'
+                      : cn('shrink-0', NODE_STUDIO_CAST_DOCK.barCardWidthClass),
                   )}
                 >
                   <CastCard
@@ -554,6 +599,12 @@ export function CastDock({
         {handleButton}
       </div>
     )
+  }
+
+  // S2b panel 布局：外层 CanvasLeftPanel 负责容器/标题/折叠/定位，这里只出内容。
+  // 不走 collapsed 分支——面板收起时整个内容区根本不渲染（见 CanvasLeftPanel）。
+  if (isPanel) {
+    return stripBody
   }
 
   // Absolute layout: handle when collapsed; full-width strip when open.

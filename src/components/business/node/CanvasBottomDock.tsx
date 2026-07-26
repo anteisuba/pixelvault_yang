@@ -86,7 +86,11 @@ export function CanvasBottomDock({
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div className="pointer-events-auto hidden w-fit items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel px-1.5 py-1.5 shadow-sm md:flex">
+      {/* S2a（2026-07-26）：视图控制收成底部中间的玻璃胶囊（规格 §8）。
+          canvas-glass + canvas-toolbar-capsule 在 .domain-canvas 作用域内接管
+          背景/边/投影/圆角；旧皮的 bg-node-panel + rounded-xl 只在作用域外生效。
+          `md:flex` 保留——<768 不渲染完整画布是既有约定。 */}
+      <div className="pointer-events-auto hidden w-fit items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel px-2 py-1.5 shadow-sm md:flex canvas-glass canvas-toolbar-capsule">
         <div className="flex items-center gap-1">
           {NODE_STUDIO_TOOL_MODES.map((mode) => {
             const Icon = TOOL_MODE_ICONS[mode]

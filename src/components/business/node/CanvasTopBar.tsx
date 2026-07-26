@@ -96,7 +96,11 @@ export function CanvasTopBar({
   return (
     <header
       className={cn(
-        'pointer-events-auto absolute left-3 right-3 top-3 flex h-12 items-center justify-between gap-3 rounded-xl border border-node-panel-inner bg-node-panel px-2 shadow-sm md:left-4 md:right-4',
+        // S2a（2026-07-26）：从「浮在画布上的深色圆角块」改成贴边通栏玻璃。
+        // canvas-glass + canvas-topbar 在 .domain-canvas 作用域内接管背景/边/
+        // 投影/高度（特异度 0,2,0 高于工具类），旧皮 bg-node-panel 那套只在
+        // 作用域外还生效。inset 归零 —— 顶栏是「这一屏的框」不是浮层。
+        'pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between gap-3 border border-node-panel-inner bg-node-panel px-3 canvas-glass canvas-topbar',
         className,
       )}
     >

@@ -13,6 +13,7 @@
  * React-free so it's unit-testable in isolation.
  */
 
+import { NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -41,6 +42,13 @@ export interface EdgeVisualInputs {
    */
   revealed: boolean
   hovered: boolean
+  /**
+   * S3（2026-07-26）：源节点还没产出媒体 —— 这条关系「已连上但还不成立」。
+   * 规格 §7.1 把虚实定为「就绪与否」的编码位：实线 = 已建立，虚线 = 未就绪。
+   * 参考站也是这么用的（原判"虚线是装饰"已更正）。
+   * 可选：不传 = 当作已建立（实线）。既有调用方不用改。
+   */
+  pending?: boolean
 }
 
 export interface EdgeVisual {
@@ -49,6 +57,10 @@ export interface EdgeVisual {
   strokeWidth: number
   /** Whether to attach the neutral-pulse animation class. */
   pulsing: boolean
+  /** 未就绪档的虚线节奏；已建立档为 undefined（实线）。 */
+  dashArray?: string
+  /** 未就绪档降透明——它是弱信息，允许弱。 */
+  opacity?: number
 }
 
 /**
@@ -62,12 +74,24 @@ export function resolveNodeWorkflowEdgeVisual({
   selected,
   revealed,
   hovered,
+  pending,
 }: EdgeVisualInputs): EdgeVisual {
+  // 未就绪排在 running 之后、其它之前：源节点正在生成时仍走 running 的脉冲
+  // （那是"正在发生"，比"还没就绪"更该被看见）；一旦不在生成，没产出就是虚线。
   if (running) {
     return {
       color: NODE_STUDIO_EDGE_VISUALS.previewColor,
       strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
       pulsing: true,
+    }
+  }
+  if (pending) {
+    return {
+      color: NODE_STUDIO_EDGE_VISUALS.color,
+      strokeWidth: NODE_STUDIO_EDGE_VISUALS.pendingStrokeWidth,
+      pulsing: false,
+      dashArray: NODE_STUDIO_EDGE_VISUALS.pendingDashArray,
+      opacity: NODE_STUDIO_EDGE_VISUALS.pendingOpacity,
     }
   }
   if (selected) {
@@ -96,4 +120,31 @@ export function resolveNodeWorkflowEdgeVisual({
     strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
     pulsing: false,
   }
+}
+
+/**
+ * S3：判定一条边的**源**是否还没产出，用来决定这条关系画实线还是虚线。
+ *
+ * 只把「会产媒体」的类型算进来：身份卡 / 音色卡这些本来就不带 `mediaUrl`，
+ * 一律当未就绪会让整张画布全是虚线，虚实这个编码位就废了。
+ * ⚠ 这是首版判据，真机上要盯一眼「刚上传完图的散图卡」这类会不会误判。
+ */
+const MEDIA_PRODUCING_NODE_TYPES: ReadonlySet<string> = new Set([
+  NODE_TYPE_IDS.image,
+  NODE_TYPE_IDS.shot,
+  NODE_TYPE_IDS.characterImage,
+  NODE_TYPE_IDS.backgroundImage,
+  NODE_TYPE_IDS.frameImage,
+  NODE_TYPE_IDS.seedance,
+  NODE_TYPE_IDS.videoReference,
+  NODE_TYPE_IDS.videoMerge,
+])
+
+export function isPendingSourceNode(
+  node: { type?: string; data?: { mediaUrl?: unknown } } | null | undefined,
+): boolean {
+  if (!node?.type) return false
+  if (!MEDIA_PRODUCING_NODE_TYPES.has(node.type)) return false
+  const url = node.data?.mediaUrl
+  return typeof url !== 'string' || url.length === 0
 }

@@ -43,6 +43,12 @@ export function CanvasWorkspaceLayout({
         data-testid="canvas-stage"
         style={stageStyle}
         className={cn(
+          // S0：画布域皮肤 v0.2 的作用域根。**只包 stage，不包助手 rail** ——
+          // .domain-canvas 声明 color-scheme:light（画布域是浅色档，而 app 全局
+          // 是 <html class="dark">），若把仍为深色面板的助手 dock 也圈进来，它的
+          // 原生滚动条/输入控件会按浅色渲染（memory reference-dark-color-scheme
+          // 的反向）。S0 阶段本作用域零消费者，画面不变。
+          'domain-canvas',
           styles.stage,
           '@container relative isolate min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-surface,var(--node-canvas))]',
         )}

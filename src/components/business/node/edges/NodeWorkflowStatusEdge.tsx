@@ -10,6 +10,7 @@ import {
 } from '@/hooks/node/use-cast-ingest'
 import { cn } from '@/lib/utils'
 import {
+  isPendingSourceNode,
   isNodeWorkflowGenerating,
   resolveNodeWorkflowEdgeVisual,
 } from '@/lib/node-workflow-edge-visual'
@@ -58,6 +59,7 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  source,
   target,
   selected,
   data,
@@ -74,6 +76,10 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
   const pathRef = useRef<SVGPathElement | null>(null)
 
   const targetData = useNodesData<NodeWorkflowNode>(target)
+  // S3：未就绪 = 源节点是「会产媒体」的类型但还没产出。身份卡 / 音色卡这类
+  // 本来就不带 mediaUrl，不能一律当未就绪，否则整张画布全是虚线。
+  const sourceData = useNodesData<NodeWorkflowNode>(source)
+  const pending = isPendingSourceNode(sourceData)
   const running = isNodeWorkflowGenerating(
     targetData?.data.status,
     targetData?.data.generationStatus,
@@ -112,6 +118,7 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
     selected: Boolean(selected),
     revealed,
     hovered,
+    pending,
   })
 
   return (
@@ -138,6 +145,13 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
         style={{
           stroke: visual.color,
           strokeWidth: visual.strokeWidth,
+          strokeDasharray: visual.dashArray,
+          strokeOpacity: visual.opacity,
+          // 已建立边用圆头收口（规格 §7.1）；虚线档保持默认平头，
+          // 否则 6/5 的短划会被两端的圆角吃掉、读不出虚线节奏。
+          strokeLinecap: visual.dashArray
+            ? undefined
+            : NODE_STUDIO_EDGE_VISUALS.lineCap,
         }}
       />
       <circle

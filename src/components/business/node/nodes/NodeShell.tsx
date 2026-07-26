@@ -19,15 +19,10 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
-  NODE_ACCENTS,
   NODE_TOKEN_BADGE_LABELS,
   type NodeTokenType,
 } from '@/constants/node-tokens'
-import {
-  NODE_STATUS_IDS,
-  NODE_TYPE_IDS,
-  type NodeWorkflowStatus,
-} from '@/constants/node-types'
+import { NODE_TYPE_IDS, type NodeWorkflowStatus } from '@/constants/node-types'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { getUpstreamNodes } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
@@ -124,6 +119,85 @@ const PORT_GLYPHS: Partial<Record<NodeTokenType, LucideIcon>> = {
 const HANDLE_BASE =
   '!z-canvas-selection !size-5 !border-0 !bg-transparent pointer-events-none'
 
+/**
+ * S1 端口族（规格 §7）：形状是主编码、色是辅编码。四族与节点类型的映射——
+ * 图片族含全部 image 类型（统一 `image` + 三个 legacy 兼容类型 + shot），
+ * 视频族含 seedance / videoReference / videoMerge，voice 是音频族；
+ * 身份族由 `isCollector` 单独判定（收集器卡是「一致性身份」不是散图）。
+ */
+type NodePortFamily = 'image' | 'audio' | 'video' | 'identity'
+
+const PORT_FAMILY_BY_TYPE: Partial<Record<NodeTokenType, NodePortFamily>> = {
+  image: 'image',
+  characterImage: 'image',
+  backgroundImage: 'image',
+  frameImage: 'image',
+  shot: 'image',
+  voice: 'audio',
+  seedance: 'video',
+  videoReference: 'video',
+  videoMerge: 'video',
+  video: 'video',
+}
+
+function resolvePortFamily(
+  type: NodeTokenType,
+  isCollector: boolean | undefined,
+): NodePortFamily {
+  if (isCollector) return 'identity'
+  return PORT_FAMILY_BY_TYPE[type] ?? 'image'
+}
+
+export interface NodeCardPortsProps {
+  type: NodeTokenType
+  isCollector?: boolean
+  showSource?: boolean
+  showTarget?: boolean
+}
+
+/**
+ * The two edge anchors every canvas card needs. Exported because not every
+ * card goes through `NodeShell` — `LooseImageCard` (散图 / 有图的镜头图) is a
+ * bare `<div>` by design (its size is owned by React Flow + NodeResizer, it
+ * has no card chrome to hang off a shell), yet it still has to give ReactFlow
+ * something to anchor an edge to. Without these handles the library has no
+ * bounds to resolve and simply **doesn't render the edge at all** — which is
+ * how 「散图→组装台」and「出了图的镜头图→组装台」(a BACKBONE edge) both went
+ * invisible. Shared rather than copied so the footprint (`!size-5`) and the
+ * family encoding stay in one place — an anchor that drifts moves every edge
+ * endpoint on the canvas.
+ */
+export function NodeCardPorts({
+  type,
+  isCollector,
+  showSource = true,
+  showTarget = true,
+}: NodeCardPortsProps) {
+  const portFamily = resolvePortFamily(type, isCollector)
+  return (
+    <>
+      {showTarget ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+          className={cn(HANDLE_BASE, 'canvas-port')}
+          data-family={portFamily}
+        />
+      ) : null}
+      {showSource ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+          className={cn(HANDLE_BASE, 'canvas-port')}
+          data-family={portFamily}
+        />
+      ) : null}
+    </>
+  )
+}
+
 function NodeShellRoot({
   type,
   nodeId,
@@ -137,30 +211,28 @@ function NodeShellRoot({
   isCollector,
   className,
 }: NodeShellRootProps) {
-  const isFailed = status === NODE_STATUS_IDS.failed
   // R3-7 §7 red line: suppress this card's own single-node toolbar while a
   // multi-select is active, so it can never overlap the selection-bounding-
   // box "合成 N 段" bar (or just clutter the canvas with N floating
   // toolbars) — see `multiSelectActive`'s doc comment for why this can't
   // just rely on NodeToolbar's own library default.
   const { multiSelectActive } = useNodeWorkflowActions()
+  const portFamily = resolvePortFamily(type, isCollector)
 
   return (
     <article
       data-node-type={type}
+      data-selected={selected ? 'true' : undefined}
+      data-status={status}
       className={cn(
-        // node-card-paper = S2 场记卡作用域（容器级变量覆盖，globals.css）。
-        // rounded-sm（非 rounded-md）：本项目 --radius-md 被 shadcn --radius 公式
-        // 重定到 8px，rounded-sm 才是这套刻度里精确落在施工图标注 6px 的一档
-        // （--radius-sm = --radius(10px) - 4px = 6px；S2 报告有算式）。
-        'group relative w-node-card overflow-visible rounded-sm border bg-node-panel text-node-foreground shadow-node-panel transition-colors node-card-paper',
-        selected
-          ? 'border-node-paint/70 ring-2 ring-node-paint/60'
-          : isFailed
-            ? 'border-node-status-failed'
-            : overridden
-              ? 'border-dashed border-node-card-ink-subtle hover:border-node-card-ink'
-              : 'border-node-card-line hover:border-node-card-ink-subtle',
+        // S1（2026-07-26）：`canvas-card` 是画布域皮肤 v0.2 的卡框（canvas.css），
+        // 特异度 0,2,0 高于下面的 Tailwind 工具类，所以背景/圆角/边/投影由它接管。
+        // `node-card-paper` 仍保留——它做的是容器级 --node-* 变量覆盖，让卡内
+        // 子组件（Body/Footer/成分栏）在白卡上继续是深字，S1 不动卡内。
+        // 选中态与失败态改由 data-selected / data-status 驱动（见 canvas.css），
+        // 原来的 ring + border 组合去掉，避免和 canvas-card 的 box-shadow 打架。
+        'group relative w-node-card overflow-visible node-card-paper canvas-card',
+        overridden && 'border-dashed',
         className,
       )}
     >
@@ -169,7 +241,9 @@ function NodeShellRoot({
           nodeId={nodeId}
           isVisible={Boolean(selected) && !multiSelectActive}
           position={Position.Top}
-          offset={8}
+          // S1：卡名移出卡框后占了卡顶上方 28px（24 行高 + 4 间距），工具条
+          // 要让开它，否则两者叠在一起。
+          offset={36}
         >
           <NodeSelectionToolbarChrome
             nodeId={nodeId}
@@ -185,7 +259,8 @@ function NodeShellRoot({
           type="target"
           position={Position.Left}
           isConnectable={false}
-          className={HANDLE_BASE}
+          className={cn(HANDLE_BASE, 'canvas-port')}
+          data-family={portFamily}
         />
       ) : null}
       {showSourceHandle ? (
@@ -193,7 +268,8 @@ function NodeShellRoot({
           type="source"
           position={Position.Right}
           isConnectable={false}
-          className={HANDLE_BASE}
+          className={cn(HANDLE_BASE, 'canvas-port')}
+          data-family={portFamily}
         />
       ) : null}
       {children}
@@ -209,35 +285,35 @@ function NodeShellHeader({
   action,
 }: NodeShellHeaderProps) {
   const t = useTranslations('StudioNode.nodeTypes')
-  const accent = NODE_ACCENTS[type]
   const trimmedTitle = title?.trim()
   const displayTitle =
     trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : t(type)
 
   return (
-    <header className="flex items-center justify-between gap-3 rounded-t-sm border-b border-node-card-line bg-node-panel-inner px-5 py-4">
+    // S1（2026-07-26）：卡名移到卡「外」上方。用 canvas-card-label 的
+    // absolute + bottom:100% 脱离文档流——卡的 box 尺寸一点不变，React Flow 的
+    // 节点测量与端口锚点因此完全不受影响，15 个调用方也不用改签名。
+    // 卡内自此是纯媒体（规格 §12.1）。状态徽章暂随卡名走；把它挪进媒体窗左上角
+    // 浮标是 S4 的事，本片不动卡内。
+    <header className="canvas-card-label">
       <div className="flex min-w-0 items-center gap-2">
+        {/* 族图标：与端口同一套形状 + 族色编码（canvas.css .canvas-label-glyph）。
+            旧皮那个带字母的方牌在 24px 标签行里太挤，也和端口的语言对不上。
+            `title` 保留原来的徽标字母，读屏与 hover 仍能拿到类型。 */}
         <span
-          className={cn(
-            'flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
-            accent.iconPlate,
-            accent.iconText,
-          )}
+          className="canvas-label-glyph"
+          data-family={PORT_FAMILY_BY_TYPE[type] ?? 'image'}
+          title={NODE_TOKEN_BADGE_LABELS[type]}
           aria-hidden
-        >
-          {NODE_TOKEN_BADGE_LABELS[type]}
-        </span>
-        <div className="flex min-w-0 items-center gap-1.5 text-sm">
+        />
+        <div className="flex min-w-0 items-center gap-1.5">
           {titleCrumb}
-          <span
-            className="truncate font-semibold text-node-foreground"
-            title={displayTitle}
-          >
+          <span className="truncate" title={displayTitle}>
             {displayTitle}
           </span>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         {action}
         <NodeStatusBadge status={status} />
       </div>

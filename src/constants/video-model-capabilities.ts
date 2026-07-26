@@ -123,6 +123,14 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16'],
   },
+  // The Interactions API exposes no duration knob — Omni Flash decides (docs
+  // say 3–10s). A single nominal value keeps the UI honest instead of offering
+  // a picker that silently does nothing.
+  [AI_MODELS.GEMINI_OMNI_FLASH]: {
+    supportedDurations: [8],
+    supportedResolutions: ['720p'],
+    supportedAspectRatios: ['16:9', '9:16'],
+  },
 }
 
 export function getVideoModelCapabilities(

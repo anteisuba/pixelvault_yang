@@ -410,6 +410,14 @@ export type PromptEnhanceStyle = (typeof PROMPT_ENHANCE.STYLES)[number]
 export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: 'https://router.huggingface.co/hf-inference/models',
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
+  /**
+   * Interactions API — the surface Gemini Omni video models run on. It sits
+   * beside `/models`, not under it, so it cannot be derived from GEMINI above.
+   */
+  GEMINI_INTERACTIONS:
+    'https://generativelanguage.googleapis.com/v1beta/interactions',
+  /** Files API — where `delivery: 'uri'` video output lands. */
+  GEMINI_FILES: 'https://generativelanguage.googleapis.com/v1beta/files',
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
   DEEPSEEK: 'https://api.deepseek.com',

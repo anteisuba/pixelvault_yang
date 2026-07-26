@@ -3012,6 +3012,10 @@
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"
     },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni Flash",
+      "description": "Google's video model — tops every blind-vote video arena. 720p with native audio."
+    },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "Tencent image-to-3D, high-fidelity geometry + PBR textures"

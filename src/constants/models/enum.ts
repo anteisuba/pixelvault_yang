@@ -60,6 +60,13 @@ export enum AI_MODELS {
   SEEDANCE_20_REFERENCE_VOLCENGINE = 'seedance-2.0-reference-volcengine',
   SEEDANCE_20_FAST_REFERENCE_VOLCENGINE = 'seedance-2.0-fast-reference-volcengine',
   VEO_31 = 'veo-3.1',
+  /**
+   * Gemini Omni Flash — video via the Interactions API, not generateContent.
+   * Enum value deliberately omits `-preview`: the execution id carries it, so
+   * the GA promotion becomes a one-line externalModelId change (see the
+   * gemini-3-pro-image-preview shutdown for why this matters).
+   */
+  GEMINI_OMNI_FLASH = 'gemini-omni-flash',
 
   // 3D models (image-to-3D)
   HUNYUAN3D_2_1 = 'hunyuan3d-2.1',

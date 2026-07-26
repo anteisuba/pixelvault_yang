@@ -3012,6 +3012,10 @@
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"
     },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni Flash",
+      "description": "Google 视频模型 — 盲测视频榜单全项第一，720p 原生音频"
+    },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "腾讯图生 3D，高保真几何 + PBR 纹理"

@@ -92,6 +92,27 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     },
   },
   {
+    // Tops all three Artificial Analysis video arenas (T2V ±audio and I2V).
+    // Runs on the Interactions API — see geminiAdapter.submitVideoToQueue.
+    // ⚠ preview-tier model; watch the Gemini deprecation table.
+    id: AI_MODELS.GEMINI_OMNI_FLASH,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+    externalModelId: 'gemini-omni-flash-preview',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://ai.google.dev/gemini-api/docs/omni',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    // i2v runs through the same endpoint — the adapter switches
+    // video_config.task to image_to_video when a reference image is present.
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  {
     id: AI_MODELS.KLING_V3_PRO,
     cost: 6,
     adapterType: AI_ADAPTER_TYPES.FAL,

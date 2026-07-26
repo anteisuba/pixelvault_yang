@@ -3012,6 +3012,10 @@
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
     },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni Flash",
+      "description": "Googleの動画モデル — ブラインド評価の動画アリーナで全項目1位。720pでネイティブ音声対応。"
+    },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "テンセントの画像→3D、高忠実度ジオメトリ + PBRテクスチャ"

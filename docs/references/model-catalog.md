@@ -36,15 +36,16 @@
 
 Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。这一族是唯一真正吃用户 LoRA 的线。
 
-### 视频（10）
+### 视频（11）
 
-| enum                                                | externalModelId                                  | 通道                      |
-| --------------------------------------------------- | ------------------------------------------------ | ------------------------- |
-| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video      | fal                       |
-| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video | fal（画布视频汇点主力）   |
-| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）        |
-| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal（唯一 native extend） |
-| HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                       |
+| enum                                                | externalModelId                                  | 通道                                                          |
+| --------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
+| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video      | fal                                                           |
+| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video | fal（画布视频汇点主力）                                       |
+| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）                                            |
+| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal（唯一 native extend）                                     |
+| HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                                                           |
+| **GEMINI_OMNI_FLASH**                               | gemini-omni-flash-preview                        | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
 
 ### 音频（2）
 
@@ -103,11 +104,33 @@ LoRA 底模 —— Civitai 三派系（Pony / Illustrious+NoobAI / SDXL+FLUX）�
 
 ### ⑥ 待接（本轮未做，各有明确阻塞）
 
-| 模型              | 状态                                                                                                                                                                                               |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Seedance 2.5      | **未 GA**。fal 原话「announced, not yet released」；模型页 `bytedance/seedance-2.5/text-to-video` 存在但为 early access，需申请且限美国境外 B2B + 身份验证                                         |
-| Gemini Omni Flash | 视频三榜第一，但走**全新 Interactions API**（`client.interactions.create`，非 `generateContent`），返回 base64/URI 双路 + 轮询——属 adapter 级新工作，需单独排期。且为 `-preview` 档，有重蹈①的风险 |
-| Seedream 5.0 edit | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                |
+| 模型                  | 状态                                                                                                                                                       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seedance 2.5          | **未 GA**。fal 原话「announced, not yet released」；模型页 `bytedance/seedance-2.5/text-to-video` 存在但为 early access，需申请且限美国境外 B2B + 身份验证 |
+| ~~Gemini Omni Flash~~ | **已于 2026-07-26 接入**，见下节 ⑦                                                                                                                         |
+| Seedream 5.0 edit     | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                        |
+
+### ⑦ Gemini Omni Flash 接入笔记（2026-07-26）
+
+**它不走 `:generateContent`。** Gemini 视频跑在 **Interactions API** 上——一个 create/poll 面，正好对上项目的 `submitVideoToQueue` + `checkVideoQueueStatus` 契约。
+
+| 环节 | 形态                                                                                                                                                                             |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 提交 | `POST /v1beta/interactions`，body = `{ model, input[], response_format:{type:'video',aspect_ratio,delivery:'uri'}, video_config:{task} }`                                        |
+| 轮询 | `GET /v1beta/interactions/{id}`，状态机 `queued / in_progress / requires_action / completed / failed / cancelled / incomplete / budget_exceeded`                                 |
+| 取件 | `delivery:'uri'` 落到 Files API。**必须先等 `GET /v1beta/files/{id}` 的 `state` 变 `ACTIVE`**，否则下载 403；最终 URL = `…/files/{id}:download?alt=media`，需带 `x-goog-api-key` |
+
+`input` 是新格式（旧 `contents[].parts[].inlineData` 的替代）：`[{type:'text',text}, {type:'image',mime_type,data}]`。带参考图时 `video_config.task` 自动切 `image_to_video`。
+
+选 `delivery:'uri'` 而非默认的 inline base64，是因为 720p 片段会变成几 MB 的 JSON；URL 需要鉴权下载，正好用 `ProviderVideoResult.fetchHeaders`（OpenAI Sora 同款路径）。
+
+**三点已知限制**（都在代码注释里标了）：
+
+1. **时长不可控** —— Interactions API 没有 duration 参数，官方只说输出 3–10 秒。能力矩阵故意只声明 `[8]` 单值，而不是给一个假的选择器。
+2. **轮询拿不到方向** —— `checkVideoQueueStatus` 的入参只有 `statusUrl/responseUrl/apiKey`，看不到请求时的 aspect ratio，响应里也没有像素尺寸。所以竖屏片段会被标成 1280x720（文件本身是对的，只是元数据不准）。
+3. **⚠ 未经真机验证** —— 实现完全按官方文档写，单测覆盖了提交/轮询/Files 三态/失败分支，但没有用真 API key 跑过一次真实生成。首次真机调用要盯 `submitVideoToQueue` 的 4xx 和 `checkVideoQueueStatus` 里 `Unrecognised video URI` 这条错误——如果 uri 形态和文档不一致，会命中它。
+
+`gemini-omni-flash-preview` 是 preview 档，enum 值特意写成 `gemini-omni-flash`（不含 `-preview`），GA 时只改一行 externalModelId——这是①那次事故的直接教训。
 
 ## 接入执行规范（指针）
 

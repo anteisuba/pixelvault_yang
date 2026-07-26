@@ -63,6 +63,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]:
     'seedance20FastReferenceVolcengine',
   [AI_MODELS.VEO_31]: 'veo31',
+  [AI_MODELS.GEMINI_OMNI_FLASH]: 'geminiOmniFlash',
   [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
   [AI_MODELS.HUNYUAN3D_V3]: 'hunyuan3dV3',
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'hunyuan3dV31Pro',
@@ -138,6 +139,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.ANIMA_DIT_RUNNER]: 'Anima',
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
+  [AI_MODELS.GEMINI_OMNI_FLASH]: 'Gemini',
   [AI_MODELS.SEEDANCE_20]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 'Seedance',

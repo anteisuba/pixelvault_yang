@@ -139,6 +139,9 @@ export function ImageSourceStarter({
         type={NODE_TYPE_IDS.image}
         status={status}
         title={mediaLabel?.trim() || undefined}
+        onRenameCommit={(next) =>
+          updateNodeData(nodeId, { mediaLabel: next, sourceLabel: next })
+        }
       />
       <NodeShell.Body className="space-y-2">
         <div

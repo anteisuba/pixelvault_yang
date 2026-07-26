@@ -19,6 +19,7 @@ import {
 } from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeShell } from './NodeShell'
 
 interface IdentityCollectorCardProps {
@@ -43,6 +44,27 @@ function getName(
     return data.backgroundName?.trim()
   }
   return undefined
+}
+
+/** S4 write side for the on-card rename (canvas-image-card.md §1), mirroring
+ *  `getName` above field-for-field. `nextValue` arrives trimmed and
+ *  non-empty — `EditableNodeLabel` already guards an empty submit. */
+function commitName(
+  legacyType: NodeWorkflowNodeType,
+  nodeId: string,
+  nextValue: string,
+  updateNodeData: (
+    id: string,
+    patch: Partial<NodeWorkflowNode['data']>,
+  ) => void,
+): void {
+  if (legacyType === NODE_TYPE_IDS.characterImage) {
+    updateNodeData(nodeId, { characterName: nextValue })
+    return
+  }
+  if (legacyType === NODE_TYPE_IDS.backgroundImage) {
+    updateNodeData(nodeId, { backgroundName: nextValue })
+  }
 }
 
 /** 词条摘要 — a one-line gist of the card's own entries, distinct per legacy
@@ -92,6 +114,7 @@ export function IdentityCollectorCard({
   const t = useTranslations('StudioNode.dossier')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
+  const { updateNodeData } = useNodeWorkflowActions()
   const name = getName(legacyType, data)
   const summaryLine = getSummaryLine(legacyType, data)
   const referenceAssets = useMemo(
@@ -139,7 +162,14 @@ export function IdentityCollectorCard({
       toolbarData={data}
       isCollector
     >
-      <NodeShell.Header type={legacyType} status={data.status} title={name} />
+      <NodeShell.Header
+        type={legacyType}
+        status={data.status}
+        title={name}
+        onRenameCommit={(next) =>
+          commitName(legacyType, id, next, updateNodeData)
+        }
+      />
       <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
         {thumbnails.length > 0 ? (

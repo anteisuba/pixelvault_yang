@@ -139,8 +139,11 @@ const IMAGE_FAMILY_NODE_TYPES = new Set<NodeTokenType>([
 
 /**
  * Project-native image selection toolbar (not a Haivis copy):
- * primary = rename · category · expand · download · quick-edit
+ * primary = category · expand · download · quick-edit
  * everything else (AI edit suite, delete) lives in "more".
+ * Rename is NOT here — the on-card label (卡外上方) is the single place to
+ * rename a node per canvas-image-card.md §1; this toolbar used to duplicate
+ * it with its own input, which meant two editable places for one name.
  */
 export function CanvasImageSelectionToolbar({
   nodeId,
@@ -161,12 +164,6 @@ export function CanvasImageSelectionToolbar({
   } = useNodeWorkflowActions()
   const [activeTask, setActiveTask] =
     useState<ReadyCanvasImageEditCapabilityId | null>(null)
-  const [nameDraft, setNameDraft] = useState(
-    () =>
-      (typeof data.mediaLabel === 'string' && data.mediaLabel) ||
-      (typeof data.sourceLabel === 'string' && data.sourceLabel) ||
-      '',
-  )
 
   const readyIds = useMemo(
     () => new Set(READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)),
@@ -190,14 +187,6 @@ export function CanvasImageSelectionToolbar({
     setActiveTask(task)
   }
 
-  const commitName = (value: string) => {
-    const next = value.trim()
-    updateNodeData(nodeId, {
-      mediaLabel: next || undefined,
-      sourceLabel: next || undefined,
-    })
-  }
-
   const handleDownload = () => {
     const url = getNodeMediaUrl(data)
     if (!url) return
@@ -211,23 +200,6 @@ export function CanvasImageSelectionToolbar({
         aria-label={t('imageEditToolbar')}
         className="flex h-11 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-0.5 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 text-node-foreground shadow-node-panel backdrop-blur"
       >
-        <label className="flex h-9 min-w-0 items-center gap-1 rounded-lg bg-node-panel-soft px-2">
-          <PencilLine className="size-3.5 shrink-0 text-node-muted" />
-          <IMEAwareInput
-            value={nameDraft}
-            onValueChange={setNameDraft}
-            onBlur={() => commitName(nameDraft)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.currentTarget.blur()
-              }
-            }}
-            aria-label={t('rename')}
-            placeholder={tSource('namePlaceholder')}
-            className="nodrag nopan nowheel h-7 w-24 min-w-0 border-0 bg-transparent px-0 text-xs font-medium text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:ring-0 sm:w-28"
-          />
-        </label>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -545,9 +517,9 @@ function resolveIdentityNamedField(
     case NODE_TYPE_IDS.videoReference:
     case NODE_TYPE_IDS.frameImage:
     // 独立 image 节点（散图/未定角色的空态图片）—— owner 真机: 空态图片工具条
-    // 名字改不了。它没经过 role→legacy 解析（保持 type='image'），且有媒体时走
-    // 的 CanvasImageSelectionToolbar 本就用 mediaLabel/sourceLabel 命名，这里对齐
-    // 同一字段，让空态也能改名。
+    // 名字改不了。它没经过 role→legacy 解析（保持 type='image'），且有媒体的卡
+    // 同样读 mediaLabel/sourceLabel 命名（唯一改名处是卡外原地编辑，见
+    // canvas-image-card.md §1），这里对齐同一字段，让空态也能改名。
     case NODE_TYPE_IDS.image:
       return 'mediaLabel'
     default:
@@ -597,9 +569,9 @@ function IdentityRegion({
     const commit = (value: string) => {
       const next = value.trim()
       if (namedField === 'mediaLabel') {
-        // Mirrors CanvasImageSelectionToolbar's own commitName + every other
-        // mediaLabel writer in this domain (NodeMediaInspector, LooseImageCard's
-        // detail body, use-node-workflow.ts) — sourceLabel is the same field's
+        // Mirrors every other mediaLabel writer in this domain
+        // (NodeMediaInspector, LooseImageCard's detail body,
+        // use-node-workflow.ts) — sourceLabel is the same field's
         // long-standing companion (StudioNodeAssistantDock reads it as a name
         // fallback), so a mediaLabel-only write would silently diverge from it.
         updateNodeData(nodeId, {

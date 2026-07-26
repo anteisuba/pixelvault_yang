@@ -723,6 +723,31 @@
   border-radius: 50%;
 }
 
+/* 卡名原地编辑（canvas-image-card.md §1「原地可编辑」/ S4 修复：近场工具条的
+   改名输入删掉去重后，卡外这个名字曾经一直是只读 span）。只读态是可 Tab 聚焦
+   的按钮，焦点环与编辑态输入框共用同一套 --canvas-stroke-focus；编辑态底色
+   复用 --canvas-fill-control——两个都是既有 token，不新造颜色（Hard Rule 5）。 */
+.domain-canvas .canvas-label-trigger,
+.domain-canvas .canvas-label-input {
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+  /* 先清默认态的浏览器原生 outline，:focus-visible 规则（特异度更高）再补
+     回 2px 焦点环——否则某些浏览器的原生蓝框会跟自定义环同屏叠两圈。 */
+  outline: none;
+}
+.domain-canvas .canvas-label-trigger:focus-visible,
+.domain-canvas .canvas-label-input:focus-visible {
+  outline: 2px solid var(--canvas-stroke-focus);
+  outline-offset: 2px;
+}
+.domain-canvas .canvas-label-input {
+  background: var(--canvas-fill-control);
+  border: none;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
 /* ── S2a · 浮起玻璃容器（2026-07-26）──────────────────────────────────────
    规格 §8。顶栏 / 底部胶囊 / 左侧面板（S2b）共用一套玻璃配方：白 84%
    + backdrop-blur + 发丝边 + 柔投影。用类而非 arbitrary value（Hard Rule 5）。

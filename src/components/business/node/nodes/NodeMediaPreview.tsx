@@ -29,6 +29,7 @@ import type {
 } from '@/types/node-workflow'
 import { Spinner } from '@/components/ui/spinner'
 
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeShell } from './NodeShell'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
@@ -89,6 +90,52 @@ function getHeaderTitle(
   return undefined
 }
 
+/** Whether `getHeaderTitle` above resolves a real, writable field for `type`
+ *  — mirrors that function's own branches 1:1 (kept as a sibling rather than
+ *  merged into one switch so `getHeaderTitle`'s existing shape stays
+ *  untouched). Types outside this set (shotText, or anything this component
+ *  never actually receives) get the read-only header, same as today. */
+function isHeaderTitleEditable(type: NodeWorkflowNodeType): boolean {
+  return (
+    type === NODE_TYPE_IDS.characterImage ||
+    type === NODE_TYPE_IDS.backgroundImage ||
+    type === NODE_TYPE_IDS.shot ||
+    type === NODE_TYPE_IDS.frameImage ||
+    type === NODE_TYPE_IDS.videoMerge
+  )
+}
+
+/**
+ * S4 write side for the on-card rename (canvas-image-card.md §1). `nextValue`
+ * arrives already trimmed and non-empty — `EditableNodeLabel` guards against
+ * an empty submit itself, so this never has to special-case "".
+ */
+function commitHeaderTitle(
+  type: NodeWorkflowNodeType,
+  nodeId: string,
+  nextValue: string,
+  updateNodeData: (id: string, patch: Partial<NodeWorkflowNodeData>) => void,
+): void {
+  if (type === NODE_TYPE_IDS.characterImage) {
+    updateNodeData(nodeId, { characterName: nextValue })
+    return
+  }
+  if (type === NODE_TYPE_IDS.backgroundImage) {
+    updateNodeData(nodeId, { backgroundName: nextValue })
+    return
+  }
+  if (type === NODE_TYPE_IDS.shot) {
+    updateNodeData(nodeId, { shotName: nextValue })
+    return
+  }
+  if (type === NODE_TYPE_IDS.frameImage || type === NODE_TYPE_IDS.videoMerge) {
+    // sourceLabel 是 mediaLabel 的老搭档（StudioNodeAssistantDock 拿它当名字
+    // 兜底）——同 CanvasImageSelectionToolbar 的 IdentityRegion 一样两个字段
+    // 一起写，避免只写 mediaLabel 让两者悄悄分叉。
+    updateNodeData(nodeId, { mediaLabel: nextValue, sourceLabel: nextValue })
+  }
+}
+
 function getMediaStatusLabelKey(
   hasMedia: boolean,
   kind: NodeWorkflowMediaKind,
@@ -110,6 +157,7 @@ export function NodeMediaPreview({
   const [videoAspect, setVideoAspect] = useState<number | null>(null)
   const t = useTranslations('StudioNode.mediaNodes')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
+  const { updateNodeData } = useNodeWorkflowActions()
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
@@ -140,6 +188,11 @@ export function NodeMediaPreview({
         type={type}
         status={data.status}
         title={getHeaderTitle(type, data)}
+        onRenameCommit={
+          isHeaderTitleEditable(type)
+            ? (next) => commitHeaderTitle(type, id, next, updateNodeData)
+            : undefined
+        }
       />
       <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">

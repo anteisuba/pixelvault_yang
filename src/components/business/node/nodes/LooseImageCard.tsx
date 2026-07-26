@@ -19,7 +19,7 @@ import {
 } from '../CanvasImageSelectionToolbar'
 import { CanvasQuickEditPrompt } from '../CanvasQuickEditPrompt'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeCardPorts } from './NodeShell'
+import { EditableNodeLabel, NodeCardPorts } from './NodeShell'
 
 interface LooseImageCardProps {
   id: string
@@ -64,10 +64,15 @@ export function LooseImageCard({
   nodeType = NODE_TYPE_IDS.image,
 }: LooseImageCardProps) {
   const t = useTranslations('StudioNode.ingest.looseImage')
+  const tToolbar = useTranslations('StudioNode.nodeToolbar')
   const mediaUrl = getImageUrl(data)
   const [quickEditOpen, setQuickEditOpen] = useState(false)
-  const { heavyOverlayOpen, transientLayerOpen, multiSelectActive } =
-    useNodeWorkflowActions()
+  const {
+    heavyOverlayOpen,
+    transientLayerOpen,
+    multiSelectActive,
+    updateNodeData,
+  } = useNodeWorkflowActions()
   const [naturalSize, setNaturalSize] = useState<{
     width: number
     height: number
@@ -100,10 +105,14 @@ export function LooseImageCard({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [quickEditOpen])
 
-  const label =
+  // rawLabel is the true custom value (empty when never named) — kept apart
+  // from `label` below so the S4 edit input doesn't bake the "未命名"
+  // fallback text into what gets committed on an unmodified Enter.
+  const rawLabel =
     (typeof data.mediaLabel === 'string' && data.mediaLabel.trim()) ||
     (typeof data.sourceLabel === 'string' && data.sourceLabel.trim()) ||
-    t('untitled')
+    ''
+  const label = rawLabel || t('untitled')
 
   const frameWidth = width ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
   const frameHeight = height ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
@@ -212,9 +221,21 @@ export function LooseImageCard({
           selected ? 'text-node-paint' : 'text-node-muted',
         )}
       >
-        <span className="min-w-0 truncate font-medium" title={label}>
-          {label}
-        </span>
+        {/* S4：卡外名字原地可编辑（canvas-image-card.md §1）——这是有媒体的
+            图片家族节点（散图 / 出了图的镜头图·关键帧·特写）实际渲染的卡外
+            标签，NodeShell.Header 管不到它（这张卡不走 NodeShell）。近场
+            工具条自己的改名输入去重删掉后，这里曾经是这类卡唯一剩下但读
+            不写的名字。onCommit 照抄已删的 CanvasImageSelectionToolbar
+            commitName 的提交路径：mediaLabel + sourceLabel 一起写。 */}
+        <EditableNodeLabel
+          value={rawLabel}
+          placeholder={t('untitled')}
+          ariaLabel={tToolbar('rename')}
+          onCommit={(next) =>
+            updateNodeData(id, { mediaLabel: next, sourceLabel: next })
+          }
+          className="font-medium"
+        />
         {displaySize ? (
           <span className="shrink-0 tabular-nums opacity-90">
             {displaySize.width} × {displaySize.height}

@@ -140,8 +140,8 @@ describe('CanvasImageSelectionToolbar', () => {
   it('opens AI edit tools from the more menu into the workspace dialog', () => {
     render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
 
-    // Primary chrome is rename/category/expand/download/quick-edit; AI suite
-    // lives under "more" (always rendered in this mock dropdown).
+    // Primary chrome is category/expand/download/quick-edit; AI suite lives
+    // under "more" (always rendered in this mock dropdown).
     expect(
       screen.getByRole('button', { name: 'quickEdit' }),
     ).toBeInTheDocument()
@@ -149,6 +149,11 @@ describe('CanvasImageSelectionToolbar', () => {
     expect(screen.getByTestId('image-edit-workspace')).toHaveTextContent(
       'upscale',
     )
+  })
+
+  it('does not render a rename input — the on-card label is the single place to rename (canvas-image-card.md §1)', () => {
+    render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
+    expect(screen.queryByLabelText('rename')).not.toBeInTheDocument()
   })
 
   it('toggles quick-edit without opening the heavy dialog', () => {

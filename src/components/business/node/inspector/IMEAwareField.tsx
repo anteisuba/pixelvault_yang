@@ -31,13 +31,24 @@ export type IMEAwareInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange'
 > &
-  IMEControlledProps<string>
+  IMEControlledProps<string> & {
+    /**
+     * Optional ref to the underlying `<input>`. Mirrors `IMEAwareTextarea`'s
+     * `textareaRef` below — same React 19 typed-props limitation (a bare
+     * `ref` isn't part of a plain destructured props object's type), so it
+     * rides an explicit prop instead. Exposed so callers can imperatively
+     * focus the field (e.g. an inline rename label entering edit mode)
+     * without reaching past the IME buffer.
+     */
+    inputRef?: Ref<HTMLInputElement>
+  }
 
 export function IMEAwareInput({
   value,
   onValueChange,
   onCompositionStart,
   onCompositionEnd,
+  inputRef,
   ...props
 }: IMEAwareInputProps) {
   const [local, setLocal] = useState(value)
@@ -90,6 +101,7 @@ export function IMEAwareInput({
   return (
     <input
       {...props}
+      ref={inputRef}
       value={local}
       onChange={handleChange}
       onCompositionStart={handleCompositionStart}

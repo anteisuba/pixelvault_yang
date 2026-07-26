@@ -1,6 +1,13 @@
 'use client'
 
-import { useMemo, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import {
   Handle,
   NodeToolbar,
@@ -23,7 +30,9 @@ import {
   type NodeTokenType,
 } from '@/constants/node-tokens'
 import { NODE_TYPE_IDS, type NodeWorkflowStatus } from '@/constants/node-types'
+import { IMEAwareInput } from '@/components/business/node/inspector/IMEAwareField'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
+import { focusUnlessTouch } from '@/lib/touch'
 import { getUpstreamNodes } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -87,6 +96,148 @@ interface NodeShellHeaderProps {
   titleCrumb?: ReactNode
   /** Optional control rendered next to the status badge (e.g. a ⤢ toggle). */
   action?: ReactNode
+  /**
+   * When provided, the on-card title becomes click-to-edit
+   * (canvas-image-card.md §1 "原地可编辑") instead of a read-only span —
+   * Enter/blur commits the trimmed value through this callback, Esc reverts
+   * without calling it. Never invoked with an empty string: an empty submit
+   * silently reverts instead (§1 "名字升为一等公民" — a written-through empty
+   * name is the exact bug class that once left the assistant unable to
+   * resolve a node's name). Omit for node types with no nameable field
+   * (e.g. ComposerNode/AgentNode), which keeps today's read-only label.
+   */
+  onRenameCommit?: (nextTitle: string) => void
+}
+
+export interface EditableNodeLabelProps {
+  /** Raw current value — the custom name only, never the type-label
+   *  fallback. Empty when no custom name has been set yet. */
+  value: string
+  /** Shown as the read-only text when `value` is empty, and reused as the
+   *  input's placeholder while editing, so nothing visually jumps at the
+   *  read/edit transition. */
+  placeholder: string
+  /** Accessible name for both the read-only trigger and the input. */
+  ariaLabel: string
+  /** Called with the trimmed, non-empty next value on Enter/blur. Guarded
+   *  against empty submits by the caller (`EditableNodeLabel` itself never
+   *  invokes this with `''`). */
+  onCommit: (nextValue: string) => void
+  /** Classes for the read-only trigger button. */
+  className?: string
+}
+
+/**
+ * Shared click-to-edit label — S4 fix for the on-card name (S1 moved it
+ * outside the card, but never gave it an edit path; the near-field toolbar's
+ * OWN duplicate rename input was then deleted as redundant, leaving
+ * media-bearing image cards with no rename entry point at all).
+ *
+ * Used by `NodeShellHeader` below and by `LooseImageCard` (which doesn't go
+ * through `NodeShell` and keeps its own label markup — see that file) — same
+ * extraction shape as `NodeCardPorts`: shared interaction, caller-owned
+ * layout/typography via `className`.
+ */
+export function EditableNodeLabel({
+  value,
+  placeholder,
+  ariaLabel,
+  onCommit,
+  className,
+}: EditableNodeLabelProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Enter/Esc both close the input, which can fire a native `blur` as a side
+  // effect of React unmounting the still-focused element. Without this guard
+  // that spurious blur would re-run the commit/cancel logic a second time —
+  // harmless for Enter (same value), but for Esc it would resurrect the
+  // draft `applyCommit` was told to discard. Set right before the
+  // keydown-driven state change, consumed (and cleared) by the next blur.
+  const suppressBlurRef = useRef(false)
+
+  useEffect(() => {
+    if (isEditing) {
+      focusUnlessTouch(inputRef.current, { select: true })
+    }
+  }, [isEditing])
+
+  const beginEdit = () => {
+    setDraft(value)
+    setIsEditing(true)
+  }
+
+  const applyCommit = () => {
+    const trimmed = draft.trim()
+    if (trimmed.length === 0) {
+      // 空名字不静默接受（canvas-image-card.md §1）：回退到原值，不落库。
+      setDraft(value)
+      return
+    }
+    if (trimmed !== value) {
+      onCommit(trimmed)
+    }
+  }
+
+  const handleBlur = () => {
+    if (suppressBlurRef.current) {
+      suppressBlurRef.current = false
+      return
+    }
+    applyCommit()
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    // IME guard (project convention — see prompt-input.tsx): React's
+    // KeyboardEvent<T> type doesn't declare `isComposing`, so it's read off
+    // the native event. Enter is how many CJK IMEs confirm a candidate
+    // mid-composition; without this, that keystroke would prematurely commit
+    // whatever partial buffer IMEAwareInput was still assembling.
+    if (event.nativeEvent.isComposing) return
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      suppressBlurRef.current = true
+      applyCommit()
+      setIsEditing(false)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      suppressBlurRef.current = true
+      setDraft(value)
+      setIsEditing(false)
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <IMEAwareInput
+        inputRef={inputRef}
+        value={draft}
+        onValueChange={setDraft}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        size={Math.min(Math.max((draft || placeholder).length, 6), 30)}
+        className="canvas-label-input nodrag nopan nowheel pointer-events-auto min-w-0"
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={beginEdit}
+      title={value || placeholder}
+      aria-label={ariaLabel}
+      className={cn(
+        'canvas-label-trigger nodrag pointer-events-auto min-w-0 truncate text-left',
+        className,
+      )}
+    >
+      {value || placeholder}
+    </button>
+  )
 }
 
 interface NodeShellSlotProps {
@@ -273,11 +424,13 @@ function NodeShellHeader({
   title,
   titleCrumb,
   action,
+  onRenameCommit,
 }: NodeShellHeaderProps) {
   const t = useTranslations('StudioNode.nodeTypes')
-  const trimmedTitle = title?.trim()
-  const displayTitle =
-    trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : t(type)
+  const tToolbar = useTranslations('StudioNode.nodeToolbar')
+  const trimmedTitle = title?.trim() ?? ''
+  const typeFallback = t(type)
+  const displayTitle = trimmedTitle.length > 0 ? trimmedTitle : typeFallback
 
   return (
     // S1（2026-07-26）：卡名移到卡「外」上方。用 canvas-card-label 的
@@ -298,9 +451,21 @@ function NodeShellHeader({
         />
         <div className="flex min-w-0 items-center gap-1.5">
           {titleCrumb}
-          <span className="truncate" title={displayTitle}>
-            {displayTitle}
-          </span>
+          {onRenameCommit ? (
+            // S4：卡外名字原地可编辑（canvas-image-card.md §1）。placeholder
+            // 复用 typeFallback——和只读态刚显示的文字完全一致，进入编辑态时
+            // 屏幕上不会有任何东西突然跳变。
+            <EditableNodeLabel
+              value={trimmedTitle}
+              placeholder={typeFallback}
+              ariaLabel={tToolbar('rename')}
+              onCommit={onRenameCommit}
+            />
+          ) : (
+            <span className="truncate" title={displayTitle}>
+              {displayTitle}
+            </span>
+          )}
         </div>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">

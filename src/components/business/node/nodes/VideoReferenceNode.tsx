@@ -9,7 +9,6 @@ import {
   type ChangeEvent,
 } from 'react'
 import {
-  Handle,
   NodeResizer,
   NodeToolbar,
   Position,
@@ -26,17 +25,9 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { NodeCardPorts } from './NodeShell'
 
 const ACCEPTED_VIDEO_MIME = 'video/mp4,video/quicktime,video/webm'
-
-// R3-1 端口锚点化: the Handle DOM must stay — ReactFlow anchors edges to it —
-// even though binding is via 吞噬 (isConnectable=false, visually inert). NodeShell
-// renders these for every OTHER node type; since this card bypasses NodeShell,
-// it must render its own or downstream edges (videoReference→seedance) lose their
-// anchor and render broken (owner 真机: "线断了"). videoReference doesn't fold when
-// it has an outgoing edge, so unlike LooseImageCard this handle is load-bearing.
-const HANDLE_BASE =
-  '!z-canvas-selection !size-5 !border-0 !bg-transparent pointer-events-none'
 
 /**
  * Upload-only reference video node. Holds a user-uploaded clip (mp4/mov) that
@@ -121,21 +112,12 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
       )}
       style={{ width: frameWidth, height: frameHeight }}
     >
-      {/* Edge anchors (visually inert) — see HANDLE_BASE note. Left=target,
-          Right=source, matching NodeShell's default footprint so the seedance
-          edge that consumes this clip has somewhere to land. */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-        className={HANDLE_BASE}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-        className={HANDLE_BASE}
-      />
+      {/* Edge anchors — this card bypasses NodeShell, so without them the
+          seedance edge that consumes this clip has nowhere to land (owner
+          真机: "线断了"). S3.5 收进共享的 `NodeCardPorts`：本地那份副本漏了
+          `canvas-port` / `data-family`，S1 之后它的端口一直是隐形的，而别的
+          卡都画得出来。 */}
+      <NodeCardPorts type={NODE_TYPE_IDS.videoReference} />
 
       <input
         ref={fileInputRef}

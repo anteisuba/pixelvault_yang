@@ -96,6 +96,55 @@ owner 原话：从助手这边输入「我想做一个什么视频」，我提�
 **落点**：`edges/NodeWorkflowStatusEdge.tsx` · `node-workflow-edge-visual.ts` · `canvas.css`
 **验收**：一屏 20 条边时不吵；虚线只出现在「未就绪」关系上，不做装饰。
 
+**真机验证结果（2026-07-26，「AI拟人剧场」6 条边 / 10 节点）**：三维度编码本身**成立**，数值从
+`getComputedStyle` 读出，非目测 —— 已建立 `#8a8a8a`/3px/实线/round（4 条）· 未就绪
+`1.5px`/`6 5`/`opacity .6`/butt（1 条，源头恰是无媒体的镜头图，语义判定正确）· 边自身选中
+`#2a2a2a`（域内 `--node-paint` 已重映射成中性墨，石绿确认退出）。
+
+**但同时验出三个缺口 + 一个前置阻断**，见 §1.5。
+
+### S3.5 · 吞噬折叠退役（S3 的前置，验证驱动补入）
+
+S3 的语言是对的，**但 6 条边只画得出 5 条**。缺的是「散图→组装台」，源节点也一并从画布消失
+（9/10）。两道闸串在一起：
+
+1. `StudioNodeWorkbench` 的折叠规则 `isLooseImageNode && hasOutgoingEdge` → 节点 `hidden`
+   → `renderedEdges` 的「两端可见」守卫连边一起藏。**吞噬把 S3 要展示的那条关系，正好在它
+   被建立的瞬间抹掉了。**
+2. 更深一层：`LooseImageCard` **根本没有 `<Handle>`**。它不走 `NodeShell`，而吞噬时代散图
+   「一连上就消失」，所以从没人发现它缺锚点 —— ReactFlow 没有 bounds 就静默不画这条边。
+   同一个组件也被**有图的镜头图**用，那是**骨干边**：镜头一出图，`镜头图→组装台` 同样会断。
+   （`VideoReferenceNode` 早就踩过这个坑并单独补过 handle，注释里写着 owner 真机「线断了」。）
+
+**范围**：
+
+- 折叠规则只剩 `fusedIntoNodeId` 一种（referenceAssets 融合，那条路径不建边、内容真的搬进
+  了目标卡，两处同显才是重复 —— 补真边是另一片）。
+- `handleNodeDragStop` 的散图分支删掉，并入已有的行①②③「墨线签署 + 本体归位」路径。
+- 抽出共享 `NodeCardPorts`（`NodeShell` 导出），`NodeShell` / `LooseImageCard` /
+  `VideoReferenceNode` 三处共用一份锚点定义。顺带修好 `VideoReferenceNode` 那份副本漏掉的
+  `canvas-port` / `data-family` —— S1 之后它的端口一直是隐形的。
+- i18n：`ingest.canvasNodeIngested`（"已吞入目标节点"）删除，散图改用
+  `canvasNodeSigned`（"已建立引用，本体留在画布上"）；`canvasNodeIngestRejected` 的
+  "没吞下" 改成不带吞噬语汇的说法。三语同步。
+
+**落点**：`StudioNodeWorkbench.tsx` · `nodes/NodeShell.tsx` · `nodes/LooseImageCard.tsx` ·
+`nodes/VideoReferenceNode.tsx` · `messages/{en,ja,zh}.json`
+**验收**：同一项目 **6/6 边渲染、10/10 节点渲染**（已达成）；散图拖进消费者后本体归位不消失。
+**未做**：`fusedIntoNodeId` 那条通路仍然零边（「鸣潮」有 1 例）—— 补真边另开一片。
+
+### S3.6 · S3 三个缺口（未做）
+
+1. **彗星流光没实现** —— §S3 写的 `stroke-dasharray:14 306` / 2.2s 在代码里不存在，选中的边
+   `animationName: none`；`canvas.css` 只有 running 的 `node-canvas-edge-pulse`。
+2. **`--canvas-edge-pending: #a3a3a3` 定义了没人消费** —— `node-workflow-edge-visual.ts` 用的是
+   `--node-edge`(#8a8a8a) + opacity，规格里那个专用值是死的。
+3. **显现态与选中态几乎同色**（`#3a3a3a` vs `#2a2a2a`，同粗细）—— 「谁被选中」这个信息实际
+   没编码出来。
+
+另有一处**不属于 S3** 的伤：minimap 仍是深色（`rgb(16,24,32)`，节点标记深色叠深色），在白底
+画布上是个黑洞 —— S2b 只改了 `--canvas-minimap-left` 让位，没重映射配色。
+
 ## 2 · 功能段（S4 起，逐个功能）
 
 | #      | 功能                                                                                                                  | 主要落点                                                                         | 依赖                          |

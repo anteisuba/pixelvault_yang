@@ -19,6 +19,7 @@ import {
 } from '../CanvasImageSelectionToolbar'
 import { CanvasQuickEditPrompt } from '../CanvasQuickEditPrompt'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { NodeCardPorts } from './NodeShell'
 
 interface LooseImageCardProps {
   id: string
@@ -137,6 +138,16 @@ export function LooseImageCard({
         height: frameHeight,
       }}
     >
+      {/*
+        S3.5 边锚点: this card doesn't go through `NodeShell`, so it used to
+        ship with NO ReactFlow handles at all — harmless while 吞噬 folded
+        every connected 散图 out of sight, fatal the moment those cards stay
+        on the canvas (the library has no bounds to anchor to and silently
+        drops the edge). Same two inert anchors every other card renders; the
+        visible port styling is `canvas-port`'s, shared, not re-declared.
+      */}
+      <NodeCardPorts type={nodeType} />
+
       {/*
         Corner + edge handles: drag any corner to scale the image on canvas.
         keepAspectRatio so pure images don't shear.

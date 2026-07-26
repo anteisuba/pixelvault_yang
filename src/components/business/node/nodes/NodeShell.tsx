@@ -166,6 +166,9 @@ export interface NodeCardPortsProps {
  * invisible. Shared rather than copied so the footprint (`!size-5`) and the
  * family encoding stay in one place — an anchor that drifts moves every edge
  * endpoint on the canvas.
+ *
+ * Inert by design (`isConnectable={false}`) — binding happens through the drag
+ * gesture, not by dragging a wire out of a port.
  */
 export function NodeCardPorts({
   type,
@@ -217,7 +220,6 @@ function NodeShellRoot({
   // toolbars) — see `multiSelectActive`'s doc comment for why this can't
   // just rely on NodeToolbar's own library default.
   const { multiSelectActive } = useNodeWorkflowActions()
-  const portFamily = resolvePortFamily(type, isCollector)
 
   return (
     <article
@@ -254,24 +256,12 @@ function NodeShellRoot({
           />
         </NodeToolbar>
       ) : null}
-      {showTargetHandle ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          isConnectable={false}
-          className={cn(HANDLE_BASE, 'canvas-port')}
-          data-family={portFamily}
-        />
-      ) : null}
-      {showSourceHandle ? (
-        <Handle
-          type="source"
-          position={Position.Right}
-          isConnectable={false}
-          className={cn(HANDLE_BASE, 'canvas-port')}
-          data-family={portFamily}
-        />
-      ) : null}
+      <NodeCardPorts
+        type={type}
+        isCollector={isCollector}
+        showSource={showSourceHandle}
+        showTarget={showTargetHandle}
+      />
       {children}
     </article>
   )

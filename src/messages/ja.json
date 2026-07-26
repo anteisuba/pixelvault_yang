@@ -4567,9 +4567,8 @@
       },
       "looseImageFused": "画像をキャラクターの参照ギャラリーに追加しました",
       "looseImageFuseRejected": "追加できませんでした——キャラクターカードか背景カードにドロップしてください",
-      "canvasNodeIngested": "対象ノードに取り込みました",
       "canvasNodeSigned": "参照を関連付けました（本体はキャンバスに残ります）",
-      "canvasNodeIngestRejected": "取り込めませんでした",
+      "canvasNodeIngestRejected": "関連付けできません——この 2 枚のカードは参照できません",
       "looseImage": {
         "uploading": "{count} 枚の画像をアップロード中…",
         "uploaded": "{count} 枚の画像をキャンバスに配置しました",

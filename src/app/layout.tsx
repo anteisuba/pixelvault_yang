@@ -13,6 +13,7 @@ import {
 } from '@/i18n/fonts'
 
 import './globals.css'
+import './canvas.css'
 
 export const metadata: Metadata = {
   title: HOMEPAGE_METADATA.title,

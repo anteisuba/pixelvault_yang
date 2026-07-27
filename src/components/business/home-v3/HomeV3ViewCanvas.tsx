@@ -149,8 +149,18 @@ export function HomeV3ViewCanvas() {
         <p className="home-v3-prompt">{t('inspector.prompt')}</p>
         <p className="home-v3-sublabel">{t('inspector.refs')}</p>
         <div className="home-v3-refs">
-          <Image src={HOME_V3_SHOTS.portrait} alt="" width={120} height={120} />
-          <Image src={HOME_V3_SHOTS.concept} alt="" width={120} height={120} />
+          <Image
+            src={HOME_V3_SHOTS.nightFerryCharacter}
+            alt=""
+            width={120}
+            height={120}
+          />
+          <Image
+            src={HOME_V3_SHOTS.nightFerrySetting}
+            alt=""
+            width={120}
+            height={120}
+          />
         </div>
         <button type="button" className="home-v3-action">
           {t('inspector.regenerate')}

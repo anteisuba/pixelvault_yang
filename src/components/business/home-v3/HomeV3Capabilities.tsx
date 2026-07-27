@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { ModelViewer } from '@/components/business/ModelViewer'
 import {
   HOME_V3_CAPS,
   HOME_V3_STUDIO_SHEET,
@@ -112,20 +113,15 @@ function HomeV3DemoTurntable() {
         <b>{HOME_V3_TURNTABLE.spec}</b>
       </div>
       <div className="home-v3-turn">
-        {HOME_V3_TURNTABLE.angles.map((angle) => (
-          <figure key={angle.label}>
-            <Image
-              src={HOME_V3_TURNTABLE.shot}
-              alt=""
-              width={300}
-              height={300}
-              style={{
-                filter: `brightness(${angle.brightness}) saturate(${angle.saturate})`,
-              }}
-            />
-            <figcaption>{angle.label}</figcaption>
-          </figure>
-        ))}
+        <ModelViewer
+          src={HOME_V3_TURNTABLE.model}
+          poster={HOME_V3_TURNTABLE.shot}
+          alt={HOME_V3_TURNTABLE.alt}
+          autoRotate
+          cameraControls
+          ar={false}
+          className="home-v3-turn-model"
+        />
       </div>
     </div>
   )

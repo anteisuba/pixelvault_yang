@@ -108,11 +108,6 @@ export function HomeV3Product() {
             </div>
           </div>
         </div>
-
-        <div className="home-v3-caption">
-          <span>{t('frameCaption.promise')}</span>
-          <span>{t('frameCaption.hint')}</span>
-        </div>
       </section>
     </div>
   )

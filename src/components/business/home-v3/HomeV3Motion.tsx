@@ -103,7 +103,6 @@ export function HomeV3Motion() {
         }
 
         rise('.home-v3-app', { y: 110, scale: 0.93, duration: 1.2 })
-        rise('.home-v3-caption')
         rise('.home-v3-railsec > .home-v3-wrap > h2')
         rise('.home-v3-footer-brand')
         rise('.home-v3-footer-col', { y: 50 })
@@ -311,35 +310,10 @@ export function HomeV3Motion() {
             scrub: 0.6,
           },
         })
-
-        gsap.utils.toArray<HTMLElement>('.home-v3-rail').forEach((rail) => {
-          const over = rail.scrollWidth - rail.clientWidth
-          if (over < 40) return
-          /* Tween a proxy and write `scrollLeft` by hand. Putting it straight in
-             the vars silently does nothing: it is not a CSS property, and the
-             plugin that would handle it (ScrollToPlugin) is not loaded. */
-          const pos = { v: 0 }
-          gsap.to(pos, {
-            v: over * 0.45,
-            ease: 'none',
-            /* `behavior: 'instant'` is required — the rail carries
-               `scroll-behavior: smooth` for its arrow buttons, and that turns
-               every per-frame write into its own animation, so the scrub never
-               lands anywhere. */
-            onUpdate: () => rail.scrollTo({ left: pos.v, behavior: 'instant' }),
-            scrollTrigger: {
-              trigger: rail,
-              start: 'top 92%',
-              end: 'bottom 30%',
-              scrub: 1,
-            },
-          })
-        })
       })
 
-      /* The rail arrows are the page's only non-CSS interaction, so they live
-         outside the reduced-motion gate: the control has to work either way,
-         and `scroll-behavior` in the stylesheet decides whether it glides. */
+      /* Rail controls live outside the reduced-motion gate: they have to work
+         either way, while the stylesheet decides whether arrow nudges glide. */
       const arrows = Array.from(
         document.querySelectorAll<HTMLElement>(
           '[data-home-v3-rail-prev], [data-home-v3-rail-next]',
@@ -356,8 +330,33 @@ export function HomeV3Motion() {
       }
       arrows.forEach((button) => button.addEventListener('click', nudge))
 
+      const rails = Array.from(
+        document.querySelectorAll<HTMLElement>('.home-v3-rail'),
+      )
+      const wheelAcross = (event: WheelEvent) => {
+        const rail = event.currentTarget as HTMLElement
+        const max = rail.scrollWidth - rail.clientWidth
+        if (max <= 0) return
+
+        const delta =
+          Math.abs(event.deltaX) > Math.abs(event.deltaY)
+            ? event.deltaX
+            : event.deltaY
+        if (delta === 0) return
+
+        const next = Math.min(max, Math.max(0, rail.scrollLeft + delta))
+        if (next === rail.scrollLeft) return
+
+        event.preventDefault()
+        rail.scrollTo({ left: next, behavior: 'instant' })
+      }
+      rails.forEach((rail) =>
+        rail.addEventListener('wheel', wheelAcross, { passive: false }),
+      )
+
       dispose = () => {
         arrows.forEach((button) => button.removeEventListener('click', nudge))
+        rails.forEach((rail) => rail.removeEventListener('wheel', wheelAcross))
         mm.revert()
         tuck?.kill()
       }

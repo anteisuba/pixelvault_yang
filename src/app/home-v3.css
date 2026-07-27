@@ -640,17 +640,6 @@
   color: var(--h-paper);
 }
 
-.home-v3-caption {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-  font-family: var(--h-mono);
-  font-size: 11px;
-  color: var(--h-dim);
-}
-
 /* ── view: canvas ─────────────────────────────────────────────────────────── */
 
 .home-v3-canvas {
@@ -1586,34 +1575,21 @@
 
 /* demo · turntable */
 .home-v3-turn {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--h-line);
-}
-
-.home-v3-turn figure {
   position: relative;
-  margin: 0;
+  aspect-ratio: 16 / 6;
   overflow: hidden;
-  background: #141414;
+  background:
+    radial-gradient(
+      circle at 50% 42%,
+      rgb(255 235 197 / 0.72),
+      transparent 34%
+    ),
+    linear-gradient(145deg, #e8eeec, #d7e3e2);
 }
 
-.home-v3-turn img {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: cover;
-}
-
-.home-v3-turn figcaption {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  font-family: var(--h-mono);
-  font-size: 8.5px;
-  color: #fff;
-  opacity: 0.8;
+.home-v3-turn .home-v3-turn-model {
+  border-radius: 0;
+  background: transparent;
 }
 
 /* ── model rails, grouped by modality, at the bottom ─────────────────────── */
@@ -1713,7 +1689,8 @@
    put both back for the groups that have enough models to scroll. */
 .home-v3-mcard {
   flex: 0 0 clamp(240px, 21vw, 320px);
-  padding: 10px;
+  overflow: hidden;
+  padding: 0 0 10px;
   border-radius: var(--h-r-m);
   background: var(--h-panel);
   color: var(--h-ink);
@@ -1725,7 +1702,6 @@
   height: auto;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: var(--h-r-s);
 }
 
 .home-v3-mcard-top {
@@ -1733,7 +1709,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 4px 2px;
+  padding: 12px 14px 2px;
 }
 
 .home-v3-mcard-top b {
@@ -1751,7 +1727,7 @@
 
 .home-v3-mcard p {
   margin: 0;
-  padding: 0 4px 3px;
+  padding: 0 14px 3px;
   font-family: var(--h-mono);
   font-size: 10px;
   color: var(--h-dim);

@@ -20,6 +20,13 @@ export const HOME_V3_SHOTS = {
   animal: '/homepage/archive/animal.webp',
   concept: '/homepage/archive/concept.webp',
   abstract: '/homepage/archive/abstract.webp',
+  nightFerryCharacter:
+    '/homepage/production/canvas/night-ferry-character-anchor-v1.webp',
+  nightFerrySetting: '/homepage/production/canvas/night-ferry-setting-v1.webp',
+  nightFerryShot:
+    '/homepage/production/video/night-ferry-seedance-first-frame-v1.webp',
+  nightFerryVideo:
+    '/homepage/production/canvas/night-ferry-video-poster-v1.webp',
   s01: '/showcase/showcase-01.webp',
   s02: '/showcase/showcase-02.webp',
   s03: '/showcase/showcase-03.webp',
@@ -57,7 +64,7 @@ export const HOME_V3_CANVAS_NODES = [
     y: 20,
     model: 'Flux 2 Pro',
     kind: 'image',
-    shot: HOME_V3_SHOTS.portrait,
+    shot: HOME_V3_SHOTS.nightFerryCharacter,
   },
   {
     id: 'setting',
@@ -65,7 +72,7 @@ export const HOME_V3_CANVAS_NODES = [
     y: 214,
     model: 'Gemini 3 Pro',
     kind: 'image',
-    shot: HOME_V3_SHOTS.concept,
+    shot: HOME_V3_SHOTS.nightFerrySetting,
     running: true,
   },
   { id: 'audio', x: 250, y: 408, model: 'Fish Audio S2', kind: 'wave' },
@@ -75,7 +82,7 @@ export const HOME_V3_CANVAS_NODES = [
     y: 150,
     model: 'Seedream 5.0',
     kind: 'image',
-    shot: HOME_V3_SHOTS.landscape,
+    shot: HOME_V3_SHOTS.nightFerryShot,
     selected: true,
   },
   {
@@ -84,7 +91,7 @@ export const HOME_V3_CANVAS_NODES = [
     y: 320,
     model: 'Seedance 2.0',
     kind: 'image',
-    shot: HOME_V3_SHOTS.animal,
+    shot: HOME_V3_SHOTS.nightFerryVideo,
     running: true,
   },
 ] as const
@@ -147,7 +154,7 @@ export const HOME_V3_LORA = {
       brightness: 0.96,
     },
   ],
-  shotSource: HOME_V3_SHOTS.portrait,
+  shotSource: HOME_V3_SHOTS.nightFerryCharacter,
 } as const
 
 export const HOME_V3_ASSETS = {
@@ -209,7 +216,7 @@ export type HomeV3Cap = (typeof HOME_V3_CAPS)[number]
  * stills in a row read as "four images" and the row stops saying "video".
  */
 export const HOME_V3_VIDEO_DEMO = {
-  shot: HOME_V3_SHOTS.concept,
+  shot: HOME_V3_SHOTS.nightFerryShot,
   model: 'Seedance 2.0',
   spec: '5s · 24fps',
   elapsed: '00:02',
@@ -247,14 +254,32 @@ export const HOME_V3_RAIL_GROUPS = [
   { id: 'model3d', outputType: 'MODEL_3D', href: ROUTES.STUDIO_3D },
 ] as const
 
-/** One still lit four ways, so the turn reads as one object rotating. */
+/**
+ * Every catalog entry has a locally cached original asset from its model owner
+ * or exact checkpoint page. Keeping the files local avoids third-party tracking
+ * and prevents an upstream social image change from silently changing the home.
+ */
+export function getHomeV3ModelCover(
+  modelId: string,
+  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D',
+) {
+  if (modelId === 'gpt-image-2') {
+    return '/homepage/production/models/image/gpt-image-2.png'
+  }
+
+  const directory = {
+    IMAGE: 'image',
+    VIDEO: 'video',
+    AUDIO: 'audio',
+    MODEL_3D: 'model3d',
+  }[outputType]
+  return `/homepage/production/models/${directory}/${modelId}.webp`
+}
+
+/** A real, self-contained GLB rendered by the shared interactive viewer. */
 export const HOME_V3_TURNTABLE = {
-  shot: HOME_V3_SHOTS.stillLife,
-  spec: 'Rodin Gen-2.5 · glb',
-  angles: [
-    { label: '0°', brightness: 1, saturate: 1 },
-    { label: '90°', brightness: 0.82, saturate: 0.9 },
-    { label: '180°', brightness: 0.7, saturate: 0.8 },
-    { label: '270°', brightness: 0.86, saturate: 0.9 },
-  ],
+  model: '/homepage/production/model3d/moon-lantern-fox-v1.glb',
+  shot: '/homepage/production/model3d/moon-lantern-fox-poster-v1.webp',
+  alt: 'Moon Lantern Fox',
+  spec: 'Moon Lantern Fox · glb',
 } as const

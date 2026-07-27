@@ -2,9 +2,9 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import {
+  getHomeV3ModelCover,
   HOME_V3_RAIL_ARROW_MIN,
   HOME_V3_RAIL_GROUPS,
-  HOME_V3_SHOTS,
 } from '@/constants/home-v3'
 import {
   formatHomepageReferencePriceAmount,
@@ -20,18 +20,15 @@ import { getProviderLabel } from '@/constants/providers'
 import { Link } from '@/i18n/navigation'
 
 const AVAILABLE = getAvailableModels()
-const SHOT_POOL = Object.values(HOME_V3_SHOTS)
 
-/** The rails share one cursor so no two adjacent cards land on the same image. */
 function railRows() {
-  let cursor = 0
   return HOME_V3_RAIL_GROUPS.map((group) => ({
     ...group,
     models: AVAILABLE.filter(
       (model) => model.outputType === group.outputType,
     ).map((model) => ({
       model,
-      shot: SHOT_POOL[cursor++ % SHOT_POOL.length],
+      shot: getHomeV3ModelCover(model.id, group.outputType),
     })),
   }))
 }
@@ -42,9 +39,9 @@ const RAILS = railRows()
  * Four rails, one per modality, at the very bottom — the model lineup is the
  * last thing on the page, not the pitch (docs/references/pages/home.md §A1).
  *
- * Contents are the real catalog. The arrows are the only piece of interaction
- * here, and native `overflow-x` means the rail still drags and swipes without
- * them; that is why they can be omitted for the groups too short to scroll.
+ * Contents are the real catalog. Native `overflow-x` keeps touch/trackpad
+ * gestures working; the client motion bridge adds mouse-wheel navigation while
+ * the pointer is over a rail.
  */
 export function HomeV3Rails() {
   const t = useTranslations('Homepage.models')

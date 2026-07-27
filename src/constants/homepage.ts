@@ -87,16 +87,46 @@ export const HOMEPAGE_ROUTES = {
  * viewports hide the tail (see `home-v3.css`).
  */
 export const HOME_V3_STRIP = [
-  { id: 'stripPortrait', src: '/homepage/archive/portrait.webp' },
-  { id: 'stripLandscape', src: '/homepage/archive/landscape.webp' },
-  { id: 'stripStillLife', src: '/homepage/archive/stilllife.webp' },
-  { id: 'stripAnimal', src: '/homepage/archive/animal.webp' },
-  { id: 'stripConcept', src: '/homepage/archive/concept.webp' },
-  { id: 'stripAbstract', src: '/homepage/archive/abstract.webp' },
-  { id: 'stripShowcase01', src: '/showcase/showcase-01.webp' },
-  { id: 'stripShowcase02', src: '/showcase/showcase-02.webp' },
-  { id: 'stripShowcase03', src: '/showcase/showcase-03.webp' },
-  { id: 'stripShowcase04', src: '/showcase/showcase-04.webp' },
+  {
+    id: 'stripLunaMoth',
+    src: '/homepage/production/hero/hero-01-luna-moth.webp',
+  },
+  {
+    id: 'stripDesertObservatory',
+    src: '/homepage/production/hero/hero-02-desert-observatory.webp',
+  },
+  {
+    id: 'stripBlackClay',
+    src: '/homepage/production/hero/hero-03-black-clay.webp',
+  },
+  {
+    id: 'stripRisographLaundry',
+    src: '/homepage/production/hero/hero-04-risograph-laundry.webp',
+  },
+  {
+    id: 'stripFrostFlower',
+    src: '/homepage/production/hero/hero-05-frost-flower.webp',
+  },
+  {
+    id: 'stripWatchRobot',
+    src: '/homepage/production/hero/hero-06-watch-robot.webp',
+  },
+  {
+    id: 'stripSnowTrain',
+    src: '/homepage/production/hero/hero-07-snow-train.webp',
+  },
+  {
+    id: 'stripGlacialRiver',
+    src: '/homepage/production/hero/hero-08-glacial-river.webp',
+  },
+  {
+    id: 'stripRubyChair',
+    src: '/homepage/production/hero/hero-09-ruby-chair.webp',
+  },
+  {
+    id: 'stripCenoteDiver',
+    src: '/homepage/production/hero/hero-10-cenote-diver.webp',
+  },
 ] as const
 
 /**

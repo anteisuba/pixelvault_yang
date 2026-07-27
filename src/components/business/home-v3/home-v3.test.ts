@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  getHomeV3ModelCover,
   HOME_V3_CANVAS_EDGES,
   HOME_V3_CANVAS_NODES,
   HOME_V3_CAPS,
@@ -50,6 +51,11 @@ describe('home v3 · assets', () => {
 
     const missing = [...referenced].filter((src) => !existsSync(localPath(src)))
     expect(missing, 'referenced but not in public/').toEqual([])
+  })
+
+  it('the 3D capability references a real local GLB', () => {
+    expect(HOME_V3_TURNTABLE.model).toMatch(/\.glb$/)
+    expect(existsSync(localPath(HOME_V3_TURNTABLE.model))).toBe(true)
   })
 })
 
@@ -109,6 +115,16 @@ describe('home v3 · capability stage', () => {
 
 describe('home v3 · model rails', () => {
   const available = getAvailableModels()
+
+  it('gives every model its own local capability cover', () => {
+    const covers = available.map((model) =>
+      getHomeV3ModelCover(model.id, model.outputType),
+    )
+    const missing = covers.filter((src) => !existsSync(localPath(src)))
+
+    expect(new Set(covers).size).toBe(available.length)
+    expect(missing, 'model covers referenced but not in public/').toEqual([])
+  })
 
   it('the four rails cover every available model exactly once', () => {
     // The catalog gets a monthly audit; a new outputType would otherwise drop a

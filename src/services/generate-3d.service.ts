@@ -375,6 +375,8 @@ export async function submit3DGenerationForUserId(
     adapterType: executionRoute.adapterType,
     provider,
     modelId: executionRoute.modelId,
+    // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+    isPlatformFunded: !executionRoute.resolvedApiKeyId,
   })
 
   // PR3-α: `staged` only takes effect when we're already on the mesh-first
@@ -1102,6 +1104,8 @@ async function submitWorker3DGeneration({
     adapterType: executionRoute.adapterType,
     provider,
     modelId: executionRoute.modelId,
+    // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+    isPlatformFunded: !executionRoute.resolvedApiKeyId,
   })
 
   const modelConfig =

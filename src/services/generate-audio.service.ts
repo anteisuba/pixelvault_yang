@@ -462,6 +462,8 @@ export async function generateAudioForUser(
       adapterType: route.adapterType,
       provider: providerLabel,
       modelId: route.modelId,
+      // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+      isPlatformFunded: !route.resolvedApiKeyId,
     }),
   )
   timer.setContext({ jobId: job.id })
@@ -651,6 +653,8 @@ export async function generateSoundEffectForUser(
       adapterType: route.adapterType,
       provider: providerLabel,
       modelId: route.modelId,
+      // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+      isPlatformFunded: !route.resolvedApiKeyId,
     }),
   )
   timer.setContext({ jobId: job.id })
@@ -851,6 +855,8 @@ export async function submitAudioGeneration(
             route: routeIdentity,
             voiceId: request.voiceId,
           }),
+          // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+          isPlatformFunded: !route.resolvedApiKeyId,
         },
         tx,
       )
@@ -941,6 +947,8 @@ async function submitAudioWorkerRun(params: {
       modelId: route.modelId,
       prompt: request.prompt,
       externalRequestId: serializeAudioQueueMetadata(metadata),
+      // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+      isPlatformFunded: !route.resolvedApiKeyId,
     }),
   )
   timer.setContext({ jobId: job.id })

@@ -199,6 +199,8 @@ export async function submitImageGeneration(
     modelId: route.modelId,
     prompt: input.prompt,
     externalRequestId: JSON.stringify(metadata),
+    // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+    isPlatformFunded: !route.resolvedApiKeyId,
   })
 
   // Everything after create must mark the job FAILED on error — otherwise a

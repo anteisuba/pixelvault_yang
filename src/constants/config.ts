@@ -562,13 +562,22 @@ export const FREE_TIER = {
 /**
  * Public-beta resource guardrails for platform-funded generation.
  *
+ * `MAX_ACTIVE_JOBS_PER_USER` only gates requests where the platform is
+ * actually paying (its own API key / free-tier credit) — see the
+ * `isPlatformFunded` field on `CreateGenerationJobInput` in
+ * `usage.service.ts`. A user generating with their own bound API key costs
+ * the platform nothing and is intentionally not limited by this constant
+ * (still subject to whatever rate limit the provider itself enforces).
+ * 2026-07-28 owner call: "平台限制到 4 把。自己的 api 不做限制" — raised the
+ * platform cap 2 → 4 and scoped it off the BYOK path.
+ *
  * `PLATFORM_GENERATION_ENABLED` is intentionally runtime configuration rather
  * than a build-time feature flag. Production fails closed when it is missing;
  * local/test environments remain enabled unless explicitly set to `false`.
  */
 export const PLATFORM_GENERATION_GUARD = {
   DAILY_LIMIT: 500,
-  MAX_ACTIVE_JOBS_PER_USER: 2,
+  MAX_ACTIVE_JOBS_PER_USER: 4,
   ACTIVE_JOB_STATUSES: ['QUEUED', 'RUNNING'] as const,
   /**
    * 并发闸只数这个时长以内创建的活跃 job。
@@ -583,6 +592,71 @@ export const PLATFORM_GENERATION_GUARD = {
    * 让一条僵尸永久扣住配额。24h 远高于最慢的正常任务（3D 纹理管线分钟级）。
    */
   ACTIVE_JOB_MAX_AGE_MS: 24 * 60 * 60 * 1000,
+} as const
+
+/**
+ * 失控速率闸：拦「反复自动发起生成」的死循环/bug（2026-07-28 owner：「死循环还是
+ * 要做一个闸门」）。和上面 PLATFORM_GENERATION_GUARD 不是一回事，两道闸形状不同，
+ * 不能互相替代：
+ *
+ *   - PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER 管「同时有多少个在跑」
+ *     （并发/成本），且只在平台掏钱时生效。
+ *   - 这里管「单位时间发起了多少次」（频率/失控），对所有生成路径生效——不分平台
+ *     掏钱还是 BYOK、不分 adapter。
+ *
+ * 死循环的特征是「持续高频」不是「同时很多」：一个「发一条→等它完→再发一条」的
+ * 循环永远只有 1 个活跃 job，撞不上并发闸，但能整夜把用户自己的 key 刷爆——这正是
+ * BYOK 不再受并发闸限制之后，唯一还能兜底「有东西在反复自动发起生成」的机制。
+ *
+ * ⚠ 这是对 `RATE_LIMIT_CONFIGS`（下方，per-route 分钟级请求闸，Upstash 滑动窗口）
+ * 的补充，不是替代，两者别混淆职责：
+ *   - 分钟级已经由 `RATE_LIMIT_CONFIGS.generate` / `studioGenerate` / `generateVideo`
+ *     / `generateAudio` 等档位管了（10/60s 或更紧，`generate-3d` 复用
+ *     `generateVideo` 的 5/60s）——本闸**不设分钟档**，加一个比它们都松的分钟档
+ *     只是重复造轮子。
+ *   - 但分钟级滑动窗口对「稳定低速的死循环」完全无感：10 次/分钟持续跑 = 600
+ *     次/小时，通宵下来几千次——每一分钟单看都合规，没有任何小时/天级的兜底。
+ *     本闸只填这一个空白：**小时档 + 日档，不设分钟档**。
+ *
+ * 按账户（userId）计数，不是全站汇总：死循环是某一个账号的 bug，不该让全站陪葬。
+ * 全平台限速的话，一个坏掉的客户端就能把所有人锁在门外——那是把「防失控」变成了
+ * 「失控本身」。写法对齐 PLATFORM_GENERATION_GUARD 的活跃任务闸（同一张
+ * GenerationJob 表 + per-user advisory lock + count），不是 DAILY_LIMIT 那个全站
+ * freeTierSlot 汇总。
+ *
+ * ## 两档的分工（owner 2026-07-28 定值）
+ *
+ * 先看这个数被夹在什么中间：
+ *
+ *   - **硬天花板 600/小时** —— 路由层 `studioGenerate` 的 10/分钟已经封死了，
+ *     任何闸值高于 600 都等于不存在。
+ *   - **重度人工使用估 60–150/小时** —— 出一张图 10–30 秒且人要看结果，就算一直
+ *     用 ×4 批量也就这个量级。
+ *
+ * 所以：
+ *
+ *   - `HOUR_LIMIT: 500` —— **快速失控**档。贴着 600 的天花板，基本不可能误伤真人，
+ *     但绊线还在。⚠ 别指望它省多少：天花板本来就是 600，从 600 压到 500 只挡掉
+ *     六分之一。它的价值是「存在」，不是「省量」。
+ *   - `DAY_LIMIT: 1500` —— **慢速长跑**档，**这才是真正有效的那一道**。死循环的伤害
+ *     是按「一整夜」算的：无日档时 600/小时 × 8 小时 ≈ 4800 次；有日档则 ≈2.5 小时
+ *     就被拦下。而 1500/天没有任何真人碰得到——手动出 1500 张图等于全天不吃不喝
+ *     每 60 秒一张。
+ *
+ * ⚠ 最初只设了小时档（300），漏掉的正是「通宵慢速刷爆 key」这个 owner 最担心的
+ * 场景——小时档管不住它，因为它每一小时单看都合规。日档是后补的，别当成冗余删掉。
+ *
+ * ⚠ 这两个数都是**按上述上下界推的，不是从真实流量里量出来的**。误伤了正常的高频
+ * 场景（比如批量变体探索连跑一整个下午）时，**先看日志分布再调**，不要凭感觉改。
+ *
+ * ⚠ BYOK 时平台一分钱不出，这道闸保护的是**用户自己的钱包**——所以宽松是合理的：
+ * 真正的止损目标是「几小时内停下」，不是「几分钟内停下」。
+ */
+export const RUNAWAY_GENERATION_GUARD = {
+  HOUR_LIMIT: 500,
+  HOUR_WINDOW_MS: 60 * 60 * 1000,
+  DAY_LIMIT: 1500,
+  DAY_WINDOW_MS: 24 * 60 * 60 * 1000,
 } as const
 
 /**

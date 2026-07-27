@@ -1012,6 +1012,8 @@ export async function generateImageForUser(
       adapterType: route.adapterType,
       provider,
       modelId: route.modelId,
+      // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+      isPlatformFunded: !route.resolvedApiKeyId,
     }),
   )
   timer.setContext({ jobId: job.id })

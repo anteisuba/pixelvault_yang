@@ -145,6 +145,8 @@ export async function submitVideoGenerationForUserId(
         executionRoute.isFreeGeneration === true &&
         !executionRoute.resolvedApiKeyId,
       isFreeGeneration: executionRoute.isFreeGeneration,
+      // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
+      isPlatformFunded: !executionRoute.resolvedApiKeyId,
       modelConfig,
       externalModelId: executionRoute.externalModelId,
       timer,
@@ -167,6 +169,7 @@ async function submitFalVideoWorkerRun(params: {
   apiKeyId?: string | null
   useSystemKey: boolean
   isFreeGeneration?: boolean
+  isPlatformFunded: boolean
   modelConfig: NonNullable<ResolvedGenerationRoute['modelConfig']>
   externalModelId?: string
   timer: GenerationStageTimer
@@ -180,6 +183,7 @@ async function submitFalVideoWorkerRun(params: {
     apiKeyId,
     useSystemKey,
     isFreeGeneration,
+    isPlatformFunded,
     modelConfig,
     externalModelId,
     timer,
@@ -242,6 +246,7 @@ async function submitFalVideoWorkerRun(params: {
       modelId: routeModelId,
       prompt: input.prompt,
       externalRequestId: JSON.stringify(metadata),
+      isPlatformFunded,
     }),
   )
   timer.setContext({ jobId: generationJob.id })

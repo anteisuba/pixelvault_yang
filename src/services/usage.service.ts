@@ -4,6 +4,7 @@ import {
   API_USAGE,
   FREE_TIER,
   PLATFORM_GENERATION_GUARD,
+  RUNAWAY_GENERATION_GUARD,
   RUNNER_MONTHLY_LIMIT,
 } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -30,6 +31,16 @@ export interface CreateGenerationJobInput {
   modelId: string
   prompt?: string
   externalRequestId?: string
+  /**
+   * 这条生成是不是平台掏钱（平台自己的 API key / 免费额度），而非调用方自带 key
+   * (BYOK)。只有 `true` 时才会过 `PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER`
+   * 并发闸——BYOK 不占平台资源，不该被这道闸拦。
+   *
+   * 默认 `true`：调用方漏传时按「平台掏钱」处理，宁可多挡一道也不能把闸门当成
+   * 「不限」的默认方向（2026-07-28 owner 定）。判定方式见各 service 里
+   * `resolveGenerationRoute(...)` 返回的 `resolvedApiKeyId`——非空即 BYOK。
+   */
+  isPlatformFunded?: boolean
 }
 
 export interface UpdateGenerationJobInput {
@@ -119,6 +130,30 @@ export class ActiveGenerationLimitExceededError extends ApiRequestError {
       `You already have ${limit} active generation jobs. Wait for one to finish before starting another.`,
     )
     this.name = 'ActiveGenerationLimitExceededError'
+  }
+}
+
+/**
+ * 失控速率闸触发时抛出——不同于 `ActiveGenerationLimitExceededError`（「你同时
+ * 开太多了」），这条是「有东西在反复自动发起生成，已暂停」，语气上不是在怪用户，
+ * 是在提示大概率撞上了 bug（重试循环 / 卡住的自动化）。见 `errors.runawayGeneration`
+ * 的三语文案，以及常量处 `RUNAWAY_GENERATION_GUARD` 的说明。
+ */
+export class RunawayGenerationLimitExceededError extends ApiRequestError {
+  readonly code = 'RUNAWAY_GENERATION_LIMIT_EXCEEDED' as const
+
+  constructor(limit: number, windowMs: number) {
+    const windowLabel =
+      windowMs % (60 * 60 * 1000) === 0
+        ? `${windowMs / (60 * 60 * 1000)}h`
+        : `${Math.round(windowMs / 1000)}s`
+    super(
+      'RUNAWAY_GENERATION_LIMIT_EXCEEDED',
+      429,
+      'errors.runawayGeneration',
+      `This account fired more than ${limit} generation requests within ${windowLabel} — new requests are paused as a runaway-loop guard. This usually means a stuck retry loop or automation bug, not intentional heavy use.`,
+    )
+    this.name = 'RunawayGenerationLimitExceededError'
   }
 }
 
@@ -276,10 +311,69 @@ export async function createGenerationJob(
   return db.$transaction((tx) => createGenerationJobWithinLimits(input, tx))
 }
 
+/**
+ * 失控速率闸：拦「反复自动发起生成」的死循环/bug，对所有生成路径生效（不分平台
+ * 掏钱还是 BYOK、不分 adapter），按账户（userId）计数。
+ *
+ * **两档：小时档拦「快速失控」，日档拦「通宵慢速长跑」。** 不设分钟档——那一级已经
+ * 由 `RATE_LIMIT_CONFIGS` 的 per-route 限流管了。为什么是两道闸、为什么按账户不按
+ * 全站、两个数字怎么推出来的，见 RUNAWAY_GENERATION_GUARD 常量处的完整说明。
+ *
+ * ⚠ 日档不是小时档的冗余：小时档管不住「每小时单看都合规、但连跑一整夜」的循环，
+ * 而那正是 BYOK 解除并发限制之后最贵的失控形态。
+ */
+async function assertRunawayGenerationRateNotExceeded(
+  userId: string,
+  client: GenerationJobCreateClient,
+): Promise<void> {
+  const lockKey = `runaway-generation-rate:${userId}`
+  await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+
+  const now = Date.now()
+
+  // 小时档在前、日档在后：快速循环撞小时档，通宵慢速长跑撞日档，谁先命中都对。
+  // 顺序不影响正确性（两个都会查），只是让最常见的快速失控少查一次。
+  const hourCount = await client.generationJob.count({
+    where: {
+      userId,
+      createdAt: {
+        gte: new Date(now - RUNAWAY_GENERATION_GUARD.HOUR_WINDOW_MS),
+      },
+    },
+  })
+
+  if (hourCount >= RUNAWAY_GENERATION_GUARD.HOUR_LIMIT) {
+    throw new RunawayGenerationLimitExceededError(
+      RUNAWAY_GENERATION_GUARD.HOUR_LIMIT,
+      RUNAWAY_GENERATION_GUARD.HOUR_WINDOW_MS,
+    )
+  }
+
+  const dayCount = await client.generationJob.count({
+    where: {
+      userId,
+      createdAt: {
+        gte: new Date(now - RUNAWAY_GENERATION_GUARD.DAY_WINDOW_MS),
+      },
+    },
+  })
+
+  if (dayCount >= RUNAWAY_GENERATION_GUARD.DAY_LIMIT) {
+    throw new RunawayGenerationLimitExceededError(
+      RUNAWAY_GENERATION_GUARD.DAY_LIMIT,
+      RUNAWAY_GENERATION_GUARD.DAY_WINDOW_MS,
+    )
+  }
+}
+
 async function createGenerationJobWithinLimits(
   input: CreateGenerationJobInput,
   client: GenerationJobCreateClient,
 ): Promise<GenerationJob> {
+  // 失控优先拦：在成本闸（RUNNER 月度额度 / 并发上限）之前跑，不分平台掏钱还是
+  // BYOK、不分 adapter，全路径都过。见 RUNAWAY_GENERATION_GUARD 常量处的说明。
+  await assertRunawayGenerationRateNotExceeded(input.userId, client)
+
   if (
     RUNNER_MONTHLY_LIMIT.ENABLED &&
     input.adapterType === AI_ADAPTER_TYPES.RUNNER
@@ -303,26 +397,31 @@ async function createGenerationJobWithinLimits(
     }
   }
 
-  const activeLockKey = `active-generation-jobs:${input.userId}`
-  await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${activeLockKey}, 0))`
+  // 并发闸只管平台掏钱的那条路（platform key / 免费额度）。调用方自带 key 时
+  // 平台不出钱，这道闸不该拦——见 CreateGenerationJobInput.isPlatformFunded。
+  // 漏传按 true 处理（默认值定义在该字段上），即「宁可多挡一道也别放行」。
+  if (input.isPlatformFunded ?? true) {
+    const activeLockKey = `active-generation-jobs:${input.userId}`
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${activeLockKey}, 0))`
 
-  // 只数「还可能真在跑」的 job：超过 ACTIVE_JOB_MAX_AGE_MS 仍未落终态的，几乎
-  // 一定是回调丢了的僵尸，不能让它永久扣住并发位（见常量处的事故记录）。
-  const activeSince = new Date(
-    Date.now() - PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS,
-  )
-  const activeCount = await client.generationJob.count({
-    where: {
-      userId: input.userId,
-      status: { in: [...PLATFORM_GENERATION_GUARD.ACTIVE_JOB_STATUSES] },
-      createdAt: { gte: activeSince },
-    },
-  })
-
-  if (activeCount >= PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER) {
-    throw new ActiveGenerationLimitExceededError(
-      PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
+    // 只数「还可能真在跑」的 job：超过 ACTIVE_JOB_MAX_AGE_MS 仍未落终态的，几乎
+    // 一定是回调丢了的僵尸，不能让它永久扣住并发位（见常量处的事故记录）。
+    const activeSince = new Date(
+      Date.now() - PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS,
     )
+    const activeCount = await client.generationJob.count({
+      where: {
+        userId: input.userId,
+        status: { in: [...PLATFORM_GENERATION_GUARD.ACTIVE_JOB_STATUSES] },
+        createdAt: { gte: activeSince },
+      },
+    })
+
+    if (activeCount >= PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER) {
+      throw new ActiveGenerationLimitExceededError(
+        PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
+      )
+    }
   }
 
   return createGenerationJobRecord(input, client)

@@ -1,9 +1,8 @@
 'use client'
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { Library, Upload, WandSparkles } from 'lucide-react'
+import { ImageIcon, Library, WandSparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -16,14 +15,17 @@ import {
   NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
-  NODE_STUDIO_PLACEHOLDER_TOAST,
 } from '@/constants/node-studio'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { Spinner } from '@/components/ui/spinner'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import {
+  ImageCardFailedContent,
+  ImageCardStatusBadge,
+  ImageCardUploadOverlay,
+} from './ImageCardMediaState'
 import { NodeShell } from './NodeShell'
 
 interface ImageSourceStarterProps {
@@ -33,6 +35,14 @@ interface ImageSourceStarterProps {
   /** owner 真机: 空态图片工具条改名写 mediaLabel（IdentityRegion image→mediaLabel）——
    *  卡头读同一字段，改完卡上标题即刻反映；未命名时回落到类型名「图片」。 */
   mediaLabel?: string
+}
+
+/** A failed upload's file + reason, kept local so retry can re-attempt the
+ *  exact same file without asking the user to re-pick it (canvas-image-card.md
+ *  §3 「失败必须给原因」+「重试」— this is the state that makes 重试 possible). */
+interface UploadFailure {
+  file: File
+  reason: string
 }
 
 /**
@@ -48,6 +58,13 @@ interface ImageSourceStarterProps {
  * Once media lands the node becomes a role-less `LooseImageCard` (ImageNode's
  * existing dispatch); naming + categorizing happens in the expand panel,
  * same as every other node field.
+ *
+ * S4（2026-07-27，canvas-image-card.md §3）: this component now also owns the
+ * 空 / 上传中 / 失败 three of the family's five states (就绪 / 就绪·hover live
+ * in LooseImageCard, which takes over once media lands). Upload progress is
+ * real (XHR, see use-node-reference-upload.ts), cancellable, and a failure
+ * stays on the card with its reason + a retry — it no longer just fires a
+ * toast and quietly reverts to empty.
  */
 export function ImageSourceStarter({
   nodeId,
@@ -57,9 +74,11 @@ export function ImageSourceStarter({
 }: ImageSourceStarterProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
   const { updateNodeData, setExpandedNodeId } = useNodeWorkflowActions()
-  const { uploadFile, isUploading } = useNodeReferenceUpload()
+  const { uploadFile, isUploading, progress, cancelUpload } =
+    useNodeReferenceUpload()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [failure, setFailure] = useState<UploadFailure | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const applyImage = (
@@ -86,6 +105,7 @@ export function ImageSourceStarter({
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix)) return
+    setFailure(null)
     const result = await uploadFile(
       file,
       NODE_STUDIO_MEDIA_IMAGE_OUTPUT.uploadNote,
@@ -94,10 +114,18 @@ export function ImageSourceStarter({
       applyImage(result.url, result.generationId, file.name)
       return
     }
-    toast.error(result.error ?? t('uploadFailed'), {
-      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-    })
+    // A deliberate × cancel isn't a failure — go straight back to the empty
+    // dropzone, no reason banner (canvas-image-card.md §3 only requires a
+    // reason for real failures).
+    if (result.cancelled) return
+    setFailure({ file, reason: result.error ?? t('uploadFailed') })
+  }
+
+  const handleRetry = () => {
+    if (!failure) return
+    const { file } = failure
+    setFailure(null)
+    void handleFile(file)
   }
 
   const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +138,7 @@ export function ImageSourceStarter({
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setIsDragOver(false)
+    if (isUploading) return
     const file = Array.from(event.dataTransfer.files).find((entry) =>
       entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
     )
@@ -126,14 +155,20 @@ export function ImageSourceStarter({
     setAssetDialogOpen(false)
   }
 
+  const isEmpty = !isUploading && !failure
+
   return (
     <NodeShell
       nodeId={nodeId}
       type={NODE_TYPE_IDS.image}
       selected={selected}
-      status={status}
+      // 失败态借用既有的「卡边转 --canvas-danger」通用规则（NodeShell 的
+      // .canvas-card[data-status='failed']）——只是视觉信号，不写回 data.status，
+      // 一次上传失败不该把整个节点标脏。
+      status={failure ? NODE_STATUS_IDS.failed : status}
       showSourceHandle={false}
       showTargetHandle={false}
+      className={isEmpty ? 'canvas-card--dashed' : undefined}
     >
       <NodeShell.Header
         type={NODE_TYPE_IDS.image}
@@ -142,39 +177,67 @@ export function ImageSourceStarter({
         onRenameCommit={(next) =>
           updateNodeData(nodeId, { mediaLabel: next, sourceLabel: next })
         }
+        // 状态浮标挪进媒体窗左上角（下面），卡外的头不用再盖一次章。
+        hideStatusBadge
       />
-      <NodeShell.Body className="space-y-2">
+      <NodeShell.Body className="space-y-2 p-0">
         <div
           role="button"
           tabIndex={0}
           aria-label={t('uploadAria')}
-          onClick={() => inputRef.current?.click()}
+          aria-disabled={isUploading}
+          data-drag-over={isDragOver ? 'true' : undefined}
+          onClick={() => {
+            if (!isUploading) inputRef.current?.click()
+          }}
           onKeyDown={(event) => {
+            if (isUploading) return
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
               inputRef.current?.click()
             }
           }}
           onDragOver={(event) => {
-            if (!event.dataTransfer.types.includes('Files')) return
+            if (!event.dataTransfer.types.includes('Files') || isUploading)
+              return
             event.preventDefault()
             setIsDragOver(true)
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          className={`node-card-window flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-node-panel-inner bg-node-card-window text-center outline-none transition-colors hover:border-node-paint/50 focus-visible:ring-2 focus-visible:ring-node-paint/60 ${isDragOver ? 'border-node-paint/60' : ''}`}
+          className="canvas-image-dropzone flex aspect-square w-full flex-col items-center justify-center outline-none"
         >
-          {isUploading ? (
-            <Spinner size="lg" className="text-node-foreground" />
+          <ImageCardStatusBadge
+            variant={failure ? 'failed' : isUploading ? 'uploading' : 'empty'}
+            label={
+              failure
+                ? t('badgeFailed')
+                : isUploading
+                  ? t('badgeUploading')
+                  : t('badgeEmpty')
+            }
+          />
+
+          {failure ? (
+            <ImageCardFailedContent
+              reason={failure.reason}
+              retryLabel={t('retry')}
+              onRetry={handleRetry}
+            />
+          ) : isUploading ? (
+            <ImageCardUploadOverlay
+              progress={progress}
+              label={t('uploading', { percent: progress })}
+              cancelLabel={t('cancelUpload')}
+              onCancel={cancelUpload}
+            />
           ) : (
-            <Upload className="size-6 text-node-foreground" />
+            <div className="canvas-image-empty-hint">
+              <ImageIcon className="size-6" aria-hidden />
+              <span>{t('uploadHint')}</span>
+            </div>
           )}
-          <span className="text-xs font-semibold text-node-foreground">
-            {t('uploadTitle')}
-          </span>
-          <span className="px-3 text-2xs leading-4 text-node-subtle">
-            {t('uploadHint')}
-          </span>
+
           <input
             ref={inputRef}
             type="file"
@@ -184,11 +247,12 @@ export function ImageSourceStarter({
           />
         </div>
 
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 px-3 pb-3 pt-1">
           <button
             type="button"
             onClick={() => setAssetDialogOpen(true)}
-            className="nodrag flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2 py-2 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+            disabled={isUploading}
+            className="canvas-secondary-btn nodrag flex-1"
           >
             <Library className="size-3.5" aria-hidden />
             {t('library')}
@@ -196,7 +260,8 @@ export function ImageSourceStarter({
           <button
             type="button"
             onClick={() => setExpandedNodeId(nodeId)}
-            className="nodrag flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2 py-2 text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+            disabled={isUploading}
+            className="canvas-secondary-btn nodrag flex-1"
           >
             <WandSparkles className="size-3.5" aria-hidden />
             {t('aiGenerate')}

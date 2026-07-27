@@ -236,4 +236,132 @@ describe('uploadImageFileAPI direct R2 flow', () => {
     expect(result.i18nKey).toBe('errors.upload.storageRejected')
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  // S4（2026-07-27，canvas-image-card.md §3 硬要求①）: when a caller passes
+  // `onProgress`, the R2 PUT step must go over XHR (for real upload-progress
+  // events) instead of `fetch`. A minimal fake XHR stands in for the browser
+  // API — jsdom's real XMLHttpRequest would attempt a genuine network call.
+  class FakeXHR {
+    static instances: FakeXHR[] = []
+    method = ''
+    url = ''
+    status = 200
+    requestHeaders: Record<string, string> = {}
+    upload: { onprogress: ((event: ProgressEvent) => void) | null } = {
+      onprogress: null,
+    }
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+    onabort: (() => void) | null = null
+    private aborted = false
+
+    open(method: string, url: string) {
+      this.method = method
+      this.url = url
+    }
+
+    setRequestHeader(key: string, value: string) {
+      this.requestHeaders[key] = value
+    }
+
+    send() {
+      FakeXHR.instances.push(this)
+    }
+
+    abort() {
+      this.aborted = true
+      this.onabort?.()
+    }
+
+    // Test helper — not part of the real XHR surface — to drive the fake
+    // through a successful upload from outside.
+    resolve(status: number) {
+      if (this.aborted) return
+      this.status = status
+      this.onload?.()
+    }
+  }
+
+  // The prepare step is `await fetch(...)` + `await response.json()` before
+  // `putFileWithProgress` ever constructs an XHR — a fixed tick count is
+  // fragile, so poll microtasks until the fake actually shows up (all
+  // synchronous/microtask work, no real timers, so this settles immediately).
+  async function waitForFakeXhr(): Promise<FakeXHR> {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      if (FakeXHR.instances.length > 0) return FakeXHR.instances[0]
+      await Promise.resolve()
+    }
+    throw new Error('XHR was never constructed')
+  }
+
+  it('reports real upload progress over XHR when onProgress is provided, and every other caller keeps using fetch untouched', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(preparedR2Response())
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              generation: { id: 'gen_3', url: 'https://cdn.example.com/y.png' },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    FakeXHR.instances = []
+    vi.stubGlobal('XMLHttpRequest', FakeXHR as unknown as typeof XMLHttpRequest)
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' })
+    const progressUpdates: number[] = []
+    const resultPromise = uploadImageFileAPI(file, {
+      onProgress: (percent) => progressUpdates.push(percent),
+    })
+
+    const xhr = await waitForFakeXhr()
+    expect(xhr.method).toBe('PUT')
+    expect(xhr.url).toBe('https://r2.example.com/upload?signature=ok')
+    xhr.upload.onprogress?.({
+      lengthComputable: true,
+      loaded: 50,
+      total: 100,
+    } as ProgressEvent)
+    xhr.upload.onprogress?.({
+      lengthComputable: true,
+      loaded: 100,
+      total: 100,
+    } as ProgressEvent)
+    xhr.resolve(200)
+
+    const result = await resultPromise
+
+    expect(result.success).toBe(true)
+    expect(progressUpdates).toEqual([50, 100])
+    // Only the two JSON round trips (prepare + complete) went through fetch —
+    // the byte-carrying PUT went over XHR instead.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets the caller abort an in-flight XHR upload via signal', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(preparedR2Response())
+    vi.stubGlobal('fetch', fetchMock)
+    FakeXHR.instances = []
+    vi.stubGlobal('XMLHttpRequest', FakeXHR as unknown as typeof XMLHttpRequest)
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' })
+    const controller = new AbortController()
+    const resultPromise = uploadImageFileAPI(file, {
+      onProgress: () => {},
+      signal: controller.signal,
+    })
+
+    await waitForFakeXhr()
+    controller.abort()
+
+    const result = await resultPromise
+    expect(result.success).toBe(false)
+    // Never reached the complete step.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })

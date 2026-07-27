@@ -38,7 +38,7 @@ export const SeedanceNode = memo(function SeedanceNode(
 
   // §5.1 shot override: this node's model brand differs from the canvas default
   // → flag it (⚠ badge + dashed border) so cross-shot drift is scannable.
-  const { defaultVideoModel } = useNodeWorkflowActions()
+  const { defaultVideoModel, updateNodeData } = useNodeWorkflowActions()
   const nodeBrand = deriveSwitcherStateFromModel(data.model).brand
   const isOverridden = Boolean(
     defaultVideoModel && nodeBrand && nodeBrand !== defaultVideoModel.brand,
@@ -57,6 +57,13 @@ export const SeedanceNode = memo(function SeedanceNode(
         type={NODE_TYPE_IDS.seedance}
         status={data.status}
         title={data.mediaLabel?.trim() || undefined}
+        // 组装台没有专属命名字段（同 videoMerge/frameImage），改名写回通用
+        // mediaLabel + 老搭档 sourceLabel（同 NodeMediaPreview.commitHeaderTitle
+        // 的写法，owner 真机确认过组装台改名口子缺失，见 canvas-image-card.md
+        // §三/§五 —— 之前唯一的口子是近场工具条的 IdentityRegion，已经删掉去重）。
+        onRenameCommit={(next) =>
+          updateNodeData(id, { mediaLabel: next, sourceLabel: next })
+        }
         action={
           isOverridden ? (
             <span

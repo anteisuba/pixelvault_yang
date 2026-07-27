@@ -10,8 +10,6 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { IMEAwareInput } from './IMEAwareField'
-import { InspectorField } from './InspectorField'
 import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface BackgroundImageInspectorProps {
@@ -46,7 +44,6 @@ function getParticipantLabel(node: NodeWorkflowNode, fallback: string): string {
 export function BackgroundImageInspector({
   node,
 }: BackgroundImageInspectorProps) {
-  const tBg = useTranslations('StudioNode.workflowNodes.backgroundImage')
   const tDossier = useTranslations('StudioNode.dossier')
   const tTypes = useTranslations('StudioNode.nodeTypes')
   const allNodes = useNodes<NodeWorkflowNode>()
@@ -92,15 +89,6 @@ export function BackgroundImageInspector({
     })
   }, [boundCard, node.data.cardId, node.data.prompt, node.id, updateNodeData])
 
-  const backgroundName =
-    typeof node.data.backgroundName === 'string' ? node.data.backgroundName : ''
-  const handleNameChange = useCallback(
-    (next: string) => {
-      updateNodeData(node.id, { backgroundName: next })
-    },
-    [node.id, updateNodeData],
-  )
-
   const performances = useMemo(() => {
     return edges
       .filter((edge) => edge.source === node.id)
@@ -125,15 +113,9 @@ export function BackgroundImageInspector({
 
   return (
     <div className="space-y-4">
-      <InspectorField label={tBg('nameLabel')}>
-        <IMEAwareInput
-          value={backgroundName}
-          onValueChange={handleNameChange}
-          aria-label={tBg('nameLabel')}
-          placeholder={tBg('namePlaceholder')}
-          className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        />
-      </InspectorField>
+      {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
+          卡外的原地可编辑标签（IdentityCollectorCard 的 EditableNodeLabel），
+          这里不再重复一份改名输入。 */}
       <NodeMediaInspector
         node={node}
         type={NODE_TYPE_IDS.backgroundImage}

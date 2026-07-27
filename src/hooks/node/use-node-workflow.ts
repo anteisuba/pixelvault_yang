@@ -976,14 +976,20 @@ export function useNodeWorkflow({
   const addNode = useCallback(
     (type: NodeWorkflowNodeType, position: XYPosition) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
-      // Resizable card shells (loose pure-image AND — after the 2026-07-19
-      // rewrite — videoReference's template card) need an explicit RF size at
-      // creation so the corner NodeResizer has dimensions to scale and a
-      // freshly-added node renders at a real size; role-stamped cards keep
-      // measuring from content. Without this a menu-created videoReference had
-      // no width/height and broke (owner 真机: "参考视频无法新建").
-      const needsExplicitSize =
-        type === NODE_TYPE_IDS.image || type === NODE_TYPE_IDS.videoReference
+      // Resizable card shells need an explicit RF size at creation so a
+      // freshly-added node renders at a real size before anything is
+      // measured. videoReference still owns a corner NodeResizer, so it
+      // still needs this. `image` no longer does — S4（2026-07-27，
+      // canvas-image-card.md §2「不提供拖拽把手」）retired LooseImageCard's
+      // NodeResizer in favor of an aspect-ratio-derived, clamped size that
+      // the card computes itself and applies as its own inline style;
+      // leaving an explicit pinned width/height here would fight that (RF
+      // applies `node.width`/`height` as a literal CSS size on the node
+      // wrapper whenever they're set, which would clip/stretch the card's
+      // own aspect-correct box). `image` now falls into the same
+      // "role-stamped cards keep measuring from content" bucket as
+      // composer/agent/voice/collector.
+      const needsExplicitSize = type === NODE_TYPE_IDS.videoReference
       const nextNode: NodeWorkflowNode = {
         id: nodeId,
         type,
@@ -1086,8 +1092,10 @@ export function useNodeWorkflow({
               column * placement.columnOffsetX,
             y: sourceNode.position.y + row * placement.rowOffsetY,
           },
-          width: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
-          height: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+          // S4（2026-07-27）：不再钉死初始 320×320——LooseImageCard 自己按
+          // output.width/height（下面写进 data.mediaWidth/Height）算出正确的
+          // 钳制尺寸并测量渲染，钉一个假方形反而会在它自己的尺寸生效前抢跑
+          // 一帧。见 addNode 里 needsExplicitSize 的同一条注释。
           data: nextData,
         } satisfies NodeWorkflowNode
       })

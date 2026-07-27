@@ -23,28 +23,19 @@ import type { NodeDetailBodyProps } from './registry'
  * the field set falls back to just `prompt` — no camera/composition/action,
  * keeping the "素材" card visually/functionally distinct from "镜头图（生
  * 成）" per the task packet's add-menu split) for the shared upload dropzone
- * / 素材库 / AI 生成 三来源 surface; `roleExtras` adds the 名字 + 分类 editor
+ * / 素材库 / AI 生成 三来源 surface; `roleExtras` adds the 分类 editor
  * (分类 = `NODE_STUDIO_REFERENCE_ROLES`, same list a card's own referenceAssets
- * use, + 自定义标签 when `custom`).
+ * use, + 自定义标签 when `custom`). 名字 is edited on-card now (S4/S5,
+ * canvas-image-card.md §1/§四/§五 — LooseImageCard's EditableNodeLabel), not
+ * in this detail panel.
  */
 export function LooseImageDetailBody({ nodeId, data }: NodeDetailBodyProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
   const tRoles = useTranslations('StudioNode.characterImage.reference')
   const { updateNodeData } = useNodeWorkflowActions()
 
-  const name =
-    (typeof data.mediaLabel === 'string' && data.mediaLabel) ||
-    (typeof data.sourceLabel === 'string' && data.sourceLabel) ||
-    ''
   const category = data.imageCategory
   const customLabel = data.imageCategoryLabel ?? ''
-
-  const handleNameChange = useCallback(
-    (next: string) => {
-      updateNodeData(nodeId, { mediaLabel: next, sourceLabel: next })
-    },
-    [nodeId, updateNodeData],
-  )
 
   const handleCategoryChange = useCallback(
     (next: string) => {
@@ -73,19 +64,9 @@ export function LooseImageDetailBody({ nodeId, data }: NodeDetailBodyProps) {
       kind={NODE_MEDIA_KIND_IDS.image}
       roleExtras={
         <>
-          <InspectorField
-            label={t('nameLabel')}
-            statusDotClassName="bg-node-foreground"
-          >
-            <IMEAwareInput
-              value={name}
-              onValueChange={handleNameChange}
-              aria-label={t('nameLabel')}
-              placeholder={t('namePlaceholder')}
-              className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-            />
-          </InspectorField>
-
+          {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口
+              到卡外的原地可编辑标签（LooseImageCard 的 EditableNodeLabel），
+              这里不再重复一份改名输入——分类字段照旧。 */}
           <InspectorField
             label={t('categoryLabel')}
             statusDotClassName="bg-node-foreground"

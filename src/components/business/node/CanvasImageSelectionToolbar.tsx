@@ -14,7 +14,6 @@ import {
   Maximize2,
   MoreHorizontal,
   Paintbrush,
-  PencilLine,
   Play,
   Scissors,
   Sparkles,
@@ -39,7 +38,6 @@ import { READY_CANVAS_IMAGE_EDIT_CAPABILITIES } from '@/constants/canvas-image-e
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { NodeTokenType } from '@/constants/node-tokens'
-import { IMEAwareInput } from '@/components/business/node/inspector/IMEAwareField'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
 import { cn } from '@/lib/utils'
@@ -198,7 +196,7 @@ export function CanvasImageSelectionToolbar({
       <div
         role="toolbar"
         aria-label={t('imageEditToolbar')}
-        className="flex h-11 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-0.5 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 text-node-foreground shadow-node-panel backdrop-blur"
+        className="canvas-selection-toolbar flex h-11 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-0.5 p-1"
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -276,7 +274,10 @@ export function CanvasImageSelectionToolbar({
           <Download className="size-3.5" />
         </button>
 
-        <span className="mx-0.5 h-5 w-px bg-node-panel-inner" aria-hidden />
+        <span
+          className="canvas-selection-toolbar-divider mx-0.5 h-5 w-px"
+          aria-hidden
+        />
 
         <button
           type="button"
@@ -302,7 +303,7 @@ export function CanvasImageSelectionToolbar({
           onClick={() => deleteNode(nodeId)}
           aria-label={t('delete')}
           title={t('delete')}
-          className="relative flex size-9 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-status-failed/40 hover:text-node-status-failed-fg coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
+          className="relative flex size-9 items-center justify-center rounded-lg text-node-status-failed-fg transition-colors hover:bg-node-status-failed/40 coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
         >
           <Trash2 className="size-3.5" />
         </button>
@@ -360,11 +361,15 @@ export function CanvasImageSelectionToolbar({
 // ---------------------------------------------------------------------------
 // R3-3 registry toolbar (canvas-relationship-v3 §3.2/§7): the non-image-edit
 // families (collector / seedance / videoMerge / voice / videoReference /
-// shotText / image-family-without-media) share one shell — identity region |
-// capability region (type-specific, ≤2 buttons today) | universal region
-// (⤢详情 · 下载 · 删除). Every action below calls an EXISTING channel
-// (NodeWorkflowActionsContext, a shared hook, or a shared component) — no
-// new generation/upload endpoint is introduced by this registry.
+// shotText / image-family-without-media) share one shell — capability region
+// (type-specific, ≤2 buttons today) | universal region (⤢详情 · 下载 ·
+// 删除). Every action below calls an EXISTING channel (NodeWorkflowActionsContext,
+// a shared hook, or a shared component) — no new generation/upload endpoint
+// is introduced by this registry.
+// S5（2026-07-27）: the identity/rename region that used to lead this shell
+// is gone — names are edited on-card now (NodeShell.tsx `EditableNodeLabel`,
+// canvas-image-card.md §1/§三/§五). A card with neither a capability nor a
+// downloadable media gets no toolbar at all (see `GenericSelectionToolbar`).
 // ---------------------------------------------------------------------------
 
 interface ToolbarIconButtonProps {
@@ -393,9 +398,13 @@ function ToolbarIconButton({
       aria-label={label}
       title={label}
       className={cn(
-        "relative flex size-9 items-center justify-center rounded-lg text-node-muted transition-colors coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-[''] hover:bg-node-panel-inner hover:text-node-foreground disabled:pointer-events-none disabled:opacity-50",
-        danger &&
-          'hover:bg-node-status-failed/40 hover:text-node-status-failed-fg',
+        "relative flex size-9 items-center justify-center rounded-lg transition-colors coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-[''] disabled:pointer-events-none disabled:opacity-50",
+        // 删除是工具条里唯一的彩色项（canvas-image-card.md §6）：danger 常态即
+        // text-node-status-failed-fg（= --canvas-danger），不必等 hover 才
+        // 变色；其余图标常态 text-node-muted（= --canvas-ink-regular）。
+        danger
+          ? 'text-node-status-failed-fg hover:bg-node-status-failed/40'
+          : 'text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
       )}
     >
       <Icon className="size-3.5" />
@@ -474,140 +483,6 @@ function UniversalToolbarActions({
         onClick={() => deleteNode(nodeId)}
       />
     </>
-  )
-}
-
-/** FB-4 named-field registry: which data field a given node type's title
- *  actually reads (see each card's own title source — NodeMediaPreview's
- *  `getHeaderTitle`, VoiceNode's `voiceTitle`, SeedanceNode/VideoReferenceNode's
- *  `data.mediaLabel` reads) — the rename input below must write THAT field or
- *  the card never visibly changes. `shot` covers both the legacy `shot` type
- *  and a unified `image` node with `role: 'shot'` — `NodeShellRoot`'s own
- *  `type` prop (which becomes this `nodeType`) already resolves a role to its
- *  legacy type via `NODE_IMAGE_ROLE_TO_LEGACY_TYPE` before it ever reaches the
- *  toolbar, so no separate `data.role` check is needed here. `closeup` is
- *  deliberately NOT special-cased (also legacy-typed `characterImage`): it
- *  reuses `characterName` like a character, same as before this change. */
-type IdentityNamedField =
-  | 'characterName'
-  | 'backgroundName'
-  | 'shotName'
-  | 'voiceName'
-  | 'mediaLabel'
-
-function resolveIdentityNamedField(
-  nodeType?: NodeTokenType,
-): IdentityNamedField | null {
-  switch (nodeType) {
-    case NODE_TYPE_IDS.characterImage:
-      return 'characterName'
-    case NODE_TYPE_IDS.backgroundImage:
-      return 'backgroundName'
-    case NODE_TYPE_IDS.shot:
-      return 'shotName'
-    case NODE_TYPE_IDS.voice:
-      return 'voiceName'
-    // No dedicated name field for these — they share the generic mediaLabel
-    // (same field LooseImageCard/NodeMediaInspector already write+read for
-    // any media-bearing card), so the toolbar's rename input aligns with
-    // what SeedanceNode/VideoReferenceNode/frameImage's NodeMediaPreview
-    // title actually show (see those components' own FB-4 changes).
-    case NODE_TYPE_IDS.seedance:
-    case NODE_TYPE_IDS.videoMerge:
-    case NODE_TYPE_IDS.videoReference:
-    case NODE_TYPE_IDS.frameImage:
-    // 独立 image 节点（散图/未定角色的空态图片）—— owner 真机: 空态图片工具条
-    // 名字改不了。它没经过 role→legacy 解析（保持 type='image'），且有媒体的卡
-    // 同样读 mediaLabel/sourceLabel 命名（唯一改名处是卡外原地编辑，见
-    // canvas-image-card.md §1），这里对齐同一字段，让空态也能改名。
-    case NODE_TYPE_IDS.image:
-      return 'mediaLabel'
-    default:
-      return null
-  }
-}
-
-/** Identity region — a rename input for every type with a named field
- *  (character/background/shot/voice/generic-mediaLabel types), a read-only
- *  type label otherwise. */
-function IdentityRegion({
-  nodeId,
-  data,
-  nodeType,
-}: {
-  nodeId: string
-  data?: NodeWorkflowNodeData
-  nodeType?: NodeTokenType
-}) {
-  const t = useTranslations('StudioNode.nodeToolbar')
-  const tSource = useTranslations('StudioNode.imageSourceStarter')
-  const tTypes = useTranslations('StudioNode.nodeTypes')
-  const { updateNodeData } = useNodeWorkflowActions()
-
-  const namedField = resolveIdentityNamedField(nodeType)
-
-  const [draft, setDraft] = useState(() => {
-    switch (namedField) {
-      case 'characterName':
-        return (
-          data?.characterName?.trim() ?? data?.character?.name?.trim() ?? ''
-        )
-      case 'backgroundName':
-        return data?.backgroundName?.trim() ?? ''
-      case 'shotName':
-        return data?.shotName?.trim() ?? ''
-      case 'voiceName':
-        return data?.voiceName?.trim() ?? ''
-      case 'mediaLabel':
-        return data?.mediaLabel?.trim() ?? ''
-      default:
-        return ''
-    }
-  })
-
-  if (namedField) {
-    const commit = (value: string) => {
-      const next = value.trim()
-      if (namedField === 'mediaLabel') {
-        // Mirrors every other mediaLabel writer in this domain
-        // (NodeMediaInspector, LooseImageCard's detail body,
-        // use-node-workflow.ts) — sourceLabel is the same field's
-        // long-standing companion (StudioNodeAssistantDock reads it as a name
-        // fallback), so a mediaLabel-only write would silently diverge from it.
-        updateNodeData(nodeId, {
-          mediaLabel: next || undefined,
-          sourceLabel: next || undefined,
-        })
-        return
-      }
-      updateNodeData(nodeId, { [namedField]: next || undefined })
-    }
-    return (
-      <label className="flex h-9 min-w-0 items-center gap-1 rounded-lg bg-node-panel-soft px-2">
-        <PencilLine className="size-3.5 shrink-0 text-node-muted" />
-        <IMEAwareInput
-          value={draft}
-          onValueChange={setDraft}
-          onBlur={() => commit(draft)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.currentTarget.blur()
-            }
-          }}
-          aria-label={t('rename')}
-          placeholder={tSource('namePlaceholder')}
-          className="nodrag nopan nowheel h-7 w-24 min-w-0 border-0 bg-transparent px-0 text-xs font-medium text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:ring-0 sm:w-28"
-        />
-      </label>
-    )
-  }
-
-  return (
-    <span className="flex h-9 min-w-0 items-center rounded-lg px-2 text-xs font-medium text-node-muted">
-      <span className="truncate">
-        {tTypes(nodeType ?? NODE_TYPE_IDS.image)}
-      </span>
-    </span>
   )
 }
 
@@ -914,7 +789,14 @@ function ToolbarCapabilityRegion({
 
 /** The registry-driven chrome for every family OTHER than "image with media"
  *  (which keeps `CanvasImageSelectionToolbar` untouched). Same shell/height
- *  as that toolbar so selecting any card reads as one consistent object. */
+ *  as that toolbar so selecting any card reads as one consistent object.
+ *
+ *  owner 2026-07-27: 近场工具条的存在取决于"有没有内容可操作"——名字已经
+ *  收口到卡外（见 NodeShell.tsx `EditableNodeLabel` / canvas-image-card.md
+ *  §1），这里不再有 identity/rename 区；一张卡如果既没有能力区（生成/合成/
+ *  选择声音/添加素材……）也没有可下载的媒体，就真的没有东西可操作，整条
+ *  toolbar 不渲染——不是渲染一条只剩 expand+delete 的空壳（⤢ 对着空卡没有
+ *  可看的东西，delete 走键盘 Backspace/Delete 一样能删，不必靠这条浮层）。 */
 function GenericSelectionToolbar({
   nodeId,
   data,
@@ -929,29 +811,34 @@ function GenericSelectionToolbar({
   className?: string
 }) {
   const t = useTranslations('StudioNode.nodeToolbar')
-  const capability = data ? (
-    <ToolbarCapabilityRegion
-      nodeId={nodeId}
-      data={data}
-      nodeType={nodeType}
-      isCollector={isCollector}
-    />
-  ) : null
+  // 直接调用（不经 JSX）——`<ToolbarCapabilityRegion .../>` 这个写法本身永远
+  // 是个 truthy 的元素描述对象，即便 ToolbarCapabilityRegion 内部的 switch
+  // 最终会 return null，`data ? <.../> : null` 这层判断也测不出来（第一版
+  // 的 bug：真机三个"空态不渲染"用例全挂在这，元素造出来了但没内容）。
+  // ToolbarCapabilityRegion 自己不调用任何 hook（只是个 switch），直接当
+  // 普通函数调用是安全的，能立刻拿到它真实会渲染的 ReactNode | null。
+  const capability = data
+    ? ToolbarCapabilityRegion({ nodeId, data, nodeType, isCollector })
+    : null
+  const mediaUrl = data ? getNodeMediaUrl(data) : ''
+
+  if (!capability && !mediaUrl) return null
 
   return (
     <div
       role="toolbar"
       aria-label={t('toolbar')}
       className={cn(
-        'flex h-11 items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 text-node-foreground shadow-node-panel backdrop-blur',
+        'canvas-selection-toolbar flex h-11 items-center gap-1 p-1',
         className,
       )}
     >
-      <IdentityRegion nodeId={nodeId} data={data} nodeType={nodeType} />
-      <span className="mx-0.5 h-5 w-px bg-node-panel-inner" aria-hidden />
       {capability}
       {capability ? (
-        <span className="mx-0.5 h-5 w-px bg-node-panel-inner" aria-hidden />
+        <span
+          className="canvas-selection-toolbar-divider mx-0.5 h-5 w-px"
+          aria-hidden
+        />
       ) : null}
       <UniversalToolbarActions nodeId={nodeId} data={data} />
     </div>

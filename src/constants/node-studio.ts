@@ -5,6 +5,21 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 /** Default on-canvas size for role-less pure images (px). NodeResizer grows from here. */
 export const NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE = 320
 
+/**
+ * S4（2026-07-27）图片卡宽钳制 —— canvas-image-card.md §2：「宽度按媒体真实
+ * 比例计算，钳制在 min 180 / max 480，高度由比例导出，不提供拖拽把手」。
+ * `referenceHeight` 是基准原文没写出来的中间值：按基准给的三组参考尺寸
+ * （9:16→180×320 触下限 / 16:9→400×225 自然宽 / 21:9→480×206 触上限）反推——
+ * 三组数字都能用「目标高度 225，宽度按比例导出后再夹进 [180,480]」精确还原
+ * （16:9 时 225×16/9=400 不触限，验证成立）。这不是基准写明的公式，是本次
+ * 实现按例子反推所得，如与设计意图不符请回来只改这一个数字。
+ */
+export const NODE_STUDIO_IMAGE_CARD_SIZE = {
+  minWidth: 180,
+  maxWidth: 480,
+  referenceHeight: 225,
+} as const
+
 export const NODE_STUDIO_CANVAS = {
   // A3（canvas-relationship-v3 §7b）：owner 手动缩到 200% 实测拍板为舒适基准，
   // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow.ts），

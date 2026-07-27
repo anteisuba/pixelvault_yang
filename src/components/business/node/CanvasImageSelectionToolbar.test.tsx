@@ -266,8 +266,8 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(screen.getByRole('button', { name: 'download' })).toBeInTheDocument()
   })
 
-  it('a closeup image node (same legacy type characterImage, isCollector unset) does NOT get the collector capability', () => {
-    render(
+  it('a closeup image node (same legacy type characterImage, isCollector unset) with no media renders no toolbar at all', () => {
+    const { container } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
         data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
@@ -275,10 +275,27 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.characterImage}
       />,
     )
+    // Falls to the generic branch: not a collector, characterImage isn't in
+    // the capability registry, and there's no media to download — nothing
+    // to operate on, so the whole toolbar is absent (owner 2026-07-27: 空态
+    // 卡不显示近场工具条 — "整条不渲染", not an empty expand+delete shell).
+    // Rename now lives on the card's own on-card label, not the toolbar.
     expect(screen.queryByTestId('collector-add-asset')).not.toBeInTheDocument()
-    // Falls to the generic branch: identity still renders the characterName
-    // rename field (shared with the true collector), just no capability.
-    expect(screen.getByLabelText('rename')).toBeInTheDocument()
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an empty (role-less) image card gets no toolbar at all — the driving case for the "no content, no toolbar" rule', () => {
+    const { container } = render(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
+        selected
+        nodeType={NODE_TYPE_IDS.image}
+      />,
+    )
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('出演 button is absent entirely when the collector has no downstream performances', () => {
@@ -360,7 +377,7 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(screen.getByTestId('voice-library-dialog')).toBeInTheDocument()
   })
 
-  it('videoReference gets no capability region — mediaLabel rename input + universal actions only', () => {
+  it('videoReference gets no capability region — universal actions only (identity now lives on the card, not the toolbar)', () => {
     render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
@@ -374,18 +391,18 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.videoReference}
       />,
     )
-    // FB-4: videoReference has no dedicated name field, so it now shares the
-    // generic mediaLabel — the identity region renders a rename input (same
-    // field the card's own corner-chip title reads) instead of the old
-    // read-only type-name span.
-    expect(screen.getByLabelText('rename')).toBeInTheDocument()
+    // FB-4: videoReference has no capability region, but a mediaUrl still
+    // makes the toolbar worth showing (download). Rename moved to the card's
+    // own on-card label (NodeShell.tsx EditableNodeLabel) — no rename input
+    // here anymore, on this toolbar or any other type's.
+    expect(screen.queryByLabelText('rename')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'expand' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'download' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'delete' })).toBeInTheDocument()
   })
 
-  it('shotText gets no capability region — read-only identity label + universal actions only, omitting download without media', () => {
-    render(
+  it('shotText with no media and no capability region renders no toolbar at all', () => {
+    const { container } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
         data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
@@ -393,11 +410,10 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.shotText}
       />,
     )
-    // shotText has no FB-4 mapping (not in resolveIdentityNamedField), so it
-    // keeps the pre-existing read-only type-name span.
-    expect(screen.getByText('shotText')).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'download' }),
-    ).not.toBeInTheDocument()
+    // shotText has no registry capability and (here) no media — nothing to
+    // operate on, so the whole toolbar is absent, not a read-only identity
+    // span + universal-actions shell like before this change.
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 })

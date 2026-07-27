@@ -468,7 +468,12 @@
   --canvas-card-line: rgba(0, 0, 0, 0.08);
   --canvas-card-shadow: none;
   --canvas-card-shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.08);
-  --canvas-card-w: 250px;
+  /* S4（2026-07-27）：固定 250px 已废——canvas-image-card.md §2 判定为取样
+     错误（参考站同屏三张图片卡明显不等宽）。图片卡改按媒体真实比例算宽，
+     只保留 min/max 钳制；声音卡/身份卡各自固定 240（两文各自 §1）。 */
+  --canvas-card-w-min: 180px;
+  --canvas-card-w-max: 480px;
+  --canvas-card-w-fixed: 240px;
   --canvas-card-w-console: 320px; /* 组装台紧凑态 */
   --canvas-card-w-console-open: 440px; /* 组装台展开态 */
 
@@ -551,6 +556,18 @@
   --canvas-dur-slow: 420ms; /* 面板展开、画布避让 */
   --canvas-ease-in: cubic-bezier(0.22, 1, 0.36, 1); /* 进入与落位 */
   --canvas-ease-state: cubic-bezier(0.4, 0, 0.2, 1); /* 状态过渡 */
+
+  /* 13 · 声音卡（canvas-voice-card.md §2，仅声音族消费） */
+  --canvas-voice-cover-scrim: rgba(10, 10, 10, 0.18);
+  --canvas-voice-slot-bg: rgba(255, 255, 255, 0.92);
+  /* 波形未播色：基准给出的字面值，不等于任何既有 ink token（最接近的
+     --canvas-ink-subtle 是 #8f8f8f，非同一值），故单开一个 token 而不是
+     借用已有变量把颜色悄悄改掉。 */
+  --canvas-waveform-idle: #a1a1a1;
+
+  /* 14 · 身份卡底条（canvas-identity-card.md §1，同 §8 底部工具条玻璃配方
+     0.85 白，非新造色值） */
+  --canvas-identity-bar-bg: rgba(255, 255, 255, 0.85);
 }
 
 /* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光 */
@@ -604,6 +621,13 @@
 
   --canvas-media-bg: #101010;
   --canvas-stripe: rgba(255, 255, 255, 0.07);
+
+  /* 声音卡 / 身份卡深色档 —— 两份基准都没写深色值，这里按「卡背比底亮、
+     投影靠加深」的既定规则（§9 顶部注释）推算，非基准原文，真机核对时留意。 */
+  --canvas-voice-cover-scrim: rgba(0, 0, 0, 0.35);
+  --canvas-voice-slot-bg: rgba(23, 23, 23, 0.92);
+  --canvas-waveform-idle: var(--canvas-ink-muted);
+  --canvas-identity-bar-bg: rgba(23, 23, 23, 0.85);
 }
 
 /* reduced-motion：三档时长全部压到 1ms 并保留终态（规格 §9） */
@@ -748,6 +772,27 @@
   padding: 0 4px;
 }
 
+/* S5（2026-07-27，canvas-image-card.md §三）：hover / focus 时名字右侧浮出
+   铅笔图标提示可编辑——之前只读态和可编辑态视觉完全一样，没有 hover 线索。
+   图标色用既有的 --canvas-ink-muted（Hard Rule 5，不新造颜色），常态透明，
+   hover/focus 才显影。挂在共享的 `.canvas-label-trigger`（EditableNodeLabel，
+   NodeShell.tsx 导出）上，八个消费者统一生效，不逐组件重画。 */
+.domain-canvas .canvas-label-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.domain-canvas .canvas-label-edit-hint {
+  flex: none;
+  color: var(--canvas-ink-muted);
+  opacity: 0;
+  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-label-trigger:hover .canvas-label-edit-hint,
+.domain-canvas .canvas-label-trigger:focus-visible .canvas-label-edit-hint {
+  opacity: 1;
+}
+
 /* ── S2a · 浮起玻璃容器（2026-07-26）──────────────────────────────────────
    规格 §8。顶栏 / 底部胶囊 / 左侧面板（S2b）共用一套玻璃配方：白 84%
    + backdrop-blur + 发丝边 + 柔投影。用类而非 arbitrary value（Hard Rule 5）。
@@ -857,4 +902,490 @@
   /* 边被选中 / 成分边被带出：原本是纯石绿与石绿混墨线两档，现在统一收进
      「提亮」这一件事，靠明度拉开，不再引入色相。 */
   --node-paint: var(--canvas-edge-active);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S4 · 三族卡内视觉（2026-07-27）
+   施工基准 docs/references/pages/canvas-image-card.md /
+   canvas-voice-card.md / canvas-identity-card.md。数值唯一来源仍是
+   canvas-skin-spec-2026-07-26.md——本节只新增三族卡各自专属的布局类，颜色
+   一律引用上面已有的 --canvas-* token，不新造。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 图片卡（canvas-image-card.md）──────────────────────────────────────── */
+
+/* NodeMediaPreview kind=image（shot/frame/closeup 落媒体前的形态）媒体窗：
+   替掉旧「深色监视器」皮（.node-card-window，video/audio kind 仍在用，不动），
+   换成 §10 的浅媒体窗底，与 LooseImageCard/ImageSourceStarter 同一张脸。 */
+.domain-canvas .canvas-image-preview-window {
+  background: var(--canvas-media-bg);
+  border-color: var(--canvas-card-line);
+}
+
+/* 空态卡边：虚线复用「未就绪边」的节奏（规格 §3.1 例外条）。CSS 原生
+   border-style:dashed 不能像 SVG stroke-dasharray 那样精确到 6/5px 的
+   段长比例，这里用浏览器默认虚线渲染取同一视觉意图——与 NodeShellRoot 里
+   既有的 `overridden && 'border-dashed'`（shot 覆盖默认模型的虚线）同一条
+   技术路线，不是本片新发明的手法。 */
+.domain-canvas .canvas-card--dashed {
+  border-style: dashed;
+  border-color: var(--canvas-stroke-focus);
+}
+
+/* 状态浮标：媒体窗内左上角，内缩 8px，形 + 词双编码（§1/§3）。就绪态不挂
+   这个类——「有图即就绪」，无需再证明一遍。 */
+.domain-canvas .canvas-image-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--canvas-text-meta);
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink-regular);
+  pointer-events: none;
+}
+.domain-canvas .canvas-image-badge--danger {
+  background: color-mix(in oklab, var(--canvas-danger) 10%, transparent);
+  border: 1px solid var(--canvas-danger);
+  color: var(--canvas-danger);
+}
+
+/* 上传中：半透明白 + 一道扫光。扫光复用既有 node-upload-shimmer 关键帧
+   （定义见本文件 FB-4 段），这里只换配色，不重复定义关键帧。 */
+.domain-canvas .canvas-image-upload-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--canvas-card-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.domain-canvas .canvas-image-upload-scrim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    color-mix(in oklab, var(--canvas-ink) 10%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: node-upload-shimmer 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .domain-canvas .canvas-image-upload-scrim::before {
+    animation: none;
+    transform: none;
+    opacity: 0.4;
+  }
+}
+.domain-canvas .canvas-image-upload-text {
+  position: relative;
+  z-index: 1;
+  font-size: var(--canvas-text-body);
+  font-weight: 600;
+  color: var(--canvas-ink);
+  font-variant-numeric: tabular-nums;
+}
+.domain-canvas .canvas-image-cancel-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--canvas-ink-muted);
+  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-image-cancel-btn:hover {
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink);
+}
+
+/* 失败：具体原因 + 重试次级按钮，居中铺满媒体窗（§11-⑥「禁用不消失，
+   必须给原因」的图片卡落点）。 */
+.domain-canvas .canvas-image-failed {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+  background: var(--canvas-card-bg);
+}
+.domain-canvas .canvas-image-failed-reason {
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+  color: var(--canvas-ink-regular);
+}
+
+/* 次级按钮通用配方（规格 §3 次级按钮边 --canvas-stroke-bold）——三族共用：
+   图片卡的重试/素材库/AI 生成、声音卡的重试、身份卡将来若需要都走这一个
+   类，不按族各写一份。放在图片卡这段只是历史书写顺序，不代表只给图片用。 */
+.domain-canvas .canvas-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--canvas-stroke-bold);
+  border-radius: 999px;
+  font-size: var(--canvas-text-meta);
+  font-weight: 600;
+  color: var(--canvas-ink-regular);
+  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-secondary-btn:hover {
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-secondary-btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 空态 dropzone：媒体窗底色 + 图标/文案居中，相对定位给徽标/扫光/失败三层
+   挂靠。拖拽悬停时用强调蓝描边提示「放这里」。 */
+.domain-canvas .canvas-image-dropzone {
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas-media-bg);
+}
+.domain-canvas .canvas-image-dropzone:focus-visible {
+  outline: 2px solid var(--canvas-stroke-focus);
+  outline-offset: -2px;
+}
+.domain-canvas .canvas-image-dropzone[data-drag-over='true'] {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: -2px;
+}
+.domain-canvas .canvas-image-empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--canvas-ink-muted);
+}
+.domain-canvas .canvas-image-empty-hint span {
+  padding: 0 12px;
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+}
+
+/* 就绪 · hover：居中「替换」白胶囊，仅 hover / 选中出现，不常驻（§3）。
+   触发条件挂在卡根的 `.group` / `data-selected`（LooseImageCard 根节点已有
+   这两个标记，见该文件），与图片详情模态「唯一主动作居中浮层」同一模式。 */
+.domain-canvas .canvas-image-replace-pill {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--canvas-card-bg);
+  box-shadow: var(--canvas-seg-shadow);
+  font-size: var(--canvas-text-meta);
+  font-weight: 600;
+  color: var(--canvas-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .group:hover .canvas-image-replace-pill,
+.domain-canvas .group[data-selected='true'] .canvas-image-replace-pill {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── 声音卡 / 身份卡共用：固定宽 240（各自 §1）────────────────────────────
+   两族都不随内容变宽，用同一个 token 而非各写一次字面值。specificity
+   0,2,0 压过 NodeShellRoot 的 w-node-card 工具类，同 .canvas-card 已有的
+   写法（本文件 S1 段注释）。 */
+.domain-canvas .canvas-card--w-fixed {
+  width: var(--canvas-card-w-fixed);
+}
+
+/* 图片卡宽钳制的 CSS 安全网（§2）：真正的宽度由 LooseImageCard 按媒体比例
+   算出并写成内联 style，这两条 min/max 只是兜底——即便算法哪天算漏了，
+   卡也不会跌出 180–480 的范围。 */
+.domain-canvas .canvas-card--image-bounds {
+  min-width: var(--canvas-card-w-min);
+  max-width: var(--canvas-card-w-max);
+}
+
+/* ── 声音卡（canvas-voice-card.md §1/§2）─────────────────────────────────
+   84 封面 + 156 右列 = 240，卡高固定 84。 */
+.domain-canvas .canvas-voice-card {
+  height: 84px;
+}
+.domain-canvas .canvas-voice-cover {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex: none;
+  overflow: hidden;
+  /* 封面齐边铺满卡高的整个左缘，跟卡的左侧两角重合——裁成卡的左侧圆角，
+     右缘挨着波形列是直角内缝，不用圆。 */
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
+}
+/* 压一层暗底让圆形槽读得出来（§2）——只在真的有槽要衬的时候上（空态没有
+   圆形槽，见 §3「一个槽四种含义」表，那一态就不需要暗底压亮白圈）。 */
+.domain-canvas .canvas-voice-cover[data-scrim='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--canvas-voice-cover-scrim);
+}
+.domain-canvas .canvas-voice-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--canvas-voice-slot-bg);
+  color: var(--canvas-ink);
+  transition: transform var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-voice-slot:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+.domain-canvas .canvas-voice-slot[data-tone='danger'] {
+  color: var(--canvas-danger);
+}
+.domain-canvas .canvas-voice-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 84px;
+}
+.domain-canvas .canvas-voice-waveform {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+}
+.domain-canvas .canvas-voice-meta {
+  position: absolute;
+  left: 16px;
+  right: 12px;
+  top: 60px;
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+  color: var(--canvas-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 位置/宽度覆盖——视觉配方（边/字色/hover）来自 .canvas-secondary-btn，
+   两个类一起挂在同一个 button 上（结构见 VoiceNode.tsx）。 */
+.domain-canvas .canvas-voice-empty-action {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 126px;
+}
+
+/* 波形两段配色（§3「曲线分色」）：已播 accent，未播基准给的字面值。 */
+.domain-canvas .canvas-voice-waveform-idle {
+  stroke: var(--canvas-waveform-idle);
+}
+.domain-canvas .canvas-voice-waveform-played {
+  stroke: var(--canvas-accent);
+}
+
+/* 生成中：右列主文案，位置与波形同一条基线（32px）附近。 */
+.domain-canvas .canvas-voice-generating-text {
+  position: absolute;
+  left: 16px;
+  right: 12px;
+  top: 24px;
+  font-size: var(--canvas-text-meta);
+  font-weight: 600;
+  color: var(--canvas-ink-regular);
+}
+
+/* 失败：右列换成原因 + 重试，垂直居中铺满右列（§3「具体原因」）。 */
+.domain-canvas .canvas-voice-failed {
+  position: absolute;
+  inset: 0;
+  left: 16px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+}
+.domain-canvas .canvas-voice-failed-reason {
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+  color: var(--canvas-ink-regular);
+}
+
+/* ── 身份卡（canvas-identity-card.md §1/§2）──────────────────────────────
+   240 × 135，代表图铺满 + 底部玻璃条 36 压在图上。 */
+.domain-canvas .canvas-identity-card {
+  height: 135px;
+}
+.domain-canvas .canvas-identity-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+/* 空态：--canvas-fill-control 底 + 人形字形 + 「选一张代表图」，铺满整个
+   媒体区（§2 三态表「空」行——这一态没有底条）。 */
+.domain-canvas .canvas-identity-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  text-align: center;
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink-muted);
+}
+.domain-canvas .canvas-identity-empty p {
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+}
+.domain-canvas .canvas-identity-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--canvas-identity-bar-bg);
+  border-top: 1px solid var(--canvas-stroke-regular);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.domain-canvas .canvas-identity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--canvas-text-meta);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink-regular);
+}
+.domain-canvas .canvas-identity-chip--voice {
+  background: color-mix(in oklab, var(--canvas-port-audio) 10%, transparent);
+  color: var(--canvas-port-audio);
+}
+.domain-canvas .canvas-identity-chip--muted {
+  padding: 0 2px;
+  background: transparent;
+  color: var(--canvas-ink-subtle);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S5 · 近场工具条 v0.2 玻璃皮（2026-07-27）
+   施工基准 docs/references/pages/canvas-image-card.md §6。配方与 §8「底部
+   工具条」行一致（999px 胶囊 · 同投影 · blur(20px) saturate(1.5)），背景
+   0.85 白是该行的字面值——与 --canvas-glass（0.84，顶栏/左侧面板共用的
+   通用玻璃 token）刻意分开，不复用它，理由见下。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 不直接套用 .canvas-glass：那套通用重映射把空闲态图标钉在 --canvas-ink-muted
+   （4.74:1），这里 owner 明确要 --canvas-ink-regular（7.81:1，§3.1 图标
+   ≥3:1 硬要求的更高选择）。两条规则分开写，不必在层叠顺序上和 .canvas-glass
+   抢当前值。容器级 --node-* 重映射沿用 .canvas-glass 已验证的 strangler 手法
+   （见上方“玻璃容器内的前景色重映射”注释）——工具条内部 200+ 处仍在用
+   text-node-foreground / -muted / bg-node-panel-inner 等 Tailwind 类，这里
+   换值即可让它们在白玻璃上读对，markup 不逐处碰。 */
+.domain-canvas .canvas-selection-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 6px -2px rgba(0, 0, 0, 0.06),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  color: var(--canvas-ink);
+  --node-foreground: var(--canvas-ink);
+  --node-muted: var(--canvas-ink-regular);
+  --node-subtle: var(--canvas-ink-subtle);
+  --node-panel: var(--canvas-card-bg);
+  --node-canvas: var(--canvas-action-fg);
+  --node-panel-inner: var(--canvas-fill-control);
+  --node-panel-soft: var(--canvas-fill-control);
+  --node-edge: var(--canvas-ink-muted);
+  --node-focus-ring: var(--canvas-stroke-focus);
+  /* 删除项是工具条里唯一的彩色项（§6）：text-node-status-failed-fg 常态即
+     红，不必等 hover 才变色——两个 token 都指向同一个 --canvas-danger，
+     常态/hover 底色（/40 混合）自然是同一色相不同明度。 */
+  --node-status-failed: var(--canvas-danger);
+  --node-status-failed-fg: var(--canvas-danger);
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  /* 规格 §13 硬要求：玻璃降级到不透明度 0.95，否则文字糊在画布内容上。 */
+  .domain-canvas .canvas-selection-toolbar {
+    background: rgba(255, 255, 255, 0.95);
+  }
+}
+.domain-canvas[data-scheme='dark'] .canvas-selection-toolbar {
+  /* 深色档：卡背比底亮、投影靠加深——同 .canvas-toolbar-capsule 深色档
+     的既有数值（S2a），不重新定一套。 */
+  background: rgba(23, 23, 23, 0.85);
+  box-shadow:
+    0 4px 6px -2px rgba(0, 0, 0, 0.4),
+    0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* 分隔线——规格 §6 明确要 1px rgba(0,0,0,0.08)，即 --canvas-stroke-regular
+   本身；不借 --node-panel-inner（那个数值是 .04，改叫 hover 底色用，混用
+   会让分隔线和 hover 态糊在一起分不清）。 */
+.domain-canvas .canvas-selection-toolbar-divider {
+  background: var(--canvas-stroke-regular);
 }

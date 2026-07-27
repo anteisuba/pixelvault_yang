@@ -3559,19 +3559,25 @@
     "imageSourceStarter": {
       "uploadAria": "Upload image",
       "uploadTitle": "Upload image",
-      "uploadHint": "Click, drag, or paste",
+      "uploadHint": "Drag in or click to upload",
       "library": "Library",
       "aiGenerate": "AI Generate",
       "libraryDialogTitle": "Choose an image asset",
       "libraryDialogDescription": "Pick an image from your library to use as this card's content.",
       "untitled": "Untitled image",
       "uploadFailed": "Image upload failed",
-      "nameLabel": "Name",
-      "namePlaceholder": "Name this image…",
       "categoryLabel": "Category",
       "categoryUnset": "Uncategorized",
       "categoryCustomLabel": "Custom category name",
-      "categoryCustomPlaceholder": "Type a custom category…"
+      "categoryCustomPlaceholder": "Type a custom category…",
+      "badgeEmpty": "Empty",
+      "badgeUploading": "Uploading",
+      "badgeGenerating": "Generating",
+      "badgeFailed": "Failed",
+      "uploading": "Uploading {percent}%",
+      "cancelUpload": "Cancel upload",
+      "retry": "Retry",
+      "replace": "Replace"
     },
     "composer": {
       "promptLabel": "Composer prompt",
@@ -3642,8 +3648,6 @@
       }
     },
     "characterImage": {
-      "namePrefix": "Character",
-      "nameLabel": "Character name",
       "voiceBound": {
         "namedVoice": "🎙 Voice bound: {voiceName} (will label the @AudioN slot in the video prompt)",
         "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
@@ -3814,7 +3818,11 @@
       },
       "referenceFromAssets": "Choose from library",
       "referenceDialogTitle": "Choose reference audio",
-      "referenceDialogDescription": "Pick a generated voice clip from your library to use as reference audio."
+      "referenceDialogDescription": "Pick a generated voice clip from your library to use as reference audio.",
+      "kindSpeech": "Speech",
+      "emptyCardAction": "Choose a voice from the library",
+      "generatingReference": "Generating reference audio",
+      "retry": "Retry"
     },
     "videoGeneration": {
       "timeline": {
@@ -4296,15 +4304,11 @@
       },
       "shot": {
         "emptyPreview": "Generate a single shot image from shot text and character/background references.",
-        "footerEmpty": "Waiting for shot prompt",
-        "nameLabel": "Shot name",
-        "namePlaceholder": "e.g. opening wide shot"
+        "footerEmpty": "Waiting for shot prompt"
       },
       "backgroundImage": {
         "emptyPreview": "Define location, mood, and lighting for a reusable background.",
-        "footerEmpty": "Waiting for background setup",
-        "nameLabel": "Background name",
-        "namePlaceholder": "e.g. Night street"
+        "footerEmpty": "Waiting for background setup"
       },
       "frameImage": {
         "emptyPreview": "Combine characters, background, and shot intent into a video keyframe.",
@@ -4597,6 +4601,9 @@
       "voiceSection": "Voice identity",
       "voiceBind": "Bind voice",
       "voiceBindDialogDescription": "Pick a generated or uploaded audio clip as this character's voice reference.",
+      "noVoice": "No voice",
+      "identityEmptyHint": "Pick a representative image",
+      "nodeCountAria": "{count} nodes under this identity",
       "performanceSection": "Appears in",
       "performanceEmpty": "Not used in any shot yet",
       "performanceFocusAria": "Focus {name} on the canvas"

@@ -3559,19 +3559,25 @@
     "imageSourceStarter": {
       "uploadAria": "上传图片",
       "uploadTitle": "上传图片",
-      "uploadHint": "点击、拖拽或粘贴",
+      "uploadHint": "拖入或点击上传",
       "library": "素材库",
       "aiGenerate": "AI 生成",
       "libraryDialogTitle": "选择图片素材",
       "libraryDialogDescription": "从素材库选一张图，直接作为这张图片卡的内容。",
       "untitled": "未命名图片",
       "uploadFailed": "图片上传失败",
-      "nameLabel": "名字",
-      "namePlaceholder": "给这张图起个名字…",
       "categoryLabel": "分类",
       "categoryUnset": "未分类",
       "categoryCustomLabel": "自定义分类名",
-      "categoryCustomPlaceholder": "输入自定义分类…"
+      "categoryCustomPlaceholder": "输入自定义分类…",
+      "badgeEmpty": "空",
+      "badgeUploading": "上传中",
+      "badgeGenerating": "生成中",
+      "badgeFailed": "失败",
+      "uploading": "上传中 {percent}%",
+      "cancelUpload": "取消上传",
+      "retry": "重试",
+      "replace": "替换"
     },
     "composer": {
       "promptLabel": "Composer 提示词",
@@ -3642,8 +3648,6 @@
       }
     },
     "characterImage": {
-      "namePrefix": "角色",
-      "nameLabel": "角色名称",
       "voiceBound": {
         "namedVoice": "🎙 已绑定音色：{voiceName}（视频生成时会标注角色名）",
         "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）",
@@ -3814,7 +3818,11 @@
       },
       "referenceFromAssets": "从素材选择",
       "referenceDialogTitle": "选择参考音频",
-      "referenceDialogDescription": "从素材库中选择一段生成的语音作为参考音频。"
+      "referenceDialogDescription": "从素材库中选择一段生成的语音作为参考音频。",
+      "kindSpeech": "语音",
+      "emptyCardAction": "从音频库选择音色",
+      "generatingReference": "生成参考音频中",
+      "retry": "重试"
     },
     "videoGeneration": {
       "timeline": {
@@ -4296,15 +4304,11 @@
       },
       "shot": {
         "emptyPreview": "从镜头文本和角色/背景参考生成单张镜头图。",
-        "footerEmpty": "等待镜头提示",
-        "nameLabel": "镜头名称",
-        "namePlaceholder": "如：开场远景"
+        "footerEmpty": "等待镜头提示"
       },
       "backgroundImage": {
         "emptyPreview": "定义地点、氛围和光线，生成可复用背景图。",
-        "footerEmpty": "等待背景设定",
-        "nameLabel": "背景名称",
-        "namePlaceholder": "如：夜晚街道"
+        "footerEmpty": "等待背景设定"
       },
       "frameImage": {
         "emptyPreview": "合成角色、背景和镜头意图，锁定视频关键帧。",
@@ -4597,6 +4601,9 @@
       "voiceSection": "听觉身份",
       "voiceBind": "绑定音色",
       "voiceBindDialogDescription": "从已生成或已上传的音频里选一段作为这个角色的音色参考。",
+      "noVoice": "无音色",
+      "identityEmptyHint": "选一张代表图",
+      "nodeCountAria": "名下 {count} 个节点",
       "performanceSection": "出演",
       "performanceEmpty": "还没有出演任何镜头",
       "performanceFocusAria": "在画布上定位 {name}"

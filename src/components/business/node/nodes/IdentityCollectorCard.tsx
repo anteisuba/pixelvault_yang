@@ -3,20 +3,19 @@
 import Image from 'next/image'
 import { useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
-import { Mic2, Star, UserRound } from 'lucide-react'
+import { Grid2x2, Mic2, UserRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   NODE_TYPE_IDS,
-  NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
 import {
   getNodePrimaryMediaUrl,
   getUpstreamNodes,
   isVoiceProfileNode,
 } from '@/lib/node-workflow-graph'
+import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -30,8 +29,6 @@ interface IdentityCollectorCardProps {
   data: NodeWorkflowNode['data']
   selected?: boolean
 }
-
-const MAX_THUMBNAILS = 4
 
 function getName(
   legacyType: NodeWorkflowNodeType,
@@ -67,43 +64,18 @@ function commitName(
   }
 }
 
-/** 词条摘要 — a one-line gist of the card's own entries, distinct per legacy
- *  type: background has location/mood/lighting fields; character only has a
- *  free prompt (visualSeed is assistant-owned, shown read-only in the
- *  dossier, not summarized here to avoid duplicating that surface). */
-function getSummaryLine(
-  legacyType: NodeWorkflowNodeType,
-  data: NodeWorkflowNode['data'],
-): string | undefined {
-  if (legacyType === NODE_TYPE_IDS.backgroundImage) {
-    const parts = [
-      NODE_WORKFLOW_FIELD_IDS.location,
-      NODE_WORKFLOW_FIELD_IDS.mood,
-      NODE_WORKFLOW_FIELD_IDS.lighting,
-    ]
-      .map((fieldId) => getNodeWorkflowFieldValue(data, fieldId).trim())
-      .filter(Boolean)
-    return parts.length > 0 ? parts.join(' · ') : undefined
-  }
-  const prompt = getNodeWorkflowFieldValue(
-    data,
-    NODE_WORKFLOW_FIELD_IDS.prompt,
-  ).trim()
-  return prompt || undefined
-}
-
 /**
- * §6.0/§6.1 S5d ④「卡片收集器 UI」: the archive-card face for a character/
- * background node visible on canvas (post S5d ② hidden-condition fix, a
- * zero-reference identity card now renders here instead of staying hidden).
- * Deliberately a DIFFERENT face from `NodeMediaPreview` (image-container
- * cards: shot/frame/closeup) — a collector card reads as a dossier (gallery
- * thumbnail grid + ♪ voice badge + name + entry summary), not a single-image
- * result. The full editing surface (gallery grid with role/weight controls,
- * voice bind, 出演 list) already exists in the expand panel
- * (`CharacterImageInspector`/`BackgroundImageInspector`, S5c) — this is only
- * the collapsed canvas presentation, so it reads referenceAssets/edges but
- * writes nothing itself.
+ * S4（2026-07-27，canvas-identity-card.md）整卡重写。§0 域定义拍板「身份卡 =
+ * 角色的分类锚点」——它不再是图集浏览器：图集网格（缩略图 + 主图星标）整体
+ * 删除，换成「▦ N」纯计数 chip；「归属」逻辑本身（referenceAssets 数组、
+ * fusedIntoNodeId）完全不动，只是这张卡不再把它画成一排缩略图。
+ *
+ * §6 明确本轮不做的事，都没做：数据模型改造（打标签/多归属）、上方近场
+ * 工具条、展开态管理模态——那些是切片 v2，owner 还没确认。
+ *
+ * 成分栏（NodeShell.Ingredients，画上游连线摘要）也一并去掉：新域定义下
+ * 「找得到」不等于「用连线表达」（§5 已拍板不画边），卡上只留§1 定的四件
+ * 信息，成分栏摘要的是图连线关系，跟这四件事是两回事。
  */
 export function IdentityCollectorCard({
   id,
@@ -116,7 +88,6 @@ export function IdentityCollectorCard({
   const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData } = useNodeWorkflowActions()
   const name = getName(legacyType, data)
-  const summaryLine = getSummaryLine(legacyType, data)
   const referenceAssets = useMemo(
     () => data.referenceAssets ?? [],
     [data.referenceAssets],
@@ -128,10 +99,8 @@ export function IdentityCollectorCard({
   }, [edges, id, legacyType, nodes])
 
   // 图集（referenceAssets）是收集器卡图片的唯一事实源；mediaUrl 只是它的封面，
-  // 通常就是图集里某张图的另一个 url 串。以前 mediaUrl 与图集两个来源都 push，
-  // 封面与图集副本 url 不完全相等时去重抓不住 → 一张图的卡渲染出两个缩略图
-  // （owner 真机"卡片只有一张图，缩小图展示两张"）。改为：以图集为准去重，
-  // mediaUrl 仅在图集为空时兜底（迁移前老卡只在 mediaUrl 存单图），永不叠加。
+  // 通常就是图集里某张图的另一个 url 串。以图集为准去重，mediaUrl 仅在图集
+  // 为空时兜底（迁移前老卡只在 mediaUrl 存单图）。
   const galleryUrls = useMemo(() => {
     const fromAssets = [
       ...new Set(
@@ -145,13 +114,9 @@ export function IdentityCollectorCard({
     return media ? [media] : []
   }, [data.mediaUrl, referenceAssets])
 
-  const thumbnails = galleryUrls.slice(0, MAX_THUMBNAILS)
-  const totalImageCount = galleryUrls.length
-  const overflowCount = Math.max(0, totalImageCount - thumbnails.length)
-  // V-2 主图角标 — only worth showing once there's an actual choice among
-  // several collected images (a single-image card has nothing to disambiguate).
-  const primaryUrl =
-    totalImageCount > 1 ? getNodePrimaryMediaUrl(data) : undefined
+  const nodeCount = galleryUrls.length
+  const representativeUrl = getNodePrimaryMediaUrl(data) || galleryUrls[0]
+  const isEmpty = !representativeUrl
 
   return (
     <NodeShell
@@ -161,6 +126,10 @@ export function IdentityCollectorCard({
       status={data.status}
       toolbarData={data}
       isCollector
+      className={cn(
+        'overflow-hidden canvas-card--w-fixed canvas-identity-card',
+        isEmpty && 'canvas-card--dashed',
+      )}
     >
       <NodeShell.Header
         type={legacyType}
@@ -169,59 +138,54 @@ export function IdentityCollectorCard({
         onRenameCommit={(next) =>
           commitName(legacyType, id, next, updateNodeData)
         }
+        // 身份卡自己不生成东西，没有生成中/失败态（§2），卡外的头不用盖章。
+        hideStatusBadge
+        // 族图标要读成圆环（身份族），不是 characterImage/backgroundImage 各自
+        // 挂的图片族方形——同一个 isCollector 信号，NodeCardPorts 的端口已经
+        // 这样判；标签这颗字形之前漏传，见 NodeShell.tsx 里的说明。
+        isCollector
       />
-      <NodeShell.Ingredients nodeId={id} />
-      <NodeShell.Body className="space-y-3">
-        {thumbnails.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1">
-            {thumbnails.map((url, index) => (
-              <div
-                key={`${url}-${index}`}
-                className="node-card-window relative aspect-square overflow-hidden rounded-sm bg-node-card-window"
-              >
-                <Image
-                  src={url}
-                  alt=""
-                  fill
-                  sizes="120px"
-                  className="object-cover"
-                  unoptimized
-                />
-                {index === thumbnails.length - 1 && overflowCount > 0 ? (
-                  <span className="absolute inset-0 flex items-center justify-center bg-node-canvas/70 text-xs font-semibold text-node-foreground">
-                    +{overflowCount}
-                  </span>
-                ) : null}
-                {url === primaryUrl ? (
-                  <span
-                    title={t('primaryBadge')}
-                    className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-node-paint/90 text-node-canvas"
-                  >
-                    <Star className="size-2 fill-current" aria-hidden />
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
+
+      <div className="canvas-identity-media">
+        {representativeUrl ? (
+          <Image
+            src={representativeUrl}
+            alt=""
+            fill
+            sizes="240px"
+            className="object-cover"
+            unoptimized
+          />
         ) : (
-          <div className="node-card-window flex aspect-square w-full items-center justify-center rounded-sm bg-node-card-window">
-            <UserRound className="size-8 text-node-foreground" aria-hidden />
+          <div className="canvas-identity-empty">
+            <UserRound className="size-8" aria-hidden />
+            <p>{t('identityEmptyHint')}</p>
           </div>
         )}
 
-        {hasVoice ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-node-port-voice/10 px-2 py-0.5 text-2xs font-semibold text-node-port-voice">
-            <Mic2 className="size-3" aria-hidden />
-            {t('voiceSection')}
-          </span>
+        {!isEmpty ? (
+          <div className="canvas-identity-bar">
+            <span
+              className="canvas-identity-chip"
+              aria-label={t('nodeCountAria', { count: nodeCount })}
+              title={t('nodeCountAria', { count: nodeCount })}
+            >
+              <Grid2x2 className="size-3" aria-hidden />
+              {nodeCount}
+            </span>
+            {hasVoice ? (
+              <span className="canvas-identity-chip canvas-identity-chip--voice">
+                <Mic2 className="size-3" aria-hidden />
+                {t('voiceSection')}
+              </span>
+            ) : (
+              <span className="canvas-identity-chip canvas-identity-chip--muted">
+                {t('noVoice')}
+              </span>
+            )}
+          </div>
         ) : null}
-
-        {summaryLine ? (
-          <p className="line-clamp-2 text-xs leading-5 text-node-card-ink-muted">
-            {summaryLine}
-          </p>
-        ) : null}
-      </NodeShell.Body>
+      </div>
     </NodeShell>
   )
 }

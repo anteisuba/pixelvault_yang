@@ -10,8 +10,6 @@ import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { IMEAwareInput } from './IMEAwareField'
-import { InspectorField } from './InspectorField'
 import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface ShotInspectorProps {
@@ -25,30 +23,21 @@ interface ShotUpstreamRef {
 }
 
 /**
- * Shot (镜头) node Inspector — the unified NodeMediaInspector plus an
- * always-visible shot name field (mirrors character/background so a shot can be
- * referenced by name in video prompts) and shot-only reference chips: each
- * upstream character/background node wired into the shot shows as a named chip
- * in the AI form. Clicking inserts its name into the prompt (so "让 yangyang…"
- * lines up with the reference image the generator harvests + labels); × drops
- * the edge. The chips read live from the graph — implicit harvest, so a
- * disconnect removes them with no stale node data.
+ * Shot (镜头) node Inspector — the unified NodeMediaInspector plus shot-only
+ * reference chips: each upstream character/background node wired into the
+ * shot shows as a named chip in the AI form. Clicking inserts its name into
+ * the prompt (so "让 yangyang…" lines up with the reference image the
+ * generator harvests + labels); × drops the edge. The chips read live from
+ * the graph — implicit harvest, so a disconnect removes them with no stale
+ * node data. The shot's own name is edited on-card now (S4/S5,
+ * canvas-image-card.md §1/§四/§五 — IdentityCollectorCard's
+ * EditableNodeLabel), not here.
  */
 export function ShotInspector({ node }: ShotInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
-  const tShot = useTranslations('StudioNode.workflowNodes.shot')
   const allNodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData, deleteEdge } = useNodeWorkflowActions()
-
-  const shotName =
-    typeof node.data.shotName === 'string' ? node.data.shotName : ''
-  const handleNameChange = useCallback(
-    (next: string) => {
-      updateNodeData(node.id, { shotName: next })
-    },
-    [node.id, updateNodeData],
-  )
 
   const upstreamRefs = useMemo<ShotUpstreamRef[]>(() => {
     const refs: ShotUpstreamRef[] = []
@@ -85,15 +74,8 @@ export function ShotInspector({ node }: ShotInspectorProps) {
 
   return (
     <div className="space-y-4">
-      <InspectorField label={tShot('nameLabel')}>
-        <IMEAwareInput
-          value={shotName}
-          onValueChange={handleNameChange}
-          aria-label={tShot('nameLabel')}
-          placeholder={tShot('namePlaceholder')}
-          className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        />
-      </InspectorField>
+      {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
+          卡外的原地可编辑标签，这里不再重复一份改名输入。 */}
       <NodeMediaInspector
         node={node}
         type={NODE_TYPE_IDS.shot}

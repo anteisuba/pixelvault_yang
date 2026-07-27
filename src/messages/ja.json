@@ -3559,19 +3559,25 @@
     "imageSourceStarter": {
       "uploadAria": "画像をアップロード",
       "uploadTitle": "画像をアップロード",
-      "uploadHint": "クリック・ドラッグ・貼り付け",
+      "uploadHint": "ドラッグまたはクリックしてアップロード",
       "library": "素材ライブラリ",
       "aiGenerate": "AI 生成",
       "libraryDialogTitle": "画像素材を選択",
       "libraryDialogDescription": "ライブラリから画像を選び、このカードの内容にします。",
       "untitled": "無題の画像",
       "uploadFailed": "画像のアップロードに失敗しました",
-      "nameLabel": "名前",
-      "namePlaceholder": "この画像の名前を入力…",
       "categoryLabel": "分類",
       "categoryUnset": "未分類",
       "categoryCustomLabel": "カスタム分類名",
-      "categoryCustomPlaceholder": "カスタム分類を入力…"
+      "categoryCustomPlaceholder": "カスタム分類を入力…",
+      "badgeEmpty": "空",
+      "badgeUploading": "アップロード中",
+      "badgeGenerating": "生成中",
+      "badgeFailed": "失敗",
+      "uploading": "アップロード中 {percent}%",
+      "cancelUpload": "アップロードをキャンセル",
+      "retry": "再試行",
+      "replace": "差し替え"
     },
     "composer": {
       "promptLabel": "Composer プロンプト",
@@ -3642,8 +3648,6 @@
       }
     },
     "characterImage": {
-      "namePrefix": "キャラクター",
-      "nameLabel": "キャラクター名",
       "voiceBound": {
         "namedVoice": "🎙 音色をバインド：{voiceName}（動画生成時に @AudioN にキャラクター名が付きます）",
         "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）",
@@ -3814,7 +3818,11 @@
       },
       "referenceFromAssets": "素材から選択",
       "referenceDialogTitle": "参考音声を選択",
-      "referenceDialogDescription": "素材ライブラリから生成済みの音声を選んで参考音声にします。"
+      "referenceDialogDescription": "素材ライブラリから生成済みの音声を選んで参考音声にします。",
+      "kindSpeech": "音声",
+      "emptyCardAction": "音声ライブラリから音色を選択",
+      "generatingReference": "参考音声を生成中",
+      "retry": "再試行"
     },
     "videoGeneration": {
       "timeline": {
@@ -4296,15 +4304,11 @@
       },
       "shot": {
         "emptyPreview": "ショット文とキャラクター/背景参考から単一ショット画像を生成します。",
-        "footerEmpty": "ショットプロンプトを待機中",
-        "nameLabel": "ショット名",
-        "namePlaceholder": "例：オープニングの引き画"
+        "footerEmpty": "ショットプロンプトを待機中"
       },
       "backgroundImage": {
         "emptyPreview": "場所、ムード、光を定義して再利用できる背景を生成します。",
-        "footerEmpty": "背景設定を待機中",
-        "nameLabel": "背景名",
-        "namePlaceholder": "例：夜の街"
+        "footerEmpty": "背景設定を待機中"
       },
       "frameImage": {
         "emptyPreview": "キャラクター、背景、ショット意図を合わせて動画キーフレームにします。",
@@ -4597,6 +4601,9 @@
       "voiceSection": "ボイス識別",
       "voiceBind": "ボイスを紐付け",
       "voiceBindDialogDescription": "生成済みまたはアップロード済みの音声クリップを、このキャラクターのボイス参照として選択します。",
+      "noVoice": "音色なし",
+      "identityEmptyHint": "代表画像を選択",
+      "nodeCountAria": "紐づくノード {count} 件",
       "performanceSection": "出演ショット",
       "performanceEmpty": "まだどのショットにも使われていません",
       "performanceFocusAria": "{name}をキャンバスでフォーカス"

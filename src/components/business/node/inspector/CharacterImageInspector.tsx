@@ -19,8 +19,6 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { IMEAwareInput } from './IMEAwareField'
-import { InspectorField } from './InspectorField'
 import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface CharacterImageInspectorProps {
@@ -117,18 +115,7 @@ export function CharacterImageInspector({
     })
   }, [boundCard, node.data.cardId, node.data.prompt, node.id, updateNodeData])
 
-  const characterName =
-    typeof node.data.characterName === 'string'
-      ? node.data.characterName
-      : (node.data.character?.name ?? '')
   const visualSeed = node.data.character?.visualSeed?.trim()
-
-  const handleNameChange = useCallback(
-    (next: string) => {
-      updateNodeData(node.id, { characterName: next })
-    },
-    [node.id, updateNodeData],
-  )
 
   // Detect an upstream voice node so the binding is visible before the video
   // step. Mirrors the previous bespoke inspector — the downstream Seedance
@@ -239,30 +226,18 @@ export function CharacterImageInspector({
         identityAssetsOnly
         referenceGalleryExtraItems={closeupItems}
         onExtractReference={handleExtractReference}
+        // S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
+        // 卡外的原地可编辑标签（IdentityCollectorCard 的 EditableNodeLabel），
+        // 这里不再重复一份改名输入——只留 visualSeed 的只读展示。
         roleExtras={
-          <>
-            <InspectorField
-              label={t('nameLabel')}
-              statusDotClassName="bg-node-port-character"
-            >
-              <IMEAwareInput
-                value={characterName}
-                onValueChange={handleNameChange}
-                aria-label={t('nameLabel')}
-                placeholder={t('namePrefix')}
-                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-              />
-            </InspectorField>
-
-            {visualSeed ? (
-              <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-2xs leading-5 text-node-muted">
-                <span className="font-semibold text-node-foreground">
-                  {tDossier('identityVisualSeedLabel')}
-                </span>
-                <p className="mt-0.5 line-clamp-3">{visualSeed}</p>
-              </div>
-            ) : null}
-          </>
+          visualSeed ? (
+            <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-2xs leading-5 text-node-muted">
+              <span className="font-semibold text-node-foreground">
+                {tDossier('identityVisualSeedLabel')}
+              </span>
+              <p className="mt-0.5 line-clamp-3">{visualSeed}</p>
+            </div>
+          ) : null
         }
       />
 

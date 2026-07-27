@@ -23,6 +23,7 @@ import {
 } from '@/constants/node-types'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
+import { cn } from '@/lib/utils'
 import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
@@ -30,6 +31,10 @@ import type {
 import { Spinner } from '@/components/ui/spinner'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import {
+  ImageCardFailedContent,
+  ImageCardStatusBadge,
+} from './ImageCardMediaState'
 import { NodeShell } from './NodeShell'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
@@ -63,11 +68,12 @@ function getEmptyIcon(kind: NodeWorkflowMediaKind, type: NodeWorkflowNodeType) {
  * background name) show it on the card so renames in the Inspector track here;
  * other roles fall back to the localized type label inside NodeShell.Header.
  *
- * FB-4: frameImage/videoMerge have no dedicated name field — they fall back to
- * the generic `mediaLabel` (the same field the toolbar's rename input now
- * writes for these types, and the same field LooseImageCard already reads for
- * a media-bearing card of the same type), so renaming stays visible once media
- * arrives and the card switches away from this component.
+ * FB-4: frameImage/videoMerge/shotText have no dedicated name field — they
+ * fall back to the generic `mediaLabel` (the same field LooseImageCard/
+ * SeedanceNode already write+read for a media-bearing card of the same
+ * shape), so renaming stays visible once media arrives and the card switches
+ * away from this component (shotText has no such switch — it's text-only —
+ * but the field is the same one either way).
  */
 function getHeaderTitle(
   type: NodeWorkflowNodeType,
@@ -84,7 +90,11 @@ function getHeaderTitle(
   if (type === NODE_TYPE_IDS.shot) {
     return data.shotName?.trim() || undefined
   }
-  if (type === NODE_TYPE_IDS.frameImage || type === NODE_TYPE_IDS.videoMerge) {
+  if (
+    type === NODE_TYPE_IDS.frameImage ||
+    type === NODE_TYPE_IDS.videoMerge ||
+    type === NODE_TYPE_IDS.shotText
+  ) {
     return data.mediaLabel?.trim() || undefined
   }
   return undefined
@@ -93,15 +103,16 @@ function getHeaderTitle(
 /** Whether `getHeaderTitle` above resolves a real, writable field for `type`
  *  — mirrors that function's own branches 1:1 (kept as a sibling rather than
  *  merged into one switch so `getHeaderTitle`'s existing shape stays
- *  untouched). Types outside this set (shotText, or anything this component
- *  never actually receives) get the read-only header, same as today. */
+ *  untouched). Types outside this set (anything this component never
+ *  actually receives) get the read-only header, same as today. */
 function isHeaderTitleEditable(type: NodeWorkflowNodeType): boolean {
   return (
     type === NODE_TYPE_IDS.characterImage ||
     type === NODE_TYPE_IDS.backgroundImage ||
     type === NODE_TYPE_IDS.shot ||
     type === NODE_TYPE_IDS.frameImage ||
-    type === NODE_TYPE_IDS.videoMerge
+    type === NODE_TYPE_IDS.videoMerge ||
+    type === NODE_TYPE_IDS.shotText
   )
 }
 
@@ -128,10 +139,15 @@ function commitHeaderTitle(
     updateNodeData(nodeId, { shotName: nextValue })
     return
   }
-  if (type === NODE_TYPE_IDS.frameImage || type === NODE_TYPE_IDS.videoMerge) {
+  if (
+    type === NODE_TYPE_IDS.frameImage ||
+    type === NODE_TYPE_IDS.videoMerge ||
+    type === NODE_TYPE_IDS.shotText
+  ) {
     // sourceLabel 是 mediaLabel 的老搭档（StudioNodeAssistantDock 拿它当名字
-    // 兜底）——同 CanvasImageSelectionToolbar 的 IdentityRegion 一样两个字段
-    // 一起写，避免只写 mediaLabel 让两者悄悄分叉。
+    // 兜底）——两个字段一起写，避免只写 mediaLabel 让两者悄悄分叉。shotText
+    // 的正文本身走 `prompt`（NodeMediaInspector 的文本表单字段），跟这里的
+    // "名字" 不是同一件事，字段不冲突。
     updateNodeData(nodeId, { mediaLabel: nextValue, sourceLabel: nextValue })
   }
 }
@@ -157,7 +173,12 @@ export function NodeMediaPreview({
   const [videoAspect, setVideoAspect] = useState<number | null>(null)
   const t = useTranslations('StudioNode.mediaNodes')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
-  const { updateNodeData } = useNodeWorkflowActions()
+  const tImageCard = useTranslations('StudioNode.imageSourceStarter')
+  const { updateNodeData, generateMediaNode } = useNodeWorkflowActions()
+  // S4（2026-07-27）：这个组件同时服务 image/video/audio/text 四种 kind——
+  // 本轮只重皮 kind=image 那份（shot/frame/closeup 落媒体前的形态），
+  // video/audio/text 完全不动，一个字符都不改。
+  const isImageKind = kind === NODE_MEDIA_KIND_IDS.image
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
@@ -183,6 +204,14 @@ export function NodeMediaPreview({
       selected={selected}
       status={data.status}
       toolbarData={data}
+      // S4：image kind 空态卡边转虚线（canvas-image-card.md §3 例外条）。这个
+      // 组件只在没有媒体时渲染（有媒体的同类型节点已经切到 LooseImageCard），
+      // 所以 mediaUrl 恒假，这里只需排除生成中/失败两态。
+      className={
+        isImageKind && !isPending && !isError
+          ? 'canvas-card--dashed'
+          : undefined
+      }
     >
       <NodeShell.Header
         type={type}
@@ -193,17 +222,37 @@ export function NodeMediaPreview({
             ? (next) => commitHeaderTitle(type, id, next, updateNodeData)
             : undefined
         }
+        // image 族状态挪进媒体窗左上角徽标，卡外的头不重复盖章。
+        hideStatusBadge={isImageKind}
       />
       <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
         <div
-          className="node-card-window relative aspect-video overflow-hidden rounded-sm border border-node-panel-inner bg-node-card-window"
+          className={cn(
+            'relative aspect-video overflow-hidden rounded-sm border',
+            isImageKind
+              ? 'canvas-image-preview-window'
+              : 'node-card-window border-node-panel-inner bg-node-card-window',
+          )}
           style={
             kind === NODE_MEDIA_KIND_IDS.video && videoAspect
               ? { aspectRatio: videoAspect }
               : undefined
           }
         >
+          {isImageKind ? (
+            <ImageCardStatusBadge
+              variant={isError ? 'failed' : isPending ? 'generating' : 'empty'}
+              label={
+                isError
+                  ? tImageCard('badgeFailed')
+                  : isPending
+                    ? tImageCard('badgeGenerating')
+                    : tImageCard('badgeEmpty')
+              }
+            />
+          ) : null}
+
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
             <>
               <Image
@@ -247,15 +296,36 @@ export function NodeMediaPreview({
           ) : null}
 
           {kind === NODE_MEDIA_KIND_IDS.text || !mediaUrl ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              {getEmptyIcon(kind, type)}
-              <p className="text-xs leading-5 text-node-muted">
-                {tWorkflows(`${type}.emptyPreview`)}
-              </p>
-            </div>
+            isImageKind && isError ? (
+              // §3 硬要求②：失败必须给具体原因 + 重试，重试复用与画布其它地方
+              // 相同的 generateMediaNode 通道（ShotGenerateButton 同款）。
+              <ImageCardFailedContent
+                reason={
+                  data.generationError || tWorkflows(`${type}.emptyPreview`)
+                }
+                retryLabel={tImageCard('retry')}
+                onRetry={() => void generateMediaNode?.(id)}
+              />
+            ) : isImageKind && isPending ? (
+              // 生成中无法给百分比（规格 §5），只给旋转图标 + 文案；这里没有
+              // 已有媒体要遮挡，不需要 video/audio 那种深色暗幕。
+              <div className="flex h-full flex-col items-center justify-center gap-2">
+                <Spinner size="lg" className="text-node-foreground" />
+                <span className="text-xs font-semibold text-node-foreground">
+                  {t('generating')}
+                </span>
+              </div>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                {getEmptyIcon(kind, type)}
+                <p className="text-xs leading-5 text-node-muted">
+                  {tWorkflows(`${type}.emptyPreview`)}
+                </p>
+              </div>
+            )
           ) : null}
 
-          {isPending ? (
+          {isPending && !isImageKind ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
               <Spinner size="lg" className="text-node-foreground" />
               <span className="text-xs font-semibold">{t('generating')}</span>
@@ -269,7 +339,7 @@ export function NodeMediaPreview({
           ) : null}
         </div>
 
-        {isError ? (
+        {isError && !isImageKind ? (
           <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">

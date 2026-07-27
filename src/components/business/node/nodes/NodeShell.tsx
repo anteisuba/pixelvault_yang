@@ -18,6 +18,7 @@ import {
 import {
   AudioWaveform,
   Mountain,
+  PencilLine,
   Play,
   UserRound,
   X,
@@ -107,6 +108,25 @@ interface NodeShellHeaderProps {
    * (e.g. ComposerNode/AgentNode), which keeps today's read-only label.
    */
   onRenameCommit?: (nextTitle: string) => void
+  /**
+   * S4（2026-07-27）：image / voice / identity 三族各自把状态挪进卡内自己的
+   * 语言（图片卡的媒体窗徽标、声音卡的圆形槽、身份卡干脆没有生成态），卡外
+   * 这个头就不该再重复盖一个旧「盖章」徽标——两套状态语言同屏会打架。默认
+   * false，不影响还没迁到新皮的其它类型（composer/agent/shotText/...）。
+   */
+  hideStatusBadge?: boolean
+  /**
+   * True only for the character/background archive-card face
+   * (`IdentityCollectorCard`) — same disambiguation `NodeSelectionToolbarChrome`
+   * needs (a `closeup` image node shares legacy type `characterImage` but is
+   * plain image family, not a collector). Without this the on-card label's
+   * family glyph fell back to `PORT_FAMILY_BY_TYPE[type]` directly (image
+   * family, square) instead of going through the same isCollector-aware
+   * `resolvePortFamily` the port handles already use — canvas-identity-card.md
+   * §1 wants the label glyph to be a ring (identity family), matching the
+   * card's own ports, not a square.
+   */
+  isCollector?: boolean
 }
 
 export interface EditableNodeLabelProps {
@@ -231,11 +251,15 @@ export function EditableNodeLabel({
       title={value || placeholder}
       aria-label={ariaLabel}
       className={cn(
-        'canvas-label-trigger nodrag pointer-events-auto min-w-0 truncate text-left',
+        'canvas-label-trigger nodrag pointer-events-auto min-w-0 text-left',
         className,
       )}
     >
-      {value || placeholder}
+      <span className="min-w-0 truncate">{value || placeholder}</span>
+      {/* S5（canvas-image-card.md §三）：hover/focus 才显影的铅笔图标，提示
+          这段文字可点进编辑——只读态和编辑态过去视觉完全一样，没有 hover
+          线索。颜色由 .canvas-label-edit-hint 定（--canvas-ink-muted）。 */}
+      <PencilLine aria-hidden className="canvas-label-edit-hint size-3" />
     </button>
   )
 }
@@ -425,6 +449,8 @@ function NodeShellHeader({
   titleCrumb,
   action,
   onRenameCommit,
+  hideStatusBadge = false,
+  isCollector,
 }: NodeShellHeaderProps) {
   const t = useTranslations('StudioNode.nodeTypes')
   const tToolbar = useTranslations('StudioNode.nodeToolbar')
@@ -445,7 +471,7 @@ function NodeShellHeader({
             `title` 保留原来的徽标字母，读屏与 hover 仍能拿到类型。 */}
         <span
           className="canvas-label-glyph"
-          data-family={PORT_FAMILY_BY_TYPE[type] ?? 'image'}
+          data-family={resolvePortFamily(type, isCollector)}
           title={NODE_TOKEN_BADGE_LABELS[type]}
           aria-hidden
         />
@@ -470,7 +496,7 @@ function NodeShellHeader({
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         {action}
-        <NodeStatusBadge status={status} />
+        {hideStatusBadge ? null : <NodeStatusBadge status={status} />}
       </div>
     </header>
   )

@@ -1,11 +1,30 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useEdges, useNodes, type NodeProps } from '@xyflow/react'
-import { AudioWaveform, Music2, Pause, Play } from 'lucide-react'
+import {
+  AudioWaveform,
+  Library,
+  Music2,
+  Pause,
+  Play,
+  RotateCw,
+  Triangle,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_VOICE_PROFILE,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
+} from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   getNodePrimaryMediaUrl,
@@ -14,51 +33,99 @@ import {
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
+import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeShell } from './NodeShell'
-import { NodeStatusBadge } from './NodeStatusBadge'
 
-// R3-5 素材长条（canvas-relationship-v3 §3.0/§7）: a decorative static
-// waveform, not a real audio analysis — mirrors `AudioPlayer`'s own
-// `FALLBACK_WAVEFORM_PEAKS` precedent (peak art lives beside its one
-// consumer, not in src/constants). During playback the bars up to
-// `currentTime / duration` switch to the paint fill (落点② 进行中).
-const VOICE_STRIP_WAVEFORM_PEAKS = [
-  0.45, 0.7, 0.5, 0.85, 0.6, 0.4, 0.75, 0.55,
-] as const
+/**
+ * canvas-voice-card.md §2「一条平滑曲线」：16 个半周期的二次贝塞尔，峰值
+ * ±13，与 R3-5 时代的柱阵（VOICE_STRIP_WAVEFORM_PEAKS）不是同一件东西——
+ * 那份伪随机柱阵已随这次改版删除，装饰性声纹只留这一条路径。
+ *
+ * 生成方式：把 16 个半周期各画成一段独立的二次贝塞尔弧——起止点都落在基线
+ * 上，控制点在这段的水平中点、纵向峰值处。相邻两段共享的基线交点两侧，切
+ * 线方向天然对称翻转，曲线因此整体 C¹ 连续（不是分段拼接出来的折中）。
+ * 路径与实例数据无关，算一次全局复用，跟旧柱阵常量同样的「峰值艺术挂在
+ * 唯一消费者旁边」写法（AudioPlayer 的 FALLBACK_WAVEFORM_PEAKS 先例）。
+ */
+const VOICE_WAVEFORM_WIDTH = 128
+const VOICE_WAVEFORM_HEIGHT = 32
+const VOICE_WAVEFORM_HALF_PERIODS = 16
+const VOICE_WAVEFORM_AMPLITUDE = 13
+const VOICE_WAVEFORM_CENTER_Y = VOICE_WAVEFORM_HEIGHT / 2
 
-function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return ''
-  const totalSeconds = Math.floor(seconds)
-  const minutes = Math.floor(totalSeconds / 60)
-  const remainder = totalSeconds % 60
-  return `${minutes}:${String(remainder).padStart(2, '0')}`
+function buildVoiceWaveformPath(): string {
+  const segment = VOICE_WAVEFORM_WIDTH / VOICE_WAVEFORM_HALF_PERIODS
+  let d = `M 0 ${VOICE_WAVEFORM_CENTER_Y}`
+  for (let i = 0; i < VOICE_WAVEFORM_HALF_PERIODS; i += 1) {
+    const startX = i * segment
+    const midX = startX + segment / 2
+    const endX = startX + segment
+    const peakY =
+      VOICE_WAVEFORM_CENTER_Y +
+      (i % 2 === 0 ? -VOICE_WAVEFORM_AMPLITUDE : VOICE_WAVEFORM_AMPLITUDE)
+    d += ` Q ${midX} ${peakY} ${endX} ${VOICE_WAVEFORM_CENTER_Y}`
+  }
+  return d
 }
 
+const VOICE_WAVEFORM_PATH = buildVoiceWaveformPath()
+
+type VoiceCardState = 'empty' | 'generating' | 'ready' | 'failed'
+
+/**
+ * S4（2026-07-27，canvas-voice-card.md）整卡重写。核心改动：
+ * - 卡内布局从「四件并排」（v1，已作废）换成「84 封面 + 156 右列」，封面
+ *   齐边铺满，播放键压在封面中央的圆形槽——图片卡「唯一主动作居中浮层」
+ *   同一个模式，不是各自发明。
+ * - 五态收进封面那一个圆形槽（▶/⏸/↻/▲），不再单独盖一个状态徽标。
+ * - 卡名迁出卡外，复用 NodeShell.Header 的 EditableNodeLabel + 族图标，
+ *   隐藏旧「盖章」状态徽标（hideStatusBadge）。
+ * - 删掉时长；「它是音色 donor」继续只靠连线表达，卡上不加字（不变）。
+ */
 export const VoiceNode = memo(function VoiceNode(
   props: NodeProps<NodeWorkflowNode>,
 ) {
   const { id, data, selected } = props
   const t = useTranslations('StudioNode.voiceProfile')
   const tPlayer = useTranslations('AudioPlayer')
+  const { updateNodeData } = useNodeWorkflowActions()
+  const waveformClipId = useId()
+  const [libraryOpen, setLibraryOpen] = useState(false)
   // Track the failed cover URL (not a boolean) so picking a new voice with a
   // valid cover recovers instead of staying stuck on the icon fallback.
   const [erroredCover, setErroredCover] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [durationSeconds, setDurationSeconds] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  const hasVoiceProfile = Boolean(
+  const isFailed = data.status === NODE_STATUS_IDS.failed
+  const isGenerating = data.status === NODE_STATUS_IDS.running
+  const hasVoiceIdentity = Boolean(
     data.voiceName ||
     data.voiceId ||
     data.voiceReferenceAudioUrl ||
     data.voiceStyle ||
     data.voiceEmotion,
   )
-  const status = hasVoiceProfile ? NODE_STATUS_IDS.ready : data.status
-  // Never fall back to the raw voiceId — it reads as gibberish. Prefer the
-  // resolved voice name, then the provider label, then the empty placeholder.
-  const voiceTitle = data.voiceName || data.voiceProvider || t('emptyTitle')
+  const cardState: VoiceCardState = isFailed
+    ? 'failed'
+    : isGenerating
+      ? 'generating'
+      : hasVoiceIdentity
+        ? 'ready'
+        : 'empty'
+  // 卡外头需要一个 status——真的 failed/running 就如实传，否则配置完就是
+  // ready（镜像旧逻辑 hasVoiceProfile ? ready : data.status），只是徽标本身
+  // 被 hideStatusBadge 关掉，这里只用来喂 .canvas-card[data-status] 的红边。
+  const status =
+    isFailed || isGenerating
+      ? data.status
+      : hasVoiceIdentity
+        ? NODE_STATUS_IDS.ready
+        : data.status
+  // Never fall back to the raw voiceId — it reads as gibberish.
+  const voiceTitle = data.voiceName?.trim()
   const providerLabel = data.voiceProvider || t('providerFallback')
   // Cover follows the active source: my-voice keeps its own cover so it never
   // shows the system voice's image (and vice versa).
@@ -108,6 +175,8 @@ export const VoiceNode = memo(function VoiceNode(
     return undefined
   }, [edges, allNodes, id])
 
+  const coverUrl = boundCharacterFaceUrl ?? (showCover ? cover : undefined)
+
   // A new pick (or a re-bound character) invalidates whatever the <audio>
   // element was mid-way through reporting — syncing to an external signal
   // (the <audio> element's own src just changed, resetting ITS playback
@@ -116,7 +185,6 @@ export const VoiceNode = memo(function VoiceNode(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     setIsPlaying(false)
     setProgress(0)
-    setDurationSeconds(null)
   }, [playableAudioUrl])
 
   const togglePlay = useCallback(() => {
@@ -129,13 +197,9 @@ export const VoiceNode = memo(function VoiceNode(
     }
   }, [])
 
-  const metaLine = [
-    providerLabel,
-    data.voiceStyle?.trim() || undefined,
-    durationSeconds ? formatDuration(durationSeconds) : undefined,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(' · ')
+  const playedWidth = VOICE_WAVEFORM_WIDTH * Math.min(1, Math.max(0, progress))
+  const idleClipId = `${waveformClipId}-idle`
+  const playedClipId = `${waveformClipId}-played`
 
   return (
     <NodeShell
@@ -145,75 +209,61 @@ export const VoiceNode = memo(function VoiceNode(
       status={status}
       showTargetHandle={false}
       toolbarData={data}
+      className={cn(
+        'overflow-hidden canvas-card--w-fixed canvas-voice-card',
+        cardState === 'empty' && 'canvas-card--dashed',
+      )}
     >
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        {/* 盖章: NodeShell.Header normally hosts this, but the strip anatomy
-            has no room for a full header row — float it as a corner cluster
-            instead. FB-2 removed the redundant ⤢ (toolbar's own ⤢ covers
-            expand for every node type). */}
-        <div className="absolute -right-1 -top-3 z-canvas-selection flex items-center gap-1">
-          <NodeStatusBadge status={status} />
-        </div>
+      <NodeShell.Header
+        type={NODE_TYPE_IDS.voice}
+        status={status}
+        title={voiceTitle}
+        onRenameCommit={(next) => updateNodeData(id, { voiceName: next })}
+        // 五态收进封面圆形槽（见下），卡外的头不重复盖一个旧徽标。
+        hideStatusBadge
+      />
 
-        <div className="relative size-12 shrink-0">
-          {boundCharacterFaceUrl ? (
-            <>
-              <div className="size-12 overflow-hidden rounded-full border border-node-panel-inner">
-                {/* Character covers come from arbitrary hosts (uploads/assets); raw img with no fallback needed — the outer avatar circle is the fallback surface. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={boundCharacterFaceUrl}
-                  alt=""
-                  className="size-full object-cover"
-                />
-              </div>
-              <span
-                aria-hidden
-                className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border border-node-card-line bg-node-panel text-node-port-voice-on-paper"
-              >
-                <Music2 className="size-2.5" />
-              </span>
-            </>
-          ) : showCover && cover ? (
-            <div className="size-12 overflow-hidden rounded-full border border-node-panel-inner">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={cover}
-                alt=""
-                className="size-full object-cover"
-                onError={() => setErroredCover(cover ?? null)}
-              />
-            </div>
+      <div className="flex">
+        <div
+          className="canvas-voice-cover"
+          data-scrim={cardState === 'empty' ? undefined : 'true'}
+        >
+          {coverUrl ? (
+            // Covers come from arbitrary hosts (uploads/assets/character
+            // faces); raw img with no fallback needed — the wrapper itself
+            // is the fallback surface underneath.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt=""
+              className="size-full object-cover"
+              onError={() => setErroredCover(cover ?? null)}
+            />
           ) : (
-            <div className="node-card-window flex size-12 items-center justify-center rounded-full bg-node-card-window text-node-foreground">
-              <AudioWaveform className="size-5" />
+            <div
+              className="flex size-full items-center justify-center"
+              style={{
+                background: 'var(--canvas-fill-control)',
+                color: 'var(--canvas-ink-muted)',
+              }}
+            >
+              <AudioWaveform className="size-6" aria-hidden />
             </div>
           )}
-        </div>
+          {boundCharacterFaceUrl ? (
+            <span
+              aria-hidden
+              className="absolute bottom-1 right-1 flex size-4 items-center justify-center rounded-full"
+              style={{
+                background: 'var(--canvas-card-bg)',
+                color: 'var(--canvas-port-audio)',
+                boxShadow: 'var(--canvas-seg-shadow)',
+              }}
+            >
+              <Music2 className="size-2.5" />
+            </span>
+          ) : null}
 
-        <div className="min-w-0 flex-1">
-          <p
-            className="truncate text-sm font-semibold text-node-foreground"
-            title={voiceTitle}
-          >
-            {voiceTitle}
-          </p>
-          <p className="mt-0.5 truncate text-2xs text-node-muted">
-            {metaLine || t('providerFallback')}
-          </p>
-        </div>
-
-        {/* 播放挂件: FB-A（canvas-relationship-v3 真机反馈）统一恒定解剖——
-            两张音色卡此前一张有样本时整块播放挂件出现、另一张没有时整块消
-            失，卡片忽长忽短忽有忽无。挂件现在永远渲染，无样本时降级为禁用
-            态（disabled + aria-disabled + opacity-50 pointer-events-none +
-            静态灰波形，不可点），保证所有音色卡同一形状同一高度；有样本时
-            播放逻辑/通道不变，仍是 VoiceDetailBody 同款 <audio> 元素模式。 */}
-        {/* FB-5 ①: pill scaled up for touch comfort — play/pause size-9→
-            size-11 (36→44px), waveform h-6→h-8 with wider w-1 bars, padding
-            grown to match so the pill doesn't read cramped around the bigger
-            controls. */}
-        <div className="node-card-window flex shrink-0 items-center gap-3 rounded-full bg-node-card-window py-2 pl-2 pr-4">
           {playableAudioUrl ? (
             <audio
               ref={audioRef}
@@ -225,70 +275,157 @@ export const VoiceNode = memo(function VoiceNode(
                 setIsPlaying(false)
                 setProgress(0)
               }}
-              onLoadedMetadata={(event) => {
-                const el = event.currentTarget
-                setDurationSeconds(
-                  Number.isFinite(el.duration) ? el.duration : null,
-                )
-              }}
               onTimeUpdate={(event) => {
                 const el = event.currentTarget
                 setProgress(el.duration ? el.currentTime / el.duration : 0)
               }}
             />
           ) : null}
-          <button
-            type="button"
-            onClick={playableAudioUrl ? togglePlay : undefined}
-            disabled={!playableAudioUrl}
-            aria-disabled={!playableAudioUrl}
-            aria-label={
-              playableAudioUrl
-                ? isPlaying
-                  ? tPlayer('pause')
-                  : tPlayer('play')
-                : t('noSample')
-            }
-            title={
-              playableAudioUrl
-                ? isPlaying
-                  ? tPlayer('pause')
-                  : tPlayer('play')
-                : t('noSample')
-            }
-            className={cn(
-              'nodrag flex size-11 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-transform',
-              playableAudioUrl
-                ? 'hover:scale-105'
-                : 'pointer-events-none cursor-not-allowed opacity-50',
-            )}
-          >
-            {isPlaying ? (
-              <Pause className="size-5" />
-            ) : (
-              <Play className="ml-0.5 size-5" />
-            )}
-          </button>
-          <div className="flex h-8 shrink-0 items-end gap-1" aria-hidden>
-            {VOICE_STRIP_WAVEFORM_PEAKS.map((peak, index) => {
-              const barProgress =
-                (index + 1) / VOICE_STRIP_WAVEFORM_PEAKS.length
-              const filled =
-                Boolean(playableAudioUrl) && barProgress <= progress
-              return (
-                <span
-                  key={index}
-                  className={cn(
-                    'w-1 rounded-full transition-colors',
-                    filled ? 'bg-node-paint' : 'bg-node-subtle/50',
-                  )}
-                  style={{ height: `${Math.round(peak * 100)}%` }}
+
+          {/* §3「一个槽四种含义」：空态没有槽（下面主动作是「从音频库选择音色」），
+              其余三态槽内容互斥。 */}
+          {cardState === 'ready' ? (
+            <button
+              type="button"
+              onClick={playableAudioUrl ? togglePlay : undefined}
+              disabled={!playableAudioUrl}
+              aria-label={
+                playableAudioUrl
+                  ? isPlaying
+                    ? tPlayer('pause')
+                    : tPlayer('play')
+                  : t('noSample')
+              }
+              title={
+                playableAudioUrl
+                  ? isPlaying
+                    ? tPlayer('pause')
+                    : tPlayer('play')
+                  : t('noSample')
+              }
+              className="canvas-voice-slot nodrag"
+            >
+              {isPlaying ? (
+                <Pause className="size-4" aria-hidden />
+              ) : (
+                <Play className="ml-0.5 size-4" aria-hidden />
+              )}
+            </button>
+          ) : cardState === 'generating' ? (
+            <span className="canvas-voice-slot" aria-hidden>
+              <RotateCw className="size-4 animate-spin" />
+            </span>
+          ) : cardState === 'failed' ? (
+            <span className="canvas-voice-slot" data-tone="danger" aria-hidden>
+              <Triangle className="size-4" fill="currentColor" />
+            </span>
+          ) : null}
+        </div>
+
+        <div className="canvas-voice-body">
+          {cardState === 'empty' ? (
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="canvas-voice-empty-action canvas-secondary-btn nodrag"
+            >
+              <Library className="size-3 shrink-0" aria-hidden />
+              <span className="truncate">{t('emptyCardAction')}</span>
+            </button>
+          ) : cardState === 'generating' ? (
+            <>
+              <p className="canvas-voice-generating-text">
+                {t('generatingReference')}
+              </p>
+              <p className="canvas-voice-meta" title={providerLabel}>
+                {providerLabel} · {t('kindSpeech')}
+              </p>
+            </>
+          ) : cardState === 'failed' ? (
+            <div className="canvas-voice-failed">
+              <p className="canvas-voice-failed-reason line-clamp-2">
+                {data.generationError || t('toasts.referenceGenerateFailed')}
+              </p>
+              <button
+                type="button"
+                onClick={() => setLibraryOpen(true)}
+                className="canvas-secondary-btn nodrag"
+              >
+                {t('retry')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <svg
+                width={VOICE_WAVEFORM_WIDTH}
+                height={VOICE_WAVEFORM_HEIGHT}
+                viewBox={`0 0 ${VOICE_WAVEFORM_WIDTH} ${VOICE_WAVEFORM_HEIGHT}`}
+                className="canvas-voice-waveform"
+                aria-hidden
+              >
+                <clipPath id={idleClipId}>
+                  <rect
+                    x={playedWidth}
+                    y={0}
+                    width={Math.max(0, VOICE_WAVEFORM_WIDTH - playedWidth)}
+                    height={VOICE_WAVEFORM_HEIGHT}
+                  />
+                </clipPath>
+                <path
+                  d={VOICE_WAVEFORM_PATH}
+                  fill="none"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  className="canvas-voice-waveform-idle"
+                  clipPath={`url(#${idleClipId})`}
                 />
-              )
-            })}
-          </div>
+                {playedWidth > 0 ? (
+                  <>
+                    <clipPath id={playedClipId}>
+                      <rect
+                        x={0}
+                        y={0}
+                        width={playedWidth}
+                        height={VOICE_WAVEFORM_HEIGHT}
+                      />
+                    </clipPath>
+                    <path
+                      d={VOICE_WAVEFORM_PATH}
+                      fill="none"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      className="canvas-voice-waveform-played"
+                      clipPath={`url(#${playedClipId})`}
+                    />
+                  </>
+                ) : null}
+              </svg>
+              <p className="canvas-voice-meta" title={providerLabel}>
+                {providerLabel} · {t('kindSpeech')}
+              </p>
+            </>
+          )}
         </div>
       </div>
+
+      <FishVoiceLibraryDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        selectedVoiceId={typeof data.voiceId === 'string' ? data.voiceId : null}
+        onSelectVoiceId={(voice) => {
+          updateNodeData(id, {
+            voiceId: voice.voiceId,
+            voiceName: voice.name,
+            voiceCoverImage: voice.coverImage ?? undefined,
+            voiceProvider:
+              data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
+            voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
+            status: NODE_STATUS_IDS.ready,
+          })
+          setLibraryOpen(false)
+        }}
+        onVoiceSelectComplete={() => setLibraryOpen(false)}
+      />
     </NodeShell>
   )
 })

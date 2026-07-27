@@ -2,7 +2,7 @@
 
 import type { ImgHTMLAttributes } from 'react'
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -162,25 +162,16 @@ describe('CharacterImageInspector (unified wrapper)', () => {
   it('keeps one reference-material entry and removes duplicate image source controls', () => {
     renderInspector(createCharacterNode())
 
-    expect(screen.getByLabelText('nameLabel')).toBeInTheDocument()
+    // S4/S5（2026-07-27）: the name field moved on-card (IdentityCollectorCard's
+    // EditableNodeLabel, canvas-image-card.md §1/§四/§五) — this inspector no
+    // longer renders its own rename input, so there's no 'nameLabel' assertion
+    // here anymore; that write path is exercised where the field now lives.
     expect(screen.getByText('referenceControls')).toBeInTheDocument()
     expect(screen.queryByText('existing.upload')).not.toBeInTheDocument()
     expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
     expect(screen.queryByText('changeSourceExisting')).not.toBeInTheDocument()
     expect(screen.queryByText('changeSourceAi')).not.toBeInTheDocument()
     expect(screen.queryByText('changeSourceStudio')).not.toBeInTheDocument()
-  })
-
-  it('writes the character name', () => {
-    renderInspector(createCharacterNode())
-
-    fireEvent.change(screen.getByLabelText('nameLabel'), {
-      target: { value: 'Aria' },
-    })
-
-    expect(updateNodeData).toHaveBeenCalledWith('node-character', {
-      characterName: 'Aria',
-    })
   })
 
   it('keeps legacy media data compatible without restoring the duplicate preview', () => {

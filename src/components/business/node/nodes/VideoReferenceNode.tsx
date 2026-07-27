@@ -25,7 +25,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeCardPorts } from './NodeShell'
+import { EditableNodeLabel, NodeCardPorts } from './NodeShell'
 
 const ACCEPTED_VIDEO_MIME = 'video/mp4,video/quicktime,video/webm'
 
@@ -48,6 +48,8 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
 ) {
   const { id, data, selected, width, height } = props
   const t = useTranslations('StudioNode.videoReference')
+  const tToolbar = useTranslations('StudioNode.nodeToolbar')
+  const tTypes = useTranslations('StudioNode.nodeTypes')
   const { updateNodeData, multiSelectActive } = useNodeWorkflowActions()
   const { uploadFile, isUploading } = useReferenceVideoUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -63,6 +65,14 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
     typeof data.videoThumbnailUrl === 'string'
       ? data.videoThumbnailUrl
       : undefined
+  // S5（2026-07-27，canvas-image-card.md §三）：卡外原地可编辑名字，同
+  // LooseImageCard 的 rawLabel 写法——mediaLabel 优先，sourceLabel 兜底
+  // （两者是同一件事的老搭档，见下面 onCommit 的写入侧）。owner 真机确认过
+  // 这张卡（videoReference）之前 0/1，没有任何改名入口。
+  const rawLabel =
+    (typeof data.mediaLabel === 'string' && data.mediaLabel.trim()) ||
+    (typeof data.sourceLabel === 'string' && data.sourceLabel.trim()) ||
+    ''
 
   const frameWidth = width ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
   const frameHeight = height ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
@@ -167,6 +177,25 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
         />
       </NodeToolbar>
 
+      {/* S5：卡外原地可编辑名字（canvas-image-card.md §1/§三），同
+          LooseImageCard 的 canvas-card-label 结构——这张卡也不走 NodeShell，
+          在这里手动摆一份同样的族图标 + EditableNodeLabel。placeholder 复用
+          StudioNode.nodeTypes 的类型名（NodeShellHeader 的 typeFallback 同一
+          约定），不新造"未命名"字样。取代原先卡内左上角那个只读、不可点的
+          mediaLabel 徽标——那个徽标读了字段却没给任何写入口。 */}
+      <div className="canvas-card-label">
+        <span className="canvas-label-glyph" data-family="video" aria-hidden />
+        <EditableNodeLabel
+          value={rawLabel}
+          placeholder={tTypes(NODE_TYPE_IDS.videoReference)}
+          ariaLabel={tToolbar('rename')}
+          onCommit={(next) =>
+            updateNodeData(id, { mediaLabel: next, sourceLabel: next })
+          }
+          className="font-semibold"
+        />
+      </div>
+
       <div
         className={cn(
           'absolute inset-0 overflow-hidden rounded-sm bg-node-card-window',
@@ -175,12 +204,6 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
             : 'outline outline-1 outline-offset-0 outline-transparent group-hover:outline-node-edge/40',
         )}
       >
-        {typeof data.mediaLabel === 'string' && data.mediaLabel.trim() ? (
-          <span className="pointer-events-none absolute left-2 top-2 z-canvas-selection max-w-40 truncate rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
-            {data.mediaLabel.trim()}
-          </span>
-        ) : null}
-
         {mediaUrl ? (
           <>
             <video

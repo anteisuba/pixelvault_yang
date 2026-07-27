@@ -248,6 +248,58 @@ async function postJson<TResponse>(
 }
 
 /**
+ * Minimal stand-in for `Response` covering only the two fields the caller
+ * below actually reads. Lets the PUT step be satisfied by either a real
+ * `fetch` `Response` or the XHR wrapper below without forcing a `Response`
+ * shape out of `XMLHttpRequest` (which can't produce one).
+ */
+interface PutResult {
+  ok: boolean
+  status: number
+}
+
+/**
+ * S4（2026-07-27，canvas-image-card.md §3 硬要求①）: XHR-based PUT so the
+ * caller can get REAL upload progress — `fetch` has no upload-progress event
+ * in this codebase's supported browsers. Only used when a caller passes
+ * `onProgress` (see `uploadImageFileAPI` below); every other caller keeps
+ * hitting the plain `fetch` path untouched, so this never changes behavior
+ * for the 7 other call sites of `uploadImageFileAPI`.
+ */
+function putFileWithProgress(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<PutResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', url, true)
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value)
+    }
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      onProgress(Math.round((event.loaded / event.total) * 100))
+    }
+    xhr.onerror = () => reject(new Error('network error'))
+    xhr.onabort = () => reject(new Error('aborted'))
+    xhr.onload = () => {
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status })
+    }
+    if (signal) {
+      if (signal.aborted) {
+        xhr.abort()
+        return
+      }
+      signal.addEventListener('abort', () => xhr.abort(), { once: true })
+    }
+    xhr.send(file)
+  })
+}
+
+/**
  * Upload a local image file as a Generation row. Browser bytes go directly to
  * R2 through a short-lived presigned URL, then the server re-reads the R2
  * object, verifies it, creates the thumbnail, and persists the Generation row.
@@ -256,7 +308,18 @@ async function postJson<TResponse>(
  */
 export async function uploadImageFileAPI(
   file: File,
-  options?: { note?: string; projectId?: string },
+  options?: {
+    note?: string
+    projectId?: string
+    /** When set, the R2 PUT step runs over XHR instead of `fetch` so real
+     *  byte-level progress can be reported (canvas-image-card.md §3). Omit
+     *  for the plain fetch path every other caller already relies on. */
+    onProgress?: (percent: number) => void
+    /** Lets the caller cancel an in-flight upload (the R2 PUT step only —
+     *  the tiny prepare/complete JSON round trips aren't worth cancelling).
+     *  Only meaningful together with `onProgress`'s XHR path. */
+    signal?: AbortSignal
+  },
 ): Promise<UploadImageResponse> {
   try {
     const prepare = await postJson<DirectUploadPrepareResponse>(
@@ -283,13 +346,21 @@ export async function uploadImageFileAPI(
     // allowing this origin (or a genuine network drop). Tag it with a stable
     // i18nKey so the UI shows a clear reason instead of the browser's opaque
     // "Failed to fetch", which points nowhere.
-    let storageResponse: Response
+    let storageResponse: PutResult
     try {
-      storageResponse = await fetch(prepare.data.uploadUrl, {
-        method: 'PUT',
-        headers: prepare.data.headers,
-        body: file,
-      })
+      storageResponse = options?.onProgress
+        ? await putFileWithProgress(
+            prepare.data.uploadUrl,
+            file,
+            prepare.data.headers,
+            options.onProgress,
+            options.signal,
+          )
+        : await fetch(prepare.data.uploadUrl, {
+            method: 'PUT',
+            headers: prepare.data.headers,
+            body: file,
+          })
     } catch (error) {
       return {
         success: false,

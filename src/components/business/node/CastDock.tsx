@@ -365,20 +365,29 @@ export function CastDock({
       title={collapsed ? t('expand') : t('collapse')}
       onClick={() => setCollapsed((value) => !value)}
       className={cn(
-        'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs font-semibold text-node-foreground shadow-sm transition-all duration-fast ease-standard hover:bg-node-panel-inner active:scale-95 md:h-10',
+        'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold shadow-sm transition-all duration-fast ease-standard active:scale-95 md:h-10',
         // R3-4 §4.1 L4: 折叠态的把手是常驻工作区 chrome（legacy `absolute`
         // layout；当前生产用法走 `inline`，见下方 stripBody 的 L5 展开层）。
-        !isInline &&
-          'absolute z-canvas-chrome rounded-2xl border-node-panel-inner/70 bg-node-panel/95 shadow-node-panel backdrop-blur-xl',
+        !isInline && 'absolute z-canvas-chrome rounded-2xl backdrop-blur-xl',
       )}
-      style={
-        isInline
+      // v0.2（2026-07-27）：这条把手在生产始终走 `inline`（StudioNodeWorkbench
+      // 传 layout="panel"），!isInline 分支是历史遗留、真机不可达——颜色仍按
+      // v0.2 换皮（不留旧皮死代码），但不值得为它专门再开一个 canvas.css 类，
+      // 直接内联 var(--canvas-*) 即可。
+      style={{
+        borderColor: 'var(--canvas-stroke-regular)',
+        backgroundColor: isInline
+          ? 'var(--canvas-card-bg)'
+          : 'var(--canvas-glass)',
+        color: 'var(--canvas-ink)',
+        boxShadow: !isInline ? 'var(--canvas-glass-shadow)' : undefined,
+        ...(isInline
           ? undefined
           : {
               left: insetLeft,
               bottom: NODE_STUDIO_CAST_DOCK.collapsedBottomOffsetPx,
-            }
-      }
+            }),
+      }}
     >
       <LayoutGrid className="size-3.5" aria-hidden />
       {t('handle', { count: totalCount })}
@@ -386,35 +395,33 @@ export function CastDock({
   )
 
   const stripBody = (
-    // A4 ②: 半透明 L4 chrome（owner 实测反馈——之前 `/95` 太实）。降到 `/90`
-    // + 轻 `backdrop-blur-sm`（不回到 L5 曾经的重玻璃档，R3-4 已把那个减
-    // 掉）。对比度自查（确定性计算，见任务报告）：worst case = 一张
-    // 纸卡 `--node-card-paper` #ebe5d8 整面填在条底正后方，`/90` 混合后背景
-    // ≈#2e2a25，header 的 `text-node-muted` 在该底上仍 ≈4.9:1（AA 达标）；
-    // `+新建` 原用更弱的 `text-node-subtle`（同底只 ≈2.6:1，且在不透明
-    // `/95` 原状下本就只有 ≈3.4:1），随手升到 `text-node-muted` 一并修
-    // （见下方按钮）。卡面本体（CastCard）挂 `.node-card-paper` 局部变量
-    // 覆写、自带不透明 `bg-node-panel`（解析成纸面色，非本容器的深色
-    // token），完全不受这层透明度影响，无需改动。
+    // v0.2（2026-07-27）：换皮换成 canvas.css 的 .canvas-glass 白玻璃（原来
+    // 是暖炭深色 /90 混合，见 git blame 的 A4 ②注释找旧对比度账）。生产始终
+    // 走 panel 布局（外层 CanvasLeftPanel 已经提供容器/玻璃/投影），下面这层
+    // 自绘glass 只在 !isPanel 的历史 absolute/inline 分支里才会显形——同 v0.2
+    // 数值，一并换掉不留旧皮死代码。卡面本体（CastCard）自己换 .canvas-card，
+    // 不受这层透明度影响，见该文件。
     <div
       className={cn(
         'pointer-events-auto flex w-full flex-col overflow-hidden transition-opacity duration-base',
         // panel 模式（S2b）：外层 CanvasLeftPanel 已经提供容器、玻璃与投影，
-        // 这里再套一层圆角深底就是「面板里又一个面板」。
-        !isPanel &&
-          'rounded-2xl border border-node-panel-inner/70 bg-node-panel/90 backdrop-blur-sm',
+        // 这里再套一层玻璃就是「面板里又一个面板」。
+        !isPanel && 'canvas-glass rounded-2xl',
         dragState.active && 'opacity-40',
       )}
-      style={isPanel ? undefined : { boxShadow: 'var(--shadow-canvas-menu)' }}
     >
       <div
         className={cn(
-          'items-center justify-between gap-2 border-b border-node-panel-inner/70 px-3 py-1.5',
+          'items-center justify-between gap-2 border-b px-3 py-1.5',
           // panel 模式的标题 + 计数 + 折叠都由 CanvasLeftPanel 的头部承担。
           isPanel ? 'hidden' : 'flex',
         )}
+        style={{ borderColor: 'var(--canvas-stroke-regular)' }}
       >
-        <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+        <span
+          className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-nav-dense"
+          style={{ color: 'var(--canvas-ink-muted)' }}
+        >
           <LayoutGrid className="size-3" aria-hidden />
           {t('title')} · {totalCount}
         </span>
@@ -424,7 +431,7 @@ export function CastDock({
           aria-expanded={true}
           title={t('collapse')}
           onClick={() => setCollapsed(true)}
-          className="flex size-6 items-center justify-center rounded-lg text-node-muted transition-all duration-fast ease-standard hover:bg-node-panel-inner hover:text-node-foreground active:scale-90"
+          className="canvas-cast-ghost-btn flex size-6 items-center justify-center rounded-lg transition-all duration-fast ease-standard active:scale-90"
         >
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
@@ -451,13 +458,13 @@ export function CastDock({
           >
             {sectionIndex > 0 ? (
               <div
-                className="my-1 w-px shrink-0 bg-node-panel-inner"
+                className="my-1 w-px shrink-0"
+                style={{ background: 'var(--canvas-stroke-regular)' }}
                 aria-hidden
               />
             ) : null}
             <div
               className={cn(
-                'text-node-muted',
                 isPanel
                   ? 'flex items-center gap-1.5'
                   : cn(
@@ -465,6 +472,7 @@ export function CastDock({
                       NODE_STUDIO_CAST_DOCK.barSectionLabelWidthClass,
                     ),
               )}
+              style={{ color: 'var(--canvas-ink-muted)' }}
             >
               <section.Icon className="size-4" aria-hidden />
               <span className="text-2xs font-semibold">
@@ -522,9 +530,7 @@ export function CastDock({
               aria-label={t('create')}
               title={t('create')}
               className={cn(
-                // A4 ②对比度自查：半透明条底上 text-node-subtle 太弱（见
-                // stripBody 顶部注释），升一档到 text-node-muted。
-                'flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-node-panel-inner text-node-muted transition-all duration-fast ease-standard hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60 active:scale-95',
+                'canvas-cast-add-tile flex h-full shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed transition-all duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-95',
                 NODE_STUDIO_CAST_DOCK.barCardWidthClass,
               )}
             >
@@ -540,7 +546,7 @@ export function CastDock({
             // data-[state]:animate-in/out（tw-animate-css），这里补
             // duration-base 对齐全站 motion 刻度（popover/menu 档），不用改
             // 共享的 ui/popover.tsx 本体。
-            className="w-36 rounded-xl border-node-panel-inner/80 bg-node-panel p-1 text-node-foreground shadow-node-panel duration-base"
+            className="canvas-cast-popover w-36 rounded-xl p-1 duration-base"
           >
             {CAST_SECTIONS.map((section) => (
               <button
@@ -550,10 +556,10 @@ export function CastDock({
                   onCreateCard(section.id)
                   setAddMenuOpen(false)
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
+                className="canvas-cast-popover-item flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-colors"
               >
                 <section.Icon
-                  className="size-3.5 text-node-muted"
+                  className="canvas-cast-popover-item-icon size-3.5"
                   aria-hidden
                 />
                 {t(`sections.${section.id}`)}

@@ -76,7 +76,10 @@ export const AssistantShell = forwardRef<HTMLElement, AssistantShellProps>(
         role="complementary"
         aria-label={label ?? ariaLabel}
         data-assistant-shell
-        className={cn('flex min-h-0 flex-col overflow-hidden', className)}
+        className={cn(
+          'flex min-h-0 flex-col overflow-hidden bg-card',
+          className,
+        )}
       >
         {children}
       </aside>

@@ -189,6 +189,7 @@ export function CastCard({
       // 画布节点卡（NodeShell），不命中卡匣里的这张镜像卡，互不干扰，也不改
       // 这条全局共享规则本身（NodeShell 等其它消费者维持原样）。
       style={{ transition: 'all var(--duration-fast) var(--ease-standard)' }}
+      data-selected={selected ? 'true' : undefined}
       className={cn(
         // S5c 一.1/一.2：宽度改跟随网格列（w-full）而不是固定 w-24——固定宽度
         // 曾比 CastDock 算出的实际列宽还宽，被网格强制 overflow-x:auto 裁切
@@ -196,10 +197,13 @@ export function CastCard({
         // 高度 h-32→h-36：给新增的徽章行留出空间，不挤压已有的名字/@token/出演行。
         // A4 ③按下反馈：active:scale-95，与工具条按压同规格 fast(120ms，见
         // 上方 style 覆盖注释)。
-        'node-card-paper group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 rounded-md border bg-node-panel p-1.5 pt-2 text-center shadow-node-panel hover:-translate-y-0.5 hover:rotate-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60',
-        selected
-          ? 'border-node-paint/70 ring-2 ring-node-paint/60'
-          : 'border-node-card-line hover:border-node-card-ink-subtle',
+        // v0.2（2026-07-27）：换成 canvas-card（白卡/发丝边/8 圆角/hover 抬升
+        // 投影），退掉 .node-card-paper 暖纸皮——该类另一个作用（拖拽微倾的
+        // transition:rotate）从不命中这张镜像卡（见 NodeShell 拖拽回正一节的
+        // 注释），删掉零副作用。选中态从旧 --node-paint 绿环改成 canvas-card
+        // 自带的 data-selected 蓝环（--canvas-accent），与全域「选中=强调蓝」
+        // 语义统一，不再单独留一份绿色选中语义。
+        'canvas-card group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 p-1.5 pt-2 text-center hover:-translate-y-0.5 hover:rotate-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
         tiltClass,
       )}
     >
@@ -214,7 +218,7 @@ export function CastCard({
         }}
         // R3-4 §4.1 L3: hover-reveal chrome riding above this card's own
         // thumbnail content, same tier as the selection/magnet badges.
-        className="absolute -right-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover:opacity-100"
+        className="canvas-cast-badge-btn absolute -right-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
       >
         <X className="size-3" aria-hidden />
       </button>
@@ -230,34 +234,58 @@ export function CastCard({
           event.stopPropagation()
           enterQuickThrow(quickThrowSourceInfo)
         }}
-        className="absolute -left-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted opacity-0 transition-opacity hover:text-node-paint focus-visible:opacity-100 group-hover:opacity-100"
+        className="canvas-cast-badge-btn canvas-cast-badge-btn--accent absolute -left-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
       >
         <Send className="size-2.5" aria-hidden />
       </button>
-      <span className="node-card-window relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-node-card-window">
+      {/* v0.2（2026-07-27）：媒体窗底换 --canvas-media-bg（规格 §10），退掉
+          .node-card-window 的深监视器皮——那套是给 video/audio kind 的
+          NodeMediaPreview 用的，不再适合这里。角标沿用「深底浮标 + 浅字」
+          结构不变（贴在任意缩略图上都要保证可读，跟整体明暗档无关），只是
+          颜色源换成 v0.2 的 ink/action-fg 字面值。 */}
+      <span
+        className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm"
+        style={{
+          background: 'var(--canvas-media-bg)',
+          color: 'var(--canvas-ink-muted)',
+        }}
+      >
         {thumbnailUrl ? (
           <>
             {/* Reference art comes from R2/third-party covers, not a fixed set
                 of app assets — same raw-img convention as ReferenceTokenChip. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumbnailUrl} alt="" className="size-full object-cover" />
-            <span className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl bg-node-canvas/85 text-node-foreground">
+            <span
+              className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl"
+              style={{
+                background: 'rgba(10, 10, 10, 0.85)',
+                color: 'var(--canvas-action-fg)',
+              }}
+            >
               <Icon className="size-2" aria-hidden />
             </span>
           </>
         ) : (
-          <Icon className="size-6 text-node-foreground" aria-hidden />
+          <Icon className="size-6" aria-hidden />
         )}
       </span>
-      <span className="w-full truncate text-2xs font-semibold text-node-foreground">
+      <span
+        className="w-full truncate text-2xs font-semibold"
+        style={{ color: 'var(--canvas-ink)' }}
+      >
         {name}
       </span>
-      <span className="w-full truncate font-mono text-2xs text-node-subtle">
+      <span
+        className="w-full truncate font-mono text-2xs"
+        style={{ color: 'var(--canvas-ink-subtle)' }}
+      >
         @{name}
       </span>
       {hasIdentityBadge ? (
         <span
-          className="w-full truncate text-2xs text-node-muted"
+          className="w-full truncate text-2xs"
+          style={{ color: 'var(--canvas-ink-muted)' }}
           aria-label={identityBadgeAria}
         >
           {referenceCount > 0 ? `📷${referenceCount}` : null}
@@ -266,7 +294,10 @@ export function CastCard({
         </span>
       ) : null}
       {performanceCount > 0 ? (
-        <span className="w-full truncate text-2xs text-node-muted">
+        <span
+          className="w-full truncate text-2xs"
+          style={{ color: 'var(--canvas-ink-muted)' }}
+        >
           {t('performanceCount', { count: performanceCount })}
         </span>
       ) : null}

@@ -6,14 +6,43 @@
  * LoraAssistantDock / StudioAssistantDock 两处画布域外消费者引用，scope 会破。
  * 由 src/app/layout.tsx 紧跟 globals.css 之后 import：全局可用 + node 类在级联里
  * 维持"最后"位置（零 cascade 变化）。@theme inline 的 --color-node-* 映射留在
- * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。 */
+ * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。
+ *
+ * ⚠⚠（2026-07-27，owner 拍板方向 B 第二轮修订，施工基准
+ * docs/plans/canvas-node-token-inversion-2026-07-27.md §4.6）：下面这批
+ * --node-panel/-foreground/-muted/-subtle/-canvas/-focus-ring/-shadow/
+ * -status-failed(-fg)/-status-done(-fg) 的**默认值已从旧深皮反转成 v0.2 浅色**。
+ * 第一版把反转挂在 .domain-canvas 上，真机暴露系统性缺口：Radix
+ * Popover/Dialog/DropdownMenu/Select 的内容传送到 document.body，在
+ * .domain-canvas 的 DOM 子树之外，CSS 自定义属性不跨这个边界，14 个传送门文件
+ * 因此全部回退到这里、也就是当年 #191612 那批旧值。验证过 --node-* 在画布
+ * 目录外只有 4 类非视觉消费者（globals.css 的 @theme inline 桥接、
+ * CanvasRoutePicker、constants/node-*、health-status-utils 的 'node' 变
+ * 体）——全站没有第二个域真的把它当颜色用，挂 :root 零跨域爆炸半径。
+ * 值全部写字面量而非 var(--canvas-*)：--canvas-* 只在 .domain-canvas 内定义，
+ * :root 这一层引用不到，字面量是唯一能跨传送门生效的写法（数值仍 1:1 抄自
+ * canvas-skin-spec-2026-07-26.md，不是新造颜色）。
+ * 局部覆盖不受影响，挂在更近的元素上，级联照样赢：.node-card-paper（纸卡）·
+ * .node-card-window（媒体深窗）· .canvas-glass（顶栏/底部胶囊/左侧面板的
+ * strangler 重映射）· 下方 S3 段的 .domain-canvas 连线覆盖块。真机逐条验证
+ * 记录见任务报告，不是只从层叠理论推。
+ * 仍打不到的第二类：脊柱令牌（bg-card/text-foreground）传送门
+ * （FishVoiceLibraryDialog/ProjectNameDialog/VoiceSelector 等）——这批用的
+ * 不是 --node-*，是脊柱令牌，而 app 全局 <html class="dark">，脊柱本来就是
+ * 深的。挪 --node-* 治不了这一类，根因是画布是深色 app 里的浅色孤岛；长期正
+ * 解是 .domain-canvas 也重映射脊柱表面令牌（同 lora.css:55-57 .domain-lora
+ * 的做法）+ 给画布一个自己的 Portal container，本轮不做，见 §4.6 记录。 */
 :root {
-  /* v2 制片桌（施工图 references/pages/node-canvas.md）：panel 系 = 深色 chrome
-     （暖炭，§2.1 调值 2026-07-10 S1）；card-* = 纸卡材质（S2 起消费）；
-     paint = 石绿颜料（唯一高光，§5 克制档五落点）。 */
-  --node-canvas: #14120f;
+  /* v2 制片桌（施工图 references/pages/node-canvas.md）：panel 系原为暖炭深色
+     chrome（§2.1 调值 2026-07-10 S1），2026-07-27 反转为 v0.2 浅色（见上方
+     ⚠⚠ 说明）；card-* = 纸卡材质（S2 起消费，不受这次反转影响）；
+     paint = 石绿颜料（唯一高光，§5 克制档五落点，本轮不动）。 */
+  --node-canvas: #ffffff;
   /* Canvas workspace surface tokens stay separate from --node-canvas because
-     that legacy token also colors handles, scrims, and inverse button text. */
+     that legacy token also colors handles, scrims, and inverse button text.
+     ⚠ --canvas-surface 本身不在本次反转范围内——它是 CanvasSurface.tsx 运行时
+     内联覆盖的画布壁纸底色（用户可选深浅），字面量 #14120f 只是 JS 接管前的
+     启动瞬间兜底，不是本轮要治的旧皮残留（已在上一轮任务报告里查证过）。 */
   --canvas-surface: #14120f;
   --canvas-grid-dot: rgba(235, 229, 216, 0.18);
   --canvas-safe-left: 1rem;
@@ -21,12 +50,12 @@
   --canvas-top-inset: 4.5rem;
   --canvas-bottom-inset: 4rem;
   --canvas-minimap-width: 12rem;
-  --node-panel: #191612;
-  --node-panel-inner: #221f1b;
-  --node-panel-soft: #1c1915;
-  --node-foreground: #e8e6de;
-  --node-muted: #9a988f;
-  --node-subtle: #6f6a63;
+  --node-panel: #ffffff; /* = --canvas-card-bg 字面量 */
+  --node-panel-inner: rgba(0, 0, 0, 0.04); /* = --canvas-fill-control 字面量 */
+  --node-panel-soft: #f1f1f1; /* = --canvas-bg 字面量 */
+  --node-foreground: #0a0a0a; /* = --canvas-ink 字面量 */
+  --node-muted: #525252; /* = --canvas-ink-regular 字面量 */
+  --node-subtle: #737373; /* = --canvas-ink-muted 字面量 */
   /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
      panel-inner）并于 2026-06-20 删除。node-danger strangler 别名已于 S4
      （2026-07-10）完成收编：全部 7 处引用改指 --node-status-failed，
@@ -46,14 +75,22 @@
   --node-card-line: #c9c0ab;
   --node-paint: #3e8c6c;
   --node-paint-fg: #ebf3ee;
-  --node-shadow: rgb(0 0 0 / 0.5);
+  --node-shadow: rgba(0, 0, 0, 0.08); /* 2026-07-27 反转，原 rgb(0 0 0 / 0.5) */
   --shadow-canvas-control: 0 10px 28px rgb(0 0 0 / 0.22);
   --shadow-canvas-menu: 0 12px 26px rgb(0 0 0 / 0.2);
   --shadow-canvas-task: 0 18px 44px rgb(0 0 0 / 0.28);
-  /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相 */
+  /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相。
+     ⚠ --node-edge / --node-edge-active 不在本次反转范围——画布域内的连线颜色
+     另有 .domain-canvas 的 S3 覆盖块单独接管（见下方），这里的字面量只是
+     传送门/域外场景的兜底，本轮不动它。 */
   --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
   --node-edge-active: #e8e6de; /* = foreground，流动/hover/选中提亮 */
-  --node-focus-ring: rgba(232, 230, 222, 0.4); /* foreground 40% 焦点环 */
+  --node-focus-ring: rgba(
+    10,
+    10,
+    10,
+    0.4
+  ); /* 2026-07-27 反转，原 rgba(232,230,222,.4) */
   /* 端口类型色（极淡·功能性例外 · 草稿 fill-5 §2.3）：靠图标 + 低饱和类型色配对 */
   --node-port-character: #6f6a86;
   --node-port-background: #5f7a73;
@@ -69,21 +106,19 @@
   --node-port-voice-on-paper: #856a72; /* 3.89:1 vs #ebe5d8 */
   --node-port-video-on-paper: #647386; /* 3.86:1 vs #ebe5d8 */
   --node-port-image-on-paper: #6f6a86; /* 4.10:1 vs #ebe5d8 */
-  /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红 */
-  --node-status-done: #1f3a2c;
-  --node-status-done-fg: #7fc4a0;
-  /* S4 failed 真红收尾（node-canvas.md §4 已知发现修复，node-danger 收编）：
-     真红本体 = 原 --node-danger 值，章描边/章文字/failed 卡边框/卡内 banner
-     border 全部用它（deep chrome 语境，卡内一律被 .node-card-paper 作用域
-     覆盖为纸面深红，见下方 S4 覆盖块）。-fg 语义收窄为「红底上的前景」，
-     只用于 bg-node-status-failed/NN 混合底上的文字（删除按钮 hover、
-     NodeMediaInspector failed banner，均为深 chrome 语境，不落进
-     .node-card-paper 作用域）。WCAG 确定性计算（2026-07-10 S4 报告）：
-     真红 vs panel(#191612，badge 实际底) 4.61:1；-fg vs 真红/40 混
-     panel 组合底(#6b2a2a) 8.21:1、vs 真红/50 混 panel 组合底(#7f2f30)
-     6.95:1，/80 二级文字实测 5.04:1，均 ≥4.5:1 达标。 */
-  --node-status-failed: #e5484d;
-  --node-status-failed-fg: #fadcdc;
+  /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红。
+     2026-07-27 done/done-fg 反转为 --canvas-ok 系字面量（10% color-mix 浅底，
+     配方同 .canvas-image-badge--danger 已用的比例，不新造混合比）。 */
+  --node-status-done: color-mix(in oklab, #16794c 10%, transparent);
+  --node-status-done-fg: #16794c; /* = --canvas-ok 字面量 */
+  /* S4 failed 真红（node-canvas.md §4 已知发现修复，node-danger 收编）历史
+     WCAG 账在 git blame 里，2026-07-27 随反转作废（原真红 #e5484d 是给深底
+     panel 配的，现在 panel 已翻白）。新值 = --canvas-danger 字面量，5.57:1
+     vs 白（确定性脚本核实，见任务报告），-fg 收窄为「红底上的前景」用白。
+     .node-card-paper 作用域仍有自己独立的纸面深红覆盖（#a32d2d，下方 S4
+     覆盖块），不受这里影响。 */
+  --node-status-failed: #c0342e; /* = --canvas-danger 字面量 */
+  --node-status-failed-fg: #ffffff;
   /* 视频监视器语言（v4 §3.3/§4 C4）：取景框角标，纯装饰不承载语义，独立 token */
   --node-monitor-frame: #4a4f5c;
   --node-monitor-matte: #050505;
@@ -570,7 +605,11 @@
   --canvas-identity-bar-bg: rgba(255, 255, 255, 0.85);
 }
 
-/* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光 */
+/* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
+   ⚠（2026-07-27，owner 拍板 token-inversion §4.5）：全仓没有一处设
+   data-scheme——本轮起画布外观预设精简为只留浅色（node-studio.ts 的
+   NODE_STUDIO_CANVAS_APPEARANCE_PRESETS），这块暂无激活路径，是 v0.2 规格
+   的一部分先留着，不是死代码要清，将来做深色域时是现成的。 */
 .domain-canvas[data-scheme='dark'] {
   color-scheme: dark;
 
@@ -1388,4 +1427,364 @@
    会让分隔线和 hover 态糊在一起分不清）。 */
 .domain-canvas .canvas-selection-toolbar-divider {
   background: var(--canvas-stroke-regular);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S6 · Cast 卡匣 v0.2 玻璃皮（2026-07-27）
+   施工基准：docs/references/pages/assistant-shell.md 同轮任务书 +
+   canvas-skin-spec-2026-07-26.md。CastDock 的 panel 布局挂在 CanvasLeftPanel
+   的 .canvas-glass 容器内——大部分残留 node-* 类已经靠那层的 strangler 重
+   映射读到 v0.2 值（见上方"玻璃容器内的前景色重映射"注释）；这里只补三处
+   它没覆盖到的缺口：CastCard 自身的 .node-card-paper 局部覆盖（比 .canvas-
+   glass 更近的祖先，会盖过它）、卡角徽标按钮的语义色 hover、以及 Popover
+   （Radix 传送门到 document.body，脱离 .domain-canvas 的 DOM 子树，
+   var(--canvas-*) 够不到，改用字面值，逐条注明来源）。只换皮，不改结构。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 卡匣 chrome 里的纯图标 ghost 按钮（折叠把手一类）：默认墨灰图标，hover 靠
+   --canvas-fill-control-hover 填底 + 字色升到 --canvas-ink——「控件被悬停」
+   的通用语义（规格 §3 定义的那个 token 就是给这个场景用的），不是指向/危险
+   这类语义色，所以跟下面的卡角徽标按钮分开一个类。 */
+.domain-canvas .canvas-cast-ghost-btn {
+  color: var(--canvas-ink-muted);
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-cast-ghost-btn:hover {
+  background: var(--canvas-fill-control-hover);
+  color: var(--canvas-ink);
+}
+
+/* CastCard 卡角微按钮（删除/快投）——圆形白底徽标，默认墨灰图标，hover 才提示
+   语义色：删除=危险红，快投=强调蓝（§0.6「强调只表指向」——快投正是"把这张卡
+   指向一个目标"这个动作，语义对得上，不是随手选的颜色）。 */
+.domain-canvas .canvas-cast-badge-btn {
+  border: 1px solid var(--canvas-stroke-regular);
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink-muted);
+  transition: color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-cast-badge-btn:hover {
+  color: var(--canvas-danger);
+}
+.domain-canvas .canvas-cast-badge-btn--accent:hover {
+  color: var(--canvas-accent);
+}
+
+/* 卡匣尾「+新建」拼贴：虚线邀请态，hover 提示强调蓝（同样是"指向即将新建的
+   动作"，非结构色，同上一条理由）。 */
+.domain-canvas .canvas-cast-add-tile {
+  border: 1px dashed var(--canvas-stroke-bold);
+  color: var(--canvas-ink-muted);
+  transition:
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-cast-add-tile:hover {
+  border-color: var(--canvas-accent);
+  color: var(--canvas-ink);
+}
+
+/* 「+新建」的类型选择 Popover——Radix Portal 传送到 document.body，不在
+   .domain-canvas 的 DOM 子树内，var(--canvas-*) 在那个位置读不到（自定义
+   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），因此这里不能用
+   .domain-canvas 前缀选择器，也不能引用 var(--canvas-*)。改用字面值，逐条
+   对应规格来源：#ffffff = --canvas-pop-bg，14px = --canvas-pop-radius，投影
+   = --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
+   #0a0a0a = --canvas-ink，#737373 = --canvas-ink-muted，rgba(0,0,0,.04) =
+   --canvas-fill-control——不是新造颜色，是同一批已定值的字面量落地。 */
+.canvas-cast-popover {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-cast-popover-item {
+  color: #0a0a0a;
+  transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-cast-popover-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.canvas-cast-popover-item-icon {
+  color: #737373;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S7 · 节点详情模态 v0.2（2026-07-27）
+   施工基准：canvas-image-card.md §5「点卡扩大=模态」——图片放大 / 编辑器 /
+   节点详情三个模态共用同一套配方。这里落地 NodeDetailPanel 的壳（遮罩 +
+   模态面 + 分栏），内容分区（各 Detail Body：CharacterImageInspector 等）
+   不在本片范围，靠下方 .canvas-modal-surface 的 strangler 变量重映射（同
+   .canvas-glass 手法）自动读到浅色值，markup 不逐处碰。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 遮罩：白雾模糊，不是黑纱（§5 明确条款）。 */
+.domain-canvas .canvas-modal-scrim {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .domain-canvas .canvas-modal-scrim {
+    background: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* 模态面：白卡 + 16 圆角 + 发丝边 + 柔投影（§5 数值原样）。--node-* 重映射
+   沿用 .canvas-glass 已验证的清单，外加 status-failed 一对——NodeStatusBadge
+   在模态头部渲染失败态时会读它，参考 .canvas-selection-toolbar 同样收窄到
+   --canvas-danger 的做法（那条已验证过对比度，5.57:1 vs 白）。 */
+.domain-canvas .canvas-modal-surface {
+  background: var(--canvas-card-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: var(--canvas-panel-radius);
+  box-shadow: var(--canvas-glass-shadow);
+  color: var(--canvas-ink);
+  --node-foreground: var(--canvas-ink);
+  --node-muted: var(--canvas-ink-muted);
+  --node-subtle: var(--canvas-ink-subtle);
+  --node-panel: var(--canvas-card-bg);
+  --node-canvas: var(--canvas-action-fg);
+  --node-panel-inner: var(--canvas-fill-control);
+  --node-panel-soft: var(--canvas-fill-control);
+  --node-edge: var(--canvas-ink-muted);
+  --node-focus-ring: var(--canvas-stroke-focus);
+  --node-status-failed: var(--canvas-danger);
+  --node-status-failed-fg: var(--canvas-danger);
+}
+
+/* 头部分栏：规格要求精确的 .08（--canvas-stroke-regular），比上面 strangler
+   映射给 border-node-panel-inner 的 --canvas-fill-control（.04）更实一档，
+   所以头部这条边显式点名，不吃 cascade 给的近似值。 */
+.domain-canvas .canvas-modal-divider {
+  border-color: var(--canvas-stroke-regular);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S8 · 画布助手 dock 白面（2026-07-27，owner 纠正 + 门禁复核）
+   施工基准：owner 原话「结构照搬 LoRA，颜色显式覆盖成白」+
+   assistant-shell.md 修订版 §2「⛔ 上面这句话是错的」/ §4。
+   背景：真机实测 LoRA dock 实际是暗色「近炭暖灰」（.domain-lora 自己的头注
+   写了「冷瓷浅✗」被否），照抄它的 bg-card/text-foreground 类名在画布助手
+   rail 这个位置解析出的是**脊柱暗色**（lab(7.78%) ≈ 近黑，因为 rail 是
+   canvas-stage 的兄弟，够不到任何局部反转脊柱的作用域）。owner 要的是白，
+   不是 LoRA 的暗——这里改走 --canvas-* 这一套（与 CastDock/CastCard 同源，
+   不新造 token），前提是 rail 容器已在 CanvasWorkspaceLayout.tsx 里追加
+   .domain-canvas（见该文件），否则这些类读不到变量。 */
+
+/* 壳表面：AssistantShell 的 bg-card 默认值留着不动（LoRA/Studio 两个消费者
+   还要用），这里用一个未分层的 canvas.css 类覆盖——未分层规则恒压过
+   Tailwind 生成的分层 utility（同 .node-card-paper 那条已验证的机制），
+   不依赖 twMerge 的字符串顺序，真机已核实见任务报告。 */
+.domain-canvas .canvas-assistant-surface {
+  color-scheme: light;
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink);
+  border-color: var(--canvas-stroke-regular);
+}
+
+/* 浮动卡材质（lg: 起）。四边 16px 留白由 CanvasWorkspaceLayout 的
+   lg:top-4/right-4/bottom-4 负责，这里只给「浮层」该有的两件：
+   圆角比节点卡**大一档**（14px vs 8px）+ **必须有投影**。
+
+   ⚠ 这两条与节点卡的材质纪律**故意相反**（assistant-shell.md §1 几何表）：
+   节点卡是「桌面上的纸」——静态无投影、小圆角；助手是「浮在桌面上方的
+   面板」。两者混同会让这张浮层读起来像一张巨大的节点卡，层级就消失了。
+
+   移动端不进这条：那一档是贴边的 bottom sheet（组件自带 rounded-t-2xl +
+   border-b-0），贴边就不该有四角圆角，也不需要投影去表达"浮起"。 */
+@media (min-width: 1024px) {
+  .domain-canvas .canvas-assistant-surface {
+    border-radius: var(--canvas-pop-radius);
+    box-shadow: var(--canvas-pop-shadow);
+  }
+}
+
+/* 独立于壳表面之外的分栏（头部下边线、展开态两栏之间的竖线）。 */
+.domain-canvas .canvas-assistant-divider {
+  border-color: var(--canvas-stroke-regular);
+}
+
+/* 头部标题/副标题两档字色——AssistantShellHeader 是三个 dock 共用组件，不能
+   动它自己的默认（text-foreground/text-muted-foreground，LoRA/Studio 还要
+   用），只能从这层传入的 className 覆盖，覆盖机制同上（未分层类）。 */
+.domain-canvas .canvas-assistant-header-text p {
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-assistant-header-text p + p {
+  color: var(--canvas-ink-muted);
+}
+
+/* 头部工具条的纯图标 ghost 按钮：默认墨灰，hover 靠 --canvas-fill-control-
+   hover 填底 + 字色升到 --canvas-ink——跟 .canvas-cast-ghost-btn 是同一个
+   语义，换个前缀是为了让两族各自的施工基准（assistant-shell.md /
+   本文件）能独立找到自己名下的类，不是重复造轮子。 */
+.domain-canvas .canvas-assistant-ghost-btn {
+  color: var(--canvas-ink-muted);
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-assistant-ghost-btn:hover {
+  background: var(--canvas-fill-control-hover);
+  color: var(--canvas-ink);
+}
+
+/* 移动端收起抓手条——同 .canvas-cast 系没有对应件，这里用 --canvas-fill-
+   control（比卡背深一档的中性灰），不用全局 bg-muted（脊柱色，同样会在这
+   个位置解析成暗色）。 */
+.domain-canvas .canvas-assistant-handle {
+  background: var(--canvas-fill-control);
+}
+
+/* 唯一的墨色实底动作——研究模式被按下（aria-pressed）时的填色态，对应规格
+   §0.6「主动作=墨色实底」，跟 CanvasLeftPanel 的 ＋添加主按钮
+   （.canvas-rail-action）用的是同一对 token，只是换了个语境专属类名。 */
+.domain-canvas .canvas-assistant-action {
+  background: var(--canvas-action);
+  color: var(--canvas-action-fg);
+}
+.domain-canvas .canvas-assistant-action:hover {
+  background: var(--canvas-action-hover);
+  color: var(--canvas-action-fg);
+}
+
+/* 收起态的悬浮开关按钮（在 AssistantShell 外，桌面贴顶栏/移动端贴底部）：
+   跟壳表面同一张脸，但自己要一个 hover（壳表面本身是容器，没有 hover）。 */
+.domain-canvas .canvas-assistant-fab {
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink);
+  border-color: var(--canvas-stroke-regular);
+  transition:
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-assistant-fab:hover {
+  border-color: var(--canvas-stroke-bold);
+  background: var(--canvas-fill-control-hover);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S9 · 画布启动骨架（2026-07-27，owner 拍板）
+   施工基准：owner 反馈硬刷新画布先空白 ~5.1s 才出现（StudioNodeCanvas 的
+   useSearchParams() 挂起 Suspense，fallback 原是 null）。骨架组件见
+   CanvasStartupSkeleton.tsx，这里只补它消费的一个类——shadcn Skeleton 原语
+   默认 bg-accent（脊柱色），在骨架自己的 .domain-canvas 作用域里会解析出
+   脊柱暗色（同本轮助手 rail 撞的坑），改用 --canvas-fill-control。 */
+.domain-canvas .canvas-startup-skeleton-block {
+  background: var(--canvas-fill-control);
+}
+
+/* S10 · 域级令牌反转 —— 2026-07-27 第一版曾挂在 .domain-canvas，真机暴露
+   Radix 传送门（Popover/Dialog/DropdownMenu/Select 内容渲染进
+   document.body）够不到这个作用域的系统性缺口，第二轮改挂 :root（本文件
+   顶部 :root 块直接反转默认值），详见该处的 ⚠⚠ 说明与
+   docs/plans/canvas-node-token-inversion-2026-07-27.md §4.6。这里不再重复
+   一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
+   故整块移除，不留空选择器。 */
+
+/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——同 .canvas-cast-
+   popover 的处境：Radix Popover 传送门到 document.body，脱离 .domain-canvas
+   的 DOM 子树，var(--canvas-*) 够不到，只能用字面值。逐条对应来源：
+   #ffffff = --canvas-card-bg，14px = --canvas-pop-radius，投影 =
+   --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
+   rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
+   --canvas-fill-control-hover，#0a0a0a/#737373/#8f8f8f =
+   --canvas-ink/-muted/-subtle——不是新造颜色，是同一批已定值的字面量落地。
+   （触发这个浮层的 <Button> 本身没有传送门问题，仍走
+   .canvas-assistant-ghost-btn，见组件文件。） */
+.canvas-assistant-popover {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-divider {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.canvas-assistant-popover-subtle {
+  color: #8f8f8f;
+}
+.canvas-assistant-popover-muted {
+  color: #737373;
+}
+.canvas-assistant-popover-input {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-empty {
+  background: rgba(0, 0, 0, 0.04);
+  color: #737373;
+}
+.canvas-assistant-popover-item {
+  color: #737373;
+  transition:
+    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-assistant-popover-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-item--active {
+  background: rgba(0, 0, 0, 0.04);
+  color: #0a0a0a;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S11 · 画布助手浮动卡（2026-07-27）
+   施工基准：docs/references/pages/assistant-shell.md §1（「⛔ 下面这节已被
+   owner 推翻」节 + 紧随其后的几何表）。S8 已经把画布助手表面从近黑改白
+   （背景/字色/边色）；这里改的是外框——从贴边挤压侧栏改浮动卡片。桌面档
+   定位/宽高在 CanvasWorkspaceLayout.tsx 的 Tailwind className 与其
+   .module.css 里（四边 16px 留白、宽度随 data-assistant-mode 变化，见两个
+   文件的头注），这里只补颜色系统管不到的两件材质、外加"控件让位"。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 圆角 + 投影：比节点卡（--canvas-card-radius 8px）大一档，用 §9 已经定义的
+   --canvas-pop-radius（14px）/ --canvas-pop-shadow（浮层 composer 同款配方）
+   ——不新造 token。节点卡是「桌面上的纸」（静态零投影、小圆角），助手是
+   「浮在桌面上方的面板」，两者材质纪律故意不同（assistant-shell.md 该节
+   ⚠ 段），混同会让浮层读起来像一张巨大的节点卡，层级就没了。
+   ⚠ 只在 lg: 生效——mobile 维持原本的底部抽屉材质（rounded-t-2xl +
+   shadow-sm，StudioNodeAssistantDock.tsx 的 base class），这次「浮动卡片」
+   任务书原话「桌面档」，不覆盖 mobile。 */
+@media (min-width: 1024px) {
+  .domain-canvas .canvas-assistant-surface {
+    border-radius: var(--canvas-pop-radius);
+    box-shadow: var(--canvas-pop-shadow);
+  }
+}
+
+/* 连带条款「控件让位，内容不让位」①：顶栏右侧按钮簇。
+   顶栏本身仍然贴边通栏（它是"这一屏的框"，S2a 原话，不跟着收窄）——但助手
+   卡上留白只有 16px（< 顶栏自身高度 --canvas-topbar-h 48px），两者在
+   y:[16,48] 这一段天然重叠，顶栏右侧的项目管理/加节点/整理/保存按钮簇必须
+   让位，否则会被浮层永久盖住等于没有。
+   算法：padding-right = 16px（助手卡自己的右留白）+ 助手卡当前宽度，让按钮
+   簇的最右边界正好卡在助手卡左边界，不多不少（同下面 bottomRowInsetPx 的
+   算法，两处故意保持一致）。
+   --canvas-assistant-width 定义在 CanvasWorkspaceLayout.module.css 的
+   .workspace 上——那个类名会被 CSS Modules 哈希，这里的选择器够不着，但
+   自定义属性的继承认的是 DOM 祖先链、不认类名哈希，所以改用全局都读得到的
+   data-assistant-mode 属性选择器（哈希只作用于类选择器，不作用于 data-*
+   属性）。两条选择器在闭合态都不命中，padding-right 完全不变（仍是
+   header 自己 px-3 给的 12px）——闭合态零回归。 */
+@media (min-width: 1024px) {
+  [data-assistant-mode='chat'] .domain-canvas .canvas-topbar,
+  [data-assistant-mode='script'] .domain-canvas .canvas-topbar {
+    padding-right: calc(1rem + var(--canvas-assistant-width, 0px));
+    transition: padding-right var(--duration-slow) var(--ease-standard);
+  }
 }

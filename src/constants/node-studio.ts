@@ -76,19 +76,20 @@ export const NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT = {
 } as const
 
 /**
- * Canvas surface presets: pure white/black for contrast checks, then warm
- * charcoal family + a few distinct tints. Custom color picker remains available.
+ * Canvas surface presets. S10（2026-07-27，owner 拍板 token-inversion §4.5）：
+ * 域级令牌反转后画布面板全变白，原 9 档里 6 档深色（含 #000000）会让用户选中
+ * 深底时变成「黑底白盒」——v0.2 是浅色域，那些深档是旧皮时代的遗产，直接精简
+ * 掉而不是接线 `.domain-canvas[data-scheme='dark']`（那块 CSS 保留但本轮没有
+ * 激活路径，见 canvas.css 该处注释）。补 #F1F1F1：它是
+ * `NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT` 的值，原先却没进这份预设列表。
+ * 已持久化的 `canvasAppearance.backgroundColor` 不受影响——这里只改预设菜单
+ * 展示哪些色板，不改已存的值；自定义取色器（下方 <input type="color">）仍
+ * 保留，用户仍能选任意颜色包括深色，不在这次限制范围内。
  */
 export const NODE_STUDIO_CANVAS_APPEARANCE_PRESETS = [
   '#FFFFFF',
-  '#000000',
-  '#14120F',
   '#F4F4F3',
-  '#191612',
-  '#1A1A1C',
-  '#11181A',
-  '#171A16',
-  '#1D1715',
+  '#F1F1F1',
 ] as const
 
 export const NODE_STUDIO_REACT_FLOW_PRO_OPTIONS = {

@@ -119,8 +119,15 @@ export function NodeDetailPanel({
             type="button"
             aria-label={t('close')}
             onClick={onClose}
-            className="absolute inset-0 cursor-default bg-node-canvas/60 backdrop-blur-sm"
+            className="canvas-modal-scrim absolute inset-0 cursor-default"
           />
+          {/* v0.2（2026-07-27）：.canvas-modal-surface（canvas.css）换成规格
+              §5 的白模态面配方，并在该类里做 --node-* 变量的容器级重映射（同
+              .canvas-glass 的 strangler 手法）——下面 header 与各 Body 里仍在
+              用的 text-node-muted / hover:bg-node-panel-inner 等类名不用逐处
+              碰，靠这层变量覆盖自动读到 v0.2 浅色值。内容分区本身（各
+              registry Body，如 CharacterImageInspector）不在本片范围，只是
+              顺带吃到了同一层变量重映射。 */}
           <motion.div
             initial={{ scale: 0.96 }}
             animate={{ scale: 1 }}
@@ -128,14 +135,14 @@ export function NodeDetailPanel({
             transition={transition}
             style={{ maxWidth: 'calc(100vw - 2rem)' }}
             className={cn(
-              'relative flex max-h-[80svh] flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl',
+              'canvas-modal-surface relative flex max-h-[80svh] flex-col overflow-hidden',
               node.type === NODE_TYPE_IDS.seedance ||
                 node.type === NODE_TYPE_IDS.videoMerge
                 ? 'w-node-detail-panel-wide'
                 : 'w-node-detail-panel',
             )}
           >
-            <header className="flex items-center justify-between gap-3 border-b border-node-panel-inner px-5 py-4">
+            <header className="canvas-modal-divider flex items-center justify-between gap-3 border-b px-5 py-4">
               <div className="flex min-w-0 items-center gap-2">
                 <span
                   className={cn(

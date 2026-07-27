@@ -433,9 +433,12 @@ export function StudioNodeAssistantDock({
               ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
               : undefined
           }
-          className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner bg-node-panel text-node-foreground shadow-sm transition-colors hover:border-node-edge hover:bg-node-panel-inner lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
+          className="canvas-assistant-fab pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border shadow-sm transition-colors lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
         >
-          <Bot className="size-5 text-node-muted lg:size-4" />
+          <Bot
+            className="size-5 lg:size-4"
+            style={{ color: 'var(--canvas-ink-muted)' }}
+          />
           <span className="hidden lg:inline">{tAssistant('toggle')}</span>
         </button>
       ) : null}
@@ -446,9 +449,21 @@ export function StudioNodeAssistantDock({
         aria-hidden={!open}
         data-mode={expanded ? 'script' : 'chat'}
         className={cn(
-          // Haivis §3.1: desktop rail is a plain full-height column (1px left
-          // edge, no radius/blur/heavy shadow). Mobile keeps a sheet chrome.
-          'pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner bg-node-panel text-node-foreground shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:border-node-panel-inner lg:bg-node-panel lg:shadow-none',
+          // Haivis §3.1「desktop 是贴边通高栏，无圆角/无投影」已被 owner
+          // 2026-07-27 推翻（assistant-shell.md §1）：desktop 档现在也是
+          // 浮动卡。圆角/投影不在这里写——canvas.css S11 的
+          // `.canvas-assistant-surface` 在 lg: 断点接管（比节点卡 8px 大
+          // 一档的 --canvas-pop-radius + --canvas-pop-shadow，浮层必须读
+          // 出层级，节点卡刻意零投影，两者故意不同材质）。这里的 Tailwind
+          // 类只剩两件事：lg:relative + lg:h-full lg:w-full 让这个 <aside>
+          // 完全交给 CanvasWorkspaceLayout 的浮层容器（四边留白/宽高都在
+          // 那边）；lg:border-b 补回 base 的 border-b-0（mobile 底部抽屉
+          // 不要下边线）——桌面档浮动卡四边都要描边，其余三边 base 的
+          // `border` 本来就有。
+          // v0.2（2026-07-27）：canvas-assistant-surface 覆盖 AssistantShell
+          // 默认的 bg-card（未分层类恒压过 Tailwind 分层 utility，见
+          // canvas.css S8 头注），LoRA/Studio 两个消费者不挂这个类不受影响。
+          'canvas-assistant-surface pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:border-b',
           !open && 'hidden lg:flex lg:pointer-events-none lg:opacity-0',
         )}
       >
@@ -459,7 +474,7 @@ export function StudioNodeAssistantDock({
           className="flex h-5 shrink-0 items-center justify-center lg:hidden"
         >
           <span
-            className="h-1 w-10 rounded-full bg-node-panel-inner"
+            className="canvas-assistant-handle h-1 w-10 rounded-full"
             aria-hidden
           />
         </button>
@@ -467,7 +482,7 @@ export function StudioNodeAssistantDock({
         <AssistantShellHeader
           title={tHistory('new')}
           subtitle={projectName}
-          className="border-node-panel-inner px-3 py-2.5 lg:px-4 lg:py-3 [&_p]:text-node-foreground [&_p+ p]:text-node-muted"
+          className="canvas-assistant-divider canvas-assistant-header-text px-3 py-2.5 lg:px-4 lg:py-3"
           actions={
             <>
               <Button
@@ -476,7 +491,7 @@ export function StudioNodeAssistantDock({
                 variant="ghost"
                 aria-label={tHistory('new')}
                 onClick={handleNewConversation}
-                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+                className="canvas-assistant-ghost-btn rounded-xl"
               >
                 <MessageSquarePlus className="size-4" />
               </Button>
@@ -489,9 +504,8 @@ export function StudioNodeAssistantDock({
                 title={tConversation('researchHint')}
                 onClick={() => setResearchEnabled((prev) => !prev)}
                 className={cn(
-                  'rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground',
-                  researchEnabled &&
-                    'bg-node-foreground text-node-canvas hover:bg-node-foreground hover:text-node-canvas',
+                  'canvas-assistant-ghost-btn rounded-xl',
+                  researchEnabled && 'canvas-assistant-action',
                 )}
               >
                 <Globe className="size-4" />
@@ -512,7 +526,7 @@ export function StudioNodeAssistantDock({
                 aria-label={tHistory('share')}
                 title={tHistory('share')}
                 onClick={() => void handleShareConversation()}
-                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+                className="canvas-assistant-ghost-btn rounded-xl"
               >
                 <Share2 className="size-4" />
               </Button>
@@ -522,7 +536,7 @@ export function StudioNodeAssistantDock({
                 variant="ghost"
                 aria-label={expanded ? t('restore') : t('expand')}
                 onClick={() => onExpandedChange(!expanded)}
-                className="hidden rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground lg:inline-flex"
+                className="canvas-assistant-ghost-btn hidden rounded-xl lg:inline-flex"
               >
                 {expanded ? (
                   <Minimize2 className="size-4" />
@@ -536,7 +550,7 @@ export function StudioNodeAssistantDock({
                 variant="ghost"
                 aria-label={t('collapse')}
                 onClick={() => onOpenChange(false)}
-                className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+                className="canvas-assistant-ghost-btn rounded-xl"
               >
                 <PanelRightClose className="size-4" />
               </Button>
@@ -546,7 +560,7 @@ export function StudioNodeAssistantDock({
 
         {expanded && !isMobile ? (
           <div className="flex min-h-0 flex-1">
-            <div className="flex min-h-0 flex-1 flex-col border-r border-node-panel-inner">
+            <div className="canvas-assistant-divider flex min-h-0 flex-1 flex-col border-r">
               <AssistantConversation
                 messages={conversation.messages}
                 isLoading={conversation.isLoading}

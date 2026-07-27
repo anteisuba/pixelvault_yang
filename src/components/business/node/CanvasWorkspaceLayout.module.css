@@ -1,3 +1,16 @@
+/* S11 浮动卡改造（2026-07-27，施工基准 docs/references/pages/assistant-shell.md
+ * §1「⛔ 下面这节已被 owner 推翻」节 + 几何表）：旧版靠 grid-template-columns
+ * 给助手一整条轨道——它一变宽，.stage 那一列被迫跟着变窄，这就是「挤压」的
+ * 物理成因。新版让 .stage 彻底不参与任何跟助手宽度相关的布局算法：不管助手
+ * 开合/多宽，.stage 恒为 .workspace 的 100%。--canvas-assistant-width 现在
+ * 只回答「这张浮动卡多宽」，不再回答「画布该让出多少」。
+ * 桌面档四边留白（16px）直接写在 CanvasWorkspaceLayout.tsx 的 Tailwind
+ * className 里（lg:top-4/right-4/bottom-4，z-index 复用 mobile 起就有的
+ * z-20，理由见该文件注释）——这里只留“宽度随 data-assistant-mode 变化 +
+ * 过渡”这一件用 CSS 变量才写得干净
+ * 的事，供 .rail 的 width 消费，也供 canvas.css / StudioNodeWorkbench.tsx
+ * 里"控件让位"的 calc() 表达式继承读取（自定义属性的继承走 DOM 祖先链，不
+ * 认 CSS Modules 的类名哈希，跨文件读同一个变量名是安全的）。 */
 .workspace {
   --canvas-assistant-width: 0px;
   position: relative;
@@ -12,17 +25,34 @@
 }
 
 @media (min-width: 1024px) {
-  .workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--canvas-assistant-width);
-    transition: grid-template-columns var(--duration-slow) var(--ease-standard);
-  }
-
   .workspace[data-assistant-mode='chat'] {
     --canvas-assistant-width: 22.5rem;
   }
 
   .workspace[data-assistant-mode='script'] {
     --canvas-assistant-width: min(51.25rem, 56vw);
+  }
+
+  .rail {
+    width: var(--canvas-assistant-width);
+    transition: width var(--duration-slow) var(--ease-standard);
+  }
+
+  /* 收起态的 2px 细条（真机实测发现，2026-07-27）：mode='closed' 时
+   * --canvas-assistant-width 是 0，rail 宽 0，但里面的 aside 自身有 1px 边框，
+   * 于是仍画出一条 2px × 视口高的白条浮在画布右缘。
+   *
+   * 旧的 grid 布局里它被 .workspace 的 overflow:hidden 裁掉了，所以一直看不见；
+   * 改成绝对定位的浮动卡之后没人裁它，就露出来了。
+   *
+   * ⚠ 不能给 .rail 加 overflow:hidden 收场：FAB（.canvas-assistant-fab）也住在
+   * rail 里，靠 absolute 跑到 rail 盒**外面**（实测 rail x=1904/宽 0，FAB
+   * x=1818），一裁就把唤起按钮一起裁没了。
+   *
+   * 所以只摘掉这一态下 aside 的边与影。宽度过渡不受影响；边框在动画一开始就
+   * 消失，反而比让一条 2px 白线跟着滑更干净。 */
+  .workspace[data-assistant-mode='closed'] :global(.canvas-assistant-surface) {
+    border-width: 0;
+    box-shadow: none;
   }
 }

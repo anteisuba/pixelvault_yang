@@ -46,7 +46,7 @@ export function CanvasAssistantHistory({
           variant="ghost"
           aria-label={t('title')}
           title={t('title')}
-          className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          className="canvas-assistant-ghost-btn rounded-xl"
         >
           <History className="size-4" />
         </Button>
@@ -58,23 +58,23 @@ export function CanvasAssistantHistory({
         // icon (which made it float over the canvas on narrow rails).
         align="start"
         sideOffset={8}
-        className="w-80 border-node-panel-inner bg-node-panel p-0 text-node-foreground shadow-node-panel"
+        className="canvas-assistant-popover w-80 p-0"
       >
-        <div className="border-b border-node-panel-inner px-3 py-2.5">
+        <div className="canvas-assistant-popover-divider border-b px-3 py-2.5">
           <p className="text-sm font-semibold">{t('title')}</p>
         </div>
         <div className="space-y-2 p-3">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-node-subtle" />
+            <Search className="canvas-assistant-popover-subtle pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2" />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('search')}
-              className="h-9 border-node-panel-inner bg-node-panel-soft pl-8 text-xs text-node-foreground"
+              className="canvas-assistant-popover-input h-9 pl-8 text-xs"
             />
           </div>
           {filtered.length === 0 ? (
-            <div className="rounded-xl bg-node-panel-soft px-3 py-6 text-center text-xs text-node-muted">
+            <div className="canvas-assistant-popover-empty rounded-xl px-3 py-6 text-center text-xs">
               {t('empty')}
             </div>
           ) : (
@@ -88,16 +88,15 @@ export function CanvasAssistantHistory({
                       setOpen(false)
                     }}
                     className={cn(
-                      'flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                      session.id === activeSessionId
-                        ? 'bg-node-panel-inner text-node-foreground'
-                        : 'hover:bg-node-panel-inner/70 text-node-muted hover:text-node-foreground',
+                      'canvas-assistant-popover-item flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left',
+                      session.id === activeSessionId &&
+                        'canvas-assistant-popover-item--active',
                     )}
                   >
                     <span className="truncate text-sm font-medium">
                       {session.title}
                     </span>
-                    <span className="text-2xs tabular-nums text-node-subtle">
+                    <span className="canvas-assistant-popover-subtle text-2xs tabular-nums">
                       {new Date(session.updatedAt).toLocaleString()}
                     </span>
                   </button>

@@ -55,9 +55,12 @@ describe('CanvasAppearancePanel', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ backgroundColor: '#FFFFFF' }),
     )
+    // S10（2026-07-27，token-inversion §4.5）：预设精简为只留浅色，
+    // 索引 1 现在是 #F4F4F3（原 #000000 连同其余 5 档深色一起被移出预设，
+    // 断言跟着常量走而非重新硬编码——见 NODE_STUDIO_CANVAS_APPEARANCE_PRESETS）。
     fireEvent.click(screen.getAllByRole('button', { name: /presetColor/ })[1])
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ backgroundColor: '#000000' }),
+      expect.objectContaining({ backgroundColor: '#F4F4F3' }),
     )
 
     // Custom picker is a native color input (no hex text field).

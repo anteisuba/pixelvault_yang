@@ -1155,6 +1155,7 @@ export function Studio3DWorkspace({
                     : undefined)
                 }
                 alt={displayGeneration.prompt || '3D model'}
+                loadingLabel={t('viewerLoading')}
                 className={cn(
                   'h-full w-full transition-opacity duration-500',
                   previewModelUrl && !finalModelVisible
@@ -1286,6 +1287,7 @@ export function Studio3DWorkspace({
                 src={provisionalModelUrl}
                 poster={sourceImage?.url}
                 alt={t('provisionalSavingLabel')}
+                loadingLabel={t('viewerLoading')}
                 className="h-full w-full"
               />
               <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm backdrop-blur-sm dark:text-emerald-300">

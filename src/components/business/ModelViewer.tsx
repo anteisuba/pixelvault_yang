@@ -1,8 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useTranslations } from 'next-intl'
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -15,6 +14,8 @@ interface ModelViewerProps {
   className?: string
   /** Aria label / model name */
   alt?: string
+  /** Localized loading copy supplied by the consuming surface. */
+  loadingLabel?: ReactNode
   /** Auto-rotate the model on load (default: true) */
   autoRotate?: boolean
   /** Allow user to orbit / zoom (default: true) */
@@ -45,9 +46,11 @@ const ModelViewerInner = dynamic(() => import('./ModelViewerInner'), {
   ssr: false,
 })
 
-export function ModelViewer({ className, ...rest }: ModelViewerProps) {
-  const t = useTranslations('Model3DGenerate')
-
+export function ModelViewer({
+  className,
+  loadingLabel,
+  ...rest
+}: ModelViewerProps) {
   return (
     <div
       className={cn(
@@ -57,9 +60,11 @@ export function ModelViewer({ className, ...rest }: ModelViewerProps) {
     >
       <ModelViewerInner
         loadingFallback={
-          <span className="text-sm text-muted-foreground">
-            {t('viewerLoading')}
-          </span>
+          loadingLabel ? (
+            <span className="text-sm text-muted-foreground">
+              {loadingLabel}
+            </span>
+          ) : null
         }
         {...rest}
       />

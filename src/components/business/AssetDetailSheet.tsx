@@ -760,6 +760,7 @@ function Model3DPreview({ generation }: { generation: GenerationRecord }) {
               : undefined
           }
           alt={generation.prompt || '3D model'}
+          loadingLabel={t('viewerLoading')}
           className="h-full w-full"
         >
           {/*

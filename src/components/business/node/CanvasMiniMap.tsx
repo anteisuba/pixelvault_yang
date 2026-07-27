@@ -12,28 +12,39 @@ export function CanvasMiniMap() {
   }
 
   return (
-    // 蓝图纸（施工图 §3/§9-S4）：独立 --node-blueprint-* token，与画布暖炭
-    // node-canvas/node-panel 系材质区分。nodeColor 与 bgColor 同值让节点填
-    // 充融进底色，只剩 nodeStrokeColor 线框可见 = "线框感"；节点位置仍靠
-    // 线框轮廓可辨。maskStrokeColor 同步换蓝图线（原 node-muted 暖灰在深青
-    // 底上会读成材质混用）。
+    // v0.2 皮（2026-07-27）：原来这里是旧皮的「蓝图纸」——深青底 `--node-blueprint-*`，
+    // 且 nodeColor 与 bgColor **同值**（深底上靠线框读出节点，是"线框感"的做法）。
+    // 画布换成浅色域之后这套整个失效：深青底成了白画布上的一个黑洞，而节点填充
+    // 与底色同值意味着**连线框都看不见** —— owner 反馈"纯黑什么都看不到"。
+    //
+    // 改法：容器交给 `.canvas-glass`（canvas.css 已有的 §8 玻璃配方，自带
+    // backdrop-filter 与不支持时的降级），SVG 内部只留内容色：
+    //  · bgColor 透明   —— 让玻璃容器透出来，minimap 不再自带一块不透明底
+    //  · nodeColor 淡填 + nodeStrokeColor 中性描边 —— 节点这次是**看得见的实体**，
+    //    不再走"填充融进底色"那条只在深底成立的路子
+    //  · maskStrokeColor 用 accent：视口框是"你现在在看哪儿"，正是 §0.6 给
+    //    accent 定义的「活跃 / 指向」，不是结构着色。要退回中性只需换成
+    //    --canvas-stroke-focus，一行的事。
     <MiniMap
       ariaLabel={t('minimapTitle')}
       position="bottom-left"
       pannable
       zoomable
-      nodeColor="var(--node-blueprint-bg)"
-      nodeStrokeColor="var(--node-blueprint-line)"
+      nodeColor="var(--canvas-stroke-bold)"
+      nodeStrokeColor="var(--canvas-ink-subtle)"
       nodeStrokeWidth={1.5}
-      maskColor="color-mix(in oklab, var(--node-blueprint-bg) 58%, transparent)"
-      maskStrokeColor="var(--node-blueprint-line)"
-      bgColor="var(--node-blueprint-bg)"
+      maskColor="color-mix(in oklab, var(--canvas-bg) 72%, transparent)"
+      maskStrokeColor="var(--canvas-accent)"
+      bgColor="transparent"
       // S2b（2026-07-26）：左下角现在被左侧合体面板占着，minimap 必须让开。
       // 靠 --canvas-minimap-left 定位，值由 StudioNodeWorkbench 按面板展开态给：
       // 展开 = 面板宽 + 间距，收起 = 图标轨宽 + 间距。作用域外（无该变量时）
       // 回退到原来的贴边值，不影响任何非画布消费者。
-      style={{ left: 'var(--canvas-minimap-left, 1rem)' }}
-      className="!bottom-24 !m-0 !h-32 !w-48 overflow-hidden rounded-2xl border border-node-blueprint-line/40 shadow-node-panel md:!bottom-28"
+      style={{
+        left: 'var(--canvas-minimap-left, 1rem)',
+        border: '1px solid var(--canvas-stroke-regular)',
+      }}
+      className="canvas-glass !bottom-24 !m-0 !h-32 !w-48 overflow-hidden rounded-2xl md:!bottom-28"
     />
   )
 }

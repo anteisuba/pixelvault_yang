@@ -18,9 +18,8 @@ import {
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
-  useNodesInitialized,
   useReactFlow,
-  useUpdateNodeInternals,
+  useStoreApi,
   type Connection,
   type DefaultEdgeOptions,
   type EdgeTypes,
@@ -99,7 +98,10 @@ import {
   useNodeWorkflow,
 } from '@/hooks/node/use-node-workflow'
 import { useOverlayFocusReturn } from '@/hooks/node/use-overlay-focus-return'
-import { useUpdateNodeInternalsOnInit } from '@/hooks/node/use-update-node-internals-on-init'
+import {
+  useUpdateNodeInternalsOnInit,
+  type ForceNodeInternalsUpdate,
+} from '@/hooks/node/use-update-node-internals-on-init'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
@@ -507,20 +509,24 @@ function StudioNodeCanvas() {
     NodeWorkflowNode,
     NodeWorkflowEdge
   >()
-  // Bug fix 2026-07-27: React Flow doesn't measure handle bounds on first
-  // mount, so every edge silently fails to render until something incidental
-  // (e.g. a window resize) forces a ResizeObserver pass — viewport pan/zoom
-  // does NOT trigger it (those only change a CSS transform). Nudging
-  // `updateNodeInternals` once as soon as `nodesInitialized` flips true
-  // forces that recompute immediately. One-shot by construction (see the
-  // hook) so it never re-fires on ordinary re-renders, e.g. a node drag.
-  const nodesInitialized = useNodesInitialized()
-  const updateNodeInternals = useUpdateNodeInternals()
-  useUpdateNodeInternalsOnInit(
-    nodesInitialized,
-    workflow.nodes,
-    updateNodeInternals,
+  // Bug fix 2026-07-27 (revised — see hook doc for the real-device root
+  // cause): `useNodesInitialized()` never flips true on a hard refresh
+  // because it waits on handle-bounds measurement, and handle bounds never
+  // get measured until something forces it — a deadlock. So this no longer
+  // gates on `nodesInitialized`; it fires once nodes exist, and forces
+  // React Flow's store-level `updateNodeInternals(Map)` action with the
+  // real DOM elements + `force: true` (NOT the id-only
+  // `useUpdateNodeInternals()` hook — that one's internal element lookup is
+  // exactly what's deadlocked). One-shot by construction (see the hook) so
+  // it never re-fires on ordinary re-renders, e.g. a node drag.
+  const nodeInternalsStoreApi = useStoreApi()
+  const applyForcedNodeInternals = useCallback(
+    (updates: Map<string, ForceNodeInternalsUpdate>) => {
+      nodeInternalsStoreApi.getState().updateNodeInternals(updates)
+    },
+    [nodeInternalsStoreApi],
   )
+  useUpdateNodeInternalsOnInit(workflow.nodes, applyForcedNodeInternals)
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   // S2a（2026-07-26）：助手默认**收起**。规格 §8 的宽度策略——左侧合体面板
   // 常驻 296px + 右助手约 420px = 716px 被 chrome 吃掉，1440 宽的屏只剩 724px

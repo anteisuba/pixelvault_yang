@@ -498,148 +498,200 @@
     }
   },
   "Homepage": {
-    "brandLabel": "パーソナルAIギャラリー",
-    "skipToContent": "ホームページ本文へ移動",
-    "hero": {
-      "title": "あらゆるモデルで生成し、すべての結果を保存",
-      "headline": "あらゆるモデルで生成",
-      "subline": "すべての結果を保存"
+    "heroStat": "36 MODELS · 10 PROVIDERS · 4 MODALITIES",
+    "heroLine1": "すべてのモデルで生成し、",
+    "heroLine2": "すべての結果を残す。",
+    "nav": {
+      "login": "ログイン",
+      "signup": "新規登録"
     },
-    "badges": {
-      "soon": "近日公開"
+    "views": {
+      "canvas": "キャンバス",
+      "studio": "スタジオ",
+      "lora": "LoRA",
+      "assets": "素材"
     },
-    "capabilityMatrix": {
-      "eyebrow": "作品をささえる層",
-      "title": "生成のその先で、作品に居場所を",
-      "description": "ブラインドのアリーナで強い 1 枚を選び、すべての生成をプロンプト・モデル・シードごと永久保存し、公開ギャラリーで作品を届ける。どれも ANTEI の中で完結します。"
-    },
-    "mediaLabels": {
-      "lora": {
-        "trainingSet": "参照 · 3 枚",
-        "model": "同じキャラ"
+    "viewBars": {
+      "canvas": {
+        "project": "夜行フェリーの手紙",
+        "status": "2 ノード生成中"
       },
-      "tts": {
-        "label": "Fish Audio S2 Pro",
-        "caption": "ZH · JP · EN · KR",
-        "play": "サンプルを再生",
-        "pause": "サンプルを一時停止"
-      },
-      "workflow": {
-        "imageNode": "脚本",
-        "upscaleNode": "画像",
-        "videoNode": "音声",
-        "deployNode": "動画"
-      },
-      "arena": {
-        "winner": "勝利",
-        "vote": "投票する"
-      }
-    },
-    "bottomCta": {
-      "eyebrow": "アーカイブを始める",
-      "title": "次の 1 枚は、あなた自身のものに",
-      "description": "数分で最初の API キーを接続。{count} 件の有効モデルで生成し、画像・動画・プロンプト・シードを自分のアーカイブに残せます。",
-      "primary": "制作を始める"
-    },
-    "footer": {
-      "tagline": "個人 AI ギャラリー · 自分のキーで、永久保存",
-      "sections": {
-        "product": "プロダクト",
-        "resources": "リソース",
-        "legal": "法的事項"
-      },
-      "links": {
-        "studio": "スタジオ",
-        "gallery": "ギャラリー",
-        "arena": "Arena",
-        "models": "モデル",
-        "github": "GitHub",
-        "privacy": "プライバシー",
-        "terms": "利用規約"
-      },
-      "copyright": "© {year} ANTEI · BYOK、永久アーカイブ"
-    },
-    "featureSections": {
-      "image": {
-        "eyebrow": "マルチモデル画像",
-        "title": "画像生成",
-        "description": "同じプロンプトを Flux・Gemini・GPT Image・NovelAI へ一度に送り、横に並べて比較してベストを選ぶ。自分の API キーで動かし、結果はモデルと設定ごとアーカイブに残ります。",
-        "cta": "生成をはじめる"
-      },
-      "video": {
-        "eyebrow": "マルチモデル動画",
-        "title": "動画生成",
-        "description": "Kling、Veo、Seedance を 1 つのスタジオに集約。テキスト、画像、参考動画から作り、完成したクリップはプロンプトと一緒に保存できます。",
-        "cta": "動画を生成"
+      "studio": {
+        "project": "4 モデル同時実行",
+        "status": "3 / 4 完了"
       },
       "lora": {
-        "eyebrow": "キャラ・スタイルの一貫性",
-        "title": "LoRA",
-        "description": "キャラクター・商品・画風をロックして、何度生成しても同じ見た目を保つ。1 枚の参照画像から同じものを再現したり、アイデンティティを固定して可変部分だけを動かせます。",
-        "cta": "一貫性を保つ"
+        "project": "同一キャラクター · 12 枚",
+        "status": "一貫性 0.94"
       },
-      "tts": {
-        "eyebrow": "テキスト読み上げ",
-        "title": "音声生成",
-        "description": "テキストを自然な音声に変換。公開ボイスや保存済みボイスを選び、速度を調整すると、音声も関連する画像やプロンプトと一緒に残ります。",
-        "cta": "音声を生成"
-      },
-      "model3d": {
-        "eyebrow": "再利用できる3D資産",
-        "title": "画像→3Dモデル",
-        "description": "保存済み画像を、プレビューして再利用できる 3D アセットに変換。元画像、プロンプト、完成したモデルを同じアーカイブに残せます。",
-        "cta": "3Dを生成"
-      },
-      "workflow": {
-        "eyebrow": "ビジュアルキャンバス",
-        "title": "キャンバス",
-        "description": "無限キャンバスでアイデアを 1 本の制作ラインに。アシスタントが脚本を読み取り、画像・動画・音声のノードを自動配置して、再利用できるフローにつなげます。",
-        "cta": "キャンバスを開く"
-      },
-      "arena": {
-        "eyebrow": "モデルのブラインド比較",
-        "title": "Arena",
-        "description": "モデル名を伏せたまま結果を横に並べて比較。いちばん良い作品を選ぶことで、ランキングが少しずつ賢くなります。",
-        "cta": "Arena を開く"
-      },
-      "archive": {
-        "eyebrow": "Cloudflare R2",
-        "title": "永久アーカイブ",
-        "description": "すべての生成を、プロンプト・モデル・プロバイダー・シードと一緒に保存。あとから探しやすく、使い回しやすい形で残ります。",
-        "cta": "アーカイブを見る"
-      },
-      "social": {
-        "eyebrow": "パブリックギャラリー",
-        "title": "フォロー・いいね・コレクト",
-        "description": "ほかのクリエイターを見つけ、気に入った作品にいいねし、お気に入りを集められます。公開ギャラリーと個人アーカイブは分かれています。",
-        "cta": "ギャラリーを見る"
+      "assets": {
+        "project": "すべて · 2,418 件",
+        "status": "R2 に保管済み"
       }
     },
-    "actions": {
-      "sharedSecondary": "モデルを見る",
-      "gallerySecondary": "ギャラリーを見る",
-      "startCreating": "制作を始める",
-      "models": "モデル",
-      "pricing": "料金",
-      "docs": "ドキュメント",
-      "signInPrimary": "アカウントを作成",
-      "signUpPrimary": "すでにアカウントがありますか？",
-      "authSecondary": "ホームに戻る"
+    "frameCaption": {
+      "promise": "4 つの画面がひとつの記録を共有 · どの生成もあとから辿って続けられます",
+      "hint": "上のタブで切り替え"
     },
-    "modelLineup": {
-      "title": "主要な AI モデル、すぐ使える",
-      "description": "画像・動画・音声・3D をまたぐ {count} 件の有効モデル。カタログは私たちが保守。自分の API キーでモデルを選び、結果は保存できます。",
+    "caps": {
+      "moreModels": "ほか {count} 件",
+      "textToImage": {
+        "eyebrow": "TEXT → IMAGE",
+        "body": "はじめにモデルを選ぶ必要はありません。同じ一文を選んだすべてのモデルへ送り、結果を横に並べます。あなたがすることは一枚選ぶだけ。選ばなかった分もパラメータごと残ります。",
+        "titleA": "ひとつの prompt に、",
+        "titleB": "4 つのモデルが同時に答える。"
+      },
+      "imageToVideo": {
+        "eyebrow": "IMAGE → VIDEO",
+        "body": "書き直しは不要です。選んだ結果がそのまま先頭フレームになり、prompt・参照画像・カメラ指定も一緒に渡ります。だから動画は元の静止画と同じ世界のままです。",
+        "titleA": "選んだ一枚を、",
+        "titleB": "そのまま動かす。"
+      },
+      "imageTo3d": {
+        "eyebrow": "IMAGE → 3D",
+        "body": "記録にあるどの画像も 3D にできます。元画像・prompt・生成されたモデルは同じ一件に残るので、次に使うときは探さずに呼び出せます。",
+        "titleA": "保存した画像を、",
+        "titleB": "使い回せる資産に。"
+      }
+    },
+    "models": {
+      "title": "{count} モデル、4 つのモダリティ。",
       "groups": {
         "image": "画像モデル",
         "video": "動画モデル",
         "audio": "音声モデル",
-        "model3d": "3Dモデル"
+        "model3d": "3D モデル"
       },
+      "priceVaries": "従量制",
+      "prevBatch": "{group} 前へ",
+      "nextBatch": "{group} 次へ",
+      "groupCount": "{count} 件",
       "priceImage": "{amount} / 枚",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 1k 文字",
-      "expandAll": "すべての{count}モデルを表示",
-      "collapse": "閉じる"
+      "priceKChars": "{amount} / 1k 文字"
+    },
+    "canvasView": {
+      "nodes": {
+        "script": "脚本",
+        "character": "キャラクター",
+        "setting": "背景",
+        "audio": "音声",
+        "shot": "ショット",
+        "video": "動画"
+      },
+      "nodeStatus": {
+        "script": {
+          "state": "確定",
+          "detail": "412 字"
+        },
+        "character": {
+          "state": "生成済み",
+          "detail": "4 / 4"
+        },
+        "setting": {
+          "state": "生成中",
+          "detail": "62%"
+        },
+        "audio": {
+          "state": "生成済み",
+          "detail": "0:18"
+        },
+        "shot": {
+          "state": "採用",
+          "detail": "seed 8841"
+        },
+        "video": {
+          "state": "待機中",
+          "detail": "5s"
+        }
+      },
+      "script": "夜の最終フェリー。彼女は手紙を四角に折り、コートの内ポケットへ入れて、振り返らなかった。",
+      "inspector": {
+        "title": "ショット · 03",
+        "rowModel": "モデル",
+        "rowSize": "サイズ",
+        "rowSeed": "seed",
+        "prompt": "フェリーの甲板、夜、逆光。彼女は背を向け、海風がコートの裾を持ち上げる。35mm、粒子感。",
+        "refs": "参照 · 上流から",
+        "regenerate": "再生成"
+      }
+    },
+    "studioView": {
+      "prompt": "夕暮れの稜線、雲海が峠を越えていく。逆光、35mm、粒子感、寒色。",
+      "size": "1536 × 864",
+      "perModel": "モデルごとに 1 枚",
+      "ownKey": "自分の API キー",
+      "estimate": "約 $0.15",
+      "generateAll": "4 枚同時に生成",
+      "picked": "採用",
+      "barPrompt": "PROMPT · 夕暮れの稜線、雲海が峠を越えていく",
+      "barDone": "4 / 4 完了"
+    },
+    "loraView": {
+      "base": "ベースモデル",
+      "stack": "LoRA スタック",
+      "triggers": "トリガー語",
+      "generateSet": "ひと組を生成",
+      "shotFront": "正面",
+      "shotProfile": "横向き",
+      "shotWaist": "バストアップ",
+      "footA": "同一キャラクター · 3 つの画角 · 同じ重み",
+      "footB": "同一性を固定し、構図と光は解放"
+    },
+    "assetsView": {
+      "treeTitle": "記録",
+      "folderAll": "すべて",
+      "folderProject": "夜行フェリーの手紙",
+      "folderCharacters": "キャラ設定",
+      "folderStudies": "稜線の研究",
+      "folderVoice": "音声",
+      "folderAssets3d": "3D 資産",
+      "rowModel": "モデル",
+      "rowProvider": "提供元",
+      "rowSeed": "seed",
+      "rowTime": "日時",
+      "prompt": "秋の林、落ち葉のなかで眠る狐。浅い被写界深度、暖かい光。"
+    },
+    "videoDemo": {
+      "bar": "先頭フレーム · Seedream 5.0 → Seedance 2.0",
+      "firstFrame": "先頭フレーム"
+    },
+    "turntableDemo": {
+      "bar": "ソース · 静物 #0142"
+    },
+    "foot": {
+      "tagline": "生成の入口と作品の記録、そして自分の進め方をひとつの場所に。生成ごとに prompt・モデル・提供元・seed を保存します。",
+      "cols": {
+        "product": {
+          "title": "プロダクト",
+          "items": {
+            "i1": "キャンバス",
+            "i2": "スタジオ",
+            "i3": "LoRA",
+            "i4": "素材",
+            "i5": "ギャラリー"
+          }
+        },
+        "resources": {
+          "title": "リソース",
+          "items": {
+            "i1": "モデル一覧",
+            "i2": "料金",
+            "i3": "更新履歴",
+            "i4": "ドキュメント"
+          }
+        },
+        "company": {
+          "title": "会社",
+          "items": {
+            "i1": "概要",
+            "i2": "お問い合わせ",
+            "i3": "稼働状況"
+          }
+        }
+      },
+      "privacy": "プライバシーポリシー",
+      "terms": "利用規約"
     },
     "auth": {
       "note": "プロンプト、モデル選択、生成結果を同じ制作履歴として保てます。",

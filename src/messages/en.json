@@ -498,148 +498,200 @@
     }
   },
   "Homepage": {
-    "brandLabel": "Personal AI Gallery",
-    "skipToContent": "Skip to homepage content",
-    "hero": {
-      "title": "Generate across every model, keep every result",
-      "headline": "Generate across every model",
-      "subline": "keep every result"
+    "heroStat": "36 MODELS · 10 PROVIDERS · 4 MODALITIES",
+    "heroLine1": "Generate with every model.",
+    "heroLine2": "Keep every result.",
+    "nav": {
+      "login": "Log in",
+      "signup": "Sign up"
     },
-    "badges": {
-      "soon": "Soon"
+    "views": {
+      "canvas": "Canvas",
+      "studio": "Studio",
+      "lora": "LoRA",
+      "assets": "Assets"
     },
-    "capabilityMatrix": {
-      "eyebrow": "Around the work",
-      "title": "Beyond generating, the work has a home",
-      "description": "A blind arena helps you pick the stronger take, every generation is archived with its prompt, model, and seed, and a public gallery lets the work be seen. All without leaving ANTEI."
-    },
-    "mediaLabels": {
-      "lora": {
-        "trainingSet": "Reference · 3 images",
-        "model": "Same character"
+    "viewBars": {
+      "canvas": {
+        "project": "Night Ferry Letter",
+        "status": "2 nodes generating"
       },
-      "tts": {
-        "label": "Fish Audio S2 Pro",
-        "caption": "ZH · JP · EN · KR",
-        "play": "Play sample",
-        "pause": "Pause sample"
-      },
-      "workflow": {
-        "imageNode": "script",
-        "upscaleNode": "image",
-        "videoNode": "audio",
-        "deployNode": "video"
-      },
-      "arena": {
-        "winner": "WIN",
-        "vote": "Cast your vote"
-      }
-    },
-    "bottomCta": {
-      "eyebrow": "Start archiving",
-      "title": "Your next image should belong to you",
-      "description": "Connect your first API key in minutes. Then generate across {count} active models and keep every image, clip, prompt, and seed in your own archive.",
-      "primary": "Start creating"
-    },
-    "footer": {
-      "tagline": "Personal AI gallery · Bring your own keys, forever archived",
-      "sections": {
-        "product": "Product",
-        "resources": "Resources",
-        "legal": "Legal"
-      },
-      "links": {
-        "studio": "Studio",
-        "gallery": "Gallery",
-        "arena": "Arena",
-        "models": "Models",
-        "github": "GitHub",
-        "privacy": "Privacy",
-        "terms": "Terms"
-      },
-      "copyright": "© {year} ANTEI · BYOK, forever archived"
-    },
-    "featureSections": {
-      "image": {
-        "eyebrow": "Multi-model images",
-        "title": "Image Generation",
-        "description": "Send one prompt to Flux, Gemini, GPT Image, and NovelAI at once, compare them side by side, and keep the best. Bring your own API keys; every result is archived with its model and settings.",
-        "cta": "Start generating"
-      },
-      "video": {
-        "eyebrow": "Multi-model video",
-        "title": "Video Generation",
-        "description": "Kling, Veo, and Seedance live in one studio. Create from text, an image, or reference footage, then save the clip with the prompt that made it.",
-        "cta": "Generate video"
+      "studio": {
+        "project": "4 models in parallel",
+        "status": "3 / 4 done"
       },
       "lora": {
-        "eyebrow": "Character & style consistency",
-        "title": "LoRA",
-        "description": "Lock a character, product, or art style so it stays recognizable across generations. Clone the look from a single reference, or pin the identity and let only the variables move.",
-        "cta": "Stay consistent"
+        "project": "Same character · 12 shots",
+        "status": "Consistency 0.94"
       },
-      "tts": {
-        "eyebrow": "Text to speech",
-        "title": "Audio Generation",
-        "description": "Turn text into natural voice clips with public or saved voices. Choose a voice and pace, then keep the audio beside the images and prompts that inspired it.",
-        "cta": "Generate audio"
-      },
-      "model3d": {
-        "eyebrow": "Reusable 3D assets",
-        "title": "Image-to-3D Models",
-        "description": "Turn a saved image into a 3D asset you can preview and reuse. The source image, prompt, and final model stay together in your archive.",
-        "cta": "Generate 3D"
-      },
-      "workflow": {
-        "eyebrow": "Visual canvas",
-        "title": "Canvas",
-        "description": "Wire your ideas into one flow on an infinite canvas: the assistant reads your script and lays out image, video, and audio nodes, then connects them into a reusable pipeline.",
-        "cta": "Open the canvas"
-      },
-      "arena": {
-        "eyebrow": "Blind model ranking",
-        "title": "Arena",
-        "description": "Compare results side by side without seeing the model names. Pick the strongest output and help the rankings improve over time.",
-        "cta": "Open Arena"
-      },
-      "archive": {
-        "eyebrow": "Cloudflare R2",
-        "title": "Permanent archive",
-        "description": "Every generation is saved with its prompt, model, provider, and seed. Your archive is built to stay available, searchable, and reusable.",
-        "cta": "Browse archive"
-      },
-      "social": {
-        "eyebrow": "Public gallery",
-        "title": "Follow, like, collect",
-        "description": "Discover other creators, like work that resonates, and collect favorites. Public gallery activity stays separate from your private archive.",
-        "cta": "Browse Gallery"
+      "assets": {
+        "project": "All · 2,418 items",
+        "status": "Archived to R2"
       }
     },
-    "actions": {
-      "sharedSecondary": "See models",
-      "gallerySecondary": "Browse gallery",
-      "startCreating": "Start creating",
-      "models": "Models",
-      "pricing": "Pricing",
-      "docs": "Docs",
-      "signInPrimary": "Create an account",
-      "signUpPrimary": "Already have an account?",
-      "authSecondary": "Back home"
+    "frameCaption": {
+      "promise": "One archive behind all four surfaces · any generation can be found and continued",
+      "hint": "Switch with the tabs above"
     },
-    "modelLineup": {
-      "title": "The best AI models, ready when you are",
-      "description": "{count} active models across image, video, audio, and 3D. We keep the catalog wired and current. You bring your own key, choose the right model, and keep every result.",
+    "caps": {
+      "moreModels": "+{count} more",
+      "textToImage": {
+        "eyebrow": "TEXT → IMAGE",
+        "body": "No need to choose a model before you start. The same line goes to every model you picked and the results line up side by side, so the only thing left to do is pick one. The ones you pass on stay too, each with its own parameters.",
+        "titleA": "One prompt.",
+        "titleB": "Four models answer at once."
+      },
+      "imageToVideo": {
+        "eyebrow": "IMAGE → VIDEO",
+        "body": "No rewriting the brief. The selected result becomes the first frame, and the prompt, references and camera notes travel with it — so the clip lives in the same world as the still.",
+        "titleA": "Take the one you picked",
+        "titleB": "and let it move."
+      },
+      "imageTo3d": {
+        "eyebrow": "IMAGE → 3D",
+        "body": "Every saved image can go to 3D. The source, the prompt and the generated model stay on one record, so next time you reach for it instead of hunting for it.",
+        "titleA": "Anything in the archive",
+        "titleB": "becomes a reusable asset."
+      }
+    },
+    "models": {
+      "title": "{count} models. Four modalities.",
       "groups": {
-        "image": "Image Models",
-        "video": "Video Models",
-        "audio": "Audio Models",
-        "model3d": "3D Models"
+        "image": "Image models",
+        "video": "Video models",
+        "audio": "Audio models",
+        "model3d": "3D models"
       },
+      "priceVaries": "Usage-based",
+      "prevBatch": "{group}, previous",
+      "nextBatch": "{group}, next",
+      "groupCount": "{count}",
       "priceImage": "{amount} per image",
       "priceSecond": "{amount} per second",
-      "priceKChars": "{amount} per 1k chars",
-      "expandAll": "Show all {count} models",
-      "collapse": "Show less"
+      "priceKChars": "{amount} per 1k chars"
+    },
+    "canvasView": {
+      "nodes": {
+        "script": "Script",
+        "character": "Character",
+        "setting": "Setting",
+        "audio": "Audio",
+        "shot": "Shot",
+        "video": "Video"
+      },
+      "nodeStatus": {
+        "script": {
+          "state": "Confirmed",
+          "detail": "412 words"
+        },
+        "character": {
+          "state": "Generated",
+          "detail": "4 / 4"
+        },
+        "setting": {
+          "state": "Generating",
+          "detail": "62%"
+        },
+        "audio": {
+          "state": "Generated",
+          "detail": "0:18"
+        },
+        "shot": {
+          "state": "Selected",
+          "detail": "seed 8841"
+        },
+        "video": {
+          "state": "Queued",
+          "detail": "5s"
+        }
+      },
+      "script": "The last ferry of the night. She folded the letter into a square, tucked it inside her coat, and did not look back.",
+      "inspector": {
+        "title": "Shot · 03",
+        "rowModel": "Model",
+        "rowSize": "Size",
+        "rowSeed": "seed",
+        "prompt": "Ferry deck, night, backlit. She faces away from camera; sea wind lifts one corner of her coat. 35mm, grain.",
+        "refs": "References · from upstream",
+        "regenerate": "Regenerate"
+      }
+    },
+    "studioView": {
+      "prompt": "A ridge at dusk, cloud sea spilling through the pass. Backlit, 35mm, grain, cool cast.",
+      "size": "1536 × 864",
+      "perModel": "1 image per model",
+      "ownKey": "Your own API key",
+      "estimate": "about $0.15",
+      "generateAll": "Generate all four",
+      "picked": "Picked",
+      "barPrompt": "PROMPT · A ridge at dusk, cloud sea through the pass",
+      "barDone": "4 / 4 done"
+    },
+    "loraView": {
+      "base": "Base model",
+      "stack": "LoRA stack",
+      "triggers": "Trigger words",
+      "generateSet": "Generate a set",
+      "shotFront": "Front",
+      "shotProfile": "Profile",
+      "shotWaist": "Waist up",
+      "footA": "Same character · three framings · one set of weights",
+      "footB": "Lock identity, release composition and light"
+    },
+    "assetsView": {
+      "treeTitle": "Archive",
+      "folderAll": "All",
+      "folderProject": "Night Ferry Letter",
+      "folderCharacters": "Character sheets",
+      "folderStudies": "Ridge studies",
+      "folderVoice": "Voice",
+      "folderAssets3d": "3D assets",
+      "rowModel": "Model",
+      "rowProvider": "Provider",
+      "rowSeed": "seed",
+      "rowTime": "Time",
+      "prompt": "Autumn woodland, a fox asleep in fallen leaves. Shallow depth of field, warm light."
+    },
+    "videoDemo": {
+      "bar": "First frame · Seedream 5.0 → Seedance 2.0",
+      "firstFrame": "First frame"
+    },
+    "turntableDemo": {
+      "bar": "Source · Still life #0142"
+    },
+    "foot": {
+      "tagline": "One place for the generators, the archive and your own way of working. Every run saves its prompt, model, provider and seed.",
+      "cols": {
+        "product": {
+          "title": "Product",
+          "items": {
+            "i1": "Canvas",
+            "i2": "Studio",
+            "i3": "LoRA",
+            "i4": "Assets",
+            "i5": "Gallery"
+          }
+        },
+        "resources": {
+          "title": "Resources",
+          "items": {
+            "i1": "Model catalogue",
+            "i2": "Pricing",
+            "i3": "Changelog",
+            "i4": "Docs"
+          }
+        },
+        "company": {
+          "title": "Company",
+          "items": {
+            "i1": "About",
+            "i2": "Contact",
+            "i3": "Status"
+          }
+        }
+      },
+      "privacy": "Privacy policy",
+      "terms": "Terms of service"
     },
     "auth": {
       "note": "Your account keeps prompts, model choices, and generated results together across sessions.",

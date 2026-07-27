@@ -8,6 +8,7 @@ import {
 } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
+import { LocaleHtmlSync } from '@/components/layout/LocaleHtmlSync'
 import { getAppOrigin, getClerkAllowedOrigins } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
@@ -112,6 +113,7 @@ export default async function LocaleLayout({
       allowedRedirectOrigins={CLERK_ALLOWED_REDIRECT_ORIGINS}
     >
       <NextIntlClientProvider locale={locale} messages={marketingMessages}>
+        <LocaleHtmlSync />
         {children}
       </NextIntlClientProvider>
     </ClerkProvider>

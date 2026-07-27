@@ -18,16 +18,6 @@ export const HOMEPAGE_MODEL_COUNTS = {
   model3d: countAvailableModels('MODEL_3D'),
 } as const
 
-export const HOMEPAGE_MODEL_COUNT_VALUES: Record<string, number> = {
-  count: HOMEPAGE_MODEL_COUNTS.total,
-  imageCount: HOMEPAGE_MODEL_COUNTS.image,
-  videoCount: HOMEPAGE_MODEL_COUNTS.video,
-  audioCount: HOMEPAGE_MODEL_COUNTS.audio,
-  model3dCount: HOMEPAGE_MODEL_COUNTS.model3d,
-}
-
-export const HOMEPAGE_MODEL_GROUP_PREVIEW_COUNT = 4
-
 export type HomepageModelPricingUnit = 'image' | 'second' | 'kchars'
 
 export interface HomepageModelReferencePrice {
@@ -73,237 +63,74 @@ export function formatHomepageReferencePriceAmount(amount: number): string {
   return `$${amount.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`
 }
 
-export const HOMEPAGE_FEATURE_TRANSLATION_VALUES: Record<
-  string,
-  Record<string, number>
-> = {
-  image: {
-    count: HOMEPAGE_MODEL_COUNTS.image,
-  },
-  video: {
-    count: HOMEPAGE_MODEL_COUNTS.video,
-  },
-  tts: {
-    count: HOMEPAGE_MODEL_COUNTS.audio,
-  },
-  model3d: {
-    count: HOMEPAGE_MODEL_COUNTS.model3d,
-  },
-}
-
 export const HOMEPAGE_METADATA = {
   title: 'PixelVault | Personal AI Gallery',
   description:
     'Generate with multiple AI image models, then archive every result in one personal gallery.',
 } as const
 
+/** `models` / `pricing` are gone with the v2 nav — v3 has no in-page anchors. */
 export const HOMEPAGE_ROUTES = {
   home: ROUTES.HOME,
   gallery: ROUTES.GALLERY,
   signIn: ROUTES.SIGN_IN,
   signUp: ROUTES.SIGN_UP,
   studio: ROUTES.STUDIO,
-  models: '#models',
-  pricing: '#models',
 } as const
 
-/**
- * Optional media shown inside each feature section's media tile.
- *
- * - `image` files live in `public/homepage/<id>.webp` (16:10, ≥1600px wide).
- *   Run Gemini 3 Pro Image or GPT-Image-2 with the prompt next to each
- *   section below, export to webp, drop in `public/homepage/`.
- * - `video` files live in `public/homepage/<id>.mp4` (h264, ≤2 MB, ≤8 s
- *   loop, muted, optionally with a `<id>-poster.webp` first-frame poster).
- *
- * When `media` is omitted, the section keeps the existing gradient tile,
- * so sections can ship images incrementally.
- */
-export type HomepageFeatureMedia =
-  | { type: 'image'; src: string; alt: string }
-  | { type: 'video'; src: string; poster?: string; alt: string }
-
-export type HomepageFeatureRhythm = 'feature' | 'compact' | 'panorama' | 'band'
+/* ── v3 marketing home (see docs/references/pages/home.md §A) ────────────── */
 
 /**
- * Feature sections — covers the six real product pillars. 图片生成 carries the
- * `feature` rhythm (large); 画布 (`workflow`) is a full-bleed dark `panorama`
- * band that breaks the alternating split rhythm mid-page (anti-slop: no more
- * than 2-3 consecutive image/text zigzag rows) and echoes the hero window /
- * capability panel / footer dark slabs; the rest are `compact`.
- *
- * `showEyebrow` is off across the board — the section titles are strong on
- * their own, and a micro-kicker above every headline is the single most
- * templated "AI landing page" signature (see taste-skill eyebrow restraint).
- *
- * `id: 'workflow'` is the **画布 / canvas** feature — it reuses the existing
- * node-graph fallback renderer and `featureSections.workflow` / `mediaLabels.
- * workflow` i18n keys, and links to the live canvas route.
+ * The strip directly under the v3 headline. Real archive results, not art
+ * direction: the page carries no brand colour of its own, so every colour on
+ * the first screen comes from these. Ten is the desktop count; narrower
+ * viewports hide the tail (see `home-v3.css`).
  */
-export const HOMEPAGE_FEATURE_SECTIONS = [
-  {
-    id: 'image',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'dawn',
-    reverse: false,
-    rhythm: 'feature',
-    showEyebrow: false,
-    showCta: true,
-    // Multi-model contact sheet: one prompt across Flux / Gemini / GPT Image
-    // / NovelAI, each tile chipped with its model name, full colour.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'video',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'forest',
-    reverse: true,
-    rhythm: 'compact',
-    showEyebrow: false,
-    showCta: true,
-    // Film-strip storyboard, 4 cinematic frames with frame numbers.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'tts',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'sky',
-    reverse: false,
-    // full-bleed light "audio strip" band — breaks the image/video split run
-    // (anti-slop: no 3 consecutive left/right splits) and suits the waveform,
-    // which is naturally a wide horizontal timeline.
-    rhythm: 'band',
-    showEyebrow: false,
-    showCta: true,
-    // SVG TTS player (HomepageTtsPlayer) — pure renderer, no asset.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'workflow',
-    ctaHref: ROUTES.STUDIO_NODE,
-    tone: 'ink',
-    reverse: true,
-    rhythm: 'panorama',
-    showEyebrow: false,
-    showCta: true,
-    // Canvas node-graph: 剧本 → (图像, 音频) → 视频 — the autospawn shape.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'lora',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'amber',
-    reverse: false,
-    rhythm: 'compact',
-    showEyebrow: false,
-    showCta: true,
-    // Contact sheet of reference images + the consistent result.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'model3d',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'earth',
-    reverse: true,
-    rhythm: 'compact',
-    showEyebrow: false,
-    showCta: true,
-    // Turntable: a saved image lifted onto a 360° 3D stage.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-] as const satisfies ReadonlyArray<{
-  id: string
-  ctaHref: string
-  tone: string
-  reverse: boolean
-  rhythm: HomepageFeatureRhythm
-  showEyebrow: boolean
-  showCta: boolean
-  comingSoon?: boolean
-  media: HomepageFeatureMedia | undefined
-}>
-
-export type HomepageFeatureSectionTone =
-  (typeof HOMEPAGE_FEATURE_SECTIONS)[number]['tone']
-
-// tts / model3d / workflow were promoted to full feature sections above, so
-// the capability strip now carries only the platform layer (compare / archive
-// / share) — no duplicate rendering of the same i18n keys.
-export const HOMEPAGE_CAPABILITY_ITEMS = [
-  { id: 'arena', comingSoon: false },
-  { id: 'archive', comingSoon: false },
-  { id: 'social', comingSoon: false },
-] as const satisfies ReadonlyArray<{
-  id: string
-  comingSoon: boolean
-}>
-
-/** Showcase images for hero + gallery preview */
-export const HOMEPAGE_SHOWCASE = [
-  {
-    id: 'sdxlRealism',
-    src: '/showcase/showcase-01.webp',
-    model: 'GPT Image',
-    tone: 'dawn',
-  },
-  {
-    id: 'animagineAnime',
-    src: '/showcase/showcase-02.webp',
-    model: 'NovelAI',
-    tone: 'forest',
-  },
-  {
-    id: 'geminiConcept',
-    src: '/showcase/showcase-03.webp',
-    model: 'Gemini',
-    tone: 'ink',
-  },
-  {
-    id: 'dalleCreative',
-    src: '/showcase/showcase-04.webp',
-    model: 'GPT Image',
-    tone: 'sky',
-  },
-  {
-    id: 'fluxPro',
-    src: '/showcase/showcase-05.webp',
-    model: 'Flux',
-    tone: 'amber',
-  },
-  {
-    id: 'novelaiIllust',
-    src: '/showcase/showcase-06.webp',
-    model: 'NovelAI',
-    tone: 'earth',
-  },
-  {
-    id: 'showcase07',
-    src: '/showcase/showcase-07.webp',
-    model: 'Flux',
-    tone: 'sky',
-  },
-  {
-    id: 'showcase08',
-    src: '/showcase/showcase-08.webp',
-    model: 'Gemini',
-    tone: 'ink',
-  },
+export const HOME_V3_STRIP = [
+  { id: 'stripPortrait', src: '/homepage/archive/portrait.webp' },
+  { id: 'stripLandscape', src: '/homepage/archive/landscape.webp' },
+  { id: 'stripStillLife', src: '/homepage/archive/stilllife.webp' },
+  { id: 'stripAnimal', src: '/homepage/archive/animal.webp' },
+  { id: 'stripConcept', src: '/homepage/archive/concept.webp' },
+  { id: 'stripAbstract', src: '/homepage/archive/abstract.webp' },
+  { id: 'stripShowcase01', src: '/showcase/showcase-01.webp' },
+  { id: 'stripShowcase02', src: '/showcase/showcase-02.webp' },
+  { id: 'stripShowcase03', src: '/showcase/showcase-03.webp' },
+  { id: 'stripShowcase04', src: '/showcase/showcase-04.webp' },
 ] as const
 
 /**
- * Image set for the hero "darkroom window" wall. Deliberately disjoint from
- * the Made-with-ANTEI gallery below (which uses `/showcase/*`) so the hero
- * reads as an ambient backdrop instead of duplicating the gallery's pieces.
- * Pulls from the diverse `archive` set plus two stylized edits — none of which
- * appear in the adjacent gallery.
+ * Provider wordmarks for the marquee that closes the first screen. Plain text
+ * on purpose — logo files would be the second visual system on a page whose
+ * whole premise is that typography is the only one.
  */
-export const HOMEPAGE_HERO_WALL = [
-  { id: 'heroPortrait', src: '/homepage/archive/portrait.webp' },
-  { id: 'heroLandscape', src: '/homepage/archive/landscape.webp' },
-  { id: 'heroAnimal', src: '/homepage/archive/animal.webp' },
-  { id: 'heroConcept', src: '/homepage/archive/concept.webp' },
-  { id: 'heroStillLife', src: '/homepage/archive/stilllife.webp' },
-  { id: 'heroAbstract', src: '/homepage/archive/abstract.webp' },
-  { id: 'heroGhibli', src: '/homepage/imageEditing/02-ghibli.webp' },
-  { id: 'heroWatercolor', src: '/homepage/imageEditing/04-watercolor.webp' },
+export const HOME_V3_PROVIDERS = [
+  'OpenAI',
+  'Google Gemini',
+  'fal.ai',
+  'NovelAI',
+  'ByteDance Seedream',
+  'ElevenLabs',
+  'Fish Audio',
+  'Replicate',
+  'Hyper3D Rodin',
+  'Runway',
+  'Black Forest Labs',
+  'Hugging Face',
+] as const
+
+/** Footer link columns. `items` keys resolve under `Homepage.foot.cols.*`. */
+export const HOME_V3_FOOTER_COLS = [
+  {
+    id: 'product',
+    hrefs: [
+      ROUTES.STUDIO_NODE,
+      ROUTES.STUDIO,
+      ROUTES.STUDIO,
+      ROUTES.ASSETS,
+      ROUTES.GALLERY,
+    ],
+  },
+  { id: 'resources', hrefs: ['#', '#', '#', '#'] },
+  { id: 'company', hrefs: ['#', '#', '#'] },
 ] as const

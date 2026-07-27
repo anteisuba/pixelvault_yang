@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { HomepageShell } from '@/components/business/HomepageShell'
+import { HomeV3Shell } from '@/components/business/home-v3/HomeV3Shell'
 import type { AppLocale } from '@/i18n/routing'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -51,5 +51,5 @@ export default async function LocalizedRootPage({
   // request scope set up in [locale]/layout.tsx.
   await params
 
-  return <HomepageShell />
+  return <HomeV3Shell />
 }

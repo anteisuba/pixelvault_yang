@@ -498,148 +498,200 @@
     }
   },
   "Homepage": {
-    "brandLabel": "个人 AI 画廊",
-    "skipToContent": "跳到首页正文",
-    "hero": {
-      "title": "用每一个模型生成，保留每一次结果",
-      "headline": "用每一个模型生成",
-      "subline": "保留每一次结果"
+    "heroStat": "36 MODELS · 10 PROVIDERS · 4 MODALITIES",
+    "heroLine1": "用每一个模型生成，",
+    "heroLine2": "保留每一次结果。",
+    "nav": {
+      "login": "登录",
+      "signup": "注册"
     },
-    "badges": {
-      "soon": "即将上线"
+    "views": {
+      "canvas": "画布",
+      "studio": "工作台",
+      "lora": "LoRA",
+      "assets": "素材"
     },
-    "capabilityMatrix": {
-      "eyebrow": "作品的底座",
-      "title": "生成之外，作品自有归宿",
-      "description": "盲测擂台帮你选出更强的一版，每次生成连同 prompt、模型和 seed 永久归档，公共画廊让作品被看见。这些都不必离开 ANTEI。"
-    },
-    "mediaLabels": {
-      "lora": {
-        "trainingSet": "参考 · 3 张",
-        "model": "同款角色"
+    "viewBars": {
+      "canvas": {
+        "project": "夜航的信",
+        "status": "2 个节点生成中"
       },
-      "tts": {
-        "label": "Fish Audio S2 Pro",
-        "caption": "ZH · JP · EN · KR",
-        "play": "播放示例",
-        "pause": "暂停示例"
-      },
-      "workflow": {
-        "imageNode": "剧本",
-        "upscaleNode": "图像",
-        "videoNode": "音频",
-        "deployNode": "视频"
-      },
-      "arena": {
-        "winner": "胜出",
-        "vote": "投票选择"
-      }
-    },
-    "bottomCta": {
-      "eyebrow": "开始建档",
-      "title": "你的下一张图，应该属于你自己",
-      "description": "几分钟接好你的第一把 API key。然后用 {count} 个可用模型生成，并把图、视频、prompt 和 seed 留在自己的档案里。",
-      "primary": "开始创作"
-    },
-    "footer": {
-      "tagline": "个人 AI 画廊 · 自带 key，永久归档",
-      "sections": {
-        "product": "产品",
-        "resources": "资源",
-        "legal": "条款"
-      },
-      "links": {
-        "studio": "工作台",
-        "gallery": "画廊",
-        "arena": "Arena 擂台",
-        "models": "模型阵容",
-        "github": "GitHub",
-        "privacy": "隐私",
-        "terms": "服务条款"
-      },
-      "copyright": "© {year} ANTEI · BYOK，永久归档"
-    },
-    "featureSections": {
-      "image": {
-        "eyebrow": "多模型图像",
-        "title": "图片生成",
-        "description": "把同一句 prompt 一次发给 Flux、Gemini、GPT Image、NovelAI，横向比较再挑出最好的一张。用你自己的 API key，每张结果都连同模型和参数一起存进档案。",
-        "cta": "开始生成"
-      },
-      "video": {
-        "eyebrow": "多模型视频",
-        "title": "视频生成",
-        "description": "Kling、Veo 和 Seedance 都在同一个工作台里。可以从文字、图片或参考视频开始，生成后和对应 prompt 一起保存。",
-        "cta": "生成视频"
+      "studio": {
+        "project": "4 个模型并发",
+        "status": "3 / 4 已完成"
       },
       "lora": {
-        "eyebrow": "角色 / 风格一致性",
-        "title": "LoRA",
-        "description": "锁定一个角色、产品或画风，让它在多次生成里保持同一种长相。从一张参考图复刻同款，或锁住身份、只放开可变的部分。",
-        "cta": "保持一致"
+        "project": "同一角色 · 12 张",
+        "status": "一致性 0.94"
       },
-      "tts": {
-        "eyebrow": "文字转语音",
-        "title": "音频生成",
-        "description": "把文字变成自然语音，选择公开或已保存的音色，再调整语速。音频会和相关图像、prompt 放在一起。",
-        "cta": "生成语音"
-      },
-      "model3d": {
-        "eyebrow": "可复用 3D 资产",
-        "title": "图生 3D 模型",
-        "description": "把已保存的图片转成可预览、可复用的 3D 资产。原图、prompt 和生成结果会留在同一个档案里。",
-        "cta": "生成 3D"
-      },
-      "workflow": {
-        "eyebrow": "可视化画布",
-        "title": "画布",
-        "description": "在无限画布上把想法连成一条创作线：助手读懂你的剧本，自动铺开图像、视频、音频节点，再连成可复用的流程。",
-        "cta": "打开画布"
-      },
-      "arena": {
-        "eyebrow": "模型盲测排行",
-        "title": "Arena 擂台",
-        "description": "并排比较多个结果，但先不看模型名。选出更好的作品，帮助排行慢慢变准。",
-        "cta": "进入 Arena"
-      },
-      "archive": {
-        "eyebrow": "Cloudflare R2",
-        "title": "永久归档",
-        "description": "每次生成都会保存 prompt、模型、供应商和 seed。你的档案会保持可查、可找回、可复用。",
-        "cta": "浏览档案"
-      },
-      "social": {
-        "eyebrow": "公共画廊",
-        "title": "关注、点赞、收藏",
-        "description": "发现其他创作者，给喜欢的作品点赞，也可以把灵感收进合集。公共画廊和私人档案会清楚分开。",
-        "cta": "浏览画廊"
+      "assets": {
+        "project": "全部 · 2,418 件",
+        "status": "R2 已归档"
       }
     },
-    "actions": {
-      "sharedSecondary": "查看模型",
-      "gallerySecondary": "浏览画廊",
-      "startCreating": "开始创作",
-      "models": "模型",
-      "pricing": "价格",
-      "docs": "文档",
-      "signInPrimary": "创建账号",
-      "signUpPrimary": "已有账号？",
-      "authSecondary": "返回首页"
+    "frameCaption": {
+      "promise": "四个面同一套档案 · 任何一次生成都能被找回和续接",
+      "hint": "点上面的标签切换"
     },
-    "modelLineup": {
-      "title": "精选 AI 模型，即开即用",
-      "description": "{count} 个可用模型，覆盖图像、视频、语音和 3D。模型目录由我们维护；你自带 API key，选择合适模型，结果都会保存。",
+    "caps": {
+      "moreModels": "+ {count} 个",
+      "textToImage": {
+        "eyebrow": "TEXT → IMAGE",
+        "body": "不用挑完模型再开始。同一句话推给全部选中的模型，出来横向摆在一起，你只做一件事——挑哪张。落选的那几张也留着，连同各自的参数。",
+        "titleA": "一句 prompt，",
+        "titleB": "四个模型同时给答案。"
+      },
+      "imageToVideo": {
+        "eyebrow": "IMAGE → VIDEO",
+        "body": "不用重新描述一遍。选中的结果直接作为首帧送进视频模型，prompt、参考图和镜头设定一起带过去，出来的片子和原图是同一个世界。",
+        "titleA": "挑好的那张，",
+        "titleB": "直接接着动起来。"
+      },
+      "imageTo3d": {
+        "eyebrow": "IMAGE → 3D",
+        "body": "档案里任何一张图都能进 3D。原图、prompt 和生成出来的模型留在同一条记录上，下次要用直接调，不用重新找。",
+        "titleA": "存过的图，",
+        "titleB": "转成能复用的资产。"
+      }
+    },
+    "models": {
+      "title": "{count} 个模型，四种模态。",
       "groups": {
-        "image": "图像模型",
+        "image": "图片模型",
         "video": "视频模型",
-        "audio": "语音模型",
+        "audio": "音频模型",
         "model3d": "3D 模型"
       },
+      "priceVaries": "按用量",
+      "prevBatch": "{group} 上一批",
+      "nextBatch": "{group} 下一批",
+      "groupCount": "{count} 个",
       "priceImage": "{amount} / 张",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 千字符",
-      "expandAll": "展开全部 {count} 个模型",
-      "collapse": "收起"
+      "priceKChars": "{amount} / 千字符"
+    },
+    "canvasView": {
+      "nodes": {
+        "script": "剧本",
+        "character": "角色",
+        "setting": "背景",
+        "audio": "音频",
+        "shot": "镜头",
+        "video": "视频"
+      },
+      "nodeStatus": {
+        "script": {
+          "state": "已确认",
+          "detail": "412 字"
+        },
+        "character": {
+          "state": "已生成",
+          "detail": "4 / 4"
+        },
+        "setting": {
+          "state": "生成中",
+          "detail": "62%"
+        },
+        "audio": {
+          "state": "已生成",
+          "detail": "0:18"
+        },
+        "shot": {
+          "state": "已选用",
+          "detail": "seed 8841"
+        },
+        "video": {
+          "state": "排队中",
+          "detail": "5s"
+        }
+      },
+      "script": "夜里最后一班渡轮。她把信折成方块，塞进外套内袋，没有回头。",
+      "inspector": {
+        "title": "镜头 · 03",
+        "rowModel": "模型",
+        "rowSize": "尺寸",
+        "rowSeed": "seed",
+        "prompt": "渡轮甲板，夜，逆光。她背对镜头，海风把外套吹起一角。35mm，颗粒感。",
+        "refs": "参考 · 来自上游",
+        "regenerate": "重新生成"
+      }
+    },
+    "studioView": {
+      "prompt": "黄昏的山脊，云海漫过垭口。逆光，35mm，颗粒感，冷调。",
+      "size": "1536 × 864",
+      "perModel": "每个模型 1 张",
+      "ownKey": "自带 API key",
+      "estimate": "约 $0.15",
+      "generateAll": "同时生成 4 张",
+      "picked": "选用",
+      "barPrompt": "PROMPT · 黄昏的山脊，云海漫过垭口",
+      "barDone": "4 / 4 完成"
+    },
+    "loraView": {
+      "base": "底模",
+      "stack": "LoRA 栈",
+      "triggers": "触发词",
+      "generateSet": "生成一组",
+      "shotFront": "正面",
+      "shotProfile": "侧身",
+      "shotWaist": "半身",
+      "footA": "同一角色 · 三个镜位 · 同一组权重",
+      "footB": "锁身份，放开构图与光线"
+    },
+    "assetsView": {
+      "treeTitle": "档案",
+      "folderAll": "全部",
+      "folderProject": "夜航的信",
+      "folderCharacters": "角色设定",
+      "folderStudies": "山景研究",
+      "folderVoice": "配音",
+      "folderAssets3d": "3D 资产",
+      "rowModel": "模型",
+      "rowProvider": "供应商",
+      "rowSeed": "seed",
+      "rowTime": "时间",
+      "prompt": "秋日林间，狐狸蜷在落叶里睡着。浅景深，暖光。"
+    },
+    "videoDemo": {
+      "bar": "首帧 · Seedream 5.0 → Seedance 2.0",
+      "firstFrame": "首帧"
+    },
+    "turntableDemo": {
+      "bar": "源 · 静物 #0142"
+    },
+    "foot": {
+      "tagline": "把生成入口、作品档案和个人创作流程放在一个地方。每次生成都会保存 prompt、模型、供应商和 seed。",
+      "cols": {
+        "product": {
+          "title": "产品",
+          "items": {
+            "i1": "画布",
+            "i2": "工作台",
+            "i3": "LoRA",
+            "i4": "素材",
+            "i5": "画廊"
+          }
+        },
+        "resources": {
+          "title": "资源",
+          "items": {
+            "i1": "模型目录",
+            "i2": "价格",
+            "i3": "更新日志",
+            "i4": "文档"
+          }
+        },
+        "company": {
+          "title": "公司",
+          "items": {
+            "i1": "关于",
+            "i2": "联系",
+            "i3": "状态"
+          }
+        }
+      },
+      "privacy": "隐私政策",
+      "terms": "服务条款"
     },
     "auth": {
       "note": "账号会把你的提示词、模型选择和生成结果保留在同一条创作记录里。",

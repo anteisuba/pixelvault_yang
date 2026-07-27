@@ -8,6 +8,8 @@ import {
   displayFont,
   editorialSerif,
   geistMono,
+  homepageMono,
+  homepageSans,
   japaneseSans,
   serifFont,
 } from '@/i18n/fonts'
@@ -35,7 +37,7 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body
-        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
+        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${homepageSans.variable} ${homepageMono.variable} font-sans antialiased`}
       >
         {children}
       </body>

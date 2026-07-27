@@ -17,7 +17,8 @@ primitive → semantic → domain/component → page
 
 ## CSS 与 token 现状
 
-- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层）+ `src/app/homepage.css`（首页页面局部，`.homepage-*` 约定，别全局化）。
+- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v3.css` / `src/app/legal.css`（域内局部，令牌一律写在域根上**不准写 `:root`**——canvas.css 就是这么泄漏到两个助手 dock 的）。
+- 首页域皮肤 2026-07-27 从 `homepage.css`（`.homepage-*` / `--home-*`）换成 `home-v3.css`（`.home-v3-*` / `--h-*`），旧文件和它的 17 个 `Homepage*` 组件已删。
 - 运行时默认 `.dark`（根 html className）。⚠ `.dark` 只换色 token 不设 color-scheme——暗面组件需显式 `color-scheme: dark`。
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
 - ⚠ globals.css 首行仍 `@import` Fontshare Satoshi，但全 src 无任何 `Satoshi` font-family 引用（字体栈已迁 Geist）——死引用，已立清理任务。
@@ -28,7 +29,7 @@ primitive → semantic → domain/component → page
 | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
 | Semantic fallback | `bg-background` / `bg-card` / `border-border` / `bg-muted`…              | 无域级方向时的中性实现，不是视觉上限         |
 | Domain            | `sidebar-*` · `node-*` · `--surface-composer` · `--width-studio-*`       | 只在所属域使用；当前值不外溢为全站默认       |
-| Page              | `homepage-*` / `--home-*`                                                | 留在页内；第二个页面需要同模式时仍先分别验证 |
+| Page              | `home-v3-*` / `--h-*`（首页域）                                          | 留在页内；第二个页面需要同模式时仍先分别验证 |
 | Utility           | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav` | 共享尺度工具，不表达品牌性格                 |
 
 - `editorial-*` 类族（globals.css 33 处）：跨 prompts / arena / storyboard / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
@@ -37,14 +38,14 @@ primitive → semantic → domain/component → page
 
 ## 字体现状（2026-07-10 核验 `src/i18n/fonts.ts`）
 
-| 变量                                           | 实际字体                                 | 用途                                                 |
-| ---------------------------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| `--font-app-sans`                              | **Geist**                                | 正文主字体（en）                                     |
-| `--font-app-display`                           | Geist                                    | 展示字（映射 `--font-display`）                      |
-| `--font-app-serif`                             | **Geist ——名叫 serif 实为 sans（陷阱）** | 勿当衬线用                                           |
-| `--font-editorial`                             | Fraunces 400/500                         | 仅营销 hero；CJK hero 回退宋体系统栈（homepage.css） |
-| `--font-geist-mono`                            | Geist Mono                               | 代码 / 参数                                          |
-| `--font-japanese-sans` / `--font-chinese-sans` | Noto Sans JP / SC                        | `html:lang(ja/zh)` 覆盖 sans/display 栈              |
+| 变量                                           | 实际字体                                 | 用途                                                |
+| ---------------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
+| `--font-app-sans`                              | **Geist**                                | 正文主字体（en）                                    |
+| `--font-app-display`                           | Geist                                    | 展示字（映射 `--font-display`）                     |
+| `--font-app-serif`                             | **Geist ——名叫 serif 实为 sans（陷阱）** | 勿当衬线用                                          |
+| `--font-editorial`                             | Fraunces 400/500                         | 现仅 `legal.css` 在读（营销 hero 已随 v2 首页删除） |
+| `--font-geist-mono`                            | Geist Mono                               | 代码 / 参数                                         |
+| `--font-japanese-sans` / `--font-chinese-sans` | Noto Sans JP / SC                        | `html:lang(ja/zh)` 覆盖 sans/display 栈             |
 
 - zh / ja 当前没有独立标题字体身份（衬线场景由系统栈兜底）。这是实现事实；各业务域可在页级设计确认后定义自己的字体表达。
 
@@ -106,7 +107,7 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 
 ## Source of Truth
 
-- `src/app/globals.css` · `src/app/homepage.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
+- `src/app/globals.css` · `src/app/home-v3.css` · `src/app/canvas.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
 - `src/hooks/use-mobile.ts` · `src/app/[locale]/(main)/layout.tsx` · `src/components/{ui,layout,business}/`
 - 历史详版（含逐行 source 引用）：`git show cddc4384:docs/design/system/<文件>`（css-and-tokens / layout-shell / components / i18n-accessibility / current-ui-inventory）
 

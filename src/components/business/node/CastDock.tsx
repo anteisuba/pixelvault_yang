@@ -153,13 +153,17 @@ interface CastDockProps {
    */
   forceCollapse?: boolean
   /**
-   * R3-4: reports every collapsed⇄expanded transition upward so the
-   * workbench can (a) close the other L5 citizen (add menu) when this one
-   * opens, and (b) fold "cast dock expanded" into the Esc ladder + focus
-   * return. CastDock stays the owner of `collapsed` itself — this is a
-   * one-way mirror, not a lift.
+   * R3-4: reports "卡匣此刻是一个开着的 L5 浮层" upward so the workbench can
+   * (a) close the other L5 citizen (add menu) when this one opens, and (b)
+   * fold the dock into the Esc ladder + focus return. CastDock stays the
+   * owner of `collapsed` itself — this is a one-way mirror, not a lift.
+   *
+   * ⚠ 报的是**浮层开着**，不是**展开着**——S2b 之后两者已经分家：`panel`
+   * 布局的卡匣是左侧常驻面板的内容，展开是它的常态、也不遮挡任何东西，所以
+   * 恒报 false。把两者当同一件事的旧写法让 Esc 阶梯上多出一格恒真的假浮层，
+   * 第一次按 Esc 全被它吃掉（owner 实测，2026-07-27）。
    */
-  onExpandedChange?(expanded: boolean): void
+  onOverlayOpenChange?(open: boolean): void
 }
 
 /**
@@ -185,8 +189,13 @@ export function CastDock({
   canvasDragActive = false,
   layout = 'absolute',
   forceCollapse = false,
-  onExpandedChange,
+  onOverlayOpenChange,
 }: CastDockProps) {
+  // 布局分两族，行为在多处按这条线分叉，所以先定死：`panel`（S2b 起的生产用
+  // 法）= 左侧常驻面板里的内容，不遮挡、不是浮层；`absolute` / `inline` = 悬在
+  // 画布上的横匣浮层，才算 L5 公民。
+  const isPanel = layout === 'panel'
+  const isInline = layout === 'inline'
   const t = useTranslations('StudioNode.castDock')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
@@ -218,10 +227,12 @@ export function CastDock({
   }, [forceCollapse])
 
   // R3-4 §4.2: report every transition upward (see prop doc for why this is
-  // a mirror, not a lift).
+  // a mirror, not a lift). panel 布局恒报 false——那里 `collapsed` 连渲染都不
+  // 读（见文件末尾的 isPanel 分支：收没收都返回 stripBody），报上去就是凭空
+  // 给工作台的 L5 名单塞一个永远开着的假浮层。
   useEffect(() => {
-    onExpandedChange?.(!collapsed)
-  }, [collapsed, onExpandedChange])
+    onOverlayOpenChange?.(!isPanel && !collapsed)
+  }, [isPanel, collapsed, onOverlayOpenChange])
   // S5f B4: remembers a drag-triggered auto-expand so the strip re-collapses
   // when the drag ends (a manual expand mid-drag would NOT set this, so it
   // stays open — only the automatic one snaps back).
@@ -353,8 +364,6 @@ export function CastDock({
   // （减去行自身已经带的 insetLeft）。
   const barLeft = Math.max(insetLeft, NODE_STUDIO_CAST_DOCK.minimapClearancePx)
   const inlineStripLeftPx = Math.max(0, barLeft - insetLeft)
-  const isInline = layout === 'inline'
-  const isPanel = layout === 'panel'
 
   const handleButton = (
     <button
@@ -366,8 +375,9 @@ export function CastDock({
       onClick={() => setCollapsed((value) => !value)}
       className={cn(
         'pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold shadow-sm transition-all duration-fast ease-standard active:scale-95 md:h-10',
-        // R3-4 §4.1 L4: 折叠态的把手是常驻工作区 chrome（legacy `absolute`
-        // layout；当前生产用法走 `inline`，见下方 stripBody 的 L5 展开层）。
+        // R3-4 §4.1 L4: 折叠态的把手是常驻工作区 chrome（浮层族 `absolute` /
+        // `inline` 才有；S2b 之后生产用法是 `panel`，折叠交给外层
+        // CanvasLeftPanel，这里整条把手根本不渲染）。
         !isInline && 'absolute z-canvas-chrome rounded-2xl backdrop-blur-xl',
       )}
       // v0.2（2026-07-27）：这条把手在生产始终走 `inline`（StudioNodeWorkbench
@@ -585,7 +595,7 @@ export function CastDock({
         <AnimatePresence>
           {!collapsed ? (
             // R3-4 §4.1 L5: 卡匣展开浮层——CanvasAddMenu 打开时会强制收起这个
-            // 展开态（互踢，见 StudioNodeWorkbench 的 castDockExpanded 协调）。
+            // 展开态（互踢，见 StudioNodeWorkbench 的 castDockOverlayOpen 协调）。
             // A4 ③: 展开/收起挂载与卸载都走 AnimatePresence，不再是硬切—
             // 透明度 + 轻微上滑，slow(320ms) 面板展开折叠档，
             // useReducedMotion 时长自动归零。

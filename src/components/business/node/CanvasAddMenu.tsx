@@ -90,8 +90,19 @@ export function CanvasAddMenu({
       }
     }
 
+    // R3-4 §4.2「一次一层」: 这一下 Esc 已经被菜单消费掉了，别再让它冒到
+    // StudioNodeWorkbench 挂在 window 上的 Esc 阶梯——否则同一次按键关完菜单
+    // 顺手把选中也清了。stopPropagation 与 ReferenceManagerPanel 同一套写法
+    // （keydown 冒泡 target → … → document → window，document 级监听恒先跑），
+    // 这样菜单不需要知道工作台的存在。
+    //
+    // ⚠ 不能靠工作台那边"看 addMenu 还开着就早退"来兜：keydown 是 discrete
+    // 事件，React 会在 document 阶段和 window 阶段之间**同步 flush** 一次重渲
+    // 染（实测 177ms），工作台的 window 监听器届时已被换成 addMenu=null 的新
+    // 闭包，早退条件根本不成立。必须在事件层面截断，不能靠状态时序。
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !event.isComposing) {
+        event.stopPropagation()
         onClose()
       }
     }

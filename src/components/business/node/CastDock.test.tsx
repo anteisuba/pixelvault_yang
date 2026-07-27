@@ -281,24 +281,46 @@ describe('CastDock', () => {
     expect(screen.queryByTitle('黛西')).not.toBeInTheDocument()
   })
 
-  // R3-4 §4.2: the mirror half of the same contract — every collapsed⇄
-  // expanded transition is reported upward so the workbench can close the
-  // other L5 citizen (add menu) and fold this into the Esc ladder.
-  it('reports its own collapsed/expanded transitions via onExpandedChange', () => {
+  // R3-4 §4.2: the mirror half of the same contract — a floating-layout dock
+  // reports its open/closed edges upward so the workbench can close the other
+  // L5 citizen (add menu) and fold this into the Esc ladder.
+  it('reports overlay open/close transitions in the floating layout', () => {
     flowState.nodes = [
       makeNode('c1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.character,
         characterName: '黛西',
       }),
     ]
-    const onExpandedChange = vi.fn()
+    const onOverlayOpenChange = vi.fn()
 
-    renderDock(vi.fn(), { onExpandedChange })
-    expect(onExpandedChange).toHaveBeenCalledWith(true)
+    renderDock(vi.fn(), { onOverlayOpenChange })
+    expect(onOverlayOpenChange).toHaveBeenCalledWith(true)
 
-    onExpandedChange.mockClear()
+    onOverlayOpenChange.mockClear()
     fireEvent.click(screen.getByRole('button', { name: 'collapse' }))
-    expect(onExpandedChange).toHaveBeenCalledWith(false)
+    expect(onOverlayOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  // 回归（owner 实测，2026-07-27）: panel 布局的卡匣是左侧常驻面板的内容，不
+  // 遮挡任何东西，永远不能算 L5 浮层。它一旦上报"开着"，就在工作台的 Esc 阶梯
+  // 上恒占一格 —— 选中节点后第一次按 Esc 只是把这格假浮层"关掉"，取消选中要
+  // 按第二次。展开是它的常态（collapsed 默认 false 是 owner 拍板的 S5d 结论，
+  // 不能靠改默认值绕过），所以这里必须按 layout 分叉。
+  it('never reports an open overlay in the panel layout, however expanded it is', () => {
+    flowState.nodes = [
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+        characterName: '黛西',
+      }),
+    ]
+    const onOverlayOpenChange = vi.fn()
+
+    renderDock(vi.fn(), { layout: 'panel', onOverlayOpenChange })
+
+    // 卡片确实是展开可见的 —— 报 false 不是因为它收起了。
+    expect(screen.getByTitle('黛西')).toBeInTheDocument()
+    expect(onOverlayOpenChange).not.toHaveBeenCalledWith(true)
+    expect(onOverlayOpenChange).toHaveBeenCalledWith(false)
   })
 })
 

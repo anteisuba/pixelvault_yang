@@ -563,14 +563,18 @@ function StudioNodeCanvas() {
   // The node whose ⤢ detail panel is open (B3 shared floating panel). One id
   // because a single shared panel renders the one expanded node.
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
-  // R3-4 (canvas-relationship-v3 §4.2): a one-way mirror of CastDock's own
-  // collapsed/expanded state (owner stays CastDock — the drag-hover
-  // auto-expand/re-collapse choreography lives there) and of
-  // CanvasImageEditWorkspace's `activeTask` (owner stays
-  // CanvasImageSelectionToolbar). Both exist purely so the workbench can
-  // enforce the L5 mutual-exclusion + 档2/档3→L5/L3 close cascade + Esc
-  // ladder without lifting either component's real state.
-  const [castDockExpanded, setCastDockExpanded] = useState(false)
+  // R3-4 (canvas-relationship-v3 §4.2): a one-way mirror of "CastDock 此刻是
+  // 一个开着的 L5 浮层"（owner stays CastDock — the drag-hover auto-expand/
+  // re-collapse choreography lives there）and of CanvasImageEditWorkspace's
+  // `activeTask` (owner stays CanvasImageSelectionToolbar). Both exist purely
+  // so the workbench can enforce the L5 mutual-exclusion + 档2/档3→L5/L3 close
+  // cascade + Esc ladder without lifting either component's real state.
+  //
+  // ⚠ 镜的是「浮层开着」而非「展开着」：S2b 把卡匣搬进左侧常驻面板
+  //（`layout="panel"`）之后，展开是它的常态、也不遮挡任何东西，所以这里恒为
+  // false。旧写法镜的是 collapsed 取反，加载完就恒真，在 L5 名单上占了一格假
+  // 浮层——Esc 阶梯的第一次按键全被它吃掉（owner 实测，2026-07-27）。
+  const [castDockOverlayOpen, setCastDockOverlayOpen] = useState(false)
   // S2b（2026-07-26）左侧合体面板的展开态。默认展开——班底架是「常驻的第二
   // 主角」（已确认条款 5），不是随取随用的抽屉。
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
@@ -613,7 +617,7 @@ function StudioNodeCanvas() {
   useEffect(() => {
     if (!heavyOverlayOpen) return
     setAddMenu(null)
-    setCastDockExpanded(false)
+    setCastDockOverlayOpen(false)
   }, [heavyOverlayOpen])
 
   // R3-4 §4.2 rule 1: the two L5 citizens are mutually exclusive. This is the
@@ -623,8 +627,8 @@ function StudioNodeCanvas() {
   // (add menu opens → cast dock collapses) is `castDockForceCollapse` below,
   // fed into `<CastDock forceCollapse>`.
   useEffect(() => {
-    if (castDockExpanded) closeAddMenu()
-  }, [castDockExpanded, closeAddMenu])
+    if (castDockOverlayOpen) closeAddMenu()
+  }, [castDockOverlayOpen, closeAddMenu])
 
   const castDockForceCollapse = Boolean(addMenu) || heavyOverlayOpen
 
@@ -633,11 +637,16 @@ function StudioNodeCanvas() {
   // too — same one-way-mirror pattern as `heavyOverlayOpen`, just for the
   // lighter tier. See the context field's own doc comment for why this is
   // separate from `heavyOverlayOpen` rather than folded into it.
-  const transientLayerOpen = Boolean(addMenu) || castDockExpanded
+  //
+  // 卡匣那一项在当前布局（panel）下恒 false，实际只剩添加菜单一个 L5 公民；
+  // 保留这一项是因为浮层族布局（absolute/inline）下它仍然成立。同一处旧 bug
+  // 的第二个受害者：镜像恒真时这个值也恒真，于是「开添加菜单 → 收起近场快
+  // 编面板」在加载后第一次开菜单时不会触发（依赖数组没变化，effect 不重跑）。
+  const transientLayerOpen = Boolean(addMenu) || castDockOverlayOpen
 
   useOverlayFocusReturn(Boolean(addMenu))
   useOverlayFocusReturn(Boolean(expandedNodeId))
-  useOverlayFocusReturn(castDockExpanded)
+  useOverlayFocusReturn(castDockOverlayOpen)
   // R3-4 §4.2 rule 3 (焦点还原覆盖 L5/L6/L7): 档3-script（剧本笺展开）不是
   // Radix Dialog，没有 Radix 自带的关闭时焦点回归，需要这里手动补一份——
   // 档3-image（CanvasImageEditWorkspace）走 Radix ResponsiveDialog，那份由
@@ -653,6 +662,11 @@ function StudioNodeCanvas() {
   // window 监听器"顺手"再吞一层（连带取消选中），一次按键退两层，破坏"一次
   // 一层"。这里接手没有 backdrop 的 档3-script（剧本笺展开）+ L5（添加菜单 /
   // 卡匣展开浮层）+ 取消选中。
+  //
+  // ⚠ L5 那一格只收**真的遮挡着的浮层**。卡匣自 S2b 起是左侧常驻面板的内容
+  //（见 castDockOverlayOpen 处的注释），它恒不进这一格——否则它会长期占着一
+  // 格，"一次按键退一层"就变成第一次按键什么都不退。左侧面板本身的展开/收起
+  // 是 L4 常驻 chrome，同理不进 Esc 链。
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing) return
@@ -662,9 +676,9 @@ function StudioNodeCanvas() {
         setAssistantExpanded(false)
         return
       }
-      if (addMenu || castDockExpanded) {
+      if (addMenu || castDockOverlayOpen) {
         setAddMenu(null)
-        setCastDockExpanded(false)
+        setCastDockOverlayOpen(false)
         return
       }
       const hasSelection = workflow.nodes.some((node) => node.selected)
@@ -688,7 +702,7 @@ function StudioNodeCanvas() {
     assistantDockOpen,
     assistantExpanded,
     addMenu,
-    castDockExpanded,
+    castDockOverlayOpen,
     workflow,
   ])
 
@@ -3324,20 +3338,17 @@ function StudioNodeCanvas() {
       // 粘贴（MentionInput/CharacterImageReferenceControls/NodeMediaInspector
       // 三处既有行为不变，这里不碰它们）。
       //
-      // ⚠ 故意不判 transientLayerOpen：它是 Boolean(addMenu) || castDockExpanded，
+      // ⚠ 故意不判 transientLayerOpen：它是 Boolean(addMenu) || castDockOverlayOpen，
       // 本意是"添加菜单 / CastDock 展开浮层互斥"（R3-4 §4.2 rule 1）。
       //
-      // castDockExpanded 在画布加载后几乎恒为 true，但**不是**因为什么 effect
-      // 时序 bug（一度有过这个误诊）：CastDock 的 `collapsed` 默认就是 false，
-      // 卡匣**本来就是展开的**，这个值如实反映了现实。过期的是它的**语义**——
-      // S5d「卡匣回横匣」把卡匣从 popover-flyout 改回了 layout="panel" 的常驻
-      // 左栏（见 CastDock.tsx 顶部注释），而 transientLayerOpen 与 Esc 阶梯
-      // 仍停在 flyout 时代，把"常驻面板是展开的"当成"有浮层遮住了输入"。
+      // 历史背景（这条注释写下时它还恒为 true，会让粘贴默认就是废的）：卡匣
+      // 自 S2b 起是 layout="panel" 的左侧常驻面板内容，却仍按 flyout 时代的
+      // 语义把"展开着"上报成"浮层开着"。那笔过期语义已经修掉（见
+      // castDockOverlayOpen 处的注释），卡匣那一项在 panel 布局恒 false，所以
+      // 这个值现在实际只等价于"添加菜单开着"。
       //
-      // 所以这里不能用它当拦截条件，否则粘贴默认就是废的。
-      // ⚠ 同一处过期语义还有一个已确认的真机后果（不在本片范围，另开）：
-      // 下方 Esc 阶梯的 `if (addMenu || castDockExpanded)` 会吃掉第一次 Esc，
-      // 实测选中节点后要**按两次 Esc** 才能取消选中。
+      // 即便如此这里仍然不判它——本片（画布粘贴）的行为保持原样。"添加菜单
+      // 开着时要不要禁掉画布粘贴"是另一个产品决定，没在这里顺手改。
       const active = document.activeElement
       const isEditableFocus =
         active instanceof HTMLElement &&
@@ -3709,7 +3720,7 @@ function StudioNodeCanvas() {
                 insetRight={0}
                 canvasDragActive={canvasNodeDragActive}
                 layout="panel"
-                onExpandedChange={setCastDockExpanded}
+                onOverlayOpenChange={setCastDockOverlayOpen}
               />
             </CanvasLeftPanel>
             <CanvasAddMenu

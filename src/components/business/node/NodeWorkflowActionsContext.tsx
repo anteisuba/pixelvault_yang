@@ -102,8 +102,10 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    */
   setImageEditWorkspaceOpen(open: boolean): void
   /**
-   * R3-4 (canvas-relationship-v3 §4.2 rule 1): true while either L5 citizen
-   * (添加菜单 / CastDock 展开浮层) is open. Distinct from `heavyOverlayOpen`
+   * R3-4 (canvas-relationship-v3 §4.2 rule 1): true while an L5 citizen
+   * (添加菜单 / CastDock 展开浮层——后者只在卡匣走浮层族布局时才可能为真，
+   * S2b 之后的生产布局是左侧常驻面板，恒 false) is open. Distinct from
+   * `heavyOverlayOpen`
    * (which is 档2/档3 only) — this is the lighter "a transient layer just
    * claimed the slot" signal, watched by the same node-local L3 chrome
    * (loose image quick-edit panel) so opening the add menu or the cast strip

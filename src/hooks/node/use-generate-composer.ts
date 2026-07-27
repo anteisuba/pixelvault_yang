@@ -205,6 +205,7 @@ export function useGenerateComposer(): UseGenerateComposerValue {
   const {
     runGenerateComposer,
     heavyOverlayOpen,
+    transientLayerOpen,
     multiSelectActive,
     quickEditNodeId,
   } = useNodeWorkflowActions()
@@ -249,20 +250,17 @@ export function useGenerateComposer(): UseGenerateComposerValue {
   // §2 多选 / 重叠层让位：与其它 L3 节点局部面板同一套纪律
   // （R3-4 §4.2 rule 3）——heavier 层打开时，这层先收。
   //
-  // ⚠ **故意不判 `transientLayerOpen`**，虽然 `LooseImageCard` 的快编面板判了。
-  // 它是 `Boolean(addMenu) || castDockExpanded`，而 `castDockExpanded` 在画布
-  // 加载后几乎恒为 true——**不是 bug，是如实反映现实**：CastDock 的 `collapsed`
-  // 默认就是 false，卡匣本来就是展开的。过期的是它的**语义**：S5d「卡匣回横匣」
-  // 把卡匣从 popover-flyout 改回了常驻左栏，而这个标志名字还停在 flyout 时代，
-  // 把「常驻面板是展开的」当成「有浮层遮住了输入」。
+  // ⚠ 这里一度**故意不判** `transientLayerOpen`，理由是它当时恒为 true、会让本
+  // 组件永远不出现。根因不在它自己：`castDockExpanded` 恒真**不是 bug，是如实
+  // 反映现实**（CastDock 的 `collapsed` 默认就是 false，卡匣本来就是展开的），
+  // 过期的是**语义**——S5d「卡匣回横匣」把卡匣从 popover-flyout 改回常驻左栏之
+  // 后，这个标志还把「常驻面板是展开的」当成「有浮层遮住了输入」。
   //
-  // 用它当隐藏条件的后果是**本组件永远不出现**（实机确认过）。画布级粘贴那一片
-  // 已经因为同样的理由显式绕开了它（见 StudioNodeWorkbench.tsx 的 paste 监听）。
-  //
-  // 代价：添加菜单打开时本组件不会自动让位——那半个判断（`Boolean(addMenu)`）
-  // 是合理的，只是没有单独暴露出来。等另一路会话把 `transientLayerOpen` 的语义
-  // 修好（把常驻卡匣从中摘出去），**把它加回这里**，那时它就只剩 addMenu 的含义。
-  const suppressedByOverlay = heavyOverlayOpen || multiSelectActive
+  // `4a01eb47` 已经把语义修好（`castDockExpanded` → `castDockOverlayOpen`，
+  // CastDock 只在浮层族布局上报、panel 恒报 false），所以 `transientLayerOpen`
+  // 现在只剩它本该有的含义：**添加菜单开着**。按当初注释里立的约定加回来。
+  const suppressedByOverlay =
+    heavyOverlayOpen || transientLayerOpen || multiSelectActive
   // §0 与「快编」互斥 — 见 NodeWorkflowActionsContext.quickEditNodeId 的文档。
   const suppressedByQuickEdit = Boolean(
     host && quickEditNodeId && quickEditNodeId === host.nodeId,

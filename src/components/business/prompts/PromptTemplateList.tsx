@@ -115,15 +115,18 @@ export function PromptTemplateList({
 }
 
 /* Static per-modality classes for the no-cover fallback wash — Tailwind
-   requires literal class names. */
-const FALLBACK_WASH_CLASSES: Record<OutputType, string> = {
+   requires literal class names. Exported so other "pick a prompt template"
+   surfaces (e.g. the canvas generate-composer's template popover,
+   canvas-generate-composer.md §5.5 "无封面走 /prompts 现有的字形兜底") reuse
+   the exact same fallback instead of re-deriving their own palette. */
+export const FALLBACK_WASH_CLASSES: Record<OutputType, string> = {
   IMAGE: 'bg-modality-image/10',
   VIDEO: 'bg-modality-video/10',
   AUDIO: 'bg-modality-audio/10',
   MODEL_3D: 'bg-muted/30',
 }
 
-const FALLBACK_ICON_CLASSES: Record<OutputType, string> = {
+export const FALLBACK_ICON_CLASSES: Record<OutputType, string> = {
   IMAGE: 'text-modality-image/80',
   VIDEO: 'text-modality-video/80',
   AUDIO: 'text-modality-audio/80',

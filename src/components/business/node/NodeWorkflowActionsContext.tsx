@@ -9,6 +9,7 @@ import type {
 import type { NodeStudioToolMode } from '@/constants/node-studio'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
+import type { GenerateComposerSendInput } from '@/hooks/node/use-generate-composer'
 import type {
   NodeWorkflowModelOptionsByType,
   VideoDefaultModel,
@@ -153,6 +154,29 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    * `ImageSourceStarter` 就是没有待处理文件，走原来的空态，行为不变。
    */
   consumePendingPasteFile?(nodeId: string): File | undefined
+  /**
+   * canvas-generate-composer.md §0 与 §7.5 都没预见到的一处真实碰撞：
+   * `LooseImageCard` 已经在 `Position.Bottom` 挂了一个 `CanvasQuickEditPrompt`
+   * （近场工具条「快编」按钮点开），而生成提示词框同样要贴同一张卡的下方。
+   * 两者互斥——快编是显式点开的次级能力，生成提示词框是选中即默认出现的主
+   * 面；后者应该给前者让位，不是叠在同一块屏幕位置上。这个字段只记录「哪个
+   * 节点的快编面板当前打开」，`GenerateComposer` 读它来隐藏自己；写入方只有
+   * `LooseImageCard`。可选——没提供时按"没有快编面板打开"处理，行为不变。
+   */
+  quickEditNodeId?: string | null
+  setQuickEditNodeId?(nodeId: string | null): void
+  /**
+   * canvas-generate-composer.md §7「结果落点」: creates/fills the target
+   * image node(s), wires the source→result edge when there's a populated
+   * host, seeds the generation input, runs it, and reselects the last
+   * target — see `GenerateComposerSendInput`'s doc comment for the full
+   * contract and why this can't be built from smaller primitives exposed on
+   * this context (addNode/onConnect/onNodesChange live only on
+   * `useNodeWorkflow`, which only `StudioNodeWorkbench` holds). Optional so
+   * `GenerateComposer`'s own tests can mock it without satisfying the rest
+   * of this large interface.
+   */
+  runGenerateComposer?(input: GenerateComposerSendInput): Promise<string[]>
 }
 
 const NodeWorkflowActionsContext =

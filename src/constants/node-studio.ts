@@ -684,6 +684,53 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
   },
 } as const
 
+/**
+ * 生成提示词框（docs/references/pages/canvas-generate-composer.md）——画布级
+ * 共享组件，不属于任何单一节点族。这里只收「没别处可放」的具名数值，避免裸
+ * 字面量散在组件里（Hard Rule 1）。
+ */
+export const NODE_STUDIO_GENERATE_COMPOSER = {
+  // §5 清晰度三档 —— 与 AdvancedParams.resolution（types/index.ts）同一枚举，
+  // 这里给 node.data.imageResolution 一个具名常量，不裸写字面量。
+  imageResolutionTiers: ['auto', '1K', '2K', '4K'] as const,
+  // §5「张数」—— 本轮没有批量生成 API，客户端顺序触发 N 次 §7 结果落点流程。
+  batchCounts: [1, 2, 4] as const,
+  defaultBatchCount: 1,
+  // §4 参考图槽：宿主图占第一格后，额外槽位在「未选模型」时的兜底上限——
+  // 复用既有角色卡参考图上限常量；选了模型后改用
+  // getMaxReferenceImages(adapterType, modelId) 的真实值，不第二次兜底。
+  extraReferenceFallbackCap: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems,
+  // §6 扩大态「提示词历史 / 最近用过」—— 本地 ring buffer 的容量。
+  historyMaxEntries: 8,
+} as const
+
+/**
+ * §5.5「用模板」浮层的轻筛选 tab —— 对应 Recipe.lastUsedAt / usageCount 两个
+ * 既有字段（不新造字段）。id/数组拆两个导出，跟随本文件 NODE_STUDIO_TOOL_MODE_IDS
+ * / NODE_STUDIO_TOOL_MODES 同一惯例（ids 供 switch/查 label，数组供渲染顺序
+ * ——顺序即文档 §5.5 原文列出的「最近用 / 全部 / 用得最多」）。
+ */
+export const NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTER_IDS = {
+  recent: 'recent',
+  all: 'all',
+  mostUsed: 'mostUsed',
+} as const
+
+export const NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTERS = [
+  NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTER_IDS.recent,
+  NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTER_IDS.all,
+  NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTER_IDS.mostUsed,
+] as const
+
+export type GenerateComposerTemplateFilter =
+  (typeof NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTERS)[number]
+
+/** §5.5「全部」是无筛选默认档 —— 同 PromptTemplateList 的 typeFilter 默认
+ *  'ALL' 同一惯例（避免打开就落在一个可能长期为空的 tab，见 lastUsedAt 的
+ *  实读注记，types/index.ts RecipeRecord 定义处）。 */
+export const NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_DEFAULT_FILTER: GenerateComposerTemplateFilter =
+  NODE_STUDIO_GENERATE_COMPOSER_TEMPLATE_FILTER_IDS.all
+
 export const NODE_STUDIO_ID_PREFIXES = {
   node: 'node',
   edge: 'edge',

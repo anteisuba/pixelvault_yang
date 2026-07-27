@@ -529,10 +529,6 @@
         "status": "R2 に保管済み"
       }
     },
-    "frameCaption": {
-      "promise": "4 つの画面がひとつの記録を共有 · どの生成もあとから辿って続けられます",
-      "hint": "上のタブで切り替え"
-    },
     "caps": {
       "moreModels": "ほか {count} 件",
       "textToImage": {
@@ -3611,13 +3607,14 @@
     "imageSourceStarter": {
       "uploadAria": "画像をアップロード",
       "uploadTitle": "画像をアップロード",
-      "uploadHint": "ドラッグまたはクリックしてアップロード",
+      "uploadHint": "ドラッグしてアップロード",
       "library": "素材ライブラリ",
       "aiGenerate": "AI 生成",
       "libraryDialogTitle": "画像素材を選択",
       "libraryDialogDescription": "ライブラリから画像を選び、このカードの内容にします。",
       "untitled": "無題の画像",
       "uploadFailed": "画像のアップロードに失敗しました",
+      "generationFailed": "画像の生成に失敗しました",
       "categoryLabel": "分類",
       "categoryUnset": "未分類",
       "categoryCustomLabel": "カスタム分類名",
@@ -3628,6 +3625,7 @@
       "badgeFailed": "失敗",
       "uploading": "アップロード中 {percent}%",
       "cancelUpload": "アップロードをキャンセル",
+      "generating": "生成中",
       "retry": "再試行",
       "replace": "差し替え"
     },
@@ -4688,6 +4686,38 @@
       "title": "クイック編集",
       "hint": "抽出したい要素を書いてください。結果は新しい画像としてキャンバスに置かれます。"
     },
+    "generateComposer": {
+      "placeholderEmpty": "生成したい画面を書いてください…",
+      "placeholderEditing": "この画像をどう変えたいか書いてください…",
+      "editingBadge": "編集中",
+      "addReference": "参考画像を追加",
+      "aspectLabel": "アスペクト比",
+      "batchLabel": "枚数",
+      "removeReference": "{name} を削除",
+      "expand": "展開",
+      "collapse": "折りたたむ",
+      "send": "送信",
+      "reasonNoModel": "先にモデルを選んでください",
+      "reasonNoInput": "生成したい内容を書いてください",
+      "historyTitle": "最近使ったプロンプト",
+      "historyEmpty": "まだ履歴がありません",
+      "modePickerTitle": "生成",
+      "modeImage": "画像",
+      "modeAudio": "音声",
+      "audioPlaceholder": "音声パラメータはボイスカードの回で対応予定",
+      "templateButton": "テンプレート",
+      "templateSearchPlaceholder": "名前・本文・タグで検索",
+      "templateFilterLabel": {
+        "recent": "最近使った",
+        "all": "すべて",
+        "mostUsed": "よく使う"
+      },
+      "templateUsageCount": "{count} 回使用",
+      "templateLoading": "テンプレートを読み込み中…",
+      "templateEmpty": "一致するプロンプトテンプレートがありません",
+      "templateApplied": "テンプレートのプロンプトに置き換えました",
+      "templateUndo": "元に戻す"
+    },
     "history": {
       "title": "履歴",
       "search": "キーワードで検索",
@@ -5233,6 +5263,7 @@
       "invalidJson": "リクエスト本文を読み取れませんでした。"
     },
     "rateLimit": "リクエストが多すぎます。しばらくお待ちください。",
+    "runawayGeneration": "このアカウントからの生成リクエストが短時間に連続して発生したため、自動的に一時停止しました。多くの場合、リトライループや自動化スクリプトの不具合が原因であり、あなたの操作に問題があるわけではありません。しばらく待ってから再度お試しください。",
     "auth": {
       "unauthorized": "続行するにはサインインしてください。"
     },

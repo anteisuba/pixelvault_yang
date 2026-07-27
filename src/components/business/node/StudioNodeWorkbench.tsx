@@ -77,6 +77,10 @@ import {
 import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
+import {
+  computeSpawnPosition,
+  type GenerateComposerSendInput,
+} from '@/hooks/node/use-generate-composer'
 import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
@@ -175,6 +179,7 @@ import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
 import { CanvasLeftPanel } from './CanvasLeftPanel'
 import { CastDock, countCastCards, type CastSectionId } from './CastDock'
 import { createReferenceAsset } from './CharacterImageReferenceControls'
+import { GenerateComposer } from './composer/GenerateComposer'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import {
@@ -544,6 +549,11 @@ function StudioNodeCanvas() {
     applyForcedNodeInternals,
   )
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
+  // canvas-generate-composer.md §0 快编互斥：哪个节点当前打开了
+  // `CanvasQuickEditPrompt`（LooseImageCard 的 Position.Bottom 面板）——
+  // `GenerateComposer` 读它给同一张卡的下方让位，避免两个浮层叠在同一块屏
+  // 幕位置上。写入方只有 LooseImageCard，见该文件的同步 effect。
+  const [quickEditNodeId, setQuickEditNodeId] = useState<string | null>(null)
   // S2a（2026-07-26）：助手默认**收起**。规格 §8 的宽度策略——左侧合体面板
   // 常驻 296px + 右助手约 420px = 716px 被 chrome 吃掉，1440 宽的屏只剩 724px
   // 画布。两侧不能同时满开，默认让位给画布。
@@ -1662,6 +1672,226 @@ function StudioNodeCanvas() {
       })
     },
     [modelOptionsByType, nodeMediaGeneration, t, tErrors, workflow],
+  )
+
+  /**
+   * canvas-generate-composer.md §7「结果落点」: the generate composer's send
+   * action. Mirrors `handleGenerateMediaNode`'s image-kind result handling
+   * (success/pending/failure branches are intentionally near-duplicates of
+   * that function's tail — extracting a shared helper would mean threading
+   * a bigger shared signature through a function that also serves video/
+   * audio/shot-harvest concerns this composer doesn't have; a small bounded
+   * duplication reads clearer than that indirection) but does NOT reuse it
+   * directly: `handleGenerateMediaNode` re-reads `workflow.nodes.find(id)`
+   * for its OWN inputs, which would race the `updateNodeData` seed this
+   * function just wrote in the same tick (React state updates aren't
+   * applied synchronously — see `GenerateComposerSendInput`'s doc comment).
+   * This function takes every input as a plain argument instead, so there's
+   * nothing to race.
+   */
+  const handleRunGenerateComposer = useCallback(
+    async (input: GenerateComposerSendInput): Promise<string[]> => {
+      // Captured BEFORE any `addNode` call below — `workflow.nodes` is a
+      // snapshot closed over at render time, so a node created via
+      // `workflow.addNode` inside this same call never appears in it (the
+      // state update that would add it hasn't been applied/re-rendered
+      // yet). Reading "who's currently selected" now, once, up front, and
+      // combining it with `targetIds` (already in hand from `addNode`'s
+      // own return values) below avoids ever needing to re-read
+      // `workflow.nodes` for an id this function just minted.
+      const previouslySelectedIds = workflow.nodes
+        .filter((node) => node.selected)
+        .map((node) => node.id)
+
+      const maxReferenceImages = getMaxReferenceImages(
+        input.model.adapterType,
+        input.model.modelId,
+      )
+      // R3-6a §1 共享装配: same dedup + cap function every other reference-
+      // collecting path in this file uses — single source of truth, not a
+      // second independent tally.
+      const referenceImages = assembleReferenceImagePayload(
+        input.referenceUrls,
+        maxReferenceImages,
+      ).imageUrls
+      // `referenceUrls[0]` is the pinned host slot whenever the host has
+      // media (canvas-generate-composer.md §4 — the composer always puts it
+      // first), everything after is a library pick.
+      const referenceAssets = referenceImages.map((url, index) => ({
+        id:
+          globalThis.crypto?.randomUUID?.() ??
+          `ref-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+        url,
+        role: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
+        weight: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight,
+        source:
+          index === 0 && input.hostHasMedia
+            ? NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas
+            : NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
+      }))
+
+      const runs = Math.max(1, Math.min(input.batchCount, 4))
+      // §7 一条对称的例外：空卡宿主（或刚从空白处新建、同样是空的节点）吸收
+      // 第一个结果；张数 > 1 时后续结果、以及有图宿主的每一个结果，都新建
+      // 兄弟节点——"改前 vs 改后" 永远不覆盖。
+      const fillsInPlace = Boolean(input.hostNodeId) && !input.hostHasMedia
+      const targetIds: string[] = []
+      let newNodeIndex = 0
+
+      for (let i = 0; i < runs; i += 1) {
+        let targetId: string
+        if (i === 0 && fillsInPlace && input.hostNodeId) {
+          targetId = input.hostNodeId
+        } else {
+          const position = computeSpawnPosition(
+            input.sourcePosition,
+            newNodeIndex,
+          )
+          newNodeIndex += 1
+          targetId = workflow.addNode(NODE_TYPE_IDS.image, position)
+          if (input.hostNodeId) {
+            workflow.onConnect({
+              source: input.hostNodeId,
+              sourceHandle: null,
+              target: targetId,
+              targetHandle: null,
+            })
+          }
+        }
+        workflow.updateNodeData(targetId, {
+          prompt: input.prompt,
+          model: input.model,
+          aspectRatio: input.aspectRatio,
+          imageResolution: input.imageResolution,
+          referenceAssets,
+          mediaKind: NODE_MEDIA_KIND_IDS.image,
+          generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+          status: NODE_STATUS_IDS.running,
+        })
+        targetIds.push(targetId)
+      }
+
+      // §7 生成完成后：新卡自动选中，框跟着挂到新卡下面 — dispatched
+      // synchronously, BEFORE the `await` below, so the selection change
+      // (and therefore `GenerateComposer`'s selection-derived `host`) lands
+      // in the same render pass as the caller's own optimistic draft reset.
+      // Builds the change set from `previouslySelectedIds` (captured above)
+      // + `targetIds` (already in hand) instead of re-reading
+      // `workflow.nodes` — see that snapshot's own comment for why. Same
+      // selection-change INTENT `handleFocusNode` implements, minus
+      // fitView (an iterate-fast loop like this shouldn't also yank the
+      // camera every send).
+      const focusId = targetIds[targetIds.length - 1]
+      if (focusId) {
+        const affectedIds = Array.from(
+          new Set([...previouslySelectedIds, ...targetIds]),
+        )
+        workflow.onNodesChange(
+          affectedIds.map((id) => ({
+            id,
+            type: 'select' as const,
+            selected: id === focusId,
+          })),
+        )
+      }
+
+      const advancedParams: AdvancedParams | undefined =
+        input.imageResolution !== 'auto'
+          ? { resolution: input.imageResolution }
+          : undefined
+
+      // §7 owner 2026-07-28 真机实测缺陷①：必须串行，不能并发。
+      // MAX_ACTIVE_JOBS_PER_USER（constants/config.ts:571）是平台硬限——旧实现
+      // 用 Promise.all 并发发起 N 个 /api/studio/generate，batchCount=4 时后两
+      // 个必吃 ACTIVE_GENERATION_LIMIT_EXCEEDED 429（owner 真机实测复现：只出
+      // 2 张）。生成入参里也没有「一次请求出 N 张」这条路可走。改成前一个落地
+      // （成功/挂起/失败任一终态）再发下一个——不能改成"一次发 2 个顶满限
+      // 额"：用户在别处（studio / 其它节点）的生成同样占这 2 个名额，顶满等于
+      // 把别处挤死。每个 target 的卡仍然通过 SAME 五态（canvas-image-card.md
+      // §3）独立展示 running → done/failed，这里不加第二套进度 UI。
+      for (const targetId of targetIds) {
+        const result = await nodeMediaGeneration.generate(
+          {
+            kind: NODE_MEDIA_KIND_IDS.image,
+            modelId: input.model.modelId,
+            apiKeyId: input.model.apiKeyId,
+            prompt: input.prompt,
+            aspectRatio: input.aspectRatio,
+            referenceImages:
+              referenceImages.length > 0 ? referenceImages : undefined,
+            advancedParams,
+          },
+          {
+            onJobCreated: (jobId) =>
+              workflow.updateNodeData(targetId, { mediaJobId: jobId }),
+          },
+        )
+
+        if (result.success) {
+          workflow.updateNodeData(targetId, {
+            generationError: undefined,
+            generationId: result.generation.id,
+            generationStatus: NODE_GENERATION_STATUS_IDS.success,
+            imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+            imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+            sourceGenerationId: undefined,
+            sourceLabel: undefined,
+            mediaJobId: undefined,
+            mediaKind: NODE_MEDIA_KIND_IDS.image,
+            mediaUrl: result.mediaUrl,
+            mediaLabel: result.generation.model,
+            lastSeed:
+              typeof result.generation.seed === 'number'
+                ? result.generation.seed
+                : undefined,
+            status: NODE_STATUS_IDS.done,
+          })
+          toast.success(t('toasts.mediaGenerated'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+          continue
+        }
+
+        if (result.pending) {
+          workflow.updateNodeData(targetId, {
+            generationError: undefined,
+            generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+            mediaJobId: result.jobId,
+            mediaKind: NODE_MEDIA_KIND_IDS.image,
+            status: NODE_STATUS_IDS.running,
+          })
+          toast.info(t('toasts.stillProcessing'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+          continue
+        }
+
+        const failureMessage = getGenerationErrorMessage(
+          tErrors,
+          result,
+          t('mediaNodes.fallbackError'),
+        )
+        workflow.updateNodeData(targetId, {
+          generationError: failureMessage,
+          generationStatus: NODE_GENERATION_STATUS_IDS.error,
+          imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+          mediaJobId: undefined,
+          mediaKind: NODE_MEDIA_KIND_IDS.image,
+          status: NODE_STATUS_IDS.failed,
+        })
+        toast.error(t('toasts.mediaGenerationFailed'), {
+          description: failureMessage,
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+      }
+
+      return targetIds
+    },
+    [nodeMediaGeneration, t, tErrors, workflow],
   )
 
   const handleFocusNode = useCallback(
@@ -3188,6 +3418,9 @@ function StudioNodeCanvas() {
       spawnReference: handleSpawnReference,
       fuseLooseImageNode: handleFuseLooseImageNode,
       extractReference: handleExtractReference,
+      runGenerateComposer: handleRunGenerateComposer,
+      quickEditNodeId,
+      setQuickEditNodeId,
       toolMode,
       setToolMode,
       expandedNodeId,
@@ -3222,6 +3455,8 @@ function StudioNodeCanvas() {
       handleExtractReference,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
+      handleRunGenerateComposer,
+      quickEditNodeId,
       modelOptionsByType,
       setToolMode,
       toolMode,
@@ -3388,6 +3623,10 @@ function StudioNodeCanvas() {
               nodeIds={composeSelectionNodeIds}
               onCompose={handleComposeVideoMerge}
             />
+            {/* canvas-generate-composer.md：画布级共享组件，挂载一次——同
+                VideoMergeComposeToolbar 的手法，自己内部用 NodeToolbar(nodeId)
+                贴宿主卡下方，或在无宿主（画布空白双击）时浮在固定屏幕坐标。 */}
+            <GenerateComposer />
           </ReactFlow>
           {workflow.nodes.length === 0 && (
             // R3-4 §4.1: 空态引导画在画布内容之上、工作区 chrome 之下（两者

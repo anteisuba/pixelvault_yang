@@ -529,10 +529,6 @@
         "status": "Archived to R2"
       }
     },
-    "frameCaption": {
-      "promise": "One archive behind all four surfaces · any generation can be found and continued",
-      "hint": "Switch with the tabs above"
-    },
     "caps": {
       "moreModels": "+{count} more",
       "textToImage": {
@@ -3611,13 +3607,14 @@
     "imageSourceStarter": {
       "uploadAria": "Upload image",
       "uploadTitle": "Upload image",
-      "uploadHint": "Drag in or click to upload",
+      "uploadHint": "Drag in to upload",
       "library": "Library",
       "aiGenerate": "AI Generate",
       "libraryDialogTitle": "Choose an image asset",
       "libraryDialogDescription": "Pick an image from your library to use as this card's content.",
       "untitled": "Untitled image",
       "uploadFailed": "Image upload failed",
+      "generationFailed": "Image generation failed",
       "categoryLabel": "Category",
       "categoryUnset": "Uncategorized",
       "categoryCustomLabel": "Custom category name",
@@ -3628,6 +3625,7 @@
       "badgeFailed": "Failed",
       "uploading": "Uploading {percent}%",
       "cancelUpload": "Cancel upload",
+      "generating": "Generating",
       "retry": "Retry",
       "replace": "Replace"
     },
@@ -4688,6 +4686,38 @@
       "title": "Quick edit",
       "hint": "Describe the element to extract. Result is a new image on the canvas."
     },
+    "generateComposer": {
+      "placeholderEmpty": "Describe the image you want to generate…",
+      "placeholderEditing": "Describe what to change about this image…",
+      "editingBadge": "Editing",
+      "addReference": "Add reference",
+      "aspectLabel": "Aspect ratio",
+      "batchLabel": "Count",
+      "removeReference": "Remove {name}",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "send": "Send",
+      "reasonNoModel": "Choose a model first",
+      "reasonNoInput": "Describe what to generate",
+      "historyTitle": "Recently used",
+      "historyEmpty": "No history yet",
+      "modePickerTitle": "Generate",
+      "modeImage": "Image",
+      "modeAudio": "Audio",
+      "audioPlaceholder": "Audio parameters ship in the voice-card round",
+      "templateButton": "Templates",
+      "templateSearchPlaceholder": "Search name, prompt, or tags",
+      "templateFilterLabel": {
+        "recent": "Recent",
+        "all": "All",
+        "mostUsed": "Most used"
+      },
+      "templateUsageCount": "Used {count} times",
+      "templateLoading": "Loading templates…",
+      "templateEmpty": "No matching prompt templates",
+      "templateApplied": "Replaced with template prompt",
+      "templateUndo": "Undo"
+    },
     "history": {
       "title": "History",
       "search": "Search conversations",
@@ -5233,6 +5263,7 @@
       "invalidJson": "The request body could not be read."
     },
     "rateLimit": "Too many requests. Please wait a moment.",
+    "runawayGeneration": "Generation requests from this account came in a rapid, repeating pattern and have been paused automatically — this usually means a stuck retry loop or automation bug, not something you did wrong. Wait a few minutes before trying again.",
     "auth": {
       "unauthorized": "Please sign in to continue."
     },

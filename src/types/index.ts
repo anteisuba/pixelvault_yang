@@ -4469,6 +4469,19 @@ export type RecipeRecord = {
   isDeleted: boolean
   createdAt: string
   updatedAt: string
+  /**
+   * canvas-generate-composer.md §5.5「最近用/用得最多」轻筛选读的两个字段 —
+   * schema 里一直都有（Recipe.usageCount/lastUsedAt），运行时的 API 响应也一
+   * 直带着（listRecipes 直接展开 Prisma Recipe），只是这个 wire 类型历史上没
+   * 声明。⚠ 实读代码库：`lastUsedAt` 目前全项目零写入点，永远是 null；
+   * `usageCount` 只在别人 clone 你公开发布的模板时 +1
+   * （inspiration.service.ts cloneSharedRecipe），不是"我自己用过几次"的信
+   * 号——两个轻筛选 tab 在当前数据下大概率长期空/无区分度，这是既有数据面的
+   * 缺口，不是本次改动引入的。
+   */
+  usageCount?: number
+  lastUsedAt?: string | null
+  tags?: string[]
 }
 
 export const SetRecipeVisibilityRequestSchema = z.object({

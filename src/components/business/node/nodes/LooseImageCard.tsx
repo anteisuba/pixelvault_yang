@@ -108,6 +108,7 @@ export function LooseImageCard({
     transientLayerOpen,
     multiSelectActive,
     updateNodeData,
+    setQuickEditNodeId,
   } = useNodeWorkflowActions()
   const [naturalSize, setNaturalSize] = useState<{
     width: number
@@ -152,6 +153,16 @@ export function LooseImageCard({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [quickEditOpen])
+
+  // canvas-generate-composer.md §0：生成提示词框贴同一张卡的下方，跟这张
+  // 卡自己的快编面板（下面 NodeToolbar position=Bottom 那个）互斥——广播
+  // "这张卡的快编开着" 给共享 context，GenerateComposer 读它给这张卡让位。
+  // 只在真正打开时置位，关闭/卸载都清空，不会残留指向已删节点的 id。
+  useEffect(() => {
+    if (!quickEditOpen) return
+    setQuickEditNodeId?.(id)
+    return () => setQuickEditNodeId?.(null)
+  }, [quickEditOpen, id, setQuickEditNodeId])
 
   // S4: 换了图（mediaUrl 变化）后旧图的实测尺寸不再有效，否则新图加载完成前
   // 会短暂借旧图的比例算卡宽。

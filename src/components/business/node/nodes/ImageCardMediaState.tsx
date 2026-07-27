@@ -101,6 +101,27 @@ export function ImageCardUploadOverlay({
   )
 }
 
+export interface ImageCardGeneratingOverlayProps {
+  /** 「生成中」文案，无百分比（canvas-image-card.md §3 第六态，
+   *  2026-07-28 owner 真机实测缺陷④补）。生成期间前端拿不到真实进度——规格
+   *  §5 原话「生成中 ↻（无百分比）」明确禁止假造一个，这是它与
+   *  `ImageCardUploadOverlay` 的唯一区别：视觉完全照抄（半透明白 + 扫光），
+   *  没有百分比数字、也没有取消按钮（生成不可取消）。 */
+  label: string
+}
+
+/** 生成中 —— 半透明白 + 一道扫光，复用 `.canvas-image-upload-scrim` 同一份
+ *  CSS recipe（`canvas.css` 里两个类共用同一条规则，见该文件注释）。 */
+export function ImageCardGeneratingOverlay({
+  label,
+}: ImageCardGeneratingOverlayProps) {
+  return (
+    <div className="canvas-image-generating-scrim">
+      <p className="canvas-image-upload-text">{label}</p>
+    </div>
+  )
+}
+
 export interface ImageCardFailedContentProps {
   /** 具体原因（§3 硬要求②：不得只灰不说）。 */
   reason: string

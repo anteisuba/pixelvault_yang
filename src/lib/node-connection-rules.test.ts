@@ -102,10 +102,74 @@ describe('canConnectNodeTypes', () => {
         canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image, role),
       ).toBe(false)
     }
-    // image target with no role → accepts nothing.
+    // image target with no role → accepts nothing FROM A NON-IMAGE SOURCE
+    // (voice). An image-kind source is a different story — see
+    // "生成提示词框" 结果落点 below.
     expect(canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image)).toBe(
       false,
     )
+  })
+
+  describe('生成提示词框结果落点 (canvas-generate-composer.md §7)', () => {
+    // A populated image card's generate composer spawns a NEW loose
+    // (role-less) result card and wires source→result as a real edge — every
+    // image family is a valid "改前" host.
+    it('allows any image-kind source into a loose (role-less) image target', () => {
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.image, NODE_TYPE_IDS.image),
+      ).toBe(true)
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.characterImage, NODE_TYPE_IDS.image),
+      ).toBe(true)
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.backgroundImage, NODE_TYPE_IDS.image),
+      ).toBe(true)
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.frameImage, NODE_TYPE_IDS.image),
+      ).toBe(true)
+      expect(canConnectNodeTypes(NODE_TYPE_IDS.shot, NODE_TYPE_IDS.image)).toBe(
+        true,
+      )
+      // sourceRole doesn't matter — any role on a unified `image` source
+      // still resolves to the image media kind.
+      expect(
+        canConnectNodeTypes(
+          NODE_TYPE_IDS.image,
+          NODE_TYPE_IDS.image,
+          undefined,
+          NODE_IMAGE_ROLE_IDS.shot,
+        ),
+      ).toBe(true)
+    })
+
+    it('still rejects non-image sources into a loose image target', () => {
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image),
+      ).toBe(false)
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.image),
+      ).toBe(false)
+      expect(
+        canConnectNodeTypes(NODE_TYPE_IDS.seedance, NODE_TYPE_IDS.image),
+      ).toBe(false)
+    })
+
+    it('leaves background/frame image targets as leaf/source (unchanged)', () => {
+      expect(
+        canConnectNodeTypes(
+          NODE_TYPE_IDS.image,
+          NODE_TYPE_IDS.image,
+          NODE_IMAGE_ROLE_IDS.background,
+        ),
+      ).toBe(false)
+      expect(
+        canConnectNodeTypes(
+          NODE_TYPE_IDS.image,
+          NODE_TYPE_IDS.image,
+          NODE_IMAGE_ROLE_IDS.frame,
+        ),
+      ).toBe(false)
+    })
   })
 
   it('allows all reference families + video chains into seedance', () => {

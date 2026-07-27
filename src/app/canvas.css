@@ -998,9 +998,14 @@
   color: var(--canvas-danger);
 }
 
-/* 上传中：半透明白 + 一道扫光。扫光复用既有 node-upload-shimmer 关键帧
-   （定义见本文件 FB-4 段），这里只换配色，不重复定义关键帧。 */
-.domain-canvas .canvas-image-upload-scrim {
+/* 上传中 / 生成中：半透明白 + 一道扫光，两态共用同一视觉语言——生成中在
+   canvas-generate-composer.md §7 owner 2026-07-28 真机实测缺陷④定为「沿用
+   上传中语言，但不显示百分比」（ImageCardGeneratingOverlay 只是不传百分比
+   文案，容器复用这同一条规则，不重复写一份）。扫光复用既有
+   node-upload-shimmer 关键帧（定义见本文件 FB-4 段），这里只换配色，不重复
+   定义关键帧。 */
+.domain-canvas .canvas-image-upload-scrim,
+.domain-canvas .canvas-image-generating-scrim {
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -1014,7 +1019,8 @@
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
-.domain-canvas .canvas-image-upload-scrim::before {
+.domain-canvas .canvas-image-upload-scrim::before,
+.domain-canvas .canvas-image-generating-scrim::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1028,7 +1034,8 @@
   animation: node-upload-shimmer 1.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .domain-canvas .canvas-image-upload-scrim::before {
+  .domain-canvas .canvas-image-upload-scrim::before,
+  .domain-canvas .canvas-image-generating-scrim::before {
     animation: none;
     transform: none;
     opacity: 0.4;
@@ -1107,15 +1114,14 @@
 }
 
 /* 空态 dropzone：媒体窗底色 + 图标/文案居中，相对定位给徽标/扫光/失败三层
-   挂靠。拖拽悬停时用强调蓝描边提示「放这里」。 */
+   挂靠。拖拽悬停时用强调蓝描边提示「放这里」。2026-07-27：点击开文件选择器
+   已撤销（composer 的 + 参考图槽已提供上传入口，卡上再放一个是重复，见
+   canvas-image-card.md §4）——dropzone 本身不再是可点击/可 Tab 聚焦的控件，
+   之前配套的 :focus-visible 描边随之一起去掉；拖放悬停态不变。 */
 .domain-canvas .canvas-image-dropzone {
   position: relative;
   overflow: hidden;
   background: var(--canvas-media-bg);
-}
-.domain-canvas .canvas-image-dropzone:focus-visible {
-  outline: 2px solid var(--canvas-stroke-focus);
-  outline-offset: -2px;
 }
 .domain-canvas .canvas-image-dropzone[data-drag-over='true'] {
   outline: 2px solid var(--canvas-accent);
@@ -1787,4 +1793,482 @@
     padding-right: calc(1rem + var(--canvas-assistant-width, 0px));
     transition: padding-right var(--duration-slow) var(--ease-standard);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   S12 · 生成提示词框（2026-07-27）
+   施工基准：docs/references/pages/canvas-generate-composer.md。画布级共享组
+   件——贴选中卡下方（`NodeToolbar` `Position.Bottom`，随节点跟随平移/缩放）
+   或画布空白双击处（固定屏幕坐标，无宿主节点）。浮层配方 = §1「浮层
+   composer」一栏，原样采用 --canvas-pop-*，不新造颜色/圆角/投影 token。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 宽度 2026-07-27 owner 真机反馈二轮修订：380→440px（「composer 尺寸需要变
+   大一些，目前看着有点小了」，canvas-generate-composer.md §1「尺寸与间距」）。 */
+.domain-canvas .canvas-composer-root {
+  width: 440px;
+  max-width: min(440px, calc(100vw - 32px));
+}
+/* 空白唤起态没有宿主节点，NodeToolbar 管不到它——自己用 fixed 定位钉在双击
+   点，L5 瞬时浮层同一档 z-index（同「添加菜单」，都是"还没有对象"的瞬时
+   拾取层）。translate(-50%, 12px) 让浮层横向居中于点击点、纵向留一点空隙，
+   不是精确复刻某处已有值——这块没有可复用的现成定位规则。 */
+.domain-canvas .canvas-composer-root--blank {
+  position: fixed;
+  z-index: var(--z-index-canvas-transient);
+  transform: translate(-50%, 12px);
+}
+
+.domain-canvas .canvas-composer-core {
+  display: flex;
+  flex-direction: column;
+  /* 紧凑修订（2026-07-27，canvas-generate-composer.md §6 紧凑档）：§1 原文
+     padding 16px / 组间 20px 抄自规格 §8「浮层 composer」栏的实测值——两者
+     本就不是通用间距阶梯 4/8/12/16/24/32 的成员（§8 表格里的 8/12/16 同样
+     不落在那个阶梯上），沿用同一路子，在实测值内收一档，而不是改去够阶梯。 */
+  gap: 12px;
+  padding: 12px;
+  background: var(--canvas-pop-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: var(--canvas-pop-radius);
+  box-shadow: var(--canvas-pop-shadow);
+  color: var(--canvas-ink);
+}
+
+/* 顶行：参考图槽（左）+ 扩大按钮（右）。扩大按钮用 margin-left:auto 而非
+   justify-content:space-between——纯音频宿主没有参考图槽，此时扩大按钮是
+   唯一的 flex 子项，space-between 会把单个子项摆在起始端而不是末端。行高
+   32px 跟随二轮修订的控件高上限（§1「参数条控件高 28–32px」，整颗 composer
+   一起放大一档，不只是外框变宽）。 */
+.domain-canvas .canvas-composer-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.domain-canvas .canvas-composer-top-row > .canvas-composer-icon-btn {
+  margin-left: auto;
+}
+
+/* §4 参考图槽——首轮紧凑修订把 40px 缩到 28px，二轮 owner 反馈「整体看着有
+   点小」后跟着控件高一起回升到 32px（§1，与本行内的扩大按钮、下面参数条的
+   控件同一档），仍比原 40px 小一截——「槽在左上（更小）」这条本轮要求没有被
+   推翻，只是不再压到比新控件高档还低。首格钉宿主图不可删 + 角标；其后是可
+   删的额外槽 + 尾随的 + 添加位。 */
+.domain-canvas .canvas-composer-ref-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.domain-canvas .canvas-composer-ref-slot {
+  position: relative;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 7px;
+  border: 1px solid var(--canvas-stroke-regular);
+  background: var(--canvas-fill-control);
+}
+.domain-canvas .canvas-composer-ref-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 「正在改」角标——钉住的宿主图专属，不可删，形状同其它状态浮标的深底浅字
+   语言（NodeStatusBadge/ImageCardStatusBadge 同款深底反白）。28px 槽位放不
+   下一整条文字角标，缩成一个纯色圆点（同样是「有一张钉住的图」的信号，
+   hover 或点开参考图槽时不需要再读文字）。 */
+.domain-canvas .canvas-composer-ref-pinned-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  overflow: hidden;
+  color: transparent;
+  border-radius: 9999px;
+  background: var(--canvas-action-fg);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--canvas-ink) 78%, transparent);
+}
+.domain-canvas .canvas-composer-ref-remove {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  color: var(--canvas-action-fg);
+  background: var(--canvas-ink);
+  opacity: 0;
+  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-ref-slot:hover .canvas-composer-ref-remove,
+.domain-canvas .canvas-composer-ref-remove:focus-visible {
+  opacity: 1;
+}
+.domain-canvas .canvas-composer-ref-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1px dashed var(--canvas-stroke-bold);
+  color: var(--canvas-ink-muted);
+  transition:
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-ref-add:hover {
+  border-color: var(--canvas-stroke-focus);
+  color: var(--canvas-ink);
+}
+
+/* MentionInput 承载指令文本——去掉独立边框与底色（首轮修订），直接躺在浮
+   层表面（.canvas-composer-core 已经是白面），只留 placeholder 的字色层级
+   （:empty::before 的 ink-muted）区分"没打字"和"打了字"，不再用一个方框把
+   它从卡面上切出来。min-height 72px 是二轮 owner 反馈值（§1「prompt 区最小
+   高 ≥72px」，「它是这个组件的主角，要看得出这里可以写一段话」）。 */
+.domain-canvas .canvas-composer-input {
+  min-height: 72px;
+  width: 100%;
+  padding: 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-composer-input:focus-visible {
+  outline: none;
+}
+.domain-canvas .canvas-composer-input:empty::before {
+  color: var(--canvas-ink-muted);
+}
+
+/* 第二行：参数条（或音频占位）+ 发送键，发送键永远在行末——紧凑修订
+   （2026-07-27）：原先参数条与「扩大/发送」footer 是两行，发送是浅色圆（因
+   为默认没选模型，canSend 恒为 false，一直显示 :disabled 的浅底），改为单
+   行后发送键内联在参数条最右端，一有模型+文字就能立刻读出「这是主动作」的
+   墨底白箭头。.canvas-composer-param-row 单独 flex:1 而不是让发送键跟着一
+   起 wrap——避免小卡宽度不够时参数条换行把发送键也挤到下一行、显得发送键
+   悬空。 */
+.domain-canvas .canvas-composer-second-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* §5 参数条：模型 ∨ · 比例+清晰度 ∨ · 张数 ∨ ·〔⚡ 预留〕。控件高 二轮
+   owner 反馈从「22–28px」升到 **28–32px**（§1）——外框拉宽了，控件不跟着
+   放大会显得更空更小，取区间上限 32px（skin-spec §6 命名档位「常规」）。 */
+.domain-canvas .canvas-composer-param-row {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.domain-canvas .canvas-composer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--canvas-stroke-regular);
+  background: var(--canvas-fill-control);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--canvas-ink);
+  transition: border-color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-pill:hover {
+  border-color: var(--canvas-stroke-focus);
+}
+/* WorkflowModelPicker 自带触发器视觉（NodeMediaInspector 同款组件，节点态
+   --node-* 已在 :root 反转为画布色，见文件顶部）；这里只收紧它在参数条里的
+   高度/字号，不覆盖它自己的形状语言。 */
+.domain-canvas .canvas-composer-model-pill {
+  height: 32px;
+  font-size: 12px;
+}
+
+/* 弹层内容（Popover 通过 Radix Portal 传送到 document.body，脱离
+   .domain-canvas 的 DOM 子树，var(--canvas-*) 在那个位置读不到——同
+   .canvas-cast-popover 的处境，改用字面值，逐条对应来源：#ffffff =
+   --canvas-pop-bg，14px = --canvas-pop-radius，投影 = --canvas-pop-shadow，
+   rgba(0,0,0,.08) = --canvas-stroke-regular，#0a0a0a/#525252/#737373 =
+   --canvas-ink/-regular/-muted，rgba(0,0,0,.04) = --canvas-fill-control。 */
+.canvas-composer-popover {
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-composer-popover-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #737373;
+}
+/* §3.3 画幅选项：图形在上（按真实比例画的小矩形）、文字在下；选中态是填充
+   块不是描边（规格 §3.3 原文，VideoComposer 的 aspectBoxStyle 同一颗函数，
+   这里只是换了紧凑 popover 外壳）。 */
+.canvas-composer-aspect-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 52px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 10px;
+  font-weight: 600;
+  color: #525252;
+  transition:
+    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-composer-aspect-tile:hover {
+  border-color: #737373;
+}
+.canvas-composer-aspect-tile--active {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: #0a0a0a;
+  color: #0a0a0a;
+}
+.canvas-composer-aspect-box {
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+.canvas-composer-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  color: #525252;
+  transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-composer-seg-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.canvas-composer-seg-btn--active {
+  background: #0a0a0a;
+  border-color: #0a0a0a;
+  color: #ffffff;
+}
+
+/* §5.5「用模板」浮层——同样是 Portal 到 document.body 的弹层内容，沿用上面
+   .canvas-composer-popover 那套字面值映射（不重复注释来源，见该规则头部）。
+   约 430×380 是 owner 目检值（文档原文「约」），宽度/高度用 max- 夹一道，不
+   死锁精确像素。两列网格的列数/卡片像素是本次新写部分自己填的版式细节——
+   文档只定了"封面优先网格"，没给列数。 */
+.canvas-composer-template-popover {
+  display: flex;
+  width: 430px;
+  max-width: min(430px, calc(100vw - 32px));
+  max-height: 380px;
+  flex-direction: column;
+  gap: 8px;
+}
+.canvas-composer-template-search {
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 12px;
+  color: #0a0a0a;
+}
+.canvas-composer-template-search::placeholder {
+  color: #737373;
+}
+.canvas-composer-template-search:focus-visible {
+  outline: none;
+  border-color: #0a0a0a;
+}
+.canvas-composer-template-filters {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.canvas-composer-template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.canvas-composer-template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  /* Portal 内容读不到 var(--canvas-*)（见本节顶部 .canvas-composer-popover
+     注释），150ms cubic-bezier(0.4,0,0.2,1) 是 --canvas-dur-fast/
+     --canvas-ease-state 的字面值，同 .canvas-composer-aspect-tile 的写法。 */
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-composer-template-card:hover {
+  opacity: 0.92;
+}
+.canvas-composer-template-card-cover {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+.canvas-composer-template-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.canvas-composer-template-card-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+/* 正文（compiledPrompt）退到 hover 才浮现——composer 浮层比 /prompts 页网
+   格窄得多，没有余量常显一段提示词（§5.5「正文退到 hover 才浮现在封面
+   上」）。 */
+.canvas-composer-template-card-hover {
+  position: absolute;
+  inset: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  padding: 8px;
+  color: #ffffff;
+  background: rgba(10, 10, 10, 0.82);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  font-size: 10px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-composer-template-card:hover .canvas-composer-template-card-hover,
+.canvas-composer-template-card:focus-visible
+  .canvas-composer-template-card-hover {
+  opacity: 1;
+}
+.canvas-composer-template-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0a0a0a;
+}
+.canvas-composer-template-card-usage {
+  font-size: 10px;
+  color: #737373;
+}
+.canvas-composer-template-empty {
+  grid-column: 1 / -1;
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #737373;
+}
+
+/* §8 音频模式参数条——本轮先留占位，别自己发明参数。flex:1 1 auto 与
+   .canvas-composer-param-row 同一职责：占满 second-row 除发送键外的空间。 */
+.domain-canvas .canvas-composer-audio-placeholder {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--canvas-stroke-bold);
+  font-size: 12px;
+  color: var(--canvas-ink-muted);
+}
+
+.domain-canvas .canvas-composer-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  color: var(--canvas-ink-muted);
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-icon-btn:hover {
+  background: var(--canvas-fill-control-hover);
+  color: var(--canvas-ink);
+}
+/* §5 发送键：圆形 36px，--canvas-action 墨底白箭头（§0.6 主动作配方）。 */
+.domain-canvas .canvas-composer-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--canvas-action);
+  color: var(--canvas-action-fg);
+  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-send-btn:hover:not(:disabled) {
+  background: var(--canvas-action-hover);
+}
+.domain-canvas .canvas-composer-send-btn:disabled {
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink-subtle);
+  cursor: not-allowed;
+}
+
+/* §3 画布空白处唤起的模式二选一——挂在卡下时锁定该族，不显示这组控件。 */
+.domain-canvas .canvas-composer-mode-picker {
+  padding: 4px;
+}
+.domain-canvas .canvas-composer-mode-btn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--canvas-stroke-regular);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--canvas-ink-regular);
+  transition:
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-composer-mode-btn:hover {
+  border-color: var(--canvas-stroke-focus);
+  color: var(--canvas-ink);
 }

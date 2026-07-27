@@ -1,12 +1,7 @@
 'use client'
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-} from 'react'
+import { useEffect, useState, type DragEvent } from 'react'
+import { useUpdateNodeInternals } from '@xyflow/react'
 import { ImageIcon, Library, WandSparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -15,6 +10,7 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  type NodeWorkflowGenerationStatus,
   type NodeWorkflowStatus,
 } from '@/constants/node-types'
 import {
@@ -29,6 +25,7 @@ import type { GenerationRecord } from '@/types'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
   ImageCardFailedContent,
+  ImageCardGeneratingOverlay,
   ImageCardStatusBadge,
   ImageCardUploadOverlay,
 } from './ImageCardMediaState'
@@ -41,6 +38,20 @@ interface ImageSourceStarterProps {
   /** owner 真机: 空态图片工具条改名写 mediaLabel（IdentityRegion image→mediaLabel）——
    *  卡头读同一字段，改完卡上标题即刻反映；未命名时回落到类型名「图片」。 */
   mediaLabel?: string
+  /**
+   * canvas-generate-composer.md §7 owner 2026-07-28 真机实测缺陷③④：这张卡
+   * 还没有媒体时也可能正在被生成提示词框/`generateMediaNode` 写入——两者都在
+   * 送出请求前把 `generationStatus: pending` + `status: running` 写进这个节点
+   * 自己的 data（`StudioNodeWorkbench.handleRunGenerateComposer` /
+   * `handleGenerateMediaNode`），失败时写 `generationStatus: error` +
+   * `generationError` + `status: failed`。在这两个 prop 补进来之前，这个组件
+   * 对这份数据完全无感——五态只看自己本地的上传态，一次生成失败因此表现成
+   * 「静默变回空态」，生成中也表现成空态（两个端口因此不渲染，见下方
+   * `isEmpty`/`showSourceHandle`）。同 `NodeMediaPreview` 已有的
+   * `isPending`/`isError` 推导同一套读法，这里补齐role-less 起步卡缺的那一份。
+   */
+  generationStatus?: NodeWorkflowGenerationStatus
+  generationError?: string
 }
 
 /** A failed upload's file + reason, kept local so retry can re-attempt the
@@ -71,22 +82,48 @@ interface UploadFailure {
  * real (XHR, see use-node-reference-upload.ts), cancellable, and a failure
  * stays on the card with its reason + a retry — it no longer just fires a
  * toast and quietly reverts to empty.
+ *
+ * §7 owner 2026-07-28 真机实测缺陷③④（canvas-generate-composer.md §7 尾部）:
+ * a sixth state joined the five above — 生成中 (+ its own 失败) for whenever
+ * the generate composer or `generateMediaNode` targets THIS still-media-less
+ * node. Before this addition the component was blind to that data (only its
+ * own local upload state), so a generation in flight — or one that failed —
+ * both silently rendered as plain 空: no port (an edge from the source card
+ * had nothing to anchor to — React Flow spammed `Couldn't create edge for
+ * target handle id: "null"`), no reason, no retry. See `isGenerating` /
+ * `isGenerationFailed` below.
  */
 export function ImageSourceStarter({
   nodeId,
   selected,
   status,
   mediaLabel,
+  generationStatus,
+  generationError,
 }: ImageSourceStarterProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
-  const { updateNodeData, setExpandedNodeId, consumePendingPasteFile } =
-    useNodeWorkflowActions()
+  const {
+    updateNodeData,
+    setExpandedNodeId,
+    consumePendingPasteFile,
+    generateMediaNode,
+  } = useNodeWorkflowActions()
   const { uploadFile, isUploading, progress, cancelUpload } =
     useNodeReferenceUpload()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [failure, setFailure] = useState<UploadFailure | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+
+  // §7 owner 2026-07-28 缺陷④：生成中/生成失败是这张卡的另外两态，与本地的
+  // 上传态并列判断（同 NodeMediaPreview 的 isPending/isError 同一条读法）。
+  // 只在这两个 prop 有值时才可能为真——ImageNode 没传时（例如旧测试 mock）
+  // 两者都是 undefined，落到 false，行为与改动前完全一致。
+  const isGenerating =
+    generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
+    status === NODE_STATUS_IDS.running
+  const isGenerationFailed =
+    generationStatus === NODE_GENERATION_STATUS_IDS.error ||
+    (status === NODE_STATUS_IDS.failed && Boolean(generationError))
 
   const applyImage = (
     url: string,
@@ -148,17 +185,13 @@ export function ImageSourceStarter({
     void handleFile(file)
   }
 
-  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (inputRef.current) inputRef.current.value = ''
-    if (!file) return
-    void handleFile(file)
-  }
-
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setIsDragOver(false)
-    if (isUploading) return
+    // §7 owner 2026-07-28 缺陷④：一次 AI 生成正打在这张空卡上时，不接受
+    // 拖放把它顶掉——同 isUploading 已有的互斥, 生成失败之后这条禁令自动解除
+    // （isGenerating 变 false），用户可以改拖文件当替代恢复路径。
+    if (isUploading || isGenerating) return
     const file = Array.from(event.dataTransfer.files).find((entry) =>
       entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
     )
@@ -175,7 +208,33 @@ export function ImageSourceStarter({
     setAssetDialogOpen(false)
   }
 
-  const isEmpty = !isUploading && !failure
+  // §7 owner 2026-07-28 缺陷④：「真正的空态」现在要把生成中/生成失败也排除
+  // 在外——两者都「有东西要来」（或刚失败过），不再套用「还没有内容」的空态
+  // 逻辑。这一个布尔同时喂给三处：虚线卡边（下面 className）、端口显隐
+  // （showSourceHandle/showTargetHandle，下面）、以及隐式定义了"上传中/失败/
+  // 生成中/生成失败"四态统一走实线卡边——和上传态本来就有的处理保持一致，
+  // 不是新引入的分支。
+  const isEmpty =
+    !isUploading && !failure && !isGenerating && !isGenerationFailed
+
+  // §7 owner 2026-07-28 真机实测缺陷④续（真机复测发现，spec 原文「等图落地卡
+  // 有了端口，边会自己接上」在这一点上不成立）：`showSourceHandle`/
+  // `showTargetHandle` 只是把 <Handle> element 加进/移出 DOM——React Flow 自己
+  // 的 store 并不会因为 DOM 多了两个 handle 就自动重新measure它们的位置去接
+  // 边。这正是 `use-update-node-internals-on-init.ts` 那份长文档记录的同一个
+  // React Flow 底层问题（handleBounds 不会随 DOM 变化自动刷新），只是那个 hook
+  // 只管首次挂载那一刻（one-shot），管不到这种「节点已经挂载好、生命周期中途
+  // 端口数量动态变化」的场景。真机验证：不加这个 effect 时，边数据在
+  // localStorage 里确实存在（onConnect 正确执行了），但 DOM 里的
+  // `.react-flow__edges` 一直只有空 `<defs>`，控制台也不报错——不是"过程噪
+  // 音"，是边真的连不上，直到用户手动拖一下节点触发 React Flow 自己的重新measure。
+  // 官方文档指定的解法就是这个 hook（"When you programmatically add or remove
+  // handles to a node...you need to let React Flow know about it"）——在端口
+  // 集合改变的那一刻显式通知它重新measure这一个节点。
+  const updateNodeInternals = useUpdateNodeInternals()
+  useEffect(() => {
+    updateNodeInternals(nodeId)
+  }, [isEmpty, nodeId, updateNodeInternals])
 
   return (
     <NodeShell
@@ -183,11 +242,19 @@ export function ImageSourceStarter({
       type={NODE_TYPE_IDS.image}
       selected={selected}
       // 失败态借用既有的「卡边转 --canvas-danger」通用规则（NodeShell 的
-      // .canvas-card[data-status='failed']）——只是视觉信号，不写回 data.status，
-      // 一次上传失败不该把整个节点标脏。
+      // .canvas-card[data-status='failed']）——只是视觉信号，本地上传失败不写
+      // 回 data.status（一次上传失败不该把整个节点标脏）。生成失败则相反：
+      // `status` 这个 prop 本身就已经是 `data.status`，生成失败时上游已经把它
+      // 写成 'failed' 了（StudioNodeWorkbench.handleRunGenerateComposer /
+      // handleGenerateMediaNode）——所以 `: status` 这条回退分支已经如实带出
+      // 生成失败，不需要再判一次 isGenerationFailed。
       status={failure ? NODE_STATUS_IDS.failed : status}
-      showSourceHandle={false}
-      showTargetHandle={false}
+      // §7 owner 2026-07-28 缺陷④：只有真正的空态不露端口——生成中/失败/上传
+      // 中都「有东西」，必须露端口，否则 composer 建的入边找不到锚点（React
+      // Flow 报 Couldn't create edge for target handle id: "null"，边在生成期
+      // 间也不可见）。
+      showSourceHandle={!isEmpty}
+      showTargetHandle={!isEmpty}
       className={isEmpty ? 'canvas-card--dashed' : undefined}
     >
       <NodeShell.Header
@@ -202,23 +269,14 @@ export function ImageSourceStarter({
       />
       <NodeShell.Body className="space-y-2 p-0">
         <div
-          role="button"
-          tabIndex={0}
           aria-label={t('uploadAria')}
-          aria-disabled={isUploading}
           data-drag-over={isDragOver ? 'true' : undefined}
-          onClick={() => {
-            if (!isUploading) inputRef.current?.click()
-          }}
-          onKeyDown={(event) => {
-            if (isUploading) return
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              inputRef.current?.click()
-            }
-          }}
           onDragOver={(event) => {
-            if (!event.dataTransfer.types.includes('Files') || isUploading)
+            if (
+              !event.dataTransfer.types.includes('Files') ||
+              isUploading ||
+              isGenerating
+            )
               return
             event.preventDefault()
             setIsDragOver(true)
@@ -228,13 +286,23 @@ export function ImageSourceStarter({
           className="canvas-image-dropzone flex aspect-square w-full flex-col items-center justify-center outline-none"
         >
           <ImageCardStatusBadge
-            variant={failure ? 'failed' : isUploading ? 'uploading' : 'empty'}
+            variant={
+              failure || isGenerationFailed
+                ? 'failed'
+                : isUploading
+                  ? 'uploading'
+                  : isGenerating
+                    ? 'generating'
+                    : 'empty'
+            }
             label={
-              failure
+              failure || isGenerationFailed
                 ? t('badgeFailed')
                 : isUploading
                   ? t('badgeUploading')
-                  : t('badgeEmpty')
+                  : isGenerating
+                    ? t('badgeGenerating')
+                    : t('badgeEmpty')
             }
           />
 
@@ -251,27 +319,35 @@ export function ImageSourceStarter({
               cancelLabel={t('cancelUpload')}
               onCancel={cancelUpload}
             />
+          ) : isGenerationFailed ? (
+            // §7 owner 2026-07-28 缺陷③：429/生成失败以前是静默的（只有一条
+            // 容易错过的 toast），卡片本身退回空态什么都不说。复用与上传失败
+            // 完全同一套失败态组件——具体原因 + 重试，不另做一套。重试走
+            // generateMediaNode（与 NodeMediaPreview 的失败重试同一条通道），
+            // 拿节点已经写好的 prompt/model/referenceAssets 重新发一次。
+            <ImageCardFailedContent
+              reason={generationError || t('generationFailed')}
+              retryLabel={t('retry')}
+              onRetry={() => void generateMediaNode?.(nodeId)}
+            />
+          ) : isGenerating ? (
+            // §7 owner 2026-07-28 缺陷④：生成中不是空态——沿用上传中的视觉语言
+            // （半透明白 + 扫光），但不显示百分比（生成期间没有真实进度可给，
+            // 规格 §5 明确禁止假造）。
+            <ImageCardGeneratingOverlay label={t('generating')} />
           ) : (
             <div className="canvas-image-empty-hint">
               <ImageIcon className="size-6" aria-hidden />
               <span>{t('uploadHint')}</span>
             </div>
           )}
-
-          <input
-            ref={inputRef}
-            type="file"
-            accept={NODE_STUDIO_IMAGE_INPUT.accept}
-            className="hidden"
-            onChange={handleFileInputChange}
-          />
         </div>
 
         <div className="flex gap-1.5 px-3 pb-3 pt-1">
           <button
             type="button"
             onClick={() => setAssetDialogOpen(true)}
-            disabled={isUploading}
+            disabled={isUploading || isGenerating}
             className="canvas-secondary-btn nodrag flex-1"
           >
             <Library className="size-3.5" aria-hidden />
@@ -280,7 +356,7 @@ export function ImageSourceStarter({
           <button
             type="button"
             onClick={() => setExpandedNodeId(nodeId)}
-            disabled={isUploading}
+            disabled={isUploading || isGenerating}
             className="canvas-secondary-btn nodrag flex-1"
           >
             <WandSparkles className="size-3.5" aria-hidden />

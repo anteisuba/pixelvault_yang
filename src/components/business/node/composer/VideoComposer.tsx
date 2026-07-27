@@ -105,7 +105,13 @@ const DURATION_SECONDS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
 // Aspect-ratio picker tiles render each option as a proportional preview rect
 // (≤26px on the long edge) instead of a bare text pill — see the visual ratio
 // picker in must-3 / fig4. Falls back to a square for a malformed ratio string.
-function aspectBoxStyle(ratio: string): { width: number; height: number } {
+// Exported: canvas-generate-composer.md §5/§7.5 names this function
+// explicitly as the one to reuse verbatim for the image-mode aspect picker —
+// "现状代码已做对...保留" — instead of a second implementation.
+export function aspectBoxStyle(ratio: string): {
+  width: number
+  height: number
+} {
   const [w, h] = ratio.split(':').map(Number)
   const max = 26
   if (!w || !h) return { width: max, height: max }

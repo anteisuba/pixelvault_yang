@@ -529,10 +529,6 @@
         "status": "R2 已归档"
       }
     },
-    "frameCaption": {
-      "promise": "四个面同一套档案 · 任何一次生成都能被找回和续接",
-      "hint": "点上面的标签切换"
-    },
     "caps": {
       "moreModels": "+ {count} 个",
       "textToImage": {
@@ -3611,13 +3607,14 @@
     "imageSourceStarter": {
       "uploadAria": "上传图片",
       "uploadTitle": "上传图片",
-      "uploadHint": "拖入或点击上传",
+      "uploadHint": "拖入即可上传",
       "library": "素材库",
       "aiGenerate": "AI 生成",
       "libraryDialogTitle": "选择图片素材",
       "libraryDialogDescription": "从素材库选一张图，直接作为这张图片卡的内容。",
       "untitled": "未命名图片",
       "uploadFailed": "图片上传失败",
+      "generationFailed": "图片生成失败",
       "categoryLabel": "分类",
       "categoryUnset": "未分类",
       "categoryCustomLabel": "自定义分类名",
@@ -3628,6 +3625,7 @@
       "badgeFailed": "失败",
       "uploading": "上传中 {percent}%",
       "cancelUpload": "取消上传",
+      "generating": "生成中",
       "retry": "重试",
       "replace": "替换"
     },
@@ -4688,6 +4686,38 @@
       "title": "快捷编辑",
       "hint": "描述要提取的元素。结果会作为新图片放在画布上。"
     },
+    "generateComposer": {
+      "placeholderEmpty": "描述你想生成的画面…",
+      "placeholderEditing": "说说想把这张图改成什么…",
+      "editingBadge": "正在改",
+      "addReference": "添加参考图",
+      "aspectLabel": "比例",
+      "batchLabel": "张数",
+      "removeReference": "移除 {name}",
+      "expand": "展开",
+      "collapse": "收起",
+      "send": "发送",
+      "reasonNoModel": "先选一个模型",
+      "reasonNoInput": "说说想生成什么",
+      "historyTitle": "最近用过",
+      "historyEmpty": "还没有历史记录",
+      "modePickerTitle": "生成",
+      "modeImage": "图片",
+      "modeAudio": "音频",
+      "audioPlaceholder": "音频参数条留到声音卡那一轮接入",
+      "templateButton": "用模板",
+      "templateSearchPlaceholder": "搜索名字、正文或标签",
+      "templateFilterLabel": {
+        "recent": "最近用",
+        "all": "全部",
+        "mostUsed": "用得最多"
+      },
+      "templateUsageCount": "用过 {count} 次",
+      "templateLoading": "正在加载模板…",
+      "templateEmpty": "没有找到匹配的提示词模板",
+      "templateApplied": "已替换为模板提示词",
+      "templateUndo": "撤销"
+    },
     "history": {
       "title": "历史对话",
       "search": "请输入搜索关键词",
@@ -5233,6 +5263,7 @@
       "invalidJson": "无法读取请求内容。"
     },
     "rateLimit": "请求过于频繁，请稍候再试。",
+    "runawayGeneration": "该账号的生成请求呈现出密集重复的模式，已被自动暂停——这通常意味着某处卡在了重试循环或自动化脚本里，不是你的操作有问题。请稍等几分钟后再试。",
     "auth": {
       "unauthorized": "请登录后继续。"
     },

@@ -25,6 +25,8 @@
 
 import {
   NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_BY_NODE_TYPE,
+  NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
   type NodeImageRole,
   type NodeWorkflowNodeType,
@@ -137,6 +139,18 @@ export function canConnectNodeTypes(
     (target === NODE_TYPE_IDS.image && targetRole === NODE_IMAGE_ROLE_IDS.shot)
   if (targetIsShot) {
     return isCharacterOrBackgroundSource(source, sourceRole)
+  }
+
+  // canvas-generate-composer.md §7「结果落点」: a populated image card's
+  // generate composer spawns a NEW loose (role-less) result card and wires
+  // source→result as a real edge, not just spatial proximity — "来源关系正是
+  // 连线三维度编码要展示的东西". Scoped to a LOOSE target (targetRole
+  // undefined): background/frame/character/shot stay leaf/source exactly as
+  // before, only a freshly-spawned generic result card accepts this lineage
+  // edge. Source may be ANY image-kind node (loose or role'd) — every image
+  // family is a valid "改前" host per canvas-image-card.md §0's scope.
+  if (target === NODE_TYPE_IDS.image && targetRole === undefined) {
+    return NODE_MEDIA_KIND_BY_NODE_TYPE[source] === NODE_MEDIA_KIND_IDS.image
   }
 
   // Every other unified image role (background / frame) is a leaf/source that

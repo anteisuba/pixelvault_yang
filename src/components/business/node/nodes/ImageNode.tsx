@@ -60,6 +60,12 @@ export const ImageNode = memo(function ImageNode(
             ? props.data.mediaLabel
             : undefined
         }
+        // §7 owner 2026-07-28 缺陷③④：生成提示词框 / generateMediaNode 都会在
+        // 这张卡还没有媒体时把 generationStatus/generationError 写进它自己的
+        // data——不传的话 ImageSourceStarter 对生成中/生成失败完全无感（见该
+        // 组件顶部的文档）。
+        generationStatus={props.data.generationStatus}
+        generationError={props.data.generationError}
       />
     )
   }

@@ -7,6 +7,7 @@ import {
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODES,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_GENERATE_COMPOSER,
   NODE_STUDIO_AGENT_MODES,
   NODE_STUDIO_PROJECTS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
@@ -226,6 +227,16 @@ export const NodeWorkflowNodeDataSchema = z
     resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
     aspectRatio: z
       .enum(Object.keys(IMAGE_SIZES) as [string, ...string[]])
+      .optional(),
+    /**
+     * canvas-generate-composer.md §5「比例+清晰度」的清晰度档——image-kind
+     * 节点专用，与 `resolution`（VIDEO_RESOLUTIONS：480p/720p/…）是两个不同的
+     * 值域，不能共用同一字段。与 `AdvancedParams.resolution`
+     * （types/index.ts）同枚举，`handleGenerateMediaNode` 把它折进
+     * advancedParams.resolution 再发往 studioGenerateAPI。
+     */
+    imageResolution: z
+      .enum(NODE_STUDIO_GENERATE_COMPOSER.imageResolutionTiers)
       .optional(),
     negativePrompt: z.string().trim().min(1).max(1000).optional(),
     /** Reference id → name last inserted as an `@name` token into this video

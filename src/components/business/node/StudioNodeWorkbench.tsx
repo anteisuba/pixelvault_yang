@@ -44,6 +44,7 @@ import {
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DOCK,
   NODE_STUDIO_EDGE_VISUALS,
+  NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
@@ -167,6 +168,7 @@ import {
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
+import { CanvasStartupSkeleton } from './CanvasStartupSkeleton'
 import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
@@ -458,7 +460,11 @@ export function StudioNodeWorkbench() {
       className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground lg:h-svh"
     >
       <ReactFlowProvider>
-        <Suspense fallback={null}>
+        {/* v0.2（2026-07-27，owner 拍板）：StudioNodeCanvas 用了
+            useSearchParams()，硬刷新/直达链接会挂起这个边界——fallback 原来
+            是 null，整个启动段（本机实测 ~5.1s）什么都不画。CanvasStartupSkeleton
+            自带 .domain-canvas 读取 --canvas-*，见该文件顶部注释的作用域坑。 */}
+        <Suspense fallback={<CanvasStartupSkeleton />}>
           <StudioNodeCanvas />
         </Suspense>
       </ReactFlowProvider>
@@ -509,24 +515,34 @@ function StudioNodeCanvas() {
     NodeWorkflowNode,
     NodeWorkflowEdge
   >()
-  // Bug fix 2026-07-27 (revised — see hook doc for the real-device root
-  // cause): `useNodesInitialized()` never flips true on a hard refresh
-  // because it waits on handle-bounds measurement, and handle bounds never
-  // get measured until something forces it — a deadlock. So this no longer
-  // gates on `nodesInitialized`; it fires once nodes exist, and forces
-  // React Flow's store-level `updateNodeInternals(Map)` action with the
-  // real DOM elements + `force: true` (NOT the id-only
+  // Bug fix 2026-07-27 (v4 — see hook doc for the full real-device history,
+  // four root-causes deep): judges success by the actual target — expected
+  // visible edge count vs. `g.react-flow__edge` elements actually in the
+  // DOM — not `nodesInitialized`/`handleBounds` (deadlocked, see v1) and
+  // not a DOM *node* count (looked caught up while edges were still 0, see
+  // v3). Forces React Flow's store-level `updateNodeInternals(Map)` action
+  // with real DOM elements + `force: true` on every miss (NOT the id-only
   // `useUpdateNodeInternals()` hook — that one's internal element lookup is
   // exactly what's deadlocked). One-shot by construction (see the hook) so
   // it never re-fires on ordinary re-renders, e.g. a node drag.
   const nodeInternalsStoreApi = useStoreApi()
+  const getExpectedVisibleEdgeCount = useCallback(
+    () =>
+      nodeInternalsStoreApi.getState().edges.filter((edge) => !edge.hidden)
+        .length,
+    [nodeInternalsStoreApi],
+  )
   const applyForcedNodeInternals = useCallback(
     (updates: Map<string, ForceNodeInternalsUpdate>) => {
       nodeInternalsStoreApi.getState().updateNodeInternals(updates)
     },
     [nodeInternalsStoreApi],
   )
-  useUpdateNodeInternalsOnInit(workflow.nodes, applyForcedNodeInternals)
+  useUpdateNodeInternalsOnInit(
+    workflow.nodes,
+    getExpectedVisibleEdgeCount,
+    applyForcedNodeInternals,
+  )
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   // S2a（2026-07-26）：助手默认**收起**。规格 §8 的宽度策略——左侧合体面板
   // 常驻 296px + 右助手约 420px = 716px 被 chrome 吃掉，1440 宽的屏只剩 724px
@@ -2435,11 +2451,20 @@ function StudioNodeCanvas() {
     fadingEdges,
   ])
 
-  // WorkspaceLayout owns assistant geometry, so stage chrome only needs its
-  // local edge inset. No control guesses or duplicates the rail width.
+  // S11（2026-07-27）更正：上面这条注释描述的是 grid-squeeze 时代的行为，
+  // 已经不成立——助手浮动化之后 .stage 恒为 .workspace 的 100%，不再替
+  // 底部工具条免费挡掉助手的宽度，所以这里必须重新显式让位（同顶栏右侧
+  // 按钮簇的算法，见 canvas.css S11）。right = 16px（这一行自己的留白）+
+  // 助手当前宽度，让胶囊行的右边界正好卡在助手卡左边界。
+  // --canvas-assistant-width 定义在 CanvasWorkspaceLayout.module.css 的
+  // .workspace 上，这个 div 是它的后代（CanvasWorkspaceLayout 把
+  // StudioNodeCanvas 的整个 children 树挂在 .workspace > .stage 内），所以
+  // 能原样继承读到——不在 JS 里复算/硬编码一份宽度数字，单一数据源仍是
+  // CSS 变量。闭合态该变量为 0px，算出来的 right 精确回落到原来的 16px，
+  // 零回归。left 恒定 16px：左侧没有任何东西会浮出来挡它，不需要让位。
   const bottomRowInsetPx = {
     left: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx,
-    right: NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx,
+    right: `calc(${NODE_STUDIO_BOTTOM_DOCK.canvasInsetPx}px + var(--canvas-assistant-width, 0px))`,
   }
 
   // 落卡 = 建边（B1-4）: the ingest engine's ONLY data mutation, reusing the
@@ -3035,6 +3060,103 @@ function StudioNodeCanvas() {
     [canvasImageDrop, screenToFlowPosition, t, workflow],
   )
 
+  // 画布级粘贴（canvas-image-card.md §4.1，owner 2026-07-27 拍板）：粘贴的图片
+  // 立刻建节点、立刻进「上传中」态，不等传完才出现——不能照抄上面
+  // handleCanvasDrop「先传完拿到 url 才 addNode」的写法（那条路径专为拖拽设计，
+  // 节点落地即成功态）。这里改成「先建空节点，把 File 交给它自己的
+  // ImageSourceStarter，用已有的单文件上传链路（真实进度/取消/失败重试，
+  // use-node-reference-upload 已有）」——通过 pendingPasteFilesRef 做一次性
+  // 交接（字段注释见 NodeWorkflowActionsContext）。落点换算复用
+  // screenToFlowPosition + 同一份 referenceSpawn 错位间距，不另写一套。
+  const pendingPasteFilesRef = useRef<Map<string, File>>(new Map())
+  const consumePendingPasteFile = useCallback((nodeId: string) => {
+    const file = pendingPasteFilesRef.current.get(nodeId)
+    pendingPasteFilesRef.current.delete(nodeId)
+    return file
+  }, [])
+
+  // 粘贴事件本身不带光标坐标（不是拖拽）——落点="鼠标当前位置"要另外跟踪；
+  // 鼠标没进过画布/已经移出画布时 ref 为 null，回退视口中心（§4.1「落点」一
+  // 行），复用上面 fuseLooseImageNode 附近已经在用的 viewportCenter 写法。
+  const lastCanvasPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const handleCanvasMouseMove = useCallback((event: ReactMouseEvent) => {
+    lastCanvasPointerRef.current = { x: event.clientX, y: event.clientY }
+  }, [])
+  const handleCanvasMouseLeave = useCallback(() => {
+    lastCanvasPointerRef.current = null
+  }, [])
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      // ⛔ 不抢输入焦点（§4.1 硬要求）：焦点在输入框/contenteditable，或在任意
+      // Radix Popover/Dialog 内容里，或本文件自己跟踪的真·重层（详情面板/
+      // 重编辑工作区/助手展开）打开时，画布完全不接管——那是那些界面自己的
+      // 粘贴（MentionInput/CharacterImageReferenceControls/NodeMediaInspector
+      // 三处既有行为不变，这里不碰它们）。
+      //
+      // ⚠ 故意不判 transientLayerOpen：它是 Boolean(addMenu) || castDockExpanded，
+      // 本意是"添加菜单 / CastDock 展开浮层互斥"（R3-4 §4.2 rule 1）。
+      //
+      // castDockExpanded 在画布加载后几乎恒为 true，但**不是**因为什么 effect
+      // 时序 bug（一度有过这个误诊）：CastDock 的 `collapsed` 默认就是 false，
+      // 卡匣**本来就是展开的**，这个值如实反映了现实。过期的是它的**语义**——
+      // S5d「卡匣回横匣」把卡匣从 popover-flyout 改回了 layout="panel" 的常驻
+      // 左栏（见 CastDock.tsx 顶部注释），而 transientLayerOpen 与 Esc 阶梯
+      // 仍停在 flyout 时代，把"常驻面板是展开的"当成"有浮层遮住了输入"。
+      //
+      // 所以这里不能用它当拦截条件，否则粘贴默认就是废的。
+      // ⚠ 同一处过期语义还有一个已确认的真机后果（不在本片范围，另开）：
+      // 下方 Esc 阶梯的 `if (addMenu || castDockExpanded)` 会吃掉第一次 Esc，
+      // 实测选中节点后要**按两次 Esc** 才能取消选中。
+      const active = document.activeElement
+      const isEditableFocus =
+        active instanceof HTMLElement &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.isContentEditable)
+      const isInsideOverlay =
+        active instanceof HTMLElement &&
+        !!active.closest(
+          '[data-slot="popover-content"], [data-slot="dialog-content"], [role="dialog"]',
+        )
+      if (isEditableFocus || isInsideOverlay || heavyOverlayOpen) {
+        return
+      }
+
+      const files = Array.from(event.clipboardData?.files ?? []).filter(
+        (entry) => entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
+      )
+      if (files.length === 0) return
+      event.preventDefault()
+
+      const pointer = lastCanvasPointerRef.current
+      const dropPosition = pointer
+        ? screenToFlowPosition(pointer)
+        : screenToFlowPosition({
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+          })
+
+      // §4.1「多图」：逐张建节点，沿落点错开排布，不合并成一个节点——同一份
+      // referenceSpawn 错位间距，handleCanvasDrop 也在用。
+      files.forEach((file, index) => {
+        const position = {
+          x:
+            dropPosition.x +
+            index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.offsetX,
+          y:
+            dropPosition.y +
+            index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
+        }
+        const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
+        pendingPasteFilesRef.current.set(newNodeId, file)
+      })
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [heavyOverlayOpen, screenToFlowPosition, workflow])
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
@@ -3082,6 +3204,7 @@ function StudioNodeCanvas() {
       // R3-8 C1 场记条: reuse the same project name CanvasTopBar already
       // renders — no new data source, just threaded one level deeper.
       projectName: workflow.currentProjectName,
+      consumePendingPasteFile,
     }),
     [
       expandedNodeId,
@@ -3089,6 +3212,7 @@ function StudioNodeCanvas() {
       setImageEditWorkspaceOpen,
       transientLayerOpen,
       multiSelectActive,
+      consumePendingPasteFile,
       handleDeleteEdgeWithSignOff,
       handleEnhanceSeedancePrompt,
       handleFocusGeneratedNodes,
@@ -3217,6 +3341,10 @@ function StudioNodeCanvas() {
             onNodeDragStop={handleNodeDragStop}
             onDrop={handleCanvasDrop}
             onDragOver={handleCanvasDragOver}
+            // 画布级粘贴（§4.1）落点="鼠标当前位置"要靠这两个跟踪——粘贴事件本身
+            // 不带坐标，见上面 handlePaste 附近的注释。
+            onMouseMove={handleCanvasMouseMove}
+            onMouseLeave={handleCanvasMouseLeave}
             deleteKeyCode={['Backspace', 'Delete']}
             defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
             // A3: explicit bounds instead of the library's implicit 0.5/2

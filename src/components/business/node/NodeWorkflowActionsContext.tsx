@@ -142,6 +142,17 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    * honest omission), never a fabricated placeholder.
    */
   projectName?: string
+  /**
+   * 画布级粘贴（canvas-image-card.md §4.1）：粘贴瞬间要让新建的图片节点立刻
+   * 进「上传中」态，但 `File` 对象没法塞进可持久化的 `node.data`（不可序列
+   * 化，也不该进 undo/redo 历史）。这个函数是画布 paste 处理器（新建空节点
+   * 那一刻）与该节点自己的 `ImageSourceStarter`（挂载那一刻）之间的一次性
+   * 交接：workbench 端注册一份待处理 File，`ImageSourceStarter` 挂载时调用
+   * 一次即消费清空，不重复触发、不残留。可选——测试用的 context mock（同
+   * `projectName` 的先例）不必跟着补这个字段，`undefined` 时
+   * `ImageSourceStarter` 就是没有待处理文件，走原来的空态，行为不变。
+   */
+  consumePendingPasteFile?(nodeId: string): File | undefined
 }
 
 const NodeWorkflowActionsContext =

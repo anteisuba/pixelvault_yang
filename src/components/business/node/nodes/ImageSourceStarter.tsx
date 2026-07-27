@@ -1,6 +1,12 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from 'react'
 import { ImageIcon, Library, WandSparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -73,7 +79,8 @@ export function ImageSourceStarter({
   mediaLabel,
 }: ImageSourceStarterProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
-  const { updateNodeData, setExpandedNodeId } = useNodeWorkflowActions()
+  const { updateNodeData, setExpandedNodeId, consumePendingPasteFile } =
+    useNodeWorkflowActions()
   const { uploadFile, isUploading, progress, cancelUpload } =
     useNodeReferenceUpload()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
@@ -120,6 +127,19 @@ export function ImageSourceStarter({
     if (result.cancelled) return
     setFailure({ file, reason: result.error ?? t('uploadFailed') })
   }
+
+  // 画布级粘贴（canvas-image-card.md §4.1）：这个节点如果是刚被 paste 处理器
+  // 建出来的空节点，workbench 那边会留一份待处理 File（见
+  // NodeWorkflowActionsContext 的字段注释——File 不可序列化，进不了
+  // node.data，只能靠这种一次性交接）。挂载时消费一次就立刻开始上传，让「粘贴
+  // 瞬间进上传中态」成立，不等用户再点一次。只在挂载时跑一次——
+  // consumePendingPasteFile 本身是消费型 API（调一次就清空），不是需要跟着
+  // 依赖变化重新求值的普通值，故意不放进依赖数组。
+  useEffect(() => {
+    const file = consumePendingPasteFile?.(nodeId)
+    if (file) void handleFile(file)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleRetry = () => {
     if (!failure) return

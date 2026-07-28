@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { NodeToolbar, Position } from '@xyflow/react'
+import { NodeToolbar, Position, useUpdateNodeInternals } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import type { NodeTokenType } from '@/constants/node-tokens'
@@ -107,9 +107,11 @@ export function LooseImageCard({
     heavyOverlayOpen,
     transientLayerOpen,
     multiSelectActive,
+    canvasNodeDragActive,
     updateNodeData,
     setQuickEditNodeId,
   } = useNodeWorkflowActions()
+  const updateNodeInternals = useUpdateNodeInternals()
   const [naturalSize, setNaturalSize] = useState<{
     width: number
     height: number
@@ -134,11 +136,21 @@ export function LooseImageCard({
   // 多选态同理收起——一旦选区变成 2+ 节点，这张卡自己的快编近场面板不该继续
   // 悬浮，跟单节点工具条一起让位给选区的「合成」条。
   useEffect(() => {
-    if (heavyOverlayOpen || transientLayerOpen || multiSelectActive) {
+    if (
+      heavyOverlayOpen ||
+      transientLayerOpen ||
+      multiSelectActive ||
+      canvasNodeDragActive
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to a workbench-owned external signal (a heavier or transient overlay tier claimed the slot), not derivable from this component's own render inputs
       setQuickEditOpen(false)
     }
-  }, [heavyOverlayOpen, transientLayerOpen, multiSelectActive])
+  }, [
+    canvasNodeDragActive,
+    heavyOverlayOpen,
+    transientLayerOpen,
+    multiSelectActive,
+  ])
 
   // R3-4 §4.2 rule 2 (Esc 链 L3 一级): 面板打开时 Escape 收起它，不吞掉输入框
   // 内取消 IME 候选的 Escape。自成一体，和 NodeDetailPanel/CanvasAddMenu 同一
@@ -202,6 +214,10 @@ export function LooseImageCard({
     () => computeClampedCardSize(mediaAspect),
     [mediaAspect],
   )
+
+  useLayoutEffect(() => {
+    updateNodeInternals(id)
+  }, [cardSize.height, cardSize.width, id, updateNodeInternals])
 
   const displaySize = useMemo(() => {
     const mediaW =
@@ -290,7 +306,12 @@ export function LooseImageCard({
 
       <NodeToolbar
         nodeId={id}
-        isVisible={Boolean(selected) && !quickEditOpen && !multiSelectActive}
+        isVisible={
+          Boolean(selected) &&
+          !quickEditOpen &&
+          !multiSelectActive &&
+          !canvasNodeDragActive
+        }
         position={Position.Top}
         offset={14}
       >
@@ -403,7 +424,12 @@ export function LooseImageCard({
 
       <NodeToolbar
         nodeId={id}
-        isVisible={Boolean(selected) && quickEditOpen && !multiSelectActive}
+        isVisible={
+          Boolean(selected) &&
+          quickEditOpen &&
+          !multiSelectActive &&
+          !canvasNodeDragActive
+        }
         position={Position.Bottom}
         offset={14}
       >

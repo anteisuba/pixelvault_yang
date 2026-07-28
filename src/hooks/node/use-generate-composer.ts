@@ -207,6 +207,7 @@ export function useGenerateComposer(): UseGenerateComposerValue {
     heavyOverlayOpen,
     transientLayerOpen,
     multiSelectActive,
+    canvasNodeDragActive,
     quickEditNodeId,
   } = useNodeWorkflowActions()
   const selection = useNodeSelection()
@@ -259,8 +260,13 @@ export function useGenerateComposer(): UseGenerateComposerValue {
   // `4a01eb47` 已经把语义修好（`castDockExpanded` → `castDockOverlayOpen`，
   // CastDock 只在浮层族布局上报、panel 恒报 false），所以 `transientLayerOpen`
   // 现在只剩它本该有的含义：**添加菜单开着**。按当初注释里立的约定加回来。
+  // ⚠ `canvasNodeDragActive`（2026-07-28 owner「拖拽的时候上下两边的框不应该
+  // 打开」）：拖卡时本组件跟着卡跑，既遮住落点又像还能点。拖拽期间收起。
   const suppressedByOverlay =
-    heavyOverlayOpen || transientLayerOpen || multiSelectActive
+    heavyOverlayOpen ||
+    transientLayerOpen ||
+    multiSelectActive ||
+    canvasNodeDragActive
   // §0 与「快编」互斥 — 见 NodeWorkflowActionsContext.quickEditNodeId 的文档。
   const suppressedByQuickEdit = Boolean(
     host && quickEditNodeId && quickEditNodeId === host.nodeId,

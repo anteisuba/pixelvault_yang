@@ -128,6 +128,17 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    * selecting", the exact pre-R3-7 behavior.
    */
   multiSelectActive?: boolean
+  /**
+   * True while a canvas node is being dragged (ReactFlow 原生拖拽生命周期)。
+   *
+   * 2026-07-28 owner：「拖拽的时候上下两边的框不应该打开」——拖动一张卡时，卡
+   * 上方的近场工具条与卡下方的生成提示词框都还挂着跟着跑，既遮挡落点又让人以为
+   * 还能点。拖拽期间两者都收起。
+   *
+   * ⚠ 与 `multiSelectActive` 同属「这一层该不该露面」的判据，所以走同一条
+   * context 通路，不另起一套。
+   */
+  canvasNodeDragActive?: boolean
   modelOptionsByType: NodeWorkflowModelOptionsByType
   /** Canvas-default video model (two-tier {brand,variant}); new video nodes
    *  inherit it via the autospawn effect. Set from the topbar chip. */

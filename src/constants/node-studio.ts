@@ -50,6 +50,10 @@ export const NODE_STUDIO_CANVAS = {
   // (maxZoom) 分开，让 fitView 稳定停在 200% 舒适档，不因为 maxZoom 提到 4
   // 而在节点很少时把画布怼到 400%。
   fitViewMaxZoom: 2,
+  // Separate a stationary click from an intentional node move. React Flow's
+  // zero default fires drag-start on pointer-down, which makes "click opens
+  // contextual UI, drag only repositions" impossible to distinguish.
+  nodeDragThreshold: 6,
   // D3 Figma 级平移：中键(1)+右键(2) 拖拽平移画板；左键留给选择/框选。
   panOnDragButtons: [1, 2],
   // 空格 + 左键拖 = 临时平移（对齐 Figma）。

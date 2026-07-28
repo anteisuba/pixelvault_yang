@@ -297,6 +297,14 @@ function isCanvasIngestDragSource(node: NodeWorkflowNode): boolean {
   )
 }
 
+/**
+ * Native node dragging is position-only. The retired canvas-ingest gesture
+ * remains in this file until its wider cleanup task removes the related
+ * helpers, but every phase must share one gate so hover preview cannot keep
+ * scaling a nearby card while drop handling is disabled.
+ */
+const CANVAS_INGEST_DRAG_GESTURE_ENABLED: boolean = false
+
 interface CanvasDragHit {
   targetNodeId: string
   cardElement: HTMLElement
@@ -2944,19 +2952,23 @@ function StudioNodeCanvas() {
 
   const handleNodeDragStart = useCallback(
     (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
-      if (isCanvasIngestDragSource(node)) {
-        setCanvasNodeDragActive(true)
-        dragStartPositionsRef.current.set(node.id, {
-          x: node.position.x,
-          y: node.position.y,
-        })
-        // A1 perf: snapshot every other card's rect ONCE for the whole
-        // gesture — see `buildCanvasDragRectCache`'s doc comment for why a
-        // drag-start snapshot is safe (target cards don't move mid-drag).
-        dragRectCacheRef.current = buildCanvasDragRectCache(node.id)
+      setCanvasNodeDragActive(true)
+      workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
+
+      if (
+        !CANVAS_INGEST_DRAG_GESTURE_ENABLED ||
+        !isCanvasIngestDragSource(node)
+      ) {
+        return
       }
+
+      dragStartPositionsRef.current.set(node.id, {
+        x: node.position.x,
+        y: node.position.y,
+      })
+      dragRectCacheRef.current = buildCanvasDragRectCache(node.id)
     },
-    [],
+    [workflow],
   )
 
   // A1 perf: the actual per-frame hover-preview logic, unchanged from the
@@ -3010,6 +3022,7 @@ function StudioNodeCanvas() {
 
   const handleNodeDrag = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      if (!CANVAS_INGEST_DRAG_GESTURE_ENABLED) return
       if (!isCanvasIngestDragSource(node)) return
       if (isLooseImageNode(node)) {
         const mediaUrl =
@@ -3063,6 +3076,7 @@ function StudioNodeCanvas() {
   // that was just dragged across open canvas).
   const handleNodeDragStop = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
       // S5f B4: the drag is over — any auto-expanded dock re-collapses
       // (CastDock watches this flag falling).
       setCanvasNodeDragActive(false)
@@ -3083,6 +3097,28 @@ function StudioNodeCanvas() {
         fuseBiteTargetElRef.current = null
       }
       fuseBiteTargetIdRef.current = null
+
+      // ⛔ 吞噬**拖拽手势**退役（2026-07-28，owner 真机报「图片和视频直接无法
+      // 连线，还是吞噬状态」）。
+      //
+      // 「吞噬正式退役」本就是已确认的结构条款，但 S3.5 只退役了**折叠**（连上
+      // 之后源节点不再消失），这条**拖拽手势**一直还在：把一张卡拖到另一张卡上
+      // 就走融合。后果是用户想连「图片 → 视频」根本连不了——手势在 dragStop
+      // 这一层被劫持，走不到端口拖拽那条路（连线规则本身是允许 image→seedance
+      // 的，见 node-connection-rules.ts）。
+      //
+      // 建边的唯一手势现在是**从端口拖到端口**。节点拖拽只负责移动位置——落在
+      // 哪里都是合法稳态（§三.1 散图 = 合法稳态）。
+      //
+      // ⚠ 下面整段命中检测与三拍动画（张口/吸入/落定）**暂时保留不删**：
+      // P0-C2「吞噬其余清理」是独立的一片，要连同 use-cast-ingest /
+      // IngestDragLayer / NODE_STUDIO_INGEST_* / --ease-ingest 一起收。在那之前
+      // 别把这个开关关掉，否则手势劫持立刻回来。
+      //
+      // ⚠ 用带显式 `: boolean` 标注的开关、而不是裸 `return`：裸 return 会让
+      // 后面整段变成死代码，TS 的控制流分析随之失效，立刻报出 15 个「可能
+      // undefined」——那些窄化本来是靠前面的守卫成立的。
+      if (!CANVAS_INGEST_DRAG_GESTURE_ENABLED) return
 
       if (!isCanvasIngestDragSource(node)) return
       if (isLooseImageNode(node)) {
@@ -3440,6 +3476,7 @@ function StudioNodeCanvas() {
       setImageEditWorkspaceOpen,
       transientLayerOpen,
       multiSelectActive,
+      canvasNodeDragActive,
       modelOptionsByType,
       defaultVideoModel: workflow.defaultVideoModel,
       scriptDocStage: workflow.scriptDocStage,
@@ -3456,6 +3493,7 @@ function StudioNodeCanvas() {
       setImageEditWorkspaceOpen,
       transientLayerOpen,
       multiSelectActive,
+      canvasNodeDragActive,
       consumePendingPasteFile,
       handleDeleteEdgeWithSignOff,
       handleEnhanceSeedancePrompt,
@@ -3602,13 +3640,16 @@ function StudioNodeCanvas() {
             connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
             proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
             nodesDraggable
-            // §2.4 端口锚点化退场: binding only happens via 吞噬/快投 now, so
-            // drag-a-new-connection-from-a-port is switched off at the
-            // workbench level too (Handle's own isConnectable={false}
-            // already blocks it per-port; this is the belt to that
-            // suspenders).
-            nodesConnectable={false}
+            // ⚠ 2026-07-28 反转「§2.4 端口锚点化退场」：原文说「binding only
+            // happens via 吞噬/快投 now」，于是把端口连线在 workbench 层和
+            // Handle 层双双关死。吞噬拖拽手势退役之后这条就翻过来了——**端口
+            // 拖拽是现在唯一的建边手势**，三层（这里 / Handle 的
+            // isConnectable / HANDLE_BASE 的 pointer-events）必须一起打开，
+            // 少一层就是「看得见端口但拉不出线」。
+            nodesConnectable
             elementsSelectable
+            selectNodesOnDrag={false}
+            nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
             panOnDrag={panOnDrag}
             panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
             selectionOnDrag
@@ -3718,7 +3759,9 @@ function StudioNodeCanvas() {
                 onCreateCard={handleCastCreate}
                 insetLeft={0}
                 insetRight={0}
-                canvasDragActive={canvasNodeDragActive}
+                canvasDragActive={
+                  CANVAS_INGEST_DRAG_GESTURE_ENABLED && canvasNodeDragActive
+                }
                 layout="panel"
                 onOverlayOpenChange={setCastDockOverlayOpen}
               />

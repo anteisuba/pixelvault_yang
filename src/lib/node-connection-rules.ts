@@ -110,6 +110,23 @@ export function canConnectNodeTypes(
   targetRole?: NodeImageRole,
   sourceRole?: NodeImageRole,
 ): boolean {
+  // ⛔ 2026-07-28 owner：「全部放开。这些都不做限制了。」
+  //
+  // 下面整套按角色/类型的准入矩阵**全部停用**，任意节点之间都可连。停用而不是
+  // 删除：判据本身（谁被谁收割、特写只能挂角色、背景是叶子）仍然是下游收割逻辑
+  // 的真实描述，删掉就得从头重建。
+  //
+  // ⚠ 放开后失去的是一条纪律：**「连得上就一定被用到」**。原注释里写得很直白
+  // ——允许 closeup→shot/seedance 会「产生一条收割时被静默丢弃的边」。现在这类
+  // 边可以画出来，但下游不一定消费它。用户会看到一条什么也没发生的连线。
+  //
+  // 换来的是：不再出现「拖了半天连不上、且和端口坏掉长得一模一样」——那个体验
+  // 刚刚让我们花了三轮才分清是规则拒绝还是端口失效。owner 权衡后选了放开。
+  //
+  // ⚠ 真要收紧时，正确做法不是把这行删掉了事，而是**先给拒绝一个可见的理由**
+  // （toast/提示），否则又会退回到「静默失败」那个坑里。
+  return true
+
   // Target = character (legacy `characterImage` OR unified image role=character):
   // accepts a voice (音色 audio-binding hop) AND a closeup image (面部特写子参考,
   // closeup→character 1-hop, cast-redesign §9 B). Both ride the character forward

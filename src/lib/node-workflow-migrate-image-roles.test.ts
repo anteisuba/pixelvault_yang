@@ -84,6 +84,24 @@ describe('migrateImageRoles', () => {
     expect(next.nodes[1]?.data.imageMode).toBeUndefined()
   })
 
+  it('drops legacy pinned dimensions from unified image nodes', () => {
+    const image = {
+      ...makeNode('i', NODE_TYPE_IDS.image, {
+        mediaUrl: 'https://cdn.test/image.png',
+      }),
+      width: 320,
+      height: 320,
+    }
+    const state: NodeWorkflowState = { nodes: [image], edges: [] }
+
+    const next = migrateImageRoles(state)
+
+    expect(next).not.toBe(state)
+    expect(next.nodes[0]?.width).toBeUndefined()
+    expect(next.nodes[0]?.height).toBeUndefined()
+    expect(migrateImageRoles(next)).toBe(next)
+  })
+
   it('leaves non-image nodes + edges untouched (same reference)', () => {
     const state: NodeWorkflowState = {
       nodes: [

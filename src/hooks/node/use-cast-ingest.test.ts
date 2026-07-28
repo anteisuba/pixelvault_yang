@@ -47,14 +47,13 @@ describe('evaluateCastIngest', () => {
     ).toEqual({ legal: true })
   })
 
-  it('rejects a type the connection matrix does not allow (voice into a shot)', () => {
+  it('allows voice into a shot after the type matrix is disabled', () => {
     const voice = makeNode('voice-1', NODE_TYPE_IDS.voice)
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,
     })
     expect(evaluateCastIngest(voice, shot, [], [voice, shot])).toEqual({
-      legal: false,
-      reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.typeMismatch,
+      legal: true,
     })
   })
 
@@ -243,16 +242,13 @@ describe('evaluateCastIngest', () => {
     ).toEqual({ legal: true })
   })
 
-  it('row⑤ rejects a loose (role-less) image dropped on a shot node (矩阵只认 character/background 来源，not a bug)', () => {
+  it('allows a loose image into a shot after the type matrix is disabled', () => {
     const looseImage = makeNode('image-1', NODE_TYPE_IDS.image)
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,
     })
     expect(
       evaluateCastIngest(looseImage, shot, [], [looseImage, shot]),
-    ).toEqual({
-      legal: false,
-      reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.typeMismatch,
-    })
+    ).toEqual({ legal: true })
   })
 })

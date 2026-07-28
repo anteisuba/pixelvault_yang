@@ -48,7 +48,12 @@ function nodeNeedsResultNormalization(node: NodeWorkflowNode): boolean {
   if (!isImageRoleNode(node)) return false
   const hasImageUrl = typeof node.data.imageUrl === 'string'
   const hasMediaUrl = typeof node.data.mediaUrl === 'string'
-  return (hasImageUrl && !hasMediaUrl) || node.data.imageMode !== undefined
+  return (
+    (hasImageUrl && !hasMediaUrl) ||
+    node.data.imageMode !== undefined ||
+    node.width !== undefined ||
+    node.height !== undefined
+  )
 }
 
 export function migrateImageRoles(state: NodeWorkflowState): NodeWorkflowState {
@@ -74,8 +79,15 @@ export function migrateImageRoles(state: NodeWorkflowState): NodeWorkflowState {
           ? restData.imageUrl
           : restData.mediaUrl
 
+    // LooseImageCard owns its aspect-correct dimensions. Legacy persisted
+    // width/height pins the outer React Flow wrapper to an obsolete square,
+    // which makes bottom-attached toolbars drift away from the visible card.
+    const restNode = { ...node }
+    delete restNode.width
+    delete restNode.height
+
     return {
-      ...node,
+      ...restNode,
       type: NODE_TYPE_IDS.image,
       data: {
         ...restData,

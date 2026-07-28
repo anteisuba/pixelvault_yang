@@ -291,8 +291,14 @@ const PORT_GLYPHS: Partial<Record<NodeTokenType, LucideIcon>> = {
 // point doesn't shift.
 // R3-4 §4.1 L3: 端口是节点自身内容之上的选中/连接 chrome，只需盖过卡片内
 // 无显式层级的兄弟元素——token 化不改变数值关系（局部栈内任意正值皆可）。
-const HANDLE_BASE =
-  '!z-canvas-selection !size-5 !border-0 !bg-transparent pointer-events-none'
+// ⚠ 2026-07-28：这里原本带 `pointer-events-none`——端口只画出来给人看、**根本
+// 抓不住**，从端口拖不出任何连线。吞噬拖拽手势之所以长期是唯一的连线方式，正是
+// 因为这条路一直是堵的；把吞噬手势退役之后 owner 立刻报「图片这边没有可以连线
+// 的地方」。改回可交互。
+//
+// `!size-5`（20px）是命中区，比 CSS 里 `::after` 画的 10px 视觉方块大一圈——
+// 视觉小、命中区大是有意的，别把两者对齐。
+const HANDLE_BASE = '!z-canvas-selection !size-5 !border-0 !bg-transparent'
 
 /**
  * S1 端口族（规格 §7）：形状是主编码、色是辅编码。四族与节点类型的映射——
@@ -342,8 +348,9 @@ export interface NodeCardPortsProps {
  * family encoding stay in one place — an anchor that drifts moves every edge
  * endpoint on the canvas.
  *
- * Inert by design (`isConnectable={false}`) — binding happens through the drag
- * gesture, not by dragging a wire out of a port.
+ * ⚠ 2026-07-28：原文是「Inert by design (`isConnectable={false}`) — binding
+ * happens through the drag gesture」。吞噬拖拽手势退役后这条反转——**从端口拖
+ * 线是现在唯一的建边手势**，两个 Handle 都必须可连。
  */
 export function NodeCardPorts({
   type,
@@ -358,7 +365,6 @@ export function NodeCardPorts({
         <Handle
           type="target"
           position={Position.Left}
-          isConnectable={false}
           className={cn(HANDLE_BASE, 'canvas-port')}
           data-family={portFamily}
         />
@@ -367,7 +373,6 @@ export function NodeCardPorts({
         <Handle
           type="source"
           position={Position.Right}
-          isConnectable={false}
           className={cn(HANDLE_BASE, 'canvas-port')}
           data-family={portFamily}
         />
@@ -394,7 +399,7 @@ function NodeShellRoot({
   // box "合成 N 段" bar (or just clutter the canvas with N floating
   // toolbars) — see `multiSelectActive`'s doc comment for why this can't
   // just rely on NodeToolbar's own library default.
-  const { multiSelectActive } = useNodeWorkflowActions()
+  const { multiSelectActive, canvasNodeDragActive } = useNodeWorkflowActions()
 
   return (
     <article
@@ -416,7 +421,9 @@ function NodeShellRoot({
       {nodeId ? (
         <NodeToolbar
           nodeId={nodeId}
-          isVisible={Boolean(selected) && !multiSelectActive}
+          isVisible={
+            Boolean(selected) && !multiSelectActive && !canvasNodeDragActive
+          }
           position={Position.Top}
           // S1：卡名移出卡框后占了卡顶上方 28px（24 行高 + 4 间距），工具条
           // 要让开它，否则两者叠在一起。

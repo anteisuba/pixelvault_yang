@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type DragEvent } from 'react'
 import { useUpdateNodeInternals } from '@xyflow/react'
-import { ImageIcon, Library, WandSparkles } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -18,9 +18,7 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
 } from '@/constants/node-studio'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
-import type { GenerationRecord } from '@/types'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
@@ -66,11 +64,13 @@ interface UploadFailure {
  * §6.0/§6.1 S5d ③「ImageNode 空态废 role picker → 直接三来源起步」: replaces
  * the old "这张图做什么用（镜头/关键帧）" chooser for a fresh, role-less,
  * media-less `image` node. No role question — the three sources (上传
- * dropzone / 素材库 / AI 生成) are reachable straight from the empty card.
- * Upload and 素材库 resolve inline; AI 生成 hands off to the ⤢ detail panel
- * (`LooseImageDetailBody` → `NodeMediaInspector`, which already owns the full
- * model/prompt/generate form) rather than duplicating that form on a card-
- * sized surface — reuse over a second generate UI.
+ * dropzone) is reachable straight from the empty card.
+ *
+ * ⛔ 2026-07-28 owner：「图一的那两个可以删掉了。和别的地方重叠了」——卡底原本
+ * 有「素材库 / AI 生成」两个按钮，与生成提示词框完全重复：composer 的 `+` 槽
+ * 已经是素材库入口，提示词框本身就是 AI 生成。空卡上再放一份等于同一件事给了
+ * 两个入口、两套状态。素材选择继续由 composer 自己的素材槽负责；这里不保留
+ * 一个永远无法打开的本地 AssetSelectorDialog。
  *
  * Once media lands the node becomes a role-less `LooseImageCard` (ImageNode's
  * existing dispatch); naming + categorizing happens in the expand panel,
@@ -102,15 +102,10 @@ export function ImageSourceStarter({
   generationError,
 }: ImageSourceStarterProps) {
   const t = useTranslations('StudioNode.imageSourceStarter')
-  const {
-    updateNodeData,
-    setExpandedNodeId,
-    consumePendingPasteFile,
-    generateMediaNode,
-  } = useNodeWorkflowActions()
+  const { updateNodeData, consumePendingPasteFile, generateMediaNode } =
+    useNodeWorkflowActions()
   const { uploadFile, isUploading, progress, cancelUpload } =
     useNodeReferenceUpload()
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [failure, setFailure] = useState<UploadFailure | null>(null)
 
@@ -196,16 +191,6 @@ export function ImageSourceStarter({
       entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
     )
     if (file) void handleFile(file)
-  }
-
-  const handleSelectAsset = (generation: GenerationRecord) => {
-    if (!generation.url) return
-    applyImage(
-      generation.url,
-      generation.id,
-      generation.prompt || generation.model || t('untitled'),
-    )
-    setAssetDialogOpen(false)
   }
 
   // §7 owner 2026-07-28 缺陷④：「真正的空态」现在要把生成中/生成失败也排除
@@ -342,37 +327,7 @@ export function ImageSourceStarter({
             </div>
           )}
         </div>
-
-        <div className="flex gap-1.5 px-3 pb-3 pt-1">
-          <button
-            type="button"
-            onClick={() => setAssetDialogOpen(true)}
-            disabled={isUploading || isGenerating}
-            className="canvas-secondary-btn nodrag flex-1"
-          >
-            <Library className="size-3.5" aria-hidden />
-            {t('library')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setExpandedNodeId(nodeId)}
-            disabled={isUploading || isGenerating}
-            className="canvas-secondary-btn nodrag flex-1"
-          >
-            <WandSparkles className="size-3.5" aria-hidden />
-            {t('aiGenerate')}
-          </button>
-        </div>
       </NodeShell.Body>
-
-      <AssetSelectorDialog
-        open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
-        onSelect={handleSelectAsset}
-        title={t('libraryDialogTitle')}
-        description={t('libraryDialogDescription')}
-        mediaType="image"
-      />
     </NodeShell>
   )
 }

@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
+/**
+ * ⚠ 2026-07-28 owner：「全部放开。这些都不做限制了。」
+ *
+ * `canConnectNodeTypes` 现在恒返回 true，所以原来那批「某某组合应当被拒绝」的
+ * 断言全部作废——它们钉的是已经被 owner 推翻的产品规则，留着只会在下次有人想
+ * 收紧时给出**假的安全感**（测试绿 ≠ 规则还在生效）。
+ *
+ * 保留的是「应当允许」那一半：它们现在恒真，价值不在于证明矩阵，而在于万一有人
+ * 把早退去掉、矩阵重新生效时，这些基本组合不能回归成拒绝。
+ *
+ * 真要恢复限制时：把早退去掉 + 恢复这些拒绝断言 + **先给拒绝一个可见理由**
+ * （见函数注释末尾那条）。
+ */
+
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 
 import { canConnectNodeTypes } from './node-connection-rules'
@@ -48,68 +62,6 @@ describe('canConnectNodeTypes', () => {
     ).toBe(true)
   })
 
-  it('rejects a closeup source anywhere but a character target', () => {
-    // closeup is NOT a direct visual reference — it only feeds a character, so
-    // a closeup→seedance / closeup→shot edge (which harvest would silently drop)
-    // is rejected outright.
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.image,
-        NODE_TYPE_IDS.seedance,
-        undefined,
-        NODE_IMAGE_ROLE_IDS.closeup,
-      ),
-    ).toBe(false)
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.image,
-        NODE_TYPE_IDS.shot,
-        undefined,
-        NODE_IMAGE_ROLE_IDS.closeup,
-      ),
-    ).toBe(false)
-    // A non-closeup, non-voice source must not connect into a character.
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.image,
-        NODE_TYPE_IDS.characterImage,
-        undefined,
-        NODE_IMAGE_ROLE_IDS.background,
-      ),
-    ).toBe(false)
-  })
-
-  it('routes the unified image node by role', () => {
-    // image (any role) → seedance reference, mirroring the legacy image types.
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.image, NODE_TYPE_IDS.seedance),
-    ).toBe(true)
-    // voice → image[character] = the character audio-binding hop.
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.voice,
-        NODE_TYPE_IDS.image,
-        NODE_IMAGE_ROLE_IDS.character,
-      ),
-    ).toBe(true)
-    // voice → image[shot|background|frame] → no (only character accepts voice).
-    for (const role of [
-      NODE_IMAGE_ROLE_IDS.shot,
-      NODE_IMAGE_ROLE_IDS.background,
-      NODE_IMAGE_ROLE_IDS.frame,
-    ]) {
-      expect(
-        canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image, role),
-      ).toBe(false)
-    }
-    // image target with no role → accepts nothing FROM A NON-IMAGE SOURCE
-    // (voice). An image-kind source is a different story — see
-    // "生成提示词框" 结果落点 below.
-    expect(canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image)).toBe(
-      false,
-    )
-  })
-
   describe('生成提示词框结果落点 (canvas-generate-composer.md §7)', () => {
     // A populated image card's generate composer spawns a NEW loose
     // (role-less) result card and wires source→result as a real edge — every
@@ -140,35 +92,6 @@ describe('canConnectNodeTypes', () => {
           NODE_IMAGE_ROLE_IDS.shot,
         ),
       ).toBe(true)
-    })
-
-    it('still rejects non-image sources into a loose image target', () => {
-      expect(
-        canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.image),
-      ).toBe(false)
-      expect(
-        canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.image),
-      ).toBe(false)
-      expect(
-        canConnectNodeTypes(NODE_TYPE_IDS.seedance, NODE_TYPE_IDS.image),
-      ).toBe(false)
-    })
-
-    it('leaves background/frame image targets as leaf/source (unchanged)', () => {
-      expect(
-        canConnectNodeTypes(
-          NODE_TYPE_IDS.image,
-          NODE_TYPE_IDS.image,
-          NODE_IMAGE_ROLE_IDS.background,
-        ),
-      ).toBe(false)
-      expect(
-        canConnectNodeTypes(
-          NODE_TYPE_IDS.image,
-          NODE_TYPE_IDS.image,
-          NODE_IMAGE_ROLE_IDS.frame,
-        ),
-      ).toBe(false)
     })
   })
 
@@ -220,28 +143,6 @@ describe('canConnectNodeTypes', () => {
     ).toBe(true)
   })
 
-  it('rejects non-reference sources into shot', () => {
-    // shot/frame images are leaf outputs, not references → nothing to consume.
-    expect(canConnectNodeTypes(NODE_TYPE_IDS.shot, NODE_TYPE_IDS.shot)).toBe(
-      false,
-    )
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.image,
-        NODE_TYPE_IDS.shot,
-        undefined,
-        NODE_IMAGE_ROLE_IDS.shot,
-      ),
-    ).toBe(false)
-    // Non-image sources never feed a shot.
-    expect(canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.shot)).toBe(
-      false,
-    )
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.shot),
-    ).toBe(false)
-  })
-
   it('allows video sources into videoMerge', () => {
     expect(
       canConnectNodeTypes(
@@ -252,27 +153,5 @@ describe('canConnectNodeTypes', () => {
     expect(
       canConnectNodeTypes(NODE_TYPE_IDS.videoMerge, NODE_TYPE_IDS.videoMerge),
     ).toBe(true)
-  })
-
-  it('rejects nonsense connections', () => {
-    // voice into an image-gen node (not the character hop) → no.
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.voice, NODE_TYPE_IDS.backgroundImage),
-    ).toBe(false)
-    // text into a character node → no.
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.shotText, NODE_TYPE_IDS.characterImage),
-    ).toBe(false)
-    // anything into a leaf/source node (shotText/voice/videoReference) → no.
-    expect(
-      canConnectNodeTypes(NODE_TYPE_IDS.seedance, NODE_TYPE_IDS.shotText),
-    ).toBe(false)
-    // frameImage doesn't read the graph → no image refs into it (shot does).
-    expect(
-      canConnectNodeTypes(
-        NODE_TYPE_IDS.characterImage,
-        NODE_TYPE_IDS.frameImage,
-      ),
-    ).toBe(false)
   })
 })

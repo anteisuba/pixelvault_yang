@@ -70,6 +70,40 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.assembledImageCount).toBe(1)
   })
 
+  it('sends a directly connected role-less image instead of silently dropping it', () => {
+    const nodes = [
+      makeNode('loose1', NODE_TYPE_IDS.image, {
+        mediaUrl: 'https://cdn/loose.png',
+        mediaLabel: '甲板静帧',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, {
+        prompt: '让画面里的风衣轻轻摆动',
+      }),
+    ]
+    const edges = [makeEdge('e-loose', 'loose1', 'video1')]
+
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[1].data,
+      edges,
+      nodes,
+      maxReferenceImages: 9,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.images).toEqual([
+      {
+        url: 'https://cdn/loose.png',
+        index: 1,
+        name: undefined,
+        kind: undefined,
+        category: undefined,
+      },
+    ])
+    expect(preview.assembledImageCount).toBe(1)
+    expect(preview.overflow).toEqual([])
+  })
+
   it('lists cap-truncated candidates as overflow, independent of the images list', () => {
     const nodes = [
       makeNode('char1', NODE_TYPE_IDS.characterImage, {

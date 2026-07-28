@@ -205,6 +205,62 @@ function renderDetail() {
   return render(<VideoComposer id="v1" data={data} density="detail" />)
 }
 
+function renderCompact(onRequestDetail = vi.fn()) {
+  const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
+  return {
+    onRequestDetail,
+    ...render(
+      <VideoComposer
+        id="v1"
+        data={data}
+        density="card"
+        onRequestDetail={onRequestDetail}
+      />,
+    ),
+  }
+}
+
+describe('VideoComposer compact sidecar', () => {
+  beforeEach(() => {
+    composerState.referenceKinds = []
+    composerState.referenceTokens = []
+    composerState.referencedTokenIds = new Set()
+    updateNodeData.mockClear()
+  })
+
+  it('keeps the video monitor out of the editor and opens detail in place', () => {
+    const { onRequestDetail } = renderCompact()
+
+    expect(screen.queryByText('monitor.empty')).not.toBeInTheDocument()
+    expect(document.querySelector('video')).toBeNull()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'sidecar.chooseFromCanvas' }),
+    )
+    expect(onRequestDetail).toHaveBeenCalledOnce()
+  })
+
+  it('shows real connected references as compact thumbnails', () => {
+    composerState.referenceTokens = [
+      {
+        id: 'c1',
+        kind: 'character',
+        label: 'Character A',
+        token: '@CharacterA',
+        mediaUrl: 'https://cdn.test/character-a.png',
+      },
+    ]
+
+    renderCompact()
+
+    const thumbnail = screen
+      .getByRole('button', { name: '@CharacterA' })
+      .querySelector('img')
+    expect(thumbnail).toHaveAttribute('src', 'https://cdn.test/character-a.png')
+    expect(screen.getByText('@CharacterA')).toBeInTheDocument()
+  })
+})
+
 describe('VideoComposer references row (detail)', () => {
   beforeEach(() => {
     composerState.referenceKinds = []

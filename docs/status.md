@@ -1,11 +1,15 @@
 # 项目状态
 
-最后更新：2026-07-23
+最后更新：2026-07-28
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
 ## Current Focus
 
+- **画布视频节点“纯视频卡 + 固定右侧编排器”已按 owner 确认切片完成本地实现。**
+  视频卡只保留名称、媒体与真实状态；编排器在单选时以 React Flow
+  `NodeToolbar` 固定于右侧，紧凑态消费现有 `useVideoComposer` 真值，
+  详细态在原锚点向右展开并复用既有模型、参数、素材管理和生成链。
 - **公开体验第一批安全门禁与 Execution & Billing Reliability 第一批修复已完成本地实现并满足 commit 门禁；原始 review 尚未全部完成。**
 - 安全门禁：Next 16.2.11；`sharp` 0.35.3（含 Next 嵌套依赖 override）；集中日志递归脱敏与 prompt/LLM 原文日志清理；生产 fail-closed 的平台生成总开关；原子全局日预算 500、用户日额度 20、用户活动 Job 上限 2；Execution v1 签名绑定时间、nonce、方法、路径与 body hash，并以 Upstash Redis 防重放。
 - Clerk Production instance 已完成自定义域名 DNS/SSL、Vercel Production/Preview 密钥拆分和 `user.created` / `user.updated` / `user.deleted` webhook 配置；首次公开部署保持 `PLATFORM_GENERATION_ENABLED=false`。已验证主邮箱可把旧数据库账户安全重绑定到新的 Production Clerk ID，只更新 `clerkId`，保留内部 `User.id`、图库、生成记录和个人资料；Preview/Development 不允许反向覆盖该映射。
@@ -16,6 +20,10 @@
 
 ## Validation
 
+- 画布视频编排：`npx tsc --noEmit` 通过；相关 ESLint 通过；
+  `VideoComposer.test.tsx` 37/37 通过。复用 owner 的 3000 实例真机确认：
+  桌面右侧间距 24px、顶差 0px，详细态 320px → 440px，节点坐标/尺寸
+  不变，取消选择后侧栏隐藏，侧栏不重复渲染视频。
 - `npx tsc --noEmit`、全量 `npm run lint`、Next 16.2.11 production build：通过；构建包含 TypeScript、173 个静态页面与路由收集。
 - 第一批安全回归：日志/prompt/provider 51/51；免费体验预算与管理员统计 28/28；内部签名/路由/派发 43/43；Execution Worker 67/67；`sharp` 真实图片处理 57/57。
 - Clerk 用户映射定向回归 30/30；本轮最终 `npx tsc --noEmit`、全量 `npm run lint`、全量应用 Vitest（退出码 0）与 Execution Worker 67/67 均通过。
@@ -25,6 +33,8 @@
 
 ## Next
 
+- 画布下一轮按串行顺序继续：先核验各视频模型的真实发送计划与 provider
+  差异，再处理“所有节点的快速定位”卡匣；节点详情页和按钮动效最后收口。
 - push `main` 前按 release P0 完成 Clerk Production 的注册策略、Bot protection、邮箱验证与 OAuth 配置复核，再做 Production redeploy、真实同邮箱注册/图库继承 smoke、Playwright mobile smoke 和 GitHub CI。
 - 第二批安全建议：用户原始资产改私有 bucket + 短时签名 URL；API key 密文 `version + kid + AAD` 轮换；高成本接口按 Redis 故障 fail-closed 分级；上传文件内容嗅探/解码沙箱；管理员权限与审计日志收紧；继续升级 Clerk/Vite/Hono 等间接依赖。
 - 原 review 的剩余高优先级工作：成功回调先抢占 `FINALIZING` 再做下载/上传；图像主派发进入可靠 Outbox；`ExecutionOutbox` 一对多迁移（主派发 + 预览衍生）；免费额度 reservation/release；计费字段拆分（billing units / provider requests / attempts / USD cost）；高成本接口 Redis 故障 fail-closed。

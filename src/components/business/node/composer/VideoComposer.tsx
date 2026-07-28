@@ -92,9 +92,15 @@ import { CameraGrammarButton } from './CameraGrammarButton'
 interface VideoComposerProps {
   id: string
   data: NodeWorkflowNodeData
-  /** 'card' = compact (model chip + summary + generate); 'detail' = full B2
-   *  composer hosted in the shared ⤢ detail panel. */
+  /** 'card' = compact right-sidecar composer; 'detail' = full model-aware
+   * controls. Both consume the same persisted node data and generation path. */
   density: 'card' | 'detail'
+  /** The node-attached sidecar keeps the video in the card on its left, so its
+   * detailed state must not duplicate the historical slate/monitor. */
+  showMonitor?: boolean
+  /** Expand the node-attached sidecar in place. Legacy hosts fall back to the
+   * shared node-detail panel when this callback is omitted. */
+  onRequestDetail?: () => void
 }
 
 // fal Seedance duration enum: 'auto' or 4..15 seconds. The slider walks the
@@ -395,7 +401,13 @@ function VideoSlateStrip({
  * capability-driven controls the old SeedanceInspector had, restructured around
  * the two-tier switcher + provider picker. Writes the same `node.data.*` fields.
  */
-export function VideoComposer({ id, data, density }: VideoComposerProps) {
+export function VideoComposer({
+  id,
+  data,
+  density,
+  showMonitor = true,
+  onRequestDetail,
+}: VideoComposerProps) {
   const t = useTranslations('StudioNode.videoGeneration')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tc = useTranslations('StudioNode.videoComposer')
@@ -922,9 +934,17 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
     </Button>
   )
 
-  // Compact card (draft node-types-detail): model chip → opens the ⤢ detail
-  // panel + read-only res·dur·aspect summary + ref chips + green generate. All
-  // editing (two-tier switcher, params) lives in the detail panel.
+  const requestDetail = () => {
+    if (onRequestDetail) {
+      onRequestDetail()
+      return
+    }
+    setExpandedNodeId(id)
+  }
+
+  // Compact right-sidecar: a spacious prompt surface with a truthful connected
+  // reference strip and a single bottom dock. Editing model-specific details
+  // expands this same sidecar; it no longer lives inside the video card.
   if (density === 'card') {
     const modelLabel = composer.state.brand
       ? composer.state.variant
@@ -941,36 +961,168 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
         : null,
       typeof data.aspectRatio === 'string' ? data.aspectRatio : null,
     ].filter((part): part is string => Boolean(part))
+    const visibleReferences = composer.referenceTokens.slice(0, 5)
+    const hiddenReferenceCount =
+      composer.referenceTokens.length - visibleReferences.length
 
     return (
-      <div className="nodrag space-y-2">
-        <button
-          type="button"
-          {...KEY_GUARD}
-          onClick={() => setExpandedNodeId(id)}
-          className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
+      <div className="canvas-video-composer-compact">
+        <div
+          className="canvas-video-composer-mode"
+          aria-label={tc('sidecar.modeLabel')}
         >
-          <span className="truncate">{modelLabel}</span>
-          <ChevronDown className="size-3.5 shrink-0 text-node-muted" />
-        </button>
-        {summaryParts.length > 0 ? (
-          <p className="px-0.5 text-2xs text-node-muted">
-            {summaryParts.join(' · ')}
+          <span data-active="true">
+            {composer.hasReferenceInputs
+              ? tc('sidecar.modeReference')
+              : tc('sidecar.modeText')}
+          </span>
+          <span>
+            {tc('sidecar.connectedCount', {
+              count: composer.referenceTokens.length,
+            })}
+          </span>
+        </div>
+
+        <div className="canvas-video-composer-helper">
+          <span>
+            {composer.hasReferenceInputs
+              ? tc('sidecar.referenceHelper')
+              : tc('sidecar.textHelper')}
+          </span>
+          <button type="button" {...KEY_GUARD} onClick={requestDetail}>
+            {tc('sidecar.chooseFromCanvas')}
+          </button>
+        </div>
+
+        <div className="canvas-video-composer-assets">
+          {visibleReferences.length > 0 ? (
+            <div className="canvas-video-composer-asset-list">
+              {visibleReferences.map((refToken) => {
+                const thumbnailUrl =
+                  refToken.kind === 'voice'
+                    ? refToken.coverImage
+                    : refToken.mediaUrl
+                const label =
+                  refToken.label ||
+                  refToken.token ||
+                  tc(`refKind.${refToken.kind}`)
+                return (
+                  <button
+                    key={`${refToken.kind}:${refToken.id}`}
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={(event) =>
+                      handleTokenInsert(refToken, event.currentTarget)
+                    }
+                    disabled={!refToken.token}
+                    title={
+                      refToken.token
+                        ? tc('references.insertHint')
+                        : tc('references.unnamedHint')
+                    }
+                    className="canvas-video-composer-asset"
+                  >
+                    {thumbnailUrl ? (
+                      // Canvas references can be user uploads or generated R2
+                      // URLs, so next/image's static host contract does not fit.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumbnailUrl} alt="" />
+                    ) : (
+                      <span aria-hidden>{label.slice(0, 1)}</span>
+                    )}
+                    <small>{refToken.token || label}</small>
+                  </button>
+                )
+              })}
+              {hiddenReferenceCount > 0 ? (
+                <span className="canvas-video-composer-asset-overflow">
+                  +{hiddenReferenceCount}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <p className="canvas-video-composer-assets-empty">
+              {tc('sidecar.noReferences')}
+            </p>
+          )}
+          <button
+            type="button"
+            {...KEY_GUARD}
+            onClick={requestDetail}
+            className="canvas-video-composer-asset-add"
+            aria-label={tc('sidecar.addReference')}
+            title={tc('sidecar.addReference')}
+          >
+            +
+          </button>
+        </div>
+
+        <div className="canvas-video-composer-prompt">
+          <MentionInput
+            ref={promptRef}
+            value={promptFieldValue}
+            onValueChange={(next) =>
+              handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+            }
+            tokens={mentionTokens}
+            aria-label={tFields('prompt.label')}
+            placeholder={tc('sidecar.promptPlaceholder')}
+            {...KEY_GUARD}
+            className="canvas-video-composer-prompt-input"
+          />
+          <span
+            className={cn(
+              'canvas-video-composer-count',
+              promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
+                'text-node-status-failed',
+            )}
+          >
+            {tc('references.charCount', {
+              length: promptFieldValue.length,
+              max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
+            })}
+          </span>
+        </div>
+
+        <div className="canvas-video-composer-dock">
+          <button
+            type="button"
+            {...KEY_GUARD}
+            onClick={requestDetail}
+            className="canvas-video-composer-model"
+          >
+            <Film className="size-3.5 shrink-0" aria-hidden />
+            <span>{modelLabel}</span>
+            <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+          </button>
+          {summaryParts.length > 0 ? (
+            <button
+              type="button"
+              {...KEY_GUARD}
+              onClick={requestDetail}
+              className="canvas-video-composer-summary"
+              aria-label={tc('sidecar.editParameters')}
+            >
+              {summaryParts.join(' / ')}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            {...KEY_GUARD}
+            onClick={handleGenerate}
+            disabled={Boolean(disabledReason)}
+            className="canvas-video-composer-generate"
+            aria-label={disabledReason ?? generateLabel}
+            title={disabledReason ?? generateLabel}
+          >
+            {isPending ? <Spinner size="sm" /> : <span aria-hidden>↑</span>}
+          </button>
+        </div>
+        {disabledReason ? (
+          <p className="canvas-video-composer-disabled-reason">
+            {disabledReason}
           </p>
         ) : null}
-        {composer.referenceKinds.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {composer.referenceKinds.map((kind) => (
-              <span
-                key={kind}
-                className="rounded-md border border-node-panel-inner bg-node-panel px-1.5 py-0.5 text-2xs text-node-muted"
-              >
-                {tc(`refKind.${kind}`)}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {generateButton}
       </div>
     )
   }
@@ -983,21 +1135,25 @@ export function VideoComposer({ id, data, density }: VideoComposerProps) {
           嵌在下方左列里，但它的覆盖层用 absolute inset-y-0 right-0，靠 CSS 的"就近
           已定位祖先"规则直接贴到这层，覆盖监视器→双栏→生成键的整个可见高度，不
           用把状态提升到这里、也不用穿透传 ref。 */}
-      <VideoSlateStrip
-        projectName={projectName}
-        shotName={shotReferenceLabel}
-        isReferenceMode={composer.hasReferenceInputs}
-        status={data.status}
-      />
-      <VideoMonitor
-        mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
-        thumbnailUrl={
-          typeof data.videoThumbnailUrl === 'string'
-            ? data.videoThumbnailUrl
-            : undefined
-        }
-        isGenerating={isPending}
-      />
+      {showMonitor ? (
+        <>
+          <VideoSlateStrip
+            projectName={projectName}
+            shotName={shotReferenceLabel}
+            isReferenceMode={composer.hasReferenceInputs}
+            status={data.status}
+          />
+          <VideoMonitor
+            mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
+            thumbnailUrl={
+              typeof data.videoThumbnailUrl === 'string'
+                ? data.videoThumbnailUrl
+                : undefined
+            }
+            isGenerating={isPending}
+          />
+        </>
+      ) : null}
 
       {/* Two-pane layout below the monitor: left = text inputs (references +
           prompt + negative), right = model + render settings. 3:2 列宽比照顾

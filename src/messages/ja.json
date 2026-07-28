@@ -3955,7 +3955,15 @@
       "statusIdle": "生成できます",
       "statusPending": "動画を生成中",
       "statusSuccess": "動画を生成しました",
-      "statusError": "生成に失敗しました"
+      "statusError": "生成に失敗しました",
+      "sidecar": {
+        "ariaLabel": "動画構成エディター",
+        "eyebrow": "動画構成 · 右側編集",
+        "titleFallback": "動画生成",
+        "detailAction": "詳細編集",
+        "compactAction": "詳細を閉じる",
+        "close": "動画構成エディターを閉じる"
+      }
     },
     "videoReference": {
       "title": "参考動画",
@@ -4092,6 +4100,19 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
+      "sidecar": {
+        "modeLabel": "現在の動画生成モード",
+        "modeText": "テキストから動画",
+        "modeReference": "参照生成",
+        "connectedCount": "素材 {count} 件",
+        "referenceHelper": "接続した素材はモデルの対応範囲に応じて今回のリクエストへ送信されます",
+        "textHelper": "プロンプトを書くか、キャンバスから参照素材を接続します",
+        "chooseFromCanvas": "キャンバスから選択",
+        "noReferences": "参照素材はまだありません",
+        "addReference": "参照素材を追加",
+        "promptPlaceholder": "生成したいショット、動き、音を説明…",
+        "editParameters": "動画パラメータを編集"
+      },
       "slate": {
         "modeReference": "参照モード",
         "modeText": "テキストモード"

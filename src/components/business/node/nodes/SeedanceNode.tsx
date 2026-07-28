@@ -1,8 +1,8 @@
 'use client'
 
-import { memo } from 'react'
-import type { NodeProps } from '@xyflow/react'
-import { AlertTriangle, Film, Video } from 'lucide-react'
+import { memo, useState } from 'react'
+import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
+import { AlertTriangle, Film, Video, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -11,6 +11,7 @@ import {
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
 import { deriveSwitcherStateFromModel } from '@/lib/video-model-resolver'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
@@ -35,11 +36,19 @@ export const SeedanceNode = memo(function SeedanceNode(
   const isPending =
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     data.status === NODE_STATUS_IDS.running
+  const isMobile = useIsMobile()
+  const [sidecarExpanded, setSidecarExpanded] = useState(false)
 
   // §5.1 shot override: this node's model brand differs from the canvas default
   // → flag it (⚠ badge + dashed border) so cross-shot drift is scannable.
-  const { defaultVideoModel, updateNodeData } = useNodeWorkflowActions()
-  const nodeBrand = deriveSwitcherStateFromModel(data.model).brand
+  const {
+    defaultVideoModel,
+    updateNodeData,
+    multiSelectActive,
+    canvasNodeDragActive,
+  } = useNodeWorkflowActions()
+  const nodeState = deriveSwitcherStateFromModel(data.model)
+  const nodeBrand = nodeState.brand
   const isOverridden = Boolean(
     defaultVideoModel && nodeBrand && nodeBrand !== defaultVideoModel.brand,
   )
@@ -52,7 +61,65 @@ export const SeedanceNode = memo(function SeedanceNode(
       status={data.status}
       overridden={isOverridden}
       toolbarData={data}
+      className="canvas-video-card"
     >
+      <NodeToolbar
+        nodeId={id}
+        isVisible={
+          Boolean(selected) && !multiSelectActive && !canvasNodeDragActive
+        }
+        position={Position.Right}
+        align="start"
+        offset={isMobile ? 20 : 24}
+        className="canvas-video-sidecar-toolbar"
+      >
+        <aside
+          aria-label={t('sidecar.ariaLabel')}
+          className="canvas-video-sidecar nodrag nopan nowheel"
+          data-expanded={sidecarExpanded ? 'true' : 'false'}
+        >
+          <header className="canvas-video-sidecar-header">
+            <div className="min-w-0">
+              <p className="canvas-video-sidecar-eyebrow">
+                {t('sidecar.eyebrow')}
+              </p>
+              <p className="canvas-video-sidecar-title">
+                {nodeBrand ?? t('sidecar.titleFallback')}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSidecarExpanded((current) => !current)}
+                className="canvas-video-sidecar-quiet-button"
+                aria-expanded={sidecarExpanded}
+              >
+                {sidecarExpanded
+                  ? t('sidecar.compactAction')
+                  : t('sidecar.detailAction')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidecarExpanded(false)}
+                className="canvas-video-sidecar-icon-button"
+                aria-label={t('sidecar.close')}
+                title={t('sidecar.close')}
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </div>
+          </header>
+          <div className="canvas-video-sidecar-body">
+            <VideoComposer
+              id={id}
+              data={data}
+              density={sidecarExpanded ? 'detail' : 'card'}
+              showMonitor={false}
+              onRequestDetail={() => setSidecarExpanded(true)}
+            />
+          </div>
+        </aside>
+      </NodeToolbar>
       <NodeShell.Header
         type={NODE_TYPE_IDS.seedance}
         status={data.status}
@@ -64,6 +131,7 @@ export const SeedanceNode = memo(function SeedanceNode(
         onRenameCommit={(next) =>
           updateNodeData(id, { mediaLabel: next, sourceLabel: next })
         }
+        hideStatusBadge
         action={
           isOverridden ? (
             <span
@@ -75,12 +143,8 @@ export const SeedanceNode = memo(function SeedanceNode(
           ) : null
         }
       />
-      <NodeShell.Ingredients nodeId={id} />
-      <NodeShell.Body className="space-y-3">
-        {/* node-card-window: same deep-window treatment as NodeMediaPreview's media
-            container (§3/§7) — hand-rolled here rather than delegating to
-            NodeMediaPreview, so the scope class + bg + radius are mirrored by hand. */}
-        <div className="node-card-window relative aspect-video overflow-hidden rounded-sm border border-node-panel-inner bg-node-card-window">
+      <NodeShell.Body className="p-0">
+        <div className="node-card-window relative aspect-video overflow-hidden bg-node-card-window">
           {mediaUrl ? (
             <video
               src={mediaUrl}
@@ -113,20 +177,7 @@ export const SeedanceNode = memo(function SeedanceNode(
             </div>
           ) : null}
         </div>
-
-        {/* B2/B3: compact composer (model chip + summary + generate). ⤢ opens
-            the shared detail panel with the full B2 params — the card never
-            grows in place. */}
-        <VideoComposer id={id} data={data} density="card" />
       </NodeShell.Body>
-      <NodeShell.Footer>
-        <p className="truncate text-2xs font-medium text-node-subtle">
-          {mediaUrl ? t('footerDone') : t('footerEmpty')}
-        </p>
-        <span className="flex size-8 items-center justify-center rounded-xl bg-node-panel-inner text-node-foreground">
-          <Film className="size-4" />
-        </span>
-      </NodeShell.Footer>
     </NodeShell>
   )
 })

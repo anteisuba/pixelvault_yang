@@ -3955,7 +3955,15 @@
       "statusIdle": "Ready to generate",
       "statusPending": "Generating video",
       "statusSuccess": "Video generated",
-      "statusError": "Generation failed"
+      "statusError": "Generation failed",
+      "sidecar": {
+        "ariaLabel": "Video assembly editor",
+        "eyebrow": "Video assembly · right editor",
+        "titleFallback": "Video generation",
+        "detailAction": "Detailed edit",
+        "compactAction": "Collapse details",
+        "close": "Close video assembly editor"
+      }
     },
     "videoReference": {
       "title": "Reference video",
@@ -4092,6 +4100,19 @@
         "volcengine": "VolcEngine"
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
+      "sidecar": {
+        "modeLabel": "Current video generation mode",
+        "modeText": "Text to video",
+        "modeReference": "Reference generation",
+        "connectedCount": "{count} assets",
+        "referenceHelper": "Connected assets enter this request when the model supports them",
+        "textHelper": "Write a prompt or connect reference assets from the canvas",
+        "chooseFromCanvas": "Choose from canvas",
+        "noReferences": "No reference assets connected",
+        "addReference": "Add reference asset",
+        "promptPlaceholder": "Describe the shot, motion, and sound you want…",
+        "editParameters": "Edit video parameters"
+      },
       "slate": {
         "modeReference": "Reference mode",
         "modeText": "Text mode"

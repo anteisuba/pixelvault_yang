@@ -3955,7 +3955,15 @@
       "statusIdle": "可开始生成",
       "statusPending": "正在生成视频",
       "statusSuccess": "视频已生成",
-      "statusError": "生成失败"
+      "statusError": "生成失败",
+      "sidecar": {
+        "ariaLabel": "视频编排器",
+        "eyebrow": "视频编排 · 右侧编辑",
+        "titleFallback": "视频生成",
+        "detailAction": "详细编辑",
+        "compactAction": "收起详情",
+        "close": "关闭视频编排器"
+      }
     },
     "videoReference": {
       "title": "参考视频",
@@ -4092,6 +4100,19 @@
         "volcengine": "火山方舟"
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
+      "sidecar": {
+        "modeLabel": "当前视频生成模式",
+        "modeText": "文生视频",
+        "modeReference": "参考生成",
+        "connectedCount": "{count} 个素材",
+        "referenceHelper": "连接的素材会按模型能力进入本次请求",
+        "textHelper": "可直接写提示词，或从画布接入参考素材",
+        "chooseFromCanvas": "从画布选择",
+        "noReferences": "当前没有参考素材",
+        "addReference": "添加参考素材",
+        "promptPlaceholder": "描述你想生成的镜头、动作与声音…",
+        "editParameters": "编辑视频参数"
+      },
       "slate": {
         "modeReference": "参考模式",
         "modeText": "文生模式"

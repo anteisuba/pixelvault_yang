@@ -704,6 +704,426 @@
   border-color: var(--canvas-danger);
 }
 
+/* 视频卡 + 节点右侧编排器（canvas-video-card.md）。
+   卡始终是纯视频媒体；参数面固定在右边，详细态只向右扩，节点尺寸与端口锚点
+   不变。NodeToolbar 负责真实 24/20px offset，本段只负责面板自身尺寸和皮肤。 */
+.domain-canvas .canvas-video-card {
+  width: var(--canvas-card-w-console);
+}
+
+.domain-canvas .canvas-video-sidecar-toolbar {
+  pointer-events: auto;
+}
+
+.domain-canvas .canvas-video-sidecar {
+  --node-panel: var(--canvas-card-bg);
+  --node-panel-inner: var(--canvas-fill-control);
+  --node-panel-soft: var(--canvas-bg);
+  --node-foreground: var(--canvas-ink);
+  --node-muted: var(--canvas-ink-regular);
+  --node-subtle: var(--canvas-ink-muted);
+  --node-canvas: var(--canvas-action-fg);
+  --node-edge: var(--canvas-ink-muted);
+  --node-focus-ring: var(--canvas-stroke-focus);
+  display: flex;
+  width: var(--canvas-card-w-console);
+  max-height: calc(
+    100vh - var(--canvas-topbar-h) - var(--canvas-bottom-inset) - 48px
+  );
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--canvas-ink);
+  background: var(--canvas-pop-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: var(--canvas-pop-radius);
+  box-shadow: var(--canvas-pop-shadow);
+  transition:
+    width var(--canvas-dur-slow) var(--canvas-ease-in),
+    box-shadow var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+
+.domain-canvas
+  .canvas-video-sidecar[data-expanded='false']
+  .canvas-video-sidecar-header {
+  min-height: 44px;
+  justify-content: flex-end;
+  padding: 8px 10px 0;
+  border-bottom: 0;
+}
+
+.domain-canvas
+  .canvas-video-sidecar[data-expanded='false']
+  .canvas-video-sidecar-header
+  > div:first-child,
+.domain-canvas
+  .canvas-video-sidecar[data-expanded='false']
+  .canvas-video-sidecar-icon-button {
+  display: none;
+}
+
+.domain-canvas .canvas-video-sidecar[data-expanded='true'] {
+  width: var(--canvas-card-w-console-open);
+}
+
+.domain-canvas .canvas-video-sidecar-header {
+  display: flex;
+  min-height: 56px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--canvas-stroke-regular);
+}
+
+.domain-canvas .canvas-video-sidecar-eyebrow {
+  overflow: hidden;
+  color: var(--canvas-ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.domain-canvas .canvas-video-sidecar-title {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--canvas-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-canvas .canvas-video-sidecar-quiet-button,
+.domain-canvas .canvas-video-sidecar-icon-button {
+  min-height: var(--canvas-control-h);
+  color: var(--canvas-ink-regular);
+  background: var(--canvas-card-bg);
+  border: 1px solid var(--canvas-stroke-bold);
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+
+.domain-canvas .canvas-video-sidecar-quiet-button {
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.domain-canvas .canvas-video-sidecar-icon-button {
+  display: inline-flex;
+  width: var(--canvas-control-h);
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.domain-canvas .canvas-video-sidecar-quiet-button:hover,
+.domain-canvas .canvas-video-sidecar-icon-button:hover {
+  background: var(--canvas-fill-control-hover);
+  border-color: var(--canvas-stroke-focus);
+}
+
+.domain-canvas .canvas-video-sidecar-quiet-button:focus-visible,
+.domain-canvas .canvas-video-sidecar-icon-button:focus-visible {
+  outline: 2px solid var(--canvas-stroke-focus);
+  outline-offset: 2px;
+}
+
+.domain-canvas .canvas-video-sidecar-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+}
+
+.domain-canvas .canvas-video-composer-compact {
+  display: flex;
+  min-height: 340px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.domain-canvas .canvas-video-composer-mode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.domain-canvas .canvas-video-composer-mode span {
+  display: inline-flex;
+  min-height: var(--canvas-control-h-sm);
+  align-items: center;
+  padding: 0 9px;
+  color: var(--canvas-ink-muted);
+  background: var(--canvas-fill-control);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.domain-canvas .canvas-video-composer-mode span[data-active='true'] {
+  color: var(--canvas-ink);
+  background: var(--canvas-seg-selected);
+  border: 1px solid var(--canvas-stroke-bold);
+  box-shadow: var(--canvas-seg-shadow);
+}
+
+.domain-canvas .canvas-video-composer-helper {
+  display: flex;
+  min-height: var(--canvas-control-h);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 0 10px;
+  color: var(--canvas-ink-muted);
+  background: var(--canvas-fill-control);
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.domain-canvas .canvas-video-composer-helper span {
+  min-width: 0;
+}
+
+.domain-canvas .canvas-video-composer-helper button {
+  flex: none;
+  min-height: var(--canvas-control-h-sm);
+  padding: 0 8px;
+  color: var(--canvas-ink-regular);
+  background: var(--canvas-card-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: 7px;
+  font-weight: 600;
+}
+
+.domain-canvas .canvas-video-composer-assets {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 6px;
+}
+
+.domain-canvas .canvas-video-composer-asset-list {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.domain-canvas .canvas-video-composer-asset {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  overflow: hidden;
+  color: var(--canvas-ink-regular);
+  background: var(--canvas-media-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: 8px;
+}
+
+.domain-canvas .canvas-video-composer-asset:disabled {
+  opacity: 0.55;
+}
+
+.domain-canvas .canvas-video-composer-asset:not(:disabled):hover {
+  border-color: var(--canvas-stroke-focus);
+}
+
+.domain-canvas .canvas-video-composer-asset img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.domain-canvas .canvas-video-composer-asset > span {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.domain-canvas .canvas-video-composer-asset small {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  left: 2px;
+  overflow: hidden;
+  padding: 1px 3px;
+  color: var(--canvas-action-fg);
+  background: color-mix(in oklab, var(--canvas-action) 78%, transparent);
+  border-radius: 3px;
+  font-size: 7px;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-canvas .canvas-video-composer-asset-overflow {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: var(--canvas-ink-muted);
+  background: var(--canvas-fill-control);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.domain-canvas .canvas-video-composer-assets-empty {
+  min-width: 0;
+  flex: 1;
+  color: var(--canvas-ink-muted);
+  font-size: 10px;
+}
+
+.domain-canvas .canvas-video-composer-asset-add {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--canvas-ink-muted);
+  background: transparent;
+  border: 1px dashed var(--canvas-stroke-bold);
+  border-radius: 8px;
+  font-size: 18px;
+}
+
+.domain-canvas .canvas-video-composer-asset-add:hover {
+  color: var(--canvas-ink);
+  background: var(--canvas-fill-control);
+  border-color: var(--canvas-stroke-focus);
+}
+
+.domain-canvas .canvas-video-composer-prompt {
+  position: relative;
+  min-height: 150px;
+  flex: 1;
+  overflow: hidden;
+  background: var(--canvas-card-bg);
+  border: 1px solid var(--canvas-stroke-regular);
+  border-radius: 10px;
+}
+
+.domain-canvas .canvas-video-composer-prompt-input {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px 12px 28px;
+  color: var(--canvas-ink);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.domain-canvas .canvas-video-composer-prompt-input:focus-visible {
+  outline: 2px solid var(--canvas-stroke-focus);
+  outline-offset: -2px;
+}
+
+.domain-canvas .canvas-video-composer-count {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: var(--canvas-ink-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.domain-canvas .canvas-video-composer-dock {
+  display: flex;
+  min-height: var(--canvas-control-h-action);
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--canvas-stroke-regular);
+}
+
+.domain-canvas .canvas-video-composer-model,
+.domain-canvas .canvas-video-composer-summary {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--canvas-control-h);
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  color: var(--canvas-ink-regular);
+  background: transparent;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.domain-canvas .canvas-video-composer-model {
+  flex: 1;
+}
+
+.domain-canvas .canvas-video-composer-model span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-canvas .canvas-video-composer-summary {
+  flex: none;
+  color: var(--canvas-ink-muted);
+}
+
+.domain-canvas .canvas-video-composer-model:hover,
+.domain-canvas .canvas-video-composer-summary:hover {
+  background: var(--canvas-fill-control-hover);
+}
+
+.domain-canvas .canvas-video-composer-generate {
+  display: inline-flex;
+  width: var(--canvas-control-h-action);
+  height: var(--canvas-control-h-action);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--canvas-action-fg);
+  background: var(--canvas-action);
+  border-radius: 50%;
+  font-size: 20px;
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    transform var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+
+.domain-canvas .canvas-video-composer-generate:hover:not(:disabled) {
+  background: var(--canvas-action-hover);
+  transform: translateY(-1px);
+}
+
+.domain-canvas .canvas-video-composer-generate:disabled {
+  color: var(--canvas-ink-muted);
+  background: var(--canvas-fill-control);
+}
+
+.domain-canvas .canvas-video-composer-disabled-reason {
+  color: var(--canvas-ink-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 /* 卡名在卡「外」上方。用 absolute + bottom:100% 脱离文档流 —— 卡的 box 尺寸
    一点不变，React Flow 的节点测量与端口锚点因此完全不受影响。 */
 .domain-canvas .canvas-card-label {

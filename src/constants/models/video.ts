@@ -94,7 +94,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   {
     // Tops all three Artificial Analysis video arenas (T2V ±audio and I2V).
     // Runs on the Interactions API — see geminiAdapter.submitVideoToQueue.
-    // ⚠ preview-tier model; watch the Gemini deprecation table.
+    // Official docs still mark Omni Flash as preview (ai.google.dev, 2026-07-06
+    // last-updated on page). There is no public non-preview id yet — keep
+    // preview execution id until Google publishes GA.
     id: AI_MODELS.GEMINI_OMNI_FLASH,
     cost: 6,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -135,6 +137,28 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       extensionMethod: 'native_extend',
       extensionClipDuration: 5,
       maxTotalDuration: 180,
+    },
+  },
+  {
+    // Kling VIDEO 3.0 Omni (O3) Pro — element / video-reference heavy track.
+    // Body shape matches V3 Pro for prompt, duration (3–15s), generate_audio,
+    // start_image_url, aspect_ratio (see fal kling-video/o3/pro/*).
+    id: AI_MODELS.KLING_O3_PRO,
+    cost: 7,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/o3/pro/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/kling-video/o3/pro/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    i2vModelId: 'fal-ai/kling-video/o3/pro/image-to-video',
+    videoDefaults: {
+      negativePrompt: 'blur, distort, and low quality',
+      cfgScale: 0.5,
+      generateAudio: true,
     },
   },
   {

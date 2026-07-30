@@ -1,7 +1,7 @@
 'use client'
 
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
-import { LayoutGrid, PanelLeftClose, Plus } from 'lucide-react'
+import { ListTree, PanelLeftClose, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -27,19 +27,19 @@ interface CanvasLeftPanelProps {
   /** 展开 = 轨 + 内容区；收起 = 只剩 56px 轨（窄屏与开助手时自动收）。 */
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
-  /** 画布上现有的班底成员总数，渲在标题右侧。 */
-  castCount: number
+  /** 画布上现有的全部节点数，渲在标题右侧。 */
+  nodeCount: number
   /** ＋添加：图标轨上唯一的墨色实底主按钮（规格 §0.6 —— 全画面唯一实底重色）。
    *  收事件是因为添加菜单要按按钮位置弹出（复用顶栏那个 handler）。 */
   onAddClick: (event: ReactMouseEvent<HTMLButtonElement>) => void
-  /** 内容区当前托管的面板（S2b = CastDock 的 panel 布局）。 */
+  /** 内容区当前托管的全部节点定位器。 */
   children: ReactNode
 }
 
 export function CanvasLeftPanel({
   expanded,
   onExpandedChange,
-  castCount,
+  nodeCount,
   onAddClick,
   children,
 }: CanvasLeftPanelProps) {
@@ -92,7 +92,7 @@ export function CanvasLeftPanel({
               expanded && 'bg-node-panel-inner text-node-foreground',
             )}
           >
-            <LayoutGrid className="size-4" aria-hidden />
+            <ListTree className="size-4" aria-hidden />
           </button>
         </div>
 
@@ -106,7 +106,7 @@ export function CanvasLeftPanel({
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 <span className="tabular-nums text-2xs text-node-subtle">
-                  {castCount}
+                  {nodeCount}
                 </span>
                 <button
                   type="button"

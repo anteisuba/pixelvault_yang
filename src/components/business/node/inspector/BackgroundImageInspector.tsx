@@ -14,6 +14,7 @@ import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface BackgroundImageInspectorProps {
   node: NodeWorkflowNode
+  layout?: 'default' | 'object-studio'
 }
 
 /** Same field-precedence copy as `CharacterImageInspector`'s — see that
@@ -43,6 +44,7 @@ function getParticipantLabel(node: NodeWorkflowNode, fallback: string): string {
  */
 export function BackgroundImageInspector({
   node,
+  layout = 'default',
 }: BackgroundImageInspectorProps) {
   const tDossier = useTranslations('StudioNode.dossier')
   const tTypes = useTranslations('StudioNode.nodeTypes')
@@ -112,73 +114,101 @@ export function BackgroundImageInspector({
   )
 
   return (
-    <div className="space-y-4">
-      {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
+    <div
+      data-testid="background-object-studio"
+      className={
+        layout === 'object-studio'
+          ? 'canvas-object-studio-grid canvas-object-studio-grid--balanced'
+          : 'space-y-4'
+      }
+    >
+      <div
+        className={
+          layout === 'object-studio'
+            ? 'canvas-object-studio-media-rail'
+            : undefined
+        }
+      >
+        {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
           卡外的原地可编辑标签（IdentityCollectorCard 的 EditableNodeLabel），
           这里不再重复一份改名输入。 */}
-      <NodeMediaInspector
-        node={node}
-        type={NODE_TYPE_IDS.backgroundImage}
-        kind={NODE_MEDIA_KIND_IDS.image}
-        referenceGalleryMode="gallery"
-        onExtractReference={handleExtractReference}
-      />
-
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {tDossier('backgroundCardTitle')}
-        </p>
-        <select
-          value={node.data.cardId ?? ''}
-          onChange={(event) =>
-            updateNodeData(node.id, { cardId: event.target.value || undefined })
-          }
-          aria-label={tDossier('backgroundCardTitle')}
-          className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        >
-          <option value="">{tDossier('backgroundCardHint')}</option>
-          {cards.map((card) => (
-            <option key={card.id} value={card.id}>
-              {card.name}
-            </option>
-          ))}
-        </select>
-        {boundCard ? (
-          <p className="text-2xs text-node-muted">{boundCard.name}</p>
-        ) : null}
+        <NodeMediaInspector
+          node={node}
+          type={NODE_TYPE_IDS.backgroundImage}
+          kind={NODE_MEDIA_KIND_IDS.image}
+          layout={layout === 'object-studio' ? 'stack' : 'object-studio'}
+          referenceGalleryMode="gallery"
+          onExtractReference={handleExtractReference}
+        />
       </div>
 
-      {/* 出演区 */}
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {tDossier('performanceSection')}
-        </p>
-        {performances.length === 0 ? (
-          <p className="text-xs text-node-muted">
-            {tDossier('performanceEmpty')}
+      <div
+        className={
+          layout === 'object-studio'
+            ? 'canvas-object-studio-task-rail'
+            : 'space-y-4'
+        }
+      >
+        <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+          <p className="text-sm font-semibold text-node-foreground">
+            {tDossier('backgroundCardTitle')}
           </p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {performances.map((participant) => {
-              const label = getParticipantLabel(
-                participant,
-                tTypes(resolveNodePresentationType(participant)),
-              )
-              return (
-                <button
-                  key={participant.id}
-                  type="button"
-                  onClick={() => handleFocusPerformance(participant.id)}
-                  aria-label={tDossier('performanceFocusAria', { name: label })}
-                  title={tDossier('performanceFocusAria', { name: label })}
-                  className="rounded-full bg-node-panel px-2.5 py-1 text-2xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        )}
+          <select
+            value={node.data.cardId ?? ''}
+            onChange={(event) =>
+              updateNodeData(node.id, {
+                cardId: event.target.value || undefined,
+              })
+            }
+            aria-label={tDossier('backgroundCardTitle')}
+            className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+          >
+            <option value="">{tDossier('backgroundCardHint')}</option>
+            {cards.map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+              </option>
+            ))}
+          </select>
+          {boundCard ? (
+            <p className="text-2xs text-node-muted">{boundCard.name}</p>
+          ) : null}
+        </div>
+
+        {/* 出演区 */}
+        <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+          <p className="text-sm font-semibold text-node-foreground">
+            {tDossier('performanceSection')}
+          </p>
+          {performances.length === 0 ? (
+            <p className="text-xs text-node-muted">
+              {tDossier('performanceEmpty')}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {performances.map((participant) => {
+                const label = getParticipantLabel(
+                  participant,
+                  tTypes(resolveNodePresentationType(participant)),
+                )
+                return (
+                  <button
+                    key={participant.id}
+                    type="button"
+                    onClick={() => handleFocusPerformance(participant.id)}
+                    aria-label={tDossier('performanceFocusAria', {
+                      name: label,
+                    })}
+                    title={tDossier('performanceFocusAria', { name: label })}
+                    className="rounded-full bg-node-panel px-2.5 py-1 text-2xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

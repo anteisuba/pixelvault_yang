@@ -107,17 +107,25 @@ export function HomeV3Motion() {
         rise('.home-v3-footer-brand')
         rise('.home-v3-footer-col', { y: 50 })
 
-        /* ── capability stage: pinned, swaps under scroll ───────────────── */
-        const stage = document.querySelector<HTMLElement>(
-          '[data-home-v3-capstage]',
-        )
-        const slides = gsap.utils.toArray<HTMLElement>('[data-home-v3-cap]')
-        const dots = gsap.utils.toArray<HTMLElement>('.home-v3-capsteps i')
-        const counter = document.querySelector<HTMLElement>(
-          '[data-home-v3-capcount]',
-        )
+        /* ── capability stage: pinned, swaps under scroll ─────────────────
+           Pinning is a desktop enhancement. Below 1001px the product preview
+           and capability copy share too little vertical room; fixing the stage
+           there causes the copy to cover the canvas while the page scrolls.
+           A dedicated media context also tears the pin down if the viewport is
+           resized across the breakpoint without reloading. */
+        const capabilityMedia = gsap.matchMedia()
+        capabilityMedia.add('(min-width: 1001px)', () => {
+          const stage = document.querySelector<HTMLElement>(
+            '[data-home-v3-capstage]',
+          )
+          const slides = gsap.utils.toArray<HTMLElement>('[data-home-v3-cap]')
+          const dots = gsap.utils.toArray<HTMLElement>('.home-v3-capsteps i')
+          const counter = document.querySelector<HTMLElement>(
+            '[data-home-v3-capcount]',
+          )
 
-        if (stage && slides.length > 1) {
+          if (!stage || slides.length <= 1) return
+
           /* The absolute stacking only exists once this module is here to drive
              it — otherwise three slides would sit on top of each other. */
           stage.classList.add('is-pinned')
@@ -207,7 +215,8 @@ export function HomeV3Motion() {
             const head = slide.querySelector('.home-v3-vscrub b')
             const screen = slide.querySelector('.home-v3-vscreen img')
             const frames = slide.querySelectorAll('.home-v3-vstrip figure')
-            if (fill && head) {
+            const realVideo = slide.querySelector('.home-v3-vmedia')
+            if (!realVideo && fill && head) {
               const clip = 5
               tl.fromTo(
                 fill,
@@ -258,6 +267,12 @@ export function HomeV3Motion() {
           const runDemo = (index: number) => {
             if (index === playing) return
             playing = index
+            slides.forEach((slide, i) => {
+              const active = i === index
+              slide.dataset.active = active ? 'true' : 'false'
+              slide.inert = !active
+              slide.setAttribute('aria-hidden', active ? 'false' : 'true')
+            })
             demos.forEach((tl, i) => {
               if (i !== index) tl.pause(0)
             })
@@ -280,19 +295,28 @@ export function HomeV3Motion() {
 
           runDemo(0)
           void swap
-        }
 
-        /* Rail cards arrive one after another, which is where the eye lands. */
+          return () => {
+            stage.classList.remove('is-pinned')
+            slides.forEach((slide) => {
+              slide.inert = false
+              slide.removeAttribute('aria-hidden')
+              slide.removeAttribute('data-active')
+            })
+            gsap.set(slides, { clearProps: 'opacity,transform' })
+          }
+        })
+
+        /* Keep every card on the same baseline while the rail enters. A
+           per-card Y stagger made the row look broken during normal scrolling. */
         gsap.utils
           .toArray<HTMLElement>('.home-v3-railgroup')
           .forEach((group) => {
             gsap.from(group.querySelectorAll('.home-v3-mcard'), {
-              y: 80,
               opacity: 0,
-              scale: 0.94,
-              duration: 0.9,
+              duration: 0.55,
               ease: 'power3.out',
-              stagger: 0.07,
+              stagger: 0.04,
               scrollTrigger: { trigger: group, start: 'top 88%', once: true },
             })
           })
@@ -310,6 +334,8 @@ export function HomeV3Motion() {
             scrub: 0.6,
           },
         })
+
+        return () => capabilityMedia.revert()
       })
 
       /* Rail controls live outside the reduced-motion gate: they have to work

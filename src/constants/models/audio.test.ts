@@ -36,6 +36,16 @@ describe('audio model kinds', () => {
     expect(getAudioModelsByKind(AUDIO_KIND.SFX).map((m) => m.id)).toEqual([
       AI_MODELS.ELEVENLABS_SFX_V2,
     ])
-    expect(getAudioModelsByKind(AUDIO_KIND.MUSIC)).toEqual([])
+    expect(getAudioModelsByKind(AUDIO_KIND.MUSIC).map((m) => m.id)).toEqual([
+      AI_MODELS.ELEVENLABS_MUSIC_V2,
+    ])
+  })
+
+  it('pins Fish production execution id to s2.1-pro', () => {
+    const fish = AUDIO_MODEL_OPTIONS.find(
+      (m) => m.id === AI_MODELS.FISH_AUDIO_S2_PRO,
+    )
+    expect(fish?.externalModelId).toBe('s2.1-pro')
+    expect(fish?.available).toBe(true)
   })
 })

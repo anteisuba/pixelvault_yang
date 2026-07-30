@@ -7,13 +7,11 @@ export const READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   'outpaint',
   'decompose',
   'extract-element',
-] as const
-
-export const HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   'object-replace',
   'style-transfer',
-  'text-render',
 ] as const
+
+export const HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = ['text-render'] as const
 
 export const CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   ...READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,

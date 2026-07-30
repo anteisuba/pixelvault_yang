@@ -102,6 +102,8 @@ export async function submitVideoGenerationForUserId(
         duration: input.duration,
         referenceImage: input.referenceImage ?? input.referenceImages?.[0],
         referenceImages: input.referenceImages,
+        audioUrls: input.audioUrls,
+        videoUrls: input.videoUrls,
         resolution: input.resolution,
       })
 

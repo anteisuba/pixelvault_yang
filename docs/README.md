@@ -15,7 +15,8 @@ docs/
 ├── scenes/          任务类型场景：专属工作流 + 专属 5 问（批 3 填充）
 ├── references/      规则知识库：frontend · backend · database · cicd · testing 等（批 2 填充）
 ├── templates/       任务起点：task-packet 与代码骨架
-├── plans/           只放在飞任务包，完成即删/归档/沉淀
+├── plans/           在飞任务包（完成即删/归档/沉淀）
+│   └── research/    调研/可行性结论（非实现授权；中文文件名；约定见 plans/research/说明.md）
 └── archive/         拍板决策与历史证据，不进默认阅读路径
 ```
 

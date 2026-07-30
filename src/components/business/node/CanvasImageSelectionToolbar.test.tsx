@@ -313,7 +313,7 @@ describe('NodeSelectionToolbarChrome', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('seedance capability: 生成/重生成 always, 预览 only once media exists', () => {
+  it('seedance capability keeps generation local and reserves detail for expand', () => {
     const { rerender } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
@@ -343,11 +343,14 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(
       screen.getByRole('button', { name: 'regenerate' }),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'preview' }))
+    expect(
+      screen.queryByRole('button', { name: 'preview' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'expand' }))
     expect(mocks.setExpandedNodeId).toHaveBeenCalledWith('node-1')
   })
 
-  it('videoMerge capability: 合成 via the shared use-video-merge-action hook + 排序 opens detail', () => {
+  it('videoMerge capability keeps merge local and reserves detail for expand', () => {
     render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
@@ -359,7 +362,10 @@ describe('NodeSelectionToolbarChrome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'merge.run' }))
     expect(mocks.mergeAction.handleMerge).toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'reorder' }))
+    expect(
+      screen.queryByRole('button', { name: 'reorder' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'expand' }))
     expect(mocks.setExpandedNodeId).toHaveBeenCalledWith('node-1')
   })
 

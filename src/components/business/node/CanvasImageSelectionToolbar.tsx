@@ -10,11 +10,11 @@ import {
   IdCard,
   Layers3,
   Library,
-  ListOrdered,
   Maximize2,
   MoreHorizontal,
+  Palette,
   Paintbrush,
-  Play,
+  Replace,
   Scissors,
   Sparkles,
   Tags,
@@ -80,6 +80,8 @@ const TASK_ICONS = {
   outpaint: Expand,
   decompose: Layers3,
   'extract-element': Scissors,
+  'object-replace': Replace,
+  'style-transfer': Palette,
 } as const satisfies Record<ReadyCanvasImageEditCapabilityId, typeof Sparkles>
 
 const MORE_EDIT_TASKS = [
@@ -89,6 +91,8 @@ const MORE_EDIT_TASKS = [
   'outpaint',
   'decompose',
   'extract-element',
+  'object-replace',
+  'style-transfer',
 ] as const satisfies readonly ReadyCanvasImageEditCapabilityId[]
 
 /** Not image-specific despite the name's origin — every node kind (image /
@@ -587,9 +591,8 @@ export function ShotGenerateButton({
   )
 }
 
-/** 视频卡（seedance）capability region — 生成/重生成 (same `generateMediaNode`
- *  channel as the card's own composer) + 预览 (opens ⤢ detail, where the
- *  监视器 lives — only shown once there's something to preview). */
+/** Video capability region: generation only. Preview lives in the native
+ * video card, and detail is reserved for the universal expand button. */
 function SeedanceCapability({
   nodeId,
   data,
@@ -598,8 +601,7 @@ function SeedanceCapability({
   data: NodeWorkflowNodeData
 }) {
   const t = useTranslations('StudioNode.videoGeneration')
-  const tToolbar = useTranslations('StudioNode.nodeToolbar')
-  const { generateMediaNode, setExpandedNodeId } = useNodeWorkflowActions()
+  const { generateMediaNode } = useNodeWorkflowActions()
   const hasMedia = Boolean(
     typeof data.mediaUrl === 'string' && data.mediaUrl.trim(),
   )
@@ -619,20 +621,12 @@ function SeedanceCapability({
         onClick={() => void generateMediaNode?.(nodeId)}
         disabled={isRunning || !generateMediaNode}
       />
-      {hasMedia ? (
-        <ToolbarLabelButton
-          icon={Play}
-          label={tToolbar('preview')}
-          onClick={() => setExpandedNodeId(nodeId)}
-        />
-      ) : null}
     </>
   )
 }
 
-/** 片盒（videoMerge）capability region — 合成 (via `useVideoMergeAction`, the
- *  exact hook `VideoMergeInspector` now shares — R3-3 extraction) + 排序
- *  (opens ⤢ detail, where the clip reorder/trim list lives). */
+/** Video merge capability region: merge only. Reordering remains a detail
+ * concern reached through the universal expand button. */
 function VideoMergeCapability({
   nodeId,
   data,
@@ -641,8 +635,6 @@ function VideoMergeCapability({
   data: NodeWorkflowNodeData
 }) {
   const t = useTranslations('StudioNode.videoMerge')
-  const tToolbar = useTranslations('StudioNode.nodeToolbar')
-  const { setExpandedNodeId } = useNodeWorkflowActions()
   const syntheticNode = useMemo<NodeWorkflowNode>(
     () => ({
       id: nodeId,
@@ -671,11 +663,6 @@ function VideoMergeCapability({
         }
         onClick={() => void handleMerge()}
         disabled={!canMerge}
-      />
-      <ToolbarLabelButton
-        icon={ListOrdered}
-        label={tToolbar('reorder')}
-        onClick={() => setExpandedNodeId(nodeId)}
       />
     </>
   )

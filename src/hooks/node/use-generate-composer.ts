@@ -70,7 +70,7 @@ interface BlankInvokeState {
  * `addNode` / `onConnect` / `onNodesChange` are NOT exposed on the shared
  * canvas context — only `StudioNodeWorkbench` (which owns `useNodeWorkflow`)
  * has them, same as every other graph-mutating capability (spawnReference,
- * fuseLooseImageNode, …) this context already wraps behind a semantic verb
+ * extractReference, …) this context already wraps behind a semantic verb
  * instead of the raw primitive. `runGenerateComposer` follows that pattern:
  * one action that creates/fills the target node(s), wires the edge, seeds
  * the generation input, runs it, and reselects — all with data it's handed

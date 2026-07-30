@@ -159,6 +159,65 @@ export const elevenLabsAdapter: ProviderAdapter = {
     }
   },
 
+  /**
+   * Music v2 compose — POST /v1/music. Returns raw audio bytes (same pattern as
+   * SFX). Pins model_id from the catalog execution id (music_v2).
+   */
+  async generateMusic(input: ProviderAudioInput): Promise<ProviderAudioResult> {
+    const {
+      prompt,
+      modelId,
+      providerConfig,
+      apiKey,
+      durationSeconds,
+      sampleRate,
+    } = input
+
+    const outputFormat = 'mp3'
+    const outputSampleRate = sampleRate ?? 44100
+    // API: music_length_ms 3000–600000 when using prompt; default ~30s if omitted.
+    const musicLengthMs =
+      durationSeconds != null
+        ? Math.min(600_000, Math.max(3_000, Math.round(durationSeconds * 1000)))
+        : 30_000
+
+    const body: Record<string, unknown> = {
+      prompt,
+      model_id: modelId,
+      music_length_ms: musicLengthMs,
+    }
+
+    const response = await fetch(
+      `${providerConfig.baseUrl}/v1/music?output_format=mp3_44100_128`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    )
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => 'Unknown error')
+      throw new ProviderError('ElevenLabs', response.status, detail)
+    }
+
+    const audioBuffer = await response.arrayBuffer()
+    const estimatedDuration =
+      durationSeconds ??
+      Math.round(audioBuffer.byteLength / ELEVENLABS_MP3_BYTES_PER_SEC)
+
+    return {
+      audioUrl: `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`,
+      duration: estimatedDuration,
+      format: outputFormat,
+      sampleRate: outputSampleRate,
+      requestCount: 1,
+    }
+  },
+
   async healthCheck({
     apiKey,
     baseUrl,

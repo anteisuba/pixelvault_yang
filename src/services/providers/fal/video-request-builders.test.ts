@@ -57,6 +57,14 @@ function buildWorkerInput(modelId: AI_MODELS, referenceImage?: string) {
       aspectRatio: input.aspectRatio,
       duration: input.duration,
       referenceImage: input.referenceImage,
+      referenceImages: input.referenceImages,
+      audioUrls: input.audioUrls,
+      audioBindings: input.audioBindings,
+      videoUrls: input.videoUrls,
+      negativePrompt: input.negativePrompt,
+      generateAudio: input.generateAudio,
+      seed: input.seed,
+      resolution: input.resolution,
       i2vModelId: input.i2vModelId,
       videoDefaults: input.videoDefaults,
     },
@@ -84,6 +92,37 @@ const falBodyCases: FalBodyCase[] = [
     modelId: AI_MODELS.KLING_V3_PRO,
     referenceImage: REF,
     expectedEndpoint: 'fal-ai/kling-video/v3/pro/image-to-video',
+    expectedMode: 'image-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      start_image_url: REF,
+      duration: '5',
+      generate_audio: true,
+      negative_prompt: 'blur, distort, and low quality',
+      cfg_scale: 0.5,
+    },
+    absentFields: ['image_url', 'aspect_ratio'],
+  },
+  {
+    label: 'Kling O3 Pro T2V',
+    modelId: AI_MODELS.KLING_O3_PRO,
+    expectedEndpoint: 'fal-ai/kling-video/o3/pro/text-to-video',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      duration: '5',
+      generate_audio: true,
+      aspect_ratio: '16:9',
+      negative_prompt: 'blur, distort, and low quality',
+      cfg_scale: 0.5,
+    },
+    absentFields: ['image_url', 'start_image_url'],
+  },
+  {
+    label: 'Kling O3 Pro I2V',
+    modelId: AI_MODELS.KLING_O3_PRO,
+    referenceImage: REF,
+    expectedEndpoint: 'fal-ai/kling-video/o3/pro/image-to-video',
     expectedMode: 'image-to-video',
     expectedBody: {
       prompt: PROMPT,
@@ -285,10 +324,21 @@ describe('buildFalVideoQueueRequest', () => {
     }
   })
 
-  it('rejects Seedance Reference without a reference image before hitting provider', () => {
+  it('rejects Seedance Reference without a reference image or video before hitting provider', () => {
     expect(() =>
       buildFalVideoQueueRequest(buildInput(AI_MODELS.SEEDANCE_20_REFERENCE)),
-    ).toThrow(/requires a reference image/)
+    ).toThrow(/requires at least one reference image or video/)
+  })
+
+  it('accepts a video-only Seedance Reference request', () => {
+    const result = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE),
+      videoUrls: ['https://example.com/clip.mp4'],
+    })
+
+    expect(result.input.image_urls).toBeUndefined()
+    expect(result.input.video_urls).toEqual(['https://example.com/clip.mp4'])
+    expect(result.input.prompt).toBe(`@Video1 ${PROMPT}`)
   })
 
   it('filters unsupported 1080p resolution for Seedance 2.0 Fast', () => {
@@ -559,6 +609,45 @@ describe('buildFalVideoQueueRequest', () => {
       expect((result.input.audio_urls as string[]).length).toBe(3)
       expect((result.input.video_urls as string[]).length).toBe(3)
     })
+  })
+
+  it('honors explicit audio and seed parameters in inline and worker builders', () => {
+    const happyHorse = {
+      ...buildInput(AI_MODELS.HAPPYHORSE_10, REF),
+      generateAudio: false,
+      seed: 31415,
+    }
+    const inline = buildFalVideoQueueRequest(happyHorse)
+    const worker = buildFalWorkerQueueRequest({
+      providerInput: {
+        ...happyHorse,
+        aspectRatio: happyHorse.aspectRatio,
+      },
+    })
+
+    expect(inline.input.seed).toBe(31415)
+    // HappyHorse's public v1.1 schema has native audio but no generate_audio
+    // switch, so the unsupported override is deliberately absent.
+    expect(inline.input.generate_audio).toBeUndefined()
+    expect(worker).toEqual(inline)
+
+    const seedance = {
+      ...buildInput(AI_MODELS.SEEDANCE_20_FAST),
+      generateAudio: false,
+      seed: 2718,
+    }
+    const inlineSeedance = buildFalVideoQueueRequest(seedance)
+    const workerSeedance = buildFalWorkerQueueRequest({
+      providerInput: {
+        ...seedance,
+        aspectRatio: seedance.aspectRatio,
+      },
+    })
+    expect(inlineSeedance.input).toMatchObject({
+      generate_audio: false,
+      seed: 2718,
+    })
+    expect(workerSeedance).toEqual(inlineSeedance)
   })
 })
 

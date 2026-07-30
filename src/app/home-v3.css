@@ -1328,6 +1328,11 @@
   right: 0;
   padding: 0;
   border-top: 0;
+  pointer-events: none;
+}
+
+.home-v3-capstage.is-pinned .home-v3-cap-row[data-active='true'] {
+  pointer-events: auto;
 }
 
 .home-v3-capsteps {
@@ -1469,10 +1474,19 @@
   background: #141414;
 }
 
-.home-v3-vscreen img {
+.home-v3-vmedia,
+.home-v3-vposter {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.home-v3-vmedia {
+  cursor: pointer;
+}
+
+.home-v3-vposter {
+  display: none;
 }
 
 .home-v3-vplay {
@@ -1486,9 +1500,26 @@
   height: 54px;
   padding-left: 3px;
   border-radius: 999px;
+  border: 0;
   background: rgb(255 255 255 / 0.94);
   font-size: 15px;
   color: var(--h-ground);
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.home-v3-vplay[data-playing='true'] {
+  opacity: 0;
+}
+
+.home-v3-vscreen:hover .home-v3-vplay[data-playing='true'],
+.home-v3-vplay:focus-visible {
+  opacity: 1;
+}
+
+.home-v3-vplay:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 .home-v3-vtag {
@@ -1522,6 +1553,21 @@
   height: 3px;
   border-radius: 3px;
   background: rgb(255 255 255 / 0.2);
+}
+
+.home-v3-vscrub input {
+  position: absolute;
+  inset: -8px 0;
+  width: 100%;
+  height: 19px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.home-v3-vscrub:has(input:focus-visible) {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
 }
 
 .home-v3-vscrub i {
@@ -1637,7 +1683,9 @@
   gap: 12px;
   padding: 2px var(--h-gutter);
   overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
   scroll-behavior: smooth;
   scrollbar-width: none;
 }
@@ -1691,17 +1739,37 @@
   flex: 0 0 clamp(240px, 21vw, 320px);
   overflow: hidden;
   padding: 0 0 10px;
+  border: 0;
   border-radius: var(--h-r-m);
   background: var(--h-panel);
+  font: inherit;
   color: var(--h-ink);
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.16s,
+    transform 0.16s;
+}
+
+.home-v3-mcard:hover {
+  background: var(--h-panel-2);
+  transform: translateY(-2px);
 }
 
 .home-v3-mcard img {
+  display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 1;
   object-fit: cover;
+}
+
+.home-v3-mcard img.home-v3-model-brand-art,
+.home-v3-model-dialog-media img.home-v3-model-brand-art {
+  padding: clamp(26px, 3.5vw, 46px);
+  background: #f4f4f1;
+  object-fit: contain;
 }
 
 .home-v3-mcard-top {
@@ -1725,7 +1793,8 @@
   white-space: nowrap;
 }
 
-.home-v3-mcard p {
+.home-v3-mcard-provider {
+  display: block;
   margin: 0;
   padding: 0 14px 3px;
   font-family: var(--h-mono);
@@ -1736,6 +1805,211 @@
 .home-v3-mcard:focus-visible {
   outline: 2px solid var(--h-ink);
   outline-offset: 2px;
+}
+
+/* Portalled outside `.home-v3`, so this introduction layer owns the same
+   page-scoped tokens explicitly instead of inheriting the app's dark skin. */
+.home-v3-model-dialog {
+  color-scheme: light;
+  width: min(920px, calc(100vw - 32px));
+  max-width: min(920px, calc(100vw - 32px)) !important;
+  max-height: min(86svh, 780px);
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e2e2df;
+  border-radius: 24px;
+  background: #fff;
+  color: #000;
+  font-family:
+    var(--font-home-sans),
+    var(--font-chinese-sans),
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.home-v3-model-dialog[data-locale='ja'] {
+  font-family:
+    var(--font-home-sans),
+    var(--font-japanese-sans),
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.home-v3-model-dialog > [data-slot='dialog-close'] {
+  z-index: 2;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e2e2df;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.92);
+  color: #000;
+  opacity: 1;
+}
+
+.home-v3-model-dialog-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  min-height: 540px;
+}
+
+.home-v3-model-dialog-media {
+  min-width: 0;
+  background: #f2f2f0;
+}
+
+.home-v3-model-dialog-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-v3-model-dialog-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(30px, 4vw, 48px);
+}
+
+.home-v3-model-dialog-kicker {
+  margin: 0 48px 14px 0;
+  font-family:
+    var(--font-home-mono), ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 10px;
+  color: #767674;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-v3-model-dialog-title {
+  max-width: 13ch;
+  font-family: inherit;
+  font-size: clamp(1.8rem, 3vw, 2.65rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.home-v3-model-dialog-section {
+  margin-top: 28px;
+}
+
+.home-v3-model-dialog-section h3 {
+  margin: 0 0 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #767674;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-v3-model-dialog-description {
+  max-width: 48ch;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #2a2a29;
+}
+
+.home-v3-model-advantages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-v3-model-advantages li {
+  position: relative;
+  padding: 8px 0 8px 18px;
+  border-top: 1px solid #e2e2df;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.home-v3-model-advantages li::before {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  content: '—';
+  color: #767674;
+}
+
+.home-v3-model-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 28px 0 0;
+  padding: 16px 0;
+  border-top: 1px solid #e2e2df;
+  border-bottom: 1px solid #e2e2df;
+}
+
+.home-v3-model-facts div {
+  min-width: 0;
+}
+
+.home-v3-model-facts dt {
+  font-size: 10px;
+  color: #767674;
+}
+
+.home-v3-model-facts dd {
+  overflow: hidden;
+  margin: 5px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-v3-model-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: auto;
+  padding-top: 28px;
+}
+
+.home-v3-model-dialog-primary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #000;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.home-v3-model-dialog-secondary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #2a2a29;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.home-v3-model-dialog-primary:focus-visible,
+.home-v3-model-dialog-secondary:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 3px;
 }
 
 /* ── responsive ──────────────────────────────────────────────────────────── */
@@ -1753,6 +2027,36 @@
   .home-v3-cap-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
+  }
+
+  .home-v3-model-dialog-mobile {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .home-v3-model-dialog-grid {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+  }
+
+  .home-v3-model-dialog-media {
+    max-height: 260px;
+  }
+
+  .home-v3-model-dialog-media img {
+    aspect-ratio: 16 / 9;
+  }
+
+  .home-v3-model-dialog-body {
+    padding: 24px 20px 10px;
+  }
+
+  .home-v3-model-dialog-title {
+    max-width: 16ch;
+  }
+
+  .home-v3-model-dialog-actions {
+    margin-top: 0;
   }
 }
 
@@ -1815,6 +2119,67 @@
     display: none;
   }
 
+  .home-v3-footer {
+    padding-top: 52px;
+  }
+
+  .home-v3-footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 20px;
+  }
+
+  .home-v3-footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .home-v3-footer-brand p {
+    max-width: 34em;
+    margin-top: 10px;
+  }
+
+  .home-v3-footer-bottom {
+    margin-top: 36px;
+  }
+
+  /* The framed app bar is a navigation surface, not a four-column text grid.
+     Keep every label on one line, preserve 44px touch targets, and let long
+     locale labels pan inside the tab strip instead of turning vertical. */
+  .home-v3-appbar {
+    min-height: 58px;
+    gap: 8px;
+    padding: 7px 9px 7px 12px;
+  }
+
+  .home-v3-appbar-brand {
+    flex: none;
+  }
+
+  .home-v3-tabs {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .home-v3-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v3-tabs label {
+    flex: none;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    white-space: nowrap;
+  }
+
+  .home-v3-appbar-spacer,
+  .home-v3-chipset {
+    display: none !important;
+  }
+
   .home-v3-toolrail,
   .home-v3-tree {
     display: none;
@@ -1831,9 +2196,159 @@
   }
 }
 
+@media (max-width: 760px) {
+  /* On phones the product preview becomes one intentional, swipeable surface
+     per tab. A desktop aspect ratio made the viewport only ~175px tall at
+     375px, clipping node content into the following capability headline. */
+  .home-v3-product {
+    padding-top: clamp(56px, 16vw, 76px);
+  }
+
+  .home-v3-app {
+    border-radius: 22px;
+  }
+
+  .home-v3-views {
+    height: clamp(440px, 136vw, 520px);
+    aspect-ratio: auto;
+  }
+
+  .home-v3-view {
+    overflow: hidden;
+  }
+
+  /* The canvas keeps a readable working scale and pans horizontally. This is
+     progressive disclosure, not a miniature desktop graph with vertical type. */
+  .home-v3-view:first-child {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+
+  .home-v3-view:first-child::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v3-canvas {
+    flex: 0 0 760px;
+  }
+
+  .home-v3-minimap {
+    display: none;
+  }
+
+  /* Studio becomes prompt controls over results, preserving both tasks without
+     forcing either into a 44%-wide desktop sidebar. */
+  .home-v3-deck {
+    flex-direction: column;
+  }
+
+  .home-v3-compose {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--h-line);
+  }
+
+  .home-v3-promptbox {
+    grid-column: 1 / -1;
+    min-height: 72px;
+    padding: 9px 10px;
+    line-height: 1.55;
+  }
+
+  .home-v3-promptbox b {
+    margin-bottom: 4px;
+  }
+
+  .home-v3-tagrow {
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 1px;
+    scrollbar-width: none;
+  }
+
+  .home-v3-tagrow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v3-tag {
+    flex: none;
+  }
+
+  .home-v3-control {
+    padding-top: 7px;
+  }
+
+  .home-v3-generate {
+    grid-column: 1 / -1;
+    min-height: 40px;
+    margin-top: 0;
+    padding: 8px 11px;
+  }
+
+  .home-v3-sheet {
+    min-height: 0;
+  }
+
+  /* LoRA follows the same mobile hierarchy: assembly first, outputs second. */
+  .home-v3-view:nth-child(3) {
+    flex-direction: column;
+  }
+
+  .home-v3-assembly {
+    width: 100%;
+    max-height: 235px;
+    gap: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--h-line);
+  }
+
+  .home-v3-base {
+    padding: 7px;
+  }
+
+  .home-v3-base img {
+    width: 38px;
+    height: 38px;
+  }
+
+  .home-v3-lora-out {
+    flex: 1;
+  }
+
+  .home-v3-lora-foot {
+    padding: 9px 11px;
+  }
+
+  .home-v3-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-v3-marquee-track {
     animation: none;
+  }
+
+  .home-v3-vmedia {
+    display: none;
+  }
+
+  .home-v3-vposter {
+    display: block;
+  }
+
+  .home-v3-vplay {
+    display: none;
   }
 
   .home-v3 * {

@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { describe, it, expect } from 'vitest'
 
 import {
@@ -161,5 +164,19 @@ describe('LORA_BASE_MODELS catalog', () => {
         expect(base.providerModelId).toBeUndefined()
       }
     }
+  })
+
+  it('gives every base a local model thumbnail shared with the homepage catalog', () => {
+    const publicDir = join(process.cwd(), 'public')
+    const missing = LORA_BASE_MODELS.filter(
+      (base) =>
+        !base.coverImage.startsWith('/homepage/') ||
+        !existsSync(join(publicDir, base.coverImage.replace(/^\//, ''))),
+    ).map((base) => base.id)
+
+    expect(missing).toEqual([])
+    expect(
+      LORA_BASE_MODELS.find((base) => base.id === 'pony-runner')?.coverImage,
+    ).toBe('/homepage/production/models/image/pony-diffusion-v6.webp')
   })
 })

@@ -4,7 +4,7 @@ import { ROUTES, type Route } from '../src/constants/routes'
 
 const LOCALE = 'en'
 // 820 守住平板区间（768–1023 现在走移动 chrome，direction.md C4 决议）。
-const MOBILE_WIDTHS = [375, 390, 430, 820] as const
+const MOBILE_WIDTHS = [375, 390, 430, 600, 820] as const
 
 interface ResponsivePage {
   name: string
@@ -78,5 +78,100 @@ test.describe('Mobile Responsive', () => {
 
     const galleryLinks = page.locator(`a[href*="${ROUTES.GALLERY}"]`)
     await expect(galleryLinks.first()).toBeVisible()
+  })
+
+  test('homepage product preview keeps tabs readable and clears the next section', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(localizedPath(ROUTES.HOME), { waitUntil: 'load' })
+
+    const app = page.locator('.home-v3-app')
+    const views = page.locator('.home-v3-views')
+    const firstCapability = page.locator('.home-v3-cap-row').first()
+
+    await expect(app).toBeVisible()
+    await expect(views).toHaveCSS('height', '510px')
+
+    const tabs = page.locator('.home-v3-tabs label')
+    await expect
+      .poll(
+        async () =>
+          Promise.all(
+            (await tabs.all()).map(
+              async (tab) => (await tab.boundingBox())?.height,
+            ),
+          ),
+        { timeout: 10_000 },
+      )
+      .toEqual([44, 44, 44, 44])
+    for (const tab of await tabs.all()) {
+      const box = await tab.boundingBox()
+      expect(box?.width).toBeGreaterThan(box?.height ?? 0)
+    }
+
+    const appBox = await app.boundingBox()
+    const capabilityBox = await firstCapability.boundingBox()
+    expect(appBox).not.toBeNull()
+    expect(capabilityBox).not.toBeNull()
+    expect(capabilityBox!.y).toBeGreaterThanOrEqual(appBox!.y + appBox!.height)
+
+    const canvas = page.locator('.home-v3-canvas')
+    await expect(canvas).toHaveCSS('width', '760px')
+    const canvasViewport = await page
+      .locator('.home-v3-view')
+      .first()
+      .evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }))
+    expect(canvasViewport.scrollWidth).toBe(760)
+    expect(canvasViewport.scrollWidth).toBeGreaterThan(
+      canvasViewport.clientWidth,
+    )
+
+    // The owner reports the same layout through a ~608px embedded preview.
+    // This width still belongs to the documented <=760px mobile product
+    // surface; without this guard the asset grid falls back to four explicit
+    // rows plus one oversized implicit row.
+    await page.setViewportSize({ width: 608, height: 844 })
+    await page.locator('label[for="home-v3-view-assets"]').click()
+
+    await expect(page.locator('.home-v3-views')).toHaveCSS('height', '520px')
+    const assetGridTracks = await page
+      .locator('.home-v3-grid')
+      .evaluate((element) => {
+        const style = getComputedStyle(element)
+        return {
+          columns: style.gridTemplateColumns.split(' ').length,
+          rows: style.gridTemplateRows.split(' ').length,
+        }
+      })
+    expect(assetGridTracks).toEqual({ columns: 4, rows: 5 })
+  })
+
+  test('homepage keeps capability copy in flow and gives footer copy full width below desktop', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 600, height: 844 })
+    await page.goto(localizedPath(ROUTES.HOME), { waitUntil: 'load' })
+
+    const capabilityStage = page.locator('.home-v3-capstage')
+    await expect(capabilityStage).not.toHaveClass(/is-pinned/)
+
+    const footerTop = page.locator('.home-v3-footer-top')
+    const footerBrand = page.locator('.home-v3-footer-brand')
+    const footerCopy = footerBrand.locator('p')
+    await footerTop.scrollIntoViewIfNeeded()
+
+    const footerBox = await footerTop.boundingBox()
+    const brandBox = await footerBrand.boundingBox()
+    const copyBox = await footerCopy.boundingBox()
+
+    expect(footerBox).not.toBeNull()
+    expect(brandBox).not.toBeNull()
+    expect(copyBox).not.toBeNull()
+    expect(brandBox!.width).toBeGreaterThan(footerBox!.width * 0.9)
+    expect(copyBox!.height).toBeLessThan(72)
   })
 })

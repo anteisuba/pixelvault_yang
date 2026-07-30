@@ -62,6 +62,7 @@ import {
   activateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
+import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
 import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
@@ -547,25 +548,32 @@ function projectFromServerRecord(
     name: record.name,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    // Hydration migrations (idempotent): retire legacy Composer/Agent planner
-    // nodes, then fold legacy per-role image types into image + role. The
-    // migrated state is held in memory and persisted back on the next write.
-    state: migrateImageRoles(migrateRetirePlanner(record.state)),
+    // Hydration migrations are idempotent. The migrated state is held in
+    // memory and persisted back on the next normal write.
+    state: migrateWorkflowState(record.state),
   }
 }
 
 /**
- * Apply the hydration migrations (planner retirement + image-role folding) to
- * every project in a storage snapshot. Preserves the snapshot/project reference
- * when nothing changed (both migrations are idempotent) so an already-migrated
- * load doesn't churn state.
+ * One composition point for every post-parse workflow migration. Legacy
+ * schemas remain parseable so old projects are never rejected as empty; this
+ * function then converts their data to the current runtime model.
+ */
+function migrateWorkflowState(state: NodeWorkflowState): NodeWorkflowState {
+  return migrateRetireFusedNodes(migrateImageRoles(migrateRetirePlanner(state)))
+}
+
+/**
+ * Apply hydration migrations to every project in a storage snapshot.
+ * Preserves the snapshot/project reference when nothing changed so an
+ * already-migrated load doesn't churn state.
  */
 function migrateStorageProjects(
   storage: NodeWorkflowStorageSnapshot,
 ): NodeWorkflowStorageSnapshot {
   let changed = false
   const projects = storage.projects.map((project) => {
-    const migratedState = migrateImageRoles(migrateRetirePlanner(project.state))
+    const migratedState = migrateWorkflowState(project.state)
     if (migratedState === project.state) return project
     changed = true
     return { ...project, state: migratedState }

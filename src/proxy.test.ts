@@ -26,7 +26,24 @@ vi.mock('next-intl/middleware', () => ({
   default: () => vi.fn(),
 }))
 
-import middleware from './proxy'
+import middleware, { config } from './proxy'
+
+describe('proxy static media matcher', () => {
+  const pageMatcher = new RegExp(config.matcher[0])
+
+  it('does not route local video files through locale middleware', () => {
+    expect(
+      pageMatcher.test(
+        '/homepage/production/video/night-ferry-seedance-v1.mp4',
+      ),
+    ).toBe(false)
+    expect(pageMatcher.test('/homepage/demo.webm')).toBe(false)
+  })
+
+  it('still routes locale pages through middleware', () => {
+    expect(pageMatcher.test('/zh')).toBe(true)
+  })
+})
 
 describe('proxy internal execution routes', () => {
   beforeEach(() => {

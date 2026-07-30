@@ -1056,6 +1056,80 @@ describe('useNodeWorkflow', () => {
     expect(result.current.scriptDoc?.roles).toHaveLength(2)
   })
 
+  it('restores legacy fused nodes in place without dropping nested reference metadata', async () => {
+    window.localStorage.setItem(
+      TEST_STORAGE_KEY,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: TEST_CLERK_ID,
+        currentProjectId: 'project-legacy-fused',
+        projects: [
+          {
+            id: 'project-legacy-fused',
+            name: 'Legacy fused nodes',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            state: {
+              nodes: [
+                {
+                  id: 'source',
+                  type: NODE_TYPE_IDS.image,
+                  position: MOVED_POSITION,
+                  data: {
+                    prompt: '',
+                    status: NODE_STATUS_IDS.done,
+                    mediaUrl: 'https://cdn.example.com/legacy.png',
+                    fusedIntoNodeId: 'target',
+                  },
+                },
+                {
+                  id: 'target',
+                  type: NODE_TYPE_IDS.image,
+                  position: SECOND_POSITION,
+                  data: {
+                    prompt: '',
+                    status: NODE_STATUS_IDS.idle,
+                    referenceAssets: [
+                      {
+                        id: 'ref-legacy',
+                        url: 'https://cdn.example.com/legacy.png',
+                        source: 'canvas',
+                        sourceId: 'source',
+                        role: 'identity',
+                        weight: 1,
+                        onStage: true,
+                      },
+                    ],
+                  },
+                },
+              ],
+              edges: [],
+            },
+          },
+        ],
+      }),
+    )
+
+    const { result } = renderNodeWorkflowHook()
+
+    await waitFor(() => {
+      expect(result.current.currentProjectName).toBe('Legacy fused nodes')
+    })
+
+    expect(result.current.nodes[0]?.position).toEqual(MOVED_POSITION)
+    expect(result.current.nodes[0]?.data.fusedIntoNodeId).toBeUndefined()
+    expect(result.current.nodes[1]?.data.referenceAssets).toEqual([
+      expect.objectContaining({
+        id: 'ref-legacy',
+        source: 'canvas',
+        sourceId: 'source',
+        role: 'identity',
+        weight: 1,
+        onStage: true,
+      }),
+    ])
+  })
+
   it('hydrates nodes, edges, and prompt data from a valid snapshot', async () => {
     window.localStorage.setItem(
       TEST_STORAGE_KEY,

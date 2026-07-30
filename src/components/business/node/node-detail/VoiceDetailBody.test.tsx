@@ -168,6 +168,20 @@ describe('VoiceDetailBody', () => {
     })
   })
 
+  it('uses the spacious two-rail object studio layout', () => {
+    renderBody(makeData())
+
+    const studio = screen.getByTestId('voice-object-studio')
+    expect(studio).toHaveClass('canvas-object-studio-grid')
+    expect(studio).toHaveClass('canvas-object-studio-grid--balanced')
+    expect(
+      studio.querySelector('.canvas-object-studio-media-rail'),
+    ).toBeInTheDocument()
+    expect(
+      studio.querySelector('.canvas-object-studio-task-rail'),
+    ).toBeInTheDocument()
+  })
+
   it('does not render a 台词 input — lines belong to the script', () => {
     renderBody(makeData())
     expect(screen.queryByLabelText('dialogue.label')).not.toBeInTheDocument()

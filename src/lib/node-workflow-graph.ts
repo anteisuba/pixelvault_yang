@@ -93,9 +93,10 @@ export function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
  * The named reference family a node contributes to a downstream Seedance node's
  * reference panel (角色 / 背景 / 镜头 / 声音). Resolves the unified `image` node
  * via `data.role` AND the legacy per-type character/background/shot image nodes,
- * plus voice nodes. Returns null for nodes that feed generation but aren't
- * surfaced as a named family chip (frame images, text, video…) and for role-less
- * (unconfigured) image nodes.
+ * plus voice nodes. A role-less unified image defaults to `shot`, matching
+ * `isVisualReferenceNode` and the actual image payload harvest. Returns null
+ * only for nodes that feed generation but aren't surfaced as a named family
+ * chip (frame images, text, video…).
  *
  * Centralizing this here keeps the composer's reference chips in lock-step with
  * the role migration — matching on raw `node.type` alone silently dropped every
@@ -113,7 +114,7 @@ export function getSeedanceReferenceKind(
   if (isVoiceProfileNode(node)) return 'voice'
   const role =
     node.type === NODE_TYPE_IDS.image
-      ? node.data.role
+      ? (node.data.role ?? NODE_IMAGE_ROLE_IDS.shot)
       : node.type === NODE_TYPE_IDS.characterImage
         ? NODE_IMAGE_ROLE_IDS.character
         : node.type === NODE_TYPE_IDS.backgroundImage

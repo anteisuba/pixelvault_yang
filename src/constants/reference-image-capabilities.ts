@@ -101,6 +101,15 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  // O3 Pro i2v: same start_image_url shape as V3 in our builder; cap mirrors V3
+  // until we wire o3-specific element/video reference slots.
+  [AI_MODELS.KLING_O3_PRO]: {
+    kind: 'flexible',
+    min: 0,
+    max: FAL_KLING_V3_MAX_REFERENCE_IMAGES,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
   // fal-ai/veo3.1/reference-to-video already posts `image_urls: string[]`.
   // Google's Veo 3.1 reference-to-video docs cap subject/scene references at
   // 3 images, so 3 is the right ceiling to expose to users.

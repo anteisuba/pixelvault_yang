@@ -76,6 +76,30 @@ function renderComposerWithData(data: Partial<NodeWorkflowNodeData>) {
 }
 
 describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
+  it('surfaces a directly wired role-less image as the shot reference that is actually sent', () => {
+    graphState.nodes = [
+      makeNode('image1', NODE_TYPE_IDS.image, {
+        mediaUrl: 'https://cdn.test/loose.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [makeEdge('e-image', 'image1', 'video1')]
+
+    const composer = renderComposer()
+
+    expect(composer.sendPreview.images).toHaveLength(1)
+    expect(composer.referenceTokens).toEqual([
+      expect.objectContaining({
+        id: 'image1',
+        kind: 'shot',
+        token: '@autoName.shot1',
+        mediaUrl: 'https://cdn.test/loose.png',
+        imageSlotIndex: 0,
+        edgeId: 'e-image',
+      }),
+    ])
+  })
+
   it('ties imageSlotIndex to the real payload order (keyframes occupy slots first)', () => {
     // Payload order per harvestUpstreamImageUrls: keyframes first, then
     // visual references — so the character lands at index 1, not 0.
@@ -196,6 +220,46 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       insertable: true,
       edgeId: 'e-voice',
     })
+  })
+
+  it('surfaces audio routed through a role-less image alongside the sent shot', () => {
+    graphState.nodes = [
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceName: '旁白',
+        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+      }),
+      makeNode('image1', NODE_TYPE_IDS.image, {
+        mediaUrl: 'https://cdn.test/loose.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-voice-image', 'voice1', 'image1'),
+      makeEdge('e-image-video', 'image1', 'video1'),
+    ]
+
+    const composer = renderComposer()
+    expect(composer.sendPreview.images).toHaveLength(1)
+    expect(composer.sendPreview.audioEntries).toHaveLength(1)
+    expect(composer.referenceTokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'image1',
+          kind: 'shot',
+          token: '@autoName.shot1',
+          edgeId: 'e-image-video',
+        }),
+        expect.objectContaining({
+          id: 'voice1',
+          kind: 'voice',
+          token: '@Audio1',
+          audioSlotIndex: 0,
+          edgeId: 'e-voice-image',
+          routedThroughId: 'image1',
+          routedThroughLabel: 'autoName.shot1',
+        }),
+      ]),
+    )
   })
 
   it('leaves a character with no wired voice without a boundVoice', () => {

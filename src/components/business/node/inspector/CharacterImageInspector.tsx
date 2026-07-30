@@ -23,6 +23,7 @@ import { NodeMediaInspector } from './NodeMediaInspector'
 
 interface CharacterImageInspectorProps {
   node: NodeWorkflowNode
+  layout?: 'default' | 'object-studio'
 }
 
 /**
@@ -57,6 +58,7 @@ function getParticipantLabel(node: NodeWorkflowNode, fallback: string): string {
  */
 export function CharacterImageInspector({
   node,
+  layout = 'default',
 }: CharacterImageInspectorProps) {
   const t = useTranslations('StudioNode.characterImage')
   const tDossier = useTranslations('StudioNode.dossier')
@@ -217,126 +219,156 @@ export function CharacterImageInspector({
   )
 
   return (
-    <div className="space-y-4">
-      <NodeMediaInspector
-        node={node}
-        type={NODE_TYPE_IDS.characterImage}
-        kind={NODE_MEDIA_KIND_IDS.image}
-        referenceGalleryMode="gallery"
-        identityAssetsOnly
-        referenceGalleryExtraItems={closeupItems}
-        onExtractReference={handleExtractReference}
-        // S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
-        // 卡外的原地可编辑标签（IdentityCollectorCard 的 EditableNodeLabel），
-        // 这里不再重复一份改名输入——只留 visualSeed 的只读展示。
-        roleExtras={
-          visualSeed ? (
-            <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-2xs leading-5 text-node-muted">
-              <span className="font-semibold text-node-foreground">
-                {tDossier('identityVisualSeedLabel')}
-              </span>
-              <p className="mt-0.5 line-clamp-3">{visualSeed}</p>
-            </div>
-          ) : null
+    <>
+      <div
+        data-testid="character-object-studio"
+        className={
+          layout === 'object-studio'
+            ? 'canvas-object-studio-grid canvas-object-studio-grid--balanced'
+            : 'space-y-4'
         }
-      />
-
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {t('cardLibrary.title')}
-        </p>
-        <select
-          value={node.data.cardId ?? ''}
-          onChange={(event) =>
-            updateNodeData(node.id, { cardId: event.target.value || undefined })
+      >
+        <div
+          className={
+            layout === 'object-studio'
+              ? 'canvas-object-studio-media-rail'
+              : undefined
           }
-          aria-label={t('cardLibrary.title')}
-          className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
         >
-          <option value="">{t('cardLibrary.hint')}</option>
-          {cards
-            .flatMap((card) => [card, ...card.variants])
-            .map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name}
-              </option>
-            ))}
-        </select>
-        {boundCard ? (
-          <p className="text-2xs text-node-muted">
-            {t('cardLibrary.bound', { name: boundCard.name })}
-          </p>
-        ) : null}
-      </div>
+          <NodeMediaInspector
+            node={node}
+            type={NODE_TYPE_IDS.characterImage}
+            kind={NODE_MEDIA_KIND_IDS.image}
+            layout={layout === 'object-studio' ? 'stack' : 'object-studio'}
+            referenceGalleryMode="gallery"
+            identityAssetsOnly
+            referenceGalleryExtraItems={closeupItems}
+            onExtractReference={handleExtractReference}
+            // S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口到
+            // 卡外的原地可编辑标签（IdentityCollectorCard 的 EditableNodeLabel），
+            // 这里不再重复一份改名输入——只留 visualSeed 的只读展示。
+            roleExtras={
+              visualSeed ? (
+                <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-2xs leading-5 text-node-muted">
+                  <span className="font-semibold text-node-foreground">
+                    {tDossier('identityVisualSeedLabel')}
+                  </span>
+                  <p className="mt-0.5 line-clamp-3">{visualSeed}</p>
+                </div>
+              ) : null
+            }
+          />
+        </div>
 
-      {/* 听觉身份区 */}
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {tDossier('voiceSection')}
-        </p>
-        {boundVoice ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-node-paint/30 bg-node-paint/10 px-3 py-2 text-xs leading-5 text-node-paint">
-            <Mic2 className="size-3.5 shrink-0" />
-            <span className="flex-1 truncate">
-              {boundVoice.voiceName
-                ? t('voiceBound.namedVoice', {
-                    voiceName: boundVoice.voiceName,
-                  })
-                : t('voiceBound.unnamed')}
-            </span>
-            <button
-              type="button"
-              onClick={() => deleteEdge(boundVoice.edgeId)}
-              aria-label={t('voiceBound.remove')}
-              title={t('voiceBound.remove')}
-              className="flex size-5 shrink-0 items-center justify-center rounded-full text-node-paint/70 transition-colors hover:bg-node-paint/20 hover:text-node-paint"
+        <div
+          className={
+            layout === 'object-studio'
+              ? 'canvas-object-studio-task-rail'
+              : 'space-y-4'
+          }
+        >
+          <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+            <p className="text-sm font-semibold text-node-foreground">
+              {t('cardLibrary.title')}
+            </p>
+            <select
+              value={node.data.cardId ?? ''}
+              onChange={(event) =>
+                updateNodeData(node.id, {
+                  cardId: event.target.value || undefined,
+                })
+              }
+              aria-label={t('cardLibrary.title')}
+              className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
             >
-              <X className="size-3.5" />
-            </button>
+              <option value="">{t('cardLibrary.hint')}</option>
+              {cards
+                .flatMap((card) => [card, ...card.variants])
+                .map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.name}
+                  </option>
+                ))}
+            </select>
+            {boundCard ? (
+              <p className="text-2xs text-node-muted">
+                {t('cardLibrary.bound', { name: boundCard.name })}
+              </p>
+            ) : null}
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setVoiceDialogOpen(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner px-3 py-2 text-xs font-semibold text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground"
-          >
-            <Plus className="size-3.5" aria-hidden />
-            {tDossier('voiceBind')}
-          </button>
-        )}
-      </div>
 
-      {/* 出演区 */}
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {tDossier('performanceSection')}
-        </p>
-        {performances.length === 0 ? (
-          <p className="text-xs text-node-muted">
-            {tDossier('performanceEmpty')}
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {performances.map((participant) => {
-              const label = getParticipantLabel(
-                participant,
-                tTypes(resolveNodePresentationType(participant)),
-              )
-              return (
+          {/* 听觉身份区 */}
+          <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+            <p className="text-sm font-semibold text-node-foreground">
+              {tDossier('voiceSection')}
+            </p>
+            {boundVoice ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-node-paint/30 bg-node-paint/10 px-3 py-2 text-xs leading-5 text-node-paint">
+                <Mic2 className="size-3.5 shrink-0" />
+                <span className="flex-1 truncate">
+                  {boundVoice.voiceName
+                    ? t('voiceBound.namedVoice', {
+                        voiceName: boundVoice.voiceName,
+                      })
+                    : t('voiceBound.unnamed')}
+                </span>
                 <button
-                  key={participant.id}
                   type="button"
-                  onClick={() => handleFocusPerformance(participant.id)}
-                  aria-label={tDossier('performanceFocusAria', { name: label })}
-                  title={tDossier('performanceFocusAria', { name: label })}
-                  className="rounded-full bg-node-panel px-2.5 py-1 text-2xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
+                  onClick={() => deleteEdge(boundVoice.edgeId)}
+                  aria-label={t('voiceBound.remove')}
+                  title={t('voiceBound.remove')}
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full text-node-paint/70 transition-colors hover:bg-node-paint/20 hover:text-node-paint"
                 >
-                  {label}
+                  <X className="size-3.5" />
                 </button>
-              )
-            })}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVoiceDialogOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner px-3 py-2 text-xs font-semibold text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground"
+              >
+                <Plus className="size-3.5" aria-hidden />
+                {tDossier('voiceBind')}
+              </button>
+            )}
           </div>
-        )}
+
+          {/* 出演区 */}
+          <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+            <p className="text-sm font-semibold text-node-foreground">
+              {tDossier('performanceSection')}
+            </p>
+            {performances.length === 0 ? (
+              <p className="text-xs text-node-muted">
+                {tDossier('performanceEmpty')}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {performances.map((participant) => {
+                  const label = getParticipantLabel(
+                    participant,
+                    tTypes(resolveNodePresentationType(participant)),
+                  )
+                  return (
+                    <button
+                      key={participant.id}
+                      type="button"
+                      onClick={() => handleFocusPerformance(participant.id)}
+                      aria-label={tDossier('performanceFocusAria', {
+                        name: label,
+                      })}
+                      title={tDossier('performanceFocusAria', { name: label })}
+                      className="rounded-full bg-node-panel px-2.5 py-1 text-2xs font-medium text-node-foreground transition-colors hover:bg-node-panel-inner"
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <AssetSelectorDialog
@@ -347,6 +379,6 @@ export function CharacterImageInspector({
         mediaType="audio"
         onSelect={handleBindVoice}
       />
-    </div>
+    </>
   )
 }

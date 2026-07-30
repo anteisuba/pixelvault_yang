@@ -564,7 +564,39 @@
       "groupCount": "{count}",
       "priceImage": "{amount} per image",
       "priceSecond": "{amount} per second",
-      "priceKChars": "{amount} per 1k chars"
+      "priceKChars": "{amount} per 1k chars",
+      "detail": {
+        "viewDetails": "Learn about {model}",
+        "canDo": "What it can do",
+        "advantagesTitle": "Advantages",
+        "provider": "Provider",
+        "pricing": "Reference price",
+        "modality": "Modality",
+        "openStudio": "Create with this model",
+        "officialDocs": "Official model page",
+        "close": "Close model details",
+        "advantages": {
+          "premiumQuality": "Premium output quality",
+          "balancedQuality": "Balanced quality and speed",
+          "fastValue": "Fast, cost-efficient iteration",
+          "freeTier": "Free-tier access",
+          "imageGeneration": "Text-to-image generation",
+          "videoGeneration": "Text-to-video generation",
+          "photorealistic": "Photorealistic rendering",
+          "anime": "Anime and illustration",
+          "design": "Design and brand graphics",
+          "artistic": "Cinematic and artistic images",
+          "versatile": "Versatile creative work",
+          "lora": "Custom LoRA support",
+          "imageToVideo": "Image-to-video support",
+          "referenceInput": "Reference-image control",
+          "nativeAudio": "Native audio generation",
+          "speech": "Multilingual text-to-speech",
+          "soundEffects": "Text-to-sound effects",
+          "imageTo3d": "Image-to-3D reconstruction",
+          "glbOutput": "Reusable GLB assets"
+        }
+      }
     },
     "canvasView": {
       "nodes": {
@@ -650,13 +682,16 @@
     },
     "videoDemo": {
       "bar": "First frame · Seedream 5.0 → Seedance 2.0",
-      "firstFrame": "First frame"
+      "firstFrame": "First frame",
+      "play": "Play video",
+      "pause": "Pause video",
+      "seek": "Seek video"
     },
     "turntableDemo": {
       "bar": "Source · Still life #0142"
     },
     "foot": {
-      "tagline": "One place for the generators, the archive and your own way of working. Every run saves its prompt, model, provider and seed.",
+      "tagline": "Generate, archive and reuse in one place. Every result keeps its key settings.",
       "cols": {
         "product": {
           "title": "Product",
@@ -2920,6 +2955,10 @@
       "label": "Flux 2 Pro",
       "description": "Top-ranked image model by Black Forest Labs with exceptional quality."
     },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro Edit",
+      "description": "Multi-reference image editing with FLUX.2 Pro — transform with a prompt and up to several source images."
+    },
     "flux2Flash": {
       "label": "FLUX 2 Flash",
       "description": "Low-cost FLUX 2 route for quick drafts and iteration through fal.ai."
@@ -3005,8 +3044,8 @@
       "description": "Anima (Cosmos-Predict2 DiT) via PixelVault Runner — the native path for the large Anima LoRA ecosystem on Civitai."
     },
     "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "Top-ranked TTS, 30+ languages, natural voice cloning"
+      "label": "Fish Audio S2.1 Pro",
+      "description": "Recommended production TTS — 83 languages, natural language emotion tags, voice cloning"
     },
     "elevenV3": {
       "label": "ElevenLabs v3",
@@ -3016,6 +3055,10 @@
       "label": "ElevenLabs SFX v2",
       "description": "Generate sound effects and foley from a text prompt"
     },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2",
+      "description": "Studio-grade text-to-music with natural language prompts (instrumental or vocal)"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
       "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
@@ -3023,6 +3066,10 @@
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
       "description": "Multi-shot storyboarding, native audio, character consistency"
+    },
+    "klingO3Pro": {
+      "label": "Kling O3 Pro (Omni)",
+      "description": "Omni track — element and video reference workflows, native audio, cinematic multi-shot"
     },
     "ltx23": {
       "label": "LTX 2.3",
@@ -3066,7 +3113,7 @@
     },
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
-      "description": "Google's video model — tops every blind-vote video arena. 720p with native audio."
+      "description": "Google video (still preview API id) — strong arena standing, native audio; watch for GA id."
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3950,6 +3997,8 @@
       },
       "noModel": "Select a video model first.",
       "noInput": "Write a video prompt or connect upstream nodes.",
+      "executionNotMigrated": "This model's video execution route is not connected yet, so it cannot be sent from the canvas.",
+      "audioRequiresVisual": "Reference audio cannot be sent alone. Connect at least one image or video.",
       "generate": "Generate video",
       "regenerate": "Regenerate video",
       "statusIdle": "Ready to generate",
@@ -3960,7 +4009,7 @@
         "ariaLabel": "Video assembly editor",
         "eyebrow": "Video assembly · right editor",
         "titleFallback": "Video generation",
-        "detailAction": "Detailed edit",
+        "detailAction": "Expand editor",
         "compactAction": "Collapse details",
         "close": "Close video assembly editor"
       }
@@ -4091,9 +4140,21 @@
         "empty": "Preview appears here once generated",
         "rec": "REC"
       },
+      "studio": {
+        "currentFilm": "Current film",
+        "filmMeta": "{duration} · {aspect} · {resolution}",
+        "sentAssets": "Assets being sent",
+        "assetCount": "{count} connected",
+        "composition": "This generation",
+        "modelParameters": "Model parameters",
+        "supportedOnly": "Only controls supported by this model",
+        "sendSummary": "{inputs} inputs · {dropped} dropped"
+      },
       "variant": {
         "standard": "Standard",
-        "fast": "Fast"
+        "fast": "Fast",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro (Omni)"
       },
       "provider": {
         "fal": "fal",
@@ -4192,6 +4253,7 @@
         "rowMenu": "More actions",
         "rowLocate": "Locate on canvas",
         "rowRemove": "Disconnect",
+        "routedThrough": "Sent with {name}",
         "capacityWarning": "{count} candidate reference images exceed the model's {max}-image cap — {truncated} won't be sent",
         "counterOverflow": "{sent}/{max} ⚠",
         "closeManager": "Close asset manager",
@@ -4357,6 +4419,7 @@
         "label": "Duration",
         "placeholder": "e.g. 4s, 6s, 8s...",
         "auto": "Auto (let model decide)",
+        "custom": "Custom",
         "seconds": "{value}s"
       },
       "audioIntent": {
@@ -4605,7 +4668,19 @@
     },
     "minimapTitle": "Minimap",
     "castDock": {
-      "title": "Cast",
+      "title": "Nodes",
+      "searchLabel": "Search canvas nodes",
+      "searchPlaceholder": "Search nodes…",
+      "groups": {
+        "text": "Text",
+        "image": "Images",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "referenceCount": "{count, plural, one {# reference} other {# references}}",
+      "empty": "No nodes on the canvas yet",
+      "noResults": "No matching nodes",
+      "locateNode": "Locate {name}",
       "expand": "Expand Cast dock",
       "collapse": "Collapse Cast dock",
       "handle": "Cast · {count}",

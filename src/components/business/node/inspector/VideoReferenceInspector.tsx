@@ -68,89 +68,96 @@ export function VideoReferenceInspector({
   }, [])
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3">
-        <p className="text-sm font-semibold text-node-foreground">
-          {t('title')}
-        </p>
-        <p className="mt-1 text-xs leading-5 text-node-muted">
-          {t('description')}
-        </p>
-      </div>
+    <div
+      data-testid="video-reference-object-studio"
+      className="canvas-object-studio-grid canvas-object-studio-grid--balanced"
+    >
+      <div className="canvas-object-studio-media-rail">
+        <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3">
+          <p className="text-sm font-semibold text-node-foreground">
+            {t('title')}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-node-muted">
+            {t('description')}
+          </p>
+        </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ACCEPTED_VIDEO_MIME}
-        className="hidden"
-        onChange={(event) => void handleFileChange(event)}
-      />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_VIDEO_MIME}
+          className="hidden"
+          onChange={(event) => void handleFileChange(event)}
+        />
 
-      <div className="relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
-        {mediaUrl ? (
-          <video
-            src={mediaUrl}
-            poster={videoThumbnailUrl}
-            className="h-full w-full object-cover"
-            controls
-            muted
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-node-port-video/20 text-node-port-video">
-              <Video className="size-5" />
+        <div className="relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
+          {mediaUrl ? (
+            <video
+              src={mediaUrl}
+              poster={videoThumbnailUrl}
+              className="h-full w-full object-cover"
+              controls
+              muted
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-node-port-video/20 text-node-port-video">
+                <Video className="size-5" />
+              </span>
+              <p className="text-xs leading-5 text-node-muted">
+                {t('emptyPreview')}
+              </p>
+            </div>
+          )}
+          {isUploading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+              <Spinner size="lg" className="text-node-muted" />
+              <span className="text-xs font-semibold">{t('uploading')}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {mediaLabel ? (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs">
+            <span className="truncate text-node-foreground">{mediaLabel}</span>
+            <span className="shrink-0 text-node-muted">
+              {formatBytes(
+                typeof node.data.sizeBytes === 'number'
+                  ? node.data.sizeBytes
+                  : undefined,
+              )}
             </span>
-            <p className="text-xs leading-5 text-node-muted">
-              {t('emptyPreview')}
-            </p>
-          </div>
-        )}
-        {isUploading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Spinner size="lg" className="text-node-muted" />
-            <span className="text-xs font-semibold">{t('uploading')}</span>
           </div>
         ) : null}
       </div>
 
-      {mediaLabel ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs">
-          <span className="truncate text-node-foreground">{mediaLabel}</span>
-          <span className="shrink-0 text-node-muted">
-            {formatBytes(
-              typeof node.data.sizeBytes === 'number'
-                ? node.data.sizeBytes
-                : undefined,
-            )}
-          </span>
-        </div>
-      ) : null}
-
-      <div className="flex flex-col gap-2">
-        <Button
-          type="button"
-          onClick={openFilePicker}
-          disabled={isUploading}
-          className="bg-node-foreground text-node-canvas hover:bg-node-foreground/90"
-        >
-          <Upload className="mr-2 size-4" />
-          {mediaUrl ? t('replace') : t('upload')}
-        </Button>
-        {mediaUrl ? (
+      <div className="canvas-object-studio-task-rail">
+        <div className="flex flex-col gap-2">
           <Button
             type="button"
-            variant="outline"
-            onClick={handleClear}
+            onClick={openFilePicker}
             disabled={isUploading}
+            className="bg-node-foreground text-node-canvas hover:bg-node-foreground/90"
           >
-            <Trash2 className="mr-2 size-4" />
-            {t('clear')}
+            <Upload className="mr-2 size-4" />
+            {mediaUrl ? t('replace') : t('upload')}
           </Button>
-        ) : null}
-      </div>
+          {mediaUrl ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClear}
+              disabled={isUploading}
+            >
+              <Trash2 className="mr-2 size-4" />
+              {t('clear')}
+            </Button>
+          ) : null}
+        </div>
 
-      <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-muted">
-        <p>{t('constraints')}</p>
+        <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-muted">
+          <p>{t('constraints')}</p>
+        </div>
       </div>
     </div>
   )

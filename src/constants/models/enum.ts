@@ -8,6 +8,8 @@ export enum AI_MODELS {
   GEMINI_FLASH_IMAGE = 'gemini-3.1-flash-image-preview',
   OPENAI_GPT_IMAGE_2 = 'gpt-image-2',
   FLUX_2_PRO = 'flux-2-pro',
+  /** FLUX.2 Pro multi-reference edit endpoint (image_urls + prompt). */
+  FLUX_2_PRO_EDIT = 'flux-2-pro-edit',
   FLUX_2_FLASH = 'flux-2-flash',
   FLUX_LORA = 'flux-lora',
   GEMINI_PRO_IMAGE = 'gemini-3-pro-image-preview',
@@ -41,13 +43,21 @@ export enum AI_MODELS {
   ANIMA_DIT_RUNNER = 'anima-dit-runner',
 
   // Audio models
+  /**
+   * Catalog key kept as fish-audio-s2-pro for DB/i18n stability. Execution id
+   * is `s2.1-pro` (Fish production recommendation as of 2026-07).
+   */
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
   ELEVENLABS_V3 = 'eleven-v3',
   ELEVENLABS_SFX_V2 = 'eleven-sfx-v2',
+  /** ElevenLabs Music v2 — text-to-music (audioKind=music). */
+  ELEVENLABS_MUSIC_V2 = 'eleven-music-v2',
 
   // Video models
   HAPPYHORSE_10 = 'happyhorse-1.0',
   KLING_V3_PRO = 'kling-v3-pro',
+  /** Kling VIDEO 3.0 Omni Pro — element/video reference heavy workflows. */
+  KLING_O3_PRO = 'kling-o3-pro',
   LTX_23 = 'ltx-2.3',
   SEEDANCE_20 = 'seedance-2.0',
   SEEDANCE_20_FAST = 'seedance-2.0-fast',

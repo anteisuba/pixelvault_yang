@@ -791,6 +791,13 @@ function ManagerRow({
           {token.token ? (
             <span className="font-mono">{token.token}</span>
           ) : null}
+          {token.routedThroughLabel ? (
+            <span>
+              {tc('references.routedThrough', {
+                name: token.routedThroughLabel,
+              })}
+            </span>
+          ) : null}
         </p>
         {overflowed ? (
           <p className="text-3xs font-semibold text-node-status-failed">

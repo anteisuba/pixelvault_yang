@@ -33,7 +33,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
-  CANVAS_ADD_INTENT_IDS,
   getCanvasAddCatalogItem,
   type CanvasAddIntentId,
 } from '@/constants/canvas-add-catalog'
@@ -89,9 +88,7 @@ import {
   evaluateCastIngest,
   findNodeCardElement,
   findNodeWrapperElement,
-  playCanvasFuseSwallowAnimation,
   playNodeBounceBack,
-  playTargetGulpAnimation,
   playTargetRejectShakeAnimation,
   playTargetSigningSettleAnimation,
   prefersReducedMotion,
@@ -137,6 +134,7 @@ import {
   filterReferencedImages,
   translatePromptTokensToPositional,
 } from '@/lib/node-video-prompt-translation'
+import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -177,8 +175,7 @@ import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
 import { CanvasLeftPanel } from './CanvasLeftPanel'
-import { CastDock, countCastCards, type CastSectionId } from './CastDock'
-import { createReferenceAsset } from './CharacterImageReferenceControls'
+import { CastDock, countCanvasNodes } from './CastDock'
 import { GenerateComposer } from './composer/GenerateComposer'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
@@ -423,43 +420,6 @@ function findCanvasDragHitFromCache(
   return null
 }
 
-/**
- * S5d ⑤/【紧急修复】: pure legality check shared by the 张口 bite-hover
- * preview (during native drag, `handleNodeDrag`) and the actual fuse mutation
- * (`handleFuseLooseImageNode`) — one source of truth so the bite preview
- * never promises a fuse the drop then rejects. Mirrors
- * `handleFuseLooseImageNode`'s own checks minus the mutation.
- */
-function isLegalLooseImageFuseTarget(
-  sourceNode: NodeWorkflowNode,
-  targetNode: NodeWorkflowNode,
-): boolean {
-  if (sourceNode.id === targetNode.id) return false
-  if (!isCollectorCardNode(targetNode)) return false
-
-  const mediaUrl =
-    typeof sourceNode.data.mediaUrl === 'string'
-      ? sourceNode.data.mediaUrl.trim()
-      : ''
-  if (!mediaUrl) return false
-
-  const existing = targetNode.data.referenceAssets ?? []
-  const alreadyFused = existing.some(
-    (reference) =>
-      reference.source === NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas &&
-      reference.sourceId === sourceNode.id,
-  )
-  if (alreadyFused) return false
-
-  const maxItems = targetNode.data.model
-    ? getMaxReferenceImages(
-        targetNode.data.model.adapterType,
-        targetNode.data.model.modelId,
-      )
-    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
-  return existing.length < maxItems
-}
-
 export function StudioNodeWorkbench() {
   return (
     <section
@@ -571,20 +531,8 @@ function StudioNodeCanvas() {
   // The node whose ⤢ detail panel is open (B3 shared floating panel). One id
   // because a single shared panel renders the one expanded node.
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
-  // R3-4 (canvas-relationship-v3 §4.2): a one-way mirror of "CastDock 此刻是
-  // 一个开着的 L5 浮层"（owner stays CastDock — the drag-hover auto-expand/
-  // re-collapse choreography lives there）and of CanvasImageEditWorkspace's
-  // `activeTask` (owner stays CanvasImageSelectionToolbar). Both exist purely
-  // so the workbench can enforce the L5 mutual-exclusion + 档2/档3→L5/L3 close
-  // cascade + Esc ladder without lifting either component's real state.
-  //
-  // ⚠ 镜的是「浮层开着」而非「展开着」：S2b 把卡匣搬进左侧常驻面板
-  //（`layout="panel"`）之后，展开是它的常态、也不遮挡任何东西，所以这里恒为
-  // false。旧写法镜的是 collapsed 取反，加载完就恒真，在 L5 名单上占了一格假
-  // 浮层——Esc 阶梯的第一次按键全被它吃掉（owner 实测，2026-07-27）。
-  const [castDockOverlayOpen, setCastDockOverlayOpen] = useState(false)
-  // S2b（2026-07-26）左侧合体面板的展开态。默认展开——班底架是「常驻的第二
-  // 主角」（已确认条款 5），不是随取随用的抽屉。
+  // Left node locator panel. It is persistent workspace chrome, never an
+  // overlay or a second editing surface.
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
   const [imageEditWorkspaceOpen, setImageEditWorkspaceOpen] = useState(false)
   const imageEditNodeByRequestRef = useRef(new Map<string, string>())
@@ -625,36 +573,14 @@ function StudioNodeCanvas() {
   useEffect(() => {
     if (!heavyOverlayOpen) return
     setAddMenu(null)
-    setCastDockOverlayOpen(false)
   }, [heavyOverlayOpen])
 
-  // R3-4 §4.2 rule 1: the two L5 citizens are mutually exclusive. This is the
-  // "cast dock opens → add menu closes" direction, written explicitly rather
-  // than relying on CanvasAddMenu's own outside-pointerdown close (which
-  // already happens to cover it as a side effect). The reverse direction
-  // (add menu opens → cast dock collapses) is `castDockForceCollapse` below,
-  // fed into `<CastDock forceCollapse>`.
-  useEffect(() => {
-    if (castDockOverlayOpen) closeAddMenu()
-  }, [castDockOverlayOpen, closeAddMenu])
-
-  const castDockForceCollapse = Boolean(addMenu) || heavyOverlayOpen
-
-  // R3-4 §4.2 rule 1 (extended): broadcast "an L5 citizen is open" so
-  // node-local L3 chrome (loose image quick-edit panel) can tuck itself away
-  // too — same one-way-mirror pattern as `heavyOverlayOpen`, just for the
-  // lighter tier. See the context field's own doc comment for why this is
-  // separate from `heavyOverlayOpen` rather than folded into it.
-  //
-  // 卡匣那一项在当前布局（panel）下恒 false，实际只剩添加菜单一个 L5 公民；
-  // 保留这一项是因为浮层族布局（absolute/inline）下它仍然成立。同一处旧 bug
-  // 的第二个受害者：镜像恒真时这个值也恒真，于是「开添加菜单 → 收起近场快
-  // 编面板」在加载后第一次开菜单时不会触发（依赖数组没变化，effect 不重跑）。
-  const transientLayerOpen = Boolean(addMenu) || castDockOverlayOpen
+  // The locator is persistent L4 chrome. The add menu is now the only L5
+  // citizen mirrored into node-local quick-edit dismissal.
+  const transientLayerOpen = Boolean(addMenu)
 
   useOverlayFocusReturn(Boolean(addMenu))
   useOverlayFocusReturn(Boolean(expandedNodeId))
-  useOverlayFocusReturn(castDockOverlayOpen)
   // R3-4 §4.2 rule 3 (焦点还原覆盖 L5/L6/L7): 档3-script（剧本笺展开）不是
   // Radix Dialog，没有 Radix 自带的关闭时焦点回归，需要这里手动补一份——
   // 档3-image（CanvasImageEditWorkspace）走 Radix ResponsiveDialog，那份由
@@ -669,12 +595,7 @@ function StudioNodeCanvas() {
   // 监听 / Radix Dialog 内建的 onEscapeKeyDown）——否则同一次按键会被这里的
   // window 监听器"顺手"再吞一层（连带取消选中），一次按键退两层，破坏"一次
   // 一层"。这里接手没有 backdrop 的 档3-script（剧本笺展开）+ L5（添加菜单 /
-  // 卡匣展开浮层）+ 取消选中。
-  //
-  // ⚠ L5 那一格只收**真的遮挡着的浮层**。卡匣自 S2b 起是左侧常驻面板的内容
-  //（见 castDockOverlayOpen 处的注释），它恒不进这一格——否则它会长期占着一
-  // 格，"一次按键退一层"就变成第一次按键什么都不退。左侧面板本身的展开/收起
-  // 是 L4 常驻 chrome，同理不进 Esc 链。
+  // 添加菜单）+ 取消选中。节点定位器是 L4 常驻 chrome，不进 Esc 链。
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing) return
@@ -684,9 +605,8 @@ function StudioNodeCanvas() {
         setAssistantExpanded(false)
         return
       }
-      if (addMenu || castDockOverlayOpen) {
+      if (addMenu) {
         setAddMenu(null)
-        setCastDockOverlayOpen(false)
         return
       }
       const hasSelection = workflow.nodes.some((node) => node.selected)
@@ -710,7 +630,6 @@ function StudioNodeCanvas() {
     assistantDockOpen,
     assistantExpanded,
     addMenu,
-    castDockOverlayOpen,
     workflow,
   ])
 
@@ -743,17 +662,8 @@ function StudioNodeCanvas() {
     [workflow],
   )
 
-  // R3-3 (canvas-relationship-v3 §3.1/§7): double-click opens the same ⤢
-  // detail panel as the toolbar's expand button — one path, two triggers.
-  // Paired with `zoomOnDoubleClick={false}` on <ReactFlow> below so the
-  // gesture isn't still bound to the library's default zoom-in.
-  const handleNodeDoubleClick = useCallback(
-    (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
-      setExpandedNodeId(node.id)
-    },
-    [],
-  )
-
+  // Node double-click is deliberately unbound. Detail has one entry point:
+  // the explicit expand button rendered by each node's toolbar.
   const handlePaneClick = useCallback(() => {
     // Clicking empty canvas exits quick-throw mode if active; otherwise it
     // keeps its existing job of closing the add-node menu.
@@ -1555,28 +1465,73 @@ function StudioNodeCanvas() {
         : null
       const submitModelId = effectiveVideoModel?.modelId ?? model.modelId
       const submitApiKeyId = effectiveVideoModel?.apiKeyId ?? model.apiKeyId
+      // One canonical model-specific plan feeds both the sidecar preview and
+      // the real request. The legacy generic assembly above remains for image
+      // and shot branches; video payload values come exclusively from this
+      // graph + selected-model projection.
+      const videoSendPlan = isVideoMediaNode
+        ? buildVideoSendPreview({
+            nodeId,
+            data: node.data,
+            edges: workflow.edges,
+            nodes: workflow.nodes,
+            modelId: submitModelId,
+            adapterType: effectiveVideoModel?.adapterType ?? model.adapterType,
+            maxReferenceImages: undefined,
+            autoNamePrefix: videoImageAutoNamePrefix,
+          })
+        : null
+
+      if (videoSendPlan && !videoSendPlan.canSubmit) {
+        const failureMessage = videoSendPlan.blockers.includes(
+          'audio-requires-visual',
+        )
+          ? t('videoGeneration.audioRequiresVisual')
+          : t('videoGeneration.executionNotMigrated')
+        workflow.updateNodeData(nodeId, {
+          generationError: failureMessage,
+          generationStatus: NODE_GENERATION_STATUS_IDS.error,
+          mediaJobId: undefined,
+          mediaKind: kind,
+          status: NODE_STATUS_IDS.failed,
+        })
+        toast.error(t('toasts.mediaGenerationFailed'), {
+          description: failureMessage,
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
 
       const result = await nodeMediaGeneration.generate(
         {
           kind,
           modelId: submitModelId,
           apiKeyId: submitApiKeyId,
-          prompt: finalPrompt,
+          prompt: videoSendPlan?.request.prompt ?? finalPrompt,
           duration: videoDuration,
           resolution: videoResolution,
           aspectRatio: videoAspectRatio,
-          referenceImages:
-            effectiveReferenceImages.length > 0
+          referenceImages: videoSendPlan
+            ? videoSendPlan.request.referenceImages
+            : effectiveReferenceImages.length > 0
               ? effectiveReferenceImages
               : undefined,
-          audioUrls:
-            upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
-          audioBindings:
-            upstreamAudioBindings.length > 0
+          audioUrls: videoSendPlan
+            ? videoSendPlan.request.audioUrls
+            : upstreamAudioUrls.length > 0
+              ? upstreamAudioUrls
+              : undefined,
+          audioBindings: videoSendPlan
+            ? videoSendPlan.request.audioBindings
+            : upstreamAudioBindings.length > 0
               ? upstreamAudioBindings
               : undefined,
-          videoUrls:
-            upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
+          videoUrls: videoSendPlan
+            ? videoSendPlan.request.videoUrls
+            : upstreamVideoUrls.length > 0
+              ? upstreamVideoUrls
+              : undefined,
           voiceId: audioVoiceId,
           speed: audioSpeed,
           volume: audioVolume,
@@ -1616,9 +1571,15 @@ function StudioNodeCanvas() {
                 lineage: {
                   operation: 'generate' as const,
                   sourceUrls: [
-                    ...effectiveReferenceImages,
-                    ...upstreamVideoUrls,
-                    ...upstreamAudioUrls,
+                    ...(videoSendPlan
+                      ? (videoSendPlan.request.referenceImages ?? [])
+                      : effectiveReferenceImages),
+                    ...(videoSendPlan
+                      ? (videoSendPlan.request.videoUrls ?? [])
+                      : upstreamVideoUrls),
+                    ...(videoSendPlan
+                      ? (videoSendPlan.request.audioUrls ?? [])
+                      : upstreamAudioUrls),
                   ].slice(0, 9),
                 },
               }
@@ -1968,7 +1929,6 @@ function StudioNodeCanvas() {
     if (sessionDecision.kind === 'focus') {
       pendingImageEditRequestKeyRef.current = null
       activeImageEditRequestKeyRef.current = requestKey
-      setExpandedNodeId(sessionDecision.nodeId)
       handleFocusNode(sessionDecision.nodeId)
       return
     }
@@ -1984,7 +1944,6 @@ function StudioNodeCanvas() {
       imageEditNodeByRequestRef.current.set(requestKey, resolution.nodeId)
       pendingImageEditRequestKeyRef.current = null
       activeImageEditRequestKeyRef.current = requestKey
-      setExpandedNodeId(resolution.nodeId)
       handleFocusNode(resolution.nodeId)
       return
     }
@@ -1996,8 +1955,9 @@ function StudioNodeCanvas() {
     if (Object.keys(resolution.patch).length > 0) {
       workflow.updateNodeData(newNodeId, resolution.patch)
     }
-    // The next render sees the newly created node, then performs selection,
-    // fitView, and panel expansion through the same remembered-node path.
+    // The next render sees the newly created node, then performs selection
+    // and fitView through the same remembered-node path. Detail stays closed;
+    // only an explicit expand button may open it.
     imageEditNodeByRequestRef.current.set(requestKey, newNodeId)
     pendingImageEditRequestKeyRef.current = requestKey
   }, [handleFocusNode, imageEditHandoff, isLoaded, userId, workflow])
@@ -2091,31 +2051,6 @@ function StudioNodeCanvas() {
   // the shared topbar-add anchor (reusing the same offset the ＋添加位
   // autospawn uses) so repeated clicks don't stack exact duplicates, then get
   // focused so the dock's action has visible on-canvas feedback.
-  const handleCastCreate = useCallback(
-    (sectionId: CastSectionId) => {
-      const anchor = NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition
-      const position = {
-        x: anchor.x,
-        y:
-          anchor.y +
-          (workflow.nodes.length % 6) *
-            NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
-      }
-
-      const intentId =
-        sectionId === NODE_IMAGE_ROLE_IDS.character
-          ? CANVAS_ADD_INTENT_IDS.organizeCharacter
-          : sectionId === NODE_IMAGE_ROLE_IDS.background
-            ? CANVAS_ADD_INTENT_IDS.organizeScene
-            : sectionId === NODE_TYPE_IDS.voice
-              ? CANVAS_ADD_INTENT_IDS.audioVoiceProfile
-              : CANVAS_ADD_INTENT_IDS.videoReference
-      const newId = createCanvasObject(intentId, position)
-      handleFocusNode(newId)
-    },
-    [createCanvasObject, handleFocusNode, workflow.nodes.length],
-  )
-
   const handleFocusGeneratedNodes = useCallback(() => {
     if (workflow.nodes.length === 0) return
     window.setTimeout(() => {
@@ -2176,86 +2111,17 @@ function StudioNodeCanvas() {
   // model (`workflow.nodes`) this derives from is untouched, so undo/save/
   // reload all still see the real graph.
   //
-  // S3.5「吞噬折叠退役」(canvas-implementation-stages-2026-07-26, owner
-  // 2026-07-26 拍板「成分永不消失」): the "has an outgoing edge → fold" rule
-  // is GONE. It was the last surviving piece of the 吞噬 paradigm on the node
-  // side, and it cost more than it bought: folding the source ALSO hid the
-  // edge (via `renderedEdges`' 两端可见 guard below), so the relationship the
-  // S3 连线语言 exists to show was erased at the exact moment it was created.
-  // Verified on 「AI拟人剧场」2026-07-26 — 6 数据边只渲染 5 条，缺的正是
-  // 散图→组装台那条，源节点也一并从 9/10 消失。散图现在与 collector/voice/
-  // videoReference 走同一条路：本体留在画布上，关系由连线承担。
-  //
-  // 仍会折叠的只剩一种：a loose image FUSED into a character/background's
-  // `referenceAssets` (`data.fusedIntoNodeId` set)。那条路径根本不建边，图的
-  // 内容真的搬进了目标卡的图集里，两处同时显示才是重复——补真边是另一片工作，
-  // 不在本片范围内。Shot/frame image cards（镜头图卡）从来不折叠，照旧。
-  //
-  // A1 perf fix (canvas-relationship-v3-2026-07 §7b): `workflow.nodes` gets a
-  // brand new ARRAY reference on every drag frame (`applyNodeChanges` inside
-  // `onNodesChange`), even though only the dragged node's x/y actually
-  // changed — but fold status only depends on `fusedIntoNodeId`, which
-  // doesn't move during a drag. Splitting this into a cheap signature string
-  // (built every render — plain string concat, no Set allocation) + a Set
-  // memo keyed on THAT primitive means the Set (and everything reading it
-  // downstream — `renderedNodes`, `renderedEdges`) only gets a new identity
-  // when a node's fold-relevant field actually changes, not on every
-  // position tick.
-  const foldedNodeIdsSignature = useMemo(() => {
-    let signature = ''
-    for (const node of workflow.nodes) {
-      if (node.data.fusedIntoNodeId) signature += node.id + '|'
-    }
-    return signature
-  }, [workflow.nodes])
-  const foldedNodeIds = useMemo(
-    () =>
-      new Set(
-        foldedNodeIdsSignature
-          ? foldedNodeIdsSignature.split('|').filter(Boolean)
-          : [],
-      ),
-    [foldedNodeIdsSignature],
-  )
-  // A1 perf fix: a VISIBLE node already passes through unchanged (same
-  // reference) below, but a FOLDED one used to get a brand new
-  // `{...node, hidden: true}` wrapper object on every single render — so
-  // during a drag (new `workflow.nodes` array every frame, but
-  // `applyNodeChanges` preserves the object reference of every node OTHER
-  // than the one being dragged, and a folded node can never itself be the
-  // one being dragged, it's hidden) every folded/eaten card was allocating a
-  // fresh wrapper each frame for no reason. This cache reuses the previous
-  // wrapper as long as the underlying node object reference is unchanged, so
-  // a canvas with a lot of eaten cast/散图 history doesn't pay a
-  // proportional-to-history cost on every drag frame.
-  const foldedNodeWrapperCacheRef = useRef<
-    Map<string, { source: NodeWorkflowNode; wrapped: NodeWorkflowNode }>
-  >(new Map())
-  const renderedNodes = useMemo(() => {
-    const cache = foldedNodeWrapperCacheRef.current
-    const stillFolded = new Set<string>()
-    const nodes = workflow.nodes.map((node) => {
-      if (!foldedNodeIds.has(node.id)) return node
-      stillFolded.add(node.id)
-      const cached = cache.get(node.id)
-      if (cached && cached.source === node) return cached.wrapped
-      const wrapped = { ...node, hidden: true }
-      cache.set(node.id, { source: node, wrapped })
-      return wrapped
-    })
-    // Prune entries for nodes that un-folded or were removed, so the cache
-    // doesn't grow unbounded across a long editing session.
-    for (const id of cache.keys()) {
-      if (!stillFolded.has(id)) cache.delete(id)
-    }
-    return nodes
-  }, [workflow.nodes, foldedNodeIds])
+  // Nodes are never hidden as a side effect of reference ownership. Legacy
+  // `fusedIntoNodeId` markers are removed during hydration; keeping the render
+  // input identical to the persisted node array also protects old projects
+  // that are opened before their healed state is written back to the server.
+  const renderedNodes = workflow.nodes
 
   // R3-1 选中集合（canvas-relationship-v3 §2.2）: `workflow.nodes[].selected`
   // already round-trips through `workflow.onNodesChange` (applyNodeChanges
   // handles the 'select' change ReactFlow dispatches on click / marquee), so
   // this is a plain derived read — no separate selection store needed.
-  // A1 perf fix: same signature/Set split as `foldedNodeIds` above —
+  // A1 perf fix: a signature/Set split keeps this selection projection stable —
   // `node.selected` only changes on an actual click/marquee, never on a
   // drag-frame position tick, so gating the Set behind a primitive key keeps
   // it referentially stable through an entire drag gesture.
@@ -2426,9 +2292,6 @@ function StudioNodeCanvas() {
       const sourceNode = workflow.nodes.find((n) => n.id === edge.source)
       const targetNode = workflow.nodes.find((n) => n.id === edge.target)
       if (!sourceNode || !targetNode) return false
-      if (foldedNodeIds.has(edge.source) || foldedNodeIds.has(edge.target)) {
-        return false
-      }
       const tier = resolveNodeEdgeTier(edge, sourceNode, targetNode)
       const endpointSelected =
         selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target)
@@ -2443,7 +2306,7 @@ function StudioNodeCanvas() {
         relationsCollapsed,
       })
     },
-    [workflow.nodes, foldedNodeIds, selectedNodeIds, relationsCollapsed],
+    [workflow.nodes, selectedNodeIds, relationsCollapsed],
   )
 
   // R3-2 §2.7 解绑反放: wraps every `deleteEdge` call site that removes a
@@ -2487,7 +2350,7 @@ function StudioNodeCanvas() {
   // 段" bar's only action. Re-derives the live selected nodes from
   // `workflow.nodes` at click time (not off the `composeSelectionNodeIds`
   // memo's stale snapshot — same "read live state, not a memo, inside a
-  // handler" pattern `handleFuseLooseImageNode` already uses) and
+  // handler" pattern the other graph mutations use) and
   // re-validates eligibility defensively before doing anything, since a
   // marquee could in principle have changed between render and click.
   //
@@ -2566,7 +2429,7 @@ function StudioNodeCanvas() {
   // generating" pulse) — none of which move during a plain position drag.
   // Depending on this cheap signature instead of raw `workflow.nodes` keeps
   // the whole edges-array rebuild (and every edge component's props) stable
-  // across drag frames, same technique as `foldedNodeIdsSignature` /
+  // across drag frames, using the same signature strategy as
   // `selectedNodeIdsSignature` above.
   const edgeRelevantNodesSignature = useMemo(() => {
     let signature = ''
@@ -2606,12 +2469,6 @@ function StudioNodeCanvas() {
       const sourceNode = nodeById.get(edge.source)
       const targetNode = nodeById.get(edge.target)
       if (!sourceNode || !targetNode) {
-        return { ...edge, hidden: true }
-      }
-
-      const bothEndsVisible =
-        !foldedNodeIds.has(edge.source) && !foldedNodeIds.has(edge.target)
-      if (!bothEndsVisible) {
         return { ...edge, hidden: true }
       }
 
@@ -2696,7 +2553,6 @@ function StudioNodeCanvas() {
   }, [
     workflow.edges,
     edgeRelevantNodesSignature,
-    foldedNodeIds,
     selectedNodeIds,
     relationsCollapsed,
     signedEdgePairs,
@@ -2735,6 +2591,19 @@ function StudioNodeCanvas() {
     [workflow],
   )
 
+  const listConnectableReferences = useCallback(
+    (targetNodeId: string): NodeWorkflowNode[] => {
+      const target = workflow.nodes.find((node) => node.id === targetNodeId)
+      if (!target) return []
+      return workflow.nodes.filter(
+        (source) =>
+          evaluateCastIngest(source, target, workflow.edges, workflow.nodes)
+            .legal,
+      )
+    },
+    [workflow.edges, workflow.nodes],
+  )
+
   // S5f A: same wording table `IngestDragLayer`'s Cast-dock pointer engine
   // uses (`StudioNode.ingest.reasons.*`) — reused here (not re-worded) so a
   // 咬不动 rejection reads identically whether the drag started from the Cast
@@ -2757,6 +2626,38 @@ function StudioNodeCanvas() {
       }
     },
     [t],
+  )
+
+  const connectReferenceNode = useCallback(
+    (sourceNodeId: string, targetNodeId: string) => {
+      const source = workflow.nodes.find((node) => node.id === sourceNodeId)
+      const target = workflow.nodes.find((node) => node.id === targetNodeId)
+      if (!source || !target) return
+      const evaluation = evaluateCastIngest(
+        source,
+        target,
+        workflow.edges,
+        workflow.nodes,
+      )
+      if (!evaluation.legal) {
+        toast.error(t('ingest.canvasNodeIngestRejected'), {
+          description: translateIngestReason(evaluation),
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+      handleIngestConnect(sourceNodeId, targetNodeId)
+      handleFocusNode(sourceNodeId)
+    },
+    [
+      handleFocusNode,
+      handleIngestConnect,
+      t,
+      translateIngestReason,
+      workflow.edges,
+      workflow.nodes,
+    ],
   )
 
   // §6 connection contract: reject self-loops and any (source→target) node-type
@@ -2795,63 +2696,10 @@ function StudioNodeCanvas() {
     [handleDeleteEdgeWithSignOff, t, toolMode],
   )
 
-  // S5c 三.3 融合（散图→角色/背景卡）: the ONLY data mutation is appending a
-  // `source:'canvas'` referenceAssets entry on the target + folding the loose
-  // source node hidden (`fusedIntoNodeId`) — no edge, unlike Cast-card ingest
-  // (吞噬 = 建边). Legality mirrors evaluateCastIngest's vocabulary (illegal
-  // target / duplicate / capacity-full) without importing that hook: the
-  // gesture here is canvas-node-drag-driven (`onNodeDragStop`), not the
-  // Cast-card pointer engine, so it earns its own small check instead of
-  // forcing a shared abstraction across two different drag origins.
-  const handleFuseLooseImageNode = useCallback(
-    (sourceNodeId: string, targetNodeId: string): boolean => {
-      const sourceNode = workflow.nodes.find((node) => node.id === sourceNodeId)
-      const targetNode = workflow.nodes.find((node) => node.id === targetNodeId)
-      if (!sourceNode || !targetNode) return false
-      if (!isLegalLooseImageFuseTarget(sourceNode, targetNode)) return false
-
-      const existing = targetNode.data.referenceAssets ?? []
-      const mediaUrl =
-        typeof sourceNode.data.mediaUrl === 'string'
-          ? sourceNode.data.mediaUrl.trim()
-          : ''
-      const name =
-        typeof sourceNode.data.mediaLabel === 'string' &&
-        sourceNode.data.mediaLabel.trim()
-          ? sourceNode.data.mediaLabel.trim()
-          : undefined
-      // S5d ③: a loose image already classified before fusion (e.g. 关键帧首)
-      // keeps that category inside the card's gallery instead of resetting
-      // to the default `identity` role.
-      const categorySeed = sourceNode.data.imageCategory
-        ? {
-            role: sourceNode.data.imageCategory,
-            customLabel: sourceNode.data.imageCategoryLabel,
-          }
-        : undefined
-
-      workflow.updateNodeData(targetNodeId, {
-        referenceAssets: [
-          ...existing,
-          createReferenceAsset(
-            mediaUrl,
-            NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
-            sourceNodeId,
-            name,
-            categorySeed,
-          ),
-        ],
-      })
-      workflow.updateNodeData(sourceNodeId, { fusedIntoNodeId: targetNodeId })
-      return true
-    },
-    [workflow],
-  )
-
-  // S5c 三.4 拆出（对称无损，「拆出 = 落画布」）: a canvas-sourced reference
-  // un-hides its origin node in place; an upload/asset/paste-sourced one
-  // materializes a fresh loose node at the viewport center — either path
-  // leaves the character/background's referenceAssets one entry shorter.
+  // Legacy nested references can still be removed without reintroducing the
+  // retired hide/fuse model. If the original canvas node exists it is already
+  // visible, so deleting the nested copy is the entire operation. Otherwise
+  // preserve the old lossless fallback and materialize a new loose node.
   const handleExtractReference = useCallback(
     (nodeId: string, referenceId: string) => {
       const node = workflow.nodes.find((candidate) => candidate.id === nodeId)
@@ -2873,7 +2721,6 @@ function StudioNodeCanvas() {
           (candidate) => candidate.id === originNodeId,
         )
         if (originStillExists) {
-          workflow.updateNodeData(originNodeId, { fusedIntoNodeId: undefined })
           return
         }
         // Origin node was deleted independently — fall through and
@@ -2998,15 +2845,14 @@ function StudioNodeCanvas() {
       )
       if (!targetNode) return
 
-      // 行④ (fuse) vs 行①②③⑤ (edge ingest) — same dispatch rule the drop
-      // handler below uses: a loose image dropped on a collector card fuses
-      // into its referenceAssets gallery, everything else goes through the
-      // general connection-matrix check.
-      const legal =
-        isLooseImageNode(node) && isCollectorCardNode(targetNode)
-          ? isLegalLooseImageFuseTarget(node, targetNode)
-          : evaluateCastIngest(node, targetNode, workflow.edges, workflow.nodes)
-              .legal
+      // The retired loose-image fusion special case is deliberately absent:
+      // every legal drop preview is now derived from the connection matrix.
+      const legal = evaluateCastIngest(
+        node,
+        targetNode,
+        workflow.edges,
+        workflow.nodes,
+      ).legal
       if (!legal) return
 
       const el =
@@ -3059,14 +2905,16 @@ function StudioNodeCanvas() {
     [processCanvasDragHoverPreview],
   )
 
-  // S5c 三.3「onNodeDragStop 包围盒命中检测」(任务包原话) + S5f A 扩面 — reuses
+  // Legacy canvas-node ingest hit-testing is retained behind the retired
+  // gesture flag until its separate animation cleanup, but it can only create
+  // graph edges now; the fused-node mutation has been removed.
+  //
+  // Reuses
   // ReactFlow's OWN native node-drag lifecycle (nodes are already draggable
   // for plain repositioning) instead of standing up a second custom
   // pointer/ghost engine for canvas-node-initiated ingest gestures. The
   // dragged NODE ITSELF is the visual "flight" for onscreen repositioning,
-  // but S5d's urgent fix adds back a real 吸入 flight ghost
-  // (`playCanvasFuseSwallowAnimation`) for the ingest beat itself — this
-  // hit-tests the drop point against currently-rendered canvas nodes / Cast
+  // and hit-tests the drop point against currently-rendered canvas nodes / Cast
   // cards (`data-cast-card-node-id`) and plays the full three-beat (张口
   // already applied by `handleNodeDrag` above, 吸入 + 落定 here) on a legal
   // ingest, or the reject shake otherwise. Dropping on empty canvas or a
@@ -3146,49 +2994,11 @@ function StudioNodeCanvas() {
       )
       if (!targetNode) return
 
-      // Capture the DRAGGED node's own rendered card BEFORE mutating. Only
-      // the FUSION branch below still folds this node `hidden` on the next
-      // render (`fusedIntoNodeId`); the ghost clone is a snapshot taken while
-      // it's still on screen, so the swallow flight starts from exactly where
-      // the node visually sits. The edge branch keeps the real card and
-      // animates it home instead (S3.5), and needs the same element handle.
+      // Capture the dragged card before the edge mutation; a successful
+      // legacy ingest preview bounces the real node back to its origin.
       const sourceEl = findNodeCardElement(node.id)
 
-      if (isLooseImageNode(node) && isCollectorCardNode(targetNode)) {
-        // 行④ 融合（散图→角色/背景卡，referenceAssets，无边）— S5c/S5d 原样。
-        const fused = handleFuseLooseImageNode(node.id, targetNode.id)
-        if (fused) {
-          const targetNodeIdForAnimation = targetNode.id
-          const announceFused = () =>
-            toast.success(t('ingest.looseImageFused'), {
-              duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-              position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-            })
-          if (sourceEl) {
-            playCanvasFuseSwallowAnimation(
-              sourceEl,
-              targetNodeIdForAnimation,
-              announceFused,
-            )
-          } else {
-            // No DOM element found for the dragged node (shouldn't normally
-            // happen) — degrade to the target's own gulp bounce, same as
-            // before this fix, so the fuse itself never silently loses its
-            // feedback.
-            playTargetGulpAnimation(hit.cardElement)
-            announceFused()
-          }
-          return
-        }
-        playTargetRejectShakeAnimation(hit.cardElement)
-        toast.error(t('ingest.looseImageFuseRejected'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      // S5f A 行①②③⑤: general edge-based ingest — same legality
+      // General edge-based ingest — same legality
       // (canConnectNodeTypes + duplicate + capacity) and the same
       // onConnect path the Cast-dock pointer engine uses, just triggered by
       // a NATIVE canvas node drag instead of the dock's own ghost-drag.
@@ -3201,9 +3011,8 @@ function StudioNodeCanvas() {
       if (evaluation.legal) {
         handleIngestConnect(node.id, targetNode.id)
 
-        // 行①②③⑤ 全部走「墨线签署」——§2.7: the source node never folds
-        // (nothing that builds an EDGE enters `foldedNodeIds` any more, S3.5
-        // 退役了散图那条折叠规则), so the old "fly into the target and
+        // 行①②③⑤ 全部走「墨线签署」——§2.7: the source node never folds,
+        // so the old "fly into the target and
         // vanish" ghost was lying — the real card sat underneath the ghost
         // the whole time, unchanged, reading as "swallowed but still there".
         // The honest beats instead: target 轻咽 + edge draws in (via
@@ -3266,7 +3075,6 @@ function StudioNodeCanvas() {
     },
     [
       flowToScreenPosition,
-      handleFuseLooseImageNode,
       handleIngestConnect,
       scheduleEdgeSigning,
       t,
@@ -3357,7 +3165,7 @@ function StudioNodeCanvas() {
 
   // 粘贴事件本身不带光标坐标（不是拖拽）——落点="鼠标当前位置"要另外跟踪；
   // 鼠标没进过画布/已经移出画布时 ref 为 null，回退视口中心（§4.1「落点」一
-  // 行），复用上面 fuseLooseImageNode 附近已经在用的 viewportCenter 写法。
+  // 行），复用引用拆出已经在用的 viewportCenter 写法。
   const lastCanvasPointerRef = useRef<{ x: number; y: number } | null>(null)
   const handleCanvasMouseMove = useCallback((event: ReactMouseEvent) => {
     lastCanvasPointerRef.current = { x: event.clientX, y: event.clientY }
@@ -3374,17 +3182,9 @@ function StudioNodeCanvas() {
       // 粘贴（MentionInput/CharacterImageReferenceControls/NodeMediaInspector
       // 三处既有行为不变，这里不碰它们）。
       //
-      // ⚠ 故意不判 transientLayerOpen：它是 Boolean(addMenu) || castDockOverlayOpen，
-      // 本意是"添加菜单 / CastDock 展开浮层互斥"（R3-4 §4.2 rule 1）。
-      //
-      // 历史背景（这条注释写下时它还恒为 true，会让粘贴默认就是废的）：卡匣
-      // 自 S2b 起是 layout="panel" 的左侧常驻面板内容，却仍按 flyout 时代的
-      // 语义把"展开着"上报成"浮层开着"。那笔过期语义已经修掉（见
-      // castDockOverlayOpen 处的注释），卡匣那一项在 panel 布局恒 false，所以
-      // 这个值现在实际只等价于"添加菜单开着"。
-      //
-      // 即便如此这里仍然不判它——本片（画布粘贴）的行为保持原样。"添加菜单
-      // 开着时要不要禁掉画布粘贴"是另一个产品决定，没在这里顺手改。
+      // The persistent node locator is not an overlay and does not block
+      // canvas paste. Whether the add menu should block paste is a separate
+      // product decision, so this path continues to only guard heavy overlays.
       const active = document.activeElement
       const isEditableFocus =
         active instanceof HTMLElement &&
@@ -3462,8 +3262,9 @@ function StudioNodeCanvas() {
       enhanceSeedancePrompt: handleEnhanceSeedancePrompt,
       focusGeneratedNodes: handleFocusGeneratedNodes,
       focusNode: handleFocusNode,
+      listConnectableReferences,
+      connectReferenceNode,
       spawnReference: handleSpawnReference,
-      fuseLooseImageNode: handleFuseLooseImageNode,
       extractReference: handleExtractReference,
       runGenerateComposer: handleRunGenerateComposer,
       quickEditNodeId,
@@ -3499,8 +3300,9 @@ function StudioNodeCanvas() {
       handleEnhanceSeedancePrompt,
       handleFocusGeneratedNodes,
       handleFocusNode,
+      listConnectableReferences,
+      connectReferenceNode,
       handleSpawnReference,
-      handleFuseLooseImageNode,
       handleExtractReference,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
@@ -3560,8 +3362,8 @@ function StudioNodeCanvas() {
     }
   }, [assistantDockOpen])
 
-  const castCount = useMemo(
-    () => countCastCards(workflow.nodes),
+  const nodeLocatorCount = useMemo(
+    () => countCanvasNodes(workflow.nodes),
     [workflow.nodes],
   )
 
@@ -3615,7 +3417,6 @@ function StudioNodeCanvas() {
             isValidConnection={isValidConnection}
             onEdgeClick={handleEdgeClick}
             onNodeClick={handleNodeClick}
-            onNodeDoubleClick={handleNodeDoubleClick}
             onPaneClick={handlePaneClick}
             onPaneContextMenu={handlePaneContextMenu}
             onNodesDelete={handleNodesDelete}
@@ -3655,9 +3456,8 @@ function StudioNodeCanvas() {
             selectionOnDrag
             selectionMode={SelectionMode.Partial}
             zoomOnScroll
-            // R3-3 §3.1: double-click is reserved for opening the ⤢ detail
-            // panel (`onNodeDoubleClick` above) — the library's default
-            // double-click-to-zoom is not part of the interaction canon.
+            // Detail opens only from an explicit expand button. Keep native
+            // double-click zoom disabled so the gesture is inert on nodes.
             zoomOnDoubleClick={false}
             fitView={false}
             className="h-full w-full !bg-transparent"
@@ -3752,19 +3552,10 @@ function StudioNodeCanvas() {
             <CanvasLeftPanel
               expanded={leftPanelExpanded}
               onExpandedChange={setLeftPanelExpanded}
-              castCount={castCount}
+              nodeCount={nodeLocatorCount}
               onAddClick={handleTopbarAddClick}
             >
-              <CastDock
-                onCreateCard={handleCastCreate}
-                insetLeft={0}
-                insetRight={0}
-                canvasDragActive={
-                  CANVAS_INGEST_DRAG_GESTURE_ENABLED && canvasNodeDragActive
-                }
-                layout="panel"
-                onOverlayOpenChange={setCastDockOverlayOpen}
-              />
+              <CastDock />
             </CanvasLeftPanel>
             <CanvasAddMenu
               open={Boolean(addMenu)}

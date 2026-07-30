@@ -1,5 +1,35 @@
 import { test, expect } from '@playwright/test'
 
+test.describe('Localized Auth Entry Routes', () => {
+  test('serves sign-in and sign-up instead of the localized 404', async ({
+    page,
+  }) => {
+    const signInResponse = await page.goto('/en/sign-in')
+    expect(signInResponse?.status()).toBeLessThan(400)
+    await expect(
+      page.getByRole('heading', { name: 'Sign in to your account.' }),
+    ).toBeVisible()
+    await expect(page.locator('.cl-rootBox')).toBeVisible()
+
+    const zhSignInResponse = await page.goto('/zh/sign-in')
+    expect(zhSignInResponse?.status()).toBeLessThan(400)
+    await expect(
+      page.getByRole('heading', { name: '登录已有账号。' }),
+    ).toBeVisible()
+
+    const signUpResponse = await page.goto('/en/sign-up')
+    expect(signUpResponse?.status()).toBeLessThan(400)
+    await expect(
+      page.getByRole('heading', { name: 'Create your account.' }),
+    ).toBeVisible()
+
+    const nestedFlowResponse = await page.goto(
+      '/en/sign-in/verify-email-address',
+    )
+    expect(nestedFlowResponse?.status()).toBeLessThan(400)
+  })
+})
+
 test.describe('Studio Auth Guard', () => {
   test('redirects unauthenticated users away from /studio', async ({
     page,

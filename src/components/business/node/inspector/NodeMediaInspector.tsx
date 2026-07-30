@@ -76,6 +76,9 @@ interface NodeMediaInspectorProps {
   node: NodeWorkflowNode
   type: NodeWorkflowNodeType
   kind: NodeWorkflowMediaKind
+  /** Object studio owns the default two-rail layout. Dossier callers use
+   * `stack` inside their own outer media/task split. */
+  layout?: 'object-studio' | 'stack'
   /**
    * Role-specific extras rendered in the identity region (below the preview,
    * above the source control) — e.g. a character node's always-visible name
@@ -147,6 +150,7 @@ export function NodeMediaInspector({
   node,
   type,
   kind,
+  layout = 'object-studio',
   roleExtras,
   referenceChips,
   referenceGalleryMode = 'popover',
@@ -476,271 +480,286 @@ export function NodeMediaInspector({
 
   return (
     <>
-      <div className="space-y-4">
-        {!identityAssetsOnly ? (
-          <div
-            className={cn(
-              'relative aspect-video overflow-hidden rounded-2xl border bg-node-panel-soft',
-              showUploadDropzone
-                ? 'border-dashed border-node-edge'
-                : 'border-node-panel-inner',
-            )}
-          >
-            {showUploadDropzone ? (
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label={t('existing.upload')}
-                onClick={() => existingImageInputRef.current?.click()}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    existingImageInputRef.current?.click()
-                  }
-                }}
-                onPaste={handleExistingPaste}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={handleDropExistingImage}
-                className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-              >
-                {isExistingImageUploading ? (
-                  <Spinner size="lg" className="text-node-muted" />
-                ) : (
-                  <Upload className="size-7 text-node-muted" />
-                )}
-                <span className="text-sm font-semibold text-node-foreground">
-                  {t('existing.upload')}
-                </span>
-                <span className="text-2xs leading-4 text-node-muted">
-                  {t('dropzoneHint')}
-                </span>
-                <input
-                  ref={existingImageInputRef}
-                  type="file"
-                  accept={NODE_STUDIO_IMAGE_INPUT.accept}
-                  className="hidden"
-                  onChange={handleExistingFileInputChange}
-                />
-              </div>
-            ) : (
-              <>
-                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
-                  <>
-                    <Image
-                      src={mediaUrl}
-                      alt={t('imageAlt')}
-                      fill
-                      sizes="360px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                    <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
-                      {isExistingImage
-                        ? t('sourceExisting')
-                        : t('sourceGenerated')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClearImage}
-                      aria-label={t('clearImage')}
-                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </>
-                ) : null}
-
-                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
-                  <video
-                    src={mediaUrl}
-                    poster={videoThumbnailUrl}
-                    className="h-full w-full object-cover"
-                    controls
-                    muted
+      <div
+        className={cn(
+          'canvas-object-studio-grid',
+          layout === 'stack' && 'canvas-object-studio-grid--stack',
+        )}
+      >
+        <div className="canvas-object-studio-media-rail">
+          {!identityAssetsOnly ? (
+            <div
+              className={cn(
+                'relative aspect-video overflow-hidden rounded-2xl border bg-node-panel-soft',
+                showUploadDropzone
+                  ? 'border-dashed border-node-edge'
+                  : 'border-node-panel-inner',
+              )}
+            >
+              {showUploadDropzone ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t('existing.upload')}
+                  onClick={() => existingImageInputRef.current?.click()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      existingImageInputRef.current?.click()
+                    }
+                  }}
+                  onPaste={handleExistingPaste}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handleDropExistingImage}
+                  className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 text-center outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+                >
+                  {isExistingImageUploading ? (
+                    <Spinner size="lg" className="text-node-muted" />
+                  ) : (
+                    <Upload className="size-7 text-node-muted" />
+                  )}
+                  <span className="text-sm font-semibold text-node-foreground">
+                    {t('existing.upload')}
+                  </span>
+                  <span className="text-2xs leading-4 text-node-muted">
+                    {t('dropzoneHint')}
+                  </span>
+                  <input
+                    ref={existingImageInputRef}
+                    type="file"
+                    accept={NODE_STUDIO_IMAGE_INPUT.accept}
+                    className="hidden"
+                    onChange={handleExistingFileInputChange}
                   />
-                ) : null}
+                </div>
+              ) : (
+                <>
+                  {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
+                    <>
+                      <Image
+                        src={mediaUrl}
+                        alt={t('imageAlt')}
+                        fill
+                        sizes="360px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                      <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                        {isExistingImage
+                          ? t('sourceExisting')
+                          : t('sourceGenerated')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleClearImage}
+                        aria-label={t('clearImage')}
+                        className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </>
+                  ) : null}
 
-                {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-                    <Mic2 className="size-8 text-node-port-voice" />
-                    <audio src={mediaUrl} controls className="w-full" />
-                  </div>
-                ) : null}
+                  {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
+                    <video
+                      src={mediaUrl}
+                      poster={videoThumbnailUrl}
+                      className="h-full w-full object-cover"
+                      controls
+                      muted
+                    />
+                  ) : null}
 
-                {!mediaUrl ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                    {getEmptyPreviewIcon(kind)}
-                    <p className="text-xs leading-5 text-node-muted">
-                      {tWorkflows(`${type}.emptyPreview`)}
-                    </p>
-                  </div>
-                ) : null}
-              </>
-            )}
+                  {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+                      <Mic2 className="size-8 text-node-port-voice" />
+                      <audio src={mediaUrl} controls className="w-full" />
+                    </div>
+                  ) : null}
 
-            {isPending ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-                <Spinner size="lg" className="text-node-muted" />
-                <span className="text-xs font-semibold">{t('generating')}</span>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+                  {!mediaUrl ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                      {getEmptyPreviewIcon(kind)}
+                      <p className="text-xs leading-5 text-node-muted">
+                        {tWorkflows(`${type}.emptyPreview`)}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
 
-        {/* Generation error — TOP-LEVEL so it surfaces in every view (result,
+              {isPending ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+                  <Spinner size="lg" className="text-node-muted" />
+                  <span className="text-xs font-semibold">
+                    {t('generating')}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Generation error — TOP-LEVEL so it surfaces in every view (result,
             empty, editing), not only inside the AI form. */}
-        {node.data.generationError ? (
-          <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
-              {node.data.generationError}
-            </p>
-          </div>
-        ) : null}
+          {node.data.generationError ? (
+            <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
+                {node.data.generationError}
+              </p>
+            </div>
+          ) : null}
 
-        {/* Role-specific identity extras (e.g. character name + bound voice). */}
-        {roleExtras}
+          {/* Role-specific identity extras (e.g. character name + bound voice). */}
+          {roleExtras}
+        </div>
 
-        {/* Unified source row — 素材库 opens the asset dialog directly, AI 生成
+        <div className="canvas-object-studio-task-rail">
+          {/* Unified source row — 素材库 opens the asset dialog directly, AI 生成
             toggles the generate form, Studio hands off to the image studio. */}
-        {showSourceRow ? (
-          <div className="flex gap-1 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-1">
-            <button
-              type="button"
-              onClick={() => setAssetDialogOpen(true)}
-              className="flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-            >
-              {t('changeSourceExisting')}
-            </button>
-            <button
-              type="button"
-              onClick={toggleAiForm}
-              className={`flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 ${
-                editTarget === 'ai'
-                  ? 'bg-node-foreground text-node-canvas'
-                  : 'text-node-muted hover:text-node-foreground'
-              }`}
-            >
-              {t('changeSourceAi')}
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenImageStudio}
-              className="flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-            >
-              {t('changeSourceStudio')}
-            </button>
-          </div>
-        ) : null}
+          {showSourceRow ? (
+            <div className="flex gap-1 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-1">
+              <button
+                type="button"
+                onClick={() => setAssetDialogOpen(true)}
+                className="flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+              >
+                {t('changeSourceExisting')}
+              </button>
+              <button
+                type="button"
+                onClick={toggleAiForm}
+                className={`flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 ${
+                  editTarget === 'ai'
+                    ? 'bg-node-foreground text-node-canvas'
+                    : 'text-node-muted hover:text-node-foreground'
+                }`}
+              >
+                {t('changeSourceAi')}
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenImageStudio}
+                className="flex-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+              >
+                {t('changeSourceStudio')}
+              </button>
+            </div>
+          ) : null}
 
-        {/* S5c 二.2 视觉身份区: in gallery mode this sits OUTSIDE showAiForm —
+          {/* S5c 二.2 视觉身份区: in gallery mode this sits OUTSIDE showAiForm —
             a dossier's reference gallery is identity, not a step of "now
             generating a new image," so it must stay visible in every source
             tab (素材库/AI生成/Studio), not only behind editTarget==='ai'
             (the compact-inspector default every other caller keeps). */}
-        {isImageNode && referenceGalleryMode === 'gallery' ? (
-          <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-            <CharacterImageReferenceControls
-              value={referenceAssets}
-              maxItems={maxReferenceImages}
-              onChange={(nextReferences) =>
-                updateNodeData(node.id, { referenceAssets: nextReferences })
-              }
-              mode="gallery"
-              extraItems={referenceGalleryExtraItems}
-              onExtract={
-                onExtractReference
-                  ? (reference) => onExtractReference(reference.id)
-                  : undefined
-              }
-            />
-          </div>
-        ) : null}
-
-        {showAiForm ? (
-          <>
-            {referenceChips}
-            <div className="space-y-3">
-              {fields.map((fieldId) => renderField(fieldId))}
+          {isImageNode && referenceGalleryMode === 'gallery' ? (
+            <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+              <CharacterImageReferenceControls
+                value={referenceAssets}
+                maxItems={maxReferenceImages}
+                onChange={(nextReferences) =>
+                  updateNodeData(node.id, { referenceAssets: nextReferences })
+                }
+                mode="gallery"
+                extraItems={referenceGalleryExtraItems}
+                onExtract={
+                  onExtractReference
+                    ? (reference) => onExtractReference(reference.id)
+                    : undefined
+                }
+              />
             </div>
+          ) : null}
 
-            {!isTextNode ? (
-              <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-                <WorkflowModelPicker
-                  value={node.data.model}
-                  options={modelOptions}
-                  onChange={(model) => updateNodeData(node.id, { model })}
-                  kind={kind}
-                />
-                <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
+          {showAiForm ? (
+            <>
+              {referenceChips}
+              <div className="space-y-3">
+                {fields.map((fieldId) => renderField(fieldId))}
+              </div>
+
+              {!isTextNode ? (
+                <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+                  <WorkflowModelPicker
+                    value={node.data.model}
+                    options={modelOptions}
+                    onChange={(model) => updateNodeData(node.id, { model })}
+                    kind={kind}
+                  />
+                  <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
+                    {t(statusLabelKey)}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs leading-5 text-node-muted">
                   {t(statusLabelKey)}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs leading-5 text-node-muted">
-                {t(statusLabelKey)}
-              </div>
-            )}
+                </div>
+              )}
 
-            {isImageNode && referenceGalleryMode === 'gallery' ? (
-              <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-                <CharacterImageLoraControls
-                  value={loras}
-                  model={node.data.model}
-                  onChange={(nextLoras) =>
-                    updateNodeData(node.id, { loras: nextLoras })
-                  }
-                  onInsertTrigger={handleInsertLoraTrigger}
-                />
-              </div>
-            ) : isImageNode ? (
-              <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-                <CharacterImageReferenceControls
-                  value={referenceAssets}
-                  maxItems={maxReferenceImages}
-                  onChange={(nextReferences) =>
-                    updateNodeData(node.id, { referenceAssets: nextReferences })
-                  }
-                />
-                <CharacterImageLoraControls
-                  value={loras}
-                  model={node.data.model}
-                  onChange={(nextLoras) =>
-                    updateNodeData(node.id, { loras: nextLoras })
-                  }
-                  onInsertTrigger={handleInsertLoraTrigger}
-                />
-              </div>
-            ) : null}
+              {isImageNode && referenceGalleryMode === 'gallery' ? (
+                <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+                  <CharacterImageLoraControls
+                    value={loras}
+                    model={node.data.model}
+                    onChange={(nextLoras) =>
+                      updateNodeData(node.id, { loras: nextLoras })
+                    }
+                    onInsertTrigger={handleInsertLoraTrigger}
+                  />
+                </div>
+              ) : isImageNode ? (
+                <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+                  <CharacterImageReferenceControls
+                    value={referenceAssets}
+                    maxItems={maxReferenceImages}
+                    onChange={(nextReferences) =>
+                      updateNodeData(node.id, {
+                        referenceAssets: nextReferences,
+                      })
+                    }
+                  />
+                  <CharacterImageLoraControls
+                    value={loras}
+                    model={node.data.model}
+                    onChange={(nextLoras) =>
+                      updateNodeData(node.id, { loras: nextLoras })
+                    }
+                    onInsertTrigger={handleInsertLoraTrigger}
+                  />
+                </div>
+              ) : null}
 
-            {!isTextNode ? (
-              <TooltipProvider delayDuration={250}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex w-full">
-                      <Button
-                        type="button"
-                        disabled={Boolean(disabledReason)}
-                        onClick={handleGenerate}
-                        className="h-10 w-full rounded-2xl bg-node-foreground text-sm font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
-                      >
-                        {isPending ? (
-                          <Spinner size="md" className="mr-2" />
-                        ) : (
-                          <WandSparkles className="mr-2 size-4" />
-                        )}
-                        {generateButtonLabel}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  {disabledReason ? (
-                    <TooltipContent side="top">{disabledReason}</TooltipContent>
-                  ) : null}
-                </Tooltip>
-              </TooltipProvider>
-            ) : null}
-          </>
-        ) : null}
+              {!isTextNode ? (
+                <TooltipProvider delayDuration={250}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex w-full">
+                        <Button
+                          type="button"
+                          disabled={Boolean(disabledReason)}
+                          onClick={handleGenerate}
+                          className="h-10 w-full rounded-2xl bg-node-foreground text-sm font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
+                        >
+                          {isPending ? (
+                            <Spinner size="md" className="mr-2" />
+                          ) : (
+                            <WandSparkles className="mr-2 size-4" />
+                          )}
+                          {generateButtonLabel}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {disabledReason ? (
+                      <TooltipContent side="top">
+                        {disabledReason}
+                      </TooltipContent>
+                    ) : null}
+                  </Tooltip>
+                </TooltipProvider>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
 
       {isImageNode && !identityAssetsOnly ? (

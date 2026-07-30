@@ -5,7 +5,9 @@ import {
   Eraser,
   Expand,
   Layers3,
+  Palette,
   Paintbrush,
+  Replace,
   Scissors,
   Sparkles,
 } from 'lucide-react'
@@ -61,6 +63,8 @@ const TASK_ICONS = {
   outpaint: Expand,
   decompose: Layers3,
   'extract-element': Scissors,
+  'object-replace': Replace,
+  'style-transfer': Palette,
 } as const satisfies Record<ReadyCanvasImageEditCapabilityId, typeof Sparkles>
 
 const EXTRACT_PRESETS = [

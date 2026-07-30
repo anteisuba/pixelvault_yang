@@ -40,6 +40,7 @@ export function videoModelSupportsSeed(
   hasReferenceInputs: boolean,
 ): boolean {
   if (modelId === AI_MODELS.VEO_31) return !hasReferenceInputs
+  if (modelId === AI_MODELS.HAPPYHORSE_10) return true
   return SEED_CAPABLE_SEEDANCE.has(modelId)
 }
 
@@ -112,6 +113,16 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.KLING_V3_PRO]: {
+    supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: [],
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+  },
+  [AI_MODELS.KLING_O3_PRO]: {
+    supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: [],
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
   },
   [AI_MODELS.LTX_23]: {
     supportedDurations: [6, 8, 10],

@@ -481,6 +481,11 @@ export interface ProviderAdapter {
    * generateAudio: no voice/emotion, but takes duration/loop/promptInfluence.
    */
   generateSoundEffect?(input: ProviderAudioInput): Promise<ProviderAudioResult>
+  /**
+   * Synchronous music generation (prompt → track). Separate from speech TTS
+   * and SFX (e.g. ElevenLabs POST /v1/music).
+   */
+  generateMusic?(input: ProviderAudioInput): Promise<ProviderAudioResult>
   /** Async audio queue submission (e.g. FAL F5-TTS) */
   submitAudioToQueue?(
     input: ProviderAudioInput,

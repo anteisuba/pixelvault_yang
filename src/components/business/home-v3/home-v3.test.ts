@@ -16,6 +16,7 @@ import {
   HOME_V3_TURNTABLE,
   HOME_V3_VIDEO_DEMO,
   HOME_V3_VIEWS,
+  isHomeV3ModelBrandCover,
 } from '@/constants/home-v3'
 import { HOME_V3_STRIP } from '@/constants/homepage'
 import { getAvailableModels } from '@/constants/models'
@@ -46,6 +47,8 @@ describe('home v3 · assets', () => {
       HOME_V3_LORA.baseShot,
       HOME_V3_LORA.shotSource,
       HOME_V3_VIDEO_DEMO.shot,
+      HOME_V3_VIDEO_DEMO.reducedMotionShot,
+      ...HOME_V3_VIDEO_DEMO.frames,
       HOME_V3_TURNTABLE.shot,
     ])
 
@@ -56,6 +59,11 @@ describe('home v3 · assets', () => {
   it('the 3D capability references a real local GLB', () => {
     expect(HOME_V3_TURNTABLE.model).toMatch(/\.glb$/)
     expect(existsSync(localPath(HOME_V3_TURNTABLE.model))).toBe(true)
+  })
+
+  it('the video capability references a real local MP4', () => {
+    expect(HOME_V3_VIDEO_DEMO.video).toMatch(/\.mp4$/)
+    expect(existsSync(localPath(HOME_V3_VIDEO_DEMO.video))).toBe(true)
   })
 })
 
@@ -104,26 +112,35 @@ describe('home v3 · capability stage', () => {
     expect(new Set(demos).size).toBe(demos.length)
   })
 
-  it('the video demo highlights a frame that exists', () => {
-    expect(HOME_V3_VIDEO_DEMO.currentFrame).toBeLessThan(
-      HOME_V3_VIDEO_DEMO.frames.length,
-    )
-    expect(HOME_V3_VIDEO_DEMO.progress).toBeGreaterThan(0)
-    expect(HOME_V3_VIDEO_DEMO.progress).toBeLessThan(100)
+  it('the video demo has a real duration and extracted filmstrip', () => {
+    expect(HOME_V3_VIDEO_DEMO.durationSeconds).toBeGreaterThan(0)
+    expect(HOME_V3_VIDEO_DEMO.frames).toHaveLength(6)
   })
 })
 
 describe('home v3 · model rails', () => {
   const available = getAvailableModels()
 
-  it('gives every model its own local capability cover', () => {
+  it('uses local model-owner art instead of provider page screenshots', () => {
     const covers = available.map((model) =>
       getHomeV3ModelCover(model.id, model.outputType),
     )
     const missing = covers.filter((src) => !existsSync(localPath(src)))
 
-    expect(new Set(covers).size).toBe(available.length)
     expect(missing, 'model covers referenced but not in public/').toEqual([])
+    expect(covers.every((src) => src.startsWith('/homepage/'))).toBe(true)
+    expect(covers.some((src) => src.includes('/brand/fal'))).toBe(false)
+
+    expect(isHomeV3ModelBrandCover('gemini-omni-flash')).toBe(true)
+    expect(getHomeV3ModelCover('flux-2-pro', 'IMAGE')).toBe(
+      '/homepage/production/models/brand/flux.svg',
+    )
+    expect(getHomeV3ModelCover('seedance-2.0-fast', 'VIDEO')).toBe(
+      '/homepage/production/models/brand/bytedance.svg',
+    )
+    expect(getHomeV3ModelCover('hunyuan3d-v3', 'MODEL_3D')).toBe(
+      '/homepage/production/models/brand/hunyuan.svg',
+    )
   })
 
   it('the four rails cover every available model exactly once', () => {

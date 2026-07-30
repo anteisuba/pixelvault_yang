@@ -2818,9 +2818,23 @@ function LoraSpineBar({
               ? baseDisplayName(selectedBase)
               : t('spine.baseModelPending')
           }
-          className="flex size-9 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+          className="flex size-9 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:border-border hover:text-foreground"
         >
-          <Boxes className="size-4" aria-hidden />
+          {selectedBase ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={selectedBase.coverImage}
+              alt=""
+              className={cn(
+                'size-full',
+                selectedBase.coverImage.endsWith('.svg')
+                  ? 'object-contain p-1.5'
+                  : 'object-cover',
+              )}
+            />
+          ) : (
+            <Boxes className="size-4" aria-hidden />
+          )}
         </button>
         {stack.items.map((item) => {
           const compatible = selectedBase
@@ -2920,11 +2934,24 @@ function LoraSpineBar({
             onClick={() => setBaseModalOpen(true)}
             className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition-colors hover:border-border"
           >
-            {/* CD 底模卡：左侧立方体图标（底模=一个"块"的隐喻）。 */}
-            <Boxes
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
+            {selectedBase ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selectedBase.coverImage}
+                alt=""
+                className={cn(
+                  'size-10 shrink-0 rounded-md bg-muted',
+                  selectedBase.coverImage.endsWith('.svg')
+                    ? 'object-contain p-1.5'
+                    : 'object-cover',
+                )}
+              />
+            ) : (
+              <Boxes
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+            )}
             <span className="min-w-0 flex-1">
               {selectedBase ? (
                 <>

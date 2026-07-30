@@ -564,7 +564,39 @@
       "groupCount": "{count} 个",
       "priceImage": "{amount} / 张",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 千字符"
+      "priceKChars": "{amount} / 千字符",
+      "detail": {
+        "viewDetails": "了解 {model}",
+        "canDo": "可以做什么",
+        "advantagesTitle": "模型优势",
+        "provider": "供应商",
+        "pricing": "参考价格",
+        "modality": "模态",
+        "openStudio": "使用这个模型创作",
+        "officialDocs": "查看模型官方页面",
+        "close": "关闭模型介绍",
+        "advantages": {
+          "premiumQuality": "高质量旗舰输出",
+          "balancedQuality": "质量与速度均衡",
+          "fastValue": "快速、低成本迭代",
+          "freeTier": "支持免费额度",
+          "imageGeneration": "文字生成图片",
+          "videoGeneration": "文字生成视频",
+          "photorealistic": "擅长写实质感",
+          "anime": "擅长动漫与插画",
+          "design": "适合设计与品牌图形",
+          "artistic": "擅长电影感与艺术画面",
+          "versatile": "适合多种创作任务",
+          "lora": "支持自定义 LoRA",
+          "imageToVideo": "支持图片生成视频",
+          "referenceInput": "支持参考图控制",
+          "nativeAudio": "支持原生音频生成",
+          "speech": "支持多语言文字转语音",
+          "soundEffects": "支持文字生成音效",
+          "imageTo3d": "支持图片重建 3D",
+          "glbOutput": "输出可复用 GLB 资产"
+        }
+      }
     },
     "canvasView": {
       "nodes": {
@@ -650,13 +682,16 @@
     },
     "videoDemo": {
       "bar": "首帧 · Seedream 5.0 → Seedance 2.0",
-      "firstFrame": "首帧"
+      "firstFrame": "首帧",
+      "play": "播放视频",
+      "pause": "暂停视频",
+      "seek": "调整视频进度"
     },
     "turntableDemo": {
       "bar": "源 · 静物 #0142"
     },
     "foot": {
-      "tagline": "把生成入口、作品档案和个人创作流程放在一个地方。每次生成都会保存 prompt、模型、供应商和 seed。",
+      "tagline": "在一个地方完成生成、归档与复用。每个结果都保留关键参数。",
       "cols": {
         "product": {
           "title": "产品",
@@ -2920,9 +2955,13 @@
       "label": "Flux 2 Pro",
       "description": "Black Forest Labs 出品的顶级图像模型，质量排名第一。"
     },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro 编辑",
+      "description": "多参考图编辑 — 用提示词与多张源图做专业级变换。"
+    },
     "flux2Flash": {
       "label": "FLUX 2 Flash",
-      "description": "?? fal.ai ?????? FLUX 2 ?????????????"
+      "description": "通过 fal.ai 提供的低成本 FLUX 2，适合快速草稿与多轮迭代。"
     },
     "fluxLora": {
       "label": "FLUX LoRA",
@@ -2938,7 +2977,7 @@
     },
     "ideogram3": {
       "label": "Ideogram V4",
-      "description": "?????????????????????"
+      "description": "专注设计的图像模型，擅长文字渲染与图形构图。"
     },
     "seedream45": {
       "label": "Seedream 4.5",
@@ -3005,8 +3044,8 @@
       "description": "通过 PixelVault Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
     },
     "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"
+      "label": "Fish Audio S2.1 Pro",
+      "description": "官方推荐生产 TTS — 83 语言、自然语言情绪标签、声音克隆"
     },
     "elevenV3": {
       "label": "ElevenLabs v3",
@@ -3016,17 +3055,25 @@
       "label": "ElevenLabs SFX v2",
       "description": "用文字提示生成音效与拟音"
     },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2",
+      "description": "自然语言提示生成影棚级配乐（器乐或人声）"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
-      "description": "?? fal.ai ??? Alibaba ??????????????????????"
+      "description": "通过 fal.ai 提供的 Alibaba 视频模型，支持原生音频、文生视频和图生视频。"
     },
     "klingV3Pro": {
       "label": "可灵 3.0 Pro",
       "description": "多镜头分镜、原生音频、角色一致性"
     },
+    "klingO3Pro": {
+      "label": "可灵 O3 Pro（Omni）",
+      "description": "Omni 轨 — 元素/视频参考工作流、原生音频、电影级多镜"
+    },
     "ltx23": {
       "label": "LTX 2.3",
-      "description": "??? fal.ai ??????????? 1080p ??????????"
+      "description": "适合快速生成 1080p 短片的 fal.ai 视频模型，可选生成音频。"
     },
     "seedance20": {
       "label": "Seedance 2.0",
@@ -3066,7 +3113,7 @@
     },
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
-      "description": "Google 视频模型 — 盲测视频榜单全项第一，720p 原生音频"
+      "description": "Google 视频（API 仍为 preview id）— 榜单表现强、原生音频；待 GA id 再换"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3950,6 +3997,8 @@
       },
       "noModel": "请先选择视频模型。",
       "noInput": "请填写视频提示词，或连接上游节点。",
+      "executionNotMigrated": "这个模型的视频执行链尚未接入，暂时不能从画布发送。",
+      "audioRequiresVisual": "参考音频不能单独发送，请再连接一张图片或一个视频。",
       "generate": "生成视频",
       "regenerate": "重新生成视频",
       "statusIdle": "可开始生成",
@@ -3960,7 +4009,7 @@
         "ariaLabel": "视频编排器",
         "eyebrow": "视频编排 · 右侧编辑",
         "titleFallback": "视频生成",
-        "detailAction": "详细编辑",
+        "detailAction": "展开编辑器",
         "compactAction": "收起详情",
         "close": "关闭视频编排器"
       }
@@ -4091,9 +4140,21 @@
         "empty": "生成后在此预览",
         "rec": "REC"
       },
+      "studio": {
+        "currentFilm": "当前影片",
+        "filmMeta": "{duration} · {aspect} · {resolution}",
+        "sentAssets": "实际发送素材",
+        "assetCount": "已连接 {count} 个",
+        "composition": "本次编排",
+        "modelParameters": "模型参数",
+        "supportedOnly": "仅显示当前模型支持项",
+        "sendSummary": "{inputs} inputs · {dropped} dropped"
+      },
       "variant": {
         "standard": "标准",
-        "fast": "快速"
+        "fast": "快速",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro（Omni）"
       },
       "provider": {
         "fal": "fal",
@@ -4192,6 +4253,7 @@
         "rowMenu": "更多操作",
         "rowLocate": "定位到画布",
         "rowRemove": "断开连接",
+        "routedThrough": "随 {name} 发送",
         "capacityWarning": "共 {count} 张候选参考图，超出模型上限 {max} 张，其中 {truncated} 张不会发送",
         "counterOverflow": "{sent}/{max} ⚠",
         "closeManager": "收起管理素材",
@@ -4357,6 +4419,7 @@
         "label": "时长",
         "placeholder": "例如：4s、6s、8s...",
         "auto": "自动（由模型决定）",
+        "custom": "自定义",
         "seconds": "{value} 秒"
       },
       "audioIntent": {
@@ -4605,7 +4668,19 @@
     },
     "minimapTitle": "小地图",
     "castDock": {
-      "title": "Cast 卡匣",
+      "title": "节点",
+      "searchLabel": "搜索画布节点",
+      "searchPlaceholder": "搜索节点…",
+      "groups": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "声音",
+        "video": "视频"
+      },
+      "referenceCount": "{count} 个引用",
+      "empty": "画布还没有节点",
+      "noResults": "没有匹配节点",
+      "locateNode": "定位{name}",
       "expand": "展开 Cast 卡匣",
       "collapse": "折叠 Cast 卡匣",
       "handle": "Cast · {count}",

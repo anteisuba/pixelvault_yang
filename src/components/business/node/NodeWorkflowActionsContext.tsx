@@ -12,6 +12,7 @@ import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
 import type { GenerateComposerSendInput } from '@/hooks/node/use-generate-composer'
 import type {
   NodeWorkflowModelOptionsByType,
+  NodeWorkflowNode,
   VideoDefaultModel,
 } from '@/types/node-workflow'
 
@@ -54,27 +55,21 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   /** Select + fitView to a single node — used by the video composer's
    *  reference token hover preview ("点击定位到画布对应节点", §8.3). */
   focusNode?(nodeId: string): void
+  /** Existing canvas nodes that can legally connect into `targetNodeId`. */
+  listConnectableReferences?(targetNodeId: string): NodeWorkflowNode[]
+  /** Revalidate and connect one existing canvas node into a target node. */
+  connectReferenceNode?(sourceNodeId: string, targetNodeId: string): void
   /** Autospawn an upstream reference node from a resolved asset and wire it
    *  into `targetNodeId` (§7.1 部门条 ＋添加位). Creates the node, stamps its
    *  role/media, and connects it — one high-level op so the composer never
    *  touches raw addNode/onConnect. Returns the new node id. */
   spawnReference?(input: SpawnReferenceInput): string
   /**
-   * S5c 三.3 融合：a loose canvas image node's media is absorbed into a
-   * character/background node's `referenceAssets` (source:'canvas', sourceId
-   * = the loose node's id) and the loose node folds hidden
-   * (`fusedIntoNodeId`). Rejects (returns false, no mutation) on illegal
-   * target / duplicate / capacity-full — same legality vocabulary as the
-   * Cast-card ingest engine (`evaluateCastIngest`), reused here for the
-   * reverse direction (canvas → dock card).
-   */
-  fuseLooseImageNode?(sourceNodeId: string, targetNodeId: string): boolean
-  /**
-   * S5c 三.4 拆出（对称无损）: removes a reference from a character/
-   * background node's `referenceAssets`. A `source:'canvas'` entry un-hides
-   * its origin loose node in place (clears `fusedIntoNodeId`); any other
-   * source (upload/asset/paste) spawns a brand-new loose image node at the
-   * canvas viewport center carrying the same url — "拆出 = 落画布" either way.
+   * Removes a reference from a character/background node's nested
+   * `referenceAssets`. A legacy `source:'canvas'` entry whose origin node
+   * still exists only removes the nested copy; every real node now remains
+   * visible in place. If the origin no longer exists, materialize a new loose
+   * image from the preserved URL.
    */
   extractReference?(nodeId: string, referenceId: string): void
   toolMode: NodeStudioToolMode

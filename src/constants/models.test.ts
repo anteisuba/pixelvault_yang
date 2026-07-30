@@ -125,11 +125,22 @@ describe('models', () => {
   })
 
   it('keeps supported audio generation models active', () => {
-    // ELEVENLABS_V3 retired 2026-07-26 (priced ~6.7x Fish S2 Pro). The SFX
-    // variant stays — it is the only sound-effect model in the catalog.
+    // ELEVENLABS_V3 retired 2026-07-26 (priced ~6.7x Fish S2 Pro). SFX + Music
+    // stay as non-speech audio kinds.
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
       AI_MODELS.ELEVENLABS_SFX_V2,
+      AI_MODELS.ELEVENLABS_MUSIC_V2,
     ])
+  })
+
+  it('uses Fish s2.1-pro execution id while keeping stable catalog key', () => {
+    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO)).toBe('s2.1-pro')
+  })
+
+  it('registers Kling O3 Pro and FLUX.2 Pro Edit as available', () => {
+    const available = new Set(getAvailableModels().map((m) => m.id))
+    expect(available.has(AI_MODELS.KLING_O3_PRO)).toBe(true)
+    expect(available.has(AI_MODELS.FLUX_2_PRO_EDIT)).toBe(true)
   })
 })

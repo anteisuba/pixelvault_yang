@@ -57,6 +57,21 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     maxPromptChars: 8000,
   },
   {
+    // Multi-reference edit (up to 9 images) — prompt-driven transform.
+    id: AI_MODELS.FLUX_2_PRO_EDIT,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/flux-2-pro/edit',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/flux-2-pro/edit',
+    qualityTier: 'premium',
+    styleTag: 'general',
+    maxPromptChars: 8000,
+    requiresReferenceImage: true,
+  },
+  {
     // Seedream 5.0 Pro — #8 on the Artificial Analysis text-to-image arena.
     // NOTE: this endpoint has NO `fal-ai/` prefix (same as `ideogram/v4`);
     // third-party-owned fal models are addressed by owner/model directly.

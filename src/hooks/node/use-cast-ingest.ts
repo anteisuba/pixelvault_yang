@@ -279,12 +279,8 @@ function canAnimate(el: Element | null): el is Element {
 }
 
 /**
- * Target "消化落定" gulp overshoot (§8) — factored out of `playSwallow` below
- * so the canvas-node-driven fusion gesture (loose image → character/
- * background card, `StudioNodeWorkbench`'s `onNodeDragStop`) can play the
- * exact same feedback on a successful fuse without duplicating the keyframe
- * array. Also the settle beat `playCanvasFuseSwallowAnimation` below calls
- * once its own flight ghost finishes.
+ * Target "消化落定" gulp overshoot (§8), shared by the active Cast-card
+ * ingest layer and its swallow animation.
  */
 export function playTargetGulpAnimation(targetEl: Element | null): void {
   if (!canAnimate(targetEl)) return
@@ -301,8 +297,7 @@ export function playTargetGulpAnimation(targetEl: Element | null): void {
   )
 }
 
-/** Target 咬不动 shake (§8) — factored out of `playReject` below for the same
- *  reuse reason as `playTargetGulpAnimation`. */
+/** Target 咬不动 shake (§8), shared by canvas ingest feedback. */
 export function playTargetRejectShakeAnimation(targetEl: Element | null): void {
   if (!canAnimate(targetEl)) return
   targetEl.classList.add('node-ingest-reject')
@@ -327,11 +322,7 @@ export function playTargetRejectShakeAnimation(targetEl: Element | null): void {
     })
 }
 
-/** 张口（§8）: applied to a legal fuse target while a card is hovering over
- *  it. Exported so the canvas-image→card fusion gesture (native ReactFlow
- *  node drag, no per-frame hook of its own inside this file) can apply the
- *  SAME bite feedback the Cast-card ingest loop below uses, instead of
- *  reimplementing the class/transform pair. */
+/** 张口（§8）: applied to a legal ingest target while a card is hovering. */
 export function applyBiteHover(
   targetEl: HTMLElement | null,
   tiltDeg: number,
@@ -350,94 +341,6 @@ export function clearBiteHover(targetEl: HTMLElement | null): void {
 }
 
 /**
- * S5d ⑤ 融合动画修复：the canvas-image→card fusion gesture rides ReactFlow's
- * OWN native node drag (StudioNodeWorkbench's onNodeDragStop) — the dragged
- * node is real, not a ghost, and by the time this fires it's already sitting
- * at the drop point. There is still a "吸入" beat to play (§8 full three-beat
- * spec, not just the target's gulp): this clones the dragged card's rendered
- * DOM into a one-shot `position:fixed` body ghost (escapes the zoomed
- * ReactFlow viewport transform, same reasoning as the Cast-card engine's own
- * portal ghost) and flies it the short remaining distance into the target's
- * center using the EXACT same squash/arc/rotate keyframes + `INGEST_MOTION`
- * numbers as `playSwallow` below — one curve, two directions. `onSettle`
- * fires after the target's gulp plays, so the caller can flip
- * `fusedIntoNodeId` (hide the real node) in lockstep with the ghost
- * finishing instead of a jarring instant swap.
- */
-export function playCanvasFuseSwallowAnimation(
-  sourceEl: HTMLElement,
-  targetNodeId: string,
-  onSettle: () => void,
-): void {
-  const targetEl = findNodeCardElement(targetNodeId)
-
-  if (!canAnimate(sourceEl)) {
-    playTargetGulpAnimation(targetEl)
-    onSettle()
-    return
-  }
-
-  const sourceRect = sourceEl.getBoundingClientRect()
-  const targetRect = targetEl?.getBoundingClientRect() ?? null
-
-  const ghost = sourceEl.cloneNode(true) as HTMLElement
-  ghost.removeAttribute('id')
-  ghost.style.position = 'fixed'
-  ghost.style.left = '0'
-  ghost.style.top = '0'
-  ghost.style.margin = '0'
-  ghost.style.width = `${sourceRect.width}px`
-  ghost.style.height = `${sourceRect.height}px`
-  ghost.style.zIndex = '50'
-  ghost.style.pointerEvents = 'none'
-  document.body.appendChild(ghost)
-
-  const startX = sourceRect.left
-  const startY = sourceRect.top
-  const endX = targetRect
-    ? targetRect.left + targetRect.width / 2 - sourceRect.width / 2
-    : startX
-  const endY = targetRect
-    ? targetRect.top + targetRect.height / 2 - sourceRect.height / 2
-    : startY
-  const midX = (startX + endX) / 2
-  const midY =
-    Math.min(startY, endY) -
-    sourceRect.height * INGEST_MOTION.swallowArcRiseRatio
-
-  const cleanup = () => {
-    ghost.remove()
-    playTargetGulpAnimation(targetEl)
-    onSettle()
-  }
-
-  ghost
-    .animate(
-      [
-        {
-          transform: `translate(${startX}px, ${startY}px) scale(1, 1) rotate(0deg)`,
-          offset: 0,
-        },
-        {
-          transform: `translate(${midX}px, ${midY}px) scale(${INGEST_MOTION.swallowSquashScaleX}, ${INGEST_MOTION.swallowSquashScaleY}) rotate(6deg)`,
-          offset: 0.55,
-        },
-        {
-          transform: `translate(${endX}px, ${endY}px) scale(${INGEST_MOTION.swallowEndScale}, ${INGEST_MOTION.swallowEndScale}) rotate(${INGEST_MOTION.swallowEndRotateDeg}deg)`,
-          offset: 1,
-        },
-      ],
-      {
-        duration: INGEST_MOTION.swallowDurationMs,
-        easing: EASE_INGEST_CSS,
-        fill: 'forwards',
-      },
-    )
-    .finished.catch(() => undefined)
-    .finally(cleanup)
-}
-
-/**
  * R3-2「墨线签署」目标轻咽（canvas-relationship-v3 §2.7）: the target's own
  * subtle acknowledgement pulse for a NON-folding source (collector card /
  * voice / videoReference dragged onto a shot/video/character target) — the
@@ -446,7 +349,7 @@ export function playCanvasFuseSwallowAnimation(
  * dishonest here). `handleNodeDragStop`'s bite-hover cleanup always runs
  * first and resets the target's inline transform to `''`, so this starts
  * clean from `scale(1)` — unlike `playTargetGulpAnimation`, which continues
- * from the 张口 bite scale a fuse/ingest gulp is chained after.
+ * from the 张口 bite scale an ingest gulp is chained after.
  */
 export function playTargetSigningSettleAnimation(
   targetEl: Element | null,
@@ -477,9 +380,8 @@ export function playTargetSigningSettleAnimation(
  * `dx`/`dy` are a caller-computed SCREEN-PIXEL delta (origin - drop, in that
  * order) — deliberately not flow-space, so the animation is correct
  * regardless of current zoom/pan without this function needing to know about
- * either. Data commits only in `onSettle` (mirrors
- * `playCanvasFuseSwallowAnimation`'s own onSettle-after-flight contract) —
- * skipped/failed animation still calls `onSettle` immediately so the data
+ * either. Data commits only in `onSettle`; skipped/failed animation still
+ * calls `onSettle` immediately so the data
  * layer is never left stale (§8 red line: "动画失败或被跳过时数据结果必须完全
  * 一致").
  */

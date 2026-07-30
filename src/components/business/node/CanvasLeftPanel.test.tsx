@@ -22,7 +22,7 @@ function renderPanel(overrides?: {
     <CanvasLeftPanel
       expanded={overrides?.expanded ?? true}
       onExpandedChange={onExpandedChange}
-      castCount={3}
+      nodeCount={3}
       onAddClick={onAddClick}
     >
       <div data-testid="panel-content">卡匣内容</div>

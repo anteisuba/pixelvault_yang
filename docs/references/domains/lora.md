@@ -83,6 +83,15 @@ LoRA 的核心承诺是：
 - 共享组件统一行为、状态、无障碍与响应式契约，不强制 LoRA 沿用其他域的皮肤。
 - 所有用户可见新增文案须保持 en / ja / zh 三语就绪。
 
+## 7.1 底模族与社区工作流（调研指针）
+
+社区主流底模、提示方言与 Comfy 工作流骨架的调研结论见：
+
+- [`../../plans/research/LoRA底模与工作流调研-2026-07.md`](../../plans/research/LoRA底模与工作流调研-2026-07.md)
+- 目录对账摘要：[`../model-catalog.md`](../model-catalog.md) §④
+
+实现侧底模表：`src/constants/lora-base-models.ts`。云端大模型（Seedream/GPT Image 等）**不是** Civitai LoRA 插槽，不得与底模族混谈。
+
 ## 8. 设计权力与文档分工
 
 | 文档                                         | 权力                                                                                                                           |
@@ -145,6 +154,8 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 
 - 产品定位：[`../product.md`](../product.md)
 - 当前业务施工：[`../pages/lora-workbench.md`](../pages/lora-workbench.md)
+- 底模/工作流社区调研：[`../../plans/research/LoRA底模与工作流调研-2026-07.md`](../../plans/research/LoRA底模与工作流调研-2026-07.md)
+- 底模目录实现：`src/constants/lora-base-models.ts`
 - 路由与页面：`src/app/[locale]/(main)/studio/lora/`
 - LoRA 工作台组件：`src/components/business/studio/lora/`
 - section 与来源常量：`src/constants/lora.ts`

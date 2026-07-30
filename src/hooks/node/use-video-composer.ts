@@ -5,8 +5,8 @@ import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_TYPE_IDS, NODE_WORKFLOW_FIELD_IDS } from '@/constants/node-types'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getVideoModelImageLimit } from '@/constants/video-model-send-plan'
 import {
   VIDEO_BRAND_IDS,
   VIDEO_VARIANT_IDS,
@@ -104,6 +104,13 @@ export interface ComposerReferenceToken extends ReferenceTokenData {
   videoSlotIndex?: number
   edgeId?: string
   boundVoice?: BoundVoice
+  /** A standalone voice can reach the video through a non-character visual
+   *  node (`voice -> image/shot -> video`). The generate payload already
+   *  follows that route; keep the intermediate node visible so the UI can
+   *  explain why the audio is included instead of presenting it as a direct
+   *  video input. */
+  routedThroughId?: string
+  routedThroughLabel?: string
   /** For a closeup token (§9 B): the character node it wires into, so the strip
    *  can group it under that character's identity unit. */
   parentCharacterId?: string
@@ -421,6 +428,60 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       })
     }
 
+    // Voices can also be wired through a non-character visual node
+    // (`voice -> shot/image -> video`). The request harvester already follows
+    // this route, but the reference UI used to omit the voice because it only
+    // inspected direct video inputs. Surface it as its own audio token and
+    // retain the route edge so disconnect/locate actions operate on the real
+    // binding. Character-routed voices remain absorbed into `boundVoice`.
+    const representedVoiceIds = new Set<string>()
+    for (const token of tokens) {
+      if (token.kind === 'voice') representedVoiceIds.add(token.id)
+      if (token.boundVoice) representedVoiceIds.add(token.boundVoice.nodeId)
+    }
+    for (const visualNode of incoming) {
+      const visualKind = getSeedanceReferenceKind(visualNode)
+      if (
+        visualKind === null ||
+        visualKind === 'voice' ||
+        visualKind === 'character'
+      ) {
+        continue
+      }
+      const routeToken = tokens.find((token) => token.id === visualNode.id)
+      for (const routeEdge of edges) {
+        if (routeEdge.target !== visualNode.id) continue
+        const voiceNode = nodes.find((node) => node.id === routeEdge.source)
+        if (
+          !voiceNode ||
+          !isVoiceProfileNode(voiceNode) ||
+          representedVoiceIds.has(voiceNode.id)
+        ) {
+          continue
+        }
+        const voiceName =
+          typeof voiceNode.data.voiceName === 'string'
+            ? voiceNode.data.voiceName.trim()
+            : ''
+        const ready = Boolean(readVoiceUrl(voiceNode))
+        const slot = audioSlotByVoiceId.get(voiceNode.id)
+        tokens.push({
+          id: voiceNode.id,
+          kind: 'voice',
+          label: voiceName,
+          token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
+          coverImage: readVoiceCoverImage(voiceNode),
+          audioSlotIndex: ready ? slot : undefined,
+          insertable: ready,
+          dimmed: !ready,
+          edgeId: routeEdge.id,
+          routedThroughId: visualNode.id,
+          routedThroughLabel: routeToken?.label,
+        })
+        representedVoiceIds.add(voiceNode.id)
+      }
+    }
+
     // Video references (uploaded videoReference nodes or upstream generated
     // videos) — they ride video_urls automatically AND are now insertable (§9 D
     // 视频可内联引用): auto-numbered off their own video_urls slot, so a phrase
@@ -636,9 +697,31 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // BOTH the panel's capacity math AND `sendPreview` below read the same
   // value; undefined (model unknown) degrades to "no cap known", never a
   // guessed number.
-  const maxReferenceImages = data.model?.adapterType
-    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
-    : undefined
+  const effectivePreviewModel = useMemo(() => {
+    if (!state.brand || !state.variant || !state.provider) return data.model
+    return (
+      resolveVideoModelId(
+        {
+          brand: state.brand,
+          variant: state.variant,
+          provider: state.provider,
+          hasReferenceInputs,
+        },
+        options,
+      ) ?? data.model
+    )
+  }, [
+    data.model,
+    hasReferenceInputs,
+    options,
+    state.brand,
+    state.provider,
+    state.variant,
+  ])
+  const maxReferenceImages = getVideoModelImageLimit(
+    effectivePreviewModel?.modelId,
+    effectivePreviewModel?.adapterType,
+  )
 
   // R3-6b §2 发送图例预览: reactive, read-only mirror of exactly what
   // StudioNodeWorkbench.handleGenerateMediaNode's video branch would send
@@ -653,6 +736,8 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         data,
         edges,
         nodes,
+        modelId: effectivePreviewModel?.modelId,
+        adapterType: effectivePreviewModel?.adapterType,
         maxReferenceImages,
         autoNamePrefix: {
           character: tc('autoName.character'),
@@ -662,7 +747,16 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
           video: tc('autoName.video'),
         },
       }),
-    [nodeId, data, edges, nodes, maxReferenceImages, tc],
+    [
+      nodeId,
+      data,
+      edges,
+      nodes,
+      effectivePreviewModel?.modelId,
+      effectivePreviewModel?.adapterType,
+      maxReferenceImages,
+      tc,
+    ],
   )
 
   return {

@@ -27,7 +27,7 @@ describe('video-generation-validation.service', () => {
     ).toThrowError(GenerateImageServiceError)
   })
 
-  it('requires a reference image for image-to-video-only models', () => {
+  it('requires a visual reference for Seedance Reference', () => {
     expect(() =>
       validateVideoGenerationInput({
         modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
@@ -35,6 +35,17 @@ describe('video-generation-validation.service', () => {
         duration: 5,
       }),
     ).toThrowError(GenerateImageServiceError)
+  })
+
+  it('accepts a video-only Seedance Reference request', () => {
+    expect(() =>
+      validateVideoGenerationInput({
+        modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+        aspectRatio: '1:1',
+        duration: 5,
+        videoUrls: ['https://cdn.example.com/reference.mp4'],
+      }),
+    ).not.toThrow()
   })
 
   it('rejects image models in the video pipeline', () => {
@@ -87,24 +98,24 @@ describe('video-generation-validation.service', () => {
       }
     })
 
-    it('accepts 4 references for Kling V3 Pro start image plus element references', () => {
+    it('accepts one explicit first frame for Kling V3 Pro', () => {
       expect(() =>
         validateVideoGenerationInput({
           modelId: AI_MODELS.KLING_V3_PRO,
           aspectRatio: '16:9',
           duration: 5,
-          referenceImages: ['a', 'b', 'c', 'd'],
+          referenceImages: ['a'],
         }),
       ).not.toThrow()
     })
 
-    it('rejects 5 references for Kling V3 Pro with REFERENCE_IMAGE_LIMIT_EXCEEDED', () => {
+    it('rejects flat extra Kling images until element slots are explicitly grouped', () => {
       try {
         validateVideoGenerationInput({
           modelId: AI_MODELS.KLING_V3_PRO,
           aspectRatio: '16:9',
           duration: 5,
-          referenceImages: ['a', 'b', 'c', 'd', 'e'],
+          referenceImages: ['a', 'b'],
         })
         throw new Error('expected validation to throw')
       } catch (err) {

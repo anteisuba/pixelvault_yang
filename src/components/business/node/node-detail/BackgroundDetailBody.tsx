@@ -20,6 +20,7 @@ export function BackgroundDetailBody({
   return (
     <BackgroundImageInspector
       node={{ id: nodeId, type, position: { x: 0, y: 0 }, data }}
+      layout="object-studio"
     />
   )
 }

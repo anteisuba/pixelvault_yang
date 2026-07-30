@@ -67,8 +67,8 @@ function commitName(
 /**
  * S4（2026-07-27，canvas-identity-card.md）整卡重写。§0 域定义拍板「身份卡 =
  * 角色的分类锚点」——它不再是图集浏览器：图集网格（缩略图 + 主图星标）整体
- * 删除，换成「▦ N」纯计数 chip；「归属」逻辑本身（referenceAssets 数组、
- * fusedIntoNodeId）完全不动，只是这张卡不再把它画成一排缩略图。
+ * 删除，换成「▦ N」纯计数 chip。旧 `fusedIntoNodeId` 隐藏通路已经退役；
+ * `referenceAssets` 暂时保留为兼容数据，等待多归属模型单独落地。
  *
  * §6 明确本轮不做的事，都没做：数据模型改造（打标签/多归属）、上方近场
  * 工具条、展开态管理模态——那些是切片 v2，owner 还没确认。

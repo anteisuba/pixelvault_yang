@@ -8,13 +8,23 @@ import type {
 } from '@/types/node-workflow'
 
 const { received } = vi.hoisted(() => ({
-  received: { node: null as NodeWorkflowNode | null },
+  received: {
+    node: null as NodeWorkflowNode | null,
+    layout: null as string | null,
+  },
 }))
 
 // Wrap target — capture the synthesized node it receives.
 vi.mock('../inspector/CharacterImageInspector', () => ({
-  CharacterImageInspector: ({ node }: { node: NodeWorkflowNode }) => {
+  CharacterImageInspector: ({
+    node,
+    layout,
+  }: {
+    node: NodeWorkflowNode
+    layout?: string
+  }) => {
     received.node = node
+    received.layout = layout ?? null
     return <div data-testid="character-inspector">{node.id}</div>
   },
 }))
@@ -46,5 +56,6 @@ describe('CharacterDetailBody', () => {
       data,
     })
     expect(received.node?.position).toEqual({ x: 0, y: 0 })
+    expect(received.layout).toBe('object-studio')
   })
 })

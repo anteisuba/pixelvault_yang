@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { buildVideoSendPreview } from './node-video-send-preview'
@@ -95,9 +97,9 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
       {
         url: 'https://cdn/loose.png',
         index: 1,
-        name: undefined,
-        kind: undefined,
-        category: undefined,
+        name: '镜头1',
+        kind: 'shot',
+        category: '镜头',
       },
     ])
     expect(preview.assembledImageCount).toBe(1)
@@ -308,7 +310,14 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     })
 
     expect(preview.videoUrls).toEqual(['https://cdn/clip.mp4'])
-    expect(preview.audioEntries).toEqual([{ index: 1, label: '旁白' }])
+    expect(preview.audioEntries).toEqual([
+      {
+        index: 1,
+        label: '旁白',
+        url: 'https://cdn/voice.mp3',
+        characterName: undefined,
+      },
+    ])
   })
 
   it('returns empty structures for a node with nothing wired and no prompt', () => {
@@ -330,5 +339,125 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.assembledImageCount).toBe(0)
     expect(preview.videoUrls).toEqual([])
     expect(preview.audioEntries).toEqual([])
+  })
+
+  it('projects the same connected graph into Kling first-frame-only input', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '凛',
+      }),
+      makeNode('char2', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char-2.png',
+        characterName: '澪',
+      }),
+      makeNode('clip1', NODE_TYPE_IDS.videoReference, {
+        mediaUrl: 'https://cdn/clip.mp4',
+      }),
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '雨夜前行' }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char1', 'video1'),
+      makeEdge('e2', 'char2', 'video1'),
+      makeEdge('e3', 'clip1', 'video1'),
+      makeEdge('e4', 'voice1', 'video1'),
+    ]
+
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[4].data,
+      edges,
+      nodes,
+      modelId: AI_MODELS.KLING_V3_PRO,
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      maxReferenceImages: 9,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.request).toMatchObject({
+      prompt: '雨夜前行',
+      referenceImages: ['https://cdn/char.png'],
+    })
+    expect(preview.request.audioUrls).toBeUndefined()
+    expect(preview.request.videoUrls).toBeUndefined()
+    expect(preview.legend).toBe('')
+    expect(preview.dropped).toEqual(
+      expect.arrayContaining([
+        {
+          kind: 'audio',
+          url: 'https://cdn/voice.mp3',
+          reason: 'unsupported',
+        },
+        {
+          kind: 'video',
+          url: 'https://cdn/clip.mp4',
+          reason: 'unsupported',
+        },
+        {
+          kind: 'image',
+          url: 'https://cdn/char-2.png',
+          reason: 'model-limit',
+        },
+      ]),
+    )
+  })
+
+  it('blocks Seedance Reference audio-only input instead of emitting an invalid request', () => {
+    const nodes = [
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '说出台词' }),
+    ]
+    const edges = [makeEdge('e1', 'voice1', 'video1')]
+
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[1].data,
+      edges,
+      nodes,
+      modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      maxReferenceImages: 9,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.blockers).toContain('audio-requires-visual')
+    expect(preview.canSubmit).toBe(false)
+  })
+
+  it('keeps Gemini image-only and marks the missing execution route', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+      }),
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '向镜头挥手' }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char1', 'video1'),
+      makeEdge('e2', 'voice1', 'video1'),
+    ]
+
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[2].data,
+      edges,
+      nodes,
+      modelId: AI_MODELS.GEMINI_OMNI_FLASH,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      maxReferenceImages: 14,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.request.referenceImages).toEqual(['https://cdn/char.png'])
+    expect(preview.request.audioUrls).toBeUndefined()
+    expect(preview.blockers).toContain('execution-not-migrated')
+    expect(preview.canSubmit).toBe(false)
   })
 })

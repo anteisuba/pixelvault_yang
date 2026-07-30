@@ -1,8 +1,8 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
-import { AlertTriangle, Film, Video, X } from 'lucide-react'
+import { AlertTriangle, Film, Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -37,13 +37,13 @@ export const SeedanceNode = memo(function SeedanceNode(
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     data.status === NODE_STATUS_IDS.running
   const isMobile = useIsMobile()
-  const [sidecarExpanded, setSidecarExpanded] = useState(false)
 
   // §5.1 shot override: this node's model brand differs from the canvas default
   // → flag it (⚠ badge + dashed border) so cross-shot drift is scannable.
   const {
     defaultVideoModel,
     updateNodeData,
+    setExpandedNodeId,
     multiSelectActive,
     canvasNodeDragActive,
   } = useNodeWorkflowActions()
@@ -76,7 +76,6 @@ export const SeedanceNode = memo(function SeedanceNode(
         <aside
           aria-label={t('sidecar.ariaLabel')}
           className="canvas-video-sidecar nodrag nopan nowheel"
-          data-expanded={sidecarExpanded ? 'true' : 'false'}
         >
           <header className="canvas-video-sidecar-header">
             <div className="min-w-0">
@@ -90,22 +89,12 @@ export const SeedanceNode = memo(function SeedanceNode(
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() => setSidecarExpanded((current) => !current)}
-                className="canvas-video-sidecar-quiet-button"
-                aria-expanded={sidecarExpanded}
-              >
-                {sidecarExpanded
-                  ? t('sidecar.compactAction')
-                  : t('sidecar.detailAction')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidecarExpanded(false)}
+                onClick={() => setExpandedNodeId(id)}
                 className="canvas-video-sidecar-icon-button"
-                aria-label={t('sidecar.close')}
-                title={t('sidecar.close')}
+                aria-label={t('sidecar.detailAction')}
+                title={t('sidecar.detailAction')}
               >
-                <X className="size-3.5" aria-hidden />
+                <Maximize2 className="size-3.5" aria-hidden />
               </button>
             </div>
           </header>
@@ -113,9 +102,8 @@ export const SeedanceNode = memo(function SeedanceNode(
             <VideoComposer
               id={id}
               data={data}
-              density={sidecarExpanded ? 'detail' : 'card'}
+              density="card"
               showMonitor={false}
-              onRequestDetail={() => setSidecarExpanded(true)}
             />
           </div>
         </aside>

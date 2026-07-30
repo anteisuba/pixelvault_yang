@@ -651,7 +651,11 @@ export const falAdapter: ProviderAdapter = {
 
     // Kontext models: native reference image handling (no strength/denoising)
     const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
-    const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
+    const KONTEXT_MULTI_MODELS = new Set([
+      'fal-ai/flux-pro/kontext/max/multi',
+      // FLUX.2 Pro edit — multi-reference image_urls + prompt (no strength).
+      'fal-ai/flux-2-pro/edit',
+    ])
     // Pure text-to-image endpoints ignore any reference image input. Note
     // the flux-lora *base* id stays here — with a reference image present we
     // already resolved to the `/image-to-image` variant above, which falls
@@ -669,9 +673,11 @@ export const falAdapter: ProviderAdapter = {
     ])
 
     if (KONTEXT_MULTI_MODELS.has(resolvedModelId)) {
-      // Kontext Max: multiple reference images
+      // Kontext Max / FLUX.2 edit: multiple reference images (image_urls)
       if (referenceImages?.length) {
         body.image_urls = referenceImages
+      } else if (effectiveRefImage) {
+        body.image_urls = [effectiveRefImage]
       }
     } else if (KONTEXT_SINGLE_MODELS.has(resolvedModelId)) {
       // Kontext Pro: single reference image

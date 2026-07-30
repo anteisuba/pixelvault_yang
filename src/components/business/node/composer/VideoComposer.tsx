@@ -18,13 +18,21 @@ import {
   Film,
   KeyRound,
   Lock,
+  SlidersHorizontal,
   Wand2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { CanvasRoutePicker } from '@/components/business/studio-shared/pickers/CanvasRoutePicker'
+import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { Button } from '@/components/ui/button'
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -39,10 +47,7 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowFieldId,
 } from '@/constants/node-types'
-import {
-  getVideoModelCapabilities,
-  videoModelSupportsSeed,
-} from '@/constants/video-model-capabilities'
+import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_RESOLUTIONS,
@@ -56,9 +61,11 @@ import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
+import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
 import {
   getBrandKeyStatus,
   getBrandProviders,
+  deriveSwitcherStateFromModel,
 } from '@/lib/video-model-resolver'
 import {
   computeVideoRebindPreview,
@@ -71,6 +78,7 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowModelOption,
+  NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
 
@@ -98,9 +106,6 @@ interface VideoComposerProps {
   /** The node-attached sidecar keeps the video in the card on its left, so its
    * detailed state must not duplicate the historical slate/monitor. */
   showMonitor?: boolean
-  /** Expand the node-attached sidecar in place. Legacy hosts fall back to the
-   * shared node-detail panel when this callback is omitted. */
-  onRequestDetail?: () => void
 }
 
 // fal Seedance duration enum: 'auto' or 4..15 seconds. The slider walks the
@@ -158,9 +163,32 @@ function stopCanvasKey(event: KeyboardEvent<HTMLElement>) {
   event.stopPropagation()
 }
 
+function getCanvasReferenceLabel(node: NodeWorkflowNode): string {
+  const fields = [
+    node.data.characterName,
+    node.data.backgroundName,
+    node.data.shotName,
+    node.data.voiceName,
+    node.data.mediaLabel,
+    node.data.sourceLabel,
+  ]
+  return (
+    fields
+      .find(
+        (value): value is string =>
+          typeof value === 'string' && value.trim().length > 0,
+      )
+      ?.trim() ?? node.id
+  )
+}
+
 const KEY_GUARD = {
-  onKeyDownCapture: stopCanvasKey,
-  onKeyUpCapture: stopCanvasKey,
+  // React delegates capture handlers from the root. Stopping there prevents
+  // Arrow/Home/End from ever reaching a contentEditable target, so its caret
+  // stays at offset 0. Stop on the bubble phase instead: the native editor
+  // receives the key first, while React Flow still never sees it.
+  onKeyDown: stopCanvasKey,
+  onKeyUp: stopCanvasKey,
 } as const
 
 function ComposerField({
@@ -177,6 +205,21 @@ function ComposerField({
       </span>
       {children}
     </label>
+  )
+}
+
+function StudioSectionHeading({
+  title,
+  meta,
+}: {
+  title: string
+  meta?: string
+}) {
+  return (
+    <div className="canvas-video-object-studio-section-heading">
+      <h2>{title}</h2>
+      {meta ? <span>{meta}</span> : null}
+    </div>
   )
 }
 
@@ -293,7 +336,10 @@ function VideoMonitor({
   const elapsedSeconds = useElapsedSeconds(isGenerating)
 
   return (
-    <div className="node-monitor-matte relative aspect-video max-h-80 overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas">
+    <div
+      className="node-monitor-matte relative aspect-video max-h-80 overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas"
+      data-empty={mediaUrl ? undefined : 'true'}
+    >
       {mediaUrl ? (
         <video
           src={mediaUrl}
@@ -406,7 +452,6 @@ export function VideoComposer({
   data,
   density,
   showMonitor = true,
-  onRequestDetail,
 }: VideoComposerProps) {
   const t = useTranslations('StudioNode.videoGeneration')
   const tFields = useTranslations('StudioNode.workflowFields')
@@ -415,9 +460,10 @@ export function VideoComposer({
     updateNodeData,
     updateEdgeData,
     generateMediaNode,
-    setExpandedNodeId,
     focusNode,
     deleteEdge,
+    listConnectableReferences,
+    connectReferenceNode,
     spawnReference,
     projectName,
   } = useNodeWorkflowActions()
@@ -427,6 +473,7 @@ export function VideoComposer({
   // atomic token chip at the caret (§6 S2). Exposes insertToken / focus /
   // getBoundingClientRect (the flying-animation target).
   const promptRef = useRef<MentionInputHandle>(null)
+  const compactPromptRef = useRef<HTMLTextAreaElement>(null)
   // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
   // to the prompt, cleared once its fly+glow finishes. null when idle.
   const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
@@ -520,6 +567,41 @@ export function VideoComposer({
     [handleSelectBrand],
   )
 
+  const selectSharedVideoModel = useCallback(
+    (option: StudioModelOption) => {
+      updateNodeData(id, {
+        model: {
+          optionId: option.optionId,
+          modelId: option.modelId,
+          adapterType: option.adapterType,
+          providerConfig: option.providerConfig,
+          apiKeyId: option.keyId,
+        },
+      })
+    },
+    [id, updateNodeData],
+  )
+
+  const requestSharedVideoModelSetup = useCallback(
+    (option: StudioModelOption) => {
+      const model: NodeWorkflowModelOption = {
+        optionId: option.optionId,
+        modelId: option.modelId,
+        adapterType: option.adapterType,
+        providerConfig: option.providerConfig,
+        apiKeyId: option.keyId,
+        requestCount: option.requestCount,
+        sourceType: option.sourceType,
+        freeTier: option.freeTier,
+        keyLabel: option.keyLabel,
+        maskedKey: option.maskedKey,
+      }
+      const brand = deriveSwitcherStateFromModel(model).brand ?? option.modelId
+      setQuickSetup({ open: true, brand, option: model })
+    },
+    [],
+  )
+
   // After QuickSetupDialog verifies a key, the option list refreshes a tick
   // later; apply the brand selection once it shows up as ready.
   const { options: composerOptions, selectBrand: composerSelectBrand } =
@@ -554,9 +636,15 @@ export function VideoComposer({
   const capabilities = selectedModelId
     ? getVideoModelCapabilities(selectedModelId)
     : null
-  const supportsSeed = selectedModelId
-    ? videoModelSupportsSeed(selectedModelId, composer.hasReferenceInputs)
-    : false
+  const parameterSupport = composer.sendPreview.contract?.parameters ?? {
+    duration: true,
+    aspectRatio: true,
+    resolution: true,
+    negativePrompt: true,
+    generateAudio: true,
+    seed: true,
+  }
+  const supportsSeed = parameterSupport.seed
   // V-3b 容量护栏 (设计稿 §3.6) / R3-6b §1: the manager panel warns when 已引用图
   // exceeds the CURRENT model's actual cap (Seedance ≤9) rather than a
   // hardcoded number — undefined model = unknown cap = warning suppressed,
@@ -626,7 +714,26 @@ export function VideoComposer({
     (refToken: ReferenceTokenData, originEl: HTMLElement) => {
       const name = refToken.token.replace(/^@/, '')
       if (!name) return
-      promptRef.current?.insertToken(name)
+      const compactEditor = compactPromptRef.current
+      if (compactEditor) {
+        const start = compactEditor.selectionStart ?? promptFieldValue.length
+        const end = compactEditor.selectionEnd ?? start
+        const inserted = `@${name} `
+        const next =
+          promptFieldValue.slice(0, start) +
+          inserted +
+          promptFieldValue.slice(end)
+        handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+        window.requestAnimationFrame(() => {
+          const current = compactPromptRef.current
+          if (!current) return
+          const caret = start + inserted.length
+          current.focus({ preventScroll: true })
+          current.setSelectionRange(caret, caret)
+        })
+      } else {
+        promptRef.current?.insertToken(name)
+      }
 
       if (refToken.kind !== 'voice') {
         updateNodeData(id, {
@@ -639,7 +746,9 @@ export function VideoComposer({
 
       if (reducedMotion) return
       const fromRect = originEl.getBoundingClientRect()
-      const toRect = promptRef.current?.getBoundingClientRect()
+      const toRect =
+        compactPromptRef.current?.getBoundingClientRect() ??
+        promptRef.current?.getBoundingClientRect()
       setFlyingToken({
         kind: refToken.kind,
         thumbUrl:
@@ -656,7 +765,14 @@ export function VideoComposer({
       })
       window.setTimeout(() => setFlyingToken(null), 440)
     },
-    [data.insertedReferenceNames, id, reducedMotion, updateNodeData],
+    [
+      data.insertedReferenceNames,
+      handleFieldChange,
+      id,
+      promptFieldValue,
+      reducedMotion,
+      updateNodeData,
+    ],
   )
 
   // Reference names the prompt editor should render as atomic chips — the
@@ -726,6 +842,8 @@ export function VideoComposer({
   // follow-up (per-modality upload endpoints differ) — library covers the core
   // "add an existing asset" flow uniformly across all three cards.
   const [pendingAdd, setPendingAdd] = useState<AddReferenceRequest | null>(null)
+  const [canvasPickerOpen, setCanvasPickerOpen] = useState(false)
+  const [addPickerOpen, setAddPickerOpen] = useState(false)
 
   // Plain handlers (not useCallback): they close over the derived `pendingAdd`
   // state, which the React Compiler can't reconcile with a manual dep array —
@@ -894,10 +1012,10 @@ export function VideoComposer({
   // Plain handlers (not useCallback): under the current hook graph the React
   // Compiler can't preserve a manual memoization that closes over the derived
   // `currentDurationSeconds` / `durationOptions`, so it memoizes these for us.
-  const handleDurationAuto = (auto: boolean) => {
+  const handleDurationCustom = (custom: boolean) => {
     handleFieldChange(
       NODE_WORKFLOW_FIELD_IDS.duration,
-      auto ? 'auto' : String(currentDurationSeconds),
+      custom ? String(currentDurationSeconds) : 'auto',
     )
   }
 
@@ -918,7 +1036,11 @@ export function VideoComposer({
       ? t('noModel')
       : !prompt.trim() && !composer.hasUpstreamInputs
         ? t('noInput')
-        : null
+        : composer.sendPreview.blockers?.includes('execution-not-migrated')
+          ? t('executionNotMigrated')
+          : composer.sendPreview.blockers?.includes('audio-requires-visual')
+            ? t('audioRequiresVisual')
+            : null
   const generateLabel = hasMedia ? t('regenerate') : t('generate')
 
   const generateButton = (
@@ -927,20 +1049,28 @@ export function VideoComposer({
       {...KEY_GUARD}
       onClick={handleGenerate}
       disabled={Boolean(disabledReason)}
-      className="h-10 w-full rounded-xl bg-node-paint text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+      className="canvas-video-object-studio-generate h-10 rounded-xl bg-node-paint text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
     >
       {isPending ? <Spinner size="md" /> : <Film className="size-4" />}
       {disabledReason ?? generateLabel}
     </Button>
   )
 
-  const requestDetail = () => {
-    if (onRequestDetail) {
-      onRequestDetail()
-      return
-    }
-    setExpandedNodeId(id)
-  }
+  const connectableReferences = listConnectableReferences?.(id) ?? []
+  const referenceAssetDialog = (
+    <AssetSelectorDialog
+      open={pendingAdd !== null}
+      onOpenChange={(open) => {
+        if (!open) setPendingAdd(null)
+      }}
+      onSelect={handleSelectAssetForAdd}
+      title={tc('references.addDialogTitle')}
+      description={tc('references.addDialogDescription')}
+      mediaType={
+        pendingAdd?.mediaType === 'voice' ? 'audio' : pendingAdd?.mediaType
+      }
+    />
+  )
 
   // Compact right-sidecar: a spacious prompt surface with a truthful connected
   // reference strip and a single bottom dock. Editing model-specific details
@@ -966,282 +1096,529 @@ export function VideoComposer({
       composer.referenceTokens.length - visibleReferences.length
 
     return (
-      <div className="canvas-video-composer-compact">
-        <div
-          className="canvas-video-composer-mode"
-          aria-label={tc('sidecar.modeLabel')}
-        >
-          <span data-active="true">
-            {composer.hasReferenceInputs
-              ? tc('sidecar.modeReference')
-              : tc('sidecar.modeText')}
-          </span>
-          <span>
-            {tc('sidecar.connectedCount', {
-              count: composer.referenceTokens.length,
-            })}
-          </span>
-        </div>
-
-        <div className="canvas-video-composer-helper">
-          <span>
-            {composer.hasReferenceInputs
-              ? tc('sidecar.referenceHelper')
-              : tc('sidecar.textHelper')}
-          </span>
-          <button type="button" {...KEY_GUARD} onClick={requestDetail}>
-            {tc('sidecar.chooseFromCanvas')}
-          </button>
-        </div>
-
-        <div className="canvas-video-composer-assets">
-          {visibleReferences.length > 0 ? (
-            <div className="canvas-video-composer-asset-list">
-              {visibleReferences.map((refToken) => {
-                const thumbnailUrl =
-                  refToken.kind === 'voice'
-                    ? refToken.coverImage
-                    : refToken.mediaUrl
-                const label =
-                  refToken.label ||
-                  refToken.token ||
-                  tc(`refKind.${refToken.kind}`)
-                return (
-                  <button
-                    key={`${refToken.kind}:${refToken.id}`}
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={(event) =>
-                      handleTokenInsert(refToken, event.currentTarget)
-                    }
-                    disabled={!refToken.token}
-                    title={
-                      refToken.token
-                        ? tc('references.insertHint')
-                        : tc('references.unnamedHint')
-                    }
-                    className="canvas-video-composer-asset"
-                  >
-                    {thumbnailUrl ? (
-                      // Canvas references can be user uploads or generated R2
-                      // URLs, so next/image's static host contract does not fit.
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumbnailUrl} alt="" />
-                    ) : (
-                      <span aria-hidden>{label.slice(0, 1)}</span>
-                    )}
-                    <small>{refToken.token || label}</small>
-                  </button>
-                )
+      <>
+        <div className="canvas-video-composer-compact">
+          <div
+            className="canvas-video-composer-mode"
+            aria-label={tc('sidecar.modeLabel')}
+          >
+            <span data-active="true">
+              {composer.hasReferenceInputs
+                ? tc('sidecar.modeReference')
+                : tc('sidecar.modeText')}
+            </span>
+            <span>
+              {tc('sidecar.connectedCount', {
+                count: composer.referenceTokens.length,
               })}
-              {hiddenReferenceCount > 0 ? (
-                <span className="canvas-video-composer-asset-overflow">
-                  +{hiddenReferenceCount}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <p className="canvas-video-composer-assets-empty">
-              {tc('sidecar.noReferences')}
-            </p>
-          )}
-          <button
-            type="button"
-            {...KEY_GUARD}
-            onClick={requestDetail}
-            className="canvas-video-composer-asset-add"
-            aria-label={tc('sidecar.addReference')}
-            title={tc('sidecar.addReference')}
-          >
-            +
-          </button>
-        </div>
+            </span>
+          </div>
 
-        <div className="canvas-video-composer-prompt">
-          <MentionInput
-            ref={promptRef}
-            value={promptFieldValue}
-            onValueChange={(next) =>
-              handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
-            }
-            tokens={mentionTokens}
-            aria-label={tFields('prompt.label')}
-            placeholder={tc('sidecar.promptPlaceholder')}
-            {...KEY_GUARD}
-            className="canvas-video-composer-prompt-input"
-          />
-          <span
-            className={cn(
-              'canvas-video-composer-count',
-              promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
-                'text-node-status-failed',
+          <div className="canvas-video-composer-helper">
+            <span>
+              {composer.hasReferenceInputs
+                ? tc('sidecar.referenceHelper')
+                : tc('sidecar.textHelper')}
+            </span>
+            <ResponsivePopover
+              open={canvasPickerOpen}
+              onOpenChange={setCanvasPickerOpen}
+            >
+              <ResponsivePopoverTrigger asChild>
+                <button type="button" {...KEY_GUARD}>
+                  {tc('sidecar.chooseFromCanvas')}
+                </button>
+              </ResponsivePopoverTrigger>
+              <ResponsivePopoverContent
+                label={tc('sidecar.chooseFromCanvas')}
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                className="w-64 space-y-1 rounded-xl p-2"
+              >
+                {connectableReferences.length > 0 ? (
+                  connectableReferences.map((node) => {
+                    const kind = getSeedanceReferenceKind(node) ?? 'video'
+                    const label = getCanvasReferenceLabel(node)
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-node-panel-soft"
+                        onClick={() => {
+                          connectReferenceNode?.(node.id, id)
+                          setCanvasPickerOpen(false)
+                        }}
+                      >
+                        <span className="truncate font-semibold">{label}</span>
+                        <span className="shrink-0 text-2xs text-node-muted">
+                          {tc(`refKind.${kind}`)}
+                        </span>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <p className="px-2 py-3 text-xs text-node-muted">
+                    {tc('references.managerEmpty')}
+                  </p>
+                )}
+              </ResponsivePopoverContent>
+            </ResponsivePopover>
+          </div>
+
+          <div className="canvas-video-composer-assets">
+            {visibleReferences.length > 0 ? (
+              <div className="canvas-video-composer-asset-list">
+                {visibleReferences.map((refToken) => {
+                  const thumbnailUrl =
+                    refToken.kind === 'voice'
+                      ? refToken.coverImage
+                      : refToken.mediaUrl
+                  const label =
+                    refToken.label ||
+                    refToken.token ||
+                    tc(`refKind.${refToken.kind}`)
+                  return (
+                    <button
+                      key={`${refToken.kind}:${refToken.id}`}
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={(event) =>
+                        handleTokenInsert(refToken, event.currentTarget)
+                      }
+                      disabled={!refToken.token}
+                      title={
+                        refToken.token
+                          ? tc('references.insertHint')
+                          : tc('references.unnamedHint')
+                      }
+                      className="canvas-video-composer-asset"
+                    >
+                      {thumbnailUrl ? (
+                        // Canvas references can be user uploads or generated R2
+                        // URLs, so next/image's static host contract does not fit.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumbnailUrl} alt="" />
+                      ) : (
+                        <span aria-hidden>{label.slice(0, 1)}</span>
+                      )}
+                      <small>{refToken.token || label}</small>
+                    </button>
+                  )
+                })}
+                {hiddenReferenceCount > 0 ? (
+                  <span className="canvas-video-composer-asset-overflow">
+                    +{hiddenReferenceCount}
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <p className="canvas-video-composer-assets-empty">
+                {tc('sidecar.noReferences')}
+              </p>
             )}
-          >
-            {tc('references.charCount', {
-              length: promptFieldValue.length,
-              max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
-            })}
-          </span>
-        </div>
+            <ResponsivePopover
+              open={addPickerOpen}
+              onOpenChange={setAddPickerOpen}
+            >
+              <ResponsivePopoverTrigger asChild>
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  className="canvas-video-composer-asset-add"
+                  aria-label={tc('sidecar.addReference')}
+                  title={tc('sidecar.addReference')}
+                >
+                  +
+                </button>
+              </ResponsivePopoverTrigger>
+              <ResponsivePopoverContent
+                label={tc('sidecar.addReference')}
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                className="w-52 space-y-1 rounded-xl p-2"
+              >
+                {(
+                  [
+                    {
+                      key: 'image',
+                      request: {
+                        nodeType: NODE_TYPE_IDS.image,
+                        role: NODE_IMAGE_ROLE_IDS.shot,
+                        mediaType: 'image',
+                      },
+                    },
+                    {
+                      key: 'voice',
+                      request: {
+                        nodeType: NODE_TYPE_IDS.voice,
+                        mediaType: 'voice',
+                      },
+                    },
+                    {
+                      key: 'video',
+                      request: {
+                        nodeType: NODE_TYPE_IDS.videoReference,
+                        mediaType: 'video',
+                      },
+                    },
+                  ] as const
+                ).map(({ key, request }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="w-full rounded-lg px-2.5 py-2 text-left text-xs font-semibold hover:bg-node-panel-soft"
+                    onClick={() => {
+                      handleAddReference(request)
+                      setAddPickerOpen(false)
+                    }}
+                  >
+                    {tc(`references.addGroups.${key}`)}
+                  </button>
+                ))}
+              </ResponsivePopoverContent>
+            </ResponsivePopover>
+          </div>
 
-        <div className="canvas-video-composer-dock">
-          <button
-            type="button"
-            {...KEY_GUARD}
-            onClick={requestDetail}
-            className="canvas-video-composer-model"
+          <div className="canvas-video-composer-prompt">
+            <IMEAwareTextarea
+              textareaRef={compactPromptRef}
+              value={promptFieldValue}
+              onValueChange={(next) =>
+                handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+              }
+              aria-label={tFields('prompt.label')}
+              placeholder={tc('sidecar.promptPlaceholder')}
+              className="canvas-video-composer-prompt-input"
+            />
+            <span
+              className={cn(
+                'canvas-video-composer-count',
+                promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
+                  'text-node-status-failed',
+              )}
+            >
+              {tc('references.charCount', {
+                length: promptFieldValue.length,
+                max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
+              })}
+            </span>
+          </div>
+
+          <div
+            className="canvas-video-composer-dock"
+            onDoubleClick={(event) => event.stopPropagation()}
           >
-            <Film className="size-3.5 shrink-0" aria-hidden />
-            <span>{modelLabel}</span>
-            <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-          </button>
-          {summaryParts.length > 0 ? (
+            <CanvasRoutePicker
+              variant="media"
+              mediaModality="video"
+              value={data.model?.optionId ?? null}
+              onChange={selectSharedVideoModel}
+              onRequestSetup={requestSharedVideoModelSetup}
+              triggerLabel={modelLabel}
+              className="canvas-video-composer-model"
+            />
+            <ResponsivePopover>
+              <ResponsivePopoverTrigger asChild>
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  className="canvas-video-composer-summary"
+                  aria-label={tc('sidecar.editParameters')}
+                >
+                  <SlidersHorizontal
+                    className="size-3.5 shrink-0"
+                    aria-hidden
+                  />
+                  <span>
+                    {summaryParts.length > 0
+                      ? summaryParts.join(' / ')
+                      : tc('sidecar.editParameters')}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+                </button>
+              </ResponsivePopoverTrigger>
+              <ResponsivePopoverContent
+                label={tc('sidecar.editParameters')}
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="w-80 space-y-4 rounded-2xl p-3"
+                mobileClassName="space-y-4"
+              >
+                {parameterSupport.duration ? (
+                  <ComposerField label={tFields('duration.label')}>
+                    <div className="space-y-2.5">
+                      <p className="text-right text-xs font-semibold tabular-nums text-node-foreground">
+                        {durationSummary}
+                      </p>
+                      <Slider
+                        min={0}
+                        max={Math.max(0, durationOptions.length - 1)}
+                        step={1}
+                        value={[durationIndex]}
+                        onValueChange={(values) =>
+                          handleDurationSlide(values[0] ?? 0)
+                        }
+                        aria-label={tFields('duration.label')}
+                      />
+                    </div>
+                  </ComposerField>
+                ) : null}
+
+                {parameterSupport.aspectRatio ? (
+                  <ComposerField label={t('aspectRatioLabel')}>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateNodeData(id, { aspectRatio: undefined })
+                        }
+                        aria-pressed={currentAspect === undefined}
+                        className={cn(
+                          'flex w-12 flex-col items-center gap-1 rounded-lg border py-1.5 text-2xs font-semibold',
+                          currentAspect === undefined
+                            ? 'border-node-foreground bg-node-panel-inner'
+                            : 'border-node-panel-inner text-node-muted',
+                        )}
+                      >
+                        <Wand2 className="size-4" />
+                        {tc('aspectAuto')}
+                      </button>
+                      {aspectOptions.map((option) => {
+                        const box = aspectBoxStyle(option)
+                        const selected = currentAspect === option
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => handleAspectToggle(option)}
+                            aria-pressed={selected}
+                            className={cn(
+                              'flex w-12 flex-col items-center gap-1 rounded-lg border py-1.5 text-2xs font-semibold',
+                              selected
+                                ? 'border-node-foreground bg-node-panel-inner'
+                                : 'border-node-panel-inner text-node-muted',
+                            )}
+                          >
+                            <span
+                              aria-hidden
+                              style={{ width: box.width, height: box.height }}
+                              className="rounded-sm border border-current"
+                            />
+                            {option}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ComposerField>
+                ) : null}
+
+                {parameterSupport.resolution ? (
+                  <ComposerField label={t('resolutionLabel')}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {resolutionOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => handleResolutionToggle(option)}
+                          aria-pressed={currentResolution === option}
+                          className={cn(
+                            'rounded-lg border px-2 py-2 text-2xs font-semibold',
+                            currentResolution === option
+                              ? 'border-node-foreground bg-node-panel-inner'
+                              : 'border-node-panel-inner text-node-muted',
+                          )}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </ComposerField>
+                ) : null}
+
+                {parameterSupport.generateAudio ? (
+                  <div className="flex items-center justify-between rounded-lg bg-node-panel-soft px-2.5 py-2">
+                    <span className="text-2xs font-semibold text-node-foreground">
+                      {tc('generateAudioLabel')}
+                    </span>
+                    <Switch
+                      checked={
+                        typeof data.generateAudio === 'boolean'
+                          ? data.generateAudio
+                          : true
+                      }
+                      onCheckedChange={(checked) =>
+                        updateNodeData(id, { generateAudio: checked })
+                      }
+                      aria-label={tc('generateAudioLabel')}
+                    />
+                  </div>
+                ) : null}
+              </ResponsivePopoverContent>
+            </ResponsivePopover>
             <button
               type="button"
               {...KEY_GUARD}
-              onClick={requestDetail}
-              className="canvas-video-composer-summary"
-              aria-label={tc('sidecar.editParameters')}
+              onClick={handleGenerate}
+              disabled={Boolean(disabledReason)}
+              className="canvas-video-composer-generate"
+              aria-label={disabledReason ?? generateLabel}
+              title={disabledReason ?? generateLabel}
             >
-              {summaryParts.join(' / ')}
+              {isPending ? <Spinner size="sm" /> : <span aria-hidden>↑</span>}
             </button>
+          </div>
+          {disabledReason ? (
+            <p className="canvas-video-composer-disabled-reason">
+              {disabledReason}
+            </p>
           ) : null}
-          <button
-            type="button"
-            {...KEY_GUARD}
-            onClick={handleGenerate}
-            disabled={Boolean(disabledReason)}
-            className="canvas-video-composer-generate"
-            aria-label={disabledReason ?? generateLabel}
-            title={disabledReason ?? generateLabel}
-          >
-            {isPending ? <Spinner size="sm" /> : <span aria-hidden>↑</span>}
-          </button>
         </div>
-        {disabledReason ? (
-          <p className="canvas-video-composer-disabled-reason">
-            {disabledReason}
-          </p>
-        ) : null}
-      </div>
+        {referenceAssetDialog}
+      </>
     )
   }
 
   return (
-    <div className="nodrag relative space-y-4">
-      {/* A6 骨架：监视器 hero 顶部整宽，下方 prompt(左·写作) / 设置(右·调参) 双栏。
-          @container 窄断点降级为单列，DOM 顺序即视觉顺序：监视器 → 提示词 → 设置。
-          A5: relative 是「管理素材」右半覆盖层的定位锚——ReferenceManagerPanel 深
-          嵌在下方左列里，但它的覆盖层用 absolute inset-y-0 right-0，靠 CSS 的"就近
-          已定位祖先"规则直接贴到这层，覆盖监视器→双栏→生成键的整个可见高度，不
-          用把状态提升到这里、也不用穿透传 ref。 */}
-      {showMonitor ? (
-        <>
-          <VideoSlateStrip
-            projectName={projectName}
-            shotName={shotReferenceLabel}
-            isReferenceMode={composer.hasReferenceInputs}
-            status={data.status}
-          />
-          <VideoMonitor
-            mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
-            thumbnailUrl={
-              typeof data.videoThumbnailUrl === 'string'
-                ? data.videoThumbnailUrl
-                : undefined
-            }
-            isGenerating={isPending}
-          />
-        </>
-      ) : null}
+    <div
+      className="canvas-video-object-studio canvas-object-studio-grid nodrag relative"
+      data-testid="video-object-studio"
+    >
+      <div
+        className="canvas-object-studio-media-rail"
+        data-testid="video-object-studio-media-rail"
+      >
+        {showMonitor ? (
+          <section className="canvas-video-object-studio-section">
+            <StudioSectionHeading
+              title={tc('studio.currentFilm')}
+              meta={tc('studio.filmMeta', {
+                duration: durationSummary,
+                aspect: aspectSummary,
+                resolution: resolutionSummary,
+              })}
+            />
+            <VideoMonitor
+              mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
+              thumbnailUrl={
+                typeof data.videoThumbnailUrl === 'string'
+                  ? data.videoThumbnailUrl
+                  : undefined
+              }
+              isGenerating={isPending}
+            />
+            <VideoSlateStrip
+              projectName={projectName}
+              shotName={shotReferenceLabel}
+              isReferenceMode={composer.hasReferenceInputs}
+              status={data.status}
+            />
+          </section>
+        ) : null}
 
-      {/* Two-pane layout below the monitor: left = text inputs (references +
-          prompt + negative), right = model + render settings. 3:2 列宽比照顾
-          提示词书写密度（textarea/管理素材条更需要横向空间，设置区都是紧凑
-          chips/滑杆）。The @container collapses to one column when the panel
-          narrows; the generate button spans full width below. */}
-      <div className="@container">
-        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-5">
-          <div className="space-y-3 @2xl:col-span-3">
-            {/* V-3a 管理素材面板 — 取代五分区部门条：始终可见的「已引用」条
+        <section className="canvas-video-object-studio-section canvas-video-object-studio-section--divided">
+          <StudioSectionHeading
+            title={tc('studio.sentAssets')}
+            meta={tc('studio.assetCount', {
+              count: composer.referenceTokens.length,
+            })}
+          />
+          {/* V-3a 管理素材面板 — 取代五分区部门条：始终可见的「已引用」条
                 （点击重新插入 / hover × 删连线）+「管理素材」抽屉（已连接 N 全量列
                 + 类型 tab + 搜索 + 每行插入/已引用状态 + ⋮ 定位/断连/加音色/加特写）。
                 部门条原有的 ＋添加位 能力搬进抽屉的 tab 工具条，无功能回退。 */}
-            <ReferenceManagerPanel
-              tokens={composer.referenceTokens}
-              referencedTokenIds={composer.referencedTokenIds}
-              onInsert={handleTokenInsert}
-              onLocate={focusNode}
-              onRemove={handleRemoveReference}
-              onAddReference={spawnReference ? handleAddReference : undefined}
-              onAddVoice={spawnReference ? handleAddVoice : undefined}
-              onAddCloseup={spawnReference ? handleAddCloseup : undefined}
-              maxReferenceImages={maxReferenceImages}
-              imageOverflow={imageOverflow}
-              assembledImageCount={composer.sendPreview.assembledImageCount}
-              onToggleStage={updateEdgeData ? handleToggleStage : undefined}
-              onRestoreDefaultStage={
-                updateEdgeData ? handleRestoreDefaultStage : undefined
-              }
-            />
-            {composer.hasReferenceInputs ? (
-              <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-                {tc('referenceModeOn')}
-              </p>
-            ) : null}
+          <ReferenceManagerPanel
+            tokens={composer.referenceTokens}
+            referencedTokenIds={composer.referencedTokenIds}
+            onInsert={handleTokenInsert}
+            onLocate={focusNode}
+            onRemove={handleRemoveReference}
+            onAddReference={spawnReference ? handleAddReference : undefined}
+            onAddVoice={spawnReference ? handleAddVoice : undefined}
+            onAddCloseup={spawnReference ? handleAddCloseup : undefined}
+            maxReferenceImages={maxReferenceImages}
+            imageOverflow={imageOverflow}
+            assembledImageCount={composer.sendPreview.assembledImageCount}
+            onToggleStage={updateEdgeData ? handleToggleStage : undefined}
+            onRestoreDefaultStage={
+              updateEdgeData ? handleRestoreDefaultStage : undefined
+            }
+          />
+          {composer.hasReferenceInputs ? (
+            <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+              {tc('referenceModeOn')}
+            </p>
+          ) : null}
+        </section>
+      </div>
 
-            {/* Prompt — the composer's hero field. @references render as atomic
+      <div
+        className="canvas-object-studio-task-rail"
+        data-testid="video-object-studio-task-rail"
+      >
+        <section className="canvas-video-object-studio-section">
+          <StudioSectionHeading
+            title={tc('studio.composition')}
+            meta={
+              composer.hasReferenceInputs
+                ? tc('sidecar.modeReference')
+                : tc('sidecar.modeText')
+            }
+          />
+          {/* Prompt — the composer's hero field. @references render as atomic
                 chips (§6 S2 MentionInput); the persisted value stays plain-text
                 @name for the generate path. The 运镜语法 button (§5 L1) inserts
                 film-language phrases at the caret. */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                  {tFields('prompt.label')}
-                </span>
-                <CameraGrammarButton
-                  onInsert={(phrase) =>
-                    promptRef.current?.insertText(`${phrase} `)
-                  }
-                />
-              </div>
-              <MentionInput
-                ref={promptRef}
-                value={promptFieldValue}
-                onValueChange={(next) =>
-                  handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tFields('prompt.label')}
+              </span>
+              <CameraGrammarButton
+                onInsert={(phrase) =>
+                  promptRef.current?.insertText(`${phrase} `)
                 }
-                tokens={mentionTokens}
-                aria-label={tFields('prompt.label')}
-                placeholder={tFields('prompt.placeholder')}
-                {...KEY_GUARD}
-                className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
               />
-              {/* V-3a 创意指令区底部计数（设计稿 §4）: 已引用/已连接 与 prompt 编辑
+            </div>
+            <MentionInput
+              ref={promptRef}
+              value={promptFieldValue}
+              onValueChange={(next) =>
+                handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+              }
+              tokens={mentionTokens}
+              aria-label={tFields('prompt.label')}
+              placeholder={tFields('prompt.placeholder')}
+              className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
+            />
+            {/* V-3a 创意指令区底部计数（设计稿 §4）: 已引用/已连接 与 prompt 编辑
                   同屏可见，字数复用现有 PROMPT_ENHANCE.MAX_INPUT_LENGTH（无新增
                   magic number）。 */}
-              <div className="flex items-center justify-between gap-2 px-0.5 text-3xs tabular-nums text-node-subtle">
-                <span>
-                  {tc('references.counter', {
-                    referenced: composer.referencedTokenIds.size,
-                    connected: composer.referenceTokens.length,
-                  })}
-                </span>
-                <span
-                  className={cn(
-                    promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
-                      'text-node-status-failed',
-                  )}
-                >
-                  {tc('references.charCount', {
-                    length: promptFieldValue.length,
-                    max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
-                  })}
-                </span>
-              </div>
+            <div className="flex items-center justify-between gap-2 px-0.5 text-3xs tabular-nums text-node-subtle">
+              <span>
+                {tc('references.counter', {
+                  referenced: composer.referencedTokenIds.size,
+                  connected: composer.referenceTokens.length,
+                })}
+              </span>
+              <span
+                className={cn(
+                  promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
+                    'text-node-status-failed',
+                )}
+              >
+                {tc('references.charCount', {
+                  length: promptFieldValue.length,
+                  max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
+                })}
+              </span>
             </div>
+          </div>
 
-            {/* Negative prompt — grouped with the other text inputs. */}
+          {/* Negative prompt — grouped with the other text inputs. */}
+          {parameterSupport.negativePrompt ? (
             <ComposerField label={t('negativePromptLabel')}>
               <IMEAwareTextarea
                 value={currentNegative}
@@ -1252,9 +1629,15 @@ export function VideoComposer({
                 className="min-h-16 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
               />
             </ComposerField>
-          </div>
+          ) : null}
+        </section>
 
-          <div className="space-y-3 @2xl:col-span-2">
+        <section className="canvas-video-object-studio-section canvas-video-object-studio-section--divided">
+          <StudioSectionHeading
+            title={tc('studio.modelParameters')}
+            meta={tc('studio.supportedOnly')}
+          />
+          <div className="space-y-3">
             {/* C5 参数设置（v4 §4 C5，R3-8 起；FB-6 极简修 2026-07-19）: 模型/时
                 长/分辨率/画幅各一整宽「标签 · 值」行，点击展开下方 1:1 现有控件
                 （同一 openSection 手风琴，点新段自动收起上一段）。竖排让右设置栏
@@ -1276,24 +1659,30 @@ export function VideoComposer({
                 active={openSection === 'model'}
                 onClick={() => toggleSection('model')}
               />
-              <OsdPill
-                label={tFields('duration.label')}
-                value={durationSummary}
-                active={openSection === 'duration'}
-                onClick={() => toggleSection('duration')}
-              />
-              <OsdPill
-                label={t('resolutionLabel')}
-                value={resolutionSummary}
-                active={openSection === 'resolution'}
-                onClick={() => toggleSection('resolution')}
-              />
-              <OsdPill
-                label={t('aspectRatioLabel')}
-                value={aspectSummary}
-                active={openSection === 'aspect'}
-                onClick={() => toggleSection('aspect')}
-              />
+              {parameterSupport.duration ? (
+                <OsdPill
+                  label={tFields('duration.label')}
+                  value={durationSummary}
+                  active={openSection === 'duration'}
+                  onClick={() => toggleSection('duration')}
+                />
+              ) : null}
+              {parameterSupport.resolution ? (
+                <OsdPill
+                  label={t('resolutionLabel')}
+                  value={resolutionSummary}
+                  active={openSection === 'resolution'}
+                  onClick={() => toggleSection('resolution')}
+                />
+              ) : null}
+              {parameterSupport.aspectRatio ? (
+                <OsdPill
+                  label={t('aspectRatioLabel')}
+                  value={aspectSummary}
+                  active={openSection === 'aspect'}
+                  onClick={() => toggleSection('aspect')}
+                />
+              ) : null}
             </div>
 
             <div
@@ -1479,11 +1868,11 @@ export function VideoComposer({
                             })}
                       </span>
                       <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
-                        {tFields('duration.auto')}
+                        {tFields('duration.custom')}
                         <Switch
-                          checked={isAutoDuration}
-                          onCheckedChange={handleDurationAuto}
-                          aria-label={tFields('duration.auto')}
+                          checked={!isAutoDuration}
+                          onCheckedChange={handleDurationCustom}
+                          aria-label={tFields('duration.custom')}
                         />
                       </label>
                     </div>
@@ -1604,25 +1993,27 @@ export function VideoComposer({
               </div>
             </div>
 
-            <div
-              className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
-              {...KEY_GUARD}
-            >
-              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                {tc('generateAudioLabel')}
-              </span>
-              <Switch
-                checked={
-                  typeof data.generateAudio === 'boolean'
-                    ? data.generateAudio
-                    : true
-                }
-                onCheckedChange={(checked) =>
-                  updateNodeData(id, { generateAudio: checked })
-                }
-                aria-label={tc('generateAudioLabel')}
-              />
-            </div>
+            {parameterSupport.generateAudio ? (
+              <div
+                className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
+                {...KEY_GUARD}
+              >
+                <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {tc('generateAudioLabel')}
+                </span>
+                <Switch
+                  checked={
+                    typeof data.generateAudio === 'boolean'
+                      ? data.generateAudio
+                      : true
+                  }
+                  onCheckedChange={(checked) =>
+                    updateNodeData(id, { generateAudio: checked })
+                  }
+                  aria-label={tc('generateAudioLabel')}
+                />
+              </div>
+            ) : null}
 
             {supportsSeed ? (
               <div className="space-y-2">
@@ -1728,131 +2119,139 @@ export function VideoComposer({
               </div>
             ) : null}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {data.generationError ? (
-        <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-2.5 text-2xs leading-4 text-red-100">
-          {data.generationError}
-        </div>
-      ) : null}
+        {data.generationError ? (
+          <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-2.5 text-2xs leading-4 text-red-100">
+            {data.generationError}
+          </div>
+        ) : null}
 
-      {/* R3-6b §2 发送图例预览（防黑盒）: read-only mirror of
+        {/* R3-6b §2 发送图例预览（防黑盒）: read-only mirror of
           `composer.sendPreview` — same finalPrompt/legend/image_urls pipeline
           `handleGenerateMediaNode` assembles for real, recomputed live off the
           same graph state, so it never lies about the覆写/截断-adjusted set
           that will actually ship. */}
-      <div className="space-y-2">
-        <button
-          type="button"
-          {...KEY_GUARD}
-          onClick={() => setSendPreviewOpen((open) => !open)}
-          aria-expanded={sendPreviewOpen}
-          className="nodrag flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-2xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
-        >
-          <span className="flex items-center gap-1.5">
-            <Eye className="size-3.5 shrink-0" />
-            {tc('sendPreview.toggle')}
-          </span>
-          <ChevronDown
-            className={cn(
-              'size-3.5 shrink-0 transition-transform',
-              sendPreviewOpen && 'rotate-180',
-            )}
-          />
-        </button>
-        <div
-          className="node-collapsible"
-          data-open={sendPreviewOpen || undefined}
-        >
-          <div>
-            <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2.5 text-2xs leading-5 text-node-foreground">
-              <div>
-                <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                  {tc('sendPreview.promptLabel')}
-                </p>
-                <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
-                  {composer.sendPreview.translatedPrompt ||
-                    tc('sendPreview.empty')}
-                </p>
-              </div>
-
-              {composer.sendPreview.legend ? (
+        <div className="canvas-video-object-studio-send-preview space-y-2">
+          <button
+            type="button"
+            {...KEY_GUARD}
+            onClick={() => setSendPreviewOpen((open) => !open)}
+            aria-expanded={sendPreviewOpen}
+            className="nodrag flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-2xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+          >
+            <span className="flex items-center gap-1.5">
+              <Eye className="size-3.5 shrink-0" />
+              {tc('sendPreview.toggle')}
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-3.5 shrink-0 transition-transform',
+                sendPreviewOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          <div
+            className="node-collapsible"
+            data-open={sendPreviewOpen || undefined}
+          >
+            <div>
+              <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2.5 text-2xs leading-5 text-node-foreground">
                 <div>
                   <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {tc('sendPreview.legendLabel')}
+                    {tc('sendPreview.promptLabel')}
                   </p>
                   <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
-                    {composer.sendPreview.legend}
+                    {composer.sendPreview.translatedPrompt ||
+                      tc('sendPreview.empty')}
                   </p>
                 </div>
-              ) : null}
 
-              {composer.sendPreview.images.length > 0 ? (
-                <div>
-                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {tc('sendPreview.imagesLabel', {
-                      count: composer.sendPreview.images.length,
-                    })}
-                  </p>
-                  <ol className="mt-1 flex flex-wrap gap-1.5">
-                    {composer.sendPreview.images.map((image) => (
-                      <li
-                        key={image.url}
-                        className="flex w-16 flex-col items-center gap-1"
-                      >
-                        <span className="node-card-window relative aspect-square w-full overflow-hidden rounded-md border border-node-panel-inner bg-node-card-window">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={image.url}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                          <span className="absolute left-0.5 top-0.5 rounded-full bg-node-canvas/80 px-1 text-3xs font-semibold text-node-foreground">
-                            {tc('sendPreview.imageBadge', {
-                              index: image.index,
-                            })}
+                {composer.sendPreview.legend ? (
+                  <div>
+                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {tc('sendPreview.legendLabel')}
+                    </p>
+                    <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
+                      {composer.sendPreview.legend}
+                    </p>
+                  </div>
+                ) : null}
+
+                {composer.sendPreview.images.length > 0 ? (
+                  <div>
+                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {tc('sendPreview.imagesLabel', {
+                        count: composer.sendPreview.images.length,
+                      })}
+                    </p>
+                    <ol className="mt-1 flex flex-wrap gap-1.5">
+                      {composer.sendPreview.images.map((image) => (
+                        <li
+                          key={image.url}
+                          className="flex w-16 flex-col items-center gap-1"
+                        >
+                          <span className="node-card-window relative aspect-square w-full overflow-hidden rounded-md border border-node-panel-inner bg-node-card-window">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={image.url}
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                            <span className="absolute left-0.5 top-0.5 rounded-full bg-node-canvas/80 px-1 text-3xs font-semibold text-node-foreground">
+                              {tc('sendPreview.imageBadge', {
+                                index: image.index,
+                              })}
+                            </span>
                           </span>
-                        </span>
-                        <span className="w-full truncate text-center text-3xs text-node-subtle">
-                          {image.name ?? tc('sendPreview.unnamed')}
-                          {image.category ? `（${image.category}）` : ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
+                          <span className="w-full truncate text-center text-3xs text-node-subtle">
+                            {image.name ?? tc('sendPreview.unnamed')}
+                            {image.category ? `（${image.category}）` : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ) : null}
 
-              {composer.sendPreview.videoUrls.length > 0 ||
-              composer.sendPreview.audioEntries.length > 0 ? (
-                <div>
-                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {tc('sendPreview.avLabel')}
-                  </p>
-                  <ul className="mt-1 space-y-0.5 text-3xs text-node-subtle">
-                    {composer.sendPreview.videoUrls.map((url, index) => (
-                      <li key={url}>
-                        {tc('sendPreview.videoBadge', { index: index + 1 })}
-                      </li>
-                    ))}
-                    {composer.sendPreview.audioEntries.map((entry) => (
-                      <li key={entry.index}>
-                        {tc('sendPreview.audioBadge', {
-                          index: entry.index,
-                        })}
-                        {` · ${entry.label}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+                {composer.sendPreview.videoUrls.length > 0 ||
+                composer.sendPreview.audioEntries.length > 0 ? (
+                  <div>
+                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {tc('sendPreview.avLabel')}
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-3xs text-node-subtle">
+                      {composer.sendPreview.videoUrls.map((url, index) => (
+                        <li key={url}>
+                          {tc('sendPreview.videoBadge', { index: index + 1 })}
+                        </li>
+                      ))}
+                      {composer.sendPreview.audioEntries.map((entry) => (
+                        <li key={entry.index}>
+                          {tc('sendPreview.audioBadge', {
+                            index: entry.index,
+                          })}
+                          {` · ${entry.label}`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {generateButton}
+        <div className="canvas-video-object-studio-dock">
+          <span className="text-2xs text-node-muted">
+            {tc('studio.sendSummary', {
+              inputs: composer.referenceTokens.length,
+              dropped: composer.sendPreview.dropped.length,
+            })}
+          </span>
+          {generateButton}
+        </div>
+      </div>
 
       {quickSetup ? (
         <QuickSetupDialog
@@ -1873,18 +2272,7 @@ export function VideoComposer({
 
       {/* §7.1 ＋添加位 asset library — one dialog for all three cards; the
           pending request's mediaType picks the library (voice → audio). */}
-      <AssetSelectorDialog
-        open={pendingAdd !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingAdd(null)
-        }}
-        onSelect={handleSelectAssetForAdd}
-        title={tc('references.addDialogTitle')}
-        description={tc('references.addDialogDescription')}
-        mediaType={
-          pendingAdd?.mediaType === 'voice' ? 'audio' : pendingAdd?.mediaType
-        }
-      />
+      {referenceAssetDialog}
 
       {flyingToken && typeof document !== 'undefined'
         ? createPortal(

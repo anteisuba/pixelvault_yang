@@ -7,7 +7,7 @@
 ## Non-goals
 
 - 不重做首页 UI，不改 `home-v3.css` 的结构与 page token。
-- 不改 Studio / Canvas / LoRA / Assets 产品内页。
+- 除 owner 2026-07-28 明确追加的 LoRA 底模选择器与当前底模卡缩略图外，不改 Studio / Canvas / LoRA / Assets 产品内页。
 - 不改 provider、模型目录、价格、计费、API、数据库或登录流程。
 - 不把由其他模型伪造的图片标成某个具体模型的输出。
 
@@ -36,8 +36,16 @@
 - `public/homepage/production/**`
 - `src/constants/home-v3.ts`
 - `src/components/business/home-v3/HomeV3Capabilities.tsx`（真实视频到位后）
+- `src/components/business/home-v3/HomeV3VideoPlayer.tsx`（真实播放控制）
+- `src/components/business/home-v3/HomeV3Motion.tsx`（叠放切片命中层）
+- `src/components/business/home-v3/HomeV3ModelRail.tsx` / `HomeV3Rails.tsx`（模型介绍层）
 - `src/app/home-v3.css`（仅真实 `<video>` 与原 `<img>` 等尺寸的机械兼容）
 - `src/components/business/home-v3/home-v3.test.ts`
+- `src/components/business/studio/lora/LoraBaseModelModal.tsx`（仅底模缩略图）
+- `src/components/business/studio/lora/LoraWorkbench.tsx`（仅当前底模卡缩略图）
+- `src/constants/lora-base-models.ts` / `src/constants/lora-base-models.test.ts`
+- `src/proxy.ts` / `src/proxy.test.ts`（本地视频静态资源直通）
+- `src/messages/{en,ja,zh}.json`（播放、暂停、进度条可访问名称）
 - 本任务包与 `docs/references/pages/home.md`
 
 ## Forbidden File Scope
@@ -47,7 +55,6 @@
 - `src/components/business/node/**`
 - `prisma/**`
 - `src/constants/models/**`
-- `src/messages/**`（本批不改文案）
 
 ## Intake / 已确认边界
 
@@ -56,6 +63,8 @@
 3. 成功：画布演示内部同一故事连续；四模型演示是同 prompt 的真实四次输出；视频为真实可播放文件；3D 四角度来自同一个真实 GLB；模型轨资产能追溯到模型。
 4. 禁改：现有 UI、布局、交互、产品内页、provider/API/计费。
 5. 证据：资产清单、生成记录/模型名、浏览器截图、视频播放、文件探针、相关测试。
+6. Owner 2026-07-28 追加边界：模型卡点击先打开介绍层，四条横轨仅横向滚动；LoRA「换底模」和当前底模卡可以复用首页模型素材补充缩略图。
+7. Owner 2026-07-28 移动端反馈：首页产品演示不得把桌面框等比压扁后裁切；手机宽度下必须保持标签可读、视图可操作，并与下一能力段保持清楚边界。
 
 ## 素材策略
 
@@ -129,14 +138,14 @@
 `public/homepage/production/model3d/vintage-radio-source-v1.png`
 继续保留，供后续需要核对 Rodin 真实生成链路时使用。
 
-## 下一步 1 · 在 PixelVault 生成真实视频
+## 已完成 1 · 在 PixelVault 生成真实视频
 
 ### 模型与参数
 
 | 参数       | 值                                        |
 | ---------- | ----------------------------------------- |
 | Surface    | Studio Video · image-to-video             |
-| Model      | Seedance 2.0（premium，不选 Fast）        |
+| Model      | Seedance 2.0 Fast                         |
 | Reference  | `night-ferry-seedance-first-frame-v1.png` |
 | Duration   | 5s                                        |
 | Aspect     | 16:9                                      |
@@ -166,12 +175,34 @@
 public/homepage/production/video/night-ferry-seedance-v1-source.mp4
 ```
 
-后续由 Codex 完成：
+Codex 已完成：
 
 1. 转码为静音、5 秒、720p、适合网页循环的 `night-ferry-seedance-v1.mp4`。
 2. 提取 6 个真实帧到 `video/night-ferry-seedance-v1-frame-{01..06}.webp`。
-3. `HomeV3DemoVideo` 从 `<Image>` 换成同尺寸 `<video muted playsInline loop>`；UI 与控制层不变。
+3. `HomeV3DemoVideo` 从 `<Image>` 换成同尺寸 `<video muted playsInline loop>`；视觉控制层不变，装饰按钮升级为真实播放控件。
 4. `prefers-reduced-motion` 保持 poster 静态终态。
+
+### 2026-07-28 完成记录
+
+- PixelVault 真实生成记录：
+  `Generation.id = 131ba4dc-f76c-4cae-a6c4-2320b8972f3f`；
+  provider `fal.ai`；model `seedance-2.0-fast`。
+- 原始成片保存为
+  `public/homepage/production/video/night-ferry-seedance-v1-source.mp4`；
+  页面版保存为 `night-ferry-seedance-v1.mp4`。
+- 页面版经 `ffprobe` 核对：H.264、1280×720、24fps、5.000 秒、
+  `yuv420p`、无音轨，709,652 bytes。
+- 6 张 filmstrip 均从页面版真实抽帧，文件为
+  `night-ferry-seedance-v1-frame-{01..06}.webp`；第一帧作为视频加载
+  poster，第六帧作为 reduced-motion 静态终态与 Canvas 视频结果缩略图。
+- `HomeV3DemoVideo` 已播放真实 MP4，保留原控制层和版式；模型标识同步为
+  `Seedance 2.0 Fast`。
+- 视频区现在由 `HomeV3VideoPlayer` 读取媒体真实时长和进度，支持点击画面或
+  中央按钮播放/暂停、拖动时间轴，并让 filmstrip 高亮跟随真实播放头。
+- `src/proxy.ts` 的静态资源 matcher 已加入 `.mp4` / `.webm` / `.mov`；
+  否则视频请求会进入 locale/Clerk middleware，不能作为媒体文件直接解码。
+- 能力段三张滚动切片叠放时，仅当前切片保留 pointer events；隐藏切片同步
+  `inert` 并退出可访问树，避免透明的 3D 切片覆盖视频按钮、吞掉点击。
 
 ## 下一步 2 · 四模型同题真实输出
 
@@ -236,13 +267,39 @@ public/homepage/production/studio/seedream-5.0-pro.webp
 - 四条模型横轨不再随页面纵向 ScrollTrigger 自动偏移。鼠标位于横轨内时，
   纵向滚轮转换为该横轨的横向滚动；移出横轨后恢复页面纵向滚动。箭头、触摸和
   trackpad 原生横向手势继续保留。
+- OpenAI、Gemini、FLUX、Seedream / Seedance、Recraft、HappyHorse、Kling、
+  Hunyuan、Trellis、Tripo 等可识别模型优先使用模型所有方的原始品牌标识；
+  fal.ai 只保留为执行 provider 文案，不再作为卡片主视觉。
+- 品牌 SVG 固定落盘到 `public/homepage/production/models/brand/`，来源与版本记录在
+  同目录 `SOURCES.md`。
+
+## 已完成 5 · 模型介绍层、横轨约束与 LoRA 底模素材复用
+
+- 图片、视频、音频、3D 四类模型卡片统一改为点击打开响应式模型介绍层；介绍层展示
+  能力、优势、provider、计价和模态信息，只有明确的 Studio CTA 才进入生成入口，
+  点击卡片本身不再直接跳页。
+- 四条模型横轨只允许横向滚动：轨道区域内的滚轮输入映射为横向位移，同时显式禁止
+  轨道自身纵向滚动。Owner 已于 2026-07-28 在本地页面确认行为正确。
+- LoRA「换底模」选择器为全部 11 个底模增加本地缩略图，直接复用首页品牌图标或
+  模型作品图；选择、兼容性、禁用状态与底模分组逻辑未改动。
+- LoRA Generate 装配栏的当前底模卡与折叠态按钮复用同一个 `coverImage`，切换底模后
+  主界面与弹层显示同一张模型素材，不维护第二套映射。
+- 模型卡片入场动画调整为透明度渐入，取消单卡片纵向位移，避免横轨视觉基线被误读为
+  高低错位。
+- 手机端产品演示不再沿用桌面 `1328 / 640` 的扁平比例：标签保持单行和 44px
+  命中区，画布以可读比例在框内横向触摸浏览，Studio / LoRA 改为上下层级，素材网格
+  使用 4×5 排布；产品框与下一能力段不再重叠。
+- 能力段的钉住换片只在 `min-width: 1001px` 启用；更窄的屏幕保留三段正常文档流，
+  窗口跨断点时 GSAP media context 会撤销 pin、inline transform、`inert` 与
+  `aria-hidden`，不再让能力文案覆盖产品画布。
+- 760px 以下页脚改为品牌说明独占首行、链接两列；三语 tagline 同步收敛为一句，
+  避免桌面四列把说明挤成逐字换行并拉长页面。
 
 ### 后续真实输出升级
 
 - 若未来希望卡片主图承担“该模型真实输出证明”，必须逐模型用真实任务替换官方素材，
   并保存生成记录；不能仅靠视觉风格推断模型来源。
-- 视频真实 poster、音频真实波形和 3D viewer poster 到位后可按同一文件约定逐张
-  覆盖，UI 与映射函数不变。
+- 音频真实波形到位后可按同一文件约定覆盖，UI 与映射函数不变。
 
 ## Logo / 官方素材决策（owner 已确认）
 
@@ -292,10 +349,52 @@ public/homepage/production/studio/seedream-5.0-pro.webp
     `0 → 296`，三次页面纵向位置均保持不变；
   - 鼠标移出横轨后，模型轨位置不变，页面恢复纵向滚动；
   - 未出现本轮新增 console error；仅观察到既有 Clerk/Lit/ModelViewer 开发环境 warning。
-  - 本轮全量 typecheck 与首页文件定向 ESLint 均在检查窗口内超时且无诊断输出，
-    已停止遗留检查进程，不记为通过。
+  - 后续复跑 `npx tsc --noEmit --pretty false` 与相关文件定向 ESLint 均通过。
 - GLB 346,140 bytes；网页 poster 68,390 bytes。2.1 MB 参考立绘只用于生产，
   不进入首屏加载。
+- 2026-07-28 真实视频接入：
+  - 页面版 MP4 经 `ffprobe` 核对为 H.264、1280×720、24fps、5.000 秒、
+    `yuv420p`、无音轨；
+  - 6 张 filmstrip 均由同一 MP4 抽帧，`HomeV3DemoVideo` 已改为真实
+    `<video muted playsInline loop>`；
+  - `npx tsc --noEmit` 与首页 / proxy 相关文件定向 ESLint 均通过；
+  - 首页与 proxy 定向 Vitest 20/20、三语 completeness 5/5 通过；
+  - 全量 Vitest 跑完后仅有 2 个既有 Canvas connection matrix 用例失败，
+    位于本任务未修改的 `use-cast-ingest.test.ts`，与首页视频无文件交集；
+  - Chrome `/zh` 实测媒体 `readyState=4`、5 秒、无媒体错误；点击播放后
+    0.7 秒内 `currentTime` 推进约 0.66 秒，点击暂停后 0.7 秒漂移为 0，
+    直接点击画面也能恢复播放；
+  - 三张能力切片实测只有 `data-active="true"` 的切片为
+    `pointer-events:auto`，其余切片为 `pointer-events:none` 且 `inert`。
+- 2026-07-28 模型介绍层与 LoRA 底模缩略图：
+  - `npx vitest run src/constants/lora-base-models.test.ts src/components/business/home-v3/HomeV3ModelRail.test.tsx src/components/business/home-v3/home-v3.test.ts --reporter=dot`
+    运行 3 个测试文件，33/33 通过；
+  - `npx eslint src/components/business/studio/lora/LoraBaseModelModal.tsx src/constants/lora-base-models.ts src/constants/lora-base-models.test.ts`
+    通过；
+  - 浏览器分别用 OpenAI GPT Image 2、Seedance 2.0 Fast、Fish Audio S2 Pro、
+    Rodin Gen-2.5 验证四种模态介绍层；卡片点击后 URL 不变，Studio CTA 与关闭按钮可用；
+  - `/zh/studio/lora?section=generate` 的「换底模」弹层共渲染 11 张缩略图，
+    均加载完成且具有有效自然尺寸，原有分组、选择与禁用状态保持不变。
+- 2026-07-28 首页移动端与当前底模卡：
+  - `npx vitest run src/components/business/studio/lora/LoraWorkbench.test.tsx -t "defaults an empty LoRA stack" --reporter=dot --pool=threads --maxWorkers=1`
+    通过，验证 Anima Base 默认卡显示对应本地封面；
+  - `npx eslint src/components/business/studio/lora/LoraWorkbench.tsx src/components/business/studio/lora/LoraWorkbench.test.tsx e2e/mobile.spec.ts`
+    通过；
+  - `npx playwright test e2e/mobile.spec.ts --project=mobile -g "homepage product preview" --reporter=line`
+    3/3 通过；375px 下标签为单行 44px 命中区、产品框与能力段不重叠，画布只在产品框内
+    横向浏览。
+  - `npx playwright test e2e/mobile.spec.ts --project=mobile -g "renders home without horizontal overflow" --reporter=line --workers=1`
+    6/6 通过；375 / 390 / 430 / 820px 均无页面级横向溢出或运行时错误。
+- 2026-07-28 能力段覆盖与页脚高度修复：
+  - `npx playwright test e2e/mobile.spec.ts --project=mobile -g "homepage (product preview|keeps capability)" --reporter=line --workers=1`
+    4/4 通过；600px 下 capability stage 不进入 pin 状态，页脚品牌区宽度超过父容器
+    90%，说明文字高度低于 72px；
+  - `npx playwright test e2e/mobile.spec.ts --project=mobile -g "375px.*renders home" --reporter=line --workers=1`
+    3/3 通过，375px 页面无横向溢出或运行时错误；
+  - 600 / 820px 在全宽度批次中通过；375px 批次首次受 dev server 旧 Turbopack
+    chunk 热更新错误干扰，预热后独立复跑通过；
+  - `npx eslint src/components/business/home-v3/HomeV3Motion.tsx e2e/mobile.spec.ts`
+    与 `npx tsc --noEmit --pretty false` 通过。
 
 ## Documentation Sync
 

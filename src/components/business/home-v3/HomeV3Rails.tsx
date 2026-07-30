@@ -1,10 +1,15 @@
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import {
+  HomeV3ModelRail,
+  type HomeV3ModelDetailLabels,
+} from '@/components/business/home-v3/HomeV3ModelRail'
+import { AUDIO_KIND } from '@/constants/audio-options'
 import {
   getHomeV3ModelCover,
   HOME_V3_RAIL_ARROW_MIN,
   HOME_V3_RAIL_GROUPS,
+  isHomeV3ModelBrandCover,
 } from '@/constants/home-v3'
 import {
   formatHomepageReferencePriceAmount,
@@ -17,9 +22,70 @@ import {
   type ModelOption,
 } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
-import { Link } from '@/i18n/navigation'
 
 const AVAILABLE = getAvailableModels()
+
+type ModelAdvantageKey =
+  | 'premiumQuality'
+  | 'balancedQuality'
+  | 'fastValue'
+  | 'freeTier'
+  | 'imageGeneration'
+  | 'videoGeneration'
+  | 'photorealistic'
+  | 'anime'
+  | 'design'
+  | 'artistic'
+  | 'versatile'
+  | 'lora'
+  | 'imageToVideo'
+  | 'referenceInput'
+  | 'nativeAudio'
+  | 'speech'
+  | 'soundEffects'
+  | 'imageTo3d'
+  | 'glbOutput'
+
+function modelAdvantageKeys(model: ModelOption): ModelAdvantageKey[] {
+  const keys: ModelAdvantageKey[] = []
+  const add = (key: ModelAdvantageKey) => {
+    if (!keys.includes(key)) keys.push(key)
+  }
+
+  if (model.freeTier) add('freeTier')
+  if (model.qualityTier === 'premium') add('premiumQuality')
+  if (model.qualityTier === 'standard') add('balancedQuality')
+  if (model.qualityTier === 'budget') add('fastValue')
+
+  if (model.outputType === 'IMAGE') {
+    add('imageGeneration')
+    if (model.styleTag === 'photorealistic') add('photorealistic')
+    if (model.styleTag === 'anime') add('anime')
+    if (model.styleTag === 'design') add('design')
+    if (model.styleTag === 'artistic') add('artistic')
+    if (model.styleTag === 'general') add('versatile')
+    if (model.supportsLora) add('lora')
+  }
+
+  if (model.outputType === 'VIDEO') {
+    add('videoGeneration')
+    if (model.i2vModelId) add('imageToVideo')
+    if (model.requiresReferenceImage) add('referenceInput')
+    if (model.videoDefaults?.generateAudio) add('nativeAudio')
+  }
+
+  if (model.outputType === 'AUDIO') {
+    add(model.audioKind === AUDIO_KIND.SFX ? 'soundEffects' : 'speech')
+  }
+
+  if (model.outputType === 'MODEL_3D') {
+    add('imageTo3d')
+    add('glbOutput')
+    if (model.requiresReferenceImage) add('referenceInput')
+  }
+
+  return keys.slice(0, 4)
+}
 
 function railRows() {
   return HOME_V3_RAIL_GROUPS.map((group) => ({
@@ -29,6 +95,9 @@ function railRows() {
     ).map((model) => ({
       model,
       shot: getHomeV3ModelCover(model.id, group.outputType),
+      shotKind: isHomeV3ModelBrandCover(model.id)
+        ? ('brand' as const)
+        : ('artwork' as const),
     })),
   }))
 }
@@ -46,6 +115,16 @@ const RAILS = railRows()
 export function HomeV3Rails() {
   const t = useTranslations('Homepage.models')
   const tModels = useTranslations('Models')
+  const detailLabels: HomeV3ModelDetailLabels = {
+    canDo: t('detail.canDo'),
+    advantages: t('detail.advantagesTitle'),
+    provider: t('detail.provider'),
+    pricing: t('detail.pricing'),
+    modality: t('detail.modality'),
+    openStudio: t('detail.openStudio'),
+    officialDocs: t('detail.officialDocs'),
+    close: t('detail.close'),
+  }
 
   const modelLabel = (model: ModelOption) => {
     const messageKey = MODEL_MESSAGE_KEYS[model.id]
@@ -62,6 +141,12 @@ export function HomeV3Rails() {
     if (price.unit === 'image') return t('priceImage', { amount })
     if (price.unit === 'second') return t('priceSecond', { amount })
     return t('priceKChars', { amount })
+  }
+
+  const modelDescription = (model: ModelOption) => {
+    const messageKey = MODEL_MESSAGE_KEYS[model.id]
+    if (!messageKey) return model.id
+    return tModels(`${messageKey}.description`)
   }
 
   return (
@@ -102,18 +187,29 @@ export function HomeV3Rails() {
               ) : null}
             </div>
 
-            <div className="home-v3-rail" data-home-v3-rail={rail.id}>
-              {rail.models.map(({ model, shot }) => (
-                <Link className="home-v3-mcard" href={rail.href} key={model.id}>
-                  <Image src={shot} alt="" width={320} height={320} />
-                  <div className="home-v3-mcard-top">
-                    <b>{modelLabel(model)}</b>
-                    <span>{priceLabel(model)}</span>
-                  </div>
-                  <p>{getProviderLabel(model.providerConfig)}</p>
-                </Link>
-              ))}
-            </div>
+            <HomeV3ModelRail
+              railId={rail.id}
+              labels={detailLabels}
+              models={rail.models.map(({ model, shot, shotKind }) => {
+                const name = modelLabel(model)
+                return {
+                  id: model.id,
+                  name,
+                  description: modelDescription(model),
+                  shot,
+                  shotKind,
+                  price: priceLabel(model),
+                  provider: getProviderLabel(model.providerConfig),
+                  modality: groupLabel,
+                  advantages: modelAdvantageKeys(model).map((key) =>
+                    t(`detail.advantages.${key}`),
+                  ),
+                  href: rail.href,
+                  officialUrl: model.officialUrl,
+                  viewDetailsLabel: t('detail.viewDetails', { model: name }),
+                }
+              })}
+            />
           </div>
         )
       })}

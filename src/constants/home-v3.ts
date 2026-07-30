@@ -26,7 +26,7 @@ export const HOME_V3_SHOTS = {
   nightFerryShot:
     '/homepage/production/video/night-ferry-seedance-first-frame-v1.webp',
   nightFerryVideo:
-    '/homepage/production/canvas/night-ferry-video-poster-v1.webp',
+    '/homepage/production/video/night-ferry-seedance-v1-frame-06.webp',
   s01: '/showcase/showcase-01.webp',
   s02: '/showcase/showcase-02.webp',
   s03: '/showcase/showcase-03.webp',
@@ -89,7 +89,7 @@ export const HOME_V3_CANVAS_NODES = [
     id: 'video',
     x: 800,
     y: 320,
-    model: 'Seedance 2.0',
+    model: 'Seedance 2.0 Fast',
     kind: 'image',
     shot: HOME_V3_SHOTS.nightFerryVideo,
     running: true,
@@ -199,7 +199,7 @@ export const HOME_V3_CAPS = [
   {
     id: 'imageToVideo',
     demo: 'video',
-    tags: ['Seedance 2.0', 'Kling 2.6', 'Veo 3.1', 'Gemini Omni Flash'],
+    tags: ['Seedance 2.0 Fast', 'Kling 2.6', 'Veo 3.1', 'Gemini Omni Flash'],
   },
   {
     id: 'imageTo3d',
@@ -216,18 +216,18 @@ export type HomeV3Cap = (typeof HOME_V3_CAPS)[number]
  * stills in a row read as "four images" and the row stops saying "video".
  */
 export const HOME_V3_VIDEO_DEMO = {
-  shot: HOME_V3_SHOTS.nightFerryShot,
-  model: 'Seedance 2.0',
+  video: '/homepage/production/video/night-ferry-seedance-v1.mp4',
+  shot: '/homepage/production/video/night-ferry-seedance-v1-frame-01.webp',
+  reducedMotionShot:
+    '/homepage/production/video/night-ferry-seedance-v1-frame-06.webp',
+  model: 'Seedance 2.0 Fast',
   spec: '5s · 24fps',
-  elapsed: '00:02',
-  duration: '00:05',
-  /** Playhead position, in percent — the scrub fill and its knob share it. */
-  progress: 42,
-  currentFrame: 2,
-  frames: Array.from({ length: 6 }, (_, k) => ({
-    scale: +(1 + k * 0.045).toFixed(3),
-    brightness: +(1 - k * 0.03).toFixed(2),
-  })),
+  durationSeconds: 5,
+  frames: Array.from(
+    { length: 6 },
+    (_, index) =>
+      `/homepage/production/video/night-ferry-seedance-v1-frame-${String(index + 1).padStart(2, '0')}.webp`,
+  ),
 } as const
 
 /* ── model rails ──────────────────────────────────────────────────────────── */
@@ -259,13 +259,50 @@ export const HOME_V3_RAIL_GROUPS = [
  * or exact checkpoint page. Keeping the files local avoids third-party tracking
  * and prevents an upstream social image change from silently changing the home.
  */
+const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
+  'gpt-image-2': '/homepage/production/models/brand/openai.svg',
+  'gemini-3-pro-image-preview': '/homepage/production/models/brand/gemini.svg',
+  'gemini-3.1-flash-image-preview':
+    '/homepage/production/models/brand/gemini.svg',
+  'gemini-3.1-flash-lite-image': '/homepage/production/models/brand/gemini.svg',
+  'gemini-omni-flash': '/homepage/production/models/brand/gemini.svg',
+  'flux-2-pro': '/homepage/production/models/brand/flux.svg',
+  'flux-2-pro-edit': '/homepage/production/models/brand/flux.svg',
+  'flux-2-flash': '/homepage/production/models/brand/flux.svg',
+  'flux-lora': '/homepage/production/models/brand/flux.svg',
+  'flux-kontext-max': '/homepage/production/models/brand/flux.svg',
+  'seedream-5.0-pro': '/homepage/production/models/brand/bytedance.svg',
+  'seedream-5.0-lite': '/homepage/production/models/brand/bytedance.svg',
+  'seedream-5.0-volcengine': '/homepage/production/models/brand/bytedance.svg',
+  'recraft-v4-pro': '/homepage/production/models/brand/recraft.svg',
+  'seedance-2.0-fast': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-fast-reference':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-reference': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-fast-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-volcengine': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-fast-reference-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-reference-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  'happyhorse-1.0': '/homepage/production/models/brand/alibaba-cloud.svg',
+  'eleven-music-v2': '/homepage/production/models/brand/eleven-music.svg',
+  'kling-v3-pro': '/homepage/production/models/brand/kling.svg',
+  'kling-o3-pro': '/homepage/production/models/brand/kling.svg',
+  'hunyuan3d-v3.1-pro': '/homepage/production/models/brand/hunyuan.svg',
+  'hunyuan3d-v3': '/homepage/production/models/brand/hunyuan.svg',
+  'trellis-2': '/homepage/production/models/brand/microsoft.svg',
+  triposr: '/homepage/production/models/brand/tripo.svg',
+}
+
 export function getHomeV3ModelCover(
   modelId: string,
   outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D',
 ) {
-  if (modelId === 'gpt-image-2') {
-    return '/homepage/production/models/image/gpt-image-2.png'
-  }
+  const brandCover = HOME_V3_MODEL_BRAND_COVERS[modelId]
+  if (brandCover) return brandCover
 
   const directory = {
     IMAGE: 'image',
@@ -274,6 +311,10 @@ export function getHomeV3ModelCover(
     MODEL_3D: 'model3d',
   }[outputType]
   return `/homepage/production/models/${directory}/${modelId}.webp`
+}
+
+export function isHomeV3ModelBrandCover(modelId: string) {
+  return modelId in HOME_V3_MODEL_BRAND_COVERS
 }
 
 /** A real, self-contained GLB rendered by the shared interactive viewer. */

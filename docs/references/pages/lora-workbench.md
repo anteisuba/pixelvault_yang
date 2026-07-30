@@ -221,6 +221,9 @@ UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（
 - 第一层按 `backend`（云端 API vs runner）分组（`SelectGroup` + `SelectLabel`）；**runner 组内再分一层**：按架构系（SDXL 系 / DiT 系——数据来源 `LoraBaseModel.family`，`anima-dit` 归 DiT，其余归 SDXL；新增架构自动成组）。
 - 现有「免费额度/需 API Key」徽标随分组标题上移（组级信息不逐项重复），组内项只留 名称 · 忠实/快 · Coming Soon 态。
 - 兼容过滤逻辑不变（仍只列 `getCompatibleBases(loraFamily)` 结果）；分组是纯展示层，空组不渲染。
+- 2026-07-28 owner 追加：底模目录每项维护一个本地 `coverImage`，换底模弹层、Generate
+  装配栏当前底模卡和折叠态按钮必须复用同一张素材；名称、family、执行通道和忠实度仍是
+  可访问文本，图片只增强识别，不成为唯一信息来源。
 
 ### 4.2 「常与它同挂」推荐行
 

@@ -17,6 +17,11 @@
  */
 import { NODE_STUDIO_VIDEO_REFERENCE_LEGEND } from '@/constants/node-studio'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  getVideoModelSendContract,
+  type VideoModelSendContract,
+} from '@/constants/video-model-send-plan'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -66,6 +71,14 @@ export interface VideoSendPreviewOverflowEntry {
 export interface VideoSendPreviewAudioEntry {
   index: number
   label: string
+  url: string
+  characterName?: string
+}
+
+export interface VideoSendPreviewDroppedEntry {
+  kind: 'image' | 'video' | 'audio'
+  url: string
+  reason: 'unsupported' | 'model-limit' | 'total-limit'
 }
 
 export interface VideoSendPreview {
@@ -93,6 +106,18 @@ export interface VideoSendPreview {
   assembledImageCount: number
   videoUrls: string[]
   audioEntries: VideoSendPreviewAudioEntry[]
+  dropped: VideoSendPreviewDroppedEntry[]
+  contract: VideoModelSendContract
+  /** Literal normalized request values consumed by the submit path. */
+  request: {
+    prompt: string
+    referenceImages?: string[]
+    videoUrls?: string[]
+    audioUrls?: string[]
+    audioBindings?: AudioBinding[]
+  }
+  canSubmit: boolean
+  blockers: Array<'execution-not-migrated' | 'audio-requires-visual'>
 }
 
 export interface BuildVideoSendPreviewInput {
@@ -100,6 +125,8 @@ export interface BuildVideoSendPreviewInput {
   data: NodeWorkflowNodeData
   edges: readonly NodeWorkflowEdge[]
   nodes: readonly NodeWorkflowNode[]
+  modelId?: string
+  adapterType?: AI_ADAPTER_TYPES
   /** undefined = model/cap unknown — capping is skipped entirely (§ "上限不可
    *  得时诚实沉默不硬造"): every candidate ships, overflow stays empty. */
   maxReferenceImages: number | undefined
@@ -121,9 +148,13 @@ export function buildVideoSendPreview({
   data,
   edges,
   nodes,
+  modelId,
+  adapterType,
   maxReferenceImages,
   autoNamePrefix,
 }: BuildVideoSendPreviewInput): VideoSendPreview {
+  const legacyMode = !modelId
+  const contract = getVideoModelSendContract(modelId, adapterType)
   const upstreamNodes = getUpstreamNodes(nodeId, edges, nodes)
   const ownPrompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, data)
   const upstreamTextPrompt = harvestUpstreamShotTextPrompt(upstreamNodes)
@@ -143,17 +174,51 @@ export function buildVideoSendPreview({
     ...harvestUpstreamImageUrls(upstreamNodes, edges, nodeId),
     ...harvestUpstreamCloseupUrls(nodeId, edges, nodes),
   ]
-  const upstreamAudioBindings: AudioBinding[] = harvestUpstreamAudioBindings(
+  const audioCandidates: AudioBinding[] = harvestUpstreamAudioBindings(
     nodeId,
     edges,
     nodes,
-  ).slice(0, 3)
-  const upstreamVideoUrls = harvestUpstreamVideoUrls(upstreamNodes).slice(0, 3)
+  )
+  const videoCandidates = harvestUpstreamVideoUrls(upstreamNodes)
 
-  const effectiveMax =
-    typeof maxReferenceImages === 'number'
-      ? maxReferenceImages
+  const audioLimit = legacyMode ? 3 : contract.slots.audio
+  const videoLimit = legacyMode ? 3 : contract.slots.videos
+  const upstreamAudioBindings = audioCandidates.slice(0, audioLimit)
+  const upstreamVideoUrls = videoCandidates.slice(0, videoLimit)
+
+  const dropped: VideoSendPreviewDroppedEntry[] = [
+    ...audioCandidates.slice(audioLimit).map((binding) => ({
+      kind: 'audio' as const,
+      url: binding.url,
+      reason:
+        audioLimit === 0 ? ('unsupported' as const) : ('model-limit' as const),
+    })),
+    ...videoCandidates.slice(videoLimit).map((url) => ({
+      kind: 'video' as const,
+      url,
+      reason:
+        videoLimit === 0 ? ('unsupported' as const) : ('model-limit' as const),
+    })),
+  ]
+
+  const configuredImageLimit = legacyMode
+    ? maxReferenceImages
+    : contract.slots.images
+  const remainingTotalSlots =
+    typeof contract.slots.total === 'number'
+      ? Math.max(
+          0,
+          contract.slots.total -
+            upstreamAudioBindings.length -
+            upstreamVideoUrls.length,
+        )
       : Number.POSITIVE_INFINITY
+  const effectiveMax = Math.min(
+    typeof configuredImageLimit === 'number'
+      ? configuredImageLimit
+      : Number.POSITIVE_INFINITY,
+    remainingTotalSlots,
+  )
   const referenceCandidateSources = [
     ...ownReferenceAssetUrls,
     ...upstreamImageUrls,
@@ -245,23 +310,76 @@ export function buildVideoSendPreview({
       name: resolveOverflowName(entry, videoImageRefByUrl),
     }),
   )
+  for (const url of referencedFilter.referenceImages.slice(effectiveMax)) {
+    dropped.push({
+      kind: 'image',
+      url,
+      reason:
+        remainingTotalSlots < (configuredImageLimit ?? Number.POSITIVE_INFINITY)
+          ? 'total-limit'
+          : 'model-limit',
+    })
+  }
 
   const audioEntries: VideoSendPreviewAudioEntry[] = upstreamAudioBindings.map(
     (binding, i) => ({
       index: i + 1,
+      url: binding.url,
+      characterName: binding.characterName,
       label: binding.characterName
         ? `${NODE_STUDIO_VIDEO_REFERENCE_LEGEND.kindLabel.character}「${binding.characterName}」${NODE_STUDIO_VIDEO_REFERENCE_LEGEND.characterVoiceSuffix}`
         : NODE_STUDIO_VIDEO_REFERENCE_LEGEND.narration,
     }),
   )
 
+  const usesPositionalTokens =
+    legacyMode || contract.positionalImageTokens === true
+  const outboundLegend = usesPositionalTokens ? legend : ''
+  const outboundPromptBody = usesPositionalTokens
+    ? translatedPrompt
+    : mergedPrompt
+  const requestPrompt = outboundLegend
+    ? `${outboundLegend}\n\n${outboundPromptBody}`
+    : outboundPromptBody
+  const blockers: VideoSendPreview['blockers'] = []
+  if (contract.execution !== 'ready') {
+    blockers.push('execution-not-migrated')
+  }
+  if (
+    !legacyMode &&
+    contract.slots.audioRequiresVisual &&
+    upstreamAudioBindings.length > 0 &&
+    effectiveReferenceImages.length === 0 &&
+    upstreamVideoUrls.length === 0
+  ) {
+    blockers.push('audio-requires-visual')
+  }
+
   return {
-    translatedPrompt,
-    legend,
+    translatedPrompt: outboundPromptBody,
+    legend: outboundLegend,
     images,
     overflow,
     assembledImageCount: assembly.imageUrls.length,
     videoUrls: upstreamVideoUrls,
     audioEntries,
+    dropped,
+    contract,
+    request: {
+      prompt: requestPrompt,
+      referenceImages:
+        effectiveReferenceImages.length > 0
+          ? effectiveReferenceImages
+          : undefined,
+      videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
+      audioUrls:
+        upstreamAudioBindings.length > 0
+          ? upstreamAudioBindings.map((binding) => binding.url)
+          : undefined,
+      audioBindings:
+        upstreamAudioBindings.length > 0 ? upstreamAudioBindings : undefined,
+    },
+    canSubmit: blockers.length === 0,
+    blockers,
   }
 }

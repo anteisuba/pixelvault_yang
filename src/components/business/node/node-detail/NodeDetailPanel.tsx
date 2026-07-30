@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useNodes } from '@xyflow/react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Minimize2 } from 'lucide-react'
@@ -12,9 +12,9 @@ import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
+import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
 import { GenericDetailBody } from './GenericDetailBody'
@@ -50,13 +50,8 @@ function getNodeName(
 }
 
 /**
- * Shared ⤢ floating "详情" panel (B3). A single centered overlay over the
- * canvas — it does NOT grow the card or reflow nodes ("不挤画布"). Enter/exit
- * animate via the canvas motion canon (`AnimatePresence` keeps it mounted for
- * the exit; backdrop fades, panel scales; `DURATION.slow` + `EASE_STANDARD`;
- * `useReducedMotion` zeroes the duration). Reads the target node live from the
- * ReactFlow store, dispatches its body by node type, closes on backdrop click /
- * Escape / 收起.
+ * Shared Object studio for one expanded canvas node. It is a canvas-contained
+ * modal: opening it never grows, moves, or changes the real graph node.
  */
 export function NodeDetailPanel({
   expandedNodeId,
@@ -66,14 +61,15 @@ export function NodeDetailPanel({
   const tTypes = useTranslations('StudioNode.nodeTypes')
   const t = useTranslations('StudioNode.nodeDetail')
   const reducedMotion = useReducedMotion()
+  const titleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const node = expandedNodeId
     ? (nodes.find((candidate) => candidate.id === expandedNodeId) ?? null)
     : null
-  // S5d ③ retires the role-picker step entirely (node-canvas.md §6.0/§6.1):
-  // a role-less `image` node presents as `image` itself (→ `LooseImageDetailBody`,
-  // registry.ts), NOT `resolveNodePresentationType`'s `shot` fallback — 图片
-  // （素材）must read as its own kind, distinct from 镜头图（生成）.
+  // A role-less image is an asset atom, not resolveNodePresentationType's shot
+  // fallback. It therefore keeps the dedicated loose-image detail family.
   const isLooseImage = Boolean(
     node?.type === NODE_TYPE_IDS.image && !node.data.role,
   )
@@ -82,8 +78,6 @@ export function NodeDetailPanel({
       ? NODE_TYPE_IDS.image
       : resolveNodePresentationType(node)
     : null
-  // Single-layer breadcrumb now that the role-picker parent layer is gone —
-  // every detail view returns straight to the canvas.
   const parentCrumb = {
     label: t('canvasCrumb'),
     title: t('backToCanvas'),
@@ -93,13 +87,25 @@ export function NodeDetailPanel({
   useEffect(() => {
     if (!node) return
     const handleKey = (event: KeyboardEvent) => {
-      // R3-4 §4.2: don't eat the Escape a CJK IME uses to cancel its own
-      // composition inside a field this panel hosts (e.g. a rename input).
+      // Escape can be consumed by a CJK IME before it closes the workspace.
       if (event.key === 'Escape' && !event.isComposing) onClose()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [node, onClose])
+
+  useEffect(() => {
+    if (!node) return
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+    closeButtonRef.current?.focus({ preventScroll: true })
+    return () => {
+      previousFocusRef.current?.focus({ preventScroll: true })
+      previousFocusRef.current = null
+    }
+  }, [node])
 
   const transition = motionTransition('slow', reducedMotion)
 
@@ -112,8 +118,7 @@ export function NodeDetailPanel({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={transition}
-          // R3-4 §4.1 L6: 对象任务面板，画布内唯一带 backdrop 的层。
-          className="pointer-events-auto absolute inset-0 z-canvas-panel flex items-center justify-center p-4"
+          className="canvas-object-studio-overlay pointer-events-auto absolute inset-0 z-canvas-panel flex items-center justify-center"
         >
           <button
             type="button"
@@ -121,32 +126,23 @@ export function NodeDetailPanel({
             onClick={onClose}
             className="canvas-modal-scrim absolute inset-0 cursor-default"
           />
-          {/* v0.2（2026-07-27）：.canvas-modal-surface（canvas.css）换成规格
-              §5 的白模态面配方，并在该类里做 --node-* 变量的容器级重映射（同
-              .canvas-glass 的 strangler 手法）——下面 header 与各 Body 里仍在
-              用的 text-node-muted / hover:bg-node-panel-inner 等类名不用逐处
-              碰，靠这层变量覆盖自动读到 v0.2 浅色值。内容分区本身（各
-              registry Body，如 CharacterImageInspector）不在本片范围，只是
-              顺带吃到了同一层变量重映射。 */}
           <motion.div
             initial={{ scale: 0.96 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0.97 }}
             transition={transition}
-            style={{ maxWidth: 'calc(100vw - 2rem)' }}
-            className={cn(
-              'canvas-modal-surface relative flex max-h-[80svh] flex-col overflow-hidden',
-              node.type === NODE_TYPE_IDS.seedance ||
-                node.type === NODE_TYPE_IDS.videoMerge
-                ? 'w-node-detail-panel-wide'
-                : 'w-node-detail-panel',
-            )}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            data-node-detail-layout="object-studio"
+            data-node-detail-family={presentationType}
+            className="canvas-modal-surface canvas-object-studio-surface relative flex min-w-0 flex-col overflow-hidden"
           >
-            <header className="canvas-modal-divider flex items-center justify-between gap-3 border-b px-5 py-4">
-              <div className="flex min-w-0 items-center gap-2">
+            <header className="canvas-modal-divider canvas-object-studio-header flex items-center justify-between border-b">
+              <div className="flex min-w-0 items-center gap-3">
                 <span
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
+                    'flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
                     NODE_ACCENTS[presentationType].iconPlate,
                     NODE_ACCENTS[presentationType].iconText,
                   )}
@@ -154,20 +150,26 @@ export function NodeDetailPanel({
                 >
                   {NODE_TOKEN_BADGE_LABELS[presentationType]}
                 </span>
-                <div className="flex min-w-0 items-center gap-1.5 text-sm">
-                  <button
-                    type="button"
-                    onClick={parentCrumb.onClick}
-                    aria-label={parentCrumb.title}
-                    title={parentCrumb.title}
-                    className="shrink-0 rounded-md px-1.5 py-0.5 font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-                  >
-                    {parentCrumb.label}
-                  </button>
-                  <span aria-hidden className="shrink-0 text-node-subtle">
-                    /
+                <div className="grid min-w-0 gap-0.5">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-node-muted">
+                    <button
+                      type="button"
+                      onClick={parentCrumb.onClick}
+                      aria-label={parentCrumb.title}
+                      title={parentCrumb.title}
+                      className="shrink-0 rounded-md px-1 py-0.5 font-medium transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+                    >
+                      {parentCrumb.label}
+                    </button>
+                    <span aria-hidden className="shrink-0 text-node-subtle">
+                      /
+                    </span>
+                    <span className="truncate">{tTypes(presentationType)}</span>
                   </span>
-                  <span className="truncate font-semibold text-node-foreground">
+                  <span
+                    id={titleId}
+                    className="truncate text-base font-semibold text-node-foreground"
+                  >
                     {getNodeName(
                       node,
                       presentationType,
@@ -179,28 +181,34 @@ export function NodeDetailPanel({
               <div className="flex shrink-0 items-center gap-2">
                 <NodeStatusBadge status={node.data.status} />
                 <button
+                  ref={closeButtonRef}
                   type="button"
                   onClick={onClose}
                   aria-label={t('close')}
                   title={t('close')}
-                  className="flex size-8 items-center justify-center rounded-lg text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+                  className="flex size-10 items-center justify-center rounded-full text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
                 >
                   <Minimize2 className="size-4" />
                 </button>
               </div>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {(() => {
-                const Body =
-                  NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
-                return (
-                  <Body
-                    nodeId={node.id}
-                    type={presentationType}
-                    data={node.data}
-                  />
-                )
-              })()}
+            <div
+              className="canvas-object-studio-body min-h-0 min-w-0 flex-1 overflow-y-auto"
+              data-node-detail-body="true"
+            >
+              <div className="canvas-object-studio-content min-w-0">
+                {(() => {
+                  const Body =
+                    NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
+                  return (
+                    <Body
+                      nodeId={node.id}
+                      type={presentationType}
+                      data={node.data}
+                    />
+                  )
+                })()}
+              </div>
             </div>
           </motion.div>
         </motion.div>

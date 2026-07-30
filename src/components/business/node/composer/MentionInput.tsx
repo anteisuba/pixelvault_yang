@@ -257,6 +257,8 @@ export interface MentionInputProps {
   placeholder?: string
   className?: string
   'aria-label'?: string
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>
+  onKeyUp?: KeyboardEventHandler<HTMLDivElement>
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>
   onKeyUpCapture?: KeyboardEventHandler<HTMLDivElement>
 }
@@ -281,6 +283,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       tokens,
       placeholder,
       className,
+      onKeyDown,
+      onKeyUp,
       onKeyDownCapture,
       onKeyUpCapture,
       ...rest
@@ -318,10 +322,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       lastValueRef.current = value
     }, [value, isComposing, knownNames, tokenByName])
 
-    const emit = () => {
+    const emit = (serializedValue?: string) => {
       const el = editorRef.current
       if (!el) return
-      const next = serializeEditor(el)
+      const next = serializedValue ?? serializeEditor(el)
       lastValueRef.current = next
       onValueChange(next)
     }
@@ -370,7 +374,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         suppressContentEditableWarning
         data-placeholder={placeholder}
         onInput={() => {
-          if (!isComposing) emit()
+          if (!isComposing) {
+            const el = editorRef.current
+            if (!el) return
+            const next = serializeEditor(el)
+            emit(next)
+          }
         }}
         onCompositionStart={() => setIsComposing(true)}
         onCompositionEnd={() => {
@@ -387,6 +396,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
           emit()
         }}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
         onKeyDownCapture={onKeyDownCapture}
         onKeyUpCapture={onKeyUpCapture}
         className={cn(

@@ -27,7 +27,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
-import { VIDEO_VARIANTS } from '@/constants/video-brands'
+import { ALL_VIDEO_VARIANTS } from '@/constants/video-brands'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
 import {
@@ -353,13 +353,11 @@ export const NodeWorkflowNodeDataSchema = z
      */
     scriptRef: ScriptRefSchema.optional(),
     /**
-     * S5c 三.3 融合（散图→角色/背景卡）: set on a LOOSE image node (role
-     * undefined) once its image has been absorbed into a target identity
-     * node's `referenceAssets` (source:'canvas', sourceId:<this node's id>).
-     * `StudioNodeWorkbench`'s render-time hidden fold reads this alongside
-     * `isCastIdentityNode` — same "hidden flag only, never a filtered array"
-     * rule as the rest of the S5b/S5c render fold. Cleared by 拆出 (extract),
-     * which un-hides the node in place instead of spawning a new one.
+     * @deprecated Compatibility-only parser field for pre-2026-07-30
+     * projects. Runtime hydration removes it with
+     * `migrateRetireFusedNodes`; current interactions must never write or
+     * render from it. It remains parseable for one migration window so old
+     * JSON cannot fail the whole workflow-state validation.
      */
     fusedIntoNodeId: z.string().trim().min(1).max(160).optional(),
     /**
@@ -436,7 +434,8 @@ export const NodeWorkflowEdgeSchema = z
  */
 export const VideoDefaultModelSchema = z.object({
   brand: z.string().trim().min(1).max(40),
-  variant: z.enum(VIDEO_VARIANTS),
+  // Seedance speed (standard/fast) or Kling product track (v3/o3).
+  variant: z.enum(ALL_VIDEO_VARIANTS),
 })
 export type VideoDefaultModel = z.infer<typeof VideoDefaultModelSchema>
 

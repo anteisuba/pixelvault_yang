@@ -99,6 +99,22 @@ describe('VideoMergeInspector', () => {
     })
   })
 
+  it('separates the result monitor from clip assembly controls', () => {
+    renderMerge()
+
+    const studio = screen.getByTestId('video-merge-object-studio')
+    expect(studio).toHaveClass(
+      'canvas-object-studio-grid',
+      'canvas-object-studio-grid--balanced',
+    )
+    expect(
+      studio.querySelector('.canvas-object-studio-media-rail'),
+    ).toBeInTheDocument()
+    expect(
+      studio.querySelector('.canvas-object-studio-task-rail'),
+    ).toBeInTheDocument()
+  })
+
   it('merges two upstream clips in their displayed order', async () => {
     renderMerge()
 

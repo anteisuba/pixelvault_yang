@@ -17,12 +17,14 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
-    externalModelId: 's2-pro',
+    // Production recommendation (2026-07 Fish docs): s2.1-pro. Catalog enum
+    // stays fish-audio-s2-pro for generation history / VoiceCard stability.
+    externalModelId: 's2.1-pro',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SPEECH,
     available: true,
     officialUrl:
-      'https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech',
+      'https://docs.fish.audio/developer-guide/models-pricing/models-overview',
     timeoutMs: 60_000,
     qualityTier: 'premium',
   },
@@ -60,6 +62,21 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     officialUrl:
       'https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert',
     timeoutMs: 60_000,
+    qualityTier: 'premium',
+  },
+  {
+    id: AI_MODELS.ELEVENLABS_MUSIC_V2,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
+    // Body model_id for POST /v1/music (Compose). Default API still may be
+    // music_v1 during transition; we pin v2 explicitly.
+    externalModelId: 'music_v2',
+    outputType: 'AUDIO',
+    audioKind: AUDIO_KIND.MUSIC,
+    available: true,
+    officialUrl: 'https://elevenlabs.io/docs/api-reference/music/compose',
+    timeoutMs: 180_000,
     qualityTier: 'premium',
   },
 ]

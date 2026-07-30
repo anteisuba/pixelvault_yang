@@ -2,11 +2,8 @@ import 'server-only'
 
 import type { AspectRatio } from '@/constants/config'
 import { getModelById } from '@/constants/models'
-import {
-  getReferenceCapabilityMax,
-  getVideoReferenceCapability,
-} from '@/constants/reference-image-capabilities'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
+import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import type { VideoResolution } from '@/constants/video-options'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
@@ -17,6 +14,8 @@ interface ValidateVideoGenerationInput {
   duration?: number | 'auto'
   referenceImage?: string
   referenceImages?: string[]
+  audioUrls?: string[]
+  videoUrls?: string[]
   resolution?: VideoResolution
 }
 
@@ -32,6 +31,8 @@ export function validateVideoGenerationInput({
   duration,
   referenceImage,
   referenceImages,
+  audioUrls,
+  videoUrls,
   resolution,
 }: ValidateVideoGenerationInput): void {
   const modelConfig = getModelById(modelId)
@@ -56,8 +57,12 @@ export function validateVideoGenerationInput({
   // an over-cap array. Reject before sending to fal so the user gets a
   // structured error instead of a 4xx from the provider.
   const refCount = referenceImages?.length ?? (referenceImage ? 1 : 0)
-  const refCap = getReferenceCapabilityMax(getVideoReferenceCapability(modelId))
-  if (refCount > refCap) {
+  const sendContract = getVideoModelSendContract(
+    modelId,
+    modelConfig.adapterType,
+  )
+  const refCap = sendContract.slots.images
+  if (typeof refCap === 'number' && refCount > refCap) {
     throw new GenerateImageServiceError(
       'REFERENCE_IMAGE_LIMIT_EXCEEDED',
       `This model accepts at most ${refCap} reference ${refCap === 1 ? 'image' : 'images'} (got ${refCount}).`,
@@ -65,11 +70,64 @@ export function validateVideoGenerationInput({
     )
   }
 
+  const videoCount = videoUrls?.length ?? 0
+  const audioCount = audioUrls?.length ?? 0
+  if (videoCount > sendContract.slots.videos) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      `This model accepts at most ${sendContract.slots.videos} reference videos (got ${videoCount}).`,
+      400,
+    )
+  }
+  if (audioCount > sendContract.slots.audio) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      `This model accepts at most ${sendContract.slots.audio} reference audio clips (got ${audioCount}).`,
+      400,
+    )
+  }
+  if (
+    typeof sendContract.slots.total === 'number' &&
+    refCount + videoCount + audioCount > sendContract.slots.total
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      `This model accepts at most ${sendContract.slots.total} reference inputs in total.`,
+      400,
+    )
+  }
+
   const hasReferenceImage = refCount > 0
-  if (capabilities.requiresReferenceImage && !hasReferenceImage) {
+  const hasVisualReference = hasReferenceImage || videoCount > 0
+  if (
+    sendContract.slots.audioRequiresVisual &&
+    audioCount > 0 &&
+    !hasVisualReference
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Reference audio requires at least one reference image or video',
+      400,
+    )
+  }
+  if (
+    capabilities.requiresReferenceImage &&
+    sendContract.referenceMode !== 'multimodal-reference' &&
+    !hasReferenceImage
+  ) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       'This video model requires a reference image',
+      400,
+    )
+  }
+  if (
+    sendContract.referenceMode === 'multimodal-reference' &&
+    !hasVisualReference
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'This video model requires at least one reference image or video',
       400,
     )
   }

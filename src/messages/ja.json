@@ -564,7 +564,39 @@
       "groupCount": "{count} 件",
       "priceImage": "{amount} / 枚",
       "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 1k 文字"
+      "priceKChars": "{amount} / 1k 文字",
+      "detail": {
+        "viewDetails": "{model} の詳細を見る",
+        "canDo": "できること",
+        "advantagesTitle": "強み",
+        "provider": "プロバイダー",
+        "pricing": "参考価格",
+        "modality": "モダリティ",
+        "openStudio": "このモデルで制作",
+        "officialDocs": "公式モデルページ",
+        "close": "モデル詳細を閉じる",
+        "advantages": {
+          "premiumQuality": "プレミアム品質の出力",
+          "balancedQuality": "品質と速度のバランス",
+          "fastValue": "高速で低コストな反復",
+          "freeTier": "無料枠に対応",
+          "imageGeneration": "テキストから画像生成",
+          "videoGeneration": "テキストから動画生成",
+          "photorealistic": "写実的なレンダリング",
+          "anime": "アニメ・イラスト制作",
+          "design": "デザイン・ブランドグラフィック",
+          "artistic": "シネマティックで芸術的な画像",
+          "versatile": "幅広いクリエイティブ用途",
+          "lora": "カスタム LoRA 対応",
+          "imageToVideo": "画像から動画生成",
+          "referenceInput": "参照画像による制御",
+          "nativeAudio": "ネイティブ音声生成",
+          "speech": "多言語テキスト読み上げ",
+          "soundEffects": "テキストから効果音生成",
+          "imageTo3d": "画像から 3D 再構成",
+          "glbOutput": "再利用できる GLB アセット"
+        }
+      }
     },
     "canvasView": {
       "nodes": {
@@ -650,13 +682,16 @@
     },
     "videoDemo": {
       "bar": "先頭フレーム · Seedream 5.0 → Seedance 2.0",
-      "firstFrame": "先頭フレーム"
+      "firstFrame": "先頭フレーム",
+      "play": "動画を再生",
+      "pause": "動画を一時停止",
+      "seek": "動画をシーク"
     },
     "turntableDemo": {
       "bar": "ソース · 静物 #0142"
     },
     "foot": {
-      "tagline": "生成の入口と作品の記録、そして自分の進め方をひとつの場所に。生成ごとに prompt・モデル・提供元・seed を保存します。",
+      "tagline": "生成・記録・再利用をひとつの場所に。結果ごとに主要な設定を残します。",
       "cols": {
         "product": {
           "title": "プロダクト",
@@ -2920,9 +2955,13 @@
       "label": "Flux 2 Pro",
       "description": "Black Forest Labs による最高品質の画像生成モデル。"
     },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro Edit",
+      "description": "複数参照画像での編集 — プロンプトと複数ソース画像で変換。"
+    },
     "flux2Flash": {
       "label": "FLUX 2 Flash",
-      "description": "fal.ai ???????? FLUX 2??????????????????"
+      "description": "fal.ai 経由の低コストな FLUX 2。ラフ生成と高速な反復に適しています。"
     },
     "fluxLora": {
       "label": "FLUX LoRA",
@@ -2938,7 +2977,7 @@
     },
     "ideogram3": {
       "label": "Ideogram V4",
-      "description": "???????????????????????????????"
+      "description": "文字表現とグラフィック構成に強い、デザイン特化の画像モデル。"
     },
     "seedream45": {
       "label": "Seedream 4.5",
@@ -3005,8 +3044,8 @@
       "description": "PixelVault Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
     },
     "fishAudioS2Pro": {
-      "label": "Fish Audio S2 Pro",
-      "description": "評価トップのTTS、30以上の言語で音声クローニング対応"
+      "label": "Fish Audio S2.1 Pro",
+      "description": "推奨の本番 TTS — 83言語、自然言語の感情タグ、ボイスクローン"
     },
     "elevenV3": {
       "label": "ElevenLabs v3",
@@ -3016,17 +3055,25 @@
       "label": "ElevenLabs SFX v2",
       "description": "テキストプロンプトから効果音・フォーリーを生成"
     },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2",
+      "description": "自然言語プロンプトでスタジオ品質の楽曲を生成（楽器 or ボーカル）"
+    },
     "happyhorse10": {
       "label": "HappyHorse 1.0",
-      "description": "fal.ai ??? Alibaba ??????????????text-to-video?image-to-video ???????"
+      "description": "fal.ai 経由の Alibaba 動画モデル。ネイティブ音声、テキスト動画、画像動画に対応。"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
       "description": "マルチショット絵コンテ、ネイティブ音声、キャラ一貫性"
     },
+    "klingO3Pro": {
+      "label": "Kling O3 Pro (Omni)",
+      "description": "Omni トラック — 要素・動画参照、ネイティブ音声、映画的マルチショット"
+    },
     "ltx23": {
       "label": "LTX 2.3",
-      "description": "?? 1080p ??????????? fal.ai ??????????????????"
+      "description": "音声生成にも対応する、高速な 1080p クリップ向け fal.ai 動画モデル。"
     },
     "seedance20": {
       "label": "Seedance 2.0",
@@ -3066,7 +3113,7 @@
     },
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
-      "description": "Googleの動画モデル — ブラインド評価の動画アリーナで全項目1位。720pでネイティブ音声対応。"
+      "description": "Google 動画（API は preview id のまま）— アリーナ高評価、ネイティブ音声。GA id 公開後に切替。"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3950,6 +3997,8 @@
       },
       "noModel": "先に動画モデルを選択してください。",
       "noInput": "動画プロンプトを入力するか、上流ノードを接続してください。",
+      "executionNotMigrated": "このモデルの動画実行経路はまだ接続されていないため、キャンバスから送信できません。",
+      "audioRequiresVisual": "参照音声だけでは送信できません。画像または動画を1つ以上接続してください。",
       "generate": "動画を生成",
       "regenerate": "動画を再生成",
       "statusIdle": "生成できます",
@@ -3960,7 +4009,7 @@
         "ariaLabel": "動画構成エディター",
         "eyebrow": "動画構成 · 右側編集",
         "titleFallback": "動画生成",
-        "detailAction": "詳細編集",
+        "detailAction": "エディターを拡大",
         "compactAction": "詳細を閉じる",
         "close": "動画構成エディターを閉じる"
       }
@@ -4091,9 +4140,21 @@
         "empty": "生成後にここにプレビューが表示されます",
         "rec": "REC"
       },
+      "studio": {
+        "currentFilm": "現在の映像",
+        "filmMeta": "{duration} · {aspect} · {resolution}",
+        "sentAssets": "実際に送信する素材",
+        "assetCount": "接続済み {count} 件",
+        "composition": "今回の構成",
+        "modelParameters": "モデルパラメータ",
+        "supportedOnly": "現在のモデルが対応する項目のみ表示",
+        "sendSummary": "入力 {inputs} 件 · 除外 {dropped} 件"
+      },
       "variant": {
         "standard": "標準",
-        "fast": "高速"
+        "fast": "高速",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro (Omni)"
       },
       "provider": {
         "fal": "fal",
@@ -4192,6 +4253,7 @@
         "rowMenu": "その他の操作",
         "rowLocate": "キャンバスで表示",
         "rowRemove": "接続を解除",
+        "routedThrough": "{name} と一緒に送信",
         "capacityWarning": "候補の参考画像が合計 {count} 枚あり、モデルの上限 {max} 枚を超えています（うち {truncated} 枚は送信されません）",
         "counterOverflow": "{sent}/{max} ⚠",
         "closeManager": "素材管理を閉じる",
@@ -4357,6 +4419,7 @@
         "label": "長さ",
         "placeholder": "例：4s、6s、8s...",
         "auto": "自動（モデルが決定）",
+        "custom": "カスタム",
         "seconds": "{value} 秒"
       },
       "audioIntent": {
@@ -4605,7 +4668,19 @@
     },
     "minimapTitle": "ミニマップ",
     "castDock": {
-      "title": "キャスト",
+      "title": "ノード",
+      "searchLabel": "キャンバスのノードを検索",
+      "searchPlaceholder": "ノードを検索…",
+      "groups": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画"
+      },
+      "referenceCount": "参照 {count} 件",
+      "empty": "キャンバスにノードがありません",
+      "noResults": "一致するノードがありません",
+      "locateNode": "{name}を表示",
       "expand": "キャストドックを展開",
       "collapse": "キャストドックを折りたたむ",
       "handle": "Cast · {count}",

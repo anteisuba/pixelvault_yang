@@ -8,12 +8,22 @@ import type {
 } from '@/types/node-workflow'
 
 const { received } = vi.hoisted(() => ({
-  received: { node: null as NodeWorkflowNode | null },
+  received: {
+    node: null as NodeWorkflowNode | null,
+    layout: null as string | null,
+  },
 }))
 
 vi.mock('../inspector/BackgroundImageInspector', () => ({
-  BackgroundImageInspector: ({ node }: { node: NodeWorkflowNode }) => {
+  BackgroundImageInspector: ({
+    node,
+    layout,
+  }: {
+    node: NodeWorkflowNode
+    layout?: string
+  }) => {
     received.node = node
+    received.layout = layout ?? null
     return <div data-testid="background-inspector">{node.id}</div>
   },
 }))
@@ -43,5 +53,6 @@ describe('BackgroundDetailBody', () => {
       data,
     })
     expect(received.node?.position).toEqual({ x: 0, y: 0 })
+    expect(received.layout).toBe('object-studio')
   })
 })

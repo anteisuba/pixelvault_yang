@@ -1,22 +1,18 @@
-import type { ComponentProps } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key} ${JSON.stringify(params)}` : key,
 }))
 
-const { flowState, mockSetExpandedNodeId, mockDeleteNode, mockBeginDrag } =
-  vi.hoisted(() => ({
-    flowState: {
-      nodes: [] as Array<Record<string, unknown>>,
-      edges: [] as Array<Record<string, unknown>>,
-    },
-    mockSetExpandedNodeId: vi.fn(),
-    mockDeleteNode: vi.fn(),
-    mockBeginDrag: vi.fn(),
-  }))
+const { flowState, mockFocusNode } = vi.hoisted(() => ({
+  flowState: {
+    nodes: [] as Array<Record<string, unknown>>,
+    edges: [] as Array<Record<string, unknown>>,
+  },
+  mockFocusNode: vi.fn(),
+}))
 
 vi.mock('@xyflow/react', () => ({
   useNodes: () => flowState.nodes,
@@ -25,22 +21,17 @@ vi.mock('@xyflow/react', () => ({
 
 vi.mock('./NodeWorkflowActionsContext', () => ({
   useNodeWorkflowActions: () => ({
-    setExpandedNodeId: mockSetExpandedNodeId,
-    expandedNodeId: null,
-    deleteNode: mockDeleteNode,
+    focusNode: mockFocusNode,
   }),
 }))
 
-vi.mock('./IngestDragLayer', () => ({
-  useIngestDrag: () => ({
-    beginDrag: mockBeginDrag,
-    dragState: { active: false, sourceNodeId: null, ghost: null, reason: null },
-  }),
-}))
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-
-import { CastDock, isCastIdentityNode } from './CastDock'
+import { CastDock, countCanvasNodes } from './CastDock'
 
 function makeNode(
   id: string,
@@ -51,307 +42,133 @@ function makeNode(
     id,
     type,
     position: { x: 0, y: 0 },
-    data: { prompt: '', status: 'idle', ...data },
+    data: { prompt: '', status: NODE_STATUS_IDS.idle, ...data },
   }
 }
 
-function renderDock(
-  onCreateCard = vi.fn(),
-  extraProps: Partial<ComponentProps<typeof CastDock>> = {},
-) {
-  return render(
-    <CastDock
-      onCreateCard={onCreateCard}
-      insetLeft={16}
-      insetRight={16}
-      {...extraProps}
-    />,
-  )
-}
-
-describe('CastDock', () => {
-  beforeAll(() => {
-    // jsdom lacks the observers Radix/floating-ui rely on (the trailing
-    // ＋新建 tile's type picker is a real Popover since S5d's 【紧急修复】—
-    // a hand-rolled absolute div got clipped by the strip's own overflow).
-    if (!('ResizeObserver' in globalThis)) {
-      class ResizeObserverStub {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      }
-      vi.stubGlobal('ResizeObserver', ResizeObserverStub)
-    }
-    if (!Element.prototype.scrollIntoView) {
-      Element.prototype.scrollIntoView = () => {}
-    }
-    if (typeof window.matchMedia !== 'function') {
-      vi.stubGlobal('matchMedia', (query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }))
-    }
-  })
-
+describe('CastDock all-node locator', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     flowState.nodes = []
     flowState.edges = []
   })
 
-  it('renders nothing when the canvas has no nodes (mirror view, no data to mirror)', () => {
-    const { container } = renderDock()
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  // S5d ①「卡匣回横匣」: no click-to-open step anymore — both sections and
-  // their cards are visible immediately, side by side.
-  it('shows character/background sections with their cards immediately, no expand click required', () => {
+  it('groups every live node by modality and renders each exactly once', () => {
     flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
+      makeNode('text-1', NODE_TYPE_IDS.shotText, {
+        mediaLabel: '第一镜',
+      }),
+      makeNode('image-1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.character,
         characterName: '黛西',
+        mediaUrl: 'https://cdn.example.com/daisy.png',
       }),
-      makeNode('b1', NODE_TYPE_IDS.image, {
+      makeNode('audio-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
+      makeNode('video-1', NODE_TYPE_IDS.seedance, {
+        mediaLabel: '渡轮甲板',
+      }),
+      makeNode('video-2', NODE_TYPE_IDS.videoReference, {
+        mediaLabel: '雨夜参考',
+      }),
+    ]
+
+    render(<CastDock />)
+
+    expect(screen.getByText('groups.text')).toBeInTheDocument()
+    expect(screen.getByText('groups.image')).toBeInTheDocument()
+    expect(screen.getByText('groups.audio')).toBeInTheDocument()
+    expect(screen.getByText('groups.video')).toBeInTheDocument()
+    expect(screen.getByText('第一镜')).toBeInTheDocument()
+    expect(screen.getByText('黛西')).toBeInTheDocument()
+    expect(screen.getByText('旁白')).toBeInTheDocument()
+    expect(screen.getByText('渡轮甲板')).toBeInTheDocument()
+    expect(screen.getByText('雨夜参考')).toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(5)
+  })
+
+  it('searches display name, localized type, prompt, and image role', () => {
+    flowState.nodes = [
+      makeNode('image-1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.background,
-        backgroundName: '夜街',
+        backgroundName: '码头',
+        prompt: '潮湿的海边与远处灯塔',
       }),
-      // Not a Cast identity node — must not leak into any section.
-      makeNode('s1', NODE_TYPE_IDS.shot, {}),
+      makeNode('voice-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
     ]
 
-    renderDock()
+    render(<CastDock />)
+    const search = screen.getByRole('searchbox', { name: 'searchLabel' })
 
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
-    expect(screen.getByTitle('夜街')).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: '灯塔' } })
+    expect(screen.getByText('码头')).toBeInTheDocument()
+    expect(screen.queryByText('旁白')).not.toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'nodeTypes.voice' } })
+    expect(screen.queryByText('码头')).not.toBeInTheDocument()
+    expect(screen.getByText('旁白')).toBeInTheDocument()
   })
 
-  // owner 2026-07-10 追加拍板：卡匣只放卡片，音色/参考视频是素材不进卡匣
-  // （它们仍走同一条"零引用可见"画布规则，只是不再有 dock 卡面）。
-  it('never renders voice/videoReference nodes as dock cards even though they still count as Cast identity nodes', () => {
+  it('selects and locates the real node without opening a detail surface', () => {
     flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
+      makeNode('image-1', NODE_TYPE_IDS.image, {
         characterName: '黛西',
-      }),
-      makeNode('v1', NODE_TYPE_IDS.voice, { voiceName: '温柔女声' }),
-      makeNode('r1', NODE_TYPE_IDS.videoReference, { mediaLabel: '开场运镜' }),
-    ]
-
-    renderDock()
-
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
-    expect(screen.queryByTitle('温柔女声')).not.toBeInTheDocument()
-    expect(screen.queryByTitle('开场运镜')).not.toBeInTheDocument()
-  })
-
-  // §6.0 修正①「空分区不占位」
-  it('hides a section entirely when it has no cards', () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
       }),
     ]
 
-    renderDock()
+    render(<CastDock />)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'locateNode {"name":"黛西"}',
+      }),
+    )
 
-    expect(screen.getByText('sections.character')).toBeInTheDocument()
-    expect(screen.queryByText('sections.background')).not.toBeInTheDocument()
+    expect(mockFocusNode).toHaveBeenCalledWith('image-1')
   })
 
-  it('opens the node detail panel (胃) instead of focusing the canvas when a card is tapped', () => {
+  it('shows outgoing reference counts but no create, edit, or delete controls', () => {
     flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
+      makeNode('source', NODE_TYPE_IDS.image, {
         characterName: '黛西',
-      }),
-    ]
-
-    renderDock()
-    fireEvent.click(screen.getByTitle('黛西'))
-
-    expect(mockSetExpandedNodeId).toHaveBeenCalledWith('c1')
-  })
-
-  // §6.0 修正①: one trailing ＋新建 tile opens a 2-item type picker
-  // (角色/场景) instead of a per-section button. Popover-based (【紧急修复】
-  // owner 2026-07-11 实测发现手写 absolute 菜单被 strip 的 overflow 裁切
-  // 隐藏 — 换成真 Popover 才能逃出裁切，同时拿到 outside-click/Esc)。
-  it('opens a type picker from the single trailing ＋新建 tile and creates the picked type', async () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
         role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
       }),
-    ]
-    const onCreateCard = vi.fn()
-
-    renderDock(onCreateCard)
-
-    // Only one create trigger exists now.
-    expect(screen.getAllByRole('button', { name: 'create' })).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'create' }))
-
-    const backgroundOption = await screen.findByText('sections.background')
-    fireEvent.click(backgroundOption)
-    expect(onCreateCard).toHaveBeenCalledWith(NODE_IMAGE_ROLE_IDS.background)
-  })
-
-  it('computes the identity badge (📷 referenceAssets + closeup edges, ♪ voice edge existence) from a single edges pass', () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-        referenceAssets: [
-          { id: 'r1', url: 'https://x/1.png', source: 'upload' },
-        ],
+      makeNode('target', NODE_TYPE_IDS.seedance, {
+        mediaLabel: '镜头视频',
       }),
-      makeNode('close1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.closeup,
-      }),
-      makeNode('voice1', NODE_TYPE_IDS.voice, {}),
     ]
     flowState.edges = [
-      { id: 'e1', source: 'close1', target: 'c1' },
-      { id: 'e2', source: 'voice1', target: 'c1' },
+      { id: 'edge-1', source: 'source', target: 'target' },
+      { id: 'edge-2', source: 'source', target: 'target-2' },
     ]
 
-    renderDock()
+    render(<CastDock />)
 
-    const badge = screen.getByLabelText(
-      'referenceCountAria {"count":2} · voiceBoundAria',
-    )
-    expect(badge).toHaveTextContent('📷2 ♪')
+    expect(screen.getByText('referenceCount {"count":2}')).toBeInTheDocument()
+    expect(screen.queryByText('create')).not.toBeInTheDocument()
+    expect(screen.queryByText('deleteCard')).not.toBeInTheDocument()
   })
 
-  it('collapses to a small handle pill and re-expands, without losing the total count', () => {
+  it('distinguishes an empty canvas from a search with no matches', () => {
+    const { rerender } = render(<CastDock />)
+    expect(screen.getByText('empty')).toBeInTheDocument()
+
     flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
+      makeNode('voice-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
     ]
-
-    renderDock()
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'collapse' }))
-    expect(screen.queryByTitle('黛西')).not.toBeInTheDocument()
-    expect(screen.getByText('handle {"count":1}')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'expand' }))
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
+    rerender(<CastDock />)
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: '不存在' },
+    })
+    expect(screen.getByText('noResults')).toBeInTheDocument()
   })
 
-  // R3-4 (canvas-relationship-v3 §4.2 rule 3/1): a higher tier (add menu /
-  // 详情面板 / 重编辑工作区) claims the L5 slot — CastDock collapses itself.
-  it('collapses when forceCollapse flips true, even though nothing inside CastDock asked for it', () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
-    ]
-
-    const { rerender } = render(
-      <CastDock
-        onCreateCard={vi.fn()}
-        insetLeft={16}
-        insetRight={16}
-        forceCollapse={false}
-      />,
-    )
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
-
-    rerender(
-      <CastDock
-        onCreateCard={vi.fn()}
-        insetLeft={16}
-        insetRight={16}
-        forceCollapse
-      />,
-    )
-    expect(screen.queryByTitle('黛西')).not.toBeInTheDocument()
-  })
-
-  // R3-4 §4.2: the mirror half of the same contract — a floating-layout dock
-  // reports its open/closed edges upward so the workbench can close the other
-  // L5 citizen (add menu) and fold this into the Esc ladder.
-  it('reports overlay open/close transitions in the floating layout', () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
-    ]
-    const onOverlayOpenChange = vi.fn()
-
-    renderDock(vi.fn(), { onOverlayOpenChange })
-    expect(onOverlayOpenChange).toHaveBeenCalledWith(true)
-
-    onOverlayOpenChange.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'collapse' }))
-    expect(onOverlayOpenChange).toHaveBeenCalledWith(false)
-  })
-
-  // 回归（owner 实测，2026-07-27）: panel 布局的卡匣是左侧常驻面板的内容，不
-  // 遮挡任何东西，永远不能算 L5 浮层。它一旦上报"开着"，就在工作台的 Esc 阶梯
-  // 上恒占一格 —— 选中节点后第一次按 Esc 只是把这格假浮层"关掉"，取消选中要
-  // 按第二次。展开是它的常态（collapsed 默认 false 是 owner 拍板的 S5d 结论，
-  // 不能靠改默认值绕过），所以这里必须按 layout 分叉。
-  it('never reports an open overlay in the panel layout, however expanded it is', () => {
-    flowState.nodes = [
-      makeNode('c1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
-    ]
-    const onOverlayOpenChange = vi.fn()
-
-    renderDock(vi.fn(), { layout: 'panel', onOverlayOpenChange })
-
-    // 卡片确实是展开可见的 —— 报 false 不是因为它收起了。
-    expect(screen.getByTitle('黛西')).toBeInTheDocument()
-    expect(onOverlayOpenChange).not.toHaveBeenCalledWith(true)
-    expect(onOverlayOpenChange).toHaveBeenCalledWith(false)
-  })
-})
-
-describe('isCastIdentityNode', () => {
-  it('matches the four Cast dock kinds (legacy + unified role) and rejects everything else', () => {
+  it('counts all canvas nodes for the left-panel header', () => {
     expect(
-      isCastIdentityNode(
-        makeNode('c1', NODE_TYPE_IDS.image, {
-          role: NODE_IMAGE_ROLE_IDS.character,
-        }) as never,
-      ),
-    ).toBe(true)
-    expect(
-      isCastIdentityNode(makeNode('c2', NODE_TYPE_IDS.characterImage) as never),
-    ).toBe(true)
-    expect(
-      isCastIdentityNode(makeNode('v1', NODE_TYPE_IDS.voice) as never),
-    ).toBe(true)
-    expect(
-      isCastIdentityNode(makeNode('r1', NODE_TYPE_IDS.videoReference) as never),
-    ).toBe(true)
-    // 镜头图卡（中鱼）must stay visible — never folds into the dock/hidden set.
-    expect(
-      isCastIdentityNode(
-        makeNode('s1', NODE_TYPE_IDS.image, {
-          role: NODE_IMAGE_ROLE_IDS.shot,
-        }) as never,
-      ),
-    ).toBe(false)
-    expect(
-      isCastIdentityNode(makeNode('vid1', NODE_TYPE_IDS.seedance) as never),
-    ).toBe(false)
+      countCanvasNodes([
+        makeNode('a', NODE_TYPE_IDS.shotText),
+        makeNode('b', NODE_TYPE_IDS.voice),
+        makeNode('c', NODE_TYPE_IDS.seedance),
+      ] as never),
+    ).toBe(3)
   })
 })

@@ -94,6 +94,7 @@ PixelVault 的一致性来自“这是同一个产品、拥有同一套可靠行
 - 正常文本对比度至少 4.5:1，大字和 UI 边界至少 3:1。
 - fine pointer 紧凑控件目标不小于 32px、常规控件不小于 36px；coarse pointer/touch 不小于 44px；任何目标不得低于 WCAG 2.2 AA 24px，除非满足 spacing/equivalent 例外并验证。
 - 尊重 `prefers-reduced-motion`；动效必须服务状态、连续性或反馈。
+- **交互与动效脊柱**见 [`references/interaction.md`](references/interaction.md)：跟手、场景分档惯性、时长 token、工程页仅 Motion、GSAP 仅营销首页。
 - ResponsiveOverlay 行为、触屏软键盘策略与 focus return 不得破坏。
 - 新用户可见文案 en/ja/zh 同步。
 - loading、empty、error、disabled、success 等状态真实、清楚且可恢复。

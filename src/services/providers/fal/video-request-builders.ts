@@ -58,6 +58,8 @@ export interface FalVideoRequestBuilderInput {
    */
   videoUrls?: string[]
   negativePrompt?: string
+  generateAudio?: boolean
+  seed?: number
   resolution?: VideoResolution
   i2vModelId?: string
   videoDefaults?: VideoDefaults
@@ -213,7 +215,8 @@ function buildKlingV3Pro(
       3,
       15,
     ),
-    generate_audio: input.videoDefaults?.generateAudio ?? true,
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
   }
 
   if (mode === 'image-to-video') {
@@ -246,7 +249,8 @@ function buildVeo31(
         ['720p', '1080p', '4k'],
         '720p',
       ) ?? '720p',
-    generate_audio: input.videoDefaults?.generateAudio ?? true,
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
   }
 
   applyNegativePrompt(body, input)
@@ -317,7 +321,8 @@ function buildLtx23(
         ['1080p'],
         '1080p',
       ) ?? '1080p',
-    generate_audio: input.videoDefaults?.generateAudio ?? true,
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
   }
 
   if (mode === 'image-to-video') {
@@ -359,7 +364,8 @@ function buildSeedance20(
       FAL_EXTENDED_ASPECT_RATIOS,
       '16:9',
     ),
-    generate_audio: input.videoDefaults?.generateAudio ?? true,
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
   }
 
   if (mode === 'image-to-video') {
@@ -449,17 +455,25 @@ function buildSeedanceReference(
       ? input.videoUrls.slice(0, 3)
       : []
 
-  // Reference endpoint mandates image_urls (at least 1, up to 9). Use the
-  // multi-reference array when provided, falling back to wrapping the single
-  // referenceImage for legacy single-image callers.
+  // Reference input may be image(s), video(s), or both. Audio cannot be the
+  // only reference modality.
   const imageRefs =
     input.referenceImages && input.referenceImages.length > 0
       ? input.referenceImages
-      : [requireReferenceImage(input)]
+      : input.referenceImage
+        ? [input.referenceImage]
+        : []
+  if (imageRefs.length === 0 && videoUrls.length === 0) {
+    throw new ProviderError(
+      'fal.ai',
+      400,
+      `Model ${input.modelId} requires at least one reference image or video.`,
+    )
+  }
   // fal cap: image_urls + video_urls + audio_urls ≤ 12 total. Trim images
   // first since the audio + video references are deliberately user-supplied
   // and shouldn't be silently dropped.
-  const maxImages = Math.max(1, 12 - videoUrls.length - audioUrls.length)
+  const maxImages = Math.max(0, 12 - videoUrls.length - audioUrls.length)
   const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
 
   let prompt = input.prompt
@@ -485,9 +499,12 @@ function buildSeedanceReference(
       FAL_EXTENDED_ASPECT_RATIOS,
       '16:9',
     ),
-    generate_audio: input.videoDefaults?.generateAudio ?? true,
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
   }
-  body.image_urls = imageUrls
+  if (imageUrls.length > 0) {
+    body.image_urls = imageUrls
+  }
   if (videoUrls.length > 0) {
     body.video_urls = videoUrls
   }
@@ -503,6 +520,8 @@ function buildBody(
 ): Record<string, unknown> {
   switch (normalizeModelId(input.modelId)) {
     case AI_MODELS.KLING_V3_PRO:
+    case AI_MODELS.KLING_O3_PRO:
+      // O3 Pro shares prompt/duration/generate_audio/start_image_url shape with V3 Pro.
       return buildKlingV3Pro(input, mode)
     case AI_MODELS.VEO_31:
       return buildVeo31(input, mode)
@@ -527,12 +546,33 @@ function buildBody(
   }
 }
 
+function applySeedIfSupported(
+  body: Record<string, unknown>,
+  input: FalVideoRequestBuilderInput,
+  mode: FalVideoMode,
+): void {
+  const seed = input.seed
+  if (typeof seed !== 'number' || seed < 0) return
+  const modelId = normalizeModelId(input.modelId)
+  const supportsSeed =
+    modelId === AI_MODELS.SEEDANCE_20 ||
+    modelId === AI_MODELS.SEEDANCE_20_FAST ||
+    modelId === AI_MODELS.SEEDANCE_20_REFERENCE ||
+    modelId === AI_MODELS.SEEDANCE_20_FAST_REFERENCE ||
+    modelId === AI_MODELS.HAPPYHORSE_10 ||
+    (modelId === AI_MODELS.VEO_31 && mode === 'text-to-video')
+  if (supportsSeed) {
+    body.seed = seed
+  }
+}
+
 export function buildFalVideoQueueRequest(
   input: FalVideoRequestBuilderInput,
 ): FalVideoQueueRequest {
   const mode = getMode(input)
   const endpointModelId = getEndpointModelId(input, mode)
   const body = buildBody(input, mode)
+  applySeedIfSupported(body, input, mode)
 
   return {
     endpointModelId,

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { HomeV3VideoPlayer } from '@/components/business/home-v3/HomeV3VideoPlayer'
 import { ModelViewer } from '@/components/business/ModelViewer'
 import {
   HOME_V3_CAPS,
@@ -45,7 +46,6 @@ function HomeV3DemoFan() {
 
 function HomeV3DemoVideo() {
   const t = useTranslations('Homepage.videoDemo')
-  const { progress } = HOME_V3_VIDEO_DEMO
 
   return (
     <div className="home-v3-demo">
@@ -53,52 +53,7 @@ function HomeV3DemoVideo() {
         <span>{t('bar')}</span>
         <b>{HOME_V3_VIDEO_DEMO.spec}</b>
       </div>
-      <div className="home-v3-vp">
-        <div className="home-v3-vscreen">
-          <Image
-            src={HOME_V3_VIDEO_DEMO.shot}
-            alt=""
-            width={960}
-            height={540}
-            style={{ transform: 'scale(1.06)' }}
-          />
-          <span className="home-v3-vtag">{HOME_V3_VIDEO_DEMO.model}</span>
-          <span className="home-v3-vplay" aria-hidden="true">
-            ▶
-          </span>
-        </div>
-
-        <div className="home-v3-vbar">
-          <span>{HOME_V3_VIDEO_DEMO.elapsed}</span>
-          <div className="home-v3-vscrub">
-            <i style={{ width: `${progress}%` }} />
-            <b style={{ left: `${progress}%` }} />
-          </div>
-          <span>{HOME_V3_VIDEO_DEMO.duration}</span>
-        </div>
-
-        <div className="home-v3-vstrip">
-          {HOME_V3_VIDEO_DEMO.frames.map((frame, index) => (
-            <figure
-              key={index}
-              data-current={
-                index === HOME_V3_VIDEO_DEMO.currentFrame ? true : undefined
-              }
-            >
-              <Image
-                src={HOME_V3_VIDEO_DEMO.shot}
-                alt=""
-                width={200}
-                height={125}
-                style={{
-                  transform: `scale(${frame.scale})`,
-                  filter: `brightness(${frame.brightness})`,
-                }}
-              />
-            </figure>
-          ))}
-        </div>
-      </div>
+      <HomeV3VideoPlayer />
     </div>
   )
 }

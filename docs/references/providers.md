@@ -51,6 +51,14 @@ adapter / Worker 抛错
 - **参考图错误分类**：`REFERENCE_IMAGE_ERROR_PATTERNS` 五类正则（格式 / 过大 / 不可达 / 数量超限 / 尺寸不合）扫 provider 原始 message；`PROVIDER_REFERENCE_FORMAT_GUIDANCE` 按 provider 给用户格式指引，共 4 条（OpenAI=JPEG/PNG/WebP · Gemini=+HEIC/HEIF · fal=+GIF 且 URL 须直接可达 · VolcEngine/Seedream=常见格式且 URL 须直接可达）。
 - **新接 provider 的义务**：把该 provider 的错误码/message 特征映射进标准码表 + i18n 三语文案；**raw provider error 不许直达用户**。
 
+## 原生 vs 聚合（调研指针）
+
+各模型走 **厂商原生 API** 还是 **fal/Replicate 等合法聚合**、以及「中转是否有更好原生」见：
+
+[`../plans/research/模型接入原生与中转调研-2026-07.md`](../plans/research/模型接入原生与中转调研-2026-07.md)
+
+本文件仍以契约与错误处理为权威；路由类型以该调研 + `AI_PROVIDER_ENDPOINTS` 为准。
+
 ## 逐 provider 现状速览
 
 | adapter           | 用途                                                  | 错误/接入特点（已核验口径）                                                                                                   |

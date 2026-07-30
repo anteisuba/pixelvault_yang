@@ -14,13 +14,15 @@ import {
 import { NodeWorkflowNodeDataSchema } from '@/types/node-workflow'
 
 describe('canvas image edit capability registry', () => {
-  it('registers six ready capabilities and keeps the three placeholders hidden', () => {
+  it('registers ready capabilities and keeps remaining placeholders hidden', () => {
     expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).toEqual([
       ...READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
     ])
     expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).toEqual([
       ...HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
     ])
+    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(8)
+    expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(1)
     expect(
       new Set(CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).size,
     ).toBe(CANVAS_IMAGE_EDIT_CAPABILITIES.length)
@@ -52,7 +54,8 @@ describe('canvas image edit capability registry', () => {
       mediaHeight: 0,
       derivedFromNodeId: '',
       derivedFromGenerationId: '',
-      editCapability: 'object-replace',
+      // text-render remains hidden/placeholder and is not a valid ready lineage id
+      editCapability: 'not-a-real-edit-capability',
     })
 
     expect(parsed.success).toBe(true)

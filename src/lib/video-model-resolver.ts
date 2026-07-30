@@ -2,15 +2,19 @@
  * Two-tier video model switcher resolver (canvas B2).
  *
  * Pure mapping between the switcher UI state — {brand, variant, provider,
- * hasReferenceInputs} — and a concrete `NodeWorkflowModelOption`. Seedance is
- * the only multi-variant / dual-provider brand; Kling & Veo each have a single
- * catalog id (reference signalled at request-build time, no separate id).
+ * hasReferenceInputs} — and a concrete `NodeWorkflowModelOption`.
+ * - Seedance: multi-variant (standard/fast) + dual-provider + mode-by-input
+ *   `_REFERENCE` sibling ids
+ * - Kling: multi-variant product track (v3 / o3); reference signalled at
+ *   request-build time (no separate catalog id)
+ * - Veo: single catalog id
  * Reference-ness is mode-by-input: when the node has reference inputs bound,
- * the resolver picks the `_REFERENCE` model id automatically.
+ * the resolver picks the `_REFERENCE` model id automatically for brands that
+ * ship sibling reference endpoints.
  */
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getModelById, getModelFamily } from '@/constants/models'
+import { AI_MODELS, getModelById, getModelFamily } from '@/constants/models'
 import {
   SURFACED_VIDEO_BRANDS,
   VIDEO_BRAND_VARIANTS,
@@ -36,13 +40,28 @@ function optionFamily(option: NodeWorkflowModelOption): string | null {
   return getModelFamily(option.modelId)
 }
 
-// Seedance speed tier: Fast = qualityTier 'standard', full Standard = 'premium'.
-function optionVariant(option: NodeWorkflowModelOption): VideoVariantId | null {
-  const model = getModelById(option.modelId)
+/** Catalog id → switcher variant chip. */
+export function getVideoVariantForModelId(
+  modelId: string,
+): VideoVariantId | null {
+  switch (modelId) {
+    case AI_MODELS.KLING_V3_PRO:
+      return VIDEO_VARIANT_IDS.v3
+    case AI_MODELS.KLING_O3_PRO:
+      return VIDEO_VARIANT_IDS.o3
+    default:
+      break
+  }
+  const model = getModelById(modelId)
   if (!model) return null
+  // Seedance speed tier: Fast = qualityTier 'standard', full Standard = 'premium'.
   return model.qualityTier === 'standard'
     ? VIDEO_VARIANT_IDS.fast
     : VIDEO_VARIANT_IDS.standard
+}
+
+function optionVariant(option: NodeWorkflowModelOption): VideoVariantId | null {
+  return getVideoVariantForModelId(option.modelId)
 }
 
 function optionIsReference(option: NodeWorkflowModelOption): boolean {
@@ -152,19 +171,28 @@ export function resolveVideoModelId(
     (option) => optionFamily(option) === brand,
   )
 
-  // Single-variant brands (Kling / Veo): one catalog id; reference signalled at
-  // request-build time, no separate _REFERENCE id and no provider split today.
+  // Single-variant brands (Veo today): one catalog id; reference signalled at
+  // request-build time, no separate _REFERENCE id and no provider split.
   if (getBrandVariants(brand).length === 0) {
     return pickBest(brandOptions)
   }
 
-  // Seedance: match provider + speed variant + reference-ness.
-  const matches = brandOptions.filter(
-    (option) =>
-      optionAdapter(option) === provider &&
-      optionVariant(option) === variant &&
-      optionIsReference(option) === hasReferenceInputs,
-  )
+  // Multi-variant brands (Seedance speed / Kling product track): match provider
+  // + variant. Reference-ness is only a discriminator when the brand ships
+  // sibling `_REFERENCE` catalog ids (Seedance). Kling O3/V3 both stay
+  // selectable with bound refs — they signal reference at request-build time.
+  const brandHasReferenceSiblings = brandOptions.some(optionIsReference)
+  const matches = brandOptions.filter((option) => {
+    if (optionAdapter(option) !== provider) return false
+    if (optionVariant(option) !== variant) return false
+    if (
+      brandHasReferenceSiblings &&
+      optionIsReference(option) !== hasReferenceInputs
+    ) {
+      return false
+    }
+    return true
+  })
   return pickBest(matches)
 }
 
@@ -184,8 +212,8 @@ export function resolveVideoModelId(
  *
  * Returns the option whose reference-ness matches `hasReferenceInputs` for the
  * same brand/variant/provider, or null when nothing better resolves (caller
- * keeps the original model). Single-variant brands (Kling/Veo) signal reference
- * at build time and have no sibling id → returns null.
+ * keeps the original model). Brands without `_REFERENCE` sibling ids
+ * (Kling/Veo) leave the persisted id alone.
  */
 export function resolveEffectiveVideoModelOption(
   model: { modelId: string; adapterType: string },
@@ -194,8 +222,12 @@ export function resolveEffectiveVideoModelOption(
 ): NodeWorkflowModelOption | null {
   const state = deriveSwitcherStateFromModel(model)
   if (!state.brand || !state.variant) return null
-  // Single-variant brands have no separate _REFERENCE id; leave them be.
-  if (getBrandVariants(state.brand).length === 0) return null
+  // Only re-resolve when the brand ships sibling `_REFERENCE` catalog ids.
+  // Kling has variants (v3/o3) but no reference siblings — leave them be.
+  const brandOptions = options.filter(
+    (option) => optionFamily(option) === state.brand,
+  )
+  if (!brandOptions.some(optionIsReference)) return null
   const provider =
     (state.provider as AI_ADAPTER_TYPES | null) ??
     pickDefaultProvider(state.brand, options)
@@ -217,15 +249,9 @@ export function deriveSwitcherStateFromModel(
   if (!model) return { brand: null, variant: null, provider: null }
   const brand = getModelFamily(model.modelId)
   const hasVariants = brand ? getBrandVariants(brand).length > 0 : false
-  const builtIn = getModelById(model.modelId)
   return {
     brand,
-    variant:
-      hasVariants && builtIn
-        ? builtIn.qualityTier === 'standard'
-          ? VIDEO_VARIANT_IDS.fast
-          : VIDEO_VARIANT_IDS.standard
-        : null,
+    variant: hasVariants ? getVideoVariantForModelId(model.modelId) : null,
     provider: (model.adapterType as AI_ADAPTER_TYPES) ?? null,
   }
 }

@@ -801,7 +801,7 @@ describe('submitAudioGeneration', () => {
         providerId: AI_ADAPTER_TYPES.FISH_AUDIO,
         apiKeyId: 'sync-key-1',
         providerInput: expect.objectContaining({
-          externalModelId: 's2-pro',
+          externalModelId: 's2.1-pro',
           voiceId: 'voice-1',
           format: 'mp3',
           withTimestamps: true,

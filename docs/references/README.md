@@ -13,6 +13,7 @@
 | testing.md       | vitest / playwright 策略 / 视觉基线双 OS（✅ 已写）                                                                              | `vitest.config.*` · `e2e/`                           |
 | providers.md     | AI provider 接入契约 / BYOK / 错误信息全链路（✅ 已写）                                                                          | `src/constants/providers.ts`                         |
 | product.md       | 产品边界与主线（✅ 已写，2026-07-10 四项重核更新）                                                                               | 本文件即现行契约；详版 `archive/product/`            |
+| interaction.md   | **全局交互/动效脊柱**：跟手、场景分档惯性、时长 token、工程页仅 Motion、GSAP 仅首页（✅ 2026-07-30）                             | brand-dna · CLAUDE 动画分工 · research 丝滑调研      |
 | domains/         | 各业务域契约（负责什么 / 不负责什么 / 不能破坏什么）——高频 5 篇 ✅：studio · assets · gallery · prompts · lora；其余域待需要时补 | `src/` 对应域代码                                    |
 | ui-inspiration/  | owner 策展的 UI 参考与模式拆解；**不是规范或施工图**                                                                             | owner 截图 · 来源页面 · `brand-dna.md` 设计边界      |
 

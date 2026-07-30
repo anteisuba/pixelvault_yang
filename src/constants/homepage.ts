@@ -47,6 +47,10 @@ export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
   [AI_MODELS.KLING_V3_PRO]: { amount: 0.3, unit: 'second' },
+  [AI_MODELS.KLING_O3_PRO]: { amount: 0.35, unit: 'second' },
+  [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
+  [AI_MODELS.ELEVENLABS_MUSIC_V2]: { amount: 0.15, unit: 'second' },
+  [AI_MODELS.FLUX_2_PRO_EDIT]: { amount: 0.05, unit: 'image' },
   [AI_MODELS.VEO_31]: { amount: 0.2, unit: 'second' },
   [AI_MODELS.SEEDANCE_20]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_FAST]: { amount: 0.06, unit: 'second' },
@@ -54,7 +58,6 @@ export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: { amount: 0.06, unit: 'second' },
   [AI_MODELS.HAPPYHORSE_10]: { amount: 0.14, unit: 'second' },
   [AI_MODELS.LTX_23]: { amount: 0.06, unit: 'second' },
-  [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
 }
 
 export function formatHomepageReferencePriceAmount(amount: number): string {

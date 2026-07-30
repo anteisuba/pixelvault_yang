@@ -50,6 +50,8 @@ export interface LoraBaseModel {
   recipeCheckpointMode?: LoraRecipeCheckpointMode
   /** 该家族的推荐默认 */
   recommended?: boolean
+  /** Local catalog artwork shared with the homepage model rail. */
+  coverImage: string
 }
 
 /** hosted 底模可用性跟随 AI_MODELS 自身开关，避免双份维护。 */
@@ -76,6 +78,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: hostedAvailable(AI_MODELS.FLUX_LORA),
     providerModelId: AI_MODELS.FLUX_LORA,
     recommended: true,
+    coverImage: '/homepage/production/models/brand/flux.svg',
   },
   {
     id: 'illustrious-hosted',
@@ -86,6 +89,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: hostedAvailable(AI_MODELS.ILLUSTRIOUS_XL),
     providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
     recommended: true,
+    coverImage: '/homepage/production/models/image/illustrious-xl.webp',
   },
   {
     id: 'illustrious-runner',
@@ -96,6 +100,8 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: runnerAvailable(AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE),
     providerModelId: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
     runnerCheckpointId: 'waiIllustriousSDXL_v150',
+    coverImage:
+      '/homepage/production/models/image/illustrious-recipe-clone.webp',
   },
   {
     id: 'sdxl-hosted',
@@ -106,6 +112,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: hostedAvailable(AI_MODELS.ILLUSTRIOUS_XL),
     providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
     recommended: true,
+    coverImage: '/homepage/production/models/image/sdxl-10-runner.webp',
   },
   {
     id: 'sdxl-runner',
@@ -116,6 +123,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: runnerAvailable(AI_MODELS.SDXL_10_RUNNER),
     providerModelId: AI_MODELS.SDXL_10_RUNNER,
     runnerCheckpointId: 'sdXL_v10VAEFix',
+    coverImage: '/homepage/production/models/image/sdxl-10-runner.webp',
   },
   {
     id: 'pony-runner',
@@ -127,6 +135,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.PONY_DIFFUSION_V6,
     runnerCheckpointId: 'ponyDiffusionV6XL',
     recommended: true,
+    coverImage: '/homepage/production/models/image/pony-diffusion-v6.webp',
   },
   {
     id: 'sd15-runner',
@@ -138,6 +147,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     // 做第二套分辨率/采样模板档。见 comfy-runner-HANDOFF-2026-07.md §4.2b。
     available: false,
     recommended: true,
+    coverImage: '/homepage/production/models/brand/stability.svg',
   },
   {
     id: 'anima-hosted',
@@ -147,6 +157,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     fidelity: 'fast',
     available: hostedAvailable(AI_MODELS.ANIMA_PENCIL_XL),
     providerModelId: AI_MODELS.ANIMA_PENCIL_XL,
+    coverImage: '/homepage/production/models/image/anima-pencil-xl-runner.webp',
   },
   {
     id: 'anima-runner',
@@ -160,6 +171,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
     runnerCheckpointId: 'animaPencilXL_v500',
     recommended: true,
+    coverImage: '/homepage/production/models/image/anima-pencil-xl-runner.webp',
   },
   // v4：DiT「Anima」（Cosmos-Predict2）的唯一出路——runner 的 Qwen-Image 工作流。
   // baseModel 值 "Anima" 的 LoRA（本月最热 ~47%，如心月狐）归此家族。
@@ -175,6 +187,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'animaBase_v10',
     recipeCheckpointMode: 'source',
     recommended: true,
+    coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
   },
   {
     id: 'anima-dit-base-v10-runner',
@@ -186,6 +199,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
     runnerCheckpointId: 'animaBase_v10',
     recipeCheckpointMode: 'fixed',
+    coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
   },
 ]
 

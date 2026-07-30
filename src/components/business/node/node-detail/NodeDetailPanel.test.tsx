@@ -12,10 +12,24 @@ vi.mock('motion/react', () => {
   const cache: Record<string, (props: MotionMockProps) => ReactNode> = {}
   const make = (tag: string) => {
     if (!cache[tag]) {
-      cache[tag] = ({ children, className, style }: MotionMockProps) => {
+      cache[tag] = (props: MotionMockProps) => {
+        const {
+          children,
+          className,
+          style,
+          initial,
+          animate,
+          exit,
+          transition,
+          ...rest
+        } = props
+        void initial
+        void animate
+        void exit
+        void transition
         const Tag = tag as 'div'
         return (
-          <Tag className={className} style={style}>
+          <Tag className={className} style={style} {...rest}>
             {children}
           </Tag>
         )
@@ -41,6 +55,11 @@ interface MotionMockProps {
   children?: ReactNode
   className?: string
   style?: CSSProperties
+  initial?: unknown
+  animate?: unknown
+  exit?: unknown
+  transition?: unknown
+  [key: string]: unknown
 }
 
 const { nodesState } = vi.hoisted(() => ({
@@ -112,6 +131,19 @@ describe('NodeDetailPanel', () => {
     nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
     render(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
     expect(screen.getByText('video-body-n1')).toBeInTheDocument()
+  })
+
+  it('presents every family in the shared labelled object-studio dialog', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    render(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
+
+    const dialog = screen.getByRole('dialog', { name: 'seedance' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveAttribute('data-node-detail-layout', 'object-studio')
+    expect(dialog).toHaveAttribute('data-node-detail-family', 'seedance')
+    expect(
+      dialog.querySelector('[data-node-detail-body="true"]'),
+    ).toBeInTheDocument()
   })
 
   it('falls back to the generic body for unregistered types', () => {

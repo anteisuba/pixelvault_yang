@@ -732,6 +732,7 @@
   );
   flex-direction: column;
   overflow: hidden;
+  translate: 0 -40px;
   color: var(--canvas-ink);
   background: var(--canvas-pop-bg);
   border: 1px solid var(--canvas-stroke-regular);
@@ -740,6 +741,12 @@
   transition:
     width var(--canvas-dur-slow) var(--canvas-ease-in),
     box-shadow var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+
+@media (max-width: 767px) {
+  .domain-canvas .canvas-video-sidecar {
+    translate: 0 -20px;
+  }
 }
 
 .domain-canvas
@@ -1024,8 +1031,10 @@
 }
 
 .domain-canvas .canvas-video-composer-prompt-input {
+  display: block;
   width: 100%;
   min-height: 150px;
+  resize: none;
   padding: 12px 12px 28px;
   color: var(--canvas-ink);
   background: transparent;
@@ -1084,7 +1093,14 @@
 
 .domain-canvas .canvas-video-composer-summary {
   flex: none;
+  max-width: 46%;
   color: var(--canvas-ink-muted);
+}
+
+.domain-canvas .canvas-video-composer-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .domain-canvas .canvas-video-composer-model:hover,
@@ -1968,10 +1984,12 @@
    在模态头部渲染失败态时会读它，参考 .canvas-selection-toolbar 同样收窄到
    --canvas-danger 的做法（那条已验证过对比度，5.57:1 vs 白）。 */
 .domain-canvas .canvas-modal-surface {
-  background: var(--canvas-card-bg);
+  background: color-mix(in srgb, var(--canvas-card-bg) 88%, transparent);
   border: 1px solid var(--canvas-stroke-regular);
   border-radius: var(--canvas-panel-radius);
   box-shadow: var(--canvas-glass-shadow);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
   color: var(--canvas-ink);
   --node-foreground: var(--canvas-ink);
   --node-muted: var(--canvas-ink-muted);
@@ -1991,6 +2009,239 @@
    所以头部这条边显式点名，不吃 cascade 给的近似值。 */
 .domain-canvas .canvas-modal-divider {
   border-color: var(--canvas-stroke-regular);
+}
+
+/* Object studio: one shared, spacious detail frame for every canvas family. */
+.domain-canvas .canvas-object-studio-overlay {
+  padding: 16px;
+}
+
+.domain-canvas .canvas-object-studio-surface {
+  width: min(1180px, calc(100vw - 32px));
+  height: min(88svh, 860px);
+  max-height: calc(100svh - 32px);
+  border-radius: 22px;
+}
+
+.domain-canvas .canvas-object-studio-header {
+  gap: 24px;
+  padding: 20px 28px;
+  background: color-mix(in srgb, var(--canvas-card-bg) 74%, transparent);
+}
+
+.domain-canvas .canvas-object-studio-body {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.domain-canvas .canvas-object-studio-content {
+  padding: 32px;
+}
+
+/* Shared rail geometry. Image/media inspectors consume it directly; dossier
+   families use the balanced variant outside their existing family content. */
+.domain-canvas .canvas-object-studio-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+  gap: 40px;
+  align-items: start;
+  min-width: 0;
+}
+
+.domain-canvas .canvas-object-studio-grid--balanced {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.domain-canvas .canvas-object-studio-grid--stack {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.domain-canvas .canvas-object-studio-media-rail,
+.domain-canvas .canvas-object-studio-task-rail {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  align-content: start;
+}
+
+/* Generated-video detail is a real Object studio, not the legacy inspector
+   stacked inside a larger modal. The left rail owns the film and the exact
+   assets entering the request; the right rail owns composition, model-aware
+   parameters, send diagnostics, and the primary action. Compact card density
+   never consumes these selectors. */
+.domain-canvas .canvas-video-object-studio {
+  align-items: start;
+}
+
+.domain-canvas .canvas-video-object-studio .canvas-object-studio-media-rail,
+.domain-canvas .canvas-video-object-studio .canvas-object-studio-task-rail {
+  gap: 28px;
+}
+
+.domain-canvas .canvas-video-object-studio-section {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.domain-canvas .canvas-video-object-studio-section--divided {
+  padding-top: 26px;
+  border-top: 1px solid var(--canvas-stroke-regular);
+}
+
+.domain-canvas .canvas-video-object-studio-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 16px;
+}
+
+.domain-canvas .canvas-video-object-studio-section-heading h2 {
+  min-width: 0;
+  color: var(--canvas-ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25rem;
+}
+
+.domain-canvas .canvas-video-object-studio-section-heading span {
+  overflow: hidden;
+  color: var(--canvas-ink-subtle);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-canvas
+  .canvas-video-object-studio
+  .canvas-object-studio-media-rail
+  .node-monitor-matte {
+  width: 100%;
+  max-height: none;
+  border-radius: 16px;
+}
+
+.domain-canvas
+  .canvas-video-object-studio
+  .canvas-object-studio-media-rail
+  .node-monitor-matte[data-empty='true'] {
+  background:
+    radial-gradient(
+      circle at 72% 28%,
+      color-mix(in srgb, var(--canvas-accent) 16%, transparent),
+      transparent 36%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--canvas-fill-control) 92%, transparent),
+      color-mix(in srgb, var(--canvas-card-bg) 60%, transparent)
+    );
+}
+
+.domain-canvas
+  .canvas-video-object-studio
+  .canvas-object-studio-media-rail
+  .node-monitor-matte[data-empty='true']::before,
+.domain-canvas
+  .canvas-video-object-studio
+  .canvas-object-studio-media-rail
+  .node-monitor-matte[data-empty='true']::after {
+  display: none;
+}
+
+.domain-canvas
+  .canvas-video-object-studio
+  .canvas-object-studio-media-rail
+  > .canvas-video-object-studio-section
+  > .flex.h-11 {
+  margin-top: 0;
+  background: color-mix(in srgb, var(--canvas-card-bg) 38%, transparent);
+}
+
+.domain-canvas .canvas-video-object-studio-send-preview {
+  padding-top: 4px;
+}
+
+.domain-canvas .canvas-video-object-studio-dock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--canvas-stroke-regular);
+}
+
+.domain-canvas .canvas-video-object-studio-generate {
+  width: auto;
+  min-width: 168px;
+  flex: none;
+}
+
+@media (max-width: 960px) {
+  .domain-canvas .canvas-object-studio-grid,
+  .domain-canvas .canvas-object-studio-grid--balanced {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
+@media (max-width: 760px) {
+  .domain-canvas .canvas-object-studio-overlay {
+    padding: 12px;
+  }
+
+  .domain-canvas .canvas-object-studio-surface {
+    width: calc(100vw - 24px);
+    height: calc(100svh - 24px);
+    max-height: calc(100svh - 24px);
+    border-radius: 18px;
+  }
+
+  .domain-canvas .canvas-object-studio-header {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .domain-canvas .canvas-object-studio-content {
+    padding: 20px;
+  }
+
+  .domain-canvas .canvas-video-object-studio-dock {
+    position: sticky;
+    z-index: 1;
+    bottom: 0;
+    margin-inline: -4px;
+    padding: 16px 4px 4px;
+    background: color-mix(in srgb, var(--canvas-card-bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+}
+
+@media (max-width: 420px) {
+  .domain-canvas .canvas-object-studio-content {
+    padding: 16px;
+  }
+
+  .domain-canvas .canvas-video-object-studio-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .domain-canvas .canvas-video-object-studio-dock {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .domain-canvas .canvas-video-object-studio-generate {
+    width: 100%;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

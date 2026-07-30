@@ -45,6 +45,7 @@ const SEEDANCE_IDS = [
 const ALL_OPTIONS = [
   ...SEEDANCE_IDS.map((id) => opt(id)),
   opt(AI_MODELS.KLING_V3_PRO),
+  opt(AI_MODELS.KLING_O3_PRO),
   opt(AI_MODELS.VEO_31),
 ]
 
@@ -97,12 +98,22 @@ describe('resolveVideoModelId — Seedance four quadrants × provider', () => {
   })
 })
 
-describe('resolveVideoModelId — single-variant brands', () => {
-  it('returns the single Kling/Veo id regardless of variant/provider/refs', () => {
+describe('resolveVideoModelId — Kling product-track variants', () => {
+  it('resolves V3 Pro vs O3 Pro Omni by variant, with or without refs', () => {
     for (const refs of [false, true]) {
       expect(
-        resolveId(VIDEO_BRAND_IDS.kling, VIDEO_VARIANT_IDS.standard, FAL, refs),
+        resolveId(VIDEO_BRAND_IDS.kling, VIDEO_VARIANT_IDS.v3, FAL, refs),
       ).toBe(AI_MODELS.KLING_V3_PRO)
+      expect(
+        resolveId(VIDEO_BRAND_IDS.kling, VIDEO_VARIANT_IDS.o3, FAL, refs),
+      ).toBe(AI_MODELS.KLING_O3_PRO)
+    }
+  })
+})
+
+describe('resolveVideoModelId — single-variant brands', () => {
+  it('returns the single Veo id regardless of variant/provider/refs', () => {
+    for (const refs of [false, true]) {
       expect(
         resolveId(VIDEO_BRAND_IDS.veo, VIDEO_VARIANT_IDS.fast, FAL, refs),
       ).toBe(AI_MODELS.VEO_31)
@@ -185,18 +196,20 @@ describe('resolveEffectiveVideoModelOption — generate-time reference re-resolv
     )
   })
 
-  it('returns null for single-variant brands (Kling/Veo signal reference at build time)', () => {
-    const model = getModelById(AI_MODELS.KLING_V3_PRO)
-    expect(
-      resolveEffectiveVideoModelOption(
-        {
-          modelId: AI_MODELS.KLING_V3_PRO,
-          adapterType: model?.adapterType ?? FAL,
-        },
-        true,
-        ALL_OPTIONS,
-      ),
-    ).toBeNull()
+  it('returns null for Kling/Veo (no _REFERENCE sibling ids; signal at build time)', () => {
+    for (const modelId of [AI_MODELS.KLING_V3_PRO, AI_MODELS.KLING_O3_PRO]) {
+      const model = getModelById(modelId)
+      expect(
+        resolveEffectiveVideoModelOption(
+          {
+            modelId,
+            adapterType: model?.adapterType ?? FAL,
+          },
+          true,
+          ALL_OPTIONS,
+        ),
+      ).toBeNull()
+    }
   })
 })
 
@@ -253,7 +266,7 @@ describe('deriveSwitcherStateFromModel', () => {
     })
   })
 
-  it('returns null variant for single-variant brands', () => {
+  it('maps Kling product tracks to v3 / o3 variants', () => {
     expect(
       deriveSwitcherStateFromModel({
         modelId: AI_MODELS.KLING_V3_PRO,
@@ -261,6 +274,29 @@ describe('deriveSwitcherStateFromModel', () => {
       }),
     ).toEqual({
       brand: VIDEO_BRAND_IDS.kling,
+      variant: VIDEO_VARIANT_IDS.v3,
+      provider: FAL,
+    })
+    expect(
+      deriveSwitcherStateFromModel({
+        modelId: AI_MODELS.KLING_O3_PRO,
+        adapterType: FAL,
+      }),
+    ).toEqual({
+      brand: VIDEO_BRAND_IDS.kling,
+      variant: VIDEO_VARIANT_IDS.o3,
+      provider: FAL,
+    })
+  })
+
+  it('returns null variant for single-variant brands (Veo)', () => {
+    expect(
+      deriveSwitcherStateFromModel({
+        modelId: AI_MODELS.VEO_31,
+        adapterType: FAL,
+      }),
+    ).toEqual({
+      brand: VIDEO_BRAND_IDS.veo,
       variant: null,
       provider: FAL,
     })

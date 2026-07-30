@@ -25,6 +25,15 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+vi.mock(
+  '@/components/business/studio-shared/pickers/CanvasRoutePicker',
+  () => ({
+    CanvasRoutePicker: ({ triggerLabel }: { triggerLabel?: string }) => (
+      <button type="button">{triggerLabel}</button>
+    ),
+  }),
+)
+
 // Radix DropdownMenu doesn't open on a synthetic click in jsdom; follow the
 // repo's established pattern (LoraAssetCard.test) and render the ⋮ menu
 // inline so its conditional items are queryable without driving the portal.
@@ -86,6 +95,25 @@ const { composerState } = vi.hoisted(() => ({
       assembledImageCount: 0,
       videoUrls: [] as string[],
       audioEntries: [] as Array<{ index: number; label: string }>,
+      dropped: [],
+      contract: {
+        family: 'seedance' as const,
+        referenceMode: 'text-or-first-frame' as const,
+        slots: { images: 1, videos: 0, audio: 0 },
+        parameters: {
+          duration: true,
+          aspectRatio: true,
+          resolution: true,
+          negativePrompt: false,
+          generateAudio: true,
+          seed: true,
+        },
+        execution: 'ready' as const,
+        positionalImageTokens: false,
+      },
+      request: { prompt: '' },
+      canSubmit: true,
+      blockers: [],
     },
   },
 }))
@@ -132,6 +160,9 @@ const {
   deleteEdge,
   toastInfo,
   spawnReference,
+  setExpandedNodeId,
+  listConnectableReferences,
+  connectReferenceNode,
 } = vi.hoisted(() => ({
   updateNodeData: vi.fn(),
   updateEdgeData: vi.fn(),
@@ -139,6 +170,9 @@ const {
   deleteEdge: vi.fn(),
   toastInfo: vi.fn(),
   spawnReference: vi.fn(),
+  setExpandedNodeId: vi.fn(),
+  listConnectableReferences: vi.fn(),
+  connectReferenceNode: vi.fn(),
 }))
 
 vi.mock('../NodeWorkflowActionsContext', () => ({
@@ -146,9 +180,11 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
     updateNodeData,
     updateEdgeData,
     generateMediaNode: vi.fn(),
-    setExpandedNodeId: vi.fn(),
+    setExpandedNodeId,
     focusNode,
     deleteEdge,
+    listConnectableReferences,
+    connectReferenceNode,
     spawnReference,
     // R3-8 C1 场记条: a fixed project name so the slate-strip tests can
     // assert its presence — real usage reads `workflow.currentProjectName`
@@ -205,19 +241,9 @@ function renderDetail() {
   return render(<VideoComposer id="v1" data={data} density="detail" />)
 }
 
-function renderCompact(onRequestDetail = vi.fn()) {
+function renderCompact() {
   const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
-  return {
-    onRequestDetail,
-    ...render(
-      <VideoComposer
-        id="v1"
-        data={data}
-        density="card"
-        onRequestDetail={onRequestDetail}
-      />,
-    ),
-  }
+  return render(<VideoComposer id="v1" data={data} density="card" />)
 }
 
 describe('VideoComposer compact sidecar', () => {
@@ -226,10 +252,22 @@ describe('VideoComposer compact sidecar', () => {
     composerState.referenceTokens = []
     composerState.referencedTokenIds = new Set()
     updateNodeData.mockClear()
+    setExpandedNodeId.mockClear()
+    listConnectableReferences.mockReset()
+    connectReferenceNode.mockClear()
+    spawnReference.mockClear()
   })
 
-  it('keeps the video monitor out of the editor and opens detail in place', () => {
-    const { onRequestDetail } = renderCompact()
+  it('connects or adds references inside the compact editor without opening detail', () => {
+    listConnectableReferences.mockReturnValue([
+      {
+        id: 'character-1',
+        type: 'image',
+        position: { x: 0, y: 0 },
+        data: { role: 'character', characterName: '角色 A' },
+      },
+    ])
+    renderCompact()
 
     expect(screen.queryByText('monitor.empty')).not.toBeInTheDocument()
     expect(document.querySelector('video')).toBeNull()
@@ -237,7 +275,25 @@ describe('VideoComposer compact sidecar', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'sidecar.chooseFromCanvas' }),
     )
-    expect(onRequestDetail).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: /角色 A/ }))
+    expect(connectReferenceNode).toHaveBeenCalledWith('character-1', 'v1')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'sidecar.addReference' }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'references.addGroups.image' }),
+    )
+    fireEvent.click(screen.getByTestId('asset-pick'))
+
+    expect(spawnReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetNodeId: 'v1',
+        nodeType: 'image',
+        role: 'shot',
+      }),
+    )
+    expect(setExpandedNodeId).not.toHaveBeenCalled()
   })
 
   it('shows real connected references as compact thumbnails', () => {
@@ -259,6 +315,37 @@ describe('VideoComposer compact sidecar', () => {
     expect(thumbnail).toHaveAttribute('src', 'https://cdn.test/character-a.png')
     expect(screen.getByText('@CharacterA')).toBeInTheDocument()
   })
+
+  it('uses a native prompt field and opens one compact parameter surface', () => {
+    renderCompact()
+
+    expect(screen.getByRole('textbox', { name: 'prompt.label' }).tagName).toBe(
+      'TEXTAREA',
+    )
+
+    const parameterButton = screen.getByRole('button', {
+      name: 'sidecar.editParameters',
+    })
+    fireEvent.click(parameterButton)
+    expect(parameterButton).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('keeps bottom dock double-clicks from reaching the canvas node', () => {
+    const onNodeDoubleClick = vi.fn()
+    const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
+
+    render(
+      <div onDoubleClick={onNodeDoubleClick}>
+        <VideoComposer id="v1" data={data} density="card" />
+      </div>,
+    )
+
+    fireEvent.doubleClick(
+      screen.getByRole('button', { name: 'sidecar.editParameters' }),
+    )
+
+    expect(onNodeDoubleClick).not.toHaveBeenCalled()
+  })
 })
 
 describe('VideoComposer references row (detail)', () => {
@@ -268,6 +355,7 @@ describe('VideoComposer references row (detail)', () => {
     composerState.referencedTokenIds = new Set()
     composerState.maxReferenceImages = undefined
     composerState.sendPreview = {
+      ...composerState.sendPreview,
       translatedPrompt: '',
       legend: '',
       images: [],
@@ -282,6 +370,45 @@ describe('VideoComposer references row (detail)', () => {
     deleteEdge.mockClear()
     toastInfo.mockClear()
     spawnReference.mockClear()
+  })
+
+  it('renders the approved object-studio split instead of the legacy stacked detail', () => {
+    const { container } = renderDetail()
+
+    const studio = screen.getByTestId('video-object-studio')
+    const mediaRail = within(studio).getByTestId(
+      'video-object-studio-media-rail',
+    )
+    const taskRail = within(studio).getByTestId('video-object-studio-task-rail')
+
+    expect(studio).toHaveClass('canvas-object-studio-grid')
+    expect(
+      within(mediaRail).getByRole('heading', {
+        name: 'studio.currentFilm',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(mediaRail).getByRole('heading', {
+        name: 'studio.sentAssets',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(taskRail).getByRole('heading', {
+        name: 'studio.composition',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(taskRail).getByRole('heading', {
+        name: 'studio.modelParameters',
+      }),
+    ).toBeInTheDocument()
+    expect(within(mediaRail).getByText('monitor.empty')).toBeInTheDocument()
+    expect(
+      within(taskRail).getByRole('textbox', { name: 'prompt.label' }),
+    ).toBeInTheDocument()
+    expect(
+      container.querySelector('.canvas-video-object-studio-legacy-stack'),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps the model picker collapsed once a brand is selected', () => {
@@ -619,6 +746,7 @@ describe('VideoComposer send preview (R3-6b §2)', () => {
     composerState.referencedTokenIds = new Set()
     composerState.maxReferenceImages = undefined
     composerState.sendPreview = {
+      ...composerState.sendPreview,
       translatedPrompt: '',
       legend: '',
       images: [],
@@ -756,6 +884,51 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
     expect(
       screen.getByRole('button', { name: 'aspectRatioLabel: aspectAuto' }),
     ).toBeInTheDocument()
+  })
+
+  it('turns custom duration on and back off to provider auto', () => {
+    renderDetail()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /^duration\.label:/,
+      }),
+    )
+
+    const customDuration = screen.getByRole('switch', {
+      name: 'duration.custom',
+    })
+    expect(customDuration).not.toBeChecked()
+
+    fireEvent.click(customDuration)
+    expect(updateNodeData).toHaveBeenLastCalledWith(
+      'v1',
+      expect.objectContaining({ duration: '10' }),
+    )
+
+    const customData = {
+      prompt: '',
+      status: 'idle',
+      duration: '10',
+    } as NodeWorkflowNodeData
+    const { unmount } = render(
+      <VideoComposer id="v2" data={customData} density="detail" />,
+    )
+    fireEvent.click(
+      screen.getAllByRole('button', {
+        name: /^duration\.label:/,
+      })[1] as HTMLButtonElement,
+    )
+    const customSwitches = screen.getAllByRole('switch', {
+      name: 'duration.custom',
+    })
+    const customDurationOn = customSwitches[1]
+    expect(customDurationOn).toBeChecked()
+    fireEvent.click(customDurationOn)
+    expect(updateNodeData).toHaveBeenLastCalledWith(
+      'v2',
+      expect.objectContaining({ duration: 'auto' }),
+    )
+    unmount()
   })
 
   it('seed collapses independently of the OSD accordion (own toggle, not a 5th segment)', () => {

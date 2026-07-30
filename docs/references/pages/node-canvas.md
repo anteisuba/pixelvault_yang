@@ -216,7 +216,11 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 - **B0 合并行**：选了任务包给的「较小实现」——把手与工具条不是同一个带分隔线的边框容器，而是各自独立的圆角药丸，共享 `StudioNodeWorkbench` 里同一个 `bottom-3` 定位包裹层（一次性算好 assistant-dock 让位 inset，两个药丸并排）。`CanvasBottomDock`/`CastDock` 各自不再自带 `absolute` 定位。
 - **浮层原语**：用现成 `ResponsivePopover`（桌面 Popover / 移动 Drawer），不是文档字面提到的「ResponsiveOverlay」（代码里没有这个名字，实际家族是 `ResponsiveDialog`/`ResponsivePopover`）。附带效果：移动端断点变成 `useIsMobile()` 的 1024px（`lg:`），不是画布其余 chrome 用的 767px（`md:`）——两者接近，抽屉在平板宽度也会提前触发，判定为可接受的小偏移。
 - **卡片网格**：`grid-template-columns: repeat(4, minmax(0,1fr))` 走内联 style（Hard Rule 5 禁 Tailwind 任意值，CSS 原生网格不受此限），非字面 `auto-fill`；40+ 卡表现为固定 4 列 + 纵向滚动（`flyoutMaxHeightPx`），不是横向 wrap，效果等价「永不横向截断」。
-- **CastCard 点击语义改变**：S5a 的「点卡=focusNode 聚焦画布」在身份节点隐藏后失去意义（面板对一个不渲染的节点做 fitView 没有视觉结果），改为「点卡=直接打开该节点的⤢详情面板」（`setExpandedNodeId`）——胃/详情面板本来就是 character/background/voice/videoReference 四类的编辑入口，这样卡匣即是它们唯一可达的编辑口。
+- **CastCard 点击语义（历史规则，现已退役）**：S5b 曾把「点卡=focusNode」改成
+  「点卡=打开详情」。随着身份节点恢复可见、卡匣收口为“所有节点定位器”，
+  当前规则重新统一为「点条目=选中并定位真实节点」。定位器、节点双击和普通
+  操作按钮都不打开详情；只有节点工具条或紧凑编排器上的显式扩大图标可以写入
+  `expandedNodeId`。
 - **CastCard 新增删除（×）**：任务包未点名，但身份节点隐藏后画布上的 NodeToolbar 删除按钮同样不可达，不补一个入口会造成「新建了删不掉」的死角，判定为必要的同范围内追加（`deleteNode`，hover 露出，无二次确认，与 NodeShell 既有删除按钮同惯例）。
 - **胃取出落点**：视频节点（`DepartmentStrip`）与镜头节点（`ShotInspector`）在 S2/cast-redesign 阶段已经有「×删边」，本片未改动；本片实际新增的取出点是 `NodeShell.Ingredients`（成分栏 chip ×，S2 只读→可解绑）与 `CharacterImageInspector` 的已绑定音色徽标（新增 × 解绑）。
 - **参考位已满容量检查**：仅对「贡献 image_urls 的来源（角色/背景/legacy 类型/统一 image 节点）→ 视频或镜头目标 且目标已选模型」这一种组合计算 n/m（`getMaxReferenceImages`）；音色/参考视频来源没有已知上限，永不触发 capacityFull（诚实沉默，不硬造数字）；目标未选模型时同样跳过（上限不可得）。

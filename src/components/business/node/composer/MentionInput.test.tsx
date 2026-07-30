@@ -1,4 +1,4 @@
-import { createRef } from 'react'
+import { createRef, useState } from 'react'
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -182,5 +182,55 @@ describe('MentionInput component', () => {
       />,
     )
     expect(editor.textContent).toBe('typed')
+  })
+
+  it('preserves the caret when a controlled parent echoes input with an equivalent token list', () => {
+    function Harness() {
+      const [value, setValue] = useState('@ssd')
+      return (
+        <MentionInput
+          value={value}
+          onValueChange={setValue}
+          tokens={[...TOKENS]}
+        />
+      )
+    }
+
+    const { container } = render(<Harness />)
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement
+    const textNode = editor.firstChild as Text
+    editor.focus()
+    const selection = document.getSelection()
+    const range = document.createRange()
+    range.setStart(textNode, textNode.data.length)
+    range.collapse(true)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    textNode.data += 'X'
+    selection?.collapse(textNode, textNode.data.length)
+    fireEvent.input(editor)
+
+    expect(editor.textContent).toBe('@ssdX')
+    expect(document.activeElement).toBe(editor)
+    expect(document.getSelection()?.anchorOffset).toBe(5)
+  })
+
+  it('lets navigation keys reach the native contenteditable target before stopping canvas bubbling', () => {
+    const nativeKeyDown = vi.fn()
+    const { container } = render(
+      <MentionInput
+        value="@ssd"
+        onValueChange={vi.fn()}
+        tokens={TOKENS}
+        onKeyDown={(event) => event.stopPropagation()}
+      />,
+    )
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement
+    editor.addEventListener('keydown', nativeKeyDown)
+
+    fireEvent.keyDown(editor, { key: 'ArrowRight' })
+
+    expect(nativeKeyDown).toHaveBeenCalledOnce()
   })
 })

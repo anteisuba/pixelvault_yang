@@ -85,7 +85,19 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 
 TTS —— Fish Audio S2 Pro（#11，$15/1M 字符）对 ElevenLabs v3（$100/1M）性价比压倒，且 Inworld / Gemini 3.1 Flash TTS 在质量上已超过 v3。
 
-LoRA 底模 —— Civitai 三派系（Pony / Illustrious+NoobAI / SDXL+FLUX）中 **Illustrious/NoobAI 是当前最热的新标准**，项目的 `delta-lock/noobai-xl` 正压在这条线上。
+LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与工作流调研-2026-07.md`](../plans/research/LoRA底模与工作流调研-2026-07.md)）：
+
+| 族                           | 社区角色（2026）                                                         | 本仓                                     |
+| ---------------------------- | ------------------------------------------------------------------------ | ---------------------------------------- |
+| **Illustrious / NoobAI**     | 新默认质量 + 大量新角色/画风 LoRA；WAI-Illustrious 等 fine-tune 下载极高 | hosted NoobAI-XL；runner WAI-Illustrious |
+| **Pony（V6 系）**            | **LoRA 库存与角色覆盖仍最深**；依赖 `score_9…` 方言                      | runner Pony V6（无单独 hosted 快通道）   |
+| **FLUX.1**                   | 写实/提示服从 LoRA 生态成熟中                                            | `flux-hosted` / FLUX_LORA                |
+| **Anima DiT**                | 动画向新热；与 Pencil XL **不同架构**                                    | runner + 来源图自动 checkpoint           |
+| **Anima Pencil / 纯 SDXL**   | 存量与部分画风线                                                         | 已覆盖                                   |
+| **SD 1.5**                   | 历史库；新训练少                                                         | 目录保留，runner 不主推                  |
+| Krea2 / Z-Image / Qwen-Image | 本地新底观察项                                                           | **未**作 LoRA 插槽                       |
+
+工作流骨架：Checkpoint → 多 LoRA 栈 → 采样（参数跟 checkpoint 页）；配方还原用源图 meta → Runner 忠实 / hosted 快。Pony↔IL 勿默认互通。
 
 ### ⑤ 本轮退役（`available: false` + 进 RETIRED_MODEL_IDS，不物理删除）
 
@@ -147,3 +159,4 @@ LoRA 底模 —— Civitai 三派系（Pony / Illustrious+NoobAI / SDXL+FLUX）�
 ## Last Audited
 
 - Date: 2026-07-26 · 范围：**首次全量**——全 provider 版本扫描 + 公开榜单主流度对账 + 生产库用量/成功率抽样。产出：修复 1 起线上失效（Gemini pro preview）、定位 1 起 CI 空转（周检脚本）、接入 4 个（Seedream 5.0 ×3 + Nano Banana 2 Lite）、升级 2 个（Recraft V4.1 / HappyHorse v1.1）、退役 7 个。下次月审：**2026-08 初**，重点跟进 Seedance 2.5 是否 GA 与 Gemini Omni Flash 接入排期。
+- Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入 `docs/plans/research/LoRA底模与工作流调研-2026-07.md`，并回写本节 §④ LoRA 表；未改模型代码。

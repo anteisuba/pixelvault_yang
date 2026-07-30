@@ -55,6 +55,7 @@ export interface FalWorkerVideoQueueRequest {
 
 const FAL_VIDEO_MODEL_IDS = {
   KLING_V3_PRO: 'kling-v3-pro',
+  KLING_O3_PRO: 'kling-o3-pro',
   HAPPYHORSE_10: 'happyhorse-1.0',
   LTX_23: 'ltx-2.3',
   SEEDANCE_20: 'seedance-2.0',
@@ -481,16 +482,22 @@ function buildSeedanceReference(
       ? providerInput.videoUrls.slice(0, 3)
       : []
 
-  // Reference endpoint mandates image_urls (at least 1, up to 9). Use the
-  // multi-reference array when provided, falling back to wrapping the single
-  // referenceImage for legacy single-image callers.
+  // Reference input may be image(s), video(s), or both. Audio cannot be the
+  // only reference modality.
   const imageRefs =
     providerInput.referenceImages && providerInput.referenceImages.length > 0
       ? providerInput.referenceImages
-      : [requireReferenceImage(context)]
+      : providerInput.referenceImage
+        ? [providerInput.referenceImage]
+        : []
+  if (imageRefs.length === 0 && videoUrls.length === 0) {
+    throw new Error(
+      `FAL video model ${providerInput.modelId} requires at least one reference image or video.`,
+    )
+  }
   // fal cross-modality cap ≤ 12 total — trim image_urls first so the
   // user-supplied audio + video references are never silently dropped.
-  const maxImages = Math.max(1, 12 - videoUrls.length - audioUrls.length)
+  const maxImages = Math.max(0, 12 - videoUrls.length - audioUrls.length)
   const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
 
   let prompt = providerInput.prompt
@@ -521,7 +528,9 @@ function buildSeedanceReference(
       readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
       true,
   }
-  body.image_urls = imageUrls
+  if (imageUrls.length > 0) {
+    body.image_urls = imageUrls
+  }
   if (videoUrls.length > 0) {
     body.video_urls = videoUrls
   }
@@ -537,6 +546,7 @@ function buildBody(
 ): Record<string, unknown> {
   switch (normalizeWorkerModelId(context.providerInput.modelId)) {
     case FAL_VIDEO_MODEL_IDS.KLING_V3_PRO:
+    case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO:
       return buildKlingV3Pro(context, mode)
     case FAL_VIDEO_MODEL_IDS.VEO_31:
       return buildVeo31(context, mode)
@@ -561,8 +571,8 @@ function buildBody(
 
 /**
  * seed 支持矩阵（spike 2026-06-20，fal 一手 OpenAPI）：Seedance 全族 + Veo
- * base(text-to-video) 接受 `seed`；Veo reference(image-to-video) / Kling V3 Pro
- * / LTX 2.3 的 input schema 无 seed → 不发，避免 fal 400。
+ * base(text-to-video) + HappyHorse v1.1 accept `seed`; Veo
+ * reference(image-to-video) / Kling V3 Pro / LTX 2.3 do not.
  */
 function applySeedIfSupported(
   body: Record<string, unknown>,
@@ -577,6 +587,7 @@ function applySeedIfSupported(
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST ||
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE ||
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE ||
+    modelId === FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10 ||
     (modelId === FAL_VIDEO_MODEL_IDS.VEO_31 && mode === 'text-to-video')
   if (supportsSeed) {
     body.seed = seed

@@ -19,6 +19,26 @@ If a file fails any test, it goes back to its owning module's L2 directory or st
 - `setup/` — API-key / model-config gates: quick setup dialog, API routes section, face-consent modal
 - `workflow/` — workflow & mode selection: workflow tabs / picker / summary, mode selector, generate bar
 - `primitives/` — small atomic UI primitives (e.g. `tool-surface`)
+- `pickers/` — model selection: `BaseModelPickerPanel`, `MainModelPicker`, `CanvasRoutePicker`
+
+## Model pickers — do not write a fourth one
+
+Model UI is classified by **modality first**: `ModelOption.outputType` = `IMAGE | VIDEO | AUDIO | MODEL_3D`. Style / provider / video-brand are all _secondary_ groupings, never the top level.
+
+The one supported chain:
+
+```text
+getAvailable{Image,Video,Audio,3D}Models()
+  → use{Image,Video,Audio,3D}ModelOptions()   (per-modality hook)
+    → StudioModelOption[]                     (one option shape)
+      → BaseModelPickerPanel                  (search, saved/workspace groups, locked-key → setup)
+        ← MainModelPicker(modality=…)         Studio
+        ← WorkflowModelPicker(kind=…)         Node canvas — parent pre-filters the options
+```
+
+**New model entry points go through `MainModelPicker` + the matching hook.** `business/ModelSelector.tsx` is the older/richer Studio selector and the source of the `StudioModelOption` type — it and `BaseModelPickerPanel` should converge long-term, so do not write half of a feature in each. Node canvas uses `WorkflowModelPicker` with parent-filtered options; `VideoComposer`'s Seedance strip is a brand/speed switch, **not** a model list.
+
+Route type (native API vs fal/Replicate aggregation vs self-hosted Runner) is an adapter-layer fact — see `docs/references/providers.md`. It is **not** a picker-level grouping; the UI only shows the provider label and key-lock state.
 
 ## Public API
 

@@ -59,22 +59,38 @@ adapter / Worker 抛错
 
 本文件仍以契约与错误处理为权威；路由类型以该调研 + `AI_PROVIDER_ENDPOINTS` 为准。
 
+### 新模型接入的默认路由策略（2026-07-31 从调研升格为规则）
+
+| 情形                                            | 默认走                        | 说明                                                                   |
+| ----------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| 厂商有官方 HTTP API **且**可 BYOK               | **原生**（A 类）              | OpenAI / Gemini / Ark / NovelAI / Fish / ElevenLabs / Hyper3D 都是这条 |
+| 只有聚合能买 / 要 day-0 上线 / 冷启动想让平台扛 | **fal（或现有双轨）**（B 类） | Kling / Happy Horse / Hunyuan3D 现状；**合法聚合，不是灰色反代**       |
+| 社区 checkpoint + LoRA 配方要忠实还原           | **Runner**（C 类）            | 自托管；「更好」是扩 workflow/checkpoint，不是换 fal 假装社区底模      |
+| 未授权转发官方 key/账号的「中转站」             | **禁止**                      | ToS、稳定性、封号、无法 BYOK 审计                                      |
+
+推论（避免反复重开这个话题）：
+
+- **不要**为「去掉中转」再造第三条字节通道——Seedream / Seedance 已是 **fal + 火山 Ark 双轨**，够了。
+- **不要**为「全部原生」拆散统一的 fal 队列与 credit 抽象——代价是更多 adapter 与运维面。
+- FLUX 走 fal 是合理默认；仅当 BFL 官方有明确价差或合规需求才开 `bfl` adapter spike。
+- Kling 换原生 = **新 provider 工程**（区域/资质/API 形态都不同），不是改 endpoint 字符串。
+
 ## 逐 provider 现状速览
 
-| adapter           | 用途                                                  | 错误/接入特点（已核验口径）                                                                                                   |
-| ----------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| openai            | 图（gpt-image-2）                                     | 参考图仅 JPEG/PNG/WebP；Worker 已迁移；adapter 无视频路径（Sora 仅存在于 types.ts fetchHeaders 契约注释，目录中无 Sora 模型） |
-| gemini            | 图（generateContent + inline 参考图）                 | 参考图 +HEIC/HEIF；Worker 已迁移                                                                                              |
-| fal               | 图/视频/3D 最大聚合通道（queue submit/poll）          | 参考图 URL 必须直接可达；**部分视频 schema 未逐字段核验**（改前查模型页）；Worker 已迁移（图+视频+长视频）                    |
-| replicate         | 图（FLUX/SDXL LoRA 字段）                             | 结果下载需 bearer；Worker 已迁移                                                                                              |
-| novelai           | 图（nai-diffusion-4.5）                               | 返回 ZIP 需解包；官方 Swagger 需实时查 schema；Worker 已迁移                                                                  |
-| volcengine        | 图/视频国内直连（Ark）                                | 官方文档页需 JS 渲染，字段级改动去控制台 API Explorer / SDK 例子核；Worker 已迁移（图）                                       |
-| huggingface       | 图（Inference Providers）                             | 二进制响应；Worker 已迁移                                                                                                     |
-| runway            | 视频                                                  | —                                                                                                                             |
-| fish_audio        | 音频 TTS（s2-pro）                                    | **无 getSystemApiKey 平台 key 映射**（BYOK-only 现状）                                                                        |
-| elevenlabs        | 音频 TTS + SFX（eleven_v3 / eleven_text_to_sound_v2） | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）                                                 |
-| （hyper3d_rodin） | 3D，不进 registry                                     | Worker 直发                                                                                                                   |
-| （deepseek）      | 文本 planner/助手                                     | 不是 media adapter                                                                                                            |
+| adapter           | 用途                                                           | 错误/接入特点（已核验口径）                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| openai            | 图（gpt-image-2）                                              | 参考图仅 JPEG/PNG/WebP；Worker 已迁移；adapter 无视频路径（Sora 仅存在于 types.ts fetchHeaders 契约注释，目录中无 Sora 模型）                                     |
+| gemini            | 图（generateContent + inline 参考图）                          | 参考图 +HEIC/HEIF；Worker 已迁移                                                                                                                                  |
+| fal               | 图/视频/3D 最大聚合通道（queue submit/poll）                   | 参考图 URL 必须直接可达；**部分视频 schema 未逐字段核验**（改前查模型页）；Worker 已迁移（图+视频+长视频）                                                        |
+| replicate         | 图（FLUX/SDXL LoRA 字段）                                      | 结果下载需 bearer；Worker 已迁移                                                                                                                                  |
+| novelai           | 图（nai-diffusion-4.5）                                        | 返回 ZIP 需解包；官方 Swagger 需实时查 schema；Worker 已迁移                                                                                                      |
+| volcengine        | 图/视频国内直连（Ark）                                         | 官方文档页需 JS 渲染，字段级改动去控制台 API Explorer / SDK 例子核；Worker 已迁移（图）                                                                           |
+| huggingface       | 图（Inference Providers）                                      | 二进制响应；Worker 已迁移                                                                                                                                         |
+| runway            | 视频                                                           | —                                                                                                                                                                 |
+| fish_audio        | 音频 TTS（**s2.1-pro**，2026-07-30 升级）                      | **无 getSystemApiKey 平台 key 映射**（BYOK-only 现状）。稳定 key 仍是 `fish-audio-s2-pro`，只换 `externalModelId`                                                 |
+| elevenlabs        | 音频 SFX + **Music**（`eleven_text_to_sound_v2` / `music_v2`） | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）。⚠ 语音 `eleven_v3` 已 `available: false`（价高退役），别按「EL 是 TTS 供应商」排期 |
+| （hyper3d_rodin） | 3D，不进 registry                                              | Worker 直发                                                                                                                                                       |
+| （deepseek）      | 文本 planner/助手                                              | 不是 media adapter                                                                                                                                                |
 
 ## 未决项（继承自 2026-06 核验，仍未解决）
 

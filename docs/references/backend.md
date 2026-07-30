@@ -5,7 +5,7 @@
 ## 分层（谁能碰什么）
 
 ```text
-app/api routes（149 个 route.ts）      ← 只做三件事，不含业务逻辑
+app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，不含业务逻辑
   → services（src/services，101 个非测试文件，全部 server-only）
       ← 唯一能碰 Prisma 和外部 API（AI provider / R2）的层
       → provider adapters（src/services/providers/）

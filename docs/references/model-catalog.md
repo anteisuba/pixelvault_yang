@@ -144,6 +144,21 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与
 
 `gemini-omni-flash-preview` 是 preview 档，enum 值特意写成 `gemini-omni-flash`（不含 `-preview`），GA 时只改一行 externalModelId——这是①那次事故的直接教训。
 
+### ⑧ 2026-07-30 业界升级审计 — **已实现清单（别再当 backlog 排期）**
+
+> 来源：[`../plans/research/全站模型升级审计-2026-07-30.md`](../plans/research/全站模型升级审计-2026-07-30.md) §9。
+> **回写理由**：那份调研文首是「优先级/建议」口吻，但 §9 记着当天已落地——只读文首会把这五项重新排一遍期。
+
+| 项                         | 状态             | 代码事实（2026-07-31 复核）                                                                                                 |
+| -------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Fish TTS 升 s2.1-pro**   | ✅ 已实现        | `models/audio.ts` `externalModelId: 's2.1-pro'`；**稳定 key 仍是 `fish-audio-s2-pro`**（只换 external id，不动 enum）       |
+| **Kling O3 Pro**           | ✅ 已实现        | 新模型条目 + fal builder 与 V3 同形                                                                                         |
+| **ElevenLabs Music v2**    | ✅ 已实现        | `externalModelId: 'music_v2'` + `audioKind: MUSIC` + `generateMusic` + service 分支 → **speech / sfx / music 三档矩阵补齐** |
+| **FLUX.2 Pro Edit**        | ✅ 已实现        | catalog + fal 多参考分支 + 编辑能力 `object-replace` / `style-transfer`                                                     |
+| **Gemini Omni 去 preview** | ⏸ **被上游卡住** | 官方文档仍只有 `gemini-omni-flash-preview`；**未改 id**。enum 已预留（见 ⑦ 末段），GA 时改一行                              |
+
+**剩余待办（真 backlog）：** ①Gemini Omni GA id（等 Google）②火山 Seedream/Seedance endpoint 月审（下次 2026-08）③3D 目录增量 —— 但 **产品优先于模型**：GLB 下游用途未定前不优先堆 Meshy / 完整 Tripo（`product.md` 3D 节已重述）。
+
 ## 接入执行规范（指针）
 
 - 加模型四件套：`AI_MODELS` enum + 模型配置 + i18n ×3 + provider adapter（`backend.md`）。
@@ -158,5 +173,6 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与
 
 ## Last Audited
 
+- Date: 2026-07-31 · 范围：**回写补登**——把 2026-07-30 业界升级审计的**已实现**结果登记为 §⑧（Fish s2.1-pro / Kling O3 Pro / EL Music v2 / FLUX.2 Pro Edit 四项已落地，Gemini Omni GA 被上游卡住）。同日复核 `models/audio.ts` 确认 `s2.1-pro`、`music_v2`、`eleven_v3: available:false`。**未改模型代码。**
 - Date: 2026-07-26 · 范围：**首次全量**——全 provider 版本扫描 + 公开榜单主流度对账 + 生产库用量/成功率抽样。产出：修复 1 起线上失效（Gemini pro preview）、定位 1 起 CI 空转（周检脚本）、接入 4 个（Seedream 5.0 ×3 + Nano Banana 2 Lite）、升级 2 个（Recraft V4.1 / HappyHorse v1.1）、退役 7 个。下次月审：**2026-08 初**，重点跟进 Seedance 2.5 是否 GA 与 Gemini Omni Flash 接入排期。
 - Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入 `docs/plans/research/LoRA底模与工作流调研-2026-07.md`，并回写本节 §④ LoRA 表；未改模型代码。

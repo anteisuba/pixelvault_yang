@@ -122,7 +122,11 @@ beforeEach(() => {
 })
 
 describe('CanvasImageEditWorkspace', () => {
-  it('renders the six ready capabilities and omits hidden placeholders', () => {
+  // 2e783d5b 把 object-replace / style-transfer 从 hidden 提级到 ready（并各自
+  // 配了图标），ready 6 → 8，hidden 只剩 text-render。清单在这里照抄一份而不是
+  // 直接 import READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS：后者会让断言变成同义
+  // 反复，提级/降级就再也不会被这条测试拦下来。
+  it('renders the eight ready capabilities and omits hidden placeholders', () => {
     renderWorkspace()
 
     for (const task of [
@@ -132,14 +136,14 @@ describe('CanvasImageEditWorkspace', () => {
       'outpaint',
       'decompose',
       'extract-element',
+      'object-replace',
+      'style-transfer',
     ]) {
       expect(screen.getAllByText(`tasks.${task}.label`).length).toBeGreaterThan(
         0,
       )
     }
 
-    expect(screen.queryByText('tasks.object-replace.label')).toBeNull()
-    expect(screen.queryByText('tasks.style-transfer.label')).toBeNull()
     expect(screen.queryByText('tasks.text-render.label')).toBeNull()
     expect(screen.getByAltText('sourceAlt')).toHaveAttribute(
       'src',

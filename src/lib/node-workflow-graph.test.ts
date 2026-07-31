@@ -145,10 +145,12 @@ describe('getSeedanceReferenceKind', () => {
         makeNode('d', NODE_TYPE_IDS.image, { role: 'frame' }),
       ),
     ).toBeNull()
-    // A role-less image (freshly added) is not a named reference yet.
-    expect(
-      getSeedanceReferenceKind(makeNode('e', NODE_TYPE_IDS.image)),
-    ).toBeNull()
+    // 无 role 的 image 按 shot 处理——与 isVisualReferenceNode（同样是
+    // `role ?? shot`）和实际的图片载荷收割保持一致。2e783d5b 之前这里返回
+    // null，和那两处对不上：节点会被收割进载荷却不出现在 chips 里。
+    expect(getSeedanceReferenceKind(makeNode('e', NODE_TYPE_IDS.image))).toBe(
+      'shot',
+    )
   })
 
   it('resolves legacy per-type + voice nodes', () => {

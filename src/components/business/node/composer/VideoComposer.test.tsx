@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
@@ -961,6 +969,132 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
     expect(
       container.querySelectorAll('.node-collapsible[data-open]'),
     ).toHaveLength(2)
+  })
+})
+
+/** Resolution option buttons ("480p" / "720p" / "1080p") present in the DOM. */
+function resolutionOptionButtons(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('button')).filter((button) =>
+    /^\d{3,4}p$/.test(button.textContent ?? ''),
+  )
+}
+
+/** Aspect option buttons ("16:9" / "9:16" / …) present in the DOM. */
+function aspectOptionButtons(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('button')).filter((button) =>
+    /^\d+:\d+$/.test(button.textContent ?? ''),
+  )
+}
+
+// 能力 gate: every OSD segment is driven by the send contract's `parameters`
+// flags, and the gate has to cover the collapsible BODY as well as the pill.
+// `.node-collapsible` only animates grid-template-rows — a collapsed section's
+// controls stay in the DOM and stay keyboard-reachable, so "closed" is not
+// "gated". Live cases: Kling V3/O3 Pro send no resolution (fal's endpoint
+// schema has no such input) yet their capability table still carries a nominal
+// `supportedResolutions: ['1080p']`; Gemini Omni Flash sends no duration.
+describe('VideoComposer 参数能力 gate', () => {
+  const parameters = composerState.sendPreview.contract.parameters
+
+  beforeEach(() => {
+    composerState.referenceKinds = []
+    composerState.referenceTokens = []
+    composerState.referencedTokenIds = new Set()
+  })
+
+  afterEach(() => {
+    // Every test below closes exactly one flag; restore all three so the rest
+    // of the file keeps its fully-supported contract.
+    parameters.duration = true
+    parameters.resolution = true
+    parameters.aspectRatio = true
+  })
+
+  it('drops the resolution pill AND its collapsible body when the contract sends no resolution', () => {
+    parameters.resolution = false
+    const data = {
+      prompt: '',
+      status: 'idle',
+      model: { modelId: AI_MODELS.KLING_V3_PRO },
+    } as unknown as NodeWorkflowNodeData
+    const { container } = render(
+      <VideoComposer id="v1" data={data} density="detail" />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: /^resolutionLabel:/ }),
+    ).not.toBeInTheDocument()
+    // Asserted against the raw DOM, not `*ByRole` — a collapsed section's
+    // option buttons are still in the markup (verified: pre-fix this returned
+    // KLING's nominal 1080p) yet `*ByRole` does not match them, so a role
+    // query here would pass whether or not the body were gated.
+    expect(resolutionOptionButtons(container)).toHaveLength(0)
+    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
+
+    // The segments the contract does support are untouched.
+    expect(
+      screen.getByRole('button', { name: /^duration\.label:/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^aspectRatioLabel:/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('drops the duration pill AND its collapsible body when the contract sends no duration', () => {
+    parameters.duration = false
+    const data = {
+      prompt: '',
+      status: 'idle',
+      model: { modelId: AI_MODELS.GEMINI_OMNI_FLASH },
+    } as unknown as NodeWorkflowNodeData
+    const { container } = render(
+      <VideoComposer id="v1" data={data} density="detail" />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: /^duration\.label:/ }),
+    ).not.toBeInTheDocument()
+    // The slider (and its 自定义 switch) must go with the pill — left behind,
+    // it would still be draggable to a duration the request never carries.
+    expect(container.querySelectorAll('.node-duration-slider')).toHaveLength(0)
+    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
+  })
+
+  it('drops the aspect pill AND its collapsible body when the contract sends no aspect ratio', () => {
+    parameters.aspectRatio = false
+    const data = {
+      prompt: '',
+      status: 'idle',
+      model: { modelId: AI_MODELS.SEEDANCE_20 },
+    } as unknown as NodeWorkflowNodeData
+    const { container } = render(
+      <VideoComposer id="v1" data={data} density="detail" />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: /^aspectRatioLabel:/ }),
+    ).not.toBeInTheDocument()
+    expect(aspectOptionButtons(container)).toHaveLength(0)
+    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
+  })
+
+  it('still renders the resolution section when the contract does send it', () => {
+    const data = {
+      prompt: '',
+      status: 'idle',
+      model: { modelId: AI_MODELS.SEEDANCE_20 },
+    } as unknown as NodeWorkflowNodeData
+    const { container } = render(
+      <VideoComposer id="v1" data={data} density="detail" />,
+    )
+
+    const pill = screen.getByRole('button', { name: /^resolutionLabel:/ })
+    expect(pill).toBeInTheDocument()
+    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(6)
+    // Seedance 2.0 publishes 480p/720p/1080p — all three reachable once the
+    // pill opens its section.
+    fireEvent.click(pill)
+    expect(resolutionOptionButtons(container)).toHaveLength(3)
   })
 })
 

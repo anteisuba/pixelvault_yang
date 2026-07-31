@@ -1852,146 +1852,169 @@ export function VideoComposer({
               </div>
             ) : null}
 
-            <div
-              className="node-collapsible"
-              data-open={openSection === 'duration' || undefined}
-            >
-              <div>
-                <ComposerField label={tFields('duration.label')}>
-                  <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold tabular-nums text-node-foreground">
-                        {isAutoDuration
-                          ? tFields('duration.auto')
-                          : tFields('duration.seconds', {
-                              value: String(currentDurationSeconds),
-                            })}
-                      </span>
-                      <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
-                        {tFields('duration.custom')}
-                        <Switch
-                          checked={!isAutoDuration}
-                          onCheckedChange={handleDurationCustom}
-                          aria-label={tFields('duration.custom')}
-                        />
-                      </label>
-                    </div>
-                    <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
-                      <Slider
-                        min={0}
-                        max={Math.max(0, durationOptions.length - 1)}
-                        step={1}
-                        value={[durationIndex]}
-                        onValueChange={(vals) =>
-                          handleDurationSlide(vals[0] ?? 0)
-                        }
-                        disabled={isAutoDuration}
-                        aria-label={tFields('duration.label')}
-                      />
-                    </div>
-                    <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
-                      <span>{durationOptions[0]}</span>
-                      <span>{durationOptions[durationOptions.length - 1]}</span>
-                    </div>
-                  </div>
-                </ComposerField>
-              </div>
-            </div>
-
-            <div
-              className="node-collapsible"
-              data-open={openSection === 'resolution' || undefined}
-            >
-              <div>
-                <ComposerField label={t('resolutionLabel')}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {resolutionOptions.map((option) => {
-                      const isSelected = currentResolution === option
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          {...KEY_GUARD}
-                          onClick={() => handleResolutionToggle(option)}
-                          className={cn(
-                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                            isSelected
-                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                          )}
-                        >
-                          {option}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </ComposerField>
-              </div>
-            </div>
-
-            <div
-              className="node-collapsible"
-              data-open={openSection === 'aspect' || undefined}
-            >
-              <div>
-                <ComposerField label={t('aspectRatioLabel')}>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      {...KEY_GUARD}
-                      onClick={() =>
-                        updateNodeData(id, { aspectRatio: undefined })
-                      }
-                      aria-pressed={currentAspect === undefined}
-                      className={cn(
-                        'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                        currentAspect === undefined
-                          ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
-                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                      )}
-                    >
-                      <Wand2 className="size-4" />
-                      <span className="text-2xs font-semibold">
-                        {tc('aspectAuto')}
-                      </span>
-                    </button>
-                    {aspectOptions.map((option) => {
-                      const isSelected = currentAspect === option
-                      const box = aspectBoxStyle(option)
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          {...KEY_GUARD}
-                          onClick={() => handleAspectToggle(option)}
-                          aria-pressed={isSelected}
-                          className={cn(
-                            'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                            isSelected
-                              ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
-                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                          )}
-                        >
-                          <span
-                            aria-hidden
-                            style={{ width: box.width, height: box.height }}
-                            className={cn(
-                              'rounded-sm border',
-                              isSelected
-                                ? 'border-node-foreground'
-                                : 'border-node-muted',
-                            )}
+            {/* 同下面 resolution 段的闸门规则（见那处注释）：折叠体跟着它那颗
+                OsdPill 一起消失。Gemini Omni Flash 的契约写死 `duration: false`
+                （时长由模型自己决定，请求里没有这个字段）。 */}
+            {parameterSupport.duration ? (
+              <div
+                className="node-collapsible"
+                data-open={openSection === 'duration' || undefined}
+              >
+                <div>
+                  <ComposerField label={tFields('duration.label')}>
+                    <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold tabular-nums text-node-foreground">
+                          {isAutoDuration
+                            ? tFields('duration.auto')
+                            : tFields('duration.seconds', {
+                                value: String(currentDurationSeconds),
+                              })}
+                        </span>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
+                          {tFields('duration.custom')}
+                          <Switch
+                            checked={!isAutoDuration}
+                            onCheckedChange={handleDurationCustom}
+                            aria-label={tFields('duration.custom')}
                           />
-                          <span className="text-2xs font-semibold tabular-nums">
-                            {option}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </ComposerField>
+                        </label>
+                      </div>
+                      <div
+                        className="node-duration-slider px-0.5"
+                        {...KEY_GUARD}
+                      >
+                        <Slider
+                          min={0}
+                          max={Math.max(0, durationOptions.length - 1)}
+                          step={1}
+                          value={[durationIndex]}
+                          onValueChange={(vals) =>
+                            handleDurationSlide(vals[0] ?? 0)
+                          }
+                          disabled={isAutoDuration}
+                          aria-label={tFields('duration.label')}
+                        />
+                      </div>
+                      <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
+                        <span>{durationOptions[0]}</span>
+                        <span>
+                          {durationOptions[durationOptions.length - 1]}
+                        </span>
+                      </div>
+                    </div>
+                  </ComposerField>
+                </div>
               </div>
-            </div>
+            ) : null}
+
+            {/* 与上面那颗 OsdPill 同一个 `parameterSupport.resolution` 闸：
+                不支持时整段消失，而不是只藏按钮。Kling V3/O3 Pro 的契约写死
+                `resolution: false`（buildKlingV3Pro 从不发这个字段，fal 端点
+                schema 里也没有），能力表给的 `['1080p']` 只是名义值——真渲染出
+                来就是一颗点了不起作用的按钮。折叠体只靠 `data-open` 收起并不算
+                gate：内容仍在 DOM 里可被 Tab 聚焦、可回车触发。 */}
+            {parameterSupport.resolution ? (
+              <div
+                className="node-collapsible"
+                data-open={openSection === 'resolution' || undefined}
+              >
+                <div>
+                  <ComposerField label={t('resolutionLabel')}>
+                    <div className="flex flex-wrap gap-1.5">
+                      {resolutionOptions.map((option) => {
+                        const isSelected = currentResolution === option
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            {...KEY_GUARD}
+                            onClick={() => handleResolutionToggle(option)}
+                            className={cn(
+                              'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                              isSelected
+                                ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                            )}
+                          >
+                            {option}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ComposerField>
+                </div>
+              </div>
+            ) : null}
+
+            {/* 同上：闸门跟着 OsdPill 走。目前没有任何契约把 aspectRatio 关成
+                false，这里是防御——形状与 duration / resolution 一致，将来某个
+                模型不吃画幅时不会又漏一处。 */}
+            {parameterSupport.aspectRatio ? (
+              <div
+                className="node-collapsible"
+                data-open={openSection === 'aspect' || undefined}
+              >
+                <div>
+                  <ComposerField label={t('aspectRatioLabel')}>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        {...KEY_GUARD}
+                        onClick={() =>
+                          updateNodeData(id, { aspectRatio: undefined })
+                        }
+                        aria-pressed={currentAspect === undefined}
+                        className={cn(
+                          'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                          currentAspect === undefined
+                            ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                        )}
+                      >
+                        <Wand2 className="size-4" />
+                        <span className="text-2xs font-semibold">
+                          {tc('aspectAuto')}
+                        </span>
+                      </button>
+                      {aspectOptions.map((option) => {
+                        const isSelected = currentAspect === option
+                        const box = aspectBoxStyle(option)
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            {...KEY_GUARD}
+                            onClick={() => handleAspectToggle(option)}
+                            aria-pressed={isSelected}
+                            className={cn(
+                              'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                              isSelected
+                                ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                                : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                            )}
+                          >
+                            <span
+                              aria-hidden
+                              style={{ width: box.width, height: box.height }}
+                              className={cn(
+                                'rounded-sm border',
+                                isSelected
+                                  ? 'border-node-foreground'
+                                  : 'border-node-muted',
+                              )}
+                            />
+                            <span className="text-2xs font-semibold tabular-nums">
+                              {option}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </ComposerField>
+                </div>
+              </div>
+            ) : null}
 
             {parameterSupport.generateAudio ? (
               <div

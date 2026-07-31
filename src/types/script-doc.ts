@@ -180,17 +180,42 @@ export const ScriptDocClarifyingQuestionSchema = z.object({
   allowSkip: z.boolean().default(true),
 })
 
+/**
+ * What the server had to leave out of the prompt envelope to stay inside
+ * `SCRIPT_DOC_PROMPT_BUDGET`. Attached only when something was actually
+ * trimmed, so the workspace can say so rather than degrade silently — the
+ * previous behaviour (a hard 4000-character ceiling, swallowed into a generic
+ * 500) is precisely what made this failure so hard to attribute.
+ */
+export const ScriptDocTrimNoticeSchema = z.object({
+  /** Conversation turns that made it into the envelope. */
+  keptMessages: z.number().int().min(0),
+  /** Turns dropped, oldest first, to fit. */
+  droppedMessages: z.number().int().min(0),
+  /**
+   * Optional doc fields withheld from the model. Their values are restored on
+   * the result, so they are preserved but were not available to revise.
+   */
+  heldBackFields: z.number().int().min(0),
+})
+
 // Drafting returns EITHER the outline OR clarifying questions (discriminated by
 // `kind`). Keeps a single round-trip; the workspace renders the question card
-// and folds answers back into the next draft.
+// and folds answers back into the next draft. `trim` is server-attached (never
+// model-authored) and optional, so existing consumers are unaffected.
 export const NodeScriptDocResponseDataSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('scriptDoc'), scriptDoc: ScriptDocSchema }),
+  z.object({
+    kind: z.literal('scriptDoc'),
+    scriptDoc: ScriptDocSchema,
+    trim: ScriptDocTrimNoticeSchema.optional(),
+  }),
   z.object({
     kind: z.literal('questions'),
     questions: z
       .array(ScriptDocClarifyingQuestionSchema)
       .min(1)
       .max(SCRIPT_DOC_LIMITS.maxClarifyQuestions),
+    trim: ScriptDocTrimNoticeSchema.optional(),
   }),
 ])
 
@@ -211,6 +236,7 @@ export type ScriptDocClarifyingQuestion = z.infer<
   typeof ScriptDocClarifyingQuestionSchema
 >
 export type ScriptDocFocus = z.infer<typeof ScriptDocFocusSchema>
+export type ScriptDocTrimNotice = z.infer<typeof ScriptDocTrimNoticeSchema>
 export type NodeScriptDocRequest = z.infer<typeof NodeScriptDocRequestSchema>
 export type NodeScriptDocResponseData = z.infer<
   typeof NodeScriptDocResponseDataSchema

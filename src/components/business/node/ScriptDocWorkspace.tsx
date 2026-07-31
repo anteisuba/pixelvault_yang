@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock,
   Film,
+  Info,
   Lock,
   Mic,
   Plus,
@@ -128,7 +129,7 @@ export function ScriptDocWorkspace({
     setScriptDocDepth,
     setScriptDocLocks,
   } = useNodeWorkflowActions()
-  const { draft, isDrafting, error } = useNodeScriptDoc()
+  const { draft, isDrafting, error, trim } = useNodeScriptDoc()
 
   // Stage / depth / locks persist on the project state (survive reloads); only
   // the read-vs-edit view is ephemeral local UI.
@@ -480,9 +481,29 @@ export function ScriptDocWorkspace({
         )}
 
         {error ? (
-          <div className="mt-3 flex gap-2 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
+          <div className="canvas-inline-notice--danger mt-3 flex gap-2 rounded-xl p-3 text-xs leading-5">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <p className="min-w-0">{error}</p>
+          </div>
+        ) : null}
+
+        {/* 剧本长到装不下时，服务端会砍掉最旧的对话 / 暂时藏起可选字段再送。
+            砍了就必须说 —— 静默降级正是这条链路原来最难排查的地方。 */}
+        {trim ? (
+          <div className="canvas-inline-notice--warn mt-3 flex gap-2 rounded-xl p-3 text-2xs leading-4">
+            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <div className="min-w-0 space-y-1">
+              {trim.droppedMessages > 0 ? (
+                <p>
+                  {t('scriptDocTrimMessages', { count: trim.keptMessages })}
+                </p>
+              ) : null}
+              {trim.heldBackFields > 0 ? (
+                <p>
+                  {t('scriptDocTrimFields', { count: trim.heldBackFields })}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

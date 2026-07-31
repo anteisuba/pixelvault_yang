@@ -23,6 +23,14 @@ vi.mock('@/lib/with-retry', () => ({
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  SCRIPT_DOC_LIMITS,
+  SCRIPT_DOC_PROMPT_BUDGET,
+} from '@/constants/script-doc'
+import {
+  MAX_PROMPT_LENGTH,
+  validatePrompt,
+} from '@/services/kernel/prompt-guard'
 import { createNodeScriptDoc } from '@/services/node/node-script-doc.service'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -292,5 +300,243 @@ describe('createNodeScriptDoc', () => {
         locale: 'ja',
       }),
     ).rejects.toThrow('provider down')
+  })
+})
+
+// ─── Prompt budget (P0-1: the 4000-character cliff) ──────────────────────
+//
+// The envelope `buildUserPrompt` assembles is platform-authored, not typed by
+// the user, so it was being measured against the wrong ruler:
+// `MAX_PROMPT_LENGTH` (4000). Any request carrying an existing ScriptDoc blew
+// past it once the story got even slightly rich — ~4018 characters — and the
+// rejection was swallowed into a generic 500. See
+// docs/plans/canvas-pipeline-gap-2026-07-31.md §2.
+
+function padded(prefix: string, length: number): string {
+  return `${prefix} ${'detail '.repeat(length).slice(0, Math.max(0, length))}`.slice(
+    0,
+    length,
+  )
+}
+
+/**
+ * Grow a doc to (very close to) `targetChars` of JSON, staying inside
+ * `maxShots` so the fixture remains a doc the schema would accept.
+ *
+ * Sizing has to be tight, not approximate: the trimmable fields are worth at
+ * most ~1040 characters together, so a fixture that overshoots by one whole
+ * shot lands past the point where withholding them can rescue the request.
+ * Whole shots get it close; the trailing shot's optional text closes the gap.
+ */
+function makeDocOfSize(
+  targetChars: number,
+  extras: Partial<ScriptDoc> = {},
+): ScriptDoc {
+  const doc: ScriptDoc = {
+    title: 'Long Night Signal',
+    logline: padded('A botanist chases a signal', 300),
+    roles: [
+      {
+        id: 'role-1',
+        name: 'Mira',
+        description: padded('botanist in a linen coat', 600),
+      },
+    ],
+    shots: [],
+    ...extras,
+  }
+
+  const pushShot = () => {
+    const index = doc.shots.length + 1
+    if (index > SCRIPT_DOC_LIMITS.maxShots) {
+      throw new Error(
+        `cannot reach ${targetChars} chars within ${SCRIPT_DOC_LIMITS.maxShots} shots`,
+      )
+    }
+    doc.shots.push({
+      id: `shot-${index}`,
+      summary: padded(`beat ${index}`, 100),
+      roleIds: ['role-1'],
+      dialogue: [
+        {
+          id: `line-${index}a`,
+          speakerRoleId: 'role-1',
+          line: padded('it is coming from here', 600),
+        },
+        {
+          id: `line-${index}b`,
+          speakerRoleId: 'role-1',
+          line: padded('closer than last night', 600),
+        },
+      ],
+    })
+  }
+
+  pushShot()
+  while (JSON.stringify(doc).length + 2_000 < targetChars) {
+    pushShot()
+  }
+
+  const tail = doc.shots[doc.shots.length - 1]
+  const gap = () => targetChars - JSON.stringify(doc).length
+  if (tail) {
+    if (gap() > 0) tail.camera = 'x'.repeat(Math.min(gap(), 700))
+    if (gap() > 0) tail.sceneLabel = 'x'.repeat(Math.min(gap(), 700))
+    if (gap() > 0) {
+      tail.summary += 'x'.repeat(Math.min(gap(), 700 - tail.summary.length))
+    }
+  }
+
+  return doc
+}
+
+const BACKGROUND_MARKER = 'BACKGROUND_NEEDLE_ONLY_HERE'
+const LONG_TURN = padded('the creator explains the world at length', 3_500)
+
+describe('createNodeScriptDoc prompt budget', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockResolveLlmTextRoute.mockResolvedValue(FAKE_ROUTE)
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+  })
+
+  function lastCall(): { userPrompt: string; promptGuardMaxLength?: number } {
+    return mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      userPrompt: string
+      promptGuardMaxLength?: number
+    }
+  }
+
+  it('measures the envelope against its own budget, not the raw-input ceiling', async () => {
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      scriptDoc: VALID_SCRIPT_DOC,
+      locale: 'en',
+    })
+
+    expect(lastCall().promptGuardMaxLength).toBe(
+      SCRIPT_DOC_PROMPT_BUDGET.totalChars,
+    )
+  })
+
+  // The exact shape that used to 500: a real doc plus the conversation that
+  // produced it. It only ever missed by ~18 characters, which is why it read
+  // as model flakiness rather than a hard limit.
+  it('accepts a doc + conversation that overflows the raw-input ceiling', async () => {
+    const doc = makeDocOfSize(3_000)
+
+    const result = await createNodeScriptDoc('clerk_user_1', {
+      messages: [
+        { role: 'user', content: padded('here is the story so far', 700) },
+        { role: 'assistant', content: padded('understood, drafting', 700) },
+        { role: 'user', content: 'now break it into shots' },
+      ],
+      scriptDoc: doc,
+      stage: 'shots',
+      locale: 'zh',
+    })
+
+    const { userPrompt } = lastCall()
+    expect(userPrompt.length).toBeGreaterThan(MAX_PROMPT_LENGTH)
+    expect(
+      validatePrompt(userPrompt, SCRIPT_DOC_PROMPT_BUDGET.totalChars),
+    ).toMatchObject({ valid: true })
+    expect(result.kind).toBe('scriptDoc')
+  })
+
+  it('never emits an envelope larger than the budget', async () => {
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: Array.from({ length: 8 }, () => ({
+        role: 'user' as const,
+        content: LONG_TURN,
+      })),
+      scriptDoc: makeDocOfSize(12_000),
+      locale: 'en',
+    })
+
+    expect(lastCall().userPrompt.length).toBeLessThanOrEqual(
+      SCRIPT_DOC_PROMPT_BUDGET.totalChars,
+    )
+  })
+
+  it('drops the oldest turns first and reports what was dropped', async () => {
+    const result = await createNodeScriptDoc('clerk_user_1', {
+      messages: [
+        ...Array.from({ length: 7 }, (_, index) => ({
+          role: 'user' as const,
+          content: `${padded('old turn', 3_400)} #${index}`,
+        })),
+        { role: 'user' as const, content: 'KEEP_THIS_LATEST_INSTRUCTION' },
+      ],
+      scriptDoc: makeDocOfSize(6_000),
+      locale: 'en',
+    })
+
+    const { userPrompt } = lastCall()
+    expect(userPrompt).toContain('KEEP_THIS_LATEST_INSTRUCTION')
+    expect(result.trim?.droppedMessages).toBeGreaterThan(0)
+    expect(result.trim?.keptMessages).toBeGreaterThan(0)
+  })
+
+  it('leaves a normal request untrimmed and untagged', async () => {
+    const result = await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      scriptDoc: VALID_SCRIPT_DOC,
+      locale: 'en',
+    })
+
+    expect(result.trim).toBeUndefined()
+  })
+
+  // The dangerous half of trimming: a withheld field the model never saw must
+  // come back intact, or "the script got long" would quietly delete the
+  // creator's world-building.
+  it('withholds optional doc fields under pressure and restores their values', async () => {
+    // Sized just past the point where the doc crowds out the conversation
+    // (measured scaffold ≈ 2045 chars, so ≈ 21_955 are left for content), yet
+    // close enough that dropping `background` alone brings it back under.
+    const doc = makeDocOfSize(22_100, {
+      background: padded(BACKGROUND_MARKER, 600),
+      styleNote: padded('rain-soaked neon', 400),
+      targetDuration: '12-15s',
+    })
+
+    // The model answers without the withheld fields — it never saw them.
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    const result = await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      scriptDoc: doc,
+      locale: 'en',
+    })
+
+    const { userPrompt } = lastCall()
+    expect(userPrompt).not.toContain(BACKGROUND_MARKER)
+    if (result.kind !== 'scriptDoc') throw new Error('expected a scriptDoc')
+
+    // `background` alone was enough to fit, so it is the only field restored…
+    expect(result.trim?.heldBackFields).toBe(1)
+    expect(result.scriptDoc.background).toBe(doc.background)
+    // …and a field the model DID see keeps the model's value. Restoring is
+    // scoped to what was withheld, not a blanket overwrite of the answer.
+    expect(result.scriptDoc.styleNote).toBe(VALID_SCRIPT_DOC.styleNote)
+  })
+
+  it('fails fast with an actionable error when even a trimmed doc will not fit', async () => {
+    await expect(
+      createNodeScriptDoc('clerk_user_1', {
+        messages: CONVERSATION,
+        scriptDoc: makeDocOfSize(30_000),
+        locale: 'en',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'SCRIPT_DOC_PROMPT_TOO_LONG',
+      httpStatus: 400,
+      i18nKey: 'errors.scriptDoc.promptTooLong',
+    })
+
+    // Fail before spending a call — the old path burned one and returned 500.
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
   })
 })

@@ -1567,6 +1567,7 @@
       "restore": "Faithful restore",
       "runnerBudgetRemaining": "Runner: {remaining}/{limit} left this month (shared)",
       "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
+      "runnerUnavailable": "Runner generation is switched off (platform generation disabled) — generating will fail. Use a hosted base model, or ask the site admin to enable it",
       "resultEmptyTitle": "No result yet",
       "resultEmptyHint": "Enter a prompt, then hit Generate",
       "resultPreviewLabel": "Enlarge generation result",
@@ -4531,6 +4532,8 @@
       "scriptDocEmptyTitle": "No outline yet",
       "scriptDocEmptyHint": "Talk the outline through on the left, then draft it here — confirming spawns the matching nodes.",
       "scriptDocNeedChat": "Say a few words about your story first.",
+      "scriptDocTrimMessages": "The script is getting long — only your last {count} messages were sent this time.",
+      "scriptDocTrimFields": "The script is getting long — {count} optional field(s) (world setting, style note, target length) sat this round out. Their values are kept.",
       "clarify": {
         "title": "A few quick questions",
         "customPlaceholder": "Or type your own…",
@@ -5360,6 +5363,7 @@
     },
     "rateLimit": "Too many requests. Please wait a moment.",
     "runawayGeneration": "Generation requests from this account came in a rapid, repeating pattern and have been paused automatically — this usually means a stuck retry loop or automation bug, not something you did wrong. Wait a few minutes before trying again.",
+    "platformGenerationDisabled": "Platform-funded generation is switched off — this is a site configuration state, not a transient failure, so retrying will not succeed. Use a model with your own bound API key, or ask the site admin to enable it.",
     "auth": {
       "unauthorized": "Please sign in to continue."
     },
@@ -5390,6 +5394,9 @@
     "upload": {
       "storageUnreachable": "Couldn't upload to image storage — usually a network or storage CORS configuration issue. Please retry; if it persists, contact the administrator.",
       "storageRejected": "Image storage rejected the upload. Please retry; if it persists, contact the administrator."
+    },
+    "scriptDoc": {
+      "promptTooLong": "This script is too long to revise in one request. Shorten the shot summaries, or split it into fewer shots."
     }
   },
   "Transform": {

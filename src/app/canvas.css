@@ -1434,6 +1434,32 @@
   color: var(--canvas-danger);
 }
 
+/* 内联提示条（助手 dock 的 ScriptDoc 工作区先用）。两条都不自带底色以外的
+   面积填充，语义色只落在字与边上，守 §6「语义色只在徽章尺寸出现」。
+
+   ⚠ 起因：错误框原本写死 `text-red-100` 配 `bg-red-500/10`，是深色画布时代
+   的遗留类名。画布翻浅色后实测 **1.05:1** —— 字和底几乎同色，等于没有错误
+   提示（缺口清单 canvas-pipeline-gap-2026-07-31 §2 附带伤②）。
+
+   数值为**真机实测**（localhost:3000 画布页，把 color-mix 交给 Canvas 2D
+   光栅化后读真实像素，不是手算——手算按 sRGB alpha 叠加会比 oklab 混合
+   偏高约 0.03）：
+   - danger 字 #c0342e 对 danger-10% 叠在卡背（painted #f9eaea）= 4.77:1 ✅
+     ⚠ 同一配方叠在 --canvas-bg #f1f1f1（painted #ecdddd）只有 4.23:1 ✗ ——
+     所以这条只许放在卡背上，别挪进 bg-node-panel-soft 的容器里。
+   - warn 字 #8a5a00 对卡背 = 5.93:1 ✅（warn 不带面积填充，两种底都过）
+   深色档为手算（该档 UI 未实跑到）：danger #f0736c 对合成 #2d2020 = 5.51:1，
+   warn #d9a441 对卡背 7.97:1，两者余量都远大于 oklab/sRGB 那 0.03 的差。 */
+.domain-canvas .canvas-inline-notice--danger {
+  background: color-mix(in oklab, var(--canvas-danger) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--canvas-danger) 40%, transparent);
+  color: var(--canvas-danger);
+}
+.domain-canvas .canvas-inline-notice--warn {
+  border: 1px solid color-mix(in oklab, var(--canvas-warn) 30%, transparent);
+  color: var(--canvas-warn);
+}
+
 /* 上传中 / 生成中：半透明白 + 一道扫光，两态共用同一视觉语言——生成中在
    canvas-generate-composer.md §7 owner 2026-07-28 真机实测缺陷④定为「沿用
    上传中语言，但不显示百分比」（ImageCardGeneratingOverlay 只是不传百分比

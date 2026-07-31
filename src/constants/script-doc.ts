@@ -69,13 +69,61 @@ export const SCRIPT_DOC_MERGE_SOURCE_ID = 'merge'
 
 export const SCRIPT_DOC_ERROR_CODES = {
   invalidOutput: 'SCRIPT_DOC_INVALID_OUTPUT',
+  promptTooLong: 'SCRIPT_DOC_PROMPT_TOO_LONG',
 } as const
 
 export const SCRIPT_DOC_HTTP_STATUS = {
   invalidOutput: 502,
+  promptTooLong: 400,
   rateLimited: 429,
   temporarilyUnavailable: 503,
 } as const
+
+/**
+ * Character budget for the prompt envelope `buildUserPrompt` assembles.
+ *
+ * That envelope is NOT a user-typed prompt — it wraps the output contract, the
+ * depth directive, the existing ScriptDoc's JSON and the conversation into one
+ * platform-assembled string. Measuring it against `MAX_PROMPT_LENGTH` (4000,
+ * calibrated for raw user input) put a silent cliff in the middle of normal
+ * use: the first draft succeeded, then every later revision of a slightly
+ * richer story failed at ~4018 characters with the reason swallowed into a
+ * generic 500.
+ *
+ * This budget is handed to the guard as `promptGuardMaxLength`, so injection
+ * detection still runs — only the length ceiling moves. It stays bounded on
+ * purpose: an unbounded envelope would just relocate the cliff to the model's
+ * context window, where it fails later and after paying for the call.
+ */
+export const SCRIPT_DOC_PROMPT_BUDGET = {
+  /** Ceiling for the whole assembled user prompt. */
+  totalChars: 24_000,
+  /** Conversation turns kept even when the doc has eaten the budget. */
+  minMessages: 2,
+  /** Per-turn cap applied to those surviving turns as a last resort. */
+  messageChars: 1_200,
+} as const
+
+/**
+ * Optional doc fields dropped from the outgoing envelope, in this order, when
+ * the ScriptDoc alone leaves no room for the creator's latest instruction.
+ *
+ * Their original values are restored onto the model's result, so trimming never
+ * destroys work — but the model cannot act on them either, which is exactly why
+ * the trim is reported back to the UI instead of degrading silently.
+ *
+ * Deliberately doc-level only: per-shot / per-role optionals would need an
+ * id-matched merge on the way back, and no observed doc has come close to
+ * needing it. Extend it when a real doc proves otherwise, not before.
+ */
+export const SCRIPT_DOC_TRIMMABLE_FIELDS = [
+  'background',
+  'styleNote',
+  'targetDuration',
+] as const
+
+export type ScriptDocTrimmableField =
+  (typeof SCRIPT_DOC_TRIMMABLE_FIELDS)[number]
 
 /**
  * Two-stage drafting. The creator confirms the OUTLINE (story) first, then the

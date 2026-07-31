@@ -1567,6 +1567,7 @@
       "restore": "忠实还原",
       "runnerBudgetRemaining": "本月 Runner 剩余 {remaining}/{limit} 次（全站共享）",
       "runnerBudgetExhausted": "本月 Runner 生成额度已用完，下月重置或改用托管底模",
+      "runnerUnavailable": "Runner 生成当前已关闭（平台生成未启用），出图会失败——改用托管底模，或联系站点管理员开启",
       "resultEmptyTitle": "还没有生成结果",
       "resultEmptyHint": "输入提示词后点「出图」",
       "resultPreviewLabel": "放大查看生成结果",
@@ -4531,6 +4532,8 @@
       "scriptDocEmptyTitle": "还没有大纲",
       "scriptDocEmptyHint": "在左侧把大纲聊定，再在这里生成；确认后会自动创建对应节点。",
       "scriptDocNeedChat": "先和助手聊几句你的故事。",
+      "scriptDocTrimMessages": "剧本变长了——本次只带上了最近 {count} 条对话。",
+      "scriptDocTrimFields": "剧本变长了——{count} 个可选字段（世界设定 / 风格注记 / 目标时长）本轮未参与改写，原值已保留。",
       "clarify": {
         "title": "先确认几个问题",
         "customPlaceholder": "或自己填…",
@@ -5360,6 +5363,7 @@
     },
     "rateLimit": "请求过于频繁，请稍候再试。",
     "runawayGeneration": "该账号的生成请求呈现出密集重复的模式，已被自动暂停——这通常意味着某处卡在了重试循环或自动化脚本里，不是你的操作有问题。请稍等几分钟后再试。",
+    "platformGenerationDisabled": "平台出资的生成当前已关闭——这是站点配置状态，不是临时故障，重试不会成功。请改用已绑定自己 API key 的模型，或联系站点管理员开启。",
     "auth": {
       "unauthorized": "请登录后继续。"
     },
@@ -5390,6 +5394,9 @@
     "upload": {
       "storageUnreachable": "无法上传到图片存储，通常是网络或存储跨域（CORS）配置问题。请重试，若持续请联系管理员。",
       "storageRejected": "图片存储拒绝了本次上传。请重试，若持续请联系管理员。"
+    },
+    "scriptDoc": {
+      "promptTooLong": "这份剧本太长，一次改不完。请精简镜头描述，或拆成更少的镜头。"
     }
   },
   "Transform": {

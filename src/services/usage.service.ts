@@ -91,6 +91,16 @@ export class FreeTierExhaustedError extends Error {
   }
 }
 
+/**
+ * 平台总闸关着时抛出。
+ *
+ * ⚠ i18nKey 曾经是 `errors.provider.failed`（「AI 提供商错误，请重试。」），那是
+ * 两处说谎：既不是 provider 的错，重试也永远不会成功——这是个部署配置状态，不翻
+ * `PLATFORM_GENERATION_ENABLED` 就一直是这样。2026-07-31 生产上 LoRA 全域出图失败
+ * 查了半天，就是因为用户和日志看到的都是「提供商错误」，指向完全错误的方向（runner
+ * 是唯一没有 BYOK 通道的路径，天然「平台掏钱」，总闸一关它就是第一个全死的）。
+ * 换成专属文案，把「这是开关不是故障、重试无效」直接说出来。
+ */
 export class PlatformGenerationDisabledError extends ApiRequestError {
   readonly code = 'PLATFORM_GENERATION_DISABLED' as const
 
@@ -98,8 +108,8 @@ export class PlatformGenerationDisabledError extends ApiRequestError {
     super(
       'PLATFORM_GENERATION_DISABLED',
       503,
-      'errors.provider.failed',
-      'Platform-funded generation is temporarily unavailable.',
+      'errors.platformGenerationDisabled',
+      'Platform-funded generation is switched off (PLATFORM_GENERATION_ENABLED).',
     )
     this.name = 'PlatformGenerationDisabledError'
   }
@@ -290,14 +300,27 @@ export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
 /**
  * 全站 runner 月度额度快照（全局共享，非 per-user），给 LoRA 工作台「本月剩余
  * N/300」主动提示用。ENABLED=false 时 used/limit=0、remaining=0，前端据此不显示。
+ *
+ * `platformEnabled` 必须跟着一起报：额度和总闸是两道独立的闸，只报额度会让工作台
+ * 承诺一个根本花不出去的余额。2026-07-31 生产上就是这么演的——面板写着「本月
+ * Runner 剩余 231/300」，而 `createGenerationJob` 里的 `assertPlatformGenerationEnabled()`
+ * 把每一次出图都在派发前拒了。派发路径查这个开关（见上面 assertRunnerMonthlyLimitNotExceeded
+ * 和 createGenerationJobWithinLimits），快照就也得查，否则两边说的不是一回事。
  */
 export async function getRunnerUsage(): Promise<RunnerUsageResult> {
+  const platformEnabled = isPlatformGenerationEnabled()
   if (!RUNNER_MONTHLY_LIMIT.ENABLED) {
-    return { enabled: false, used: 0, limit: 0, remaining: 0 }
+    return { enabled: false, used: 0, limit: 0, remaining: 0, platformEnabled }
   }
   const used = await getRunnerMonthlyGenerationCount()
   const limit = RUNNER_MONTHLY_LIMIT.LIMIT
-  return { enabled: true, used, limit, remaining: Math.max(0, limit - used) }
+  return {
+    enabled: true,
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    platformEnabled,
+  }
 }
 
 export async function createGenerationJob(

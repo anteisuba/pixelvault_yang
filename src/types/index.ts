@@ -4113,6 +4113,12 @@ export const RunnerUsageResultSchema = z.object({
   used: z.number().int().nonnegative(),
   limit: z.number().int().nonnegative(),
   remaining: z.number().int().nonnegative(),
+  /**
+   * 平台出资生成的总闸（`PLATFORM_GENERATION_ENABLED`）是否开着。runner 没有 BYOK
+   * 通道，总闸一关它就整条死——余额再多也花不出去，所以额度提示必须带上这一位，
+   * 否则工作台会承诺一个不存在的可用性。见 `getRunnerUsage`。
+   */
+  platformEnabled: z.boolean(),
 })
 export type RunnerUsageResult = z.infer<typeof RunnerUsageResultSchema>
 

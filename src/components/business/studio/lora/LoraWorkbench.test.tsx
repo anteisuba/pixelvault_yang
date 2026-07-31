@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
+import type { RunnerUsageResult } from '@/types'
 import type { PromptTagSelection } from '@/types/prompt-tags'
 
 import { LoraWorkbench } from './LoraWorkbench'
@@ -243,8 +244,9 @@ vi.mock('@/hooks/prompts/use-civitai-model-description', () => ({
   }),
 }))
 
+let mockRunnerUsage: RunnerUsageResult | null = null
 vi.mock('@/hooks/prompts/use-runner-usage', () => ({
-  useRunnerUsage: () => ({ usage: null, isLoading: false }),
+  useRunnerUsage: () => ({ usage: mockRunnerUsage, isLoading: false }),
 }))
 
 // H1 生成侧「样例参考」（lora-workbench.md §13）：mock 掉 README 网络抓取，
@@ -289,6 +291,7 @@ vi.mock('@/hooks/use-image-upload', () => ({
 
 beforeEach(() => {
   mockReferenceImages = []
+  mockRunnerUsage = null
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
   mockTraySelections = []
   mockUseHuggingFaceLoraShowcase.mockReset().mockReturnValue({
@@ -839,6 +842,27 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     const request = mockGenerate.mock.calls[0][0]
     expect(request.image.modelId).toBe(AI_MODELS.ANIMA_DIT_RUNNER)
     expect(request.image.advancedParams?.loras).toBeUndefined()
+  })
+
+  // 回归（2026-07-31 生产）：平台总闸关着时 runner 整条死，余额再多也花不出去。
+  // 面板当时照报「剩余 231/300」，把用户指向完全错误的方向。总闸状态必须压过余额。
+  it('warns that Runner is switched off instead of advertising leftover budget', () => {
+    mockRunnerUsage = {
+      enabled: true,
+      used: 40,
+      limit: 300,
+      remaining: 260,
+      platformEnabled: false,
+    }
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.getByText('LoraWorkbench:generate.runnerUnavailable'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('LoraWorkbench:generate.runnerBudgetRemaining'),
+    ).not.toBeInTheDocument()
   })
 
   it('sends manually edited Runner controls and 4x-AnimeSharp in the real request', () => {

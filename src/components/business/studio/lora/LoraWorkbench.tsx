@@ -2620,22 +2620,27 @@ function GenerateBranch({
                   </p>
                 ) : null}
                 {/* 主动额度提示：选中 runner 底模且额度启用时显示「本月剩余 N/300」，
-                快满/满了变琥珀提醒——撞上限前就让用户心里有数。 */}
+                快满/满了变琥珀提醒——撞上限前就让用户心里有数。
+                ⚠ 平台总闸（platformEnabled）优先于余额：闸关着时 runner 整条死，
+                余额再多也花不出去，报余额等于承诺一个不存在的可用性（2026-07-31
+                生产事故：面板写着「剩余 231/300」而每次出图都被派发前拒掉）。 */}
                 {isRunnerBase && runnerUsage?.enabled ? (
                   <p
                     className={cn(
                       'text-2xs',
-                      runnerUsage.remaining <= 0
+                      !runnerUsage.platformEnabled || runnerUsage.remaining <= 0
                         ? 'text-amber-600 dark:text-amber-400'
                         : 'text-muted-foreground',
                     )}
                   >
-                    {runnerUsage.remaining <= 0
-                      ? t('generate.runnerBudgetExhausted')
-                      : t('generate.runnerBudgetRemaining', {
-                          remaining: runnerUsage.remaining,
-                          limit: runnerUsage.limit,
-                        })}
+                    {!runnerUsage.platformEnabled
+                      ? t('generate.runnerUnavailable')
+                      : runnerUsage.remaining <= 0
+                        ? t('generate.runnerBudgetExhausted')
+                        : t('generate.runnerBudgetRemaining', {
+                            remaining: runnerUsage.remaining,
+                            limit: runnerUsage.limit,
+                          })}
                   </p>
                 ) : null}
                 {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}

@@ -634,6 +634,7 @@ describe('usage.service', () => {
         used: 40,
         limit: 300,
         remaining: 260,
+        platformEnabled: true,
       })
     })
 
@@ -644,6 +645,19 @@ describe('usage.service', () => {
 
       expect(result.used).toBe(320)
       expect(result.remaining).toBe(0)
+    })
+
+    // 回归：额度快照和派发路径必须查同一个总闸。曾经只有派发查，快照不查，于是
+    // LoRA 工作台报着「剩余 260/300」而每一次出图都被 503 拒掉（2026-07-31 生产）。
+    it('reports platformEnabled=false when the platform switch is off, even with budget left', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('PLATFORM_GENERATION_ENABLED', '')
+      mockJobCount.mockResolvedValue(40)
+
+      const result = await getRunnerUsage()
+
+      expect(result.platformEnabled).toBe(false)
+      expect(result.remaining).toBe(260)
     })
   })
 

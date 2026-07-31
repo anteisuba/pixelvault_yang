@@ -27,7 +27,13 @@ describe('useRunnerUsage', () => {
   it('fetches the usage snapshot when active (runner base selected)', async () => {
     mockAPI.mockResolvedValue({
       success: true,
-      data: { enabled: true, used: 40, limit: 300, remaining: 260 },
+      data: {
+        enabled: true,
+        used: 40,
+        limit: 300,
+        remaining: 260,
+        platformEnabled: true,
+      },
     })
 
     const { result } = renderHook(() => useRunnerUsage(true))

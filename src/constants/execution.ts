@@ -31,6 +31,21 @@ export const EXECUTION_INTERNAL = {
   FAL_WEBHOOK_PATH: '/api/internal/fal/webhook',
 } as const
 
+/**
+ * Hostnames that resolve back to the machine running the app. The execution
+ * worker reaches the app over plain HTTP on these — see
+ * `assertReachableInternalUrl` in `execution-worker.service.ts`.
+ *
+ * `URL.hostname` keeps the brackets on IPv6 literals, so both spellings of the
+ * loopback address are listed.
+ */
+export const LOOPBACK_HOSTNAMES: readonly string[] = [
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  '[::1]',
+]
+
 export const FAL_WEBHOOK = {
   SIGNATURE_HEADER: 'x-fal-signature-ed25519',
   JWKS_URL: 'https://rest.fal.ai/.well-known/jwks.json',

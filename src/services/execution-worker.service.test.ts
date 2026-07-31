@@ -4,6 +4,7 @@ import { EXECUTION_INTERNAL } from '@/constants/execution'
 import type { WorkerRunContext } from '@/types'
 
 import {
+  buildInternalUrl,
   dispatchImageWorkerRun,
   ExecutionWorkerDispatchError,
 } from './execution-worker.service'
@@ -95,5 +96,28 @@ describe('execution-worker.service', () => {
     expect(error).toBeInstanceOf(ExecutionWorkerDispatchError)
     expect(error).toMatchObject({ outcome: 'rejected', upstreamStatus: 400 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  // An https loopback URL is accepted by `new URL()` but unreachable from the
+  // worker: workerd reports the TLS failure as an opaque `internal error`, no
+  // callback is ever delivered, and the job hangs until the sweeper reaps it.
+  // Fail at build time so the misconfiguration names itself.
+  it('rejects an https loopback app url instead of dispatching a run that can never call back', () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://localhost:3000')
+
+    expect(() => buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH)).toThrow(
+      /cannot reach a local server over https/,
+    )
+  })
+
+  it.each([
+    ['http://localhost:3000', 'http://localhost:3000/'],
+    ['https://www.anteisuba.com', 'https://www.anteisuba.com/'],
+  ])('accepts a reachable app url (%s)', (appUrl, expectedOrigin) => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', appUrl)
+
+    expect(buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH)).toBe(
+      `${expectedOrigin.replace(/\/$/, '')}${EXECUTION_INTERNAL.CALLBACK_PATH}`,
+    )
   })
 })

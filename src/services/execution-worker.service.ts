@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { EXECUTION_WORKER } from '@/constants/execution'
+import { EXECUTION_WORKER, LOOPBACK_HOSTNAMES } from '@/constants/execution'
 import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import type {
   LongVideoPipelineWorkerRunContext,
@@ -74,13 +74,40 @@ export function shouldUseInlineExecutionFallback(): boolean {
   if (!configuredBaseUrl) return false
 
   try {
-    const hostname = new URL(configuredBaseUrl).hostname.toLowerCase()
-    return (
-      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    return LOOPBACK_HOSTNAMES.includes(
+      new URL(configuredBaseUrl).hostname.toLowerCase(),
     )
   } catch {
     return false
   }
+}
+
+/**
+ * The worker calls these URLs back over its own network stack, so a URL it
+ * cannot reach does not fail loudly: dispatch is accepted, the workflow dies
+ * inside workerd, no callback ever arrives, and the job sits RUNNING until the
+ * sweeper reaps it as `callback_timeout` many minutes later.
+ *
+ * `https://` + loopback is the one shape that can never work — `next dev`
+ * serves plain HTTP, and even under `--experimental-https` workerd refuses the
+ * self-signed certificate and reports the failure as an opaque
+ * `internal error; reference = …` with no usable stack. Reject it at dispatch
+ * instead of shipping that silent hang. Real hosts are untouched, so production
+ * (`https://www.anteisuba.com`) is unaffected.
+ */
+function assertReachableInternalUrl(url: URL): void {
+  if (
+    url.protocol !== 'https:' ||
+    !LOOPBACK_HOSTNAMES.includes(url.hostname.toLowerCase())
+  ) {
+    return
+  }
+
+  throw new GenerateImageServiceError(
+    'PROVIDER_ERROR',
+    `NEXT_PUBLIC_APP_URL is "${getAppBaseUrl()}", but the execution worker cannot reach a local server over https. Use "http://${url.host}" instead.`,
+    500,
+  )
 }
 
 function getWorkerBaseUrl(): string {
@@ -98,7 +125,9 @@ function getWorkerBaseUrl(): string {
 }
 
 export function buildInternalUrl(path: string): string {
-  return new URL(path, getAppBaseUrl()).toString()
+  const url = new URL(path, getAppBaseUrl())
+  assertReachableInternalUrl(url)
+  return url.toString()
 }
 
 export async function dispatchWorkerRun(

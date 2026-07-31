@@ -648,16 +648,21 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     y: 16,
   },
   // projectScriptDocToGraph anchors a recognisable left→right pipeline:
-  // characters | shotText | voice | seedance | videoMerge. ScriptDoc has no
-  // on-canvas node to anchor on, so positions are absolute from `origin`;
-  // re-projection reuses existing node positions and never moves them.
+  // characters | shotText | shotStill | voice | seedance | videoMerge.
+  // ScriptDoc has no on-canvas node to anchor on, so positions are absolute
+  // from `origin`; re-projection reuses existing node positions and never
+  // moves them — so widening this ladder only affects NEWLY spawned nodes,
+  // every already-projected project keeps the layout it has.
   scriptDocSpawn: {
     origin: { x: 80, y: 120 },
     characterOffsetX: 0,
     shotTextOffsetX: 480,
-    voiceOffsetX: 940,
-    seedanceOffsetX: 1400,
-    videoMergeOffsetX: 1860,
+    // 分镜静帧（包 3）sits between the shot's text and its video so the main
+    // chain 文本 → 静帧 → 视频 reads left→right without a detour.
+    shotStillOffsetX: 940,
+    voiceOffsetX: 1400,
+    seedanceOffsetX: 1860,
+    videoMergeOffsetX: 2320,
     shotRowOffsetY: 360,
     characterRowOffsetY: 260,
     voiceRowOffsetY: 150,

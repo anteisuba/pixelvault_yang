@@ -307,6 +307,34 @@ export const NODE_GENERATION_STATUS_IDS = {
   error: 'error',
 } as const
 
+/**
+ * 审核态（包 4 / §4.2 Q3-Q4）—— 与 `status`（缺必填/就绪/生成中/失败）和
+ * `generationStatus`（这一次调用成没成）**并列的第三条轴**，不是它们的子集：
+ * 一个节点完全可以同时是 `approved` 和 `running`（用户点了「重做」重跑一次）。
+ * 挤进任何一条既有轴都会丢掉其中一个语义。
+ *
+ * 粒度是**一张图**而不是一个节点（owner 2026-07-31 拍板）：一个节点往下游贡献
+ * 的图可能来自自身 `mediaUrl`，也可能来自 `referenceAssets` 里被 ★/onStage 选
+ * 中的若干条。键控用 URL —— 见 `lib/node-media-review.ts` 顶部对「为什么是 URL
+ * 而不是 asset 下标」的说明。
+ */
+export const NODE_REVIEW_STATE_IDS = {
+  /** 已出但没人看过。AI 生成成功时的落点。 */
+  awaitingReview: 'awaiting_review',
+  /** 人看过并放行。**唯一**能进下游 `image_urls` 的态。 */
+  approved: 'approved',
+  /** 人看过并打回。保留着，可与新版对比，但不进下游。 */
+  rejected: 'rejected',
+} as const
+
+export const NODE_REVIEW_STATES = [
+  NODE_REVIEW_STATE_IDS.awaitingReview,
+  NODE_REVIEW_STATE_IDS.approved,
+  NODE_REVIEW_STATE_IDS.rejected,
+] as const
+
+export type NodeReviewState = (typeof NODE_REVIEW_STATES)[number]
+
 export const NODE_GENERATION_STATUSES = [
   NODE_GENERATION_STATUS_IDS.idle,
   NODE_GENERATION_STATUS_IDS.pending,

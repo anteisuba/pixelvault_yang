@@ -10,6 +10,7 @@ import {
   NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  type NodeReviewState,
 } from '@/constants/node-types'
 import type {
   NodeWorkflowEdge,
@@ -20,6 +21,61 @@ import type {
 import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
+import {
+  isMediaApprovedForDownstream,
+  resolveMediaReviewState,
+} from './node-media-review'
+
+/**
+ * 被审核门挡下的一张图（包 4 / §4.2 Q3）。
+ *
+ * ⚠ 收割函数返回它**不是为了好看** —— §5-W3 明写「排除时要提示」。静默少发一张
+ * 比不挡更糟：用户会看到一个和自己预期不符的成片，却完全不知道少了谁。
+ */
+export interface BlockedUpstreamMedia {
+  url: string
+  /** 这张图挂在哪个节点上，好让提示能指名道姓。 */
+  nodeId: string
+  /** `awaiting_review` 还是 `rejected` —— 文案要分开写，两者的下一步不同。 */
+  state: NodeReviewState
+}
+
+/** 收割结果 + 被门禁挡下的清单。 */
+export interface HarvestedImageUrls {
+  urls: string[]
+  blocked: BlockedUpstreamMedia[]
+}
+
+export interface HarvestedImageReferences {
+  references: UpstreamImageReference[]
+  blocked: BlockedUpstreamMedia[]
+}
+
+/**
+ * 收割时的统一闸门：approved 才进 `urls`，其余落 `blocked`。
+ * 每个 push 点都走它，避免出现「某一条路径忘了挡」这种半漏的门。
+ */
+function pushGated(
+  accepted: string[],
+  blocked: BlockedUpstreamMedia[],
+  node: NodeWorkflowNode,
+  url: string | undefined,
+): boolean {
+  if (!url) return false
+  if (accepted.includes(url) || blocked.some((item) => item.url === url)) {
+    return false
+  }
+  if (isMediaApprovedForDownstream(node.data, url)) {
+    accepted.push(url)
+    return true
+  }
+  blocked.push({
+    url,
+    nodeId: node.id,
+    state: resolveMediaReviewState(node.data, url),
+  })
+  return false
+}
 
 /** Unified image roles that feed Seedance as a plain visual reference (vs the
  *  keyframe role, which pins temporal structure and is harvested first). */
@@ -289,12 +345,13 @@ export function harvestUpstreamImageUrls(
   upstreamNodes: readonly NodeWorkflowNode[],
   edges?: readonly NodeWorkflowEdge[],
   focalNodeId?: string,
-): string[] {
+): HarvestedImageUrls {
   const result: string[] = []
+  const blocked: BlockedUpstreamMedia[] = []
 
   for (const node of upstreamNodes) {
     if (!isKeyframeNode(node)) continue
-    pushUnique(result, getNodeMediaUrl(node.data))
+    pushGated(result, blocked, node, getNodeMediaUrl(node.data))
   }
   // V-2 主图 + R3-6 出场组: a COLLECTOR card (character/background — the
   // "身份档案夹" with a curatable gallery) expands to its full onStage set
@@ -312,14 +369,14 @@ export function harvestUpstreamImageUrls(
             )
           : undefined
       for (const url of getNodeStageMediaUrls(node.data, override)) {
-        pushUnique(result, url)
+        pushGated(result, blocked, node, url)
       }
     } else {
-      pushUnique(result, getNodePrimaryMediaUrl(node.data))
+      pushGated(result, blocked, node, getNodePrimaryMediaUrl(node.data))
     }
   }
 
-  return result
+  return { urls: result, blocked }
 }
 
 /**
@@ -337,19 +394,27 @@ export function harvestUpstreamCloseupUrls(
   focalNodeId: string,
   edges: readonly NodeWorkflowEdge[],
   nodes: readonly NodeWorkflowNode[],
-): string[] {
+): HarvestedImageUrls {
   const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
   const result: string[] = []
+  const blocked: BlockedUpstreamMedia[] = []
 
   for (const node of directUpstream) {
     if (getSeedanceReferenceKind(node) !== 'character') continue
     for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
       if (!isCloseupNode(upstream)) continue
-      pushUnique(result, getNodePrimaryMediaUrl(upstream.data))
+      // 特写走的是 1 跳，但它一样会骑上 image_urls，所以一样过门 ——
+      // 只挡直连那一层等于留了条后门。
+      pushGated(
+        result,
+        blocked,
+        upstream,
+        getNodePrimaryMediaUrl(upstream.data),
+      )
     }
   }
 
-  return result
+  return { urls: result, blocked }
 }
 
 /**
@@ -433,8 +498,9 @@ function resolveReferenceAssetCategory(
  */
 export function harvestUpstreamImageReferences(
   upstreamNodes: readonly NodeWorkflowNode[],
-): UpstreamImageReference[] {
+): HarvestedImageReferences {
   const result: UpstreamImageReference[] = []
+  const blocked: BlockedUpstreamMedia[] = []
   const seen = new Set<string>()
 
   for (const node of upstreamNodes) {
@@ -446,6 +512,16 @@ export function harvestUpstreamImageReferences(
     stageUrls.forEach((url, index) => {
       if (!url || seen.has(url)) return
       seen.add(url)
+      // 镜头图这条路径和视频那条是**两条**收割链（包 4 必读结论）。只挡一条
+      // 等于没挡：未过审的角色图照样能从这里进静帧的具名参考。
+      if (!isMediaApprovedForDownstream(node.data, url)) {
+        blocked.push({
+          url,
+          nodeId: node.id,
+          state: resolveMediaReviewState(node.data, url),
+        })
+        return
+      }
       if (index === 0) {
         result.push({ url, kind, name })
         return
@@ -462,7 +538,7 @@ export function harvestUpstreamImageReferences(
     })
   }
 
-  return result
+  return { references: result, blocked }
 }
 
 /**
@@ -1042,9 +1118,11 @@ export function summarizeUpstreamSeedanceReferences(
   const upstream = getUpstreamNodes(focalNodeId, edges, nodes)
 
   return {
+    // 包 4：数的是**过审后真会送出去的**张数。planner 拿到的数量必须和实际
+    // 载荷一致，否则它会按 5 张图去编排 @Image1..5 而真实只发出 3 张。
     imageCount: Math.min(
       9,
-      harvestUpstreamImageUrls(upstream, edges, focalNodeId).length,
+      harvestUpstreamImageUrls(upstream, edges, focalNodeId).urls.length,
     ),
     videoCount: Math.min(3, harvestUpstreamVideoUrls(upstream).length),
     audio: harvestUpstreamAudioBindings(focalNodeId, edges, nodes)

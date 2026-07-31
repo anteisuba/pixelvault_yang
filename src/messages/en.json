@@ -4128,6 +4128,7 @@
       "generating": "Generating...",
       "noModel": "Select a model first.",
       "noPrompt": "Write a prompt first.",
+      "reviewBlocked": "{total} reference image(s) sat this generation out: {pending} not reviewed yet, {rejected} sent back. Approve them on the card, then run again.",
       "failedTitle": "Generation failed",
       "fallbackError": "Node media generation failed.",
       "statusIdle": "Ready to generate",
@@ -4554,6 +4555,8 @@
       "scriptDocBreakShots": "Break into shots",
       "scriptDocRebreakShots": "Re-break shots",
       "scriptDocConfirmShots": "Confirm shots",
+      "scriptDocShotStills": "Still frame per shot",
+      "scriptDocShotStillsHint": "Confirming shots also creates one still-image node per shot. Turning this off only stops new ones — stills already on the canvas are kept.",
       "scriptDocBackToOutline": "Back to outline",
       "scriptDocBackgroundLabel": "Background",
       "scriptDocDepthSimple": "Lean",
@@ -4825,6 +4828,12 @@
       "share": "Share read-only link",
       "shareCopied": "Read-only link copied",
       "shareFailed": "Could not create a share link"
+    },
+    "review": {
+      "approve": "Approve",
+      "reject": "Send back",
+      "awaitingReview": "Awaiting review",
+      "rejected": "Sent back"
     }
   },
   "StudioV2": {

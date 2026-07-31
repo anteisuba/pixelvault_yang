@@ -8,9 +8,11 @@ import { useTranslations } from 'next-intl'
 import type { NodeTokenType } from '@/constants/node-tokens'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_REVIEW_STATE_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import { resolveMediaReviewState } from '@/lib/node-media-review'
 import {
   NODE_STUDIO_IMAGE_CARD_SIZE,
   NODE_STUDIO_IMAGE_INPUT,
@@ -24,6 +26,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import {
   CanvasImageSelectionToolbar,
   canOfferCanvasImageEdit,
+  MediaReviewButtons,
   NodeSelectionToolbarChrome,
   ShotGenerateButton,
 } from '../CanvasImageSelectionToolbar'
@@ -215,6 +218,17 @@ export function LooseImageCard({
     [mediaAspect],
   )
 
+  // 包 4 审核态。卡边着色走**既有**的 data-status 通用规则（canvas.css），
+  // 不新造卡面 chrome —— 本档「视觉极小」，卡面改版要过 ui-page 门。
+  const reviewState = resolveMediaReviewState(data, mediaUrl)
+  const cardStatus = replaceFailure
+    ? NODE_STATUS_IDS.failed
+    : reviewState === NODE_REVIEW_STATE_IDS.awaitingReview
+      ? 'awaiting-review'
+      : reviewState === NODE_REVIEW_STATE_IDS.rejected
+        ? 'rejected'
+        : undefined
+
   useLayoutEffect(() => {
     updateNodeInternals(id)
   }, [cardSize.height, cardSize.width, id, updateNodeInternals])
@@ -278,7 +292,10 @@ export function LooseImageCard({
       data-selected={selected ? 'true' : undefined}
       // 替换失败时借用与其它两族同一条「卡边转 --canvas-danger」通用规则
       // （.canvas-card[data-status='failed']），不新造第二套失败视觉。
-      data-status={replaceFailure ? NODE_STATUS_IDS.failed : undefined}
+      // 包 4 起该属性同时承载审核态（awaiting-review / rejected），三者共用
+      // 同一条卡边规则；替换失败优先，因为那是「这张卡现在坏了」而不是「这张
+      // 图还没审」。
+      data-status={cardStatus}
       className={cn(
         'group relative box-border select-none overflow-hidden',
         // S4：卡即媒体的白卡壳（canvas-card 定义在 canvas.css，静态发丝边 +
@@ -322,9 +339,14 @@ export function LooseImageCard({
             onQuickEditOpenChange={setQuickEditOpen}
             quickEditOpen={quickEditOpen}
             extra={
-              nodeType === NODE_TYPE_IDS.shot ? (
-                <ShotGenerateButton nodeId={id} data={data} />
-              ) : null
+              <>
+                {/* 审核动作对**任何**有图的卡都出现（不限镜头图）——
+                    未过审的角色图一样会被下游门禁挡住，得能就地放行。 */}
+                <MediaReviewButtons nodeId={id} data={data} />
+                {nodeType === NODE_TYPE_IDS.shot ? (
+                  <ShotGenerateButton nodeId={id} data={data} />
+                ) : null}
+              </>
             }
           />
         ) : (

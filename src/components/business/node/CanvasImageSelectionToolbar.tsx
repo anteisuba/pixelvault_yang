@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useEdges, useReactFlow } from '@xyflow/react'
 import {
+  Check,
   Download,
   Eraser,
   Expand,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Tags,
   Trash2,
+  Undo2,
   Users,
   WandSparkles,
   type LucideIcon,
@@ -36,7 +38,16 @@ import {
 } from '@/constants/node-studio'
 import { READY_CANVAS_IMAGE_EDIT_CAPABILITIES } from '@/constants/canvas-image-edit-capabilities'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_REVIEW_STATE_IDS,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
+import {
+  approveMedia,
+  rejectMedia,
+  resolveMediaReviewState,
+} from '@/lib/node-media-review'
 import type { NodeTokenType } from '@/constants/node-tokens'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
@@ -588,6 +599,58 @@ export function ShotGenerateButton({
       onClick={() => void generateMediaNode?.(nodeId)}
       disabled={isRunning || !generateMediaNode}
     />
+  )
+}
+
+/**
+ * 包 4 审核动作。动作放**既有**的近场工具条，不在卡面上新造一条状态带 ——
+ * 本档「视觉极小」，改卡面要过 ui-page 门。状态本身走卡边（canvas.css 的
+ * `.canvas-card[data-status]` 通用规则）。
+ *
+ * 只在这张图**需要人做决定**时出现：已通过的图不该常年挂着两个按钮，那是噪音。
+ * 已打回的图仍给「通过」，因为改主意是常态；不给「再打回一次」。
+ */
+export function MediaReviewButtons({
+  nodeId,
+  data,
+}: {
+  nodeId: string
+  data: NodeWorkflowNodeData
+}) {
+  const t = useTranslations('StudioNode.review')
+  const { updateNodeData } = useNodeWorkflowActions()
+  const url = getNodeMediaUrl(data)
+  const state = resolveMediaReviewState(data, url)
+
+  if (!url || state === NODE_REVIEW_STATE_IDS.approved) return null
+
+  return (
+    <>
+      <ToolbarLabelButton
+        icon={Check}
+        label={t('approve')}
+        onClick={() =>
+          updateNodeData(
+            nodeId,
+            approveMedia(data, url, { reviewedAt: new Date().toISOString() }),
+          )
+        }
+      />
+      {state === NODE_REVIEW_STATE_IDS.awaitingReview ? (
+        <ToolbarLabelButton
+          icon={Undo2}
+          label={t('reject')}
+          onClick={() =>
+            updateNodeData(
+              nodeId,
+              // ⚠ 只改状态，**不删媒体** —— §5-W3「保留上一版媒体 URL 作对比
+              // （不立刻删 R2）」。理由是可选的，留给后续的打回面板填。
+              rejectMedia(data, url, { reviewedAt: new Date().toISOString() }),
+            )
+          }
+        />
+      ) : null}
+    </>
   )
 }
 

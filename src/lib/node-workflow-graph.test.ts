@@ -537,6 +537,107 @@ describe('getUpstreamNodes', () => {
   })
 })
 
+// ── 审核门（包 4 / §4.2 Q3「未过审不得进视频」是硬规则）─────────────────
+describe('审核门 —— 只有 approved 能进下游', () => {
+  it('blocks awaiting_review + rejected on the video harvest, and says which', () => {
+    const upstream = [
+      makeNode('ok', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/ok.png',
+      }),
+      makeNode('pending', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/pending.png',
+        mediaReview: {
+          'https://cdn/pending.png': { state: 'awaiting_review' },
+        },
+      }),
+      makeNode('nope', NODE_TYPE_IDS.backgroundImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/nope.png',
+        mediaReview: { 'https://cdn/nope.png': { state: 'rejected' } },
+      }),
+    ]
+
+    const harvested = harvestUpstreamImageUrls(upstream)
+    // 'ok' 从来没被标过 —— 祖父条款让它照常通过。
+    expect(harvested.urls).toEqual(['https://cdn/ok.png'])
+    // 排除时必须能说出是谁、为什么：静默少发一张比不挡更糟。
+    expect(harvested.blocked).toEqual([
+      {
+        url: 'https://cdn/pending.png',
+        nodeId: 'pending',
+        state: 'awaiting_review',
+      },
+      { url: 'https://cdn/nope.png', nodeId: 'nope', state: 'rejected' },
+    ])
+  })
+
+  it('blocks on the shot-image harvest too — the second, separate path', () => {
+    // 两条收割链：视频侧走 harvestUpstreamImageUrls，镜头图侧走
+    // harvestUpstreamImageReferences。只挡一条等于没挡。
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        characterName: '小林',
+        mediaUrl: 'https://cdn/char.png',
+        mediaReview: { 'https://cdn/char.png': { state: 'awaiting_review' } },
+      }),
+    ]
+
+    const harvested = harvestUpstreamImageReferences(upstream)
+    expect(harvested.references).toEqual([])
+    expect(harvested.blocked).toEqual([
+      { url: 'https://cdn/char.png', nodeId: 'char', state: 'awaiting_review' },
+    ])
+  })
+
+  it('blocks a rejected closeup on the 1-hop path', () => {
+    // 特写走 1 跳，一样骑 image_urls —— 只挡直连那层会留后门。
+    const nodes = [
+      makeNode('video1', NODE_TYPE_IDS.seedance, { status: 'idle' }),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/char.png',
+      }),
+      makeNode('close', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/close.png',
+        mediaReview: { 'https://cdn/close.png': { state: 'rejected' } },
+      }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char', 'video1'),
+      makeEdge('e2', 'close', 'char'),
+    ]
+
+    const harvested = harvestUpstreamCloseupUrls('video1', edges, nodes)
+    expect(harvested.urls).toEqual([])
+    expect(harvested.blocked).toEqual([
+      { url: 'https://cdn/close.png', nodeId: 'close', state: 'rejected' },
+    ])
+  })
+
+  it('leaves every pre-existing project untouched (祖父条款)', () => {
+    // 存量项目一个 mediaReview 都没有。若「查不到＝待审」，这里会全被挡下，
+    // 等于全站回归 —— 这条断言就是那道保险。
+    const upstream = [
+      makeNode('a', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/a.png',
+      }),
+      makeNode('b', NODE_TYPE_IDS.backgroundImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/b.png',
+      }),
+    ]
+    const harvested = harvestUpstreamImageUrls(upstream)
+    expect(harvested.urls).toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
+    expect(harvested.blocked).toEqual([])
+  })
+})
+
 describe('harvestUpstreamImageUrls', () => {
   it('orders keyframe URLs before visual reference URLs', () => {
     const upstream = [
@@ -554,7 +655,7 @@ describe('harvestUpstreamImageUrls', () => {
       }),
     ]
 
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
       'https://cdn/frame.png',
       'https://cdn/char.png',
       'https://cdn/bg.png',
@@ -573,7 +674,9 @@ describe('harvestUpstreamImageUrls', () => {
       }),
       makeNode('c', NODE_TYPE_IDS.backgroundImage, { status: 'idle' }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual(['https://cdn/x.png'])
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
+      'https://cdn/x.png',
+    ])
   })
 
   it('ignores non-image upstream nodes', () => {
@@ -581,7 +684,7 @@ describe('harvestUpstreamImageUrls', () => {
       makeNode('v', NODE_TYPE_IDS.voice, { status: 'idle' }),
       makeNode('t', NODE_TYPE_IDS.shotText, { status: 'idle' }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([])
   })
 
   it('excludes closeups from the direct harvest (they ride 1-hop via character)', () => {
@@ -593,7 +696,7 @@ describe('harvestUpstreamImageUrls', () => {
         mediaUrl: 'https://cdn/closeup.png',
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([])
   })
 
   it('V-2 主图: sends the ★-starred referenceAssets image instead of mediaUrl', () => {
@@ -612,7 +715,7 @@ describe('harvestUpstreamImageUrls', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
       'https://cdn/char-alt.png',
     ])
   })
@@ -631,7 +734,7 @@ describe('harvestUpstreamImageUrls', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
       'https://cdn/fused.png',
     ])
   })
@@ -659,7 +762,7 @@ describe('harvestUpstreamImageUrls', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
       'https://cdn/char.png',
       'https://cdn/extra1.png',
     ])
@@ -681,7 +784,9 @@ describe('harvestUpstreamImageUrls', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual(['https://cdn/shot.png'])
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
+      'https://cdn/shot.png',
+    ])
   })
 
   // R3-6b §3 每镜覆写
@@ -706,7 +811,7 @@ describe('harvestUpstreamImageUrls', () => {
         stageOverrideUrls: ['https://cdn/override-extra.png'],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream, edges, 'video1')).toEqual([
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video1').urls).toEqual([
       'https://cdn/char.png',
       'https://cdn/override-extra.png',
     ])
@@ -728,7 +833,7 @@ describe('harvestUpstreamImageUrls', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageUrls(upstream)).toEqual([
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
       'https://cdn/char.png',
       'https://cdn/card-default-extra.png',
     ])
@@ -756,11 +861,11 @@ describe('harvestUpstreamImageUrls', () => {
       }),
       makeEdge('e-char-v2', 'char', 'video2'),
     ]
-    expect(harvestUpstreamImageUrls(upstream, edges, 'video1')).toEqual([
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video1').urls).toEqual([
       'https://cdn/char.png',
       'https://cdn/override-extra.png',
     ])
-    expect(harvestUpstreamImageUrls(upstream, edges, 'video2')).toEqual([
+    expect(harvestUpstreamImageUrls(upstream, edges, 'video2').urls).toEqual([
       'https://cdn/char.png',
       'https://cdn/card-default-extra.png',
     ])
@@ -785,7 +890,7 @@ describe('harvestUpstreamCloseupUrls (§9 B 1-hop)', () => {
       makeEdge('e-cu', 'cu1', 'char1'),
       makeEdge('e-char', 'char1', 'video1'),
     ]
-    expect(harvestUpstreamCloseupUrls('video1', edges, nodes)).toEqual([
+    expect(harvestUpstreamCloseupUrls('video1', edges, nodes).urls).toEqual([
       'https://cdn/cu1.png',
     ])
   })
@@ -807,7 +912,7 @@ describe('harvestUpstreamCloseupUrls (§9 B 1-hop)', () => {
       makeEdge('e-cu', 'cu1', 'bg1'),
       makeEdge('e-bg', 'bg1', 'video1'),
     ]
-    expect(harvestUpstreamCloseupUrls('video1', edges, nodes)).toEqual([])
+    expect(harvestUpstreamCloseupUrls('video1', edges, nodes).urls).toEqual([])
   })
 })
 
@@ -838,7 +943,7 @@ describe('harvestUpstreamImageReferences', () => {
         backgroundName: '拉海洛',
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
       { url: 'https://cdn/bg.png', kind: 'background', name: '拉海洛' },
     ])
@@ -861,7 +966,7 @@ describe('harvestUpstreamImageReferences', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/char-alt.png', kind: 'character', name: 'yangyang' },
     ])
   })
@@ -878,7 +983,7 @@ describe('harvestUpstreamImageReferences', () => {
         },
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/c.png', kind: 'character', name: 'Charlie' },
     ])
   })
@@ -906,7 +1011,7 @@ describe('harvestUpstreamImageReferences', () => {
         characterName: 'B',
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/dup.png', kind: 'character', name: 'A' },
     ])
   })
@@ -917,7 +1022,7 @@ describe('harvestUpstreamImageReferences', () => {
         mediaUrl: 'https://cdn/bg.png',
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/bg.png', kind: 'background', name: undefined },
     ])
   })
@@ -948,7 +1053,7 @@ describe('harvestUpstreamImageReferences', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
       { url: 'https://cdn/prop.png', name: '古剑', category: '道具' },
       // No asset.name on this extra → falls back to the SAME kind+name format
@@ -977,7 +1082,7 @@ describe('harvestUpstreamImageReferences', () => {
         ],
       }),
     ]
-    expect(harvestUpstreamImageReferences(upstream)).toEqual([
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
       { url: 'https://cdn/char.png', kind: 'character', name: 'yangyang' },
     ])
   })

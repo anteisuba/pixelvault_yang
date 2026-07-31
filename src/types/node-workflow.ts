@@ -20,6 +20,7 @@ import { IMAGE_SIZES } from '@/constants/config'
 import {
   NODE_GENERATION_STATUSES,
   NODE_IMAGE_ROLES,
+  NODE_REVIEW_STATES,
   NODE_WORKFLOW_FIELDS,
   NODE_MEDIA_KINDS,
   NODE_STATUSES,
@@ -50,6 +51,22 @@ export const NodeWorkflowGenerationStatusSchema = z.enum(
 )
 
 export const NodeWorkflowMediaKindSchema = z.enum(NODE_MEDIA_KINDS)
+
+export const NodeReviewStateSchema = z.enum(NODE_REVIEW_STATES)
+
+/**
+ * 一张图的审核记录（包 4）。挂在节点的 `mediaReview` 里、**按 URL 键控**。
+ *
+ * 打回时保留的三样（§5-W3「打回载荷」）：`reason` 是打回理由，`promptPatch` 是
+ * 「改词再来」时用户给的增补，`reviewedAt` 是谁什么时候看的时间戳。三样都可选 ——
+ * 「通过」不需要理由，只有打回才填。
+ */
+export const NodeMediaReviewSchema = z.object({
+  state: NodeReviewStateSchema,
+  reason: z.string().trim().min(1).max(600).optional(),
+  promptPatch: z.string().trim().min(1).max(2000).optional(),
+  reviewedAt: z.string().trim().min(1).max(40).optional(),
+})
 
 export const NodeWorkflowFieldSchema = z.enum(NODE_WORKFLOW_FIELDS)
 
@@ -374,6 +391,26 @@ export const NodeWorkflowNodeDataSchema = z
     /** Custom label paired with `imageCategory === 'custom'` — mirrors
      *  `NodeWorkflowReferenceAssetSchema.customLabel`. */
     imageCategoryLabel: z.string().trim().min(1).max(80).optional(),
+    /**
+     * 审核记录（包 4 / §4.2 Q3）—— **URL → 审核态**，一张图一条。
+     *
+     * ⚠ **缺失即通过（祖父条款）**。这个字段在每一个本包上线之前保存的项目里
+     * 都是 undefined，而且即使存在，也只会记录「被显式标过的那几张」。所以
+     * `resolveMediaReviewState` 对查不到的 URL 一律返回 `approved` —— 反过来
+     * 设计（查不到＝待审）会让**所有存量项目的所有图当场停止喂下游**，是一次
+     * 全站回归。只有本包之后 AI 新生成的结果才会被显式写成 `awaiting_review`。
+     *
+     * ⚠ 用户自己上传 / 从素材库挑的图**不写**这里 —— 审核门管的是「助手自动铺
+     * 出来的默认待审」，用户亲手选的图已经是一次确认了，再拦一道是噪音。
+     *
+     * `.catch(undefined)` 与 `lineage` / `mediaWidth` 同一条安全带：一条记录坏掉
+     * 时整个字段降级成 undefined（＝全部按通过），而不是让整份工作流状态解析失败
+     * 被 `validateState` 强制清空成空画布。
+     */
+    mediaReview: z
+      .record(z.string(), NodeMediaReviewSchema)
+      .optional()
+      .catch(undefined),
   })
   .passthrough()
 
@@ -483,6 +520,14 @@ export const NodeWorkflowStateDataSchema = z.object({
   scriptDocStage: z.enum(SCRIPT_DOC_STAGES).optional().catch(undefined),
   scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
   scriptDocLocks: z.array(z.string()).optional().catch(undefined),
+  /**
+   * 分镜静帧开关 (包 3 / Q5「默认开 · 项目级可关」). `undefined` = 默认开, so
+   * every project that predates this field keeps the default without a
+   * migration. Only an explicit `false` stops the projection from spawning new
+   * stills — and even then the ones already on the canvas are preserved (see
+   * `projectScriptDocToGraph`'s `shotStills` option).
+   */
+  scriptDocShotStills: z.boolean().optional().catch(undefined),
 })
 
 export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({
@@ -609,6 +654,7 @@ export type NodeWorkflowGenerationStatus = z.infer<
   typeof NodeWorkflowGenerationStatusSchema
 >
 export type NodeWorkflowMediaKind = z.infer<typeof NodeWorkflowMediaKindSchema>
+export type NodeMediaReview = z.infer<typeof NodeMediaReviewSchema>
 export type NodeWorkflowField = z.infer<typeof NodeWorkflowFieldSchema>
 export type NodeWorkflowModelSelection = z.infer<
   typeof NodeWorkflowModelSelectionSchema

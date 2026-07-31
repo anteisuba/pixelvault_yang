@@ -4128,6 +4128,7 @@
       "generating": "生成中...",
       "noModel": "先にモデルを選択してください。",
       "noPrompt": "先にプロンプトを入力してください。",
+      "reviewBlocked": "参考画像 {total} 枚が今回の生成から除外されました（未確認 {pending} 枚 / 差し戻し {rejected} 枚）。カードで「承認」してから再実行してください。",
       "failedTitle": "生成に失敗しました",
       "fallbackError": "ノード素材の生成に失敗しました。",
       "statusIdle": "生成できます",
@@ -4554,6 +4555,8 @@
       "scriptDocBreakShots": "ショットに分解",
       "scriptDocRebreakShots": "ショットを再分解",
       "scriptDocConfirmShots": "ショットを確定",
+      "scriptDocShotStills": "ショットごとに静止画",
+      "scriptDocShotStillsHint": "ショット確定時に各ショットの静止画ノードを作成します。オフにしても新規作成が止まるだけで、既にキャンバスにある静止画は削除されません。",
       "scriptDocBackToOutline": "構成へ戻る",
       "scriptDocBackgroundLabel": "背景",
       "scriptDocDepthSimple": "簡易",
@@ -4825,6 +4828,12 @@
       "share": "読み取り専用リンクを共有",
       "shareCopied": "読み取り専用リンクをコピーしました",
       "shareFailed": "共有リンクを作成できませんでした"
+    },
+    "review": {
+      "approve": "承認",
+      "reject": "差し戻し",
+      "awaitingReview": "未確認",
+      "rejected": "差し戻し済み"
     }
   },
   "StudioV2": {

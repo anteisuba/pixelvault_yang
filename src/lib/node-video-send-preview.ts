@@ -16,7 +16,7 @@
  * node" utility.
  */
 import { NODE_STUDIO_VIDEO_REFERENCE_LEGEND } from '@/constants/node-studio'
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_REVIEW_STATE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getVideoModelSendContract,
@@ -78,7 +78,17 @@ export interface VideoSendPreviewAudioEntry {
 export interface VideoSendPreviewDroppedEntry {
   kind: 'image' | 'video' | 'audio'
   url: string
-  reason: 'unsupported' | 'model-limit' | 'total-limit'
+  /**
+   * 包 4：新增 `awaiting-review` / `rejected` 两个理由，接进**既有**的「什么被
+   * 丢了、为什么」这套，而不是另起一个提示通道 —— 用户不该在两个地方读「这次
+   * 少发了什么」。前三个是容量类原因，后两个是审核门。
+   */
+  reason:
+    | 'unsupported'
+    | 'model-limit'
+    | 'total-limit'
+    | 'awaiting-review'
+    | 'rejected'
 }
 
 export interface VideoSendPreview {
@@ -170,9 +180,14 @@ export function buildVideoSendPreview({
   const ownReferenceAssetUrls = (data.referenceAssets ?? []).map(
     (asset) => asset.url,
   )
-  const upstreamImageUrls = [
-    ...harvestUpstreamImageUrls(upstreamNodes, edges, nodeId),
-    ...harvestUpstreamCloseupUrls(nodeId, edges, nodes),
+  // 包 4：收割函数自己带审核门，所以预览拿到的就是**真实会发出去的那一批**。
+  // 门装在函数里而不是各调用点，正是为了预览和载荷不可能对不上。
+  const harvestedImages = harvestUpstreamImageUrls(upstreamNodes, edges, nodeId)
+  const harvestedCloseups = harvestUpstreamCloseupUrls(nodeId, edges, nodes)
+  const upstreamImageUrls = [...harvestedImages.urls, ...harvestedCloseups.urls]
+  const blockedByReview = [
+    ...harvestedImages.blocked,
+    ...harvestedCloseups.blocked,
   ]
   const audioCandidates: AudioBinding[] = harvestUpstreamAudioBindings(
     nodeId,
@@ -187,6 +202,16 @@ export function buildVideoSendPreview({
   const upstreamVideoUrls = videoCandidates.slice(0, videoLimit)
 
   const dropped: VideoSendPreviewDroppedEntry[] = [
+    // 审核门挡下的排在最前：它是**用户能立刻处理**的那一类（去点通过就好），
+    // 而容量类原因要么换模型要么减参考，处理成本高得多。
+    ...blockedByReview.map((item) => ({
+      kind: 'image' as const,
+      url: item.url,
+      reason:
+        item.state === NODE_REVIEW_STATE_IDS.rejected
+          ? ('rejected' as const)
+          : ('awaiting-review' as const),
+    })),
     ...audioCandidates.slice(audioLimit).map((binding) => ({
       kind: 'audio' as const,
       url: binding.url,

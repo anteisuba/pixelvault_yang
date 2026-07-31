@@ -56,6 +56,7 @@ import {
 } from '@/lib/script-doc-edit'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
@@ -125,9 +126,11 @@ export function ScriptDocWorkspace({
     scriptDocStage,
     scriptDocDepth,
     scriptDocLocks,
+    scriptDocShotStills,
     setScriptDocStage,
     setScriptDocDepth,
     setScriptDocLocks,
+    setScriptDocShotStills,
   } = useNodeWorkflowActions()
   const { draft, isDrafting, error, trim } = useNodeScriptDoc()
 
@@ -165,6 +168,9 @@ export function ScriptDocWorkspace({
     scriptDoc?.shots.some((shot) => (shot.camera?.trim().length ?? 0) > 0),
   )
   const isShotStage = stage === SCRIPT_DOC_STAGE_IDS.shots
+  // 分镜静帧 (包 3 / Q5「默认开 · 项目级可关」): absent = on, so projects that
+  // predate the toggle get the default without a migration.
+  const shotStillsOn = scriptDocShotStills !== false
 
   const lockField = useCallback(
     (key: string) => {
@@ -508,32 +514,57 @@ export function ScriptDocWorkspace({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-node-panel-inner px-4 py-3">
+      <div className="space-y-2.5 border-t border-node-panel-inner px-4 py-3">
+        {/* 分镜静帧开关 —— 只在镜头阶段露面，因为「确认镜头」就在它下面一行，
+            这是投影真正发生的地方。关掉只停止新建，已经生成过的静帧不会被
+            清理掉（owner 2026-07-31），所以这个开关是安全可逆的。 */}
         {isShotStage ? (
-          <ShotStageActions
-            isDrafting={isDrafting}
-            hasContent={hasContent}
-            onBack={() => setScriptDocStage(SCRIPT_DOC_STAGE_IDS.outline)}
-            onBreak={handleBreakShots}
-            onConfirm={handleApply}
-            backLabel={t('scriptDocBackToOutline')}
-            breakLabel={
-              shotsHaveCamera
-                ? t('scriptDocRebreakShots')
-                : t('scriptDocBreakShots')
-            }
-            confirmLabel={t('scriptDocConfirmShots')}
-          />
-        ) : (
-          <OutlineStageActions
-            isDrafting={isDrafting}
-            hasContent={hasContent}
-            onDraft={handleDraftOutline}
-            onConfirm={handleConfirmOutline}
-            draftLabel={scriptDoc ? t('scriptDocUpdate') : t('scriptDocDraft')}
-            confirmLabel={t('scriptDocConfirmOutline')}
-          />
-        )}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-2xs font-semibold text-node-foreground">
+                {t('scriptDocShotStills')}
+              </p>
+              <p className="mt-0.5 text-2xs leading-4 text-node-subtle">
+                {t('scriptDocShotStillsHint')}
+              </p>
+            </div>
+            <Switch
+              checked={shotStillsOn}
+              onCheckedChange={setScriptDocShotStills}
+              aria-label={t('scriptDocShotStills')}
+            />
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          {isShotStage ? (
+            <ShotStageActions
+              isDrafting={isDrafting}
+              hasContent={hasContent}
+              onBack={() => setScriptDocStage(SCRIPT_DOC_STAGE_IDS.outline)}
+              onBreak={handleBreakShots}
+              onConfirm={handleApply}
+              backLabel={t('scriptDocBackToOutline')}
+              breakLabel={
+                shotsHaveCamera
+                  ? t('scriptDocRebreakShots')
+                  : t('scriptDocBreakShots')
+              }
+              confirmLabel={t('scriptDocConfirmShots')}
+            />
+          ) : (
+            <OutlineStageActions
+              isDrafting={isDrafting}
+              hasContent={hasContent}
+              onDraft={handleDraftOutline}
+              onConfirm={handleConfirmOutline}
+              draftLabel={
+                scriptDoc ? t('scriptDocUpdate') : t('scriptDocDraft')
+              }
+              confirmLabel={t('scriptDocConfirmOutline')}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

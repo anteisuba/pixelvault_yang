@@ -54,23 +54,42 @@ function countType(
   return result.nodesToAdd.filter((node) => node.type === type).length
 }
 
+function countImageRole(
+  result: { nodesToAdd: NodeWorkflowState['nodes'] },
+  role: string,
+) {
+  return result.nodesToAdd.filter(
+    (node) => node.type === NODE_TYPE_IDS.image && node.data.role === role,
+  ).length
+}
+
+function findByRef(
+  nodes: NodeWorkflowState['nodes'],
+  kind: string,
+  sourceId: string,
+) {
+  return nodes.find(
+    (node) =>
+      node.data.scriptRef?.kind === kind &&
+      node.data.scriptRef?.sourceId === sourceId,
+  )
+}
+
 describe('projectScriptDocToGraph', () => {
-  it('spawns character / shotText / seedance / voice / merge for a two-shot doc', () => {
+  it('spawns character / shotText / shotStill / seedance / voice / merge for a two-shot doc', () => {
     const result = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
       makeId: deterministicMakeId(),
       anchor: ANCHOR,
     })
 
-    // 2 characters + 2 shotText + 2 seedance + 1 voice + 1 merge = 8
-    expect(result.created).toBe(8)
-    expect(result.nodesToAdd).toHaveLength(8)
-    // Projected role nodes are unified image nodes (option B) with role=character.
-    expect(countType(result, NODE_TYPE_IDS.image)).toBe(2)
-    expect(
-      result.nodesToAdd
-        .filter((node) => node.type === NODE_TYPE_IDS.image)
-        .every((node) => node.data.role === NODE_IMAGE_ROLE_IDS.character),
-    ).toBe(true)
+    // 2 characters + 2 shotText + 2 stills + 2 seedance + 1 voice + 1 merge = 10
+    expect(result.created).toBe(10)
+    expect(result.nodesToAdd).toHaveLength(10)
+    // Both projected image families are unified image nodes (option B),
+    // separated only by role: character (角色图) and shot (分镜静帧).
+    expect(countType(result, NODE_TYPE_IDS.image)).toBe(4)
+    expect(countImageRole(result, NODE_IMAGE_ROLE_IDS.character)).toBe(2)
+    expect(countImageRole(result, NODE_IMAGE_ROLE_IDS.shot)).toBe(2)
     expect(countType(result, NODE_TYPE_IDS.shotText)).toBe(2)
     expect(countType(result, NODE_TYPE_IDS.seedance)).toBe(2)
     expect(countType(result, NODE_TYPE_IDS.voice)).toBe(1)
@@ -84,9 +103,10 @@ describe('projectScriptDocToGraph', () => {
     )
     expect(voiceNode?.data.dialogue).toBeUndefined()
 
-    // shotText→seedance (2) + character→seedance (2) + voice→seedance (1)
-    // + seedance→merge (2) = 7
-    expect(result.edgesToAdd).toHaveLength(7)
+    // shotText→seedance (2) + still→seedance (2) + character→seedance (2)
+    // + character→still (2) + voice→seedance (1) + seedance→merge (2) = 11
+    // 没有 shotText→still —— 见投影里那段「有意不连」的注释。
+    expect(result.edgesToAdd).toHaveLength(11)
   })
 
   it('is idempotent — re-projecting the same doc adds nothing', () => {
@@ -247,17 +267,19 @@ describe('projectScriptDocToGraph', () => {
     const removedRefs = result.nodesToRemove.map(
       (node) => `${node.data.scriptRef?.kind}:${node.data.scriptRef?.sourceId}`,
     )
-    // role-2 char + shot-2's shotText/seedance + the merge (now a single shot).
+    // role-2 char + shot-2's shotText/still/seedance + the merge (single shot now).
     expect(removedRefs).toEqual(
       expect.arrayContaining([
         'character:role-2',
         'shotText:shot-2',
+        'shotStill:shot-2',
         'seedance:shot-2',
         'merge:merge',
       ]),
     )
     // shot-1's nodes survive.
     expect(removedRefs).not.toContain('shotText:shot-1')
+    expect(removedRefs).not.toContain('shotStill:shot-1')
     expect(removedRefs).not.toContain('character:role-1')
     // Edges into the removed nodes are torn down too.
     expect(result.removedEdges).toBeGreaterThan(0)
@@ -298,6 +320,131 @@ describe('projectScriptDocToGraph', () => {
     expect(voiceEdge).toBeTruthy()
   })
 
+  // ── 分镜静帧 (包 3 / Q5「默认开 · 项目级可关」) ──────────────────────────
+
+  it('projects one role=shot still per shot, seeded from the shot summary', () => {
+    const result = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId: deterministicMakeId(),
+      anchor: ANCHOR,
+    })
+
+    const still = findByRef(result.nodesToAdd, 'shotStill', 'shot-1')
+    expect(still?.type).toBe(NODE_TYPE_IDS.image)
+    // role=shot ⇒ 生成表单 / 散图卡, never the identity card (G5 存废未定).
+    expect(still?.data.role).toBe(NODE_IMAGE_ROLE_IDS.shot)
+    // `prompt` is the only field `buildNodeWorkflowPrompt` reads for a unified
+    // image node, so it carries the summary — and nothing duplicates it.
+    expect(still?.data.prompt).toBe('Mira kneels by the flowers')
+    expect(still?.data.action).toBeUndefined()
+  })
+
+  it('wires character→still→seedance, and deliberately leaves shotText→still out', () => {
+    const result = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId: deterministicMakeId(),
+      anchor: ANCHOR,
+    })
+
+    const still = findByRef(result.nodesToAdd, 'shotStill', 'shot-1')
+    const shotText = findByRef(result.nodesToAdd, 'shotText', 'shot-1')
+    const seedance = findByRef(result.nodesToAdd, 'seedance', 'shot-1')
+    const character = findByRef(result.nodesToAdd, 'character', 'role-1')
+    const hasEdge = (source?: string, target?: string) =>
+      result.edgesToAdd.some(
+        (edge) => edge.source === source && edge.target === target,
+      )
+
+    // The still harvests the character as a NAMED reference, which is what
+    // keeps the face on model — without this edge it generates from bare text.
+    expect(hasEdge(character?.id, still?.id)).toBe(true)
+    // Purely additive: the pre-existing character→video edge is untouched.
+    expect(hasEdge(character?.id, seedance?.id)).toBe(true)
+    // The still rides into the video as a plain visual reference.
+    expect(hasEdge(still?.id, seedance?.id)).toBe(true)
+    // ⚠ Locked ABSENCE: a shotText→still edge would be drawable but never
+    // consumed (image nodes don't harvest upstream shotText), and its content
+    // is both duplicated and video-flavoured. See the projection's comment.
+    expect(hasEdge(shotText?.id, still?.id)).toBe(false)
+  })
+
+  it('spawns no new stills when the project toggle is off', () => {
+    const result = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId: deterministicMakeId(),
+      anchor: ANCHOR,
+      shotStills: false,
+    })
+
+    expect(countImageRole(result, NODE_IMAGE_ROLE_IDS.shot)).toBe(0)
+    // Back to the pre-包 3 shape: 2 char + 2 shotText + 2 seedance + 1 voice + 1 merge.
+    expect(result.created).toBe(8)
+    expect(result.edgesToAdd).toHaveLength(7)
+  })
+
+  it('keeps stills that already exist when the toggle is turned off', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+
+    const afterOff = projectScriptDocToGraph(TWO_SHOT_DOC, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+      shotStills: false,
+    })
+
+    // A settings toggle must never delete an image the user already paid for:
+    // existing stills stay claimed, so the orphan sweep leaves them alone.
+    expect(afterOff.created).toBe(0)
+    expect(afterOff.removed).toBe(0)
+    expect(afterOff.removedEdges).toBe(0)
+    expect(
+      afterOff.nodesToRemove.some(
+        (node) => node.data.scriptRef?.kind === 'shotStill',
+      ),
+    ).toBe(false)
+  })
+
+  it('never overwrites a still prompt when the outline is redrafted', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const still = findByRef(first.nodesToAdd, 'shotStill', 'shot-1')
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+    const revised: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      shots: [
+        {
+          ...TWO_SHOT_DOC.shots[0],
+          summary: 'Mira studies glowing flowers in heavy rain',
+          camera: 'slow push-in',
+        },
+        TWO_SHOT_DOC.shots[1],
+      ],
+    }
+
+    const result = projectScriptDocToGraph(revised, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+    })
+
+    const stillPatch = result.nodesToUpdate.find(
+      (update) => update.id === still?.id,
+    )
+    // Structural field follows the doc…
+    expect(stillPatch?.data.camera).toBe('slow push-in')
+    // …but the prompt is the creator's to精修 — re-drafting must not wipe it.
+    expect(stillPatch?.data).not.toHaveProperty('prompt')
+  })
+
   it('reuses an Agent-path character node matched by character.characterId', () => {
     const existingState: NodeWorkflowState = {
       nodes: [
@@ -328,7 +475,9 @@ describe('projectScriptDocToGraph', () => {
     // The new node is a unified image node (option B); the existing legacy
     // characterImage node is still matched + reused by character.characterId.
     const newCharacters = result.nodesToAdd.filter(
-      (node) => node.type === NODE_TYPE_IDS.image,
+      (node) =>
+        node.type === NODE_TYPE_IDS.image &&
+        node.data.role === NODE_IMAGE_ROLE_IDS.character,
     )
     expect(newCharacters).toHaveLength(1)
     expect(newCharacters[0]?.data.character?.characterId).toBe('role-2')

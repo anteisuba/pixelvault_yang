@@ -40,6 +40,16 @@ import type { ScriptDoc } from '@/types/script-doc'
 export interface ProjectScriptDocOptions {
   makeId(prefix: string): string
   anchor: { x: number; y: number }
+  /**
+   * 分镜静帧 (包 3 / Q5「默认开 · 项目级可关」): project one still-image node
+   * per shot. Omitted or `true` = on, matching the owner's default.
+   *
+   * Turning it OFF only stops NEW stills from being spawned — a still that
+   * already exists is still claimed as "desired" so the orphan sweep below
+   * leaves it (and its edges) alone. A settings toggle must never silently
+   * delete an image the user already burned credit on.
+   */
+  shotStills?: boolean
 }
 
 export interface NodeWorkflowNodeDataUpdate {
@@ -121,9 +131,10 @@ function queueNodeUpdate(
 export function projectScriptDocToGraph(
   scriptDoc: ScriptDoc,
   existingState: NodeWorkflowState,
-  { makeId, anchor }: ProjectScriptDocOptions,
+  { makeId, anchor, shotStills }: ProjectScriptDocOptions,
 ): ProjectScriptDocResult {
   const placement = NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn
+  const wantsShotStills = shotStills !== false
 
   const existingByKey = new Map<string, string>()
   const existingNodeById = new Map<string, NodeWorkflowNode>()
@@ -301,6 +312,74 @@ export function projectScriptDocToGraph(
       () => shotTextUpdate,
     )
 
+    // 分镜静帧 (包 3): the shot's still image — a unified `image` node with
+    // role=shot, so `ImageNode` renders the 生成表单 while empty and the 散图卡
+    // once it has a result. role=shot deliberately, NOT background/character:
+    // those two render the identity card, whose存废 is still open (G5), and a
+    // projection has no business betting on a contested形态.
+    //
+    // Idempotency: the still needs its own refKind because `shot.id` is
+    // already the sourceId of this shot's shotText and seedance nodes.
+    const shotStillKey = refKey(SCRIPT_DOC_REF_KIND_IDS.shotStill, shot.id)
+    const hasExistingShotStill =
+      existingByKey.has(shotStillKey) || spawnedByKey.has(shotStillKey)
+    let shotStillId: string | null = null
+
+    if (wantsShotStills || hasExistingShotStill) {
+      const shotStillData: NodeWorkflowNodeData = {
+        // `prompt` is seeded, and ONLY `prompt` — `buildNodeWorkflowPrompt`
+        // has no field table for the unified `image` type, so it falls back to
+        // `[prompt]`. Writing the summary into `action` as well would print the
+        // same sentence twice in the Inspector while adding nothing the model
+        // ever reads.
+        //
+        // Seeded at create time so the node is generatable out of the box; the
+        // update patch below deliberately omits `prompt`, because a still's
+        // prompt is what the creator精修s shot by shot and re-drafting the
+        // outline must not wipe that (owner 2026-07-31).
+        prompt: shot.summary,
+        status: NODE_STATUS_IDS.idle,
+        generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+        mediaKind: NODE_MEDIA_KIND_IDS.image,
+        role: NODE_IMAGE_ROLE_IDS.shot,
+        // Inspector-side context (role=shot shows prompt/camera/composition/
+        // action). Kept in sync with the doc like the shotText sibling, but —
+        // per the note above — it informs the creator, it does not reach the
+        // model unless they fold it into the prompt themselves.
+        [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+        referenceAssets: [],
+        loras: [],
+        scriptRef: {
+          kind: SCRIPT_DOC_REF_KIND_IDS.shotStill,
+          sourceId: shot.id,
+        },
+      }
+      const shotStillUpdate: Partial<NodeWorkflowNodeData> = {
+        [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+        scriptRef: shotStillData.scriptRef,
+      }
+      shotStillId = resolveNode(
+        SCRIPT_DOC_REF_KIND_IDS.shotStill,
+        shot.id,
+        (id) => ({
+          id,
+          type: NODE_TYPE_IDS.image,
+          position: { x: anchor.x + placement.shotStillOffsetX, y: rowY },
+          data: shotStillData,
+        }),
+        () => shotStillUpdate,
+      )
+      // ⚠ 有意不连 shotText → 静帧（owner 2026-07-31）。三条理由：
+      // ① 今天不会被消费 —— `upstreamTextPrompt` 只对视频节点计算
+      //    (`StudioNodeWorkbench`: `isVideoMediaNode ? harvest : ''`)。
+      // ② 就算接通也不该接 —— shotText 拼的是 场景/动作/镜头/构图 四段，
+      //    其中「镜头」是运动词（缓慢推入 / 过肩），那是写给视频的；喂给图片
+      //    模型只是噪音。静帧要的是这一镜长什么样，不是镜头怎么动。
+      // ③ 会重复 —— 静帧自己的 prompt 已经是 shot.summary，而 shotText 的
+      //    「动作」段同源，`mergePromptWithUpstreamText` 是裸拼接不去重。
+      // 这一镜的文字与静帧的关系由 scriptRef 的同一个 shot.id 表达，不需要边。
+    }
+
     const seedanceData: NodeWorkflowNodeData = {
       prompt: '',
       status: NODE_STATUS_IDS.idle,
@@ -334,10 +413,25 @@ export function projectScriptDocToGraph(
 
     addDesiredEdge(shotTextId, seedanceId)
 
+    if (shotStillId) {
+      // The still rides into the video as a plain visual reference —
+      // `isVisualReferenceNode` already counts role=shot (node-workflow-graph),
+      // so this edge is what makes 先图后视 actually reach the video.
+      addDesiredEdge(shotStillId, seedanceId)
+    }
+
     for (const roleId of shot.roleIds) {
       const characterNodeId = roleNodeId.get(roleId)
-      if (characterNodeId) {
-        addDesiredEdge(characterNodeId, seedanceId)
+      if (!characterNodeId) continue
+
+      addDesiredEdge(characterNodeId, seedanceId)
+      if (shotStillId) {
+        // ADDITIVE, on top of character→seedance above (owner 2026-07-31):
+        // a shot node is the one image-gen node that reads its own upstream —
+        // `harvestUpstreamImageReferences` turns these into named references
+        // ("图1：角色「…」"), which is what keeps the face in the still on
+        // model. Without this edge the still would generate from bare text.
+        addDesiredEdge(characterNodeId, shotStillId)
       }
     }
 

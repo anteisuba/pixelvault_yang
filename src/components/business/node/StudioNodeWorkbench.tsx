@@ -60,6 +60,7 @@ import {
   NODE_IMAGE_ROLE_TO_LEGACY_TYPE,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
+  NODE_REVIEW_STATE_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
@@ -106,6 +107,7 @@ import {
 } from '@/hooks/node/use-update-node-internals-on-init'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
+import { markMediaAwaitingReview } from '@/lib/node-media-review'
 import {
   decideCanvasImageEditHandoffSession,
   getCanvasImageEditHandoffRequestKey,
@@ -1049,6 +1051,8 @@ function StudioNodeCanvas() {
           sourceGenerationId: undefined,
           sourceLabel: undefined,
           status: NODE_STATUS_IDS.done,
+          // 包 4：AI 出的图默认「已出未审」。用户自己上传/挑的图不走这条路。
+          ...markMediaAwaitingReview(node.data, result.imageUrl),
         })
         toast.success(t('toasts.characterGenerated'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
@@ -1140,20 +1144,22 @@ function StudioNodeCanvas() {
       // then 1-hop closeups (§9 B): a character's face-detail images ride behind
       // it. Same order the composer's payloadImageUrls computes, so the 图N /
       // 特写N slot badges match what's actually sent.
-      const upstreamImageUrls = isVideoMediaNode
-        ? [
-            // R3-6b §3 每镜覆写: pass edges + nodeId so a collector's
-            // contribution honors this specific collector→video edge's
-            // stageOverrideUrls instead of always falling back to the card's
-            // own onStage curation.
-            ...harvestUpstreamImageUrls(upstreamNodes, workflow.edges, nodeId),
-            ...harvestUpstreamCloseupUrls(
-              nodeId,
-              workflow.edges,
-              workflow.nodes,
-            ),
-          ]
-        : []
+      // 包 4：收割函数内置审核门，`.urls` 已经只含过审的图；`.blocked` 是被挡下
+      // 的那些，下面必须**显式告诉用户**——静默少发一张比不挡更糟。
+      const harvestedImages = isVideoMediaNode
+        ? // R3-6b §3 每镜覆写: pass edges + nodeId so a collector's
+          // contribution honors this specific collector→video edge's
+          // stageOverrideUrls instead of always falling back to the card's
+          // own onStage curation.
+          harvestUpstreamImageUrls(upstreamNodes, workflow.edges, nodeId)
+        : { urls: [], blocked: [] }
+      const harvestedCloseups = isVideoMediaNode
+        ? harvestUpstreamCloseupUrls(nodeId, workflow.edges, workflow.nodes)
+        : { urls: [], blocked: [] }
+      const upstreamImageUrls = [
+        ...harvestedImages.urls,
+        ...harvestedCloseups.urls,
+      ]
       // harvestUpstreamAudioBindings walks one hop further than the plain
       // voice harvest: voices wired through a character node carry that
       // character's name forward, so multi-character scenes can label
@@ -1175,9 +1181,35 @@ function StudioNodeCanvas() {
       // Named character/background references for a shot node — URL + subject
       // name, so each can be passed as a reference image AND labeled in the
       // prompt legend below.
-      const upstreamImageReferences = isShotImageNode
+      const harvestedReferences = isShotImageNode
         ? harvestUpstreamImageReferences(upstreamNodes)
-        : []
+        : { references: [], blocked: [] }
+      const upstreamImageReferences = harvestedReferences.references
+
+      // 两条收割链的排除清单合起来报一次。⚠ 这是 §5-W3「排除时要提示」的落点：
+      // 门禁生效但用户不知道，等价于产品在骗他。
+      const blockedByReview = [
+        ...harvestedImages.blocked,
+        ...harvestedCloseups.blocked,
+        ...harvestedReferences.blocked,
+      ]
+      if (blockedByReview.length > 0) {
+        const pending = blockedByReview.filter(
+          (item) => item.state === NODE_REVIEW_STATE_IDS.awaitingReview,
+        ).length
+        const rejected = blockedByReview.length - pending
+        toast.info(
+          t('mediaNodes.reviewBlocked', {
+            total: blockedByReview.length,
+            pending,
+            rejected,
+          }),
+          {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          },
+        )
+      }
 
       const mergedPrompt = mergePromptWithUpstreamText(
         ownPrompt,
@@ -1565,6 +1597,9 @@ function StudioNodeCanvas() {
           mediaJobId: undefined,
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
+          // 包 4：AI 出的媒体默认「已出未审」（图/视频/音频同理，门禁这一期
+          // 只挡 image_urls，但状态一视同仁地记，免得以后补别的门要回填历史）。
+          ...markMediaAwaitingReview(node.data, result.mediaUrl),
           ...(isVideoMediaNode
             ? {
                 videoThumbnailUrl: result.thumbnailUrl,
@@ -1811,6 +1846,12 @@ function StudioNodeCanvas() {
         )
 
         if (result.success) {
+          // 包 4：读一次目标节点的当前数据再合并审核表。`updateNodeData` 是浅合
+          // 并，直接写 `{mediaReview:{新URL:...}}` 会把这个节点上**旧图的审核记
+          // 录整张覆盖掉** —— 一张被打回过的旧图会因此静默变回「通过」。
+          const targetData = workflow.nodes.find(
+            (item) => item.id === targetId,
+          )?.data
           workflow.updateNodeData(targetId, {
             generationError: undefined,
             generationId: result.generation.id,
@@ -1822,6 +1863,9 @@ function StudioNodeCanvas() {
             mediaJobId: undefined,
             mediaKind: NODE_MEDIA_KIND_IDS.image,
             mediaUrl: result.mediaUrl,
+            ...(targetData
+              ? markMediaAwaitingReview(targetData, result.mediaUrl)
+              : {}),
             mediaLabel: result.generation.model,
             lastSeed:
               typeof result.generation.seed === 'number'
@@ -3245,6 +3289,7 @@ function StudioNodeCanvas() {
       setScriptDocStage: workflow.setScriptDocStage,
       setScriptDocDepth: workflow.setScriptDocDepth,
       setScriptDocLocks: workflow.setScriptDocLocks,
+      setScriptDocShotStills: workflow.setScriptDocShotStills,
       applyScriptDocToGraph: workflow.applyScriptDocToGraph,
       deleteNode: workflow.deleteNode,
       // R3-2 §2.7: routed through the reverse-ink-retreat wrapper — every
@@ -3283,6 +3328,7 @@ function StudioNodeCanvas() {
       scriptDocStage: workflow.scriptDocStage,
       scriptDocDepth: workflow.scriptDocDepth,
       scriptDocLocks: workflow.scriptDocLocks,
+      scriptDocShotStills: workflow.scriptDocShotStills,
       // R3-8 C1 场记条: reuse the same project name CanvasTopBar already
       // renders — no new data source, just threaded one level deeper.
       projectName: workflow.currentProjectName,
@@ -3322,10 +3368,12 @@ function StudioNodeCanvas() {
       workflow.setScriptDocStage,
       workflow.setScriptDocDepth,
       workflow.setScriptDocLocks,
+      workflow.setScriptDocShotStills,
       workflow.defaultVideoModel,
       workflow.scriptDocStage,
       workflow.scriptDocDepth,
       workflow.scriptDocLocks,
+      workflow.scriptDocShotStills,
       workflow.applyScriptDocToGraph,
       workflow.undo,
       workflow.updateEdgeData,

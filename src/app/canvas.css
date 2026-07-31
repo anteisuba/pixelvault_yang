@@ -703,6 +703,18 @@
 .domain-canvas .canvas-card[data-status='failed'] {
   border-color: var(--canvas-danger);
 }
+/* 包 4 审核态：复用**同一条**卡边着色规则，不新造第二套卡面 chrome。
+   §5-W3 明写这一档「视觉极小」，且 包 4 设计门＝否 —— 卡是「卡即媒体」，
+   底部加状态带属于改卡面视觉，要过 ui-page 门，不属于本包。
+   已出未审 = warn 边（用户要来看一眼），已打回 = danger 边（同失败一族，
+   都是「这张不能用」）。两个 token 都是既有的、之前已算过对比度的值；
+   这里只当描边用，不承载文字。 */
+.domain-canvas .canvas-card[data-status='awaiting-review'] {
+  border-color: var(--canvas-warn);
+}
+.domain-canvas .canvas-card[data-status='rejected'] {
+  border-color: var(--canvas-danger);
+}
 
 /* 视频卡 + 节点右侧编排器（canvas-video-card.md）。
    卡始终是纯视频媒体；参数面固定在右边，详细态只向右扩，节点尺寸与端口锚点

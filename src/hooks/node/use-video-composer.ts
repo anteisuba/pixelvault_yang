@@ -235,9 +235,11 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     // R3-6b §3: edges + nodeId thread through so a collector's contribution
     // honors its per-edge stageOverrideUrls — otherwise the slot badges shown
     // here would disagree with what an active override actually sends.
+    // 包 4：`.urls` 只含已过审的图。槽位编号（图N / 特写N）因此**跟着门禁走** ——
+    // 未过审的图不占号，否则界面标的 @Image2 会和真实发出去的第 2 张对不上。
     const payloadImageUrls = [
-      ...harvestUpstreamImageUrls(incoming, edges, nodeId),
-      ...harvestUpstreamCloseupUrls(nodeId, edges, nodes),
+      ...harvestUpstreamImageUrls(incoming, edges, nodeId).urls,
+      ...harvestUpstreamCloseupUrls(nodeId, edges, nodes).urls,
     ]
     const directEdgeBySource = new Map<string, string>()
     for (const edge of edges) {

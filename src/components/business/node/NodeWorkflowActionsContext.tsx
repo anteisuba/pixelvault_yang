@@ -143,6 +143,8 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   scriptDocStage: ScriptDocStage | undefined
   scriptDocDepth: ScriptDocDepth | undefined
   scriptDocLocks: string[] | undefined
+  /** 分镜静帧开关 (包 3). `undefined` = 默认开. */
+  scriptDocShotStills: boolean | undefined
   /**
    * R3-8 (canvas-relationship-v3 §7 C1 场记条): the current project's display
    * name, read by the video detail body's slate strip. Optional so the

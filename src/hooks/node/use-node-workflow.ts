@@ -120,6 +120,8 @@ export interface NodeWorkflowActions {
   setScriptDocStage(value: ScriptDocStage): void
   setScriptDocDepth(value: ScriptDocDepth): void
   setScriptDocLocks(value: string[]): void
+  /** 分镜静帧开关 (包 3): whether projecting spawns a still per shot. */
+  setScriptDocShotStills(value: boolean): void
   /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
   applyScriptDocToGraph(): ApplyScriptDocResult
   deleteNode(id: string): void
@@ -154,6 +156,8 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   scriptDocStage: ScriptDocStage | undefined
   scriptDocDepth: ScriptDocDepth | undefined
   scriptDocLocks: string[] | undefined
+  /** `undefined` = 默认开 (see NodeWorkflowStateDataSchema). */
+  scriptDocShotStills: boolean | undefined
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   projects: NodeWorkflowProjectSummary[]
@@ -1460,6 +1464,19 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  const setScriptDocShotStills = useCallback(
+    (value: boolean) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({ ...currentState, scriptDocShotStills: value }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
   /**
    * Project the current project's ScriptDoc into the graph. Reads the latest
    * state off `storageRef` (never a stale closure), runs the pure idempotent
@@ -1496,6 +1513,8 @@ export function useNodeWorkflow({
     const result = projectScriptDocToGraph(scriptDoc, currentState, {
       makeId: createWorkflowId,
       anchor: NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn.origin,
+      // Absent on every project that predates the toggle → 默认开.
+      shotStills: currentState.scriptDocShotStills,
     })
 
     if (
@@ -1745,6 +1764,7 @@ export function useNodeWorkflow({
       scriptDocStage: state.scriptDocStage,
       scriptDocDepth: state.scriptDocDepth,
       scriptDocLocks: state.scriptDocLocks,
+      scriptDocShotStills: state.scriptDocShotStills,
       nodes: state.nodes,
       edges: state.edges,
       projects,
@@ -1764,6 +1784,7 @@ export function useNodeWorkflow({
       setScriptDocStage,
       setScriptDocDepth,
       setScriptDocLocks,
+      setScriptDocShotStills,
       applyScriptDocToGraph,
       deleteNode,
       deleteEdge,
@@ -1805,6 +1826,7 @@ export function useNodeWorkflow({
       setScriptDocStage,
       setScriptDocDepth,
       setScriptDocLocks,
+      setScriptDocShotStills,
       state,
       switchProject,
       tidyLayout,

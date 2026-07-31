@@ -49,6 +49,14 @@ export const SCRIPT_DOC_LIMITS = {
 export const SCRIPT_DOC_REF_KIND_IDS = {
   character: 'character',
   shotText: 'shotText',
+  /**
+   * 分镜静帧（包 3 · Q5「默认开 · 项目级可关」）: the per-shot still image —
+   * an `image` node with `role=shot`. It needs its OWN kind because the match
+   * key is `${kind}:${sourceId}` and `sourceId` is the same `shot.id` that
+   * `shotText` / `seedance` already use; reusing a kind would collapse three
+   * nodes onto one refKey.
+   */
+  shotStill: 'shotStill',
   seedance: 'seedance',
   voice: 'voice',
   merge: 'merge',
@@ -57,6 +65,7 @@ export const SCRIPT_DOC_REF_KIND_IDS = {
 export const SCRIPT_DOC_REF_KINDS = [
   SCRIPT_DOC_REF_KIND_IDS.character,
   SCRIPT_DOC_REF_KIND_IDS.shotText,
+  SCRIPT_DOC_REF_KIND_IDS.shotStill,
   SCRIPT_DOC_REF_KIND_IDS.seedance,
   SCRIPT_DOC_REF_KIND_IDS.voice,
   SCRIPT_DOC_REF_KIND_IDS.merge,

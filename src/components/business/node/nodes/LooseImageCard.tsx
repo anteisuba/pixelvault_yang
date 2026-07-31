@@ -346,14 +346,14 @@ export function LooseImageCard({
             onQuickEditOpenChange={setQuickEditOpen}
             quickEditOpen={quickEditOpen}
             extra={
-              <>
-                {/* 审核动作对**任何**有图的卡都出现（不限镜头图）——
-                    未过审的角色图一样会被下游门禁挡住，得能就地放行。 */}
-                <MediaReviewButtons nodeId={id} data={data} />
-                {nodeType === NODE_TYPE_IDS.shot ? (
-                  <ShotGenerateButton nodeId={id} data={data} />
-                ) : null}
-              </>
+              // ⚠ 审核动作（通过/打回）**不在这条工具条上** —— owner
+              // 2026-07-31：「这个通过打回放在下面的编辑框里更好」。工具条已
+              // 有 8 项（分类/展开/下载/快捷编辑/重新生成/删除/…），而审核是
+              // 「这张图能不能用」，跟下方编辑框里的「拿它再生成」是同一场决
+              // 策。落点见 `composer/GenerateComposer` 的参数条首位。
+              nodeType === NODE_TYPE_IDS.shot ? (
+                <ShotGenerateButton nodeId={id} data={data} />
+              ) : null
             }
           />
         ) : (

@@ -42,6 +42,8 @@ import { GenerateComposerTemplatePicker } from './GenerateComposerTemplatePicker
 import { MentionInput } from './MentionInput'
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { MediaReviewButtons } from '../CanvasImageSelectionToolbar'
+import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import {
   useGenerateComposer,
   type ComposerReferenceSlot,
@@ -268,6 +270,14 @@ interface ComposerCoreProps {
 function ComposerCore({ composer }: ComposerCoreProps) {
   const t = useTranslations('StudioNode.generateComposer')
   const { modelOptionsByType, setExpandedNodeId } = useNodeWorkflowActions()
+  // 审核动作要的是宿主节点的完整 data（composer.host 只是摘要）。宿主本来就
+  // 由「当前单选节点」推出（inferComposerHost），所以取同一个来源，两者不可能
+  // 指向不同的卡。
+  const selection = useNodeSelection()
+  const hostData =
+    selection.primary && selection.primary.id === composer.host?.nodeId
+      ? selection.primary.data
+      : null
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const promptRef = useRef<HTMLDivElement>(null)
 
@@ -281,7 +291,6 @@ function ComposerCore({ composer }: ComposerCoreProps) {
     const el =
       promptRef.current?.querySelector<HTMLElement>('[contenteditable]')
     focusUnlessTouch(el)
-     
   }, [composer.focusToken])
 
   const isEditing = Boolean(composer.host?.hasMedia)
@@ -399,6 +408,17 @@ function ComposerCore({ composer }: ComposerCoreProps) {
           </div>
         ) : (
           <div className="canvas-composer-param-row">
+            {/* 包 4 审核动作（owner 2026-07-31 从近场工具条挪来）：审核是
+                「这张图能不能用」，跟这一行里的「拿它再生成一版」是同一场
+                决策，放在一起才连贯；工具条那边已经 8 项，塞不下也不该塞。
+                排在参数条首位——先决定要不要它，再决定用什么模型重做。
+                只在宿主已有媒体时出现（没有图就没有可审的东西）。 */}
+            {composer.host?.hasMedia && hostData ? (
+              <MediaReviewButtons
+                nodeId={composer.host.nodeId}
+                data={hostData}
+              />
+            ) : null}
             {/* §5.5「用模板」——底部参数条第一位，与模型/比例/张数并列同一
                 「点开都是选择器」分组（owner 2026-07-27 拍板，推翻了「放
                 prompt 区」的原方案）。只在 image 模式渲染，因为这一整段

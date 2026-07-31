@@ -22,6 +22,10 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
+import {
+  buildDisplayNamePatch,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { cn } from '@/lib/utils'
 import type {
@@ -75,29 +79,10 @@ function getEmptyIcon(kind: NodeWorkflowMediaKind, type: NodeWorkflowNodeType) {
  * away from this component (shotText has no such switch — it's text-only —
  * but the field is the same one either way).
  */
-function getHeaderTitle(
-  type: NodeWorkflowNodeType,
-  data: NodeWorkflowNodeData,
-): string | undefined {
-  if (type === NODE_TYPE_IDS.characterImage) {
-    return (
-      data.characterName?.trim() || data.character?.name?.trim() || undefined
-    )
-  }
-  if (type === NODE_TYPE_IDS.backgroundImage) {
-    return data.backgroundName?.trim() || undefined
-  }
-  if (type === NODE_TYPE_IDS.shot) {
-    return data.shotName?.trim() || undefined
-  }
-  if (
-    type === NODE_TYPE_IDS.frameImage ||
-    type === NODE_TYPE_IDS.videoMerge ||
-    type === NODE_TYPE_IDS.shotText
-  ) {
-    return data.mediaLabel?.trim() || undefined
-  }
-  return undefined
+// 包 4.5：读侧收口到共享链。原本按类型分支各读各的字段，与写侧的分支必须
+// 人工对齐 —— 分家一次就长出「换个组件渲染名字就没了」。
+function getHeaderTitle(data: NodeWorkflowNodeData): string | undefined {
+  return resolveNodeDisplayName(data)
 }
 
 /** Whether `getHeaderTitle` above resolves a real, writable field for `type`
@@ -126,30 +111,20 @@ function commitHeaderTitle(
   nodeId: string,
   nextValue: string,
   updateNodeData: (id: string, patch: Partial<NodeWorkflowNodeData>) => void,
+  data: NodeWorkflowNodeData,
 ): void {
-  if (type === NODE_TYPE_IDS.characterImage) {
-    updateNodeData(nodeId, { characterName: nextValue })
-    return
-  }
-  if (type === NODE_TYPE_IDS.backgroundImage) {
-    updateNodeData(nodeId, { backgroundName: nextValue })
-    return
-  }
-  if (type === NODE_TYPE_IDS.shot) {
-    updateNodeData(nodeId, { shotName: nextValue })
-    return
-  }
-  if (
-    type === NODE_TYPE_IDS.frameImage ||
-    type === NODE_TYPE_IDS.videoMerge ||
-    type === NODE_TYPE_IDS.shotText
-  ) {
-    // sourceLabel 是 mediaLabel 的老搭档（StudioNodeAssistantDock 拿它当名字
-    // 兜底）——两个字段一起写，避免只写 mediaLabel 让两者悄悄分叉。shotText
-    // 的正文本身走 `prompt`（NodeMediaInspector 的文本表单字段），跟这里的
-    // "名字" 不是同一件事，字段不冲突。
-    updateNodeData(nodeId, { mediaLabel: nextValue, sourceLabel: nextValue })
-  }
+  // 包 4.5：写侧收口到共享的 `buildDisplayNamePatch`。传进去的 `type` 是**呈现
+  // 类型**（统一 image 节点按 role 映射出来的 legacy type），共享函数按 role
+  // 优先、type 兜底判断，对同一个节点必然得出同一个字段 —— 这正是「出图前后
+  // 写不同字段」那个 bug 的根治点。
+  //
+  // 原本这里按类型手写四个分支；其中 mediaLabel + sourceLabel 一起写的理由已
+  // 随之搬进共享函数。shotText 的正文走 `prompt`（NodeMediaInspector 的文本
+  // 表单字段），与这里的「名字」不是同一件事，字段不冲突。
+  updateNodeData(
+    nodeId,
+    buildDisplayNamePatch({ role: data.role, type }, nextValue),
+  )
 }
 
 function getMediaStatusLabelKey(
@@ -216,10 +191,10 @@ export function NodeMediaPreview({
       <NodeShell.Header
         type={type}
         status={data.status}
-        title={getHeaderTitle(type, data)}
+        title={getHeaderTitle(data)}
         onRenameCommit={
           isHeaderTitleEditable(type)
-            ? (next) => commitHeaderTitle(type, id, next, updateNodeData)
+            ? (next) => commitHeaderTitle(type, id, next, updateNodeData, data)
             : undefined
         }
         // image 族状态挪进媒体窗左上角徽标，卡外的头不重复盖章。

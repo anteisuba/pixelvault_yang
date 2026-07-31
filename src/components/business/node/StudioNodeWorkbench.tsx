@@ -1631,7 +1631,11 @@ function StudioNodeCanvas() {
                 },
               }
             : {}),
-          mediaLabel: result.generation.model,
+          // ⚠ 包 4.5：**不再**把 `generation.model` 写进 `mediaLabel`。
+          // `mediaLabel` 是显示名字段（卡面标签 / 卡匣 / 助手 payload 全读它），
+          // 把模型 id 写进去等于替用户起了个名 —— 一张从没被命名过的生成图，
+          // 在助手眼里就叫 `gemini-3.1-flash-image-preview`。模型信息本来就还在
+          // `data.model` 与 `generationId` 指向的 Generation 记录上，这里是冗余。
           // seed 复现闭环：回写 provider 实际用的 seed 供前端展示 +「锁定」。
           lastSeed:
             typeof result.generation.seed === 'number'
@@ -1866,7 +1870,11 @@ function StudioNodeCanvas() {
             ...(targetData
               ? markMediaAwaitingReview(targetData, result.mediaUrl)
               : {}),
-            mediaLabel: result.generation.model,
+            // ⚠ 包 4.5：**不再**把 `generation.model` 写进 `mediaLabel`。
+            // `mediaLabel` 是显示名字段（卡面标签 / 卡匣 / 助手 payload 全读它），
+            // 把模型 id 写进去等于替用户起了个名 —— 一张从没被命名过的生成图，
+            // 在助手眼里就叫 `gemini-3.1-flash-image-preview`。模型信息本来就还在
+            // `data.model` 与 `generationId` 指向的 Generation 记录上，这里是冗余。
             lastSeed:
               typeof result.generation.seed === 'number'
                 ? result.generation.seed

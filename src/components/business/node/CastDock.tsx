@@ -14,6 +14,7 @@ import {
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -55,16 +56,10 @@ function resolvePresentationType(node: NodeWorkflowNode): NodeWorkflowNodeType {
   return NODE_IMAGE_ROLE_TO_LEGACY_TYPE[node.data.role] ?? node.type
 }
 
+// 包 4.5：这条七字段优先链原本就写在这里，且是全仓最全的一条 —— 抽进
+// `lib/node-display-name` 成为单一事实源，本处改为消费它。行为零变化。
 function getNodeDisplayName(node: NodeWorkflowNode): string | undefined {
-  return (
-    trimmed(node.data.characterName) ??
-    trimmed(node.data.character?.name) ??
-    trimmed(node.data.backgroundName) ??
-    trimmed(node.data.shotName) ??
-    trimmed(node.data.voiceName) ??
-    trimmed(node.data.mediaLabel) ??
-    trimmed(node.data.sourceLabel)
-  )
+  return resolveNodeDisplayName(node.data)
 }
 
 function getNodeThumbnail(node: NodeWorkflowNode): string | undefined {

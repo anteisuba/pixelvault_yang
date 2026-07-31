@@ -19,6 +19,7 @@ import {
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
 } from '@/constants/node-studio'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
+import { buildDisplayNamePatch } from '@/lib/node-display-name'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
@@ -247,7 +248,12 @@ export function ImageSourceStarter({
         status={status}
         title={mediaLabel?.trim() || undefined}
         onRenameCommit={(next) =>
-          updateNodeData(nodeId, { mediaLabel: next, sourceLabel: next })
+          // 包 4.5：走共享写侧。这张起手卡没有 role，共享函数按 type 兜底
+          // 落到 mediaLabel+sourceLabel —— 与原行为一致，但从此和别处同源。
+          updateNodeData(
+            nodeId,
+            buildDisplayNamePatch({ type: NODE_TYPE_IDS.image }, next),
+          )
         }
         // 状态浮标挪进媒体窗左上角（下面），卡外的头不用再盖一次章。
         hideStatusBadge

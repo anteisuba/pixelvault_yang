@@ -102,11 +102,17 @@ describe('useNodeGenerationReconcile', () => {
         generationId: GENERATION.id,
         generationStatus: 'success',
         mediaUrl: GENERATION.url,
-        mediaLabel: GENERATION.model,
         lastSeed: 42,
         mediaJobId: undefined,
         status: 'done',
       }),
+    )
+    // 包 4.5：模型 id **不得**再被写进 `mediaLabel`。那是显示名字段，卡面 /
+    // 卡匣 / 助手 payload 都读它 —— 写进去等于替用户起了个名。模型信息仍在
+    // `data.model` 与 Generation 记录上，这里冗余且有害。
+    expect(updateNodeData).not.toHaveBeenCalledWith(
+      'node-1',
+      expect.objectContaining({ mediaLabel: GENERATION.model }),
     )
   })
 

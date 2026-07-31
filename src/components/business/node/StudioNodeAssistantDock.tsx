@@ -28,6 +28,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import type { AppLocale } from '@/i18n/routing'
 import type {
   NodeAssistantMediaReference,
@@ -69,11 +70,20 @@ function truncateNodeText(value: string, maxLength: number): string {
     : trimmed
 }
 
+/**
+ * 助手 payload 里的 `title` —— **必须是画布上显示的那个名字**。
+ *
+ * ⚠ 这里曾经是包 4.5 要修的洞：旧实现只认合并前的 `characterImage`（角色早已是
+ * `image` + `role=character`，那个分支一次都不会命中），其余类型一律返回
+ * `fallbackTitle`，也就是本地化的**类型标签**。于是助手看到的是「图片 / 镜头文本
+ * / 视频生成」，用户改的「雨夜开场镜」和角色名「小林」它一个都拿不到，`@` 按名字
+ * 引用因此不可能成立。
+ *
+ * 修法是接上**共享的显示名事实源**，而不是在这里再加一层兜底 —— 再写一套就是
+ * 同一个错误的第五份副本。
+ */
 function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
-  if (node.type === NODE_TYPE_IDS.characterImage) {
-    return node.data.characterName ?? node.data.character?.name ?? fallbackTitle
-  }
-
+  // agent 的标题来自它自己的计划/分镜产物，不属于通用显示名链，单独保留。
   if (node.type === NODE_TYPE_IDS.agent) {
     return (
       node.data.seedancePromptPlan?.title ??
@@ -82,7 +92,7 @@ function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
     )
   }
 
-  return fallbackTitle
+  return resolveNodeDisplayName(node.data) ?? fallbackTitle
 }
 
 function getNodeSummary(node: NodeWorkflowNode): string | undefined {

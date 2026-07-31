@@ -15,6 +15,7 @@ import {
   getUpstreamNodes,
   isVoiceProfileNode,
 } from '@/lib/node-workflow-graph'
+import { buildDisplayNamePatch } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -50,18 +51,17 @@ function commitName(
   legacyType: NodeWorkflowNodeType,
   nodeId: string,
   nextValue: string,
+  data: NodeWorkflowNode['data'],
   updateNodeData: (
     id: string,
     patch: Partial<NodeWorkflowNode['data']>,
   ) => void,
 ): void {
-  if (legacyType === NODE_TYPE_IDS.characterImage) {
-    updateNodeData(nodeId, { characterName: nextValue })
-    return
-  }
-  if (legacyType === NODE_TYPE_IDS.backgroundImage) {
-    updateNodeData(nodeId, { backgroundName: nextValue })
-  }
+  // 包 4.5：写侧收口到共享的 `buildDisplayNamePatch`，与读侧同一个事实源。
+  updateNodeData(
+    nodeId,
+    buildDisplayNamePatch({ role: data.role, type: legacyType }, nextValue),
+  )
 }
 
 /**
@@ -136,7 +136,7 @@ export function IdentityCollectorCard({
         status={data.status}
         title={name}
         onRenameCommit={(next) =>
-          commitName(legacyType, id, next, updateNodeData)
+          commitName(legacyType, id, next, data, updateNodeData)
         }
         // 身份卡自己不生成东西，没有生成中/失败态（§2），卡外的头不用盖章。
         hideStatusBadge

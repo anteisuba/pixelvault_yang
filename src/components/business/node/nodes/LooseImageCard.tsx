@@ -14,6 +14,10 @@ import {
 } from '@/constants/node-types'
 import { resolveMediaReviewState } from '@/lib/node-media-review'
 import {
+  buildDisplayNamePatch,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
+import {
   NODE_STUDIO_IMAGE_CARD_SIZE,
   NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -189,10 +193,13 @@ export function LooseImageCard({
   // rawLabel is the true custom value (empty when never named) — kept apart
   // from `label` below so the S4 edit input doesn't bake the "未命名"
   // fallback text into what gets committed on an unmodified Enter.
-  const rawLabel =
-    (typeof data.mediaLabel === 'string' && data.mediaLabel.trim()) ||
-    (typeof data.sourceLabel === 'string' && data.sourceLabel.trim()) ||
-    ''
+  // 包 4.5：改用共享显示名链。**这修的是一个真的丢名字 bug** —— 同一个
+  // `role=shot` 静帧，空态由 `NodeMediaPreview` 渲染（读写 `shotName`），一旦
+  // 有图就换成这张卡；旧实现只读 `mediaLabel/sourceLabel`，于是「起完名再生成
+  // 一张图，名字当场消失」。共享链把 `shotName` 也含在内，换组件不再丢名。
+  // 仍然保持 raw（无兜底）：`EditableNodeLabel` 拿到兜底文案后，一次原样回车
+  // 就会把它存成真名字。
+  const rawLabel = resolveNodeDisplayName(data) ?? ''
   const label = rawLabel || t('untitled')
 
   // S4（canvas-image-card.md §2）：卡宽按媒体真实比例算，钳制 [180,480]，
@@ -369,8 +376,11 @@ export function LooseImageCard({
           value={rawLabel}
           placeholder={t('untitled')}
           ariaLabel={tToolbar('rename')}
+          // 写侧同样收口：按 role/type 决定字段，**与有没有媒体无关**。旧实现
+          // 一律写 mediaLabel，导致同一张镜头卡出图前写 shotName、出图后写
+          // mediaLabel —— 读写分家正是名字会消失的另一半原因。
           onCommit={(next) =>
-            updateNodeData(id, { mediaLabel: next, sourceLabel: next })
+            updateNodeData(id, buildDisplayNamePatch({ role: data.role }, next))
           }
           className="font-semibold"
         />

@@ -147,10 +147,15 @@ function stripNodeReferenceMarkers(content: string): string {
 function toDisplayAssistantMessage(
   id: string,
   rawContent: string,
+  /**
+   * 流结束后必须再构造一次，并把这个置真 —— 否则「载荷写完了但闭合标记写歪了」
+   * 会被当成「还在写」永远藏着，用户看到一句开场白然后什么都没有。真机踩过。
+   */
+  streamComplete = false,
 ): AssistantConversationMessage {
   // op 块先摘掉再剥引用标记：前者是整段 JSON，留到后面会被 `\n{3,}` 那类正文
   // 规整规则啃掉一部分，变成读不出来的载荷。
-  const ops = extractNodeAssistantOps(rawContent)
+  const ops = extractNodeAssistantOps(rawContent, { streamComplete })
   return {
     id,
     role: 'assistant',
@@ -393,14 +398,26 @@ export function useAssistantConversation(
         const streamState: { message: AssistantConversationMessage | null } = {
           message: null,
         }
-        await readTextStream(response.stream, (rawContent) => {
-          streamState.message = toDisplayAssistantMessage(
-            assistantMessageId,
-            rawContent,
-          )
-          setMessages([...nextMessages, streamState.message])
-        })
+        const finalRawContent = await readTextStream(
+          response.stream,
+          (rawContent) => {
+            streamState.message = toDisplayAssistantMessage(
+              assistantMessageId,
+              rawContent,
+            )
+            setMessages([...nextMessages, streamState.message])
+          },
+        )
         setIsLoading(false)
+
+        // 流结束后重建一次：这一次抽取知道「不会再有 chunk 了」，才敢对没闭合的
+        // 载荷下判断（读出来 or 报错），而不是继续藏着。
+        streamState.message = toDisplayAssistantMessage(
+          assistantMessageId,
+          finalRawContent,
+          true,
+        )
+        setMessages([...nextMessages, streamState.message])
 
         const finalAssistant = streamState.message
         // Drop empty assistant shell if the stream produced no text.
@@ -491,14 +508,24 @@ export function useAssistantConversation(
         const streamState: { message: AssistantConversationMessage | null } = {
           message: null,
         }
-        await readTextStream(response.stream, (rawContent) => {
-          streamState.message = toDisplayAssistantMessage(
-            assistantMessageId,
-            rawContent,
-          )
-          setMessages([...withoutTrailingAssistant, streamState.message])
-        })
+        const finalRawContent = await readTextStream(
+          response.stream,
+          (rawContent) => {
+            streamState.message = toDisplayAssistantMessage(
+              assistantMessageId,
+              rawContent,
+            )
+            setMessages([...withoutTrailingAssistant, streamState.message])
+          },
+        )
         setIsLoading(false)
+        // 同 send：结束后再构造一次，让抽取能对没闭合的载荷下判断。
+        streamState.message = toDisplayAssistantMessage(
+          assistantMessageId,
+          finalRawContent,
+          true,
+        )
+        setMessages([...withoutTrailingAssistant, streamState.message])
         const finalAssistant = streamState.message
         const completedWithoutEmpty =
           finalAssistant && finalAssistant.content.trim().length > 0

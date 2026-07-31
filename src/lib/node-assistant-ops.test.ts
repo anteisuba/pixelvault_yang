@@ -107,6 +107,47 @@ describe('extractNodeAssistantOps', () => {
     expect(result.content).toBe('中间说明')
   })
 
+  it('单括号的闭合标记也认 —— 一个括号不该让整段提案静默消失', () => {
+    // 2026-07-31 真机：模型写完整段合法载荷，闭合标记写成了 `[/canvas-ops]`。
+    // 原实现严格要求双括号，于是把它当成「还没写完」藏掉：没有卡，也没有提示。
+    const raw = `好的。${open}{"ops":[{"op":"add_node","intent":"organize.character","name":"小林"}]}[/canvas-ops]`
+    const result = extractNodeAssistantOps(raw)
+
+    expect(result.malformed).toBe(false)
+    expect(result.batch?.ops).toHaveLength(1)
+    expect(result.content).toBe('好的。')
+    expect(result.content).not.toContain('canvas-ops')
+  })
+
+  it('流结束后仍没闭合 → 尽力把剩下的读成载荷', () => {
+    const raw = `${open}{"ops":[{"op":"rename","target":"node-1","name":"雨夜开场镜"}]}`
+    expect(
+      extractNodeAssistantOps(raw, { streamComplete: true }).batch?.ops,
+    ).toHaveLength(1)
+  })
+
+  it('流结束后没闭合且读不出来 → 报 malformed，不再假装还在写', () => {
+    const result = extractNodeAssistantOps(`${open}{"ops":[{"op":`, {
+      streamComplete: true,
+    })
+    expect(result.batch).toBeNull()
+    expect(result.malformed).toBe(true)
+  })
+
+  it('流还没结束时，没闭合仍然按「还在写」处理', () => {
+    const result = extractNodeAssistantOps(`${open}{"ops":[{"op":`)
+    expect(result.batch).toBeNull()
+    expect(result.malformed).toBe(false)
+  })
+
+  it('载荷后面跟着收尾话也能读出来', () => {
+    const result = extractNodeAssistantOps(
+      `${open}{"ops":[{"op":"add_node","intent":"image.shot"}]} 以上就是方案${close}`,
+    )
+    expect(result.malformed).toBe(false)
+    expect(result.batch?.ops).toHaveLength(1)
+  })
+
   it('rejects a name longer than the display-name cap', () => {
     const name = 'x'.repeat(NODE_ASSISTANT_OP_LIMITS.maxNameLength + 1)
     const result = extractNodeAssistantOps(

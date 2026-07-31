@@ -254,7 +254,7 @@ Gallery 在线：https://vincentwei1021.github.io/video-shotcraft/
 | 本仓助手管道 | `docs/plans/canvas-assistant-pipeline-2026-07-26.md`                                  |
 | ScriptDoc    | `src/types/script-doc.ts`                                                             |
 | 画布页       | `docs/references/pages/node-canvas.md`                                                |
-| 视频模型     | `docs/plans/research/画布媒体模型调研-2026-07.md`                                     |
+| 视频模型     | `docs/plans/research/画布/画布媒体模型调研-2026-07.md`                                |
 
 ---
 

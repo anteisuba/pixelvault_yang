@@ -55,7 +55,7 @@ adapter / Worker 抛错
 
 各模型走 **厂商原生 API** 还是 **fal/Replicate 等合法聚合**、以及「中转是否有更好原生」见：
 
-[`../plans/research/模型接入原生与中转调研-2026-07.md`](../plans/research/模型接入原生与中转调研-2026-07.md)
+[`../plans/research/模型接入/模型接入原生与中转调研-2026-07.md`](../plans/research/模型接入/模型接入原生与中转调研-2026-07.md)
 
 本文件仍以契约与错误处理为权威；路由类型以该调研 + `AI_PROVIDER_ENDPOINTS` 为准。
 

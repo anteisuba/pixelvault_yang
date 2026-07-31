@@ -85,7 +85,7 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 
 TTS —— Fish Audio S2 Pro（#11，$15/1M 字符）对 ElevenLabs v3（$100/1M）性价比压倒，且 Inworld / Gemini 3.1 Flash TTS 在质量上已超过 v3。
 
-LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与工作流调研-2026-07.md`](../plans/research/LoRA底模与工作流调研-2026-07.md)）：
+LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`](../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md)）：
 
 | 族                           | 社区角色（2026）                                                         | 本仓                                     |
 | ---------------------------- | ------------------------------------------------------------------------ | ---------------------------------------- |
@@ -146,7 +146,7 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与
 
 ### ⑧ 2026-07-30 业界升级审计 — **已实现清单（别再当 backlog 排期）**
 
-> 来源：[`../plans/research/全站模型升级审计-2026-07-30.md`](../plans/research/全站模型升级审计-2026-07-30.md) §9。
+> 来源：[`../plans/research/模型接入/全站模型升级审计-2026-07-30.md`](../plans/research/模型接入/全站模型升级审计-2026-07-30.md) §9。
 > **回写理由**：那份调研文首是「优先级/建议」口吻，但 §9 记着当天已落地——只读文首会把这五项重新排一遍期。
 
 | 项                         | 状态             | 代码事实（2026-07-31 复核）                                                                                                 |
@@ -175,4 +175,4 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA底模与
 
 - Date: 2026-07-31 · 范围：**回写补登**——把 2026-07-30 业界升级审计的**已实现**结果登记为 §⑧（Fish s2.1-pro / Kling O3 Pro / EL Music v2 / FLUX.2 Pro Edit 四项已落地，Gemini Omni GA 被上游卡住）。同日复核 `models/audio.ts` 确认 `s2.1-pro`、`music_v2`、`eleven_v3: available:false`。**未改模型代码。**
 - Date: 2026-07-26 · 范围：**首次全量**——全 provider 版本扫描 + 公开榜单主流度对账 + 生产库用量/成功率抽样。产出：修复 1 起线上失效（Gemini pro preview）、定位 1 起 CI 空转（周检脚本）、接入 4 个（Seedream 5.0 ×3 + Nano Banana 2 Lite）、升级 2 个（Recraft V4.1 / HappyHorse v1.1）、退役 7 个。下次月审：**2026-08 初**，重点跟进 Seedance 2.5 是否 GA 与 Gemini Omni Flash 接入排期。
-- Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入 `docs/plans/research/LoRA底模与工作流调研-2026-07.md`，并回写本节 §④ LoRA 表；未改模型代码。
+- Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入 `docs/plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`（2026-07-31 起按模块归入 `LoRA/` 子目录），并回写本节 §④ LoRA 表；未改模型代码。

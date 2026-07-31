@@ -49,7 +49,7 @@
 - **该投入的下一步（按价值，非承诺）**：导航/首页入口去「搁置」叙事 → Assets/Gallery 图「变 3D」深链且结果回 Assets → 角色卡多视角定妆（GLB 转台截帧回灌参考图）。
 - **远期方向（计划阶段，未到执行）**：3D 建模作为**导演台的视频控制手段**——用 3D 场景/机位控制视频镜头制作。届时 3D 的价值不是产出 3D 资产本身，而是给画布长视频提供空间控制。
 - 遗留未决（低优先级挂起）：3D 结果在 Gallery/Profile 的同级展示、GLB/poster 生命周期。
-- 依据：[`../plans/research/3D与音频扩展及Fish对齐-2026-07.md`](../plans/research/3D与音频扩展及Fish对齐-2026-07.md) §1、§8。
+- 依据：[`../plans/research/音频与3D/3D与音频扩展及Fish对齐-2026-07.md`](../plans/research/音频与3D/3D与音频扩展及Fish对齐-2026-07.md) §1、§8。
 
 ## 已确认方向要点（详版见 archive/product/mainline.md）
 

@@ -10,6 +10,7 @@ import {
   buildSavedModelOptionsForModels,
   findSelectedModel,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 
 export interface UseImageModelOptionsReturn {
@@ -40,11 +41,12 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptionsForModels(
-      keys.filter((k) => k.isActive),
-      imageModels,
+    const activeKeys = keys.filter((k) => k.isActive)
+    const saved = buildSavedModelOptionsForModels(activeKeys, imageModels)
+    return withProviderKeyCoverage(
+      mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap),
+      activeKeys,
     )
-    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, imageModels, keys])
 
   const selectedModel = useMemo(

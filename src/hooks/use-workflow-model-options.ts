@@ -17,6 +17,7 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
   buildSavedModelOptionsForModels,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 import type {
   NodeWorkflowModelOption,
@@ -37,6 +38,7 @@ function toNodeWorkflowModelOption(
     apiKeyId: option.keyId,
     keyLabel: option.keyLabel,
     maskedKey: option.maskedKey,
+    providerKeyId: option.providerKeyId,
   }
 }
 
@@ -58,14 +60,15 @@ export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
         freeTier: model.freeTier,
         sourceType: 'workspace' as const,
       }))
-      const savedOptions = buildSavedModelOptionsForModels(
-        keys.filter((key) => key.isActive),
-        models,
-      )
-      const mergedOptions = mergeModelOptionsWithPreferredSavedRoutes(
-        savedOptions,
-        workspaceOptions,
-        healthMap,
+      const activeKeys = keys.filter((key) => key.isActive)
+      const savedOptions = buildSavedModelOptionsForModels(activeKeys, models)
+      const mergedOptions = withProviderKeyCoverage(
+        mergeModelOptionsWithPreferredSavedRoutes(
+          savedOptions,
+          workspaceOptions,
+          healthMap,
+        ),
+        activeKeys,
       )
 
       // Surface ALL workspace + saved options so the picker can group them

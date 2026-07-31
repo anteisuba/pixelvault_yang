@@ -118,7 +118,7 @@ export function isDualProviderBrand(
 }
 
 export interface BrandKeyStatus {
-  /** True when the user has a saved (BYOK) key for this brand → runnable now. */
+  /** True when the user has a key that can run this brand → runnable now. */
   ready: boolean
   /** Representative option to drive QuickSetupDialog when a key is missing. */
   setupOption: NodeWorkflowModelOption | null
@@ -127,8 +127,25 @@ export interface BrandKeyStatus {
 }
 
 /**
+ * A brand is runnable when any of its options is reachable with a key the user
+ * already holds — either a key row bound to that exact model (`sourceType:
+ * 'saved'`) or provider-level coverage (`providerKeyId`), since provider keys
+ * are universal within their adapter. Matching only the former made every brand
+ * the user hadn't individually keyed (Kling, Veo) look like it needed setup.
+ */
+function findKeyedOption(
+  brandOptions: NodeWorkflowModelOption[],
+): NodeWorkflowModelOption | null {
+  return (
+    brandOptions.find((option) => option.sourceType === 'saved') ??
+    brandOptions.find((option) => option.providerKeyId) ??
+    null
+  )
+}
+
+/**
  * Per-brand key status for the model rail. There is no platform/free tier in
- * this deployment — a brand is either backed by the user's own saved key
+ * this deployment — a brand is either backed by a key the user already holds
  * ("ready") or it needs one (route the click through QuickSetupDialog, Hard
  * Rule #8), never disabled.
  */
@@ -141,13 +158,13 @@ export function getBrandKeyStatus(
   )
   const saved = brandOptions.find((option) => option.sourceType === 'saved')
   return {
-    ready: Boolean(saved),
+    ready: Boolean(findKeyedOption(brandOptions)),
     setupOption: pickBest(brandOptions),
     keyLabel: saved?.keyLabel ?? saved?.maskedKey,
   }
 }
 
-/** Default provider: one with a saved key, else any available, else FAL. */
+/** Default provider: one the user holds a key for, else any available, else FAL. */
 export function pickDefaultProvider(
   brand: string,
   options: NodeWorkflowModelOption[],
@@ -155,8 +172,8 @@ export function pickDefaultProvider(
   const brandOptions = options.filter(
     (option) => optionFamily(option) === brand,
   )
-  const saved = brandOptions.find((option) => option.sourceType === 'saved')
-  if (saved) return optionAdapter(saved)
+  const keyed = findKeyedOption(brandOptions)
+  if (keyed) return optionAdapter(keyed)
   const first = brandOptions[0]
   if (first) return optionAdapter(first)
   return AI_ADAPTER_TYPES.FAL

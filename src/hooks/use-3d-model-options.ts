@@ -8,6 +8,7 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
   buildSavedModelOptionsForModels,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 
 export interface Use3DModelOptionsReturn {
@@ -30,11 +31,12 @@ export function use3DModelOptions(): Use3DModelOptionsReturn {
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptionsForModels(
-      keys.filter((k) => k.isActive),
-      model3DModels,
+    const activeKeys = keys.filter((k) => k.isActive)
+    const saved = buildSavedModelOptionsForModels(activeKeys, model3DModels)
+    return withProviderKeyCoverage(
+      mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap),
+      activeKeys,
     )
-    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, model3DModels, keys])
 
   return { modelOptions }

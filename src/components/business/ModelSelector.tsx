@@ -41,6 +41,12 @@ export interface StudioModelOption {
   keyId?: string
   keyLabel?: string
   maskedKey?: string
+  /**
+   * Set on workspace options whose provider already has an active key, which
+   * makes them runnable today even though no key row is bound to this exact
+   * model id. See `withProviderKeyCoverage` in `@/lib/model-options`.
+   */
+  providerKeyId?: string
 }
 
 interface ModelSelectorProps {

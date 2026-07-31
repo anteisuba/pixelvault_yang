@@ -9,6 +9,7 @@ import {
   buildSavedModelOptionsForModels,
   findSelectedModel,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 
 export interface UseVideoModelOptionsReturn {
@@ -40,11 +41,12 @@ export function useVideoModelOptions(
       isBuiltIn: true,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptionsForModels(
-      keys.filter((k) => k.isActive),
-      videoModels,
+    const activeKeys = keys.filter((k) => k.isActive)
+    const saved = buildSavedModelOptionsForModels(activeKeys, videoModels)
+    return withProviderKeyCoverage(
+      mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap),
+      activeKeys,
     )
-    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, videoModels, keys])
 
   const selectedModel = useMemo(

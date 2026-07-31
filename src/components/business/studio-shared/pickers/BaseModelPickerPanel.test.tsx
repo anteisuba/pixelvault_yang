@@ -13,8 +13,13 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
 }
 
 vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
+  // Values are echoed into the string so tests can assert on interpolated
+  // counts (e.g. the provider row's "N 个模型").
+  useTranslations:
+    (namespace: string) => (key: string, values?: Record<string, unknown>) =>
+      values
+        ? `${namespace}.${key}(${JSON.stringify(values)})`
+        : `${namespace}.${key}`,
 }))
 
 vi.mock('@/contexts/api-keys-context', () => ({
@@ -47,6 +52,7 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
     keyId: over.keyId,
     keyLabel: over.keyLabel,
     maskedKey: over.maskedKey,
+    providerKeyId: over.providerKeyId,
   }
 }
 
@@ -174,23 +180,27 @@ describe('BaseModelPickerPanel', () => {
     expect(screen.getByRole('button')).toBeDisabled()
   })
 
-  it('shows saved + platform but hides locked in step 2 of a configured provider (select-only)', () => {
-    // All three share the default OPENAI adapter → single provider → the
-    // picker auto-skips step 1 into the provider's model list (step 2). Step 2
-    // is select-only: locked/needs-key models are hidden because the provider
-    // already has a usable (saved) route. Configuring keys happens at step 1.
+  it('shows all three groups in step 2, so the list matches the provider count', () => {
+    // All three share the default OPENAI adapter → single provider → the picker
+    // auto-skips step 1 into the provider's model list (step 2). Step 2 used to
+    // drop the needs-key group once the provider had a usable route, which made
+    // the drill-in render fewer rows than the provider row advertised. Every
+    // counted model is now reachable; locked ones route to QuickSetupDialog.
     const saved = makeOption({
       optionId: 'opt-saved',
+      modelId: 'model-saved',
       sourceType: 'saved',
       keyId: 'k1',
     })
     const platform = makeOption({
       optionId: 'opt-platform',
+      modelId: 'model-free',
       sourceType: 'workspace',
       freeTier: true,
     })
     const locked = makeOption({
       optionId: 'opt-locked',
+      modelId: 'model-locked',
       sourceType: 'workspace',
       freeTier: false,
     })
@@ -207,7 +217,37 @@ describe('BaseModelPickerPanel', () => {
 
     expect(screen.getByText('QuickSetup.configuredKeys')).toBeInTheDocument()
     expect(screen.getByText('QuickSetup.platformQuota')).toBeInTheDocument()
-    expect(screen.queryByText('QuickSetup.needsKey')).not.toBeInTheDocument()
+    expect(screen.getByText('QuickSetup.needsKey')).toBeInTheDocument()
+  })
+
+  it('still lists the paid models of a free-quota provider the user has no key for', () => {
+    // Gemini image / fal 3D shape: one free-tier model plus paid siblings and no
+    // saved key. The free route alone used to satisfy the old suppression rule,
+    // hiding the paid ones while the provider row still counted them.
+    const free = makeOption({
+      optionId: 'workspace:free-model',
+      modelId: 'free-model',
+      sourceType: 'workspace',
+      freeTier: true,
+    })
+    const paid = makeOption({
+      optionId: 'workspace:paid-model',
+      modelId: 'paid-model',
+      sourceType: 'workspace',
+      freeTier: false,
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[free, paid]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText(/free-model/)).toBeInTheDocument()
+    expect(screen.getByText(/paid-model/)).toBeInTheDocument()
   })
 
   it('falls back to showing locked models when the provider has no usable route', () => {
@@ -337,6 +377,142 @@ describe('BaseModelPickerPanel', () => {
     fireEvent.click(screen.getByRole('button'))
 
     expect(screen.getByPlaceholderText('Search now')).toBeInTheDocument()
+  })
+
+  it('lists every provider-key-covered model, not just the one with a key row', () => {
+    // Regression: one fal key row bound to model-a used to leave model-b/model-c
+    // in the locked bucket, which step 2 then hid entirely — the provider row
+    // advertised 3 models and the drilled-in list showed 1.
+    const keyedRoute = makeOption({
+      optionId: 'key:k1',
+      modelId: 'model-a',
+      sourceType: 'saved',
+      keyId: 'k1',
+    })
+    const covered = ['model-a', 'model-b', 'model-c'].map((modelId) =>
+      makeOption({
+        optionId: `workspace:${modelId}`,
+        modelId,
+        sourceType: 'workspace',
+        providerKeyId: 'k1',
+      }),
+    )
+
+    render(
+      <BaseModelPickerPanel
+        options={[keyedRoute, ...covered]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('QuickSetup.configuredKeys')).toBeInTheDocument()
+    expect(screen.queryByText('QuickSetup.needsKey')).not.toBeInTheDocument()
+    // model-a's workspace twin is folded into its key route → 3 rows, not 4.
+    expect(screen.getAllByText(/model-[abc]/)).toHaveLength(3)
+  })
+
+  it('counts a provider row by the rows its drill-in actually renders', () => {
+    // The count and the list must not come from different arrays.
+    const options = [
+      makeOption({
+        optionId: 'key:k1',
+        modelId: 'model-a',
+        sourceType: 'saved',
+        keyId: 'k1',
+      }),
+      makeOption({
+        optionId: 'workspace:model-a',
+        modelId: 'model-a',
+        sourceType: 'workspace',
+        providerKeyId: 'k1',
+      }),
+      makeOption({
+        optionId: 'workspace:model-b',
+        modelId: 'model-b',
+        sourceType: 'workspace',
+        providerKeyId: 'k1',
+      }),
+      makeOption({
+        optionId: 'workspace:deepseek-model',
+        modelId: 'deepseek-model',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK),
+        sourceType: 'workspace',
+      }),
+    ]
+
+    render(
+      <BaseModelPickerPanel
+        options={options}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    // 3 raw openai options → the row must advertise 2, the number of rows its
+    // drill-in renders once the redundant workspace twin folds away.
+    expect(
+      screen.getByText('Common.modelCount({"count":2})'),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByText(getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI).label),
+    )
+    expect(screen.getAllByText(/model-[ab]/)).toHaveLength(2)
+  })
+
+  it('keeps a free-tier route visible alongside its saved key twin', () => {
+    // Dedupe must not take away the cheaper platform route for the same model.
+    const saved = makeOption({
+      optionId: 'key:k1',
+      sourceType: 'saved',
+      keyId: 'k1',
+    })
+    const free = makeOption({
+      optionId: 'workspace:model-1',
+      sourceType: 'workspace',
+      freeTier: true,
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[saved, free]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('QuickSetup.configuredKeys')).toBeInTheDocument()
+    expect(screen.getByText('QuickSetup.platformQuota')).toBeInTheDocument()
+  })
+
+  it('ticks the surviving row when the stored selection was a folded twin', () => {
+    const saved = makeOption({
+      optionId: 'key:k1',
+      sourceType: 'saved',
+      keyId: 'k1',
+    })
+    const twin = makeOption({
+      optionId: 'workspace:model-1',
+      sourceType: 'workspace',
+      providerKeyId: 'k1',
+    })
+
+    render(
+      <BaseModelPickerPanel
+        options={[saved, twin]}
+        value="workspace:model-1"
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    const rows = screen.getAllByRole('option')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].querySelector('svg.lucide-check')).toBeTruthy()
   })
 
   it('uses the popover content as the scroll container', () => {

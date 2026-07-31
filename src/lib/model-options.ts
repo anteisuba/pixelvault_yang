@@ -5,6 +5,7 @@ import {
   isBuiltInModel,
   type ModelOption,
 } from '@/constants/models'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
@@ -65,6 +66,56 @@ export function buildSavedModelOptionsForModels(
   return buildSavedModelOptions(keys, (key) =>
     apiKeyMatchesAnyModelOption(key, models),
   )
+}
+
+/**
+ * The active key each adapter would actually run on, mirroring
+ * `findActiveKeyForAdapter` (most recently created active key wins).
+ */
+function pickActiveKeyPerAdapter(
+  keys: UserApiKeyRecord[],
+): Map<AI_ADAPTER_TYPES, UserApiKeyRecord> {
+  const byAdapter = new Map<AI_ADAPTER_TYPES, UserApiKeyRecord>()
+  for (const key of keys) {
+    if (!key.isActive) continue
+    const current = byAdapter.get(key.adapterType)
+    if (!current || key.createdAt > current.createdAt) {
+      byAdapter.set(key.adapterType, key)
+    }
+  }
+  return byAdapter
+}
+
+/**
+ * Stamp `providerKeyId` on workspace options whose provider is already keyed.
+ *
+ * Provider keys are universal within their adapter type — `resolveGenerationRoute`
+ * validates only that the key's adapter matches the model's, and the
+ * no-apiKeyId path resolves through `findActiveKeyForAdapter(userId, adapterType)`,
+ * which ignores modelId entirely. One saved fal key therefore runs every fal
+ * model, whatever modality or model id it happened to be saved under.
+ *
+ * Without this stamp the pickers read "runnable" off `sourceType === 'saved'`,
+ * which is one option per saved KEY ROW (unique per user × adapter × model). A
+ * user holding a single fal key bound to Seedance saw every other fal model
+ * filed under 需要 API key — and `BaseModelPickerPanel` then hid the whole
+ * bucket, so the fal group listed 1 of its 8 options.
+ *
+ * `freeTier` options are left untouched: platform quota still outranks burning
+ * the user's own key, and `useSplitModelOptions` checks freeTier first.
+ */
+export function withProviderKeyCoverage<T extends StudioModelOption>(
+  options: T[],
+  keys: UserApiKeyRecord[],
+): T[] {
+  const keyByAdapter = pickActiveKeyPerAdapter(keys)
+  if (keyByAdapter.size === 0) return options
+
+  return options.map((option) => {
+    if (option.sourceType === 'saved') return option
+    const providerKey = keyByAdapter.get(option.adapterType)
+    return providerKey ? { ...option, providerKeyId: providerKey.id } : option
+  })
 }
 
 /**

@@ -177,6 +177,7 @@ import {
   buildSavedModelOptionsForModels,
   getTranslatedModelLabel,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
@@ -624,11 +625,12 @@ function GenerateBranch({
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptionsForModels(
-      keys.filter((k) => k.isActive),
-      imageModels,
+    const activeKeys = keys.filter((k) => k.isActive)
+    const saved = buildSavedModelOptionsForModels(activeKeys, imageModels)
+    return withProviderKeyCoverage(
+      mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap),
+      activeKeys,
     )
-    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, imageModels, keys])
 
   const loraFamily = stack.items[0]?.asset.baseModelFamily ?? null

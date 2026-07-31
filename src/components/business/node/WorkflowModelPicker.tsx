@@ -59,6 +59,7 @@ function toStudioOption(option: NodeWorkflowModelOption): StudioModelOption {
     keyId: option.apiKeyId,
     keyLabel: option.keyLabel,
     maskedKey: option.maskedKey,
+    providerKeyId: option.providerKeyId,
   }
 }
 

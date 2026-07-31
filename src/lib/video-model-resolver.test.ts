@@ -341,4 +341,31 @@ describe('getBrandKeyStatus', () => {
       keyLabel: undefined,
     })
   })
+
+  it('marks a brand ready on provider-level key coverage alone', () => {
+    // The user's only fal key row is bound to Seedance, but fal keys are
+    // universal within the adapter — Kling must not be gated behind setup.
+    const covered = ALL_OPTIONS.map((option) =>
+      option.adapterType === FAL
+        ? { ...option, providerKeyId: 'fal-key-1' }
+        : option,
+    )
+    const status = getBrandKeyStatus(VIDEO_BRAND_IDS.kling, covered)
+
+    expect(status.ready).toBe(true)
+    // No key row is bound to Kling, so there is no key label to show.
+    expect(status.keyLabel).toBeUndefined()
+  })
+
+  it('prefers a provider-covered option over an uncovered one for the default provider', () => {
+    const covered = ALL_OPTIONS.map((option) =>
+      option.adapterType === VOLCENGINE
+        ? { ...option, providerKeyId: 'volc-key-1' }
+        : option,
+    )
+
+    expect(pickDefaultProvider(VIDEO_BRAND_IDS.seedance, covered)).toBe(
+      VOLCENGINE,
+    )
+  })
 })

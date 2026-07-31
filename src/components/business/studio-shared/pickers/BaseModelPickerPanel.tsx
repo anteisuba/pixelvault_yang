@@ -35,6 +35,38 @@ import { cn } from '@/lib/utils'
 
 type SavedOptionLabelMode = 'key' | 'model'
 
+function routeKey(option: StudioModelOption): string {
+  return `${option.adapterType}::${option.modelId}`
+}
+
+/**
+ * `mergeModelOptionsWithPreferredSavedRoutes` emits BOTH a `key:<id>` route and
+ * a `workspace:<modelId>` route for a model the user has a key row for. Once
+ * provider-key coverage makes the workspace twin selectable too, the two render
+ * as identical rows. Keep the explicit key route — it pins `apiKeyId` at submit
+ * time and carries the key label + health dot — and drop the twin, so the
+ * provider row's count matches what the drilled-in list actually shows.
+ *
+ * `freeTier` twins are NOT redundant: they render under 平台免费额度 and cost
+ * the user nothing, so collapsing them into the key route would take away the
+ * cheaper choice.
+ *
+ * Display-only: the full option array is kept for resolving a persisted
+ * `optionId`, so an existing selection never loses its trigger label.
+ */
+function dedupeRedundantWorkspaceRoutes(
+  options: StudioModelOption[],
+): StudioModelOption[] {
+  const keyedRoutes = new Set(
+    options.filter((o) => o.sourceType === 'saved').map(routeKey),
+  )
+  if (keyedRoutes.size === 0) return options
+  return options.filter(
+    (o) =>
+      o.sourceType === 'saved' || o.freeTier || !keyedRoutes.has(routeKey(o)),
+  )
+}
+
 export interface BaseModelPickerPanelProps {
   options: StudioModelOption[]
   value: string | null
@@ -113,17 +145,24 @@ export function BaseModelPickerPanel({
     return modelLabel
   }
 
+  // Everything the list renders — and therefore everything the provider row
+  // counts — comes off this deduped view, never off `options` directly.
+  const displayOptions = useMemo(
+    () => dedupeRedundantWorkspaceRoutes(options),
+    [options],
+  )
+
   // Group options by their provider (adapter). Insertion order follows the
   // incoming option order, which is already preference-ranked.
   const providerGroups = useMemo(() => {
     const map = new Map<AI_ADAPTER_TYPES, StudioModelOption[]>()
-    for (const opt of options) {
+    for (const opt of displayOptions) {
       const list = map.get(opt.adapterType) ?? []
       list.push(opt)
       map.set(opt.adapterType, list)
     }
     return Array.from(map, ([adapterType, opts]) => ({ adapterType, opts }))
-  }, [options])
+  }, [displayOptions])
 
   // With a single provider the first step is pointless — jump straight to its
   // model list (and hide the back affordance).
@@ -152,6 +191,8 @@ export function BaseModelPickerPanel({
     }
   }, [open, singleProvider, providerGroups])
 
+  // Resolved against the FULL list so a persisted optionId that dedupe folded
+  // away still names the trigger.
   const selectedOption = useMemo(
     () => options.find((o) => o.optionId === value),
     [options, value],
@@ -160,12 +201,23 @@ export function BaseModelPickerPanel({
     ? resolveLabel(selectedOption)
     : resolvedTriggerEmptyLabel
 
+  // ...but the check mark has to land on the row that survived dedupe, else a
+  // selection stored as `workspace:<id>` shows nothing ticked.
+  const checkedOptionId = useMemo(() => {
+    if (!selectedOption) return value
+    if (displayOptions.some((o) => o.optionId === value)) return value
+    return (
+      displayOptions.find((o) => routeKey(o) === routeKey(selectedOption))
+        ?.optionId ?? value
+    )
+  }, [displayOptions, selectedOption, value])
+
   const searching = search.trim().length > 0
   const searchLower = search.trim().toLowerCase()
 
   const visibleOptions = useMemo(() => {
     if (searching) {
-      return options.filter((opt) => {
+      return displayOptions.filter((opt) => {
         const hay = [
           opt.optionId,
           labelForOption?.(opt) ??
@@ -183,12 +235,12 @@ export function BaseModelPickerPanel({
       })
     }
     if (view === 'models' && activeAdapter) {
-      return options.filter((opt) => opt.adapterType === activeAdapter)
+      return displayOptions.filter((opt) => opt.adapterType === activeAdapter)
     }
     return []
     // labelForOption/tModels are stable enough for this membership filter
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options, searching, searchLower, view, activeAdapter])
+  }, [displayOptions, searching, searchLower, view, activeAdapter])
 
   const { saved, platform, locked } = useSplitModelOptions(visibleOptions)
 
@@ -197,11 +249,13 @@ export function BaseModelPickerPanel({
     ? providerGroups.length === 0
     : visibleOptions.length === 0
 
-  // Step 2 is "select only": once inside a configured provider, don't show its
-  // locked (needs-key) models — configuring happens at the provider step.
-  // Locked still surfaces in flat search (discovery), and as a fallback when a
-  // provider has no usable model (so the list is never silently empty).
-  const showLocked = searching || (saved.length === 0 && platform.length === 0)
+  // Step 2 used to hide the needs-key models of a provider that already had a
+  // usable route ("configuring happens at the provider step"). That silently
+  // decoupled the list from the provider row's count — the row advertised N and
+  // the drill-in rendered fewer, with no way to reach the rest. It also went
+  // further than Hard Rule #8, which says a missing key must route through
+  // QuickSetupDialog rather than take the option away. Every model the count
+  // includes is now rendered; locked ones just carry the key affordance.
 
   const activeProviderLabel = useMemo(() => {
     const group = providerGroups.find((g) => g.adapterType === activeAdapter)
@@ -229,7 +283,11 @@ export function BaseModelPickerPanel({
     opts: StudioModelOption[]
   }) => {
     const label = getProviderLabel(opts[0].providerConfig)
-    const savedOpt = opts.find((o) => o.sourceType === 'saved')
+    // An explicit key row is the best evidence; provider-level coverage counts
+    // too — the adapter has a key, it just isn't bound to any model listed here.
+    const savedOpt =
+      opts.find((o) => o.sourceType === 'saved') ??
+      opts.find((o) => o.providerKeyId)
     const platformOpt = opts.find((o) => o.sourceType !== 'saved' && o.freeTier)
 
     // Every provider drills into step 2 — even unconfigured ones, which list
@@ -256,7 +314,11 @@ export function BaseModelPickerPanel({
         <span className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground/75">
           {savedOpt ? (
             <>
-              <ApiKeyHealthDot status={healthMap[savedOpt.keyId ?? '']} />
+              <ApiKeyHealthDot
+                status={
+                  healthMap[savedOpt.keyId ?? savedOpt.providerKeyId ?? '']
+                }
+              />
               <span className="hidden sm:inline">{tCommon('savedKey')}</span>
             </>
           ) : platformOpt ? (
@@ -274,7 +336,8 @@ export function BaseModelPickerPanel({
   }
 
   const renderAvailableModelOption = (option: StudioModelOption) => {
-    const isSelected = option.optionId === value
+    const isSelected = option.optionId === checkedOptionId
+    const indicatorKeyId = option.keyId ?? option.providerKeyId
     const optionLabel = resolveLabel(option)
     const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
@@ -308,8 +371,8 @@ export function BaseModelPickerPanel({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
-            {option.keyId ? (
-              <ApiKeyHealthDot status={healthMap[option.keyId]} />
+            {indicatorKeyId ? (
+              <ApiKeyHealthDot status={healthMap[indicatorKeyId]} />
             ) : option.freeTier ? (
               <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
             ) : null}
@@ -378,7 +441,7 @@ export function BaseModelPickerPanel({
           {platform.map(renderAvailableModelOption)}
         </CommandGroup>
       )}
-      {locked.length > 0 && showLocked && (
+      {locked.length > 0 && (
         <CommandGroup heading={tSetup('needsKey')}>
           {locked.map(renderLockedOption)}
         </CommandGroup>

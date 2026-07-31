@@ -11,6 +11,7 @@ import {
   buildSavedModelOptionsForModels,
   findSelectedModel,
   mergeModelOptionsWithPreferredSavedRoutes,
+  withProviderKeyCoverage,
 } from '@/lib/model-options'
 
 export interface UseAudioModelOptionsReturn {
@@ -43,11 +44,12 @@ export function useAudioModelOptions(): UseAudioModelOptionsReturn {
       freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
-    const saved = buildSavedModelOptionsForModels(
-      keys.filter((k) => k.isActive),
-      audioModels,
+    const activeKeys = keys.filter((k) => k.isActive)
+    const saved = buildSavedModelOptionsForModels(activeKeys, audioModels)
+    return withProviderKeyCoverage(
+      mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap),
+      activeKeys,
     )
-    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, audioModels, keys])
 
   const selectedModel = useMemo(

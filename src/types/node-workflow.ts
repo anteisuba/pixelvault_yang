@@ -642,6 +642,11 @@ export interface NodeWorkflowModelOption extends NodeWorkflowModelSelection {
   freeTier?: boolean
   keyLabel?: string
   maskedKey?: string
+  /**
+   * Set when the option's provider already has an active key, so it is runnable
+   * without a key row bound to this exact model id. See `withProviderKeyCoverage`.
+   */
+  providerKeyId?: string
 }
 export type NodeWorkflowModelOptionsByType = Partial<
   Record<NodeWorkflowNodeType, NodeWorkflowModelOption[]>

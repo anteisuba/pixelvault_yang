@@ -113,7 +113,8 @@ S3 实测暴露 **6 条数据边只渲染 5 条**，根因两道闸串着：折�
 原诊断「助手今天拿不到节点名字」**是错的**，实读 `node-assistant.service.ts` 后拆成三件：
 
 1. **画布节点清单本来就带名字** —— `buildNodeSummary` 每行是 `- [[node:id]] 标题 (类型, 状态)`。这条不用修。
-2. **真正的洞在选中态**：`buildSelectedNodeText`（:99）只发 `[[node:id]]`，**不带标题**。助手对「你选中的这个」只知道一串 id —— 这才是 `选中节点 ****` 的来源。**一个函数的修法。**
+2. ~~**真正的洞在选中态**：`buildSelectedNodeText`（:99）只发 `[[node:id]]`，**不带标题**~~ ✅ **已修，本条过期（2026-07-31 实读）**。`services/node/node-assistant.service.ts:104-113` 现在会配对标题（注释原话 "Same `[[node:id]]` title pairing `buildNodeSummary` uses above"）。
+   ⚠ 但**真正的洞当时找错了层**：服务端两个消费点（`buildNodeSummary` / `buildSelectedNodeText`）一直都正确读 `node.title`，坏的是**客户端塞进 payload 的 `title` 本身**——`StudioNodeAssistantDock.getNodeTitle` 只认合并前的 `characterImage`，其余类型一律给本地化类型标签。已于**包 4.5（`9f34a6e`）**收口到共享的 `lib/node-display-name`，详见 [`research-landing-plan-2026-07-30.md`](research-landing-plan-2026-07-30.md) §6.3 包 4.5。
 3. ~~**`[[node:id]]` 标记全仓没有任何渲染器**~~ ❌ **这条我判错了，已更正（2026-07-27）**。解析与渲染管线**一直都在**：`src/hooks/use-assistant-conversation.ts` 的 `extractNodeReferences`（正则 `/\[\[node:([^\]\s]+)\]\]/g`）+ `AssistantConversation.tsx` 的 chip 渲染，`AssistantConversation.test.tsx` 也一直在测。
    **我为什么会漏掉**：grep 找的是字面量 `[[node:`，而源码里那行是**正则字面量**（带反斜杠 `\[\[node:`），两串字符不同 —— 所以只命中了 service 与测试。⚠ **教训：grep 字面量找不到的东西，不等于不存在**，尤其当目标可能以正则/模板/拼接形式出现时。
    真正缺的只是**查无节点时的降级展示**（已补：已知节点渲染可点 chip，已删节点渲染灰色不可点 chip + 「已删除节点」文案，不再落裸 id）。

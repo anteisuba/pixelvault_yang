@@ -64,7 +64,10 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
+  type NodeImageRole,
+  type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { NODE_ASSISTANT_OP_IDS } from '@/constants/node-assistant-ops'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
 import { INGEST_MOTION, NODE_EDGE_SIGNING_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
@@ -107,7 +110,12 @@ import {
 } from '@/hooks/node/use-update-node-internals-on-init'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
-import { markMediaAwaitingReview } from '@/lib/node-media-review'
+import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
+import { buildDisplayNamePatch } from '@/lib/node-display-name'
+import type {
+  NodeAssistantOpNodeRef,
+  PlannedNodeAssistantOp,
+} from '@/lib/node-assistant-op-plan'
 import {
   decideCanvasImageEditHandoffSession,
   getCanvasImageEditHandoffRequestKey,
@@ -139,7 +147,11 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import type { AdvancedParams } from '@/types'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+  NodeWorkflowNodeData,
+} from '@/types/node-workflow'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import {
   clearStudioNodeResult,
@@ -183,6 +195,7 @@ import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import {
   NodeWorkflowActionsProvider,
+  type NodeAssistantOpRunResult,
   type SpawnReferenceInput,
 } from './NodeWorkflowActionsContext'
 import { ProjectNameDialog } from './ProjectNameDialog'
@@ -2712,6 +2725,185 @@ function StudioNodeCanvas() {
     ],
   )
 
+  /**
+   * 包 5 助手写画布的**执行端**。合法性早在 `planNodeAssistantOps` 判完，这里
+   * 只负责把 ready 的 op 变成真的图改动 —— 走的全是人手也在走的那几个动作
+   * （`createCanvasObject` / `handleIngestConnect` / `updateNodeData` /
+   * `handleGenerateMediaNode`），一处也不直接碰 `NodeWorkflowProject.state`。
+   *
+   * ⚠ 两个跟 React 有关的约束，决定了下面为什么要自己记账：
+   * ① 图的写入都是 `setState` 的函数式更新，**同一 tick 内读不回来**。所以本批
+   *    新建节点的 id、身份（role/type）、以及累积的 data 补丁，都只能在本地
+   *    Map 里跟着走（`spawnReference` 走的是同一条路，只是它只建一个）。
+   * ② `workflow.nodes` 是本次渲染的快照。对**已有**节点它是准的，对本批刚建的
+   *    节点它永远是空的 —— 凡是要读节点身份的 op（改名 / 审核）都得先查本地账
+   *    本，再回落到快照。
+   */
+  const handleRunAssistantCanvasOps = useCallback(
+    async (
+      ops: readonly PlannedNodeAssistantOp[],
+    ): Promise<NodeAssistantOpRunResult> => {
+      const { assistantSpawn, topbarAddPosition } = NODE_STUDIO_NODE_PLACEMENT
+      // 整批落在现有图右侧，再按网格铺开：固定落点会直接压在已有节点上。
+      const anchor =
+        workflow.nodes.length === 0
+          ? topbarAddPosition
+          : {
+              x:
+                Math.max(...workflow.nodes.map((node) => node.position.x)) +
+                assistantSpawn.anchorGapX,
+              y: Math.min(...workflow.nodes.map((node) => node.position.y)),
+            }
+
+      const realIdByRef = new Map<string, string>()
+      const identityById = new Map<
+        string,
+        { role?: NodeImageRole; type: NodeWorkflowNodeType }
+      >()
+      const dataOverrideById = new Map<string, Partial<NodeWorkflowNodeData>>()
+      const createdNodeIds: string[] = []
+      let applied = 0
+      let skipped = 0
+
+      const resolveNodeId = (
+        reference: NodeAssistantOpNodeRef | undefined,
+      ): string | undefined => {
+        if (!reference) return undefined
+        return reference.kind === 'existing'
+          ? reference.nodeId
+          : realIdByRef.get(reference.ref)
+      }
+
+      const resolveIdentity = (nodeId: string) => {
+        const created = identityById.get(nodeId)
+        if (created) return created
+        const node = workflow.nodes.find((candidate) => candidate.id === nodeId)
+        return node ? { role: node.data.role, type: node.type } : undefined
+      }
+
+      for (const entry of ops) {
+        // 用户可能只勾了一部分；被剔掉的 add_node 会让引用它的 op 在这里落空。
+        if (entry.status !== 'ready') {
+          skipped += 1
+          continue
+        }
+        const { op } = entry
+
+        if (op.op === NODE_ASSISTANT_OP_IDS.addNode) {
+          const seq = createdNodeIds.length
+          const position = {
+            x:
+              anchor.x +
+              (seq % assistantSpawn.columns) * assistantSpawn.columnOffsetX,
+            y:
+              anchor.y +
+              Math.floor(seq / assistantSpawn.columns) *
+                assistantSpawn.rowOffsetY,
+          }
+          const newId = createCanvasObject(op.intent, position)
+          const item = getCanvasAddCatalogItem(op.intent)
+          identityById.set(newId, { role: item.role, type: item.nodeType })
+          if (op.name) {
+            workflow.updateNodeData(
+              newId,
+              buildDisplayNamePatch(
+                { role: item.role, type: item.nodeType },
+                op.name,
+              ),
+            )
+          }
+          if (op.ref) realIdByRef.set(op.ref, newId)
+          createdNodeIds.push(newId)
+          applied += 1
+          continue
+        }
+
+        if (op.op === NODE_ASSISTANT_OP_IDS.connect) {
+          const sourceId = resolveNodeId(entry.source)
+          const targetId = resolveNodeId(entry.target)
+          if (!sourceId || !targetId) {
+            skipped += 1
+            continue
+          }
+          handleIngestConnect(sourceId, targetId)
+          applied += 1
+          continue
+        }
+
+        if (op.op === NODE_ASSISTANT_OP_IDS.rename) {
+          const targetId = resolveNodeId(entry.target)
+          const identity = targetId ? resolveIdentity(targetId) : undefined
+          if (!targetId || !identity) {
+            skipped += 1
+            continue
+          }
+          // 走包 4.5 的写侧事实源 —— 名字该落 characterName 还是 shotName 只有
+          // 那一处说了算，助手这条路不新开第五份副本。
+          workflow.updateNodeData(
+            targetId,
+            buildDisplayNamePatch(identity, op.name),
+          )
+          applied += 1
+          continue
+        }
+
+        if (op.op === NODE_ASSISTANT_OP_IDS.setReviewState) {
+          const targetId = resolveNodeId(entry.target)
+          const node = targetId
+            ? workflow.nodes.find((candidate) => candidate.id === targetId)
+            : undefined
+          if (!targetId || !node || !entry.mediaUrl) {
+            skipped += 1
+            continue
+          }
+          // 同一批里对同一节点标两次时，第二次要看得见第一次写的 mediaReview
+          // ——快照读不到，所以补丁在本地累积后再合并。
+          const base: NodeWorkflowNodeData = {
+            ...node.data,
+            ...dataOverrideById.get(targetId),
+          }
+          const reviewedAt = new Date().toISOString()
+          const patch =
+            op.state === NODE_REVIEW_STATE_IDS.rejected
+              ? rejectMedia(base, entry.mediaUrl, {
+                  reviewedAt,
+                  ...(op.reason ? { reason: op.reason } : {}),
+                })
+              : markMediaAwaitingReview(base, entry.mediaUrl)
+          dataOverrideById.set(targetId, {
+            ...dataOverrideById.get(targetId),
+            ...patch,
+          })
+          workflow.updateNodeData(targetId, patch)
+          applied += 1
+          continue
+        }
+
+        // generate —— 唯一扣 credit 的 op，UI 已单独确认过一次。规划器保证目标
+        // 是已有节点且选了模型（本批刚建的节点没有模型，一定被判 noModel），
+        // 所以这里不必再对付「快照里没有」的情况。
+        const targetId = resolveNodeId(entry.target)
+        if (!targetId) {
+          skipped += 1
+          continue
+        }
+        await handleGenerateMediaNode(targetId)
+        applied += 1
+      }
+
+      if (createdNodeIds[0]) handleFocusNode(createdNodeIds[0])
+
+      return { applied, skipped, createdNodeIds }
+    },
+    [
+      createCanvasObject,
+      handleFocusNode,
+      handleGenerateMediaNode,
+      handleIngestConnect,
+      workflow,
+    ],
+  )
+
   // §6 connection contract: reject self-loops and any (source→target) node-type
   // pair the strict matrix doesn't allow. Existing edges aren't affected — this
   // only gates new connection attempts.
@@ -3320,6 +3512,7 @@ function StudioNodeCanvas() {
       spawnReference: handleSpawnReference,
       extractReference: handleExtractReference,
       runGenerateComposer: handleRunGenerateComposer,
+      runAssistantCanvasOps: handleRunAssistantCanvasOps,
       quickEditNodeId,
       setQuickEditNodeId,
       toolMode,
@@ -3360,6 +3553,7 @@ function StudioNodeCanvas() {
       handleExtractReference,
       handleGenerateCharacterImage,
       handleGenerateMediaNode,
+      handleRunAssistantCanvasOps,
       handleRunGenerateComposer,
       quickEditNodeId,
       modelOptionsByType,
@@ -3447,6 +3641,7 @@ function StudioNodeCanvas() {
             projectId={workflow.currentProjectId}
             projectName={workflow.currentProjectName}
             nodes={workflow.nodes}
+            edges={workflow.edges}
             scriptDoc={workflow.scriptDoc}
             locale={appLocale}
             onOpenChange={setAssistantDockOpen}

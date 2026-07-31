@@ -4670,7 +4670,8 @@
       "uploadVideo": "Upload reference video",
       "galleryImageLabel": "Gallery image",
       "referenceUploadFailed": "Reference upload failed",
-      "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps."
+      "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps.",
+      "opsMalformed": "The assistant tried to change the canvas but the instruction wasn't readable — nothing was changed."
     },
     "minimapTitle": "Minimap",
     "castDock": {
@@ -4834,6 +4835,35 @@
       "reject": "Send back",
       "awaitingReview": "Awaiting review",
       "rejected": "Sent back"
+    },
+    "canvasOps": {
+      "title": "The assistant wants to change the canvas",
+      "unnamed": "Untitled",
+      "unknownTarget": "Deleted node",
+      "apply": "Apply {count}",
+      "appliedSummary": "Applied {applied}",
+      "appliedSummaryWithSkipped": "Applied {applied}, skipped {skipped}",
+      "appliedToast": "Applied {count} canvas changes",
+      "confirmGenerate": "Confirm generation (uses credits)",
+      "generateSeparateHint": "Generation is confirmed separately",
+      "rejectedPrefix": "Won't run: {reason}",
+      "describe": {
+        "addNode": "Add {kind} “{name}”",
+        "connect": "Connect “{source}” into “{target}”",
+        "rename": "Rename “{target}” to “{name}”",
+        "reject": "Send back “{target}”",
+        "approve": "Mark “{target}” as approved",
+        "awaitReview": "Mark “{target}” as awaiting review",
+        "generate": "Generate “{target}”"
+      },
+      "reasons": {
+        "unknownNode": "That node can't be found",
+        "duplicateRef": "The same alias is used twice, so the reference is ambiguous",
+        "approvalForbidden": "The assistant can't approve for you — only you can",
+        "noMedia": "This node has no image yet, so there is nothing to mark",
+        "notGeneratable": "This kind of node produces no media",
+        "noModel": "No model selected yet"
+      }
     }
   },
   "StudioV2": {

@@ -10,6 +10,7 @@ import type { NodeStudioToolMode } from '@/constants/node-studio'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
 import type { GenerateComposerSendInput } from '@/hooks/node/use-generate-composer'
+import type { PlannedNodeAssistantOp } from '@/lib/node-assistant-op-plan'
 import type {
   NodeWorkflowModelOptionsByType,
   NodeWorkflowNode,
@@ -187,6 +188,32 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    * of this large interface.
    */
   runGenerateComposer?(input: GenerateComposerSendInput): Promise<string[]>
+  /**
+   * 包 5 助手写画布：执行一批**已经规划过**的 op（`planNodeAssistantOps` 的产
+   * 物），返回实际发生了什么。
+   *
+   * 为什么是一个高层动作，而不是把 `addNode` / `onConnect` 挂到 context 上：
+   * 这两个原语只存在于 `useNodeWorkflow` 的具体返回值上，只有
+   * `StudioNodeWorkbench` 拿得到（`runGenerateComposer` 的注释里已经解释过同一
+   * 条边界）。助手 dock 在 context 这一侧，所以它**不可能**直接改图 —— 红线
+   * 「助手不得直接改 `NodeWorkflowProject.state`」因此是结构上成立的，不靠自律。
+   *
+   * 入参是**筛选后的** ready op 列表（用户在提案卡上剔掉的不传进来），顺序即执行
+   * 顺序。批内新建节点的别名由本函数自己解析成真 id。
+   *
+   * 可选：`GenerateComposer` 那批既有的 context mock 不必跟着补。
+   */
+  runAssistantCanvasOps?(
+    ops: readonly PlannedNodeAssistantOp[],
+  ): Promise<NodeAssistantOpRunResult>
+}
+
+/** 一批 op 实际执行完的账：给用户一句可信的回执，而不是「已应用」四个字。 */
+export interface NodeAssistantOpRunResult {
+  applied: number
+  /** 执行时才失效的（引用的新节点被用户从这一批里剔掉了）。 */
+  skipped: number
+  createdNodeIds: string[]
 }
 
 const NodeWorkflowActionsContext =

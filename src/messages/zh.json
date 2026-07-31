@@ -4670,7 +4670,8 @@
       "uploadVideo": "上传参考视频",
       "galleryImageLabel": "素材库图片",
       "referenceUploadFailed": "参考素材上传失败",
-      "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。"
+      "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。",
+      "opsMalformed": "助手想改画布，但这段指令没写清楚——画布没有任何改动。"
     },
     "minimapTitle": "小地图",
     "castDock": {
@@ -4834,6 +4835,35 @@
       "reject": "打回",
       "awaitingReview": "已出未审",
       "rejected": "已打回"
+    },
+    "canvasOps": {
+      "title": "助手想改画布",
+      "unnamed": "未命名",
+      "unknownTarget": "已删除节点",
+      "apply": "应用 {count} 项",
+      "appliedSummary": "已应用 {applied} 项",
+      "appliedSummaryWithSkipped": "已应用 {applied} 项，跳过 {skipped} 项",
+      "appliedToast": "已应用 {count} 项画布改动",
+      "confirmGenerate": "确认生成（消耗积分）",
+      "generateSeparateHint": "生成需要单独确认",
+      "rejectedPrefix": "不会执行：{reason}",
+      "describe": {
+        "addNode": "新建{kind}「{name}」",
+        "connect": "把「{source}」连到「{target}」",
+        "rename": "把「{target}」改名为「{name}」",
+        "reject": "打回「{target}」",
+        "approve": "把「{target}」标为通过",
+        "awaitReview": "把「{target}」标为待审",
+        "generate": "生成「{target}」"
+      },
+      "reasons": {
+        "unknownNode": "找不到这个节点",
+        "duplicateRef": "同一个名字被用了两次，指向不明",
+        "approvalForbidden": "助手不能替你放行，通过只能由你点",
+        "noMedia": "这个节点上还没有图，无从标记",
+        "notGeneratable": "这类节点不产出媒体",
+        "noModel": "还没选模型"
+      }
     }
   },
   "StudioV2": {

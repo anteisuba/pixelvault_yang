@@ -682,6 +682,15 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
   videoMergeCompose: {
     offsetX: 460,
   },
+  // 包 5 助手建节点：与 ＋添加位 不同，助手的一批新节点**没有可锚定的宿主**，
+  // 落在固定点会直接压在现有图上。所以整批排在现有节点包围盒的右侧，再按网格
+  // 铺开；画布为空时退回通用落点。应用后由调用方聚焦到新节点，不指望用户自己找。
+  assistantSpawn: {
+    anchorGapX: 460,
+    columnOffsetX: 440,
+    rowOffsetY: 440,
+    columns: 3,
+  },
   // Image edits never replace their source. A single result lands to the
   // source's right; multi-output edits (for example decompose) fan out into a
   // compact grid so the entire batch remains one spatial/undo operation.

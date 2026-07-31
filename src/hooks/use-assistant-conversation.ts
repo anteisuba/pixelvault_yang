@@ -12,7 +12,9 @@ import {
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { extractNodeAssistantOps } from '@/lib/node-assistant-ops'
 import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
+import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import type {
   NodeAssistantMessage,
@@ -36,6 +38,15 @@ export interface AssistantConversationMessage {
   content: string
   references: AssistantNodeReference[]
   capabilities: AssistantCapabilityReference[]
+  /**
+   * 包 5 画布改动提案。流式写到一半时为 null —— 载荷没闭合就不算提案。
+   *
+   * ⚠ 入库的是**剥干净的正文**，所以提案**不跨刷新存活**。这是有意的：一条几分
+   * 钟前针对另一张图的提案，重新加载后再点「应用」只会做错事。
+   */
+  ops?: NodeAssistantOpBatch | null
+  /** 出现了完整的提案块却读不出来 —— 明说，不装作什么都没发生。 */
+  opsMalformed?: boolean
 }
 
 export interface AssistantConversationContext {
@@ -137,12 +148,17 @@ function toDisplayAssistantMessage(
   id: string,
   rawContent: string,
 ): AssistantConversationMessage {
+  // op 块先摘掉再剥引用标记：前者是整段 JSON，留到后面会被 `\n{3,}` 那类正文
+  // 规整规则啃掉一部分，变成读不出来的载荷。
+  const ops = extractNodeAssistantOps(rawContent)
   return {
     id,
     role: 'assistant',
-    content: stripNodeReferenceMarkers(rawContent).trim(),
+    content: stripNodeReferenceMarkers(ops.content).trim(),
     references: extractNodeReferences(rawContent),
     capabilities: extractCapabilityReferences(rawContent),
+    ops: ops.batch,
+    opsMalformed: ops.malformed,
   }
 }
 

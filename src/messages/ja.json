@@ -4670,7 +4670,8 @@
       "uploadVideo": "参照動画をアップロード",
       "galleryImageLabel": "ギャラリー画像",
       "referenceUploadFailed": "参照素材のアップロードに失敗しました",
-      "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。"
+      "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。",
+      "opsMalformed": "アシスタントがキャンバスを変更しようとしましたが、指示を読み取れませんでした——変更は行われていません。"
     },
     "minimapTitle": "ミニマップ",
     "castDock": {
@@ -4834,6 +4835,35 @@
       "reject": "差し戻し",
       "awaitingReview": "未確認",
       "rejected": "差し戻し済み"
+    },
+    "canvasOps": {
+      "title": "アシスタントがキャンバスを変更しようとしています",
+      "unnamed": "名称未設定",
+      "unknownTarget": "削除されたノード",
+      "apply": "{count} 件を適用",
+      "appliedSummary": "{applied} 件を適用しました",
+      "appliedSummaryWithSkipped": "{applied} 件を適用、{skipped} 件をスキップしました",
+      "appliedToast": "キャンバスの変更を {count} 件適用しました",
+      "confirmGenerate": "生成を確認（クレジット消費）",
+      "generateSeparateHint": "生成は個別に確認します",
+      "rejectedPrefix": "実行しません：{reason}",
+      "describe": {
+        "addNode": "{kind}「{name}」を追加",
+        "connect": "「{source}」を「{target}」につなぐ",
+        "rename": "「{target}」を「{name}」に改名",
+        "reject": "「{target}」を差し戻す",
+        "approve": "「{target}」を承認済みにする",
+        "awaitReview": "「{target}」を未確認にする",
+        "generate": "「{target}」を生成"
+      },
+      "reasons": {
+        "unknownNode": "そのノードが見つかりません",
+        "duplicateRef": "同じ別名が二度使われていて参照が特定できません",
+        "approvalForbidden": "アシスタントは承認できません。承認はあなただけが行えます",
+        "noMedia": "このノードにはまだ画像がなく、マークできません",
+        "notGeneratable": "この種類のノードはメディアを生成しません",
+        "noModel": "モデルが未選択です"
+      }
     }
   },
   "StudioV2": {

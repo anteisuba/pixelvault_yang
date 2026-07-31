@@ -19,9 +19,16 @@ import type { AssistantConversationMessage } from '@/hooks/use-assistant-convers
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
 import { NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
+import type {
+  NodeAssistantOpPlan,
+  PlannedNodeAssistantOp,
+} from '@/lib/node-assistant-op-plan'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
+import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
 
 import { CanvasAssistantReferencePicker } from './CanvasAssistantReferencePicker'
+import { CanvasOpProposalCard } from './CanvasOpProposalCard'
+import type { NodeAssistantOpRunResult } from './NodeWorkflowActionsContext'
 
 interface AssistantConversationProps {
   messages: AssistantConversationMessage[]
@@ -44,6 +51,15 @@ interface AssistantConversationProps {
   /** Image/video nodes available as references for the next assistant turn. */
   referenceOptions?: NodeAssistantMediaReference[]
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
+  /**
+   * 包 5：把一份提案排成「哪些能做、哪些不能以及为什么」。由 dock 提供 —— 只有
+   * 它看得到 nodes/edges，对话组件自己不认识图。两个回调缺任何一个就不出提案卡
+   * （测试里的 mock 因此不必跟着补）。
+   */
+  planAssistantOps?(batch: NodeAssistantOpBatch): NodeAssistantOpPlan
+  onApplyAssistantOps?(
+    ops: readonly PlannedNodeAssistantOp[],
+  ): Promise<NodeAssistantOpRunResult>
 }
 
 function getAssistantMessagePreview(content: string): string {
@@ -71,6 +87,8 @@ export function AssistantConversation({
   starters,
   referenceOptions = [],
   onRunCapability,
+  planAssistantOps,
+  onApplyAssistantOps,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
   const [draft, setDraft] = useState('')
@@ -239,6 +257,18 @@ export function AssistantConversation({
                         )
                       })}
                     </div>
+                  ) : null}
+                  {message.ops && planAssistantOps && onApplyAssistantOps ? (
+                    <CanvasOpProposalCard
+                      plan={planAssistantOps(message.ops)}
+                      getNodeLabel={getNodeLabel}
+                      onApply={onApplyAssistantOps}
+                    />
+                  ) : null}
+                  {message.opsMalformed ? (
+                    <p className="mt-2 text-2xs text-node-subtle">
+                      {t('opsMalformed')}
+                    </p>
                   ) : null}
                   {message.capabilities?.length > 0 ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">

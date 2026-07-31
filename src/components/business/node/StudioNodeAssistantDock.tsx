@@ -28,13 +28,18 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
+import {
+  planNodeAssistantOps,
+  type PlannedNodeAssistantOp,
+} from '@/lib/node-assistant-op-plan'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import type { AppLocale } from '@/i18n/routing'
 import type {
   NodeAssistantMediaReference,
   NodeAssistantNodeContext,
 } from '@/types/node-assistant'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
+import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
@@ -56,6 +61,8 @@ interface StudioNodeAssistantDockProps {
   projectId: string
   projectName: string
   nodes: NodeWorkflowNode[]
+  /** 包 5：提案的合法性要在真实的图上判（重复边 / 参考位都要读边）。 */
+  edges: NodeWorkflowEdge[]
   scriptDoc: ScriptDoc | undefined
   locale: AppLocale
   onOpenChange(open: boolean): void
@@ -184,6 +191,7 @@ export function StudioNodeAssistantDock({
   projectId,
   projectName,
   nodes,
+  edges,
   scriptDoc,
   locale,
   onOpenChange,
@@ -195,8 +203,10 @@ export function StudioNodeAssistantDock({
   const tHistory = useTranslations('StudioNode.history')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const tConversation = useTranslations('StudioNode.conversation')
+  const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const selection = useNodeSelection()
-  const { placeDerivedImages, focusNode } = useNodeWorkflowActions()
+  const { placeDerivedImages, focusNode, runAssistantCanvasOps } =
+    useNodeWorkflowActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
@@ -345,6 +355,28 @@ export function StudioNodeAssistantDock({
       if (derivedNodeIds[0]) focusNode?.(derivedNodeIds[0])
     },
     [focusNode, nodes, placeDerivedImages, tConversation],
+  )
+
+  // 包 5：提案的合法性在真实的图上算 —— dock 是**唯一**同时握着 nodes/edges 和
+  // 对话消息的地方，所以规划落在这里；执行则必须回到 workbench（addNode /
+  // onConnect 只在那儿），中间隔着 context 上那一个高层动作。
+  const planAssistantOps = useCallback(
+    (batch: NodeAssistantOpBatch) => planNodeAssistantOps(batch, nodes, edges),
+    [edges, nodes],
+  )
+
+  const handleApplyAssistantOps = useCallback(
+    async (ops: readonly PlannedNodeAssistantOp[]) => {
+      if (!runAssistantCanvasOps) {
+        return { applied: 0, skipped: ops.length, createdNodeIds: [] }
+      }
+      const result = await runAssistantCanvasOps(ops)
+      if (result.applied > 0) {
+        toast.success(tCanvasOps('appliedToast', { count: result.applied }))
+      }
+      return result
+    },
+    [runAssistantCanvasOps, tCanvasOps],
   )
 
   const handleNewConversation = useCallback(() => {
@@ -583,6 +615,8 @@ export function StudioNodeAssistantDock({
                 starters={dockStarters}
                 referenceOptions={referenceOptions}
                 onRunCapability={handleRunCapability}
+                planAssistantOps={planAssistantOps}
+                onApplyAssistantOps={handleApplyAssistantOps}
               />
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
@@ -608,6 +642,8 @@ export function StudioNodeAssistantDock({
               starters={dockStarters}
               referenceOptions={referenceOptions}
               onRunCapability={handleRunCapability}
+              planAssistantOps={planAssistantOps}
+              onApplyAssistantOps={handleApplyAssistantOps}
             />
           </div>
         )}

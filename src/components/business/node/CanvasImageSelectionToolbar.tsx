@@ -607,8 +607,14 @@ export function ShotGenerateButton({
  * 本档「视觉极小」，改卡面要过 ui-page 门。状态本身走卡边（canvas.css 的
  * `.canvas-card[data-status]` 通用规则）。
  *
- * 只在这张图**需要人做决定**时出现：已通过的图不该常年挂着两个按钮，那是噪音。
- * 已打回的图仍给「通过」，因为改主意是常态；不给「再打回一次」。
+ * 三个态各给「还能往哪走」的那一个动作，**两个方向都可逆**：
+ *   待审 → 通过 / 打回（两个都给，这时人还没做决定）
+ *   已打回 → 通过（改主意）
+ *   已通过 → 打回（改主意）
+ *
+ * ⚠ 早先这里对 `approved` 直接返回 null，理由是「已通过的图不该常年挂着按钮」。
+ * 那个理由是错的：这条工具条**选中才出现**，根本不是常年挂着。而代价很实在 ——
+ * 手滑点了「通过」就再也退不回来，因为按钮自己消失了。
  */
 export function MediaReviewButtons({
   nodeId,
@@ -620,23 +626,24 @@ export function MediaReviewButtons({
   const t = useTranslations('StudioNode.review')
   const { updateNodeData } = useNodeWorkflowActions()
   const url = getNodeMediaUrl(data)
+  if (!url) return null
   const state = resolveMediaReviewState(data, url)
-
-  if (!url || state === NODE_REVIEW_STATE_IDS.approved) return null
 
   return (
     <>
-      <ToolbarLabelButton
-        icon={Check}
-        label={t('approve')}
-        onClick={() =>
-          updateNodeData(
-            nodeId,
-            approveMedia(data, url, { reviewedAt: new Date().toISOString() }),
-          )
-        }
-      />
-      {state === NODE_REVIEW_STATE_IDS.awaitingReview ? (
+      {state === NODE_REVIEW_STATE_IDS.approved ? null : (
+        <ToolbarLabelButton
+          icon={Check}
+          label={t('approve')}
+          onClick={() =>
+            updateNodeData(
+              nodeId,
+              approveMedia(data, url, { reviewedAt: new Date().toISOString() }),
+            )
+          }
+        />
+      )}
+      {state === NODE_REVIEW_STATE_IDS.rejected ? null : (
         <ToolbarLabelButton
           icon={Undo2}
           label={t('reject')}
@@ -649,7 +656,7 @@ export function MediaReviewButtons({
             )
           }
         />
-      ) : null}
+      )}
     </>
   )
 }

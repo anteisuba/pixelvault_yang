@@ -8,6 +8,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import {
   canOfferCanvasImageEdit,
   CanvasImageSelectionToolbar,
+  MediaReviewButtons,
   NodeSelectionToolbarChrome,
 } from './CanvasImageSelectionToolbar'
 
@@ -421,5 +422,73 @@ describe('NodeSelectionToolbarChrome', () => {
     // span + universal-actions shell like before this change.
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+// ── 包 4 审核动作 ────────────────────────────────────────────────────────
+describe('MediaReviewButtons', () => {
+  const URL = 'https://cdn/a.png'
+
+  function renderAt(state?: 'awaiting_review' | 'approved' | 'rejected') {
+    return render(
+      <MediaReviewButtons
+        nodeId="node-1"
+        data={
+          {
+            status: NODE_STATUS_IDS.idle,
+            mediaUrl: URL,
+            ...(state ? { mediaReview: { [URL]: { state } } } : {}),
+          } as NodeWorkflowNodeData
+        }
+      />,
+    )
+  }
+
+  /**
+   * ⚠ 这组断言存在的理由：第一版把 `approved` 直接 return null，于是**手滑点了
+   * 「通过」就再也退不回来**——按钮自己消失了。那条工具条是选中才出现的，不是
+   * 常年挂着，所以「已通过就别挂按钮」的理由不成立。两个方向都必须可逆。
+   */
+  it.each([
+    ['awaiting_review', ['approve', 'reject']],
+    ['rejected', ['approve']],
+    ['approved', ['reject']],
+  ] as const)('%s → 只给还能往哪走的那一个动作', (state, expected) => {
+    renderAt(state)
+    for (const label of ['approve', 'reject']) {
+      const found = screen.queryByRole('button', { name: label })
+      if ((expected as readonly string[]).includes(label)) {
+        expect(found).toBeInTheDocument()
+      } else {
+        expect(found).not.toBeInTheDocument()
+      }
+    }
+  })
+
+  it('祖父条款：没有审核记录的图按已通过处理，只给「打回」', () => {
+    renderAt(undefined)
+    expect(screen.getByRole('button', { name: 'reject' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'approve' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('没有媒体就整个不渲染', () => {
+    const { container } = render(
+      <MediaReviewButtons
+        nodeId="node-1"
+        data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
+      />,
+    )
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('打回只改状态，不碰媒体 URL', () => {
+    renderAt('awaiting_review')
+    fireEvent.click(screen.getByRole('button', { name: 'reject' }))
+    const patch = mocks.updateNodeData.mock.calls.at(-1)?.[1]
+    expect(patch.mediaReview[URL].state).toBe('rejected')
+    // §5-W3「保留上一版媒体 URL 作对比（不立刻删 R2）」
+    expect(patch).not.toHaveProperty('mediaUrl')
   })
 })

@@ -1,33 +1,48 @@
 # 项目状态
 
-最后更新：2026-07-30
+最后更新：2026-08-01
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
 ## Current Focus
 
-- 当前进入画布阶段性交接。功能基线已经形成，但**节点详情页只确认了
-  A「对象工作室」的结构方向，详细页面设计尚未完成**；现有本地实现是供下一轮设计
-  核对真实内容、状态和尺寸的施工基线，不是最终视觉规范。
-- 首页、LoRA、画布、模型目录和认证均有本地改动。交接提交只代表当前可恢复快照，
-  不代表 release-ready；push `main` 仍需完整 release P0。
-- ElevenLabs Music v2 的后端接入与首页官方品牌素材已补齐；模型保持 catalog
-  可用。模型卡不得回退为重复模型图或通用 provider 截图。
+- **调研落地路线图主链 7 / 10 已交付**，入口 =
+  [`docs/plans/research-landing-plan-2026-07-30.md`](plans/research-landing-plan-2026-07-30.md) §6。
+  已完成：包 1 文档止血 · 包 2 现状实测校准 · 包 2.5 剧本长度悬崖 ·
+  包 3 分镜静帧投影 · 包 4 审核态门禁 · 包 4.5 显示名收口 · 包 5 助手写画布。
+- **下一个 = 包 6 审阅网格**，是主链上**第一个要过 `ui-page` 设计门**的包：
+  域定义 → 三方向 → 关键切片（桌面 + 375）→ owner 逐项确认 → 写 page 文档 → 才实现。
+- 节点详情页仍只确认了 A「对象工作室」的结构方向，**详细页面设计未完成**；
+  现有实现是供设计核对真实内容/状态/尺寸的施工基线，不是最终视觉规范。
+- 本地另有未提交改动（MiniMax adapter、Seedance 2.5 预留、VolcEngine video builder
+  等），属另一条在飞的模型接入任务，不在本路线图主链内。
 
 ## Completed / Stable Enough to Build On
 
-- 画布视频节点已收口为「纯视频卡 + 固定右侧紧凑编排器」；节点仅由显式扩大按钮进入详情，
-  双击节点、素材槽、模型/参数控件和「从画布选择」均不应打开详情。
-- 视频引用会沿真实连线收割图片、视频和声音；紧凑预览与提交共用
-  `buildVideoSendPreview`，避免 UI 与 payload 数量不一致。
-- `video-model-send-plan.ts` 已按 Seedance、Kling、HappyHorse、Gemini
-  定义素材槽、参数能力、禁用原因和执行状态。Fal builder 与 Worker builder 已对齐
-  Seedance 多模态总上限、`generate_audio` 与 `seed`。
-- 旧 `fusedIntoNodeId` 隐藏/吞入通路已退役；旧项目通过兼容迁移恢复节点和边。
-- 左侧 Cast 卡匣已降级为全部真实节点的分组、搜索、定位与选中入口，不再承担编辑和新建。
-- 首页模型卡已改用模型/厂商品牌素材；真实首页视频播放器与横轨仅横向滚动已实现。
-- LoRA 底模选择器与生成页入口已经接入首页同源模型素材。
-- 本地化 Clerk 登录/注册 catch-all 路由已恢复，开发环境用户映射已修复。
+### 画布管道（本轮主链产出）
+
+- **「聊 → 大纲 → 镜头 → 投影 → 出图」整链真机走通**（包 2 实测，两轮复跑）。
+  投影幂等成立；缺口清单 = [`canvas-pipeline-gap-2026-07-31.md`](plans/canvas-pipeline-gap-2026-07-31.md)，
+  它**取代** `canvas-assistant-pipeline` §0 的 07-26 断层表。
+- 剧本提示词改**按预算装配**，修掉 4000 字符静默悬崖（此前故事一丰富就全线 500）。
+- 分镜静帧已能投影（`role=shot`）；`role=background` **有意砍出**——它会渲染成身份卡，
+  而身份卡存废未定（G5）。
+- **审核态门禁**：生成物默认待审，未过审不进 `image_urls`；过审可逆。
+- 助手拿到的是**真实显示名**，不再是本地化类型标签。
+- **助手能写画布**：建节点 / 连线 / 改名 / 标审核态 / 触发生成五种 op，
+  全部经「提案 → 用户点 → 才发生」；助手**不得自批** `approved`。
+
+### 早前已稳定
+
+- 画布视频节点 = 纯视频卡 + 固定右侧紧凑编排器；仅显式扩大按钮进详情。
+- 视频引用沿真实连线收割图/视频/声音；预览与提交共用 `buildVideoSendPreview`。
+- `video-model-send-plan.ts` 按 Seedance / Kling / HappyHorse / Gemini 定义素材槽与能力。
+- 旧 `fusedIntoNodeId` 隐藏通路已退役；旧项目走兼容迁移。
+- 左侧 Cast 卡匣已降级为定位器（分组 / 搜索 / 定位 / 选中），不再编辑与新建。
+- 首页模型卡使用官方品牌素材；LoRA 底模选择器接入同源素材。
+- 本地化 Clerk 登录/注册 catch-all 路由已恢复。
+- 本地 dev「跑不出生成」根因已解：`NEXT_PUBLIC_APP_URL` 的 `https://localhost`
+  协议错配；已加派发前守卫，生产零行为变化。
 
 ## Design Status
 
@@ -35,34 +50,38 @@
   内容不能同构；桌面充分使用宽度，窄屏在控件拥挤前切单列；图片和声音详情保留明确生成按钮。
 - 未确认：九类节点的最终信息层级、每类默认/空/生成中/失败状态、最终操作区、
   视频资产卡与片盒、按钮动效与浮层色彩。
-- 稳定方向与未决问题见
-  `docs/plans/canvas-session-handoff-2026-07-30.md`；详情页当前结构见
-  `docs/references/pages/canvas-node-detail.md`，其状态必须保持“详细设计未完成”。
+- **包 6 审阅网格的造型同样未确认**，必须走完设计门再实现。
+- 稳定方向与未决问题见 `docs/plans/canvas-session-handoff-2026-07-30.md`；
+  详情页当前结构见 `docs/references/pages/canvas-node-detail.md`，
+  其状态必须保持「详细设计未完成」。
 
 ## Validation
 
-- 画布视频编排、发送计划、旧数据迁移、节点定位与详情入口：定向 Vitest
-  7 files / 101 tests 通过。
-- Fal 请求构造、服务端视频校验、模型解析、工作流与视频 inspector：定向 Vitest
-  7 files / 158 tests 通过。
-- 相关 ESLint：0 error，4 条既有 warning。
-- 首页 / LoRA / proxy / 音频目录与服务定向组：9 files / 121 tests 通过。
-- 全量 `npx tsc --noEmit --pretty false` 通过。首次运行暴露图片编辑任务图标映射
-  缺项，补齐 `object-replace` 与 `style-transfer` 后重跑为 exit code 0。
-- 真实扣费视频 provider smoke 尚未执行；当前没有已配置的 Fal API key。
+- **最近一次全量闸门：2026-07-31（包 5 交付时）**——全量 `tsc` exit 0 零输出；
+  全量 vitest **4046 passed**，仅 `LoraWorkbench` 满负载超时（已登记的假失败，
+  单跑 27/27 绿）。
+- **此后未再跑全量**：包 5 的四处真机修正（含 `d1cba07a` 提案静默消失）与本地
+  未提交的模型接入改动**都在这次闸门之后**，声称绿之前必须重跑。
+- 真机验收（包 5）：伪造四条 op → 2 ready / 2 rejected → 应用后节点 18→19、边 26→27；
+  修复后复跑得 19 条 op，应用后 13 节点 / 6 边并落库。
+- 真实扣费 provider smoke 仍未执行。
 
 ## Next
 
-1. 按 `ui-page` 硬门完成节点详情页详细设计：事实矩阵 → 九类节点真实内容 →
-   三个结构方向或在已选 A 内完成三个关键布局切片 → owner 确认 → 更新 page 文档。
-2. 设计视频资产卡与片盒：明确生成结果如何归档、复用、定位和进入下一轮编排。
-3. 用至少一个真实 provider key 验证 Seedance / Kling 等模型专属发送计划与实际 payload。
-4. 完成首页与 375px 响应式回归。
-5. 收尾 loading / failure / cancel、按钮过渡、浮层色彩、键盘/焦点与 reduced-motion。
+1. **包 6 审阅网格**：按 `ui-page` 走设计门（域定义 → 三方向 → 关键切片 → owner 确认）。
+2. 包 7 剧本节点**设计轮**（owner 已定：形态仍模糊，不是写契约）；其前置除包 6 外，
+   还包括**卡片总线契约必须回来补**——否则剧本节点铺出的角色槽全要手填。
+3. 节点详情页详细设计（九类节点）——与包 6 同属设计门债，可合并排。
+4. 链外登记 G1 参考图接不到素材库 / G3 政策归因 / G4 进度·取消·失败可见性 / G5 身份卡存废。
+   G2 模型选择器已修（`df12cf19`）。
+5. 可插包 I1 视频灰区 #2（很小，仍未做）· I2 LoRA 提示分层 · I3 壳级 A' 浅壳。
 6. 交付前跑完整 lint、Vitest、Playwright mobile、production build；
    push `main` 前再过 `docs/checklists/release.md` P0。
 
 ## Blocked
 
-- 真实视频 provider smoke 需要有效且经 owner 授权使用的 API key，并会产生费用。
-- 节点详情的最终页面设计需要 owner 对关键切片逐项确认；当前实现不能自行升级为现行规范。
+- **包 6 / 包 7 的造型需要 owner 对关键切片逐项确认**；当前实现不能自行升级为现行规范。
+- **卡片总线契约** owner 已后置，但**包 7 之前必须回来补**（G5 身份卡存废与之同源）。
+- OpenAI key 无效（GPT Image 2 报 401）；VolcEngine 未绑 key ——
+  后者挡着 G3 的归因对照实验。
+- 真实视频 provider smoke 需要有效且经 owner 授权的 API key，会产生费用。

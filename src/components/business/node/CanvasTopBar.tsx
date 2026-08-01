@@ -5,6 +5,7 @@ import {
   Archive,
   Check,
   ChevronDown,
+  ClipboardCheck,
   Clock3,
   FolderOpen,
   FolderPlus,
@@ -52,6 +53,10 @@ interface CanvasTopBarProps {
   onRenameProject: () => void
   onDeleteProject: () => void
   onSwitchProject: (id: string) => void
+  /** 包 6 片 2：还有几张待审。0 时徽标整个不渲染。 */
+  reviewPendingCount?: number
+  /** 点徽标 = 进入显式审阅模式（三条入口之二）。 */
+  onStartReview?: () => void
   className?: string
 }
 
@@ -70,6 +75,8 @@ export function CanvasTopBar({
   onRenameProject,
   onDeleteProject,
   onSwitchProject,
+  reviewPendingCount = 0,
+  onStartReview,
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
@@ -225,6 +232,25 @@ export function CanvasTopBar({
           <Plus className="size-4" />
           <span className="hidden sm:inline">{t('topbar.addNode')}</span>
         </Button>
+        {/* 包 6 片 2：待审计数徽标 = 进入审阅模式的第二条入口。**队列为空时整个
+            消失**，不是变灰 —— 常驻一个「0 张待审」等于每次开画布都提醒你有件事
+            没做完，而其实没有。 */}
+        {reviewPendingCount > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={onStartReview}
+            aria-label={t('topbar.startReview', { count: reviewPendingCount })}
+            title={t('topbar.startReview', { count: reviewPendingCount })}
+            className="h-8 gap-1.5 rounded-2xl px-2.5 text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          >
+            <ClipboardCheck className="size-4" />
+            <span className="text-xs font-semibold tabular-nums">
+              {reviewPendingCount}
+            </span>
+          </Button>
+        ) : null}
         <CanvasAppearancePanel
           appearance={canvasAppearance}
           onChange={onCanvasAppearanceChange}

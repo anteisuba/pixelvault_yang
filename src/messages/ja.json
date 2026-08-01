@@ -4511,6 +4511,7 @@
       "addNode": "ノードを追加",
       "arrange": "キャンバスを整列",
       "save": "保存",
+      "startReview": "未確認 {count} 枚 · 確認を始める",
       "collapse": "トップバーを閉じてキャンバスを広げる",
       "expand": "トップバーを開く",
       "defaultModel": "既定",
@@ -4875,6 +4876,21 @@
       "reject": "差し戻し",
       "awaitingReview": "未確認",
       "rejected": "差し戻し済み"
+    },
+    "reviewMode": {
+      "title": "確認中",
+      "remaining": "残り {count} 枚",
+      "previous": "前へ",
+      "next": "次へ",
+      "exit": "確認を終了",
+      "previousVersion": "前の版",
+      "currentVersion": "今の版",
+      "reasonLabel": "差し戻し理由",
+      "reasonPlaceholder": "この一枚を外す理由（任意）",
+      "promptPatchLabel": "プロンプト修正",
+      "promptPatchPlaceholder": "どう変えて出し直すか",
+      "regenerate": "修正して再生成",
+      "regenerating": "再生成中"
     },
     "canvasOps": {
       "title": "アシスタントがキャンバスを変更しようとしています",

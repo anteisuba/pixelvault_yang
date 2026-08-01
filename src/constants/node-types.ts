@@ -335,6 +335,30 @@ export const NODE_REVIEW_STATES = [
 
 export type NodeReviewState = (typeof NODE_REVIEW_STATES)[number]
 
+/**
+ * 谁发起了这一次生成（包 6 ①-bis，owner 2026-08-01 拍板）。
+ *
+ * 审核门只管**助手替你做的决定** —— 你自己在画布上点的生成，你已经在场、已经做
+ * 过一次决定，再拦一道是仪式。所以「进不进待审队列」由这条轴决定，而不是由「有
+ * 没有生成成功」决定。
+ *
+ * ⚠ 必须**显式传**，不许从「dock 开着吗」「有没有 pending op」这类环境状态反推：
+ * 助手关掉之后重跑同一个节点，间接推断就会判错。
+ */
+export const NODE_GENERATION_SOURCE_IDS = {
+  /** 用户亲手发起（卡上的生成按钮、编辑框发送）。**不进**待审队列。 */
+  user: 'user',
+  /** 助手 op 发起，含审阅里「打回 → 改词再来」那一轮（⑥）。**进**待审队列。 */
+  assistant: 'assistant',
+} as const
+
+export const NODE_GENERATION_SOURCES = [
+  NODE_GENERATION_SOURCE_IDS.user,
+  NODE_GENERATION_SOURCE_IDS.assistant,
+] as const
+
+export type NodeGenerationSource = (typeof NODE_GENERATION_SOURCES)[number]
+
 export const NODE_GENERATION_STATUSES = [
   NODE_GENERATION_STATUS_IDS.idle,
   NODE_GENERATION_STATUS_IDS.pending,

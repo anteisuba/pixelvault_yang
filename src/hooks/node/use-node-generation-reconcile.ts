@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import {
+  NODE_GENERATION_SOURCE_IDS,
   NODE_GENERATION_STATUS_IDS,
   NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
@@ -18,6 +19,7 @@ import {
   checkImageGenerationStatusAPI,
   checkVideoStatusAPI,
 } from '@/lib/api-client'
+import { markMediaAwaitingReview } from '@/lib/node-media-review'
 import type {
   GenerationStatusProbe,
   GenerationStatusProbeResponse,
@@ -114,6 +116,7 @@ export function useNodeGenerationReconcile({
             imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
             imageUrl: generation.url,
             mediaJobId: undefined,
+            mediaJobSource: undefined,
             sourceGenerationId: undefined,
             sourceLabel: undefined,
             status: NODE_STATUS_IDS.done,
@@ -134,8 +137,18 @@ export function useNodeGenerationReconcile({
               }
             : {}),
           mediaJobId: undefined,
+          mediaJobSource: undefined,
           mediaKind: kind,
           mediaUrl: generation.url,
+          // 包 6 ①-bis：前台轮询窗口关掉的那批生成在这里落地，所以待审标记也得
+          // 在这里补 —— 否则「助手生成 + 跑得久」= 静默逃过审核门（查不到 = 祖父
+          // 条款 = 直接算通过）。判据用**落盘的** `mediaJobSource`：内存里的来源
+          // 早随刷新没了，这正是那个字段要持久化的理由。
+          ...(node.data.mediaJobSource === NODE_GENERATION_SOURCE_IDS.assistant
+            ? markMediaAwaitingReview(node.data, generation.url, {
+                markedAt: new Date().toISOString(),
+              })
+            : {}),
           // ⚠ 包 4.5：**不再**把 `generation.model` 写进 `mediaLabel`。
           // `mediaLabel` 是显示名字段（卡面标签 / 卡匣 / 助手 payload 全读它），
           // 把模型 id 写进去等于替用户起了个名 —— 一张从没被命名过的生成图，
@@ -157,6 +170,7 @@ export function useNodeGenerationReconcile({
           }),
           generationStatus: NODE_GENERATION_STATUS_IDS.error,
           mediaJobId: undefined,
+          mediaJobSource: undefined,
           status: NODE_STATUS_IDS.failed,
         })
       }

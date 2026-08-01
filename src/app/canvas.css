@@ -716,6 +716,130 @@
   border-color: var(--canvas-danger);
 }
 
+/* ── 包 6 片 2 · 显式审阅模式 ────────────────────────────────────────
+   §4.6 只定行为契约不定数值（画布视觉方向 owner 尚未表态），所以这一段**不新造
+   任何颜色**：强调完全由「别人弱化、它不弱化」构成，再叠一层既有的 hover 投影。
+   这样也天然不会跟选中态（--canvas-accent 描边）或显现态撞 —— 它压根不是一条
+   边的着色，是对比度层级本身。
+   弱化用 opacity 而不是隐藏：D2 保留空间上下文的优势全靠这些卡还看得见。数值
+   与画布里既有的几处淡出（0.45 / 0.5 / 0.55）同一量级。 */
+.domain-canvas[data-review-mode='true'] .react-flow__node {
+  opacity: 0.4;
+  transition: opacity var(--canvas-dur-base) var(--canvas-ease-state);
+}
+.domain-canvas[data-review-mode='true']
+  .react-flow__node.canvas-review-current {
+  opacity: 1;
+}
+.domain-canvas[data-review-mode='true']
+  .react-flow__node.canvas-review-current
+  .canvas-card {
+  box-shadow: var(--canvas-card-shadow-hover);
+}
+
+/* 模式条：视口固定的一条窄条，贴在顶栏正下方居中。只在模式里存在。 */
+.domain-canvas .canvas-review-bar {
+  top: calc(var(--canvas-topbar-h) + 12px);
+  max-width: min(520px, calc(100% - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--canvas-card-line);
+  border-radius: var(--canvas-pop-radius);
+  box-shadow: var(--canvas-glass-shadow);
+  color: var(--canvas-ink);
+  font-size: var(--canvas-text-meta);
+  line-height: var(--canvas-text-meta-lh);
+}
+.domain-canvas .canvas-review-bar-title {
+  font-weight: 600;
+}
+.domain-canvas .canvas-review-bar-count {
+  color: var(--canvas-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.domain-canvas .canvas-review-bar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--canvas-card-line);
+}
+.domain-canvas .canvas-review-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--canvas-control-h-sm);
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--canvas-ink-regular);
+  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-review-bar-btn:hover:not(:disabled) {
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-review-bar-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.domain-canvas .canvas-review-bar-btn--text {
+  font-weight: 500;
+}
+
+/* 打回后那一屏（§4.2 停在原地 + §⑤ 新旧双联）。 */
+.domain-canvas .canvas-review-reject {
+  padding-top: 8px;
+  border-top: 1px solid var(--canvas-card-line);
+}
+.domain-canvas .canvas-review-compare {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.domain-canvas .canvas-review-compare img {
+  width: 100%;
+  height: 96px;
+  object-fit: contain;
+  background: var(--canvas-media-bg);
+  border: 1px solid var(--canvas-card-line);
+  border-radius: 8px;
+}
+.domain-canvas .canvas-review-compare figcaption {
+  margin-top: 4px;
+  color: var(--canvas-ink-muted);
+  text-align: center;
+}
+.domain-canvas .canvas-review-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-canvas .canvas-review-field > span {
+  flex: 0 0 auto;
+  color: var(--canvas-ink-muted);
+}
+.domain-canvas .canvas-review-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--canvas-control-h-sm);
+  padding: 0 8px;
+  border: 1px solid var(--canvas-card-line);
+  border-radius: 8px;
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-review-field input::placeholder {
+  color: var(--canvas-ink-muted);
+}
+
+/* 375 compact：双联改上下堆叠，输入行标签换行放上面，条本身贴左右边距。 */
+@media (max-width: 480px) {
+  .domain-canvas .canvas-review-bar {
+    max-width: calc(100% - 16px);
+  }
+  .domain-canvas .canvas-review-field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 /* 视频卡 + 节点右侧编排器（canvas-video-card.md）。
    卡始终是纯视频媒体；参数面固定在右边，详细态只向右扩，节点尺寸与端口锚点
    不变。NodeToolbar 负责真实 24/20px offset，本段只负责面板自身尺寸和皮肤。 */

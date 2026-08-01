@@ -19,6 +19,12 @@ interface CanvasWorkspaceLayoutProps {
    * inherits the same surface the wallpaper layer paints.
    */
   stageStyle?: CSSProperties
+  /**
+   * 包 6 片 2：审阅模式开着。落在 stage 上（`.domain-canvas` 的作用域根），
+   * canvas.css 的「非待审弱化」规则用它当总开关 —— 弱化必须能覆盖整张画布的节点，
+   * 所以开关只能挂在它们共同的祖先上。
+   */
+  reviewMode?: boolean
 }
 
 /**
@@ -34,6 +40,7 @@ export function CanvasWorkspaceLayout({
   assistant,
   children,
   stageStyle,
+  reviewMode,
 }: CanvasWorkspaceLayoutProps) {
   return (
     <div
@@ -44,6 +51,7 @@ export function CanvasWorkspaceLayout({
       <div
         ref={stageRef}
         data-testid="canvas-stage"
+        data-review-mode={reviewMode ? 'true' : undefined}
         style={stageStyle}
         className={cn(
           // S0：画布域皮肤 v0.2 的作用域根。

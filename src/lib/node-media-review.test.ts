@@ -117,6 +117,27 @@ describe('node media review', () => {
       expect(markMediaAwaitingReview(BASE, undefined)).toEqual({})
       expect(rejectMedia(BASE, '', { reason: 'x' })).toEqual({})
     })
+
+    it('records markedAt when given one — 审阅推进的排序依据', () => {
+      // 包 6 §4.1：队列「按生成顺序」推进，而跨节点的顺序无处可取（节点数组顺序
+      // 是创建顺序，会被拖动/删除打乱）。所以顺序记在被排的那条记录自己身上。
+      const patch = markMediaAwaitingReview(BASE, 'https://cdn/a.png', {
+        markedAt: '2026-08-01T09:00:00.000Z',
+      })
+      expect(patch.mediaReview?.['https://cdn/a.png']).toEqual({
+        state: NODE_REVIEW_STATE_IDS.awaitingReview,
+        markedAt: '2026-08-01T09:00:00.000Z',
+      })
+    })
+
+    it('omits markedAt entirely when not given one（本模块不读时钟）', () => {
+      // 与 reviewedAt 同一条规矩：纯函数，时间由调用方传。存量记录没有这一项，
+      // 队列把它当最早处理。
+      const patch = markMediaAwaitingReview(BASE, 'https://cdn/a.png')
+      expect(patch.mediaReview?.['https://cdn/a.png']).toEqual({
+        state: NODE_REVIEW_STATE_IDS.awaitingReview,
+      })
+    })
   })
 
   describe('助手不得自批（Q4 钉死无开关）', () => {

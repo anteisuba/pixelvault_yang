@@ -41,6 +41,11 @@ export interface ReviewDecisionInput {
    * 也避免在渲染路径里产生每次都不同的值。
    */
   reviewedAt?: string
+  /**
+   * 进入待审队列的时间（包 6 §4.1 的排序依据）。同样由调用方传。
+   * 只有 `markMediaAwaitingReview` 用得到。
+   */
+  markedAt?: string
 }
 
 /**
@@ -86,18 +91,24 @@ function withEntry(
 }
 
 /**
- * AI 生成成功、把结果写回节点时**同时**打上「已出未审」。
+ * 生成成功、把结果写回节点时**同时**打上「已出未审」。
  *
- * ⚠ 只给**生成**路径用。用户上传 / 从素材库挑的图不走这里 —— 亲手选过的图再拦
- * 一道是噪音，那不是这道门要防的东西。
+ * ⚠ 只给**助手**发起的生成用（包 6 ①-bis）。用户自己点的生成、上传的图、从素材
+ * 库挑的图都不走这里 —— 亲手做过的选择再拦一道是仪式，那不是这道门要防的东西。
+ * 调用点靠 `mediaJobSource` 判断来源，**不许**从「dock 开着吗」反推。
+ *
+ * `markedAt` 是审阅推进的排序依据（§4.1「按生成顺序」）。和 `reviewedAt` 同一条
+ * 规矩：**调用方传时钟**，本模块保持纯函数。不传就不写，队列把它当最早处理。
  */
 export function markMediaAwaitingReview(
   data: NodeWorkflowNodeData,
   url: string | undefined,
+  input: Pick<ReviewDecisionInput, 'markedAt'> = {},
 ): Partial<NodeWorkflowNodeData> {
   if (!url) return {}
   return withEntry(data, url, {
     state: NODE_REVIEW_STATE_IDS.awaitingReview,
+    ...(input.markedAt ? { markedAt: input.markedAt } : {}),
   })
 }
 

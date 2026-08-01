@@ -4511,6 +4511,7 @@
       "addNode": "添加节点",
       "arrange": "整理画布",
       "save": "保存",
+      "startReview": "{count} 张待审 · 开始审阅",
       "collapse": "收起顶栏，展开画布",
       "expand": "展开顶栏",
       "defaultModel": "默认",
@@ -4875,6 +4876,21 @@
       "reject": "打回",
       "awaitingReview": "已出未审",
       "rejected": "已打回"
+    },
+    "reviewMode": {
+      "title": "审阅中",
+      "remaining": "还剩 {count} 张",
+      "previous": "上一张",
+      "next": "下一张",
+      "exit": "退出审阅",
+      "previousVersion": "上一版",
+      "currentVersion": "这一版",
+      "reasonLabel": "打回理由",
+      "reasonPlaceholder": "这张为什么不要（可留空）",
+      "promptPatchLabel": "改词",
+      "promptPatchPlaceholder": "补一句要改成什么样",
+      "regenerate": "改词再来",
+      "regenerating": "重新生成中"
     },
     "canvasOps": {
       "title": "助手想改画布",

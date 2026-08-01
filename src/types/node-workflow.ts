@@ -18,6 +18,7 @@ import {
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
 import {
+  NODE_GENERATION_SOURCES,
   NODE_GENERATION_STATUSES,
   NODE_IMAGE_ROLES,
   NODE_REVIEW_STATES,
@@ -54,6 +55,8 @@ export const NodeWorkflowMediaKindSchema = z.enum(NODE_MEDIA_KINDS)
 
 export const NodeReviewStateSchema = z.enum(NODE_REVIEW_STATES)
 
+export const NodeGenerationSourceSchema = z.enum(NODE_GENERATION_SOURCES)
+
 /**
  * 一张图的审核记录（包 4）。挂在节点的 `mediaReview` 里、**按 URL 键控**。
  *
@@ -66,6 +69,16 @@ export const NodeMediaReviewSchema = z.object({
   reason: z.string().trim().min(1).max(600).optional(),
   promptPatch: z.string().trim().min(1).max(2000).optional(),
   reviewedAt: z.string().trim().min(1).max(40).optional(),
+  /**
+   * 进入待审队列的时间（包 6 §4.1）—— **审阅推进的排序依据**。
+   *
+   * 队列要「按投影 / 生成顺序」推进，而那个顺序跨节点无处可取：节点数组顺序是
+   * 创建顺序（会被拖动、删除、重排打乱），一个节点内部的 `mediaReview` 插入顺序
+   * 又只在该节点内成立。所以顺序记在被排的东西自己身上。
+   *
+   * 可选：存量记录没有这一项，排序时视为最早（先审老的）。
+   */
+  markedAt: z.string().trim().min(1).max(40).optional(),
 })
 
 export const NodeWorkflowFieldSchema = z.enum(NODE_WORKFLOW_FIELDS)
@@ -304,6 +317,18 @@ export const NodeWorkflowNodeDataSchema = z
      *  (§9.2). Optional so nodes saved before this field existed stay valid. */
     videoThumbnailUrl: z.string().trim().min(1).optional(),
     mediaJobId: z.string().trim().min(1).max(200).optional(),
+    /**
+     * 谁发起了 `mediaJobId` 这一次生成（包 6 ①-bis）—— 决定结果**进不进待审
+     * 队列**。
+     *
+     * ⚠ 为什么要**持久化**而不是只当运行时参数：生成超出前台轮询窗口会留在
+     * `pending`，由 `use-node-generation-reconcile` 在重新聚焦甚至**刷新之后**
+     * 回填。那时内存里的来源早没了，不落盘的话助手生成会静默逃过审核门（查不
+     * 到 = 祖父条款 = 直接算通过）。
+     *
+     * 与 `mediaJobId` 同生共死：派发时一起写，落地（成功/失败）时一起清。
+     */
+    mediaJobSource: NodeGenerationSourceSchema.optional(),
     mediaLabel: z.string().trim().min(1).max(160).optional(),
     generationStatus: NodeWorkflowGenerationStatusSchema.optional(),
     generationError: z.string().optional(),
@@ -398,10 +423,13 @@ export const NodeWorkflowNodeDataSchema = z
      * 都是 undefined，而且即使存在，也只会记录「被显式标过的那几张」。所以
      * `resolveMediaReviewState` 对查不到的 URL 一律返回 `approved` —— 反过来
      * 设计（查不到＝待审）会让**所有存量项目的所有图当场停止喂下游**，是一次
-     * 全站回归。只有本包之后 AI 新生成的结果才会被显式写成 `awaiting_review`。
+     * 全站回归。只有本包之后**助手**生成的结果才会被显式写成 `awaiting_review`。
      *
-     * ⚠ 用户自己上传 / 从素材库挑的图**不写**这里 —— 审核门管的是「助手自动铺
-     * 出来的默认待审」，用户亲手选的图已经是一次确认了，再拦一道是噪音。
+     * ⚠ 写不写这里，看的是 `mediaJobSource`（包 6 ①-bis，owner 2026-08-01）：
+     * 只有**助手**发起的生成进待审。用户自己点的生成、上传的图、从素材库挑的图
+     * 一律不写 —— 你亲手做的选择已经是一次确认了，再拦一道是仪式。
+     * 【历史】包 4–5 期间这里对**所有**生成路径无条件写 `awaiting_review`，与本
+     * 条注释的意图不符；包 6 片 1 修正，存量假待审不回填（审掉即可）。
      *
      * `.catch(undefined)` 与 `lineage` / `mediaWidth` 同一条安全带：一条记录坏掉
      * 时整个字段降级成 undefined（＝全部按通过），而不是让整份工作流状态解析失败

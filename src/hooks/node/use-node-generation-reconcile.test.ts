@@ -146,6 +146,87 @@ describe('useNodeGenerationReconcile', () => {
     )
   })
 
+  describe('待审队列的来源判据（包 6 ①-bis）', () => {
+    it('marks an assistant-sourced backfill as awaiting review', async () => {
+      // 这条分支是那个洞的补丁：助手生成一旦跑出前台轮询窗口，结果就只在这里落
+      // 地。不在这儿补标，它会静默逃过审核门（查不到 = 祖父条款 = 直接算通过）。
+      vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-a1', status: 'COMPLETED', generation: GENERATION },
+      })
+
+      const nodes = [
+        makeNode('node-a1', NODE_TYPE_IDS.image, {
+          generationStatus: 'pending',
+          mediaJobId: 'job-a1',
+          mediaJobSource: 'assistant',
+          mediaKind: 'image',
+        }),
+      ]
+
+      renderHook(() =>
+        useNodeGenerationReconcile({ nodes, updateNodeData, formatError }),
+      )
+
+      await waitFor(() => expect(updateNodeData).toHaveBeenCalledTimes(1))
+      const patch = updateNodeData.mock.calls[0]?.[1] as NodeWorkflowNodeData
+      expect(patch.mediaReview?.[GENERATION.url]?.state).toBe('awaiting_review')
+      expect(patch.mediaReview?.[GENERATION.url]?.markedAt).toEqual(
+        expect.any(String),
+      )
+      // 来源与 jobId 同生共死：落地即清，免得下一次用户生成读到旧值。
+      expect(patch.mediaJobSource).toBeUndefined()
+    })
+
+    it('leaves a user-sourced backfill out of the queue', async () => {
+      vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-u1', status: 'COMPLETED', generation: GENERATION },
+      })
+
+      const nodes = [
+        makeNode('node-u1', NODE_TYPE_IDS.image, {
+          generationStatus: 'pending',
+          mediaJobId: 'job-u1',
+          mediaJobSource: 'user',
+          mediaKind: 'image',
+        }),
+      ]
+
+      renderHook(() =>
+        useNodeGenerationReconcile({ nodes, updateNodeData, formatError }),
+      )
+
+      await waitFor(() => expect(updateNodeData).toHaveBeenCalledTimes(1))
+      const patch = updateNodeData.mock.calls[0]?.[1] as NodeWorkflowNodeData
+      expect(patch.mediaReview).toBeUndefined()
+    })
+
+    it('leaves a source-less (legacy) backfill out of the queue', async () => {
+      // 存量节点没有这个字段。缺省不拦 —— 漏拦一张比错拦用户自己的生成轻。
+      vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-l1', status: 'COMPLETED', generation: GENERATION },
+      })
+
+      const nodes = [
+        makeNode('node-l1', NODE_TYPE_IDS.image, {
+          generationStatus: 'pending',
+          mediaJobId: 'job-l1',
+          mediaKind: 'image',
+        }),
+      ]
+
+      renderHook(() =>
+        useNodeGenerationReconcile({ nodes, updateNodeData, formatError }),
+      )
+
+      await waitFor(() => expect(updateNodeData).toHaveBeenCalledTimes(1))
+      const patch = updateNodeData.mock.calls[0]?.[1] as NodeWorkflowNodeData
+      expect(patch.mediaReview).toBeUndefined()
+    })
+  })
+
   it('routes video and audio nodes to their own status endpoints', async () => {
     vi.mocked(checkVideoStatusAPI).mockResolvedValue({
       success: true,

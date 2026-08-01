@@ -4511,6 +4511,7 @@
       "addNode": "Add node",
       "arrange": "Arrange canvas",
       "save": "Save",
+      "startReview": "{count} awaiting review · start reviewing",
       "collapse": "Collapse topbar to show the full canvas",
       "expand": "Expand topbar",
       "defaultModel": "Default",
@@ -4875,6 +4876,21 @@
       "reject": "Send back",
       "awaitingReview": "Awaiting review",
       "rejected": "Sent back"
+    },
+    "reviewMode": {
+      "title": "Reviewing",
+      "remaining": "{count} left",
+      "previous": "Previous",
+      "next": "Next",
+      "exit": "Exit review",
+      "previousVersion": "Previous",
+      "currentVersion": "Current",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why this one is out (optional)",
+      "promptPatchLabel": "Prompt tweak",
+      "promptPatchPlaceholder": "What to change for the retry",
+      "regenerate": "Tweak & retry",
+      "regenerating": "Regenerating"
     },
     "canvasOps": {
       "title": "The assistant wants to change the canvas",

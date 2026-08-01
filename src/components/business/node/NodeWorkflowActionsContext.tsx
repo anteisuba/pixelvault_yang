@@ -9,6 +9,7 @@ import type {
 import type { NodeStudioToolMode } from '@/constants/node-studio'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
+import type { NodeReviewMode } from '@/hooks/node/use-node-review-mode'
 import type { GenerateComposerSendInput } from '@/hooks/node/use-generate-composer'
 import type { PlannedNodeAssistantOp } from '@/lib/node-assistant-op-plan'
 import type {
@@ -206,6 +207,27 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   runAssistantCanvasOps?(
     ops: readonly PlannedNodeAssistantOp[],
   ): Promise<NodeAssistantOpRunResult>
+  /**
+   * 包 6 片 2 显式审阅模式的全部状态与推进动作（`useNodeReviewMode` 的返回值）。
+   * 队列本身是从 `nodes` 推出来的派生量，所以模式实例只能有一个，住在 workbench，
+   * 经这条通路给模式条、顶栏徽标和助手 dock 共用。
+   *
+   * 可选：既有的一批 context mock 不必跟着补，`undefined` 读作「没有审阅模式」，
+   * 与本包之前的行为完全一致。
+   */
+  reviewMode?: NodeReviewMode
+  /**
+   * 审阅里的「打回 → 改词再来」（③ + ⑥）。
+   *
+   * ⚠ 它**不是** `generateMediaNode` 的别名，两者的来源语义相反：走 context 的
+   * `generateMediaNode` 一律算用户发起、结果不进待审队列；这一条按 ⑥ 算**助手
+   * 发起**，结果重新回到队列 —— 「改词再来时决定的仍然是 AI，而且这张图正是为了
+   * 替换一张你已经否掉的图，最该看一眼」。所以是两个动作，不是一个带开关的动作。
+   *
+   * `promptAppend` 由 workbench 直接合并进这一次生成的提示词，不靠调用方先写节点
+   * 再指望生成读到（`updateNodeData` 是 setState，同一 tick 读不到自己刚写的值）。
+   */
+  regenerateForReview?(nodeId: string, promptAppend?: string): Promise<void>
 }
 
 /** 一批 op 实际执行完的账：给用户一句可信的回执，而不是「已应用」四个字。 */

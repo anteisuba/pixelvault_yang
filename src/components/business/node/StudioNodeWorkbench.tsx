@@ -55,6 +55,7 @@ import {
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
+  NODE_GENERATION_SOURCE_IDS,
   NODE_GENERATION_STATUS_IDS,
   NODE_IMAGE_ROLE_IDS,
   NODE_IMAGE_ROLE_TO_LEGACY_TYPE,
@@ -64,6 +65,7 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
+  type NodeGenerationSource,
   type NodeImageRole,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
@@ -86,6 +88,10 @@ import {
 } from '@/hooks/node/use-generate-composer'
 import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
+import {
+  useNodeReviewMode,
+  type NodeReviewMode,
+} from '@/hooks/node/use-node-review-mode'
 import {
   applyBiteHover,
   clearBiteHover,
@@ -166,6 +172,7 @@ import {
   resolveNodeEdgeVisibility,
 } from '@/lib/node-edge-tier'
 import { isNodeWorkflowGenerating } from '@/lib/node-workflow-edge-visual'
+import { cn } from '@/lib/utils'
 import {
   canComposeVideoMergeSelection,
   sortNodesForVideoMergeCompose,
@@ -199,6 +206,7 @@ import {
   type SpawnReferenceInput,
 } from './NodeWorkflowActionsContext'
 import { ProjectNameDialog } from './ProjectNameDialog'
+import { ReviewModeBar } from './ReviewModeBar'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { VideoMergeComposeToolbar } from './VideoMergeComposeToolbar'
 import { NodeDetailPanel } from './node-detail/NodeDetailPanel'
@@ -602,7 +610,13 @@ function StudioNodeCanvas() {
   // Radix 自己处理，不重复注册。
   useOverlayFocusReturn(assistantDockOpen && assistantExpanded)
 
-  // R3-4 §4.2 Esc 链（档3→档2→L5→取消选中，一次一层）。NodeDetailPanel(档2)
+  /** 包 6 片 2：审阅模式的实时句柄，给下方 Esc 链与快捷键读（见那里的说明）。 */
+  const reviewModeRef = useRef<NodeReviewMode | null>(null)
+  /** 助手每铺完一批 +1；下面那个 effect 据此提示一次「去审吧」。 */
+  const [assistantBatchMark, setAssistantBatchMark] = useState(0)
+  const assistantBatchNoticeRef = useRef(0)
+
+  // R3-4 §4.2 Esc 链（档3→档2→L5→**审阅模式**→取消选中，一次一层）。NodeDetailPanel(档2)
   // 和 CanvasImageEditWorkspace(档3-image，Radix Dialog) 已经各自听自己的
   // Escape——两者都用整屏 backdrop 挡住下层交互，永远不会跟这里的分支同时
   // 是"当前最高层"，所以 expandedNodeId / imageEditWorkspaceOpen 存在时这里
@@ -622,6 +636,16 @@ function StudioNodeCanvas() {
       }
       if (addMenu) {
         setAddMenu(null)
+        return
+      }
+      // 包 6 片 2：审阅模式的三条出口之一。排在「取消选中」之前 —— 模式是更外
+      // 的一层，用户按 Esc 想退的是模式，不是当前那张卡的选中态。
+      // 走 ref 是因为 `reviewMode` 在本组件更下面才声明（它要等
+      // `handleFocusNode`），而依赖数组是**渲染时**求值的，直接写进去会撞 TDZ。
+      // 同 `quickThrowApiRef` 的手法：监听器按键时才读，那时早已赋值。
+      const review = reviewModeRef.current
+      if (review?.active) {
+        review.exit()
         return
       }
       const hasSelection = workflow.nodes.some((node) => node.selected)
@@ -992,6 +1016,10 @@ function StudioNodeCanvas() {
         generationStatus: NODE_GENERATION_STATUS_IDS.pending,
         imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
         imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+        // 用户路径必须**主动清**上一次的来源：这个节点可能刚被助手生成过，留着
+        // `assistant` 的话，本次生成一旦转 pending，reconcile 会照旧值把用户自
+        // 己点的结果标进待审队列（包 6 ①-bis 的反向误判）。
+        mediaJobSource: undefined,
         status: NODE_STATUS_IDS.running,
       })
 
@@ -1064,8 +1092,10 @@ function StudioNodeCanvas() {
           sourceGenerationId: undefined,
           sourceLabel: undefined,
           status: NODE_STATUS_IDS.done,
-          // 包 4：AI 出的图默认「已出未审」。用户自己上传/挑的图不走这条路。
-          ...markMediaAwaitingReview(node.data, result.imageUrl),
+          // 包 6 ①-bis：**故意不标待审**。这条路只有用户能走（角色卡上的生成
+          // 按钮）——助手的 generate op 走 `handleGenerateMediaNode`，characterImage
+          // 在 NODE_MEDIA_KIND_BY_NODE_TYPE 里也是 image kind。你亲手点的生成
+          // 你已经在场，再拦一道是仪式。别按「AI 出的图都该待审」加回来。
         })
         toast.success(t('toasts.characterGenerated'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
@@ -1114,12 +1144,37 @@ function StudioNodeCanvas() {
     [characterImageGeneration, t, tErrors, workflow],
   )
 
+  /**
+   * 生成一个媒体节点。**用户和助手共用这一个入口** —— `node-assistant-op-plan`
+   * 文件头写明助手的 generate op 与这里是同一组前提，所以两边不能各走一份。
+   *
+   * 正因为共用，「谁发起的」没有天然接缝，只能**显式传**（包 6 ①-bis）：
+   * `source` 决定结果进不进待审队列。⛔ 禁止改成从「助手 dock 开着吗」「有没有
+   * pending op」反推 —— 助手关掉后重跑同一个节点，那种推断当场判错。
+   *
+   * 默认 `user`：漏传时的后果是「少拦一道」，比错拦用户自己的生成轻。
+   *
+   * `promptOverride` 是「本次用这个 free prompt，别读节点上的那个」。审阅里的
+   * 「改词再来」需要它：调用方刚把新词写进节点，但 `updateNodeData` 是 setState，
+   * 本函数闭包里的 `workflow.nodes` 还是写之前的快照（`use-generate-composer`
+   * 文件头记的同一条 same-tick stale-closure）。把值直接递进来是唯一不靠时序的
+   * 写法。只替 `data.prompt` 一项 —— 镜头/构图/动作那些结构字段照旧参与拼装。
+   */
   const handleGenerateMediaNode = useCallback(
-    async (nodeId: string) => {
+    async (
+      nodeId: string,
+      source: NodeGenerationSource = NODE_GENERATION_SOURCE_IDS.user,
+      promptOverride?: string,
+    ) => {
       const node = workflow.nodes.find((item) => item.id === nodeId)
       const kind = node ? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] : undefined
       const ownPrompt = node
-        ? buildNodeWorkflowPrompt(node.type, node.data)
+        ? buildNodeWorkflowPrompt(
+            node.type,
+            promptOverride === undefined
+              ? node.data
+              : { ...node.data, prompt: promptOverride },
+          )
         : ''
       const model = node?.data.model
 
@@ -1247,6 +1302,9 @@ function StudioNodeCanvas() {
             }
           : {}),
         mediaKind: kind,
+        // 派发时就落盘来源：这一次生成若超出轮询窗口（甚至跨刷新），回填由
+        // `use-node-generation-reconcile` 做，那时内存里的 `source` 早没了。
+        mediaJobSource: source,
         status: NODE_STATUS_IDS.running,
       })
 
@@ -1608,11 +1666,18 @@ function StudioNodeCanvas() {
               }
             : {}),
           mediaJobId: undefined,
+          mediaJobSource: undefined,
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
-          // 包 4：AI 出的媒体默认「已出未审」（图/视频/音频同理，门禁这一期
+          // 包 4：助手出的媒体默认「已出未审」（图/视频/音频同理，门禁这一期
           // 只挡 image_urls，但状态一视同仁地记，免得以后补别的门要回填历史）。
-          ...markMediaAwaitingReview(node.data, result.mediaUrl),
+          // 包 6 ①-bis：用户自己点的生成不进队列 —— 判据是显式来源，不是「有没
+          // 有生成成功」。
+          ...(source === NODE_GENERATION_SOURCE_IDS.assistant
+            ? markMediaAwaitingReview(node.data, result.mediaUrl, {
+                markedAt: new Date().toISOString(),
+              })
+            : {}),
           ...(isVideoMediaNode
             ? {
                 videoThumbnailUrl: result.thumbnailUrl,
@@ -1667,6 +1732,8 @@ function StudioNodeCanvas() {
         // The poll window closed but the job is still running server-side.
         // Hold the node in `pending` (not idle) with its jobId persisted so the
         // reconcile pass backfills the result instead of dropping it.
+        // ⚠ `mediaJobSource` **有意不清** —— 派发时写下的那个值正是给 reconcile
+        // 用的，这一条分支恰恰是它存在的理由。
         workflow.updateNodeData(nodeId, {
           generationError: undefined,
           generationStatus: NODE_GENERATION_STATUS_IDS.pending,
@@ -1697,6 +1764,7 @@ function StudioNodeCanvas() {
             }
           : {}),
         mediaJobId: undefined,
+        mediaJobSource: undefined,
         mediaKind: kind,
         status: NODE_STATUS_IDS.failed,
       })
@@ -1801,6 +1869,9 @@ function StudioNodeCanvas() {
           referenceAssets,
           mediaKind: NODE_MEDIA_KIND_IDS.image,
           generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+          // 同上：清掉上一次可能是助手写的来源，免得这次用户生成转 pending 后被
+          // reconcile 按旧值标进待审队列。
+          mediaJobSource: undefined,
           status: NODE_STATUS_IDS.running,
         })
         targetIds.push(targetId)
@@ -1863,12 +1934,9 @@ function StudioNodeCanvas() {
         )
 
         if (result.success) {
-          // 包 4：读一次目标节点的当前数据再合并审核表。`updateNodeData` 是浅合
-          // 并，直接写 `{mediaReview:{新URL:...}}` 会把这个节点上**旧图的审核记
-          // 录整张覆盖掉** —— 一张被打回过的旧图会因此静默变回「通过」。
-          const targetData = workflow.nodes.find(
-            (item) => item.id === targetId,
-          )?.data
+          // 包 6 ①-bis：**故意不标待审**。编辑框发送是用户亲手发起的生成（这里
+          // 还是他自己设的 batchCount 连发），已经是一次确认。助手不走这条路 ——
+          // 它的 generate op 只调 `handleGenerateMediaNode`。别加回来。
           workflow.updateNodeData(targetId, {
             generationError: undefined,
             generationId: result.generation.id,
@@ -1880,9 +1948,6 @@ function StudioNodeCanvas() {
             mediaJobId: undefined,
             mediaKind: NODE_MEDIA_KIND_IDS.image,
             mediaUrl: result.mediaUrl,
-            ...(targetData
-              ? markMediaAwaitingReview(targetData, result.mediaUrl)
-              : {}),
             // ⚠ 包 4.5：**不再**把 `generation.model` 写进 `mediaLabel`。
             // `mediaLabel` 是显示名字段（卡面标签 / 卡匣 / 助手 payload 全读它），
             // 把模型 id 写进去等于替用户起了个名 —— 一张从没被命名过的生成图，
@@ -1942,6 +2007,37 @@ function StudioNodeCanvas() {
     [nodeMediaGeneration, t, tErrors, workflow],
   )
 
+  /**
+   * 审阅里的「打回 → 改词再来」（包 6 ③ + ⑥）。
+   *
+   * 两件事必须在同一处做，所以是一个高层动作而不是两个原语的组合：
+   *   ① 把改词并进节点提示词（用户之后在卡上看得到自己改了什么）
+   *   ② 用**合并后的**词立刻重跑，且来源算**助手** —— 结果因此重新回到待审队列，
+   *      审阅循环闭合（⑥ 的理由：改词再来时决定的仍然是 AI）
+   *
+   * ⚠ 合并结果是**递**给生成函数的，不是写完再让它自己读。`updateNodeData` 是
+   * setState，同一 tick 读不到自己刚写的值。
+   */
+  const handleRegenerateForReview = useCallback(
+    async (nodeId: string, promptAppend?: string) => {
+      const node = workflow.nodes.find((item) => item.id === nodeId)
+      if (!node) return
+      const appended = promptAppend?.trim()
+      const merged = appended
+        ? [node.data.prompt?.trim(), appended].filter(Boolean).join('\n')
+        : undefined
+      if (merged !== undefined) {
+        workflow.updateNodeData(nodeId, { prompt: merged })
+      }
+      await handleGenerateMediaNode(
+        nodeId,
+        NODE_GENERATION_SOURCE_IDS.assistant,
+        merged,
+      )
+    },
+    [handleGenerateMediaNode, workflow],
+  )
+
   const handleFocusNode = useCallback(
     (nodeId: string) => {
       const targetNode = workflow.nodes.find((node) => node.id === nodeId)
@@ -1965,6 +2061,74 @@ function StudioNodeCanvas() {
     },
     [fitView, workflow],
   )
+
+  // 包 6 片 2 显式审阅模式。队列是从 `workflow.nodes` 推出来的派生量，所以实例只
+  // 能有一个，住在这里，经 context 给模式条 / 顶栏徽标 / 助手 dock 共用。
+  // 「相机自动飞到那张」直接复用 `handleFocusNode`（选中 + fitView），不另造一套
+  // 相机动作 —— D2 消除「找」的成本靠的就是这一下。
+  const reviewMode = useNodeReviewMode({
+    nodes: workflow.nodes,
+    focusNode: handleFocusNode,
+  })
+  reviewModeRef.current = reviewMode
+
+  // 进入①：助手铺完一批之后的提示行。`assistantBatchMark` 由
+  // `handleRunAssistantCanvasOps` 递增（那里读不到新鲜的待审数，见那边的说明），
+  // 这里在新一轮渲染上读到真正的队列长度再提示，一批只提示一次。
+  useEffect(() => {
+    if (assistantBatchMark === 0) return
+    if (assistantBatchNoticeRef.current === assistantBatchMark) return
+    if (reviewMode.remaining === 0) return
+    assistantBatchNoticeRef.current = assistantBatchMark
+    toast(t('topbar.startReview', { count: reviewMode.remaining }), {
+      action: {
+        label: t('reviewMode.title'),
+        onClick: () => reviewMode.enter(),
+      },
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [assistantBatchMark, reviewMode, t])
+
+  // 进入的第三条：快捷键。①助手铺完的提示行、②顶栏待审徽标在别处。
+  // 三条进入 + 三条退出（Esc / 审完自动退 / 模式内「退出审阅」按钮），缺一不可
+  // ——否则会出现「困在审阅里」的经典 bug（②-A 的硬条件）。
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // ⚠ 比 `key === 'R'` 宽：按下 Shift 时 `key` 到底是 'R' 还是 'r' 取决于
+      // 键盘布局与 CapsLock，真机实测就撞上过（自动化按 shift+r 时收到的是 'r'）。
+      // 显式排掉 Ctrl/Meta/Alt —— Ctrl+Shift+R 是浏览器硬刷新，不能抢。
+      if (
+        event.key.toLowerCase() !== 'r' ||
+        !event.shiftKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.isComposing
+      ) {
+        return
+      }
+      // 在输入框里打字时不抢键。
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      ) {
+        return
+      }
+      const review = reviewModeRef.current
+      if (!review) return
+      event.preventDefault()
+      if (review.active) review.exit()
+      else review.enter()
+    }
+    // ⚠ **capture 相**。真机实测：普通字母键在 window 的**冒泡**相根本收不到，
+    // 路上有人 stopPropagation（Esc 能收到，所以不是全局吞键）。捕获相是唯一
+    // 稳的挂法 —— 别为了跟下面的 Esc 链写法一致改回冒泡。
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [])
 
   useEffect(() => {
     if (!isLoaded || !userId || !workflow.isHydrated || !imageEditHandoff) {
@@ -2180,7 +2344,22 @@ function StudioNodeCanvas() {
   // `fusedIntoNodeId` markers are removed during hydration; keeping the render
   // input identical to the persisted node array also protects old projects
   // that are opened before their healed state is written back to the server.
-  const renderedNodes = workflow.nodes
+  //
+  // 包 6 片 2：审阅模式里给「正在审的那一张」挂一个渲染期类名，让 canvas.css 的
+  // 弱化规则认得出它（§4.6「非待审弱化不隐藏，当前对象唯一强调」）。同样只在渲染
+  // 期加，`workflow.nodes` 一个字都不动。⚠ 只有进了模式才 map —— 不在模式里必须
+  // 原样透传同一个数组引用，否则每一帧拖拽都会重建整张节点数组。
+  const reviewCurrentNodeId = reviewMode.active
+    ? (reviewMode.current?.nodeId ?? null)
+    : null
+  const renderedNodes = useMemo(() => {
+    if (!reviewCurrentNodeId) return workflow.nodes
+    return workflow.nodes.map((node) =>
+      node.id === reviewCurrentNodeId
+        ? { ...node, className: cn(node.className, 'canvas-review-current') }
+        : node,
+    )
+  }, [reviewCurrentNodeId, workflow.nodes])
 
   // R3-1 选中集合（canvas-relationship-v3 §2.2）: `workflow.nodes[].selected`
   // already round-trips through `workflow.onNodesChange` (applyNodeChanges
@@ -2764,6 +2943,8 @@ function StudioNodeCanvas() {
       const createdNodeIds: string[] = []
       let applied = 0
       let skipped = 0
+      /** 这一批里真的跑了几次生成 —— 只有它 >0 才值得提示「去审吧」。 */
+      let generated = 0
 
       const resolveNodeId = (
         reference: NodeAssistantOpNodeRef | undefined,
@@ -2869,7 +3050,9 @@ function StudioNodeCanvas() {
                   reviewedAt,
                   ...(op.reason ? { reason: op.reason } : {}),
                 })
-              : markMediaAwaitingReview(base, entry.mediaUrl)
+              : markMediaAwaitingReview(base, entry.mediaUrl, {
+                  markedAt: reviewedAt,
+                })
           dataOverrideById.set(targetId, {
             ...dataOverrideById.get(targetId),
             ...patch,
@@ -2887,11 +3070,21 @@ function StudioNodeCanvas() {
           skipped += 1
           continue
         }
-        await handleGenerateMediaNode(targetId)
+        // 包 6 ①-bis：**这里是待审队列唯一的入口**。来源显式传，不靠环境推断。
+        await handleGenerateMediaNode(
+          targetId,
+          NODE_GENERATION_SOURCE_IDS.assistant,
+        )
+        generated += 1
         applied += 1
       }
 
       if (createdNodeIds[0]) handleFocusNode(createdNodeIds[0])
+
+      // 包 6 片 2 进入①：助手铺完一批 → 直接问「要不要现在审」。
+      // 只打个标记、把提示留给下面的 effect：这个闭包里的 `workflow.nodes` 还是
+      // 生成之前的快照，在这儿数待审数量必然读到旧值。
+      if (generated > 0) setAssistantBatchMark((mark) => mark + 1)
 
       return { applied, skipped, createdNodeIds }
     },
@@ -3503,6 +3696,10 @@ function StudioNodeCanvas() {
       canUndo: workflow.canUndo,
       canRedo: workflow.canRedo,
       generateCharacterImage: handleGenerateCharacterImage,
+      // ⚠ context 的签名只有 `(nodeId)`，第二个来源参数**够不着** —— 这是有意
+      // 的：走 context 的全是用户操作（卡上的生成/重试、Inspector、编辑框），
+      // 一律落 `user`。助手不走 context，它在本文件里直接调并显式传 assistant。
+      // 别为了「让某个组件也能传来源」把 context 签名加宽（包 6 ①-bis）。
       generateMediaNode: handleGenerateMediaNode,
       enhanceSeedancePrompt: handleEnhanceSeedancePrompt,
       focusGeneratedNodes: handleFocusGeneratedNodes,
@@ -3513,6 +3710,8 @@ function StudioNodeCanvas() {
       extractReference: handleExtractReference,
       runGenerateComposer: handleRunGenerateComposer,
       runAssistantCanvasOps: handleRunAssistantCanvasOps,
+      reviewMode,
+      regenerateForReview: handleRegenerateForReview,
       quickEditNodeId,
       setQuickEditNodeId,
       toolMode,
@@ -3555,6 +3754,8 @@ function StudioNodeCanvas() {
       handleGenerateMediaNode,
       handleRunAssistantCanvasOps,
       handleRunGenerateComposer,
+      handleRegenerateForReview,
+      reviewMode,
       quickEditNodeId,
       modelOptionsByType,
       setToolMode,
@@ -3634,6 +3835,7 @@ function StudioNodeCanvas() {
         assistantMode={assistantMode}
         stageRef={canvasRef}
         stageStyle={canvasStageStyle}
+        reviewMode={reviewMode.active}
         assistant={
           <StudioNodeAssistantDock
             open={assistantDockOpen}
@@ -3763,7 +3965,12 @@ function StudioNodeCanvas() {
               onRenameProject={handleRenameProject}
               onDeleteProject={handleDeleteProject}
               onSwitchProject={handleSwitchProject}
+              reviewPendingCount={reviewMode.remaining}
+              onStartReview={reviewMode.enter}
             />
+            {/* 包 6 片 2：模式条。只在模式里渲染（组件自己判），是本模式唯一新增
+                的表面 —— 审核动作仍在编辑框参数条首位（owner 拍板的落点）。 */}
+            <ReviewModeBar />
             {/* Bottom chrome: tools + 卡匣 handle share one centered row. */}
             <div
               className="pointer-events-none absolute bottom-3 z-canvas-chrome flex items-end justify-center gap-2"

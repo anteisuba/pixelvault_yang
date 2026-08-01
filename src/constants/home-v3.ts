@@ -274,6 +274,10 @@ const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
   'seedream-5.0-pro': '/homepage/production/models/brand/bytedance.svg',
   'seedream-5.0-lite': '/homepage/production/models/brand/bytedance.svg',
   'seedream-5.0-volcengine': '/homepage/production/models/brand/bytedance.svg',
+  'seedream-5.0-lite-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedream-5.0-pro-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
   'recraft-v4-pro': '/homepage/production/models/brand/recraft.svg',
   'seedance-2.0-fast': '/homepage/production/models/brand/bytedance.svg',
   'seedance-2.0': '/homepage/production/models/brand/bytedance.svg',
@@ -288,6 +292,17 @@ const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
   'seedance-2.0-reference-volcengine':
     '/homepage/production/models/brand/bytedance.svg',
   'happyhorse-1.0': '/homepage/production/models/brand/alibaba-cloud.svg',
+  // Reserved (available: false) so it never reaches the rail today, but mapped
+  // now so flipping 2.5 on at GA doesn't leave the homepage without art.
+  'seedance-2.5-volcengine': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.5-reference-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  // Both MiniMax stations show the same mark — the station is an execution
+  // detail, not a different model owner.
+  'minimax-h3': '/homepage/production/models/brand/minimax.svg',
+  'minimax-h3-reference': '/homepage/production/models/brand/minimax.svg',
+  'minimax-h3-cn': '/homepage/production/models/brand/minimax.svg',
+  'minimax-h3-reference-cn': '/homepage/production/models/brand/minimax.svg',
   'eleven-music-v2': '/homepage/production/models/brand/eleven-music.svg',
   'kling-v3-pro': '/homepage/production/models/brand/kling.svg',
   'kling-o3-pro': '/homepage/production/models/brand/kling.svg',

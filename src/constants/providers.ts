@@ -15,6 +15,20 @@ export enum AI_ADAPTER_TYPES {
   DASHSCOPE = 'dashscope',
   ELEVENLABS = 'elevenlabs',
   /**
+   * MiniMax (Hailuo) — 国际站 api.minimax.io. Video-only route today
+   * (MiniMax-H3). Native direct is **half the price of the same model on
+   * fal** ($0.13 vs $0.26 per 2K second) — see docs/references/model-pricing.md.
+   */
+  MINIMAX = 'minimax',
+  /**
+   * MiniMax 国内站 api.minimaxi.com（域名多一个 `i`）. A separate adapter type
+   * rather than a config flag because the two stations are **fully separate**:
+   * accounts are registered independently and **API keys are not
+   * interchangeable** — a CN key rejected against the global host and vice
+   * versa. Key storage is keyed by adapterType, so one type per station.
+   */
+  MINIMAX_CN = 'minimax_cn',
+  /**
    * Claude (Anthropic Messages API) — BYOK, text-only. Sonnet 5 is the only
    * model on this route (owner 2026-07-26 decree — no Opus): structural
    * reasoning (multi-scene continuity, character arcs, shot planning) for
@@ -51,6 +65,8 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.HYPER3D_RODIN,
   AI_ADAPTER_TYPES.DASHSCOPE,
   AI_ADAPTER_TYPES.ELEVENLABS,
+  AI_ADAPTER_TYPES.MINIMAX,
+  AI_ADAPTER_TYPES.MINIMAX_CN,
   AI_ADAPTER_TYPES.ANTHROPIC,
 ] as const
 
@@ -110,6 +126,17 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'ElevenLabs',
     baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
   },
+  // Two stations, two entries — see the MINIMAX_CN enum comment for why they
+  // can't share one. Labels stay ASCII brand names (same convention as
+  // 'VolcEngine' / 'Qwen') so the picker doesn't need i18n plumbing.
+  [AI_ADAPTER_TYPES.MINIMAX]: {
+    label: 'MiniMax',
+    baseUrl: AI_PROVIDER_ENDPOINTS.MINIMAX,
+  },
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: {
+    label: 'MiniMax (CN)',
+    baseUrl: AI_PROVIDER_ENDPOINTS.MINIMAX_CN,
+  },
   // 'Claude' not 'Anthropic': the selector shows the model-family name to
   // users, matching the existing 'Qwen' (not 'DashScope') convention.
   [AI_ADAPTER_TYPES.ANTHROPIC]: {
@@ -136,6 +163,9 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'sk_...',
+  // MiniMax issues long JWT-shaped keys on both stations.
+  [AI_ADAPTER_TYPES.MINIMAX]: 'eyJhbGci...',
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: 'eyJhbGci...',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'sk-ant-...',
   // Platform-managed only — never entered by a user (no BYOK UI slot).
   [AI_ADAPTER_TYPES.RUNNER]: 'n/a (platform-managed)',
@@ -155,6 +185,10 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
   [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
   [AI_ADAPTER_TYPES.ELEVENLABS]: 5,
+  // 2K-only video at $0.13/s native — between the Seedance fast tier (4) and
+  // the premium video tier (6).
+  [AI_ADAPTER_TYPES.MINIMAX]: 5,
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: 5,
   // Same tier as OPENAI — both premium-priced text/reasoning routes.
   [AI_ADAPTER_TYPES.ANTHROPIC]: 3,
   // Faithful recipe clone — heavier than a plain hosted call (cold-start
@@ -176,6 +210,8 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
+  [AI_ADAPTER_TYPES.MINIMAX]: 'MiniMax-H3',
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: 'MiniMax-H3',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'claude-sonnet-5',
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
@@ -253,6 +289,16 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.ELEVENLABS]: {
     url: 'https://elevenlabs.io/app/settings/api-keys',
     steps: 'Sign in → Settings → API Keys → Create API Key (sk_...).',
+  },
+  [AI_ADAPTER_TYPES.MINIMAX]: {
+    url: 'https://platform.minimax.io/user-center/basic-information/interface-key',
+    steps:
+      'Sign in (global station) → 用户中心 → 接口密钥 → 创建密钥. ⚠ 国际站与国内站账号独立、密钥不通用——本条目只接受 api.minimax.io 的密钥。',
+  },
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: {
+    url: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+    steps:
+      'Sign in (国内站 minimaxi.com，域名多一个 i) → 用户中心 → 接口密钥 → 创建密钥. ⚠ 国内站密钥打国际站地址会被拒，反之亦然。',
   },
   [AI_ADAPTER_TYPES.ANTHROPIC]: {
     url: 'https://console.anthropic.com/settings/keys',

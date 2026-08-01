@@ -435,6 +435,13 @@ export const AI_PROVIDER_ENDPOINTS = {
   // the CN host (dashscope.aliyuncs.com) and vice versa.
   DASHSCOPE: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   ELEVENLABS: 'https://api.elevenlabs.io',
+  // MiniMax (Hailuo) video — 国际站. Async video面: POST `/video_generation`
+  // → task_id, GET `/query/video_generation/{id}` → task.content.url.
+  // ⚠ 国内站与国际站是**完全分开的两套**：不同域名（minimaxi.com 多一个 i）、
+  // 分别注册的账号、**key 不通用**（跨用被拒），服务区域按下单平台决定。
+  // 因此两条线各占一个 adapterType，各存各的 key。
+  MINIMAX: 'https://api.minimax.io/v2',
+  MINIMAX_CN: 'https://api.minimaxi.com/v2',
   // Anthropic Messages API. `llmTextCompletion`'s anthropic branch appends
   // `/messages` — headers are `x-api-key` + `anthropic-version`, not Bearer.
   ANTHROPIC: 'https://api.anthropic.com/v1',

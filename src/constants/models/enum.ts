@@ -21,8 +21,29 @@ export enum AI_MODELS {
   SEEDREAM_50_PRO = 'seedream-5.0-pro',
   /** Seedream 5.0 Lite — value tier with web-search-grounded prompts. */
   SEEDREAM_50_LITE = 'seedream-5.0-lite',
-  /** Seedream 5.0 via VolcEngine (火山方舟) direct API — cn region. */
+  /**
+   * Seedream 5.0 **base** via VolcEngine (火山方舟) direct API — cn region.
+   * ⚠ This is `doubao-seedream-5-0-260128`, NOT the Pro tier. It is the id
+   * that carries 组图生成 (group/multi-image output); the Pro below does not.
+   */
   SEEDREAM_50_VOLCENGINE = 'seedream-5.0-volcengine',
+  /**
+   * Seedream 5.0 **Pro** via VolcEngine — the native counterpart to the
+   * fal-routed SEEDREAM_50_PRO, which fal resells at ~1.6× ($0.0675 vs 火山's
+   * 0.30 元 ≈ $0.042 for the same ≤236万像素 tier; fal's 1536² boundary and
+   * 火山's 236万像素 are the same 2.36M-pixel line).
+   *
+   * ⚠ Not a superset of the base entry above — Pro does 单图生成 only and
+   * drops 组图生成, so both ids stay in the catalog.
+   */
+  SEEDREAM_50_PRO_VOLCENGINE = 'seedream-5.0-pro-volcengine',
+  /**
+   * Seedream 5.0 Lite via VolcEngine — native counterpart to the fal-routed
+   * SEEDREAM_50_LITE above. fal resells the same model at $0.035/image against
+   * 火山's 0.22 元 (~$0.031), so the direct line is the cheaper one.
+   * See docs/references/model-pricing.md.
+   */
+  SEEDREAM_50_LITE_VOLCENGINE = 'seedream-5.0-lite-volcengine',
   /** Nano Banana 2 Lite — ultra-low-latency Gemini image tier. */
   GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
@@ -77,6 +98,29 @@ export enum AI_MODELS {
    * gemini-3-pro-image-preview shutdown for why this matters).
    */
   GEMINI_OMNI_FLASH = 'gemini-omni-flash',
+  /**
+   * MiniMax H3 (Hailuo successor) via MiniMax's own API. Two stations because
+   * accounts and keys are not interchangeable between minimax.io (global) and
+   * minimaxi.com (CN) — see the MINIMAX_CN adapter-type comment.
+   *
+   * Base = text/first-frame/last-frame; `_REFERENCE` = the multimodal
+   * reference face (images + motion video + voice audio). Both hit the same
+   * execution id `MiniMax-H3`; only the `content` array differs, exactly like
+   * the Seedance VolcEngine variants.
+   */
+  /**
+   * Seedance 2.5 via VolcEngine. **Reserved, not yet callable** (2026-08-01):
+   * 火山 has published pricing and the model detail page, but the API doc says
+   * 在线体验与 API 调用即将上线 and the model list carries no dated id yet.
+   * Entries ship `available: false`; GA is a one-line externalModelId swap —
+   * the same trick the GEMINI_OMNI_FLASH enum value above exists for.
+   */
+  SEEDANCE_25_VOLCENGINE = 'seedance-2.5-volcengine',
+  SEEDANCE_25_REFERENCE_VOLCENGINE = 'seedance-2.5-reference-volcengine',
+  MINIMAX_H3 = 'minimax-h3',
+  MINIMAX_H3_REFERENCE = 'minimax-h3-reference',
+  MINIMAX_H3_CN = 'minimax-h3-cn',
+  MINIMAX_H3_REFERENCE_CN = 'minimax-h3-reference-cn',
 
   // 3D models (image-to-3D)
   HUNYUAN3D_2_1 = 'hunyuan3d-2.1',

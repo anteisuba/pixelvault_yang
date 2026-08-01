@@ -171,6 +171,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       referenceImageMode: 'native',
     },
 
+    // Video-only route. This table drives the **image** parameter controls, and
+    // H3 generates no images — hence empty, same as the LLM-only lines below.
+    [AI_ADAPTER_TYPES.MINIMAX]: {
+      capabilities: [],
+    },
+    [AI_ADAPTER_TYPES.MINIMAX_CN]: {
+      capabilities: [],
+    },
+
     [AI_ADAPTER_TYPES.FISH_AUDIO]: {
       capabilities: ['voiceSelection', 'speed', 'sampleRate'],
     },

@@ -2380,6 +2380,14 @@
         "label": "VolcEngine",
         "description": "火山方舟で ByteDance Seedream 画像モデルと Seedance 動画モデルを使用。"
       },
+      "minimax": {
+        "label": "MiniMax",
+        "description": "MiniMax グローバル版（api.minimax.io）の H3 動画モデル。API キーは中国版と共用できません。"
+      },
+      "minimax_cn": {
+        "label": "MiniMax（中国）",
+        "description": "MiniMax 中国版（api.minimaxi.com）の H3 動画モデル。個別登録が必要で、API キーはグローバル版と互換性がありません。"
+      },
       "fish_audio": {
         "label": "Fish Audio",
         "description": "Fish Audio で高品質なテキスト読み上げを使用。30以上の言語で音声クローニング対応。"
@@ -3000,6 +3008,14 @@
       "label": "Seedream 5.0（火山エンジン）",
       "description": "火山エンジン（Ark）直接 API 経由の Seedream 5.0 — 中国リージョン。"
     },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由の Seedream 5.0 Pro — fal 経由の同モデルより安価。単一画像のみで、グループ生成は非対応。"
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite（火山エンジン）",
+      "description": "火山エンジン（Ark）直接 API 経由の Seedream 5.0 バリュー版 — 中国リージョン、fal 経由の同モデルより安価。"
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "最新のNovelAIモデル。生成忠実度向上、複数キャラクター対応、テキスト描画対応。"
@@ -3115,6 +3131,30 @@
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
       "description": "Google 動画（API は preview id のまま）— アリーナ高評価、ネイティブ音声。GA id 公開後に切替。"
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5（VolcEngine）",
+      "description": "ByteDance の 30 秒ワンパス生成モデル、火山方舟の直接 API 経由。予約枠 —— VolcEngine は API を未公開。"
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5（参照・VolcEngine）",
+      "description": "Seedance 2.5 の参照から動画生成。予約枠 —— VolcEngine は API を未公開。"
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax 直接接続 — 2K、ネイティブステレオ音声、4〜15 秒。Artificial Analysis の動画編集で 1 位。"
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3（参照）",
+      "description": "参照から動画生成 — 被写体画像 9 枚 + モーション動画 3 本 + 音声 3 本（合計 12 ファイルまで）"
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3（中国）",
+      "description": "MiniMax 中国サイト（minimaxi.com）経由 — アカウントと API キーはグローバル版と別。"
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3（参照・中国）",
+      "description": "参照から動画生成、中国サイト経由 — アカウントと API キーはグローバル版と別。"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",

@@ -2380,6 +2380,14 @@
         "label": "VolcEngine",
         "description": "Use VolcEngine (火山方舟) for ByteDance Seedream image and Seedance video models."
       },
+      "minimax": {
+        "label": "MiniMax",
+        "description": "MiniMax global station (api.minimax.io) for H3 video. Keys are not shared with the China station."
+      },
+      "minimax_cn": {
+        "label": "MiniMax (CN)",
+        "description": "MiniMax China station (api.minimaxi.com) for H3 video. Register separately — keys are not interchangeable with the global station."
+      },
       "fish_audio": {
         "label": "Fish Audio",
         "description": "Use Fish Audio for high-quality text-to-speech with 30+ language voice cloning."
@@ -3000,6 +3008,14 @@
       "label": "Seedream 5.0 (VolcEngine)",
       "description": "Seedream 5.0 via VolcEngine (Ark) direct API — China region."
     },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro (VolcEngine)",
+      "description": "Pro tier of Seedream 5.0 via VolcEngine (Ark) direct API — cheaper than the same model on fal. Single images only, no group output."
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite (VolcEngine)",
+      "description": "Value tier of Seedream 5.0 via VolcEngine (Ark) direct API — China region, cheaper than the same model on fal."
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "Latest NovelAI model with improved fidelity, multi-character support, and text rendering."
@@ -3115,6 +3131,30 @@
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
       "description": "Google video (still preview API id) — strong arena standing, native audio; watch for GA id."
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5 (VolcEngine)",
+      "description": "ByteDance's 30s single-pass model via VolcEngine direct API. Reserved — VolcEngine has not opened the API yet."
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5 (Reference, VolcEngine)",
+      "description": "Reference-to-video for Seedance 2.5. Reserved — VolcEngine has not opened the API yet."
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax direct — 2K, native stereo audio, 4-15s. #1 in video editing on Artificial Analysis."
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3 (Reference)",
+      "description": "Reference-to-video — up to 9 subject images, 3 motion videos, 3 voice clips (12 files total)."
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3 (CN)",
+      "description": "MiniMax H3 via the China station (minimaxi.com). Separate account and key from the global station."
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3 (Reference, CN)",
+      "description": "Reference-to-video via the China station — separate account and key from the global station."
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",

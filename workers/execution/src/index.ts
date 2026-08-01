@@ -10,6 +10,12 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
+import {
+  buildMiniMaxVideoRequest,
+  isMiniMaxProviderId,
+  mapMiniMaxStatus,
+  miniMaxBaseUrl,
+} from './models/minimax/video-request-builder'
 import { getRunnerCheckpointById } from './models/runner/checkpoints'
 import {
   buildRunnerWorkflowFromRequest,
@@ -26,6 +32,12 @@ import {
   isRunnerUpscaler,
   RUNNER_UPSCALER_MANIFEST,
 } from './models/runner/upscalers'
+import {
+  buildVolcEngineVideoRequest,
+  isVolcEngineProviderId,
+  mapVolcEngineStatus,
+  VOLCENGINE_DEFAULT_BASE_URL,
+} from './models/volcengine/video-request-builder'
 
 const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
@@ -2091,6 +2103,292 @@ async function submitFalQueue(
   return { requestId, statusUrl, responseUrl }
 }
 
+// ─── MiniMax (H3) video — native direct, both stations ───────────
+// The second video provider on this workflow. fal stays the default; anything
+// routed here goes to MiniMax's own async face instead of queue.fal.run.
+
+async function submitMiniMaxQueue(
+  context: WorkerRunContext,
+  apiKey: string,
+): Promise<FalQueueSubmitResult> {
+  if (context.outputType !== 'VIDEO') {
+    throw new Error('MiniMax adapter handles VIDEO output only.')
+  }
+
+  const baseUrl = miniMaxBaseUrl(context.providerId)
+  const endpoint = `${baseUrl}/video_generation`
+  const body = buildMiniMaxVideoRequest({
+    prompt: context.providerInput.prompt,
+    modelId: context.providerInput.modelId,
+    externalModelId: context.providerInput.externalModelId,
+    aspectRatio: context.providerInput.aspectRatio,
+    duration: context.providerInput.duration,
+    referenceImage: context.providerInput.referenceImage,
+    referenceImages: context.providerInput.referenceImages,
+    videoUrls: context.providerInput.videoUrls,
+    audioUrls: context.providerInput.audioUrls,
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: context.providerId,
+      phase: 'queue_submit',
+      fallbackMessage: `MiniMax submit failed with status ${response.status}`,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: context.providerId,
+    phase: 'queue_submit',
+    fallbackMessage: 'MiniMax submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
+  const taskId = readStringField(data, 'task_id')
+  if (!taskId) {
+    throw new Error('MiniMax submit returned no task_id.')
+  }
+
+  // MiniMax has a single query endpoint — status and result come back
+  // together, so statusUrl and responseUrl are deliberately the same URL.
+  const queryUrl = `${baseUrl}/query/video_generation/${taskId}`
+  return { requestId: taskId, statusUrl: queryUrl, responseUrl: queryUrl }
+}
+
+async function pollMiniMaxQueue(
+  queue: FalQueueSubmitResult,
+  apiKey: string,
+  providerId: string,
+): Promise<FalQueueStatusResult> {
+  const response = await fetch(queue.statusUrl, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: providerId,
+      phase: 'status_poll',
+      fallbackMessage: `MiniMax status poll failed with status ${response.status}`,
+      requestId: queue.requestId,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const task = isRecord(data.task) ? data.task : null
+  if (!task) {
+    throw new Error('MiniMax status response did not include a task object.')
+  }
+
+  const rawStatus = readStringField(task, 'status') ?? ''
+  const status = mapMiniMaxStatus(rawStatus)
+  const providerMetadata = {
+    requestId: queue.requestId,
+    statusUrl: queue.statusUrl,
+    providerStatus: rawStatus,
+  }
+
+  if (status === 'FAILED') {
+    return {
+      status: 'FAILED',
+      error: readStringField(task, 'error') ?? `MiniMax task ${rawStatus}.`,
+      providerMetadata,
+    }
+  }
+
+  if (status !== 'COMPLETED') {
+    return { status, providerMetadata }
+  }
+
+  const content = isRecord(task.content) ? task.content : null
+  const artifactUrl = content ? readStringField(content, 'url') : null
+  if (!artifactUrl) {
+    throw createProviderNoOutputError({
+      provider: providerId,
+      phase: 'result_fetch',
+      message: 'MiniMax task succeeded but returned no video URL.',
+      requestId: queue.requestId,
+      providerMetadata,
+    })
+  }
+
+  return { status: 'COMPLETED', artifactUrl, providerMetadata }
+}
+
+// ─── VolcEngine (火山方舟) Seedance video ─────────────────────────
+// Direct Ark API. The reason this exists: fal resells the same Seedance models
+// at ~2.2× the Ark price, and until this branch landed the Ark route was
+// catalog-only (the service 501'd on anything that wasn't fal).
+
+async function submitVolcEngineQueue(
+  context: WorkerRunContext,
+  apiKey: string,
+): Promise<FalQueueSubmitResult> {
+  if (context.outputType !== 'VIDEO') {
+    throw new Error('VolcEngine video branch handles VIDEO output only.')
+  }
+
+  const baseUrl = (
+    context.providerInput.providerBaseUrl ?? VOLCENGINE_DEFAULT_BASE_URL
+  ).replace(/\/$/, '')
+  const endpoint = `${baseUrl}/contents/generations/tasks`
+  const body = buildVolcEngineVideoRequest({
+    prompt: context.providerInput.prompt,
+    modelId: context.providerInput.modelId,
+    externalModelId: context.providerInput.externalModelId,
+    aspectRatio: context.providerInput.aspectRatio,
+    duration: context.providerInput.duration,
+    referenceImage: context.providerInput.referenceImage,
+    referenceImages: context.providerInput.referenceImages,
+    videoUrls: context.providerInput.videoUrls,
+    audioUrls: context.providerInput.audioUrls,
+    resolution: context.providerInput.resolution,
+    videoDefaults: context.providerInput.videoDefaults,
+    generateAudio: context.providerInput.generateAudio,
+    seed: context.providerInput.seed,
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: context.providerId,
+      phase: 'queue_submit',
+      fallbackMessage: `VolcEngine submit failed with status ${response.status}`,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: context.providerId,
+    phase: 'queue_submit',
+    fallbackMessage: 'VolcEngine submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
+  const taskId = readStringField(data, 'id')
+  if (!taskId) {
+    throw new Error('VolcEngine submit returned no task id.')
+  }
+
+  // Ark serves status and result from one endpoint, so both URLs are the same.
+  const taskUrl = `${baseUrl}/contents/generations/tasks/${taskId}`
+  return { requestId: taskId, statusUrl: taskUrl, responseUrl: taskUrl }
+}
+
+async function pollVolcEngineQueue(
+  queue: FalQueueSubmitResult,
+  apiKey: string,
+  providerId: string,
+): Promise<FalQueueStatusResult> {
+  const response = await fetch(queue.statusUrl, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: providerId,
+      phase: 'status_poll',
+      fallbackMessage: `VolcEngine status poll failed with status ${response.status}`,
+      requestId: queue.requestId,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const rawStatus = readStringField(data, 'status') ?? ''
+  const status = mapVolcEngineStatus(rawStatus)
+  const providerMetadata = {
+    requestId: queue.requestId,
+    statusUrl: queue.statusUrl,
+    providerStatus: rawStatus,
+  }
+
+  if (status === 'FAILED') {
+    const error = isRecord(data.error) ? data.error : null
+    return {
+      status: 'FAILED',
+      error:
+        (error ? readStringField(error, 'message') : null) ??
+        `VolcEngine task ${rawStatus}.`,
+      errorCode: error
+        ? (readStringField(error, 'code') ?? undefined)
+        : undefined,
+      providerMetadata,
+    }
+  }
+
+  if (status !== 'COMPLETED') {
+    return { status, providerMetadata }
+  }
+
+  const content = isRecord(data.content) ? data.content : null
+  const artifactUrl = content ? readStringField(content, 'video_url') : null
+  if (!artifactUrl) {
+    throw createProviderNoOutputError({
+      provider: providerId,
+      phase: 'result_fetch',
+      message: 'VolcEngine task succeeded but returned no video URL.',
+      requestId: queue.requestId,
+      providerMetadata,
+    })
+  }
+
+  // `return_last_frame: true` in the request body is what makes this available;
+  // it doubles as the poster frame downstream.
+  const thumbnailUrl = content
+    ? (readStringField(content, 'last_frame_url') ?? undefined)
+    : undefined
+
+  return { status: 'COMPLETED', artifactUrl, thumbnailUrl, providerMetadata }
+}
+
+// ─── Provider dispatch ───────────────────────────────────────────
+// One seam for both call sites in CinematicShortVideoWorkflow. fal remains the
+// fallthrough so existing routes are untouched by adding providers here.
+
+async function submitProviderQueue(
+  context: WorkerRunContext,
+  apiKey: string,
+): Promise<FalQueueSubmitResult> {
+  if (isMiniMaxProviderId(context.providerId)) {
+    return submitMiniMaxQueue(context, apiKey)
+  }
+  if (isVolcEngineProviderId(context.providerId)) {
+    return submitVolcEngineQueue(context, apiKey)
+  }
+  return submitFalQueue(context, apiKey)
+}
+
+async function pollProviderQueue(
+  queue: FalQueueSubmitResult,
+  apiKey: string,
+  context: WorkerRunContext,
+): Promise<FalQueueStatusResult> {
+  if (isMiniMaxProviderId(context.providerId)) {
+    return pollMiniMaxQueue(queue, apiKey, context.providerId)
+  }
+  if (isVolcEngineProviderId(context.providerId)) {
+    return pollVolcEngineQueue(queue, apiKey, context.providerId)
+  }
+  return pollFalQueue(queue, apiKey, context.outputType)
+}
+
 function buildLongVideoClipQueueContext(
   context: LongVideoPipelineRunContext,
   clipIndex: number,
@@ -2871,7 +3169,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return submitFalQueue(context, apiKey)
+          return submitProviderQueue(context, apiKey)
         },
       )
 
@@ -2886,7 +3184,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
           },
           async () => {
             const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return pollFalQueue(queue, apiKey, context.outputType)
+            return pollProviderQueue(queue, apiKey, context)
           },
         )
 

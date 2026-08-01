@@ -2,8 +2,8 @@ import type { AspectRatio } from '@/constants/config'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import {
   DEFAULT_VIDEO_DURATIONS,
+  DEFAULT_VIDEO_RESOLUTIONS,
   VIDEO_ASPECT_RATIOS,
-  VIDEO_RESOLUTIONS,
   type VideoResolution,
 } from '@/constants/video-options'
 
@@ -55,7 +55,9 @@ export interface VideoModelCapabilities {
 
 export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
   supportedDurations: DEFAULT_VIDEO_DURATIONS,
-  supportedResolutions: VIDEO_RESOLUTIONS,
+  // DEFAULT_VIDEO_RESOLUTIONS, not VIDEO_RESOLUTIONS — a model must opt into
+  // '2k' explicitly (see video-options.ts).
+  supportedResolutions: DEFAULT_VIDEO_RESOLUTIONS,
   supportedAspectRatios: VIDEO_ASPECT_RATIOS,
   requiresReferenceImage: false,
   audio: { mode: 'auto' } as VideoAudioCapability,
@@ -147,6 +149,50 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedDurations: [8],
     supportedResolutions: ['720p'],
     supportedAspectRatios: ['16:9', '9:16'],
+  },
+  // Seedance 2.5 — reserved, upstream not open (see models/video.ts).
+  // Resolutions are solid: 火山's price table prices 2.5 at 480p/720p only, with
+  // no 1080p/4k tier. ⚠ Durations are a PLACEHOLDER copied from 2.0 — the model's
+  // headline is native 30s, so re-derive this list from the API doc at GA.
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
+  },
+  // MiniMax H3 — 2K is the ONLY output resolution the model offers, on both
+  // stations. A single-entry list (not an empty array) keeps the picker honest
+  // instead of collapsing to zero options, same treatment as Kling above.
+  // Durations are integer seconds 4–15. H3 also accepts 21:9 and an
+  // 'adaptive' ratio; neither is in VIDEO_ASPECT_RATIOS, so they're simply not
+  // offered — the five below are the intersection.
+  [AI_MODELS.MINIMAX_H3]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['2k'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.MINIMAX_H3_CN]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['2k'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  // Reference face: up to 3 voice-donor clips, matching the provider cap.
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['2k'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
+  },
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['2k'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
   },
 }
 

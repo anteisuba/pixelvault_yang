@@ -52,6 +52,20 @@ import {
 } from '@/services/execution-sweeper.service'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 
+/**
+ * Video adapters the execution worker knows how to submit and poll. Adding an
+ * entry here is only half the job — the worker needs a matching branch in
+ * `submitProviderQueue` / `pollProviderQueue`, or the run 500s inside the
+ * workflow instead of failing fast with a 501 here.
+ */
+const WORKER_CAPABLE_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
+  AI_ADAPTER_TYPES.FAL,
+  AI_ADAPTER_TYPES.MINIMAX,
+  AI_ADAPTER_TYPES.MINIMAX_CN,
+  // Ark direct — the same Seedance models fal resells at ~2.2×.
+  AI_ADAPTER_TYPES.VOLCENGINE,
+])
+
 function canSubmitVideoViaExecutionWorker(route: {
   adapterType: string
   resolvedApiKeyId?: string | null
@@ -59,7 +73,7 @@ function canSubmitVideoViaExecutionWorker(route: {
 }): boolean {
   return (
     isExecutionWorkerDispatchConfigured() &&
-    route.adapterType === AI_ADAPTER_TYPES.FAL &&
+    WORKER_CAPABLE_VIDEO_ADAPTERS.has(route.adapterType) &&
     (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
   )
 }

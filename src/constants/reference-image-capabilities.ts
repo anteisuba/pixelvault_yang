@@ -152,6 +152,31 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  // Seedance 2.5 keeps the 2.0 reference shape (reserved — see models/video.ts).
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  // MiniMax H3 reference face — same 9-image ceiling as Seedance. The 12-file
+  // total shared with motion videos and voice clips is enforced adapter-side,
+  // since this table only counts images.
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
 }
 
 /**

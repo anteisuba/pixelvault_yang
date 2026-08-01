@@ -31,7 +31,14 @@ export interface VideoParameterSupport {
 }
 
 export interface VideoModelSendContract {
-  family: 'seedance' | 'kling' | 'happyhorse' | 'gemini' | 'veo' | 'fallback'
+  family:
+    | 'seedance'
+    | 'kling'
+    | 'happyhorse'
+    | 'gemini'
+    | 'veo'
+    | 'minimax'
+    | 'fallback'
   referenceMode: VideoReferenceMode
   slots: VideoReferenceSlots
   parameters: VideoParameterSupport
@@ -67,6 +74,9 @@ const SEEDANCE_REFERENCE_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+  // 2.5 keeps the 2.0 multimodal-reference shape (图 0-9 + 视频 0-3 + 音频 0-3,
+  // 音频不可独存) per 火山's own API doc. Reserved until the model id ships.
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
 ])
 
 const SEEDANCE_IDS = new Set<string>([
@@ -74,16 +84,39 @@ const SEEDANCE_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST,
   AI_MODELS.SEEDANCE_20_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
   ...SEEDANCE_REFERENCE_IDS,
+])
+
+const MINIMAX_REFERENCE_IDS = new Set<string>([
+  AI_MODELS.MINIMAX_H3_REFERENCE,
+  AI_MODELS.MINIMAX_H3_REFERENCE_CN,
+])
+
+const MINIMAX_IDS = new Set<string>([
+  AI_MODELS.MINIMAX_H3,
+  AI_MODELS.MINIMAX_H3_CN,
+  ...MINIMAX_REFERENCE_IDS,
+])
+
+/**
+ * Adapters the Execution Worker can actually run video on. Must stay in step
+ * with `WORKER_CAPABLE_VIDEO_ADAPTERS` in generate-video.service.ts — this one
+ * decides what the UI offers as sendable, that one decides what the service
+ * accepts. Gemini and VolcEngine stay off the list: selectable for discovery
+ * and key setup, but not presented as sendable until they're migrated too.
+ */
+const WORKER_READY_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
+  AI_ADAPTER_TYPES.FAL,
+  AI_ADAPTER_TYPES.MINIMAX,
+  AI_ADAPTER_TYPES.MINIMAX_CN,
+  AI_ADAPTER_TYPES.VOLCENGINE,
 ])
 
 function executionStatus(
   adapterType: AI_ADAPTER_TYPES | undefined,
 ): VideoExecutionStatus {
-  // submitVideoGeneration currently dispatches only fal.ai video runs to the
-  // Execution Worker. Gemini and VolcEngine remain selectable for discovery
-  // and key setup, but must not be presented as sendable until migrated.
-  return adapterType === AI_ADAPTER_TYPES.FAL
+  return adapterType && WORKER_READY_VIDEO_ADAPTERS.has(adapterType)
     ? 'ready'
     : 'execution-not-migrated'
 }
@@ -118,6 +151,39 @@ export function getVideoModelSendContract(
         negativePrompt: false,
         generateAudio: true,
         seed: true,
+      },
+      execution: executionStatus(adapterType),
+      positionalImageTokens: referenceMode,
+    }
+  }
+
+  if (MINIMAX_IDS.has(normalized)) {
+    const referenceMode = MINIMAX_REFERENCE_IDS.has(normalized)
+    return {
+      family: 'minimax',
+      referenceMode: referenceMode
+        ? 'multimodal-reference'
+        : 'text-or-first-frame',
+      // Identical 9/3/3-capped-at-12 shape to Seedance reference, including the
+      // "audio can't be the only reference" rule.
+      slots: referenceMode
+        ? {
+            images: 9,
+            videos: 3,
+            audio: 3,
+            total: 12,
+            audioRequiresVisual: true,
+          }
+        : FIRST_FRAME_SLOTS,
+      parameters: {
+        duration: true,
+        aspectRatio: true,
+        // 2K is the only output H3 offers, so the picker has nothing to pick.
+        resolution: false,
+        negativePrompt: false,
+        // Audio is inherent to H3 output, not a toggle.
+        generateAudio: false,
+        seed: false,
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: referenceMode,

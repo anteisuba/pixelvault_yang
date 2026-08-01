@@ -412,6 +412,24 @@ async function verifyAdapterKey(
         })
         break
       }
+      case AI_ADAPTER_TYPES.MINIMAX:
+      case AI_ADAPTER_TYPES.MINIMAX_CN: {
+        // MiniMax has no "list models" route, so probe the task-query endpoint
+        // with an id that cannot exist. Only 401/403 proves the key is bad —
+        // a not-found answer means auth already succeeded, so this needs the
+        // early return (the shared tail below would read that as a failure).
+        const probeUrl = `${baseUrl.replace(/\/$/, '')}/query/video_generation/healthcheck-probe`
+        response = await safeFetch(probeUrl, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        const latencyMs = Date.now() - start
+        if (response.status === 401 || response.status === 403) {
+          return { ok: false, latencyMs, error: `HTTP ${response.status}` }
+        }
+        return { ok: true, latencyMs }
+      }
       case AI_ADAPTER_TYPES.FISH_AUDIO: {
         // GET /wallet/self/api-credit — lightweight auth check
         response = await safeFetch(

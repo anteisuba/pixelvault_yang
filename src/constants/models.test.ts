@@ -15,6 +15,7 @@ import {
   isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
+  RESERVED_MODEL_IDS,
   RETIRED_MODEL_IDS,
 } from '@/constants/models'
 import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
@@ -86,8 +87,9 @@ describe('models', () => {
     expect(getModelFamily(AI_MODELS.ANIMA_PENCIL_XL)).toBe('Anima')
   })
 
-  it('keeps every unavailable catalog model either retired or feature-flag-gated', () => {
+  it('keeps every unavailable catalog model retired, reserved, or feature-flag-gated', () => {
     const retiredModelIds = new Set<string>(RETIRED_MODEL_IDS)
+    const reservedModelIds = new Set<string>(RESERVED_MODEL_IDS)
 
     for (const model of MODEL_OPTIONS) {
       if (!model.available) {
@@ -97,10 +99,26 @@ describe('models', () => {
         // docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b.
         const isFlagGatedRunnerModel =
           model.adapterType === AI_ADAPTER_TYPES.RUNNER
-        expect(retiredModelIds.has(model.id) || isFlagGatedRunnerModel).toBe(
-          true,
-        )
+        // RESERVED = fully modelled but the provider hasn't opened the API, so
+        // it ships dark behind a placeholder externalModelId. Third legitimate
+        // reason to be unavailable; anything outside these three is a mistake.
+        expect(
+          retiredModelIds.has(model.id) ||
+            reservedModelIds.has(model.id) ||
+            isFlagGatedRunnerModel,
+          `${model.id} is unavailable but is neither retired, reserved, nor runner-flag-gated`,
+        ).toBe(true)
       }
+    }
+  })
+
+  it('never lets a model be both retired and reserved', () => {
+    const retiredModelIds = new Set<string>(RETIRED_MODEL_IDS)
+    for (const id of RESERVED_MODEL_IDS) {
+      expect(
+        retiredModelIds.has(id),
+        `${id} cannot be reserved and retired at once`,
+      ).toBe(false)
     }
   })
 

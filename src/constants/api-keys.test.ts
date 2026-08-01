@@ -28,6 +28,12 @@ describe('api key adapter options', () => {
       // stays active through its SFX model (the v3 TTS model was retired).
       AI_ADAPTER_TYPES.DASHSCOPE,
       AI_ADAPTER_TYPES.ELEVENLABS,
+      // MiniMax joined 2026-08-01 with H3 video. Two entries, not one: the
+      // global (api.minimax.io) and CN (api.minimaxi.com) stations have
+      // separately-registered accounts and non-interchangeable keys, so each
+      // needs its own slot in the key picker.
+      AI_ADAPTER_TYPES.MINIMAX,
+      AI_ADAPTER_TYPES.MINIMAX_CN,
       // Claude (Anthropic) joined 2026-07-26 as the canvas assistant's
       // structural-reasoning route (assistant capability) — see
       // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.

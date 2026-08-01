@@ -42,6 +42,10 @@ const ADAPTER_CAPABILITIES: Record<
   // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md §3.4 note).
   [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
+  // MiniMax has text models, but this route is video-only here — H3 is the
+  // only reason the adapter exists.
+  [AI_ADAPTER_TYPES.MINIMAX]: [],
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: [],
   [AI_ADAPTER_TYPES.HUGGINGFACE]: [],
   [AI_ADAPTER_TYPES.FAL]: [],
   [AI_ADAPTER_TYPES.RUNWAY]: [],

@@ -39,6 +39,12 @@ export function validateKeyFormat(
       return trimmed.startsWith('sk_') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return trimmed.startsWith('sk-ant-') ? 'valid' : 'invalid'
+    // MiniMax hands out long JWTs on both stations. The shape is identical, so
+    // this check can't tell global from CN — a wrong-station key only surfaces
+    // as a 401 at call time, which formatMiniMaxError explains.
+    case AI_ADAPTER_TYPES.MINIMAX:
+    case AI_ADAPTER_TYPES.MINIMAX_CN:
+      return trimmed.length > 20 ? 'valid' : 'invalid'
     default:
       return 'valid'
   }

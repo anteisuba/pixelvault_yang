@@ -119,6 +119,44 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'artistic',
   },
   {
+    // Native counterpart to the fal-routed SEEDREAM_50_PRO. fal charges $0.0675
+    // per image at the ≤1536² tier against 火山's 0.30 元 (~$0.042) for the same
+    // ≤236万像素 tier — the two boundaries are the same 2.36M-pixel line.
+    // ⚠ Separate entry, not a replacement for SEEDREAM_50_VOLCENGINE: Pro is
+    // 单图生成 only (文生图 / 单张图生图 / 多参考图生图) and drops the base
+    // entry's 组图生成, so neither id supersedes the other.
+    id: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedream-5-0-pro-260628',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://console.volcengine.com/ark/region:ark+cn-beijing/model',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
+    // Native counterpart to the fal-routed SEEDREAM_50_LITE above — fal charges
+    // $0.035/image for the same model against 火山's 0.22 元 (~$0.031), and
+    // 火山 also bills input images at 0 instead of fal's bundled rate.
+    // ⚠ 火山's model list exposes Lite under its own dated id even though the
+    // 5.0 entry notes it is "同时支持" — use the explicit lite id, not the
+    // base one, or billing lands in the Pro tier.
+    id: AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedream-5-0-lite-260128',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://console.volcengine.com/ark/region:ark+cn-beijing/model',
+    qualityTier: 'standard',
+    styleTag: 'artistic',
+  },
+  {
     // Retired 2026-07-26 — superseded by Seedream 5.0; entry kept so archived
     // generations still resolve a label. See RETIRED_MODEL_IDS.
     id: AI_MODELS.SEEDREAM_45,

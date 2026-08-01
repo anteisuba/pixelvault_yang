@@ -36,6 +36,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO]: 'seedream50Pro',
   [AI_MODELS.SEEDREAM_50_LITE]: 'seedream50Lite',
   [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'seedream50Volcengine',
+  [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: 'seedream50LiteVolcengine',
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'seedream50ProVolcengine',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'geminiFlashLiteImage',
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
@@ -67,6 +69,12 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
     'seedance20FastReferenceVolcengine',
   [AI_MODELS.VEO_31]: 'veo31',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'geminiOmniFlash',
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'seedance25Volcengine',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'seedance25ReferenceVolcengine',
+  [AI_MODELS.MINIMAX_H3]: 'minimaxH3',
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimaxH3Reference',
+  [AI_MODELS.MINIMAX_H3_CN]: 'minimaxH3Cn',
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'minimaxH3ReferenceCn',
   [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
   [AI_MODELS.HUNYUAN3D_V3]: 'hunyuan3dV3',
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'hunyuan3dV31Pro',
@@ -108,6 +116,31 @@ const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)
 export const isRetiredModelId = (modelId: string): boolean =>
   RETIRED_MODEL_ID_SET.has(normalizeModelId(modelId))
 
+/**
+ * **Reserved**, the third reason a catalog entry can be `available: false` —
+ * distinct from retired (dead upstream) and from the runner's feature flag.
+ *
+ * A reserved entry is fully modelled (catalog row, capability matrix,
+ * reference slots, i18n) but the provider has not opened the API yet, so it
+ * carries a placeholder `externalModelId` and must not be selectable. Going
+ * live is meant to be a small, reviewable diff rather than a fresh integration.
+ *
+ * Listing an id here is a promise that someone will come back for it — keep it
+ * short, and delete the entry the moment the model ships or the plan dies.
+ */
+export const RESERVED_MODEL_IDS = [
+  // 火山 published Seedance 2.5 pricing + a model detail page on 2026-07-31,
+  // but the API doc still reads 「在线体验与 API 调用即将上线」and no dated
+  // model id exists. See docs/references/model-catalog.md §⑫.
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+] as const satisfies readonly AI_MODELS[]
+
+const RESERVED_MODEL_ID_SET = new Set<string>(RESERVED_MODEL_IDS)
+
+export const isReservedModelId = (modelId: string): boolean =>
+  RESERVED_MODEL_ID_SET.has(normalizeModelId(modelId))
+
 export const MODEL_OPTIONS: ModelOption[] = [
   ...IMAGE_MODEL_OPTIONS,
   ...VIDEO_MODEL_OPTIONS,
@@ -128,6 +161,8 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO]: 'Seedream',
   [AI_MODELS.SEEDREAM_50_LITE]: 'Seedream',
   [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'Seedream',
+  [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: 'Seedream',
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'Seedream',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'Gemini',
   [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
   [AI_MODELS.RECRAFT_V4_PRO]: 'Recraft',
@@ -145,6 +180,12 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.KLING_O3_PRO]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'Gemini',
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'Seedance',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'Seedance',
+  [AI_MODELS.MINIMAX_H3]: 'MiniMax',
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: 'MiniMax',
+  [AI_MODELS.MINIMAX_H3_CN]: 'MiniMax',
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'MiniMax',
   [AI_MODELS.SEEDANCE_20]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 'Seedance',
@@ -271,6 +312,7 @@ export type ProviderGroup =
   | 'elevenlabs'
   | 'hyper3d'
   | 'anthropic'
+  | 'minimax'
   | 'runner'
 
 /** Display order for provider groups. */
@@ -283,6 +325,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'fal',
   'runway',
   'volcengine',
+  'minimax',
   'fish_audio',
   'elevenlabs',
   'opensource',
@@ -323,6 +366,11 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'hyper3d'
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return 'anthropic'
+    // Both stations share one display group — users pick the station via the
+    // model entry, not via a second heading in the picker.
+    case AI_ADAPTER_TYPES.MINIMAX:
+    case AI_ADAPTER_TYPES.MINIMAX_CN:
+      return 'minimax'
     case AI_ADAPTER_TYPES.RUNNER:
       return 'runner'
   }

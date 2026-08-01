@@ -2380,6 +2380,14 @@
         "label": "火山引擎",
         "description": "使用火山方舟的字节跳动 Seedream 图像和 Seedance 视频模型。"
       },
+      "minimax": {
+        "label": "MiniMax",
+        "description": "MiniMax 国际站（api.minimax.io）的 H3 视频模型。密钥与国内站不通用。"
+      },
+      "minimax_cn": {
+        "label": "MiniMax（国内）",
+        "description": "MiniMax 国内站（api.minimaxi.com）的 H3 视频模型。需单独注册，密钥与国际站不通用。"
+      },
       "fish_audio": {
         "label": "Fish Audio",
         "description": "使用 Fish Audio 进行高质量文字转语音，支持 30+ 语言声音克隆。"
@@ -3000,6 +3008,14 @@
       "label": "Seedream 5.0（火山引擎）",
       "description": "经火山方舟（Ark）直连 API 调用的 Seedream 5.0 — 国内区域。"
     },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro（火山引擎）",
+      "description": "经火山方舟（Ark）直连的 Seedream 5.0 Pro 档 — 比同款走 fal 便宜；只出单图，不支持组图生成。"
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite（火山引擎）",
+      "description": "经火山方舟（Ark）直连的 Seedream 5.0 实惠档 — 国内区域，比同款走 fal 便宜。"
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "最新 NovelAI 模型，生成保真度提升，支持多角色和文字渲染。"
@@ -3115,6 +3131,30 @@
     "geminiOmniFlash": {
       "label": "Gemini Omni Flash",
       "description": "Google 视频（API 仍为 preview id）— 榜单表现强、原生音频；待 GA id 再换"
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5（火山方舟）",
+      "description": "字节 30 秒单次直出模型，走火山方舟直连。预留中——火山尚未开放 API"
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5（参考，火山方舟）",
+      "description": "Seedance 2.5 的参考生视频。预留中——火山尚未开放 API"
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax 直连 — 2K、原生立体声、4-15 秒。Artificial Analysis 视频编辑榜第一"
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3（参考）",
+      "description": "参考生视频 — 最多 9 张主体图 + 3 段动作视频 + 3 段音色片段（合计 12 个文件）"
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3（国内）",
+      "description": "走 MiniMax 国内站（minimaxi.com）— 账号与密钥和国际站互相独立"
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3（参考，国内）",
+      "description": "参考生视频，走国内站 — 账号与密钥和国际站互相独立"
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",

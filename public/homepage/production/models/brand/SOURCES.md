@@ -8,7 +8,10 @@ The model name and execution provider remain separate UI fields.
 - License: MIT
 - Cached slugs: `openai`, `gemini-color`, `flux-text`, `bytedance-text`,
   `recraft-text`, `alibabacloud-color`, `kling-color`, `hunyuan-color`,
-  `microsoft-color`, `tripo-color`, `stability`
+  `microsoft-color`, `tripo-color`, `stability`, `minimax-text`
+  (`minimax-text` cached as `minimax.svg`, added 2026-08-01 with MiniMax H3 —
+  the text variant, matching `bytedance.svg`: `viewBox 0 0 114 24` logotype
+  with `fill="currentColor"` so it follows the rail's own colour)
 - ElevenMusic logotype: ElevenLabs official brand resources,
   https://elevenlabs.io/brand (black SVG cached as `eleven-music.svg`)
 

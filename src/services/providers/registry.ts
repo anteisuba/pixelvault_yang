@@ -7,6 +7,10 @@ import { falAdapter } from '@/services/providers/fal.adapter'
 import { fishAudioAdapter } from '@/services/providers/fish-audio.adapter'
 import { geminiAdapter } from '@/services/providers/gemini.adapter'
 import { huggingFaceAdapter } from '@/services/providers/huggingface.adapter'
+import {
+  minimaxAdapter,
+  minimaxCnAdapter,
+} from '@/services/providers/minimax.adapter'
 import { novelAiAdapter } from '@/services/providers/novelai.adapter'
 import { openAiAdapter } from '@/services/providers/openai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
@@ -26,6 +30,10 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,
   [AI_ADAPTER_TYPES.ELEVENLABS]: elevenLabsAdapter,
+  // Two entries, one implementation — the stations differ only by base URL and
+  // key slot (see minimax.adapter.ts).
+  [AI_ADAPTER_TYPES.MINIMAX]: minimaxAdapter,
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: minimaxCnAdapter,
   [AI_ADAPTER_TYPES.RUNNER]: runnerAdapter,
   // HYPER3D_RODIN intentionally absent — dispatched to Cloudflare Worker
   // directly via generate-3d.service.ts → submitWorker3DGeneration.

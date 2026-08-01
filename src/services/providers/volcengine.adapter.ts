@@ -77,6 +77,9 @@ const VOLCENGINE_IMAGE_SIZES: Record<
 }
 
 const VOLCENGINE_MAX_SEED = 2_147_483_647
+/** Seedance 2.0 series duration window per 火山's model list (时长: 4~15 秒). */
+const VOLCENGINE_SEEDANCE_MIN_DURATION = 4
+const VOLCENGINE_SEEDANCE_MAX_DURATION = 15
 const VOLCENGINE_SEEDANCE_20_FAST_MODEL_IDS = new Set([
   'seedance-2.0-fast-volc',
   'doubao-seedance-2-0-fast-260128',
@@ -231,8 +234,15 @@ export function buildVolcEngineVideoQueueBody({
   }
 
   // Volcengine doesn't support the 'auto' literal — coerce to its default.
+  // ⚠ Window is 4~15s (火山 model list, Seedance 2.0 series). It used to clamp
+  // to 2~12 — the 1.0-pro window — which silently truncated a 15s request to
+  // 12s even though the capability matrix offers 15. Keep this in step with
+  // `buildVolcEngineVideoRequest` in the execution worker.
   if (typeof duration === 'number') {
-    body.duration = Math.min(12, Math.max(2, duration))
+    body.duration = Math.min(
+      VOLCENGINE_SEEDANCE_MAX_DURATION,
+      Math.max(VOLCENGINE_SEEDANCE_MIN_DURATION, Math.round(duration)),
+    )
   } else {
     body.duration = VIDEO_GENERATION.DEFAULT_DURATION
   }

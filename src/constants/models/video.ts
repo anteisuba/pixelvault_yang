@@ -272,6 +272,132 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
+  // ─── Seedance 2.5 (VolcEngine) — reserved, upstream not open yet ────────
+  // 2026-08-01 状态：火山已公开定价（70 / 42 元每百万 token，仅 480p/720p）与
+  // 模型详情页（族 id `doubao-seedance-2-5`），但「创建视频生成任务」API 文档
+  // 明写「在线体验与 API 调用即将上线」，模型列表页也还没有带日期的 model id。
+  //
+  // ⚠ GA 时要改的三件事，别只改第一件：
+  //   1. externalModelId → 真实带日期 id（形如 doubao-seedance-2-5-YYMMDD）
+  //   2. available → true
+  //   3. **重新核对 supportedDurations** —— 下面那份是从 2.0 抄来的占位值。
+  //      2.5 的卖点是原生直出 30 秒，官方定价示例里输入视频可达 30s，所以真实
+  //      时长档大概率超出 4~15。宁可少给（用户选不到 30s）也别多给（直接 400）。
+  //
+  // fal 侧不接：`bytedance/seedance-2.5/*` 页面存在但挂 early-access 白名单，
+  // 条款写死 B2B only（须校验终端用户为企业），PixelVault 是个人消费者产品，
+  // 不符合准入 —— 见 docs/references/model-catalog.md §⑥。
+  {
+    id: AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    // PLACEHOLDER — the published family id, not a callable dated id.
+    externalModelId: 'doubao-seedance-2-5',
+    outputType: 'VIDEO',
+    available: false,
+    officialUrl:
+      'https://console.volcengine.com/ark/region:cn-beijing/model/detail?Id=doubao-seedance-2-5',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedance-2-5',
+    outputType: 'VIDEO',
+    available: false,
+    officialUrl:
+      'https://console.volcengine.com/ark/region:cn-beijing/model/detail?Id=doubao-seedance-2-5',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  // ─── MiniMax H3 — native direct, two stations ───────────────────────────
+  // Not on fal on purpose: fal resells the same model at exactly 2× native
+  // ($0.26 vs $0.13 per 2K second — docs/references/model-pricing.md).
+  // Global and CN are separate accounts with non-interchangeable keys, so each
+  // station gets its own adapterType and its own catalog entries.
+  // ⚠ 2K is the only output resolution H3 offers — hence the '2k' addition to
+  // VIDEO_RESOLUTIONS. Never leave supportedResolutions empty for these.
+  {
+    id: AI_MODELS.MINIMAX_H3,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.MINIMAX,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.MINIMAX),
+    externalModelId: 'MiniMax-H3',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://platform.minimax.io/docs/guides/video-generation',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    // i2v runs through the same execution id — the adapter promotes the
+    // reference image to a `first_frame` content entry.
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '2k',
+    },
+  },
+  {
+    id: AI_MODELS.MINIMAX_H3_REFERENCE,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.MINIMAX,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.MINIMAX),
+    externalModelId: 'MiniMax-H3',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://platform.minimax.io/docs/guides/video-generation',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '2k',
+    },
+  },
+  {
+    id: AI_MODELS.MINIMAX_H3_CN,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.MINIMAX_CN,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.MINIMAX_CN),
+    externalModelId: 'MiniMax-H3',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://platform.minimaxi.com/document/video_generation',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '2k',
+    },
+  },
+  {
+    id: AI_MODELS.MINIMAX_H3_REFERENCE_CN,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.MINIMAX_CN,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.MINIMAX_CN),
+    externalModelId: 'MiniMax-H3',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://platform.minimaxi.com/document/video_generation',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '2k',
+    },
+  },
   {
     id: AI_MODELS.LTX_23,
     cost: 2,

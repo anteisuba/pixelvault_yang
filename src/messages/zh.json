@@ -3608,8 +3608,6 @@
     "nodeCount": "{count} 个节点",
     "addMenuTitle": "添加到画布",
     "nodeTypes": {
-      "composer": "Composer",
-      "agent": "Agent",
       "shotText": "镜头文本",
       "shot": "镜头图",
       "characterImage": "角色图",
@@ -3622,8 +3620,6 @@
       "videoMerge": "视频合并"
     },
     "addMenuHelpers": {
-      "composer": "写下创作想法，作为工作流的起点。",
-      "agent": "把 Composer 想法拆成故事、场景、节拍和镜头结构。",
       "shotText": "整理镜头说明、动作和画面调度。",
       "shot": "根据镜头提示词生成单张镜头图。",
       "characterImage": "根据角色提示词生成角色设定图或肖像。",
@@ -3662,6 +3658,10 @@
         "videoReference": {
           "label": "参考视频",
           "helper": "上传一段视频，作为下游生成的运动或画面参考。"
+        },
+        "videoShotText": {
+          "label": "镜头文本",
+          "helper": "写下这一镜的场景、动作、镜头与构图，供下游视频节点使用。"
         },
         "videoMerge": {
           "label": "视频合成",
@@ -3718,11 +3718,6 @@
       "retry": "重试",
       "replace": "替换"
     },
-    "composer": {
-      "promptLabel": "Composer 提示词",
-      "placeholder": "写下故事想法或视觉需求...",
-      "readyHint": "连接到 Agent 后发送"
-    },
     "workflowModelPicker": {
       "labels": {
         "image": "图像模型",
@@ -3741,50 +3736,6 @@
         "audio": "暂时没有已配置 Key 的音频模型。"
       },
       "searchPlaceholder": "搜索模型..."
-    },
-    "agent": {
-      "emptyTitle": "等待 Composer 输入",
-      "emptyDescription": "先选择规划模型，再连接 Composer 节点并发送想法。",
-      "generatingTitle": "正在拆解剧本",
-      "generatingDescription": "规划器正在生成角色、场景、节拍和镜头。",
-      "failedTitle": "拆解失败",
-      "logline": "梗概",
-      "counts": {
-        "characters": "角色",
-        "scenes": "场景",
-        "actions": "动作",
-        "beats": "节拍",
-        "shots": "镜头"
-      },
-      "seedance": {
-        "emptyTitle": "等待 Seedance 提示词",
-        "emptyDescription": "切到此模式，连接 Composer，然后发送粗略视频想法。",
-        "generatingTitle": "正在规划 Seedance 提示词",
-        "generatingDescription": "规划器正在写时间轴、镜头、运动和音频方向。",
-        "duration": "时长",
-        "timeline": "时间轴",
-        "timelineCount": "{count} 段",
-        "timelineRange": "{start}s-{end}s",
-        "timelineLabel": "第 {n} 段",
-        "timelineStartLabel": "起始秒",
-        "timelineEndLabel": "结束秒",
-        "timelineStartLabelA11y": "第 {n} 段起始秒",
-        "timelineEndLabelA11y": "第 {n} 段结束秒",
-        "timelineRangeWarning": "结束秒早于起始秒，请检查。",
-        "finalPrompt": "Seedance 提示词",
-        "finalPromptPlaceholder": "完整的 Seedance 提示词，可直接编辑后再写入视频节点。",
-        "headerLabel": "概要",
-        "titleLabel": "标题",
-        "titlePlaceholder": "为这段视频起个标题…",
-        "visualDescriptionLabel": "视觉描述",
-        "visualDescriptionPlaceholder": "画面整体氛围、构图、风格…",
-        "timelineActionLabel": "第 {n} 段动作描述",
-        "timelineActionPlaceholder": "这一段画面里在发生什么…",
-        "timelineCameraLabel": "第 {n} 段镜头",
-        "timelineCameraPlaceholder": "镜头语言，如：推近、俯拍…",
-        "timelineAdd": "新增镜头段",
-        "applyToVideo": "写入已连接的视频节点"
-      }
     },
     "characterImage": {
       "voiceBound": {
@@ -4473,7 +4424,9 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "把场景、动作、镜头和构图整理成可执行镜头文本。",
-        "footerEmpty": "等待镜头文本"
+        "footerEmpty": "等待镜头文本",
+        "editText": "编辑文本",
+        "detailHint": "这些字段会按顺序拼成提示词，送进下游的视频节点。"
       },
       "characterImage": {
         "emptyPreview": "还没有角色图——生成或选择一张已有图。",

@@ -22,6 +22,14 @@ export const CANVAS_ADD_INTENT_IDS = {
   videoGenerate: 'video.generate',
   videoReference: 'video.reference',
   videoMerge: 'video.merge',
+  /**
+   * 手动镜头文本（2026-08-02）。此前 shotText **只由剧本笺投影产出**，加号菜单
+   * 有意不暴露它。owner 拍板「助手这边只是自动生成，不用助手则用户手动输入然后
+   * 生成 —— 是一种东西」后，手动这条路必须有入口。
+   * 手工建的节点没有 `scriptRef`，因此不受投影管辖（投影的孤儿清扫只认有 ref
+   * 的节点），字段就存在它自己身上。
+   */
+  videoShotText: 'video.shot-text',
   audioVoiceProfile: 'audio.voice-profile',
   organizeCharacter: 'organize.character',
   organizeScene: 'organize.scene',
@@ -40,6 +48,7 @@ export interface CanvasAddCatalogItem {
     | 'videoGenerate'
     | 'videoReference'
     | 'videoMerge'
+    | 'videoShotText'
     | 'audioVoiceProfile'
     | 'organizeCharacter'
     | 'organizeScene'
@@ -84,6 +93,12 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoReference',
     nodeType: NODE_TYPE_IDS.videoReference,
+  },
+  {
+    id: CANVAS_ADD_INTENT_IDS.videoShotText,
+    group: CANVAS_ADD_GROUP_IDS.video,
+    labelKey: 'videoShotText',
+    nodeType: NODE_TYPE_IDS.shotText,
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoMerge,

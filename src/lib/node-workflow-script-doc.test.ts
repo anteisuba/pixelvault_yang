@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
+import {
+  projectScriptDocToGraph,
+  syncShotTextPatchToScriptDoc,
+} from '@/lib/node-workflow-script-doc'
 import {
   NODE_IMAGE_ROLE_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import { SCRIPT_DOC_REF_KIND_IDS } from '@/constants/script-doc'
 import type {
+  NodeWorkflowNode,
   NodeWorkflowNodeData,
   NodeWorkflowState,
 } from '@/types/node-workflow'
@@ -493,5 +498,94 @@ describe('projectScriptDocToGraph', () => {
         edge.source === 'existing-char' && edge.target === seedanceShot1?.id,
     )
     expect(reuseEdge).toBeTruthy()
+  })
+})
+
+// owner 2026-08-02：「助手这边只是自动生成，不用助手则用户手动输入然后生成
+// —— 是一种东西」。镜头文本因此以 ScriptDoc 为事实源，节点是同一份数据的
+// 另一个入口；在节点上编辑必须回写，否则下一次投影会把用户的修改覆盖掉。
+describe('syncShotTextPatchToScriptDoc', () => {
+  const DOC: ScriptDoc = {
+    title: 'T',
+    logline: '',
+    roles: [],
+    shots: [
+      { id: 'shot-1', summary: '原动作', roleIds: [], dialogue: [] },
+      { id: 'shot-2', summary: '别动我', roleIds: [], dialogue: [] },
+    ],
+  }
+
+  function shotTextNode(sourceId: string): NodeWorkflowNode {
+    return {
+      id: 'n-1',
+      type: NODE_TYPE_IDS.shotText,
+      position: { x: 0, y: 0 },
+      data: {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+        scriptRef: { kind: SCRIPT_DOC_REF_KIND_IDS.shotText, sourceId },
+      },
+    }
+  }
+
+  it('四个字段各自写回对应的 shot 字段', () => {
+    const next = syncShotTextPatchToScriptDoc(DOC, shotTextNode('shot-1'), {
+      action: '新动作',
+      camera: '推近',
+      scene: '便利店',
+      composition: '三分法',
+    })
+    expect(next?.shots[0]).toMatchObject({
+      summary: '新动作',
+      camera: '推近',
+      sceneLabel: '便利店',
+      composition: '三分法',
+    })
+    // 只动 scriptRef 指向的那一镜
+    expect(next?.shots[1].summary).toBe('别动我')
+  })
+
+  it('回写后再投影读到的是用户改过的值 —— 不会被覆盖', () => {
+    const edited = syncShotTextPatchToScriptDoc(DOC, shotTextNode('shot-1'), {
+      action: '用户精修过的动作',
+    })
+    const projected = projectScriptDocToGraph(edited!, EMPTY_STATE, {
+      makeId: deterministicMakeId(),
+      anchor: ANCHOR,
+      shotStills: false,
+    })
+    const shotTextNodes = projected.nodesToAdd.filter(
+      (node) => node.type === NODE_TYPE_IDS.shotText,
+    )
+    expect(shotTextNodes[0]?.data.action).toBe('用户精修过的动作')
+  })
+
+  it('手工添加的节点（无 scriptRef）不碰 ScriptDoc', () => {
+    const handAdded: NodeWorkflowNode = {
+      id: 'n-2',
+      type: NODE_TYPE_IDS.shotText,
+      position: { x: 0, y: 0 },
+      data: { prompt: '', status: NODE_STATUS_IDS.idle },
+    }
+    // 返回同一引用 —— 调用方靠 === 判断「没变化」
+    expect(syncShotTextPatchToScriptDoc(DOC, handAdded, { action: 'x' })).toBe(
+      DOC,
+    )
+  })
+
+  it('非镜头字段的 patch（如 status）不产生新 doc', () => {
+    expect(
+      syncShotTextPatchToScriptDoc(DOC, shotTextNode('shot-1'), {
+        status: NODE_STATUS_IDS.running,
+      }),
+    ).toBe(DOC)
+  })
+
+  it('项目还没有 ScriptDoc 时安全返回 undefined', () => {
+    expect(
+      syncShotTextPatchToScriptDoc(undefined, shotTextNode('shot-1'), {
+        action: 'x',
+      }),
+    ).toBeUndefined()
   })
 })

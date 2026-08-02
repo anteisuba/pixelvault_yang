@@ -1,4 +1,21 @@
 export const NODE_TYPE_IDS = {
+  /**
+   * ⛔ 已退役的旧 planner（composer / agent），**但这两个 enum 值绝不能删**。
+   *
+   * 它们的渲染组件已于 2026-08-02 删除（用户早就看不到它们了：
+   * `node-workflow-migrate-planner.ts` 在两条水化路径上都会先把这类节点剥掉）。
+   * 组件没了以后这两个键看起来会很像孤儿 —— 这条注释就是拦住下一个人顺手删它们的。
+   *
+   * 删了会发生什么：`NodeWorkflowStateSchema.nodes` 是 `z.array(...)` **没有
+   * 逐项 `.catch()`**（同文件其它字段有，这里故意没有），任何一个还存着
+   * composer/agent 节点的存量项目会整份 parse 失败 →
+   * `node-workflow.service.ts` 的 `validateState` 把它兜成 `EMPTY_STATE` →
+   * 用户打开项目看到空画布，**静默无报错**，下一次防抖写入就把空状态持久化。
+   * 不可恢复。而这类节点至今仍躺在 DB 里 —— 迁移是读路径垫片，没有一次性回填。
+   *
+   * 同理 `node-workflow-migrate-planner.ts` 也不能删：删了这些节点会重新进入
+   * 渲染列表，而 `NODE_COMPONENTS` 里已经没有对应组件了。
+   */
   composer: 'composer',
   agent: 'agent',
   shotText: 'shotText',

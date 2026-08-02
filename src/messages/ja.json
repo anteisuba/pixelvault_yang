@@ -3608,8 +3608,6 @@
     "nodeCount": "{count} 個のノード",
     "addMenuTitle": "キャンバスに追加",
     "nodeTypes": {
-      "composer": "Composer",
-      "agent": "Agent",
       "shotText": "ショット文",
       "shot": "ショット画像",
       "characterImage": "キャラクター画像",
@@ -3622,8 +3620,6 @@
       "videoMerge": "動画結合"
     },
     "addMenuHelpers": {
-      "composer": "制作アイデアをワークフローの出発点として書きます。",
-      "agent": "Composer のアイデアを物語、シーン、ビート、ショット構成に分解します。",
       "shotText": "ショット説明、動き、カメラ指示を整理します。",
       "shot": "ショットプロンプトから静止画を生成します。",
       "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。",
@@ -3662,6 +3658,10 @@
         "videoReference": {
           "label": "参照動画",
           "helper": "下流の生成で動きや画面の参考にする動画をアップロードします。"
+        },
+        "videoShotText": {
+          "label": "ショットテキスト",
+          "helper": "このショットのシーン・アクション・カメラ・構図を書き、下流の動画ノードで使います。"
         },
         "videoMerge": {
           "label": "動画合成",
@@ -3718,11 +3718,6 @@
       "retry": "再試行",
       "replace": "差し替え"
     },
-    "composer": {
-      "promptLabel": "Composer プロンプト",
-      "placeholder": "物語のアイデアやビジュアル要件を書く...",
-      "readyHint": "Agent に接続して送信"
-    },
     "workflowModelPicker": {
       "labels": {
         "image": "画像モデル",
@@ -3741,50 +3736,6 @@
         "audio": "設定済みキーで使える音声モデルはまだありません。"
       },
       "searchPlaceholder": "モデルを検索..."
-    },
-    "agent": {
-      "emptyTitle": "Composer 入力待ち",
-      "emptyDescription": "プランナーモデルを選び、Composer ノードを接続してアイデアを送信します。",
-      "generatingTitle": "脚本を分解中",
-      "generatingDescription": "プランナーがキャラクター、シーン、ビート、ショットを構成しています。",
-      "failedTitle": "分解に失敗しました",
-      "logline": "ログライン",
-      "counts": {
-        "characters": "人物",
-        "scenes": "場面",
-        "actions": "動作",
-        "beats": "ビート",
-        "shots": "ショット"
-      },
-      "seedance": {
-        "emptyTitle": "Seedance プロンプト待ち",
-        "emptyDescription": "このモードに切り替え、Composer を接続して動画アイデアを送信します。",
-        "generatingTitle": "Seedance プロンプトを設計中",
-        "generatingDescription": "時間軸、カメラ、動き、音声方向を作成しています。",
-        "duration": "尺",
-        "timeline": "時間軸",
-        "timelineCount": "{count} セグメント",
-        "timelineRange": "{start}s-{end}s",
-        "timelineLabel": "セグメント {n}",
-        "timelineStartLabel": "開始（秒）",
-        "timelineEndLabel": "終了（秒）",
-        "timelineStartLabelA11y": "セグメント {n} 開始秒",
-        "timelineEndLabelA11y": "セグメント {n} 終了秒",
-        "timelineRangeWarning": "終了秒が開始秒より前です。",
-        "finalPrompt": "Seedance プロンプト",
-        "finalPromptPlaceholder": "完成版 Seedance プロンプト。編集して動画ノードに適用できます。",
-        "headerLabel": "概要",
-        "titleLabel": "タイトル",
-        "titlePlaceholder": "この動画のタイトル…",
-        "visualDescriptionLabel": "ビジュアル描写",
-        "visualDescriptionPlaceholder": "全体の雰囲気、構図、スタイル…",
-        "timelineActionLabel": "セグメント {n} のアクション",
-        "timelineActionPlaceholder": "このセグメントで何が起きるか…",
-        "timelineCameraLabel": "セグメント {n} のカメラ",
-        "timelineCameraPlaceholder": "カメラ表現（例：寄り、俯瞰）…",
-        "timelineAdd": "セグメントを追加",
-        "applyToVideo": "接続した動画ノードへ適用"
-      }
     },
     "characterImage": {
       "voiceBound": {
@@ -4473,7 +4424,9 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "シーン、動き、カメラ、構図を実行可能なショット文に整理します。",
-        "footerEmpty": "ショット文を待機中"
+        "footerEmpty": "ショット文を待機中",
+        "editText": "テキストを編集",
+        "detailHint": "これらの項目は順にプロンプトへ連結され、下流の動画ノードに渡されます。"
       },
       "characterImage": {
         "emptyPreview": "キャラクター画像はまだありません — 生成するか既存画像を選択してください。",

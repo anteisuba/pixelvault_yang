@@ -3608,8 +3608,6 @@
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
     "addMenuTitle": "Add to canvas",
     "nodeTypes": {
-      "composer": "Composer",
-      "agent": "Agent",
       "shotText": "Shot Text",
       "shot": "Shot Image",
       "characterImage": "Character Image",
@@ -3622,8 +3620,6 @@
       "videoMerge": "Merge Videos"
     },
     "addMenuHelpers": {
-      "composer": "Draft an idea prompt for the workflow.",
-      "agent": "Break a Composer idea into story, scene, beat, and shot structure.",
       "shotText": "Draft shot direction, action, and camera notes.",
       "shot": "Generate a still shot from a shot prompt.",
       "characterImage": "Generate a portrait or design pass from a character prompt.",
@@ -3662,6 +3658,10 @@
         "videoReference": {
           "label": "Reference video",
           "helper": "Upload a clip as motion or visual guidance for downstream generation."
+        },
+        "videoShotText": {
+          "label": "Shot text",
+          "helper": "Write this shot's scene, action, camera, and composition for downstream video nodes."
         },
         "videoMerge": {
           "label": "Compose videos",
@@ -3718,11 +3718,6 @@
       "retry": "Retry",
       "replace": "Replace"
     },
-    "composer": {
-      "promptLabel": "Composer prompt",
-      "placeholder": "Write the story idea or visual brief...",
-      "readyHint": "Connect to an Agent and send"
-    },
     "workflowModelPicker": {
       "labels": {
         "image": "Image model",
@@ -3741,50 +3736,6 @@
         "audio": "No audio model with a configured key is available yet."
       },
       "searchPlaceholder": "Search models..."
-    },
-    "agent": {
-      "emptyTitle": "Waiting for Composer",
-      "emptyDescription": "Select a planner model, then connect a Composer node and send an idea.",
-      "generatingTitle": "Breaking down script",
-      "generatingDescription": "The planner is building characters, scenes, beats, and shots.",
-      "failedTitle": "Breakdown failed",
-      "logline": "Logline",
-      "counts": {
-        "characters": "Chars",
-        "scenes": "Scenes",
-        "actions": "Actions",
-        "beats": "Beats",
-        "shots": "Shots"
-      },
-      "seedance": {
-        "emptyTitle": "Waiting for Seedance prompt",
-        "emptyDescription": "Switch to this mode, connect a Composer, and send a rough video idea.",
-        "generatingTitle": "Planning Seedance prompt",
-        "generatingDescription": "The planner is writing timeline, camera, motion, and audio direction.",
-        "duration": "Duration",
-        "timeline": "Timeline",
-        "timelineCount": "{count, plural, one {# segment} other {# segments}}",
-        "timelineRange": "{start}s-{end}s",
-        "timelineLabel": "Segment {n}",
-        "timelineStartLabel": "Start (s)",
-        "timelineEndLabel": "End (s)",
-        "timelineStartLabelA11y": "Segment {n} start second",
-        "timelineEndLabelA11y": "Segment {n} end second",
-        "timelineRangeWarning": "End second is before start second.",
-        "finalPrompt": "Seedance prompt",
-        "finalPromptPlaceholder": "Full Seedance prompt — edit before applying to the video node.",
-        "headerLabel": "Summary",
-        "titleLabel": "Title",
-        "titlePlaceholder": "Give this clip a title…",
-        "visualDescriptionLabel": "Visual description",
-        "visualDescriptionPlaceholder": "Overall mood, composition, style…",
-        "timelineActionLabel": "Segment {n} action",
-        "timelineActionPlaceholder": "What is happening in this segment…",
-        "timelineCameraLabel": "Segment {n} camera",
-        "timelineCameraPlaceholder": "Camera language, e.g. push-in, overhead…",
-        "timelineAdd": "Add segment",
-        "applyToVideo": "Apply to connected video node"
-      }
     },
     "characterImage": {
       "voiceBound": {
@@ -4473,7 +4424,9 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "Turn scene, action, camera, and composition into executable shot text.",
-        "footerEmpty": "Waiting for shot text"
+        "footerEmpty": "Waiting for shot text",
+        "editText": "Edit text",
+        "detailHint": "These fields are joined in order into the prompt sent to downstream video nodes."
       },
       "characterImage": {
         "emptyPreview": "No character image yet — generate one or pick an existing image.",

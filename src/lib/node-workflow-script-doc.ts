@@ -287,16 +287,23 @@ export function projectScriptDocToGraph(
       mediaKind: NODE_MEDIA_KIND_IDS.text,
       [NODE_WORKFLOW_FIELD_IDS.action]: shot.summary,
       [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
-      [NODE_WORKFLOW_FIELD_IDS.composition]: '',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: shot.composition ?? '',
       [NODE_WORKFLOW_FIELD_IDS.scene]: shot.sceneLabel ?? '',
       scriptRef: {
         kind: SCRIPT_DOC_REF_KIND_IDS.shotText,
         sourceId: shot.id,
       },
     }
+    // 四个字段全量投影（2026-08-02）：`composition` 此前恒写空串、且不进
+    // update patch —— 那是「ScriptDoc 里没有这个概念」时代的产物。现在它在
+    // ScriptDoc 里有位置了，投影就该照读，否则用户在节点上编的构图会在下一
+    // 次投影时凭空消失。
+    // ⚠ 覆盖不再是数据丢失：节点侧的编辑会由 `updateNodeData` 同步回写
+    // ScriptDoc（use-node-workflow.ts），所以这里读到的本来就是用户最新的值。
     const shotTextUpdate: Partial<NodeWorkflowNodeData> = {
       [NODE_WORKFLOW_FIELD_IDS.action]: shot.summary,
       [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: shot.composition ?? '',
       [NODE_WORKFLOW_FIELD_IDS.scene]: shot.sceneLabel ?? '',
       scriptRef: shotTextData.scriptRef,
     }
@@ -558,4 +565,55 @@ export function projectScriptDocToGraph(
     removed: nodesToRemove.length,
     removedEdges: edgesToRemove.length,
   }
+}
+
+/**
+ * shotText 节点字段 → ScriptDoc shot 字段的映射。
+ *
+ * 这是本文件正向投影（`shotTextData` / `shotTextUpdate`）的**反向**，两者必须
+ * 一一对应 —— 放在同一个文件里就是为了改一边时能立刻看到另一边。
+ */
+const SHOT_TEXT_FIELD_TO_SHOT_FIELD = {
+  [NODE_WORKFLOW_FIELD_IDS.action]: 'summary',
+  [NODE_WORKFLOW_FIELD_IDS.camera]: 'camera',
+  [NODE_WORKFLOW_FIELD_IDS.scene]: 'sceneLabel',
+  [NODE_WORKFLOW_FIELD_IDS.composition]: 'composition',
+} as const satisfies Partial<Record<string, keyof ScriptDoc['shots'][number]>>
+
+/**
+ * 把「在 shotText 节点上的一次字段编辑」同步回 ScriptDoc。
+ *
+ * owner 2026-08-02 拍板：「助手这边只是自动生成，不用助手则用户手动输入然后
+ * 生成 —— 是一种东西」。镜头文本因此不是助手的产物，而是「一镜的文字定义」，
+ * ScriptDoc 是它的事实源，节点是同一份数据的另一个入口。
+ *
+ * 不做任何事的三种情况（都原样返回入参引用，调用方靠 `===` 判断没变化）：
+ * · 项目还没有 ScriptDoc；
+ * · 这个节点不是 shotText，或者没有指回某个 shot 的 `scriptRef`
+ *   （手工添加的节点就没有 —— 它不受投影管辖，字段就存在自己身上）；
+ * · patch 里没有任何一个镜头字段（例如只是改了 `status`）。
+ */
+export function syncShotTextPatchToScriptDoc(
+  doc: ScriptDoc | undefined,
+  node: NodeWorkflowNode | undefined,
+  patch: Partial<NodeWorkflowNodeData>,
+): ScriptDoc | undefined {
+  if (!doc || !node || node.type !== NODE_TYPE_IDS.shotText) return doc
+  const ref = node.data.scriptRef
+  if (!ref || ref.kind !== SCRIPT_DOC_REF_KIND_IDS.shotText) return doc
+
+  let next = doc
+  for (const [nodeField, shotField] of Object.entries(
+    SHOT_TEXT_FIELD_TO_SHOT_FIELD,
+  )) {
+    const value = patch[nodeField as keyof NodeWorkflowNodeData]
+    if (typeof value !== 'string') continue
+    next = {
+      ...next,
+      shots: next.shots.map((shot) =>
+        shot.id === ref.sourceId ? { ...shot, [shotField]: value } : shot,
+      ),
+    }
+  }
+  return next
 }

@@ -104,6 +104,7 @@ import {
 } from '@/constants/providers'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
@@ -112,8 +113,8 @@ import {
 import { NodeWorkflowActionsProvider } from '@/components/business/node/NodeWorkflowActionsContext'
 import { BackgroundImageInspector } from '@/components/business/node/inspector/BackgroundImageInspector'
 import { FrameImageInspector } from '@/components/business/node/inspector/FrameImageInspector'
+import { NodeMediaInspector } from '@/components/business/node/inspector/NodeMediaInspector'
 import { ShotInspector } from '@/components/business/node/inspector/ShotInspector'
-import { ShotTextInspector } from '@/components/business/node/inspector/ShotTextInspector'
 import { VoiceInspector } from '@/components/business/node/inspector/VoiceInspector'
 import type { NodeWorkflowCanvasActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import type {
@@ -248,9 +249,15 @@ beforeEach(() => {
 })
 
 describe('Node media inspectors', () => {
+  // 2026-08-02：原先经 `ShotTextInspector` 渲染，那是个生产零引用的三行透传
+  // 壳（只被本用例当夹具养着），已删。直接渲染它包的宿主，覆盖不变。
   it('edits shot text without requiring a model', () => {
     renderWithActions(
-      <ShotTextInspector node={createNode(NODE_TYPE_IDS.shotText)} />,
+      <NodeMediaInspector
+        node={createNode(NODE_TYPE_IDS.shotText)}
+        type={NODE_TYPE_IDS.shotText}
+        kind={NODE_MEDIA_KIND_IDS.text}
+      />,
     )
 
     fireEvent.change(screen.getByLabelText('scene.label'), {

@@ -214,10 +214,8 @@ import { ReviewModeBar } from './ReviewModeBar'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { VideoMergeComposeToolbar } from './VideoMergeComposeToolbar'
 import { NodeDetailPanel } from './node-detail/NodeDetailPanel'
-import { AgentNode } from './nodes/AgentNode'
 import { BackgroundImageNode } from './nodes/BackgroundImageNode'
 import { CharacterImageNode } from './nodes/CharacterImageNode'
-import { ComposerNode } from './nodes/ComposerNode'
 import { FrameImageNode } from './nodes/FrameImageNode'
 import { ImageNode } from './nodes/ImageNode'
 import { SeedanceNode } from './nodes/SeedanceNode'
@@ -228,9 +226,11 @@ import { VideoReferenceNode } from './nodes/VideoReferenceNode'
 import { VoiceNode } from './nodes/VoiceNode'
 import { NodeWorkflowStatusEdge } from './edges/NodeWorkflowStatusEdge'
 
+// ⛔ 不注册 composer / agent：旧 planner 的组件已于 2026-08-02 删除。它们的
+// 节点在两条水化路径上都会被 `migrateRetirePlanner` 先剥掉，所以这里永远不会
+// 被查到 —— 实拍验证过（夹具注入两个节点，画布显示「0 个节点」）。
+// ⚠ enum 值与那份迁移都必须保留，理由写在 `NODE_TYPE_IDS` 定义处。
 const NODE_COMPONENTS: NodeTypes = {
-  [NODE_TYPE_IDS.composer]: ComposerNode,
-  [NODE_TYPE_IDS.agent]: AgentNode,
   [NODE_TYPE_IDS.shotText]: ShotTextNode,
   [NODE_TYPE_IDS.shot]: ShotNode,
   [NODE_TYPE_IDS.characterImage]: CharacterImageNode,

@@ -63,6 +63,19 @@ export const ScriptDocShotSchema = z.object({
   /** Optional dual-emotion tag (surface · undercurrent), filled per depth. */
   emotion: z.string().trim().max(SCRIPT_DOC_LIMITS.emotionMaxLength).optional(),
   camera: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
+  /**
+   * 构图。2026-08-02 补 —— 在此之前它**只存在于 shotText 节点上**，而节点是
+   * 投影的产物、没有任何人类可达的写入端，却照样参与最终 prompt 拼接
+   * （`node-workflow-prompt.ts`）。owner 拍板「助手自动生成与用户手动输入是
+   * 同一种东西」后，四个字段统一以 ScriptDoc 为事实源，它必须在这里有位置。
+   * ⚠ 必须 `.optional()`：本 schema 嵌在 `NodeWorkflowStateDataSchema` 里，
+   * 收紧会让存量项目在服务端读路径整体 parse 失败。
+   */
+  composition: z
+    .string()
+    .trim()
+    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
+    .optional(),
   /** Role bindings (character node → seedance edges). */
   roleIds: z
     .array(ScriptDocIdSchema)

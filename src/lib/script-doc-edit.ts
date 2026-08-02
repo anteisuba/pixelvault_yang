@@ -21,7 +21,19 @@ export type ScriptDocTextField =
   | 'background'
   | 'targetDuration'
 export type ScriptDocRoleField = 'name' | 'description' | 'personality' | 'goal'
-export type ScriptDocShotField = 'summary' | 'emotion' | 'camera'
+/**
+ * ⚠ 2026-08-02 补 `sceneLabel` / `composition`。此前这两个字段没有任何人类
+ * 可达的写入端 —— `sceneLabel` 在剧本笺里只读、只能由 LLM 起草或 planner
+ * 迁移写入；`composition` 更极端，ScriptDoc 里压根没有它，却在 shotText 节点
+ * 上参与最终 prompt 拼接。owner 拍板「助手自动生成与用户手动输入是同一种
+ * 东西」后，四个镜头字段统一以 ScriptDoc 为事实源，写入端必须齐。
+ */
+export type ScriptDocShotField =
+  | 'summary'
+  | 'emotion'
+  | 'camera'
+  | 'sceneLabel'
+  | 'composition'
 
 /**
  * Field-key scheme shared by the lock set, the lock UI, and the merge. Built,
@@ -118,6 +130,10 @@ export function setShotField(
           return { ...shot, emotion: value }
         case 'camera':
           return { ...shot, camera: value }
+        case 'sceneLabel':
+          return { ...shot, sceneLabel: value }
+        case 'composition':
+          return { ...shot, composition: value }
       }
     }),
   }

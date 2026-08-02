@@ -90,27 +90,10 @@ function truncateNodeText(value: string, maxLength: number): string {
  * 同一个错误的第五份副本。
  */
 function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
-  // agent 的标题来自它自己的计划/分镜产物，不属于通用显示名链，单独保留。
-  if (node.type === NODE_TYPE_IDS.agent) {
-    return (
-      node.data.seedancePromptPlan?.title ??
-      node.data.breakdown?.title ??
-      fallbackTitle
-    )
-  }
-
   return resolveNodeDisplayName(node.data) ?? fallbackTitle
 }
 
 function getNodeSummary(node: NodeWorkflowNode): string | undefined {
-  if (node.type === NODE_TYPE_IDS.agent) {
-    return (
-      node.data.seedancePromptPlan?.finalPrompt ??
-      node.data.breakdown?.logline ??
-      node.data.generationError
-    )
-  }
-
   if (node.type === NODE_TYPE_IDS.characterImage) {
     return node.data.prompt || node.data.imageUrl
   }

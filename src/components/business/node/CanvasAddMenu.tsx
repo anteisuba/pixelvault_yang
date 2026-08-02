@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   Clapperboard,
+  FileText,
   Film,
   Frame,
   ImagePlus,
@@ -57,6 +58,7 @@ const ICON_BY_INTENT: Record<
   [CANVAS_ADD_INTENT_IDS.imageKeyframe]: Frame,
   [CANVAS_ADD_INTENT_IDS.videoGenerate]: Video,
   [CANVAS_ADD_INTENT_IDS.videoReference]: Film,
+  [CANVAS_ADD_INTENT_IDS.videoShotText]: FileText,
   [CANVAS_ADD_INTENT_IDS.videoMerge]: Layers,
   [CANVAS_ADD_INTENT_IDS.audioVoiceProfile]: Mic2,
   [CANVAS_ADD_INTENT_IDS.organizeCharacter]: UserRound,

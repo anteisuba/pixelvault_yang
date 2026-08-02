@@ -94,19 +94,19 @@ L0 舞台底（点阵 / 连线 / 骨架 / 空态）        A1–A5
 
 ## 4 · L2 节点卡
 
-| 编号    | 组件               | 文件                                       | 职责                             | 状态清单                                                                                                     | 真机                                    | 进度                  |
-| ------- | ------------------ | ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------- | --------------------- |
-| **B1**  | 图片起步卡         | `nodes/ImageSourceStarter.tsx`             | role-less 空图片节点             | 空（虚线框）· 拖入高亮 · 上传中 · 上传失败 · **生成中** · **生成失败**                                       | ✅ 空态                                 | ⬜                    |
-| **B2**  | 图片就绪卡         | `nodes/LooseImageCard.tsx`                 | 卡即媒体                         | 就绪 · hover/选中露「替换」· 选中蓝环 · 替换中 · 替换失败 · **待审（卡边）** · **已打回（卡边）** · 尺寸读数 | ✅ 就绪+选中+替换胶囊                   | ⬜                    |
-| **B3**  | 媒体预览卡         | `nodes/NodeMediaPreview.tsx`               | 未落媒体的 shot/frame/voice/text | kind=image 空/生成中/失败 · kind=video · kind=audio · kind=text · footer 两种文案                            | ✅ text（镜头文本）· image 空（关键帧） | ⬜                    |
-| **B4**  | 身份档案卡         | `nodes/IdentityCollectorCard.tsx`          | 角色 / 场景 一致性身份           | 有代表图 · 无代表图（「选一张代表图」虚线）· 参考张数徽标 · 听觉身份 chip                                    | ✅ 两态都有                             | ⬜                    |
-| **B5**  | 镜头图卡           | `nodes/ShotNode.tsx`                       | 镜头（有图走 B2）                | 空 · 有图 · 生成中 · 覆写模型（虚线边）                                                                      | ⬜ 有图态未采                           | ⬜                    |
-| **B6**  | 关键帧卡           | `nodes/FrameImageNode.tsx`                 | 视频首帧                         | 空 · 有图                                                                                                    | ✅ 空态                                 | ⬜                    |
-| **B7**  | 视频生成卡         | `nodes/SeedanceNode.tsx`                   | Seedance 出片                    | 空 · 有片（原生 `<video>` 控件）· 生成中 · 失败                                                              | ✅ 有片                                 | ⬜                    |
-| **B8**  | 参考视频卡         | `nodes/VideoReferenceNode.tsx`             | 上传参考片                       | 空 · 有片 · 上传中                                                                                           | ⬜                                      | ⬜                    |
-| **B9**  | 视频合成卡         | `nodes/VideoMergeNode.tsx`                 | 片盒 / 多段合并                  | 空 · 待合成（列出片段）· 合成中 · 有成片                                                                     | ⬜                                      | ⬜                    |
-| **B10** | 音色卡             | `nodes/VoiceNode.tsx`                      | 音色 + 台词                      | 无音色 · 有音色（缩略图 + ▶ + 波形 + provider 行）· 生成中 · 失败                                            | ✅ 有音色                               | ⬜                    |
-| **B11** | 旧编排器 / planner | `nodes/ComposerNode.tsx` · `AgentNode.tsx` | **已被助手取代**                 | —                                                                                                            | ⬜                                      | ⬜ 先确认是否还该存在 |
+| 编号    | 组件                   | 文件                                           | 职责                             | 状态清单                                                                                                     | 真机                                    | 进度                                          |
+| ------- | ---------------------- | ---------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------- | --------------------------------------------- |
+| **B1**  | 图片起步卡             | `nodes/ImageSourceStarter.tsx`                 | role-less 空图片节点             | 空（虚线框）· 拖入高亮 · 上传中 · 上传失败 · **生成中** · **生成失败**                                       | ✅ 空态                                 | ⬜                                            |
+| **B2**  | 图片就绪卡             | `nodes/LooseImageCard.tsx`                     | 卡即媒体                         | 就绪 · hover/选中露「替换」· 选中蓝环 · 替换中 · 替换失败 · **待审（卡边）** · **已打回（卡边）** · 尺寸读数 | ✅ 就绪+选中+替换胶囊                   | ⬜                                            |
+| **B3**  | 媒体预览卡             | `nodes/NodeMediaPreview.tsx`                   | 未落媒体的 shot/frame/voice/text | kind=image 空/生成中/失败 · kind=video · kind=audio · kind=text · footer 两种文案                            | ✅ text（镜头文本）· image 空（关键帧） | ⬜                                            |
+| **B4**  | 身份档案卡             | `nodes/IdentityCollectorCard.tsx`              | 角色 / 场景 一致性身份           | 有代表图 · 无代表图（「选一张代表图」虚线）· 参考张数徽标 · 听觉身份 chip                                    | ✅ 两态都有                             | ⬜                                            |
+| **B5**  | 镜头图卡               | `nodes/ShotNode.tsx`                           | 镜头（有图走 B2）                | 空 · 有图 · 生成中 · 覆写模型（虚线边）                                                                      | ⬜ 有图态未采                           | ⬜                                            |
+| **B6**  | 关键帧卡               | `nodes/FrameImageNode.tsx`                     | 视频首帧                         | 空 · 有图                                                                                                    | ✅ 空态                                 | ⬜                                            |
+| **B7**  | 视频生成卡             | `nodes/SeedanceNode.tsx`                       | Seedance 出片                    | 空 · 有片（原生 `<video>` 控件）· 生成中 · 失败                                                              | ✅ 有片                                 | ⬜                                            |
+| **B8**  | 参考视频卡             | `nodes/VideoReferenceNode.tsx`                 | 上传参考片                       | 空 · 有片 · 上传中                                                                                           | ⬜                                      | ⬜                                            |
+| **B9**  | 视频合成卡             | `nodes/VideoMergeNode.tsx`                     | 片盒 / 多段合并                  | 空 · 待合成（列出片段）· 合成中 · 有成片                                                                     | ⬜                                      | ⬜                                            |
+| **B10** | 音色卡                 | `nodes/VoiceNode.tsx`                          | 音色 + 台词                      | 无音色 · 有音色（缩略图 + ▶ + 波形 + provider 行）· 生成中 · 失败                                            | ✅ 有音色                               | ⬜                                            |
+| **B11** | ~~旧编排器 / planner~~ | ~~`nodes/ComposerNode.tsx` · `AgentNode.tsx`~~ | **已退役并删除**（2026-08-02）   | —                                                                                                            | ✅ 实拍证明**渲染不出来**（见 §15.2）   | ✅ 组件已删；enum 与迁移垫片按 §15.2 永久保留 |
 
 **现场发现**
 
@@ -214,11 +214,11 @@ L0 舞台底（点阵 / 连线 / 骨架 / 空态）        A1–A5
 
 > ⚠ 本节 2026-08-02 已重写。原表列的十几项在夹具建成后**全部拍到了**，留着会误导。
 
-| 编号                                             | 情况                            | 怎么补                                                                          |
-| ------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------- |
-| **A3 启动骨架**                                  | ⬜ 唯一的「能拍但没拍到」       | 存活 <1s。给夹具的 route 加一层全局延迟，或在 `page.route` 里把首个文档请求拖慢 |
-| **F3 各 Inspector**                              | ⚠ 部分                          | 11 个 inspector 长在详情面板里，F1–F1h 覆盖了它们的宿主，但没有逐个单拍         |
-| `VideoReferenceDetailBody` · `GenericDetailBody` | ⛔ **不是没拍，是产品侧进不去** | 见 §12 发现 #28。要拍得先改产品（给这些类型一个能力区或让空卡也出工具条）       |
+| 编号                                             | 情况                      | 怎么补                                                                                                                         |
+| ------------------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **A3 启动骨架**                                  | ⬜ 唯一的「能拍但没拍到」 | 存活 <1s。给夹具的 route 加一层全局延迟，或在 `page.route` 里把首个文档请求拖慢                                                |
+| **F3 各 Inspector**                              | ⚠ 部分                    | 11 个 inspector 长在详情面板里，F1–F1h 覆盖了它们的宿主，但没有逐个单拍                                                        |
+| `VideoReferenceDetailBody` · `GenericDetailBody` | ✅ **已解**（2026-08-02） | 当时的判断「不是没拍，是产品侧进不去」是对的。两者分别在 §14（#28）与 §15.1 修掉；`composer`/`agent` 的兜底随 §15.2 删组件作废 |
 
 其余全部已采，见 §12。
 
@@ -466,6 +466,8 @@ owner：「节点扩大的 UI、模型的选择、所有按钮点击后的 UI」
 
 ##### ⚠ 10 个 detail body 里有 2 个**从画布上进不去**
 
+> ✅ **已修（2026-08-02）**：`VideoReferenceDetailBody` 见 §14（#28，加了上传能力区）；`shotText` 见 §15.1（加了编辑能力区 + 专属 body）。`composer`/`agent` 的兜底 body 随 §15.2 组件删除一并作废。下面这段保留为当时的诊断记录。
+
 `NODE_DETAIL_REGISTRY` 一共 10 个 body。拍到 8 个，`VideoReferenceDetailBody` 与 `GenericDetailBody` 两个**拍不到，而拍不到本身就是结论**：
 
 链路是这样断的 ——
@@ -662,7 +664,9 @@ A6b（卡名 hover 露铅笔）连试两个选择器都超时。看 B2d 才发�
 
 #### 补齐剩余表面（owner 2026-08-02「把那 9 个表面 + 4 类状态补完」）
 
-**节点卡补两个族**：B5 有图的镜头卡 · B11 旧编排器 / planner（先看清今天还长什么样，再决定去留）
+**节点卡补两个族**：B5 有图的镜头卡 · B11 旧编排器 / planner
+
+⚠ **2026-08-02 订正**：下面这张 B11 图**不是**「旧编排器长什么样」—— 夹具明确注入了 `n-composer` + `n-agent`，而图上是「0 个节点」+ 空画布前门。它拍到的是**这两类节点渲染不出来**（迁移在渲染前剥掉了）。这张图因此是 B11 去留的判据，不是它的外观档案。详见 §15.2。
 ![B5](assets/canvas-ui-2026-08-01/B5-shot-card-with-media.png)
 ![B11](assets/canvas-ui-2026-08-01/B11-legacy-composer-agent.png)
 
@@ -864,9 +868,85 @@ A10（上传中 / 上传失败）第一次按空态卡去触发，`setInputFiles
 ### 14.4 本批**没做**的（有意留下）
 
 - F1 其余 4 处原生 `<select>`（Character / Background / ReferenceControls / ScriptDoc）—— owner 拍板列后续片，别混进本批
-- `shotText` 的 `GenericDetailBody` 仍不可达（同 #28 一根，但属独立伤；`composer`/`agent` 等 B11 收口）
 - `ImageSourceStarter` 那 5 个死 i18n 键（`uploadTitle`/`library`/`aiGenerate`/`libraryDialogTitle`/`libraryDialogDescription`）
 - 空图片卡**仍然只能拖不能点** —— #26 按 owner 新方案改的是添加菜单，空卡本身的入口没动
+- A3 启动骨架仍是唯一没拍到的编号（存活 <1s，夹具没做网络节流）
+
+---
+
+## 15 · 批 1 收尾：shotText 统一建模 + B11 退役（2026-08-02，待审）
+
+这两条原本列在 §14.4 的「有意留下」里，owner 要求「把批 1 干净了再进批 2」，于是在同一轮做掉。**两条的调查都推翻了此前的记载**，先说结论再说改法。
+
+### 15.1 shotText：不是「面板进不去」，是**建模错了**
+
+调查（读码 + 实测）逐条核出来的事实：
+
+| 字段          | 投影来源          | 改这一轮之前，谁能写它                                              |
+| ------------- | ----------------- | ------------------------------------------------------------------- |
+| `action`      | `shot.summary`    | 剧本笺可编 ✅                                                       |
+| `camera`      | `shot.camera`     | 剧本笺可编 ✅                                                       |
+| `scene`       | `shot.sceneLabel` | ❌ **只读** —— `script-doc-edit.ts` 的 `setShotField` switch 少一支 |
+| `composition` | 恒写 `''`         | ❌ **ScriptDoc 里压根没这个概念**，却照样参与 prompt 拼接           |
+
+所以「节点上不能编 = 有意设计（去剧本笺里改）」这个辩护**只成立一半**：四个字段里有两个谁都写不了，其中 `composition` 是一个**无人可写却会被送进模型**的死字段。加上卡面窗内恒走空态（`NodeMediaPreview` 对 text kind 不回显任何内容），用户连这一镜写了什么都看不到。
+
+**owner 的判断（2026-08-02）**：
+
+> 「思考一下可不可以一起做。因为是一种东西。助手这边只是自动生成，不用助手则用户手动输入然后生成」
+
+这句话把问题从「两份数据怎么同步」改成了「一个数据模型、两个入口」。核实下来现有架构**早就为它留好了位置**：
+
+- `scriptRef` 字段的注释原文就是 **“Absent on hand-added nodes”**（`types/node-workflow.ts`）
+- 投影的孤儿清扫**只删有 `scriptRef` 的节点**（`node-workflow-script-doc.ts:517-523`），手工节点它根本不碰
+- `sceneLabel` 在 ScriptDoc schema 里本来就有，只是写入端漏了
+
+于是「覆盖」不需要豁免去绕 —— 它只是两份数据没对齐。
+
+**落地的五件事**
+
+| #   | 改动                                                                                                                                                  | 落点                                                   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| ①   | 能力区「编辑文本」→ 详情面板可达（与 #28 逐字同构，owner 的「无能力无媒体不渲染」规则**没动**）                                                       | `CanvasImageSelectionToolbar.tsx` `ShotTextCapability` |
+| ②   | `setShotField` 放行 `sceneLabel` + `composition`                                                                                                      | `lib/script-doc-edit.ts`                               |
+| ③   | `ScriptDocShotSchema` 加 `composition`（**必须 optional** —— 它嵌在 `NodeWorkflowStateDataSchema` 里，收紧会让存量项目在服务端读路径整体 parse 失败） | `types/script-doc.ts`                                  |
+| ④   | **节点编辑回写 ScriptDoc** —— `syncShotTextPatchToScriptDoc`，落在 `updateNodeData` 里                                                                | `node-workflow-script-doc.ts` + `use-node-workflow.ts` |
+| ⑤   | 加号菜单 + 助手 op 暴露 shotText（手动那条路的入口）                                                                                                  | `canvas-add-catalog.ts` · `node-assistant-ops.ts`      |
+| ⑥   | 专属详情 body（registry 有条约定：菜单能建的类型不许落 `GenericDetailBody` 兜底）                                                                     | 新增 `node-detail/ShotTextDetailBody.tsx`              |
+| ⑦   | 删死代码 `ShotTextInspector`（生产零引用的三行透传壳，只被一个测试当夹具养着）                                                                        | 测试改为直接渲染它包的 `NodeMediaInspector`            |
+
+**④ 的落点为什么选在 `updateNodeData`**：`scriptDoc` 与 `nodes` 同在一个 state 对象上，一次 `setState` 就能原子更新两者；而且以后任何新增的编辑入口都自动一致，不必各自记得回写。
+
+**两条路的对称**（这是整件事的验收标准）：
+
+- 剧本笺起草 → 投影出的节点带 `scriptRef` → 在节点上编辑 → 回写 ScriptDoc → **再投影读到的是用户改过的值**
+- ＋添加 菜单手工建 → 节点无 `scriptRef` → 字段就存自己身上 → **投影完全不碰它**
+
+### 15.2 B11：那张实拍图拍到的是「它们不存在」
+
+`assets/canvas-ui-2026-08-01/B11-legacy-composer-agent.png` 一直被当作「旧编排器长什么样」。实际上夹具（`canvas-ui-shots.mjs`）**明确注入了** `n-composer` + `n-agent` 两个节点，而截图上是顶栏「0 个节点」、左面板「画布还没有节点」、舞台中央空画布前门 —— `migrateRetirePlanner` 在渲染前就把它们剥掉了。台账 B11 行那句「⬜ 先确认是否还该存在」由此得到回答：**用户今天根本看不到它们**，`NODE_COMPONENTS` 里那两条是永不命中的死注册。
+
+**owner 拍板：删组件层。** 已删 `ComposerNode.tsx`（49 行）+ `AgentNode.tsx`（163 行）+ 去注册 + 清两处死分支（`NodeCardControls` 的两个 case 与 `default` 完全同义；`StudioNodeAssistantDock` 的 agent 特判读的是三个**没有任何写入方**的幽灵字段）+ 三语各删 ~13 个死 i18n 键。
+
+⚠ **enum 值与迁移垫片都保留**，而且这一轮把「为什么不能删」的承重警告**从 `migrate-planner.ts` 搬到了 `NODE_TYPE_IDS` 定义处** —— 这是调查点出的真正危险：组件删掉后那两个 enum 键看起来就像孤儿，而删它们的后果是 `z.array(NodeWorkflowNodeSchema)`（**没有逐项 `.catch()`**）整份 parse 失败 → `validateState` 兜成 `EMPTY_STATE` → 存量项目打开即空画布、静默无报错、下一次防抖写入把空状态持久化，**不可恢复**。这类节点至今仍躺在 DB 里（迁移是读路径垫片，没有一次性回填）。
+
+### 15.3 真机验证
+
+**F1j 是最硬的那张证据**。这条夹具用例当初就是为「验证进不去」写的，注释原文：「⚠ 预判可能拍不到：`GenericSelectionToolbar` 在『既无能力区又无媒体』时整条不渲染，而 shotText / composer / agent 正好都是这种 —— 那样就**没有「展开」按钮**，兜底 body 从画布上进不去。**拍不到本身就是结论**，别当成脚本坏了。」
+
+现在它拍到了：面板打开，四个字段（场景 / 动作 / 镜头 / 构图）齐备，底部是新加的去向说明。
+
+![F1j](assets/canvas-ui-2026-08-01/F1j-detail-panel-generic.png)
+
+**D8 添加菜单**：「镜头文本」已进视频组（参考视频与视频合成之间），手动那条路有了入口。
+
+![D8](assets/canvas-ui-2026-08-01/D8-add-menu.png)
+
+⚠ 该用例的注释与 name（`detail-panel-generic`）需要在下一轮顺手更新 —— 它现在打开的是专属的 `ShotTextDetailBody`，不再是 `GenericDetailBody` 兜底。
+
+### 15.4 测试
+
+新增/改动：`node-workflow-script-doc.test.ts` 18 项（+5 条回写验收：四字段各写回对应 shot 字段 · 回写后再投影不被覆盖 · 手工节点不碰 doc · 非镜头字段不产生新 doc · 无 doc 时安全返回）· `CanvasImageSelectionToolbar.test.tsx`（shotText 从「不渲染工具条」改为「有编辑能力区」，并补一条 composer 用例继续守着 owner 那条不渲染规则）· `canvas-add-catalog.test.ts`（那条 “or manual shot text” 排除断言**反转**成 “exposes shot text so the manual path has an entry point”，并写清前提为何作废）· `registry.test.ts`（补 mock）· `NodeMediaInspector.test.tsx`（改为直接渲染宿主）。
 
 ---
 
@@ -886,5 +966,5 @@ A10（上传中 / 上传失败）第一次按空态卡去触发，`setInputFiles
 
 2026-08-02 晚 · owner 三条拍板落文（§0）：视觉方向**保持原样**（原「前置未决」解除）· 新增**动效 + 响应式**两轴（判据见 §13）· 设计载体改 **Fable 出 HTML 原型 → 照着改 `src`**。§10 修缮顺序据此重排为五批。
 
-2026-08-02 深夜 · **批 1 八项全部实现**（§14）。这是本文件第一次真的改 `src/**` —— 此前只动过 `e2e/`。流程走通了一遍完整闭环：HTML 原型 → owner 四条拍板（含把 #26 换成「添加菜单顶部真上传」）→ 改码 → 夹具重跑出 after 图 → 待 owner 逐项审。
+2026-08-02 深夜 · **批 1 八项全部实现并提交**（§14，commit `24a504e0`）。这是本文件第一次真的改 `src/**` —— 此前只动过 `e2e/`。流程走通了一遍完整闭环：HTML 原型 → owner 四条拍板（含把 #26 换成「添加菜单顶部真上传」）→ 改码 → 夹具重跑出 after 图 → 待 owner 逐项审。
 ⚠ 两条改动**溢出画布域**，审的时候要多看一眼：① `.domain-canvas` 的脊柱令牌重映射（刀 1）影响画布子树里**所有**吃脊柱令牌的共享组件；② `BaseModelPickerPanel`（刀 3/4）是 studio-shared，**LoRA / Studio 的同款模型选择器一并改变**（owner 已拍板接受，属行为统一）。

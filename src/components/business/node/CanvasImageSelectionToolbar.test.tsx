@@ -508,8 +508,14 @@ describe('NodeSelectionToolbarChrome', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shotText with no media and no capability region renders no toolbar at all', () => {
-    const { container } = render(
+  // 2026-08-02 反转：这条用例原先断言「shotText 无媒体 ⇒ 整条工具条不渲染」，
+  // 那是把 shotText 当纯投影产物的时代。owner 拍板「助手自动生成与用户手动
+  // 输入是同一种东西」后，它的四个字段必须能改，而唯一的编辑面板
+  // （GenericDetailBody）只能从工具条的 ⤢ 进 —— 没有工具条就永远打不开。
+  // ⚠ owner 那条「无能力区且无媒体 ⇒ 不渲染」的规则**本身没动**，改的是
+  // 「shotText 有没有能力区」。规则仍由下面 composer 那条用例守着。
+  it('shotText gets an edit capability so its fields stay reachable', () => {
+    render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
         data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
@@ -517,9 +523,21 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.shotText}
       />,
     )
-    // shotText has no registry capability and (here) no media — nothing to
-    // operate on, so the whole toolbar is absent, not a read-only identity
-    // span + universal-actions shell like before this change.
+    expect(screen.getByRole('button', { name: 'editText' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'expand' })).toBeInTheDocument()
+  })
+
+  // owner 2026-07-27 规则的守门用例：真正没有能力区、又没有媒体的类型，整条
+  // 工具条仍然不渲染（composer 是已退役的旧 planner，永远两者皆无）。
+  it('a type with neither capability nor media still renders no toolbar', () => {
+    const { container } = render(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
+        selected
+        nodeType={NODE_TYPE_IDS.composer}
+      />,
+    )
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
     expect(container).toBeEmptyDOMElement()
   })

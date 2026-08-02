@@ -15,6 +15,7 @@ import {
   Download,
   Eraser,
   Expand,
+  FileText,
   Film,
   IdCard,
   Layers3,
@@ -776,6 +777,35 @@ function SeedanceCapability({
 }
 
 /**
+ * 镜头文本 capability region: 打开详情面板改那四个字段。
+ *
+ * 与下面 `VideoReferenceCapability` 同一根问题（台账 #28）：没有能力区 ⇒ 空卡
+ * 整条工具条不渲染 ⇒ 没有 ⤢ ⇒ 面板进不去。shotText 比参考视频更严重 —— 它的
+ * 卡面窗内**连自己写了什么都不显示**（`NodeMediaPreview` 对 text 恒走空态），
+ * 所以在此之前，一镜的场景/动作/镜头/构图在画布上既看不到也改不了。
+ *
+ * owner 2026-08-02：「助手这边只是自动生成，不用助手则用户手动输入然后生成
+ * —— 是一种东西」。节点上的编辑会由 `updateNodeData` 回写 ScriptDoc
+ * （`syncShotTextPatchToScriptDoc`），所以这里打开的面板与剧本笺改的是同一份
+ * 数据，不存在「编了会被下次投影覆盖」。
+ *
+ * 面板内容零新增：`GenericDetailBody` 早就会按 `NODE_WORKFLOW_FIELDS_BY_NODE_TYPE`
+ * 渲染这四个 Textarea，只是过去没人能走到它。
+ */
+function ShotTextCapability({ nodeId }: { nodeId: string }) {
+  const t = useTranslations('StudioNode.workflowNodes.shotText')
+  const { setExpandedNodeId } = useNodeWorkflowActions()
+
+  return (
+    <ToolbarLabelButton
+      icon={FileText}
+      label={t('editText')}
+      onClick={() => setExpandedNodeId(nodeId)}
+    />
+  )
+}
+
+/**
  * 参考视频 capability region: 上传 / 替换。
  *
  * 台账 #28（2026-08-02）：这个能力区存在的第一理由不是「方便」，而是**可达性**
@@ -955,11 +985,11 @@ function VoiceCapability({
 }
 
 /** Capability-region registry (§3.2 table). Returns null for types with no
- *  reachable capability today (shotText, composer/agent, frame/closeup
- *  without media) — an empty middle region, not a dead button.
- *  ⚠ videoReference 于 2026-08-02（台账 #28）**迁出**这个清单：它空卡时
- *  没有能力区 ⇒ 整条工具条不渲染 ⇒ 详情面板（=上传面板）不可达，见
- *  `VideoReferenceCapability` 头注。 */
+ *  reachable capability today (composer/agent，两者已退役、用户看不到；
+ *  frame/closeup without media) — an empty middle region, not a dead button.
+ *  ⚠ videoReference 与 shotText 于 2026-08-02（台账 #28 及其收尾）**迁出**
+ *  这个清单：它们无媒体时没有能力区 ⇒ 整条工具条不渲染 ⇒ 详情面板不可达，
+ *  而那恰恰是各自最该打开的面板。见两个 Capability 组件的头注。 */
 function ToolbarCapabilityRegion({
   nodeId,
   data,
@@ -987,6 +1017,10 @@ function ToolbarCapabilityRegion({
     // 上传面板（VideoReferenceDetailBody）可达。见组件头注。
     case NODE_TYPE_IDS.videoReference:
       return <VideoReferenceCapability nodeId={nodeId} data={data} />
+    // 同上一条的第二个受害者：shotText 恒无媒体，没有能力区就永远打不开
+    // 那四个字段的编辑面板（GenericDetailBody）。见 ShotTextCapability 头注。
+    case NODE_TYPE_IDS.shotText:
+      return <ShotTextCapability nodeId={nodeId} />
     default:
       return null
   }

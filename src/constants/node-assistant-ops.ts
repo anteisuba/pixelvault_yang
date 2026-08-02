@@ -15,8 +15,13 @@
  * 「角色节点是什么」在 ＋添加 菜单里已经定义过一次（nodeType + role）。助手若
  * 自带一份族表，那就是第二处定义，迟早分叉。所以 `add_node` 说的是**意图 id**
  * （`organize.character`），落地时走 workbench 同一个 `createCanvasObject`。
- * 代价是：菜单加不了的东西助手也加不了（今天 `shotText` 就在此列，它只由剧本
- * 投影产出）。这是有意的 —— 助手不该比人手多一条建节点的暗路。
+ * 代价是：菜单加不了的东西助手也加不了。这是有意的 —— 助手不该比人手多一条
+ * 建节点的暗路。
+ * ⚠ 2026-08-02：`shotText` 原本是这条代价的举例（「只由剧本投影产出」），
+ * owner 拍板「助手自动生成与用户手动输入是同一种东西」后菜单已经放开它，
+ * 这里也随之对齐。助手因此有两条产出镜头文本的路：剧本笺投影（节点带
+ * `scriptRef`，与 ScriptDoc 双向同步）和 `add_node`（手工节点，字段存自己
+ * 身上）—— 与人手的两条路一一对应，不是暗路。
  */
 
 import {
@@ -54,6 +59,7 @@ export const NODE_ASSISTANT_ADD_INTENTS = [
   CANVAS_ADD_INTENT_IDS.imageKeyframe,
   CANVAS_ADD_INTENT_IDS.videoGenerate,
   CANVAS_ADD_INTENT_IDS.videoReference,
+  CANVAS_ADD_INTENT_IDS.videoShotText,
   CANVAS_ADD_INTENT_IDS.videoMerge,
   CANVAS_ADD_INTENT_IDS.audioVoiceProfile,
   CANVAS_ADD_INTENT_IDS.organizeCharacter,
@@ -82,6 +88,8 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
     'a keyframe image that feeds a video node',
   [CANVAS_ADD_INTENT_IDS.imageAsset]:
     'a loose image with no assigned role — only when none of the roles above fits',
+  [CANVAS_ADD_INTENT_IDS.videoShotText]:
+    'a shot-text node — the written scene / action / camera / composition for one shot, feeding a video node',
   [CANVAS_ADD_INTENT_IDS.videoGenerate]: 'a video generation node',
   [CANVAS_ADD_INTENT_IDS.videoReference]: 'a reference video clip',
   [CANVAS_ADD_INTENT_IDS.videoMerge]:

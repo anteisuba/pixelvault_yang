@@ -45,9 +45,10 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 台账 #26：顶部真上传主行 + 全部 9 条 catalog 行（image.asset 回到
-    // image 分组，不再被顶部行顶掉）。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
+    // 台账 #26：顶部真上传主行 + 全部 catalog 行（image.asset 回到 image
+    // 分组，不再被顶部行顶掉）。11 = 1 + 10（10 含 2026-08-02 新增的手动
+    // 镜头文本，见 canvas-add-catalog.test.ts 那条反转用例）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(11)
     expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
     expect(
       screen.queryByText('addCatalog.items.shotText.label'),

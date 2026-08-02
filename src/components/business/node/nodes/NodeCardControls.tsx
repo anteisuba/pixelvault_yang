@@ -163,10 +163,6 @@ export function getDefaultEditorFields(
         NODE_WORKFLOW_FIELD_IDS.voiceId,
         NODE_WORKFLOW_FIELD_IDS.dialogue,
       ]
-    case NODE_TYPE_IDS.agent:
-      return [NODE_WORKFLOW_FIELD_IDS.prompt]
-    case NODE_TYPE_IDS.composer:
-      return [NODE_WORKFLOW_FIELD_IDS.prompt]
     default:
       return [NODE_WORKFLOW_FIELD_IDS.prompt]
   }

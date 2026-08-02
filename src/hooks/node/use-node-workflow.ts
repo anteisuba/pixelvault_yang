@@ -65,7 +65,10 @@ import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
-import { projectScriptDocToGraph } from '@/lib/node-workflow-script-doc'
+import {
+  projectScriptDocToGraph,
+  syncShotTextPatchToScriptDoc,
+} from '@/lib/node-workflow-script-doc'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -1295,9 +1298,8 @@ export function useNodeWorkflow({
         patchCurrentProjectState(
           currentStorage,
           defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            nodes: currentState.nodes.map((node) =>
+          (currentState) => {
+            const nodes = currentState.nodes.map((node) =>
               node.id === id
                 ? {
                     ...node,
@@ -1307,8 +1309,29 @@ export function useNodeWorkflow({
                     },
                   }
                 : node,
-            ),
-          }),
+            )
+            // owner 2026-08-02：「助手这边只是自动生成，不用助手则用户手动
+            // 输入然后生成 —— 是一种东西」。所以镜头文本不是「助手的产物」，
+            // 是「一镜的文字定义」，助手只是填它的一种方式。
+            //
+            // 由此：投影出来的 shotText 节点（带 scriptRef）在节点上被编辑时
+            // 必须回写 ScriptDoc，否则下一次投影会把用户的修改覆盖掉 —— 那
+            // 不是「保护剧本」，只是两份数据没对齐。手工添加的节点没有
+            // scriptRef（见 NodeWorkflowNodeDataSchema 该字段注释），本来就
+            // 不受投影管辖，这里也自然跳过。
+            //
+            // ⚠ 落点选在这里而不是各个编辑组件里：`scriptDoc` 与 `nodes` 同在
+            // 一个 state 对象上，这一次 setState 就能把两者原子更新，且以后
+            // 任何新增的编辑入口都自动一致，不必各自记得回写。
+            const scriptDoc = syncShotTextPatchToScriptDoc(
+              currentState.scriptDoc,
+              currentState.nodes.find((node) => node.id === id),
+              patch,
+            )
+            return scriptDoc === currentState.scriptDoc
+              ? { ...currentState, nodes }
+              : { ...currentState, nodes, scriptDoc }
+          },
         ),
       )
     },

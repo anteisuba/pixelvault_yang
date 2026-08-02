@@ -20,6 +20,8 @@ vi.mock('next-intl', () => ({
       params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
+
 describe('CanvasBottomDock', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -34,6 +36,7 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        nodeCount={3}
         relationsCollapsed={false}
         onRelationsCollapsedChange={vi.fn()}
       />,
@@ -65,6 +68,7 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        nodeCount={3}
         relationsCollapsed={false}
         onRelationsCollapsedChange={vi.fn()}
       />,
@@ -98,6 +102,7 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        nodeCount={3}
         relationsCollapsed={false}
         onRelationsCollapsedChange={onRelationsCollapsedChange}
       />,
@@ -119,6 +124,7 @@ describe('CanvasBottomDock', () => {
         onModeChange={vi.fn()}
         onUndo={vi.fn()}
         onRedo={vi.fn()}
+        nodeCount={3}
         relationsCollapsed
         onRelationsCollapsedChange={onRelationsCollapsedChange}
       />,
@@ -126,5 +132,50 @@ describe('CanvasBottomDock', () => {
     expect(
       screen.getByRole('button', { name: 'bottomDock.relationsCollapse' }),
     ).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  // owner 2026-08-02：「右上整理画布这个加在底部编辑栏中」。它重排的是节点
+  // 位置，跟这条胶囊里的缩放/适应/关系线同属「看画布」。
+  describe('整理画布（从顶栏搬来）', () => {
+    it('点了就派发，空画布时禁用', () => {
+      const onArrange = vi.fn()
+      const { rerender } = render(
+        <CanvasBottomDock
+          activeMode="pointer"
+          canUndo={false}
+          canRedo={false}
+          onModeChange={vi.fn()}
+          onUndo={vi.fn()}
+          onRedo={vi.fn()}
+          nodeCount={3}
+          relationsCollapsed={false}
+          onRelationsCollapsedChange={vi.fn()}
+          onArrange={onArrange}
+        />,
+      )
+
+      const arrange = screen.getByRole('button', { name: 'topbar.arrange' })
+      expect(arrange).toBeEnabled()
+      fireEvent.click(arrange)
+      expect(onArrange).toHaveBeenCalledTimes(1)
+
+      rerender(
+        <CanvasBottomDock
+          activeMode="pointer"
+          canUndo={false}
+          canRedo={false}
+          onModeChange={vi.fn()}
+          onUndo={vi.fn()}
+          onRedo={vi.fn()}
+          nodeCount={0}
+          relationsCollapsed={false}
+          onRelationsCollapsedChange={vi.fn()}
+          onArrange={onArrange}
+        />,
+      )
+      expect(
+        screen.getByRole('button', { name: 'topbar.arrange' }),
+      ).toBeDisabled()
+    })
   })
 })

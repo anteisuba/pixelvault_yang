@@ -20,6 +20,22 @@ export const NODE_STUDIO_IMAGE_CARD_SIZE = {
   referenceHeight: 225,
 } as const
 
+/**
+ * 卡外名字条（S1「卡名移出卡框」）占的高度，近场工具条要让开它。
+ *
+ * ⚠ 两个数**单位不同**，别加在一起当常量用：`height` 是**画布像素**（名字长
+ * 在卡里，跟着缩放变大），`toolbarGap` 是**屏幕像素**（NodeToolbar 的 offset
+ * 故意不随缩放变）。所以正确的让位量是 `height × zoom + toolbarGap`，写死一
+ * 个 36 只在 100% 缩放对 —— 200% 时名字实际占 48 屏幕像素，工具条会压上去。
+ *
+ * height 与 canvas.css `.canvas-card-label` 的 `--canvas-text-name-lh`（24px）
+ * + `margin-bottom: 4px` 同源，改那边记得改这里。
+ */
+export const NODE_STUDIO_CARD_LABEL_LANE = {
+  height: 28,
+  toolbarGap: 8,
+} as const
+
 export const NODE_STUDIO_CANVAS = {
   // A3（canvas-relationship-v3 §7b）：owner 手动缩到 200% 实测拍板为舒适基准，
   // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow.ts），

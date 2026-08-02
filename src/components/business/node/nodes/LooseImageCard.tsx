@@ -30,7 +30,6 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import {
   CanvasImageSelectionToolbar,
   canOfferCanvasImageEdit,
-  MediaReviewButtons,
   NodeSelectionToolbarChrome,
   ShotGenerateButton,
 } from '../CanvasImageSelectionToolbar'

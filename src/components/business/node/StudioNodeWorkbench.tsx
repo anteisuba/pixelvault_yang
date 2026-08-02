@@ -4014,7 +4014,6 @@ function StudioNodeCanvas() {
               projectName={workflow.currentProjectName}
               canvasAppearance={workflow.canvasAppearance}
               onCanvasAppearanceChange={workflow.setCanvasAppearance}
-              onArrange={handleTidyLayout}
               isSaving={isSaving}
               reviewPendingCount={reviewMode.remaining}
               onStartReview={reviewMode.enter}
@@ -4039,6 +4038,8 @@ function StudioNodeCanvas() {
                 onRedo={workflow.redo}
                 relationsCollapsed={relationsCollapsed}
                 onRelationsCollapsedChange={setRelationsCollapsed}
+                onArrange={handleTidyLayout}
+                nodeCount={workflow.nodes.length}
               />
             </div>
             {/* S2b（2026-07-26）：卡匣从底部横匣搬进左侧合体面板。底部那行现在

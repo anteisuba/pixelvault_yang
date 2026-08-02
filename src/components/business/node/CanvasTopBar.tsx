@@ -1,10 +1,8 @@
 'use client'
 
-import { Archive, ClipboardCheck, LayoutTemplate, Workflow } from 'lucide-react'
+import { Archive, ClipboardCheck, Workflow } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
-import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
@@ -17,7 +15,6 @@ interface CanvasTopBarProps {
   projectName: string
   canvasAppearance: CanvasAppearance | undefined
   onCanvasAppearanceChange(value: CanvasAppearance | undefined): void
-  onArrange?: () => void
   /** 保存是自动的；这里只用来在片名旁显示进行态。 */
   isSaving?: boolean
   /** 包 6 片 2：还有几张待审。0 时徽标整个不渲染。 */
@@ -32,20 +29,12 @@ export function CanvasTopBar({
   projectName,
   canvasAppearance,
   onCanvasAppearanceChange,
-  onArrange,
   isSaving = false,
   reviewPendingCount = 0,
   onStartReview,
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
-
-  const showPlaceholderToast = () => {
-    toast.info(t('toasts.notImplemented'), {
-      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-    })
-  }
 
   return (
     <header
@@ -102,22 +91,13 @@ export function CanvasTopBar({
             </span>
           </Button>
         ) : null}
+        {/* 2026-08-02（owner）：「整理画布」搬进底部编辑栏（CanvasBottomDock）
+            —— 它重排的是节点位置，跟缩放/适应/关系线同属「看画布」，不是项目
+            级 chrome。顶栏这边只剩外观设置。 */}
         <CanvasAppearancePanel
           appearance={canvasAppearance}
           onChange={onCanvasAppearanceChange}
         />
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={t('topbar.arrange')}
-          title={t('topbar.arrange')}
-          onClick={onArrange ?? showPlaceholderToast}
-          disabled={nodeCount === 0}
-          className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-40"
-        >
-          <LayoutTemplate className="size-4" />
-        </Button>
       </div>
     </header>
   )

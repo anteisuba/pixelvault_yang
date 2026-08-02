@@ -1296,17 +1296,24 @@ export function VideoComposer({
             </ResponsivePopover>
           </div>
 
-          <div className="canvas-video-composer-prompt">
-            <IMEAwareTextarea
-              textareaRef={compactPromptRef}
-              value={promptFieldValue}
-              onValueChange={(next) =>
-                handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
-              }
-              aria-label={tFields('prompt.label')}
-              placeholder={tc('sidecar.promptPlaceholder')}
-              className="canvas-video-composer-prompt-input"
-            />
+          {/* 输入框 + 字数计数打包成一个 flex 项：父层 .canvas-video-composer-
+              compact 的列间距是 10px，计数直接当兄弟会被推开一整格，读起来
+              不像属于这个框。 */}
+          <div className="canvas-video-composer-prompt-group">
+            <div className="canvas-video-composer-prompt">
+              <IMEAwareTextarea
+                textareaRef={compactPromptRef}
+                value={promptFieldValue}
+                onValueChange={(next) =>
+                  handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+                }
+                aria-label={tFields('prompt.label')}
+                placeholder={tc('sidecar.promptPlaceholder')}
+                className="canvas-video-composer-prompt-input"
+              />
+            </div>
+            {/* 台账 D2：计数搬到框**外**。原先它 absolute 压在框内右下角，而
+              textarea 会滚动，正文一长就从它底下穿过去。 */}
             <span
               className={cn(
                 'canvas-video-composer-count',

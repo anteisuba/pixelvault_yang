@@ -4,6 +4,7 @@ import type { ComponentType } from 'react'
 import {
   Focus,
   Hand,
+  LayoutTemplate,
   MousePointer2,
   Redo2,
   Undo2,
@@ -12,10 +13,12 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import { useReactFlow, useViewport } from '@xyflow/react'
 
 import {
   NODE_STUDIO_CANVAS,
+  NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_TOOL_MODES,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
@@ -60,6 +63,14 @@ interface CanvasBottomDockProps {
    */
   relationsCollapsed: boolean
   onRelationsCollapsedChange(next: boolean): void
+  /**
+   * 「整理画布」（owner 2026-08-02 从顶栏右上搬来）。它做的是**重排全部节点
+   * 的位置**，跟这条胶囊里的缩放/适应/关系线是同一类「看画布」的操作，而不
+   * 是顶栏那种项目级 chrome —— 顶栏经 E1 瘦身后已回归纯 chrome。
+   */
+  onArrange?: () => void
+  /** 空画布没什么可整理的 —— 与顶栏原实现同一条禁用判据。 */
+  nodeCount: number
 }
 
 /**
@@ -78,11 +89,22 @@ export function CanvasBottomDock({
   onRedo,
   relationsCollapsed,
   onRelationsCollapsedChange,
+  onArrange,
+  nodeCount,
 }: CanvasBottomDockProps) {
   const t = useTranslations('StudioNode')
   const { fitView, zoomIn, zoomOut } = useReactFlow()
   const { zoom } = useViewport()
   const zoomPercent = Math.round(zoom * 100)
+
+  // 与顶栏原实现同源：onArrange 没接线时给一句「还没做」的 toast，而不是
+  // 让按钮点了没反应。
+  const showPlaceholderToast = () => {
+    toast.info(t('toasts.notImplemented'), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }
 
   return (
     <TooltipProvider delayDuration={250}>
@@ -191,6 +213,24 @@ export function CanvasBottomDock({
             (aria-pressed=false) = 全显——骨干 + 成分墨线都常显，成分选中时
             仍升级石绿；按下 (aria-pressed=true) = 收起——回到骨干常显 / 成
             分仅选中或生成中显现的旧默认，给想要干净画布的时候用。 */}
+        {/* 整理画布 —— 与关系线同组：两者都是「把这张画布整成看得懂的样子」 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('topbar.arrange')}
+              onClick={onArrange ?? showPlaceholderToast}
+              disabled={nodeCount === 0}
+              className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-40"
+            >
+              <LayoutTemplate className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{t('topbar.arrange')}</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -96,6 +97,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -132,6 +137,64 @@ const MORE_EDIT_TASKS = [
   'object-replace',
   'style-transfer',
 ] as const satisfies readonly ReadyCanvasImageEditCapabilityId[]
+
+/**
+ * 溢出菜单的分段（台账 C1：八条平铺，看不出哪条点下去要接着干活）。
+ *
+ * ⚠ 分组**从能力常量的 `interaction` 推导**，不另写一份清单 —— 那个字段本来
+ * 就是「点开之后要你做什么」的事实源（`CanvasImageEditWorkspace` 按它决定渲染
+ * 涂抹编辑器 / 拉框编辑器 / 一个 prompt 框）。手抄一份的话，日后加能力只改常量
+ * 就会悄悄错位：批 2 的 HTML 原型里我按语感把「提取元素 / 物体替换」归进了
+ * 「需要框选」，而它们实际是 `prompt`（打字描述），两条就这么错了。
+ */
+type CanvasImageEditInteraction =
+  (typeof READY_CANVAS_IMAGE_EDIT_CAPABILITIES)[number]['interaction']
+
+const MORE_EDIT_GROUPS: readonly {
+  labelKey: string
+  interactions: readonly CanvasImageEditInteraction[]
+}[] = [
+  { labelKey: 'moreEditsInstant', interactions: ['instant', 'layers'] },
+  { labelKey: 'moreEditsRegion', interactions: ['mask', 'outpaint'] },
+  { labelKey: 'moreEditsDescribe', interactions: ['prompt'] },
+]
+
+interface MoreEditGroup {
+  labelKey: string
+  taskIds: ReadyCanvasImageEditCapabilityId[]
+}
+
+function groupMoreEditTasks(): MoreEditGroup[] {
+  const interactionById = new Map<string, CanvasImageEditInteraction>(
+    READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id, interaction }) => [
+      id,
+      interaction,
+    ]),
+  )
+  const remaining = new Set<ReadyCanvasImageEditCapabilityId>(MORE_EDIT_TASKS)
+  const groups: MoreEditGroup[] = MORE_EDIT_GROUPS.map(
+    ({ labelKey, interactions }) => {
+      const taskIds = MORE_EDIT_TASKS.filter((taskId) => {
+        const interaction = interactionById.get(taskId)
+        const matched =
+          interaction !== undefined && interactions.includes(interaction)
+        if (matched) remaining.delete(taskId)
+        return matched
+      })
+      return { labelKey, taskIds: [...taskIds] }
+    },
+  ).filter((group) => group.taskIds.length > 0)
+
+  // 没归上的仍然渲出来（无标题段），只是排在最后：新增一种 interaction 时
+  // 宁可分段不好看，也不能让一条能力从菜单里凭空消失。
+  if (remaining.size > 0) {
+    groups.push({
+      labelKey: '',
+      taskIds: MORE_EDIT_TASKS.filter((taskId) => remaining.has(taskId)),
+    })
+  }
+  return groups
+}
 
 /** Not image-specific despite the name's origin — every node kind (image /
  *  video / audio) stores its result under the same `mediaUrl` (legacy
@@ -209,6 +272,7 @@ export function CanvasImageSelectionToolbar({
     () => new Set(READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)),
     [],
   )
+  const moreEditGroups = useMemo(() => groupMoreEditTasks(), [])
 
   // R3-4 §4.2 rule 3: mirror this dialog's own open/closed state up to the
   // workbench (one-way — `activeTask` itself stays local) so opening it
@@ -240,62 +304,35 @@ export function CanvasImageSelectionToolbar({
         aria-label={t('imageEditToolbar')}
         className="canvas-selection-toolbar flex h-11 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-0.5 p-1"
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('category')}
-              title={t('category')}
-              className="relative flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
-            >
-              <Tags className="size-3.5" />
-              <span className="hidden max-w-16 truncate sm:inline">
-                {data.imageCategory
-                  ? data.imageCategory === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
-                    ? data.imageCategoryLabel || tSource('categoryCustomLabel')
-                    : tRoles(`roles.${data.imageCategory}`)
-                  : t('category')}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="min-w-40 border-node-panel-inner bg-node-panel text-node-foreground"
-          >
-            <DropdownMenuLabel className="text-2xs text-node-muted">
-              {t('category')}
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() =>
-                updateNodeData(nodeId, {
-                  imageCategory: undefined,
-                  imageCategoryLabel: undefined,
-                })
-              }
-              className="focus:bg-node-panel-inner"
-            >
-              {tSource('categoryUnset')}
-            </DropdownMenuItem>
-            {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
-              <DropdownMenuItem
-                key={role}
-                onClick={() =>
-                  updateNodeData(nodeId, {
-                    imageCategory: role as NodeWorkflowReferenceRole,
-                    imageCategoryLabel:
-                      role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
-                        ? data.imageCategoryLabel
-                        : undefined,
-                  })
-                }
-                className="focus:bg-node-panel-inner"
-              >
-                {tRoles(`roles.${role}`)}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* ① 主动作组 —— 全条唯一常显文字，13px/600（其余 12px/500）。
+            `hidden sm:inline` 已去掉：文字才是它「是主角」的载体，窄屏藏掉等
+            于这条修缮在窄屏不存在；分类腾出的 ~72px 也够它常显。 */}
+        <button
+          type="button"
+          onClick={() => onQuickEditOpenChange?.(!quickEditOpen)}
+          aria-pressed={quickEditOpen}
+          aria-label={t('quickEdit')}
+          title={t('quickEdit')}
+          className={cn(
+            "relative flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']",
+            quickEditOpen
+              ? 'bg-node-paint text-node-paint-fg'
+              : 'bg-node-panel-inner text-node-foreground hover:bg-node-panel-inner/70',
+          )}
+        >
+          <WandSparkles className="size-4" />
+          <span className="whitespace-nowrap">{t('quickEdit')}</span>
+        </button>
 
+        {/* 类型专属主动作（今天只有镜头图的 生成/重生成）与快捷编辑同组 */}
+        {extra}
+
+        <span
+          className="canvas-selection-toolbar-divider mx-1 h-5 w-px"
+          aria-hidden
+        />
+
+        {/* ② 读取 / 导出组 —— 看和拿走，都不改这张图 */}
         <button
           type="button"
           onClick={() => setExpandedNodeId(nodeId)}
@@ -317,39 +354,12 @@ export function CanvasImageSelectionToolbar({
         </button>
 
         <span
-          className="canvas-selection-toolbar-divider mx-0.5 h-5 w-px"
+          className="canvas-selection-toolbar-divider mx-1 h-5 w-px"
           aria-hidden
         />
 
-        <button
-          type="button"
-          onClick={() => onQuickEditOpenChange?.(!quickEditOpen)}
-          aria-pressed={quickEditOpen}
-          aria-label={t('quickEdit')}
-          title={t('quickEdit')}
-          className={cn(
-            "relative flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']",
-            quickEditOpen
-              ? 'bg-node-paint text-node-paint-fg'
-              : 'text-node-foreground hover:bg-node-panel-inner',
-          )}
-        >
-          <WandSparkles className="size-3.5" />
-          <span className="hidden sm:inline">{t('quickEdit')}</span>
-        </button>
-
-        {extra}
-
-        <button
-          type="button"
-          onClick={() => deleteNode(nodeId)}
-          aria-label={t('delete')}
-          title={t('delete')}
-          className="relative flex size-9 items-center justify-center rounded-lg text-node-status-failed-fg transition-colors hover:bg-node-status-failed/40 coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-
+        {/* ③ 更多 + 销毁组 —— 删除此前紧贴主动作（快捷编辑右邻），把「最常点」
+            和「不可逆」摆成邻居；挪到末组并让 ⋯ 隔在中间。 */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -363,26 +373,111 @@ export function CanvasImageSelectionToolbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="min-w-48 border-node-panel-inner bg-node-panel text-node-foreground"
+            className="min-w-52 border-node-panel-inner bg-node-panel text-node-foreground"
           >
-            <DropdownMenuLabel className="text-2xs text-node-muted">
-              {t('moreEdits')}
-            </DropdownMenuLabel>
-            {MORE_EDIT_TASKS.map((taskId) => {
-              const Icon = TASK_ICONS[taskId]
-              return (
+            {/* 分类从常驻条收进来：它是**属性**不是动作，混在一排动作钮里
+                还占着最左最显眼的带文字位，而它一张图只设一次。详情面板
+                （LooseImageDetailBody）里本来就有一份更全的（带自定义名输
+                入），所以这里收起来不会变成唯一入口。 */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2 focus:bg-node-panel-inner data-[state=open]:bg-node-panel-inner">
+                <Tags className="size-3.5" />
+                {t('category')}
+                <span className="ml-auto max-w-24 truncate pl-2 text-2xs text-node-muted">
+                  {data.imageCategory
+                    ? data.imageCategory ===
+                      NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
+                      ? data.imageCategoryLabel ||
+                        tSource('categoryCustomLabel')
+                      : tRoles(`roles.${data.imageCategory}`)
+                    : tSource('categoryUnset')}
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-40 border-node-panel-inner bg-node-panel text-node-foreground">
                 <DropdownMenuItem
-                  key={taskId}
-                  onClick={() => openTask(taskId)}
+                  onClick={() =>
+                    updateNodeData(nodeId, {
+                      imageCategory: undefined,
+                      imageCategoryLabel: undefined,
+                    })
+                  }
                   className="gap-2 focus:bg-node-panel-inner"
                 >
-                  <Icon className="size-3.5" />
-                  {tTasks(`${taskId}.label`)}
+                  <Check
+                    className={cn(
+                      'size-3.5',
+                      data.imageCategory ? 'opacity-0' : 'opacity-100',
+                    )}
+                    aria-hidden
+                  />
+                  {tSource('categoryUnset')}
                 </DropdownMenuItem>
-              )
-            })}
+                {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
+                  <DropdownMenuItem
+                    key={role}
+                    onClick={() =>
+                      updateNodeData(nodeId, {
+                        imageCategory: role as NodeWorkflowReferenceRole,
+                        imageCategoryLabel:
+                          role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
+                            ? data.imageCategoryLabel
+                            : undefined,
+                      })
+                    }
+                    className="gap-2 focus:bg-node-panel-inner"
+                  >
+                    <Check
+                      className={cn(
+                        'size-3.5',
+                        data.imageCategory === role
+                          ? 'opacity-100'
+                          : 'opacity-0',
+                      )}
+                      aria-hidden
+                    />
+                    {tRoles(`roles.${role}`)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            {/* 八条编辑能力分段（台账 C1）：段标题回答的是「点下去还要我干
+                什么」，不是能力的语义分类 —— 那才是选之前真正想知道的。 */}
+            {moreEditGroups.map((group, index) => (
+              <Fragment key={group.labelKey || `group-${index}`}>
+                <DropdownMenuSeparator className="bg-node-panel-inner" />
+                {group.labelKey ? (
+                  <DropdownMenuLabel className="text-2xs text-node-muted">
+                    {t(group.labelKey)}
+                  </DropdownMenuLabel>
+                ) : null}
+                {group.taskIds.map((taskId) => {
+                  const Icon = TASK_ICONS[taskId]
+                  return (
+                    <DropdownMenuItem
+                      key={taskId}
+                      onClick={() => openTask(taskId)}
+                      className="gap-2 focus:bg-node-panel-inner"
+                    >
+                      <Icon className="size-3.5" />
+                      {tTasks(`${taskId}.label`)}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </Fragment>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <button
+          type="button"
+          onClick={() => deleteNode(nodeId)}
+          aria-label={t('delete')}
+          title={t('delete')}
+          className="relative flex size-9 items-center justify-center rounded-lg text-node-status-failed-fg transition-colors hover:bg-node-status-failed/40 coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
       </div>
 
       {activeTask ? (
@@ -685,9 +780,18 @@ export function ShotGenerateButton({
 export function MediaReviewButtons({
   nodeId,
   data,
+  compact = false,
 }: {
   nodeId: string
   data: NodeWorkflowNodeData
+  /**
+   * 紧凑档（台账 D1）：只出图标、无文字，供生成框用。
+   *
+   * owner 2026-08-02「打回放到生成按钮附近」—— 它和发送同属「对这一版的处置」，
+   * 而不是「下一版用什么参数」，所以从选择器那一组里挪出来贴着发送键。带文字
+   * 的「打回」在 376px 的参数条里要吃掉 48px，正是那一行折成两行的主因之一。
+   */
+  compact?: boolean
 }) {
   const t = useTranslations('StudioNode.review')
   const { updateNodeData } = useNodeWorkflowActions()
@@ -695,33 +799,59 @@ export function MediaReviewButtons({
   if (!url) return null
   const state = resolveMediaReviewState(data, url)
 
+  const approve = () =>
+    updateNodeData(
+      nodeId,
+      approveMedia(data, url, { reviewedAt: new Date().toISOString() }),
+    )
+  const reject = () =>
+    updateNodeData(
+      nodeId,
+      // ⚠ 只改状态，**不删媒体** —— §5-W3「保留上一版媒体 URL 作对比
+      // （不立刻删 R2）」。理由是可选的，留给后续的打回面板填。
+      rejectMedia(data, url, { reviewedAt: new Date().toISOString() }),
+    )
+
+  if (compact) {
+    return (
+      <>
+        {state === NODE_REVIEW_STATE_IDS.approved ? null : (
+          <button
+            type="button"
+            onClick={approve}
+            aria-label={t('approve')}
+            title={t('approve')}
+            className="canvas-composer-review-btn nodrag"
+          >
+            <Check className="size-4" aria-hidden />
+          </button>
+        )}
+        {state === NODE_REVIEW_STATE_IDS.rejected ? null : (
+          <button
+            type="button"
+            onClick={reject}
+            aria-label={t('reject')}
+            title={t('reject')}
+            className="canvas-composer-review-btn nodrag"
+          >
+            <Undo2 className="size-4" aria-hidden />
+          </button>
+        )}
+      </>
+    )
+  }
+
   return (
     <>
       {state === NODE_REVIEW_STATE_IDS.approved ? null : (
         <ToolbarLabelButton
           icon={Check}
           label={t('approve')}
-          onClick={() =>
-            updateNodeData(
-              nodeId,
-              approveMedia(data, url, { reviewedAt: new Date().toISOString() }),
-            )
-          }
+          onClick={approve}
         />
       )}
       {state === NODE_REVIEW_STATE_IDS.rejected ? null : (
-        <ToolbarLabelButton
-          icon={Undo2}
-          label={t('reject')}
-          onClick={() =>
-            updateNodeData(
-              nodeId,
-              // ⚠ 只改状态，**不删媒体** —— §5-W3「保留上一版媒体 URL 作对比
-              // （不立刻删 R2）」。理由是可选的，留给后续的打回面板填。
-              rejectMedia(data, url, { reviewedAt: new Date().toISOString() }),
-            )
-          }
-        />
+        <ToolbarLabelButton icon={Undo2} label={t('reject')} onClick={reject} />
       )}
     </>
   )

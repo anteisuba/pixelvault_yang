@@ -1185,6 +1185,14 @@
   border-color: var(--canvas-stroke-focus);
 }
 
+/* 输入框 + 框外字数计数（台账 D2），一起当作父层的一个 flex 项 */
+.domain-canvas .canvas-video-composer-prompt-group {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
 .domain-canvas .canvas-video-composer-prompt {
   position: relative;
   min-height: 150px;
@@ -1200,7 +1208,8 @@
   width: 100%;
   min-height: 150px;
   resize: none;
-  padding: 12px 12px 28px;
+  /* 底部那 28px 是给行内字数计数留的位（见下），计数移出框后不再需要 */
+  padding: 12px;
   color: var(--canvas-ink);
   background: transparent;
   border: 0;
@@ -1213,12 +1222,16 @@
   outline-offset: -2px;
 }
 
+/* 台账 D2：字数计数搬出输入框。原先是 `position:absolute` 压在框内右下角，
+   靠 textarea 的 padding-bottom 给它腾位 —— 但 textarea 会**滚动**，正文一
+   长就从计数底下穿过去，两层字叠在一起（实拍图里的「0/2000 被正文压住」）。
+   改成框外的一条静态行，顺带 9px → 11px（9px 已经在可读下限以下）。 */
 .domain-canvas .canvas-video-composer-count {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
+  display: block;
+  padding-top: 4px;
+  text-align: right;
   color: var(--canvas-ink-muted);
-  font-size: 9px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1242,12 +1255,20 @@
   color: var(--canvas-ink-regular);
   background: transparent;
   border-radius: 7px;
-  font-size: 10px;
+  /* 台账 D2：10px → 12px。这两颗是视频框里仅有的两条参数读数，却比图片框
+     同职责的 .canvas-composer-pill（12px）小两档；`480p · 12s · 4:3` 这种
+     全是数字和冒号的串在 10px 下最难认。 */
+  font-size: 12px;
   font-weight: 600;
 }
 
+/* 这一行只有两颗，谁该让位是**内容密度**说了算：模型名截一半（`Seedance
+   2.0 F…`）仍然认得出，而 `480p · 12s · 4:3` 截掉末尾就整个丢掉一个字段。
+   所以模型丸既吃富余（grow 1）也第一个吐出来（shrink 1），摘要 flex:none
+   站住自然宽；模型的下限用 min-width 兜（4.5rem 够 2 字 + 省略号）。 */
 .domain-canvas .canvas-video-composer-model {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 4.5rem;
 }
 
 .domain-canvas .canvas-video-composer-model span {
@@ -1256,9 +1277,12 @@
   white-space: nowrap;
 }
 
+/* 台账 D2：去掉 `max-width: 46%` 那顶硬帽 —— 它跟内容毫无关系，宽度明明够
+   的时候也把 `480p · 12s · 4:3` 截成 `480p · 12s · 4…`（实拍图就是这么拍
+   到的）。真正的约束交给上面那条 flex 分工。 */
 .domain-canvas .canvas-video-composer-summary {
   flex: none;
-  max-width: 46%;
+  min-width: 0;
   color: var(--canvas-ink-muted);
 }
 
@@ -1522,13 +1546,80 @@
 }
 
 /* 图标轨顶部的 ＋添加：全画面唯一的墨色实底（规格 §0.6）。 */
-.domain-canvas .canvas-rail-action {
+/* ── 主动作（墨底）唯一配方 ────────────────────────────────────────────
+   owner 2026-08-02「这个 css 样式也同步一下」。全画布只有三处墨底实底
+   （§0.6）：左轨 ＋添加 · 助手唤起 · 生成框发送。它们此前各写各的——颜色
+   token 确实是同一对，但**过渡属性、按下态、禁用态三样全不一致**（发送键
+   有 :disabled、另外两个没有；三条 transition 写法各不相同）。
+   三个类名保留（各自还带语境专属的形状/尺寸），共用这一份颜色与状态。 */
+.domain-canvas .canvas-rail-action,
+.domain-canvas .canvas-assistant-action,
+.domain-canvas .canvas-composer-send-btn {
   background: var(--canvas-action);
   color: var(--canvas-action-fg);
-  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
+  transition:
+    background var(--canvas-dur-fast) var(--canvas-ease-state),
+    transform var(--canvas-dur-fast) var(--canvas-ease-state);
 }
-.domain-canvas .canvas-rail-action:hover {
+.domain-canvas .canvas-rail-action:hover:not(:disabled),
+.domain-canvas .canvas-assistant-action:hover:not(:disabled),
+.domain-canvas .canvas-composer-send-btn:hover:not(:disabled) {
   background: var(--canvas-action-hover);
+  color: var(--canvas-action-fg);
+}
+.domain-canvas .canvas-rail-action:disabled,
+.domain-canvas .canvas-assistant-action:disabled,
+.domain-canvas .canvas-composer-send-btn:disabled {
+  background: var(--canvas-fill-control);
+  color: var(--canvas-ink-subtle);
+  cursor: not-allowed;
+}
+
+/* ── 按下态 ────────────────────────────────────────────────────────────
+   owner 2026-08-02「点击前后的过渡动画补充」。在这之前 canvas.css 里
+   **一条 :active 都没有** —— 从按下到松手之间画面纹丝不动，慢一点的动作
+   （生成、整理画布、切项目）分不清是「没点上」还是「在等」。
+   只用 transform，不动颜色：hover 的变色已经占了颜色这条通道，按下再叠一
+   层颜色会糊成一团；缩一下是最不占语义的反馈。 */
+.domain-canvas .canvas-rail-action:active:not(:disabled),
+.domain-canvas .canvas-assistant-action:active:not(:disabled),
+.domain-canvas .canvas-composer-send-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+/* chrome 上的幽灵钮（顶栏 / 底部胶囊 / 近场工具条 / 左面板）：一条容器级
+   规则扫掉，不用去每个文件挂类。⚠ transition 必须把颜色一起写上——这条
+   选择器特异度 0,2,1 高于 Tailwind 的 .transition-colors（0,1,0），只写
+   transform 会把原有的颜色过渡覆盖没。 */
+.domain-canvas .canvas-topbar button,
+.domain-canvas .canvas-toolbar-capsule button,
+.domain-canvas .canvas-selection-toolbar button,
+.domain-canvas .canvas-left-panel button,
+.domain-canvas .canvas-composer-root button {
+  transition:
+    background-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    color var(--canvas-dur-fast) var(--canvas-ease-state),
+    transform var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-topbar button:active:not(:disabled),
+.domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
+.domain-canvas .canvas-selection-toolbar button:active:not(:disabled),
+.domain-canvas .canvas-left-panel button:active:not(:disabled),
+.domain-canvas .canvas-composer-root button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+/* 减动偏好下时长已被压到 1ms，但「瞬间缩一下再瞬间弹回」仍是可见的尺寸
+   跳变——这类用户要的是不跳，所以整条按下态撤掉，只留颜色反馈。 */
+@media (prefers-reduced-motion: reduce) {
+  .domain-canvas .canvas-rail-action:active:not(:disabled),
+  .domain-canvas .canvas-assistant-action:active:not(:disabled),
+  .domain-canvas .canvas-topbar button:active:not(:disabled),
+  .domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
+  .domain-canvas .canvas-selection-toolbar button:active:not(:disabled),
+  .domain-canvas .canvas-left-panel button:active:not(:disabled),
+  .domain-canvas .canvas-composer-root button:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* ── S3 · 连线语言（2026-07-26）──────────────────────────────────────────
@@ -2686,14 +2777,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 /* 唯一的墨色实底动作——研究模式被按下（aria-pressed）时的填色态，对应规格
    §0.6「主动作=墨色实底」，跟 CanvasLeftPanel 的 ＋添加主按钮
    （.canvas-rail-action）用的是同一对 token，只是换了个语境专属类名。 */
-.domain-canvas .canvas-assistant-action {
-  background: var(--canvas-action);
-  color: var(--canvas-action-fg);
-}
-.domain-canvas .canvas-assistant-action:hover {
-  background: var(--canvas-action-hover);
-  color: var(--canvas-action-fg);
-}
+/* 助手唤起 —— 颜色/hover/按下/禁用全部来自上面那条三者共享的主动作配方 */
 
 /* 收起态的悬浮开关按钮（在 AssistantShell 外，桌面贴顶栏/移动端贴底部）：
    跟壳表面同一张脸，但自己要一个 hover（壳表面本身是容器，没有 hover）。 */
@@ -3000,13 +3084,27 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 /* §5 参数条：模型 ∨ · 比例+清晰度 ∨ · 张数 ∨ ·〔⚡ 预留〕。控件高 二轮
    owner 反馈从「22–28px」升到 **28–32px**（§1）——外框拉宽了，控件不跟着
    放大会显得更空更小，取区间上限 32px（skin-spec §6 命名档位「常规」）。 */
+/* ⚠ nowrap 是 owner 2026-08-02 的明确要求（「工具那一栏确保在一行」，台账
+   D1）。原先是 wrap，于是 376px 的可用宽装不下 414px 的五颗丸就折成两行，
+   发送键悬在两行中间。收成一行靠的是**先减内容再锁 nowrap**：审核动作挪到
+   发送键旁（-48px）、「用模板」收成图标（-52px），剩 314px 才装得下；只锁
+   nowrap 不减内容会变成溢出裁切，那是把折行换成了藏控件。
+   剩余的窄屏兜底交给模型丸：它是这一行唯一可收缩项（自带 truncate），其余
+   三颗 flex:none —— 挤到极窄时截的是模型名，不是把张数挤没。 */
 .domain-canvas .canvas-composer-param-row {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+}
+.domain-canvas .canvas-composer-param-row > * {
+  flex: none;
+}
+.domain-canvas .canvas-composer-param-row > .canvas-composer-model-pill {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .domain-canvas .canvas-composer-pill {
   display: inline-flex;
@@ -3021,6 +3119,11 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   font-weight: 600;
   color: var(--canvas-ink);
   transition: border-color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+/* 图标档（「用模板」）：收窄内边距，∨ 贴紧图标 */
+.domain-canvas .canvas-composer-pill--icon {
+  gap: 2px;
+  padding: 0 8px;
 }
 .domain-canvas .canvas-composer-pill:hover {
   border-color: var(--canvas-stroke-focus);
@@ -3260,7 +3363,8 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   background: var(--canvas-fill-control-hover);
   color: var(--canvas-ink);
 }
-/* §5 发送键：圆形 36px，--canvas-action 墨底白箭头（§0.6 主动作配方）。 */
+/* §5 发送键：圆形 36px。颜色/hover/按下/禁用全部来自三者共享的
+   主动作配方（§0.6），这里只管形状。 */
 .domain-canvas .canvas-composer-send-btn {
   display: flex;
   align-items: center;
@@ -3268,17 +3372,24 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   width: 36px;
   height: 36px;
   border-radius: 9999px;
-  background: var(--canvas-action);
-  color: var(--canvas-action-fg);
+}
+/* 台账 D1：审核动作（通过 / 打回）挪到发送键左邻。做成同尺寸圆钮而不是丸，
+   是为了让「这一组是对这一版的处置」在形状上就跟左边那排选择器丸分开；不给
+   墨底 —— §0.6 的主动作实底这一行只留给发送键一个。 */
+.domain-canvas .canvas-composer-review-btn {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  color: var(--canvas-ink-regular);
   transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
 }
-.domain-canvas .canvas-composer-send-btn:hover:not(:disabled) {
-  background: var(--canvas-action-hover);
-}
-.domain-canvas .canvas-composer-send-btn:disabled {
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink-subtle);
-  cursor: not-allowed;
+.domain-canvas .canvas-composer-review-btn:hover {
+  background: var(--canvas-fill-control-hover);
+  color: var(--canvas-ink);
 }
 
 /* §3 画布空白处唤起的模式二选一——挂在卡下时锁定该族，不显示这组控件。 */

@@ -115,6 +115,15 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
     </button>
   ),
   DropdownMenuSeparator: () => <hr />,
+  DropdownMenuSub: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubTrigger: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuSubContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
 }))
 
 /** 台账 #12：生成钮的前提（有模型 + 有提示词）现在是**渲染期**判据，缺任一
@@ -159,8 +168,8 @@ describe('CanvasImageSelectionToolbar', () => {
   it('opens AI edit tools from the more menu into the workspace dialog', () => {
     render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
 
-    // Primary chrome is category/expand/download/quick-edit; AI suite lives
-    // under "more" (always rendered in this mock dropdown).
+    // 常驻条 = 快捷编辑（主）/ ⤢ / ⬇ / ⋯ / 🗑；AI 套件仍在「更多」里
+    // （这个 mock dropdown 恒渲染内容）。
     expect(
       screen.getByRole('button', { name: 'quickEdit' }),
     ).toBeInTheDocument()
@@ -168,6 +177,65 @@ describe('CanvasImageSelectionToolbar', () => {
     expect(screen.getByTestId('image-edit-workspace')).toHaveTextContent(
       'upscale',
     )
+  })
+
+  // 台账 C1（2026-08-02）：常驻 6 项 + 溢出 8 项 = 14 个等权灰钮。
+  describe('C1 三组 + 溢出分段', () => {
+    it('分类不再占常驻位，收进「更多」里仍可设', () => {
+      render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
+
+      // 常驻条上没有分类钮了（toolbar 的直接子节点里找不到）
+      const toolbar = screen.getByRole('toolbar')
+      expect(
+        Array.from(toolbar.children).some((child) =>
+          child.getAttribute('aria-label')?.includes('category'),
+        ),
+      ).toBe(false)
+
+      // 但「更多」里那条子菜单还在，点选项照样写回 imageCategory
+      fireEvent.click(screen.getByRole('button', { name: /roles\.identity/ }))
+      expect(mocks.updateNodeData).toHaveBeenCalledWith('node-1', {
+        imageCategory: 'identity',
+        imageCategoryLabel: undefined,
+      })
+    })
+
+    it('八条编辑能力按「点下去还要你干什么」分三段', () => {
+      render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
+
+      // 段标题按 interaction 推导：instant+layers / mask+outpaint / prompt
+      expect(screen.getByText('moreEditsInstant')).toBeInTheDocument()
+      expect(screen.getByText('moreEditsRegion')).toBeInTheDocument()
+      expect(screen.getByText('moreEditsDescribe')).toBeInTheDocument()
+
+      // ⚠ 守的是「一条能力都不许在分段里丢掉」——批 2 原型手抄了一份分组，
+      // 把 prompt 的两条错归进了「需要框选」。
+      for (const taskId of [
+        'upscale',
+        'remove-background',
+        'inpaint',
+        'outpaint',
+        'decompose',
+        'extract-element',
+        'object-replace',
+        'style-transfer',
+      ]) {
+        expect(
+          screen.getByRole('button', { name: new RegExp(`${taskId}\\.label`) }),
+        ).toBeInTheDocument()
+      }
+    })
+
+    it('删除排在末组，不再紧贴主动作', () => {
+      render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
+
+      const toolbar = screen.getByRole('toolbar')
+      const labels = Array.from(toolbar.children).map((child) =>
+        child.getAttribute('aria-label'),
+      )
+      expect(labels[0]).toBe('quickEdit')
+      expect(labels.at(-1)).toBe('delete')
+    })
   })
 
   it('does not render a rename input — the on-card label is the single place to rename (canvas-image-card.md §1)', () => {

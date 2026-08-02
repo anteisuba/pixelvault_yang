@@ -141,14 +141,18 @@ export function GenerateComposerTemplatePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
+        {/* 台账 D1：只出图标。同一组里另外三颗（模型 / 比例 / 张数）显示的都
+            是**当前值**，只有这颗显示自己的名字；名字进 aria-label / title，
+            腾出的 ~52px 是参数条能收成一行的一半。 */}
         <button
           type="button"
           {...KEY_GUARD}
           aria-expanded={open}
-          className="canvas-composer-pill nodrag"
+          aria-label={t('templateButton')}
+          title={t('templateButton')}
+          className="canvas-composer-pill canvas-composer-pill--icon nodrag"
         >
-          <LayoutTemplate className="size-3 shrink-0" aria-hidden />
-          {t('templateButton')}
+          <LayoutTemplate className="size-3.5 shrink-0" aria-hidden />
           <ChevronDown className="size-3 shrink-0" aria-hidden />
         </button>
       </PopoverTrigger>

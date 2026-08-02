@@ -57,6 +57,15 @@ describe('CanvasTopBar', () => {
     ).not.toBeInTheDocument()
   })
 
+  // owner 2026-08-02：「整理画布」搬进底部编辑栏（CanvasBottomDock 有对应
+  // 用例）。顶栏右侧现在只剩外观设置。
+  it('顶栏不再有整理画布', () => {
+    renderTopBar()
+    expect(
+      screen.queryByRole('button', { name: 'topbar.arrange' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('保存中仍在片名旁给出进行态', () => {
     renderTopBar({ isSaving: true })
     // Spinner 用 role="status"（见 ui/spinner.tsx）

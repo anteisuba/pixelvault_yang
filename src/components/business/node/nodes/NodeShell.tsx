@@ -14,6 +14,7 @@ import {
   Position,
   useEdges,
   useNodes,
+  useStore,
 } from '@xyflow/react'
 import {
   AudioWaveform,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { NODE_STUDIO_CARD_LABEL_LANE } from '@/constants/node-studio'
 import {
   NODE_TOKEN_BADGE_LABELS,
   type NodeTokenType,
@@ -400,6 +402,16 @@ function NodeShellRoot({
   // toolbars) — see `multiSelectActive`'s doc comment for why this can't
   // just rely on NodeToolbar's own library default.
   const { multiSelectActive, canvasNodeDragActive } = useNodeWorkflowActions()
+  // ⚠ NodeToolbar 的 offset 是**屏幕像素**（它故意不随缩放变大），而要让开的
+  // 卡外名字长在卡里、是**画布像素**。所以固定 36 只在 100% 缩放对：200% 时
+  // 名字实际占 56 屏幕像素，工具条就压在名字上（2026-08-02 拍 C1 时发现，
+  // 与 #25「名字移出卡框」同批引入，不是 C1 造成的）。
+  // 选 transform[2] 而不是整个 viewport：平移只动 [0]/[1]，返回同一个数字就
+  // 不会触发重渲染，只有真的缩放才重算。
+  const zoom = useStore((state) => state.transform[2])
+  const toolbarOffset =
+    NODE_STUDIO_CARD_LABEL_LANE.height * zoom +
+    NODE_STUDIO_CARD_LABEL_LANE.toolbarGap
 
   return (
     <article
@@ -425,9 +437,7 @@ function NodeShellRoot({
             Boolean(selected) && !multiSelectActive && !canvasNodeDragActive
           }
           position={Position.Top}
-          // S1：卡名移出卡框后占了卡顶上方 28px（24 行高 + 4 间距），工具条
-          // 要让开它，否则两者叠在一起。
-          offset={36}
+          offset={toolbarOffset}
         >
           <NodeSelectionToolbarChrome
             nodeId={nodeId}

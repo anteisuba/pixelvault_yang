@@ -415,21 +415,15 @@ function ComposerCore({ composer }: ComposerCoreProps) {
           </div>
         ) : (
           <div className="canvas-composer-param-row">
-            {/* 包 4 审核动作（owner 2026-07-31 从近场工具条挪来）：审核是
-                「这张图能不能用」，跟这一行里的「拿它再生成一版」是同一场
-                决策，放在一起才连贯；工具条那边已经 8 项，塞不下也不该塞。
-                排在参数条首位——先决定要不要它，再决定用什么模型重做。
-                只在宿主已有媒体时出现（没有图就没有可审的东西）。 */}
-            {composer.host?.hasMedia && hostData ? (
-              <MediaReviewButtons
-                nodeId={composer.host.nodeId}
-                data={hostData}
-              />
-            ) : null}
             {/* §5.5「用模板」——底部参数条第一位，与模型/比例/张数并列同一
                 「点开都是选择器」分组（owner 2026-07-27 拍板，推翻了「放
                 prompt 区」的原方案）。只在 image 模式渲染，因为这一整段
-                param-row 本身就只在 mode !== 'audio' 时出现。 */}
+                param-row 本身就只在 mode !== 'audio' 时出现。
+                ⚠ 台账 D1：这颗按钮 2026-08-02 起只出图标（文字进
+                aria-label/title）。同组另外三颗都在显示**当前值**
+                （Gemini 3.1 / 1:1 / ×1），只有它显示的是自己的名字 —— 那不
+                是这一组该承担的信息，而它带文字要吃 84px，正是这行折成两行
+                的另一半原因。 */}
             <GenerateComposerTemplatePicker
               outputType="IMAGE"
               promptDraft={composer.promptDraft}
@@ -488,6 +482,25 @@ function ComposerCore({ composer }: ComposerCoreProps) {
             </Popover>
           </div>
         )}
+
+        {/* 包 4 审核动作（owner 2026-07-31 从近场工具条挪进生成框，2026-08-02
+            又从参数条挪到这里）：审核回答的是「这一版要不要」，跟发送的
+            「再来一版」是同一场处置决策；参数条那三颗回答的是「下一版长什么
+            样」。原来混在一起，是把两类问题排成了一排同重的丸。
+            只在宿主已有媒体时出现（没有图就没有可审的东西）。 */}
+        {composer.host?.hasMedia && hostData ? (
+          <>
+            <span
+              className="canvas-selection-toolbar-divider h-5 w-px shrink-0"
+              aria-hidden
+            />
+            <MediaReviewButtons
+              nodeId={composer.host.nodeId}
+              data={hostData}
+              compact
+            />
+          </>
+        ) : null}
 
         <button
           type="button"

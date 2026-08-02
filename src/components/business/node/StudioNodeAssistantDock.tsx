@@ -458,7 +458,14 @@ export function StudioNodeAssistantDock({
               ? { bottom: 'calc(6rem + var(--keyboard-inset, 0px))' }
               : undefined
           }
-          className="canvas-assistant-fab pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border shadow-sm transition-colors lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
+          // ⚠ whitespace-nowrap 是必需的，不是修饰（2026-08-02，owner 在日文
+          // 版发现「图标跃出」）：本按钮 absolute 定位，而它的包含块 .rail 在
+          // 收起态宽度是 **0**（CanvasWorkspaceLayout.module.css 有实测记录），
+          // 于是 lg:size-auto 的 width:auto 走 shrink-to-fit 时可用宽度为 0，
+          // 内容被压到最窄 —— 逐字换行。中文「助手」两字压成两行看着像是
+          // 刻意的竖排（台账 G1 一度就是这么记的），日文「アシスタント」六字
+          // 才把它暴露成明显的溢出：内容需要 67px 高，而 lg:h-10 只有 40px。
+          className="canvas-assistant-fab pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border shadow-sm transition-colors lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
         >
           <Bot
             className="size-5 lg:size-4"

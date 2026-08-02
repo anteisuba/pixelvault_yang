@@ -249,8 +249,8 @@ function renderDetail() {
   return render(<VideoComposer id="v1" data={data} density="detail" />)
 }
 
-function renderCompact() {
-  const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
+function renderCompact(patch: Partial<NodeWorkflowNodeData> = {}) {
+  const data = { prompt: '', status: 'idle', ...patch } as NodeWorkflowNodeData
   return render(<VideoComposer id="v1" data={data} density="card" />)
 }
 
@@ -336,6 +336,30 @@ describe('VideoComposer compact sidecar', () => {
     })
     fireEvent.click(parameterButton)
     expect(parameterButton).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  // 台账 D2（2026-08-02）：摘要曾直接把 data.duration 拼上 's'，助手写的
+  // '12s' 因此显示成 `12ss`；更糟的是那条拼接绕过了解析，Number('12s')=NaN
+  // 让滑条静默回落中位数 —— 摘要、滑条、真正发出去的值三处互不一致。
+  // 现在摘要与滑条共用同一个已解析的事实源。
+  it('带单位的 duration 不再拼出两个 s，且摘要与滑条同源', () => {
+    renderCompact({ duration: '12s' } as Partial<NodeWorkflowNodeData>)
+
+    const summary = screen.getByRole('button', {
+      name: 'sidecar.editParameters',
+    })
+    // i18n mock 直接回 key：走模板即 duration.seconds，走裸拼接才会出现 12ss
+    expect(summary.textContent).toContain('duration.seconds')
+    expect(summary.textContent).not.toContain('12ss')
+  })
+
+  it('解析不出数字的 duration 仍走既有回落', () => {
+    renderCompact({ duration: 'auto' } as Partial<NodeWorkflowNodeData>)
+
+    const summary = screen.getByRole('button', {
+      name: 'sidecar.editParameters',
+    })
+    expect(summary.textContent).toContain('duration.auto')
   })
 
   it('keeps bottom dock double-clicks from reaching the canvas node', () => {

@@ -29,7 +29,17 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
 }))
 
 vi.mock('@/components/business/node/CharacterImageReferenceControls', () => ({
-  CharacterImageReferenceControls: () => <button>referenceControls</button>,
+  // extraItems 暴露成 data 属性：台账 #11 的兜底（图集为空时把卡片主图并进
+  // 陈列）就走这条通道，测试要能断言它。
+  CharacterImageReferenceControls: ({
+    extraItems,
+  }: {
+    extraItems?: readonly { id: string; url: string; label: string }[]
+  }) => (
+    <button data-extra-items={JSON.stringify(extraItems ?? [])}>
+      referenceControls
+    </button>
+  ),
 }))
 
 vi.mock('@/components/business/node/CharacterImageLoraControls', () => ({
@@ -187,5 +197,43 @@ describe('CharacterImageInspector (unified wrapper)', () => {
 
     expect(screen.queryByAltText('imageAlt')).not.toBeInTheDocument()
     expect(screen.getByText('referenceControls')).toBeInTheDocument()
+  })
+
+  // 台账 #11（2026-08-02）：卡上有图，展开面板却「参考图 0/3」。卡面读
+  // getNodePrimaryMediaUrl（imageUrl ?? mediaUrl），陈列只 map referenceAssets，
+  // 而角色域有几条写路径把主图只写进 mediaUrl —— 两边看到的不是同一件事。
+  it('图集为空时把卡片主图并进陈列（只读，标来源）', () => {
+    renderInspector(
+      createCharacterNode({ mediaUrl: 'https://cdn.test/primary.png' }),
+    )
+
+    const extras = JSON.parse(
+      screen.getByText('referenceControls').getAttribute('data-extra-items') ??
+        '[]',
+    )
+    expect(extras).toHaveLength(1)
+    expect(extras[0]).toMatchObject({
+      url: 'https://cdn.test/primary.png',
+      label: 'identityPrimaryLabel',
+    })
+  })
+
+  // 另一半：图集本身有内容时不重复并入 —— referenceAssets 仍是唯一事实源
+  // （IdentityCollectorCard 的注释），主图只是它的封面。
+  it('图集非空时不并入主图', () => {
+    renderInspector(
+      createCharacterNode({
+        mediaUrl: 'https://cdn.test/primary.png',
+        referenceAssets: [
+          { id: 'ref-1', url: 'https://cdn.test/ref.png', weight: 1 },
+        ],
+      } as Partial<NodeWorkflowNode['data']>),
+    )
+
+    const extras = JSON.parse(
+      screen.getByText('referenceControls').getAttribute('data-extra-items') ??
+        '[]',
+    )
+    expect(extras).toHaveLength(0)
   })
 })

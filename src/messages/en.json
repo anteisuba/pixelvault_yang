@@ -4840,7 +4840,8 @@
       "nodeCountAria": "{count} nodes under this identity",
       "performanceSection": "Appears in",
       "performanceEmpty": "Not used in any shot yet",
-      "performanceFocusAria": "Focus {name} on the canvas"
+      "performanceFocusAria": "Focus {name} on the canvas",
+      "identityPrimaryLabel": "Card cover"
     },
     "toasts": {
       "notImplemented": "Not implemented yet.",

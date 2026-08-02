@@ -4840,7 +4840,8 @@
       "nodeCountAria": "名下 {count} 个节点",
       "performanceSection": "出演",
       "performanceEmpty": "还没有出演任何镜头",
-      "performanceFocusAria": "在画布上定位 {name}"
+      "performanceFocusAria": "在画布上定位 {name}",
+      "identityPrimaryLabel": "卡片主图"
     },
     "toasts": {
       "notImplemented": "暂未实现。",

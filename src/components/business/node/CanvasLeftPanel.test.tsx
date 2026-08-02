@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   CANVAS_LEFT_PANEL_RAIL_PX,
+  CANVAS_LEFT_PANEL_VIEW_IDS,
   CANVAS_LEFT_PANEL_WIDTH_PX,
   CanvasLeftPanel,
+  type CanvasLeftPanelView,
 } from './CanvasLeftPanel'
 
 vi.mock('next-intl', () => ({
@@ -15,20 +17,26 @@ function renderPanel(overrides?: {
   expanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
   onAddClick?: () => void
+  view?: CanvasLeftPanelView
+  onViewChange?: (view: CanvasLeftPanelView) => void
 }) {
   const onExpandedChange = overrides?.onExpandedChange ?? vi.fn()
   const onAddClick = overrides?.onAddClick ?? vi.fn()
+  const onViewChange = overrides?.onViewChange ?? vi.fn()
   render(
     <CanvasLeftPanel
       expanded={overrides?.expanded ?? true}
       onExpandedChange={onExpandedChange}
+      view={overrides?.view ?? CANVAS_LEFT_PANEL_VIEW_IDS.cast}
+      onViewChange={onViewChange}
       nodeCount={3}
       onAddClick={onAddClick}
+      projectPanel={<div data-testid="project-content">项目管理</div>}
     >
       <div data-testid="panel-content">卡匣内容</div>
     </CanvasLeftPanel>,
   )
-  return { onExpandedChange, onAddClick }
+  return { onExpandedChange, onAddClick, onViewChange }
 }
 
 describe('CanvasLeftPanel', () => {
@@ -80,5 +88,47 @@ describe('CanvasLeftPanel', () => {
     expect(add).toHaveClass('canvas-rail-action')
     fireEvent.click(add)
     expect(onAddClick).toHaveBeenCalledTimes(1)
+  })
+
+  // 2026-08-02（owner 拍板）：项目管理从顶栏下拉搬进这里，成为第二个视图。
+  describe('两个视图', () => {
+    it('按 view 渲染对应内容', () => {
+      renderPanel({ view: CANVAS_LEFT_PANEL_VIEW_IDS.cast })
+      expect(screen.getByTestId('panel-content')).toBeInTheDocument()
+      expect(screen.queryByTestId('project-content')).not.toBeInTheDocument()
+    })
+
+    it('切到项目视图时换成项目内容', () => {
+      renderPanel({ view: CANVAS_LEFT_PANEL_VIEW_IDS.projects })
+      expect(screen.getByTestId('project-content')).toBeInTheDocument()
+      expect(screen.queryByTestId('panel-content')).not.toBeInTheDocument()
+    })
+
+    it('点另一个视图的图标：切过去并保持展开', () => {
+      const { onViewChange, onExpandedChange } = renderPanel({
+        expanded: true,
+        view: CANVAS_LEFT_PANEL_VIEW_IDS.cast,
+      })
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'projectMenu.current' }),
+      )
+      expect(onViewChange).toHaveBeenCalledWith(
+        CANVAS_LEFT_PANEL_VIEW_IDS.projects,
+      )
+      expect(onExpandedChange).toHaveBeenCalledWith(true)
+    })
+
+    // activity bar 手感：点当前视图的图标 = 折叠，而不是原地无反应。
+    it('点当前视图的图标则折叠', () => {
+      const { onExpandedChange, onViewChange } = renderPanel({
+        expanded: true,
+        view: CANVAS_LEFT_PANEL_VIEW_IDS.cast,
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'title' }))
+      expect(onExpandedChange).toHaveBeenCalledWith(false)
+      expect(onViewChange).not.toHaveBeenCalled()
+    })
   })
 })

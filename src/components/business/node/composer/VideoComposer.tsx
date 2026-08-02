@@ -987,7 +987,14 @@ export function VideoComposer({
   )
   const isAutoDuration =
     currentDurationRaw === '' || currentDurationRaw === 'auto'
-  const parsedDuration = Number(currentDurationRaw)
+  // parseFloat 而不是 Number（2026-08-02 修，台账 D2）：这个字段的值不全是
+  // 我们自己写的 —— 助手的 prompt 计划把 `plan.duration` 原样落库，而那是个
+  // 自由字符串（schema 只约束长度），LLM 惯常写 '12s'；ScriptDoc 的
+  // targetDuration 注释里给的例子也是 "8s" / "12-15s"。
+  // Number('12s') 是 NaN，于是校验失败、滑条静默回落到中位数 —— 用户设的 12
+  // 秒看着像被忽略了。parseFloat 能把这类带单位的值取出前导数字；真正解不出
+  // 的（'auto' 已由上面的 isAutoDuration 拦掉）仍然走回落。
+  const parsedDuration = Number.parseFloat(currentDurationRaw)
   const currentDurationSeconds =
     !isAutoDuration && durationOptions.includes(parsedDuration)
       ? parsedDuration
@@ -1081,14 +1088,22 @@ export function VideoComposer({
         ? `${composer.state.brand} · ${tc(`variant.${composer.state.variant}`)}`
         : composer.state.brand
       : tc('pickModel')
+    // ⚠ 这里**不能**直接把 data.duration 拼上 's'（2026-08-02 修，台账 D2）。
+    // 那样写有两个后果，实拍图里的 `12ss` 是第一个：
+    //   ① 助手写进来的值本身就带单位（node-assistant 的 prompt 计划里是
+    //      '12s'），再拼一次就成了 `12ss`；
+    //   ② 更隐蔽的是它**绕过了整套解析** —— 下面那条 OSD 与滑条走的是
+    //      `currentDurationSeconds`（Number() 解析 + durationOptions 校验，
+    //      解不出就回落中位数）。于是同一个 '12s' 会让摘要显示 12ss、滑条
+    //      显示 6 秒、真正送给 provider 的又是第三个值，三处互不一致。
+    // 统一走同一个已解析的事实源，单位由 i18n 模板给（zh 是「N 秒」而不是
+    // 「Ns」，硬拼 's' 连语言都不对）。
     const durationValue = typeof data.duration === 'string' ? data.duration : ''
     const summaryParts = [
       typeof data.resolution === 'string' ? data.resolution : null,
-      durationValue
-        ? durationValue === 'auto'
-          ? tFields('duration.auto')
-          : `${durationValue}s`
-        : null,
+      // 「没设过就不显示这一项」的既有行为保留；有值时才渲染，且渲染的是
+      // 已解析的那个事实源。
+      durationValue ? durationSummary : null,
       typeof data.aspectRatio === 'string' ? data.aspectRatio : null,
     ].filter((part): part is string => Boolean(part))
     const visibleReferences = composer.referenceTokens.slice(0, 5)

@@ -368,6 +368,13 @@ export const NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID = 'custom' as const
 export const NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID = 'unset' as const
 
 /**
+ * 「未绑定角色卡」在 Select 里的哨兵值（台账 #10，2026-08-02）。
+ * 同上：数据层的「未绑定」是 `cardId: undefined`，但 Radix SelectItem 禁止
+ * `value=""`。落库前映射回 `undefined`，哨兵不进数据。
+ */
+export const NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID = 'unbound' as const
+
+/**
  * 关键帧分类（原 frame role 退役后的替代信号，§6.1 食物链注释 + frame 兼容迁移）
  * — `isKeyframeNode`（node-workflow-graph.ts）在旧 `role==='frame'` 之外，额外
  * 认这两个分类值为"这张图是关键帧"，不发明新字段名、不改连线矩阵。

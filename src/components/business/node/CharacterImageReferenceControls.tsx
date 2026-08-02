@@ -53,7 +53,15 @@ import type {
 export interface CharacterReferenceGalleryExtraItem {
   id: string
   url: string
+  /** 描述性名字，进 title/alt（closeup 传角色名，主图兜底传来源说明）。 */
   label: string
+  /**
+   * 缩略图左上角那枚徽标的文案 —— 表达**来源类型**，不是名字。
+   * 2026-08-02 加：此前徽标写死成「特写」，因为 extraItems 的唯一来源就是
+   * 上游 closeup 节点；现在它还承载「卡片主图」的兜底（台账 #11），来源不止
+   * 一种了。省略时仍回落「特写」，老调用方行为不变。
+   */
+  badge?: string
 }
 
 interface CharacterImageReferenceControlsProps {
@@ -658,7 +666,7 @@ export function CharacterImageReferenceControls({
                   unoptimized
                 />
                 <span className="absolute left-1 top-1 rounded-full bg-node-port-character/90 px-1.5 py-0.5 text-2xs font-semibold text-node-canvas">
-                  {tDossier('gallerySourceCloseup')}
+                  {item.badge ?? tDossier('gallerySourceCloseup')}
                 </span>
               </div>
             ))}

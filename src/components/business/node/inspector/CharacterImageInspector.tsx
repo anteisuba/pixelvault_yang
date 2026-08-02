@@ -5,11 +5,20 @@ import { useEdges, useNodes } from '@xyflow/react'
 import { Mic2, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { CharacterReferenceGalleryExtraItem } from '@/components/business/node/CharacterImageReferenceControls'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
+  getNodePrimaryMediaUrl,
   getUpstreamNodes,
   isCloseupNode,
   isVoiceProfileNode,
@@ -158,7 +167,11 @@ export function CharacterImageInspector({
   // §9 B), not a referenceAssets entry, so it's read-only in the grid (no
   // weight/role/extract — those only make sense for this node's own array).
   const closeupItems = useMemo<CharacterReferenceGalleryExtraItem[]>(() => {
-    return getUpstreamNodes(node.id, edges, allNodes)
+    const items: CharacterReferenceGalleryExtraItem[] = getUpstreamNodes(
+      node.id,
+      edges,
+      allNodes,
+    )
       .filter(isCloseupNode)
       .map((closeup) => ({
         id: closeup.id,
@@ -172,7 +185,36 @@ export function CharacterImageInspector({
           tTypes('image'),
       }))
       .filter((item) => item.url.length > 0)
-  }, [allNodes, edges, node.id, tTypes])
+
+    // 台账 #11（2026-08-02）：卡上有图、展开面板却「参考图 0/3」。
+    // 卡面读的是 `getNodePrimaryMediaUrl`（imageUrl ?? mediaUrl，见
+    // node-workflow-graph），而这个陈列只 map `referenceAssets` —— 角色域有
+    // 几条写路径（角色卡绑定、spawnReference）把主图**只**写进 mediaUrl，
+    // 不镜像进图集，于是两边看到的不是同一件事。
+    //
+    // ⚠ 修法刻意不是「面板改读 mediaUrl 优先」：`IdentityCollectorCard` 的
+    // 注释写明「图集是收集器卡图片的唯一事实源，mediaUrl 只是它的封面」，
+    // 那个建模是对的，不该为了显示反过来推翻它。这里沿用卡面同款的兜底语义
+    // ——图集为空时才把主图并进来，且走 extraItems 通道（只读、标来源），
+    // 不伪装成一条可编辑的图集条目。
+    const primaryUrl = getNodePrimaryMediaUrl(node.data)
+    const hasOwnAssets = (node.data.referenceAssets ?? []).some(
+      (asset) => asset.url.trim().length > 0,
+    )
+    if (
+      !hasOwnAssets &&
+      primaryUrl &&
+      !items.some((i) => i.url === primaryUrl)
+    ) {
+      items.unshift({
+        id: `${node.id}:primary`,
+        url: primaryUrl,
+        label: tDossier('identityPrimaryLabel'),
+        badge: tDossier('identityPrimaryLabel'),
+      })
+    }
+    return items
+  }, [allNodes, edges, node.data, node.id, tDossier, tTypes])
 
   // 出演区: downstream edges FROM this character — every shot/video that has
   // harvested it.
@@ -271,25 +313,40 @@ export function CharacterImageInspector({
             <p className="text-sm font-semibold text-node-foreground">
               {t('cardLibrary.title')}
             </p>
-            <select
-              value={node.data.cardId ?? ''}
-              onChange={(event) =>
+            {/* 台账 #10（2026-08-02）：原生 <select> 换 shadcn Select，与全站
+                一致。⚠ Radix 的 SelectItem 禁止 value=""，而「未绑定」在数据
+                层就是 cardId: undefined —— 用哨兵常量过渡，落库时映射回
+                undefined（做法同批 1 的 LooseImageDetailBody 分类下拉）。 */}
+            <Select
+              value={node.data.cardId ?? NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID}
+              onValueChange={(next) =>
                 updateNodeData(node.id, {
-                  cardId: event.target.value || undefined,
+                  cardId:
+                    next === NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID
+                      ? undefined
+                      : next,
                 })
               }
-              aria-label={t('cardLibrary.title')}
-              className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground outline-none focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
             >
-              <option value="">{t('cardLibrary.hint')}</option>
-              {cards
-                .flatMap((card) => [card, ...card.variants])
-                .map((card) => (
-                  <option key={card.id} value={card.id}>
-                    {card.name}
-                  </option>
-                ))}
-            </select>
+              <SelectTrigger
+                aria-label={t('cardLibrary.title')}
+                className="h-10 w-full rounded-xl border-node-panel-inner bg-node-panel px-3 text-xs text-node-foreground"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID}>
+                  {t('cardLibrary.hint')}
+                </SelectItem>
+                {cards
+                  .flatMap((card) => [card, ...card.variants])
+                  .map((card) => (
+                    <SelectItem key={card.id} value={card.id}>
+                      {card.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
             {boundCard ? (
               <p className="text-2xs text-node-muted">
                 {t('cardLibrary.bound', { name: boundCard.name })}

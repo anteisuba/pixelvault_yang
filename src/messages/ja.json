@@ -4840,7 +4840,8 @@
       "nodeCountAria": "紐づくノード {count} 件",
       "performanceSection": "出演ショット",
       "performanceEmpty": "まだどのショットにも使われていません",
-      "performanceFocusAria": "{name}をキャンバスでフォーカス"
+      "performanceFocusAria": "{name}をキャンバスでフォーカス",
+      "identityPrimaryLabel": "カード主画像"
     },
     "toasts": {
       "notImplemented": "まだ実装されていません。",

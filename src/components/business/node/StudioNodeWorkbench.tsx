@@ -199,7 +199,12 @@ import { CanvasStartupSkeleton } from './CanvasStartupSkeleton'
 import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
 import { CanvasWorkspaceLayout } from './CanvasWorkspaceLayout'
-import { CanvasLeftPanel } from './CanvasLeftPanel'
+import {
+  CanvasLeftPanel,
+  CANVAS_LEFT_PANEL_VIEW_IDS,
+  type CanvasLeftPanelView,
+} from './CanvasLeftPanel'
+import { CanvasProjectPanel } from './CanvasProjectPanel'
 import { CastDock, countCanvasNodes } from './CastDock'
 import { GenerateComposer } from './composer/GenerateComposer'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
@@ -562,6 +567,9 @@ function StudioNodeCanvas() {
   // Left node locator panel. It is persistent workspace chrome, never an
   // overlay or a second editing surface.
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
+  const [leftPanelView, setLeftPanelView] = useState<CanvasLeftPanelView>(
+    CANVAS_LEFT_PANEL_VIEW_IDS.cast,
+  )
   const [imageEditWorkspaceOpen, setImageEditWorkspaceOpen] = useState(false)
   const imageEditNodeByRequestRef = useRef(new Map<string, string>())
   const activeImageEditRequestKeyRef = useRef<string | null>(null)
@@ -4004,18 +4012,10 @@ function StudioNodeCanvas() {
             <CanvasTopBar
               nodeCount={workflow.nodes.length}
               projectName={workflow.currentProjectName}
-              projects={workflow.projects}
-              currentProjectId={workflow.currentProjectId}
               canvasAppearance={workflow.canvasAppearance}
               onCanvasAppearanceChange={workflow.setCanvasAppearance}
-              onAddClick={handleTopbarAddClick}
               onArrange={handleTidyLayout}
-              onSave={handleSaveNow}
               isSaving={isSaving}
-              onCreateProject={handleCreateProject}
-              onRenameProject={handleRenameProject}
-              onDeleteProject={handleDeleteProject}
-              onSwitchProject={handleSwitchProject}
               reviewPendingCount={reviewMode.remaining}
               onStartReview={reviewMode.enter}
             />
@@ -4061,8 +4061,24 @@ function StudioNodeCanvas() {
             <CanvasLeftPanel
               expanded={leftPanelExpanded}
               onExpandedChange={setLeftPanelExpanded}
+              view={leftPanelView}
+              onViewChange={setLeftPanelView}
               nodeCount={nodeLocatorCount}
               onAddClick={handleTopbarAddClick}
+              projectPanel={
+                <CanvasProjectPanel
+                  projectName={workflow.currentProjectName}
+                  projects={workflow.projects}
+                  currentProjectId={workflow.currentProjectId}
+                  nodeCount={workflow.nodes.length}
+                  isSaving={isSaving}
+                  onSave={handleSaveNow}
+                  onCreateProject={handleCreateProject}
+                  onRenameProject={handleRenameProject}
+                  onDeleteProject={handleDeleteProject}
+                  onSwitchProject={handleSwitchProject}
+                />
+              }
             >
               <CastDock />
             </CanvasLeftPanel>

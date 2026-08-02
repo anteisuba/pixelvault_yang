@@ -126,6 +126,48 @@ export function HomeV3Motion() {
 
           if (!stage || slides.length <= 1) return
 
+          /* ── the handoff into the stage ──────────────────────────────────
+             The product window and the capability window are the same object
+             in two poses, and the page used to cut between them: the product
+             frame scrolled away, then the stage snapped into a pin. Scrubbed
+             across the approach, one frame steps back as the other comes
+             forward, so the section arrives instead of appearing.
+
+             Both tweens finish exactly where the pin begins, which is why they
+             can share `slides[0]` with the swap timeline below — by the time
+             that one runs, this one is complete and holding its end values. */
+          const appFrame = document.querySelector<HTMLElement>('.home-v3-app')
+          const firstDemo = slides[0]?.querySelector<HTMLElement>(
+            '.home-v3-img2-stage, .home-v3-demo',
+          )
+
+          const handoff = gsap.timeline({
+            scrollTrigger: {
+              trigger: stage,
+              start: 'top bottom',
+              end: 'top top',
+              scrub: 0.6,
+            },
+            defaults: { ease: 'none' },
+          })
+
+          if (appFrame) {
+            handoff.fromTo(
+              appFrame,
+              { scale: 1, opacity: 1 },
+              { scale: 0.93, opacity: 0.18, transformOrigin: '50% 100%' },
+              0,
+            )
+          }
+          if (firstDemo) {
+            handoff.fromTo(
+              firstDemo,
+              { scale: 0.9, y: 70, opacity: 0.25 },
+              { scale: 1, y: 0, opacity: 1 },
+              0,
+            )
+          }
+
           /* The absolute stacking only exists once this module is here to drive
              it — otherwise three slides would sit on top of each other. */
           stage.classList.add('is-pinned')
@@ -173,42 +215,10 @@ export function HomeV3Motion() {
               paused: true,
             })
 
-            // text → image: the four answers resolve in turn, winner last
-            const cells = slide.querySelectorAll('.home-v3-fan figure')
-            if (cells.length) {
-              cells.forEach((cell) => {
-                tl.fromTo(
-                  cell.querySelector('img'),
-                  {
-                    filter: 'blur(14px) brightness(.55) saturate(.4)',
-                    scale: 1.06,
-                  },
-                  {
-                    filter: 'none',
-                    scale: 1,
-                    duration: 0.75,
-                    ease: 'power2.out',
-                  },
-                  '+=.18',
-                )
-              })
-              const picked = slide.querySelector(
-                '.home-v3-fan figure[data-picked="true"] figcaption',
-              )
-              if (picked) {
-                tl.fromTo(
-                  picked,
-                  { scale: 0.7, opacity: 0 },
-                  {
-                    scale: 1,
-                    opacity: 1,
-                    duration: 0.45,
-                    ease: 'back.out(2.2)',
-                  },
-                  '-=.2',
-                )
-              }
-            }
+            /* The image demo has no loop here on purpose: it is driven by the
+               reader pressing generate, and a timeline restarting underneath
+               would reset whichever edit they had just chosen. Its states live
+               in `HomeV3DemoImage`. */
 
             // image → video: the playhead crosses, the strip marker follows
             const fill = slide.querySelector('.home-v3-vscrub i')

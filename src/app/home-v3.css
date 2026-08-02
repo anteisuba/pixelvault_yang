@@ -1374,6 +1374,17 @@
   margin: 0 0 16px;
 }
 
+/* The headline carries its own line breaks, one set per language. `keep-all`
+   above forbids breaking between CJK characters, which is right for a short
+   headline but leaves a long Japanese clause with nowhere to break — it ran
+   181px past this column and 109px under the demo panel. Authoring the breaks
+   in the copy puts the decision with the translator instead of the layout.
+   `balance` has to go: it would fight breaks that are already deliberate. */
+.home-v3-cap-text h2 {
+  white-space: pre-line;
+  text-wrap: initial;
+}
+
 .home-v3-cap-text p {
   margin: 18px 0 0;
   max-width: 30em;
@@ -1422,6 +1433,223 @@
 .home-v3-demo-bar b {
   color: var(--h-ink);
   font-weight: 400;
+}
+
+/* demo · image: one character, written then re-dressed ─────────────────────
+ *
+ * Picture left, the two moves listed right. The picture is a single stack —
+ * the re-dressed frame sits on top of the original at full size — so the swap
+ * happens in place and the reader's eye never has to travel to compare. */
+/* The framed box holds the picture and nothing else — the controls sit under
+   it and the argument sits in the section copy beside it, so no part of this
+   says the same thing twice. */
+.home-v3-img2 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.home-v3-img2-stage {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--h-r-l);
+  overflow: hidden;
+  background: var(--h-panel);
+  max-height: 58vh;
+}
+
+/* Every frame is stacked in the same box so a swap happens in place — the eye
+   never travels to compare, which is the whole point of «same character». The
+   first is in flow and sets the height; the rest are laid over it. */
+.home-v3-img2-stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 58vh;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  object-position: center 22%;
+  transition:
+    opacity 0.42s ease,
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-v3-img2-stage img + img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.home-v3-img2-stage img[data-shown='false'] {
+  opacity: 0;
+  transform: scale(1.015);
+}
+
+/* The sprite is a hard-edged 64px-grade sprite blown up; smoothing it would
+   sand off the exact thing the «change the style» edit produced. */
+.home-v3-img2-stage img[src*='sprite'] {
+  image-rendering: pixelated;
+  object-fit: contain;
+  background: var(--h-paper);
+}
+
+/* Stamped on the picture, not written beside it: the claim is about what the
+   reader can see in the frame. */
+.home-v3-img2-stage figcaption {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--h-ink);
+  color: var(--h-paper);
+  font-family: var(--h-mono);
+  font-size: 9.5px;
+}
+
+/* Before anything is pressed the frame holds the prompt and nothing else,
+   because that is genuinely all there is at that point. It fades out under the
+   arriving picture rather than being wiped by a script. */
+.home-v3-img2-prompt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  padding: 0 clamp(14px, 3vw, 30px);
+  background: var(--h-panel);
+  color: var(--h-dim);
+  font-family: var(--h-mono);
+  font-size: clamp(11px, 1.15vw, 13px);
+  line-height: 1.8;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+[data-home-v3-imagedemo][data-phase='ready'] .home-v3-img2-prompt {
+  opacity: 0;
+}
+
+/* The running state sits on top of both, so the reader watches the same frame
+   throughout instead of the panel changing shape under them. */
+/* The shared `Spinner` at its block size, with a line of text under it —
+   docs/plans/loading-language-2026-07.md §1.2: page/block level is lg (24px)
+   plus a caption, never a bigger spinner. Colour is the domain's dim token
+   rather than the global muted one, which §0 allows so long as the state
+   semantics and the reduced-motion contract are untouched — both live in the
+   component. */
+.home-v3-img2-running {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  justify-items: center;
+  background: var(--h-panel);
+  color: var(--h-dim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+[data-home-v3-imagedemo][data-phase='running'] .home-v3-img2-running {
+  opacity: 1;
+}
+
+.home-v3-img2-running em {
+  font-family: var(--h-mono);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.home-v3-img2-run {
+  align-self: flex-start;
+  padding: 11px 24px;
+  border: 1px solid var(--h-ink);
+  border-radius: 999px;
+  background: var(--h-ink);
+  color: var(--h-paper);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s;
+}
+
+.home-v3-img2-run:hover {
+  transform: translateY(-1px);
+}
+
+.home-v3-img2-run:focus-visible {
+  outline: 2px solid var(--h-ink);
+  outline-offset: 2px;
+}
+
+/* Controls, under the frame rather than inside it. */
+.home-v3-img2-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 14px;
+}
+
+.home-v3-img2-by {
+  margin: 0 0 0 auto;
+  font-family: var(--h-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--h-dim);
+}
+
+.home-v3-img2-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home-v3-img2-chip {
+  padding: 8px 15px;
+  border: 1px solid var(--h-line);
+  border-radius: 999px;
+  background: var(--h-paper);
+  color: var(--h-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
+}
+
+.home-v3-img2-chip:hover {
+  border-color: var(--h-ink);
+}
+
+.home-v3-img2-chip[data-active='true'] {
+  background: var(--h-ink);
+  border-color: var(--h-ink);
+  color: var(--h-paper);
+}
+
+.home-v3-img2-chip:focus-visible {
+  outline: 2px solid var(--h-ink);
+  outline-offset: 2px;
+}
+
+.home-v3-img2-caption {
+  margin: 0;
+  flex: 1 1 14ch;
+  font-family: var(--h-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--h-dim);
+}
+
+@media (max-width: 700px) {
+  .home-v3-img2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* demo · four answers side by side */

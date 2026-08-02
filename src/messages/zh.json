@@ -637,22 +637,19 @@
     "caps": {
       "moreModels": "+ {count} 个",
       "textToImage": {
-        "eyebrow": "TEXT → IMAGE",
-        "body": "不用挑完模型再开始。同一句话推给全部选中的模型，出来横向摆在一起，你只做一件事——挑哪张。落选的那几张也留着，连同各自的参数。",
-        "titleA": "一句 prompt，",
-        "titleB": "四个模型同时给答案。"
+        "eyebrow": "TEXT → IMAGE → IMAGE",
+        "body": "先用一句话把角色写出来，再把这张图当作参考交给下一步。可以只换外套，也可以整个重画成像素风。难的从来不是改，是改完之后他还是他。",
+        "title": "换了衣服，\n换了画风，\n还是同一个人。"
       },
       "imageToVideo": {
         "eyebrow": "IMAGE → VIDEO",
         "body": "不用重新描述一遍。选中的结果直接作为首帧送进视频模型，prompt、参考图和镜头设定一起带过去，出来的片子和原图是同一个世界。",
-        "titleA": "挑好的那张，",
-        "titleB": "直接接着动起来。"
+        "title": "挑好的那张，\n直接接着动起来。"
       },
       "imageTo3d": {
         "eyebrow": "IMAGE → 3D",
         "body": "档案里任何一张图都能进 3D。原图、prompt 和生成出来的模型留在同一条记录上，下次要用直接调，不用重新找。",
-        "titleA": "存过的图，",
-        "titleB": "转成能复用的资产。"
+        "title": "存过的图，\n转成能复用的资产。"
       }
     },
     "models": {
@@ -759,6 +756,31 @@
       "picked": "选用",
       "barPrompt": "PROMPT · 黄昏的山脊，云海漫过垭口",
       "barDone": "4 / 4 完成"
+    },
+    "imageDemo": {
+      "bar": "PROMPT · 二次元男角色，黑色短发，琥珀色眼睛",
+      "promptLine": "二次元男角色，黑色短发，琥珀色眼睛，立领外套",
+      "pick": "选一种改法",
+      "same": "同一个角色",
+      "base": {
+        "action": "原图",
+        "note": "由上面那句话生成。"
+      },
+      "outfit": {
+        "action": "换衣服",
+        "note": "只有外套变了。脸、姿势、光都没动。"
+      },
+      "style": {
+        "action": "换画风",
+        "note": "重画成游戏像素精灵，还是同一个人。"
+      },
+      "generate": "生成",
+      "hint": "点「生成」跑上面这句提示词。",
+      "running": "生成中",
+      "real": {
+        "action": "真人化",
+        "note": "转成真人。脸、痣、外套都还在。"
+      }
     },
     "loraView": {
       "base": "底模",
@@ -4392,6 +4414,9 @@
       "rename": "命名",
       "category": "分类",
       "moreEdits": "编辑能力",
+      "moreEditsInstant": "一键出结果",
+      "moreEditsRegion": "要在图上圈范围",
+      "moreEditsDescribe": "要写一句话",
       "addAsset": "添加素材",
       "preview": "预览",
       "reorder": "排序",

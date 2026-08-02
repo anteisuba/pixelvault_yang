@@ -637,22 +637,19 @@
     "caps": {
       "moreModels": "+{count} more",
       "textToImage": {
-        "eyebrow": "TEXT → IMAGE",
-        "body": "No need to choose a model before you start. The same line goes to every model you picked and the results line up side by side, so the only thing left to do is pick one. The ones you pass on stay too, each with its own parameters.",
-        "titleA": "One prompt.",
-        "titleB": "Four models answer at once."
+        "eyebrow": "TEXT → IMAGE → IMAGE",
+        "body": "Write the character from one sentence, then hand that image back as the reference for the next edit. Swap only the jacket, or redraw him as a game sprite. The hard part was never the edit; it is still being him afterwards.",
+        "title": "Change the outfit, change the style,\nstill the same character."
       },
       "imageToVideo": {
         "eyebrow": "IMAGE → VIDEO",
         "body": "No rewriting the brief. The selected result becomes the first frame, and the prompt, references and camera notes travel with it — so the clip lives in the same world as the still.",
-        "titleA": "Take the one you picked",
-        "titleB": "and let it move."
+        "title": "Take the one you picked\nand let it move."
       },
       "imageTo3d": {
         "eyebrow": "IMAGE → 3D",
         "body": "Every saved image can go to 3D. The source, the prompt and the generated model stay on one record, so next time you reach for it instead of hunting for it.",
-        "titleA": "Anything in the archive",
-        "titleB": "becomes a reusable asset."
+        "title": "Anything in the archive\nbecomes a reusable asset."
       }
     },
     "models": {
@@ -759,6 +756,31 @@
       "picked": "Picked",
       "barPrompt": "PROMPT · A ridge at dusk, cloud sea through the pass",
       "barDone": "4 / 4 done"
+    },
+    "imageDemo": {
+      "bar": "PROMPT · anime male character, short black hair, amber eyes",
+      "promptLine": "anime male character, short black hair, amber eyes, stand-collar jacket",
+      "pick": "Pick an edit",
+      "same": "Same character",
+      "base": {
+        "action": "Original",
+        "note": "Written from the sentence above."
+      },
+      "outfit": {
+        "action": "Change the outfit",
+        "note": "Only the jacket changed. Same face, same pose, same light."
+      },
+      "style": {
+        "action": "Change the style",
+        "note": "Redrawn as a game sprite. Still the same character."
+      },
+      "generate": "Generate",
+      "hint": "Press generate to run the prompt above.",
+      "running": "Generating",
+      "real": {
+        "action": "Make it a photo",
+        "note": "Taken to a photograph. Same face, same mole, same jacket."
+      }
     },
     "loraView": {
       "base": "Base model",
@@ -4392,6 +4414,9 @@
       "rename": "Name",
       "category": "Category",
       "moreEdits": "Edit tools",
+      "moreEditsInstant": "One click",
+      "moreEditsRegion": "Needs a region on the image",
+      "moreEditsDescribe": "Needs a sentence",
       "addAsset": "Add material",
       "preview": "Preview",
       "reorder": "Reorder",

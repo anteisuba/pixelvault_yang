@@ -211,6 +211,56 @@ export const HOME_V3_CAPS = [
 export type HomeV3Cap = (typeof HOME_V3_CAPS)[number]
 
 /**
+ * The image capability, demonstrated as the two things it actually does, on one
+ * subject: a character written from nothing, then re-dressed without becoming
+ * someone else.
+ *
+ * Both frames are real output from `gpt-image-2` — the second was generated
+ * from the first as a reference image, which is the product's own
+ * multi-reference path (`GenerateRequestSchema.referenceImages`, up to nine).
+ * The canvas edit tools are single-image only, so a garment swap could not be
+ * shown as an edit without promising a flow that does not exist.
+ *
+ * The mole under his left eye is deliberate: it survives the swap, so the claim
+ * "same character" is checkable in the picture rather than asserted in the copy.
+ */
+export const HOME_V3_IMAGE_DEMO = {
+  model: 'GPT Image 2',
+} as const
+
+/**
+ * `base` is the text-to-image result; the other two were each generated from it
+ * as a reference image, which is the product's own multi-reference path
+ * (`GenerateRequestSchema.referenceImages`, up to nine). The canvas edit tools
+ * take a single image, so neither of these could be shown as an edit without
+ * advertising a flow that does not exist.
+ *
+ * Both edits keep the mole under his left eye. That is what makes "same
+ * character" checkable in the picture instead of asserted in the copy.
+ */
+export const HOME_V3_IMAGE_DEMO_VARIANTS = [
+  {
+    id: 'base',
+    shot: '/homepage/production/image/character-swap-base-v1.webp',
+  },
+  {
+    id: 'outfit',
+    shot: '/homepage/production/image/character-swap-crimson-v1.webp',
+  },
+  {
+    id: 'style',
+    shot: '/homepage/production/image/character-style-sprite-v1.webp',
+  },
+  {
+    id: 'real',
+    shot: '/homepage/production/image/character-style-real-v1.webp',
+  },
+] as const
+
+export type HomeV3ImageDemoVariant =
+  (typeof HOME_V3_IMAGE_DEMO_VARIANTS)[number]['id']
+
+/**
  * The video demo is one continuous shot, not six pictures: a slow push-in across
  * the clip, so the filmstrip reads as frames of the same take. Four unrelated
  * stills in a row read as "four images" and the row stops saying "video".

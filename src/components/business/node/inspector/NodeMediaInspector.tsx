@@ -43,6 +43,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_NODE_HANDOFF_MAX_REFERENCES } from '@/constants/studio'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import { stripFileExtension } from '@/lib/node-display-name'
 import { writeStudioNodeHandoff } from '@/lib/studio-node-handoff'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -107,6 +108,17 @@ interface NodeMediaInspectorProps {
    * Hide the standalone media preview/source switcher to avoid presenting the
    * same upload/library actions twice. */
   identityAssetsOnly?: boolean
+  /**
+   * 台账 F1（2026-08-02）：来源行下面默认展开哪一格。
+   *
+   * 散图详情面板此前右栏只有三格来源行、下面约 600px 全空 —— 因为三格里唯
+   * 一有内联内容的「AI 生成」被 `editTarget` 的初始 `null` 藏着（另两格是
+   * **立即动作**：素材库弹对话框、Studio 跳转，本来就没有 tab 内容）。
+   *
+   * ⚠ 默认仍是 `null`：其余 5 个调用方（shot/shotText/frame/character/
+   * background）行为零变化 —— 它们的面板本来就不空。
+   */
+  defaultEditTarget?: 'ai' | null
 }
 
 function getStatusLabelKey(
@@ -157,6 +169,7 @@ export function NodeMediaInspector({
   referenceGalleryExtraItems,
   onExtractReference,
   identityAssetsOnly = false,
+  defaultEditTarget = null,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
@@ -167,7 +180,9 @@ export function NodeMediaInspector({
   // form below the preview; `null` is the default result/empty view (preview or
   // upload dropzone + the source row, no form). Because it is component-local
   // state, no persisted field can ever hide an existing image.
-  const [editTarget, setEditTarget] = useState<'ai' | null>(null)
+  const [editTarget, setEditTarget] = useState<'ai' | null>(
+    defaultEditTarget ?? null,
+  )
   const existingImageInputRef = useRef<HTMLInputElement>(null)
 
   const { generateMediaNode, modelOptionsByType, updateNodeData } =
@@ -318,7 +333,8 @@ export function NodeMediaInspector({
         applyExistingImage(
           result.url,
           result.generationId,
-          file.name || t('sourceFallback'),
+          // 台账 C5：剥扩展名后为空则落既有兜底文案。
+          stripFileExtension(file.name) || t('sourceFallback'),
         )
         return
       }

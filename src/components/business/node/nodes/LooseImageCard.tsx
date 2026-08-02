@@ -304,7 +304,11 @@ export function LooseImageCard({
       // 图还没审」。
       data-status={cardStatus}
       className={cn(
-        'group relative box-border select-none overflow-hidden',
+        // 台账 #25（2026-08-02）：卡根不再 overflow-hidden——那会把定位在卡框
+        // 外的 .canvas-card-label（bottom:100%）连同改名入口、端口外半整个裁
+        // 掉。圆角裁切下沉到媒体层（.canvas-card-media），卡根保持 visible，
+        // 与 NodeShell 卡族一致。
+        'group relative box-border select-none',
         // S4：卡即媒体的白卡壳（canvas-card 定义在 canvas.css，静态发丝边 +
         // hover 抬升 + 选中蓝环 + 失败红边，与 NodeShell 的卡完全同一套）。
         'canvas-card canvas-card--image-bounds',
@@ -394,7 +398,7 @@ export function LooseImageCard({
         ) : null}
       </div>
 
-      <div className="absolute inset-0">
+      <div className="canvas-card-media absolute inset-0">
         {mediaUrl ? (
           <Image
             src={mediaUrl}

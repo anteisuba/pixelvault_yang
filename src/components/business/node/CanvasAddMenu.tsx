@@ -34,6 +34,9 @@ interface CanvasAddMenuProps {
   open: boolean
   screenPosition: XYPosition | null
   onSelect(intentId: CanvasAddIntentId): void
+  /** 台账 #26（owner 2026-08-02 拍板）：顶部主行是真上传——点击直接弹系统
+   *  文件选择器（宿主负责隐藏 input 与建节点），不再只是建一张空起步卡。 */
+  onUpload(): void
   onClose(): void
 }
 
@@ -68,6 +71,7 @@ export function CanvasAddMenu({
   open,
   screenPosition,
   onSelect,
+  onUpload,
   onClose,
 }: CanvasAddMenuProps) {
   const t = useTranslations('StudioNode')
@@ -197,18 +201,18 @@ export function CanvasAddMenu({
         boxShadow: 'var(--shadow-canvas-menu)',
       }}
     >
-      {/* Primary insert actions — Haivis short list density. */}
+      {/* Primary insert actions — Haivis short list density.
+          台账 #26：这一行是真上传（弹文件选择器）；「图片」空卡回到下方
+          image 分组里，与 owner 拍板的「最上面上传，下面是图片等节点」对齐。 */}
       <div className="space-y-0.5 p-0.5">
         <button
           type="button"
           role="menuitem"
-          onClick={() => onSelect(CANVAS_ADD_INTENT_IDS.imageAsset)}
+          onClick={onUpload}
           className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none"
         >
           <Upload className="size-4 shrink-0 text-node-muted" />
-          <span className="font-medium">
-            {t('addCatalog.items.imageAsset.label')}
-          </span>
+          <span className="font-medium">{t('addCatalog.upload')}</span>
         </button>
       </div>
 
@@ -222,8 +226,6 @@ export function CanvasAddMenu({
           </h3>
           <div className="space-y-0.5">
             {group.items.map((item) => {
-              // image.asset already listed as primary "upload" row above.
-              if (item.id === CANVAS_ADD_INTENT_IDS.imageAsset) return null
               const Icon = ICON_BY_INTENT[item.id]
               return (
                 <button

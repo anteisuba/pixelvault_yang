@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState, type FormEvent } from 'react'
+import type { Components } from 'react-markdown'
 import {
   ChevronDown,
   ChevronUp,
@@ -13,6 +14,8 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { CodeBlock, CodeBlockCode } from '@/components/ui/code-block'
+import { Markdown } from '@/components/ui/markdown'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
@@ -60,6 +63,46 @@ interface AssistantConversationProps {
   onApplyAssistantOps?(
     ops: readonly PlannedNodeAssistantOp[],
   ): Promise<NodeAssistantOpRunResult>
+}
+
+/**
+ * 台账 G3：Markdown 原语默认的 `code` 组件给内联代码挂死类
+ * `bg-primary-foreground` —— 那是脊柱令牌，在助手气泡（#f1f1f1）上无论翻成
+ * 黑还是白都不成立。改用画布域自己的控件填充色。
+ *
+ * ⚠ `components` 是**整体替换**不是合并（markdown.tsx 的默认参数），所以
+ * `pre` 也要一并给出，否则围栏代码块会套上浏览器默认的 <pre> 样式。
+ */
+const CANVAS_MARKDOWN_COMPONENTS: Partial<Components> = {
+  code: function CanvasCode({ className, children, ...props }) {
+    const isInline =
+      !props.node?.position?.start.line ||
+      props.node?.position?.start.line === props.node?.position?.end.line
+
+    if (isInline) {
+      return (
+        <span
+          className={cn(
+            'canvas-md-inline-code rounded-sm px-1 font-mono',
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </span>
+      )
+    }
+
+    const language = className?.match(/language-(\w+)/)?.[1] ?? 'plaintext'
+    return (
+      <CodeBlock className={className}>
+        <CodeBlockCode code={children as string} language={language} />
+      </CodeBlock>
+    )
+  },
+  pre: function CanvasPre({ children }) {
+    return <>{children}</>
+  },
 }
 
 function getAssistantMessagePreview(content: string): string {
@@ -199,11 +242,27 @@ export function AssistantConversation({
                   )}
                 >
                   {message.content ? (
-                    <p className="whitespace-pre-wrap">
-                      {isCollapsible && !isExpanded
-                        ? getAssistantMessagePreview(message.content)
-                        : message.content}
-                    </p>
+                    // 台账 G3（2026-08-02）：助手回复此前是纯文本 <p>，`###`
+                    // `**` 原样打在屏幕上。展开态走 Markdown 原语 + 画布域
+                    // 自己的 .canvas-md 配方（域皮肤纪律：**不复用**全站的
+                    // .message-md，见 globals.css 该段注释）。折叠预览是压平
+                    // 后的一行摘要，不适合再走块级渲染；用户输入不是
+                    // Markdown 契约，同样保持纯文本。
+                    message.role === 'assistant' &&
+                    !(isCollapsible && !isExpanded) ? (
+                      <Markdown
+                        className="canvas-md"
+                        components={CANVAS_MARKDOWN_COMPONENTS}
+                      >
+                        {message.content}
+                      </Markdown>
+                    ) : (
+                      <p className="whitespace-pre-wrap">
+                        {isCollapsible && !isExpanded
+                          ? getAssistantMessagePreview(message.content)
+                          : message.content}
+                      </p>
+                    )
                   ) : (
                     <div className="flex items-center gap-2 text-node-muted">
                       <Spinner size="sm" />

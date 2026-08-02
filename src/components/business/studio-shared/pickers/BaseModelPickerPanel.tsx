@@ -311,6 +311,14 @@ export function BaseModelPickerPanel({
             {tCommon('modelCount', { count: opts.length })}
           </span>
         </span>
+        {/* 台账 D7 发现 #8（2026-08-02）：编码强度原先是**反的** —— 五个用
+            不了的厂商各占一整行「需要 API key」，而唯一能直接跑的免费额度项
+            只有一颗 1.5px 裸绿点。扫这一列时，最该被看见的反而最轻。
+            对调后：可跑（自带 key / 平台额度）给点 + 文案，缺 key 只留一枚
+            静音钥匙图标 —— 「需要 API key」这句话已经由第二步的分组标题承担，
+            逐行重复一遍是噪音不是信息。
+            ⚠ 缺 key 侧只做「减法」不再调淡：muted-foreground/75 在浅色面上
+            本就贴线（memory: muted-foreground 浅面不合格）。 */}
         <span className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground/75">
           {savedOpt ? (
             <>
@@ -322,12 +330,14 @@ export function BaseModelPickerPanel({
               <span className="hidden sm:inline">{tCommon('savedKey')}</span>
             </>
           ) : platformOpt ? (
-            <span className="size-1.5 rounded-full bg-emerald-500" />
+            <>
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="hidden sm:inline">
+                {tSetup('platformQuota')}
+              </span>
+            </>
           ) : (
-            <span className="flex items-center gap-1">
-              <Key className="size-3" />
-              <span className="hidden sm:inline">{tSetup('needsKey')}</span>
-            </span>
+            <Key className="size-3" aria-label={tSetup('needsKey')} />
           )}
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground/55" />
@@ -490,6 +500,13 @@ export function BaseModelPickerPanel({
         side="top"
         sideOffset={10}
         collisionPadding={12}
+        // 台账 D7 发现 #9（2026-08-02）：面板自然高最多 384px，上方空间不够时
+        // Radix 默认（avoidCollisions）会把它整个翻到触发器**下方** —— 在画布
+        // 生成框里，那正好盖住同一行右端的发送键与张数丸，用户看不到自己刚点
+        // 的东西去哪了。关掉翻转后 size() 中间件仍在跑：上面那条 max-h 公式
+        // （--radix-popover-content-available-height）会把面板钳进上方剩余空
+        // 间、内部滚动，恒定向上、永不遮挡操作行。
+        avoidCollisions={false}
         // Drilling provider → models unmounts the clicked row, dropping focus to
         // <body>. Without a focus trap (the studio dock has none) Radix would
         // read that as a focus-outside dismissal and snap the popover shut. Keep

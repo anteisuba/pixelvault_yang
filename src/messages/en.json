@@ -3680,7 +3680,8 @@
           "helper": "Collect scene images, location, mood, and lighting direction."
         }
       },
-      "cast": "Cast tray"
+      "cast": "Cast tray",
+      "upload": "Upload image"
     },
     "statuses": {
       "idle": "Idle",

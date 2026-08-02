@@ -19,7 +19,10 @@ import {
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
 } from '@/constants/node-studio'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
-import { buildDisplayNamePatch } from '@/lib/node-display-name'
+import {
+  buildDisplayNamePatch,
+  stripFileExtension,
+} from '@/lib/node-display-name'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
@@ -151,7 +154,8 @@ export function ImageSourceStarter({
       NODE_STUDIO_MEDIA_IMAGE_OUTPUT.uploadNote,
     )
     if (result.success && result.url) {
-      applyImage(result.url, result.generationId, file.name)
+      // 台账 C5：文件名进显示名字段前剥扩展名，别把 `xxx.png` 当人起的名字。
+      applyImage(result.url, result.generationId, stripFileExtension(file.name))
       return
     }
     // A deliberate × cancel isn't a failure — go straight back to the empty

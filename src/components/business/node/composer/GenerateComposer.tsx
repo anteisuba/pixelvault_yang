@@ -44,6 +44,7 @@ import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { MediaReviewButtons } from '../CanvasImageSelectionToolbar'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
   useGenerateComposer,
   type ComposerReferenceSlot,
@@ -310,10 +311,16 @@ function ComposerCore({ composer }: ComposerCoreProps) {
   // 序」，与 `lib/model-options.ts` 的 `findSelectedModel`（"跌到第一项"）同
   //一条既有惯例，不是新发明的策略。只在用户还没选过时补一次，选过之后（含
   // 手动换成不支持清晰度的模型）不会被这段覆盖回去。
+  // 台账 D7 刀 2（2026-08-02）：默认落**第一个能真跑的**，不是第 [0] 项。
+  // 目录序把 OpenAI GPT Image 2 排在最前（models/image.ts「按产品推荐排序」），
+  // 而它对没配 key 的用户是 locked —— 开箱即用的默认值指向一个用不了的
+  // provider，看着能发、发了才失败。判据复用 `isRunnableModelOption`
+  // （= useSplitModelOptions 的 saved/platform 两桶），可跑项全无时仍退回
+  // 第 [0] 项：让「清晰度」那段有模型可依，好过整段消失。
   useEffect(() => {
     if (composer.mode !== 'image') return
     if (composer.modelSelection) return
-    const fallback = modelOptions[0]
+    const fallback = modelOptions.find(isRunnableModelOption) ?? modelOptions[0]
     if (fallback) composer.setModelSelection(fallback)
   }, [
     composer.mode,

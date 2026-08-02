@@ -1,7 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useEdges, useReactFlow } from '@xyflow/react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
+import { useEdges, useNodes, useReactFlow } from '@xyflow/react'
 import {
   Check,
   Download,
@@ -21,6 +29,7 @@ import {
   Tags,
   Trash2,
   Undo2,
+  Upload,
   Users,
   WandSparkles,
   type LucideIcon,
@@ -33,6 +42,7 @@ import {
   NODE_STUDIO_DOCK,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLES,
+  NODE_STUDIO_VIDEO_INPUT,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
@@ -48,8 +58,17 @@ import {
   rejectMedia,
   resolveMediaReviewState,
 } from '@/lib/node-media-review'
+import {
+  getMediaGenerateBlockReason,
+  type MediaGenerateBlockReason,
+} from '@/lib/node-workflow-prompt'
+import {
+  getUpstreamNodes,
+  harvestUpstreamShotTextPrompt,
+} from '@/lib/node-workflow-graph'
 import type { NodeTokenType } from '@/constants/node-tokens'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
 import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
 import { cn } from '@/lib/utils'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
@@ -59,6 +78,13 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 import { CanvasImageEditWorkspace } from './CanvasImageEditWorkspace'
 import { CharacterImageReferenceControls } from './CharacterImageReferenceControls'
@@ -578,6 +604,33 @@ function CollectorCapability({
  *  directly, since it calls `CanvasImageSelectionToolbar` itself rather than
  *  going through `NodeSelectionToolbarChrome`) and as the sole capability of
  *  the generic no-media branch. */
+/** 台账 #12：blockReason 存在时给 disabled 生成钮包一层 Radix Tooltip。
+ *  `ToolbarLabelButton` 的 `disabled:pointer-events-none` 会吃掉原生 title，
+ *  照 `NodeMediaInspector` 的「span 包一层」先例。触屏没有 hover——点击
+ *  兜底仍由 `handleGenerateMediaNode` 里保留的同名守卫 toast 承担。 */
+function GenerateBlockTooltip({
+  reason,
+  children,
+}: {
+  reason: MediaGenerateBlockReason | null
+  children: ReactNode
+}) {
+  const t = useTranslations('StudioNode.mediaNodes')
+  if (!reason) {
+    return <>{children}</>
+  }
+  return (
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top">{t(reason)}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 export function ShotGenerateButton({
   nodeId,
   data,
@@ -589,16 +642,28 @@ export function ShotGenerateButton({
   const { generateMediaNode } = useNodeWorkflowActions()
   const hasMedia = Boolean(getNodeMediaUrl(data))
   const isRunning = data.status === NODE_STATUS_IDS.running
+  // 台账 #12：守卫前移到渲染期——与 handler 同一判据（先 model 后 prompt，
+  // 镜头图不读上游文本）。此前守卫全在点击后，缺前提时零反馈只剩一个
+  // 1.6s 的右下角 toast，用户无法判断自己到底点没点上。
+  const blockReason = isRunning
+    ? null
+    : getMediaGenerateBlockReason(NODE_TYPE_IDS.shot, data)
 
   return (
-    <ToolbarLabelButton
-      icon={Film}
-      label={
-        isRunning ? t('generating') : hasMedia ? t('regenerate') : t('generate')
-      }
-      onClick={() => void generateMediaNode?.(nodeId)}
-      disabled={isRunning || !generateMediaNode}
-    />
+    <GenerateBlockTooltip reason={blockReason}>
+      <ToolbarLabelButton
+        icon={Film}
+        label={
+          isRunning
+            ? t('generating')
+            : hasMedia
+              ? t('regenerate')
+              : t('generate')
+        }
+        onClick={() => void generateMediaNode?.(nodeId)}
+        disabled={isRunning || !generateMediaNode || Boolean(blockReason)}
+      />
+    </GenerateBlockTooltip>
   )
 }
 
@@ -672,13 +737,28 @@ function SeedanceCapability({
 }) {
   const t = useTranslations('StudioNode.videoGeneration')
   const { generateMediaNode } = useNodeWorkflowActions()
+  const edges = useEdges<NodeWorkflowEdge>()
+  const nodes = useNodes<NodeWorkflowNode>()
   const hasMedia = Boolean(
     typeof data.mediaUrl === 'string' && data.mediaUrl.trim(),
   )
   const isRunning = data.status === NODE_STATUS_IDS.running
+  // 台账 #12（同 ShotGenerateButton）：守卫前移到渲染期。视频节点的 prompt
+  // 可由上游 shotText 供给（handler 的 mergePromptWithUpstreamText 语义），
+  // 所以判空前先按 handler 同款收割上游文本——只在自身 prompt 为空时才有
+  // 意义，但收割本身够便宜，直接与 handler 保持同构最不容易漂移。
+  const upstreamTextPrompt = useMemo(
+    () => harvestUpstreamShotTextPrompt(getUpstreamNodes(nodeId, edges, nodes)),
+    [edges, nodeId, nodes],
+  )
+  const blockReason = isRunning
+    ? null
+    : getMediaGenerateBlockReason(NODE_TYPE_IDS.seedance, data, {
+        upstreamTextPrompt,
+      })
 
   return (
-    <>
+    <GenerateBlockTooltip reason={blockReason}>
       <ToolbarLabelButton
         icon={Film}
         label={
@@ -689,7 +769,69 @@ function SeedanceCapability({
               : t('generate')
         }
         onClick={() => void generateMediaNode?.(nodeId)}
-        disabled={isRunning || !generateMediaNode}
+        disabled={isRunning || !generateMediaNode || Boolean(blockReason)}
+      />
+    </GenerateBlockTooltip>
+  )
+}
+
+/**
+ * 参考视频 capability region: 上传 / 替换。
+ *
+ * 台账 #28（2026-08-02）：这个能力区存在的第一理由不是「方便」，而是**可达性**
+ * —— `GenericSelectionToolbar` 在「无能力区且无媒体」时整条不渲染（owner
+ * 2026-07-27 拍板，理由「⤢ 对着空卡没有可看的东西」），而 videoReference 此前
+ * 不在能力区 switch 里，于是空卡没有工具条 ⇒ 没有 ⤢ ⇒
+ * `VideoReferenceDetailBody`（它恰恰**就是上传面板**）在最该打开的时刻打不开。
+ * 给它一个能力区后 capability 恒非空，那条拍板规则本身**不用动**。
+ *
+ * 上传通道与卡面上传钮字节级同款（`useReferenceVideoUpload` → patch +
+ * `status: done`），不新开端点、不新增文案。
+ */
+function VideoReferenceCapability({
+  nodeId,
+  data,
+}: {
+  nodeId: string
+  data: NodeWorkflowNodeData
+}) {
+  const t = useTranslations('StudioNode.videoReference')
+  const { updateNodeData } = useNodeWorkflowActions()
+  const { uploadFile, isUploading } = useReferenceVideoUpload()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const hasMedia = Boolean(
+    typeof data.mediaUrl === 'string' && data.mediaUrl.trim(),
+  )
+
+  const handleFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      // 清 value：同一个文件可以再选一次（LooseImageCard 替换 input 同款）。
+      event.target.value = ''
+      if (!file) return
+      const patch = await uploadFile(file)
+      if (!patch) return
+      updateNodeData(nodeId, { ...patch, status: NODE_STATUS_IDS.done })
+    },
+    [nodeId, updateNodeData, uploadFile],
+  )
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={NODE_STUDIO_VIDEO_INPUT.accept}
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <ToolbarLabelButton
+        icon={Upload}
+        label={hasMedia ? t('replace') : t('upload')}
+        onClick={() => fileInputRef.current?.click()}
+        // 上传中的进度反馈由卡面遮罩负责（VideoReferenceNode 的 frosted
+        // veil + 文件名 + 进度条），工具条不重复做一份。
+        disabled={isUploading}
       />
     </>
   )
@@ -813,9 +955,11 @@ function VoiceCapability({
 }
 
 /** Capability-region registry (§3.2 table). Returns null for types with no
- *  reachable capability today (videoReference, shotText, composer/agent,
- *  frame/closeup without media) — an empty middle region, not a dead
- *  button. */
+ *  reachable capability today (shotText, composer/agent, frame/closeup
+ *  without media) — an empty middle region, not a dead button.
+ *  ⚠ videoReference 于 2026-08-02（台账 #28）**迁出**这个清单：它空卡时
+ *  没有能力区 ⇒ 整条工具条不渲染 ⇒ 详情面板（=上传面板）不可达，见
+ *  `VideoReferenceCapability` 头注。 */
 function ToolbarCapabilityRegion({
   nodeId,
   data,
@@ -839,6 +983,10 @@ function ToolbarCapabilityRegion({
       return <VoiceCapability nodeId={nodeId} data={data} />
     case NODE_TYPE_IDS.shot:
       return <ShotGenerateButton nodeId={nodeId} data={data} />
+    // 台账 #28：加这一 case 是为了让空参考视频卡也有工具条 ⇒ 有 ⤢ ⇒
+    // 上传面板（VideoReferenceDetailBody）可达。见组件头注。
+    case NODE_TYPE_IDS.videoReference:
+      return <VideoReferenceCapability nodeId={nodeId} data={data} />
     default:
       return null
   }

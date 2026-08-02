@@ -5,9 +5,17 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
+  NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
 } from '@/constants/node-studio'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { NodeWorkflowReferenceRole } from '@/types'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -40,9 +48,11 @@ export function LooseImageDetailBody({ nodeId, data }: NodeDetailBodyProps) {
   const handleCategoryChange = useCallback(
     (next: string) => {
       updateNodeData(nodeId, {
-        imageCategory: (next || undefined) as
-          | NodeWorkflowReferenceRole
-          | undefined,
+        // 哨兵映射回 undefined —— 数据层的「未分类」始终是字段不存在，
+        // `unset` 只活在 Select 的 value 里（Radix 禁空串 value）。
+        imageCategory: (next === NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID
+          ? undefined
+          : next || undefined) as NodeWorkflowReferenceRole | undefined,
         imageCategoryLabel:
           next === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
             ? data.imageCategoryLabel
@@ -62,6 +72,9 @@ export function LooseImageDetailBody({ nodeId, data }: NodeDetailBodyProps) {
       }}
       type={NODE_TYPE_IDS.image}
       kind={NODE_MEDIA_KIND_IDS.image}
+      // 台账 F1：右栏三格来源行下面此前一片空白——「AI 生成」的表单早就写好
+      // 了，只是被 editTarget 的初始 null 藏着。散图面板默认展开它。
+      defaultEditTarget="ai"
       roleExtras={
         <>
           {/* S4/S5（2026-07-27，canvas-image-card.md §1/§四/§五）：改名收口
@@ -71,18 +84,28 @@ export function LooseImageDetailBody({ nodeId, data }: NodeDetailBodyProps) {
             label={t('categoryLabel')}
             statusDotClassName="bg-node-foreground"
           >
-            <select
-              value={category ?? ''}
-              onChange={(event) => handleCategoryChange(event.target.value)}
-              className="nodrag nopan nowheel h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm text-node-foreground"
+            {/* 台账 F1（2026-08-02）：原生 <select> 换 shadcn Select——全站
+                其它下拉都是后者，这里的原生控件在面板上是唯一的异类（连
+                下拉箭头都是浏览器画的）。触发器覆写成域控件同款几何，
+                `nodrag nopan nowheel` 保留：React Flow 的手势隔离。 */}
+            <Select
+              value={category ?? NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}
+              onValueChange={handleCategoryChange}
             >
-              <option value="">{t('categoryUnset')}</option>
-              {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {tRoles(`roles.${role}`)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="nodrag nopan nowheel h-10 w-full rounded-2xl border-node-panel-inner bg-node-panel-soft px-3 text-sm text-node-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}>
+                  {t('categoryUnset')}
+                </SelectItem>
+                {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {tRoles(`roles.${role}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {category === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID ? (
               <IMEAwareInput
                 value={customLabel}

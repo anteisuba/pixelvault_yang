@@ -603,6 +603,35 @@
   /* 14 · 身份卡底条（canvas-identity-card.md §1，同 §8 底部工具条玻璃配方
      0.85 白，非新造色值） */
   --canvas-identity-bar-bg: rgba(255, 255, 255, 0.85);
+
+  /* 15 · 语义脊柱映射（D7/D2 刀 1 · 2026-08-02 owner 拍板）——
+     app 全局 <html class="dark">，画布是浅色孤岛：子树里共享组件
+     （BaseModelPickerPanel / code-block 等）的脊柱令牌一直解析成暗值，
+     实拍病灶 = 视频框模型丸白字落白底、图片框模型丸深灰异类
+     （台账 canvas-ui-inventory-2026-08-01.md 发现 #27 / D7）。
+     做法同 lora.css .domain-lora「语义脊柱映射」：提槽不提皮，全部
+     var(--canvas-*) 间接引用 —— [data-scheme='dark'] 档重定义 --canvas-*
+     后这批自动跟随翻面，无需重复声明。
+     ⚠ Radix 传送门（portal 到 body）不在本作用域，维持字面量类
+     （.canvas-composer-popover 等）的既有做法，见文件头注 §4.6。 */
+  --background: var(--canvas-card-bg);
+  --foreground: var(--canvas-ink);
+  --card: var(--canvas-card-bg);
+  --card-foreground: var(--canvas-ink);
+  --popover: var(--canvas-pop-bg);
+  --popover-foreground: var(--canvas-ink);
+  --primary: var(--canvas-action);
+  --primary-foreground: var(--canvas-action-fg);
+  --secondary: var(--canvas-fill-control);
+  --secondary-foreground: var(--canvas-ink);
+  --muted: var(--canvas-fill-control);
+  --muted-foreground: var(--canvas-ink-muted);
+  --accent: var(--canvas-fill-control);
+  --accent-foreground: var(--canvas-ink);
+  --destructive: var(--canvas-danger);
+  --border: var(--canvas-stroke-regular);
+  --input: var(--canvas-stroke-regular);
+  --ring: var(--canvas-stroke-focus);
 }
 
 /* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
@@ -1784,6 +1813,16 @@
   max-width: var(--canvas-card-w-max);
 }
 
+/* 台账 #25（2026-08-02）：「卡即媒体」的圆角裁切从卡根下沉到媒体层。
+   卡根原来的 overflow-hidden 会把卡框外的 .canvas-card-label（bottom:100%）
+   连同改名入口、端口外半整个裁掉——所有有媒体的图片卡因此没有卡外名字。
+   -1px 对应 .canvas-card 的 1px 边框：媒体层 inset-0 定位在 padding box，
+   照抄 8px 原值会在深色图四角露出约 1px 白底弧线。 */
+.domain-canvas .canvas-card-media {
+  overflow: hidden;
+  border-radius: calc(var(--canvas-card-radius) - 1px);
+}
+
 /* ── 声音卡（canvas-voice-card.md §1/§2）─────────────────────────────────
    84 封面 + 156 右列 = 240，卡高固定 84。 */
 .domain-canvas .canvas-voice-card {
@@ -2481,6 +2520,167 @@
    个位置解析成暗色）。 */
 .domain-canvas .canvas-assistant-handle {
   background: var(--canvas-fill-control);
+}
+
+/* ── 助手回复的 Markdown 排版（台账 G3，2026-08-02）────────────────────
+   起因：`AssistantConversation` 一直用 `<p className="whitespace-pre-wrap">`
+   渲染助手回复，`###` `**` 原样打在屏幕上。换成 Markdown 原语只解决一半 ——
+   Tailwind v4 preflight 把 h1–h6 与 list-style 全抹平了，不补一份排版配方，
+   标题列表渲染出来仍与正文同形。
+
+   ⚠ 为什么不复用全站的 `.message-md`（globals.css）：域皮肤纪律。那边注释
+   里就写明画布这份要**另写一份作用域内的**。尺度照抄它（同一套 em 档），
+   但这里是独立的一份，改画布不牵动 Studio/LoRA。
+
+   两条纪律：
+   · 尺度用 **em** 不用 px —— 跟随调用方字号（气泡是 14px/24px），气泡字号
+     哪天变了排版比例自动跟着走。
+   · 颜色一律从 **currentColor** 用 color-mix 派生，不引 --canvas-ink-* ——
+     气泡有深浅两种底（用户气泡是墨底白字），派生色才能两边都成立；这也是
+     `.message-md` 那边实测 --muted-foreground 在浅底上只有 3.80 之后定下的
+     同一条做法。
+   · 不进 @layer：未分层规则恒压过 Tailwind 分层 utility（同本文件 S8 段）。 */
+.domain-canvas .canvas-md {
+  line-height: var(--canvas-text-body-lh);
+}
+/* 首尾去外边距——气泡的上下内距由 px-3 py-2 负责，不要叠一层 */
+.domain-canvas .canvas-md > :first-child {
+  margin-top: 0;
+}
+.domain-canvas .canvas-md > :last-child {
+  margin-bottom: 0;
+}
+.domain-canvas .canvas-md p {
+  margin-block: 0.65em;
+}
+.domain-canvas .canvas-md h1,
+.domain-canvas .canvas-md h2,
+.domain-canvas .canvas-md h3,
+.domain-canvas .canvas-md h4,
+.domain-canvas .canvas-md h5,
+.domain-canvas .canvas-md h6 {
+  margin-block: 1.2em 0.45em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.domain-canvas .canvas-md h1 {
+  font-size: 1.3em;
+  letter-spacing: -0.01em;
+}
+.domain-canvas .canvas-md h2 {
+  font-size: 1.15em;
+  letter-spacing: -0.005em;
+}
+.domain-canvas .canvas-md h3 {
+  font-size: 1.05em;
+}
+.domain-canvas .canvas-md h4,
+.domain-canvas .canvas-md h5,
+.domain-canvas .canvas-md h6 {
+  font-size: 1em;
+}
+/* 中日文没有字母间距收紧的必要，负字距反而挤 */
+html:lang(zh) .domain-canvas .canvas-md h1,
+html:lang(zh) .domain-canvas .canvas-md h2,
+html:lang(ja) .domain-canvas .canvas-md h1,
+html:lang(ja) .domain-canvas .canvas-md h2 {
+  letter-spacing: 0;
+}
+.domain-canvas .canvas-md ul,
+.domain-canvas .canvas-md ol {
+  margin-block: 0.6em;
+  padding-inline-start: 1.35em;
+}
+.domain-canvas .canvas-md ul {
+  list-style: disc;
+}
+.domain-canvas .canvas-md ol {
+  list-style: decimal;
+}
+.domain-canvas .canvas-md li {
+  margin-block: 0.25em;
+}
+.domain-canvas .canvas-md li::marker {
+  color: color-mix(in oklab, currentColor 55%, transparent);
+}
+.domain-canvas .canvas-md li ul {
+  list-style: circle;
+}
+.domain-canvas .canvas-md li ul ul {
+  list-style: square;
+}
+.domain-canvas .canvas-md li > ul,
+.domain-canvas .canvas-md li > ol {
+  margin-block: 0.25em;
+}
+/* 任务清单：复选框自己就是记号，再加圆点是两个记号 */
+.domain-canvas .canvas-md li:has(> input[type='checkbox']) {
+  list-style: none;
+}
+.domain-canvas .canvas-md li > input[type='checkbox'] {
+  margin-inline-end: 0.4em;
+  vertical-align: baseline;
+}
+.domain-canvas .canvas-md blockquote {
+  margin-block: 0.7em;
+  border-inline-start: 2px solid
+    color-mix(in oklab, currentColor 30%, transparent);
+  padding-inline-start: 0.85em;
+}
+/* ⚠ 降调放**子元素**不放 blockquote 自身：同元素既设 color 又用 currentColor
+   推边线会复利成 0.3 × 0.74（memory 的 currentColor 复利陷阱）。 */
+.domain-canvas .canvas-md blockquote > * {
+  color: color-mix(in oklab, currentColor 74%, transparent);
+}
+.domain-canvas .canvas-md hr {
+  margin-block: 1.1em;
+  border-top-color: color-mix(in oklab, currentColor 30%, transparent);
+}
+/* 链接只靠下划线，不引颜色——画布的强调蓝是「指向」专用（规格 §0.6） */
+.domain-canvas .canvas-md a {
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.15em;
+}
+.domain-canvas .canvas-md strong {
+  font-weight: 600;
+}
+/* 表格在窄气泡里自己横滚，不撑破 dock */
+.domain-canvas .canvas-md table {
+  display: block;
+  max-width: 100%;
+  margin-block: 0.7em;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.domain-canvas .canvas-md th,
+.domain-canvas .canvas-md td {
+  border: 1px solid color-mix(in oklab, currentColor 30%, transparent);
+  padding: 0.3em 0.55em;
+  text-align: start;
+}
+.domain-canvas .canvas-md th {
+  font-weight: 600;
+}
+.domain-canvas .canvas-md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--canvas-card-radius);
+}
+/* 内联代码：`AssistantConversation` 的自定义 code 组件挂这个类（原语默认那
+   份用脊柱令牌 bg-primary-foreground，在气泡上无论翻黑翻白都不成立）。 */
+.domain-canvas .canvas-md-inline-code {
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  font-size: 0.9em;
+}
+/* 围栏代码块：CodeBlock 落成 .canvas-md 的直接子 div，且它自己用脊柱令牌
+   （bg-card/border-border），shiki 主题却硬编码 github-light —— 这里把外壳
+   拉回画布的白卡+发丝边，与高亮主题对齐。 */
+.domain-canvas .canvas-md > div {
+  margin-block: 0.7em;
+  border-color: var(--canvas-stroke-regular);
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink);
 }
 
 /* 唯一的墨色实底动作——研究模式被按下（aria-pressed）时的填色态，对应规格

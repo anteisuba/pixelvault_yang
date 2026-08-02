@@ -43,6 +43,24 @@ function trimmed(value: unknown): string | undefined {
 }
 
 /**
+ * 上传/拖入的文件名落进显示名字段之前先剥掉扩展名（台账 C5，2026-08-02）。
+ *
+ * `IMG_2043.png` 当名字尚可，`cbf13d8d9e967d35c185019db8431c8.png` 就是把
+ * 机器串当人名。读侧的精确相等守卫接不住这一类（它不等于任何 id 字段），
+ * 但至少不要连 `.png` 一起显示；剥完是空串时调用方各自的兜底文案接手。
+ *
+ * 只剥最后一节，且要求它是 1–8 位字母数字 —— 免得把 `v1.5 概念稿` 这种
+ * 带点的正常名字截断。
+ */
+export function stripFileExtension(fileName: string): string {
+  // 先 trim 再剥：`$` 锚点碰上尾部空格就匹配不到扩展名了。
+  return fileName
+    .trim()
+    .replace(/\.[A-Za-z0-9]{1,8}$/, '')
+    .trim()
+}
+
+/**
  * 这个节点在画布上显示的名字；从没命名过时返回 `undefined`。
  *
  * ⚠ **不带兜底**。类型标签（「图片」「镜头文本」）是**呈现层**的事，各处的
@@ -62,29 +80,40 @@ export function resolveNodeDisplayName(
     trimmed(data.backgroundName) ??
     trimmed(data.shotName) ??
     trimmed(data.voiceName) ??
-    notModelId(data, trimmed(data.mediaLabel)) ??
-    notModelId(data, trimmed(data.sourceLabel))
+    notMachineValue(data, trimmed(data.mediaLabel)) ??
+    notMachineValue(data, trimmed(data.sourceLabel))
   )
 }
 
 /**
- * 丢掉「其实是模型 id」的那种标签。
+ * 丢掉「其实是机器值」的那种标签 —— 模型 id 与 generation id 两类。
  *
  * 生成流程曾经把 `generation.model` 直接写进 `mediaLabel`（那是显示名字段），
  * 于是一张从没被命名过的生成图，在助手 payload 与卡匣里都叫
  * `gemini-3.1-flash-image-preview` —— 把系统值当人起的名字。写侧已经不再这么
  * 写了，但**存量项目里那些标签还在**，所以读侧也要挡一道。
  *
- * ⚠ 判据是**与这个节点自己的 `model.modelId` 精确相等**，不是「看起来像模型
- * 名」的模式匹配。用户完全可以把一张图就叫这个名字 —— 只有当它和该节点实际
- * 用的模型 id 一字不差时，才几乎必然是那次写入留下的。
+ * ⚠ 判据是**与这个节点自己带的那个 id 精确相等**，不是「看起来像模型名 / 像
+ * hash」的模式匹配。用户完全可以把一张图就叫这个名字 —— 只有当它和该节点实际
+ * 用的模型 / generation id 一字不差时，才几乎必然是那次写入留下的。
+ *
+ * ⚠ 这一层接不住的：用户拖入一个 hash 命名的下载文件（`file.name` 不等于任何
+ * id 字段）。那要靠写侧剥扩展名 + 兜底文案，不能在这里放宽判据。
  */
-function notModelId(
+function notMachineValue(
   data: NodeWorkflowNodeData,
   value: string | undefined,
 ): string | undefined {
   if (!value) return undefined
-  return value === data.model?.modelId ? undefined : value
+  if (value === data.model?.modelId) return undefined
+  // 台账 C5（2026-08-02）：generation id 与模型 id 同病 —— 素材库选图那条
+  // 路径把机器串写进了显示名字段，用户在快捷编辑面板里看到的是
+  // 「正在编辑 [cbf13d8d9e967d35c185019db8431c8…]」。判据同上：**精确相等**
+  // 才拦，绝不做「长得像 hash」的模式匹配（用户完全可以给图起 hex 名）。
+  if (value === trimmed(data.generationId)) return undefined
+  if (value === trimmed(data.sourceGenerationId)) return undefined
+  if (value === trimmed(data.derivedFromGenerationId)) return undefined
+  return value
 }
 
 /**

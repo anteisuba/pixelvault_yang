@@ -8,12 +8,39 @@ import {
 import {
   buildDisplayNamePatch,
   resolveNodeDisplayName,
+  stripFileExtension,
 } from '@/lib/node-display-name'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 function data(patch: Partial<NodeWorkflowNodeData>): NodeWorkflowNodeData {
   return { prompt: '', status: 'idle', ...patch } as NodeWorkflowNodeData
 }
+
+// 台账 C5：写侧去噪。读侧的精确相等守卫接不住「拖入一个 hash 命名的下载
+// 文件」——它不等于任何 id 字段，只能在写入前剥掉扩展名减轻观感。
+describe('stripFileExtension', () => {
+  it.each([
+    ['IMG_2043.png', 'IMG_2043'],
+    [
+      'cbf13d8d9e967d35c185019db8431c80.jpeg',
+      'cbf13d8d9e967d35c185019db8431c80',
+    ],
+    ['无扩展名', '无扩展名'],
+    ['  留白.webp  ', '留白'],
+  ])('%s → %s', (input, expected) => {
+    expect(stripFileExtension(input)).toBe(expected)
+  })
+
+  it('不截断名字里正常出现的点', () => {
+    // `v1.5 概念稿` 的 `.5 概念稿` 不是扩展名（不是 1–8 位字母数字）。
+    expect(stripFileExtension('v1.5 概念稿')).toBe('v1.5 概念稿')
+    expect(stripFileExtension('2026.08.02 分镜')).toBe('2026.08.02 分镜')
+  })
+
+  it('全是扩展名时返回空串，让调用方落自己的兜底文案', () => {
+    expect(stripFileExtension('.png')).toBe('')
+  })
+})
 
 describe('resolveNodeDisplayName', () => {
   it('从没命名过时返回 undefined，不编一个兜底出来', () => {
@@ -37,6 +64,33 @@ describe('resolveNodeDisplayName', () => {
     ['sourceLabel', { sourceLabel: '来源 B' }, '来源 B'],
   ])('读得到 %s', (_label, patch, expected) => {
     expect(resolveNodeDisplayName(data(patch))).toBe(expected)
+  })
+
+  // 台账 C5（2026-08-02）：快捷编辑面板显示「正在编辑 [cbf13d8d…]」——
+  // 素材库选图那条路径把 generation id 写进了显示名字段。与模型 id 同治。
+  it.each([
+    ['generationId', 'generationId'],
+    ['sourceGenerationId', 'sourceGenerationId'],
+    ['derivedFromGenerationId', 'derivedFromGenerationId'],
+  ])('丢掉「其实是 %s」的标签', (_label, field) => {
+    const id = 'cbf13d8d9e967d35c185019db8431c80'
+    const dirty = data({
+      mediaLabel: id,
+      sourceLabel: id,
+      [field]: id,
+    } as Partial<NodeWorkflowNodeData>)
+    expect(resolveNodeDisplayName(dirty)).toBeUndefined()
+  })
+
+  it('用户把图起成 hex 名字时照常显示 —— 只挡精确相等，不做模式匹配', () => {
+    // 判据纪律：绝不能因为「长得像 hash」就丢掉，用户完全可以这么起名。
+    const named = data({
+      mediaLabel: 'cbf13d8d9e967d35c185019db8431c80',
+      generationId: 'a-completely-different-id',
+    } as Partial<NodeWorkflowNodeData>)
+    expect(resolveNodeDisplayName(named)).toBe(
+      'cbf13d8d9e967d35c185019db8431c80',
+    )
   })
 
   it('丢掉「其实是模型 id」的标签 —— 存量项目里的脏数据', () => {

@@ -35,6 +35,7 @@ describe('CanvasAddMenu', () => {
         open
         screenPosition={{ x: 24, y: 24 }}
         onSelect={vi.fn()}
+        onUpload={vi.fn()}
         onClose={vi.fn()}
       />,
     )
@@ -44,12 +45,35 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // Primary upload + 8 remaining catalog rows (image.asset not duplicated).
-    expect(screen.getAllByRole('menuitem')).toHaveLength(9)
+    // 台账 #26：顶部真上传主行 + 全部 9 条 catalog 行（image.asset 回到
+    // image 分组，不再被顶部行顶掉）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
     expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
     expect(
       screen.queryByText('addCatalog.items.shotText.label'),
     ).not.toBeInTheDocument()
+  })
+
+  // 台账 #26（owner 2026-08-02）：顶部主行是真上传——走 onUpload 回调（宿主
+  // 弹文件选择器），不再发 imageAsset intent。
+  it('fires onUpload from the primary upload row', () => {
+    const onUpload = vi.fn()
+    const onSelect = vi.fn()
+    render(
+      <CanvasAddMenu
+        open
+        screenPosition={{ x: 24, y: 24 }}
+        onSelect={onSelect}
+        onUpload={onUpload}
+        onClose={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByText('addCatalog.upload').closest('button') as HTMLElement,
+    )
+    expect(onUpload).toHaveBeenCalledTimes(1)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it('returns stable intent ids for image, keyframe, and organization entries', () => {
@@ -59,6 +83,7 @@ describe('CanvasAddMenu', () => {
         open
         screenPosition={{ x: 24, y: 24 }}
         onSelect={onSelect}
+        onUpload={vi.fn()}
         onClose={vi.fn()}
       />,
     )
@@ -104,6 +129,7 @@ describe('CanvasAddMenu', () => {
           open
           screenPosition={{ x: 24, y: 24 }}
           onSelect={vi.fn()}
+          onUpload={vi.fn()}
           onClose={onClose}
         />,
       )
@@ -128,6 +154,7 @@ describe('CanvasAddMenu', () => {
           open
           screenPosition={{ x: 24, y: 24 }}
           onSelect={vi.fn()}
+          onUpload={vi.fn()}
           onClose={vi.fn()}
         />,
       )

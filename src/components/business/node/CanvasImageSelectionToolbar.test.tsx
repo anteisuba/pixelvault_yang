@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   // own open/close state up to the workbench.
   setImageEditWorkspaceOpen: vi.fn(),
   edges: [] as Array<{ id: string; source: string; target: string }>,
+  // 台账 #12：生成钮的渲染期守卫要按 handler 同款收割上游 shotText，
+  // 所以 seedance capability 现在也读 useNodes。
+  nodes: [] as Array<{ id: string; type: string; data: NodeWorkflowNodeData }>,
   fitView: vi.fn(),
   mergeAction: {
     canMerge: true,
@@ -40,6 +43,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@xyflow/react', () => ({
   useEdges: () => mocks.edges,
+  useNodes: () => mocks.nodes,
   useReactFlow: () => ({ fitView: mocks.fitView }),
 }))
 
@@ -113,7 +117,21 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr />,
 }))
 
+/** 台账 #12：生成钮的前提（有模型 + 有提示词）现在是**渲染期**判据，缺任一
+ *  项按钮就是 disabled。凡是要断言「点生成能派发」的 fixture 都得带齐这两项，
+ *  否则测的是 disabled 态。缺前提本身的行为另有专门用例。 */
+const GENERATE_READY = {
+  model: {
+    optionId: 'fal:flux',
+    modelId: 'flux',
+    adapterType: 'fal',
+    providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+  },
+  prompt: '深夜便利店，货架反光',
+} as unknown as NodeWorkflowNodeData
+
 const IMAGE_DATA = {
+  ...GENERATE_READY,
   mediaUrl: 'https://cdn.example.com/source.png',
   status: NODE_STATUS_IDS.done,
 } as NodeWorkflowNodeData
@@ -314,11 +332,70 @@ describe('NodeSelectionToolbarChrome', () => {
     ).not.toBeInTheDocument()
   })
 
+  // 台账 #12（2026-08-02）：守卫前移到渲染期。此前三道守卫全在点击后的
+  // handler 里，缺前提时零状态写入、零请求派发、卡面纹丝不动，只剩一个
+  // 1.6s 就消失的右下角 toast —— 用户无法判断自己到底点没点上。
+  it('disables 生成 up front when the node has no model or no prompt', () => {
+    const { rerender } = render(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={
+          {
+            prompt: '有词但没模型',
+            status: NODE_STATUS_IDS.idle,
+          } as NodeWorkflowNodeData
+        }
+        selected
+        nodeType={NODE_TYPE_IDS.shot}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'generate' })).toBeDisabled()
+
+    rerender(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={
+          {
+            model: GENERATE_READY.model,
+            status: NODE_STATUS_IDS.idle,
+          } as NodeWorkflowNodeData
+        }
+        selected
+        nodeType={NODE_TYPE_IDS.shot}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'generate' })).toBeDisabled()
+
+    // 前提齐了就恢复可点，且仍派发同一条 context 通道。
+    rerender(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={
+          {
+            ...GENERATE_READY,
+            status: NODE_STATUS_IDS.idle,
+          } as NodeWorkflowNodeData
+        }
+        selected
+        nodeType={NODE_TYPE_IDS.shot}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'generate' })
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    expect(mocks.generateMediaNode).toHaveBeenCalledWith('node-1')
+  })
+
   it('seedance capability keeps generation local and reserves detail for expand', () => {
     const { rerender } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
-        data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
+        data={
+          {
+            ...GENERATE_READY,
+            status: NODE_STATUS_IDS.idle,
+          } as NodeWorkflowNodeData
+        }
         selected
         nodeType={NODE_TYPE_IDS.seedance}
       />,
@@ -333,6 +410,7 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeId="node-1"
         data={
           {
+            ...GENERATE_READY,
             mediaUrl: 'https://cdn.example.com/shot.mp4',
             status: NODE_STATUS_IDS.done,
           } as NodeWorkflowNodeData
@@ -384,7 +462,7 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(screen.getByTestId('voice-library-dialog')).toBeInTheDocument()
   })
 
-  it('videoReference gets no capability region — universal actions only (identity now lives on the card, not the toolbar)', () => {
+  it('videoReference with media gets a 替换 capability plus universal actions', () => {
     render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
@@ -398,14 +476,36 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.videoReference}
       />,
     )
-    // FB-4: videoReference has no capability region, but a mediaUrl still
-    // makes the toolbar worth showing (download). Rename moved to the card's
-    // own on-card label (NodeShell.tsx EditableNodeLabel) — no rename input
-    // here anymore, on this toolbar or any other type's.
+    // 台账 #28（2026-08-02）：videoReference 现在**有**能力区（上传/替换）。
+    // Rename moved to the card's own on-card label (NodeShell.tsx
+    // EditableNodeLabel) — no rename input here anymore, on this toolbar or
+    // any other type's.
     expect(screen.queryByLabelText('rename')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'replace' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'expand' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'download' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'delete' })).toBeInTheDocument()
+  })
+
+  // 台账 #28 的验收点：空参考视频卡此前**整条工具条不渲染**（无能力区且无
+  // 媒体 ⇒ GenericSelectionToolbar 早退），于是没有 ⤢，而它的详情 body
+  // 恰恰就是上传面板 —— 最该打开的时刻打不开。加了能力区后 capability 恒
+  // 非空，那条「无能力无媒体不渲染」的拍板规则本身没动（见下一条 shotText）。
+  it('videoReference with NO media still renders a toolbar so the upload panel stays reachable', () => {
+    render(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
+        selected
+        nodeType={NODE_TYPE_IDS.videoReference}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'upload' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'expand' })).toBeInTheDocument()
+    // 空卡没有可下载的东西 —— 通用区的下载钮仍按媒体有无决定
+    expect(
+      screen.queryByRole('button', { name: 'download' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shotText with no media and no capability region renders no toolbar at all', () => {

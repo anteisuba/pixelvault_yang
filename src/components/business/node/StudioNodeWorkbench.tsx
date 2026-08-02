@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent as ReactChangeEvent,
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
@@ -117,7 +118,10 @@ import {
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
-import { buildDisplayNamePatch } from '@/lib/node-display-name'
+import {
+  buildDisplayNamePatch,
+  stripFileExtension,
+} from '@/lib/node-display-name'
 import type {
   NodeAssistantOpNodeRef,
   PlannedNodeAssistantOp,
@@ -446,14 +450,15 @@ function findCanvasDragHitFromCache(
 export function StudioNodeWorkbench() {
   return (
     <section
-      // The canvas is a dark surface, but `.dark` only remaps color tokens — it
-      // doesn't set `color-scheme`, so native UI (scrollbars, form controls)
-      // inside it fell back to the OS light scheme and painted a white scrollbar
-      // down dark scroll areas like the node detail panel. Scope the dark scheme
-      // here (not globally — `<html>` is `dark` while most pages render light)
-      // so every in-canvas scroll area gets a matching dark scrollbar.
-      style={{ colorScheme: 'dark' }}
-      className="dark relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground lg:h-svh"
+      // 2026-08-02（D7/D2 刀 1，owner 拍板）：画布自 2026-07-27 token 反转后
+      // 已是浅色孤岛，根上原来的 `dark` class + colorScheme:'dark' 是暗色时代
+      // 遗留——它让子树里共享组件的脊柱令牌解析成暗值（视频框模型丸白字落
+      // 白底的病根），还在浅色面板边上画深色滚动条。令牌层的浅色化由
+      // canvas.css `.domain-canvas` 的语义脊柱映射负责；这里只负责原生 UI
+      // （滚动条/表单控件）的 color-scheme 跟浅色面走（<html> 仍是 dark，
+      // 不显式声明会继承暗档）。
+      style={{ colorScheme: 'light' }}
+      className="relative h-[calc(100svh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground lg:h-svh"
     >
       <ReactFlowProvider>
         {/* v0.2（2026-07-27，owner 拍板）：StudioNodeCanvas 用了
@@ -832,6 +837,50 @@ function StudioNodeCanvas() {
       closeAddMenu()
     },
     [addMenu, closeAddMenu, createCanvasObject],
+  )
+
+  // 台账 #26（owner 2026-08-02 拍板「上传功能放入节点那边」）：添加菜单顶部
+  // 主行改成真上传——点击弹系统文件选择器，选完在菜单打开处逐张建空图片
+  // 节点，File 走 pendingPasteFilesRef 一次性交接给 ImageSourceStarter 自己
+  // 的单文件上传链（真实进度/取消/失败重试，与画布级粘贴逐字节同一条路径，
+  // 见下方 handlePaste 的注释）。取消选择 = 不建任何节点。
+  const addUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const addUploadPositionRef = useRef<XYPosition | null>(null)
+  const handleAddMenuUpload = useCallback(() => {
+    if (!addMenu) {
+      return
+    }
+    addUploadPositionRef.current = addMenu.flowPosition
+    closeAddMenu()
+    addUploadInputRef.current?.click()
+  }, [addMenu, closeAddMenu])
+  const handleAddUploadChange = useCallback(
+    (event: ReactChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget
+      const files = Array.from(input.files ?? []).filter((file) =>
+        file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
+      )
+      // 清空 value：同一批文件可以再选一次（LooseImageCard 替换 input 同款）。
+      input.value = ''
+      const anchor = addUploadPositionRef.current
+      addUploadPositionRef.current = null
+      if (!anchor || files.length === 0) {
+        return
+      }
+      files.forEach((file, index) => {
+        const position = {
+          x:
+            anchor.x +
+            index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.offsetX,
+          y:
+            anchor.y +
+            index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
+        }
+        const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
+        pendingPasteFilesRef.current.set(newNodeId, file)
+      })
+    },
+    [workflow],
   )
 
   const handleNodesDelete = useCallback(
@@ -3562,12 +3611,14 @@ function StudioNodeCanvas() {
               index * NODE_STUDIO_NODE_PLACEMENT.referenceSpawn.rowOffsetY,
           }
           const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
+          // 台账 C5：拖入的文件名进显示名字段前剥扩展名。
+          const droppedName = stripFileExtension(result.name)
           workflow.updateNodeData(newNodeId, {
             imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
             mediaKind: NODE_MEDIA_KIND_IDS.image,
             mediaUrl: result.url,
-            mediaLabel: result.name,
-            sourceLabel: result.name,
+            mediaLabel: droppedName,
+            sourceLabel: droppedName,
             generationStatus: NODE_GENERATION_STATUS_IDS.success,
             status: NODE_STATUS_IDS.done,
           })
@@ -4019,7 +4070,18 @@ function StudioNodeCanvas() {
               open={Boolean(addMenu)}
               screenPosition={addMenu?.menuPosition ?? null}
               onSelect={handleAddNode}
+              onUpload={handleAddMenuUpload}
               onClose={closeAddMenu}
+            />
+            {/* 台账 #26：添加菜单「上传图片」主行的隐藏 file input——菜单
+                关掉后仍要在场接住系统对话框的 change，所以挂宿主不挂菜单。 */}
+            <input
+              ref={addUploadInputRef}
+              type="file"
+              accept={NODE_STUDIO_IMAGE_INPUT.accept}
+              multiple
+              className="hidden"
+              onChange={handleAddUploadChange}
             />
             <NodeDetailPanel
               expandedNodeId={expandedNodeId}

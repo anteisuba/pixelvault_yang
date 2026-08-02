@@ -359,6 +359,15 @@ export const NODE_STUDIO_REFERENCE_ROLES = [
 export const NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID = 'custom' as const
 
 /**
+ * 「未分类」在 Select 里的哨兵值（台账 F1，2026-08-02）。
+ *
+ * 数据层的「未分类」是 `imageCategory: undefined`，但 Radix SelectItem
+ * **禁止 `value=""`**（空串是它内部表示「无选中」的保留值），原生 `<select>`
+ * 时代直接用空串的写法换不过去。落库前映射回 `undefined`，不进数据。
+ */
+export const NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID = 'unset' as const
+
+/**
  * 关键帧分类（原 frame role 退役后的替代信号，§6.1 食物链注释 + frame 兼容迁移）
  * — `isKeyframeNode`（node-workflow-graph.ts）在旧 `role==='frame'` 之外，额外
  * 认这两个分类值为"这张图是关键帧"，不发明新字段名、不改连线矩阵。
@@ -417,6 +426,14 @@ export const NODE_STUDIO_IMAGE_INPUT = {
   accept: 'image/*',
   mimePrefix: 'image/',
   pastedFileName: 'pasted-image.png',
+} as const
+
+/** 参考视频上传口。台账 #28（2026-08-02）之前这串 accept 在
+ *  `VideoReferenceNode` / `VideoReferenceInspector` 各写了一份字面量，加
+ *  近场工具条的能力钮就要写第三份 —— 按 Hard Rule 1 收敛到这里。 */
+export const NODE_STUDIO_VIDEO_INPUT = {
+  accept: 'video/mp4,video/quicktime,video/webm',
+  mimePrefix: 'video/',
 } as const
 
 export const NODE_STUDIO_AUDIO_INPUT = {

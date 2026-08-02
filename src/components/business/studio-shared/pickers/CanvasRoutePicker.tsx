@@ -67,11 +67,22 @@ export type CanvasRoutePickerProps = CommonProps &
 export function CanvasRoutePicker(props: CanvasRoutePickerProps) {
   const { variant, ...rest } = props
   if (variant === 'media') {
-    const { mediaModality, ...mediaRest } = rest as Extract<
+    const { mediaModality, triggerLabel, ...mediaRest } = rest as Extract<
       CanvasRoutePickerProps,
       { variant: 'media' }
     >
-    return <MainModelPicker modality={mediaModality} {...mediaRest} />
+    // 台账 D7（2026-08-02）：`triggerLabel` 此前被原样 spread 进
+    // `MainModelPicker` —— 而那边只有 `triggerEmptyLabel`，于是**静默丢弃**。
+    // 结果是 `VideoComposer` 传的 tc('pickModel') 从来没生效过，无值时显示
+    // 的是更靠里那层的兜底「选择模型」。两个名字指的是同一件事（无值时的
+    // 占位文案），显式映射过去，别再让下一个人被这个死 prop 骗一次。
+    return (
+      <MainModelPicker
+        modality={mediaModality}
+        triggerEmptyLabel={triggerLabel}
+        {...mediaRest}
+      />
+    )
   }
   return <CanvasRouteLLMPicker scope={variant} {...rest} />
 }

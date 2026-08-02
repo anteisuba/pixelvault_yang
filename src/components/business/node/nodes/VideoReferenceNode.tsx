@@ -17,7 +17,10 @@ import {
 import { Pause, Play, Upload, Video, Volume2, VolumeX } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
+  NODE_STUDIO_VIDEO_INPUT,
+} from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
 import { cn } from '@/lib/utils'
@@ -26,8 +29,6 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { EditableNodeLabel, NodeCardPorts } from './NodeShell'
-
-const ACCEPTED_VIDEO_MIME = 'video/mp4,video/quicktime,video/webm'
 
 /**
  * Upload-only reference video node. Holds a user-uploaded clip (mp4/mov) that
@@ -132,7 +133,7 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_VIDEO_MIME}
+        accept={NODE_STUDIO_VIDEO_INPUT.accept}
         className="hidden"
         onChange={(event) => void handleFileChange(event)}
       />

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { NODE_STUDIO_VIDEO_INPUT } from '@/constants/node-studio'
 import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
@@ -15,8 +16,6 @@ import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 interface VideoReferenceInspectorProps {
   node: NodeWorkflowNode
 }
-
-const ACCEPTED_VIDEO_MIME = 'video/mp4,video/quicktime,video/webm'
 
 function formatBytes(bytes: number | undefined): string {
   if (!bytes || bytes <= 0) return ''
@@ -85,7 +84,7 @@ export function VideoReferenceInspector({
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPTED_VIDEO_MIME}
+          accept={NODE_STUDIO_VIDEO_INPUT.accept}
           className="hidden"
           onChange={(event) => void handleFileChange(event)}
         />

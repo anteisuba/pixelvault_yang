@@ -60,6 +60,13 @@ export function LegalPage({ doc }: LegalPageProps) {
               <p className="legal-section-body mt-4 text-pretty">
                 {section.body}
               </p>
+              {section.items ? (
+                <ul className="legal-section-list mt-4">
+                  {section.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
           ))}
         </div>

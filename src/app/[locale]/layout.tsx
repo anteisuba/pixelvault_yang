@@ -15,6 +15,7 @@ import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
 import { MARKETING_NAMESPACES, pickMessages } from '@/i18n/messages-split'
 import { getPathname } from '@/i18n/navigation'
 import { isAppLocale, LOCALES } from '@/i18n/routing'
+import { CLERK_GLOBAL_APPEARANCE } from '@/lib/clerk-appearance'
 
 const APP_ORIGIN = getAppOrigin()
 const CLERK_ALLOWED_REDIRECT_ORIGINS = getClerkAllowedOrigins()
@@ -105,6 +106,7 @@ export default async function LocaleLayout({
 
   return (
     <ClerkProvider
+      appearance={CLERK_GLOBAL_APPEARANCE}
       localization={CLERK_LOCALIZATIONS[locale]}
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}

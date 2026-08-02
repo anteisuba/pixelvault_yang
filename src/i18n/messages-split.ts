@@ -18,6 +18,7 @@ import type { AbstractIntlMessages } from 'next-intl'
  * the marketing tree never see the heavy namespaces.
  */
 export const MARKETING_NAMESPACES = [
+  'Auth',
   'Common',
   'ErrorBoundary',
   'Errors',

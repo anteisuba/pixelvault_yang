@@ -1,0 +1,433 @@
+/* ── auth domain skin ──────────────────────────────────────────────────────
+ *
+ * One card, two carriers: the modal opened from a marketing CTA and the
+ * `/sign-in` `/sign-up` path pages both render `.auth-surface > .auth-card`, so
+ * a visitor who lands on the path page (OAuth return, email deep link,
+ * middleware redirect) sees the same window they would have seen in place.
+ *
+ * Every value below is measured off the reference window at haivis.ai —
+ * geometry, type and colour, read out of `getComputedStyle` rather than judged
+ * by eye. Their page runs a 14px root, so the rem-based values there land
+ * smaller than the same declarations would here; these are the resolved pixel
+ * values, not the source declarations.
+ *
+ * ⚠ Two of these fail WCAG 1.4.11 and are kept anyway, on the owner's call to
+ * match the reference: `--auth-line` (1.10 on the card, 1.24 on white) and the
+ * white control fill on the card (1.12). A white field on a cream card with a
+ * near-white hairline has, in strict terms, no visible boundary; the reference
+ * leans on the card's own drop shadow and on layout instead. `--auth-dim` at
+ * 4.31 is also a hair under 4.5.
+ *
+ * This domain does NOT share the `.home-v3` tokens. It opens over the home but
+ * is its own world, and the sign-in page has to stand on its own.
+ */
+
+.auth-surface {
+  --auth-paper: #f4f2ec;
+  --auth-white: #ffffff;
+  /* 15.04:1 on the card */
+  --auth-ink: #171d2b;
+  /* 16.05:1 on white — the reference runs input text darker than its headings */
+  --auth-input-ink: #09172b;
+  /* 9.27:1 on white */
+  --auth-label: #2c4257;
+  /* 4.31 on card · 4.82 on white */
+  --auth-dim: #5d748e;
+  --auth-line: #e1e8f0;
+  --auth-rule: #e1e8f0;
+  --auth-solid: #1a1a1a;
+  /* 17.40:1 on --auth-solid */
+  --auth-on-solid: #ffffff;
+  /* The reference runs 16px on a 40px control. Matched exactly and rejected: at
+     that height 16 is 80% of a pill, and against a card whose own corner is a
+     square-reading 21px the controls looked like a different family. 10px keeps
+     them rounded rectangles. */
+  --auth-radius: 10px;
+  --auth-card-radius: 21px;
+  --auth-control-height: 40px;
+  --auth-control-font: 12px;
+
+  color: var(--auth-ink);
+  font-family: var(--font-sans);
+  /* BrandMark paints itself with --foreground; keep it in the card's ink. */
+  --foreground: var(--auth-ink);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 21px;
+  background: var(--auth-paper);
+  /* A white hairline plus a long, soft drop: the reference leans on both to
+     make the window read as an object lifted off the page rather than a panel
+     painted onto it. It is also what does the work its near-invisible control
+     hairlines do not. */
+  border: 1px solid #ffffff;
+  border-radius: var(--auth-card-radius);
+  box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.45);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.auth-brand-mark {
+  width: 1rem;
+  height: 1.25rem;
+}
+
+.auth-title {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--auth-ink);
+}
+
+.auth-subtitle {
+  margin: 5px 0 0;
+  text-align: center;
+  font-size: var(--auth-control-font);
+  line-height: 1.6;
+  color: var(--auth-dim);
+}
+
+.auth-body {
+  margin-top: 20px;
+}
+
+.auth-terms {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: var(--auth-control-font);
+  line-height: 1.7;
+  color: var(--auth-dim);
+}
+
+.auth-terms a {
+  color: var(--auth-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-terms a:hover {
+  color: var(--auth-ink);
+}
+
+/* ── the modal carrier ───────────────────────────────────────────────────── */
+
+/* The shared dialog is a bordered panel on the app background; here the card
+   IS the surface, so the panel chrome is removed and the card sizes itself. */
+/* Width is set here rather than left to the card's `max-width`: the dialog is a
+   grid box that shrink-wraps its content, so the card would settle at whatever
+   the Clerk widget happened to need — 304px in practice. */
+.auth-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: 0;
+}
+
+/* The default overlay is a light veil, which barely registers over the white
+   marketing home. Auth dims hard so the card is the only thing left.
+ *
+ * Matched through the overlay's own sibling, not through the portal: Radix
+ * portals straight into `<body>` and renders no wrapper, so the
+ * `data-slot="dialog-portal"` this used to hang off never exists in the DOM. */
+[data-slot='dialog-overlay']:has(+ .auth-dialog) {
+  background: rgb(12 11 10 / 0.55);
+  backdrop-filter: blur(6px);
+}
+
+/* The shared close control shrink-wraps its 16px glyph, which is well under a
+   comfortable target. The glyph stays 16px; the button around it grows. */
+.auth-dialog [data-slot='dialog-close'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--auth-dim);
+  opacity: 1;
+  transition: background-color 160ms ease;
+}
+
+.auth-dialog [data-slot='dialog-close']:hover {
+  background: color-mix(in oklab, var(--auth-ink) 7%, transparent);
+  color: var(--auth-ink);
+}
+
+/* ── the page carrier ────────────────────────────────────────────────────── */
+
+.auth-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px 20px;
+  background: #eeebe4;
+}
+
+.auth-page-back {
+  font-size: 12.5px;
+  color: var(--auth-dim);
+  text-decoration: none;
+}
+
+.auth-page-back:hover {
+  color: var(--auth-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Clerk widget ────────────────────────────────────────────────────────────
+ *
+ * Colour, radius and font come from the `variables` block in
+ * `src/lib/clerk-appearance.ts`; only structure is corrected here. Clerk's own
+ * header and footer are hidden because the card renders its own — that keeps
+ * the wording in `src/messages/*.json` instead of split across Clerk's
+ * localization bundles, and it is the only way the combined sign-in-or-up flow
+ * can say one thing at the top instead of switching titles under the user.
+ */
+
+.auth-clerk-root,
+.auth-clerk-cardbox,
+.auth-clerk-card {
+  width: 100%;
+}
+
+.auth-clerk-card {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  gap: 14px;
+  /* Clerk pulls its card out by 1px to sit its own border under the box edge.
+     With that border removed the offset just knocks the widget off centre. */
+  margin: 0;
+}
+
+/* The widget's two internal stacks. Left to Clerk they run 21.6px between the
+   social block, the rule and the form, and 28.8px between the field and the
+   submit button — three different intervals inside a card whose own rhythm is
+   set in multiples of two. */
+.auth-clerk-main {
+  gap: 20px;
+}
+
+.auth-clerk-form {
+  gap: 16px;
+}
+
+/* Clerk lifts its own card off the page with a drop shadow. Here the card is
+   already floating, so the second shadow only drew a pale rectangle around the
+   widget inside our own card. */
+.auth-clerk-cardbox {
+  box-shadow: none;
+}
+
+.auth-hidden {
+  display: none;
+}
+
+/* The field label repeats its own placeholder word for word («email address»
+   over «enter your email address»), so it is dropped from the layout — but kept
+   for screen readers, which is the whole reason this isn't `display: none`. */
+/* The row that holds the label — and, on the password step, the "forgot
+   password" link. It is collapsed rather than hidden: with the label lifted out
+   of flow the row has nothing left to show and its 7px of reserved height was
+   the one interval in the card that did not land on the scale. If a step does
+   put a link in here, the row grows back on its own. */
+.auth-label-row {
+  margin: 0;
+  min-height: 0;
+}
+
+/* Zeroing the row's height is not enough: its parent stacks label-over-input
+   with a gap, and the gap survives a zero-height row. Matched by structure
+   rather than by Clerk's generated class name for the wrapper — there is no
+   appearance slot for it. Trade-off: a step that puts a visible link in the
+   label row would sit flush against the field. The combined flow does not. */
+.auth-clerk-form div:has(> .auth-label-row) {
+  gap: 0;
+}
+
+.auth-label-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* One provider per row, always. Clerk packs two providers into a side-by-side
+   pair when it can, but falls back to full-width rows as soon as one of them
+   carries the "last used" tag — so the card changed shape depending on whether
+   the visitor had signed in before. Pinning the column count makes the window
+   the same object for everyone. */
+.auth-socials {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* ⚠ Control outlines are a 1px `box-shadow` ring, never `border`.
+ *
+ * A 1px border on a rounded corner breaks at devicePixelRatio 1. The straight
+ * edges land on whole pixel rows and paint solid, but the corner arc spreads
+ * across a fraction of a pixel — and when the box itself sits on a half pixel
+ * (measured: `top: 317.3125`) the arc anti-aliases down to nothing. On a real
+ * 1× display both top corners of every provider row were visibly open.
+ *
+ * A ring is painted as one continuous shape and does not have that failure
+ * mode. This is why Clerk ships its own outlines as `0 0 0 1px` shadows; we
+ * removed those in favour of real borders and imported the bug with them.
+ *
+ * Two classes, not one, because Clerk's generated per-element class carries the
+ * same single-class weight as ours. Clerk's whole sheet is confined to a cascade
+ * layer (`cssLayerName` in `src/lib/clerk-appearance.ts`) so unlayered rules
+ * here win regardless, but the pairing keeps these rules correct on their own. */
+
+/* ⚠ `!important` on the three control shadows, deliberately.
+ *
+ * Clerk gives each control a ring plus two downward drops. Every ordinary route
+ * to overriding them has been tried and each one lost somewhere: a single class
+ * ties Clerk's generated class and loses on order; two classes lose to its
+ * `[data-variant][data-color]` rules; `cssLayerName` works but only where the
+ * layered sheet is the one actually serving the page. The residue was a grey
+ * band under the provider rows and the submit button on a real screen. This is
+ * the one declaration in the file that has to hold unconditionally. */
+
+.auth-surface .auth-social {
+  background: var(--auth-white);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--auth-line) !important;
+  border-radius: var(--auth-radius);
+  min-height: var(--auth-control-height);
+  /* Clerk renders social labels at 62% of the text colour, which is a third
+     grey on a card that already has two. 10.38:1 on white. */
+  color: var(--auth-label);
+  font-size: var(--auth-control-font);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  transition: background-color 180ms ease;
+}
+
+.auth-surface .auth-social:hover {
+  background: #fbfaf7;
+}
+
+/* Clerk's "last used" tag hangs off the top edge of the provider button, so it
+   reads as a notch bitten out of the button rather than a label. It is a
+   convenience, not information the reader needs to proceed. */
+.auth-surface .cl-lastAuthenticationStrategyBadge {
+  display: none;
+}
+
+.auth-divider-row {
+  margin: 0;
+}
+
+.auth-divider-line {
+  background: var(--auth-rule);
+}
+
+.auth-divider-text {
+  font-size: 11.5px;
+  color: var(--auth-dim);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.auth-surface .auth-input {
+  /* White, like the provider rows above it — the reference treats every input
+     surface the same and lets the rule between them do the separating. */
+  background: var(--auth-white);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--auth-line) !important;
+  border-radius: var(--auth-radius);
+  /* One height for the provider rows, the field and the submit button: three
+     different control heights in one card read as misalignment. */
+  min-height: var(--auth-control-height);
+  font-size: var(--auth-control-font);
+  color: var(--auth-input-ink);
+}
+
+/* Focus is the one place the outline has to be unambiguous, whatever the
+   resting hairline does. */
+.auth-surface .auth-input:focus,
+.auth-surface .auth-input:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--auth-ink),
+    0 0 0 4px rgb(23 29 43 / 0.12) !important;
+}
+
+.auth-surface .auth-primary {
+  background: var(--auth-solid);
+  color: var(--auth-on-solid);
+  border: 0;
+  border-radius: var(--auth-radius);
+  min-height: var(--auth-control-height);
+  font-size: var(--auth-control-font);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  box-shadow: none !important;
+  transition: background-color 180ms ease;
+}
+
+.auth-surface .auth-primary:hover {
+  background: #333333;
+}
+
+/* Clerk glosses the submit button with a top-to-bottom highlight painted by an
+   `::after`. The reference button is a flat fill, and the gloss survives every
+   `box-shadow` and `background` override because it is a separate box. */
+.auth-surface .auth-primary::after {
+  display: none;
+}
+
+/* Clerk trails the submit label with a small chevron. The reference window has
+   a plain centred label, and with the icon in flow the text sits a few pixels
+   left of centre. Named by Clerk's class because `appearance` exposes no slot
+   for it; if the name changes the chevron simply comes back. */
+.auth-primary .cl-buttonArrowIcon {
+  display: none;
+}
+
+.auth-link {
+  color: var(--auth-ink);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-social,
+  .auth-primary {
+    transition: none;
+  }
+}

@@ -1,7 +1,11 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { HOME_V3_PROVIDERS, HOME_V3_STRIP } from '@/constants/homepage'
+import {
+  HOME_V3_PROVIDERS,
+  HOME_V3_STRIP,
+  HOMEPAGE_MODEL_COUNTS,
+} from '@/constants/homepage'
 
 /**
  * The first screen, and it is exactly one viewport tall — the strip and the
@@ -19,7 +23,11 @@ export function HomeV3Fold() {
       <div className="home-v3-wrap">
         <div className="home-v3-hero">
           <p className="home-v3-mono" data-home-v3-hero-stat>
-            {t('heroStat')}
+            {t('heroStat', {
+              models: HOMEPAGE_MODEL_COUNTS.total,
+              providers: HOMEPAGE_MODEL_COUNTS.providers,
+              modalities: HOMEPAGE_MODEL_COUNTS.modalities,
+            })}
           </p>
           <h1>
             <span className="home-v3-line">

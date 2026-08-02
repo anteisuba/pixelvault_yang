@@ -14,8 +14,16 @@ export const LEGAL_DOC_ROUTES: Record<LegalDoc, string> = {
   terms: ROUTES.TERMS,
 }
 
-/** One section of a legal document, as stored in the i18n `sections` array. */
+/**
+ * One section of a legal document, as stored in the i18n `sections` array.
+ *
+ * `items` is optional and renders as a list under the body. Several clauses are
+ * enumerations by nature — what you may not generate, who processes your data,
+ * which rights you can exercise — and a reader scanning for one entry should not
+ * have to parse it out of a paragraph.
+ */
 export interface LegalSection {
   heading: string
   body: string
+  items?: string[]
 }

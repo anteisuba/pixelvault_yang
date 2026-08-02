@@ -1,4 +1,8 @@
-import { AI_MODELS, getAvailableModels } from '@/constants/models'
+import {
+  AI_MODELS,
+  getAvailableModels,
+  getProviderGroup,
+} from '@/constants/models'
 import { ROUTES } from '@/constants/routes'
 import type { OutputType } from '@/types'
 
@@ -10,12 +14,36 @@ function countAvailableModels(outputType: OutputType): number {
   ).length
 }
 
+function countDistinct<T>(values: readonly T[]): number {
+  return new Set(values).size
+}
+
+/**
+ * Every number the page says out loud, counted from the live catalog.
+ *
+ * The hero used to state its three figures as a literal string in all three
+ * message files. It read "36 MODELS" while the rails below it, which have always
+ * counted `getAvailableModels()`, rendered 45 — two contradicting numbers on one
+ * page. Anything the homepage claims about the catalog is derived here instead.
+ *
+ * Providers are counted as provider *groups*, not adapters: MiniMax's two
+ * stations are one company behind one label, and counting them twice would
+ * inflate the claim (see `getProviderGroup`).
+ */
 export const HOMEPAGE_MODEL_COUNTS = {
   total: AVAILABLE_HOMEPAGE_MODELS.length,
   image: countAvailableModels('IMAGE'),
   video: countAvailableModels('VIDEO'),
   audio: countAvailableModels('AUDIO'),
   model3d: countAvailableModels('MODEL_3D'),
+  providers: countDistinct(
+    AVAILABLE_HOMEPAGE_MODELS.map((model) =>
+      getProviderGroup(model.adapterType),
+    ),
+  ),
+  modalities: countDistinct(
+    AVAILABLE_HOMEPAGE_MODELS.map((model) => model.outputType),
+  ),
 } as const
 
 export type HomepageModelPricingUnit = 'image' | 'second' | 'kchars'

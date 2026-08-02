@@ -1,6 +1,9 @@
 import '@/app/home-v3.css'
+import '@/app/auth.css'
 
 import { useLocale } from 'next-intl'
+
+import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
 
 import { HomeV3Capabilities } from './HomeV3Capabilities'
 import { HomeV3Fold } from './HomeV3Fold'
@@ -29,16 +32,18 @@ export function HomeV3Shell() {
   const locale = useLocale()
 
   return (
-    <div className="home-v3" data-locale={locale}>
-      <HomeV3Header />
-      <div className="home-v3-page">
-        <HomeV3Fold />
-        <HomeV3Product />
-        <HomeV3Capabilities />
-        <HomeV3Rails />
+    <AuthDialogProvider>
+      <div className="home-v3" data-locale={locale}>
+        <HomeV3Header />
+        <div className="home-v3-page">
+          <HomeV3Fold />
+          <HomeV3Product />
+          <HomeV3Capabilities />
+          <HomeV3Rails />
+        </div>
+        <HomeV3Footer />
+        <HomeV3Motion />
       </div>
-      <HomeV3Footer />
-      <HomeV3Motion />
-    </div>
+    </AuthDialogProvider>
   )
 }

@@ -9,67 +9,176 @@
     "updatedLabel": "Last updated",
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "July 5, 2026",
-      "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, and the control you keep over your data.",
+      "updated": "August 2, 2026",
+      "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, who processes it on our behalf, and the control you have over it.",
       "sections": [
         {
           "heading": "What we store",
-          "body": "Your account details come from Clerk when you sign in. Beyond that we keep the generations you make and their metadata: the prompt, model, provider, and seed, so your archive stays searchable. We do not build advertising profiles."
+          "body": "We keep as little as the product allows and no advertising profile of any kind.",
+          "items": [
+            "Account details from Clerk when you sign in: an identifier, your email address, and any name or avatar you chose there.",
+            "Generation records: prompts, model and provider chosen, parameters such as seed and resolution, timing, and success or failure.",
+            "The files you generate or upload, and the collections, canvases and LoRA recipes you build from them.",
+            "Credit balance and deduction history where a model runs on platform credits.",
+            "Support messages you send us, and error reports (see «Error monitoring»)."
+          ]
         },
         {
           "heading": "Your API keys",
-          "body": "Keys you add are encrypted at rest and used only to call the providers you turned on. We never resell them, share them, or use them for our own generations."
+          "body": "Keys you connect are stored encrypted and used only to reach the provider you connected them for. We do not read them, resell capacity through them, or use them for our own generation. You can remove a key at any time, which stops it being used immediately."
         },
         {
-          "heading": "Third-party providers",
-          "body": "When you generate, your prompt and any input media are sent to the provider you chose, whether Google, OpenAI, fal.ai, or another. Their handling of that request is governed by their own privacy terms."
+          "heading": "What we send to AI providers",
+          "body": "When you generate, the prompt and any reference material for that job are sent to the provider you selected, for example OpenAI, Google, fal.ai, ByteDance, ElevenLabs or Fish Audio. What they do with it is governed by their own policies, and some providers retain inputs for a period for abuse monitoring. We do not send them your account email or your archive."
         },
         {
-          "heading": "Where files live",
-          "body": "Finished results are stored in Cloudflare R2 under your account. They stay there until you delete them or close your account."
+          "heading": "Service providers we use",
+          "body": "We rely on a small set of companies to run ANTEI. They process data on our instructions and only for these purposes:",
+          "items": [
+            "Clerk: authentication and account records.",
+            "Neon: the application database.",
+            "Cloudflare R2: storage and delivery of your generated and uploaded files.",
+            "Vercel: hosting and request serving.",
+            "Sentry: error and performance monitoring.",
+            "The AI providers you connect or select, for the jobs you run."
+          ]
         },
         {
-          "heading": "Cookies",
-          "body": "We use only the cookies needed to keep you signed in. There are no third-party advertising or tracking cookies."
+          "heading": "Where your data is processed",
+          "body": "These providers operate in several countries, so your data may be processed outside where you live, including outside the EEA and the UK. Where that happens we rely on the transfer safeguards those providers offer, such as standard contractual clauses."
         },
         {
-          "heading": "Your control",
-          "body": "You can export or delete any generation at any time, and deleting your account removes your archive from our storage. Reach us at privacy@antei.app for anything else."
+          "heading": "How long we keep it",
+          "body": "Files and generation records stay until you delete them or close your account. When you close an account we delete your files and records; backups holding copies roll off within 30 days. Credit and payment records are kept as long as accounting rules require. Error reports are kept for up to 90 days."
+        },
+        {
+          "heading": "Cookies and local storage",
+          "body": "We use cookies that keep you signed in and hold your language choice. We use no advertising or cross-site tracking cookies. The browser also stores some workspace state locally, such as canvas layout, panel sizes and drafts, which never leaves your device and clears when you clear site data."
+        },
+        {
+          "heading": "Error monitoring",
+          "body": "Sentry receives a report when something breaks: the error, the page, browser and version, and an account identifier so we can tell whether one person hit a problem or everyone did. Reports can include the URL you were on. We do not send prompts or generated files into error reports."
+        },
+        {
+          "heading": "Your rights",
+          "body": "Wherever you live, you can ask us to do the following, and we answer within 30 days:",
+          "items": [
+            "Get a copy of the data we hold about you.",
+            "Correct anything inaccurate.",
+            "Delete an individual result, a whole collection, or your entire account.",
+            "Export your files and generation records.",
+            "Object to or restrict a particular use of your data.",
+            "Complain to your local data protection authority if you think we got it wrong."
+          ]
+        },
+        {
+          "heading": "Children",
+          "body": "ANTEI is not intended for children under 13, or under 16 in the European Economic Area and the United Kingdom, and we do not knowingly collect their data. If you believe a child has created an account, write to privacy@antei.app and we will remove it."
+        },
+        {
+          "heading": "Security",
+          "body": "Traffic is encrypted in transit, files are stored in access-controlled buckets, API keys are encrypted at rest, and access to production data is limited to what operating the service requires. No system is perfectly secure; if a breach affects your data we will notify you and the relevant authority as the law requires."
+        },
+        {
+          "heading": "Changes to this policy",
+          "body": "We update this policy as the product and its processors change. The date at the top reflects the current version, and we give notice in the product before a material change takes effect."
+        },
+        {
+          "heading": "Contact",
+          "body": "Data questions, access requests and deletion requests: privacy@antei.app."
         }
       ]
     },
     "terms": {
       "title": "Terms of Service",
-      "updated": "July 5, 2026",
-      "intro": "These terms cover your use of ANTEI. By creating an account you agree to them.",
+      "updated": "August 2, 2026",
+      "intro": "These terms cover your use of ANTEI. By creating an account or using the service you agree to them. If you do not agree, do not use ANTEI.",
       "sections": [
         {
           "heading": "The service",
-          "body": "ANTEI is a personal gallery for generating with multiple AI models using your own API keys, and for keeping every result in one archive. The product is under active development, and features may change."
+          "body": "ANTEI is a personal gallery for generating images, video, audio and 3D assets with multiple AI models, and for keeping every result in one archive. Generation runs either through your own provider API keys or through platform credits, depending on the model. Which models are available changes as providers add, retire and reprice them."
+        },
+        {
+          "heading": "Who may use ANTEI",
+          "body": "You must be at least 13 years old, or 16 if you are in the European Economic Area or the United Kingdom, and old enough to enter a contract where you live. Mature content features are restricted further; see the mature content section below. If you use ANTEI on behalf of an organisation, you confirm you are authorised to accept these terms for it."
         },
         {
           "heading": "Your account",
-          "body": "You are responsible for the keys and credentials you add and for activity under your account. Keep your sign-in secure."
+          "body": "Sign-in is handled by Clerk. You are responsible for the activity under your account, for the keys and credentials you connect, and for keeping your sign-in details secure. Tell us promptly if you believe someone else has access."
         },
         {
-          "heading": "Acceptable use",
-          "body": "Do not generate content that is illegal or that breaks the terms of the providers you connect. We may suspend accounts that do."
+          "heading": "Keys, credits and payment",
+          "body": "Where you connect your own API key, you contract directly with that provider and pay them at their rates; we do not resell their capacity and cannot control their pricing. Where a model runs on platform credits, credits are deducted server-side when a job is accepted.",
+          "items": [
+            "A job that fails before a provider accepts it does not consume credits.",
+            "A job that a provider runs and returns is charged even if you dislike the result.",
+            "Credits have no cash value and are not transferable between accounts.",
+            "Provider prices shown in the product are indicative and can change without notice."
+          ]
         },
         {
-          "heading": "Your content",
-          "body": "You own what you create. You grant us the limited rights needed to store it and display it back to you, and to show anything you deliberately publish to the public gallery."
+          "heading": "What you may not generate or upload",
+          "body": "Some limits are absolute and apply regardless of which model or key you use. Do not use ANTEI to create, upload or distribute:",
+          "items": [
+            "Sexual content involving minors, or any material that sexualises a person under 18, whether real or generated and in any style.",
+            "Sexual or intimate imagery of a real, identifiable person made or shared without their consent.",
+            "Impersonation of a real person or organisation intended to deceive, defraud, or influence an election.",
+            "Content that harasses, threatens or incites violence against a person or group.",
+            "Material that infringes someone else's copyright, trademark, likeness or other rights.",
+            "Malware, credential-harvesting material, or content designed to defeat security or age controls."
+          ]
         },
         {
-          "heading": "Costs and third parties",
-          "body": "You pay the AI providers directly through your own keys. We do not control their pricing, limits, or uptime, and we are not responsible for their charges."
+          "heading": "Mature content",
+          "body": "ANTEI can surface and generate adult material where a model and its licence permit it. Those features are for users aged 18 or over, are off by default, and remain subject to the prohibitions above without exception. Enabling them is a statement that you are of age in your jurisdiction."
         },
         {
-          "heading": "Availability",
-          "body": "The service is provided as is, without warranty. We work to keep it running but cannot guarantee uninterrupted access."
+          "heading": "Your content and your outputs",
+          "body": "You keep the rights you already hold in the prompts, reference images and files you bring. As between you and us we claim no ownership of what you generate. We need a limited licence to run the service: to store your files, transmit them to the provider you selected, and display them back to you in your archive, canvas and any surfaces you choose to publish."
         },
         {
-          "heading": "Changes",
-          "body": "We may update these terms as the product grows. Continued use after an update means you accept the revised terms. Questions go to legal@antei.app."
+          "heading": "Model and LoRA licences",
+          "body": "Models, checkpoints and LoRAs reached through ANTEI carry their own licences from their authors, including the ones listed from public libraries. Some forbid commercial use, some forbid certain subjects, some require attribution. Those terms bind you directly, and we cannot grant you rights their authors did not."
+        },
+        {
+          "heading": "Third-party providers",
+          "body": "Generation happens on infrastructure we do not operate. Your prompt and any reference material are transmitted to the provider you selected for that job, and their terms and policies apply to that processing. Provider outages, content filters and model changes are outside our control."
+        },
+        {
+          "heading": "Reporting and takedowns",
+          "body": "If something on ANTEI infringes your rights or depicts you without consent, write to legal@antei.app with the location of the material and enough detail to identify it. We remove material that breaks these terms and act on valid infringement notices. We may reinstate material if a complaint turns out to be unfounded."
+        },
+        {
+          "heading": "Suspension and termination",
+          "body": "We may suspend or close an account that breaks these terms, and we will act immediately and without notice where content in the absolute-prohibition list is involved. You can close your account at any time. On closure we delete your stored files and generation records; see the privacy policy for what survives and for how long."
+        },
+        {
+          "heading": "Availability and changes",
+          "body": "ANTEI is provided as-is and as-available. We work to keep it running but do not promise uninterrupted service, and we may add, change or withdraw features and models. Where a change materially reduces what you already paid for, we will say so in advance where we reasonably can."
+        },
+        {
+          "heading": "Disclaimers",
+          "body": "Generated output is produced by statistical models and can be wrong, offensive, or resemble existing work. We do not warrant that output is accurate, original, or fit for any particular purpose, and we do not review what you generate before you see it. Judgement about whether an output is safe to publish or use commercially is yours."
+        },
+        {
+          "heading": "Limitation of liability",
+          "body": "To the extent the law allows, we are not liable for lost profits, lost data, or indirect or consequential loss, and our total liability for any claim is limited to what you paid us in the three months before it arose. Nothing here limits liability that cannot lawfully be limited, including for death, personal injury, or fraud."
+        },
+        {
+          "heading": "Indemnity",
+          "body": "You agree to cover our reasonable costs if a third party brings a claim against us because of content you generated, uploaded or published through ANTEI, or because you used the service in breach of these terms."
+        },
+        {
+          "heading": "Governing law and disputes",
+          "body": "These terms are governed by the law of the operator’s principal place of business, and disputes go to the courts there. If you are a consumer, mandatory protections and courts available to you where you live are unaffected. Talk to us first at legal@antei.app; most issues are faster to fix than to litigate."
+        },
+        {
+          "heading": "Changes to these terms",
+          "body": "We update these terms as the product changes. The date at the top always reflects the current version. For material changes we give notice in the product before they take effect; continuing to use ANTEI afterwards means you accept them."
+        },
+        {
+          "heading": "Contact",
+          "body": "Questions about these terms, takedowns and account issues: legal@antei.app. Questions about data: privacy@antei.app."
         }
       ]
     }
@@ -498,13 +607,9 @@
     }
   },
   "Homepage": {
-    "heroStat": "36 MODELS · 10 PROVIDERS · 4 MODALITIES",
+    "heroStat": "{models} MODELS · {providers} PROVIDERS · {modalities} MODALITIES",
     "heroLine1": "Generate with every model.",
     "heroLine2": "Keep every result.",
-    "nav": {
-      "login": "Log in",
-      "signup": "Sign up"
-    },
     "views": {
       "canvas": "Canvas",
       "studio": "Studio",
@@ -723,34 +828,15 @@
       },
       "privacy": "Privacy policy",
       "terms": "Terms of service"
-    },
-    "auth": {
-      "note": "Your account keeps prompts, model choices, and generated results together across sessions.",
-      "panel": {
-        "eyebrow": "ANTEI",
-        "title": "Image, video, and voice creation platform",
-        "description": "Keep generation, archives, and your creative flow in one place.",
-        "items": {
-          "generate": "Generate images, videos, and voice",
-          "save": "Save prompts, models, and results",
-          "continue": "Continue from the same account"
-        }
-      },
-      "signIn": {
-        "eyebrow": "Sign in",
-        "title": "Sign in to your account.",
-        "description": "Open your archive and continue where you left off.",
-        "switchPrompt": "New to PixelVault?",
-        "switchAction": "Create an account"
-      },
-      "signUp": {
-        "eyebrow": "Create account",
-        "title": "Create your account.",
-        "description": "Connect your own generation service after signup and keep each result in your archive.",
-        "switchPrompt": "Already have an account?",
-        "switchAction": "Sign in"
-      }
     }
+  },
+  "Auth": {
+    "open": "Sign in",
+    "title": "Welcome to {brand}",
+    "subtitle": "Sign in or create an account to continue",
+    "terms": "By continuing you agree to our <terms>terms of service</terms> and <privacy>privacy policy</privacy>.",
+    "backHome": "Back to home",
+    "close": "Close"
   },
   "StudioPage": {
     "heroEyebrow": "Studio",

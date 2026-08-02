@@ -83,3 +83,21 @@ html:lang(ja) .legal-title {
   line-height: 1.68;
   max-width: 68ch;
 }
+
+/* Enumerated clauses — prohibited uses, processors, rights. Same colour and
+   measure as the body so a section reads as one block, with the marker sitting
+   outside the text column rather than indenting the copy away from it. */
+.legal-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 1.15rem;
+  list-style: disc;
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  line-height: 1.68;
+  max-width: 68ch;
+}
+
+.legal-section-list li::marker {
+  color: color-mix(in oklab, var(--foreground) 42%, var(--background));
+}

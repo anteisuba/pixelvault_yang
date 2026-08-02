@@ -65,6 +65,27 @@ describe('proxy internal execution routes', () => {
     expect(protect).not.toHaveBeenCalled()
   })
 
+  it('lets a signed-out reader open the terms and the privacy policy', async () => {
+    // The auth card's "by continuing you agree to our terms" links point here.
+    // While these were protected, following one bounced the reader to sign-in —
+    // the screen that had just asked them to agree.
+    for (const pathname of [
+      '/zh/terms',
+      '/zh/privacy',
+      '/en/terms',
+      '/ja/privacy',
+    ]) {
+      await middleware(
+        {
+          nextUrl: { pathname, origin: 'https://pixelvault.example.com' },
+        } as never,
+        {} as never,
+      )
+    }
+
+    expect(protect).not.toHaveBeenCalled()
+  })
+
   it('protects nested /api/users routes that are not public profiles', async () => {
     await middleware(
       {

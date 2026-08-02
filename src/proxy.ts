@@ -14,6 +14,13 @@ const publicLocaleRoutes = LOCALES.flatMap((locale) => [
   `/${locale}${ROUTES.GALLERY}/(.*)`,
   `/${locale}${ROUTES.SIGN_IN}(.*)`,
   `/${locale}${ROUTES.SIGN_UP}(.*)`,
+  // The terms and the privacy policy have to be readable by exactly the people
+  // who are not signed in — they are linked from the auth card itself, and from
+  // the marketing footer. Without these two they redirected to sign-in, so the
+  // "by continuing you agree to our terms" link sent you to the very screen
+  // that was asking you to agree.
+  `/${locale}${ROUTES.TERMS}`,
+  `/${locale}${ROUTES.PRIVACY}`,
   `/${locale}${ROUTES.CREATOR_PROFILE}/(.*)`,
   `/${locale}/assistant/share/(.*)`,
 ])

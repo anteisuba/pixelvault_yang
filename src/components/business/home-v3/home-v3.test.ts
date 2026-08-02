@@ -18,8 +18,11 @@ import {
   HOME_V3_VIEWS,
   isHomeV3ModelBrandCover,
 } from '@/constants/home-v3'
-import { HOME_V3_STRIP } from '@/constants/homepage'
+import { HOME_V3_STRIP, HOMEPAGE_MODEL_COUNTS } from '@/constants/homepage'
 import { getAvailableModels } from '@/constants/models'
+import enMessages from '@/messages/en.json'
+import jaMessages from '@/messages/ja.json'
+import zhMessages from '@/messages/zh.json'
 
 const PUBLIC_DIR = join(process.cwd(), 'public')
 
@@ -115,6 +118,42 @@ describe('home v3 · capability stage', () => {
   it('the video demo has a real duration and extracted filmstrip', () => {
     expect(HOME_V3_VIDEO_DEMO.durationSeconds).toBeGreaterThan(0)
     expect(HOME_V3_VIDEO_DEMO.frames).toHaveLength(6)
+  })
+})
+
+describe('home v3 · catalog claims', () => {
+  const available = getAvailableModels()
+
+  it('the hero states its figures as placeholders, never as literals', () => {
+    // The hero shipped "36 MODELS · 10 PROVIDERS · 4 MODALITIES" as a literal in
+    // all three files while the rails below counted the live catalog and drew
+    // 45 — the page contradicted itself for a whole month with nothing failing.
+    for (const [locale, messages] of [
+      ['en', enMessages],
+      ['ja', jaMessages],
+      ['zh', zhMessages],
+    ] as const) {
+      const heroStat = messages.Homepage.heroStat
+      expect(heroStat, `${locale} heroStat`).toContain('{models}')
+      expect(heroStat, `${locale} heroStat`).toContain('{providers}')
+      expect(heroStat, `${locale} heroStat`).toContain('{modalities}')
+      expect(heroStat, `${locale} heroStat has a hardcoded count`).not.toMatch(
+        /\d/,
+      )
+    }
+  })
+
+  it('every figure the page says out loud comes from the catalog', () => {
+    expect(HOMEPAGE_MODEL_COUNTS.total).toBe(available.length)
+    expect(HOMEPAGE_MODEL_COUNTS.modalities).toBe(
+      new Set(available.map((model) => model.outputType)).size,
+    )
+    // Provider *groups*, not adapters: MiniMax runs two stations and counting
+    // both would inflate the claim on the first screen.
+    expect(HOMEPAGE_MODEL_COUNTS.providers).toBeGreaterThan(0)
+    expect(HOMEPAGE_MODEL_COUNTS.providers).toBeLessThanOrEqual(
+      new Set(available.map((model) => model.adapterType)).size,
+    )
   })
 })
 

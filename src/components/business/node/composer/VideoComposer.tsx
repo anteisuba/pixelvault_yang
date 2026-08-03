@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -96,6 +97,11 @@ import {
   type MentionToken,
 } from './MentionInput'
 import { CameraGrammarButton } from './CameraGrammarButton'
+import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
+import { EvidenceDrawer } from '../node-detail/EvidenceDrawer'
+import { RelationsStrip } from '../node-detail/RelationsStrip'
+import { SpecSummaryButton } from '../node-detail/SpecSummaryButton'
+import type { NodeDetailSlots } from '../node-detail/slots'
 
 interface VideoComposerProps {
   id: string
@@ -103,6 +109,12 @@ interface VideoComposerProps {
   /** 'card' = compact right-sidecar composer; 'detail' = full model-aware
    * controls. Both consume the same persisted node data and generation path. */
   density: 'card' | 'detail'
+  /**
+   * 槽表渲染函数（S7）。`density='detail'` 时**必填** —— 详情面板的四段骨架由
+   * `NodeDetailFrame` 拥有，这个组件只负责把自己的内容填进七个槽。
+   * `density='card'` 分支不消费它（画布卡上的紧凑侧车不走槽骨架）。
+   */
+  children?: (slots: NodeDetailSlots) => ReactNode
   /** The node-attached sidecar keeps the video in the card on its left, so its
    * detailed state must not duplicate the historical slate/monitor. */
   showMonitor?: boolean
@@ -327,18 +339,35 @@ function VideoMonitor({
   mediaUrl,
   thumbnailUrl,
   isGenerating,
+  quiet = false,
 }: {
   mediaUrl: string
   thumbnailUrl?: string
   isGenerating: boolean
+  /**
+   * 方向 E「静默」档（S7）。详情面板的主体台受契约 R2 约束：
+   * 空态**只许一枚极淡字形**，禁四角取景框、禁「生成后在此预览」这类解释文案；
+   * §5 还禁止媒体井深色。这三条与卡层监视器的「导演监视器」语言直接冲突，
+   * 所以按落点分档，而不是把卡层也改了（那不是这轮改版的范围）。
+   */
+  quiet?: boolean
 }) {
   const tc = useTranslations('StudioNode.videoComposer')
   const elapsedSeconds = useElapsedSeconds(isGenerating)
 
   return (
     <div
-      className="node-monitor-matte relative aspect-video max-h-80 overflow-hidden rounded-xl border border-node-panel-inner bg-node-canvas"
+      className={cn(
+        'relative aspect-video max-h-80 overflow-hidden rounded-xl',
+        quiet
+          ? // ⚠ 静默档**不挂** `node-monitor-matte`：那个类用两条 ::before/::after
+            // 画 30px 的黑色遮幅（letterbox）。在浅色井上它就是两条纯黑横带，
+            // 直接违反 §5「媒体井不得深色」——实拍到过。
+            'canvas-detail-well'
+          : 'node-monitor-matte border border-node-panel-inner bg-node-canvas',
+      )}
       data-empty={mediaUrl ? undefined : 'true'}
+      data-quiet={quiet || undefined}
     >
       {mediaUrl ? (
         <video
@@ -353,17 +382,33 @@ function VideoMonitor({
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
           {/* FB-6 极简修: 空态给一枚克制的胶片图标，让监视器读成"待录制"而非
-              一块纯黑洞（owner 真机"监视器像黑洞"）——不新造视觉隐喻，只补占位。 */}
-          <Film className="size-6 text-node-subtle/60" aria-hidden />
-          <span className="text-3xs text-node-subtle">
-            {tc('monitor.empty')}
-          </span>
+              一块纯黑洞（owner 真机"监视器像黑洞"）——不新造视觉隐喻，只补占位。
+              ⚠ 静默档（详情面板）**只留字形**：R2 禁「生成后在此预览」这类解释文案。 */}
+          <Film
+            className={
+              quiet
+                ? 'canvas-detail-well-glyph size-12'
+                : 'size-6 text-node-subtle/60'
+            }
+            strokeWidth={quiet ? 1.25 : undefined}
+            aria-hidden
+          />
+          {quiet ? null : (
+            <span className="text-3xs text-node-subtle">
+              {tc('monitor.empty')}
+            </span>
+          )}
         </div>
       )}
-      <span className="node-monitor-corner" data-pos="tl" aria-hidden />
-      <span className="node-monitor-corner" data-pos="tr" aria-hidden />
-      <span className="node-monitor-corner" data-pos="bl" aria-hidden />
-      <span className="node-monitor-corner" data-pos="br" aria-hidden />
+      {/* 四角取景框：R2 点名禁止的四样之一，静默档不画。 */}
+      {quiet ? null : (
+        <>
+          <span className="node-monitor-corner" data-pos="tl" aria-hidden />
+          <span className="node-monitor-corner" data-pos="tr" aria-hidden />
+          <span className="node-monitor-corner" data-pos="bl" aria-hidden />
+          <span className="node-monitor-corner" data-pos="br" aria-hidden />
+        </>
+      )}
       {isGenerating ? (
         <>
           <span className="pointer-events-none absolute right-4 top-9 flex items-center gap-1.5 font-mono text-3xs tabular-nums text-node-muted">
@@ -452,6 +497,7 @@ export function VideoComposer({
   data,
   density,
   showMonitor = true,
+  children,
 }: VideoComposerProps) {
   const t = useTranslations('StudioNode.videoGeneration')
   const tFields = useTranslations('StudioNode.workflowFields')
@@ -468,6 +514,9 @@ export function VideoComposer({
     projectName,
   } = useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
+  const downstreamUses = useDownstreamUses(id)
+  const tDetail = useTranslations('StudioNode.nodeDetail')
+  const tTypes = useTranslations('StudioNode.nodeTypes')
   const reducedMotion = useReducedMotion()
   // Ref to the prompt MentionInput so clickable @reference chips can insert an
   // atomic token chip at the caret (§6 S2). Exposes insertToken / focus /
@@ -1056,10 +1105,14 @@ export function VideoComposer({
       {...KEY_GUARD}
       onClick={handleGenerate}
       disabled={Boolean(disabledReason)}
+      // ⚠ 无障碍名带原因，**可见文字不带**：坞里左边那行已经在说原因了，
+      // 按钮再写一遍就是同一屏说两遍（实拍到过）。按钮的可见文字应当恒是
+      // 「这一屏的那件主事」。
+      aria-label={disabledReason ?? generateLabel}
       className="canvas-video-object-studio-generate h-10 rounded-xl bg-node-paint text-node-canvas hover:bg-node-paint/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
     >
       {isPending ? <Spinner size="md" /> : <Film className="size-4" />}
-      {disabledReason ?? generateLabel}
+      {generateLabel}
     </Button>
   )
 
@@ -1503,899 +1556,804 @@ export function VideoComposer({
     )
   }
 
-  return (
-    <div
-      className="canvas-video-object-studio canvas-object-studio-grid nodrag relative"
-      data-testid="video-object-studio"
-    >
-      <div
-        className="canvas-object-studio-media-rail"
-        data-testid="video-object-studio-media-rail"
-      >
-        {showMonitor ? (
-          <section className="canvas-video-object-studio-section">
-            <StudioSectionHeading
-              title={tc('studio.currentFilm')}
-              meta={tc('studio.filmMeta', {
-                duration: durationSummary,
-                aspect: aspectSummary,
-                resolution: resolutionSummary,
-              })}
-            />
-            <VideoMonitor
-              mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
-              thumbnailUrl={
-                typeof data.videoThumbnailUrl === 'string'
-                  ? data.videoThumbnailUrl
-                  : undefined
-              }
-              isGenerating={isPending}
-            />
-            <VideoSlateStrip
-              projectName={projectName}
-              shotName={shotReferenceLabel}
-              isReferenceMode={composer.hasReferenceInputs}
-              status={data.status}
-            />
-          </section>
-        ) : null}
+  // ── 方向 E · 七槽（S7，2026-08-04）────────────────────────────────
+  // seedance 是十族里最后一个、也是最重的一个。它没有单独的 detail body 文件 ——
+  // 全部状态与 handler 都住在这个组件里，把它们搬去别处只会制造第二个家。
+  // 这里只做**重排**：同一批 JSX 换个槽落位，逻辑一行不动。
+  //
+  // ⚠ 六个 `.node-collapsible` 全部消失（契约 §8）：模型 rail 进「模型」浮层，
+  // 时长/分辨率/画幅/生成音频/种子进「参数」浮层，发送预览进证据抽屉。
+  // 连带解掉它们用 `grid-template-rows` 做过渡（布局属性，违反「合成层只动
+  // transform/opacity」）的问题。
+  //
+  // ⚠ U1 默认取舍：品牌 rail **原样**搬进模型浮层，`pendingBrand` / `quickSetup` /
+  // `computeVideoRebindPreview` 一行不删 —— 换模型会忽略哪些引用的预览是功能不是形态。
+  const paramsSummaryParts = [
+    parameterSupport.resolution && typeof data.resolution === 'string'
+      ? data.resolution
+      : '',
+    parameterSupport.duration && typeof data.duration === 'string'
+      ? durationSummary
+      : '',
+    parameterSupport.aspectRatio && typeof data.aspectRatio === 'string'
+      ? data.aspectRatio
+      : '',
+  ].filter(Boolean)
 
-        <section className="canvas-video-object-studio-section canvas-video-object-studio-section--divided">
-          <StudioSectionHeading
-            title={tc('studio.sentAssets')}
-            meta={tc('studio.assetCount', {
-              count: composer.referenceTokens.length,
+  const slots: NodeDetailSlots = {
+    stage: showMonitor ? (
+      <>
+        <div className="canvas-detail-stage">
+          <VideoMonitor
+            quiet
+            mediaUrl={hasMedia ? (data.mediaUrl as string) : ''}
+            thumbnailUrl={
+              typeof data.videoThumbnailUrl === 'string'
+                ? data.videoThumbnailUrl
+                : undefined
+            }
+            isGenerating={isPending}
+          />
+        </div>
+        <VideoSlateStrip
+          projectName={projectName}
+          shotName={shotReferenceLabel}
+          isReferenceMode={composer.hasReferenceInputs}
+          status={data.status}
+        />
+        {/* 台座：原来是监视器上方那行槽标题的 `meta`（R1 要删标题）。
+            规格本身是有用的只读派生值，降成井下一行纯文本（R6）。
+            ⚠ **只在有片时出现**：它说的是「监视器里这条片的规格」，而编排台那颗
+            参数 chip 说的是「下次要发什么」。没片的时候两者是同一串值，
+            实拍里就是同一屏把「自动 · 自动 · 自动」说了两遍。 */}
+        {hasMedia ? (
+          <div className="canvas-detail-pedestal">
+            {tc('studio.filmMeta', {
+              duration: durationSummary,
+              aspect: aspectSummary,
+              resolution: resolutionSummary,
             })}
-          />
-          {/* V-3a 管理素材面板 — 取代五分区部门条：始终可见的「已引用」条
-                （点击重新插入 / hover × 删连线）+「管理素材」抽屉（已连接 N 全量列
-                + 类型 tab + 搜索 + 每行插入/已引用状态 + ⋮ 定位/断连/加音色/加特写）。
-                部门条原有的 ＋添加位 能力搬进抽屉的 tab 工具条，无功能回退。 */}
-          <ReferenceManagerPanel
-            tokens={composer.referenceTokens}
-            referencedTokenIds={composer.referencedTokenIds}
-            onInsert={handleTokenInsert}
-            onLocate={focusNode}
-            onRemove={handleRemoveReference}
-            onAddReference={spawnReference ? handleAddReference : undefined}
-            onAddVoice={spawnReference ? handleAddVoice : undefined}
-            onAddCloseup={spawnReference ? handleAddCloseup : undefined}
-            maxReferenceImages={maxReferenceImages}
-            imageOverflow={imageOverflow}
-            assembledImageCount={composer.sendPreview.assembledImageCount}
-            onToggleStage={updateEdgeData ? handleToggleStage : undefined}
-            onRestoreDefaultStage={
-              updateEdgeData ? handleRestoreDefaultStage : undefined
-            }
-          />
-          {composer.hasReferenceInputs ? (
-            <p className="px-0.5 text-2xs leading-4 text-node-subtle">
-              {tc('referenceModeOn')}
-            </p>
-          ) : null}
-        </section>
-      </div>
-
-      <div
-        className="canvas-object-studio-task-rail"
-        data-testid="video-object-studio-task-rail"
-      >
-        <section className="canvas-video-object-studio-section">
-          <StudioSectionHeading
-            title={tc('studio.composition')}
-            meta={
-              composer.hasReferenceInputs
-                ? tc('sidecar.modeReference')
-                : tc('sidecar.modeText')
-            }
-          />
-          {/* Prompt — the composer's hero field. @references render as atomic
-                chips (§6 S2 MentionInput); the persisted value stays plain-text
-                @name for the generate path. The 运镜语法 button (§5 L1) inserts
-                film-language phrases at the caret. */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                {tFields('prompt.label')}
-              </span>
-              <CameraGrammarButton
-                onInsert={(phrase) =>
-                  promptRef.current?.insertText(`${phrase} `)
-                }
-              />
-            </div>
-            <MentionInput
-              ref={promptRef}
-              value={promptFieldValue}
-              onValueChange={(next) =>
-                handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
-              }
-              tokens={mentionTokens}
-              aria-label={tFields('prompt.label')}
-              placeholder={tFields('prompt.placeholder')}
-              className="min-h-52 w-full rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground focus-visible:border-node-edge"
-            />
-            {/* V-3a 创意指令区底部计数（设计稿 §4）: 已引用/已连接 与 prompt 编辑
-                  同屏可见，字数复用现有 PROMPT_ENHANCE.MAX_INPUT_LENGTH（无新增
-                  magic number）。 */}
-            <div className="flex items-center justify-between gap-2 px-0.5 text-3xs tabular-nums text-node-subtle">
-              <span>
-                {tc('references.counter', {
-                  referenced: composer.referencedTokenIds.size,
-                  connected: composer.referenceTokens.length,
-                })}
-              </span>
-              <span
-                className={cn(
-                  promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
-                    'text-node-status-failed',
-                )}
-              >
-                {tc('references.charCount', {
-                  length: promptFieldValue.length,
-                  max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
-                })}
-              </span>
-            </div>
           </div>
+        ) : null}
+      </>
+    ) : undefined,
 
-          {/* Negative prompt — grouped with the other text inputs. */}
-          {parameterSupport.negativePrompt ? (
-            <ComposerField label={t('negativePromptLabel')}>
+    rack: (
+      <div className="canvas-detail-stack">
+        <ReferenceManagerPanel
+          tokens={composer.referenceTokens}
+          referencedTokenIds={composer.referencedTokenIds}
+          onInsert={handleTokenInsert}
+          onLocate={focusNode}
+          onRemove={handleRemoveReference}
+          onAddReference={spawnReference ? handleAddReference : undefined}
+          onAddVoice={spawnReference ? handleAddVoice : undefined}
+          onAddCloseup={spawnReference ? handleAddCloseup : undefined}
+          maxReferenceImages={maxReferenceImages}
+          imageOverflow={imageOverflow}
+          assembledImageCount={composer.sendPreview.assembledImageCount}
+          onToggleStage={updateEdgeData ? handleToggleStage : undefined}
+          onRestoreDefaultStage={
+            updateEdgeData ? handleRestoreDefaultStage : undefined
+          }
+        />
+        {composer.hasReferenceInputs ? (
+          <p className="px-0.5 text-2xs leading-4 text-node-subtle">
+            {tc('referenceModeOn')}
+          </p>
+        ) : null}
+      </div>
+    ),
+
+    desk: (
+      <div className="canvas-detail-stack">
+        {/* R7：长文本整宽、无标签、无边框。**prompt 不配独立标签行** ——
+            原来那一行「提示词」标签只是为了给 运镜语法 按钮找个落脚点，
+            按钮已经移进下面的 chip 行。 */}
+        <div className="canvas-detail-prompt-block">
+          <MentionInput
+            ref={promptRef}
+            value={promptFieldValue}
+            onValueChange={(next) =>
+              handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
+            }
+            tokens={mentionTokens}
+            aria-label={tFields('prompt.label')}
+            placeholder={tFields('prompt.placeholder')}
+            className="min-h-40 w-full border-none bg-transparent px-2.5 py-2 text-xs leading-5 text-node-foreground"
+          />
+        </div>
+        {/* ⚠ 这一行只留字数。「已引用 N / 已连接 N」由素材架那一行负责 ——
+            实拍里两处并存，同一屏说了两遍。 */}
+        <div className="flex items-center justify-end gap-2 px-0.5 text-3xs tabular-nums text-node-subtle">
+          <span
+            className={cn(
+              promptFieldValue.length > PROMPT_ENHANCE.MAX_INPUT_LENGTH &&
+                'text-node-status-failed',
+            )}
+          >
+            {tc('references.charCount', {
+              length: promptFieldValue.length,
+              max: PROMPT_ENHANCE.MAX_INPUT_LENGTH,
+            })}
+          </span>
+        </div>
+
+        {parameterSupport.negativePrompt ? (
+          <div className="canvas-detail-krow">
+            <span className="canvas-detail-krow-key">
+              {t('negativePromptLabel')}
+            </span>
+            <div className="canvas-detail-prompt-block min-w-0 flex-1">
               <IMEAwareTextarea
                 value={currentNegative}
                 onValueChange={handleNegativeChange}
                 aria-label={t('negativePromptLabel')}
                 placeholder={t('negativePromptPlaceholder')}
                 {...KEY_GUARD}
-                className="min-h-16 w-full resize-none rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                className="min-h-16 w-full resize-none border-none bg-transparent px-2.5 py-2 text-xs leading-5 text-node-foreground outline-none"
               />
-            </ComposerField>
-          ) : null}
-        </section>
-
-        <section className="canvas-video-object-studio-section canvas-video-object-studio-section--divided">
-          <StudioSectionHeading
-            title={tc('studio.modelParameters')}
-            meta={tc('studio.supportedOnly')}
-          />
-          <div className="space-y-3">
-            {/* C5 参数设置（v4 §4 C5，R3-8 起；FB-6 极简修 2026-07-19）: 模型/时
-                长/分辨率/画幅各一整宽「标签 · 值」行，点击展开下方 1:1 现有控件
-                （同一 openSection 手风琴，点新段自动收起上一段）。竖排让右设置栏
-                不再稀疏、四个值恒可读。生成音频/种子刻意不在这组里（见下方两处
-                独立区块），与 v4 §4 C5 原文一致。 */}
-            <div className="space-y-1.5">
-              <OsdPill
-                label={tc('modelRail.label')}
-                value={pickerLabel}
-                icon={
-                  pickerStatus ? (
-                    pickerStatus.ready ? (
-                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                    ) : (
-                      <KeyRound className="size-3 shrink-0" />
-                    )
-                  ) : null
-                }
-                active={openSection === 'model'}
-                onClick={() => toggleSection('model')}
-              />
-              {parameterSupport.duration ? (
-                <OsdPill
-                  label={tFields('duration.label')}
-                  value={durationSummary}
-                  active={openSection === 'duration'}
-                  onClick={() => toggleSection('duration')}
-                />
-              ) : null}
-              {parameterSupport.resolution ? (
-                <OsdPill
-                  label={t('resolutionLabel')}
-                  value={resolutionSummary}
-                  active={openSection === 'resolution'}
-                  onClick={() => toggleSection('resolution')}
-                />
-              ) : null}
-              {parameterSupport.aspectRatio ? (
-                <OsdPill
-                  label={t('aspectRatioLabel')}
-                  value={aspectSummary}
-                  active={openSection === 'aspect'}
-                  onClick={() => toggleSection('aspect')}
-                />
-              ) : null}
             </div>
+          </div>
+        ) : null}
 
-            <div
-              className="node-collapsible"
-              data-open={openSection === 'model' || undefined}
-            >
-              <div>
-                <div className="mt-2 space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
-                  <span className="px-0.5 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {tc('modelRail.label')}
-                  </span>
-                  <div className="space-y-1">
-                    {composer.brands.map((brand) => {
-                      const isCurrent = composer.state.brand === brand
-                      const status = getBrandKeyStatus(brand, composer.options)
-                      return (
-                        <div
-                          key={brand}
-                          className={cn(
-                            'overflow-hidden rounded-lg border transition-colors',
-                            isCurrent
-                              ? 'border-node-edge bg-node-panel'
-                              : 'border-node-panel-inner',
-                          )}
-                        >
-                          <button
-                            type="button"
-                            {...KEY_GUARD}
-                            onClick={() => {
-                              handleBrandClick(brand, status)
-                              if (status.ready) setOpenSection(null)
-                            }}
-                            className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
-                          >
-                            <span
-                              className={cn(
-                                'text-xs font-semibold',
-                                isCurrent
-                                  ? 'text-node-foreground'
-                                  : 'text-node-muted',
-                              )}
-                            >
-                              {brand}
-                            </span>
-                            {status.ready ? (
-                              <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
-                                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                <span className="max-w-24 truncate">
-                                  {status.keyLabel ?? tc('modelRail.ready')}
-                                </span>
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
-                                <KeyRound className="size-3 shrink-0" />
-                                {tc('modelRail.needsKey')}
-                              </span>
-                            )}
-                          </button>
-                          {isCurrent && status.ready ? (
-                            <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
-                              {composer.variants.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {composer.variants.map((variant) => {
-                                    const on =
-                                      composer.state.variant === variant
-                                    return (
-                                      <button
-                                        key={variant}
-                                        type="button"
-                                        {...KEY_GUARD}
-                                        onClick={() =>
-                                          composer.selectVariant(variant)
-                                        }
-                                        className={cn(
-                                          'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                          on
-                                            ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                        )}
-                                      >
-                                        {tc(`variant.${variant}`)}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              ) : null}
-                              {composer.isDualProvider ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {providers.map((provider) => {
-                                    const on =
-                                      composer.state.provider === provider
-                                    return (
-                                      <button
-                                        key={provider}
-                                        type="button"
-                                        {...KEY_GUARD}
-                                        onClick={() =>
-                                          composer.selectProvider(provider)
-                                        }
-                                        className={cn(
-                                          'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                          on
-                                            ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                        )}
-                                      >
-                                        {tc(
-                                          `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
-                                        )}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {pendingBrand ? (
-              <div className="space-y-2 rounded-lg border border-node-muted/50 bg-node-panel-soft p-2.5">
-                <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
-                  <AlertTriangle className="size-3.5 shrink-0" />
-                  {tc('rebind.title', { brand: pendingBrand.brand })}
-                </p>
-                <ul className="space-y-1">
-                  {pendingBrand.preview.map((item) => (
-                    <li
-                      key={item.kind}
-                      className="flex items-center gap-1.5 text-2xs text-node-muted"
-                    >
-                      {item.status === 'map' ? (
-                        <Check className="size-3 shrink-0 text-node-foreground" />
-                      ) : (
-                        <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
+        {/* R1 表：编排台 = 整宽 prompt 块 + 一行 chip（模型 / 参数 / 运镜语法）。 */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SpecSummaryButton
+            parts={pickerLabel ? [pickerLabel] : []}
+            emptyLabel={tc('pickModel')}
+            label={tc('modelRail.label')}
+          >
+            <div className="space-y-2">
+              <p className="text-2xs font-semibold text-node-muted">
+                {tc('modelRail.label')}
+              </p>
+              <div className="space-y-1">
+                {composer.brands.map((brand) => {
+                  const isCurrent = composer.state.brand === brand
+                  const status = getBrandKeyStatus(brand, composer.options)
+                  return (
+                    <div
+                      key={brand}
+                      className={cn(
+                        'overflow-hidden rounded-lg border transition-colors',
+                        isCurrent
+                          ? 'border-node-edge bg-node-panel'
+                          : 'border-node-panel-inner',
                       )}
-                      <span className="text-node-foreground">
-                        {tc(`refKind.${item.kind}`)}
-                      </span>
-                      <span>{tc(`rebind.${item.status}`)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={confirmPendingBrand}
-                    className="flex-1 rounded-lg bg-node-foreground px-2 py-1.5 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
-                  >
-                    {tc('rebind.confirm')}
-                  </button>
-                  <button
-                    type="button"
-                    {...KEY_GUARD}
-                    onClick={cancelPendingBrand}
-                    className="flex-1 rounded-lg border border-node-panel-inner px-2 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:text-node-foreground"
-                  >
-                    {tc('rebind.cancel')}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {/* 同下面 resolution 段的闸门规则（见那处注释）：折叠体跟着它那颗
-                OsdPill 一起消失。Gemini Omni Flash 的契约写死 `duration: false`
-                （时长由模型自己决定，请求里没有这个字段）。 */}
-            {parameterSupport.duration ? (
-              <div
-                className="node-collapsible"
-                data-open={openSection === 'duration' || undefined}
-              >
-                <div>
-                  <ComposerField label={tFields('duration.label')}>
-                    <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold tabular-nums text-node-foreground">
-                          {isAutoDuration
-                            ? tFields('duration.auto')
-                            : tFields('duration.seconds', {
-                                value: String(currentDurationSeconds),
-                              })}
-                        </span>
-                        <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
-                          {tFields('duration.custom')}
-                          <Switch
-                            checked={!isAutoDuration}
-                            onCheckedChange={handleDurationCustom}
-                            aria-label={tFields('duration.custom')}
-                          />
-                        </label>
-                      </div>
-                      <div
-                        className="node-duration-slider px-0.5"
-                        {...KEY_GUARD}
-                      >
-                        <Slider
-                          min={0}
-                          max={Math.max(0, durationOptions.length - 1)}
-                          step={1}
-                          value={[durationIndex]}
-                          onValueChange={(vals) =>
-                            handleDurationSlide(vals[0] ?? 0)
-                          }
-                          disabled={isAutoDuration}
-                          aria-label={tFields('duration.label')}
-                        />
-                      </div>
-                      <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
-                        <span>{durationOptions[0]}</span>
-                        <span>
-                          {durationOptions[durationOptions.length - 1]}
-                        </span>
-                      </div>
-                    </div>
-                  </ComposerField>
-                </div>
-              </div>
-            ) : null}
-
-            {/* 与上面那颗 OsdPill 同一个 `parameterSupport.resolution` 闸：
-                不支持时整段消失，而不是只藏按钮。Kling V3/O3 Pro 的契约写死
-                `resolution: false`（buildKlingV3Pro 从不发这个字段，fal 端点
-                schema 里也没有），能力表给的 `['1080p']` 只是名义值——真渲染出
-                来就是一颗点了不起作用的按钮。折叠体只靠 `data-open` 收起并不算
-                gate：内容仍在 DOM 里可被 Tab 聚焦、可回车触发。 */}
-            {parameterSupport.resolution ? (
-              <div
-                className="node-collapsible"
-                data-open={openSection === 'resolution' || undefined}
-              >
-                <div>
-                  <ComposerField label={t('resolutionLabel')}>
-                    <div className="flex flex-wrap gap-1.5">
-                      {resolutionOptions.map((option) => {
-                        const isSelected = currentResolution === option
-                        return (
-                          <button
-                            key={option}
-                            type="button"
-                            {...KEY_GUARD}
-                            onClick={() => handleResolutionToggle(option)}
-                            className={cn(
-                              'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                              isSelected
-                                ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                            )}
-                          >
-                            {option}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </ComposerField>
-                </div>
-              </div>
-            ) : null}
-
-            {/* 同上：闸门跟着 OsdPill 走。目前没有任何契约把 aspectRatio 关成
-                false，这里是防御——形状与 duration / resolution 一致，将来某个
-                模型不吃画幅时不会又漏一处。 */}
-            {parameterSupport.aspectRatio ? (
-              <div
-                className="node-collapsible"
-                data-open={openSection === 'aspect' || undefined}
-              >
-                <div>
-                  <ComposerField label={t('aspectRatioLabel')}>
-                    <div className="flex flex-wrap gap-2">
+                    >
                       <button
                         type="button"
                         {...KEY_GUARD}
-                        onClick={() =>
-                          updateNodeData(id, { aspectRatio: undefined })
-                        }
-                        aria-pressed={currentAspect === undefined}
-                        className={cn(
-                          'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                          currentAspect === undefined
-                            ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
-                            : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                        )}
+                        onClick={() => {
+                          handleBrandClick(brand, status)
+                          if (status.ready) setOpenSection(null)
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
                       >
-                        <Wand2 className="size-4" />
-                        <span className="text-2xs font-semibold">
-                          {tc('aspectAuto')}
+                        <span
+                          className={cn(
+                            'text-xs font-semibold',
+                            isCurrent
+                              ? 'text-node-foreground'
+                              : 'text-node-muted',
+                          )}
+                        >
+                          {brand}
                         </span>
-                      </button>
-                      {aspectOptions.map((option) => {
-                        const isSelected = currentAspect === option
-                        const box = aspectBoxStyle(option)
-                        return (
-                          <button
-                            key={option}
-                            type="button"
-                            {...KEY_GUARD}
-                            onClick={() => handleAspectToggle(option)}
-                            aria-pressed={isSelected}
-                            className={cn(
-                              'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
-                              isSelected
-                                ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
-                                : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                            )}
-                          >
-                            <span
-                              aria-hidden
-                              style={{ width: box.width, height: box.height }}
-                              className={cn(
-                                'rounded-sm border',
-                                isSelected
-                                  ? 'border-node-foreground'
-                                  : 'border-node-muted',
-                              )}
-                            />
-                            <span className="text-2xs font-semibold tabular-nums">
-                              {option}
+                        {status.ready ? (
+                          <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
+                            <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                            <span className="max-w-24 truncate">
+                              {status.keyLabel ?? tc('modelRail.ready')}
                             </span>
-                          </button>
-                        )
-                      })}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
+                            <KeyRound className="size-3 shrink-0" />
+                            {tc('modelRail.needsKey')}
+                          </span>
+                        )}
+                      </button>
+                      {isCurrent && status.ready ? (
+                        <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
+                          {composer.variants.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {composer.variants.map((variant) => {
+                                const on = composer.state.variant === variant
+                                return (
+                                  <button
+                                    key={variant}
+                                    type="button"
+                                    {...KEY_GUARD}
+                                    onClick={() =>
+                                      composer.selectVariant(variant)
+                                    }
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                      on
+                                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                    )}
+                                  >
+                                    {tc(`variant.${variant}`)}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : null}
+                          {composer.isDualProvider ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {providers.map((provider) => {
+                                const on = composer.state.provider === provider
+                                return (
+                                  <button
+                                    key={provider}
+                                    type="button"
+                                    {...KEY_GUARD}
+                                    onClick={() =>
+                                      composer.selectProvider(provider)
+                                    }
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                                      on
+                                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                                    )}
+                                  >
+                                    {tc(
+                                      `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
+                                    )}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
-                  </ComposerField>
+                  )
+                })}
+              </div>
+              {pendingBrand ? (
+                <div className="space-y-2 rounded-lg border border-node-muted/50 bg-node-panel-soft p-2.5">
+                  <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    {tc('rebind.title', { brand: pendingBrand.brand })}
+                  </p>
+                  <ul className="space-y-1">
+                    {pendingBrand.preview.map((item) => (
+                      <li
+                        key={item.kind}
+                        className="flex items-center gap-1.5 text-2xs text-node-muted"
+                      >
+                        {item.status === 'map' ? (
+                          <Check className="size-3 shrink-0 text-node-foreground" />
+                        ) : (
+                          <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
+                        )}
+                        <span className="text-node-foreground">
+                          {tc(`refKind.${item.kind}`)}
+                        </span>
+                        <span>{tc(`rebind.${item.status}`)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={confirmPendingBrand}
+                      className="flex-1 rounded-lg bg-node-foreground px-2 py-1.5 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
+                    >
+                      {tc('rebind.confirm')}
+                    </button>
+                    <button
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={cancelPendingBrand}
+                      className="flex-1 rounded-lg border border-node-panel-inner px-2 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:text-node-foreground"
+                    >
+                      {tc('rebind.cancel')}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+          </SpecSummaryButton>
 
-            {parameterSupport.generateAudio ? (
-              <div
-                className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
-                {...KEY_GUARD}
-              >
-                <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                  {tc('generateAudioLabel')}
-                </span>
-                <Switch
-                  checked={
-                    typeof data.generateAudio === 'boolean'
-                      ? data.generateAudio
-                      : true
-                  }
-                  onCheckedChange={(checked) =>
-                    updateNodeData(id, { generateAudio: checked })
-                  }
-                  aria-label={tc('generateAudioLabel')}
-                />
-              </div>
-            ) : null}
-
-            {supportsSeed ? (
-              <div className="space-y-2">
-                {/* 种子 — v4 §4 C5: 生成音频+种子不进 OSD 摘要，另起常驻空间；种
+          <SpecSummaryButton
+            parts={paramsSummaryParts}
+            emptyLabel={tDetail('editParams')}
+            label={tDetail('editParams')}
+          >
+            <div className="space-y-3">
+              {parameterSupport.duration ? (
+                <ComposerField label={tFields('duration.label')}>
+                  <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold tabular-nums text-node-foreground">
+                        {isAutoDuration
+                          ? tFields('duration.auto')
+                          : tFields('duration.seconds', {
+                              value: String(currentDurationSeconds),
+                            })}
+                      </span>
+                      <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-node-muted">
+                        {tFields('duration.custom')}
+                        <Switch
+                          checked={!isAutoDuration}
+                          onCheckedChange={handleDurationCustom}
+                          aria-label={tFields('duration.custom')}
+                        />
+                      </label>
+                    </div>
+                    <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
+                      <Slider
+                        min={0}
+                        max={Math.max(0, durationOptions.length - 1)}
+                        step={1}
+                        value={[durationIndex]}
+                        onValueChange={(vals) =>
+                          handleDurationSlide(vals[0] ?? 0)
+                        }
+                        disabled={isAutoDuration}
+                        aria-label={tFields('duration.label')}
+                      />
+                    </div>
+                    <div className="flex justify-between text-2xs tabular-nums text-node-subtle">
+                      <span>{durationOptions[0]}</span>
+                      <span>{durationOptions[durationOptions.length - 1]}</span>
+                    </div>
+                  </div>
+                </ComposerField>
+              ) : null}
+              {parameterSupport.resolution ? (
+                <ComposerField label={t('resolutionLabel')}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {resolutionOptions.map((option) => {
+                      const isSelected = currentResolution === option
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() => handleResolutionToggle(option)}
+                          className={cn(
+                            'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
+                            isSelected
+                              ? 'border-node-edge bg-node-panel-inner text-node-foreground'
+                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                          )}
+                        >
+                          {option}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </ComposerField>
+              ) : null}
+              {parameterSupport.aspectRatio ? (
+                <ComposerField label={t('aspectRatioLabel')}>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      {...KEY_GUARD}
+                      onClick={() =>
+                        updateNodeData(id, { aspectRatio: undefined })
+                      }
+                      aria-pressed={currentAspect === undefined}
+                      className={cn(
+                        'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                        currentAspect === undefined
+                          ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                      )}
+                    >
+                      <Wand2 className="size-4" />
+                      <span className="text-2xs font-semibold">
+                        {tc('aspectAuto')}
+                      </span>
+                    </button>
+                    {aspectOptions.map((option) => {
+                      const isSelected = currentAspect === option
+                      const box = aspectBoxStyle(option)
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          {...KEY_GUARD}
+                          onClick={() => handleAspectToggle(option)}
+                          aria-pressed={isSelected}
+                          className={cn(
+                            'flex w-12 flex-col items-center gap-1.5 rounded-lg border py-1.5 transition-colors',
+                            isSelected
+                              ? 'border-node-foreground/70 bg-node-panel-inner text-node-foreground'
+                              : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            style={{ width: box.width, height: box.height }}
+                            className={cn(
+                              'rounded-sm border',
+                              isSelected
+                                ? 'border-node-foreground'
+                                : 'border-node-muted',
+                            )}
+                          />
+                          <span className="text-2xs font-semibold tabular-nums">
+                            {option}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </ComposerField>
+              ) : null}
+              {parameterSupport.generateAudio ? (
+                <div
+                  className="nodrag nopan nowheel flex items-center justify-between gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-2"
+                  {...KEY_GUARD}
+                >
+                  <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {tc('generateAudioLabel')}
+                  </span>
+                  <Switch
+                    checked={
+                      typeof data.generateAudio === 'boolean'
+                        ? data.generateAudio
+                        : true
+                    }
+                    onCheckedChange={(checked) =>
+                      updateNodeData(id, { generateAudio: checked })
+                    }
+                    aria-label={tc('generateAudioLabel')}
+                  />
+                </div>
+              ) : null}
+              {supportsSeed ? (
+                <div className="space-y-2">
+                  {/* 种子 — v4 §4 C5: 生成音频+种子不进 OSD 摘要，另起常驻空间；种
                     子默认收起为可点摘要行「种子 · 随机/数值」，独立于上面的 OSD
                     手风琴（不抢它的展开位）。 */}
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  onClick={() => setSeedOpen((open) => !open)}
-                  aria-expanded={seedOpen}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                      {tc('seedLabel')}
+                  <button
+                    type="button"
+                    {...KEY_GUARD}
+                    onClick={() => setSeedOpen((open) => !open)}
+                    aria-expanded={seedOpen}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-xs font-semibold text-node-foreground transition-colors hover:border-node-edge"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                        {tc('seedLabel')}
+                      </span>
+                      <span className="truncate font-mono tabular-nums">
+                        {typeof data.seed === 'number'
+                          ? data.seed
+                          : tc('seedRandom')}
+                      </span>
                     </span>
-                    <span className="truncate font-mono tabular-nums">
-                      {typeof data.seed === 'number'
-                        ? data.seed
-                        : tc('seedRandom')}
-                    </span>
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      'size-3.5 shrink-0 text-node-muted transition-transform',
-                      seedOpen && 'rotate-180',
-                    )}
-                  />
-                </button>
-                <div
-                  className="node-collapsible"
-                  data-open={seedOpen || undefined}
-                >
-                  <div>
-                    {/* No ComposerField label here — the trigger row above
+                    <ChevronDown
+                      className={cn(
+                        'size-3.5 shrink-0 text-node-muted transition-transform',
+                        seedOpen && 'rotate-180',
+                      )}
+                    />
+                  </button>
+                  <div
+                    className="node-collapsible"
+                    data-open={seedOpen || undefined}
+                  >
+                    <div>
+                      {/* No ComposerField label here — the trigger row above
                         already reads "种子 · 随机/数值", so repeating the
                         "种子(seed)" heading in the expanded body would just be
                         the same fact twice; the 1:1 controls (input/dice/
                         lastSeed) are otherwise untouched. */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <IMEAwareInput
-                          value={
-                            typeof data.seed === 'number'
-                              ? String(data.seed)
-                              : ''
-                          }
-                          onValueChange={(next) => {
-                            const trimmed = next.trim()
-                            const parsed = Number(trimmed)
-                            updateNodeData(id, {
-                              seed:
-                                trimmed &&
-                                Number.isInteger(parsed) &&
-                                parsed >= 0
-                                  ? Math.min(parsed, 2147483647)
-                                  : undefined,
-                            })
-                          }}
-                          inputMode="numeric"
-                          aria-label={tc('seedLabel')}
-                          placeholder={tc('seedRandom')}
-                          {...KEY_GUARD}
-                          className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
-                        />
-                        <button
-                          type="button"
-                          {...KEY_GUARD}
-                          onClick={() =>
-                            updateNodeData(id, {
-                              seed: Math.floor(Math.random() * 2147483647),
-                            })
-                          }
-                          aria-label={tc('seedRandomize')}
-                          title={tc('seedRandomize')}
-                          className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
-                        >
-                          <Dices className="size-4" />
-                        </button>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <IMEAwareInput
+                            value={
+                              typeof data.seed === 'number'
+                                ? String(data.seed)
+                                : ''
+                            }
+                            onValueChange={(next) => {
+                              const trimmed = next.trim()
+                              const parsed = Number(trimmed)
+                              updateNodeData(id, {
+                                seed:
+                                  trimmed &&
+                                  Number.isInteger(parsed) &&
+                                  parsed >= 0
+                                    ? Math.min(parsed, 2147483647)
+                                    : undefined,
+                              })
+                            }}
+                            inputMode="numeric"
+                            aria-label={tc('seedLabel')}
+                            placeholder={tc('seedRandom')}
+                            {...KEY_GUARD}
+                            className="h-9 flex-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                          />
+                          <button
+                            type="button"
+                            {...KEY_GUARD}
+                            onClick={() =>
+                              updateNodeData(id, {
+                                seed: Math.floor(Math.random() * 2147483647),
+                              })
+                            }
+                            aria-label={tc('seedRandomize')}
+                            title={tc('seedRandomize')}
+                            className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg border border-node-panel-inner bg-node-panel-soft text-node-muted transition-colors hover:text-node-foreground"
+                          >
+                            <Dices className="size-4" />
+                          </button>
+                        </div>
+                        {hasMedia && typeof data.lastSeed === 'number' ? (
+                          <button
+                            type="button"
+                            {...KEY_GUARD}
+                            onClick={() =>
+                              updateNodeData(id, { seed: data.lastSeed })
+                            }
+                            className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
+                          >
+                            <span>
+                              {tc('lastSeedLabel')}: {data.lastSeed}
+                            </span>
+                            <span className="flex items-center gap-1 text-node-foreground">
+                              <Lock className="size-3" />
+                              {tc('seedLock')}
+                            </span>
+                          </button>
+                        ) : null}
                       </div>
-                      {hasMedia && typeof data.lastSeed === 'number' ? (
-                        <button
-                          type="button"
-                          {...KEY_GUARD}
-                          onClick={() =>
-                            updateNodeData(id, { seed: data.lastSeed })
-                          }
-                          className="nodrag mt-1 flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2.5 py-1.5 text-2xs text-node-muted transition-colors hover:text-node-foreground"
-                        >
-                          <span>
-                            {tc('lastSeedLabel')}: {data.lastSeed}
-                          </span>
-                          <span className="flex items-center gap-1 text-node-foreground">
-                            <Lock className="size-3" />
-                            {tc('seedLock')}
-                          </span>
-                        </button>
-                      ) : null}
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        {data.generationError ? (
-          <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-2.5 text-2xs leading-4 text-red-100">
-            {data.generationError}
-          </div>
-        ) : null}
-
-        {/* R3-6b §2 发送图例预览（防黑盒）: read-only mirror of
-          `composer.sendPreview` — same finalPrompt/legend/image_urls pipeline
-          `handleGenerateMediaNode` assembles for real, recomputed live off the
-          same graph state, so it never lies about the覆写/截断-adjusted set
-          that will actually ship. */}
-        <div className="canvas-video-object-studio-send-preview space-y-2">
-          <button
-            type="button"
-            {...KEY_GUARD}
-            onClick={() => setSendPreviewOpen((open) => !open)}
-            aria-expanded={sendPreviewOpen}
-            className="nodrag flex w-full items-center justify-between gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left text-2xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
-          >
-            <span className="flex items-center gap-1.5">
-              <Eye className="size-3.5 shrink-0" />
-              {tc('sendPreview.toggle')}
-            </span>
-            <ChevronDown
-              className={cn(
-                'size-3.5 shrink-0 transition-transform',
-                sendPreviewOpen && 'rotate-180',
-              )}
-            />
-          </button>
-          <div
-            className="node-collapsible"
-            data-open={sendPreviewOpen || undefined}
-          >
-            <div>
-              <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2.5 text-2xs leading-5 text-node-foreground">
-                <div>
-                  <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                    {tc('sendPreview.promptLabel')}
-                  </p>
-                  <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
-                    {composer.sendPreview.translatedPrompt ||
-                      tc('sendPreview.empty')}
-                  </p>
-                </div>
-
-                {composer.sendPreview.legend ? (
-                  <div>
-                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                      {tc('sendPreview.legendLabel')}
-                    </p>
-                    <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
-                      {composer.sendPreview.legend}
-                    </p>
-                  </div>
-                ) : null}
-
-                {composer.sendPreview.images.length > 0 ? (
-                  <div>
-                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                      {tc('sendPreview.imagesLabel', {
-                        count: composer.sendPreview.images.length,
-                      })}
-                    </p>
-                    <ol className="mt-1 flex flex-wrap gap-1.5">
-                      {composer.sendPreview.images.map((image) => (
-                        <li
-                          key={image.url}
-                          className="flex w-16 flex-col items-center gap-1"
-                        >
-                          <span className="node-card-window relative aspect-square w-full overflow-hidden rounded-md border border-node-panel-inner bg-node-card-window">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={image.url}
-                              alt=""
-                              className="size-full object-cover"
-                            />
-                            <span className="absolute left-0.5 top-0.5 rounded-full bg-node-canvas/80 px-1 text-3xs font-semibold text-node-foreground">
-                              {tc('sendPreview.imageBadge', {
-                                index: image.index,
-                              })}
-                            </span>
-                          </span>
-                          <span className="w-full truncate text-center text-3xs text-node-subtle">
-                            {image.name ?? tc('sendPreview.unnamed')}
-                            {image.category ? `（${image.category}）` : ''}
-                          </span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : null}
-
-                {composer.sendPreview.videoUrls.length > 0 ||
-                composer.sendPreview.audioEntries.length > 0 ? (
-                  <div>
-                    <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                      {tc('sendPreview.avLabel')}
-                    </p>
-                    <ul className="mt-1 space-y-0.5 text-3xs text-node-subtle">
-                      {composer.sendPreview.videoUrls.map((url, index) => (
-                        <li key={url}>
-                          {tc('sendPreview.videoBadge', { index: index + 1 })}
-                        </li>
-                      ))}
-                      {composer.sendPreview.audioEntries.map((entry) => (
-                        <li key={entry.index}>
-                          {tc('sendPreview.audioBadge', {
-                            index: entry.index,
-                          })}
-                          {` · ${entry.label}`}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
             </div>
-          </div>
-        </div>
+          </SpecSummaryButton>
 
-        <div className="canvas-video-object-studio-dock">
-          <span className="text-2xs text-node-muted">
-            {tc('studio.sendSummary', {
+          <CameraGrammarButton
+            onInsert={(phrase) => promptRef.current?.insertText(`${phrase} `)}
+          />
+        </div>
+      </div>
+    ),
+
+    relations: (
+      <RelationsStrip
+        uses={downstreamUses}
+        emptyLabel={tDetail('relationsEmptyVideo')}
+        labelOf={(use) => use.name ?? tTypes(use.type)}
+        ariaOf={(name) => tDetail('focusOnCanvas', { name })}
+      />
+    ),
+
+    evidence: (
+      <EvidenceDrawer
+        label={tc('sendPreview.toggle')}
+        count={composer.referenceTokens.length}
+      >
+        <div className="space-y-2.5 rounded-lg border border-node-panel-inner bg-node-panel-soft p-2.5 text-2xs leading-5 text-node-foreground">
+          <div>
+            <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+              {tc('sendPreview.promptLabel')}
+            </p>
+            <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
+              {composer.sendPreview.translatedPrompt || tc('sendPreview.empty')}
+            </p>
+          </div>
+
+          {composer.sendPreview.legend ? (
+            <div>
+              <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tc('sendPreview.legendLabel')}
+              </p>
+              <p className="whitespace-pre-wrap font-mono text-3xs text-node-foreground">
+                {composer.sendPreview.legend}
+              </p>
+            </div>
+          ) : null}
+
+          {composer.sendPreview.images.length > 0 ? (
+            <div>
+              <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tc('sendPreview.imagesLabel', {
+                  count: composer.sendPreview.images.length,
+                })}
+              </p>
+              <ol className="mt-1 flex flex-wrap gap-1.5">
+                {composer.sendPreview.images.map((image) => (
+                  <li
+                    key={image.url}
+                    className="flex w-16 flex-col items-center gap-1"
+                  >
+                    <span className="node-card-window relative aspect-square w-full overflow-hidden rounded-md border border-node-panel-inner bg-node-card-window">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.url}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                      <span className="absolute left-0.5 top-0.5 rounded-full bg-node-canvas/80 px-1 text-3xs font-semibold text-node-foreground">
+                        {tc('sendPreview.imageBadge', {
+                          index: image.index,
+                        })}
+                      </span>
+                    </span>
+                    <span className="w-full truncate text-center text-3xs text-node-subtle">
+                      {image.name ?? tc('sendPreview.unnamed')}
+                      {image.category ? `（${image.category}）` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
+          {composer.sendPreview.videoUrls.length > 0 ||
+          composer.sendPreview.audioEntries.length > 0 ? (
+            <div>
+              <p className="text-3xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {tc('sendPreview.avLabel')}
+              </p>
+              <ul className="mt-1 space-y-0.5 text-3xs text-node-subtle">
+                {composer.sendPreview.videoUrls.map((url, index) => (
+                  <li key={url}>
+                    {tc('sendPreview.videoBadge', { index: index + 1 })}
+                  </li>
+                ))}
+                {composer.sendPreview.audioEntries.map((entry) => (
+                  <li key={entry.index}>
+                    {tc('sendPreview.audioBadge', {
+                      index: entry.index,
+                    })}
+                    {` · ${entry.label}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      </EvidenceDrawer>
+    ),
+
+    dock: (
+      <div className="canvas-detail-dock-bar">
+        {/* 模式名 = 模型契约 × 这一次接了没有（契约 §8）。R6：派生值不穿控件壳。 */}
+        <span className="text-xs font-semibold text-node-foreground">
+          {composer.hasReferenceInputs
+            ? tc('sidecar.modeReference')
+            : tc('sidecar.modeText')}
+        </span>
+        <p
+          className="canvas-detail-dock-reason"
+          data-tone={!isPending && disabledReason ? 'error' : undefined}
+        >
+          {disabledReason ??
+            tc('studio.sendSummary', {
               inputs: composer.referenceTokens.length,
               dropped: composer.sendPreview.dropped.length,
             })}
-          </span>
-          {generateButton}
-        </div>
+        </p>
+        {generateButton}
       </div>
+    ),
 
-      {quickSetup ? (
-        <QuickSetupDialog
-          open={quickSetup.open}
-          onOpenChange={(open) =>
-            setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
-          }
-          modelId={quickSetup.option.modelId}
-          modelLabel={quickSetup.brand}
-          adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
-          optionId={quickSetup.option.optionId}
-          onVerified={() => {
-            setPendingSetupBrand(quickSetup.brand)
-            setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
-          }}
-        />
-      ) : null}
+    overlays: (
+      <>
+        {quickSetup ? (
+          <QuickSetupDialog
+            open={quickSetup.open}
+            onOpenChange={(open) =>
+              setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+            }
+            modelId={quickSetup.option.modelId}
+            modelLabel={quickSetup.brand}
+            adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
+            optionId={quickSetup.option.optionId}
+            onVerified={() => {
+              setPendingSetupBrand(quickSetup.brand)
+              setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
+            }}
+          />
+        ) : null}
 
-      {/* §7.1 ＋添加位 asset library — one dialog for all three cards; the
+        {/* §7.1 ＋添加位 asset library — one dialog for all three cards; the
           pending request's mediaType picks the library (voice → audio). */}
-      {referenceAssetDialog}
+        {referenceAssetDialog}
 
-      {flyingToken && typeof document !== 'undefined'
-        ? createPortal(
-            <AnimatePresence>
-              <motion.div
-                key={`${flyingToken.kind}-fly`}
-                initial={{
-                  x: flyingToken.from.x,
-                  y: flyingToken.from.y,
-                  scale: 1,
-                  opacity: 1,
-                }}
-                animate={{
-                  x: flyingToken.to.x,
-                  y: flyingToken.to.y,
-                  scale: 16 / flyingToken.from.size,
-                  opacity: 0,
-                }}
-                transition={motionTransition('base')}
-                style={{
-                  position: 'fixed',
-                  left: 0,
-                  top: 0,
-                  width: flyingToken.from.size,
-                  height: flyingToken.from.size,
-                  transformOrigin: 'top left',
-                  pointerEvents: 'none',
-                  zIndex: 60,
-                  overflow: 'hidden',
-                  borderRadius:
-                    flyingToken.kind === 'background' ||
-                    flyingToken.kind === 'shot' ||
-                    flyingToken.kind === 'closeup'
-                      ? 8
-                      : 9999,
-                }}
-              >
-                {flyingToken.thumbUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={flyingToken.thumbUrl}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <span
-                    className="flex size-full items-center justify-center text-2xs font-semibold text-node-canvas"
-                    style={{
-                      background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
-                    }}
-                  >
-                    {flyingToken.glyph}
-                  </span>
-                )}
-              </motion.div>
-              <motion.div
-                key={`${flyingToken.kind}-glow`}
-                initial={{ opacity: 0.55, scale: 0.6 }}
-                animate={{ opacity: 0, scale: 2.2 }}
-                transition={motionTransition('base')}
-                style={{
-                  position: 'fixed',
-                  left: 0,
-                  top: 0,
-                  width: 16,
-                  height: 16,
-                  x: flyingToken.to.x,
-                  y: flyingToken.to.y,
-                  borderRadius: 9999,
-                  pointerEvents: 'none',
-                  zIndex: 60,
-                  background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
-                }}
-              />
-            </AnimatePresence>,
-            document.body,
-          )
-        : null}
-    </div>
-  )
+        {flyingToken && typeof document !== 'undefined'
+          ? createPortal(
+              <AnimatePresence>
+                <motion.div
+                  key={`${flyingToken.kind}-fly`}
+                  initial={{
+                    x: flyingToken.from.x,
+                    y: flyingToken.from.y,
+                    scale: 1,
+                    opacity: 1,
+                  }}
+                  animate={{
+                    x: flyingToken.to.x,
+                    y: flyingToken.to.y,
+                    scale: 16 / flyingToken.from.size,
+                    opacity: 0,
+                  }}
+                  transition={motionTransition('base')}
+                  style={{
+                    position: 'fixed',
+                    left: 0,
+                    top: 0,
+                    width: flyingToken.from.size,
+                    height: flyingToken.from.size,
+                    transformOrigin: 'top left',
+                    pointerEvents: 'none',
+                    zIndex: 60,
+                    overflow: 'hidden',
+                    borderRadius:
+                      flyingToken.kind === 'background' ||
+                      flyingToken.kind === 'shot' ||
+                      flyingToken.kind === 'closeup'
+                        ? 8
+                        : 9999,
+                  }}
+                >
+                  {flyingToken.thumbUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={flyingToken.thumbUrl}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className="flex size-full items-center justify-center text-2xs font-semibold text-node-canvas"
+                      style={{
+                        background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
+                      }}
+                    >
+                      {flyingToken.glyph}
+                    </span>
+                  )}
+                </motion.div>
+                <motion.div
+                  key={`${flyingToken.kind}-glow`}
+                  initial={{ opacity: 0.55, scale: 0.6 }}
+                  animate={{ opacity: 0, scale: 2.2 }}
+                  transition={motionTransition('base')}
+                  style={{
+                    position: 'fixed',
+                    left: 0,
+                    top: 0,
+                    width: 16,
+                    height: 16,
+                    x: flyingToken.to.x,
+                    y: flyingToken.to.y,
+                    borderRadius: 9999,
+                    pointerEvents: 'none',
+                    zIndex: 60,
+                    background: TOKEN_PORT_COLOR_VAR[flyingToken.kind],
+                  }}
+                />
+              </AnimatePresence>,
+              document.body,
+            )
+          : null}
+      </>
+    ),
+  }
+
+  // ⚠ 类型上 `children` 是可选的（card 分支不需要它），运行时在 detail 分支
+  // 必然有 —— `SeedanceDetailBody` 是唯一的调用方，且它自己就是槽表提供者。
+  // 这里不做静默兜底：给不出槽就说不出话，比渲染一个空面板诚实。
+  if (!children) {
+    throw new Error('VideoComposer(density="detail") requires a slots renderer')
+  }
+  return <>{children(slots)}</>
 }

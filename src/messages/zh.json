@@ -4158,6 +4158,8 @@
         "endPlaceholder": "整段",
         "startLabelA11y": "第 {n} 段起始秒",
         "endLabelA11y": "第 {n} 段结束秒",
+        "editLabel": "编辑裁剪",
+        "trimmedCount": "已裁 {count} 段",
         "rangeWarning": "结束秒应大于起始秒。",
         "composeHint": "设置了裁剪起止时会切换到 fal compose 端点。起始秒目前 best-effort（fal 暂不暴露源偏移），结束秒可用来截断每段播放长度。"
       },
@@ -4456,8 +4458,17 @@
       "relationsEmptyCharacter": "还没有镜头或视频用到这个角色",
       "relationsEmptyVoice": "还没有角色绑定这个音色",
       "sampleWillSend": "取样将发送",
+      "editParams": "编辑参数",
+      "relationsEmptyVideo": "还没有合进任何片盒",
       "fieldSource": "来源",
-      "reasonNoVoice": "先从声音库挑一个音色。"
+      "reasonNoVoice": "先从声音库挑一个音色。",
+      "relationsEmptyMerge": "还没有节点用到这段合成视频",
+      "relationsEmptyReference": "还没有下游节点在参考这段视频",
+      "fieldClips": "片段",
+      "fieldTrim": "裁剪",
+      "fieldRoute": "路由",
+      "fieldFile": "文件",
+      "fieldConstraints": "格式约束"
     },
     "voiceDetail": {
       "paramsLabel": "基础调节",

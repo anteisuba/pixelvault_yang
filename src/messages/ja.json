@@ -4158,6 +4158,8 @@
         "endPlaceholder": "全長",
         "startLabelA11y": "クリップ {n} の開始秒",
         "endLabelA11y": "クリップ {n} の終了秒",
+        "editLabel": "トリムを編集",
+        "trimmedCount": "{count} 本トリム済み",
         "rangeWarning": "終了秒は開始秒より大きくしてください。",
         "composeHint": "トリムを設定すると fal の compose エンドポイントに切り替わります。開始秒は best-effort（fal はソースオフセットを公開していません）、終了秒で再生長を制限できます。"
       },
@@ -4456,8 +4458,17 @@
       "relationsEmptyCharacter": "まだどのショット・動画にも使われていません",
       "relationsEmptyVoice": "まだどのキャラクターにもバインドされていません",
       "sampleWillSend": "サンプリング時に送信される内容",
+      "editParams": "パラメータを編集",
+      "relationsEmptyVideo": "まだどのリールにもマージされていません",
       "fieldSource": "ソース",
-      "reasonNoVoice": "先にライブラリから音色を選んでください。"
+      "reasonNoVoice": "先にライブラリから音色を選んでください。",
+      "relationsEmptyMerge": "まだどのノードにも使われていません",
+      "relationsEmptyReference": "まだどの下流ノードにも参照されていません",
+      "fieldClips": "クリップ",
+      "fieldTrim": "トリム",
+      "fieldRoute": "ルート",
+      "fieldFile": "ファイル",
+      "fieldConstraints": "フォーマット制限"
     },
     "voiceDetail": {
       "paramsLabel": "基本調整",

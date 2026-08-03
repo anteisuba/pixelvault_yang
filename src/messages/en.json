@@ -4158,6 +4158,8 @@
         "endPlaceholder": "Full",
         "startLabelA11y": "Clip {n} start second",
         "endLabelA11y": "Clip {n} end second",
+        "editLabel": "Edit trim",
+        "trimmedCount": "{count} trimmed",
         "rangeWarning": "End second must be greater than start second.",
         "composeHint": "Adding trims switches the merge to fal's compose endpoint. Start is best-effort (fal does not expose source offset yet); end caps how long each clip plays."
       },
@@ -4456,8 +4458,17 @@
       "relationsEmptyCharacter": "No shot or video uses this character yet",
       "relationsEmptyVoice": "No character is bound to this voice yet",
       "sampleWillSend": "Sampling will send",
+      "editParams": "Edit parameters",
+      "relationsEmptyVideo": "Not merged into any reel yet",
       "fieldSource": "Source",
-      "reasonNoVoice": "Pick a voice from the library first."
+      "reasonNoVoice": "Pick a voice from the library first.",
+      "relationsEmptyMerge": "No node uses this merged video yet",
+      "relationsEmptyReference": "No downstream node references this video yet",
+      "fieldClips": "Clips",
+      "fieldTrim": "Trim",
+      "fieldRoute": "Route",
+      "fieldFile": "File",
+      "fieldConstraints": "Format limits"
     },
     "voiceDetail": {
       "paramsLabel": "Adjustments",

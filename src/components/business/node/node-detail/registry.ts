@@ -1,5 +1,3 @@
-import type { ComponentType } from 'react'
-
 import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
@@ -25,47 +23,66 @@ export interface NodeDetailBodyProps {
 }
 
 /**
- * 方向 E 的槽表登记处 —— 迁移期与下面那张 `NODE_DETAIL_REGISTRY` **并存**。
+ * 详情面板可呈现的族。
  *
- * 壳的分发规则：这张表里有该族 → 走七槽骨架；没有 → 走 legacy（整块 body 塞进编排台槽）。
- * 于是**共存粒度是族、不是槽**：任一时刻打开任意一个面板，要么全新要么全旧，
- * 永远不出现一个面板里一半新一半旧。
- *
- * ⚠ 迁移完成前不要动 `NODE_DETAIL_REGISTRY` 的任何一条 —— `registry.test.ts` 有一条
- * 「＋添加 菜单能建的类型必须有专属 body」的对齐断言靠它。两张表在 S8 收尾时合一：
- * 那时改成穷举的 `Record<NodeWorkflowNodeType, …>`，让「新增族忘了给关系带」变成
- * 编译错误，而不是线上整族缺席。
+ * ⚠ `composer` / `agent` 排除在外：它们是已退役的旧 planner，enum 值必须留着
+ * （存量项目里还有这类节点，删了会让整份 state parse 失败 —— 见
+ * `node-types.ts` 那段长注释），但两条水化路径都会在渲染前把它们剥掉，
+ * **详情面板永远够不着它们**。给它们编一个 body 只会是死代码。
  */
-export const NODE_DETAIL_SLOT_REGISTRY: Partial<
-  Record<NodeWorkflowNodeType, NodeDetailSlotProvider>
+export type NodeDetailFamily = Exclude<
+  NodeWorkflowNodeType,
+  typeof NODE_TYPE_IDS.composer | typeof NODE_TYPE_IDS.agent
+>
+
+/**
+ * 族 → 七槽提供者。**穷举**（S8，2026-08-04）。
+ *
+ * ⚠ 类型是 `Record<NodeDetailFamily, …>` 而不是 `Partial<…>`，这是整轮改版
+ * 唯一一条把契约立进编译器的地方：新增一个族却忘了给它槽表，**编译就过不去**，
+ * 而不是线上打开面板发现关系带整族缺席。
+ *
+ * 这条闸门是有前科的：原型阶段 `rRelations()` 对散图族写过 `return ''`，
+ * 把关系带整族抹掉，而其余四族都留了一行 —— 同一条规则在新旧族上分岔，
+ * 谁都没报错。类型层堵第一道，`slots.ts` 的 `relations`/`evidence` 必填堵第二道，
+ * 每族一条 DOM 序断言堵第三道。
+ *
+ * ⚠ 迁移期那张 `NODE_DETAIL_REGISTRY` 与 `GenericDetailBody` 已随本片删除。
+ * 别把「兜底 body」加回来：兜底的代价是新族静默落进一个谁也没设计过的面板，
+ * 而那正是这轮改版开头查出来的病（shotText 曾落 `GenericDetailBody`，
+ * 结果那个面板**从画布上根本够不着**，四个字段既看不到也改不了）。
+ */
+export const NODE_DETAIL_SLOT_REGISTRY: Record<
+  NodeDetailFamily,
+  NodeDetailSlotProvider
 > = {
   // S3（2026-08-04）：十族里第一个迁到七槽的。
   [NODE_TYPE_IDS.shotText]: ShotTextDetailBody,
-  // S4（2026-08-04）：图片五族。前四族共用 `ImageFamilyBody`，
-  // 角色族因为七槽里只有身份条与它们同构而自成一份（见该文件头注）。
+  // S4：图片五族。前四族共用 `ImageFamilyBody`，角色族因为七槽里只有身份条
+  // 与它们同构而自成一份（见该文件头注）。
   [NODE_TYPE_IDS.image]: LooseImageDetailBody,
   [NODE_TYPE_IDS.shot]: ShotDetailBody,
   [NODE_TYPE_IDS.frameImage]: FrameDetailBody,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
   [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
-  // S5（2026-08-04）：音色族。
+  // S5：音色族。
   [NODE_TYPE_IDS.voice]: VoiceDetailBody,
+  // S6：视频合并 + 参考视频（参数一颗按钮的试验场）。
+  [NODE_TYPE_IDS.videoMerge]: VideoMergeDetailBody,
+  [NODE_TYPE_IDS.videoReference]: VideoReferenceDetailBody,
+  // S7：最重的一族。内容仍住在 `VideoComposer` 里，那里只做了重排。
+  [NODE_TYPE_IDS.seedance]: VideoDetailBody,
 }
 
 /**
- * Per-node-type detail body for the shared ⤢ floating panel (B3). Types not
- * listed fall back to `GenericDetailBody` (model + fields + action). Deferred
- * rich bodies (character 音色集, background 环境音) add an entry here with no
- * panel changes.
+ * `presentationType` 是否是一个详情面板认识的族。
+ *
+ * ⚠ 存在的理由不是「防 composer/agent」——那两个类型在渲染前就被剥掉了。
+ * 是因为 `presentationType` 最终来自**持久化数据**：一个来自未来版本、
+ * 本地枚举还不认识的 type 应当让面板不开，而不是把 `undefined` 当组件渲染。
  */
-export const NODE_DETAIL_REGISTRY: Partial<
-  Record<NodeWorkflowNodeType, ComponentType<NodeDetailBodyProps>>
-> = {
-  [NODE_TYPE_IDS.seedance]: VideoDetailBody,
-  [NODE_TYPE_IDS.videoMerge]: VideoMergeDetailBody,
-  [NODE_TYPE_IDS.videoReference]: VideoReferenceDetailBody,
-  // ⚠ shotText（S3）· 图片五族（S4）· 音色（S5）已迁到上面的 NODE_DETAIL_SLOT_REGISTRY。
-  // 一个族只能在一张表里 —— 槽表提供者的签名带 children 渲染函数，
-  // 塞进 legacy 表会类型不兼容（`registry.test.ts` 有一条断言守着这件事）。
-  // 剩下三族在 S6–S7 迁完后这张表连同 `GenericDetailBody` 一起删。
+export function isNodeDetailFamily(
+  type: NodeWorkflowNodeType,
+): type is NodeDetailFamily {
+  return type in NODE_DETAIL_SLOT_REGISTRY
 }

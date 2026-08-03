@@ -1,4 +1,12 @@
-import type { ReactNode } from 'react'
+import {
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import {
   afterEach,
@@ -242,11 +250,98 @@ vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
 }))
 
+// ⚠ S7 起 detail 分支通过 `useDownstreamUses` 直接读 React Flow 的 store
+// （关系带「被哪些节点用」）。本文件不套 ReactFlowProvider，所以在这里给桩，
+// 否则每一条 detail 用例都会死在 zustand provider 缺失上。
+vi.mock('@xyflow/react', () => ({
+  useNodes: () => [],
+  useEdges: () => [],
+}))
+
+// Radix Popover 在 jsdom 里不会被合成 click 打开（本文件对 dropdown-menu 已有
+// 同样的注记）。参数与模型都收进了它（契约 §8「参数收成一颗按钮」），所以这里
+// 给一个**行为等价**的桩而不是摊平：保留开合语义与 `aria-expanded`，
+// 只把「怎么打开」换成同步的 click —— 否则要么测不到浮层里的控件（摊平前），
+// 要么把紧凑侧车那条 `aria-expanded` 断言测没了（摊平后）。
+vi.mock('@/components/ui/responsive-popover', () => {
+  const Ctx = createContext<{ open: boolean; toggle: () => void }>({
+    open: false,
+    toggle: () => {},
+  })
+  return {
+    ResponsivePopover: ({
+      children,
+      open,
+      onOpenChange,
+    }: {
+      children: ReactNode
+      open?: boolean
+      onOpenChange?: (next: boolean) => void
+    }) => {
+      const [internal, setInternal] = useState(false)
+      const isOpen = open ?? internal
+      const toggle = () => {
+        setInternal(!isOpen)
+        onOpenChange?.(!isOpen)
+      }
+      return (
+        <Ctx.Provider value={{ open: isOpen, toggle }}>{children}</Ctx.Provider>
+      )
+    },
+    ResponsivePopoverTrigger: ({ children }: { children: ReactNode }) => {
+      const { open, toggle } = useContext(Ctx)
+      return isValidElement(children)
+        ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+            'aria-expanded': open,
+            onClick: toggle,
+          })
+        : children
+    },
+    ResponsivePopoverContent: ({ children }: { children: ReactNode }) => {
+      const { open } = useContext(Ctx)
+      return open ? <div>{children}</div> : null
+    },
+  }
+})
+
 import { VideoComposer } from './VideoComposer'
+
+/**
+ * S7 起 `density='detail'` 是**槽表提供者** —— 它自己不产出 DOM，必须给
+ * children 渲染函数。这里把七个槽平铺出来（不套 `NodeDetailFrame`），
+ * 让本文件既有的按文案/角色查询继续成立；槽序另有 `NodeDetailPanel.test`
+ * 与各族自己的断言守着。
+ */
+function detailTree(data: NodeWorkflowNodeData, id = 'v1') {
+  return (
+    <VideoComposer id={id} data={data} density="detail">
+      {(slots) => (
+        <>
+          {slots.stage}
+          {slots.rack}
+          {slots.desk}
+          {slots.relations}
+          {slots.evidence}
+          {slots.dock}
+          {slots.overlays}
+        </>
+      )}
+    </VideoComposer>
+  )
+}
+
+/**
+ * 打开「参数」那颗按钮的浮层（契约 §8：时长/分辨率/画幅/生成音频/种子全部
+ * 收在这一颗里，一级面上只剩一行摘要）。迁移前它们是四颗 OSD 胶囊 + 五个
+ * `.node-collapsible` 手风琴段。
+ */
+function openParams() {
+  fireEvent.click(screen.getByRole('button', { name: 'editParams' }))
+}
 
 function renderDetail() {
   const data = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
-  return render(<VideoComposer id="v1" data={data} density="detail" />)
+  return render(detailTree(data))
 }
 
 function renderCompact(patch: Partial<NodeWorkflowNodeData> = {}) {
@@ -404,62 +499,52 @@ describe('VideoComposer references row (detail)', () => {
     spawnReference.mockClear()
   })
 
-  it('renders the approved object-studio split instead of the legacy stacked detail', () => {
-    const { container } = renderDetail()
+  /**
+   * ⚠ S7 换了被测的东西：两轨 object-studio 版式已被七槽骨架取代，四个
+   * `StudioSectionHeading` 也随 R1「一级面零标题预算」删掉。这条改测
+   * 「该出现的内容还在不在、落在哪个槽」——版式是实现，内容与槽位才是契约。
+   */
+  it('七个槽各自拿到该拿的内容（监视器/素材/提示词/模式）', () => {
+    renderDetail()
 
-    const studio = screen.getByTestId('video-object-studio')
-    const mediaRail = within(studio).getByTestId(
-      'video-object-studio-media-rail',
-    )
-    const taskRail = within(studio).getByTestId('video-object-studio-task-rail')
-
-    expect(studio).toHaveClass('canvas-object-studio-grid')
+    // 主体台：监视器空态 —— R2 只许一枚极淡字形，**不许**解释文案
+    expect(screen.queryByText('monitor.empty')).toBeNull()
+    expect(document.querySelector('.canvas-detail-well')).not.toBeNull()
+    // 编排台：提示词
     expect(
-      within(mediaRail).getByRole('heading', {
-        name: 'studio.currentFilm',
-      }),
+      screen.getByRole('textbox', { name: 'prompt.label' }),
     ).toBeInTheDocument()
-    expect(
-      within(mediaRail).getByRole('heading', {
-        name: 'studio.sentAssets',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      within(taskRail).getByRole('heading', {
-        name: 'studio.composition',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      within(taskRail).getByRole('heading', {
-        name: 'studio.modelParameters',
-      }),
-    ).toBeInTheDocument()
-    expect(within(mediaRail).getByText('monitor.empty')).toBeInTheDocument()
-    expect(
-      within(taskRail).getByRole('textbox', { name: 'prompt.label' }),
-    ).toBeInTheDocument()
-    expect(
-      container.querySelector('.canvas-video-object-studio-legacy-stack'),
-    ).not.toBeInTheDocument()
+    // 动作坞：模式名（派生值，纯文本无控件壳）
+    expect(screen.getByText('sidecar.modeText')).toBeInTheDocument()
+    // R1：四个槽标题全不出现
+    for (const heading of [
+      'studio.currentFilm',
+      'studio.sentAssets',
+      'studio.composition',
+      'studio.modelParameters',
+    ]) {
+      expect(screen.queryByRole('heading', { name: heading })).toBeNull()
+    }
   })
 
-  it('keeps the model picker collapsed once a brand is selected', () => {
+  /**
+   * ⚠ 六个 `.node-collapsible` 已随 §8「参数收成一颗按钮」全部消失。模型 rail
+   * 现在住在一颗 chip 的浮层里 —— 收起 = 不在 DOM 里（而不是 `data-open` 收着
+   * 却仍可 Tab 进去回车触发，那是旧折叠体的老毛病）。
+   */
+  it('模型 rail 默认不在 DOM 里，chip 标签就是当前模型', () => {
     const { container } = renderDetail()
-    // Compact chip is shown; the rail stays in the DOM but collapsed (no data-open).
     expect(screen.getByText('Seedance · variant.fast')).toBeInTheDocument()
-    expect(container.querySelector('.node-collapsible')).not.toHaveAttribute(
-      'data-open',
-    )
+    expect(container.querySelector('.node-collapsible')).toBeNull()
+    expect(screen.queryByText('modelRail.label')).toBeNull()
   })
 
-  it('expands the model rail when the compact chip is clicked', () => {
-    const { container } = renderDetail()
+  it('点模型 chip 打开 rail 浮层', () => {
+    renderDetail()
     fireEvent.click(
       screen.getByText('Seedance · variant.fast').closest('button')!,
     )
-    expect(container.querySelector('.node-collapsible')).toHaveAttribute(
-      'data-open',
-    )
+    expect(screen.getByText('modelRail.label')).toBeInTheDocument()
   })
 
   it('renders REFERENCED tokens as named @token thumbnail chips in the strip (V-3a §8)', () => {
@@ -571,7 +656,7 @@ describe('VideoComposer references row (detail)', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '新名字', token: '@新名字' },
     ]
-    render(<VideoComposer id="v1" data={data} density="detail" />)
+    render(detailTree(data, 'v1'))
 
     // No drift affordance renders anymore.
     expect(
@@ -700,6 +785,7 @@ describe('VideoComposer references row (detail)', () => {
 
   it('toggles generate_audio onto node data', () => {
     renderDetail()
+    openParams()
     fireEvent.click(screen.getByRole('switch', { name: 'generateAudioLabel' }))
     expect(updateNodeData).toHaveBeenCalledWith('v1', { generateAudio: false })
   })
@@ -712,7 +798,8 @@ describe('VideoComposer references row (detail)', () => {
       mediaUrl: 'https://cdn.test/clip.mp4',
       lastSeed: 777,
     } as unknown as NodeWorkflowNodeData
-    render(<VideoComposer id="v1" data={data} density="detail" />)
+    render(detailTree(data, 'v1'))
+    openParams()
 
     expect(screen.getByText('lastSeedLabel: 777')).toBeInTheDocument()
     const lockButton = screen.getByText('seedLock').closest('button')
@@ -729,9 +816,16 @@ describe('VideoComposer monitor (detail, §4 C4)', () => {
     updateNodeData.mockClear()
   })
 
-  it('shows the empty-state hint when there is no media yet', () => {
-    renderDetail()
-    expect(screen.getByText('monitor.empty')).toBeInTheDocument()
+  /**
+   * ⚠ 反过来了：详情面板走静默档（`quiet`），R2「空态：占几何可以，占内容不行」
+   * 明写禁「生成后在此预览」这类解释文案、禁四角取景框。几何照留（同尺寸同圆角
+   * 同底），只把内容像素换成一枚极淡字形。卡层监视器不受影响。
+   */
+  it('空态只留几何与一枚极淡字形，不留解释文案与取景框', () => {
+    const { container } = renderDetail()
+    expect(screen.queryByText('monitor.empty')).toBeNull()
+    expect(container.querySelectorAll('.node-monitor-corner')).toHaveLength(0)
+    expect(container.querySelector('.canvas-detail-well')).not.toBeNull()
     expect(document.querySelector('video')).toBeNull()
   })
 
@@ -742,7 +836,7 @@ describe('VideoComposer monitor (detail, §4 C4)', () => {
       mediaUrl: 'https://cdn.test/clip.mp4',
       videoThumbnailUrl: 'https://cdn.test/clip-thumb.webp',
     } as unknown as NodeWorkflowNodeData
-    render(<VideoComposer id="v1" data={data} density="detail" />)
+    render(detailTree(data, 'v1'))
 
     const video = document.querySelector('video')
     expect(video).toHaveAttribute('src', 'https://cdn.test/clip.mp4')
@@ -755,13 +849,11 @@ describe('VideoComposer monitor (detail, §4 C4)', () => {
       prompt: '',
       status: 'running',
     } as unknown as NodeWorkflowNodeData
-    const { rerender } = render(
-      <VideoComposer id="v1" data={runningData} density="detail" />,
-    )
+    const { rerender } = render(detailTree(runningData, 'v1'))
     expect(screen.getByText('monitor.rec 00:00:00')).toBeInTheDocument()
 
     const idleData = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
-    rerender(<VideoComposer id="v1" data={idleData} density="detail" />)
+    rerender(detailTree(idleData, 'v1'))
     expect(screen.queryByText('monitor.rec 00:00:00')).not.toBeInTheDocument()
   })
 })
@@ -789,15 +881,17 @@ describe('VideoComposer send preview (R3-6b §2)', () => {
     }
   })
 
-  it('starts collapsed and expands on click', () => {
-    const { container } = renderDetail()
+  /**
+   * ⚠ 反过来了：迁移前发送预览默认**收起**（「诊断信息，不是主流程」）。
+   * 契约把「这次真正会送出什么」列为本轮改版的核心诉求，`slots.ts` 明写
+   * 「默认视图里必须看得见」——所以证据抽屉默认展开，点一下才收。
+   */
+  it('默认展开，点一下收起', () => {
+    renderDetail()
     const toggle = screen.getByRole('button', { name: /sendPreview.toggle/ })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(
-      container.querySelectorAll('.node-collapsible[data-open]').length,
-    ).toBeGreaterThan(0)
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('shows the translated prompt and legend text from sendPreview', () => {
@@ -807,14 +901,12 @@ describe('VideoComposer send preview (R3-6b §2)', () => {
       legend: '参考素材说明：\n@Image1：角色「凛」',
     }
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /sendPreview.toggle/ }))
     expect(screen.getByText('@Image1（凛） 走进房间')).toBeInTheDocument()
     expect(screen.getByText(/参考素材说明/)).toBeInTheDocument()
   })
 
   it('falls back to the empty hint when there is no translated prompt', () => {
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /sendPreview.toggle/ }))
     expect(screen.getByText('sendPreview.empty')).toBeInTheDocument()
   })
 
@@ -831,7 +923,6 @@ describe('VideoComposer send preview (R3-6b §2)', () => {
       ],
     }
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /sendPreview.toggle/ }))
     expect(screen.getByText('sendPreview.imageBadge')).toBeInTheDocument()
     expect(screen.getByText('凛')).toBeInTheDocument()
   })
@@ -843,7 +934,6 @@ describe('VideoComposer send preview (R3-6b §2)', () => {
       audioEntries: [{ index: 1, label: '旁白' }],
     }
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /sendPreview.toggle/ }))
     expect(screen.getByText(/sendPreview.videoBadge/)).toBeInTheDocument()
     expect(screen.getByText(/sendPreview.audioBadge/)).toBeInTheDocument()
   })
@@ -868,63 +958,52 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
     ).toHaveLength(0)
   })
 
-  it('opens exactly one OSD segment per click and closes it on a repeat click', () => {
+  /**
+   * ⚠ 手风琴没了。迁移前四颗 OSD 胶囊共享一个 `openSection`，一次只能开一段；
+   * 契约 §8「参数收成一颗按钮」把四段合成**一颗**按钮的一个浮层 ——
+   * 「同时只能开一个」这条规则连同它要解决的问题一起消失了。
+   * 现在要验的是：一级面上只剩一行摘要，控件全在浮层里，且开合是这一颗说了算。
+   */
+  it('一级面只有一行摘要，四段参数全在同一颗按钮的浮层里', () => {
     const { container } = renderDetail()
-    const modelPill = screen.getByRole('button', {
-      name: /^modelRail\.label:/,
-    })
+    const chip = screen.getByRole('button', { name: 'editParams' })
 
-    fireEvent.click(modelPill)
-    expect(modelPill).toHaveAttribute('aria-expanded', 'true')
-    expect(
-      container.querySelectorAll('.node-collapsible[data-open]'),
-    ).toHaveLength(1)
+    // 关着的时候：控件一个都不在 DOM 里（不是收着仍可 Tab 进去）。
+    expect(chip).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('switch', { name: 'duration.custom' })).toBeNull()
+    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(0)
 
-    fireEvent.click(modelPill)
-    expect(modelPill).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-expanded', 'true')
+    // 四段一起在场 —— 不再有「开了这段就收起那段」。
     expect(
-      container.querySelectorAll('.node-collapsible[data-open]'),
-    ).toHaveLength(0)
+      screen.getByRole('switch', { name: 'duration.custom' }),
+    ).toBeInTheDocument()
+    expect(resolutionOptionButtons(container).length).toBeGreaterThan(0)
+    expect(aspectOptionButtons(container).length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole('switch', { name: 'generateAudioLabel' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('seedRandom')).toBeInTheDocument()
   })
 
-  it('opening a second OSD segment closes the first (accordion, not independent toggles)', () => {
-    const { container } = renderDetail()
-    const modelPill = screen.getByRole('button', {
-      name: /^modelRail\.label:/,
-    })
-    const durationPill = screen.getByRole('button', {
-      name: /^duration\.label:/,
-    })
-
-    fireEvent.click(modelPill)
-    fireEvent.click(durationPill)
-
-    expect(modelPill).toHaveAttribute('aria-expanded', 'false')
-    expect(durationPill).toHaveAttribute('aria-expanded', 'true')
-    // Only the duration section's `.node-collapsible` carries `data-open` —
-    // the model rail's collapsed back down, not left open behind it.
-    expect(
-      container.querySelectorAll('.node-collapsible[data-open]'),
-    ).toHaveLength(1)
-  })
-
-  it('resolution and aspect pills fall back to the shared 自动/aspectAuto copy when unset', () => {
+  /**
+   * R8：摘要串只放**已设的**值、用 `·` 串、不写字段名；一项都没设时回落
+   * 「编辑参数」。迁移前每颗胶囊各自显示「字段名: 值」，未设时显示 `aspectAuto`
+   * —— 那是把「没设」说成了一个值。
+   */
+  it('摘要空态回落「编辑参数」，不把未设说成一个值', () => {
     renderDetail()
     expect(
-      screen.getByRole('button', { name: 'resolutionLabel: aspectAuto' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'aspectRatioLabel: aspectAuto' }),
-    ).toBeInTheDocument()
+      screen.getByRole('button', { name: 'editParams' }),
+    ).toHaveTextContent('editParams')
+    expect(screen.queryByText(/resolutionLabel:/)).toBeNull()
+    expect(screen.queryByText(/aspectRatioLabel:/)).toBeNull()
   })
 
   it('turns custom duration on and back off to provider auto', () => {
     renderDetail()
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /^duration\.label:/,
-      }),
-    )
+    openParams()
 
     const customDuration = screen.getByRole('switch', {
       name: 'duration.custom',
@@ -942,18 +1021,16 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
       status: 'idle',
       duration: '10',
     } as NodeWorkflowNodeData
-    const { unmount } = render(
-      <VideoComposer id="v2" data={customData} density="detail" />,
-    )
+    const { unmount } = render(detailTree(customData, 'v2'))
     fireEvent.click(
       screen.getAllByRole('button', {
-        name: /^duration\.label:/,
+        name: 'editParams',
       })[1] as HTMLButtonElement,
     )
     const customSwitches = screen.getAllByRole('switch', {
       name: 'duration.custom',
     })
-    const customDurationOn = customSwitches[1]
+    const customDurationOn = customSwitches[customSwitches.length - 1]
     expect(customDurationOn).toBeChecked()
     fireEvent.click(customDurationOn)
     expect(updateNodeData).toHaveBeenLastCalledWith(
@@ -961,38 +1038,6 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
       expect.objectContaining({ duration: 'auto' }),
     )
     unmount()
-  })
-
-  it('seed collapses independently of the OSD accordion (own toggle, not a 5th segment)', () => {
-    const data = {
-      prompt: '',
-      status: 'idle',
-      model: { modelId: AI_MODELS.SEEDANCE_20 },
-    } as unknown as NodeWorkflowNodeData
-    const { container } = render(
-      <VideoComposer id="v1" data={data} density="detail" />,
-    )
-
-    // Collapsed summary reads the random/current-value fallback (§4 C5).
-    expect(screen.getByText('seedRandom')).toBeInTheDocument()
-
-    const modelPill = screen.getByRole('button', {
-      name: /^modelRail\.label:/,
-    })
-    const seedToggle = screen.getByText('seedRandom').closest('button')!
-
-    // Opening the OSD model section does NOT open seed, and vice versa —
-    // independent state, confirmed by data-open count staying additive.
-    fireEvent.click(modelPill)
-    expect(seedToggle).toHaveAttribute('aria-expanded', 'false')
-
-    fireEvent.click(seedToggle)
-    expect(seedToggle).toHaveAttribute('aria-expanded', 'true')
-    // Model's section is still open too — seed doesn't fight it for the slot.
-    expect(modelPill).toHaveAttribute('aria-expanded', 'true')
-    expect(
-      container.querySelectorAll('.node-collapsible[data-open]'),
-    ).toHaveLength(2)
   })
 })
 
@@ -1027,97 +1072,77 @@ describe('VideoComposer 参数能力 gate', () => {
   })
 
   afterEach(() => {
-    // Every test below closes exactly one flag; restore all three so the rest
-    // of the file keeps its fully-supported contract.
+    // 每条只关一个开关；跑完全部还原，后面的用例仍拿到全支持的契约。
     parameters.duration = true
     parameters.resolution = true
     parameters.aspectRatio = true
   })
 
-  it('drops the resolution pill AND its collapsible body when the contract sends no resolution', () => {
+  /**
+   * ⚠ 断言的**意图**没变：契约不发的参数不许出现，而且必须连**控件本体**一起
+   * 消失 —— 迁移前 `.node-collapsible` 只动 grid-template-rows，收起的段落
+   * 控件仍在 DOM 里、仍能 Tab 进去回车触发，所以「收起」不等于「gate 掉」。
+   * 变的是查法：胶囊没了，改成打开那一颗参数按钮再查控件。
+   * 真实案例：Kling V3/O3 Pro 不发 resolution（fal 端点 schema 里就没有这个
+   * 输入），而能力表还挂着名义上的 `supportedResolutions: ['1080p']`；
+   * Gemini Omni Flash 不发 duration。
+   */
+  it('契约不发分辨率时，选项本体也不出现', () => {
     parameters.resolution = false
     const data = {
       prompt: '',
       status: 'idle',
       model: { modelId: AI_MODELS.KLING_V3_PRO },
     } as unknown as NodeWorkflowNodeData
-    const { container } = render(
-      <VideoComposer id="v1" data={data} density="detail" />,
-    )
+    const { container } = render(detailTree(data, 'v1'))
+    openParams()
 
-    expect(
-      screen.queryByRole('button', { name: /^resolutionLabel:/ }),
-    ).not.toBeInTheDocument()
-    // Asserted against the raw DOM, not `*ByRole` — a collapsed section's
-    // option buttons are still in the markup (verified: pre-fix this returned
-    // KLING's nominal 1080p) yet `*ByRole` does not match them, so a role
-    // query here would pass whether or not the body were gated.
     expect(resolutionOptionButtons(container)).toHaveLength(0)
-    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
-
-    // The segments the contract does support are untouched.
+    // 契约支持的那两项不受影响。
     expect(
-      screen.getByRole('button', { name: /^duration\.label:/ }),
+      screen.getByRole('switch', { name: 'duration.custom' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /^aspectRatioLabel:/ }),
-    ).toBeInTheDocument()
+    expect(aspectOptionButtons(container).length).toBeGreaterThan(0)
   })
 
-  it('drops the duration pill AND its collapsible body when the contract sends no duration', () => {
+  it('契约不发时长时，滑条与自定义开关一起消失', () => {
     parameters.duration = false
     const data = {
       prompt: '',
       status: 'idle',
       model: { modelId: AI_MODELS.GEMINI_OMNI_FLASH },
     } as unknown as NodeWorkflowNodeData
-    const { container } = render(
-      <VideoComposer id="v1" data={data} density="detail" />,
-    )
+    const { container } = render(detailTree(data, 'v1'))
+    openParams()
 
-    expect(
-      screen.queryByRole('button', { name: /^duration\.label:/ }),
-    ).not.toBeInTheDocument()
-    // The slider (and its 自定义 switch) must go with the pill — left behind,
-    // it would still be draggable to a duration the request never carries.
+    // 滑条留在原地的话，用户仍能把它拖到一个请求里根本不带的时长上。
     expect(container.querySelectorAll('.node-duration-slider')).toHaveLength(0)
-    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
+    expect(screen.queryByRole('switch', { name: 'duration.custom' })).toBeNull()
   })
 
-  it('drops the aspect pill AND its collapsible body when the contract sends no aspect ratio', () => {
+  it('契约不发画幅时，画幅选项也不出现', () => {
     parameters.aspectRatio = false
     const data = {
       prompt: '',
       status: 'idle',
       model: { modelId: AI_MODELS.SEEDANCE_20 },
     } as unknown as NodeWorkflowNodeData
-    const { container } = render(
-      <VideoComposer id="v1" data={data} density="detail" />,
-    )
+    const { container } = render(detailTree(data, 'v1'))
+    openParams()
 
-    expect(
-      screen.queryByRole('button', { name: /^aspectRatioLabel:/ }),
-    ).not.toBeInTheDocument()
     expect(aspectOptionButtons(container)).toHaveLength(0)
-    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(5)
   })
 
-  it('still renders the resolution section when the contract does send it', () => {
+  it('契约发分辨率时三档都可达', () => {
     const data = {
       prompt: '',
       status: 'idle',
       model: { modelId: AI_MODELS.SEEDANCE_20 },
     } as unknown as NodeWorkflowNodeData
-    const { container } = render(
-      <VideoComposer id="v1" data={data} density="detail" />,
-    )
+    const { container } = render(detailTree(data, 'v1'))
+    openParams()
 
-    const pill = screen.getByRole('button', { name: /^resolutionLabel:/ })
-    expect(pill).toBeInTheDocument()
-    expect(container.querySelectorAll('.node-collapsible')).toHaveLength(6)
-    // Seedance 2.0 publishes 480p/720p/1080p — all three reachable once the
-    // pill opens its section.
-    fireEvent.click(pill)
+    // Seedance 2.0 公布 480p/720p/1080p。
     expect(resolutionOptionButtons(container)).toHaveLength(3)
   })
 })
@@ -1159,7 +1184,7 @@ describe('VideoComposer C1 场记条 (R3-8)', () => {
       prompt: '',
       status: 'failed',
     } as unknown as NodeWorkflowNodeData
-    render(<VideoComposer id="v1" data={data} density="detail" />)
+    render(detailTree(data, 'v1'))
     expect(screen.getByText('failed')).toBeInTheDocument()
   })
 })

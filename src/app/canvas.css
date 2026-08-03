@@ -2722,6 +2722,40 @@
   /* 槽**内**距（R12 的 1 那一档）。 */
   gap: 10px;
 }
+/* 短值/可编辑派生值的 chip 形（R10：同层同形；**描边不实心** ——
+   全屏唯一的实心元素归动作坞的主动作）。 */
+.domain-canvas .canvas-detail-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--canvas-detail-bd);
+  border-radius: 999px;
+  padding: 5px 13px;
+  background: var(--canvas-detail-s0);
+  color: var(--canvas-detail-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.domain-canvas .canvas-detail-chip-value {
+  overflow: hidden;
+  /* R8：单行不折行。折行的那一刻它就不是一颗按钮了，是又一块面板。 */
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.domain-canvas .canvas-detail-chip[data-unset] .canvas-detail-chip-value {
+  font-weight: 400;
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-chip:disabled {
+  color: var(--canvas-detail-ink-2);
+  cursor: not-allowed;
+}
+.domain-canvas .canvas-detail-krow-input[data-invalid] {
+  box-shadow:
+    var(--canvas-detail-shadow-card),
+    inset 0 0 0 1px var(--canvas-detail-red);
+}
 
 /* 参考图行 —— R1 行首左置标签 + 一排等尺寸方块；R5 每项常驻控件收敛到 1 颗。
    ⚠ 三家（Krea/LibTV/UpDream）都靠 hover 显形，我们不能抄：已拍板控件必须常显，

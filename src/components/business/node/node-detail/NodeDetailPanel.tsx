@@ -17,9 +17,8 @@ import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
-import { GenericDetailBody } from './GenericDetailBody'
 import { NodeDetailFrame } from './NodeDetailFrame'
-import { NODE_DETAIL_REGISTRY, NODE_DETAIL_SLOT_REGISTRY } from './registry'
+import { isNodeDetailFamily, NODE_DETAIL_SLOT_REGISTRY } from './registry'
 
 interface NodeDetailPanelProps {
   expandedNodeId: string | null
@@ -128,12 +127,16 @@ export function NodeDetailPanel({
   const transition = motionTransition('slow', reducedMotion)
 
   /**
-   * 分发：族在槽表里 → 走七槽骨架；不在 → 走 legacy（整块 body 塞进编排台槽）。
+   * 分发：查槽表拿该族的提供者，交给它填七槽。
    *
-   * ⚠ 共存粒度是**族**不是槽 —— 任一时刻打开任意面板，要么全新要么全旧。
-   * legacy 分支的 relations/evidence 显式传 `undefined`（组级不适用），
-   * 因为旧 body 把这两槽的内容混在自己那棵树里，壳无从拆分；
-   * 迁移到槽表时才由该族补齐（契约「关系带与证据抽屉必须全族有位」）。
+   * ⚠ 槽表是**穷举**的（S8），没有 legacy 分支也没有兜底 body ——
+   * 缺一个族在编译期就过不去。别把兜底加回来：兜底的代价是新族静默落进一个
+   * 谁也没设计过的面板，而那正是这轮改版开头查出来的病。
+   *
+   * ⚠ 仍然做一次运行时判空并返回 null：`presentationType` 来自
+   * `resolveNodePresentationType`，理论上恒在表内，但它读的是持久化数据 ——
+   * 一个来自未来版本、本地枚举还不认识的 type 应当让面板不开，
+   * 而不是把 `undefined` 当组件渲染然后整棵树崩。
    *
    * ⚠ `key={presentationType}`：换族时强制卸载重挂 provider，
    * 避免不同族的 provider 之间 hook 顺序错位。**不要**用随 data 变化的 key
@@ -141,31 +144,17 @@ export function NodeDetailPanel({
    */
   const renderFrame = (identity: ReactNode) => {
     if (!node || !presentationType) return null
-    const SlotProvider = NODE_DETAIL_SLOT_REGISTRY?.[presentationType]
-    if (SlotProvider) {
-      return (
-        <SlotProvider
-          key={presentationType}
-          nodeId={node.id}
-          type={presentationType}
-          data={node.data}
-        >
-          {(slots) => <NodeDetailFrame identity={identity} slots={slots} />}
-        </SlotProvider>
-      )
-    }
-    const Body = NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
+    if (!isNodeDetailFamily(presentationType)) return null
+    const SlotProvider = NODE_DETAIL_SLOT_REGISTRY[presentationType]
     return (
-      <NodeDetailFrame
-        identity={identity}
-        slots={{
-          desk: (
-            <Body nodeId={node.id} type={presentationType} data={node.data} />
-          ),
-          relations: undefined,
-          evidence: undefined,
-        }}
-      />
+      <SlotProvider
+        key={presentationType}
+        nodeId={node.id}
+        type={presentationType}
+        data={node.data}
+      >
+        {(slots) => <NodeDetailFrame identity={identity} slots={slots} />}
+      </SlotProvider>
     )
   }
 

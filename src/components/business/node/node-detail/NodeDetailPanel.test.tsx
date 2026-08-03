@@ -70,27 +70,45 @@ vi.mock('@xyflow/react', () => ({
   useNodes: () => nodesState.nodes,
 }))
 
-vi.mock('./registry', () => ({
-  // ⚠ 必须显式给出 —— vitest 对 mock 模块上不存在的导出会在**访问时**抛，
-  // 壳里的可选链救不了。空表 = 十族全走 legacy 分支，正是本片要测的路径。
-  NODE_DETAIL_SLOT_REGISTRY: {},
-  NODE_DETAIL_REGISTRY: {
-    seedance: ({ nodeId }: { nodeId: string }) => (
-      <div>video-body-{nodeId}</div>
-    ),
-    // S5d ③: a role-less image node now presents as `image` itself
+// ⚠ 必须把用到的导出都显式给出 —— vitest 对 mock 模块上不存在的导出会在
+// **访问时**抛，壳里的可选链救不了。
+// S8 起槽表是穷举的，legacy 表与 `GenericDetailBody` 都已删除，
+// 所以这里 mock 的是三个**槽表提供者**，测的是壳的分发与槽序。
+vi.mock('./registry', () => {
+  const makeBody =
+    (label: string) =>
+    ({
+      nodeId,
+      children,
+    }: {
+      nodeId: string
+      children: (slots: {
+        desk: ReactNode
+        relations: ReactNode
+        evidence: ReactNode
+      }) => ReactNode
+    }) =>
+      children({
+        desk: (
+          <div>
+            {label}-{nodeId}
+          </div>
+        ),
+        relations: <div>relations</div>,
+        evidence: <div>evidence</div>,
+      })
+  const table = {
+    seedance: makeBody('video-body'),
+    // S5d ③: a role-less image node presents as `image` itself
     // (LooseImageDetailBody), not a role picker.
-    image: ({ nodeId }: { nodeId: string }) => (
-      <div>loose-image-body-{nodeId}</div>
-    ),
-  },
-}))
-
-vi.mock('./GenericDetailBody', () => ({
-  GenericDetailBody: ({ nodeId }: { nodeId: string }) => (
-    <div>generic-body-{nodeId}</div>
-  ),
-}))
+    image: makeBody('loose-image-body'),
+    shot: makeBody('shot-body'),
+  }
+  return {
+    NODE_DETAIL_SLOT_REGISTRY: table,
+    isNodeDetailFamily: (type: string) => type in table,
+  }
+})
 
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 
@@ -149,10 +167,19 @@ describe('NodeDetailPanel', () => {
     ).toBeInTheDocument()
   })
 
-  it('falls back to the generic body for unregistered types', () => {
+  /**
+   * ⚠ S8 起没有兜底 body 了（`GenericDetailBody` 已删）。认不出的族**不开内容** ——
+   * 一个来自未来版本、本地枚举还不认识的 type 应当让面板空着，
+   * 而不是把 `undefined` 当组件渲染然后整棵树崩。
+   */
+  it('认不出的族不渲染任何槽', () => {
     nodesState.nodes = [makeNode('n2', NODE_TYPE_IDS.composer)]
-    render(<NodeDetailPanel expandedNodeId="n2" onClose={vi.fn()} />)
-    expect(screen.getByText('generic-body-n2')).toBeInTheDocument()
+    const { container } = render(
+      <NodeDetailPanel expandedNodeId="n2" onClose={vi.fn()} />,
+    )
+    expect(container.querySelectorAll('[data-node-detail-slot]')).toHaveLength(
+      0,
+    )
   })
 
   it('dispatches the loose-image body (not a role picker) for a role-less image node', () => {
@@ -171,11 +198,9 @@ describe('NodeDetailPanel', () => {
         role: NODE_IMAGE_ROLE_IDS.shot,
       }),
     ]
-    // `shot` isn't registered in this test's mocked registry, so it falls
-    // back to the generic body — the point under test is that it does NOT
-    // resolve as `image` (loose-image-body) despite sharing the node type.
+    // 要点是它**不**解析成 `image`（散图 body），尽管两者共用同一个节点类型。
     render(<NodeDetailPanel expandedNodeId="img1" onClose={vi.fn()} />)
-    expect(screen.getByText('generic-body-img1')).toBeInTheDocument()
+    expect(screen.getByText('shot-body-img1')).toBeInTheDocument()
     expect(screen.queryByText('loose-image-body-img1')).not.toBeInTheDocument()
   })
 
@@ -210,7 +235,7 @@ describe('NodeDetailPanel', () => {
    * 迁移期十族走 legacy 分支：整块旧 body 塞进编排台槽，关系带与证据抽屉显式为
    * `undefined`（组级不适用）→ 只应出现身份条与编排台两段。
    */
-  it('legacy 分支只占身份条与编排台两槽，且顺序来自槽序元组', () => {
+  it('族给了哪几个槽就渲染哪几个，顺序来自槽序元组', () => {
     nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
     render(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
 
@@ -218,7 +243,14 @@ describe('NodeDetailPanel', () => {
     const order = [...dialog.querySelectorAll('[data-node-detail-slot]')].map(
       (el) => el.getAttribute('data-node-detail-slot'),
     )
-    expect(order).toEqual(['identity-bar', 'compose-desk'])
+    // 这个 mock 族只给了 desk / relations / evidence，主体台与动作坞是
+    // `undefined`（组级不适用）⟹ 整栏不渲染，但给了的三个必须严格按元组顺序。
+    expect(order).toEqual([
+      'identity-bar',
+      'compose-desk',
+      'relations-strip',
+      'evidence-drawer',
+    ])
   })
 
   it('滚动区槽位严格按元组顺序渲染，不按槽表的字面量书写顺序', () => {

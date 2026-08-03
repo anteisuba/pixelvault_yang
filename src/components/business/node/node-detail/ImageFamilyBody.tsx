@@ -546,8 +546,6 @@ export function ImageFamilyBody({
           <EvidenceDrawer
             label={tDetail('sendPreview')}
             count={data.generationError ? 5 : 4}
-            // 失败时强制展开：这时候抽屉里那一行红是用户唯一能读到原因的地方。
-            defaultOpen={Boolean(data.generationError)}
           >
             {data.generationError ? (
               <EvidenceRow

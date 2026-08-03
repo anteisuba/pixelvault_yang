@@ -1,5 +1,6 @@
 import { AI_MODELS, normalizeModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 
 export type VideoReferenceMode =
   | 'text-or-first-frame'
@@ -103,8 +104,10 @@ const MINIMAX_IDS = new Set<string>([
  * Adapters the Execution Worker can actually run video on. Must stay in step
  * with `WORKER_CAPABLE_VIDEO_ADAPTERS` in generate-video.service.ts — this one
  * decides what the UI offers as sendable, that one decides what the service
- * accepts. Gemini and VolcEngine stay off the list: selectable for discovery
- * and key setup, but not presented as sendable until they're migrated too.
+ * accepts.
+ * ⚠ 注释曾写「Gemini 与 VolcEngine 都不在名单里」——**VolcEngine 早就在了**
+ * （见下面第四行）。今天真正不在的只有 Gemini：可选中、可配 key，但在迁完之前
+ * 不呈现为可发送。
  */
 const WORKER_READY_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
   AI_ADAPTER_TYPES.FAL,
@@ -289,4 +292,45 @@ export function getVideoModelImageLimit(
 ): number | undefined {
   if (!modelId) return undefined
   return getVideoModelSendContract(modelId, adapterType).slots.images
+}
+
+/**
+ * 参数**选项**的事实源归一（账本 X4）。
+ *
+ * 今天这件事有两个真相：一个模型「支不支持某个参数」听
+ * `getVideoModelSendContract(...).parameters`（本文件），而「有哪些档可选」听
+ * `video-model-capabilities.ts` 的 `supported*`。R9「参数渲染交集不是全集，
+ * 按当前模型能力契约派生」把事实源指向 send-plan —— 于是任何想按契约渲染参数的
+ * 调用方都得同时 import 两个模块，还要自己记住「先问支不支持，再问有哪些档」
+ * 这个顺序。谁漏了第一问，就会渲染出一颗点了不起作用的按钮（Kling V3/O3 Pro 的
+ * 分辨率就是这样：能力表给了 `['1080p']`，而契约写死 `resolution: false`）。
+ *
+ * ⚠ 这里**不复制表**，只把两问合成一问：不支持 → 空数组（调用方据此整栏不渲染，
+ * 契约 R3「组级不可用 → 整栏不渲染」）；支持 → 能力表给的档位。
+ */
+export function getVideoModelParameterOptions(
+  modelId: string | undefined,
+  adapterType?: AI_ADAPTER_TYPES,
+): {
+  durations: readonly number[]
+  resolutions: readonly string[]
+  aspectRatios: readonly string[]
+} {
+  const empty = { durations: [], resolutions: [], aspectRatios: [] } as const
+  if (!modelId) return empty
+
+  const { parameters } = getVideoModelSendContract(modelId, adapterType)
+  const capabilities = getVideoModelCapabilities(modelId)
+
+  return {
+    durations: parameters.duration
+      ? (capabilities.supportedDurations ?? [])
+      : [],
+    resolutions: parameters.resolution
+      ? (capabilities.supportedResolutions ?? [])
+      : [],
+    aspectRatios: parameters.aspectRatio
+      ? (capabilities.supportedAspectRatios ?? [])
+      : [],
+  }
 }

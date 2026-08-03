@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { useNodes } from '@xyflow/react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Minimize2 } from 'lucide-react'
@@ -18,7 +18,8 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
 import { GenericDetailBody } from './GenericDetailBody'
-import { NODE_DETAIL_REGISTRY } from './registry'
+import { NodeDetailFrame } from './NodeDetailFrame'
+import { NODE_DETAIL_REGISTRY, NODE_DETAIL_SLOT_REGISTRY } from './registry'
 
 interface NodeDetailPanelProps {
   expandedNodeId: string | null
@@ -126,6 +127,48 @@ export function NodeDetailPanel({
 
   const transition = motionTransition('slow', reducedMotion)
 
+  /**
+   * 分发：族在槽表里 → 走七槽骨架；不在 → 走 legacy（整块 body 塞进编排台槽）。
+   *
+   * ⚠ 共存粒度是**族**不是槽 —— 任一时刻打开任意面板，要么全新要么全旧。
+   * legacy 分支的 relations/evidence 显式传 `undefined`（组级不适用），
+   * 因为旧 body 把这两槽的内容混在自己那棵树里，壳无从拆分；
+   * 迁移到槽表时才由该族补齐（契约「关系带与证据抽屉必须全族有位」）。
+   *
+   * ⚠ `key={presentationType}`：换族时强制卸载重挂 provider，
+   * 避免不同族的 provider 之间 hook 顺序错位。**不要**用随 data 变化的 key
+   * （那会让输入框每敲一个字符 remount，焦点 bug 以新形态复活）。
+   */
+  const renderFrame = (identity: ReactNode) => {
+    if (!node || !presentationType) return null
+    const SlotProvider = NODE_DETAIL_SLOT_REGISTRY?.[presentationType]
+    if (SlotProvider) {
+      return (
+        <SlotProvider
+          key={presentationType}
+          nodeId={node.id}
+          type={presentationType}
+          data={node.data}
+        >
+          {(slots) => <NodeDetailFrame identity={identity} slots={slots} />}
+        </SlotProvider>
+      )
+    }
+    const Body = NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
+    return (
+      <NodeDetailFrame
+        identity={identity}
+        slots={{
+          desk: (
+            <Body nodeId={node.id} type={presentationType} data={node.data} />
+          ),
+          relations: undefined,
+          evidence: undefined,
+        }}
+      />
+    )
+  }
+
   return (
     <AnimatePresence>
       {node && presentationType ? (
@@ -155,78 +198,64 @@ export function NodeDetailPanel({
             data-node-detail-family={presentationType}
             className="canvas-modal-surface canvas-object-studio-surface relative flex min-w-0 flex-col overflow-hidden"
           >
-            <header className="canvas-modal-divider canvas-object-studio-header flex items-center justify-between border-b">
-              <div className="flex min-w-0 items-center gap-3">
-                <span
-                  className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-                    NODE_ACCENTS[presentationType].iconPlate,
-                    NODE_ACCENTS[presentationType].iconText,
-                  )}
-                  aria-hidden
-                >
-                  {NODE_TOKEN_BADGE_LABELS[presentationType]}
-                </span>
-                <div className="grid min-w-0 gap-0.5">
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-node-muted">
-                    <button
-                      type="button"
-                      onClick={parentCrumb.onClick}
-                      aria-label={parentCrumb.title}
-                      title={parentCrumb.title}
-                      className="shrink-0 rounded-md px-1 py-0.5 font-medium transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-                    >
-                      {parentCrumb.label}
-                    </button>
-                    <span aria-hidden className="shrink-0 text-node-subtle">
-                      /
-                    </span>
-                    <span className="truncate">{tTypes(presentationType)}</span>
-                  </span>
+            {renderFrame(
+              <>
+                <div className="flex min-w-0 items-center gap-3">
                   <span
-                    id={titleId}
-                    className="truncate text-base font-semibold text-node-foreground"
-                  >
-                    {getNodeName(
-                      node,
-                      presentationType,
-                      tTypes(presentationType),
+                    className={cn(
+                      'flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                      NODE_ACCENTS[presentationType].iconPlate,
+                      NODE_ACCENTS[presentationType].iconText,
                     )}
+                    aria-hidden
+                  >
+                    {NODE_TOKEN_BADGE_LABELS[presentationType]}
                   </span>
+                  <div className="grid min-w-0 gap-0.5">
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-node-muted">
+                      <button
+                        type="button"
+                        onClick={parentCrumb.onClick}
+                        aria-label={parentCrumb.title}
+                        title={parentCrumb.title}
+                        className="shrink-0 rounded-md px-1 py-0.5 font-medium transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+                      >
+                        {parentCrumb.label}
+                      </button>
+                      <span aria-hidden className="shrink-0 text-node-subtle">
+                        /
+                      </span>
+                      <span className="truncate">
+                        {tTypes(presentationType)}
+                      </span>
+                    </span>
+                    <span
+                      id={titleId}
+                      className="truncate text-base font-semibold text-node-foreground"
+                    >
+                      {getNodeName(
+                        node,
+                        presentationType,
+                        tTypes(presentationType),
+                      )}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <NodeStatusBadge status={node.data.status} />
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  onClick={onClose}
-                  aria-label={t('close')}
-                  title={t('close')}
-                  className="flex size-10 items-center justify-center rounded-full text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
-                >
-                  <Minimize2 className="size-4" />
-                </button>
-              </div>
-            </header>
-            <div
-              className="canvas-object-studio-body min-h-0 min-w-0 flex-1 overflow-y-auto"
-              data-node-detail-body="true"
-            >
-              <div className="canvas-object-studio-content min-w-0">
-                {(() => {
-                  const Body =
-                    NODE_DETAIL_REGISTRY[presentationType] ?? GenericDetailBody
-                  return (
-                    <Body
-                      nodeId={node.id}
-                      type={presentationType}
-                      data={node.data}
-                    />
-                  )
-                })()}
-              </div>
-            </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <NodeStatusBadge status={node.data.status} />
+                  <button
+                    ref={closeButtonRef}
+                    type="button"
+                    onClick={onClose}
+                    aria-label={t('close')}
+                    title={t('close')}
+                    className="flex size-10 items-center justify-center rounded-full text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
+                  >
+                    <Minimize2 className="size-4" />
+                  </button>
+                </div>
+              </>,
+            )}
           </motion.div>
         </motion.div>
       ) : null}

@@ -128,7 +128,7 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
             </div>
           )}
           {isMerging ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground">
               <Spinner size="lg" className="text-node-muted" />
               <span className="text-xs font-semibold">{t('merging')}</span>
             </div>

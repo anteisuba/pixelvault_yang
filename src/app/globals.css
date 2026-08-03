@@ -62,6 +62,11 @@
   --color-node-status-done-fg: var(--node-status-done-fg);
   --color-node-status-failed: var(--node-status-failed);
   --color-node-status-failed-fg: var(--node-status-failed-fg);
+  /* 失败态的**浅底**。此前只有 failed（实色）与 -fg（其上的字/图标）两档，
+     于是「红底 + 淡一点的红」这种需求只能写成 bg-node-status-failed/50，
+     结果在详情面板作用域里 failed 与 -fg 恰好同色 → 红底红字 1:1。
+     补第三档，让浅底有正经落点。 */
+  --color-node-status-failed-tint: var(--node-status-failed-tint);
   --shadow-node-panel: 0 20px 60px var(--node-shadow);
   --font-sans: var(--font-app-sans);
   --font-display: var(--font-app-display);
@@ -80,12 +85,11 @@
   --width-studio-sidebar: 13rem;
   /* 画布节点卡密度（baseline §3 / 草稿 fill-5）：默认 400px。 */
   --width-node-card: 25rem;
-  /* 节点 ⤢ 就地展开宽度（B3·旧·待清理）。 */
-  --width-node-card-expanded: 38rem;
-  /* 节点 ⤢「详情」浮层面板宽度（B3：不挤画布，独立大面板）。 */
-  --width-node-detail-panel: 34rem;
-  /* 视频详情用宽版 = 双栏（左创作 / 右参数）。其它节点体保持窄版单列。 */
-  --width-node-detail-panel-wide: 56rem;
+  /* ⚠ 这里原有三个 token 已删（2026-08-04，S2）：--width-node-card-expanded、
+     --width-node-detail-panel、--width-node-detail-panel-wide。三者全仓零消费者
+     （grep 核过），且「宽版/窄版详情面板」这个分法早已不存在 —— 方向 E 的面板是
+     单一宽度 min(960px, 100% - 88px) + 高度自适应，写在 canvas.css 的
+     .canvas-object-studio-surface 上。留着只会让下一个人以为详情面板还有两档。 */
   /*
    * 画布覆盖层 z 阶梯（canvas-relationship-v3 §4.1 R3-4，domain-scoped，不
    * 外泄通用页）。L0-L6 全部落在 CanvasWorkspaceLayout 的 isolated `stage`

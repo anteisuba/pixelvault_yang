@@ -560,7 +560,7 @@ export function NodeMediaInspector({
                         className="object-cover"
                         unoptimized
                       />
-                      <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                      <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground">
                         {isExistingImage
                           ? t('sourceExisting')
                           : t('sourceGenerated')}
@@ -569,7 +569,7 @@ export function NodeMediaInspector({
                         type="button"
                         onClick={handleClearImage}
                         aria-label={t('clearImage')}
-                        className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none backdrop-blur transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+                        className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -605,7 +605,7 @@ export function NodeMediaInspector({
               )}
 
               {isPending ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground">
                   <Spinner size="lg" className="text-node-muted" />
                   <span className="text-xs font-semibold">
                     {t('generating')}
@@ -617,10 +617,15 @@ export function NodeMediaInspector({
 
           {/* Generation error — TOP-LEVEL so it surfaces in every view (result,
             empty, editing), not only inside the AI form. */}
+          {/* ⚠ 配色（2026-08-04，S2）：原来是 bg-node-status-failed/50 +
+              text-node-status-failed-fg。在详情面板作用域里 failed 与 -fg 曾双双映射
+              --canvas-danger，于是这条错误框是**红底红字**；半透的 /50 只是把它变成
+              「淡红底红字」，依然读不出来。现在用第三档浅底 tint + 实色红文字：
+              red 对 tint 5.65（contrast-check 算过）。 */}
           {node.data.generationError ? (
-            <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed/50 p-3 text-sm text-node-status-failed-fg">
+            <div className="flex gap-2 rounded-2xl border border-node-status-failed bg-node-status-failed-tint p-3 text-sm text-node-status-failed">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              <p className="line-clamp-3 text-xs leading-5 text-node-status-failed-fg/80">
+              <p className="line-clamp-3 text-xs leading-5 text-node-status-failed">
                 {node.data.generationError}
               </p>
             </div>

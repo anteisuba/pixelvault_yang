@@ -119,6 +119,7 @@
      覆盖块），不受这里影响。 */
   --node-status-failed: #c0342e; /* = --canvas-danger 字面量 */
   --node-status-failed-fg: #ffffff;
+  --node-status-failed-tint: #fbeae8; /* 失败态浅底；red 对它 5.65 */
   /* 视频监视器语言（v4 §3.3/§4 C4）：取景框角标，纯装饰不承载语义，独立 token */
   --node-monitor-frame: #4a4f5c;
   --node-monitor-matte: #050505;
@@ -156,6 +157,8 @@
   --node-subtle: var(--node-card-ink-subtle);
   --node-status-failed: #a32d2d;
   --node-status-failed-fg: #1a1310;
+  /* 纸面作用域的浅底：按纸背 #ebe5d8 调，不是照抄 root 的 #fbeae8（那是按白面调的）。 */
+  --node-status-failed-tint: #f2dedb;
   /* 拖拽微倾（§3/§9-S2）：ReactFlow 拖拽态类名实测为
      `.react-flow__node.draggable.dragging`（node_modules/@xyflow/react/dist/style.css），
      `.dragging` 单类选择器即可命中。倾斜落在 article 自身的 rotate 上，独立于
@@ -574,6 +577,44 @@
   --canvas-glass-blur: 28px;
   --canvas-glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   --canvas-panel-radius: 16px; /* 左侧合体面板展开态 */
+
+  /* 16 · 详情面板（方向 E「静默」）—— 实面 + 投影分层，**不是玻璃**
+     ─────────────────────────────────────────────────────────────
+     ⚠ 这一组与上面第 9 组的玻璃是**有意分族**（契约 §5）：画布 chrome（顶栏 /
+     底部胶囊 / 左面板）仍是玻璃，详情面板是实面。面板是模态，打开时画布已被遮罩
+     推远，两者不同屏并置。**后来者不要以「材质语言应该统一」为由把它改回玻璃。**
+
+     为什么取消玻璃：owner 原始诉求是「背景加透明玻璃质感」，三份方向原型实测后
+     改判。证据是浅色画布上玻璃收不到任何东西 —— 透过面板的点阵对比合成后全部掉到
+     1.1 以下且被 blur 抹平，「看得见画布」的地方全在面板之外的边缘带。
+
+     对比度（contrast-check 确定性计算，2026-08-04，禁目测）：
+       正文  ink/S0 15.04 · ink/S1 13.27 · ink/S2 11.46
+             ink-2/S0 7.32 · /S1 6.45 · /S2 5.58
+             red/S0 6.57 · /S1 5.80 · /S2 5.01 · red/red-bg 5.65 · 白/实心红 6.57
+       边界  bd/S0 4.67 · /S1 4.12 · /S2 3.56          （门槛 3）
+       表面等级差  S0/S1 1.13 · S1/S2 1.16 · S0/S2 1.31 （门槛 1.05）
+       遮罩合成 vs S1：画布底 #F1F1F1→1.13 · #FFFFFF→1.07 · #F4F4F3→1.11
+         ⚠ 连纯白底那档都过 1.05 —— 今天的白雾玻璃在纯白底下会塌成 1.000。
+       ghost/S2 = 1.40 **装饰**（空态字形，语义由文案承担，不计门槛）。 */
+  --canvas-detail-s0: #ffffff; /* 白操作面：输入框 / 卡 */
+  --canvas-detail-s1: #eef1f4; /* 面板基面 */
+  --canvas-detail-s2: #dee1e5; /* 媒体井 / 托盘 / 抽屉 */
+  --canvas-detail-ink: #1f2733;
+  --canvas-detail-ink-2: #4d5766;
+  --canvas-detail-bd: #6b7583; /* 唯一的可点控件边界色 */
+  --canvas-detail-red: #b42318;
+  --canvas-detail-red-bg: #fbeae8;
+  --canvas-detail-ghost: #b9c0c9; /* 空态字形，装饰 */
+  --canvas-detail-scrim: rgba(218, 222, 228, 0.68);
+  /* ⚠ 投影是实面之后**唯一**的层次手段，且必须压过画布底部胶囊/近场工具条的
+     两层 y=10px —— 旧实现模态用 y=4px，造成「最高层反而更贴地」的层次倒挂。 */
+  --canvas-detail-shadow:
+    0 40px 90px rgba(21, 28, 38, 0.3), 0 16px 36px rgba(21, 28, 38, 0.16);
+  --canvas-detail-shadow-pop: 0 24px 64px rgba(21, 28, 38, 0.28);
+  --canvas-detail-shadow-dock: 0 -10px 24px rgba(21, 28, 38, 0.08);
+  --canvas-detail-shadow-card:
+    0 1px 2px rgba(21, 28, 38, 0.06), 0 2px 10px rgba(21, 28, 38, 0.05);
 
   /* 10 · 媒体窗（卡内纯媒体区的底与占位斜纹） */
   --canvas-media-bg: #fafafa;
@@ -2350,43 +2391,46 @@
    .canvas-glass 手法）自动读到浅色值，markup 不逐处碰。
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 遮罩：白雾模糊，不是黑纱（§5 明确条款）。 */
+/* 遮罩：中性浅灰实色，**不糊、不深**（方向 E，owner 2026-08-03）。
+   ⚠ 原来是 rgba(255,255,255,.72) + blur(20px) 的白雾。取消理由见第 16 组 token 头注：
+   白雾压近白画布，把点阵从 1.54:1 压到 1.12:1、白卡压到 1.03:1，模糊因此无内容可折射。
+   换成中性浅灰后遮罩合成对 S1 有 1.07–1.13 的可辨差（三档画布底预设全过）。
+   ⚠ 不再需要 @supports 降级 —— 没有 backdrop-filter 可降。 */
 .domain-canvas .canvas-modal-scrim {
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-}
-@supports not (
-  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-) {
-  .domain-canvas .canvas-modal-scrim {
-    background: rgba(255, 255, 255, 0.95);
-  }
+  background: var(--canvas-detail-scrim);
 }
 
 /* 模态面：白卡 + 16 圆角 + 发丝边 + 柔投影（§5 数值原样）。--node-* 重映射
    沿用 .canvas-glass 已验证的清单，外加 status-failed 一对——NodeStatusBadge
    在模态头部渲染失败态时会读它，参考 .canvas-selection-toolbar 同样收窄到
    --canvas-danger 的做法（那条已验证过对比度，5.57:1 vs 白）。 */
+/* 模态面：**实面**，零 backdrop-filter，层次靠投影 + 留白 + 尺度。
+   ⚠ 下面这段 strangler 映射是本片杠杆最大的地方 —— 详情面板作用域内
+   bg-node-panel-soft 64 处 / -inner 27 处 / -panel 13 处 / -canvas 8 处，
+   共 112 个 markup 位零改动跟随。改错变量名**不会报错**，只会让它们静默变透明，
+   所以这一段的验收必须程序化读 getComputedStyle，禁目检。 */
 .domain-canvas .canvas-modal-surface {
-  background: color-mix(in srgb, var(--canvas-card-bg) 88%, transparent);
-  border: 1px solid var(--canvas-stroke-regular);
+  background: var(--canvas-detail-s1);
+  border: 0;
   border-radius: var(--canvas-panel-radius);
-  box-shadow: var(--canvas-glass-shadow);
-  -webkit-backdrop-filter: blur(28px);
-  backdrop-filter: blur(28px);
-  color: var(--canvas-ink);
-  --node-foreground: var(--canvas-ink);
-  --node-muted: var(--canvas-ink-muted);
-  --node-subtle: var(--canvas-ink-subtle);
-  --node-panel: var(--canvas-card-bg);
+  box-shadow: var(--canvas-detail-shadow);
+  color: var(--canvas-detail-ink);
+  --node-foreground: var(--canvas-detail-ink);
+  --node-muted: var(--canvas-detail-ink-2);
+  --node-subtle: var(--canvas-detail-ink-2);
+  --node-panel: var(--canvas-detail-s0);
   --node-canvas: var(--canvas-action-fg);
-  --node-panel-inner: var(--canvas-fill-control);
-  --node-panel-soft: var(--canvas-fill-control);
-  --node-edge: var(--canvas-ink-muted);
+  --node-panel-inner: var(--canvas-detail-s2);
+  --node-panel-soft: var(--canvas-detail-s2);
+  --node-edge: var(--canvas-detail-bd);
   --node-focus-ring: var(--canvas-stroke-focus);
-  --node-status-failed: var(--canvas-danger);
-  --node-status-failed-fg: var(--canvas-danger);
+  /* ⚠ 这一对**必须拆开**：原来两者双双映射 --canvas-danger，于是
+     `bg-node-status-failed + text-node-status-failed-fg` 渲染出红底红图标，
+     对比 1:1、图标完全不可见（ReferenceManagerPanel 的超容量角标正落在此作用域）。
+     现在 fg = 白（对实心红 6.57），另给 tint 作浅底（red 对 tint 5.65）。 */
+  --node-status-failed: var(--canvas-detail-red);
+  --node-status-failed-fg: var(--canvas-detail-s0);
+  --node-status-failed-tint: var(--canvas-detail-red-bg);
 }
 
 /* 头部分栏：规格要求精确的 .08（--canvas-stroke-regular），比上面 strangler
@@ -2401,17 +2445,29 @@
   padding: 16px;
 }
 
+/* ⚠ 尺寸不再写死（方向 E）。旧值 1180px × min(88svh,860px) 是「一件外衣套十种体型」：
+   实拍量过，视频族溢出到主动作首屏不可见，角色族下半 55% 空白。改成宽度收窄、
+   高度随内容自适应 —— 面板不铺满，边缘露底，画布从四周可见。
+
+   ⚠ 基准从视口（100vw/100svh）改成**百分比**，即 overlay 的尺寸。overlay 是
+   stage 的 absolute inset-0 后代，所以 100% 直接等于画布 stage 容器。旧的 svh 基准
+   在 <1024 时会多算全局壳吃掉的约 92px，面板上下各被裁约 46px。
+   ⚠ 这条依赖 overlay 仍是 absolute inset-0（NodeDetailPanel 的 overlay）。
+   谁把它改成 fixed，整套失效。
+
+   height:auto 能成立是因为 surface 是 flex 列容器、滚动区带 flex-1 + min-h-0 —— 不需要 JS 测高。 */
 .domain-canvas .canvas-object-studio-surface {
-  width: min(1180px, calc(100vw - 32px));
-  height: min(88svh, 860px);
-  max-height: calc(100svh - 32px);
+  width: min(960px, calc(100% - 88px));
+  height: auto;
+  max-height: calc(100% - 64px);
   border-radius: 22px;
 }
 
+/* ⚠ 头部原来铺一层 74% 的半透白。半透只在有 blur 时成立 —— 实面之下它会直接
+   露出下方滚动内容。实面已由 surface 提供，头部不需要自己的底。 */
 .domain-canvas .canvas-object-studio-header {
   gap: 24px;
   padding: 20px 28px;
-  background: color-mix(in srgb, var(--canvas-card-bg) 74%, transparent);
 }
 
 .domain-canvas .canvas-object-studio-body {
@@ -2421,6 +2477,23 @@
 
 .domain-canvas .canvas-object-studio-content {
   padding: 32px;
+}
+
+/* ── 方向 E 四段骨架的两个钉段（S1，2026-08-04）────────────────────────
+   面板从上到下是四段：身份条（钉）· 主体台（钉）· 滚动区 · 动作坞（钉）。
+   surface 是 flex 列容器，滚动区已带 flex-1 + min-h-0，所以这两段只需要
+   声明「不参与伸缩」就位置正确。
+
+   ⚠ 主体台钉住是这个方向存在的理由 —— 前作 B 把它放进了滚动容器，结果
+   改下幕参数时画面滚走了，而分幕的上幕本该是锚。契约 §3 明写它不在滚动区内。
+
+   迁移期这两条不会命中任何东西（legacy 分支只填编排台槽），从 S3 起逐族生效。 */
+.domain-canvas .canvas-detail-stage-pin {
+  flex: 0 0 auto;
+}
+
+.domain-canvas .canvas-detail-dock {
+  flex: 0 0 auto;
 }
 
 /* Shared rail geometry. Image/media inspectors consume it directly; dossier
@@ -2565,7 +2638,13 @@
   flex: none;
 }
 
-@media (max-width: 960px) {
+/* ⚠ 断点从视口媒体查询（960/760/420）并轨到**容器查询**（1023/767，全站刻度）。
+   两处理由：① 全站紧凑断点是 1024（use-mobile.ts 的 MOBILE_BREAKPOINT），
+   面板自己用 960/760 会让 961–1023 与 761–767 两段拿到与全站不一致的形态；
+   ② 面板量的应该是**画布 stage 的宽度**而不是视口 —— 左面板展开、助手 dock 打开
+   都会压缩 stage，而视口宽度纹丝不动。stage 已是 inline-size 容器
+   （CanvasWorkspaceLayout 的 @container），overlay 是它的 absolute inset-0 后代。 */
+@container stage (max-width: 1023px) {
   .domain-canvas .canvas-object-studio-grid,
   .domain-canvas .canvas-object-studio-grid--balanced {
     grid-template-columns: minmax(0, 1fr);
@@ -2573,15 +2652,17 @@
   }
 }
 
-@media (max-width: 760px) {
+@container stage (max-width: 767px) {
   .domain-canvas .canvas-object-studio-overlay {
     padding: 12px;
   }
 
+  /* ⚠ 高度不再写死 calc(100svh - 24px)：svh 是视口，而面板住在 stage 里，
+     <1024 时全局壳（顶栏 44 + 底 tab 48）吃掉约 92px，按视口量高会让面板
+     上下各被裁约 46px。改成百分比 = stage 高度，并保持 height:auto 的自适应。 */
   .domain-canvas .canvas-object-studio-surface {
-    width: calc(100vw - 24px);
-    height: calc(100svh - 24px);
-    max-height: calc(100svh - 24px);
+    width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
     border-radius: 18px;
   }
 
@@ -2595,19 +2676,13 @@
     padding: 20px;
   }
 
-  .domain-canvas .canvas-video-object-studio-dock {
-    position: sticky;
-    z-index: 1;
-    bottom: 0;
-    margin-inline: -4px;
-    padding: 16px 4px 4px;
-    background: color-mix(in srgb, var(--canvas-card-bg) 88%, transparent);
-    -webkit-backdrop-filter: blur(18px);
-    backdrop-filter: blur(18px);
-  }
+  /* ⚠ 这里原来给视频族的 dock 加 sticky + blur(18px) 来「假装」它是钉住的坞 ——
+     因为它真身在滚动区内。方向 E 的动作坞是壳级的、本来就在滚动区外
+     （NodeDetailFrame 的第四段），所以这段补偿整个删掉，blur 也随之消失。
+     视频族迁到槽表是 S7，在那之前它仍走 legacy，坞跟着正文滚 —— 与迁移前一致。 */
 }
 
-@media (max-width: 420px) {
+@container stage (max-width: 479px) {
   .domain-canvas .canvas-object-studio-content {
     padding: 16px;
   }

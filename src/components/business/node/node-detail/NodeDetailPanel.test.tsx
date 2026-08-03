@@ -71,6 +71,9 @@ vi.mock('@xyflow/react', () => ({
 }))
 
 vi.mock('./registry', () => ({
+  // ⚠ 必须显式给出 —— vitest 对 mock 模块上不存在的导出会在**访问时**抛，
+  // 壳里的可选链救不了。空表 = 十族全走 legacy 分支，正是本片要测的路径。
+  NODE_DETAIL_SLOT_REGISTRY: {},
   NODE_DETAIL_REGISTRY: {
     seedance: ({ nodeId }: { nodeId: string }) => (
       <div>video-body-{nodeId}</div>
@@ -195,6 +198,40 @@ describe('NodeDetailPanel', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * ⚠ 槽序锁（S1，2026-08-04）。
+   *
+   * 「槽序 = DOM 序 = 键盘序，全断点严格 2→3→4→5→6→7，不得跳序」是不可推翻的契约
+   * （方向 C 就是因为桌面 Tab 序跳成 3→5→2→4→6→7 出局）。壳按
+   * `NODE_DETAIL_SCROLL_SLOT_ORDER` 元组 map，本条锁住「元组顺序真的落到了 DOM 上」。
+   *
+   * 迁移期十族走 legacy 分支：整块旧 body 塞进编排台槽，关系带与证据抽屉显式为
+   * `undefined`（组级不适用）→ 只应出现身份条与编排台两段。
+   */
+  it('legacy 分支只占身份条与编排台两槽，且顺序来自槽序元组', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    render(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
+
+    const dialog = screen.getByRole('dialog', { name: 'seedance' })
+    const order = [...dialog.querySelectorAll('[data-node-detail-slot]')].map(
+      (el) => el.getAttribute('data-node-detail-slot'),
+    )
+    expect(order).toEqual(['identity-bar', 'compose-desk'])
+  })
+
+  it('滚动区槽位严格按元组顺序渲染，不按槽表的字面量书写顺序', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    render(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
+
+    // legacy 的 body 必须落在编排台槽里，且仍在那个带 data-node-detail-body 的滚动容器内
+    const scroll = document.querySelector('[data-node-detail-body="true"]')
+    expect(scroll).not.toBeNull()
+    expect(
+      scroll?.querySelector('[data-node-detail-slot="compose-desk"]'),
+    ).not.toBeNull()
+    expect(screen.getByText('video-body-n1')).toBeInTheDocument()
   })
 
   /**

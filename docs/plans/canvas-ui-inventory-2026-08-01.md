@@ -805,15 +805,15 @@ A10（上传中 / 上传失败）第一次按空态卡去触发，`setInputFiles
 
 ### 13.2 逐条判据（改任何编号时对照）
 
-| 维度         | 判据                                                                                  | 怎么验                                                                                                                               |
-| ------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **跟手**     | 拖 / 滚零滞后；指针事件直连 `transform`；不在 `scroll`/`pointermove` 里整树 re-render | Performance 面板看目标路径是否 60fps                                                                                                 |
-| **时长统一** | 面板 / Sheet / Popover / 下拉展开 **150–250ms**，同一条 ease                          | 逐个量：C1a 溢出菜单 · C1b 分类 · D1a 比例 · D1b 张数 · D1c 模板 · D7 模型 · D8 添加菜单 · E2 项目菜单 · E3 外观 · G6 路由 · G8 历史 |
-| **布局连续** | 展开不「跳」——详情面板 F1–F1h、助手 dock 单栏↔两栏、左面板展↔收                       | 用 `layout` 动画 / FLIP；对照 §12 的对应图看有没有位移突变                                                                           |
-| **合成层**   | 只动 `transform` / `opacity`，不动 width/height/top/left                              | 搜改动里的动画属性                                                                                                                   |
-| **精确优先** | **参数旋钮 / 滑条禁止松手惯性**                                                       | E3 的透明度滑条、D1b 张数、视频参数条                                                                                                |
-| **画布视口** | pan / zoom 交给 React Flow 与浏览器，**不要外包一层库抢指针**                         | 别在 `.react-flow__viewport` 上挂第三方 tween                                                                                        |
-| **克制**     | 主路径短、装饰少；尊重 `prefers-reduced-motion`                                       | `NodeDetailPanel` 已用 `useReducedMotion()`，是现成先例，其余照抄                                                                    |
+| 维度         | 判据                                                                                  | 怎么验                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **跟手**     | 拖 / 滚零滞后；指针事件直连 `transform`；不在 `scroll`/`pointermove` 里整树 re-render | Performance 面板看目标路径是否 60fps                                                                                                                                     |
+| **时长统一** | 面板 / Sheet / Popover / 下拉展开 **150–250ms**，同一条 ease                          | 逐个量：C1a 溢出菜单 · C1b 分类 · D1a 比例 · D1b 张数 · D1c 模板 · D7 模型 · D8 添加菜单 · ~~E2 项目菜单~~（批 2 已删，项目管理搬进左面板）· E3 外观 · G6 路由 · G8 历史 |
+| **布局连续** | 展开不「跳」——详情面板 F1–F1h、助手 dock 单栏↔两栏、左面板展↔收                       | 用 `layout` 动画 / FLIP；对照 §12 的对应图看有没有位移突变                                                                                                               |
+| **合成层**   | 只动 `transform` / `opacity`，不动 width/height/top/left                              | 搜改动里的动画属性                                                                                                                                                       |
+| **精确优先** | **参数旋钮 / 滑条禁止松手惯性**                                                       | E3 的透明度滑条、D1b 张数、视频参数条                                                                                                                                    |
+| **画布视口** | pan / zoom 交给 React Flow 与浏览器，**不要外包一层库抢指针**                         | 别在 `.react-flow__viewport` 上挂第三方 tween                                                                                                                            |
+| **克制**     | 主路径短、装饰少；尊重 `prefers-reduced-motion`                                       | `NodeDetailPanel` 已用 `useReducedMotion()`，是现成先例，其余照抄                                                                                                        |
 
 ### 13.3 响应式：两个断点现在都不能用
 
@@ -1203,6 +1203,84 @@ owner 五条反馈**改了三处方案方向**，原型 v2 据此重画（`proto
 那套控件 —— 那条发现当初根本验不了。新增 `B7c video-card-ready`
 （`mediaUrl` 指假域名走 `page.route` 兜底，首帧走 `videoThumbnailUrl`；看的是控件
 语言不是能不能播，所以不往仓库塞 mp4）。
+
+---
+
+## 20 · 批 4 · 动效（2026-08-03）
+
+原型：`docs/plans/prototypes/canvas-batch4-motion.html`
+方法：全部在真浏览器里读 computed style，不是读源码猜。
+
+### 20.1 七条判据实测：五条本来就合规
+
+| 判据         | 结论                 | 实测                                                                                                                                                                             |
+| ------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 画布视口     | ✅                   | `.react-flow__viewport` 上零第三方 tween                                                                                                                                         |
+| 库的硬规则   | ✅                   | 画布域内 GSAP **零命中**                                                                                                                                                         |
+| 精确优先     | ✅                   | `ui/slider.tsx` 只有 `transition-[color,box-shadow]`，位置不带过渡 → 松手即停、无惯性                                                                                            |
+| 克制         | ✅                   | `useReducedMotion()` 已用于 NodeDetailPanel / VideoComposer / ReferenceManagerPanel；CSS 侧另有 `globals.css:1728` 全局兜底                                                      |
+| 合成层       | ⚠ 三处动尺寸但都有据 | `.node-canvas-panel-motion`（拖拽改宽，拖动时 `data-resizing` 关掉过渡好 1:1 跟手）· 顶栏给助手让位的 `padding-right` · 确定式进度条的 `width`。三者都非装饰性，且都用了动效基准 |
+| **布局连续** | ✗                    | 左面板展/收 **完全没有动效**                                                                                                                                                     |
+| **时长统一** | ✗                    | 三套词汇并存                                                                                                                                                                     |
+
+### 20.2 时长统一：不是「某个下拉太慢」，是三套词汇并存
+
+|                 | 时长                                          | ease                        |
+| --------------- | --------------------------------------------- | --------------------------- |
+| ① 全局 canon    | `.12 / .20 / .32s`                            | `cubic-bezier(.22,1,.36,1)` |
+| ② 画布域        | `.15 / .25 / .42s`                            | `cubic-bezier(.4,0,.2,1)`   |
+| ⚠ ③ shadcn 原语 | 下拉 150 · dialog 300/200 · sheet **500**/300 | **浏览器默认 `ease`**       |
+
+⚠ 第三套**是没人选的** —— shadcn 模板自带的硬编码值。台账点名的 11 个表面里除画布自写的几个，
+其余全落在这一套上，所以「同一条 ease」这条判据此前根本不成立：画布里的过渡走 `(.4,0,.2,1)`，
+画布里弹出的下拉走 `(.25,.1,.25,1)`，两者贴在一起出现。`dialog` 里还藏着**第四条曲线**
+（`ease-[cubic-bezier(0.16,1,0.3,1)]`，顺带违反 Hard Rule 5 的禁任意值）。
+
+**owner 拍板 B**：保留两层（全局 canon 管通用 UI、画布 token 管画布专属），把第三套并进全局 canon。
+六个原语（dropdown / popover / select / tooltip / dialog / sheet）统一挂 `duration-200 ease-standard`。
+真机复核：六个全部读到 **0.2s / `cubic-bezier(0.22, 1, 0.36, 1)`**，与 `--duration-base` /
+`--ease-standard` 逐位对上。
+
+⚠ 用数字 `200` 而不是 `duration-base`：实测 Tailwind v4 只给 `--ease-*` 生成了具名工具类，
+`--duration-*` 没有 —— 写 `duration-base` 会静默回落默认值。
+
+### 20.3 左面板展/收：CSS 注释早就把这件事指给了这一批
+
+实测 computed 是 `transition-property: all` / `duration: **0s**`，296↔56px 硬切。
+
+`canvas.css:1550` 的注释记着为什么：「故意不写 `transition: width`，真机实测带上它这条过渡永远不
+推进……展开/收起的动效属于动效那一片，**到时候用内容区的 opacity/transform 做，不要再回来给
+aside 的 width 加过渡**」。owner 拍板②就按这条做：新增 `canvas-left-panel-reveal`（opacity +
+translateX，画布域 base 档）。真机复核 `0.25s / cubic-bezier(0.4, 0, 0.2, 1)` ✓
+
+⚠ 只做**进场**：内容区在收起时是条件卸载的（不是 hidden），退场没有时机可挂。
+
+⚠ 订正：我在批 2 给 `CanvasLeftPanel.tsx` 写的「过渡仍由 `.canvas-left-panel` 的
+`transition: width` 负责」是**错的**，与实测和 canvas.css 的注释都矛盾，已改。
+
+### 20.4 owner 追加：「所有按钮的动效都要加上对应的，不可以直接打开」
+
+画布上有 **7 处 React Flow `NodeToolbar` 浮层**，在这之前**全是瞬时挂载** —— 选中一张卡，
+生成框「啪」地出现，没有任何从无到有的过程。owner 点名的「节点点击展开编辑」就是其中的
+`GenerateComposer`。
+
+新增共享件 `CanvasPopIn`（又是「没有共享件」那个老毛病的解法），七处全部接上：
+
+| 浮层                                   | 方向         |
+| -------------------------------------- | ------------ |
+| `GenerateComposer` 生成框              | bottom       |
+| `LooseImageCard` 近场工具条 / 快编面板 | top / bottom |
+| `NodeShell` 通用近场工具条             | top          |
+| `SeedanceNode` 侧车                    | right        |
+| `VideoReferenceNode` 工具条            | top          |
+| `VideoMergeComposeToolbar` 合成条      | top          |
+
+⚠ **只做进场，不做退场**：`NodeToolbar` 的 `isVisible` 转 false 会直接卸载 children，
+`AnimatePresence` 拿不到退场时机 —— 要做退场得改成自己接管挂载，会动到这块 chrome 与
+React Flow 的配合方式，不在这一片里。而「不可以直接打开」这条要的正是进场。
+
+⚠ 只动 `opacity` / `transform`，时长走 canon 的 `base` 档（200ms，落在 150–250 判据内），
+曲线是全站唯一那条 `EASE_STANDARD`，`useReducedMotion()` 为真时时长归零。
 
 ---
 

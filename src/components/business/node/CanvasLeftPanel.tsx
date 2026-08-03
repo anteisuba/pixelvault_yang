@@ -93,7 +93,11 @@ export function CanvasLeftPanel({
       className="pointer-events-auto absolute bottom-4 left-4 z-canvas-chrome hidden flex-col md:flex canvas-glass canvas-left-panel"
       // 宽度走内联值而不是 CSS 类：真机上同一条 [data-expanded='false'] 规则里
       // border-radius 生效了、width 没生效（级联被别处压掉），与其猜不如钉死。
-      // 过渡仍由 .canvas-left-panel 的 transition: width 负责。
+      // ⚠ 这里**没有**宽度过渡 —— 批 2 时我在这行写过「过渡仍由
+      // .canvas-left-panel 的 transition: width 负责」，那句是错的：实测
+      // computed transition-duration 是 0s，canvas.css 里也明写着「故意不写
+      // transition: width」（带上它这条过渡永远不推进）。展开的动效改由内容区
+      // 的 .canvas-left-panel-body 做 opacity + translateX（批 4 拍板②）。
       style={{
         top: 'calc(var(--canvas-topbar-h) + 16px)',
         width: expanded
@@ -154,7 +158,7 @@ export function CanvasLeftPanel({
         {/* 内容区：展开才渲染，收起时整块不占宽（不是 hidden，是不存在，
             免得内部的滚动容器还在测量一个 0 宽的盒子）。 */}
         {expanded ? (
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="canvas-left-panel-body flex min-w-0 flex-1 flex-col">
             <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-node-panel-inner px-3">
               <span className="truncate text-node-foreground canvas-panel-title">
                 {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast

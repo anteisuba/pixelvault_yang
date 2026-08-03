@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
+import { CanvasPopIn } from '../CanvasPopIn'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { EditableNodeLabel, NodeCardPorts } from './NodeShell'
 
@@ -170,12 +171,14 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
         position={Position.Top}
         offset={14}
       >
-        <NodeSelectionToolbarChrome
-          nodeId={id}
-          data={data}
-          selected={selected}
-          nodeType={NODE_TYPE_IDS.videoReference}
-        />
+        <CanvasPopIn side="top">
+          <NodeSelectionToolbarChrome
+            nodeId={id}
+            data={data}
+            selected={selected}
+            nodeType={NODE_TYPE_IDS.videoReference}
+          />
+        </CanvasPopIn>
       </NodeToolbar>
 
       {/* S5：卡外原地可编辑名字（canvas-image-card.md §1/§三），同

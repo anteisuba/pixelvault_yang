@@ -33,6 +33,7 @@ import {
   NodeSelectionToolbarChrome,
   ShotGenerateButton,
 } from '../CanvasImageSelectionToolbar'
+import { CanvasPopIn } from '../CanvasPopIn'
 import { CanvasQuickEditPrompt } from '../CanvasQuickEditPrompt'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
@@ -342,31 +343,33 @@ export function LooseImageCard({
         position={Position.Top}
         offset={14}
       >
-        {offerEdit ? (
-          <CanvasImageSelectionToolbar
-            nodeId={id}
-            data={data}
-            onQuickEditOpenChange={setQuickEditOpen}
-            quickEditOpen={quickEditOpen}
-            extra={
-              // ⚠ 审核动作（通过/打回）**不在这条工具条上** —— owner
-              // 2026-07-31：「这个通过打回放在下面的编辑框里更好」。工具条已
-              // 有 8 项（分类/展开/下载/快捷编辑/重新生成/删除/…），而审核是
-              // 「这张图能不能用」，跟下方编辑框里的「拿它再生成」是同一场决
-              // 策。落点见 `composer/GenerateComposer` 的参数条首位。
-              nodeType === NODE_TYPE_IDS.shot ? (
-                <ShotGenerateButton nodeId={id} data={data} />
-              ) : null
-            }
-          />
-        ) : (
-          <NodeSelectionToolbarChrome
-            nodeId={id}
-            data={data}
-            selected={selected}
-            nodeType={nodeType}
-          />
-        )}
+        <CanvasPopIn side="top">
+          {offerEdit ? (
+            <CanvasImageSelectionToolbar
+              nodeId={id}
+              data={data}
+              onQuickEditOpenChange={setQuickEditOpen}
+              quickEditOpen={quickEditOpen}
+              extra={
+                // ⚠ 审核动作（通过/打回）**不在这条工具条上** —— owner
+                // 2026-07-31：「这个通过打回放在下面的编辑框里更好」。工具条已
+                // 有 8 项（分类/展开/下载/快捷编辑/重新生成/删除/…），而审核是
+                // 「这张图能不能用」，跟下方编辑框里的「拿它再生成」是同一场决
+                // 策。落点见 `composer/GenerateComposer` 的参数条首位。
+                nodeType === NODE_TYPE_IDS.shot ? (
+                  <ShotGenerateButton nodeId={id} data={data} />
+                ) : null
+              }
+            />
+          ) : (
+            <NodeSelectionToolbarChrome
+              nodeId={id}
+              data={data}
+              selected={selected}
+              nodeType={nodeType}
+            />
+          )}
+        </CanvasPopIn>
       </NodeToolbar>
 
       {/* S4：卡外名字复用与 NodeShell.Header 同一条 canvas-card-label 规则
@@ -468,12 +471,14 @@ export function LooseImageCard({
         position={Position.Bottom}
         offset={14}
       >
-        <CanvasQuickEditPrompt
-          nodeId={id}
-          data={data}
-          fileLabel={label}
-          onClose={() => setQuickEditOpen(false)}
-        />
+        <CanvasPopIn side="bottom">
+          <CanvasQuickEditPrompt
+            nodeId={id}
+            data={data}
+            fileLabel={label}
+            onClose={() => setQuickEditOpen(false)}
+          />
+        </CanvasPopIn>
       </NodeToolbar>
     </div>
   )

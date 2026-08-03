@@ -4,6 +4,7 @@ import { NodeToolbar, Position } from '@xyflow/react'
 import { Combine } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { CanvasPopIn } from './CanvasPopIn'
 import { ToolbarLabelButton } from './CanvasImageSelectionToolbar'
 
 interface VideoMergeComposeToolbarProps {
@@ -66,18 +67,20 @@ export function VideoMergeComposeToolbar({
           in this codebase already relies on without setting the token
           itself (see `GenericSelectionToolbar` in CanvasImageSelectionToolbar.tsx,
           whose shell classes this div mirrors). */}
-      <div
-        role="toolbar"
-        aria-label={ariaLabel}
-        className="flex h-11 items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 text-node-foreground shadow-node-panel backdrop-blur"
-      >
-        <ToolbarLabelButton
-          icon={Combine}
-          label={label}
-          ariaLabel={ariaLabel}
-          onClick={onCompose}
-        />
-      </div>
+      <CanvasPopIn side="top">
+        <div
+          role="toolbar"
+          aria-label={ariaLabel}
+          className="flex h-11 items-center gap-1 rounded-xl border border-node-panel-inner bg-node-panel/95 p-1 text-node-foreground shadow-node-panel backdrop-blur"
+        >
+          <ToolbarLabelButton
+            icon={Combine}
+            label={label}
+            ariaLabel={ariaLabel}
+            onClick={onCompose}
+          />
+        </div>
+      </CanvasPopIn>
     </NodeToolbar>
   )
 }

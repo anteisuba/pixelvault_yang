@@ -1550,10 +1550,39 @@
   /* 宽度由组件内联给（见 CanvasLeftPanel 的注释）。
      ⚠ 这里**故意不写 transition: width**：真机实测带上它之后这条过渡永远不
      推进，computed width 卡在旧值不动（去掉 transition 立刻正确应用）。根因
-     多半是内容区在同一次 commit 里被条件卸载，宽度过渡每帧被重置。展开/收起
-     的动效属于 S7「动效十条」那一片，到时候用内容区的 opacity/transform 做，
-     不要再回来给 aside 的 width 加过渡。 */
+     多半是内容区在同一次 commit 里被条件卸载，宽度过渡每帧被重置。 */
   border-radius: 16px;
+}
+
+/* ── 展开 / 收起的动效（批 4，owner 2026-08-03 拍板②）───────────────────
+   就按上面那条注释当初指定的做法：**用内容区的 opacity/transform 做**，
+   aside 的 width 一个字都不碰（那条路真机验过走不通）。
+
+   内容区在收起时是**条件卸载**的（不是 hidden —— 留着 0 宽的盒子，里面的滚动
+   容器还会继续测量它），所以退场没法靠 CSS 过渡；这里只做**进场**：展开的瞬间
+   内容从左侧 8px 处淡入。收起仍是即时的 —— 那一侧本来也不需要挽留。
+
+   ⚠ 只动 transform / opacity（§13.2 合成层判据）。时长走画布域 base 档。 */
+@keyframes canvas-left-panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.domain-canvas .canvas-left-panel-body {
+  animation: canvas-left-panel-reveal var(--canvas-dur-base)
+    var(--canvas-ease-state);
+}
+/* 减动偏好下 globals.css 的全局块已把时长压到 .01ms；这里再显式撤掉位移，
+   免得留下一次可见的「跳一下」。 */
+@media (prefers-reduced-motion: reduce) {
+  .domain-canvas .canvas-left-panel-body {
+    animation: none;
+  }
 }
 /* 收起成窄轨时才回到全圆角——展开态那块高而宽的面板做成胶囊会啃掉顶底内容。 */
 .domain-canvas .canvas-left-panel[data-expanded='false'] {

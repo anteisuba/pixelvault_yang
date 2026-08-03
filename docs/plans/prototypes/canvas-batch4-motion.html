@@ -1,0 +1,212 @@
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>批 4 · 动效 —— 实测与提案</title>
+<style>
+  :root{
+    --card:#ffffff; --bg:#F1F1F1; --ink:#26231e; --ink-muted:#5f594e; --ink-subtle:#8a8070;
+    --stone:#3e8c6c; --danger:#c0342e; --warn:#8a5a00; --accent:#2b5ce6;
+    --page:#faf9f7; --rule:#e6e2db;
+    --duration-fast:.12s; --duration-base:.2s; --duration-slow:.32s;
+    --ease-standard:cubic-bezier(.22,1,.36,1);
+    --canvas-dur-fast:.15s; --canvas-dur-base:.25s; --canvas-dur-slow:.42s;
+    --canvas-ease-state:cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.7 -apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 24px 96px}
+  h1{font-size:26px;letter-spacing:-.01em;margin:0 0 6px}
+  .sub{color:var(--ink-muted);margin:0 0 30px;font-size:14px}
+  h2{font-size:19px;margin:0;letter-spacing:-.01em}
+  section{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;margin:0 0 20px}
+  .sh{display:flex;align-items:baseline;gap:10px;margin:0 0 4px;flex-wrap:wrap}
+  .no{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+    color:var(--ink-subtle);border:1px solid var(--rule);border-radius:4px;padding:4px 6px}
+  .lede{color:var(--ink-muted);font-size:14px;margin:10px 0 20px}
+  code{font:12px/1.5 ui-monospace,Menlo,monospace;background:#f4f2ef;
+    border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+  .kill{color:var(--danger);font-weight:600}
+  .keep{color:var(--stone);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0}
+  th{text-align:left;font-weight:600;color:var(--ink-muted);font-size:12px;
+    padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid #f0ede8;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  .num{font:600 12.5px/1.5 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+  .bad{color:var(--danger)} .ok{color:var(--stone)}
+  .note{border-left:3px solid var(--warn);background:#fdfaf3;padding:12px 14px;
+    border-radius:0 8px 8px 0;font-size:13.5px;margin:14px 0}
+  .note.red{border-left-color:var(--danger);background:#fdf4f3}
+  .note.grn{border-left-color:var(--stone);background:#f3faf7}
+  ul.pts{margin:12px 0 0;padding-left:20px;font-size:13.5px}
+  ul.pts li{margin-bottom:9px}
+  .ask{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;margin:10px 0;font-size:13.5px}
+  .ask b{display:block;margin-bottom:4px}
+  .rec{color:var(--stone);font-weight:600}
+  .demo{background:var(--bg);border:1px solid var(--rule);border-radius:12px;padding:22px;margin:14px 0;
+    background-image:radial-gradient(circle,rgba(0,0,0,.07) 1px,transparent 1px);background-size:22px 22px}
+  .btn{border:1px solid var(--rule);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;
+    font-size:13px;cursor:pointer}
+  .btn:active{transform:scale(.96)}
+  .panelbox{display:flex;gap:12px;align-items:stretch;margin-top:14px}
+  .aside{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;overflow:hidden;
+    display:flex;height:190px}
+  .rail{width:56px;flex:none;border-right:1px solid #eee;display:flex;flex-direction:column;
+    align-items:center;gap:8px;padding:8px 0}
+  .rail i{width:30px;height:30px;border-radius:8px;background:#f1efec;display:block}
+  .rail i.on{background:#26231e}
+  .body{width:200px;overflow:hidden}
+  .body .inner{width:200px;padding:12px;font-size:12px;color:var(--ink-muted)}
+  /* 提案：内容区做 opacity+translate，轨宽用 flex-basis 让位 —— aside 的 width
+     由内联控制，这里只演示「内容区淡入/移入」那一层 */
+  .aside.anim .body{transition:width var(--canvas-dur-base) var(--canvas-ease-state)}
+  .aside.anim .body .inner{transition:opacity var(--canvas-dur-base) var(--canvas-ease-state),
+                                       transform var(--canvas-dur-base) var(--canvas-ease-state)}
+  .aside[data-collapsed="true"] .body{width:0}
+  .aside[data-collapsed="true"] .body .inner{opacity:0;transform:translateX(-8px)}
+  .cap{font-size:11.5px;color:var(--ink-subtle);margin-top:8px}
+  .vocab{display:flex;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:14px 0}
+  .vocab > div{flex:1;padding:13px 14px;border-right:1px solid var(--rule);font-size:12.5px}
+  .vocab > div:last-child{border-right:0}
+  .vocab b{display:block;font-size:13.5px;margin-bottom:5px}
+  .vocab .v{font:600 12px/1.8 ui-monospace,Menlo,monospace;display:block}
+</style>
+
+<div class="wrap">
+<h1>批 4 · 动效</h1>
+<p class="sub">实测 + 提案 · 2026-08-03 · 台账 §13.2 的七条判据</p>
+
+<section>
+  <div class="sh"><span class="no">§0</span><h2>七条判据逐条实测</h2></div>
+  <p class="lede">全部在真浏览器里读 computed style，不是读源码猜。</p>
+  <table>
+    <tr><th style="width:96px">判据</th><th style="width:64px">结论</th><th>实测</th></tr>
+    <tr><td><b>画布视口</b></td><td class="ok">✅ 合规</td>
+      <td>`.react-flow__viewport` 上零第三方 tween，pan/zoom 全交给 React Flow</td></tr>
+    <tr><td><b>库的硬规则</b></td><td class="ok">✅ 合规</td>
+      <td>画布域内 GSAP <b>零命中</b>；动效全走 <code>motion</code></td></tr>
+    <tr><td><b>精确优先</b></td><td class="ok">✅ 合规</td>
+      <td>`ui/slider.tsx` 只有 <code>transition-[color,box-shadow]</code> —— 位置不带过渡，松手即停，没有惯性</td></tr>
+    <tr><td><b>克制</b></td><td class="ok">✅ 合规</td>
+      <td><code>useReducedMotion()</code> 已用于 NodeDetailPanel / VideoComposer / ReferenceManagerPanel；CSS 侧另有 <code>globals.css:1728</code> 的全局 <code>*{animation-duration:.01ms}</code> 兜底</td></tr>
+    <tr><td><b>合成层</b></td><td>⚠ 三处动尺寸</td>
+      <td>都**有据可依**：<code>.node-canvas-panel-motion</code>（面板拖拽改宽，拖动时 <code>data-resizing</code> 关掉过渡好 1:1 跟手）· 顶栏给助手让位的 <code>padding-right</code> · 确定式进度条的 <code>width</code>。三者都不是装饰性动效，且都用了动效基准</td></tr>
+    <tr><td><b>布局连续</b></td><td class="bad">✗ 一处</td>
+      <td><b>左面板展/收完全没有动效</b> —— 见 §2</td></tr>
+    <tr><td><b>时长统一</b></td><td class="bad">✗ 三套并存</td>
+      <td>见 §1，这是本批的主干</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="sh"><span class="no">§1</span><h2>时长统一：不是「某个下拉太慢」，是<b>三套动效词汇并存</b></h2></div>
+  <p class="lede">台账把这条写成「面板 / Sheet / Popover / 下拉展开 150–250ms，同一条 ease」，
+    并点名要逐个量 11 个表面。量完发现问题不在单个数值，在于项目里同时活着三套基准，
+    而其中一套<b>不是任何人选的</b>。</p>
+
+  <div class="vocab">
+    <div>
+      <b>① 全局 canon</b>
+      <span class="v">--duration-fast&nbsp;&nbsp;.12s<br>--duration-base&nbsp;&nbsp;.20s<br>--duration-slow&nbsp;&nbsp;.32s<br>--ease-standard<br>&nbsp;&nbsp;cubic-bezier(.22,1,.36,1)</span>
+      <span style="color:var(--ink-muted)">与 <code>constants/motion.ts</code> 同步</span>
+    </div>
+    <div>
+      <b>② 画布域</b>
+      <span class="v">--canvas-dur-fast&nbsp;&nbsp;.15s<br>--canvas-dur-base&nbsp;&nbsp;.25s<br>--canvas-dur-slow&nbsp;&nbsp;.42s<br>--canvas-ease-state<br>&nbsp;&nbsp;cubic-bezier(.4,0,.2,1)</span>
+      <span style="color:var(--ink-muted)">画布自己的一档，略慢</span>
+    </div>
+    <div style="background:#fdf4f3">
+      <b class="kill">③ shadcn 原语</b>
+      <span class="v">进场&nbsp;&nbsp;150ms（下拉/popover/select/tooltip）<br>dialog&nbsp;&nbsp;300 进 / 200 出<br>sheet&nbsp;&nbsp;&nbsp;500 进 / 300 出<br>ease = 浏览器默认 <code>ease</code></span>
+      <span class="kill">没用上面任何一套</span>
+    </div>
+  </div>
+
+  <div class="note red">
+    <b>第三套是没人选的。</b>它是 shadcn 模板自带的硬编码值 + Tailwind 的默认动画曲线
+    （<code>ease</code> = <code>cubic-bezier(.25,.1,.25,1)</code>）。台账点名的 11 个表面里，
+    <b>除了画布自己写的那几个，其余全落在这一套上</b> —— 也就是说「同一条 ease」这条判据
+    今天是不成立的：画布里的过渡走 <code>(.4,0,.2,1)</code>，画布里弹出的下拉走浏览器的
+    <code>(.25,.1,.25,1)</code>，两者贴在一起出现。
+    <br><br>
+    ⚠ 另外两个**出带**的：<code>sheet</code> <span class="num">500ms</span> 进场（判据上限的两倍）、
+    <code>dialog</code> <span class="num">300ms</span> 进场。
+  </div>
+
+  <div class="note">
+    ⚠ 顺带订正台账：§13.2 要逐个量的清单里有 <b>E2 项目菜单</b> —— 它在批 2 里已经不存在了
+    （项目管理搬进左面板，顶栏那个下拉整个删掉）。清单该减一。
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="no">§2</span><h2>左面板展/收：没有动效，而 CSS 注释早就把这件事指给了这一批</h2></div>
+  <p class="lede">实测 <code>.canvas-left-panel</code> 的 computed 值是
+    <code>transition-property: all</code> / <code>duration: <b>0s</b></code> —— 296px ↔ 56px 是硬切的。</p>
+
+  <div class="note">
+    这不是疏忽。<code>canvas.css:1550</code> 的注释写着：<br>
+    「⚠ 这里<b>故意不写 transition: width</b>：真机实测带上它之后这条过渡永远不推进，
+    computed width 卡在旧值不动。根因多半是内容区在同一次 commit 里被条件卸载，宽度过渡
+    每帧被重置。<b>展开/收起的动效属于「动效十条」那一片，到时候用内容区的
+    opacity/transform 做，不要再回来给 aside 的 width 加过渡。</b>」<br><br>
+    —— 就是这一批。而且它连做法都指定好了。
+    <br><br>
+    ⚠ 我在批 2 给 <code>CanvasLeftPanel.tsx</code> 写的注释说「过渡仍由
+    <code>.canvas-left-panel</code> 的 <code>transition: width</code> 负责」，与实测和这条注释都矛盾 ——
+    <b>那句是错的</b>，一并订正。
+  </div>
+
+  <div class="demo">
+    <button class="btn" id="toggle">展开 / 收起</button>
+    <div class="panelbox">
+      <div class="aside" id="a1" data-collapsed="false">
+        <div class="rail"><i class="on"></i><i></i><i></i></div>
+        <div class="body"><div class="inner">班底架内容<br>节点定位器…</div></div>
+      </div>
+      <div class="aside anim" id="a2" data-collapsed="false">
+        <div class="rail"><i class="on"></i><i></i><i></i></div>
+        <div class="body"><div class="inner">班底架内容<br>节点定位器…</div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="cap" style="width:268px"><b>现状</b> —— 硬切</div>
+      <div class="cap"><b>提案</b> —— 内容区 opacity + translateX，宽度让位走内容区而不是 aside</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="no">§3</span><h2>要你拍板的两件</h2></div>
+
+  <div class="ask"><b>① 三套词汇怎么收？</b>
+    <div style="margin-top:8px">
+      <b style="display:inline">A · 收成一套</b> —— 画布 token 直接指向全局 canon。
+      代价：全画布过渡手感整体变化（.15→.12 / .25→.2 / .42→.32，ease 也换），
+      而 <code>.42s</code> 那一档是给「画布给助手让位」这种大位移专门留的。<br><br>
+      <b style="display:inline" class="rec">B · 保留两层，把第三套并掉（推荐）</b> ——
+      全局 canon 管通用 UI、画布 token 管画布专属，两者各自内部一致；
+      <b>shadcn 原语那套硬编码 + 浏览器 ease 并入全局 canon</b>。
+      这样「同一条 ease」在每一层内部成立，而画布确实需要的略慢一档也保住。<br><br>
+      <b style="display:inline">C · 只修出带的</b> —— 只把 sheet 500→、dialog 300→ 拉进 150–250，
+      其余不动。最小，但「浏览器默认 ease」这条不解决。
+    </div>
+  </div>
+
+  <div class="ask"><b>② 左面板动效做到哪一层？</b>
+    我建议 <span class="rec">按 CSS 注释指定的做法</span>：内容区 opacity + translateX，
+    <b>不给 aside 的 width 加过渡</b>（那条路真机验过走不通）。
+    上面 demo 右边就是这个效果。<br>
+    ⚠ 若你想要连 rail 宽度一起平滑，那要改成 <code>motion</code> 的 <code>layout</code> 动画，
+    改动面大一档（要动 React Flow 旁边这块 chrome 的挂载结构），我会另开一片。</div>
+</section>
+
+<script>
+  document.getElementById('toggle').addEventListener('click', () => {
+    for (const id of ['a1','a2']) {
+      const el = document.getElementById(id);
+      el.dataset.collapsed = el.dataset.collapsed === 'true' ? 'false' : 'true';
+    }
+  });
+</script>
+</div>

@@ -43,6 +43,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
+import { CanvasPopIn } from '../CanvasPopIn'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './NodeStatusBadge'
 
@@ -439,13 +440,15 @@ function NodeShellRoot({
           position={Position.Top}
           offset={toolbarOffset}
         >
-          <NodeSelectionToolbarChrome
-            nodeId={nodeId}
-            data={toolbarData}
-            selected={selected}
-            nodeType={type}
-            isCollector={isCollector}
-          />
+          <CanvasPopIn side="top">
+            <NodeSelectionToolbarChrome
+              nodeId={nodeId}
+              data={toolbarData}
+              selected={selected}
+              nodeType={type}
+              isCollector={isCollector}
+            />
+          </CanvasPopIn>
         </NodeToolbar>
       ) : null}
       <NodeCardPorts

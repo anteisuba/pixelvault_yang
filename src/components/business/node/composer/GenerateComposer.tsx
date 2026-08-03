@@ -43,6 +43,7 @@ import { MentionInput } from './MentionInput'
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { MediaReviewButtons } from '../CanvasImageSelectionToolbar'
+import { CanvasPopIn } from '../CanvasPopIn'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
@@ -672,9 +673,11 @@ export function GenerateComposer() {
         // "贴"宿主卡下方的归属关系，看起来像另一个独立浮层）。
         offset={8}
       >
-        <div ref={rootRef} className="canvas-composer-root">
-          {body}
-        </div>
+        <CanvasPopIn side="bottom">
+          <div ref={rootRef} className="canvas-composer-root">
+            {body}
+          </div>
+        </CanvasPopIn>
       </NodeToolbar>
     )
   }

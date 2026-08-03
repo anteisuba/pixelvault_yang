@@ -20,6 +20,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { CanvasPopIn } from '../CanvasPopIn'
 import { NodeProgressState } from './NodeProgressState'
 import { NodeVideoSurface } from './NodeVideoSurface'
 import { NodeShell } from './NodeShell'
@@ -79,40 +80,42 @@ export const SeedanceNode = memo(function SeedanceNode(
         offset={isMobile ? 20 : 24}
         className="canvas-video-sidecar-toolbar"
       >
-        <aside
-          aria-label={t('sidecar.ariaLabel')}
-          className="canvas-video-sidecar nodrag nopan nowheel"
-        >
-          <header className="canvas-video-sidecar-header">
-            <div className="min-w-0">
-              <p className="canvas-video-sidecar-eyebrow">
-                {t('sidecar.eyebrow')}
-              </p>
-              <p className="canvas-video-sidecar-title">
-                {nodeBrand ?? t('sidecar.titleFallback')}
-              </p>
+        <CanvasPopIn side="right">
+          <aside
+            aria-label={t('sidecar.ariaLabel')}
+            className="canvas-video-sidecar nodrag nopan nowheel"
+          >
+            <header className="canvas-video-sidecar-header">
+              <div className="min-w-0">
+                <p className="canvas-video-sidecar-eyebrow">
+                  {t('sidecar.eyebrow')}
+                </p>
+                <p className="canvas-video-sidecar-title">
+                  {nodeBrand ?? t('sidecar.titleFallback')}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setExpandedNodeId(id)}
+                  className="canvas-video-sidecar-icon-button"
+                  aria-label={t('sidecar.detailAction')}
+                  title={t('sidecar.detailAction')}
+                >
+                  <Maximize2 className="size-3.5" aria-hidden />
+                </button>
+              </div>
+            </header>
+            <div className="canvas-video-sidecar-body">
+              <VideoComposer
+                id={id}
+                data={data}
+                density="card"
+                showMonitor={false}
+              />
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setExpandedNodeId(id)}
-                className="canvas-video-sidecar-icon-button"
-                aria-label={t('sidecar.detailAction')}
-                title={t('sidecar.detailAction')}
-              >
-                <Maximize2 className="size-3.5" aria-hidden />
-              </button>
-            </div>
-          </header>
-          <div className="canvas-video-sidecar-body">
-            <VideoComposer
-              id={id}
-              data={data}
-              density="card"
-              showMonitor={false}
-            />
-          </div>
-        </aside>
+          </aside>
+        </CanvasPopIn>
       </NodeToolbar>
       <NodeShell.Header
         type={NODE_TYPE_IDS.seedance}

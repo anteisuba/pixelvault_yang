@@ -65,8 +65,28 @@ describe('NODE_DETAIL_REGISTRY', () => {
   })
 
   // S5d ③: a role-less image node presents as `image` itself now.
+  // ⚠ S4 起它在**槽表**里 —— 换表是迁移的意思，不是丢了。断言跟着换表，
+  //   但仍点名到具体组件：这条守的是「散图不许落回 shot 默认」这件事，
+  //   `图片（素材）` 与 `镜头图（生成）` 在菜单上是两个东西。
   it('uses the loose-image body for the unified image node type', () => {
-    expect(NODE_DETAIL_REGISTRY[NODE_TYPE_IDS.image]).toBe(LooseImageDetailBody)
+    expect(NODE_DETAIL_SLOT_REGISTRY[NODE_TYPE_IDS.image]).toBe(
+      LooseImageDetailBody,
+    )
+  })
+
+  it('图片五族全部走槽表（S4）', () => {
+    for (const type of [
+      NODE_TYPE_IDS.image,
+      NODE_TYPE_IDS.shot,
+      NODE_TYPE_IDS.frameImage,
+      NODE_TYPE_IDS.backgroundImage,
+      NODE_TYPE_IDS.characterImage,
+    ]) {
+      expect(
+        NODE_DETAIL_SLOT_REGISTRY[type],
+        `${type} 应在槽表里`,
+      ).toBeDefined()
+    }
   })
 
   /**

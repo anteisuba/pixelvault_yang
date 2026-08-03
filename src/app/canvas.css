@@ -1897,6 +1897,29 @@
   transition: width var(--canvas-dur-base) var(--canvas-ease-state);
 }
 
+/* 呼吸档（`indicator='breath'`，详情面板专用）——
+   ⚠ 静止态就是**亮**的那一帧（base opacity 1，动画谷底在 50%）。反过来写
+   （0%/100% 暗）在 reduced-motion 下会停成一颗几乎看不见的点：全局那条
+   reduce 规则把 iteration-count 压到 1、duration 压到 0.01ms，元素会停在
+   最后一帧上。关掉动效的用户仍然要看得见「在跑」。 */
+@keyframes node-canvas-progress-breath {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.78);
+  }
+}
+.domain-canvas .canvas-progress-breath {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--canvas-ink);
+  /* 只动 opacity/transform —— 合成层，长任务里跑 30s+ 也不掉帧。 */
+  animation: node-canvas-progress-breath 1.9s var(--canvas-ease-state) infinite;
+}
+
 /* ⚠ `.canvas-image-upload-scrim` / `.canvas-image-generating-scrim` /
    `.canvas-image-upload-text` 三个类已随 #14 删除 —— 它们的两个调用方
    （ImageCardUploadOverlay / ImageCardGeneratingOverlay）都改渲染
@@ -2490,10 +2513,273 @@
    迁移期这两条不会命中任何东西（legacy 分支只填编排台槽），从 S3 起逐族生效。 */
 .domain-canvas .canvas-detail-stage-pin {
   flex: 0 0 auto;
+  padding: 0 32px 14px;
+  /* 主体台钉在滚动区之上，滚动内容从它下面过 —— 需要自己的层，否则滚上来的
+     白 prompt 块会盖住井底边。 */
+  position: relative;
+  z-index: 2;
 }
 
 .domain-canvas .canvas-detail-dock {
   flex: 0 0 auto;
+}
+
+/* ── 方向 E 槽内词汇（S4，2026-08-04）──────────────────────────────────
+   契约 R1「一级面零标题预算」意味着每个槽的边界只能靠**形状与留白**表达，
+   所以这些类不是装饰，是槽的承载物本身。
+
+   ⚠ 全部写在 CSS 而不是 Tailwind 工具类：E 的尺度是 11.5 / 12.5 / 13 / 13.5px
+   这种半档值（Hard Rule 5 禁 arbitrary value），且 R10 要求「尺寸档位 ≤3」——
+   把它们收在一处才数得清有几档。 */
+
+/* R12：层间距 : 层内距 ≈ 3 : 1。槽与槽之间 28，槽内 8–10。 */
+.domain-canvas .canvas-object-studio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* 槽 2 · 主体台 —— R11：井宽由宽高比推导、居中；**空余宽度不画表面**
+   （不给底色不给边框，那就是面板底本身）。 */
+.domain-canvas .canvas-detail-stage {
+  display: flex;
+  justify-content: center;
+}
+.domain-canvas .canvas-detail-well {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  /* R2：空态与满态版式**完全同构** —— 同高同圆角同底，只把内容像素换成一枚
+     极淡字形。禁虚线取景框 / 棋盘格 / 四角标记 / 「生成后在此预览」类文案。 */
+  height: 250px;
+  max-width: 100%;
+  aspect-ratio: var(--canvas-detail-ar, 16 / 9);
+  border-radius: 12px;
+  background: var(--canvas-detail-s2);
+}
+@container stage (max-width: 1023px) {
+  .domain-canvas .canvas-detail-well {
+    height: 206px;
+  }
+}
+@container stage (max-width: 767px) {
+  .domain-canvas .canvas-detail-well {
+    height: 156px;
+    border-radius: 10px;
+  }
+}
+.domain-canvas .canvas-detail-well-glyph {
+  color: var(--canvas-detail-ghost);
+}
+/* 井左上角的来源角标（AI 生成 / 素材库）。 */
+.domain-canvas .canvas-detail-well-corner {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  border: 1px solid var(--canvas-detail-bd);
+  border-radius: 6px;
+  padding: 2px 8px;
+  background: var(--canvas-detail-s0);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--canvas-detail-ink);
+}
+/* 台座：R6「只读/派生值不穿控件壳」——灰标签 + 亮值纯文本，居中贴井下。 */
+.domain-canvas .canvas-detail-pedestal {
+  margin-top: 8px;
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--canvas-detail-ink-2);
+}
+
+/* 槽 3 · 素材架 —— R1：一行文字按钮 ⟷ 右对齐弱化计数，一行即一槽。
+   ⚠ 「AI 生成」那颗已删（owner 2026-08-03）：它内联区装的提示词/模型按七槽
+   契约属于编排台，挂在这里是槽位错放；而账本 ③「编排台全族默认展开」已经
+   取消了它作为唯一 editTarget 切换器的职责。素材库与 Studio **不能**删 ——
+   前者是全画布唯一能把素材库的图落进节点自身 mediaUrl 的入口，后者是
+   画布→图片 Studio 往返的唯一起点。 */
+.domain-canvas .canvas-detail-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+.domain-canvas .canvas-detail-txt-btn {
+  border: none;
+  padding: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--canvas-detail-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.domain-canvas .canvas-detail-txt-btn:hover {
+  text-decoration-thickness: 2px;
+}
+.domain-canvas .canvas-detail-txt-btn:disabled {
+  color: var(--canvas-detail-ink-2);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.domain-canvas .canvas-detail-count {
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--canvas-detail-ink-2);
+}
+
+/* 槽 4 · 编排台 —— R7「一栏内只有两类排法」：
+   长文本 = 整宽、无标签、无边框（白面浮起，靠表面级差 + 投影分层，不描边）；
+   短值 = 标签左、值右、一行。**prompt 不配独立标签行**。 */
+.domain-canvas .canvas-detail-prompt-block {
+  border-radius: 12px;
+  padding: 2px 4px;
+  background: var(--canvas-detail-s0);
+  box-shadow: var(--canvas-detail-shadow-card);
+}
+.domain-canvas .canvas-detail-prompt-block textarea {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  border: none;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--canvas-detail-ink);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  resize: vertical;
+}
+.domain-canvas .canvas-detail-prompt-block textarea:disabled {
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-krow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.domain-canvas .canvas-detail-krow-key {
+  flex: 0 0 64px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-krow-input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--canvas-detail-s0);
+  color: var(--canvas-detail-ink);
+  font-size: 13px;
+  box-shadow: var(--canvas-detail-shadow-card);
+}
+/* 短值只读派生（R6）：不穿控件壳。 */
+.domain-canvas .canvas-detail-krow-plain {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--canvas-detail-ink);
+}
+.domain-canvas .canvas-detail-stack {
+  display: flex;
+  flex-direction: column;
+  /* 槽**内**距（R12 的 1 那一档）。 */
+  gap: 10px;
+}
+
+/* 参考图行 —— R1 行首左置标签 + 一排等尺寸方块；R5 每项常驻控件收敛到 1 颗。
+   ⚠ 三家（Krea/LibTV/UpDream）都靠 hover 显形，我们不能抄：已拍板控件必须常显，
+   触屏够不着 hover，键盘焦点会落在看不见的按钮上。只抄「收敛到 1」这个算术。 */
+.domain-canvas .canvas-detail-ref-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.domain-canvas .canvas-detail-ref-label {
+  flex: 0 0 auto;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--canvas-detail-ink-2);
+}
+/* ⚠ 定宽 88px 流式排，**不是** `grid-cols-4`。四列在 960 面板里一格能撑到 209px，
+   于是空图集时那颗「添加」变成一个 209×209 的虚线大方块 —— 真机实拍到的、
+   R2 明写要删的「虚线取景框」。定宽同时把尺寸档位收进 R10 的 ≤3。 */
+.domain-canvas .canvas-detail-ref-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.domain-canvas .canvas-detail-ref-grid > * {
+  flex: 0 0 88px;
+  width: 88px;
+}
+
+/* 槽 5 · 关系带 / 槽 6 · 证据抽屉的一行灰字。 */
+.domain-canvas .canvas-detail-line {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--canvas-detail-ink-2);
+}
+
+/* 槽 7 · 动作坞 —— 通栏、在滚动区之外、**全屏唯一的实心元素**（R10）。 */
+.domain-canvas .canvas-detail-dock-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 32px;
+  background: var(--canvas-detail-s0);
+  box-shadow: var(--canvas-detail-shadow-dock);
+  position: relative;
+  z-index: 2;
+}
+.domain-canvas .canvas-detail-dock-reason {
+  min-width: 0;
+  flex: 1 1 160px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-dock-reason[data-tone='error'] {
+  font-weight: 600;
+  color: var(--canvas-detail-red);
+}
+.domain-canvas .canvas-detail-primary {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 30px;
+  background: var(--canvas-detail-ink);
+  color: var(--canvas-detail-s0);
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform var(--canvas-dur-base) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-detail-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.domain-canvas .canvas-detail-primary:disabled {
+  background: var(--canvas-detail-s2);
+  color: var(--canvas-detail-ink-2);
+  cursor: not-allowed;
+}
+@container stage (max-width: 767px) {
+  .domain-canvas .canvas-detail-stage-pin {
+    padding: 0 16px 12px;
+  }
+  .domain-canvas .canvas-detail-dock-bar {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .domain-canvas .canvas-detail-primary {
+    padding: 10px 20px;
+  }
 }
 
 /* Shared rail geometry. Image/media inspectors consume it directly; dossier

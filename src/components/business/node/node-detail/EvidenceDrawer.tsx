@@ -66,3 +66,42 @@ export function EvidenceDrawer({
     </div>
   )
 }
+
+export interface EvidenceRowProps {
+  /** 字段名。抽屉内部是**二级面**，契约 R1 在这里放行弱化灰字标签。 */
+  label: string
+  /** 值。空/未设时传空串并置 `dim` —— 不要不渲染整行：「这一项存在但为空」本身就是证据。 */
+  value: string
+  /** 值为空 / 未设 / 用默认值时降调。 */
+  dim?: boolean
+  /** 失败原因那一行。全屏唯一的红归它与动作坞。 */
+  tone?: 'error'
+}
+
+/**
+ * 证据抽屉里的一行「字段名 → 值」。
+ *
+ * ⚠ 抽在这里而不是各族各写一遍，是因为这一行的排法承担着一条可验规则：
+ * 抽屉里**只有一类排法**（标签左固定宽、值右可换行）。十族各写一份的话，
+ * 「发送预览」在视频族和图片族会长成两个样子，而它们说的是同一件事。
+ */
+export function EvidenceRow({ label, value, dim, tone }: EvidenceRowProps) {
+  return (
+    <div className="flex gap-3 py-1 text-xs leading-6">
+      <span className="w-20 shrink-0 font-semibold text-node-muted">
+        {label}
+      </span>
+      <span
+        className={
+          tone === 'error'
+            ? 'min-w-0 flex-1 break-words font-semibold text-node-status-failed'
+            : dim
+              ? 'min-w-0 flex-1 break-words text-node-muted'
+              : 'min-w-0 flex-1 break-words text-node-foreground'
+        }
+      >
+        {value}
+      </span>
+    </div>
+  )
+}

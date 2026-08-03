@@ -41,6 +41,13 @@ export const NODE_DETAIL_SLOT_REGISTRY: Partial<
 > = {
   // S3（2026-08-04）：十族里第一个迁到七槽的。
   [NODE_TYPE_IDS.shotText]: ShotTextDetailBody,
+  // S4（2026-08-04）：图片五族。前四族共用 `ImageFamilyBody`，
+  // 角色族因为七槽里只有身份条与它们同构而自成一份（见该文件头注）。
+  [NODE_TYPE_IDS.image]: LooseImageDetailBody,
+  [NODE_TYPE_IDS.shot]: ShotDetailBody,
+  [NODE_TYPE_IDS.frameImage]: FrameDetailBody,
+  [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
+  [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
 }
 
 /**
@@ -56,15 +63,8 @@ export const NODE_DETAIL_REGISTRY: Partial<
   [NODE_TYPE_IDS.videoMerge]: VideoMergeDetailBody,
   [NODE_TYPE_IDS.videoReference]: VideoReferenceDetailBody,
   [NODE_TYPE_IDS.voice]: VoiceDetailBody,
-  [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
-  [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
-  [NODE_TYPE_IDS.shot]: ShotDetailBody,
-  [NODE_TYPE_IDS.frameImage]: FrameDetailBody,
-  // S5d ③: a role-less (loose) image node presents as `image` itself (see
-  // `NodeDetailPanel`'s `isLooseImage` branch) instead of falling through to
-  // `resolveNodePresentationType`'s shot default — 图片（素材）must read as
-  // its own kind, not as 镜头图（生成）.
-  [NODE_TYPE_IDS.image]: LooseImageDetailBody,
-  // ⚠ shotText 已迁到上面的 NODE_DETAIL_SLOT_REGISTRY（S3）。一个族只能在一张表里 ——
-  // 槽表提供者的签名带 children 渲染函数，塞进 legacy 表会类型不兼容。
+  // ⚠ shotText（S3）与图片五族（S4）已迁到上面的 NODE_DETAIL_SLOT_REGISTRY。
+  // 一个族只能在一张表里 —— 槽表提供者的签名带 children 渲染函数，
+  // 塞进 legacy 表会类型不兼容（`registry.test.ts` 有一条断言守着这件事）。
+  // 剩下四族在 S5–S7 迁完后这张表连同 `GenericDetailBody` 一起删。
 }

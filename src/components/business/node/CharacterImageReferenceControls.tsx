@@ -450,21 +450,20 @@ export function CharacterImageReferenceControls({
 
   if (mode === 'gallery') {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-node-foreground">
-            {t('title')}
-          </p>
-          <span className="text-2xs font-medium text-node-muted">
-            {t('chip', { count: references.length, max: effectiveMaxItems })}
-          </span>
-        </div>
+      // ⚠ gallery 档只服务详情面板（S4 起唯一调用方是 `ImageFamilyBody` 与
+      //   `CharacterDetailBody`），所以这里**直接**按方向 E 的规矩长，不留旧形态：
+      //   · 删掉「参考图 / 0 3」那一行标题 —— 契约 R1「一级面零标题预算」，
+      //     且素材架自己那行右对齐计数已经在说同一件事（真机实拍：同屏出现三遍）。
+      //   · 网格从 `grid-cols-4`（一格能撑到 209px）改成定宽 88px 流式排 ——
+      //     R10 尺寸档位 ≤3；空图集时那颗「添加」原本是个 209×209 的虚线大方块，
+      //     正是 R2 点名要删的「虚线取景框」。
+      <div>
         {disabled ? (
-          <p className="rounded-xl bg-node-panel-soft px-3 py-2 text-xs text-node-muted">
+          <p className="text-xs leading-5 text-node-muted">
             {t('unsupported')}
           </p>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="canvas-detail-ref-grid">
             {references.map((reference) => (
               <div
                 key={reference.id}
@@ -678,7 +677,9 @@ export function CharacterImageReferenceControls({
                     type="button"
                     aria-label={tDossier('galleryAddAria')}
                     title={tDossier('galleryAddAria')}
-                    className="nodrag nopan nowheel flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-node-panel-inner text-node-subtle transition-colors hover:border-node-paint/50 hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-paint/60"
+                    // ⚠ 实线不虚线：虚线在这套语言里只出现过一次，就是被 R2
+                    // 删掉的那个空态取景框；留一颗虚线小方块会把它救回来。
+                    className="nodrag nopan nowheel flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border border-node-edge text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
                   >
                     <ImagePlus className="size-4" aria-hidden />
                     <span className="text-2xs font-medium">

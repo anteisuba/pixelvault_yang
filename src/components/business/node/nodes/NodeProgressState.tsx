@@ -75,11 +75,22 @@ export function NodeProgressBar({
   )
 }
 
-export interface NodeProgressStateProps {
+/**
+ * 器件形态。**默认 `'bar'`** —— 四个既有卡层落点一行不用改。
+ *
+ * `'breath'` 是详情面板（方向 E「静默」）用的那一档：契约 §7 写死了
+ * 「生成中 ↻ —— 无百分比、无取消、**无进度条**」。面板是一屏里最大的一块，
+ * 一根 96px 的扫光条在那么大的静面上会变成整屏最吵的东西，而它承诺的信息量
+ * 和一个呼吸点完全一样（都只说「在跑」）。
+ *
+ * ⚠ 不是给面板再造第五份实现 —— 那正是本文件头注要终结的局面。遮罩、文案、
+ * 无障碍播报三件事仍然共用，只有中间那个动的东西按落点换形。
+ */
+export type NodeProgressIndicator = 'bar' | 'breath'
+
+interface NodeProgressStateBaseProps {
   /** 「生成中」/「上传中 42%」这类文案，调用方自己拼好。 */
   label: string
-  /** 有真实百分比就传（上传）；生成拿不到，不传。 */
-  progress?: number
   /**
    * 底下有没有东西要遮。有已落的媒体、或者深色媒体窗 → true，上白遮罩；
    * 纯空态没东西可遮 → false，只在原地放器件，不平白盖一层。
@@ -98,26 +109,54 @@ export interface NodeProgressStateProps {
 }
 
 /**
- * 进行态的完整表现 —— 遮罩（可选）+ 文案 + 条。四个落点都渲染它，别再各写一份。
+ * ⚠ 判别联合而不是两个可选字段：`'breath'` 那一档**物理上没地方放百分比**，
+ * 允许两者同传就是允许调用方喂一个永远不会显示的真实进度 —— 上传态某天误用
+ * `'breath'` 会静默丢掉「还剩多少」这个用户真正需要的信息。写成编译错误。
+ */
+export type NodeProgressStateProps = NodeProgressStateBaseProps &
+  (
+    | {
+        indicator?: 'bar'
+        /** 有真实百分比就传（上传）；生成拿不到，不传。 */
+        progress?: number
+      }
+    | { indicator: 'breath'; progress?: never }
+  )
+
+/**
+ * 进行态的完整表现 —— 遮罩（可选）+ 文案 + 器件。四个落点都渲染它，别再各写一份。
  */
 export function NodeProgressState({
   label,
   progress,
   veiled = false,
   labelShownElsewhere = false,
+  indicator = 'bar',
   action,
 }: NodeProgressStateProps) {
+  const isBreath = indicator === 'breath'
+
   return (
     <div
       className={cn(
         'canvas-progress-state',
         veiled && 'canvas-progress-state--veiled',
       )}
+      // ⚠ 呼吸档必须自己承担播报：条那一档的「在跑」是 `role=progressbar`
+      // 播出去的，去掉条就等于对读屏用户完全静音。文案那个 <p> 不会自动播报，
+      // 它只在**首次**渲染时随页面读出来，之后由 idle 切到生成中就没声音了。
+      role={isBreath ? 'status' : undefined}
+      aria-live={isBreath ? 'polite' : undefined}
     >
       <p className={labelShownElsewhere ? 'sr-only' : 'canvas-progress-label'}>
         {label}
       </p>
-      <NodeProgressBar progress={progress} label={label} />
+      {isBreath ? (
+        // aria-hidden：这颗点说的和上面那句文案是同一件事，读屏读一遍就够。
+        <span className="canvas-progress-breath" aria-hidden="true" />
+      ) : (
+        <NodeProgressBar progress={progress} label={label} />
+      )}
       {action}
     </div>
   )

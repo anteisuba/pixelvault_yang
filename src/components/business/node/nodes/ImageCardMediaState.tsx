@@ -36,12 +36,25 @@ export interface ImageCardStatusBadgeProps {
   label: string
 }
 
-/** 状态浮标 —— 媒体窗内左上角，内缩 8px（父容器需 `position: relative`）。
- *  就绪态不挂它，调用方自己判断要不要渲染。 */
+/**
+ * 状态浮标 —— 媒体窗内左上角，内缩 8px（父容器需 `position: relative`）。
+ * 就绪态不挂它，调用方自己判断要不要渲染。
+ *
+ * ⚠ `empty` 档**不渲染**（台账 B6，2026-08-03）。台账原话是关键帧卡「信息重复
+ * 三遍：徽标说空、正文说要干嘛、footer 又说等待关键帧设定」。三者里正文说的是
+ * **这个节点是干什么的**（跟状态无关），真正重复的是徽标与 footer —— 而
+ * footer 是**具体**的（「等待关键帧设定」告诉你缺什么），徽标只是泛泛的「空」。
+ *
+ * 撤掉泛的那个，同时这也跟 A7 刚定下的梯度一致：**空/idle 不盖章，因为空本身
+ * 看得见** —— 空窗、虚线卡边（`canvas-card--dashed`）已经是两层编码了，第三层
+ * 只是占掉一行。
+ */
 export function ImageCardStatusBadge({
   variant,
   label,
 }: ImageCardStatusBadgeProps) {
+  if (variant === 'empty') return null
+
   const Icon = BADGE_ICON[variant]
   const tone: ImageCardBadgeTone = variant === 'failed' ? 'danger' : 'neutral'
   return (

@@ -9,6 +9,7 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { IdentityCollectorCard } from './IdentityCollectorCard'
@@ -55,11 +56,10 @@ export const ImageNode = memo(function ImageNode(
         nodeId={props.id}
         selected={props.selected}
         status={props.data.status}
-        mediaLabel={
-          typeof props.data.mediaLabel === 'string'
-            ? props.data.mediaLabel
-            : undefined
-        }
+        // 台账 B7(b)：过 `resolveNodeDisplayName` 而不是把 `data.mediaLabel`
+        // 原样递进去 —— 那个函数里的 `notMachineValue` 守卫专挡「模型 id /
+        // generation id 被当成人起的名字」（批 1 的 C5），绕过去就等于没有。
+        displayName={resolveNodeDisplayName(props.data)}
         // §7 owner 2026-07-28 缺陷③④：生成提示词框 / generateMediaNode 都会在
         // 这张卡还没有媒体时把 generationStatus/generationError 写进它自己的
         // data——不传的话 ImageSourceStarter 对生成中/生成失败完全无感（见该

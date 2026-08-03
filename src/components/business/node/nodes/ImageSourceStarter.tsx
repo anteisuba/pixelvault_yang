@@ -37,9 +37,16 @@ interface ImageSourceStarterProps {
   nodeId: string
   selected?: boolean
   status: NodeWorkflowStatus
-  /** owner 真机: 空态图片工具条改名写 mediaLabel（IdentityRegion image→mediaLabel）——
-   *  卡头读同一字段，改完卡上标题即刻反映；未命名时回落到类型名「图片」。 */
-  mediaLabel?: string
+  /**
+   * 已经解析好的显示名 —— 调用方必须传 `resolveNodeDisplayName(data)` 的结果，
+   * 未命名时给 `undefined`（卡头自己回落到类型名「图片」）。
+   *
+   * ⚠ 台账 B7(b)：这里原本叫 `mediaLabel`，调用方直接把 `data.mediaLabel` 原样
+   * 递进来，**绕过了** `resolveNodeDisplayName` 里的 `notMachineValue` 守卫
+   * （批 1 的 C5 加的，专挡「把模型 id / generation id 当人起的名字」）。改名成
+   * `displayName` 就是为了让「传原始字段」这件事不再看起来天经地义。
+   */
+  displayName?: string
   /**
    * canvas-generate-composer.md §7 owner 2026-07-28 真机实测缺陷③④：这张卡
    * 还没有媒体时也可能正在被生成提示词框/`generateMediaNode` 写入——两者都在
@@ -101,7 +108,7 @@ export function ImageSourceStarter({
   nodeId,
   selected,
   status,
-  mediaLabel,
+  displayName,
   generationStatus,
   generationError,
 }: ImageSourceStarterProps) {
@@ -250,7 +257,7 @@ export function ImageSourceStarter({
       <NodeShell.Header
         type={NODE_TYPE_IDS.image}
         status={status}
-        title={mediaLabel?.trim() || undefined}
+        title={displayName}
         onRenameCommit={(next) =>
           // 包 4.5：走共享写侧。这张起手卡没有 role，共享函数按 type 兜底
           // 落到 mediaLabel+sourceLabel —— 与原行为一致，但从此和别处同源。

@@ -1146,6 +1146,66 @@ owner 五条反馈**改了三处方案方向**，原型 v2 据此重画（`proto
 
 ---
 
+## 19 · B6 / B7（2026-08-03）—— 批 3 收尾
+
+### 19.1 B6「信息说三遍」：真正重复的是两处，不是三处
+
+台账原话：关键帧卡「徽标说空、正文说要干嘛、footer 又说等待关键帧设定」。
+读下来三者里**正文说的是这个节点是干什么的**（与状态无关，不算重复）。真正重复的是
+**徽标 vs footer** —— 而 footer 是**具体**的（「等待关键帧设定」告诉你缺什么），
+徽标只是泛泛的「空」。
+
+⟹ 撤掉泛的那个：`ImageCardStatusBadge` 的 `empty` 档整个不渲染
+（`uploading` / `generating` / `failed` 三档照旧）。这也与 §17.3 刚定下的梯度同源 ——
+**空 / idle 不盖章，因为空本身看得见**：空窗 + 虚线卡边（`canvas-card--dashed`）
+已经是两层编码，第三层只是占掉一行。
+
+⚠ 顺手修掉同一条 footer 的对比度：它用 `text-node-subtle` = `#8a8070`，对**白**卡背
+只有 **3.89**，够不到 11px 文字的 4.5（就是 §17.2 判掉的那一档）。卡背早在 S1 被
+`.canvas-card` 刷成 `#ffffff`，而这套墨色是按纸面 `#ebe5d8` 算的 —— 又一处
+「颜色按纸背算、实际压白卡」的错位。改 `text-node-muted`（6.94）。
+
+### 19.2 B7(a) 原生 `<video>` 控件：画布上早就有对的放法，只是没人共用
+
+台账记的两条都成立：原生控件（灰底 mute 图标 / 原生进度条 / ⋮ 菜单）与其余卡语言
+不搭；`videoThumbnailUrl` 缺席时窗里是纯黑。
+
+⚠ 但这**不是**一个「要设计一套播放器」的活 —— `VideoReferenceNode` 一直是
+**无 `controls` + 自带播放/静音钮 + `preload="metadata"`**，那正是卡上该有的放法。
+只是 `SeedanceNode` 与 `NodeMediaPreview` 没用它，各自写了一份带 `controls` 的。
+**又是「没有共享件」那个老毛病**（同 #14 的四份「生成中」、同 §18）。
+
+抽成 `NodeVideoSurface`，三处共用。两个细节是有理由的，别顺手拿掉：
+
+- **`preload="metadata"`** —— 这才是「首帧未加载是纯黑窗」的真正解。没有它浏览器
+  可能一帧都不取，而 `poster` 不是每条生成链路都会写。
+- **不给 `controls`** —— 原生控件在 400px 的卡上又挤又是另一套语言；卡内是纯媒体
+  （规格 §12.1），完整播放/拖拽交给详情面板（⤢）。
+
+### 19.3 B7(b) 卡名显示模型 id：守卫在，但两处绕过去了
+
+`resolveNodeDisplayName` 里的 `notMachineValue` 守卫（批 1 的 C5 加的）专挡
+「把模型 id / generation id 当人起的名字」。但：
+
+| 落点                     | 原样                                             | 后果                                                                                  |
+| ------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `SeedanceNode:115`       | `title={data.mediaLabel?.trim()}`                | **绕过守卫** —— 一张没被命名过的视频卡就叫 `seedance-2.0-fast-reference`              |
+| `ImageSourceStarter:253` | `title={mediaLabel?.trim()}`（调用方递原始字段） | 同上，但**是潜在的**：空态起步卡没有 generationId，没有链路往它的 mediaLabel 写机器值 |
+
+修法：两处读侧都接回 `resolveNodeDisplayName`；`SeedanceNode` 的写侧也从手写
+`{mediaLabel, sourceLabel}` 换成 `buildDisplayNamePatch`（兜底分支写的就是这两个字段，
+行为不变）。`ImageSourceStarter` 的 prop 从 `mediaLabel` 改名 **`displayName`** ——
+就是为了让「把原始字段递进去」这件事不再看起来天经地义。
+
+### 19.4 夹具补一张
+
+⚠ 2026-08-03 之前夹具里**一张带媒体的视频卡都没有**，而 B7(a) 记的恰恰是有媒体时
+那套控件 —— 那条发现当初根本验不了。新增 `B7c video-card-ready`
+（`mediaUrl` 指假域名走 `page.route` 兜底，首帧走 `videoThumbnailUrl`；看的是控件
+语言不是能不能播，所以不往仓库塞 mp4）。
+
+---
+
 ## Last Verified
 
 2026-08-01 · 真机 `localhost:3000/zh/studio/node`（Chrome，owner 账号，1568×744 视口）采到 30 个表面实况；读码覆盖 `components/business/node/**` 全部 85 个非测试 `.tsx` 的清单，其中 18 个逐行读过。

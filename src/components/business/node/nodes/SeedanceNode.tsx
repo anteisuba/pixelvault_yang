@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
-import { AlertTriangle, Film, Maximize2, Video } from 'lucide-react'
+import { AlertTriangle, Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -10,6 +10,10 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import {
+  buildDisplayNamePatch,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
 import { deriveSwitcherStateFromModel } from '@/lib/video-model-resolver'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
@@ -17,6 +21,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { VideoComposer } from '../composer/VideoComposer'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeProgressState } from './NodeProgressState'
+import { NodeVideoSurface } from './NodeVideoSurface'
 import { NodeShell } from './NodeShell'
 
 export const SeedanceNode = memo(function SeedanceNode(
@@ -112,13 +117,21 @@ export const SeedanceNode = memo(function SeedanceNode(
       <NodeShell.Header
         type={NODE_TYPE_IDS.seedance}
         status={data.status}
-        title={data.mediaLabel?.trim() || undefined}
-        // 组装台没有专属命名字段（同 videoMerge/frameImage），改名写回通用
-        // mediaLabel + 老搭档 sourceLabel（同 NodeMediaPreview.commitHeaderTitle
-        // 的写法，owner 真机确认过组装台改名口子缺失，见 canvas-image-card.md
-        // §三/§五 —— 之前唯一的口子是近场工具条的 IdentityRegion，已经删掉去重）。
+        // 台账 B7(b)：原来这里直接读 `data.mediaLabel`，**绕过了**
+        // `resolveNodeDisplayName` 里的 `notMachineValue` 守卫（批 1 的 C5 加的），
+        // 于是一张从没被命名过的视频卡就叫 `seedance-2.0-fast-reference` ——
+        // 把模型 id 当人起的名字。读写两侧都接回共享链，别再各写各的。
+        title={resolveNodeDisplayName(data)}
+        // 组装台没有专属命名字段（同 videoMerge/frameImage），`buildDisplayNamePatch`
+        // 的兜底分支写的就是 mediaLabel + 老搭档 sourceLabel，与原来手写的一致。
         onRenameCommit={(next) =>
-          updateNodeData(id, { mediaLabel: next, sourceLabel: next })
+          updateNodeData(
+            id,
+            buildDisplayNamePatch(
+              { role: data.role, type: NODE_TYPE_IDS.seedance },
+              next,
+            ),
+          )
         }
         hideStatusBadge
         action={
@@ -135,12 +148,13 @@ export const SeedanceNode = memo(function SeedanceNode(
       <NodeShell.Body className="p-0">
         <div className="node-card-window relative aspect-video overflow-hidden bg-node-card-window">
           {mediaUrl ? (
-            <video
+            // 台账 B7：原来是原生 `<video controls muted>` —— 灰底 mute 图标 +
+            // 原生进度条 + ⋮ 菜单，在 400px 的卡上跟别的什么都不搭；且没有
+            // `preload`，`videoThumbnailUrl` 缺席时窗里就是一块纯黑。
+            <NodeVideoSurface
               src={mediaUrl}
               poster={videoThumbnailUrl}
-              className="h-full w-full object-cover"
-              controls
-              muted
+              fit="cover"
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">

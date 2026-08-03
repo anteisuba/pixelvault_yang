@@ -103,7 +103,11 @@ describe('ImageSourceStarter — 生成中 / 生成失败 (canvas-generate-compo
     expect(shell.getAttribute('data-classname')).toContain(
       'canvas-card--dashed',
     )
-    expect(screen.getByText('badgeEmpty')).toBeInTheDocument()
+    // 台账 B6（2026-08-03）：空态**不再盖章**。这条原先断言的是
+    // `getByText('badgeEmpty')` —— 空本身已经由虚线卡边 + 空窗说了两遍，
+    // 第三遍只是占掉一行。留下来的是**具体**的那句（uploadHint 告诉你能做什么），
+    // 撤掉的是泛的那个（「空」）。
+    expect(screen.queryByText('badgeEmpty')).not.toBeInTheDocument()
     expect(screen.getByText('uploadHint')).toBeInTheDocument()
   })
 

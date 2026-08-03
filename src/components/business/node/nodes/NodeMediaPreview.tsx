@@ -32,7 +32,6 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
-import { Spinner } from '@/components/ui/spinner'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import {
@@ -40,6 +39,7 @@ import {
   ImageCardStatusBadge,
 } from './ImageCardMediaState'
 import { NodeProgressState } from './NodeProgressState'
+import { NodeVideoSurface } from './NodeVideoSurface'
 import { NodeShell } from './NodeShell'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
@@ -248,19 +248,13 @@ export function NodeMediaPreview({
             </>
           ) : null}
 
+          {/* 台账 B7：与 SeedanceNode 同源 —— 原生控件换成卡上该有的那套
+              （无 controls + 自带两颗钮 + preload="metadata"）。 */}
           {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
-            <video
+            <NodeVideoSurface
               src={mediaUrl}
               poster={videoThumbnailUrl}
-              className="h-full w-full object-contain"
-              controls
-              muted
-              onLoadedMetadata={(event) => {
-                const { videoWidth, videoHeight } = event.currentTarget
-                if (videoWidth > 0 && videoHeight > 0) {
-                  setVideoAspect(videoWidth / videoHeight)
-                }
-              }}
+              onAspectRatio={setVideoAspect}
             />
           ) : null}
 
@@ -318,7 +312,11 @@ export function NodeMediaPreview({
         ) : null}
       </NodeShell.Body>
       <NodeShell.Footer>
-        <p className="truncate text-2xs font-medium text-node-subtle">
+        {/* ⚠ text-node-**muted** 不是 subtle：subtle 是 #8a8070，对白卡背
+            **3.89**，够不到 11px 文字的 4.5（同 A7 里判掉的那一档）。卡背早在
+            S1 就被 `.canvas-card` 刷成 #ffffff，而这套墨色是按纸面 #ebe5d8 算
+            的 —— 又一处「颜色按纸背算、实际压白卡」的错位。muted 是 6.94。 */}
+        <p className="truncate text-2xs font-medium text-node-muted">
           {hasWorkflowPrompt
             ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
             : tWorkflows(`${type}.footerEmpty`)}

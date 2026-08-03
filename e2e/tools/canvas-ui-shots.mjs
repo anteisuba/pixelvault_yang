@@ -82,6 +82,7 @@ function svgMedia(width, height, label, hue) {
 const PORTRAIT = svgMedia(768, 1024, '3:4', 250)
 const LANDSCAPE = svgMedia(1280, 720, '16:9', 200)
 const SQUARE = svgMedia(900, 900, '1:1', 30)
+const WIDE = svgMedia(1280, 720, '16:9', 210)
 
 function mk(id, type, x, y, data) {
   return {
@@ -275,6 +276,25 @@ const SCENES = {
    * 拍某一张时就给它一个只有它的场景。
    */
   seedanceOnly: { nodes: [mk('n-seedance', 'seedance', 0, 0, {})] },
+
+  /**
+   * B7c 出片后的视频卡（台账 B7）。
+   * ⚠ 2026-08-03 之前夹具里**一张带媒体的视频卡都没有** —— 而 B7 记的恰恰是
+   * 有媒体时那套原生 `<video controls>` 控件。没有这一张，那条发现就验不了。
+   * `mediaUrl` 指向假域名（`page.route` 兜底），首帧走 `videoThumbnailUrl`：
+   * 看的是卡上的控件语言，不是能不能播，所以不往仓库塞 mp4。
+   */
+  videoReady: {
+    nodes: [
+      mk('n-seedance-done', 'seedance', 0, 0, {
+        status: 'done',
+        generationStatus: 'success',
+        mediaUrl: 'https://canvas-fixture.local/clip.mp4',
+        videoThumbnailUrl: WIDE,
+        mediaLabel: '镇上的黄昏',
+      }),
+    ],
+  },
 
   /** 单张镜头图卡（给真实生成序列用，同样避开左面板遮挡）。 */
   shotOnly: {
@@ -687,6 +707,12 @@ const SHOTS = [
     prepare: clickNode('n-char'),
   },
   { id: 'B7', name: 'video-cards-empty', scene: SCENES.video },
+  {
+    id: 'B7c',
+    name: 'video-card-ready',
+    scene: SCENES.videoReady,
+    prepare: clickButton('折叠 Cast 卡匣'),
+  },
   { id: 'B10', name: 'voice-card', scene: SCENES.voice },
   {
     id: 'B10b',

@@ -1001,6 +1001,47 @@ describe('VideoComposer C5 参数 OSD (R3-8)', () => {
     expect(screen.queryByText(/aspectRatioLabel:/)).toBeNull()
   })
 
+  /**
+   * ⚠ 回归锁（owner 2026-08-04 报「这边无法自定义时间」）。
+   *
+   * 迁移前滑条是 `disabled={isAutoDuration}`：默认档就是自动，于是滑条一进来
+   * 就是灰的，用户必须先找到右上角那颗开关点开才轮得到拖。一个「点一下就能用」
+   * 的控件不是不可用，把它画成灰的等于骗人 —— 而且画布卡上的同一根滑条从来
+   * 没有这道闸，同一个控件在两处两种行为。
+   *
+   * 现在**拖动本身就是自定义**：滑条恒可用，写进一个具体秒数后
+   * `isAutoDuration` 变 false，那颗开关自己亮起来。
+   */
+  it('自动档下滑条仍可用，拖一下就落一个具体秒数（自定义自己亮）', () => {
+    const autoData = {
+      prompt: '',
+      status: 'idle',
+      duration: 'auto',
+    } as NodeWorkflowNodeData
+    const { container } = render(detailTree(autoData, 'v9'))
+    openParams()
+
+    // 自动档：开关是关的，但滑条**不禁用**。
+    const custom = screen.getByRole('switch', { name: 'duration.custom' })
+    expect(custom).not.toBeChecked()
+    // ⚠ 按容器查而不是按可访问名：Radix 把 aria-label 挂在 Root 上，
+    // thumb 自己没有名字，jsdom 里 `getByRole('slider', {name})` 取不到。
+    const thumb = container.querySelector(
+      '.node-duration-slider [role="slider"]',
+    ) as HTMLElement
+    expect(thumb).not.toBeNull()
+    expect(thumb).not.toHaveAttribute('data-disabled')
+
+    // 键盘走一格 = 拖一下：直接落库成一个具体秒数。
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' })
+    const [, patch] = updateNodeData.mock.calls.at(-1) as [
+      string,
+      Record<string, unknown>,
+    ]
+    expect(patch.duration).toMatch(/^\d+$/)
+    expect(patch.duration).not.toBe('auto')
+  })
+
   it('turns custom duration on and back off to provider auto', () => {
     renderDetail()
     openParams()

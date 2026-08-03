@@ -1888,6 +1888,19 @@ export function VideoComposer({
                         />
                       </label>
                     </div>
+                    {/* ⚠ 滑条**不再随「自动」禁用**（owner 2026-08-04 报「这边无法
+                        自定义时间」）。
+                        原来是 `disabled={isAutoDuration}`：默认档是自动，于是滑条
+                        一进来就是灰的，用户必须先找到右上角那颗开关、点开、
+                        才轮得到拖。一个「点一下就能用」的控件不是不可用，把它画成
+                        灰的等于骗人。而且画布卡上的同一根滑条从来就没有这道闸 ——
+                        同一个控件在两处两种行为。
+                        现在**拖动本身就是自定义**：写进一个具体秒数 ⟹ isAutoDuration
+                        变 false ⟹ 那颗开关自己亮起来，正是 owner 说的
+                        「自定义时间的时候，自定义按钮会同时激活」。开关退回它真正的
+                        职责：把时长交还给模型。
+                        ⚠ `onValueCommit` 是必需的：按住不动直接松手时 Radix 不发
+                        `onValueChange`（值没变），那一下就会「拖了但还是自动」。 */}
                     <div className="node-duration-slider px-0.5" {...KEY_GUARD}>
                       <Slider
                         min={0}
@@ -1897,7 +1910,9 @@ export function VideoComposer({
                         onValueChange={(vals) =>
                           handleDurationSlide(vals[0] ?? 0)
                         }
-                        disabled={isAutoDuration}
+                        onValueCommit={(vals) =>
+                          handleDurationSlide(vals[0] ?? durationIndex)
+                        }
                         aria-label={tFields('duration.label')}
                       />
                     </div>

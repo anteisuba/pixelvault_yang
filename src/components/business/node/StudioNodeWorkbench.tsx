@@ -4023,7 +4023,10 @@ function StudioNodeCanvas() {
             <ReviewModeBar />
             {/* Bottom chrome: tools + 卡匣 handle share one centered row. */}
             <div
-              className="pointer-events-none absolute bottom-3 z-canvas-chrome flex items-end justify-center gap-2"
+              // canvas-bottom-row：给 right 加过渡。它与顶栏 padding、左轨宽度
+              // 由同一个 --canvas-assistant-width 驱动，此前只有那两层会动，
+              // 这一层是硬跳的（台账 §13.2 布局连续）。
+              className="canvas-bottom-row pointer-events-none absolute bottom-3 z-canvas-chrome flex items-end justify-center gap-2"
               style={{
                 left: bottomRowInsetPx.left,
                 right: bottomRowInsetPx.right,

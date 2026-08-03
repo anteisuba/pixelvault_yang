@@ -2981,12 +2981,30 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    data-assistant-mode 属性选择器（哈希只作用于类选择器，不作用于 data-*
    属性）。两条选择器在闭合态都不命中，padding-right 完全不变（仍是
    header 自己 px-3 给的 12px）——闭合态零回归。 */
+/* ⚠ 过渡写在**无条件**规则上，不能写进下面那条带 `[data-assistant-mode]` 的
+   规则里（批 4 修）。写进去的话：助手一关，`data-assistant-mode` 变了 → 那条
+   规则整个不再命中 → `padding-right` 与 `transition` **一起**消失 → padding
+   瞬间弹回。结果是「开」有 320ms、「关」是硬跳，同一件事两种手感。
+   放在这里，两个方向都走同一条过渡。 */
+.domain-canvas .canvas-topbar {
+  transition: padding-right var(--duration-slow) var(--ease-standard);
+}
 @media (min-width: 1024px) {
   [data-assistant-mode='chat'] .domain-canvas .canvas-topbar,
   [data-assistant-mode='script'] .domain-canvas .canvas-topbar {
     padding-right: calc(1rem + var(--canvas-assistant-width, 0px));
-    transition: padding-right var(--duration-slow) var(--ease-standard);
   }
+}
+
+/* 底部胶囊行给助手让位 —— 与顶栏 padding、左轨宽度由**同一个**
+   `--canvas-assistant-width` 驱动，此前却只有那两层有过渡，这一层是硬跳的：
+   助手开合时顶栏在平移、底部工具条却「啪」地挪一下（台账 §13.2 布局连续）。
+   ⚠ 这里动的是 `right` 而不是 transform：这一行是 left/right 拉伸的容器，
+   它变的是**宽度**，translate 复现不了。同 `.node-canvas-panel-motion` 的
+   width 与顶栏的 padding-right —— 都是没法用 transform 表达的布局形变，
+   §13.2「只动 transform/opacity」管的是装饰性动效。 */
+.domain-canvas .canvas-bottom-row {
+  transition: right var(--duration-slow) var(--ease-standard);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

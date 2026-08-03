@@ -1284,6 +1284,109 @@ React Flow 的配合方式，不在这一片里。而「不可以直接打开」
 
 ---
 
+## 21 · 详情页 UI 交接（2026-08-03）—— 给单开的那个 chat
+
+owner 2026-08-03：「看来需要重点设计一下。先不删除。**我需要单开一个 chat 去解决这边的问题**。
+目前详情页展开的 UI 需要进一步修改以及统一。」
+
+这一节是**交接材料**，五路并行读码 + 两条对抗性复核的结论。⚠ 新会话请先读这节，
+不要重查 —— 下面每条都带文件:行。
+
+### 21.1 ⚠ owner 两条要删的，查完都**不能直接删**
+
+**① 「LoRA 目前还没实现」是误判 —— 它全程接线，真会影响出图。**
+
+`StudioNodeWorkbench.tsx:1113-1121`：
+
+```ts
+const loras = supportsLora
+  ? (node.data.loras ?? [])
+      .slice(0, maxLoras)
+      .map((l) => ({ url: l.loraUrl, scale: l.scale }))
+  : []
+const advancedParams: AdvancedParams | undefined =
+  loras.length > 0 ? { loras } : undefined
+```
+
+`node.data.loras` → `advancedParams.loras` → 生成请求，并带能力门（`supportsLora`）与模型上限
+截断（`maxLoras`）。删它 = 删一条能用的能力，不是清空壳。
+**owner 决定：先别删，再看看。**
+
+⚠ 待查（新会话）：owner 截图里那个「LoRA 0/5」可能在**另一处**（AI 生成面板），
+那一处是否接线未核实 —— 两处要分开看。
+
+**② 三段来源行「素材库 / AI 生成 / Studio」删掉会连带打断三件事。**
+
+| 按钮        | 删掉的后果                                                                                                                                                                                                                                                                                                                                                |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AI 生成** | ⚠ 最严重。它是**唯一**的 `editTarget` 切换器（`NodeMediaInspector.tsx:647` → `toggleAiForm`:280）。而 `showAiForm = isImageNode ? editTarget === 'ai' : true`，批 1 拍板的「右栏默认展开 AI 表单」**只给了散图一家** —— `defaultEditTarget="ai"` 全仓只出现在 `LooseImageDetailBody.tsx:77`。删了这颗，**镜头图 / 背景 / 关键帧**三族右栏永久空白且召不回 |
+| **素材库**  | 全画布**唯一**能把素材库的图落进某个已有图片节点自身 `mediaUrl` 的入口。别处（工具条「添加素材」、composer 的 `+`）写的都是 `referenceAssets`（参考图），不是节点自己的图                                                                                                                                                                                 |
+| **Studio**  | 画布→图片 Studio 往返的**唯一**起点（`writeStudioNodeHandoff` 生产代码仅 `NodeMediaInspector.tsx:442` 一处）。删了它，`StudioWorkspaceUI` 的回填横幅与 `StudioNodeWorkbench.tsx:2359` 的回填 effect 都成为不可达死分支                                                                                                                                    |
+
+⚠ 批 1 的原型 `canvas-batch1-fixes.html:727` 白纸黑字写过「**不砍三格（素材库/Studio 是真功能）**」。
+**owner 决定：先不删，重点设计。**
+
+⚠ 这一行**不是 tab 组**：只有中间那颗有内联内容，另两颗是立即动作（弹对话框 / 跳路由）。
+批 1 已经纠正过一次这个误解。
+
+### 21.2 详情面板的布局事实（做设计前先知道这些）
+
+- **面板外框根本不会跳** —— 尺寸是**写死**的 `1180px × min(88svh, 860px)`。「切换族导致面板变尺寸」
+  这个担心不成立；而且节点→节点直接切换在真机上够不着（5 个开面板入口全在画布上、被遮罩挡住）
+- ⚠ **`--width-node-detail-panel` / `--width-node-detail-panel-wide` 两个 token 是死代码**，
+  src 里零消费者 —— 宽版/窄版之分早已不存在
+- **真正的跳全在面板内部，且一处 layout/FLIP 都没有**：最大一处是 `NodeMediaInspector` 的
+  AI 表单折叠（约 700px 瞬间出现/消失，零过渡）；其次是音色面板两档来源 tab 的整树替换
+- 唯一有过渡的是视频面板的 `.node-collapsible`（180ms `ease`）—— ⚠ 既不是全局 canon 也不是
+  画布域那套，是**第五套**（前四套见 §20.2）
+
+### 21.3 视频详情面板（owner 说「需要重点设计」的那张）
+
+不是独立组件 —— 是 `VideoComposer.tsx:1506-2399` 的 `density='detail'` 分支，套在通用
+`NodeDetailPanel` 壳里。左右两栏走共享的 `canvas-object-studio-grid`（1.18fr / 0.82fr）。
+
+**最突出的是重复**（都在同一屏上）：
+
+- **时长 / 画幅 / 分辨率**在左栏标题行（`studio.filmMeta` = `{duration} · {aspect} · {resolution}`）
+  与右栏「模型参数」**各说一遍**。⚠ 空态下左边那行是「自动（由模型决定）· 自动 · 自动」——
+  六个字零信息量，还占着「当前影片」这个最该说结果的位置
+- 「已引用 X / 已连接 Y」这条计数**左右两栏各渲染一次**；「已连接数」在同一屏出现**四次**
+- 生成模式（参考 / 文生）用两套不同文案说**三遍**
+- 另有一条 zh 未翻译的英文串落在底部 dock
+
+### 21.4 助手 dock（本轮已修一半，见 §22）
+
+---
+
+## 22 · 助手 dock 的布局连续（2026-08-03，批 4 收尾）
+
+`--canvas-assistant-width` 一个变量驱动**三层几何**，此前只有两层会动：
+
+| 层                   | 修前                                 | 修后             |
+| -------------------- | ------------------------------------ | ---------------- |
+| 左轨宽度             | 320ms（`.node-canvas-panel-motion`） | 不变             |
+| 顶栏 `padding-right` | 320ms，但**只在开的时候**            | 两个方向都 320ms |
+| 底部胶囊行 `right`   | **零过渡，硬跳**                     | 320ms            |
+
+**⚠ 顶栏那条是一处典型的 CSS 错位**：`transition` 原本写在
+`[data-assistant-mode='chat'|'script']` 那条**条件规则内部**。助手一关，
+`data-assistant-mode` 变了 → 规则整个不再命中 → `padding-right` 与 `transition`
+**一起**消失 → padding 瞬间弹回。所以「开」有 320ms、「关」是硬跳，同一件事两种手感。
+修法是把 `transition` 提到无条件的 `.canvas-topbar` 规则上。
+
+底部胶囊行新增 `.canvas-bottom-row`，补上 `right` 的过渡。
+⚠ 动 `right` 而不是 transform：这一行是 left/right 拉伸的容器，变的是**宽度**，
+translate 复现不了 —— 同 `.node-canvas-panel-motion` 的 width 与顶栏的 padding-right，
+都是没法用 transform 表达的布局形变（§13.2「只动 transform/opacity」管的是装饰性动效）。
+
+### 22.1 ⬜ 还没做：dock 内部的单栏 ↔ 两栏
+
+「单栏/两栏」是 dock 内部 `expanded` 布尔量的一次 React 条件渲染 —— **硬切、无 motion、
+无 layout 动画**。它属于详情页 UI 那一片（§21，owner 单开 chat 处理），本轮不动，
+免得与那边的改版打架。
+
+---
+
 ## Last Verified
 
 2026-08-01 · 真机 `localhost:3000/zh/studio/node`（Chrome，owner 账号，1568×744 视口）采到 30 个表面实况；读码覆盖 `components/business/node/**` 全部 85 个非测试 `.tsx` 的清单，其中 18 个逐行读过。

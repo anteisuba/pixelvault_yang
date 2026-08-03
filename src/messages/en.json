@@ -3822,7 +3822,7 @@
       "badgeFailed": "Failed",
       "uploading": "Uploading {percent}%",
       "cancelUpload": "Cancel upload",
-      "generating": "Generating",
+      "generating": "Generating...",
       "retry": "Retry",
       "replace": "Replace"
     },
@@ -4031,7 +4031,7 @@
         "compositionLabel": "Composition"
       },
       "emptyPreview": "No video generated yet",
-      "generating": "Generating video...",
+      "generating": "Generating...",
       "overrideHint": "Overrides the canvas default model — may be inconsistent with other shots.",
       "motionLabel": "Motion",
       "cameraLabel": "Camera",

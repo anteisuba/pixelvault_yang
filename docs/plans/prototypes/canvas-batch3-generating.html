@@ -1,0 +1,238 @@
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>#14 · 「生成中」统一</title>
+<style>
+  :root{
+    --card:#ffffff; --window:#1b1917; --bg:#F1F1F1;
+    --ink:#26231e; --ink-muted:#5f594e; --ink-subtle:#8a8070;
+    --stone:#3e8c6c; --danger:#c0342e; --warn:#8a5a00;
+    --page:#faf9f7; --rule:#e6e2db;
+    /* 深窗作用域里的文字色（.node-card-window 内为浅色） */
+    --window-ink:#e8e6de;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font:15px/1.7 -apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 24px 96px}
+  h1{font-size:26px;letter-spacing:-.01em;margin:0 0 6px}
+  .sub{color:var(--ink-muted);margin:0 0 30px;font-size:14px}
+  h2{font-size:19px;margin:0;letter-spacing:-.01em}
+  section{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;margin:0 0 20px}
+  .sh{display:flex;align-items:baseline;gap:10px;margin:0 0 4px;flex-wrap:wrap}
+  .no{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+    color:var(--ink-subtle);border:1px solid var(--rule);border-radius:4px;padding:4px 6px}
+  .lede{color:var(--ink-muted);font-size:14px;margin:10px 0 20px}
+  code{font:12px/1.5 ui-monospace,Menlo,monospace;background:#f4f2ef;
+    border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+  .kill{color:var(--danger);font-weight:600}
+  .keep{color:var(--stone);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0}
+  th{text-align:left;font-weight:600;color:var(--ink-muted);font-size:12px;
+    padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid #f0ede8;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+
+  .stage{background:var(--bg);border:1px solid var(--rule);border-radius:12px;padding:22px;
+    background-image:radial-gradient(circle,rgba(0,0,0,.07) 1px,transparent 1px);background-size:22px 22px}
+  .row{display:flex;gap:20px;flex-wrap:wrap}
+  .slot{width:236px}
+  .cap{font-size:11.5px;color:var(--ink-subtle);margin-top:9px;line-height:1.5}
+  .cap b{color:var(--ink);font-weight:600}
+
+  /* 卡：白卡 + 媒体窗 */
+  .card{background:var(--card);border:1px solid rgba(0,0,0,.08);border-radius:8px;padding:8px}
+  .win{position:relative;height:132px;border-radius:6px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center}
+  .win.deep{background:var(--window);color:var(--window-ink)}
+  .win.photo{background:linear-gradient(135deg,#c8bf9a,#9aa87c)}
+  .win.blank{background:#f5f3f0;color:var(--ink-subtle)}
+  .foot{font-size:10.5px;color:var(--ink-subtle);padding:7px 2px 1px}
+
+  /* ── 器件 1：115° 扫光遮罩（图片族现状）─────────────── */
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  .scrim{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:8px;overflow:hidden;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .scrim.w82{background:color-mix(in oklab,#ffffff 82%,transparent)}
+  .scrim.w70{background:color-mix(in oklab,#ffffff 70%,transparent);
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  .scrim.shim::before{content:'';position:absolute;inset:0;
+    background:linear-gradient(115deg,transparent 30%,color-mix(in oklab,#26231e 10%,transparent) 50%,transparent 70%);
+    transform:translateX(-100%);animation:shimmer 1.5s ease-in-out infinite}
+  .scrim .txt{position:relative;z-index:1;font-size:12px;font-weight:600;color:var(--ink)}
+
+  /* ── 器件 2：Spinner ─────────────────────────────── */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{width:22px;height:22px;border-radius:999px;border:2px solid currentColor;
+    border-top-color:transparent;animation:spin .8s linear infinite;position:relative;z-index:1}
+
+  /* ── 器件 3：不定式扫光条 ────────────────────────── */
+  @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  .bar{position:relative;z-index:1;height:4px;width:96px;border-radius:999px;
+    overflow:hidden;background:color-mix(in oklab,#26231e 12%,transparent)}
+  .bar.ondeep{background:color-mix(in oklab,#ffffff 22%,transparent)}
+  .bar::after{content:'';position:absolute;inset:0 auto 0 0;width:38%;border-radius:inherit;
+    background:currentColor;animation:sweep 1.2s ease-in-out infinite}
+
+  /* ── 器件 4：脉冲图标 ────────────────────────────── */
+  @keyframes breathe{0%,100%{opacity:1}50%{opacity:.45}}
+  .pulseicon{position:relative;z-index:1;font-size:19px;animation:breathe 2s cubic-bezier(.4,0,.6,1) infinite}
+
+  .note{border-left:3px solid var(--warn);background:#fdfaf3;padding:12px 14px;
+    border-radius:0 8px 8px 0;font-size:13.5px;margin:14px 0}
+  .note.red{border-left-color:var(--danger);background:#fdf4f3}
+  .note.grn{border-left-color:var(--stone);background:#f3faf7}
+  ul.pts{margin:12px 0 0;padding-left:20px;font-size:13.5px}
+  ul.pts li{margin-bottom:9px}
+  .ask{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;margin:10px 0;font-size:13.5px}
+  .ask b{display:block;margin-bottom:4px}
+  .rec{color:var(--stone);font-weight:600}
+  .axis{display:flex;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:14px 0}
+  .axis > div{flex:1;padding:13px 14px;border-right:1px solid var(--rule);font-size:12.5px}
+  .axis > div:last-child{border-right:0}
+  .axis b{display:block;font-size:13.5px;margin-bottom:3px}
+</style>
+
+<div class="wrap">
+<h1>#14 · 「生成中」统一</h1>
+<p class="sub">批 3 六条里唯一还完全成立的一条 · 2026-08-03 · 台账 §17</p>
+
+<section>
+  <div class="sh"><span class="no">§0</span><h2>先订正：不是「两套」，是<b>一套遮罩配了四种动效器件</b></h2></div>
+  <p class="lede">台账原话是「图片族是半透明白+扫光+文字（无条），视频族是<b>暗底</b>+脉冲图标+文字+扫光条」。
+    读码后<span class="kill">「暗底」这半句是错的</span>：视频族用的
+    <code>bg-node-canvas/70</code> 里 <code>--node-canvas</code> 的值是
+    <code>#ffffff</code>（canvas.css:40），所以那也是<b>白遮罩</b>，只是 70% 而不是 82%。
+    两族的遮罩本来就是同一族，真正分家的是**中间那个动的东西**。</p>
+
+  <table>
+    <tr><th style="width:34px"></th><th style="width:230px">落点</th><th style="width:150px">遮罩</th><th style="width:170px">动效器件</th><th>还有什么</th></tr>
+    <tr><td><b>A</b></td><td><code>ImageCardGeneratingOverlay</code><br><span style="font-size:12px;color:var(--ink-subtle)">起步卡 / 散图卡</span></td>
+      <td>白 82% + blur 2px</td><td><b>115° 扫光横扫</b><br><span style="font-size:12px">1.5s ease-in-out</span></td><td>只有文案</td></tr>
+    <tr><td><b>B</b></td><td><code>NodeMediaPreview</code><br><span style="font-size:12px;color:var(--ink-subtle)">图片 kind · 尚无媒体</span></td>
+      <td class="kill">无遮罩</td><td><b>Spinner</b> size=lg</td><td>文案</td></tr>
+    <tr><td><b>C</b></td><td><code>NodeMediaPreview</code><br><span style="font-size:12px;color:var(--ink-subtle)">视频 / 音频 / 文本 kind</span></td>
+      <td>白 70% + blur 4px</td><td><b>Spinner</b> + <b>扫光条</b><br><span style="font-size:12px">两个器件同时</span></td><td>文案</td></tr>
+    <tr><td><b>D</b></td><td><code>SeedanceNode</code></td>
+      <td>白 70% + blur 4px</td><td><b>脉冲 Film 图标</b> + <b>扫光条</b></td><td>文案</td></tr>
+  </table>
+
+  <div class="stage" style="margin-top:16px">
+    <div class="row">
+      <div class="slot">
+        <div class="card"><div class="win photo">
+          <div class="scrim w82 shim"><span class="txt">生成中…</span></div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>A</b> 扫光 · 只有文案<br>最安静，30s+ 的任务里几乎看不出在动</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win blank" style="flex-direction:column;gap:8px">
+          <div class="spin" style="color:var(--ink)"></div>
+          <span style="font-size:12px;font-weight:600;color:var(--ink)">生成中…</span>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>B</b> Spinner · 连遮罩都没有<br>与 A 同属图片族，却是另一套</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win deep">
+          <div class="scrim w70" style="color:var(--ink)">
+            <div class="spin"></div>
+            <span class="txt">生成中…</span>
+            <div class="bar"></div>
+          </div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>C</b> Spinner <b>+</b> 条<br>两个器件说同一件事</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win deep">
+          <div class="scrim w70" style="color:var(--ink)">
+            <span class="pulseicon">🎬</span>
+            <span class="txt">生成中…</span>
+            <div class="bar"></div>
+          </div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>D</b> 脉冲图标 + 条<br>把「是视频」和「在跑」混进一个器件</div>
+      </div>
+    </div>
+  </div>
+  <p class="lede" style="margin-top:12px">↑ 四个都在动，真实时长/曲线。同一个状态，四种说法。</p>
+</section>
+
+<section>
+  <div class="sh"><span class="no">§1</span><h2>提案：一个器件，遮罩只在有东西要遮时才上</h2></div>
+  <p class="lede">按 §17.3 定下的判据 —— running 是「唯一带动效的那一档」，它要说清「在跑、时长未知」，
+    但不该抢注意力。</p>
+
+  <div class="axis">
+    <div><b>器件恒定</b>一条<b>不定式扫光条</b> + 「生成中」文案，四个落点全用它</div>
+    <div><b>遮罩看情况</b>底下有内容要遮（已有媒体 / 深窗）才上白遮罩；空态没东西可遮，就不上</div>
+    <div><b>删冗余</b>Spinner 与条同时出现 = 说两遍；Film 图标把模态混进了进行态</div>
+  </div>
+
+  <div class="stage" style="margin-top:6px">
+    <div class="row">
+      <div class="slot">
+        <div class="card"><div class="win photo">
+          <div class="scrim w82" style="color:var(--ink)">
+            <span class="txt">生成中…</span><div class="bar"></div>
+          </div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>A′</b> 已有图 → 上遮罩</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win blank" style="flex-direction:column;gap:8px;color:var(--ink)">
+          <span style="font-size:12px;font-weight:600">生成中…</span><div class="bar"></div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>B′</b> 空态 → 不上遮罩，器件一样</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win deep">
+          <div class="scrim w82" style="color:var(--ink)">
+            <span class="txt">生成中…</span><div class="bar"></div>
+          </div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>C′</b> 深窗 → 同一档遮罩（70%→82%，文字更清）</div>
+      </div>
+      <div class="slot">
+        <div class="card"><div class="win deep">
+          <div class="scrim w82" style="color:var(--ink)">
+            <span class="txt">生成中…</span><div class="bar"></div>
+          </div>
+        </div><div class="foot">等待镜头文本</div></div>
+        <div class="cap"><b>D′</b> Seedance 与 C′ 完全一致</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note grn">
+    <b>为什么选条而不是扫光。</b>生成动辄 30s 以上，而扫光是「表面在动」——
+    在 82% 白遮罩上它非常弱（渐变峰值只有墨色 10%），长任务里用户会怀疑是不是卡住了。
+    条是「有个进程在推进」，同样不承诺时长，但明确得多。
+    <br><br>
+    还有一条更要紧的：它让<b>上传</b>和<b>生成</b>落到同一条轴上 ——
+    <b>有真实百分比 = 确定式条（宽度随进度）</b>，<b>拿不到百分比 = 不定式条（固定宽度来回扫）</b>。
+    同一个器件，两种行为，用户一眼分得清哪个能预估完成时间。
+    现在上传只有文字里的百分比 + 一个 <code>sr-only</code> 的 progressbar，视觉上根本没有条。
+  </div>
+
+  <div class="note">
+    ⚠ 遮罩统一到 <b>82%</b>（图片族那一档）而不是 70%：70% 下深窗透上来太多，
+    文字压在半黑半白上。82% 两种底下都是稳定的浅面。
+    blur 同时统一到 2px（现在 C/D 是 Tailwind 的 4px）。
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="no">§2</span><h2>要你拍板的两件</h2></div>
+
+  <div class="ask"><b>① 器件选哪个？</b>
+    我建议 <span class="rec">不定式扫光条</span>（上面 A′–D′ 那版）。
+    若你更想要最安静的一档，也可以反过来统一到<b>扫光</b>（A 那版）铺到四处 ——
+    代价是长任务反馈很弱。</div>
+
+  <div class="ask"><b>② 顺带把「上传中」也纳入同一条轴吗？</b>
+    上传有真实百分比（走 XHR 字节数），今天却只在文案里给数字、视觉上没有条。
+    纳入后：<b>上传 = 确定式条 + 数字</b>，<b>生成 = 不定式条</b>，一眼分得清。
+    我建议 <span class="rec">纳入</span>，但这超出了 #14 记的范围，所以问一句。
+    不纳入的话上传保持现状（扫光 + 文字百分比），与生成分家。</div>
+</section>
+</div>

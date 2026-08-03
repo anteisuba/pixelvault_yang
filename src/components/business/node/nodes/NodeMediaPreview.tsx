@@ -39,6 +39,7 @@ import {
   ImageCardFailedContent,
   ImageCardStatusBadge,
 } from './ImageCardMediaState'
+import { NodeProgressState } from './NodeProgressState'
 import { NodeShell } from './NodeShell'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {
@@ -282,14 +283,13 @@ export function NodeMediaPreview({
                 onRetry={() => void generateMediaNode?.(id)}
               />
             ) : isImageKind && isPending ? (
-              // 生成中无法给百分比（规格 §5），只给旋转图标 + 文案；这里没有
-              // 已有媒体要遮挡，不需要 video/audio 那种深色暗幕。
-              <div className="flex h-full flex-col items-center justify-center gap-2">
-                <Spinner size="lg" className="text-node-foreground" />
-                <span className="text-xs font-semibold text-node-foreground">
-                  {t('generating')}
-                </span>
-              </div>
+              // 生成中无法给百分比（规格 §5）→ 不定式条。这里没有已有媒体要
+              // 遮挡，所以 `veiled` 不给 —— 台账 #14 的规矩是「器件恒定、遮罩
+              // 看情况」，空态平白盖一层白是没有意义的。
+              // ⚠ 原来这里是 `<Spinner size="lg">`，是四种「生成中」说法之一。
+              // labelShownElsewhere：这张卡窗内左上角的 ImageCardStatusBadge
+              // 已经写着「生成中」，中央不再重复一遍（B6「信息说三遍」同款）。
+              <NodeProgressState label={t('generating')} labelShownElsewhere />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 {getEmptyIcon(kind, type)}
@@ -300,17 +300,11 @@ export function NodeMediaPreview({
             )
           ) : null}
 
+          {/* 深窗（video/audio/text kind）底下有内容要遮 → veiled。
+              ⚠ 原来这里是「白 70% 遮罩 + Spinner **和** 扫光条」—— 两个器件说
+              同一件事，且遮罩比图片族薄一档、blur 也不同（台账 #14）。 */}
           {isPending && !isImageKind ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Spinner size="lg" className="text-node-foreground" />
-              <span className="text-xs font-semibold">{t('generating')}</span>
-              {/* Fixed dark track (not the scope-relative bg-node-panel-inner): this
-                  sits inside the deep window (.node-card-window), where the sweep
-                  itself already reads --node-foreground from that scope (light).
-                  A track tied to the outer .node-card-paper scope would resolve to
-                  paper-strong (light-on-light, invisible) — see S2 report. */}
-              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-canvas" />
-            </div>
+            <NodeProgressState label={t('generating')} veiled />
           ) : null}
         </div>
 

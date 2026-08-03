@@ -1742,51 +1742,79 @@
    文案，容器复用这同一条规则，不重复写一份）。扫光复用既有
    node-upload-shimmer 关键帧（定义见本文件 FB-4 段），这里只换配色，不重复
    定义关键帧。 */
-.domain-canvas .canvas-image-upload-scrim,
-.domain-canvas .canvas-image-generating-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
+/* ── 进行态（上传中 / 生成中）唯一配方 —— 台账 #14 ────────────────────
+   owner 2026-08-03 拍板。此前「生成中」在画布上有四份互不相同的实现（见
+   NodeProgressState.tsx 的文件注释），根因是没有共享件。统一后：
+
+     · 器件恒定 —— 一条扫光条 + 一句文案
+     · 遮罩看情况 —— 底下有内容要遮才上（`--veiled`），空态不上
+     · 有真实百分比走确定式，拿不到走不定式
+
+   ⚠ 遮罩统一到 **82%**（原图片族那一档）而不是 70%：70% 下深窗
+   （--node-card-window #1b1917）透上来太多，文字压在半黑半白上。82% 两种底下
+   都是稳定的浅面。blur 同样统一到 2px（原视频族走 Tailwind 的 4px）。
+
+   ⚠ 原来那道 115° 扫光（`node-upload-shimmer`）已撤：它是第三种动效器件，
+   而且峰值只有墨色 10%，压在 82% 白遮罩上非常弱 —— 生成动辄 30s+，长任务里
+   用户会以为卡住了。条同样不承诺时长，但明确得多。 */
+.domain-canvas .canvas-progress-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  height: 100%;
+  color: var(--canvas-ink);
+}
+.domain-canvas .canvas-progress-state--veiled {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  height: auto;
   overflow: hidden;
   background: color-mix(in oklab, var(--canvas-card-bg) 82%, transparent);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
-.domain-canvas .canvas-image-upload-scrim::before,
-.domain-canvas .canvas-image-generating-scrim::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    color-mix(in oklab, var(--canvas-ink) 10%, transparent) 50%,
-    transparent 70%
-  );
-  transform: translateX(-100%);
-  animation: node-upload-shimmer 1.5s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .domain-canvas .canvas-image-upload-scrim::before,
-  .domain-canvas .canvas-image-generating-scrim::before {
-    animation: none;
-    transform: none;
-    opacity: 0.4;
-  }
-}
-.domain-canvas .canvas-image-upload-text {
+.domain-canvas .canvas-progress-label {
   position: relative;
   z-index: 1;
   font-size: var(--canvas-text-body);
   font-weight: 600;
   color: var(--canvas-ink);
+  /* ⚠ 等宽数字是必需的，不是排版偏好：上传态的文案里带百分比且**每帧都在变**
+     （「上传中 41%」→「42%」），比例数字会让整行左右抖。这条是从被删掉的
+     `.canvas-image-upload-text` 继承过来的，别顺手拿掉。 */
   font-variant-numeric: tabular-nums;
 }
+.domain-canvas .canvas-progress-bar {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  width: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--canvas-ink) 12%, transparent);
+}
+.domain-canvas .canvas-progress-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--canvas-ink);
+  animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
+}
+/* 确定式：宽度由内联 style 给（真实百分比），不扫。 */
+.domain-canvas .canvas-progress-bar--determinate .canvas-progress-bar-fill {
+  animation: none;
+  transition: width var(--canvas-dur-base) var(--canvas-ease-state);
+}
+
+/* ⚠ `.canvas-image-upload-scrim` / `.canvas-image-generating-scrim` /
+   `.canvas-image-upload-text` 三个类已随 #14 删除 —— 它们的两个调用方
+   （ImageCardUploadOverlay / ImageCardGeneratingOverlay）都改渲染
+   `NodeProgressState` 了。别再加回来：那正是「四份拷贝」的其中两份。 */
 .domain-canvas .canvas-image-cancel-btn {
   position: relative;
   z-index: 1;

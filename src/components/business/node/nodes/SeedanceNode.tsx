@@ -16,6 +16,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { NodeProgressState } from './NodeProgressState'
 import { NodeShell } from './NodeShell'
 
 export const SeedanceNode = memo(function SeedanceNode(
@@ -155,14 +156,10 @@ export const SeedanceNode = memo(function SeedanceNode(
             </div>
           )}
 
+          {/* ⚠ 原来这里是「脉冲 Film 图标 + 扫光条」——把「这是视频」和「在跑」
+              混进了一个器件，而模态是卡本身已经说清的事（台账 #14）。 */}
           {isPending ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Film className="size-5 animate-pulse text-node-foreground" />
-              <span className="text-xs font-semibold">{t('generating')}</span>
-              {/* Fixed dark track — see NodeMediaPreview.tsx for the same fix +
-                  rationale (light-on-light bug against the deep window scope). */}
-              <div className="node-canvas-progress-track h-1 w-24 rounded-full bg-node-canvas" />
-            </div>
+            <NodeProgressState label={t('generating')} veiled />
           ) : null}
         </div>
       </NodeShell.Body>

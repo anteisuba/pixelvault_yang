@@ -925,8 +925,19 @@ const SHOTS = [
     scene: SCENES.awaitingOnly,
     prepare: clickNode('n-awaiting'),
   },
-  { id: 'B7b', name: 'video-running-failed', scene: SCENES.videoBusy },
-  { id: 'B10c', name: 'voice-running-failed', scene: SCENES.voiceBusy },
+  // 同 A7：这两张的 running 卡在最左，展开态左面板正好压住它。
+  {
+    id: 'B7b',
+    name: 'video-running-failed',
+    scene: SCENES.videoBusy,
+    prepare: clickButton('折叠 Cast 卡匣'),
+  },
+  {
+    id: 'B10c',
+    name: 'voice-running-failed',
+    scene: SCENES.voiceBusy,
+    prepare: clickButton('折叠 Cast 卡匣'),
+  },
   { id: 'A1b', name: 'canvas-with-wallpaper', scene: SCENES.wallpaper },
   {
     // A6 卡名 hover → 露出铅笔（只读态与编辑态过去视觉完全一样，这个提示是

@@ -38,7 +38,10 @@ export interface NodeDetailBodyProps {
  */
 export const NODE_DETAIL_SLOT_REGISTRY: Partial<
   Record<NodeWorkflowNodeType, NodeDetailSlotProvider>
-> = {}
+> = {
+  // S3（2026-08-04）：十族里第一个迁到七槽的。
+  [NODE_TYPE_IDS.shotText]: ShotTextDetailBody,
+}
 
 /**
  * Per-node-type detail body for the shared ⤢ floating panel (B3). Types not
@@ -62,8 +65,6 @@ export const NODE_DETAIL_REGISTRY: Partial<
   // `resolveNodePresentationType`'s shot default — 图片（素材）must read as
   // its own kind, not as 镜头图（生成）.
   [NODE_TYPE_IDS.image]: LooseImageDetailBody,
-  // 2026-08-02：shotText 进了 ＋添加 菜单（owner「助手自动生成与用户手动输入
-  // 是同一种东西」），按本表上方那条约定 —— 菜单能建的类型必须有专属 body，
-  // 不落 GenericDetailBody 兜底。
-  [NODE_TYPE_IDS.shotText]: ShotTextDetailBody,
+  // ⚠ shotText 已迁到上面的 NODE_DETAIL_SLOT_REGISTRY（S3）。一个族只能在一张表里 ——
+  // 槽表提供者的签名带 children 渲染函数，塞进 legacy 表会类型不兼容。
 }

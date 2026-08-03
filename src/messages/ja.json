@@ -4428,7 +4428,9 @@
       "backToCanvas": "キャンバスに戻る",
       "canvasCrumb": "キャンバス",
       "close": "折りたたむ",
-      "generate": "生成"
+      "focusOnCanvas": "キャンバス上で「{name}」を表示",
+      "generate": "生成",
+      "promptPreview": "組み立てたプロンプト"
     },
     "voiceDetail": {
       "paramsLabel": "基本調整",

@@ -598,13 +598,37 @@ function StudioNodeCanvas() {
     setAddMenu(null)
   }, [])
 
-  // R3-4 (canvas-relationship-v3 §4.2 rule 3): true while 档2（详情面板）or
-  // 档3（重编辑工作区 / 剧本笺展开）is open. Broadcast to node-local L3 chrome
-  // via context (`heavyOverlayOpen`) and used below to force-close L5.
+  /**
+   * ⚠ 判据是「详情面板**是否真在渲染**」，不是「id 是否非空」（2026-08-04 修）。
+   *
+   * `NodeDetailPanel` 只在 `nodes.find(id)` 命中时才渲染。节点被删或切项目后
+   * `expandedNodeId` 还留着，壳已被 AnimatePresence 静默卸载，而旧判据
+   * `Boolean(expandedNodeId)` 恒为 true ⟹ 面板已经不在，系统却认为它还开着：
+   * Esc 链永久早退、画布粘贴永久被挡（下方 keydown/paste 两处）、
+   * 节点局部快编 chrome 永久被压（LooseImageCard 读同一个 context 值）。
+   *
+   * 下面那个 effect 会把悬空的 id 清掉，本行是同一件事的即时版 —— 两者都要：
+   * effect 有一帧延迟，而这一帧里粘贴/Esc 就可能发生。
+   */
+  const detailPanelOpen =
+    expandedNodeId !== null &&
+    workflow.nodes.some((node) => node.id === expandedNodeId)
+
   const heavyOverlayOpen =
-    Boolean(expandedNodeId) ||
+    detailPanelOpen ||
     imageEditWorkspaceOpen ||
     (assistantDockOpen && assistantExpanded)
+
+  /**
+   * 悬空 id 清理：删节点、切项目、以及任何让该节点从图里消失的路径。
+   * ⚠ 此前全仓 `setExpandedNodeId(null)` 只有三处生产调用（面板 onClose 与两个
+   * inspector 的「跳到下游节点」），**没有任何一处覆盖节点消失**。
+   */
+  useEffect(() => {
+    if (expandedNodeId === null) return
+    if (workflow.nodes.some((node) => node.id === expandedNodeId)) return
+    setExpandedNodeId(null)
+  }, [expandedNodeId, workflow.nodes])
 
   useEffect(() => {
     if (!heavyOverlayOpen) return

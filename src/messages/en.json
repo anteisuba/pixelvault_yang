@@ -4428,7 +4428,9 @@
       "backToCanvas": "Back to canvas",
       "canvasCrumb": "Canvas",
       "close": "Collapse",
-      "generate": "Generate"
+      "focusOnCanvas": "Locate \"{name}\" on the canvas",
+      "generate": "Generate",
+      "promptPreview": "Assembled prompt"
     },
     "voiceDetail": {
       "paramsLabel": "Adjustments",

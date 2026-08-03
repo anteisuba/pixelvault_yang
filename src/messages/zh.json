@@ -4428,7 +4428,9 @@
       "backToCanvas": "返回画布",
       "canvasCrumb": "画布",
       "close": "收起",
-      "generate": "生成"
+      "focusOnCanvas": "在画布上定位「{name}」",
+      "generate": "生成",
+      "promptPreview": "拼成的提示词"
     },
     "voiceDetail": {
       "paramsLabel": "基础调节",

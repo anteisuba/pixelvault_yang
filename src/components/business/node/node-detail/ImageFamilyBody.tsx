@@ -47,13 +47,13 @@ import {
   CharacterImageReferenceControls,
   type CharacterReferenceGalleryExtraItem,
 } from '@/components/business/node/CharacterImageReferenceControls'
-import { WorkflowModelPicker } from '@/components/business/node/WorkflowModelPicker'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { NodeProgressState } from '../nodes/NodeProgressState'
+import { DetailModelPicker } from './DetailModelPicker'
 import { EvidenceDrawer, EvidenceRow } from './EvidenceDrawer'
 import type { NodeDetailBodyProps } from './registry'
 import type { NodeDetailSlots } from './slots'
@@ -531,7 +531,7 @@ export function ImageFamilyBody({
                 「标签即当前模型 ▾」的浮层要改 studio-shared 的
                 `BaseModelPickerPanel`，那是跨线项（契约 §8 末段同一条线）。
                 本片先把它落进正确的槽，形态留给参数一颗按钮那一片一起收。 */}
-            <WorkflowModelPicker
+            <DetailModelPicker
               value={data.model}
               options={modelOptions}
               onChange={(model) => updateNodeData(nodeId, { model })}

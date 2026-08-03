@@ -4453,7 +4453,11 @@
       "relationsEmptyShot": "No video node uses this shot image yet",
       "relationsEmptyFrame": "No video node uses this key frame yet",
       "relationsEmptyBackground": "No shot or video uses this background yet",
-      "relationsEmptyCharacter": "No shot or video uses this character yet"
+      "relationsEmptyCharacter": "No shot or video uses this character yet",
+      "relationsEmptyVoice": "No character is bound to this voice yet",
+      "sampleWillSend": "Sampling will send",
+      "fieldSource": "Source",
+      "reasonNoVoice": "Pick a voice from the library first."
     },
     "voiceDetail": {
       "paramsLabel": "Adjustments",

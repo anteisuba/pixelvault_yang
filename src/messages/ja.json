@@ -4453,7 +4453,11 @@
       "relationsEmptyShot": "まだどの動画ノードにも使われていません",
       "relationsEmptyFrame": "まだどの動画ノードにも使われていません",
       "relationsEmptyBackground": "まだどのショット・動画にも使われていません",
-      "relationsEmptyCharacter": "まだどのショット・動画にも使われていません"
+      "relationsEmptyCharacter": "まだどのショット・動画にも使われていません",
+      "relationsEmptyVoice": "まだどのキャラクターにもバインドされていません",
+      "sampleWillSend": "サンプリング時に送信される内容",
+      "fieldSource": "ソース",
+      "reasonNoVoice": "先にライブラリから音色を選んでください。"
     },
     "voiceDetail": {
       "paramsLabel": "基本調整",

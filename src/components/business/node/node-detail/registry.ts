@@ -48,6 +48,8 @@ export const NODE_DETAIL_SLOT_REGISTRY: Partial<
   [NODE_TYPE_IDS.frameImage]: FrameDetailBody,
   [NODE_TYPE_IDS.backgroundImage]: BackgroundDetailBody,
   [NODE_TYPE_IDS.characterImage]: CharacterDetailBody,
+  // S5（2026-08-04）：音色族。
+  [NODE_TYPE_IDS.voice]: VoiceDetailBody,
 }
 
 /**
@@ -62,9 +64,8 @@ export const NODE_DETAIL_REGISTRY: Partial<
   [NODE_TYPE_IDS.seedance]: VideoDetailBody,
   [NODE_TYPE_IDS.videoMerge]: VideoMergeDetailBody,
   [NODE_TYPE_IDS.videoReference]: VideoReferenceDetailBody,
-  [NODE_TYPE_IDS.voice]: VoiceDetailBody,
-  // ⚠ shotText（S3）与图片五族（S4）已迁到上面的 NODE_DETAIL_SLOT_REGISTRY。
+  // ⚠ shotText（S3）· 图片五族（S4）· 音色（S5）已迁到上面的 NODE_DETAIL_SLOT_REGISTRY。
   // 一个族只能在一张表里 —— 槽表提供者的签名带 children 渲染函数，
   // 塞进 legacy 表会类型不兼容（`registry.test.ts` 有一条断言守着这件事）。
-  // 剩下四族在 S5–S7 迁完后这张表连同 `GenericDetailBody` 一起删。
+  // 剩下三族在 S6–S7 迁完后这张表连同 `GenericDetailBody` 一起删。
 }

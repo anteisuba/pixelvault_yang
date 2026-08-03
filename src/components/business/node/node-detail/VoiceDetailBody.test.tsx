@@ -65,8 +65,17 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
   }),
 }))
 
-vi.mock('../nodes/NodeCardControls', () => ({
-  NodeModelSelector: () => null,
+// ⚠ 必须挡掉：模型选择器一路拉进 studio-shared → studio-context →
+// use-background-cards → api-client。本文件是**部分** mock api-client，
+// 于是 `listBackgroundCardsAPI` 取不到，整个 suite 在 import 阶段就炸
+// （不是断言失败，是 0 test）。
+vi.mock('./DetailModelPicker', () => ({
+  DetailModelPicker: () => null,
+}))
+
+vi.mock('@xyflow/react', () => ({
+  useNodes: () => [],
+  useEdges: () => [],
 }))
 
 vi.mock('../FishVoiceLibraryDialog', () => ({
@@ -132,6 +141,7 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
     ) : null,
 }))
 
+import { NodeDetailFrame } from './NodeDetailFrame'
 import { VoiceDetailBody } from './VoiceDetailBody'
 
 function makeData(overrides: Partial<NodeWorkflowNodeData> = {}) {
@@ -142,10 +152,19 @@ function makeData(overrides: Partial<NodeWorkflowNodeData> = {}) {
   } as NodeWorkflowNodeData
 }
 
-function renderBody(data: NodeWorkflowNodeData) {
-  return render(
-    <VoiceDetailBody nodeId="voice-1" type={NODE_TYPE_IDS.voice} data={data} />,
+/** S5 起音色族是**槽表提供者** —— 它自己不产出 DOM，必须套壳才能断言。 */
+function voiceTree(data: NodeWorkflowNodeData) {
+  return (
+    <VoiceDetailBody nodeId="voice-1" type={NODE_TYPE_IDS.voice} data={data}>
+      {(slots) => (
+        <NodeDetailFrame identity={<span>identity</span>} slots={slots} />
+      )}
+    </VoiceDetailBody>
   )
+}
+
+function renderBody(data: NodeWorkflowNodeData) {
+  return render(voiceTree(data))
 }
 
 describe('VoiceDetailBody', () => {
@@ -168,18 +187,29 @@ describe('VoiceDetailBody', () => {
     })
   })
 
-  it('uses the spacious two-rail object studio layout', () => {
-    renderBody(makeData())
+  /**
+   * ⚠ 这条替换了原来那条「两轨 object studio 版式」断言。
+   * 迁移前音色族的 DOM 序是 **3→2→4→2→7→4**：左轨里塞着来源两档（槽 3）、
+   * 音色卡（槽 2）、模型（槽 4）、代表音频（槽 2），右轨里是参数（槽 4）。
+   * 那是十族里最严重的一处跳序，而契约「槽序 = DOM 序 = 键盘序」不可推翻。
+   * 所以这条测的不再是「有没有两栏」，而是「七槽有没有按顺序排」。
+   */
+  it('七槽严格按 2→3→4→5→6→7 排布（迁移前是 3→2→4→2→7→4）', () => {
+    const { container } = renderBody(makeData())
 
-    const studio = screen.getByTestId('voice-object-studio')
-    expect(studio).toHaveClass('canvas-object-studio-grid')
-    expect(studio).toHaveClass('canvas-object-studio-grid--balanced')
     expect(
-      studio.querySelector('.canvas-object-studio-media-rail'),
-    ).toBeInTheDocument()
-    expect(
-      studio.querySelector('.canvas-object-studio-task-rail'),
-    ).toBeInTheDocument()
+      Array.from(container.querySelectorAll('[data-node-detail-slot]')).map(
+        (element) => element.getAttribute('data-node-detail-slot'),
+      ),
+    ).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'source-rack',
+      'compose-desk',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
   })
 
   it('does not render a 台词 input — lines belong to the script', () => {
@@ -217,10 +247,29 @@ describe('VoiceDetailBody', () => {
     })
   })
 
-  it('switches to the upload source view', () => {
+  /**
+   * ⚠ S5 把 `activeSource` 合进了持久字段 `voiceSource`。迁移前这两档是组件本地
+   * state，切换**不落库** —— 关掉面板再打开就弹回「系统音色」，而卡面
+   * （`VoiceNode`）读的是 `voiceSource`，于是同一时刻卡和面板显示的来源不一致。
+   * 所以这条从「点一下界面变了」改成「点一下**写库了**」，再单独验按字段渲染。
+   */
+  it('切换来源写进 voiceSource（不再是本地 state）', () => {
     renderBody(makeData())
     expect(screen.queryByText('uploadAudio')).not.toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'sourceMine' }))
+    expect(updateNodeData).toHaveBeenLastCalledWith('voice-1', {
+      voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+      status: NODE_STATUS_IDS.idle,
+    })
+  })
+
+  it('按 voiceSource 渲染「我的音色」那一档', () => {
+    renderBody(
+      makeData({
+        voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+      }),
+    )
     expect(screen.getByText('uploadAudio')).toBeInTheDocument()
   })
 
@@ -267,13 +316,7 @@ describe('VoiceDetailBody', () => {
     await waitFor(() => expect(generateAudioAPI).toHaveBeenCalled())
 
     // Switch to a different voice while the audition poll is still pending.
-    rerender(
-      <VoiceDetailBody
-        nodeId="voice-1"
-        type={NODE_TYPE_IDS.voice}
-        data={makeData({ voiceId: 'voice-999', voiceName: 'B' })}
-      />,
-    )
+    rerender(voiceTree(makeData({ voiceId: 'voice-999', voiceName: 'B' })))
 
     // The in-flight poll now resolves with the FIRST voice's clip.
     resolveStatus({
@@ -298,9 +341,15 @@ describe('VoiceDetailBody', () => {
   })
 
   it('pulls a generated clip from the library as reference audio + inherits its cover (素材)', () => {
-    renderBody(makeData())
+    // ⚠ 来源现在由持久字段 `voiceSource` 决定，不再是本地 state ——
+    // 点一下 sourceMine 只会调 `updateNodeData`，受控组件不会自己换视图。
+    // 要验「我的音色」那一档就直接用该档的 data 渲染。
+    renderBody(
+      makeData({
+        voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+      }),
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'sourceMine' }))
     fireEvent.click(screen.getByText('referenceFromAssets'))
     fireEvent.click(screen.getByTestId('pick-asset'))
 

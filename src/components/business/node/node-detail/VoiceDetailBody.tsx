@@ -8,16 +8,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import {
-  IdCard,
-  ImagePlus,
-  Library,
-  Mic2,
-  Music2,
-  Trash2,
-  Upload,
-  WandSparkles,
-} from 'lucide-react'
+import { ImagePlus, Mic2, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -32,7 +23,7 @@ import {
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
 import { AUDIO_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { NODE_STATUS_IDS } from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS, NODE_STATUS_IDS } from '@/constants/node-types'
 import {
   checkAudioStatusAPI,
   generateAudioAPI,
@@ -42,6 +33,7 @@ import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Spinner } from '@/components/ui/spinner'
+import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
@@ -49,8 +41,12 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
 import type { SelectedVoice } from '../VoiceSelector'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeModelSelector } from '../nodes/NodeCardControls'
+import { NodeProgressState } from '../nodes/NodeProgressState'
+import { DetailModelPicker } from './DetailModelPicker'
+import { EvidenceDrawer, EvidenceRow } from './EvidenceDrawer'
+import { RelationsStrip } from './RelationsStrip'
 import type { NodeDetailBodyProps } from './registry'
+import type { NodeDetailSlots } from './slots'
 
 function stopCanvasKeyboardEvent(event: ReactKeyboardEvent<HTMLElement>): void {
   event.stopPropagation()
@@ -96,29 +92,47 @@ async function waitForGeneratedSample(
   return null
 }
 
-const SECTION_LABEL =
-  'text-2xs font-semibold uppercase tracking-nav-dense text-node-muted'
-
 /**
- * Detail body for voice (声音) nodes. The node is a **voice identity / 音色身份**
- * builder — NOT a place to write spoken lines. There is no 台词 input: the
- * exact dialogue lives in the script / downstream video nodes (剧本后置). Here
- * the user picks/uploads a voice, optionally overrides its cover image,
- * auditions a single representative sample, tunes delivery (speed / volume /
- * emotion), and saves the profile into the reusable voice library (素材 =
- * VoiceCard) so it can be pulled back later from the library picker.
+ * 音色（`voice`）—— 一个**音色身份**构建器，不是写台词的地方。这里没有台词输入：
+ * 具体说什么活在剧本 / 下游视频节点里（剧本后置）。用户在这里挑或传一个音色、
+ * 可选地换封面、试听一段代表音频、调语速/音量/情绪。
+ *
+ * ── 方向 E 迁移（S5，2026-08-04）─────────────────────────────
+ * 契约 §6：`音色卡 + 播放器` / `音色库·我的音色` / `模型 + 语速·音量·情绪` /
+ * 「还没有角色绑定这个音色」/ `取样将发送` / `取得音色样本`。
+ *
+ * ⚠ 迁移前这一族的 DOM 序是 **3→2→4→2→7→4**（跳序）—— 左轨里塞着来源两档（槽 3）、
+ * 音色卡（槽 2）、模型（槽 4）、代表音频（槽 2），右轨里是参数（槽 4）。
+ * 契约「槽序 = DOM 序 = 键盘序，全断点严格不跳」，这是十族里最严重的一处。
+ *
+ * ⚠ **模型选择器归编排台**。它此前落在左轨（媒体侧），而别的族都在编排台 ——
+ * 直接违反「同一个控件不得在不同族落到不同的槽」。
+ *
+ * ⚠ **`activeSource` 与 `voiceSource` 合一**。原来来源两档是组件本地 state，
+ * 切换**不落库**：切到「我的音色」后关掉面板再打开就弹回「系统音色」，而卡面
+ * （`VoiceNode`）读的是持久字段 `voiceSource` —— 同一时刻卡和面板显示的来源不一致。
+ * 现在两档就是 `voiceSource` 本身。`VoiceNode` 早已按这个字段解析封面与试听源，
+ * 且对 `manual` 有兜底，所以合一不引入新分支。
  */
-export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
+export function VoiceDetailBody({
+  nodeId,
+  type,
+  data,
+  children,
+}: NodeDetailBodyProps & {
+  children: (slots: NodeDetailSlots) => React.ReactNode
+}) {
   const t = useTranslations('StudioNode.voiceDetail')
   const tVoice = useTranslations('StudioNode.voiceProfile')
-  const { updateNodeData } = useNodeWorkflowActions()
+  const tDetail = useTranslations('StudioNode.nodeDetail')
+  const tTypes = useTranslations('StudioNode.nodeTypes')
+  const { updateNodeData, modelOptionsByType } = useNodeWorkflowActions()
+  const uses = useDownstreamUses(nodeId)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
-  // Tracks the currently-selected voice so an in-flight audition (the poll can
-  // run up to ~200s) can drop its result if the user switches voices mid-flight
-  // — otherwise the old voice's sample would land on the new voice. Mirrors the
-  // request-id guard in VoiceSelector.
+  // 跟住当前音色：一次试听最长可跑约 200s，中途换音色时要把旧结果丢掉，
+  // 否则上一把的样本会落到新音色身上。与 VoiceSelector 的 request-id 守卫同构。
   const activeVoiceIdRef = useRef(data.voiceId)
   useEffect(() => {
     activeVoiceIdRef.current = data.voiceId
@@ -128,16 +142,15 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   const [coverAssetDialogOpen, setCoverAssetDialogOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isGeneratingSample, setIsGeneratingSample] = useState(false)
-  // Track the failed cover URL (not a boolean) so picking a new voice with a
-  // valid cover recovers instead of staying stuck on the icon fallback.
+  // 记的是**出错的那个 URL**而不是一个布尔：换到另一个封面有效的音色时能自动恢复，
+  // 不会一直卡在图标兜底上。
   const [erroredCover, setErroredCover] = useState<string | null>(null)
-  const [activeSource, setActiveSource] = useState(
-    data.voiceSource === NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio
-      ? NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio
-      : NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-  )
   const { uploadFile: uploadCover, isUploading: isCoverUploading } =
     useNodeReferenceUpload()
+
+  const modelOptions = modelOptionsByType[type] ?? []
+  const isFishSource =
+    data.voiceSource !== NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio
 
   const applyPatch = useCallback(
     (patch: Partial<NodeWorkflowNodeData>) => {
@@ -161,12 +174,10 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
         voiceProvider:
           data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-        // The sample belongs to the previous voice — drop it so the new voice
-        // re-auditions cleanly.
+        // 样本属于上一个音色 —— 丢掉，让新音色干净地重新试听。
         voiceSampleUrl: undefined,
       })
       setErroredCover(null)
-      setActiveSource(NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio)
       setLibraryOpen(false)
     },
     [applyPatch, data.voiceProvider],
@@ -232,9 +243,8 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
         voiceReferenceAudioUrl: generation.url,
         voiceReferenceAudioName: tVoice('referenceAudioFallback'),
         voiceReferenceAudioMimeType: NODE_STUDIO_AUDIO_INPUT.assetMimeType,
-        // The node only FOLLOWS the asset's cover (configured in the asset
-        // library). Stored in its OWN field so it never clobbers the system
-        // voice's cover when the user toggles sources.
+        // 节点只**跟随**素材的封面（在素材库里配的）。存自己的字段里，
+        // 这样来回切来源时永远不会覆盖系统音色那张。
         voiceReferenceCoverImage:
           generation.previewUrl ?? generation.thumbnailUrl ?? undefined,
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
@@ -247,13 +257,13 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
   const applyCover = useCallback(
     (url: string) => {
       applyPatch(
-        activeSource === NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio
+        isFishSource
           ? { voiceCoverImage: url }
           : { voiceReferenceCoverImage: url },
       )
       setErroredCover(null)
     },
-    [activeSource, applyPatch],
+    [applyPatch, isFishSource],
   )
 
   const handleCoverFileInputChange = useCallback(
@@ -298,8 +308,8 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       modelId: data.model?.modelId ?? AI_MODELS.FISH_AUDIO_S2_PRO,
       voiceId: requestedVoiceId,
       apiKeyId: data.model?.apiKeyId,
-      // Carry the voice's avatar into 素材库 BY REFERENCE (previewUrl). Only a
-      // valid absolute URL — a malformed cover must never 400 the generation.
+      // 把音色头像**按引用**带进素材库（previewUrl）。只接受合法绝对 URL ——
+      // 一个畸形封面绝不能把生成请求 400 掉。
       coverImageUrl:
         typeof data.voiceCoverImage === 'string' &&
         data.voiceCoverImage.startsWith('http')
@@ -316,8 +326,7 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
     }
     const generation = await waitForGeneratedSample(response.data.jobId)
     setIsGeneratingSample(false)
-    // The user switched voices while we were polling — discard this stale
-    // sample so it never lands on the now-current (different) voice.
+    // 轮询期间用户换了音色 —— 丢掉这个陈旧样本，别落到现在这个（不同的）音色上。
     if (activeVoiceIdRef.current !== requestedVoiceId) return
     if (!generation) {
       toast.error(tVoice('toasts.referenceGenerateFailed'), {
@@ -339,22 +348,28 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
     ? (data.voiceEmotion as string)
     : NODE_STUDIO_VOICE_EMOTION_IDS.none
 
-  // Never surface the raw voiceId — it reads as gibberish. Name, then provider.
+  // 绝不露原始 voiceId —— 那串东西读起来是乱码。
+  // ⚠ 一个音色都没选时**不能**回落到 provider：真机实拍到卡上「Fish Audio」
+  // 上下叠了两行（名字位与 provider 位同一个值），看上去像已经选好了。
+  // 没选就说没选。
   const selectedVoiceName =
-    data.voiceName?.trim() ||
-    data.voiceProvider?.trim() ||
-    NODE_STUDIO_VOICE_PROFILE.providerDefault
+    data.voiceName?.trim() || (data.voiceId ? '' : tDetail('valueUnset')) || ''
   const selectedVoiceProvider =
     data.voiceProvider?.trim() || NODE_STUDIO_VOICE_PROFILE.providerDefault
-  const isFishSource =
-    activeSource === NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio
-  // The cover follows the ACTIVE source — the system voice keeps its own cover
-  // in `voiceCoverImage`, the my-voice keeps its in `voiceReferenceCoverImage`,
-  // so toggling sources never shows the other's image.
   const activeCover = isFishSource
     ? data.voiceCoverImage
     : data.voiceReferenceCoverImage
   const showVoiceCover = Boolean(activeCover) && erroredCover !== activeCover
+  // 试听源：与卡面（`VoiceNode`）同一套解析 —— 按来源取对应 clip，但只要有一个
+  // 实际存在的 url 就兜底可播，杜绝「有音频却不能播」。
+  const playableUrl =
+    (isFishSource ? data.voiceSampleUrl : data.voiceReferenceAudioUrl) ||
+    data.voiceReferenceAudioUrl ||
+    data.voiceSampleUrl ||
+    null
+  const hasVoice = Boolean(
+    isFishSource ? data.voiceId : data.voiceReferenceAudioUrl,
+  )
 
   const coverThumbnail = (
     <button
@@ -362,25 +377,23 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
       onClick={() => coverInputRef.current?.click()}
       disabled={isCoverUploading}
       aria-label={t('coverUpload')}
-      className="nodrag group relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-node-port-voice/15 text-node-port-voice outline-none focus-visible:ring-2 focus-visible:ring-node-focus-ring/40 disabled:opacity-60"
+      className="nodrag group relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-node-panel-inner text-node-muted outline-none focus-visible:ring-2 focus-visible:ring-node-focus-ring/40 disabled:opacity-60"
     >
       {showVoiceCover && activeCover ? (
-        <>
-          {/* Third-party cover images come from arbitrary hosts; raw img with icon fallback. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={activeCover}
-            alt={t('coverAlt')}
-            className="size-full object-cover"
-            onError={() => setErroredCover(activeCover ?? null)}
-          />
-        </>
+        // 第三方封面来自任意域名；用原生 img + 图标兜底。
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={activeCover}
+          alt={t('coverAlt')}
+          className="size-full object-cover"
+          onError={() => setErroredCover(activeCover ?? null)}
+        />
       ) : isCoverUploading ? (
         <Spinner size="lg" />
       ) : (
         <Mic2 className="size-7" />
       )}
-      <span className="absolute inset-x-1 bottom-1 rounded-lg bg-node-canvas/85 px-1 py-0.5 text-3xs font-semibold text-node-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+      <span className="absolute inset-x-1 bottom-1 rounded-lg bg-node-canvas/85 px-1 py-0.5 text-3xs font-semibold text-node-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
         {t('coverChange')}
       </span>
     </button>
@@ -388,218 +401,161 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
 
   return (
     <>
-      <div
-        data-testid="voice-object-studio"
-        className="canvas-object-studio-grid canvas-object-studio-grid--balanced"
-      >
-        <div className="canvas-object-studio-media-rail">
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleCoverFileInputChange}
-          />
-          {/* §A 音色身份 (台词 removed — spoken lines belong to the script / 剧本) */}
-          <div className="space-y-2">
-            <span className={SECTION_LABEL}>{t('timbreLabel')}</span>
-            <div className="flex gap-1 rounded-xl border border-node-panel-inner bg-node-panel-soft p-1">
-              {(
-                [
-                  {
-                    id: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-                    label: t('sourceSystem'),
-                  },
-                  {
-                    id: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
-                    label: t('sourceMine'),
-                  },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setActiveSource(option.id)}
-                  onKeyDownCapture={stopCanvasKeyboardEvent}
-                  className={cn(
-                    'nodrag flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                    activeSource === option.id
-                      ? 'bg-node-foreground text-node-canvas'
-                      : 'text-node-muted hover:text-node-foreground',
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {isFishSource ? (
-              data.voiceId ? (
-                <div className="flex items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2.5">
-                  {coverThumbnail}
-                  {/* Name + source → reopen the library (从素材拿). */}
-                  <button
-                    type="button"
-                    onClick={() => setLibraryOpen(true)}
-                    onKeyDownCapture={stopCanvasKeyboardEvent}
-                    className="nodrag min-w-0 flex-1 text-left"
-                  >
-                    <span className="block truncate text-sm font-semibold text-node-foreground">
-                      {selectedVoiceName}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-node-muted">
-                      {selectedVoiceProvider}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCoverAssetDialogOpen(true)}
-                    onKeyDownCapture={stopCanvasKeyboardEvent}
-                    className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
-                    aria-label={t('coverFromAssets')}
-                    title={t('coverFromAssets')}
-                  >
-                    <ImagePlus className="size-4" />
-                  </button>
+      {children({
+        stage: (
+          <div className="canvas-detail-stage">
+            <div className="canvas-detail-voice-card">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverFileInputChange}
+              />
+              <div className="flex items-center gap-3">
+                {coverThumbnail}
+                <div className="min-w-0 flex-1">
+                  {/* R6：名字与 provider 是**派生显示值**，不穿控件壳。
+                      换音色这个动作归素材架那一行的「音色库」。 */}
+                  <p className="truncate text-sm font-semibold text-node-foreground">
+                    {isFishSource
+                      ? selectedVoiceName
+                      : (data.voiceReferenceAudioName ??
+                        tVoice('referenceAudioFallback'))}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-node-muted">
+                    {isFishSource ? selectedVoiceProvider : t('sourceMine')}
+                  </p>
                 </div>
-              ) : (
                 <button
                   type="button"
-                  onClick={() => setLibraryOpen(true)}
+                  onClick={() => setCoverAssetDialogOpen(true)}
                   onKeyDownCapture={stopCanvasKeyboardEvent}
-                  className="nodrag flex w-full items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2.5 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner"
+                  className="nodrag flex size-8 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
+                  aria-label={t('coverFromAssets')}
+                  title={t('coverFromAssets')}
                 >
-                  <IdCard className="size-4 shrink-0 text-node-muted" />
-                  <span className="min-w-0 flex-1 truncate">
-                    {tVoice('chooseVoice')}
-                  </span>
+                  <ImagePlus className="size-4" />
                 </button>
-              )
-            ) : (
-              <div className="space-y-2">
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept={NODE_STUDIO_AUDIO_INPUT.accept}
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                />
-                {data.voiceReferenceAudioUrl ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2.5">
-                      {coverThumbnail}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <Music2 className="size-3.5 shrink-0 text-node-muted" />
-                          <span className="truncate text-sm font-semibold text-node-foreground">
-                            {data.voiceReferenceAudioName ??
-                              tVoice('referenceAudioFallback')}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-node-muted">
-                          {t('sourceMine')}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleClearReferenceAudio}
-                        onKeyDownCapture={stopCanvasKeyboardEvent}
-                        aria-label={tVoice('clearAudio')}
-                        title={tVoice('clearAudio')}
-                        className="nodrag flex size-7 shrink-0 items-center justify-center rounded-full text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCoverAssetDialogOpen(true)}
-                        onKeyDownCapture={stopCanvasKeyboardEvent}
-                        className="nodrag flex size-9 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
-                        aria-label={t('coverFromAssets')}
-                        title={t('coverFromAssets')}
-                      >
-                        <ImagePlus className="size-4" />
-                      </button>
-                    </div>
-                    <audio
-                      src={data.voiceReferenceAudioUrl}
-                      controls
-                      className="nodrag w-full"
-                    />
-                  </div>
+                {!isFishSource && data.voiceReferenceAudioUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleClearReferenceAudio}
+                    onKeyDownCapture={stopCanvasKeyboardEvent}
+                    aria-label={tVoice('clearAudio')}
+                    title={tVoice('clearAudio')}
+                    className="nodrag flex size-8 shrink-0 items-center justify-center rounded-lg text-node-muted outline-none transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/40"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* 播放器：契约 §6 把它和音色卡一起归主体台 —— 「这个节点此刻是什么、
+                  证据长什么样」，对音色来说证据就是能听见的那一段。
+                  ⚠ 空态**不换版式**（R2）：没有可播的 clip 时留一条哑轨，
+                  几何不变，不写「先选一个音色」之类的解释文案。 */}
+              <div className="mt-3">
+                {playableUrl ? (
+                  <audio src={playableUrl} controls className="nodrag w-full" />
                 ) : (
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => inputRef.current?.click()}
-                      onKeyDownCapture={stopCanvasKeyboardEvent}
-                      disabled={isUploading}
-                      className="nodrag flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted transition-colors hover:border-node-focus-ring/40 hover:text-node-foreground disabled:opacity-60"
-                    >
-                      {isUploading ? (
-                        <Spinner size="md" />
-                      ) : (
-                        <Upload className="size-4" />
-                      )}
-                      <span className="text-xs font-semibold">
-                        {tVoice('uploadAudio')}
-                      </span>
-                    </button>
-                    {/* Reuse a generated voice clip already saved in the asset
-                    library (素材) instead of uploading a new file. */}
-                    <button
-                      type="button"
-                      onClick={() => setAudioAssetDialogOpen(true)}
-                      onKeyDownCapture={stopCanvasKeyboardEvent}
-                      className="nodrag flex w-full items-center justify-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs font-semibold text-node-foreground transition-colors hover:bg-node-panel-inner"
-                    >
-                      <Library className="size-3.5 text-node-muted" />
-                      {tVoice('referenceFromAssets')}
-                    </button>
-                  </div>
+                  <div className="canvas-detail-voice-track" aria-hidden />
                 )}
               </div>
-            )}
-          </div>
 
-          {/* §B 音频模型 — also the API-key gate: an unconfigured model routes to
-          QuickSetup (Hard Rule 8). Required before 试听/生成 can run. */}
-          <NodeModelSelector nodeId={nodeId} type={type} data={data} />
-
-          {/* §C 代表音频 — audition one representative clip of the picked voice. */}
-          {isFishSource && data.voiceId ? (
-            <div className="space-y-2">
-              <span className={SECTION_LABEL}>{t('sampleLabel')}</span>
-              {data.voiceSampleUrl ? (
-                <audio
-                  src={data.voiceSampleUrl}
-                  controls
-                  className="nodrag w-full"
+              {isGeneratingSample ? (
+                <NodeProgressState
+                  indicator="breath"
+                  veiled
+                  label={t('generateSample')}
                 />
               ) : null}
+            </div>
+          </div>
+        ),
+
+        rack: (
+          <div className="canvas-detail-shelf" role="group">
+            <input
+              ref={inputRef}
+              type="file"
+              accept={NODE_STUDIO_AUDIO_INPUT.accept}
+              className="hidden"
+              onChange={handleFileInputChange}
+            />
+            {/* 两档来源。⚠ `aria-pressed` + 下划线加粗表达选中，不做实心分段控件 ——
+                R10「全屏只有一个实心元素」，那一个归动作坞。 */}
+            <button
+              type="button"
+              onClick={() =>
+                applyPatch({
+                  voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
+                })
+              }
+              onKeyDownCapture={stopCanvasKeyboardEvent}
+              aria-pressed={isFishSource}
+              className="canvas-detail-txt-btn canvas-detail-txt-btn--seg"
+            >
+              {t('sourceSystem')}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                applyPatch({
+                  voiceSource:
+                    NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+                })
+              }
+              onKeyDownCapture={stopCanvasKeyboardEvent}
+              aria-pressed={!isFishSource}
+              className="canvas-detail-txt-btn canvas-detail-txt-btn--seg"
+            >
+              {t('sourceMine')}
+            </button>
+
+            {isFishSource ? (
               <button
                 type="button"
-                onClick={() => void handleGenerateSample()}
+                onClick={() => setLibraryOpen(true)}
                 onKeyDownCapture={stopCanvasKeyboardEvent}
-                disabled={isGeneratingSample}
-                className="nodrag flex w-full items-center justify-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-xs font-semibold text-node-foreground transition-colors hover:bg-node-panel-inner disabled:opacity-60"
+                className="canvas-detail-txt-btn"
               >
-                {isGeneratingSample ? (
-                  <Spinner size="md" />
-                ) : (
-                  <WandSparkles className="size-4" />
-                )}
-                {t('generateSample')}
+                {tVoice('chooseVoice')}
               </button>
-            </div>
-          ) : null}
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  onKeyDownCapture={stopCanvasKeyboardEvent}
+                  disabled={isUploading}
+                  className="canvas-detail-txt-btn"
+                >
+                  {tVoice('uploadAudio')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudioAssetDialogOpen(true)}
+                  onKeyDownCapture={stopCanvasKeyboardEvent}
+                  className="canvas-detail-txt-btn"
+                >
+                  {tVoice('referenceFromAssets')}
+                </button>
+              </>
+            )}
+          </div>
+        ),
 
-          {/* §C 基础调节 */}
-        </div>
-
-        <div className="canvas-object-studio-task-rail">
-          <div className="nodrag nopan nowheel space-y-3">
-            <span className={SECTION_LABEL}>{t('paramsLabel')}</span>
+        desk: (
+          <div className="canvas-detail-stack nodrag nopan nowheel">
+            {/* ⚠ 模型归**编排台** —— 迁移前它在左轨（媒体侧），而其余族都在编排台，
+                直接违反「同一个控件不得在不同族落到不同的槽」。 */}
+            <DetailModelPicker
+              value={data.model}
+              options={modelOptions}
+              onChange={(model) => updateNodeData(nodeId, { model })}
+              kind={NODE_MEDIA_KIND_IDS.audio}
+            />
             <ParamSlider
               label={t('speedLabel')}
               value={data.voiceSpeed ?? TTS_SPEED_RANGE.default}
@@ -618,69 +574,130 @@ export function VoiceDetailBody({ nodeId, type, data }: NodeDetailBodyProps) {
               step={TTS_VOLUME_RANGE.step}
               formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
             />
-          </div>
-
-          {/* §D 情绪 */}
-          <div className="space-y-2">
-            <span className={SECTION_LABEL}>{t('emotionLabel')}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => (
-                <button
-                  key={emotion}
-                  type="button"
-                  onClick={() =>
-                    applyPatch({
-                      voiceEmotion:
-                        emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
-                          ? ''
-                          : emotion,
-                    })
-                  }
-                  onKeyDownCapture={stopCanvasKeyboardEvent}
-                  className={cn(
-                    'nodrag rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                    selectedEmotion === emotion
-                      ? 'bg-node-foreground text-node-canvas'
-                      : 'border border-node-panel-inner bg-node-panel-soft text-node-muted hover:text-node-foreground',
-                  )}
-                >
-                  {t(`emotions.${emotion}`)}
-                </button>
-              ))}
+            <div className="canvas-detail-krow">
+              <span className="canvas-detail-krow-key">
+                {t('emotionLabel')}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => (
+                  <button
+                    key={emotion}
+                    type="button"
+                    onClick={() =>
+                      applyPatch({
+                        voiceEmotion:
+                          emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
+                            ? ''
+                            : emotion,
+                      })
+                    }
+                    onKeyDownCapture={stopCanvasKeyboardEvent}
+                    aria-pressed={selectedEmotion === emotion}
+                    className={cn(
+                      'nodrag rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                      selectedEmotion === emotion
+                        ? 'border-node-foreground text-node-foreground'
+                        : 'border-node-edge text-node-muted hover:text-node-foreground',
+                    )}
+                  >
+                    {t(`emotions.${emotion}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+        ),
 
-          {/* Clarify the node's role: lines belong to the script, not here. */}
-          <p className="text-2xs leading-5 text-node-subtle">
-            {tVoice('outputHint')}
-          </p>
-        </div>
-      </div>
+        // ⚠ 音色→角色是**边**（voice 是叶子源，只有出边），所以共用的下游反查
+        // 直接成立，不需要字段反查（见 use-downstream-uses 头注对 U4 的取舍）。
+        relations: (
+          <RelationsStrip
+            uses={uses}
+            emptyLabel={tDetail('relationsEmptyVoice')}
+            labelOf={(use) => use.name ?? tTypes(use.type)}
+            ariaOf={(name) => tDetail('focusOnCanvas', { name })}
+          />
+        ),
 
-      <FishVoiceLibraryDialog
-        open={libraryOpen}
-        onOpenChange={setLibraryOpen}
-        selectedVoiceId={data.voiceId ?? null}
-        onSelectVoiceId={handleSelectVoiceId}
-        onVoiceSelectComplete={() => setLibraryOpen(false)}
-      />
-      <AssetSelectorDialog
-        open={coverAssetDialogOpen}
-        onOpenChange={setCoverAssetDialogOpen}
-        title={t('coverDialogTitle')}
-        description={t('coverDialogDescription')}
-        mediaType="image"
-        onSelect={handleSelectCoverAsset}
-      />
+        evidence: (
+          <EvidenceDrawer label={tDetail('sampleWillSend')} count={5}>
+            <EvidenceRow
+              label={tDetail('fieldModel')}
+              value={data.model?.providerConfig.label ?? tDetail('valueUnset')}
+              dim={!data.model}
+            />
+            <EvidenceRow
+              label={tDetail('fieldSource')}
+              value={isFishSource ? t('sourceSystem') : t('sourceMine')}
+            />
+            <EvidenceRow
+              label={t('speedLabel')}
+              value={`${(data.voiceSpeed ?? TTS_SPEED_RANGE.default).toFixed(1)}×`}
+            />
+            <EvidenceRow
+              label={t('volumeLabel')}
+              value={`${data.voiceVolume ?? TTS_VOLUME_RANGE.default}`}
+            />
+            <EvidenceRow
+              label={t('emotionLabel')}
+              value={t(`emotions.${selectedEmotion}`)}
+              dim={selectedEmotion === NODE_STUDIO_VOICE_EMOTION_IDS.none}
+            />
+          </EvidenceDrawer>
+        ),
 
-      <AssetSelectorDialog
-        open={audioAssetDialogOpen}
-        onOpenChange={setAudioAssetDialogOpen}
-        title={tVoice('referenceDialogTitle')}
-        description={tVoice('referenceDialogDescription')}
-        mediaType="audio"
-        onSelect={handleSelectReferenceAsset}
-      />
+        dock: (
+          <div className="canvas-detail-dock-bar">
+            {/* R4：只有真正阻塞主动作的那一个发声。
+                ⚠ 这里曾经直接放 `chooseVoice`（文案是「声音库」）—— 那是一个
+                **按钮名**，放在原因位上读起来是「声音库」四个字孤零零挂着，
+                根本不成一句话。原因位要说的是「为什么现在按不了」。 */}
+            <p className="canvas-detail-dock-reason">
+              {isGeneratingSample
+                ? t('generateSample')
+                : !hasVoice
+                  ? tDetail('reasonNoVoice')
+                  : tVoice('outputHint')}
+            </p>
+            <button
+              type="button"
+              className="canvas-detail-primary"
+              disabled={isGeneratingSample || !data.voiceId}
+              onClick={() => void handleGenerateSample()}
+            >
+              {t('generateSample')}
+            </button>
+          </div>
+        ),
+
+        overlays: (
+          <>
+            <FishVoiceLibraryDialog
+              open={libraryOpen}
+              onOpenChange={setLibraryOpen}
+              selectedVoiceId={data.voiceId ?? null}
+              onSelectVoiceId={handleSelectVoiceId}
+              onVoiceSelectComplete={() => setLibraryOpen(false)}
+            />
+            <AssetSelectorDialog
+              open={coverAssetDialogOpen}
+              onOpenChange={setCoverAssetDialogOpen}
+              title={t('coverDialogTitle')}
+              description={t('coverDialogDescription')}
+              mediaType="image"
+              onSelect={handleSelectCoverAsset}
+            />
+            <AssetSelectorDialog
+              open={audioAssetDialogOpen}
+              onOpenChange={setAudioAssetDialogOpen}
+              title={tVoice('referenceDialogTitle')}
+              description={tVoice('referenceDialogDescription')}
+              mediaType="audio"
+              onSelect={handleSelectReferenceAsset}
+            />
+          </>
+        ),
+      })}
     </>
   )
 }

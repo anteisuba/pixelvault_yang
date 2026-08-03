@@ -2631,6 +2631,37 @@
   white-space: nowrap;
   color: var(--canvas-detail-ink-2);
 }
+/* 两档来源（音色库 / 我的音色）——选中态用**加粗下划线**而不是实底分段控件：
+   R10「全屏只有一个实心元素」，那一个归动作坞的主动作。 */
+.domain-canvas .canvas-detail-txt-btn--seg {
+  color: var(--canvas-detail-ink-2);
+  text-decoration: none;
+}
+.domain-canvas .canvas-detail-txt-btn--seg[aria-pressed='true'] {
+  color: var(--canvas-detail-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+/* 音色卡 —— 音色族没有媒体井（听不出宽高比），主体台放一张浮起的白卡。
+   宽度收在 420 是因为里面只有「封面 + 名字 + 播放器」三样，铺满 896 会让
+   一行字横跨整屏（R11 的同一条理由：空余宽度不画表面）。 */
+.domain-canvas .canvas-detail-voice-card {
+  position: relative;
+  width: min(420px, 100%);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--canvas-detail-s0);
+  box-shadow: var(--canvas-detail-shadow-card);
+}
+/* 空态哑轨：R2「空态与满态版式同构」—— 没有可播 clip 时几何照留，
+   不写「先选一个音色」之类的解释文案。 */
+.domain-canvas .canvas-detail-voice-track {
+  height: 32px;
+  border-radius: 999px;
+  background: var(--canvas-detail-s2);
+}
 
 /* 槽 4 · 编排台 —— R7「一栏内只有两类排法」：
    长文本 = 整宽、无标签、无边框（白面浮起，靠表面级差 + 投影分层，不描边）；

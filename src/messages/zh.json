@@ -4453,7 +4453,11 @@
       "relationsEmptyShot": "还没有视频节点用到这张镜头图",
       "relationsEmptyFrame": "还没有视频节点用到这张关键帧",
       "relationsEmptyBackground": "还没有镜头或视频用到这个背景",
-      "relationsEmptyCharacter": "还没有镜头或视频用到这个角色"
+      "relationsEmptyCharacter": "还没有镜头或视频用到这个角色",
+      "relationsEmptyVoice": "还没有角色绑定这个音色",
+      "sampleWillSend": "取样将发送",
+      "fieldSource": "来源",
+      "reasonNoVoice": "先从声音库挑一个音色。"
     },
     "voiceDetail": {
       "paramsLabel": "基础调节",

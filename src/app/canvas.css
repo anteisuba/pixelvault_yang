@@ -540,6 +540,14 @@
   --canvas-ok: #16794c; /* 5.42 */
   --canvas-warn: #8a5a00; /* 5.93 */
   --canvas-danger: #c0342e; /* 5.57 */
+  /* 生成中（§17.3 拍板）。值就是 :root `--node-paint` 的石绿原值 ——
+     `node-tokens.ts:137` 当初写的「进行中靠动效 + 石绿」指的是它，但
+     canvas.css:1635 把 `--node-paint` 重映射给连线用了（「只变明度不换色相」），
+     徽标搭那趟车的结果是 running 变成 #2a2a2a、与 ready/done 的 #26231e
+     ΔE-ok 0.029 = 真同色。所以另起一个名字，不再共用。
+     ⚠ 只作边与点，**不作文字**：三个底色预设上 4.06 / 3.69 / 3.59，
+     够图形档（≥3）不够 12px 文字档（≥4.5）。 */
+  --canvas-status-running: #3e8c6c;
 
   /* 7 · 端口族色 —— 形状是主编码、色是辅编码，且全部避开强调蓝的色相区 */
   --canvas-port-image: #6b7280; /* 4.83 · 实心方 */
@@ -1349,6 +1357,18 @@
 }
 .domain-canvas .canvas-card-label > * {
   pointer-events: auto;
+}
+
+/* 盖章状态徽标 · running 档（台账 §17.3）。石绿只落在**边与点**上，章文仍是
+   墨色 —— 石绿作 12px 文字在三个底色预设上最差 3.59，够图形档不够文字档。
+   在这之前 running 的编码是 `text-node-paint`，而 canvas.css 上面把
+   `--node-paint` 重映射给连线了，于是 running 与 ready/done 是同一个色
+   （ΔE-ok 0.029），加上那颗点又不动 —— 等于「正在生成」这件事在画面上无声。 */
+.domain-canvas .canvas-status-badge--running {
+  border-color: var(--canvas-status-running);
+}
+.domain-canvas .canvas-status-dot {
+  background: var(--canvas-status-running);
 }
 
 /* 端口：形状是主编码、色是辅编码（族色全部避开强调蓝的色相区）。

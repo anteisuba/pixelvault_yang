@@ -133,19 +133,44 @@ export const NODE_ACCENTS = {
 } satisfies Record<NodeTokenType, NodeAccentToken>
 
 // S3 盖章状态系统（node-canvas.md §4）：胶囊 → 章，透明底 + 描边 + 同色文字。
-// idle 无章（组件层 return null，这里不需要条目）。§6 去黄原则延续：排队/完成
-// 靠中性炭墨，进行中靠动效 + 石绿（§5 落点②），仅失败用红——章文承载语义、
-// 颜色只加固。`text-node-*` 变量类在 `.node-card-paper` 作用域内自动变炭墨系、
-// 深 chrome（详情面板等）自动浅色系，不写两套（见 globals.css strangler 覆盖）。
+/**
+ * 章色 —— 强度梯度（台账 §17.3，owner 2026-08-03 拍板）。
+ *
+ * 判据只有一条：**这个状态出现时，用户需不需要为它停下来**。由弱到强：
+ *
+ *   idle 不盖章 → done 不盖章 → ready 最轻 → running 唯一带动效 → failed 唯一的红
+ *
+ * ⚠ `idle` 与 `done` 都是空串，且组件层直接 `return null` —— 它们不是「透明的
+ * 章」，是**没有章**。done 不盖章是拍板①：完成的证据是卡上那张图，再盖一枚是
+ * 同一件事说两遍。这条也顺手治了原来的 bug：ready 与 done 的值曾**逐字符相同**
+ * （都是 `border-current text-node-foreground`），两个语义相反的态同一枚章。
+ *
+ * ⚠ `queued` / `stale` / `disabled` **全仓没有任何 writer**（只活在
+ * `NODE_STATUS_IDS` 枚举里），所以按拍板③**不设专属档**，统一走中性兜底。
+ * 枚举值不能删 —— 老项目 JSON 里可能存着，删了 Zod 解析会整份失败。
+ *
+ * ⚠ 三个底色预设（#FFFFFF / #F4F4F3 / #F1F1F1）上都算过（最差档）：
+ *   `--node-foreground` #26231e → 13.86 ✓ 文字
+ *   `--node-muted`      #5f594e →  6.15 ✓ 文字
+ *   `--node-subtle`     #8a8070 →  3.44 ✗ **不够 12px 文字**，已弃用
+ *   纸红                #a32d2d →  6.26 ✓ 文字
+ * 原来 stale/disabled 用的就是那个 3.44 的 subtle，而 `canvas.css:529` 给
+ * `--canvas-ink-subtle` 的注释原话就是「只在卡背上用，别放画布底」——
+ * 这枚章恰恰画在画布底上。
+ *
+ * running 的石绿只在**边与点**上（见 `.canvas-status-badge--running`）：石绿作
+ * 12px 文字最差只有 3.59，够图形档不够文字档，所以章文留墨色。
+ */
 export const STATUS_COLORS = {
   idle: '',
-  queued: 'border-current text-node-muted',
-  ready: 'border-current text-node-foreground',
-  running: 'border-current text-node-paint',
-  done: 'border-current text-node-foreground',
+  ready: 'border-current text-node-muted',
+  running: 'canvas-status-badge--running border-current text-node-foreground',
+  done: '',
   failed: 'border-node-status-failed text-node-status-failed',
-  stale: 'border-current text-node-subtle',
-  disabled: 'border-current text-node-subtle',
+  // 以下三个永不发生，中性兜底（拍板③）
+  queued: 'border-current text-node-muted',
+  stale: 'border-current text-node-muted',
+  disabled: 'border-current text-node-muted',
 } as const
 
 // §2.3 连线全中性灰，default/hover/选中/进行中靠明度（--node-edge ↔ -edge-active），

@@ -653,7 +653,15 @@ async function withAnnotations(page, marks, run) {
 const SHOTS = [
   { id: 'A0', name: 'canvas-overview', scene: OVERVIEW },
   { id: 'A4', name: 'empty-guide', scene: SCENES.empty },
-  { id: 'A7', name: 'status-badges', scene: SCENES.statuses },
+  {
+    // ⚠ 必须先收左面板：这一张拍的就是**八个态并排**，而展开态的 296px 面板
+    // 恰好压住第一列的 idle 与 done —— 2026-08-03 之前拍到的每一张都缺这两个，
+    // 而 done「不盖章」正是要看的验收点之一。
+    id: 'A7',
+    name: 'status-badges',
+    scene: SCENES.statuses,
+    prepare: clickButton('折叠 Cast 卡匣'),
+  },
   {
     id: 'A8',
     name: 'ingredients-and-edges',

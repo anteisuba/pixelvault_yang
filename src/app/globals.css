@@ -216,10 +216,20 @@
         rotate(calc((var(--angle) * -1deg) - 360deg));
     }
   }
-  --animate-pulse: pulse var(--duration) ease-out infinite;
+  /* ⚠ 这两条**只服务 `ui/pulsating-button.tsx`**，它靠内联 style 提供
+     `--duration` / `--distance` / `--bg`。名字必须带 -glow 后缀，绝不能叫
+     `pulse` ——
+     2026-04-05（757c083c）它原本就叫 `--animate-pulse` + `@keyframes pulse`，
+     于是**同时盖掉了 Tailwind 内建的 `animate-pulse` 与同名 keyframe**。而
+     `--duration` 在任何 CSS 里都没有全局定义，别处用 `animate-pulse` 时
+     `var(--duration)` 是「计算时无效」，整条 animation 简写作废 —— 真浏览器
+     实测 `animationName: "none"`、`getAnimations().length: 0`。
+     波及全站 39 处 / 18 文件，含 `ui/skeleton.tsx`（11 个消费方）与两个路由级
+     `loading.tsx`：所有骨架屏静止了约四个月。改名后 Tailwind 内建那条自动生效。 */
+  --animate-pulse-glow: pulse-glow var(--duration) ease-out infinite;
   --animate-pulse-ripple: pulse-ripple var(--duration)
     cubic-bezier(0.16, 1, 0.3, 1) infinite;
-  @keyframes pulse {
+  @keyframes pulse-glow {
     0%,
     100% {
       box-shadow: 0 0 0 0 var(--pulse-color, oklch(from var(--bg) l c h / 0.5));

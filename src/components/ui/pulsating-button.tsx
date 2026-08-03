@@ -116,7 +116,11 @@ export const PulsatingButton = React.forwardRef<
           aria-hidden="true"
           className={cn(
             'pointer-events-none absolute inset-0 rounded-[inherit] bg-inherit',
-            variant === 'pulse' ? 'animate-pulse' : 'animate-pulse-ripple',
+            // ⚠ 是 animate-pulse-**glow** 不是 animate-pulse：后者是 Tailwind
+            // 内建的透明度呼吸，全站骨架屏都在用。这颗按钮要的是 box-shadow
+            // 光晕，靠下面那三个内联变量驱动 —— 两者同名会把内建那条盖死
+            // （globals.css 里那段注释记着这个坑的完整经过）。
+            variant === 'pulse' ? 'animate-pulse-glow' : 'animate-pulse-ripple',
           )}
         />
       </button>

@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向 A · 定舞台 —— 节点详情面板结构原型</title>
+<style>
+/* ============================================================
+   方向 A · 定舞台
+   结构论点：主体台钉住不动，其余六槽在唯一的一条滚动列里依次出现。
+   玻璃路径：遮罩不糊、只降明度 —— 画布形状留在原地被压暗；
+             面板自己保留 blur，玻璃在面板边缘显形。
+   表面清单（同屏 ≥1.05:1）：
+     压暗画布 ≈ #8B8D90  ·  面板玻璃基面 ≈ #E9EAEC(合成)
+     白色台面 #FFFFFF（对基面 1.19:1）  ·  深色舞台 #232A35（对基面 ~9:1）
+   文字对比（WCAG 逐对算过）：
+     #1F2733 on #F4F5F7 = 10.5  ·  #55606E on #FFF = 6.4 / on #F4F5F7 = 5.9
+     #E8ECF1 on #232A35 = 12.2  ·  #A7B0BD on #232A35 = 6.6
+     #B42318 on #FCEDEB = 5.8   ·  #175CD3 on #EAF1FE = 5.2
+     #FFF on #1F2733 = 11.5
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#1F2733; --ink2:#55606E; --line:#C9CED6;
+  --panel-glass:rgba(243,245,248,.85);
+  --well:#FFFFFF;
+  --stage:#232A35; --stage-ink:#E8ECF1; --stage-ink2:#A7B0BD;
+  --red:#B42318; --red-bg:#FCEDEB;
+  --blue:#175CD3; --blue-bg:#EAF1FE;
+  --radius:14px;
+  --dur:220ms; --ease:cubic-bezier(.32,.72,.28,1);
+}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:#DEE1E5; color:var(--ink);
+  min-height:100%; padding-bottom:48px;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
+textarea,input,select{font-family:inherit}
+
+/* ---------- 顶部：方向说明 + 切换器 ---------- */
+.brief{
+  background:#FFFFFF; border-bottom:1px solid var(--line);
+  padding:20px 28px 16px;
+}
+.brief h1{font-size:17px; font-weight:700; letter-spacing:.02em}
+.brief h1 .tag{
+  display:inline-block; font-size:11px; font-weight:700; color:#FFF;
+  background:var(--ink); border-radius:6px; padding:3px 8px; margin-right:10px; vertical-align:2px;
+}
+.brief .thesis{font-size:13px; color:var(--ink); margin-top:8px; max-width:920px; line-height:1.7}
+.brief .thesis b{font-weight:700}
+.brief-cols{display:flex; gap:28px; flex-wrap:wrap; margin-top:12px}
+.brief-col{flex:1 1 200px; min-width:200px}
+.brief-col h3{font-size:11px; font-weight:700; color:var(--ink2); letter-spacing:.08em; margin-bottom:6px}
+.brief-col p{font-size:12px; color:var(--ink2); line-height:1.7}
+.controls{
+  display:flex; gap:20px; flex-wrap:wrap; align-items:center;
+  padding:12px 28px; background:#F4F5F7; border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:50;
+}
+.ctl-group{display:flex; align-items:center; gap:8px}
+.ctl-group>label{font-size:12px; font-weight:700; color:var(--ink2)}
+.seg{display:flex; background:#FFF; border:1px solid var(--line); border-radius:9px; padding:2px; gap:2px}
+.seg button{
+  font-size:12px; padding:5px 12px; border-radius:7px; color:var(--ink2); font-weight:500;
+  transition:background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.seg button[aria-pressed="true"]{background:var(--ink); color:#FFF; font-weight:600}
+.seg button:disabled{opacity:.35; cursor:not-allowed}
+.seg button:not(:disabled):not([aria-pressed="true"]):hover{background:#E9EBEE}
+
+/* ---------- 模拟画布舞台 ---------- */
+.simwrap{display:flex; justify-content:center; padding:28px 16px 0}
+.simframe{
+  position:relative; height:660px; border-radius:18px; overflow:hidden;
+  box-shadow:0 24px 64px rgba(20,26,36,.25), 0 2px 8px rgba(20,26,36,.12);
+  transition:width 300ms var(--ease);
+  width:1160px; max-width:calc(100vw - 32px);
+}
+.simframe[data-vp="tablet"]{width:860px}
+.simframe[data-vp="mobile"]{width:392px}
+
+.canvas{
+  position:absolute; inset:0; background:#F1F1F1;
+  background-image:radial-gradient(#C5C4C4 1.2px, transparent 1.2px);
+  background-size:22px 22px;
+}
+.cnode{
+  position:absolute; background:#FFF; border-radius:12px;
+  box-shadow:0 4px 14px rgba(31,39,51,.10);
+  padding:10px 12px; width:150px; font-size:11px;
+}
+.cnode .nt{font-weight:700; color:var(--ink); font-size:12px}
+.cnode .ns{color:var(--ink2); margin-top:2px}
+.cnode .nimg{height:64px; border-radius:8px; margin-top:8px}
+.cwire{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.cwire path{fill:none; stroke:#9AA1AA; stroke-width:2}
+
+/* ---------- 遮罩：方向 A = 不糊、只降明度 ---------- */
+.scrim{
+  position:absolute; inset:0;
+  background:rgba(15,19,26,.45);
+  transition:background 300ms var(--ease), backdrop-filter 300ms var(--ease),
+             -webkit-backdrop-filter 300ms var(--ease);
+}
+/* 现状白板（对照）：白雾 + blur，把点阵吃掉 */
+.simframe[data-glass="off"] .scrim{
+  background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+}
+
+/* ---------- 面板骨架 ---------- */
+.panel{
+  position:absolute; left:0; right:0; top:0; bottom:0; margin:auto;
+  width:min(1040px, calc(100% - 88px));
+  height:calc(100% - 68px);
+  display:flex; flex-direction:column;
+  border-radius:16px; overflow:hidden;
+  background:var(--panel-glass);
+  -webkit-backdrop-filter:blur(22px) saturate(1.4);
+  backdrop-filter:blur(22px) saturate(1.4);
+  box-shadow:0 32px 80px rgba(15,19,26,.38);
+}
+.simframe[data-glass="off"] .panel{
+  background:rgba(255,255,255,.88);
+  -webkit-backdrop-filter:blur(28px); backdrop-filter:blur(28px);
+}
+.simframe[data-vp="tablet"] .panel{width:calc(100% - 56px)}
+.simframe[data-vp="mobile"] .panel{width:calc(100% - 20px); height:calc(100% - 24px); border-radius:14px}
+
+/* 槽 1 · identity-bar */
+.idbar{
+  flex:none; display:flex; align-items:center; gap:12px;
+  padding:14px 20px 12px;
+}
+.idbar .fam{
+  flex:none; width:30px; height:30px; border-radius:9px; background:var(--ink); color:#FFF;
+  display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;
+}
+.idbar .idtext{min-width:0}
+.idbar .crumb{font-size:11px; color:var(--ink2); letter-spacing:.02em}
+.idbar .title{font-size:16px; font-weight:700; line-height:1.3}
+.idbar .spacer{flex:1}
+.idbar .close{
+  flex:none; display:flex; align-items:center; gap:6px;
+  font-size:12px; color:var(--ink2); font-weight:600;
+  padding:7px 12px; border-radius:9px; border:1px solid var(--line); background:rgba(255,255,255,.6);
+}
+.idbar .close:hover{background:#FFF; color:var(--ink)}
+
+/* 状态章（身份条载体 —— 仅无媒体窗族） */
+.stamp{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+  padding:4px 10px; border-radius:999px; letter-spacing:.04em}
+.stamp.ready{color:var(--ink2); border:1px solid var(--line); background:transparent}
+.stamp.running{color:var(--blue); background:var(--blue-bg)}
+.stamp.running .dot{width:7px; height:7px; border-radius:50%; background:var(--blue); animation:pulse 1.1s ease-in-out infinite}
+.stamp.failed{color:var(--red); background:var(--red-bg)}
+@keyframes pulse{0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.35; transform:scale(.75)}}
+
+/* body：左=钉住的主体台 · 右=唯一滚动列 */
+.pbody{flex:1; min-height:0; display:grid; grid-template-columns:400px minmax(0,1fr)}
+.pbody.nostage{grid-template-columns:minmax(0,1fr)}
+.simframe[data-vp="tablet"] .pbody{grid-template-columns:290px minmax(340px,1fr)}
+.pleft{
+  min-height:0; background:var(--stage); color:var(--stage-ink);
+  display:flex; flex-direction:column; padding:16px; gap:12px;
+  border-radius:0 14px 0 0;
+}
+.pright{min-height:0; overflow-y:auto; padding:6px 22px 24px; scrollbar-width:thin}
+
+/* 移动端：单列，主体台缩成钉住的横带 */
+.simframe[data-vp="mobile"] .pbody{display:flex; flex-direction:column; overflow-y:auto}
+.simframe[data-vp="mobile"] .pbody.nostage{display:flex}
+.simframe[data-vp="mobile"] .pleft{
+  position:sticky; top:0; z-index:5; flex:none;
+  border-radius:0; padding:10px 14px; gap:8px;
+  box-shadow:0 8px 24px rgba(15,19,26,.35);
+}
+.simframe[data-vp="mobile"] .pright{overflow:visible; padding:6px 16px 24px}
+.simframe[data-vp="mobile"] .mediawin{aspect-ratio:auto; height:130px}
+.simframe[data-vp="mobile"] .refgrid .reftile .refimg{height:64px}
+
+/* 槽 2 · subject-stage（深色舞台） */
+.stagehead{font-size:11px; font-weight:700; color:var(--stage-ink2); letter-spacing:.1em}
+.mediawin{
+  position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden;
+  background:#161B23; flex:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.mediawin .ph{color:var(--stage-ink2); font-size:13px; text-align:center; line-height:1.7}
+.mediawin .ph .glyph{font-size:26px; display:block; margin-bottom:6px; opacity:.7}
+.frameart{position:absolute; inset:0;
+  background:linear-gradient(135deg,#2B3B52 0%,#41597A 38%,#7A6A55 72%,#2C2622 100%)}
+.frameart::after{content:""; position:absolute; left:14%; bottom:18%; width:34%; height:44%;
+  background:linear-gradient(180deg,rgba(232,236,241,.28),rgba(232,236,241,.06)); border-radius:6px 6px 0 0}
+.playbtn{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:52px; height:52px; border-radius:50%; background:rgba(22,27,35,.72);
+  display:flex; align-items:center; justify-content:center}
+.playbtn::after{content:""; border-style:solid; border-width:9px 0 9px 15px;
+  border-color:transparent transparent transparent #E8ECF1; margin-left:4px}
+.durchip{position:absolute; right:10px; bottom:10px; font-size:11px; font-weight:700;
+  background:rgba(22,27,35,.78); color:var(--stage-ink); padding:3px 8px; border-radius:6px}
+/* 窗内状态：running / failed（媒体窗族的状态载体） */
+.winoverlay{position:absolute; inset:0; background:rgba(22,27,35,.82);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; text-align:center}
+.winoverlay .wt{font-size:14px; font-weight:700; color:var(--stage-ink)}
+.winoverlay .ws{font-size:12px; color:var(--stage-ink2); line-height:1.6}
+.runbar{width:min(220px,70%); height:4px; border-radius:2px; background:rgba(232,236,241,.18); overflow:hidden; position:relative}
+.runbar::after{content:""; position:absolute; top:0; bottom:0; width:38%; border-radius:2px;
+  background:#6FA1E8; animation:slide 1.3s var(--ease) infinite}
+@keyframes slide{0%{left:-40%} 100%{left:105%}}
+.winoverlay.failed{background:rgba(38,17,15,.9)}
+.winoverlay.failed .wt{color:#F5B8B1}
+.failreason{font-size:12px; color:#F5B8B1; background:rgba(180,35,24,.28);
+  border-radius:8px; padding:8px 12px; line-height:1.6; max-width:280px}
+.pedestal{font-size:11px; color:var(--stage-ink2); display:flex; align-items:center; gap:8px}
+.pedestal::before{content:""; width:6px; height:6px; border-radius:2px; background:var(--stage-ink2); opacity:.5}
+
+/* 角色：参考图集（档案型，不承载状态） */
+.refcol{display:flex; gap:10px; flex-wrap:wrap}
+.portrait{
+  width:132px; aspect-ratio:3/4; border-radius:10px; position:relative; overflow:hidden;
+  background:linear-gradient(160deg,#4A5C74 0%,#8B7A66 55%,#33302B 100%);
+}
+.portrait .plabel{position:absolute; left:8px; bottom:34px; font-size:11px; font-weight:700; color:#E8ECF1;
+  background:rgba(22,27,35,.66); padding:2px 7px; border-radius:5px}
+.tilebar{position:absolute; left:0; right:0; bottom:0; display:flex;
+  background:rgba(22,27,35,.85)}
+.tilebar button{flex:1; font-size:11px; font-weight:600; color:var(--stage-ink); padding:6px 0}
+.tilebar button+button{border-left:1px solid rgba(232,236,241,.18)}
+.tilebar button:hover{background:rgba(232,236,241,.12)}
+.addtile{
+  width:132px; aspect-ratio:3/4; border-radius:10px;
+  border:2px dashed rgba(167,176,189,.55); color:var(--stage-ink2);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:12px; font-weight:600;
+}
+.addtile .plus{font-size:22px; line-height:1}
+.addtile:hover{border-color:var(--stage-ink); color:var(--stage-ink)}
+.simframe[data-vp="mobile"] .portrait,.simframe[data-vp="mobile"] .addtile{width:96px}
+
+/* 音色卡 + 播放器 */
+.voicecard{background:#1A202A; border-radius:12px; padding:14px; position:relative; overflow:hidden}
+.voicecard .vn{font-size:15px; font-weight:700; color:var(--stage-ink)}
+.voicecard .vp{font-size:11px; color:var(--stage-ink2); margin-top:2px}
+.playerrow{display:flex; align-items:center; gap:12px; margin-top:14px}
+.pbtn{width:40px; height:40px; border-radius:50%; background:#E8ECF1; flex:none;
+  display:flex; align-items:center; justify-content:center}
+.pbtn::after{content:""; border-style:solid; border-width:7px 0 7px 11px;
+  border-color:transparent transparent transparent #161B23; margin-left:3px}
+.wave{flex:1; display:flex; align-items:center; gap:3px; height:36px}
+.wave i{flex:1; background:#5B6B80; border-radius:2px; min-width:2px}
+.voicecard .winoverlay{border-radius:12px}
+
+/* ---------- 右列：语义分段（不押发丝边，靠留白 + 标头 + 台面） ---------- */
+.slot{padding:16px 0 4px}
+.slot+.slot{margin-top:6px}
+.slothead{display:flex; align-items:baseline; gap:10px; margin-bottom:10px}
+.slothead .sname{font-size:12px; font-weight:800; letter-spacing:.1em; color:var(--ink)}
+.slothead .snote{font-size:11px; color:var(--ink2)}
+
+/* 槽 3 · source-rack：三段来源行（不是 tab 组） */
+.srcrow{display:flex; align-items:stretch; gap:8px}
+.srcbtn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:9px 8px; border-radius:10px; border:1px solid var(--line);
+  background:rgba(255,255,255,.55); font-size:12.5px; font-weight:600; color:var(--ink);
+  transition:background var(--dur) var(--ease);
+}
+.srcbtn:hover{background:#FFF}
+.srcbtn .hint{font-size:10px; color:var(--ink2); font-weight:500}
+/* 中间那颗不一样：实心 + 下沿舌头接住内联内容 */
+.srcbtn.mid{
+  background:var(--ink); color:#FFF; border-color:var(--ink); position:relative;
+}
+.srcbtn.mid .hint{color:#B9C1CC}
+.srcbtn.mid::after{content:""; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+  border:7px solid transparent; border-top-color:var(--ink); border-bottom:none}
+.srcinline{
+  margin-top:12px; background:var(--well); border-radius:12px; padding:14px;
+  overflow:hidden; max-height:420px; transition:max-height 260ms var(--ease), opacity 260ms var(--ease);
+}
+.srcinline.closed{max-height:0; padding-top:0; padding-bottom:0; opacity:0; margin-top:0}
+.srcinline .sl-title{font-size:12.5px; font-weight:700}
+.srcinline .sl-meta{font-size:11.5px; color:var(--ink2); margin-top:3px}
+.srcinline .sl-empty{font-size:12px; color:var(--ink2); background:#F4F5F7; border-radius:8px;
+  padding:12px; margin-top:10px; text-align:center}
+.srcinline .sl-manage{margin-top:10px; font-size:12px; font-weight:700; color:var(--ink);
+  border:1px solid var(--line); border-radius:8px; padding:6px 12px}
+.srcinline .sl-manage:hover{background:#F4F5F7}
+/* 参考图：常显网格，条目控件常显 */
+.refgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin-top:10px}
+.reftile{border-radius:10px; overflow:hidden; background:#F4F5F7; border:1px solid var(--line)}
+.reftile .refimg{height:76px; position:relative}
+.reftile .refimg.a{background:linear-gradient(150deg,#4A5C74,#8B7A66)}
+.reftile .refimg.b{background:linear-gradient(150deg,#37506B,#5E7E9E 60%,#C9CED6)}
+.reftile .refname{font-size:11px; font-weight:600; padding:6px 8px 2px; color:var(--ink)}
+.reftile .refops{display:flex; padding:4px 4px 6px}
+.reftile .refops button{flex:1; font-size:11px; font-weight:600; color:var(--ink2); padding:4px 0; border-radius:6px}
+.reftile .refops button:hover{background:#E9EBEE; color:var(--ink)}
+
+/* 二档来源（音色） */
+.tworow{display:flex; gap:8px}
+.tworow .srcbtn{flex-direction:row; justify-content:center; gap:8px}
+.tworow .srcbtn[aria-pressed="true"]{background:var(--ink); color:#FFF; border-color:var(--ink)}
+
+/* 槽 4 · compose-desk（全族默认展开，无折叠体） */
+.fieldlabel{display:flex; align-items:center; gap:10px; margin-bottom:6px; margin-top:14px}
+.fieldlabel:first-child{margin-top:0}
+.fieldlabel .fl{font-size:12.5px; font-weight:700}
+.fieldlabel .flspacer{flex:1}
+.fieldlabel .count{font-size:11px; color:var(--ink2); font-variant-numeric:tabular-nums}
+.minibtn{font-size:11.5px; font-weight:700; color:var(--ink); border:1px solid var(--line);
+  border-radius:7px; padding:4px 10px; background:rgba(255,255,255,.55)}
+.minibtn:hover{background:#FFF}
+.ta{
+  width:100%; border:none; border-radius:10px; background:var(--well); color:var(--ink);
+  font-size:13px; line-height:1.65; padding:11px 13px; resize:vertical; min-height:76px;
+  outline:2px solid transparent; transition:outline-color var(--dur) var(--ease);
+}
+.ta:focus{outline-color:var(--ink)}
+.ta::placeholder{color:var(--ink2)}
+.deskrow{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap}
+.deskitem{flex:1 1 150px; background:var(--well); border-radius:10px; padding:10px 13px; min-width:140px}
+.deskitem .dk{font-size:10.5px; font-weight:700; color:var(--ink2); letter-spacing:.06em}
+.deskitem .dv{font-size:13px; font-weight:700; margin-top:3px; display:flex; align-items:center; gap:6px}
+.deskitem.asbtn{cursor:pointer; transition:box-shadow var(--dur) var(--ease)}
+.deskitem.asbtn:hover{box-shadow:0 0 0 2px var(--ink) inset}
+.deskitem .caret{font-size:10px; color:var(--ink2)}
+/* 开关 */
+.switch{display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer}
+.knob{width:36px; height:21px; border-radius:999px; background:#C9CED6; position:relative; flex:none;
+  transition:background var(--dur) var(--ease)}
+.knob::after{content:""; position:absolute; top:2.5px; left:3px; width:16px; height:16px; border-radius:50%;
+  background:#FFF; transition:left var(--dur) var(--ease); box-shadow:0 1px 3px rgba(31,39,51,.3)}
+.switch[aria-pressed="true"] .knob{background:var(--ink)}
+.switch[aria-pressed="true"] .knob::after{left:17px}
+/* 滑杆行（音色） */
+.sliderrow{display:flex; align-items:center; gap:12px; background:var(--well); border-radius:10px; padding:10px 13px; margin-top:10px}
+.sliderrow .sk{font-size:12.5px; font-weight:700; width:52px; flex:none}
+.sliderrow input[type=range]{flex:1; accent-color:var(--ink)}
+.sliderrow .sv{font-size:12px; color:var(--ink2); width:44px; text-align:right; font-variant-numeric:tabular-nums}
+.chips{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.chip{font-size:12px; font-weight:600; padding:6px 14px; border-radius:999px;
+  border:1px solid var(--line); background:rgba(255,255,255,.55); color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink); color:#FFF; border-color:var(--ink)}
+.chip:not([aria-pressed="true"]):hover{background:#FFF}
+.footnote{font-size:11.5px; color:var(--ink2); margin-top:12px; line-height:1.7}
+
+/* 槽 5 · relations-strip（方向统一：下游被谁用） */
+.relempty{font-size:12px; color:var(--ink2); background:rgba(255,255,255,.5);
+  border:1px dashed var(--line); border-radius:10px; padding:14px; text-align:center}
+.relrow{display:flex; align-items:center; gap:12px; background:var(--well); border-radius:10px; padding:12px 14px}
+.relrow+.relrow{margin-top:8px}
+.relrow .rk{min-width:0; flex:1}
+.relrow .rk .rt{font-size:12.5px; font-weight:700}
+.relrow .rk .rs{font-size:11.5px; color:var(--ink2); margin-top:2px; line-height:1.5}
+.relrow .ract{flex:none; font-size:12px; font-weight:700; color:var(--ink);
+  border:1px solid var(--line); border-radius:8px; padding:6px 12px}
+.relrow .ract:hover{background:#F4F5F7}
+
+/* 槽 6 · evidence-drawer（常开，不折叠） */
+.evlist{background:var(--well); border-radius:12px; padding:4px 14px}
+.evrow{display:flex; gap:14px; padding:9px 0; font-size:12px; align-items:baseline}
+.evrow+.evrow{border-top:1px solid #EDEFF2}
+.evrow .ek{flex:none; width:58px; font-weight:700; color:var(--ink2); font-size:11.5px}
+.evrow .ev{color:var(--ink); line-height:1.6; word-break:break-all}
+.evrow .ev.dim{color:var(--ink2)}
+.evfail{margin-top:10px; background:var(--red-bg); border-radius:10px; padding:11px 14px;
+  font-size:12px; color:var(--red); line-height:1.7}
+.evfail b{font-weight:800}
+
+/* 槽 7 · action-dock：固定底部，横跨两栏，滚动区之外 */
+.dock{
+  flex:none; display:flex; align-items:center; gap:14px;
+  padding:12px 20px; background:var(--well);
+  box-shadow:0 -8px 24px rgba(31,39,51,.08);
+}
+.dock .dockinfo{min-width:0; flex:1}
+.dock .mode{font-size:12px; font-weight:700; color:var(--ink)}
+.dock .mode .mlabel{color:var(--ink2); font-weight:600}
+.dock .why{font-size:11.5px; color:var(--ink2); margin-top:2px}
+.dock .why.err{color:var(--red)}
+.dock .readychip{display:inline-flex; margin-left:8px}
+.primary{
+  flex:none; font-size:14px; font-weight:700; color:#FFF; background:var(--ink);
+  border-radius:11px; padding:11px 30px;
+  transition:opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.primary:not(:disabled):hover{transform:translateY(-1px)}
+.primary:disabled{background:#E4E7EB; color:#55606E; cursor:not-allowed}
+.primary.retry{background:var(--red)}
+.simframe[data-vp="mobile"] .dock{padding:10px 14px}
+.simframe[data-vp="mobile"] .primary{padding:11px 22px}
+
+/* ---------- 浮层 ---------- */
+.pop{
+  position:fixed; z-index:200; background:#FFF; border-radius:12px; min-width:250px;
+  box-shadow:0 16px 48px rgba(15,19,26,.28), 0 0 0 1px var(--line);
+  padding:14px; opacity:0; transform:translateY(6px) scale(.98);
+  transition:opacity 180ms var(--ease), transform 180ms var(--ease);
+}
+.pop.show{opacity:1; transform:none}
+.pop h4{font-size:12px; font-weight:800; letter-spacing:.06em; margin-bottom:10px}
+.pop .prow{margin-bottom:10px}
+.pop .pk{font-size:11px; font-weight:700; color:var(--ink2); margin-bottom:5px}
+.pop .pops{display:flex; gap:6px; flex-wrap:wrap}
+.pop .pops button{font-size:12px; font-weight:600; padding:5px 12px; border-radius:8px;
+  border:1px solid var(--line); color:var(--ink)}
+.pop .pops button[aria-pressed="true"]{background:var(--ink); color:#FFF; border-color:var(--ink)}
+.pop .papply{width:100%; margin-top:4px; font-size:13px; font-weight:700; color:#FFF;
+  background:var(--ink); border-radius:9px; padding:9px 0}
+.pop .gram{display:flex; gap:6px; flex-wrap:wrap}
+.pop .gram button{font-size:12px; padding:5px 12px; border-radius:999px; border:1px solid var(--line)}
+.pop .gram button:hover{background:#F4F5F7}
+
+.modal-scrim{position:absolute; inset:0; z-index:150; background:rgba(15,19,26,.5);
+  display:flex; align-items:center; justify-content:center}
+.modal{background:#FFF; border-radius:14px; width:min(420px, 86%); padding:20px;
+  box-shadow:0 24px 64px rgba(15,19,26,.4)}
+.modal h4{font-size:15px; font-weight:800}
+.modal p{font-size:12.5px; color:var(--ink2); margin-top:8px; line-height:1.7}
+.modal .mgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px}
+.modal .mgrid i{display:block; aspect-ratio:1; border-radius:8px; background:#E9EBEE}
+.modal .mclose{margin-top:16px; width:100%; font-size:13px; font-weight:700;
+  border:1px solid var(--line); border-radius:9px; padding:9px 0}
+.modal .mclose:hover{background:#F4F5F7}
+
+.toast{position:absolute; z-index:180; left:50%; bottom:22px; transform:translateX(-50%) translateY(8px);
+  background:var(--ink); color:#FFF; font-size:12.5px; font-weight:600;
+  padding:10px 18px; border-radius:10px; opacity:0; pointer-events:none;
+  transition:opacity 200ms var(--ease), transform 200ms var(--ease)}
+.toast.show{opacity:1; transform:translateX(-50%)}
+
+/* ---------- reduced motion 降级 ---------- */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important; transition:none !important}
+  .runbar::after{display:none}
+  .runbar{background:repeating-linear-gradient(90deg,#6FA1E8 0 10px,rgba(232,236,241,.18) 10px 20px)}
+  .stamp.running .dot{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="brief">
+  <h1><span class="tag">方向 A</span>定舞台 —— 主体台钉住不动，其余六槽排进唯一的滚动列</h1>
+  <p class="thesis">
+    今天「看图」和「改提示词」不能同屏：双栏共用一个滚动容器，右栏一展开就把左栏媒体窗推出视口。
+    方向 A 的回答：<b>左栏 = 主体台，钉死在面板里永不滚走</b>；右栏是<b>唯一的一条滚动列</b>，按槽序排素材架 → 编排台 → 关系带 → 证据抽屉；
+    动作坞横跨两栏固定在底部。玻璃走<b>「遮罩不糊、只降明度」</b>：画布的点阵与节点卡留在原地被压暗，面板自己保留 blur —— 玻璃在面板边缘显形，用户始终看得见「画布还在下面」。
+  </p>
+  <div class="brief-cols">
+    <div class="brief-col"><h3>优点</h3><p>改输入时结果常驻视野；滚动模型只有一条，不会迷路；深色舞台天然衬媒体，与浅色工作列形成结构性分层（非 1px 发丝边）。</p></div>
+    <div class="brief-col"><h3>风险</h3><p>左栏内容少的族（音色）深色柱子偏空；移动端主体台压缩成横带后「舞台感」减弱；深色舞台对纯文本族无意义（已整栏收掉）。</p></div>
+    <div class="brief-col"><h3>适用行为</h3><p>反复「看结果 → 微调提示词 → 重生成」的迭代循环；参考图多、需要对照素材改词的场景。</p></div>
+    <div class="brief-col"><h3>玻璃赌注</h3><p>压暗但不糊 —— 遮罩下点阵、节点卡、连线全部可辨；切「现状白板」对照可见白雾如何吃掉一切。</p></div>
+  </div>
+</header>
+
+<nav class="controls" aria-label="原型切换器">
+  <div class="ctl-group"><label>族</label>
+    <div class="seg" id="segFam">
+      <button data-fam="video" aria-pressed="true">视频生成</button>
+      <button data-fam="shot" aria-pressed="false">镜头文本</button>
+      <button data-fam="char" aria-pressed="false">角色</button>
+      <button data-fam="voice" aria-pressed="false">音色</button>
+    </div>
+  </div>
+  <div class="ctl-group"><label>状态</label>
+    <div class="seg" id="segState">
+      <button data-st="empty" aria-pressed="true">空</button>
+      <button data-st="filled" aria-pressed="false">有内容</button>
+      <button data-st="running" aria-pressed="false">生成中</button>
+      <button data-st="failed" aria-pressed="false">失败</button>
+    </div>
+  </div>
+  <div class="ctl-group"><label>视口</label>
+    <div class="seg" id="segVp">
+      <button data-vp="desktop" aria-pressed="true">桌面</button>
+      <button data-vp="tablet" aria-pressed="false">平板</button>
+      <button data-vp="mobile" aria-pressed="false">移动</button>
+    </div>
+  </div>
+  <div class="ctl-group"><label>玻璃</label>
+    <div class="seg" id="segGlass">
+      <button data-gl="on" aria-pressed="true">本方向（压暗不糊）</button>
+      <button data-gl="off" aria-pressed="false">现状白板</button>
+    </div>
+  </div>
+</nav>
+
+<div class="simwrap">
+  <div class="simframe" id="frame" data-vp="desktop" data-glass="on">
+    <!-- 模拟画布：点阵 + 节点卡 + 连线 -->
+    <div class="canvas" aria-hidden="true">
+      <svg class="cwire">
+        <path d="M 205 150 C 300 150, 320 250, 415 255"/>
+        <path d="M 205 420 C 320 420, 330 300, 415 275"/>
+        <path d="M 570 265 C 660 265, 680 180, 760 180"/>
+      </svg>
+      <div class="cnode" style="left:52px; top:96px">
+        <div class="nt">小林 · 角色图</div><div class="ns">角色</div>
+        <div class="nimg" style="background:linear-gradient(160deg,#4A5C74,#8B7A66)"></div>
+      </div>
+      <div class="cnode" style="left:52px; top:366px">
+        <div class="nt">分镜 04 · 图像</div><div class="ns">图像</div>
+        <div class="nimg" style="background:linear-gradient(150deg,#37506B,#5E7E9E 60%,#C9CED6)"></div>
+      </div>
+      <div class="cnode" style="left:418px; top:212px">
+        <div class="nt">视频生成</div><div class="ns">Seedance · 快速</div>
+      </div>
+      <div class="cnode" style="left:762px; top:132px">
+        <div class="nt">片盒 A</div><div class="ns">合成序列</div>
+      </div>
+      <div class="cnode" style="left:940px; top:430px">
+        <div class="nt">小林的声音</div><div class="ns">fish_audio</div>
+      </div>
+    </div>
+
+    <!-- 遮罩（方向 A：压暗不糊；现状：白雾+blur） -->
+    <div class="scrim" aria-hidden="true"></div>
+
+    <!-- 面板 -->
+    <section class="panel" id="panel" aria-label="节点详情面板"></section>
+
+    <div class="toast" id="toast"></div>
+    <div id="modalHost"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- 状态 ---------------- */
+var S = { fam:"video", st:"empty", vp:"desktop", glass:"on" };
+
+/* 族 × 允许状态（无生成能力的族没有 running/failed） */
+var ALLOWED = {
+  video:["empty","filled","running","failed"],
+  shot:["empty","filled"],
+  char:["empty","filled"],
+  voice:["filled","running"]
+};
+
+/* 视频族的可变数据（参数浮层会改它） */
+var VIDEO = {
+  empty:{ prompt:"", refs:0, params:null, audio:false },
+  filled:{ prompt:"夜色里的便利店门口，小林撑伞走入画面，霓虹反光在湿地面上流动。", refs:2,
+           params:{res:"1080P",dur:"5 秒",ratio:"16:9"}, audio:true },
+  running:{ prompt:"夜色里的便利店门口，小林撑伞走入画面，霓虹反光在湿地面上流动。", refs:2,
+           params:{res:"1080P",dur:"5 秒",ratio:"16:9"}, audio:true },
+  failed:{ prompt:"夜色里的便利店门口，小林撑伞走入画面，霓虹反光在湿地面上流动。", refs:2,
+           params:{res:"1080P",dur:"5 秒",ratio:"16:9"}, audio:true }
+};
+var FAIL_REASON = "参考图「分镜 04」分辨率低于模型下限（需 ≥ 512px）";
+
+var frame = document.getElementById("frame");
+var panel = document.getElementById("panel");
+var toastEl = document.getElementById("toast");
+var modalHost = document.getElementById("modalHost");
+var srcMidOpen = true;   /* 三段来源行：中间那颗的内联内容 */
+var voiceSrc = "lib";    /* 音色来源二档 */
+var voiceEmotion = "无";
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+/* ---------------- 槽模板 ---------------- */
+
+function modeName(refs){
+  if(refs>=2) return "多图参考";
+  if(refs===1) return "首帧参考";
+  return "文字生成";
+}
+function paramLabel(p){ return p ? (p.res+" / "+p.dur+" / "+p.ratio) : "编辑参数"; }
+
+function slotHead(name, note){
+  return '<div class="slothead"><span class="sname">'+name+'</span>'+
+         (note?'<span class="snote">'+note+'</span>':'')+'</div>';
+}
+
+/* 槽 1 · identity-bar（章只给无媒体窗族） */
+function identityBar(fam, st){
+  var map = {
+    video:{b:"D", crumb:"画布 / 视频生成", title:"视频生成"},
+    shot:{b:"T", crumb:"画布 / 镜头文本", title:"镜头文本"},
+    char:{b:"C", crumb:"画布 / 角色图", title:"小林"},
+    voice:{b:"V", crumb:"画布 / 音色", title:"小林的声音"}
+  };
+  var m = map[fam];
+  var stamp = "";
+  /* 状态载体二分：镜头文本/角色（无媒体窗）靠身份条盖章；idle/done 无章 */
+  if(fam==="shot" || fam==="char"){
+    /* 本原型里两族均为「编辑即保存」：空=idle 无章，有内容=done 无章 —— 演示梯度低端 */
+    stamp = "";
+  }
+  return '<header class="idbar">'+
+    '<div class="fam">'+m.b+'</div>'+
+    '<div class="idtext"><div class="crumb">'+m.crumb+'</div><div class="title">'+m.title+'</div></div>'+
+    stamp+
+    '<div class="spacer"></div>'+
+    '<button class="close" data-action="toast" data-msg="回到画布（演示）">✕ 回画布</button>'+
+  '</header>';
+}
+
+/* 槽 2 · subject-stage —— 视频 */
+function stageVideo(st){
+  var inner = "";
+  if(st==="empty"){
+    inner = '<div class="ph"><span class="glyph">▦</span>生成后在此预览</div>';
+  } else if(st==="filled"){
+    inner = '<div class="frameart"></div><button class="playbtn" data-action="toast" data-msg="播放（演示）" aria-label="播放"></button><span class="durchip">5s</span>';
+  } else if(st==="running"){
+    inner = '<div class="frameart" style="opacity:.35"></div>'+
+      '<div class="winoverlay"><div class="wt">正在生成</div>'+
+      '<div class="runbar" role="progressbar" aria-label="生成中，无进度百分比"></div>'+
+      '<div class="ws">生成期间不可取消 · 完成后自动更新</div></div>';
+  } else if(st==="failed"){
+    inner = '<div class="frameart" style="opacity:.2"></div>'+
+      '<div class="winoverlay failed"><div class="wt">生成失败</div>'+
+      '<div class="failreason">'+FAIL_REASON+'</div>'+
+      '<div class="ws">在动作坞重试，或先更换参考图</div></div>';
+  }
+  return '<div class="stagehead">主体台</div>'+
+    '<div class="mediawin">'+inner+'</div>'+
+    '<div class="pedestal">台账样本（夹具·只读）</div>';
+}
+
+/* 槽 2 —— 角色：参考图集（档案型，不承载窗内状态） */
+function stageChar(st){
+  var tiles = "";
+  if(st==="filled"){
+    tiles += '<div class="portrait"><span class="plabel">卡片主图</span>'+
+      '<div class="tilebar"><button data-action="toast" data-msg="替换主图（演示）">替换</button>'+
+      '<button data-action="toast" data-msg="移除主图（演示）">移除</button></div></div>';
+  }
+  tiles += '<button class="addtile" data-action="toast" data-msg="添加参考图（演示）"><span class="plus">＋</span>添加</button>';
+  return '<div class="stagehead">主体台 · 参考图集</div><div class="refcol">'+tiles+'</div>';
+}
+
+/* 槽 2 —— 音色：音色卡 + 播放器（媒体窗族 → 状态说在窗内） */
+function stageVoice(st){
+  var bars = "";
+  var hs = [12,22,30,18,26,34,20,14,24,32,22,12,18,28,16,24,30,14];
+  for(var i=0;i<hs.length;i++){ bars += '<i style="height:'+hs[i]+'px"></i>'; }
+  var overlay = "";
+  if(st==="running"){
+    overlay = '<div class="winoverlay"><div class="wt">正在取得音色样本</div>'+
+      '<div class="runbar" role="progressbar" aria-label="取样中，无进度百分比"></div>'+
+      '<div class="ws">完成后自动更新 · 不可取消</div></div>';
+  }
+  return '<div class="stagehead">主体台</div>'+
+    '<div class="voicecard"><div class="vn">小林的声音</div><div class="vp">fish_audio</div>'+
+    '<div class="playerrow"><button class="pbtn" data-action="toast" data-msg="播放样本（演示）" aria-label="播放"></button>'+
+    '<div class="wave">'+bars+'</div></div>'+overlay+'</div>';
+}
+
+/* 槽 3 · source-rack —— 视频：三段来源行（不是 tab 组） */
+function rackVideo(st){
+  var connected = (st==="empty") ? 0 : 2;
+  var inlineBody;
+  if(connected===0){
+    inlineBody = '<div class="sl-empty">暂无引用 · 画布连线后出现</div>';
+  } else {
+    inlineBody =
+      '<div class="refgrid">'+
+        '<div class="reftile"><div class="refimg a"></div><div class="refname">小林 · 角色图</div>'+
+          '<div class="refops"><button data-action="toast" data-msg="查看来源节点（演示）">查看</button>'+
+          '<button data-action="toast" data-msg="断开连线（演示）">断开</button></div></div>'+
+        '<div class="reftile"><div class="refimg b"></div><div class="refname">分镜 04 · 图像</div>'+
+          '<div class="refops"><button data-action="toast" data-msg="查看来源节点（演示）">查看</button>'+
+          '<button data-action="toast" data-msg="断开连线（演示）">断开</button></div></div>'+
+      '</div>';
+  }
+  return '<div class="slot">'+slotHead("素材架","这次用什么材料 · 从哪来")+
+    '<div class="srcrow">'+
+      '<button class="srcbtn" data-action="modal-lib">素材库<span class="hint">弹窗选图</span></button>'+
+      '<button class="srcbtn mid" data-action="src-mid">AI 生成<span class="hint">画布连线 · 内联</span></button>'+
+      '<button class="srcbtn" data-action="toast" data-msg="跳转 Studio（演示：路由离开画布）">Studio<span class="hint">跳转 ↗</span></button>'+
+    '</div>'+
+    '<div class="srcinline'+(srcMidOpen?'':' closed')+'">'+
+      '<div class="sl-title">实际发送素材</div>'+
+      '<div class="sl-meta">已连接 '+connected+' 个</div>'+
+      inlineBody+
+      '<button class="sl-manage" data-action="toast" data-msg="管理素材（演示）">管理素材 · '+connected+'</button>'+
+    '</div>'+
+  '</div>';
+}
+
+/* 槽 3 —— 音色：两档来源 */
+function rackVoice(){
+  return '<div class="slot">'+slotHead("素材架","音色从哪来")+
+    '<div class="tworow">'+
+      '<button class="srcbtn" data-action="voice-src" data-v="lib" aria-pressed="'+(voiceSrc==="lib")+'">音色库</button>'+
+      '<button class="srcbtn" data-action="voice-src" data-v="mine" aria-pressed="'+(voiceSrc==="mine")+'">我的音色</button>'+
+    '</div>'+
+  '</div>';
+}
+
+/* 槽 4 · compose-desk —— 视频（全展开 · 参数收成一颗按钮） */
+function deskVideo(st, v){
+  var count = v.prompt.length;
+  var disabled = (st==="running") ? " disabled" : "";
+  return '<div class="slot">'+slotHead("编排台","这次怎么做")+
+    '<div class="fieldlabel"><span class="fl">生成提示词</span><span class="flspacer"></span>'+
+      '<button class="minibtn" data-action="pop-grammar">运镜语法</button>'+
+      '<span class="count"><span id="pcount">'+count+'</span>/2000</span></div>'+
+    '<textarea class="ta" id="promptTa" maxlength="2000" placeholder="描述这个节点最终要生成的内容…"'+disabled+'>'+esc(v.prompt)+'</textarea>'+
+    '<div class="deskrow">'+
+      '<div class="deskitem asbtn" role="button" tabindex="0" data-action="toast" data-msg="切换模型（演示）">'+
+        '<div class="dk">模型</div><div class="dv">Seedance · 快速 <span class="caret">▾</span></div></div>'+
+      '<div class="deskitem asbtn" role="button" tabindex="0" data-action="pop-params" id="paramBtn">'+
+        '<div class="dk">参数</div><div class="dv">'+paramLabel(v.params)+' <span class="caret">▾</span></div></div>'+
+      '<div class="deskitem"><div class="dk">生成音频</div>'+
+        '<div class="dv"><button class="switch" data-action="audio-toggle" aria-pressed="'+v.audio+'" aria-label="生成音频">'+
+        '<span class="knob"></span></button></div></div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* 槽 4 —— 镜头文本：四个多行输入 */
+function deskShot(st){
+  var f = (st==="filled");
+  var vals = f ? {
+    scene:"深夜便利店门口，雨刚停，路面还亮着水光。",
+    act:"小林收伞，回头看向街角，霓虹灯在她脸上闪了一下。",
+    cam:"近景，缓慢推镜。",
+    comp:"主体居右，前景是玻璃门的反光，背景虚化。"
+  } : {scene:"",act:"",cam:"",comp:""};
+  function field(label, ph, val){
+    return '<div class="fieldlabel"><span class="fl">'+label+'</span></div>'+
+      '<textarea class="ta" placeholder="'+ph+'">'+esc(val)+'</textarea>';
+  }
+  return '<div class="slot">'+slotHead("编排台","编辑即保存")+
+    field("场景","这段镜头发生在哪里、什么时间…",vals.scene)+
+    field("动作","角色做什么，画面里发生什么…",vals.act)+
+    field("镜头","例如：近景、推镜、手持、俯拍…",vals.cam)+
+    field("构图","主体位置、景别、前后景关系…",vals.comp)+
+    '<p class="footnote">这些字段会按顺序拼成提示词，送进下游的视频节点。</p>'+
+  '</div>';
+}
+
+/* 槽 4 —— 音色 */
+function deskVoice(st){
+  var dis = (st==="running")?" disabled":"";
+  var chips = ["无","沉稳","愤怒","悲伤","惊讶"].map(function(e){
+    return '<button class="chip" data-action="emotion" data-v="'+e+'" aria-pressed="'+(voiceEmotion===e)+'"'+dis+'>'+e+'</button>';
+  }).join("");
+  return '<div class="slot">'+slotHead("编排台","声音怎么念")+
+    '<div class="deskrow" style="margin-top:0">'+
+      '<div class="deskitem asbtn" role="button" tabindex="0" data-action="toast" data-msg="切换音频模型（演示）">'+
+        '<div class="dk">音频模型</div><div class="dv">fish_audio <span class="caret">▾</span></div></div>'+
+    '</div>'+
+    '<div class="sliderrow"><span class="sk">语速</span><input type="range" min="0.5" max="2" step="0.1" value="1" data-action="rate"'+dis+'><span class="sv" id="rateVal">1.0×</span></div>'+
+    '<div class="sliderrow"><span class="sk">音量</span><input type="range" min="-10" max="10" step="1" value="0" data-action="vol"'+dis+'><span class="sv" id="volVal">0</span></div>'+
+    '<div class="fieldlabel" style="margin-top:14px"><span class="fl">情绪</span></div>'+
+    '<div class="chips" style="margin-top:0">'+chips+'</div>'+
+  '</div>';
+}
+
+/* 槽 5 · relations-strip（方向统一：下游被谁用） */
+function relVideo(){
+  return '<div class="slot">'+slotHead("关系带","被哪些节点用")+
+    '<div class="relempty">还没有合进任何片盒</div></div>';
+}
+function relChar(){
+  return '<div class="slot">'+slotHead("关系带","绑定与出演")+
+    '<div class="relrow"><div class="rk"><div class="rt">角色卡库</div>'+
+      '<div class="rs">选一张已有角色卡，自动套用到这个节点。</div></div>'+
+      '<button class="ract" data-action="toast" data-msg="打开角色卡库（演示弹窗）">选择</button></div>'+
+    '<div class="relrow"><div class="rk"><div class="rt">听觉身份</div>'+
+      '<div class="rs">这个角色说话用谁的声音。</div></div>'+
+      '<button class="ract" data-action="toast" data-msg="绑定音色（演示）">+ 绑定音色</button></div>'+
+    '<div class="relrow"><div class="rk"><div class="rt">出演</div>'+
+      '<div class="rs">还没有出演任何镜头</div></div></div>'+
+  '</div>';
+}
+function relVoice(){
+  return '<div class="slot">'+slotHead("关系带","被谁用")+
+    '<div class="relempty">还没有角色绑定这个音色</div></div>';
+}
+
+/* 槽 6 · evidence-drawer（常开区段，无折叠体） */
+function evidenceVideo(st, v){
+  var promptEv = v.prompt ? '<span class="ev">'+esc(v.prompt)+'</span>' : '<span class="ev dim">（空 —— 主按钮因此禁用）</span>';
+  var refsEv = (st==="empty") ? '<span class="ev dim">0 张</span>'
+    : '<span class="ev">2 张 —— 小林 · 角色图 ｜ 分镜 04 · 图像</span>';
+  var paramsEv = v.params ? '<span class="ev">'+paramLabel(v.params)+'</span>' : '<span class="ev dim">未设置（用模型默认）</span>';
+  var fail = (st==="failed")
+    ? '<div class="evfail"><b>上次失败</b> · '+FAIL_REASON+'</div>' : "";
+  return '<div class="slot">'+slotHead("证据抽屉","发送预览 —— 这次真正会送出什么")+
+    '<div class="evlist">'+
+      '<div class="evrow"><span class="ek">提示词</span>'+promptEv+'</div>'+
+      '<div class="evrow"><span class="ek">参考</span>'+refsEv+'</div>'+
+      '<div class="evrow"><span class="ek">模型</span><span class="ev">Seedance · 快速</span></div>'+
+      '<div class="evrow"><span class="ek">参数</span>'+paramsEv+'</div>'+
+      '<div class="evrow"><span class="ek">音频</span><span class="ev">'+(v.audio?"开":"关")+'</span></div>'+
+    '</div>'+fail+
+  '</div>';
+}
+
+/* 槽 7 · action-dock */
+function dockVideo(st, v){
+  var mode = modeName(st==="empty"?0:v.refs);
+  var info, btn;
+  if(st==="empty"){
+    info = '<div class="mode"><span class="mlabel">生成模式 · </span>'+mode+'</div>'+
+           '<div class="why">先写生成提示词 —— 编排台第一栏</div>';
+    btn = '<button class="primary" disabled>生成</button>';
+  } else if(st==="filled"){
+    info = '<div class="mode"><span class="mlabel">生成模式 · </span>'+mode+
+           '<span class="stamp ready readychip">就绪</span></div>';
+    btn = '<button class="primary" data-action="toast" data-msg="发起生成（演示 —— 切上方状态到「生成中」看运行态）">生成</button>';
+  } else if(st==="running"){
+    info = '<div class="mode"><span class="mlabel">生成模式 · </span>'+mode+
+           '<span class="stamp running readychip"><span class="dot"></span>生成中</span></div>'+
+           '<div class="why">生成期间不可取消 · 无进度百分比</div>';
+    btn = '<button class="primary" disabled>生成中…</button>';
+  } else {
+    info = '<div class="mode"><span class="mlabel">生成模式 · </span>'+mode+
+           '<span class="stamp failed readychip">失败</span></div>'+
+           '<div class="why err">'+FAIL_REASON+'</div>';
+    btn = '<button class="primary retry" data-action="toast" data-msg="重新生成（演示）">重新生成</button>';
+  }
+  return '<footer class="dock"><div class="dockinfo">'+info+'</div>'+btn+'</footer>';
+}
+function dockVoice(st){
+  if(st==="running"){
+    return '<footer class="dock"><div class="dockinfo">'+
+      '<div class="mode">取样<span class="stamp running readychip"><span class="dot"></span>进行中</span></div>'+
+      '<div class="why">完成后自动更新 · 不可取消</div></div>'+
+      '<button class="primary" disabled>取样中…</button></footer>';
+  }
+  return '<footer class="dock"><div class="dockinfo">'+
+    '<div class="mode">用当前语速 / 音量 / 情绪出一段样本</div></div>'+
+    '<button class="primary" data-action="toast" data-msg="取得音色样本（演示 —— 切上方状态到「生成中」看运行态）">取得音色样本</button></footer>';
+}
+
+/* ---------------- 组装 ---------------- */
+function render(){
+  closePop(); closeModal();
+  var fam=S.fam, st=S.st;
+  var left="", right="", dock="", noStage=false;
+
+  if(fam==="video"){
+    var v = VIDEO[st];
+    left = stageVideo(st);
+    right = rackVideo(st) + deskVideo(st,v) + relVideo() + evidenceVideo(st,v);
+    dock = dockVideo(st,v);
+  } else if(fam==="shot"){
+    /* 无主体台/素材架/证据抽屉/动作坞 —— 槽可空，不跳序 */
+    noStage = true;
+    right = deskShot(st);
+    dock = "";
+  } else if(fam==="char"){
+    left = stageChar(st);
+    right = relChar();      /* 素材架关掉 · 编排台空 —— 直接到关系带，序不变 */
+    dock = "";              /* 编辑即保存，无动作坞 */
+  } else if(fam==="voice"){
+    left = stageVoice(st);
+    right = rackVoice() + deskVoice(st) + relVoice();
+    dock = dockVoice(st);
+  }
+
+  panel.innerHTML =
+    identityBar(fam,st)+
+    '<div class="pbody'+(noStage?' nostage':'')+'">'+
+      (noStage?'':'<div class="pleft">'+left+'</div>')+
+      '<div class="pright">'+right+'</div>'+
+    '</div>'+
+    dock;
+
+  /* 提示词计数 */
+  var ta = document.getElementById("promptTa");
+  if(ta){
+    ta.addEventListener("input", function(){
+      var c = document.getElementById("pcount");
+      if(c) c.textContent = ta.value.length;
+      VIDEO[S.st].prompt = ta.value;
+    });
+  }
+  syncSegs();
+}
+
+function syncSegs(){
+  document.querySelectorAll("#segFam button").forEach(function(b){
+    b.setAttribute("aria-pressed", String(b.dataset.fam===S.fam));
+  });
+  document.querySelectorAll("#segState button").forEach(function(b){
+    var ok = ALLOWED[S.fam].indexOf(b.dataset.st)>=0;
+    b.disabled = !ok;
+    b.title = ok ? "" : "本族没有这个状态";
+    b.setAttribute("aria-pressed", String(b.dataset.st===S.st));
+  });
+  document.querySelectorAll("#segVp button").forEach(function(b){
+    b.setAttribute("aria-pressed", String(b.dataset.vp===S.vp));
+  });
+  document.querySelectorAll("#segGlass button").forEach(function(b){
+    b.setAttribute("aria-pressed", String(b.dataset.gl===S.glass));
+  });
+  frame.dataset.vp = S.vp;
+  frame.dataset.glass = S.glass;
+}
+
+/* ---------------- 浮层 / 弹窗 / toast ---------------- */
+var popEl = null;
+function closePop(){ if(popEl){ popEl.remove(); popEl=null; } }
+function openPop(anchor, html){
+  closePop();
+  popEl = document.createElement("div");
+  popEl.className = "pop";
+  popEl.innerHTML = html;
+  document.body.appendChild(popEl);
+  var r = anchor.getBoundingClientRect();
+  var pw = popEl.offsetWidth, ph = popEl.offsetHeight;
+  var x = Math.min(Math.max(8, r.left), window.innerWidth - pw - 8);
+  var y = r.bottom + 8;
+  if(y + ph > window.innerHeight - 8) y = r.top - ph - 8;
+  popEl.style.left = x+"px"; popEl.style.top = Math.max(8,y)+"px";
+  requestAnimationFrame(function(){ popEl && popEl.classList.add("show"); });
+}
+function closeModal(){ modalHost.innerHTML=""; }
+var toastTimer=null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2200);
+}
+
+/* 参数浮层（规格只说一次：按钮标签=当前摘要，点开改） */
+var draft = null;
+function paramsPopHtml(){
+  var cur = VIDEO[S.st].params || {res:"1080P",dur:"5 秒",ratio:"16:9"};
+  draft = {res:cur.res, dur:cur.dur, ratio:cur.ratio};
+  function opts(key, list){
+    return list.map(function(o){
+      return '<button data-pk="'+key+'" data-pv="'+o+'" aria-pressed="'+(draft[key]===o)+'">'+o+'</button>';
+    }).join("");
+  }
+  return '<h4>参数</h4>'+
+    '<div class="prow"><div class="pk">分辨率</div><div class="pops">'+opts("res",["720P","1080P"])+'</div></div>'+
+    '<div class="prow"><div class="pk">时长</div><div class="pops">'+opts("dur",["5 秒","10 秒"])+'</div></div>'+
+    '<div class="prow"><div class="pk">比例</div><div class="pops">'+opts("ratio",["16:9","9:16","1:1"])+'</div></div>'+
+    '<button class="papply" data-action="params-apply">应用</button>';
+}
+function grammarPopHtml(){
+  var g = ["推镜","拉镜","摇镜","移镜","手持","俯拍"];
+  return '<h4>运镜语法</h4><div class="gram">'+
+    g.map(function(x){ return '<button data-action="grammar-insert" data-v="'+x+'">'+x+'</button>'; }).join("")+
+    '</div>';
+}
+function libModalHtml(){
+  return '<div class="modal-scrim" data-action="modal-close"><div class="modal" role="dialog" aria-label="素材库">'+
+    '<h4>素材库</h4><p>演示弹窗 —— 三段来源行左侧那颗是「立即动作」：直接打开素材库选图，选完即回。它不切换任何内联区。</p>'+
+    '<div class="mgrid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>'+
+    '<button class="mclose" data-action="modal-close">关闭</button></div></div>';
+}
+
+/* ---------------- 事件 ---------------- */
+document.addEventListener("click", function(e){
+  var segBtn = e.target.closest("#segFam button, #segState button, #segVp button, #segGlass button");
+  if(segBtn){
+    if(segBtn.dataset.fam){
+      S.fam = segBtn.dataset.fam;
+      if(ALLOWED[S.fam].indexOf(S.st)<0) S.st = ALLOWED[S.fam][0];
+      render();
+    } else if(segBtn.dataset.st && !segBtn.disabled){
+      S.st = segBtn.dataset.st; render();
+    } else if(segBtn.dataset.vp){
+      S.vp = segBtn.dataset.vp; syncSegs();
+    } else if(segBtn.dataset.gl){
+      S.glass = segBtn.dataset.gl; syncSegs();
+    }
+    return;
+  }
+
+  var pk = e.target.closest("[data-pk]");
+  if(pk && popEl){
+    draft[pk.dataset.pk] = pk.dataset.pv;
+    popEl.querySelectorAll('[data-pk="'+pk.dataset.pk+'"]').forEach(function(b){
+      b.setAttribute("aria-pressed", String(b===pk));
+    });
+    return;
+  }
+
+  var act = e.target.closest("[data-action]");
+  if(!act){
+    if(popEl && !e.target.closest(".pop")) closePop();
+    return;
+  }
+  var a = act.dataset.action;
+
+  if(a==="toast"){ toast(act.dataset.msg); }
+  else if(a==="src-mid"){
+    srcMidOpen = !srcMidOpen;
+    var inline = panel.querySelector(".srcinline");
+    if(inline) inline.classList.toggle("closed", !srcMidOpen);
+  }
+  else if(a==="modal-lib"){ modalHost.innerHTML = libModalHtml(); }
+  else if(a==="modal-close"){ if(e.target===act || e.target.closest(".mclose")) closeModal(); }
+  else if(a==="pop-params"){ openPop(act, paramsPopHtml()); }
+  else if(a==="pop-grammar"){ openPop(act, grammarPopHtml()); }
+  else if(a==="params-apply"){
+    VIDEO[S.st].params = {res:draft.res, dur:draft.dur, ratio:draft.ratio};
+    closePop(); render();
+    toast("参数已更新 —— 按钮标签即当前规格");
+  }
+  else if(a==="grammar-insert"){
+    var ta = document.getElementById("promptTa");
+    if(ta && !ta.disabled){
+      ta.value = ta.value + (ta.value ? "，" : "") + act.dataset.v;
+      ta.dispatchEvent(new Event("input"));
+    }
+    closePop();
+  }
+  else if(a==="audio-toggle"){
+    var on = act.getAttribute("aria-pressed")==="true";
+    act.setAttribute("aria-pressed", String(!on));
+    VIDEO[S.st].audio = !on;
+  }
+  else if(a==="voice-src"){ voiceSrc = act.dataset.v; render(); }
+  else if(a==="emotion"){ voiceEmotion = act.dataset.v; render(); }
+});
+
+document.addEventListener("input", function(e){
+  var t = e.target;
+  if(t.dataset && t.dataset.action==="rate"){
+    var el = document.getElementById("rateVal");
+    if(el) el.textContent = Number(t.value).toFixed(1)+"×";
+  } else if(t.dataset && t.dataset.action==="vol"){
+    var el2 = document.getElementById("volVal");
+    if(el2) el2.textContent = t.value;
+  }
+});
+
+document.addEventListener("keydown", function(e){
+  if(e.key==="Escape"){ closePop(); closeModal(); }
+});
+window.addEventListener("resize", closePop);
+
+render();
+})();
+</script>
+</body>
+</html>

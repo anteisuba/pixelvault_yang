@@ -11,29 +11,27 @@ import {
 } from '@/constants/home-v3'
 import { Spinner } from '@/components/ui/spinner'
 
-type Phase = 'idle' | 'running' | 'ready'
-
 /**
  * The image capability, run by the reader instead of played at them.
  *
- * It opens on an empty frame holding the prompt and nothing else, because that
- * is where the product actually starts. Pressing generate spends a beat and the
- * character arrives; from there the same character can be re-dressed, redrawn
- * as a sprite, or taken to a photograph — each a further press.
- *
- * The frame holds only the picture and the states the picture can be in. The
- * controls sit under it and the argument sits in the section copy beside it, so
- * nothing is said twice.
+ * It opens on the character already there, because the section is about what
+ * can be done to a picture, not about waiting for one. Each control re-runs the
+ * same subject through a different edit: a new jacket, a sprite redraw, a
+ * photograph. Pressing the active edit puts him back, so each can be judged
+ * against the same original.
  *
  * All four frames are real `gpt-image-2` output; the three edits were each
  * generated from the first as a reference image, the product's own
  * multi-reference path. Nothing here calls an API — the page is edge-cached and
- * signed out, so the timings stand in for a generation, which is the honest
+ * signed out, so the delay stands in for a generation, which is the honest
  * thing to do in that position.
+ *
+ * The mole under his left eye survives every edit. That is what makes "same
+ * character" checkable in the picture instead of asserted in the copy.
  */
 export function HomeV3DemoImage() {
   const t = useTranslations('Homepage.imageDemo')
-  const [phase, setPhase] = useState<Phase>('idle')
+  const [running, setRunning] = useState(false)
   const [variant, setVariant] = useState<HomeV3ImageDemoVariant>('base')
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -44,7 +42,7 @@ export function HomeV3DemoImage() {
     [],
   )
 
-  const run = useCallback((next: HomeV3ImageDemoVariant, ms: number) => {
+  const run = useCallback((next: HomeV3ImageDemoVariant) => {
     if (timer.current) clearTimeout(timer.current)
 
     const instant =
@@ -53,21 +51,24 @@ export function HomeV3DemoImage() {
 
     if (instant) {
       setVariant(next)
-      setPhase('ready')
       return
     }
 
-    setPhase('running')
+    setRunning(true)
     timer.current = setTimeout(() => {
       setVariant(next)
-      setPhase('ready')
-    }, ms)
+      setRunning(false)
+    }, 1200)
   }, [])
 
   const edits = HOME_V3_IMAGE_DEMO_VARIANTS.filter((v) => v.id !== 'base')
 
   return (
-    <div className="home-v3-img2" data-home-v3-imagedemo data-phase={phase}>
+    <div
+      className="home-v3-img2"
+      data-home-v3-imagedemo
+      data-phase={running ? 'running' : 'ready'}
+    >
       <figure className="home-v3-demo home-v3-img2-stage">
         {HOME_V3_IMAGE_DEMO_VARIANTS.map((entry) => (
           <Image
@@ -77,67 +78,41 @@ export function HomeV3DemoImage() {
             width={450}
             height={675}
             data-variant={entry.id}
-            data-shown={
-              phase === 'ready' && entry.id === variant ? 'true' : 'false'
-            }
+            data-shown={entry.id === variant ? 'true' : 'false'}
             priority={entry.id === 'base'}
           />
         ))}
-
-        {/* Before anything is pressed a prompt really is all there is, so it is
-            the frame's resting state rather than an overlay to dismiss. */}
-        <span className="home-v3-img2-prompt">{t('promptLine')}</span>
 
         <span className="home-v3-img2-running">
           <Spinner size="lg" label={t('running')} />
           <em>{t('running')}</em>
         </span>
 
-        {phase === 'ready' ? <figcaption>{t('same')}</figcaption> : null}
+        <figcaption>{t('same')}</figcaption>
       </figure>
 
       <div className="home-v3-img2-side">
-        {phase === 'idle' ? (
-          <button
-            type="button"
-            className="home-v3-img2-run"
-            onClick={() => run('base', 1700)}
-          >
-            {t('generate')}
-          </button>
-        ) : (
-          <div
-            className="home-v3-img2-chips"
-            role="group"
-            aria-label={t('pick')}
-          >
-            {edits.map((entry) => {
-              const active = phase === 'ready' && entry.id === variant
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  className="home-v3-img2-chip"
-                  data-active={active ? 'true' : undefined}
-                  aria-pressed={active}
-                  disabled={phase === 'running'}
-                  /* Pressing the active edit puts the character back, so each
-                     edit can be judged against the same original. */
-                  onClick={() => run(active ? 'base' : entry.id, 1200)}
-                >
-                  {t(`${entry.id}.action`)}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        <div className="home-v3-img2-chips" role="group" aria-label={t('pick')}>
+          {edits.map((entry) => {
+            const active = !running && entry.id === variant
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className="home-v3-img2-chip"
+                data-active={active ? 'true' : undefined}
+                aria-pressed={active}
+                disabled={running}
+                onClick={() => run(active ? 'base' : entry.id)}
+              >
+                {t(`${entry.id}.action`)}
+              </button>
+            )
+          })}
+        </div>
 
         <p className="home-v3-img2-caption" aria-live="polite">
-          {phase === 'idle'
-            ? t('hint')
-            : phase === 'running'
-              ? t('running')
-              : t(`${variant}.note`)}
+          {running ? t('running') : t(`${variant}.note`)}
         </p>
 
         <p className="home-v3-img2-by">{HOME_V3_IMAGE_DEMO.model}</p>

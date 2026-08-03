@@ -1517,6 +1517,213 @@ html:lang(zh) {
   overflow: hidden;
 }
 
+/* ── 消息 Markdown 排版配方（.message-md）─────────────────────────
+   `MessageContent` 的 markdown 分支专用。替换 prompt-kit 随组件带进来的
+   死类 `prose`：`@tailwindcss/typography` 从未装（package.json /
+   package-lock.json / node_modules 三处都没有），`.prose` 在全部样式表里
+   没有任何定义（2026-08-01 真机遍历 document.styleSheets 返回空），而
+   Tailwind v4 preflight 又把 h1–h6 重置成 font-size/font-weight: inherit、
+   把 ol/ul 的 list-style 和缩进清零 —— 两件事叠起来的结果是 markdown
+   渲染出来的标题、列表、引用与正文完全同形。登记见
+   docs/plans/canvas-ui-inventory-2026-08-01.md §8 G3。
+
+   两条刻意的架构选择（都不是风格偏好，是为了这份配方能当共享原语用）：
+
+   1. 尺度全部用 em 而非 rem。同一份配方要同时服务 text-sm 的窄 dock
+      气泡和默认字号的容器，跟随调用方基准字号自适应，调用处不必再调。
+
+   2. 颜色全部从 currentColor 派生，不引 --muted-foreground / --border。
+      气泡底色是调用方用 bg-* 决定的（现存三种：bg-secondary、
+      bg-secondary/60、bg-primary/10），任何固定令牌都会在某张床上失效
+      —— 实测（contrast-check，sRGB 合成后算 WCAG）：
+      · --muted-foreground 作正文：light 的 bg-secondary 上 4.35、
+        bg-primary/10 上 3.80，两处都不到 4.5 门槛 → 弃用。
+      · --border 作发丝线：light 的 bg-primary/10 上只有 1.01
+        （#e5e5e5 压 #e6e6e6），等于看不见 → 弃用。
+      currentColor 派生值与底色无关，一次算准所有床位：
+      · 引用正文 currentColor 74%：最差 7.93（light bg-primary/10），
+        dark 最差 8.59 —— 全部过 4.5。
+      · 发丝线 currentColor 30%：2.00–2.66，**按装饰计**（引用靠「降调
+        正文 + 缩进」表意，线不是唯一线索；表格靠对齐表意）。故意不用
+        --border 的原因见上：装饰也不能是隐形的。
+
+   ⚠ 画布域助手气泡不复用本配方（域皮肤纪律）。那边是 §8 G3 的活，要在
+     canvas.css 里另写一份作用域内的，不要把本配方扩到 .domain-canvas。 */
+@layer components {
+  .message-md {
+    line-height: 1.6;
+  }
+
+  .message-md > :first-child {
+    margin-top: 0;
+  }
+
+  .message-md > :last-child {
+    margin-bottom: 0;
+  }
+
+  .message-md p {
+    margin-block: 0.65em;
+  }
+
+  /* preflight 把 h1–h6 抹成和正文同形，这里按窄栏重建三档层级：
+     标题只有 1.3 / 1.15 / 1.05 三级，h4–h6 并到 1em 只留字重差
+     —— 窄气泡里再多档只会互相打架。 */
+  .message-md h1,
+  .message-md h2,
+  .message-md h3,
+  .message-md h4,
+  .message-md h5,
+  .message-md h6 {
+    margin-block: 1.2em 0.45em;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .message-md h1 {
+    font-size: 1.3em;
+    letter-spacing: -0.01em;
+  }
+
+  .message-md h2 {
+    font-size: 1.15em;
+    letter-spacing: -0.005em;
+  }
+
+  .message-md h3 {
+    font-size: 1.05em;
+  }
+
+  .message-md h4,
+  .message-md h5,
+  .message-md h6 {
+    font-size: 1em;
+  }
+
+  /* 中日文没有西文的紧排余量，字距归零（与 .legal-title 同一处理）。 */
+  html:lang(zh) .message-md h1,
+  html:lang(zh) .message-md h2,
+  html:lang(ja) .message-md h1,
+  html:lang(ja) .message-md h2 {
+    letter-spacing: 0;
+  }
+
+  /* preflight 清掉了 list-style 与缩进，两样都要还。 */
+  .message-md ul,
+  .message-md ol {
+    margin-block: 0.6em;
+    padding-inline-start: 1.35em;
+  }
+
+  .message-md ul {
+    list-style: disc;
+  }
+
+  .message-md ol {
+    list-style: decimal;
+  }
+
+  .message-md li {
+    margin-block: 0.25em;
+  }
+
+  .message-md li::marker {
+    color: color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  /* 嵌套列表：换记号形状而不是加缩进级差，窄栏里省横向空间。 */
+  .message-md li ul {
+    list-style: circle;
+  }
+
+  .message-md li ul ul {
+    list-style: square;
+  }
+
+  .message-md li > ul,
+  .message-md li > ol {
+    margin-block: 0.25em;
+  }
+
+  /* GFM 任务列表：li 自带 checkbox 时收掉记号，否则记号 + 方框双标记。 */
+  .message-md li:has(> input[type='checkbox']) {
+    list-style: none;
+  }
+
+  /* 不做「把方框拉出缩进」的负 margin：em 在 input 上按 UA 自己的字号解析、
+     不继承列表字号，那个位移算不准。方框跟着文字缩进即可。 */
+  .message-md li > input[type='checkbox'] {
+    margin-inline-end: 0.4em;
+    vertical-align: baseline;
+  }
+
+  /* ⚠ 降调放在**子元素**上，不放在 blockquote 自己的 color 上。放自己身上会
+     复利：border-color 的 currentColor 取的是本元素已经降过的 color，30%
+     会变成 0.74 × 0.30 = 0.222（实测过，比设计值弱一档）。markdown 的引用
+     内容 CommonMark 一定包在 <p>（或列表/标题）里，子选择器盖得住。 */
+  .message-md blockquote {
+    margin-block: 0.7em;
+    border-inline-start: 2px solid
+      color-mix(in oklab, currentColor 30%, transparent);
+    padding-inline-start: 0.85em;
+  }
+
+  .message-md blockquote > * {
+    color: color-mix(in oklab, currentColor 74%, transparent);
+  }
+
+  .message-md hr {
+    margin-block: 1.1em;
+    border-top-color: color-mix(in oklab, currentColor 30%, transparent);
+  }
+
+  /* preflight 把 a 的 color/text-decoration 都设成 inherit —— 下划线是
+     这里唯一的链接线索（不靠颜色，色觉无障碍同时也免掉一次取色）。 */
+  .message-md a {
+    text-decoration: underline;
+    text-decoration-thickness: from-font;
+    text-underline-offset: 0.15em;
+  }
+
+  .message-md strong {
+    font-weight: 600;
+  }
+
+  /* 窄气泡里宽表格必须能横滑，否则整个气泡被撑破。display: block 让
+     table 自己成为滚动容器，内部行列仍走 table 布局。 */
+  .message-md table {
+    display: block;
+    max-width: 100%;
+    margin-block: 0.7em;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  .message-md th,
+  .message-md td {
+    border: 1px solid color-mix(in oklab, currentColor 30%, transparent);
+    padding: 0.3em 0.55em;
+    text-align: start;
+  }
+
+  .message-md th {
+    font-weight: 600;
+  }
+
+  .message-md img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+  }
+
+  /* 围栏代码块：markdown.tsx 把 pre 映射成 Fragment、code 映射成
+     <CodeBlock>，所以它落下来是一个直接子 div，自身不带外边距 ——
+     不补这条，两个连续代码块会贴在一起。 */
+  .message-md > div {
+    margin-block: 0.7em;
+  }
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,

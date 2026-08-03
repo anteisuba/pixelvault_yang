@@ -274,7 +274,7 @@ export function MobileCollapsedRail() {
   return (
     <aside
       aria-label={t('mobileNavigation')}
-      className="dark fixed inset-y-0 left-0 z-50 flex w-11 flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground lg:hidden"
+      className="fixed inset-y-0 left-0 z-50 flex w-11 flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground lg:hidden"
     >
       <button
         type="button"

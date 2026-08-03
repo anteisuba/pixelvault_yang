@@ -17,8 +17,8 @@ import {
 import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 
+import { IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 
@@ -67,13 +67,20 @@ export function NodeFieldEditor({
           <span className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
             {tFields(`${fieldId}.label`)}
           </span>
-          <Textarea
+          {/* ⚠ 必须走 IMEAwareTextarea，不能用裸 Textarea（2026-08-03）。
+              受控输入在组字过程中被父级 value 回灌会清掉输入法缓冲 —— 拼音/假名
+              还没上屏就被冲掉（见 inspector/IMEAwareField.tsx 的头注）。
+              inspector 下的每一个字段早就走这个包装件了，唯独这里没有；而本组件
+              生产上的消费方只剩 ShotTextDetailBody，也就是「场景 / 动作 / 镜头 /
+              构图」四个字段 —— 全 app 中文正文最密集的一族，恰恰是唯一没有输入法
+              处理的一族。 */}
+          <IMEAwareTextarea
             value={getNodeWorkflowFieldValue(data, fieldId)}
             placeholder={tFields(`${fieldId}.placeholder`)}
-            onChange={(event) => updateField(fieldId, event.target.value)}
+            onValueChange={(next) => updateField(fieldId, next)}
             onKeyDownCapture={stopCanvasKeyboardEvent}
             onKeyUpCapture={stopCanvasKeyboardEvent}
-            className="nodrag nopan nowheel mt-2 min-h-20 resize-y rounded-xl border-node-panel-inner bg-node-panel px-3 py-2 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
+            className="nodrag nopan nowheel mt-2 flex min-h-20 w-full resize-y rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none transition-[color,box-shadow] placeholder:text-node-subtle focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </label>
       ))}

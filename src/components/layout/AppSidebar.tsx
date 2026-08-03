@@ -91,14 +91,17 @@ const SIDEBAR_FOOTER_CLASS =
  * - Main nav: Gallery / Prompt library / Assets / Cards
  * - Footer: credit badge / avatar dropdown / LocaleSwitcher
  *
- * Visual: dark theme (uses shadcn sidebar token's dark-mode values via local
- * `dark` class) layered on top of the light editorial main surface.
+ * Visual: inherits the app's light shell. Until 2026-07-31 this carried its own
+ * `dark` class so a dark rail could sit on a light main surface — but the app
+ * root also forced `.dark`, so both halves rendered dark and the intent never
+ * showed. Owner chose the all-light A' shell, so the local override is gone and
+ * the rail now reads the same `:root` sidebar slots as everything else.
  */
 export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="z-40 dark border-r border-sidebar-border text-sidebar-foreground"
+      className="z-40 border-r border-sidebar-border text-sidebar-foreground"
     >
       <AppSidebarHeader />
       <AppSidebarContent />

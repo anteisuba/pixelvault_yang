@@ -84,18 +84,35 @@ export function NodeDetailPanel({
     onClick: onClose,
   }
 
+  // ⚠ 依赖是 `nodeId` 而不是 `node`（2026-08-03 真机复现后修）。
+  //
+  // `node` 来自 `nodes.find(...)`，而 `updateNodeData` 是 `{...node, data:{…}}`
+  // 整体换新对象（`use-node-workflow.ts`），React Flow 又是受控模式直喂
+  // `nodes={workflow.nodes}` —— 于是**每敲一个字符 node 就换一次身份**。
+  // 挂 `[node]` 的后果是这两个 effect 每个字符重跑一次；下面那个聚焦 effect
+  // 尤其致命：cleanup 先把焦点还给来源，effect 体再把焦点抢到「收起」按钮上。
+  // 真机实测（镜头文本 · 动作字段）敲 `abcde` 只有 `a` 进得去，焦点当场跳到
+  // 收起钮，后四个字符全丢。
+  //
+  // 语义上这两件事本来就只该在「打开的是哪一个节点」变化时发生一次，与该节点
+  // 的数据变化无关，所以依赖收敛到 id。
+  //
+  // ⚠ 为什么图片族当时测不出来：它的字段走 `IMEAwareTextarea`，组字期间不向上
+  // 提交，掩盖了非组字路径同样有的这个问题 —— 不要据此以为只有中文输入受影响。
+  const nodeId = node?.id ?? null
+
   useEffect(() => {
-    if (!node) return
+    if (!nodeId) return
     const handleKey = (event: KeyboardEvent) => {
       // Escape can be consumed by a CJK IME before it closes the workspace.
       if (event.key === 'Escape' && !event.isComposing) onClose()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [node, onClose])
+  }, [nodeId, onClose])
 
   useEffect(() => {
-    if (!node) return
+    if (!nodeId) return
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -105,7 +122,7 @@ export function NodeDetailPanel({
       previousFocusRef.current?.focus({ preventScroll: true })
       previousFocusRef.current = null
     }
-  }, [node])
+  }, [nodeId])
 
   const transition = motionTransition('slow', reducedMotion)
 

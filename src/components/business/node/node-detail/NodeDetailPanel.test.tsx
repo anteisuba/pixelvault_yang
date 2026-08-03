@@ -196,4 +196,56 @@ describe('NodeDetailPanel', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(2)
   })
+
+  /**
+   * ⚠ 回归锁（2026-08-03 真机复现后加）。
+   *
+   * 聚焦 effect 曾挂 `[node]`，而 `node` 来自 `nodes.find(...)`、
+   * `updateNodeData` 又是整体换新对象 —— 于是**每敲一个字符 node 就换一次身份**，
+   * effect 重跑：cleanup 先把焦点还给来源，effect 体再抢到「收起」按钮上。
+   * 真机实测（镜头文本 · 动作字段）敲 `abcde` 只有 `a` 进得去，后四个全丢。
+   * 依赖收敛到 `node.id` 之后才恢复正常。
+   */
+  it('节点数据变化不重夺焦点（依赖是 id 不是整个 node 对象）', () => {
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance)]
+    const { rerender } = render(
+      <NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />,
+    )
+
+    // 模拟用户把焦点放进正文里的某个输入框
+    const field = document.createElement('textarea')
+    document.body.appendChild(field)
+    field.focus()
+    expect(document.activeElement).toBe(field)
+
+    // 模拟一次击键：updateNodeData 换出一个**新的 node 对象**（同 id、新 data）
+    nodesState.nodes = [makeNode('n1', NODE_TYPE_IDS.seedance, { prompt: 'a' })]
+    rerender(<NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />)
+
+    expect(document.activeElement, '数据变化不得把焦点抢回收起按钮').toBe(field)
+
+    field.remove()
+  })
+
+  it('切换到另一个节点时重新接管焦点', () => {
+    nodesState.nodes = [
+      makeNode('n1', NODE_TYPE_IDS.seedance),
+      makeNode('n2', NODE_TYPE_IDS.seedance),
+    ]
+    const { rerender } = render(
+      <NodeDetailPanel expandedNodeId="n1" onClose={vi.fn()} />,
+    )
+
+    const field = document.createElement('textarea')
+    document.body.appendChild(field)
+    field.focus()
+
+    rerender(<NodeDetailPanel expandedNodeId="n2" onClose={vi.fn()} />)
+
+    // 换了节点 = 换了对象，面板应重新接管焦点（而不是停在上一个节点的输入框里）
+    expect(document.activeElement).not.toBe(field)
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('close')
+
+    field.remove()
+  })
 })

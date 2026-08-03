@@ -1,171 +1,314 @@
-# Canvas node detail · Object studio
+# 画布节点详情面板 · 方向 E「静默」
 
-Status: structural direction confirmed; detailed design not finalized
+> **状态**：方向已确认（owner 2026-08-03：「没问题，这次对了」）。本文是本页的**施工契约**。
+> **权力**：page 文档 + owner 明确实现授权**同时成立**才可进入整页实现（`scenes/ui-page.md` 阶段 7）。
+> 本文只描述**已确认**的东西；未确认项一律标 ⬜ 并说明谁来定。
+> **路由**：`/[locale]/studio/node` 的 ⤢ 展开层（overlay，非独立路由）
+> **Last verified**：2026-08-03
 
-Owner confirmation: direction A and density principles only, 2026-07-30
+**确认证据**：`docs/plans/prototypes/canvas-detail-E-quiet.html`（可交互高保真原型）
+**决策账本**：[`../../plans/canvas-detail-panel-structure-ledger-2026-08-03.md`](../../plans/canvas-detail-panel-structure-ledger-2026-08-03.md)
+**方向谱系**：A 定舞台 → B 分幕 → C 抽屉台（出局）→ D 钉幕 → **E 静默**（见账本 §7.1）
 
-Last verified: 2026-07-30
-Route: `/[locale]/studio/node`
+---
 
-## 1. Responsibility
+## 1 · 域职责
 
-The node detail surface is the expanded workspace for one real canvas node. It
-owns the node's primary media/state, its family-specific editing or generation
-task, and the actions that already exist for that node.
+节点详情面板是**一个真实画布节点**的展开工作台。用户在这里完成三件事：
+**看清这个节点当前是什么 → 改它的输入 → 重新生成。**
 
-It does not own:
+**它负责**：该节点的主媒体与状态 · 该族专属的编辑/生成任务 · 该节点已有的动作 ·
+**该节点被哪些下游节点使用**（2026-08-03 新增，见账本 ⑧）。
 
-- project or graph navigation;
-- editing a different node type;
-- a second copy of the compact video composer;
-- provider, billing, persistence, or graph-contract changes;
-- result archive / film-bin design.
+**它不负责**：项目或图导航 · 编辑另一个节点 · 紧凑编排器的第二份拷贝 ·
+provider / 计费 / 持久化 / 图契约的改动 · 结果归档与片盒设计。
 
-Only the explicit expand control opens this surface. Double-clicking a node,
-preview, model control, parameter control, asset slot, or canvas-selection
-control must not open it.
+**唯一入口是显式的 ⤢ 展开控件。** 双击节点、预览、模型控件、参数控件、素材槽、画布选择控件
+**都不得**打开它。⚠ 5 个开面板入口全在画布上、被遮罩挡住 ⟹ **节点→节点直切在真机上够不着，不要为它设计。**
 
-## 2. Confirmed direction and design boundary
+---
 
-Direction A, **Object studio**, is confirmed as the structural direction.
-The owner has not confirmed the final information hierarchy and state layout
-for every node family. The current local implementation is a construction
-baseline that exposes real content for the next design round; it must not be
-treated as a finished page design.
+## 2 · 七槽骨架（结构契约）
 
-The implementation reference is:
+| #   | 槽                         | 回答用户什么问题                                 |
+| --- | -------------------------- | ------------------------------------------------ |
+| 1   | `identity-bar` 身份条      | 我打开的是谁？现在什么状态？怎么退回画布？       |
+| 2   | `subject-stage` 主体台     | 这个节点此刻是什么？证据长什么样？               |
+| 3   | `source-rack` 素材架       | 这次用什么材料？从哪来？还差什么？               |
+| 4   | `compose-desk` 编排台      | 这次怎么做：写什么、哪个模型、什么参数？         |
+| 5   | `relations-strip` 关系带   | 绑了哪张卡/谁的声音，又**被哪些节点用**？        |
+| 6   | `evidence-drawer` 证据抽屉 | 这次真正会送出什么？刚才为什么失败？有什么限制？ |
+| 7   | `action-dock` 动作坞       | 这一屏的主事是什么？现在能不能做？               |
 
-`C:\Users\15620\.codex\visualizations\2026\07\27\019fa404-dd78-7973-92d7-bf14c9ad6557\canvas-node-detail-object-studio.html`
+**契约（不可推翻）**：
 
-The HTML node-family switcher is a design-demo control only. The product
-surface always shows the currently expanded real node and must not let the user
-change node type inside the detail workspace.
+- **槽序 = DOM 序 = 键盘序，全断点严格 2→3→4→5→6→7，不得跳序。**
+  （C 方向即因桌面 Tab 序 3→5→2→4→6→7 出局。）
+- **同一个控件不得在不同族落到不同的槽。**
+- 各族可让某槽为空；**组级不适用时整栏不渲染**（不占高度、不留解释文案）。
+- **关系带与证据抽屉必须全族有位**——可为空，但不得整族缺席。
+  ⚠ 曾有一次回退：`rRelations()` 对 image 族返回空串，已修（账本 §7.5）。
 
-## 3. Shared structure
+**⚠ 槽是结构约定，不要求界面上出现槽标题。** 见 R1。
 
-Every registered family uses one large, translucent canvas-contained dialog:
+---
 
-1. Stable header
-   - canvas breadcrumb / back action;
-   - family badge and real node name;
-   - live status;
-   - explicit close control.
-2. Object workspace
-   - a media/state region;
-   - a family-specific task region;
-   - one clear primary action where the family supports one.
-3. One scroll owner
-   - the dialog body scrolls;
-   - the canvas behind it does not scroll or receive pointer actions.
+## 3 · 面板几何与四段结构
 
-The outer frame is shared; body content is not normalized into a universal
-form. Generated video, video merge, reference video, voice, character,
-background, shot, frame, loose image, and generic fallback keep their existing
-business controls and generation paths.
+面板从上到下是**四段**，其中三段固定、一段滚动：
 
-## 4. Size and density
+```
+身份条        （钉，不滚）
+主体台        （钉，不滚 —— 看图与改提示词永远同屏）
+滚动区        （素材架 → 编排台 → 关系带 → 证据抽屉）
+动作坞        （钉，通栏，在滚动区之外）
+```
 
-Desktop:
+**桌面实测几何**（原型 stage 1280）：面板宽 960，**高度随族自适应**——
+角色 381 / 镜头文本 471 / 音色 524 / 视频·图片 696。
+⟹ 旧版写死的 `1180px × min(88svh, 860px)` **作废**；面板不再是「一件外衣套所有体型」。
 
-- use the available canvas width generously;
-- target a workspace near `1180px`, bounded by viewport gutters;
-- target up to `88svh`, bounded by viewport gutters;
-- header padding is larger than the compact sidecar;
-- task content uses approximately `32px` breathing room;
-- media/task columns keep a visible gap and never compress into dense card
-  stacks.
+**⬜ 分栏：本页目前全断点单栏，与账本 ⑦ 冲突，待 owner 复核。**
+E 的源码里不存在任何多列 grid（container query 只调高度与内边距），桌面、平板、移动一律单栏。
+而账本 ⑦ 拍的是「平板双列 + 右栏设最小宽」，⓪ 拍的是「栏比与分栏归各族」——两者都建立在
+「有栏可分」的前提上，该前提在 E 里不成立。**在 owner 复核前，实现按 E 的单栏执行，
+但不得据此认为 ⑦/⓪ 已被推翻。**
 
-Narrow desktop and tablet:
+---
 
-- the body changes from two rails to one reading column before controls become
-  cramped;
-- the media/state region appears before the task region;
-- the header may wrap but must keep the close action visible.
+## 4 · 减法规则 R1–R12（本页设计规范）
 
-375px:
+来源：Krea / LibTV / UpDream 三家实测调研（账本 §8）。**每条都是可验的。**
 
-- the dialog becomes a near-full-canvas sheet with 12px gutters;
-- body padding reduces without shrinking interactive targets;
-- no horizontal overflow or nested vertical scrollbar;
-- primary actions remain reachable without overlapping the close action.
+| #   | 规则                                                                                                                                                                                     |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **一级面零标题预算**。七个槽标题全不出现；各槽由非标题承载物表达边界。二级面（参数弹层、抽屉展开后）才允许 11px 弱化灰字标题                                                             |
+| R2  | **空态：占几何可以，占内容不行**。空卡与满卡版式完全同构，只把内容像素换成一枚极淡字形（图=山形 / 视频=▷ / 音频=波形）。**禁**棋盘格、虚线取景框、四角标记、「生成后在此预览」类解释文案 |
+| R3  | **组级不可用 → 整栏不渲染**；**项级不可用 → 留原位变哑**（让用户理解「换个模型就有了」，且布局不随模型跳动）                                                                             |
+| R4  | **空 ≠ 缺**。只有真正阻塞主动作的那一个发声（贴在动作坞按钮旁），其余「暂时为空但合法」的槽彻底安静，不预埋提示                                                                          |
+| R5  | **每项常驻控件收敛到 1 颗**。参考图只留「移除」，「查看」降级为点缩略图。⚠ 三家全靠 hover，**我们不能抄**（已拍板控件必须常显）；只抄「收敛到 1」这个算术                                |
+| R6  | **控件外形只给可编辑的字段**。只读/上游派生的值不穿控件壳，降成「灰标签 + 亮值」纯文本                                                                                                   |
+| R7  | **表单排法一栏内只有两类**：短值「标签左、值右、一行」；长文本「整宽、无标签、无边框」。**prompt 不配独立标签行**                                                                        |
+| R8  | **参数摘要串**：`1080P · 5 秒 · 16:9 ▾`，值用 `·` 串、按契约顺序、**不写字段名**、单行不折行；空态回落「编辑参数 ▾」                                                                     |
+| R9  | **参数渲染交集不是全集**，按当前模型能力契约派生（事实源 `src/constants/video-model-send-plan.ts`）                                                                                      |
+| R10 | **形状即分组，一层一种形状**；尺寸档位 ≤3；**全屏只有一个实心元素**（动作坞主动作）                                                                                                      |
+| R11 | **媒体井宽由宽高比推导、居中；空余宽度不画表面**（不给底色、不给边框）——它就是面板底                                                                                                     |
+| R12 | 层间距 : 层内距 ≈ 3 : 1                                                                                                                                                                  |
 
-## 5. Family-specific content
+**R1 的逐槽承载物**：
 
-| Family           | Required object-studio emphasis                                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Generated video  | left rail for the current film and exact sent assets; right rail for composition, model-aware parameters, send diagnostics, and generation |
-| Video merge      | source sequence / result preview plus merge action                                                                                         |
-| Reference video  | upload or current video plus replace / clear task                                                                                          |
-| Voice            | active voice/representative sample plus source, model, tuning, emotion, and generate-sample action                                         |
-| Character        | visual identity gallery plus card, voice binding, performances, LoRA, and image generation                                                 |
-| Background       | location gallery plus card, performances, LoRA, and image generation                                                                       |
-| Shot             | current shot image plus prompt/camera/composition/references and image generation                                                          |
-| Frame            | current frame image plus source/references and image generation                                                                            |
-| Loose image      | current asset plus category/source controls and optional image generation                                                                  |
-| Generic fallback | model, supported fields, and the existing family action                                                                                    |
+| 槽       | 删标题后由什么承载                                                       |
+| -------- | ------------------------------------------------------------------------ |
+| 身份条   | 类型字形 + 名字（左）⟷ 面包屑 + 关闭（右），同一行两端对齐               |
+| 主体台   | 媒体本身，一块无装饰矩形独占                                             |
+| 素材架   | 一行文字按钮（素材库 / Studio ↗）⟷ 右对齐弱化计数                        |
+| 编排台   | 整宽 prompt 块 + 一行 chip（模型 / 参数 / 运镜语法）。两种形状自己在分层 |
+| 关系带   | 一行 chip 或一行灰字                                                     |
+| 证据抽屉 | 一行「名词 + 计数 + 箭头」：`发送预览 (6 项) ▾`                          |
+| 动作坞   | 底部固定条本身即分组                                                     |
 
-The image and voice families must continue to expose their existing generation
-actions. This redesign may reposition them, but must not invent a new provider
-request.
+---
 
-## 6. States
+## 5 · 材质
 
-| State          | Shared behavior                       | Family behavior                                         |
-| -------------- | ------------------------------------- | ------------------------------------------------------- |
-| Empty          | node identity stays visible           | show the next valid source or task                      |
-| Ready          | media/state and task are both legible | primary action reflects current inputs                  |
-| Generating     | close remains available               | truthful progress; cancel only if already supported     |
-| Failed         | error is near media or action         | retry preserves inputs                                  |
-| Unsupported    | reason stays visible                  | unsupported controls are absent or disabled with reason |
-| Nested chooser | dialog remains mounted                | only one family-owned chooser is active                 |
+**全浅 · 实面 · 投影分层 · 零 `backdrop-filter`。**
 
-## 7. Accessibility and interaction
+- **玻璃整体取消**（owner 2026-08-03）。原始诉求是「背景加透明玻璃质感」，实测证明浅色画布上
+  玻璃收不到任何东西：三份原型透过面板的点阵对比合成后全部掉到 1.1 以下且被 blur 抹平；
+  「看得见画布」的地方全在面板之外的边缘带。详见账本 §6.3b。
+- **面板 · 媒体井 · 遮罩 · 页壳一律不得深色**（亮度 >70%）。
+  ⚠ 媒体井不能深的连带代价：浅图与透明 PNG 边界不清 ⟹ 只许用「比面板略深一档的中性浅灰井 + 实边框」
+  或棋盘格（仅用于透明底），**不许**用深井解决对比问题。
+- **表面等级**：S0 `#FFFFFF`（白操作面）→ S1 `#EEF1F4`（面板基面，1.13）→ S2 `#DEE1E5`（媒体井/托盘，1.16）；
+  遮罩后画布 vs S1 = 1.13。**逐级差值必须 ≥1.05**（现状同屏 7 套白玻璃差值全在 1.00–1.03，是被禁的反例）。
+- **投影是唯一的层次手段**，四级：面板 `0 40px 90px + 0 16px 36px` → 浮层 `0 24px 64px` →
+  坞 `0 -10px 24px` → 白卡 `0 1px 2px + 0 2px 10px`。
+  ⚠ 面板投影**必须压过**画布底部胶囊的 y=10px —— 旧实现的 y=4px 造成「最高层反而更贴地」的层次倒挂。
+- ⚠ **禁止把层次押在 1px 发丝边 + 单层投影上**（旧实现唯一还在工作的分层只有 1.20:1，
+  且用户一选 `#FFFFFF` 画布底预设就归零）。
+- **有意与画布 chrome 分族**：画布顶栏/底部胶囊/左面板仍是玻璃（`--canvas-glass` + blur 28px），
+  详情面板是实面。面板是模态、打开时画布已被遮罩推远，两者不同屏并置。
+  **后来者不要以「材质语言应该统一」为由把它改回玻璃。**
 
-- The surface is a labelled `role="dialog"` with `aria-modal="true"`.
-- The visible node title labels the dialog.
-- `Escape`, backdrop, breadcrumb, and close button close it.
-- Closing returns interaction to the canvas; it does not mutate node position or
-  graph data.
-- Focus-visible states remain present on all interactive controls.
-- Reduced-motion preference preserves the same state changes without scale
-  motion.
+**对比度**：正文 ≥4.5:1、承载语义的图形边界 ≥3:1，**按合成后的实际底色算**（rgba 叠完再进 WCAG），
+不按 token 名义值算。落地前跑 `contrast-check` skill，**禁目测、禁信 review agent 的算术**。
 
-## 8. Acceptance for the final design
+---
 
-- Every registered family opens in the same spacious object-studio frame.
-- Family bodies remain observably different and retain existing behavior.
-- The old narrow/wide family split is removed.
-- Desktop, narrow, and 375px layouts have no clipping or horizontal overflow.
-- Explicit expand is still the only detail-entry control.
-- Targeted tests cover dispatch, dialog semantics, close behavior, and
-  responsive structure; typecheck, relevant lint, and browser regression pass.
+## 6 · 族 × 槽位矩阵
 
-## 9. Provisional implementation evidence
+10 族（`GenericDetailBody` 已按账本 ④ 删除，registry 改穷举 `Record`）：
 
-Source of truth:
+| 族                      | 1 身份条 | 2 主体台                           | 3 素材架                    | 4 编排台                 | 5 关系带                             | 6 证据抽屉      | 7 动作坞             |
+| ----------------------- | -------- | ---------------------------------- | --------------------------- | ------------------------ | ------------------------------------ | --------------- | -------------------- |
+| seedance 视频生成       | ✓        | 16:9 井 + 台座                     | 素材库/Studio + 计数        | prompt + 模型 + 参数     | 「还没有合进任何片盒」               | 发送预览        | 生成                 |
+| image 散图              | ✓        | 1:1 井 + 分类                      | 素材库/Studio + 参考图·LoRA | prompt + 图像模型        | 「还没有被任何节点引用」             | 发送预览        | 重新生成             |
+| shot 镜头图             | ✓        | 媒体井                             | 素材库/Studio + 上游 chip   | prompt/镜头/构图 + 模型  | ⬜ 下游反查                          | 错误 + 禁用因   | 生成                 |
+| frameImage 关键帧       | ✓        | 媒体井                             | 素材库/Studio + 参考图      | 帧意图/构图 + 模型       | ⬜ 下游反查                          | 错误 + 禁用因   | 生成                 |
+| backgroundImage 背景    | ✓        | 媒体井                             | 素材库/Studio + 图集        | 地点/氛围/光线 + 模型    | 场景卡 + 出演                        | 错误 + 禁用因   | 生成                 |
+| characterImage 角色     | ✓        | 图集（档案型，浅灰托盘不是媒体窗） | **整栏不渲染**              | **空**（本族无生成能力） | 角色卡库 + 绑定音色 + 出演           | 对下游的身份包  | **空**（编辑即保存） |
+| voice 音色              | ✓        | 音色卡 + 播放器                    | 音色库 / 我的音色           | 模型 + 语速/音量/情绪    | 「还没有角色绑定这个音色」           | 取样将发送      | 取得音色样本         |
+| shotText 镜头文本       | ✓        | **空**（靠身份条盖章）             | **空**                      | 四字段                   | 「拼成的提示词会送进下游的视频节点」 | 拼成的提示词    | **空**（编辑即保存） |
+| videoMerge 视频合并     | ✓        | 合成预览                           | 上游片段列表                | 逐段裁剪（账本 ②）       | ⬜ 下游反查                          | 约束 + 成本     | 开始合并             |
+| videoReference 参考视频 | ✓        | 视频预览 + 文件信息                | 上传/替换                   | **空**                   | ⬜「哪个下游在参考我」               | 格式约束 + 失败 | 上传/替换            |
 
-- `src/components/business/node/node-detail/NodeDetailPanel.tsx`
-- `src/components/business/node/node-detail/registry.ts`
-- `src/components/business/node/node-detail/*DetailBody.tsx`
-- `src/components/business/node/inspector/NodeMediaInspector.tsx`
-- `src/components/business/node/inspector/*Inspector.tsx`
-- `src/app/canvas.css`
+⬜ = 账本 ⑧ 已拍板要补，原型未覆盖该族，实现时按「下游被谁用」方向补齐。
 
-The current construction baseline was verified 2026-07-30 with an additional
-generated-video correction pass:
+---
 
-- `VideoComposer`, `VideoDetailBody`, and `NodeDetailPanel`: 52 targeted Vitest
-  cases passed;
-- `npx tsc --noEmit`, relevant ESLint, Prettier, and `git diff --check` passed;
-- the owner localhost instance showed the generated-video body as a real
-  two-rail Object studio on desktop and a single reading column at 375px;
-- the previous first pass changed the shared dialog shell but still enlarged
-  the legacy stacked video composer. That incomplete structure is retired.
+## 7 · 状态
 
-This evidence proves the current implementation is usable as a factual design
-input. It does not prove that the detailed page design is owner-approved. The
-next design round must cover all family states and update this document before
-further visual implementation.
+**强度梯度（不可推翻）**：`idle` 无章 → **`done` 无章** → `ready` 最轻 → `running` 唯一带动效 → `failed` 唯一的红。
 
-The broader node-detail directory Vitest command from the earlier pass did not
-complete within its 120-second local window and is not recorded as passing.
+**状态载体二分**：有媒体窗的族在**窗内**说状态；无媒体窗的族（角色 / 镜头文本）靠**身份条盖章**。
+⚠ 这是对的分工不是缺陷（台账 §17.5）。⚠ A/B/C/D 四份原型一次都没把这枚章演示出来，E 第一次做出来了
+（角色族借「套用角色卡」这件本族唯一的异步事盖 running/failed）。
+
+| 状态            | 表达                                                                             |
+| --------------- | -------------------------------------------------------------------------------- |
+| 空              | R2：井几何照留、表面安静、一枚极淡字形、零文案。不盖章                           |
+| 有内容          | 媒体本身；`ready` 章最轻                                                         |
+| **生成中**      | **井几何一像素不动 + 字形 2.4s 呼吸 + 章带脉冲点。⚠ 无百分比、无取消、无进度条** |
+| 失败            | 唯一的红；原因 + **重试**（重试属主动作，归动作坞）                              |
+| 参考图集空/非空 | 空态给引导文案；非空时条目控件**常显**（R5，每项 1 颗）                          |
+
+⚠ **生成期表达没有先例可抄**：UpDream 用 `39%`、Krea 用 `Loading video…`、LibTV 用 spinner，
+**三家全部违反**我们「生成期无真实百分比、生成不可取消」的规格。可借的只有「保留几何、表面安静」那一半。
+
+**复用既有件**：生成中状态复用 `NodeProgressState`（账本 ⑪）——该件已在卡层统一，detail 层此前零消费。
+
+---
+
+## 8 · 参数与生成模式
+
+**参数收成一颗按钮**（账本 ⑥，owner 方案，取自紧凑侧车既有形态）：
+按钮标签**就是当前规格摘要**，格式见 R8。⚠ **标签不得被状态切换覆盖**——用单一对象存参数，只在空态重置。
+点开是 `ResponsivePopover`（桌面浮层 ↔ 手机抽屉）。
+⟹ **规格全屏只说一次；面板内不再有任何折叠体**（原 6 个 `.node-collapsible` 随之消失，
+连带解掉它们过渡 `grid-template-rows` 违反「合成层只动 transform/opacity」的问题）。
+
+**生成模式名 = 模型契约 × 这一次接了没有**（账本 §4.4）：
+
+| 模式     | 出现条件                              | 能接什么                                    |
+| -------- | ------------------------------------- | ------------------------------------------- |
+| 文字生成 | 一个参考都没接（任何模型）            | —                                           |
+| 首帧参考 | 接了图 · `text-or-first-frame`        | 1 张起始帧                                  |
+| 多图参考 | 接了图 · `image-content-array`        | Veo 3 张 · Gemini 未公布上限                |
+| 全能参考 | 接了任意参考 · `multimodal-reference` | 图 9 + 视频 3 + 音频 3，总 12，音频不可独存 |
+
+**模式名与「现在还缺什么」一起贴着主按钮**（账本 ①），不放进证据抽屉。
+
+**不可执行的模型不出现在模型列表**（账本 ⑬）。判据必须读 `getVideoModelSendContract(...).execution === 'ready'`，
+**不得**硬编码模型 id 黑名单。⚠ 过滤动作发生在 studio-shared 的模型选择器，属**跨线项**，实现时单独拆片。
+
+---
+
+## 9 · 三段来源行
+
+**「AI 生成」按钮已删**（owner 2026-08-03）。它原本是唯一的 `editTarget` 切换器，而账本 ③
+「编排台全族默认展开」取消了它的职责；它内联区装的提示词/模型/参数按七槽契约属于**编排台**，
+挂在素材架下是槽位错放。
+
+⚠ **素材库与 Studio 不能删**：
+
+- **素材库** = 全画布唯一能把素材库的图落进某个已有图片节点自身 `mediaUrl` 的入口
+- **Studio** = 画布→图片 Studio 往返的唯一起点（删了两处回填逻辑变成不可达死分支）
+
+两者是**立即动作**（弹窗 / 跳路由），不是 tab；造型上不得做成分段控件。
+
+---
+
+## 10 · 共享与专属边界
+
+**共享行为**（不得各族自造）：目标节点查找 · focus return · Escape/遮罩关闭 · 节点状态与命名 ·
+模型能力解析 · 引用与变更 · 状态语言 · 动作坞语义 · 可访问性。
+
+**各族专属**：保留哪些内容块 · 槽内布局 · 点击后面板变成什么样。
+⚠ 「按钮自身的按下态」归**材质统一**那一栏，不归各族（否则同一控件两副面孔）。
+
+**共享组件复用行为不复用皮肤**：外观通过 variant / slot / data attribute / domain token 覆盖。
+
+---
+
+## 11 · 三个标志性视觉组件
+
+1. **钉住的主体台** —— 满宽、无装饰、宽由宽高比推导居中、空余宽度不画表面；它不随滚动移动。
+2. **参数摘要按钮** —— 标签即当前规格串，点开是响应式浮层；面板内唯一的"收纳"器件。
+3. **动作坞** —— 通栏、在滚动区之外、全屏唯一的实心元素；模式名与禁用原因贴在它左侧。
+
+---
+
+## 12 · 不能长得像谁
+
+- **不像画布上的卡与 chrome**：那一层是玻璃（`--canvas-glass` + blur 28px）且保持原样；
+  详情面板是实面。差异来自**材质与层次**，是有意的。
+- **不像 Studio 的工具面板**：Studio 是「轻量单次」，画布详情是「一个对象的深工作」。
+  差异来自**关系带**——Studio 没有「这个对象被谁用了」这件事。
+- **不像 Krea / LibTV / UpDream**：三家全是暗底，且分组边界大量靠明度差表达；
+  本页是浅底 + 实面投影，**不是把它们的明度取反**。借的只有方法（R1–R12），零皮肤。
+
+---
+
+## 13 · 响应式
+
+- **断点并轨全站刻度 768 / 1024**（账本 ⑦）；面板高度基准从 `100svh` 改为**画布 stage 容器**
+  （<1024 时全局壳吃掉约 92px，旧实现按视口量高导致面板上下各被裁约 46px）。
+- ⬜ **分栏：见 §3 的冲突说明，待 owner 复核。**
+- 移动 <768：单列；⚠ 动作坞变 sticky 后与 `MobileTabBar`（48px fixed）的叠压**未定**。
+- ⬜ 触屏无 hover 的完整清单未收口（video 引用 chip 的断连、媒体窗清除键等）。
+
+---
+
+## 14 · ⬜ 未确认 / 待复核
+
+| #   | 项                                                                                                                 | 谁来定          |
+| --- | ------------------------------------------------------------------------------------------------------------------ | --------------- |
+| 1   | **全断点单栏 vs 账本 ⑦「平板双列 + 右栏最小宽」** —— E 无分栏，⑦ 的前提不成立                                      | owner           |
+| 2   | **prompt 宽度**：实测桌面 894px；账本 ⑫ 的理由（「1116px 的多行文本框既难读也难写」）同样适用，推荐 720–780px 居中 | owner           |
+| 3   | 证据抽屉在视频/图片族落在折叠线以下（滚动区溢出 16px）                                                             | owner           |
+| 4   | 角色托盘多图时是否限高内滚                                                                                         | owner           |
+| 5   | R7 未完全达标：video 栏实测 3 类表单排法（规则要求 2 类）                                                          | 实现时收口      |
+| 6   | 四族的下游反查（shot / frame / videoMerge / videoReference）原型未覆盖                                             | 实现时按 ⑧ 补齐 |
+
+---
+
+## 15 · 不属于本文档的
+
+**五条功能缺陷**——属功能修复不是 UI 设计，单独拆任务包（建议给 Codex）：
+
+1. `expandedNodeId` 悬空 → 面板关掉后 `heavyOverlayOpen` 恒真，Esc 链早退、画布粘贴被挡、快编 chrome 被压
+2. 焦点被写入夺走（链条四环已核实闭合，⬜ 待真机复核）——**它决定实现要不要引入字段草稿态，须先做**
+3. `--node-status-failed` 与 `-fg` 双双映射 `--canvas-danger` → 红底红图标，对比 1:1
+4. 模型 options 为空时 `return null` 静默塌段，违反 Hard Rule 8（应路由 `QuickSetupDialog`）
+5. 系统音色接进视频生成送不出任何音频（`voiceSampleUrl` 不在收割路径），且 `hasVoiceContent` 有 `voiceId` 就判 ready
+
+**三处跨出设计线冻结范围**（`node-detail/**` · `inspector/**` · `composer/VideoComposer.tsx`）：
+不可执行模型过滤（studio-shared 模型选择器，会同时影响 Studio Video）· 音色接线修复（services 层）·
+`canvas.css:29-34 / 615-624 / 2637-2641` 三处「画布是深色 app 里的浅色孤岛」的过期头注。
+
+---
+
+## 16 · 验收路径
+
+- **结构**：三档断点 × 全族，DOM Tab 序严格 2→3→4→5→6→7；主体台不在滚动容器；动作坞通栏且在滚动区外。
+- **材质**：零 `backdrop-filter`；面板/媒体井/遮罩/页壳亮度 >70%；表面等级逐级差值 ≥1.05；
+  面板投影压过 y=10px。
+- **对比度**：`contrast-check` skill，按合成后底色算；正文 ≥4.5:1、承载语义图形 ≥3:1。
+- **状态**：五族 × 空/有内容/生成中/失败 逐格实跑；`running` 无 `%`、无取消按钮；`done` 无章；
+  无媒体族的章真的渲染。
+- **减法**：可见槽标题数 = 0；空媒体井无棋盘格/虚线框/解释文案；每项常驻控件 = 1；
+  只读字段无控件壳；形状档位 ≤5、尺寸档位视觉 ≤3、实心元素 = 1。
+- **代码**：全量 tsc + 全量 vitest（`full-gate` skill）；相关 lint；`e2e/visual.spec.ts`；
+  移动涉及则加 `e2e/mobile.spec.ts --project=mobile`。
+- **真机**：`verify-real` skill（claude-in-chrome + 程序化读值 + 截图）。
+  ⚠ 夹具教训：隐藏标签页会冻结 CSS 过渡与 rAF，量视口前必须先 `style.transition='none'`，
+  否则三档全读成同一个值。
+
+---
+
+## Last Verified
+
+2026-08-03 · owner 确认方向 E（「没问题，这次对了」）。本文依据原型
+`prototypes/canvas-detail-E-quiet.html` 的实测几何与账本 §1–§7 全部拍板项重写。
+本会话目检发现并已在 §14 登记两条与既有拍板冲突的项（全断点单栏 / prompt 894px），
+**未擅自按现状覆盖账本，等 owner 复核**。未修改任何 `src/**` 文件。

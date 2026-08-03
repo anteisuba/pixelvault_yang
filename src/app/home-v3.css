@@ -1440,13 +1440,18 @@
  * Picture left, the two moves listed right. The picture is a single stack —
  * the re-dressed frame sits on top of the original at full size — so the swap
  * happens in place and the reader's eye never has to travel to compare. */
-/* The framed box holds the picture and nothing else — the controls sit under
-   it and the argument sits in the section copy beside it, so no part of this
-   says the same thing twice. */
+/* The framed box holds the picture and nothing else — the controls sit beside
+   it and the argument sits in the section copy, so no part of this says the
+   same thing twice.
+ *
+ * Controls to the side rather than underneath, because the frame has to stay
+ * upright: the source is a 2:3 bust and a landscape crop of it closes in on the
+ * head, which loses the jacket — half of what each edit changes. */
 .home-v3-img2 {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(14px, 2vw, 26px);
 }
 
 .home-v3-img2-stage {
@@ -1456,20 +1461,22 @@
   border-radius: var(--h-r-l);
   overflow: hidden;
   background: var(--h-panel);
-  max-height: 58vh;
+  width: min(100%, 46vh);
 }
 
 /* Every frame is stacked in the same box so a swap happens in place — the eye
    never travels to compare, which is the whole point of «same character». The
    first is in flow and sets the height; the rest are laid over it. */
+/* 3:4 against a 2:3 source crops only a sliver off the bottom, so the whole
+   upper body stays in frame. */
 .home-v3-img2-stage img {
   display: block;
   width: 100%;
   height: 100%;
-  max-height: 58vh;
-  aspect-ratio: 3 / 2;
+  max-height: 62vh;
+  aspect-ratio: 3 / 4;
   object-fit: cover;
-  object-position: center 22%;
+  object-position: center top;
   transition:
     opacity 0.42s ease,
     transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1508,29 +1515,6 @@
   font-size: 9.5px;
 }
 
-/* Before anything is pressed the frame holds the prompt and nothing else,
-   because that is genuinely all there is at that point. It fades out under the
-   arriving picture rather than being wiped by a script. */
-.home-v3-img2-prompt {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  align-content: center;
-  padding: 0 clamp(14px, 3vw, 30px);
-  background: var(--h-panel);
-  color: var(--h-dim);
-  font-family: var(--h-mono);
-  font-size: clamp(11px, 1.15vw, 13px);
-  line-height: 1.8;
-  text-align: center;
-  pointer-events: none;
-  transition: opacity 0.45s ease;
-}
-
-[data-home-v3-imagedemo][data-phase='ready'] .home-v3-img2-prompt {
-  opacity: 0;
-}
-
 /* The running state sits on top of both, so the reader watches the same frame
    throughout instead of the panel changing shape under them. */
 /* The shared `Spinner` at its block size, with a line of text under it —
@@ -1563,42 +1547,42 @@
   font-style: normal;
 }
 
-.home-v3-img2-run {
-  align-self: flex-start;
-  padding: 11px 24px;
-  border: 1px solid var(--h-ink);
-  border-radius: 999px;
-  background: var(--h-ink);
-  color: var(--h-paper);
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.16s;
-}
-
-.home-v3-img2-run:hover {
-  transform: translateY(-1px);
-}
-
-.home-v3-img2-run:focus-visible {
-  outline: 2px solid var(--h-ink);
-  outline-offset: 2px;
-}
-
-/* Controls, under the frame rather than inside it. */
+/* Controls, beside the frame rather than inside it. */
 .home-v3-img2-side {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 10px 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.home-v3-img2-chips {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .home-v3-img2-by {
-  margin: 0 0 0 auto;
+  margin: 0;
   font-family: var(--h-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--h-dim);
+}
+
+@media (max-width: 760px) {
+  .home-v3-img2 {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .home-v3-img2-stage {
+    width: 100%;
+  }
+
+  .home-v3-img2-chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 .home-v3-img2-chips {

@@ -57,8 +57,12 @@ const MessageContent = ({
   className,
   ...props
 }: MessageContentProps) => {
+  // 排版只挂在 markdown 分支上：纯文本分支没有块级元素可排，挂上去是空转。
+  // `.message-md` 配方在 globals.css（`@tailwindcss/typography` 本项目没装，
+  // 组件原先带的 `prose` 是 prompt-kit 上游残留的死类，全部样式表里无定义）。
   const classNames = cn(
-    'rounded-lg p-2 text-foreground bg-secondary prose break-words whitespace-normal',
+    'rounded-lg p-2 text-foreground bg-secondary break-words whitespace-normal',
+    markdown && 'message-md',
     className,
   )
 

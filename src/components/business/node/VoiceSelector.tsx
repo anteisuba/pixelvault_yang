@@ -74,14 +74,15 @@ interface VoiceAsset {
 /**
  * Payload handed to consumers when a voice is picked. Carries the display name
  * and cover image alongside the id so downstream nodes/cards can show a real
- * label + preview instead of the raw voiceId. `coverImage` is null when the
- * source (a cloned voice, or a favorite saved before covers were persisted)
- * has none.
+ * label + preview instead of the raw voiceId. The sample URL travels with the
+ * identity so selecting a voice does not throw away the playable preview the
+ * library already loaded. Nullable media fields stay null when unavailable.
  */
 export interface SelectedVoice {
   voiceId: string
   name: string
   coverImage: string | null
+  sampleUrl: string | null
 }
 
 interface VoiceSelectorProps {
@@ -318,6 +319,7 @@ export const VoiceSelector = memo(function VoiceSelector({
         voiceId: card.voiceId,
         name: card.name,
         coverImage: card.coverImage,
+        sampleUrl: card.referenceAudioUrl,
       })
       onSelectComplete?.()
       return
@@ -374,6 +376,7 @@ export const VoiceSelector = memo(function VoiceSelector({
         voiceId: asset.voiceId,
         name: asset.title,
         coverImage: asset.coverImage,
+        sampleUrl: asset.sampleUrl,
       })
       onSelectComplete?.()
       return

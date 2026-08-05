@@ -23,10 +23,10 @@ import type { NodeDetailBodyProps } from './registry'
 export interface NodeDetailSlots {
   /** 槽 2 · 主体台。钉在身份条下方，不随滚动。`undefined` = 本族无媒体/无档案。 */
   stage?: ReactNode
-  /** 槽 3 · 素材架。`undefined` = 本族不取材（如角色族，图集在主体台）。 */
-  rack?: ReactNode
-  /** 槽 4 · 编排台。`undefined` = 本族无生成能力（如角色族）。 */
+  /** 槽 3 · 编排台。`undefined` = 本族无生成能力（如角色族）。 */
   desk?: ReactNode
+  /** 槽 4 · 素材架。`undefined` = 本族不取材（如角色族，图集在主体台）。 */
+  rack?: ReactNode
   /**
    * 槽 5 · 关系带。**必填** —— 契约「必须全族出现（可为空但要有位）」。
    * 为空时传带空态文案的元素，不要传 `undefined`。

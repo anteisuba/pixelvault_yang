@@ -597,6 +597,29 @@ describe('useNodeWorkflow', () => {
     expect(result.current.nodes[0]?.position).toEqual(MOVED_POSITION)
   })
 
+  it('persists media-owned dimension changes', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let nodeId = ''
+    act(() => {
+      nodeId = result.current.addNode(
+        NODE_TYPE_IDS.videoReference,
+        FIRST_POSITION,
+      )
+      result.current.onNodesChange([
+        {
+          id: nodeId,
+          type: 'dimensions',
+          dimensions: { width: 320, height: 180 },
+          setAttributes: true,
+        },
+      ])
+    })
+
+    expect(result.current.nodes[0]?.width).toBe(320)
+    expect(result.current.nodes[0]?.height).toBe(180)
+  })
+
   it('creates an edge through React Flow connections', () => {
     const { result } = renderNodeWorkflowHook()
 

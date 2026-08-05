@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ImageIcon, Trash2 } from 'lucide-react'
+import { ImageIcon, Library, Trash2, Upload } from 'lucide-react'
 import {
   useCallback,
   useMemo,
@@ -16,7 +16,6 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
-  NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -32,24 +31,23 @@ import {
   type NodeWorkflowFieldId,
 } from '@/constants/node-types'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-import { ROUTES } from '@/constants/routes'
-import { STUDIO_NODE_HANDOFF_MAX_REFERENCES } from '@/constants/studio'
-import { useRouter } from '@/i18n/navigation'
 import { stripFileExtension } from '@/lib/node-display-name'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
-import { writeStudioNodeHandoff } from '@/lib/studio-node-handoff'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { CharacterImageLoraControls } from '@/components/business/node/CharacterImageLoraControls'
 import {
   CharacterImageReferenceControls,
   type CharacterReferenceGalleryExtraItem,
 } from '@/components/business/node/CharacterImageReferenceControls'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
-
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { NodeProgressState } from '../nodes/NodeProgressState'
@@ -74,15 +72,14 @@ import type { NodeDetailSlots } from './slots'
  *
  * ── 槽映射（契约 §6 那一行的实现）────────────────────────────
  * · 主体台 = 媒体井（R11 宽由宽高比推导居中、空余宽度不画表面）+ 可选台座
- * · 素材架 = 上传 / 素材库 / Studio ↗ 一行文字按钮 + 右对齐计数 + 参考图 + LoRA
+ * · 素材架 = 参考图标题与计数 + 唯一“添加参考图”入口
  * · 编排台 = 长字段整宽无标签块 / 短字段标签左值右（R7 只有这两类）+ 模型
  * · 关系带 = 由族传入（必给）
- * · 证据抽屉 = 发送预览（提示词 / 模型 / 参考图 / LoRA，失败时置顶一行红）
+ * · 证据抽屉 = 发送预览（提示词 / 模型 / 参考图，失败时置顶一行红）
  * · 动作坞 = 阻塞原因 + 生成（全屏唯一实心元素）
  *
- * ⚠ **参考图与 LoRA 归素材架，不归编排台**。E 原型把它们画在编排台里，与契约
- * §6 自己那张表（`素材架: 素材库/Studio + 参考图·LoRA`）冲突。按槽的定义走：
- * 素材架回答「这次用什么材料」，参考图正是材料；编排台回答「怎么做」。
+ * 参考图属于素材架，不归编排台。所有来源（上传 / 素材库 / 粘贴）只在“添加参考图”
+ * 浮层出现一次；当前详情不再暴露 Studio 跳转和未完成的 LoRA 控件。
  * 契约「同一个控件不得在不同族落到不同的槽」要求四族在这件事上一致。
  */
 
@@ -122,10 +119,9 @@ export function ImageFamilyBody({
   const t = useTranslations('StudioNode.mediaNodes')
   const tDetail = useTranslations('StudioNode.nodeDetail')
   const tFields = useTranslations('StudioNode.workflowFields')
-  const router = useRouter()
   const { generateMediaNode, modelOptionsByType, updateNodeData } =
     useNodeWorkflowActions()
-  const { uploadFile, isUploading } = useNodeReferenceUpload()
+  const { uploadFile } = useNodeReferenceUpload()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -135,7 +131,6 @@ export function ImageFamilyBody({
     () => data.referenceAssets ?? [],
     [data.referenceAssets],
   )
-  const loras = useMemo(() => data.loras ?? [], [data.loras])
   const modelOptions = modelOptionsByType[type] ?? []
   const prompt = buildNodeWorkflowPrompt(type, data).trim()
   const fields = NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[type] ?? [
@@ -242,19 +237,6 @@ export function ImageFamilyBody({
     [handleUpload],
   )
 
-  const handleSelectExisting = useCallback(
-    (generation: GenerationRecord) => {
-      if (!generation.url) return
-      applyExistingImage(
-        generation.url,
-        generation.id,
-        generation.prompt || generation.model || t('sourceFallback'),
-      )
-      setAssetDialogOpen(false)
-    },
-    [applyExistingImage, t],
-  )
-
   const handleClearImage = useCallback(() => {
     updateNodeData(nodeId, {
       generationError: undefined,
@@ -269,28 +251,18 @@ export function ImageFamilyBody({
     })
   }, [nodeId, updateNodeData])
 
-  const handleOpenImageStudio = useCallback(() => {
-    const styleCode = loras.find((lora) => lora.styleCode)?.styleCode
-    const characterName =
-      typeof data.characterName === 'string' ? data.characterName.trim() : ''
-
-    // 往返交接：把完整上下文带出去，Studio 生成完能写**回**这个节点（不是单程）。
-    writeStudioNodeHandoff({
-      originNodeId: nodeId,
-      prompt,
-      characterName: characterName || undefined,
-      referenceUrls: referenceAssets
-        .map((reference) => reference.url)
-        .slice(0, STUDIO_NODE_HANDOFF_MAX_REFERENCES),
-      styleCode: styleCode || undefined,
-    })
-
-    router.push(
-      styleCode
-        ? `${ROUTES.STUDIO_IMAGE}?style=${encodeURIComponent(styleCode)}`
-        : ROUTES.STUDIO_IMAGE,
-    )
-  }, [data.characterName, loras, nodeId, prompt, referenceAssets, router])
+  const handleSelectExisting = useCallback(
+    (generation: GenerationRecord) => {
+      if (!generation.url) return
+      applyExistingImage(
+        generation.url,
+        generation.id,
+        generation.prompt || generation.model || t('sourceFallback'),
+      )
+      setAssetDialogOpen(false)
+    },
+    [applyExistingImage, t],
+  )
 
   const handleFieldChange = useCallback(
     (fieldId: NodeWorkflowFieldId, value: string) => {
@@ -303,17 +275,6 @@ export function ImageFamilyBody({
       })
     },
     [data, nodeId, type, updateNodeData],
-  )
-
-  const handleInsertLoraTrigger = useCallback(
-    (triggerWord: string) => {
-      if (!triggerWord || data.prompt.includes(triggerWord)) return
-      const next = data.prompt.trim()
-        ? `${data.prompt.trim()} ${triggerWord}`
-        : triggerWord
-      updateNodeData(nodeId, { prompt: next })
-    },
-    [data.prompt, nodeId, updateNodeData],
   )
 
   const blockingReason = isPending
@@ -372,14 +333,48 @@ export function ImageFamilyBody({
                         ? t('sourceExisting')
                         : t('sourceGenerated')}
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleClearImage}
-                      aria-label={t('clearImage')}
-                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-edge bg-node-panel text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex h-8 items-center rounded-full border border-node-edge bg-node-panel px-3 text-xs font-semibold text-node-foreground outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
+                          >
+                            {t('replaceImage')}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          sideOffset={8}
+                          className="w-52 rounded-2xl border-node-panel-inner bg-node-panel p-2 text-node-foreground shadow-node-panel"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-semibold hover:bg-node-panel-inner"
+                          >
+                            <Upload className="size-4 text-node-muted" />
+                            {t('existing.upload')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAssetDialogOpen(true)}
+                            className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-semibold hover:bg-node-panel-inner"
+                          >
+                            <Library className="size-4 text-node-muted" />
+                            {t('existing.asset')}
+                          </button>
+                        </PopoverContent>
+                      </Popover>
+                      <button
+                        type="button"
+                        onClick={handleClearImage}
+                        aria-label={t('clearImage')}
+                        className="flex size-8 items-center justify-center rounded-full border border-node-edge bg-node-panel text-node-muted outline-none transition-colors hover:text-node-foreground focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <ImageIcon
@@ -418,35 +413,11 @@ export function ImageFamilyBody({
         rack: (
           <div className="canvas-detail-stack">
             <div className="canvas-detail-shelf">
-              <button
-                type="button"
-                className="canvas-detail-txt-btn"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-              >
-                {isUploading ? t('generating') : tDetail('upload')}
-              </button>
-              <button
-                type="button"
-                className="canvas-detail-txt-btn"
-                onClick={() => setAssetDialogOpen(true)}
-              >
-                {t('changeSourceExisting')}
-              </button>
-              <button
-                type="button"
-                className="canvas-detail-txt-btn"
-                onClick={handleOpenImageStudio}
-              >
-                {tDetail('openStudio')}
-              </button>
+              <span className="canvas-detail-shelf-label">
+                {tDetail('fieldReferences')}
+              </span>
               <span className="canvas-detail-count">
-                {tDetail('sourceCounts', {
-                  refs: referenceAssets.length,
-                  refMax: maxReferenceImages,
-                  loras: loras.length,
-                  loraMax: NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems,
-                })}
+                {referenceAssets.length} / {maxReferenceImages}
               </span>
             </div>
 
@@ -471,18 +442,6 @@ export function ImageFamilyBody({
                   : undefined
               }
             />
-
-            {/* ⚠ 外面这层 flex 行是必须的：LoRA 控件是一颗 `inline-flex` chip，
-                直接做 flex 列容器的子节点会被 `align-items: stretch` 拉成通栏
-                灰条（实拍到过）。 */}
-            <div className="flex flex-wrap items-center gap-2">
-              <CharacterImageLoraControls
-                value={loras}
-                model={data.model}
-                onChange={(next) => updateNodeData(nodeId, { loras: next })}
-                onInsertTrigger={handleInsertLoraTrigger}
-              />
-            </div>
           </div>
         ),
 
@@ -568,11 +527,6 @@ export function ImageFamilyBody({
               label={tDetail('fieldReferences')}
               value={`${referenceAssets.length} / ${maxReferenceImages}`}
               dim={referenceAssets.length === 0}
-            />
-            <EvidenceRow
-              label={tDetail('fieldLoras')}
-              value={`${loras.length} / ${NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems}`}
-              dim={loras.length === 0}
             />
           </EvidenceDrawer>
         ),

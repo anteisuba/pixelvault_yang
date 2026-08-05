@@ -88,6 +88,7 @@ vi.mock('../FishVoiceLibraryDialog', () => ({
       voiceId: string
       name: string
       coverImage: string | null
+      sampleUrl: string | null
     }) => void
   }) =>
     open ? (
@@ -99,6 +100,7 @@ vi.mock('../FishVoiceLibraryDialog', () => ({
             voiceId: 'voice-123',
             name: 'Narrator One',
             coverImage: 'https://cdn.example.com/cover.png',
+            sampleUrl: 'https://cdn.example.com/narrator-one.mp3',
           })
         }
       >
@@ -204,8 +206,8 @@ describe('VoiceDetailBody', () => {
     ).toEqual([
       'identity-bar',
       'subject-stage',
-      'source-rack',
       'compose-desk',
+      'source-rack',
       'relations-strip',
       'evidence-drawer',
       'action-dock',
@@ -242,7 +244,7 @@ describe('VoiceDetailBody', () => {
       voiceCoverImage: 'https://cdn.example.com/cover.png',
       voiceProvider: expect.any(String),
       voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-      voiceSampleUrl: undefined,
+      voiceSampleUrl: 'https://cdn.example.com/narrator-one.mp3',
       status: NODE_STATUS_IDS.ready,
     })
   })

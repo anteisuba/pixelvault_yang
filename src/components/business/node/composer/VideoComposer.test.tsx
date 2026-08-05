@@ -44,8 +44,23 @@ vi.mock('next-intl', () => ({
 vi.mock(
   '@/components/business/studio-shared/pickers/CanvasRoutePicker',
   () => ({
-    CanvasRoutePicker: ({ triggerLabel }: { triggerLabel?: string }) => (
-      <button type="button">{triggerLabel}</button>
+    CanvasRoutePicker: ({
+      triggerLabel,
+      variant,
+      mediaModality,
+    }: {
+      triggerLabel?: string
+      variant?: string
+      mediaModality?: string
+    }) => (
+      <button
+        type="button"
+        data-testid="shared-model-picker"
+        data-variant={variant}
+        data-modality={mediaModality}
+      >
+        {triggerLabel}
+      </button>
     ),
   }),
 )
@@ -154,12 +169,12 @@ vi.mock('@/hooks/node/use-video-composer', () => ({
   }),
 }))
 
-/** V-3a: open the 管理素材 drawer and return its content root. */
+/** Round 2 A: open the inline 管理素材 region and return its content root. */
 function openManager() {
   fireEvent.click(
     screen.getByRole('button', { name: 'references.manageButton' }),
   )
-  return screen.getByRole('dialog')
+  return screen.getByRole('region', { name: 'references.manageTitle' })
 }
 
 /** Radix Tabs' trigger switches value on `onMouseDown`, not `onClick` (see
@@ -202,10 +217,6 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
     listConnectableReferences,
     connectReferenceNode,
     spawnReference,
-    // R3-8 C1 场记条: a fixed project name so the slate-strip tests can
-    // assert its presence — real usage reads `workflow.currentProjectName`
-    // through the same context field.
-    projectName: '测试项目',
   }),
 }))
 
@@ -318,8 +329,8 @@ function detailTree(data: NodeWorkflowNodeData, id = 'v1') {
       {(slots) => (
         <>
           {slots.stage}
-          {slots.rack}
           {slots.desk}
+          {slots.rack}
           {slots.relations}
           {slots.evidence}
           {slots.dock}
@@ -527,24 +538,14 @@ describe('VideoComposer references row (detail)', () => {
     }
   })
 
-  /**
-   * ⚠ 六个 `.node-collapsible` 已随 §8「参数收成一颗按钮」全部消失。模型 rail
-   * 现在住在一颗 chip 的浮层里 —— 收起 = 不在 DOM 里（而不是 `data-open` 收着
-   * 却仍可 Tab 进去回车触发，那是旧折叠体的老毛病）。
-   */
-  it('模型 rail 默认不在 DOM 里，chip 标签就是当前模型', () => {
+  it('详情复用通用视频模型选择器，不再渲染自造品牌 rail', () => {
     const { container } = renderDetail()
-    expect(screen.getByText('Seedance · variant.fast')).toBeInTheDocument()
+    const picker = screen.getByTestId('shared-model-picker')
+    expect(picker).toHaveTextContent('Seedance · variant.fast')
+    expect(picker).toHaveAttribute('data-variant', 'media')
+    expect(picker).toHaveAttribute('data-modality', 'video')
     expect(container.querySelector('.node-collapsible')).toBeNull()
     expect(screen.queryByText('modelRail.label')).toBeNull()
-  })
-
-  it('点模型 chip 打开 rail 浮层', () => {
-    renderDetail()
-    fireEvent.click(
-      screen.getByText('Seedance · variant.fast').closest('button')!,
-    )
-    expect(screen.getByText('modelRail.label')).toBeInTheDocument()
   })
 
   it('renders REFERENCED tokens as named @token thumbnail chips in the strip (V-3a §8)', () => {
@@ -1185,47 +1186,5 @@ describe('VideoComposer 参数能力 gate', () => {
 
     // Seedance 2.0 公布 480p/720p/1080p。
     expect(resolutionOptionButtons(container)).toHaveLength(3)
-  })
-})
-
-// R3-8 C1: a 44px slate strip above the monitor — project name / upstream
-// shot name / generation mode / status LED, all read off existing state
-// (no new fields). Missing segments (no project name in context, no shot
-// upstream) are honestly omitted rather than padded with placeholders.
-describe('VideoComposer C1 场记条 (R3-8)', () => {
-  beforeEach(() => {
-    composerState.referenceKinds = []
-    composerState.referenceTokens = []
-    composerState.referencedTokenIds = new Set()
-  })
-
-  it('shows the project name from context and the 文生模式 fallback when there is no reference input', () => {
-    renderDetail()
-    expect(screen.getByText('测试项目')).toBeInTheDocument()
-    expect(screen.getByText('slate.modeText')).toBeInTheDocument()
-  })
-
-  it('shows the upstream shot reference name when one is connected', () => {
-    composerState.referenceTokens = [
-      { id: 's1', kind: 'shot', label: '开场远景', token: '@开场远景' },
-    ]
-    renderDetail()
-    expect(screen.getByText('开场远景')).toBeInTheDocument()
-  })
-
-  it('omits the shot segment (no placeholder) when nothing shot-kind is connected', () => {
-    renderDetail()
-    // Only the project name + mode text render; no stray "—"/empty chip.
-    expect(screen.getByText('测试项目')).toBeInTheDocument()
-    expect(screen.queryByText('开场远景')).not.toBeInTheDocument()
-  })
-
-  it('shows the mono status word matching data.status', () => {
-    const data = {
-      prompt: '',
-      status: 'failed',
-    } as unknown as NodeWorkflowNodeData
-    render(detailTree(data, 'v1'))
-    expect(screen.getByText('failed')).toBeInTheDocument()
   })
 })

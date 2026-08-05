@@ -36,12 +36,20 @@ test.describe('Mobile Responsive', () => {
           page,
         }) => {
           const pageErrors: string[] = []
-          page.on('pageerror', (error) => pageErrors.push(error.message))
+          page.on('pageerror', (error) => {
+            const message = error.message
+            const isStaleDevChunk =
+              message.includes('ChunkLoadError') &&
+              message.toLowerCase().includes('turbopack')
+            if (!isStaleDevChunk) pageErrors.push(message)
+          })
 
-          // 'load' (not 'networkidle'): gallery/studio keep image requests
-          // trickling and may never go network-idle; the settle-poll below is
-          // the real "layout is stable" gate.
-          await page.goto(responsivePage.path, { waitUntil: 'load' })
+          // Third-party auth and image requests can keep `load` pending even
+          // after the page is interactive. The settle-poll below is the real
+          // "layout is stable" gate, so only wait for the DOM here.
+          await page.goto(responsivePage.path, {
+            waitUntil: 'domcontentloaded',
+          })
 
           await expect(page.locator('body')).toBeVisible()
 
@@ -74,7 +82,9 @@ test.describe('Mobile Responsive', () => {
 
   test('mobile navigation exposes gallery access', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto(localizedPath(ROUTES.HOME))
+    await page.goto(localizedPath(ROUTES.HOME), {
+      waitUntil: 'domcontentloaded',
+    })
 
     const galleryLinks = page.locator(`a[href*="${ROUTES.GALLERY}"]`)
     await expect(galleryLinks.first()).toBeVisible()
@@ -84,7 +94,9 @@ test.describe('Mobile Responsive', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto(localizedPath(ROUTES.HOME), { waitUntil: 'load' })
+    await page.goto(localizedPath(ROUTES.HOME), {
+      waitUntil: 'domcontentloaded',
+    })
 
     const app = page.locator('.home-v3-app')
     const views = page.locator('.home-v3-views')
@@ -154,7 +166,9 @@ test.describe('Mobile Responsive', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 600, height: 844 })
-    await page.goto(localizedPath(ROUTES.HOME), { waitUntil: 'load' })
+    await page.goto(localizedPath(ROUTES.HOME), {
+      waitUntil: 'domcontentloaded',
+    })
 
     const capabilityStage = page.locator('.home-v3-capstage')
     await expect(capabilityStage).not.toHaveClass(/is-pinned/)
@@ -162,7 +176,19 @@ test.describe('Mobile Responsive', () => {
     const footerTop = page.locator('.home-v3-footer-top')
     const footerBrand = page.locator('.home-v3-footer-brand')
     const footerCopy = footerBrand.locator('p')
-    await footerTop.scrollIntoViewIfNeeded()
+    await expect
+      .poll(
+        async () => {
+          try {
+            await page.locator('.home-v3-footer-top').scrollIntoViewIfNeeded()
+            return true
+          } catch {
+            return false
+          }
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true)
 
     const footerBox = await footerTop.boundingBox()
     const brandBox = await footerBrand.boundingBox()

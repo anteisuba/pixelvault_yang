@@ -27,7 +27,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -227,7 +226,7 @@ export function CharacterDetailBody({
       {children({
         stage: (
           <div className="canvas-detail-stage">
-            <div className="min-w-0">
+            <div className="canvas-detail-character-gallery min-w-0">
               <CharacterImageReferenceControls
                 value={referenceAssets}
                 maxItems={maxReferenceImages}

@@ -143,6 +143,20 @@ describe('VoiceSelector', () => {
     })
   })
 
+  it('passes the playable sample when an external consumer selects a market voice', async () => {
+    const onSelectVoiceId = vi.fn()
+    render(<VoiceSelector onSelectVoiceId={onSelectVoiceId} />)
+
+    fireEvent.click(await screen.findByText('Fish Narrator'))
+
+    expect(onSelectVoiceId).toHaveBeenCalledWith({
+      voiceId: 'fish-public-1',
+      name: 'Fish Narrator',
+      coverImage: null,
+      sampleUrl: 'https://cdn.example.com/fish-narrator.mp3',
+    })
+  })
+
   it('removes a saved voice from the favorites tab', async () => {
     voiceCardsRef.cards = [FAVORITE_CARD]
     render(<VoiceSelector />)

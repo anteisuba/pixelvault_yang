@@ -45,10 +45,15 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 台账 #26：顶部真上传主行 + 全部 catalog 行（image.asset 回到 image
-    // 分组，不再被顶部行顶掉）。11 = 1 + 10（10 含 2026-08-02 新增的手动
-    // 镜头文本，见 canvas-add-catalog.test.ts 那条反转用例）。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(11)
+    // 顶部真上传 + 图片 3 + 视频 4 + 声音 1 + 统一收集 1 = 10。
+    // 角色/场景两个兼容 intent 仍留在 catalog，但手工菜单只暴露一个收集入口。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
+    expect(
+      screen.getByText('addCatalog.items.collect.label'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('addCatalog.items.organizeCharacter.label'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
     expect(
       screen.queryByText('addCatalog.items.shotText.label'),
@@ -77,7 +82,7 @@ describe('CanvasAddMenu', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('returns stable intent ids for image, keyframe, and organization entries', () => {
+  it('keeps one collection entry and creates the canonical collector directly', () => {
     const onSelect = vi.fn()
     render(
       <CanvasAddMenu
@@ -105,12 +110,15 @@ describe('CanvasAddMenu', () => {
 
     fireEvent.click(
       screen
-        .getByText('addCatalog.items.organizeCharacter.label')
+        .getByText('addCatalog.items.collect.label')
         .closest('button') as HTMLElement,
     )
     expect(onSelect).toHaveBeenCalledWith(
       CANVAS_ADD_INTENT_IDS.organizeCharacter,
     )
+    expect(
+      screen.queryByText('addCatalog.items.organizeScene.label'),
+    ).not.toBeInTheDocument()
   })
 
   // R3-4 §4.2「一次一层」回归（owner 实测，2026-07-27）: 菜单在 document 级

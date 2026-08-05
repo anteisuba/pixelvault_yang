@@ -3754,9 +3754,25 @@ function StudioNodeCanvas() {
     return () => window.removeEventListener('paste', handlePaste)
   }, [heavyOverlayOpen, screenToFlowPosition, workflow])
 
+  const onWorkflowNodesChange = workflow.onNodesChange
+  const resizeNode = useCallback(
+    (nodeId: string, width: number, height: number) => {
+      onWorkflowNodesChange([
+        {
+          id: nodeId,
+          type: 'dimensions',
+          dimensions: { width, height },
+          setAttributes: true,
+        },
+      ])
+    },
+    [onWorkflowNodesChange],
+  )
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
+      resizeNode,
       updateEdgeData: workflow.updateEdgeData,
       placeDerivedImages: workflow.placeDerivedImages,
       setScriptDoc: workflow.setScriptDoc,
@@ -3839,6 +3855,7 @@ function StudioNodeCanvas() {
       handleRunGenerateComposer,
       handleRegenerateForReview,
       reviewMode,
+      resizeNode,
       quickEditNodeId,
       modelOptionsByType,
       setToolMode,

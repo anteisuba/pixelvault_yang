@@ -84,6 +84,7 @@ vi.mock('./registry', () => {
       nodeId: string
       children: (slots: {
         desk: ReactNode
+        rack: ReactNode
         relations: ReactNode
         evidence: ReactNode
       }) => ReactNode
@@ -95,6 +96,9 @@ vi.mock('./registry', () => {
           </div>
         ),
         relations: <div>relations</div>,
+        // Deliberately written after relations. The frame must still render
+        // rack before relations and, under Round 2 A, after compose-desk.
+        rack: <div>rack</div>,
         evidence: <div>evidence</div>,
       })
   const table = {
@@ -243,11 +247,12 @@ describe('NodeDetailPanel', () => {
     const order = [...dialog.querySelectorAll('[data-node-detail-slot]')].map(
       (el) => el.getAttribute('data-node-detail-slot'),
     )
-    // 这个 mock 族只给了 desk / relations / evidence，主体台与动作坞是
+    // 这个 mock 族只给了 desk / rack / relations / evidence，主体台与动作坞是
     // `undefined`（组级不适用）⟹ 整栏不渲染，但给了的三个必须严格按元组顺序。
     expect(order).toEqual([
       'identity-bar',
       'compose-desk',
+      'source-rack',
       'relations-strip',
       'evidence-drawer',
     ])

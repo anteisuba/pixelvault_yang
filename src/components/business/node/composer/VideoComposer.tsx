@@ -15,9 +15,7 @@ import {
   Check,
   ChevronDown,
   Dices,
-  Eye,
   Film,
-  KeyRound,
   Lock,
   SlidersHorizontal,
   Wand2,
@@ -65,7 +63,6 @@ import {
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
 import {
   getBrandKeyStatus,
-  getBrandProviders,
   deriveSwitcherStateFromModel,
 } from '@/lib/video-model-resolver'
 import {
@@ -143,11 +140,6 @@ export function aspectBoxStyle(ratio: string): {
     : { width: Math.round((max * w) / h), height: max }
 }
 
-const PROVIDER_LABEL_KEYS: Partial<Record<AI_ADAPTER_TYPES, string>> = {
-  [AI_ADAPTER_TYPES.FAL]: 'fal',
-  [AI_ADAPTER_TYPES.VOLCENGINE]: 'volcengine',
-}
-
 // §7.2 ⑥ 改名漂移: a reference was renamed after its @oldName was already typed
 // into the prompt. Only tracked for character/background/shot (their anchor in
 // text is the unambiguous `@name`) — voice's anchor is a bare name next to
@@ -220,21 +212,6 @@ function ComposerField({
   )
 }
 
-function StudioSectionHeading({
-  title,
-  meta,
-}: {
-  title: string
-  meta?: string
-}) {
-  return (
-    <div className="canvas-video-object-studio-section-heading">
-      <h2>{title}</h2>
-      {meta ? <span>{meta}</span> : null}
-    </div>
-  )
-}
-
 // C5 参数 OSD 胶囊（v4 §4 C5 捞回，R3-8）: one segment of the collapsed
 // model/duration/resolution/aspect summary row — 20-24px tall (h-6), shows
 // the current value, `aria-label` carries the field's name for a11y (the
@@ -245,52 +222,6 @@ function StudioSectionHeading({
 // 数（模型/时长/分辨率/画幅）各占一行、标签与值恒可读、点行展开精调。竖排把稀
 // 疏的右栏填满，去掉"自动 自动"两个无标签胶囊的困惑。纯 token 内重排，不新造视
 // 觉隐喻（对齐 canvas-relationship-v3 §7b A6 的极简修口径 + 2026-07-19 皮肤限定）。
-function OsdPill({
-  label,
-  value,
-  active,
-  onClick,
-  icon,
-}: {
-  label: string
-  value: string
-  active: boolean
-  onClick: () => void
-  icon?: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      {...KEY_GUARD}
-      onClick={onClick}
-      aria-expanded={active}
-      aria-label={`${label}: ${value}`}
-      className={cn(
-        'flex w-full items-center justify-between gap-2 rounded-lg border bg-node-panel-soft px-3 py-2 text-left transition-colors',
-        active
-          ? 'border-node-edge'
-          : 'border-node-panel-inner hover:border-node-edge',
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="shrink-0 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-          {label}
-        </span>
-        {icon}
-        <span className="truncate text-xs font-semibold text-node-foreground">
-          {value}
-        </span>
-      </span>
-      <ChevronDown
-        className={cn(
-          'size-3.5 shrink-0 text-node-muted transition-transform',
-          active && 'rotate-180',
-        )}
-      />
-    </button>
-  )
-}
-
 // Seconds since `active` last flipped to true, ticking every second. Resets to
 // 0 when generation stops. Client-observed elapsed time (not a backend-tracked
 // duration — F7 real progress/cancel is P2, out of scope here); the REC dot
@@ -422,70 +353,6 @@ function VideoMonitor({
   )
 }
 
-// C1 场记条（v4 §4 C1 捞回，R3-8）：视频详情 body 顶部一条 44px 结构条，读现有字
-// 段——项目名走 actions context（NodeWorkflowActionsContext.projectName，即
-// CanvasTopBar 已经在用的同一个 `workflow.currentProjectName`）、上游镜头名走
-// composer 的 shot 引用 token、模式=有无参考输入、状态=data.status。任一段缺席
-// （没挂镜头图 / 项目名未知）诚实省略，不留白凑数、不编造。与 NodeDetailPanel
-// 头部的面包屑（画布 / 节点名）不重复：面包屑答"这是哪个节点"，本条答"归哪个
-// 项目 · 接哪个镜头 · 什么生成模式"——所以本条不再复述节点类型名。
-function VideoSlateStrip({
-  projectName,
-  shotName,
-  isReferenceMode,
-  status,
-}: {
-  projectName?: string
-  shotName?: string
-  isReferenceMode: boolean
-  status: NodeWorkflowNodeData['status']
-}) {
-  const t = useTranslations('StudioNode.statuses')
-  const tc = useTranslations('StudioNode.videoComposer')
-  const isRunning = status === NODE_STATUS_IDS.running
-  const isFailed = status === NODE_STATUS_IDS.failed
-
-  return (
-    <div className="flex h-11 shrink-0 items-center gap-3 rounded-lg border border-node-panel-inner bg-node-panel-soft px-3">
-      {/* 三道斜纹场记记号 — 结构表达，纯 CSS，不是插画资产。 */}
-      <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
-        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
-        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
-        <span className="h-6 w-1 -skew-x-12 bg-node-foreground/50" />
-      </span>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {projectName ? (
-          <span className="truncate text-sm font-semibold text-node-foreground">
-            {projectName}
-          </span>
-        ) : null}
-        {shotName ? (
-          <span className="truncate text-xs text-node-muted">{shotName}</span>
-        ) : null}
-        <span className="shrink-0 text-3xs text-node-subtle">
-          {isReferenceMode ? tc('slate.modeReference') : tc('slate.modeText')}
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className={cn(
-            'size-1.5 rounded-full',
-            isRunning
-              ? 'animate-pulse bg-node-paint'
-              : isFailed
-                ? 'bg-node-status-failed'
-                : 'bg-node-muted',
-          )}
-        />
-        <span className="font-mono text-3xs uppercase text-node-muted">
-          {t(status)}
-        </span>
-      </div>
-    </div>
-  )
-}
-
 /**
  * Model-aware video composer mounted on the node card (density='card') and, for
  * now, hosted in a slimmed inspector (density='expand'). Reuses the same
@@ -511,7 +378,6 @@ export function VideoComposer({
     listConnectableReferences,
     connectReferenceNode,
     spawnReference,
-    projectName,
   } = useNodeWorkflowActions()
   const composer = useVideoComposer(id, data)
   const downstreamUses = useDownstreamUses(id)
@@ -526,35 +392,16 @@ export function VideoComposer({
   // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
   // to the prompt, cleared once its fly+glow finishes. null when idle.
   const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
-  // C5 参数 OSD（v4 §4 C5 捞回，R3-8）: the settings column collapses model /
-  // duration / resolution / aspect behind one capsule row — `openSection`
-  // is the single accordion driving all four (same `.node-collapsible`
-  // grid-rows mechanism the model rail already used pre-R3-8, just shared
-  // across the four segments instead of owned by one). Default open only
-  // when no brand is committed yet, so first-run users still land on the
-  // model rail; it collapses after a brand is committed (ready-key click or
-  // rebind confirm) — same rule the old standalone `pickerOpen` had.
-  const [openSection, setOpenSection] = useState<
-    'model' | 'duration' | 'resolution' | 'aspect' | null
-  >(() => (composer.state.brand ? null : 'model'))
   // Seed's collapsed summary row is intentionally its own toggle, not a 5th
   // OSD segment — §4 C5 keeps 生成音频/种子 out of the OSD capsule group and
   // gives seed its own "另起常驻空间" entry, so it doesn't fight the OSD
   // accordion for the open slot.
   const [seedOpen, setSeedOpen] = useState(false)
-  const toggleSection = useCallback(
-    (section: 'model' | 'duration' | 'resolution' | 'aspect') => {
-      setOpenSection((current) => (current === section ? null : section))
-    },
-    [],
-  )
-  // R3-6b §2 发送图例预览: closed by default (diagnostic, not primary flow) —
-  // "查看发送内容" opens a read-only mirror of `composer.sendPreview`.
-  const [sendPreviewOpen, setSendPreviewOpen] = useState(false)
-  // Pending brand switch awaiting confirmation because it would ignore a bound
-  // reference under the new model's capability contract (§5.1 不静默丢).
-  const [pendingBrand, setPendingBrand] = useState<{
-    brand: string
+  // The shared picker returns an exact route. Keep the existing rebind preview
+  // before committing that route so switching models never silently drops a
+  // connected reference capability.
+  const [pendingSharedModel, setPendingSharedModel] = useState<{
+    option: StudioModelOption
     preview: VideoRebindPreviewItem[]
   } | null>(null)
   // Brand awaiting an API key via QuickSetupDialog (Hard Rule #8): a needs-key
@@ -570,53 +417,7 @@ export function VideoComposer({
     null,
   )
 
-  // Switch brand directly when every binding maps; otherwise stage a confirm
-  // callout that previews 将映射 ✓ / 将忽略 ⚠ before committing.
-  const handleSelectBrand = useCallback(
-    (brand: string) => {
-      if (brand === composer.state.brand) return
-      const targetModelId = composer.previewBrandModelId(brand)
-      const preview = computeVideoRebindPreview(
-        composer.referenceKinds,
-        targetModelId,
-      )
-      if (hasIgnoredRebindings(preview)) {
-        setPendingBrand({ brand, preview })
-        return
-      }
-      composer.selectBrand(brand)
-    },
-    [composer],
-  )
-
-  const confirmPendingBrand = useCallback(() => {
-    setPendingBrand((pending) => {
-      if (pending) composer.selectBrand(pending.brand)
-      return null
-    })
-    // Collapse the OSD model section on a confirmed rebind, matching the
-    // ready-key brand-pick path (so every commit route collapses).
-    setOpenSection(null)
-  }, [composer])
-
-  const cancelPendingBrand = useCallback(() => setPendingBrand(null), [])
-
-  // Brand row click: a ready brand selects (with rebind preview); a needs-key
-  // brand opens QuickSetupDialog for its provider instead of disabling the row.
-  const handleBrandClick = useCallback(
-    (brand: string, status: ReturnType<typeof getBrandKeyStatus>) => {
-      if (!status.ready) {
-        if (status.setupOption) {
-          setQuickSetup({ open: true, brand, option: status.setupOption })
-        }
-        return
-      }
-      handleSelectBrand(brand)
-    },
-    [handleSelectBrand],
-  )
-
-  const selectSharedVideoModel = useCallback(
+  const commitSharedVideoModel = useCallback(
     (option: StudioModelOption) => {
       updateNodeData(id, {
         model: {
@@ -629,6 +430,34 @@ export function VideoComposer({
       })
     },
     [id, updateNodeData],
+  )
+
+  const selectSharedVideoModel = useCallback(
+    (option: StudioModelOption) => {
+      if (data.model?.optionId === option.optionId) return
+      const preview = computeVideoRebindPreview(
+        composer.referenceKinds,
+        option.modelId,
+      )
+      if (hasIgnoredRebindings(preview)) {
+        setPendingSharedModel({ option, preview })
+        return
+      }
+      commitSharedVideoModel(option)
+    },
+    [commitSharedVideoModel, composer.referenceKinds, data.model?.optionId],
+  )
+
+  const confirmPendingSharedModel = useCallback(() => {
+    setPendingSharedModel((pending) => {
+      if (pending) commitSharedVideoModel(pending.option)
+      return null
+    })
+  }, [commitSharedVideoModel])
+
+  const cancelPendingSharedModel = useCallback(
+    () => setPendingSharedModel(null),
+    [],
   )
 
   const requestSharedVideoModelSetup = useCallback(
@@ -666,10 +495,6 @@ export function VideoComposer({
     }
   }, [pendingSetupBrand, composerOptions, composerSelectBrand])
 
-  const providers = composer.state.brand
-    ? getBrandProviders(composer.state.brand, composer.options)
-    : []
-
   // Collapsed-picker summary: "brand · variant" (or just brand), falling back to
   // the pick-model prompt; plus the key status for the inline dot/needs-key icon.
   const pickerLabel = composer.state.brand
@@ -677,10 +502,6 @@ export function VideoComposer({
       ? `${composer.state.brand} · ${tc(`variant.${composer.state.variant}`)}`
       : composer.state.brand
     : tc('pickModel')
-  const pickerStatus = composer.state.brand
-    ? getBrandKeyStatus(composer.state.brand, composer.options)
-    : null
-
   const selectedModelId = data.model?.modelId
   const capabilities = selectedModelId
     ? getVideoModelCapabilities(selectedModelId)
@@ -728,13 +549,6 @@ export function VideoComposer({
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     data.status === NODE_STATUS_IDS.running
   const hasMedia = typeof data.mediaUrl === 'string' && data.mediaUrl.length > 0
-  // C1 场记条「镜头」段: the upstream shot-image reference feeding this video,
-  // if any — same `kind: 'shot'` token the reference strip already resolves
-  // (name or auto-numbered @镜头N). No shot upstream / unnamed with no slot ⇒
-  // empty label ⇒ honestly omitted, not a new field.
-  const shotReferenceLabel =
-    composer.referenceTokens.find((token) => token.kind === 'shot')?.label ||
-    undefined
   const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, data)
   const promptFieldValue = getNodeWorkflowFieldValue(
     data,
@@ -1566,8 +1380,7 @@ export function VideoComposer({
   // 连带解掉它们用 `grid-template-rows` 做过渡（布局属性，违反「合成层只动
   // transform/opacity」）的问题。
   //
-  // ⚠ U1 默认取舍：品牌 rail **原样**搬进模型浮层，`pendingBrand` / `quickSetup` /
-  // `computeVideoRebindPreview` 一行不删 —— 换模型会忽略哪些引用的预览是功能不是形态。
+  // 模型选择复用全站通用两级 picker；引用重绑预览仍在提交前显式确认。
   const paramsSummaryParts = [
     parameterSupport.resolution && typeof data.resolution === 'string'
       ? data.resolution
@@ -1595,12 +1408,6 @@ export function VideoComposer({
             isGenerating={isPending}
           />
         </div>
-        <VideoSlateStrip
-          projectName={projectName}
-          shotName={shotReferenceLabel}
-          isReferenceMode={composer.hasReferenceInputs}
-          status={data.status}
-        />
         {/* 台座：原来是监视器上方那行槽标题的 `meta`（R1 要删标题）。
             规格本身是有用的只读派生值，降成井下一行纯文本（R6）。
             ⚠ **只在有片时出现**：它说的是「监视器里这条片的规格」，而编排台那颗
@@ -1699,168 +1506,64 @@ export function VideoComposer({
 
         {/* R1 表：编排台 = 整宽 prompt 块 + 一行 chip（模型 / 参数 / 运镜语法）。 */}
         <div className="flex flex-wrap items-center gap-2">
-          <SpecSummaryButton
-            parts={pickerLabel ? [pickerLabel] : []}
-            emptyLabel={tc('pickModel')}
-            label={tc('modelRail.label')}
-          >
-            <div className="space-y-2">
-              <p className="text-2xs font-semibold text-node-muted">
-                {tc('modelRail.label')}
-              </p>
-              <div className="space-y-1">
-                {composer.brands.map((brand) => {
-                  const isCurrent = composer.state.brand === brand
-                  const status = getBrandKeyStatus(brand, composer.options)
-                  return (
-                    <div
-                      key={brand}
-                      className={cn(
-                        'overflow-hidden rounded-lg border transition-colors',
-                        isCurrent
-                          ? 'border-node-edge bg-node-panel'
-                          : 'border-node-panel-inner',
-                      )}
-                    >
-                      <button
-                        type="button"
-                        {...KEY_GUARD}
-                        onClick={() => {
-                          handleBrandClick(brand, status)
-                          if (status.ready) setOpenSection(null)
-                        }}
-                        className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
-                      >
-                        <span
-                          className={cn(
-                            'text-xs font-semibold',
-                            isCurrent
-                              ? 'text-node-foreground'
-                              : 'text-node-muted',
-                          )}
-                        >
-                          {brand}
-                        </span>
-                        {status.ready ? (
-                          <span className="flex items-center gap-1.5 text-2xs text-node-subtle">
-                            <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                            <span className="max-w-24 truncate">
-                              {status.keyLabel ?? tc('modelRail.ready')}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-2xs font-semibold text-node-muted">
-                            <KeyRound className="size-3 shrink-0" />
-                            {tc('modelRail.needsKey')}
-                          </span>
-                        )}
-                      </button>
-                      {isCurrent && status.ready ? (
-                        <div className="space-y-2 border-t border-node-panel-inner px-2.5 py-2">
-                          {composer.variants.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {composer.variants.map((variant) => {
-                                const on = composer.state.variant === variant
-                                return (
-                                  <button
-                                    key={variant}
-                                    type="button"
-                                    {...KEY_GUARD}
-                                    onClick={() =>
-                                      composer.selectVariant(variant)
-                                    }
-                                    className={cn(
-                                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                      on
-                                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                    )}
-                                  >
-                                    {tc(`variant.${variant}`)}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          ) : null}
-                          {composer.isDualProvider ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {providers.map((provider) => {
-                                const on = composer.state.provider === provider
-                                return (
-                                  <button
-                                    key={provider}
-                                    type="button"
-                                    {...KEY_GUARD}
-                                    onClick={() =>
-                                      composer.selectProvider(provider)
-                                    }
-                                    className={cn(
-                                      'rounded-full border px-2.5 py-1 text-2xs font-semibold transition-colors',
-                                      on
-                                        ? 'border-node-edge bg-node-panel-inner text-node-foreground'
-                                        : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-edge hover:text-node-foreground',
-                                    )}
-                                  >
-                                    {tc(
-                                      `provider.${PROVIDER_LABEL_KEYS[provider] ?? 'fal'}`,
-                                    )}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  )
+          <CanvasRoutePicker
+            variant="media"
+            mediaModality="video"
+            value={data.model?.optionId ?? null}
+            onChange={selectSharedVideoModel}
+            onRequestSetup={requestSharedVideoModelSetup}
+            triggerLabel={pickerLabel}
+            className="canvas-detail-model-picker h-10 w-full rounded-xl"
+          />
+
+          {pendingSharedModel ? (
+            <div className="space-y-2 rounded-xl border border-node-muted/50 bg-node-panel-soft p-3">
+              <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
+                <AlertTriangle className="size-3.5 shrink-0" />
+                {tc('rebind.title', {
+                  brand:
+                    pendingSharedModel.option.displayLabel ??
+                    pendingSharedModel.option.modelId,
                 })}
+              </p>
+              <ul className="space-y-1">
+                {pendingSharedModel.preview.map((item) => (
+                  <li
+                    key={item.kind}
+                    className="flex items-center gap-1.5 text-2xs text-node-muted"
+                  >
+                    {item.status === 'map' ? (
+                      <Check className="size-3 shrink-0 text-node-foreground" />
+                    ) : (
+                      <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
+                    )}
+                    <span className="text-node-foreground">
+                      {tc(`refKind.${item.kind}`)}
+                    </span>
+                    <span>{tc(`rebind.${item.status}`)}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  onClick={confirmPendingSharedModel}
+                  className="flex-1 rounded-lg bg-node-foreground px-2 py-2 text-2xs font-semibold text-node-canvas"
+                >
+                  {tc('rebind.confirm')}
+                </button>
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  onClick={cancelPendingSharedModel}
+                  className="flex-1 rounded-lg border border-node-panel-inner px-2 py-2 text-2xs font-semibold text-node-muted"
+                >
+                  {tc('rebind.cancel')}
+                </button>
               </div>
-              {pendingBrand ? (
-                <div className="space-y-2 rounded-lg border border-node-muted/50 bg-node-panel-soft p-2.5">
-                  <p className="flex items-center gap-1.5 text-2xs font-semibold text-node-foreground">
-                    <AlertTriangle className="size-3.5 shrink-0" />
-                    {tc('rebind.title', { brand: pendingBrand.brand })}
-                  </p>
-                  <ul className="space-y-1">
-                    {pendingBrand.preview.map((item) => (
-                      <li
-                        key={item.kind}
-                        className="flex items-center gap-1.5 text-2xs text-node-muted"
-                      >
-                        {item.status === 'map' ? (
-                          <Check className="size-3 shrink-0 text-node-foreground" />
-                        ) : (
-                          <AlertTriangle className="size-3 shrink-0 text-node-foreground" />
-                        )}
-                        <span className="text-node-foreground">
-                          {tc(`refKind.${item.kind}`)}
-                        </span>
-                        <span>{tc(`rebind.${item.status}`)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      {...KEY_GUARD}
-                      onClick={confirmPendingBrand}
-                      className="flex-1 rounded-lg bg-node-foreground px-2 py-1.5 text-2xs font-semibold text-node-canvas hover:bg-node-foreground/90"
-                    >
-                      {tc('rebind.confirm')}
-                    </button>
-                    <button
-                      type="button"
-                      {...KEY_GUARD}
-                      onClick={cancelPendingBrand}
-                      className="flex-1 rounded-lg border border-node-panel-inner px-2 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:text-node-foreground"
-                    >
-                      {tc('rebind.cancel')}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </div>
-          </SpecSummaryButton>
+          ) : null}
 
           <SpecSummaryButton
             parts={paramsSummaryParts}

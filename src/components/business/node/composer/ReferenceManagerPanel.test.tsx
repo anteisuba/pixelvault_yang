@@ -119,7 +119,7 @@ function openManager() {
   fireEvent.click(
     screen.getByRole('button', { name: 'references.manageButton' }),
   )
-  return screen.getByRole('dialog')
+  return screen.getByRole('region', { name: 'references.manageTitle' })
 }
 
 /** Radix Tabs' trigger switches value on `onMouseDown`, not `onClick` (see

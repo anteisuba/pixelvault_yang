@@ -43,6 +43,10 @@ export interface SpawnReferenceInput {
 }
 
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
+  /** Persist a media-owned node size through the same React Flow change path
+   * used by manual resize gestures. Kept narrow so node components never get
+   * raw graph mutation primitives. */
+  resizeNode?(nodeId: string, width: number, height: number): void
   generateCharacterImage?(nodeId: string): Promise<void>
   generateMediaNode?(nodeId: string): Promise<void>
   /**

@@ -1,13 +1,13 @@
 /**
  * 节点详情面板的七个骨架槽位。
  *
- * 契约来源：`docs/references/pages/canvas-node-detail.md` §2（方向 E「静默」，
- * owner 2026-08-03 确认）。判据是「一个槽 = 回答用户一个问题」：
+ * 契约来源：`docs/references/pages/canvas-node-detail.md` §2（Round 2 A
+ * 「媒体优先」，owner 2026-08-04 确认）。判据是「一个槽 = 回答用户一个问题」：
  *
  *   1 身份条   我打开的是谁？现在什么状态？怎么退回画布？
  *   2 主体台   这个节点此刻是什么？证据长什么样？
- *   3 素材架   这次用什么材料？从哪来？还差什么？
- *   4 编排台   这次怎么做：写什么、哪个模型、什么参数？
+ *   3 编排台   这次怎么做：写什么、哪个模型、什么参数？
+ *   4 素材架   这次用什么材料？从哪来？还差什么？
  *   5 关系带   绑了哪张卡/谁的声音，又被哪些节点用？
  *   6 证据抽屉 这次真正会送出什么？刚才为什么失败？有什么限制？
  *   7 动作坞   这一屏的主事是什么？现在能不能做？
@@ -39,8 +39,8 @@ export type NodeDetailSlotId =
  * 身份条（1）与动作坞（7）不在这里：它们钉在滚动区之外，由 Frame 直接渲染。
  */
 export const NODE_DETAIL_SCROLL_SLOT_ORDER = [
-  NODE_DETAIL_SLOT_IDS.rack,
   NODE_DETAIL_SLOT_IDS.desk,
+  NODE_DETAIL_SLOT_IDS.rack,
   NODE_DETAIL_SLOT_IDS.relations,
   NODE_DETAIL_SLOT_IDS.evidence,
 ] as const

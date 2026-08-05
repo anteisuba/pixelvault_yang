@@ -88,11 +88,11 @@ export function CanvasLeftPanel({
     <aside
       data-testid="canvas-left-panel"
       data-expanded={expanded ? 'true' : 'false'}
-      // 展开态用 16px 圆角而不是全胶囊：一块高而宽的面板做成胶囊会把顶底内容
-      // 啃掉；只有收起成窄轨时才回到全圆角（见 canvas.css .canvas-left-panel）。
+      // 展开 / 收起共用 16px 圆角：它们是同一个侧栏壳的两种宽度，不在一次
+      // 展开手势前后切换成两套形状语言（见 canvas.css .canvas-left-panel）。
       className="pointer-events-auto absolute bottom-4 left-4 z-canvas-chrome hidden flex-col md:flex canvas-glass canvas-left-panel"
-      // 宽度走内联值而不是 CSS 类：真机上同一条 [data-expanded='false'] 规则里
-      // border-radius 生效了、width 没生效（级联被别处压掉），与其猜不如钉死。
+      // 宽度走内联值而不是 CSS 类：真机上旧的 [data-expanded='false'] 规则里
+      // width 曾被别处级联压掉，与其猜不如钉死。
       // ⚠ 宽度过渡在 canvas.css 的 `.canvas-left-panel` 上（批 4 补的）。
       // 这行注释翻过两次，经过写在那边：曾经写「故意不写 transition: width，
       // 带上它过渡永远不推进」，2026-08-03 实测推翻 —— 真正的原因是那时宽度还由

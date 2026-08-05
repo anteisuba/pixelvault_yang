@@ -16,6 +16,7 @@ import {
 } from '@/lib/node-display-name'
 import { deriveSwitcherStateFromModel } from '@/lib/video-model-resolver'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { VideoComposer } from '../composer/VideoComposer'
@@ -149,7 +150,12 @@ export const SeedanceNode = memo(function SeedanceNode(
         }
       />
       <NodeShell.Body className="p-0">
-        <div className="node-card-window relative aspect-video overflow-hidden bg-node-card-window">
+        <div
+          className={cn(
+            'node-card-window relative aspect-video overflow-hidden',
+            mediaUrl ? 'bg-node-card-window' : 'canvas-video-empty-surface',
+          )}
+        >
           {mediaUrl ? (
             // 台账 B7：原来是原生 `<video controls muted>` —— 灰底 mute 图标 +
             // 原生进度条 + ⋮ 菜单，在 400px 的卡上跟别的什么都不搭；且没有
@@ -161,10 +167,7 @@ export const SeedanceNode = memo(function SeedanceNode(
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              {/* Fixed dark plate (not bg-node-panel-inner) — this icon sits inside
-                  the deep window, whose --node-panel-inner would otherwise still
-                  resolve to the outer paper scope's light paper-strong. */}
-              <span className="flex size-11 items-center justify-center rounded-xl bg-node-canvas text-node-muted">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted">
                 <Video className="size-5" />
               </span>
               <p className="text-xs leading-5 text-node-muted">

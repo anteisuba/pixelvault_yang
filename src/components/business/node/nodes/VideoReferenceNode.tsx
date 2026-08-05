@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type SyntheticEvent,
 } from 'react'
 import {
   NodeResizer,
@@ -52,7 +53,8 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
   const t = useTranslations('StudioNode.videoReference')
   const tToolbar = useTranslations('StudioNode.nodeToolbar')
   const tTypes = useTranslations('StudioNode.nodeTypes')
-  const { updateNodeData, multiSelectActive } = useNodeWorkflowActions()
+  const { updateNodeData, resizeNode, multiSelectActive } =
+    useNodeWorkflowActions()
   const { uploadFile, isUploading } = useReferenceVideoUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -78,6 +80,41 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
 
   const frameWidth = width ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
   const frameHeight = height ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
+
+  const handleLoadedMetadata = useCallback(
+    (event: SyntheticEvent<HTMLVideoElement>) => {
+      const video = event.currentTarget
+      const mediaWidth = video.videoWidth
+      const mediaHeight = video.videoHeight
+      if (mediaWidth <= 0 || mediaHeight <= 0) return
+
+      const intrinsicSizeChanged =
+        data.mediaWidth !== mediaWidth || data.mediaHeight !== mediaHeight
+      if (intrinsicSizeChanged) {
+        updateNodeData(id, { mediaWidth, mediaHeight })
+      }
+
+      const aspect = mediaWidth / mediaHeight
+      const currentAspect = frameWidth / frameHeight
+      if (Math.abs(currentAspect - aspect) < 0.001) return
+
+      // Preserve the user's current long edge, but make the card itself match
+      // the uploaded clip. `object-contain` then has no letterbox to create.
+      const longEdge = Math.max(frameWidth, frameHeight)
+      const nextWidth = Math.round(aspect >= 1 ? longEdge : longEdge * aspect)
+      const nextHeight = Math.round(aspect >= 1 ? longEdge / aspect : longEdge)
+      resizeNode?.(id, nextWidth, nextHeight)
+    },
+    [
+      data.mediaHeight,
+      data.mediaWidth,
+      frameHeight,
+      frameWidth,
+      id,
+      resizeNode,
+      updateNodeData,
+    ],
+  )
 
   // A replaced clip resets playback state (the <video> src changed outside React).
   useEffect(() => {
@@ -139,9 +176,7 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
         onChange={(event) => void handleFileChange(event)}
       />
 
-      {/* 四角/边缘拉伸手柄，同 LooseImageCard —— 像图片一样在画布上调大小。
-          不 keepAspectRatio：允许自由拉伸（"四角拉长"），video object-contain
-          不失真、以 letterbox 适配。 */}
+      {/* 四角/边缘拉伸手柄保持媒体比例，避免用户调大后重新制造黑边。 */}
       <NodeResizer
         nodeId={id}
         isVisible={Boolean(selected)}
@@ -149,6 +184,7 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
         minHeight={100}
         maxWidth={2400}
         maxHeight={2400}
+        keepAspectRatio
         color="var(--node-paint)"
         handleStyle={{
           width: 12,
@@ -202,7 +238,8 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
 
       <div
         className={cn(
-          'absolute inset-0 overflow-hidden rounded-sm bg-node-card-window',
+          'absolute inset-0 overflow-hidden rounded-sm',
+          mediaUrl ? 'bg-node-card-window' : 'canvas-video-empty-surface',
           selected
             ? 'outline outline-2 outline-offset-0 outline-node-paint'
             : 'outline outline-1 outline-offset-0 outline-transparent group-hover:outline-node-edge/40',
@@ -219,6 +256,7 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
               preload="metadata"
               draggable={false}
               className="size-full object-contain"
+              onLoadedMetadata={handleLoadedMetadata}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}

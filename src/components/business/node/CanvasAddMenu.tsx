@@ -8,6 +8,7 @@ import {
   type ComponentType,
 } from 'react'
 import {
+  Archive,
   Clapperboard,
   FileText,
   Film,
@@ -25,6 +26,7 @@ import type { XYPosition } from '@xyflow/react'
 
 import {
   CANVAS_ADD_CATALOG,
+  CANVAS_ADD_GROUP_IDS,
   CANVAS_ADD_INTENT_IDS,
   type CanvasAddIntentId,
 } from '@/constants/canvas-add-catalog'
@@ -227,28 +229,49 @@ export function CanvasAddMenu({
             {t(`addCatalog.groups.${group.id}`)}
           </h3>
           <div className="space-y-0.5">
-            {group.items.map((item) => {
-              const Icon = ICON_BY_INTENT[item.id]
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => onSelect(item.id)}
-                  className={cn(
-                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                    'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-                  )}
-                >
-                  <Icon className="size-4 shrink-0 text-node-muted" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-node-foreground">
-                      {t(`addCatalog.items.${item.labelKey}.label`)}
-                    </span>
+            {group.id === CANVAS_ADD_GROUP_IDS.organize ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() =>
+                  onSelect(CANVAS_ADD_INTENT_IDS.organizeCharacter)
+                }
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                  'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                )}
+              >
+                <Archive className="size-4 shrink-0 text-node-muted" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-node-foreground">
+                    {t('addCatalog.items.collect.label')}
                   </span>
-                </button>
-              )
-            })}
+                </span>
+              </button>
+            ) : (
+              group.items.map((item) => {
+                const Icon = ICON_BY_INTENT[item.id]
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => onSelect(item.id)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                      'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0 text-node-muted" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-node-foreground">
+                        {t(`addCatalog.items.${item.labelKey}.label`)}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })
+            )}
           </div>
         </section>
       ))}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   ChevronRight,
@@ -211,18 +211,15 @@ interface ReferenceManagerPanelProps {
 }
 
 /** V-3a 管理素材面板（取代 DepartmentStrip 五分区，设计稿 §4）: a compact "已引用"
- *  strip always visible above the prompt, plus a "管理素材" overlay listing every
+ *  strip plus an inline manager listing every
  *  connected reference with type tabs + search + per-row insert/status/⋮. Every
  *  DepartmentStrip capability survives the reshuffle — insert @token, delete an
  *  edge, autospawn a new character/scene/shot/video/voice reference, and a
  *  character's ＋配音/＋特写 — just relocated into the overlay's row overflow menu
  *  / bottom add bar instead of five always-expanded cards.
  *
- *  A5 (canvas-relationship-v3 §7b): the drawer used to be a nested
- *  ResponsiveDialog (a dialog inside the ⤢ detail panel — "画中框", owner
- *  vetoed). It's now a right-half slide-over that overlays the host detail
- *  panel in place — see the `relative` wrapper comment in VideoComposer.tsx
- *  for how the positioning anchors without prop-drilling a ref down here. */
+ *  Round 2 A: the manager no longer overlays the detail page. It expands only
+ *  inside source-rack, so prompt/model/action geometry stays unchanged. */
 export function ReferenceManagerPanel({
   tokens,
   referencedTokenIds,
@@ -240,6 +237,8 @@ export function ReferenceManagerPanel({
 }: ReferenceManagerPanelProps) {
   const tc = useTranslations('StudioNode.videoComposer')
   const reducedMotion = useReducedMotion()
+  const managerId = useId()
+  const managerRef = useRef<HTMLDivElement>(null)
   const [managerOpen, setManagerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ManagerTabId>('all')
   const [search, setSearch] = useState('')
@@ -250,6 +249,13 @@ export function ReferenceManagerPanel({
   // R3-4 §4.2 焦点还原: captures whatever had focus (the "管理素材" trigger
   // button, normally) the moment the overlay opens, restores it on close.
   useOverlayFocusReturn(managerOpen)
+
+  // Reveal the expanded inline rack inside the editor's own scroll area. It
+  // stays in normal flow, so the prompt above is never covered.
+  useEffect(() => {
+    if (!managerOpen) return
+    managerRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [managerOpen])
 
   // A5: Esc closes just this overlay, not the whole ⤢ 详情面板 behind it
   // (R3-4 §4.2 "一次一层"). NodeDetailPanel listens on `window`; a keydown
@@ -366,6 +372,7 @@ export function ReferenceManagerPanel({
         type="button"
         onClick={() => setManagerOpen(true)}
         aria-expanded={managerOpen}
+        aria-controls={managerId}
         className="nodrag flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-node-panel-inner px-3 py-1.5 text-2xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
       >
         {tc('references.manageButton', { count: tokens.length })}
@@ -375,15 +382,15 @@ export function ReferenceManagerPanel({
         {managerOpen ? (
           <motion.div
             key="reference-manager-overlay"
-            role="dialog"
+            ref={managerRef}
+            id={managerId}
+            role="region"
             aria-label={tc('references.manageTitle')}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
             transition={motionTransition('slow', reducedMotion)}
-            // A5: 右半覆盖，非全局 L 层——z 只需盖过本卷同级的静态内容（监视器/
-            // 双栏），不进 R3-4 的 --z-index-canvas-* 阶梯（那是画布级 L0-L8）。
-            className="absolute inset-y-0 right-0 z-10 flex w-full flex-col overflow-hidden border-l border-node-panel-inner bg-node-panel shadow-node-panel @2xl:w-1/2"
+            className="canvas-reference-manager-inline flex min-h-0 w-full flex-col overflow-hidden bg-node-panel"
           >
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-node-panel-inner px-3 py-2.5">
               <div className="min-w-0">

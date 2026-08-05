@@ -17,6 +17,7 @@ type CapturedPickerProps = {
   value: string | null
   onChange: (option: StudioModelOption) => void
   onRequestSetup?: (option: StudioModelOption) => void
+  triggerEmptyLabel?: string
 }
 let pickerProps: CapturedPickerProps | null = null
 
@@ -93,6 +94,16 @@ describe('CanvasAssistantRouteSelector', () => {
       />,
     )
     expect(pickerProps?.value).toBe('llm-route:assistant:key:k1')
+  })
+
+  it('shows the real gateway model when no BYOK route is selected', () => {
+    render(
+      <CanvasAssistantRouteSelector
+        value={{ optionId: 'node-studio-assistant:auto' }}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(pickerProps?.triggerEmptyLabel).toBe('OpenAI GPT-5.5')
   })
 
   it('maps a picked saved key to the NodeAssistantRouteSelection contract', () => {

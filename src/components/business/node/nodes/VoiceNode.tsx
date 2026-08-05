@@ -420,6 +420,7 @@ export const VoiceNode = memo(function VoiceNode(
             voiceProvider:
               data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
             voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
+            voiceSampleUrl: voice.sampleUrl ?? undefined,
             status: NODE_STATUS_IDS.ready,
           })
           setLibraryOpen(false)

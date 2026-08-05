@@ -155,6 +155,7 @@ export function NodeMediaPreview({
   // 本轮只重皮 kind=image 那份（shot/frame/closeup 落媒体前的形态），
   // video/audio/text 完全不动，一个字符都不改。
   const isImageKind = kind === NODE_MEDIA_KIND_IDS.image
+  const isVideoKind = kind === NODE_MEDIA_KIND_IDS.video
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
@@ -208,7 +209,12 @@ export function NodeMediaPreview({
             'relative aspect-video overflow-hidden rounded-sm border',
             isImageKind
               ? 'canvas-image-preview-window'
-              : 'node-card-window border-node-panel-inner bg-node-card-window',
+              : cn(
+                  'node-card-window border-node-panel-inner',
+                  isVideoKind && !mediaUrl
+                    ? 'canvas-video-empty-surface'
+                    : 'bg-node-card-window',
+                ),
           )}
           style={
             kind === NODE_MEDIA_KIND_IDS.video && videoAspect

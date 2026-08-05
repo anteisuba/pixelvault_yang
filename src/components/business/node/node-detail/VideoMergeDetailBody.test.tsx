@@ -74,8 +74,8 @@ describe('VideoMergeDetailBody', () => {
     ).toEqual([
       'identity-bar',
       'subject-stage',
-      'source-rack',
       'compose-desk',
+      'source-rack',
       'relations-strip',
       'evidence-drawer',
       'action-dock',

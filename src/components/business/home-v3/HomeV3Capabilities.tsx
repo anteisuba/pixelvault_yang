@@ -1,8 +1,11 @@
 import type { ComponentType } from 'react'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { HomeV3DemoImage } from '@/components/business/home-v3/HomeV3DemoImage'
+import {
+  HomeV3DemoImage,
+  HomeV3ImageDemoControls,
+  HomeV3ImageDemoProvider,
+} from '@/components/business/home-v3/HomeV3DemoImage'
 import { HomeV3VideoPlayer } from '@/components/business/home-v3/HomeV3VideoPlayer'
 import { ModelViewer } from '@/components/business/ModelViewer'
 import {
@@ -75,8 +78,13 @@ export function HomeV3Capabilities() {
         <div className="home-v3-capwrap">
           {HOME_V3_CAPS.map((cap) => {
             const Demo = DEMO[cap.demo]
-            return (
-              <div className="home-v3-cap-row" key={cap.id} data-home-v3-cap>
+            const row = (
+              <div
+                key={cap.id}
+                className="home-v3-cap-row"
+                data-home-v3-cap
+                data-demo={cap.demo}
+              >
                 <div className="home-v3-cap-text">
                   <p className="home-v3-mono">{t(`${cap.id}.eyebrow`)}</p>
                   {/* One string, its own line breaks. Two hard-coded halves
@@ -92,9 +100,18 @@ export function HomeV3Capabilities() {
                       <li>{t('moreModels', { count: cap.moreCount })}</li>
                     ) : null}
                   </ul>
+                  {cap.demo === 'fan' ? <HomeV3ImageDemoControls /> : null}
                 </div>
                 <Demo />
               </div>
+            )
+
+            return cap.demo === 'fan' ? (
+              <HomeV3ImageDemoProvider key={cap.id}>
+                {row}
+              </HomeV3ImageDemoProvider>
+            ) : (
+              row
             )
           })}
 

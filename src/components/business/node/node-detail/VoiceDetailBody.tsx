@@ -174,8 +174,9 @@ export function VoiceDetailBody({
         voiceProvider:
           data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-        // 样本属于上一个音色 —— 丢掉，让新音色干净地重新试听。
-        voiceSampleUrl: undefined,
+        // 选择器已拿到声音库的真实示例音频；跟着音色一起写入，选择后即可
+        // 播放。没有示例时才清掉上一个音色的旧样本。
+        voiceSampleUrl: voice.sampleUrl ?? undefined,
       })
       setErroredCover(null)
       setLibraryOpen(false)

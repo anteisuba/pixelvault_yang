@@ -6,7 +6,10 @@ import { useTranslations } from 'next-intl'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
+  NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
+} from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 export interface NodeAssistantRouteSelection {
@@ -134,7 +137,9 @@ export function CanvasAssistantRouteSelector({
         }
         onChange={handleSelect}
         onRequestSetup={handleRequestSetup}
-        triggerEmptyLabel={t('fieldLabel')}
+        // apiKeyId 为空时服务端仍会走默认网关模型；触发器应展示这条真实
+        // 默认路由，而不是只写一个看不出模型的字段名。
+        triggerEmptyLabel={NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].label}
         size="compact"
       />
 

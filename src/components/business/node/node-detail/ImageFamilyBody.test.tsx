@@ -34,11 +34,9 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
 }))
 
 vi.mock('@/components/business/node/CharacterImageReferenceControls', () => ({
-  CharacterImageReferenceControls: () => <div>reference-controls</div>,
-}))
-
-vi.mock('@/components/business/node/CharacterImageLoraControls', () => ({
-  CharacterImageLoraControls: () => <div>lora-controls</div>,
+  CharacterImageReferenceControls: () => (
+    <button type="button">reference-controls</button>
+  ),
 }))
 
 vi.mock('@/components/business/node/WorkflowModelPicker', () => ({
@@ -112,8 +110,8 @@ describe('图片族 × 七槽（S4）', () => {
     expect(slotOrder(container)).toEqual([
       'identity-bar',
       'subject-stage',
-      'source-rack',
       'compose-desk',
+      'source-rack',
       'relations-strip',
       'evidence-drawer',
       'action-dock',
@@ -154,6 +152,36 @@ describe('图片族 × 七槽（S4）', () => {
     expect(screen.queryByText('dropzoneHint')).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'existing.upload' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps one reference entry and removes duplicate Studio and LoRA controls', () => {
+    renderFamily(FrameDetailBody, NODE_TYPE_IDS.frameImage, {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+    })
+
+    expect(screen.getAllByText('fieldReferences')).toHaveLength(2)
+    expect(
+      screen.getByRole('button', { name: 'reference-controls' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('openStudio')).not.toBeInTheDocument()
+    expect(screen.queryByText('lora-controls')).not.toBeInTheDocument()
+    expect(screen.queryByText('fieldLoras')).not.toBeInTheDocument()
+  })
+
+  it('keeps main-image replacement separate from adding a reference', () => {
+    renderFamily(FrameDetailBody, NODE_TYPE_IDS.frameImage, {
+      prompt: '',
+      mediaUrl: 'https://example.com/frame.png',
+      status: NODE_STATUS_IDS.done,
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'replaceImage' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'reference-controls' }),
     ).toBeInTheDocument()
   })
 

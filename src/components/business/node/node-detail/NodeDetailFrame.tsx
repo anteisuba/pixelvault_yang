@@ -38,12 +38,11 @@ const SCROLL_SLOT_CONTENT: Record<
 }
 
 /**
- * 详情面板的四段骨架（契约 §3，方向 E「静默」）：
+ * 详情面板的 Round 2 A 骨架（契约 §3，「媒体优先」）：
  *
  * ```
  * 身份条   钉，不滚
- * 主体台   钉，不滚 —— 看图与改提示词永远同屏
- * 滚动区   素材架 → 编排台 → 关系带 → 证据抽屉
+ * 工作区   主体台 → 编排台 → 素材架 → 关系带 → 证据抽屉
  * 动作坞   钉，通栏，在滚动区之外
  * ```
  *
@@ -56,6 +55,8 @@ const SCROLL_SLOT_CONTENT: Record<
  * 而「空但有位」必须传一个带空态文案的元素 —— 详见 `slots.ts` 的头注。
  */
 export function NodeDetailFrame({ identity, slots }: NodeDetailFrameProps) {
+  const hasStage = slots.stage !== undefined
+
   return (
     <>
       <header
@@ -65,33 +66,39 @@ export function NodeDetailFrame({ identity, slots }: NodeDetailFrameProps) {
         {identity}
       </header>
 
-      {slots.stage !== undefined ? (
-        <div
-          data-node-detail-slot={NODE_DETAIL_SLOT_IDS.stage}
-          className="canvas-detail-stage-pin min-w-0"
-        >
-          {slots.stage}
-        </div>
-      ) : null}
-
       <div
-        className="canvas-object-studio-body min-h-0 min-w-0 flex-1 overflow-y-auto"
-        data-node-detail-body="true"
+        className="canvas-detail-workspace min-h-0 min-w-0 flex-1"
+        data-node-detail-workspace="true"
+        data-has-stage={hasStage || undefined}
       >
-        <div className="canvas-object-studio-content min-w-0">
-          {NODE_DETAIL_SCROLL_SLOT_ORDER.map((slotId) => {
-            const content = SCROLL_SLOT_CONTENT[slotId](slots)
-            if (content === undefined) return null
-            return (
-              <div
-                key={slotId}
-                data-node-detail-slot={slotId}
-                className="min-w-0"
-              >
-                {content}
-              </div>
-            )
-          })}
+        {hasStage ? (
+          <div
+            data-node-detail-slot={NODE_DETAIL_SLOT_IDS.stage}
+            className="canvas-detail-stage-pin min-h-0 min-w-0"
+          >
+            {slots.stage}
+          </div>
+        ) : null}
+
+        <div
+          className="canvas-object-studio-body min-h-0 min-w-0 overflow-y-auto"
+          data-node-detail-body="true"
+        >
+          <div className="canvas-object-studio-content min-w-0">
+            {NODE_DETAIL_SCROLL_SLOT_ORDER.map((slotId) => {
+              const content = SCROLL_SLOT_CONTENT[slotId](slots)
+              if (content === undefined) return null
+              return (
+                <div
+                  key={slotId}
+                  data-node-detail-slot={slotId}
+                  className="min-w-0"
+                >
+                  {content}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 

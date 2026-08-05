@@ -1440,18 +1440,12 @@
  * Picture left, the two moves listed right. The picture is a single stack —
  * the re-dressed frame sits on top of the original at full size — so the swap
  * happens in place and the reader's eye never has to travel to compare. */
-/* The framed box holds the picture and nothing else — the controls sit beside
-   it and the argument sits in the section copy, so no part of this says the
-   same thing twice.
- *
- * Controls to the side rather than underneath, because the frame has to stay
- * upright: the source is a 2:3 bust and a landscape crop of it closes in on the
- * head, which loses the jacket — half of what each edit changes. */
+/* The right-hand component holds the picture and nothing else. Controls are
+   rendered inside `.home-v3-cap-text`, immediately after the capability copy. */
 .home-v3-img2 {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  align-items: end;
-  gap: clamp(14px, 2vw, 26px);
+  display: flex;
+  min-width: 0;
+  justify-content: center;
 }
 
 .home-v3-img2-stage {
@@ -1547,18 +1541,21 @@
   font-style: normal;
 }
 
-/* Controls, beside the frame rather than inside it. */
-.home-v3-img2-side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  padding-bottom: 4px;
+/* This is part of the left copy block — no card, border, or independent
+   height. It should read as the next sentence of the capability explanation. */
+.home-v3-img2-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  max-width: 30em;
 }
 
-.home-v3-img2-chips {
-  flex-direction: column;
-  align-items: stretch;
+.home-v3-img2-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
 }
 
 .home-v3-img2-by {
@@ -1570,18 +1567,8 @@
 }
 
 @media (max-width: 760px) {
-  .home-v3-img2 {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
   .home-v3-img2-stage {
     width: 100%;
-  }
-
-  .home-v3-img2-chips {
-    flex-direction: row;
-    flex-wrap: wrap;
   }
 }
 
@@ -1623,17 +1610,10 @@
 
 .home-v3-img2-caption {
   margin: 0;
-  flex: 1 1 14ch;
   font-family: var(--h-mono);
   font-size: 11px;
   line-height: 1.6;
   color: var(--h-dim);
-}
-
-@media (max-width: 700px) {
-  .home-v3-img2 {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* demo · four answers side by side */

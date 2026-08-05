@@ -3779,6 +3779,10 @@
           "label": "Voice profile",
           "helper": "Choose a system voice or upload reference audio as a reusable identity."
         },
+        "collect": {
+          "label": "Collect",
+          "helper": "Create one reusable collection for visual references."
+        },
         "organizeCharacter": {
           "label": "Character profile",
           "helper": "Collect a character's hero image, references, close-ups, and bound voice."

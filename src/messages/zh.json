@@ -3014,7 +3014,10 @@
     "contextTriggers": "触发词 ×{count}",
     "contextBase": "底模",
     "assistantStageForReview": "加入搭配提醒",
-    "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。"
+    "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。",
+    "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
+    "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
+    "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。"
   },
   "LayerDecompose": {
     "title": "图层分解",
@@ -4785,7 +4788,12 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
-      "setupClaude": "Claude"
+      "setupClaude": "Claude",
+      "mediaCapabilities": {
+        "imageVideo": "图片＋视频",
+        "imageOnly": "图片视觉",
+        "textOnly": "仅文本"
+      }
     },
     "inspector": {
       "multiTitle": "已选择 {count} 个节点",
@@ -4816,9 +4824,13 @@
       "openImageLibrary": "打开图片素材库",
       "imageLibraryTitle": "选择参考图片",
       "imageLibraryDescription": "从已有素材中选择一张图片，附加到本轮助手对话。",
+      "openVideoLibrary": "打开视频素材库",
+      "videoLibraryTitle": "选择参考视频",
+      "videoLibraryDescription": "从已有素材中选择一段视频，附加到本轮助手对话。",
       "canvasReferences": "当前画布素材",
       "uploadVideo": "上传参考视频",
       "galleryImageLabel": "素材库图片",
+      "galleryVideoLabel": "素材库视频",
       "referenceUploadFailed": "参考素材上传失败",
       "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。",
       "opsMalformed": "助手想改画布，但这段指令没写清楚——画布没有任何改动。"
@@ -5515,6 +5527,10 @@
     "common": {
       "unexpected": "发生了意外错误，请重试。",
       "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
+    },
+    "assistant": {
+      "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
+      "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。"
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",

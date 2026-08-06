@@ -25,6 +25,20 @@ let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => mockIsMobile,
 }))
+vi.mock('@/hooks/use-studio-assistant-controls', () => ({
+  useStudioAssistantControls: () => ({
+    route: { optionId: 'auto', adapterType: 'openai' },
+    researchEnabled: false,
+  }),
+}))
+vi.mock('@/hooks/node/use-node-reference-upload', () => ({
+  useNodeReferenceUpload: () => ({ uploadFile: vi.fn() }),
+}))
+vi.mock('@/components/business/assistant/StudioAssistantHeaderActions', () => ({
+  StudioAssistantHeaderActions: ({ onClose }: { onClose(): void }) => (
+    <button type="button" aria-label="dockCollapse" onClick={onClose} />
+  ),
+}))
 
 const setOpenMock = vi.fn()
 let mockOpen = true
@@ -82,6 +96,21 @@ describe('StudioAssistantDock', () => {
       width: `${STUDIO_ASSISTANT_DOCK_RESIZE.defaultWidthPx}px`,
     })
     expect(screen.getByTestId('assistant-panel')).toBeInTheDocument()
+  })
+
+  it('overlays the desktop workspace instead of consuming layout width', () => {
+    render(<StudioAssistantDock />)
+
+    const dock = screen.getByRole('complementary', { name: 'dockLabel' })
+    expect(dock).toHaveClass(
+      'fixed',
+      'bottom-4',
+      'right-4',
+      'top-4',
+      'z-40',
+      'rounded-xl',
+    )
+    expect(dock).not.toHaveClass('shrink-0', 'lg:sticky')
   })
 
   it('exposes an accessible resize separator with clamped bounds', () => {

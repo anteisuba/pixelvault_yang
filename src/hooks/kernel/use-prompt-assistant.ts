@@ -8,11 +8,16 @@ import type {
   PromptAssistantLoraResult,
   PromptAssistantMessage,
   PromptAssistantMode,
+  PromptAssistantDomain,
   PromptAssistantResponseLanguage,
 } from '@/types'
+import type { AssistantMediaReference } from '@/types/assistant-media'
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import {
   chatPromptAssistantAPI,
   getAssistantConversationAPI,
+  listAssistantConversationsAPI,
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
@@ -45,6 +50,7 @@ export const STYLE_SHORTCUTS = {
  */
 export interface PromptAssistantDisplayMessage extends PromptAssistantMessage {
   lora?: PromptAssistantLoraResult
+  mediaReferences?: AssistantMediaReference[]
 }
 
 interface PromptAssistantState {
@@ -56,6 +62,7 @@ interface PromptAssistantState {
    *  distinguish the F1 structured-output validation failure (escape-hatch
    *  eligible, §6) from generic engine/network failures (retry only). */
   errorCode: string | null
+  sessions: AssistantConversationSummary[]
 }
 
 const INITIAL_STATE: PromptAssistantState = {
@@ -64,6 +71,7 @@ const INITIAL_STATE: PromptAssistantState = {
   isLoading: false,
   error: null,
   errorCode: null,
+  sessions: [],
 }
 
 function toWireMessages(
@@ -72,13 +80,40 @@ function toWireMessages(
   return messages.map(({ role, content }) => ({ role, content }))
 }
 
+function toStoredMessages(messages: readonly PromptAssistantDisplayMessage[]) {
+  return messages.map(({ role, content, mediaReferences }) => ({
+    role,
+    content,
+    ...(mediaReferences?.length ? { mediaReferences } : {}),
+  }))
+}
+
+function collectConversationMediaReferences(
+  messages: readonly PromptAssistantDisplayMessage[],
+  currentReferences: readonly AssistantMediaReference[] = [],
+): AssistantMediaReference[] {
+  const candidates = [
+    ...currentReferences,
+    ...[...messages]
+      .reverse()
+      .flatMap((message) => message.mediaReferences ?? []),
+  ]
+  const unique = new Map<string, AssistantMediaReference>()
+  for (const reference of candidates) {
+    if (!unique.has(reference.url)) unique.set(reference.url, reference)
+    if (unique.size >= ASSISTANT_MEDIA_LIMITS.maxReferences) break
+  }
+  return Array.from(unique.values())
+}
+
 /** Shared `send`/`applyPreset`/`retry` options. `loraContext` is the F2 LoRA
  *  persona's opt-in (docs/plans/lora-assistant-nl2tag-2026-07.md §1.2) — only
  *  meaningful together with `mode: 'lora'`; omitting it keeps the legacy
  *  `mode:'lora'` code-block behavior (F1 zero-regression contract). */
 export interface PromptAssistantSendOptions {
   modelId?: string
-  referenceImageData?: string
+  references?: AssistantMediaReference[]
+  assistantDomain?: PromptAssistantDomain
   currentPrompt?: string
   apiKeyId?: string
   responseLanguage?: PromptAssistantResponseLanguage
@@ -135,23 +170,46 @@ export function usePromptAssistant() {
 
   useEffect(() => {
     let cancelled = false
-    void getAssistantConversationAPI({ surface: 'STUDIO' }).then((result) => {
-      if (cancelled || !result.success || !result.data) return
-      const conversation = result.data
+    void Promise.all([
+      getAssistantConversationAPI({ surface: 'STUDIO' }),
+      listAssistantConversationsAPI({ surface: 'STUDIO', limit: 30 }),
+    ]).then(([result, list]) => {
+      if (cancelled) return
       setPromptAssistantState((prev) => {
-        if (prev.messages.length > 0) return prev
+        const sessions = list.success ? list.data : prev.sessions
+        if (!result.success || !result.data || prev.messages.length > 0) {
+          return { ...prev, sessions }
+        }
+        const conversation = result.data
         return {
           ...prev,
+          sessions,
           sessionId: conversation.id,
-          messages: conversation.messages.map(({ role, content }) => ({
-            role,
-            content,
-          })),
+          messages: conversation.messages.map(
+            ({ role, content, mediaReferences }) => ({
+              role,
+              content,
+              mediaReferences: mediaReferences ?? [],
+            }),
+          ),
         }
       })
     })
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  const refreshSessions = useCallback(async () => {
+    const result = await listAssistantConversationsAPI({
+      surface: 'STUDIO',
+      limit: 30,
+    })
+    if (result.success) {
+      setPromptAssistantState((prev) => ({
+        ...prev,
+        sessions: result.data,
+      }))
     }
   }, [])
 
@@ -175,7 +233,11 @@ export function usePromptAssistant() {
       const result = await chatPromptAssistantAPI({
         messages: toWireMessages(allMessages),
         modelId: opts?.modelId,
-        referenceImageData: opts?.referenceImageData,
+        references: collectConversationMediaReferences(
+          allMessages,
+          opts?.references,
+        ),
+        assistantDomain: opts?.assistantDomain,
         currentPrompt: opts?.currentPrompt,
         apiKeyId: opts?.apiKeyId,
         responseLanguage: opts?.responseLanguage,
@@ -203,13 +265,14 @@ export function usePromptAssistant() {
             : {}),
           surface: 'STUDIO',
           projectId: null,
-          messages: toWireMessages(nextMessages),
+          messages: toStoredMessages(nextMessages),
         })
         if (persisted.success) {
           setPromptAssistantState((prev) => ({
             ...prev,
             sessionId: persisted.data.id,
           }))
+          void refreshSessions()
         }
       } else {
         setPromptAssistantState((prev) => ({
@@ -220,7 +283,7 @@ export function usePromptAssistant() {
         }))
       }
     },
-    [t, tErrors],
+    [refreshSessions, t, tErrors],
   )
 
   const send = useCallback(
@@ -230,6 +293,10 @@ export function usePromptAssistant() {
       const userMessage: PromptAssistantDisplayMessage = {
         role: 'user',
         content: text.trim(),
+        mediaReferences: opts?.references?.slice(
+          0,
+          ASSISTANT_MEDIA_LIMITS.maxReferences,
+        ),
       }
       await runTurn([...promptAssistantState.messages, userMessage], opts)
     },
@@ -266,7 +333,32 @@ export function usePromptAssistant() {
   )
 
   const clear = useCallback(() => {
-    setPromptAssistantState(() => INITIAL_STATE)
+    setPromptAssistantState((prev) => ({
+      ...INITIAL_STATE,
+      sessions: prev.sessions,
+    }))
+  }, [])
+
+  const selectSession = useCallback(async (id: string) => {
+    const result = await getAssistantConversationAPI({
+      surface: 'STUDIO',
+      id,
+    })
+    if (!result.success || !result.data) return
+    const conversation = result.data
+    setPromptAssistantState((prev) => ({
+      ...prev,
+      sessionId: conversation.id,
+      messages: conversation.messages.map(
+        ({ role, content, mediaReferences }) => ({
+          role,
+          content,
+          mediaReferences: mediaReferences ?? [],
+        }),
+      ),
+      error: null,
+      errorCode: null,
+    }))
   }, [])
 
   return {
@@ -275,5 +367,7 @@ export function usePromptAssistant() {
     retry,
     applyPreset,
     clear,
+    selectSession,
+    refreshSessions,
   }
 }

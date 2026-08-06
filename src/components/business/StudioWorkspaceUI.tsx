@@ -185,10 +185,10 @@ export function StudioWorkspaceUI() {
          * duplicate entry in the top bar), so the workspace now renders
          * inside the (main) layout's SidebarProvider directly.
          *
-         * The assistant dock (2026-07-07) sits as a horizontal flex
-         * sibling of the canvas column — deliberately outside
-         * StudioFlowLayout, which stays the sole owner of the vertical
-         * canvas/dock rhythm.
+         * The assistant remains a DOM sibling of the canvas column, but its
+         * desktop shell is a fixed overlay so opening it never subtracts
+         * width from the work surface. StudioFlowLayout stays the sole owner
+         * of the vertical canvas/dock rhythm.
          */}
         <div className="studio-layout-v2 min-w-0 flex-1">
           <StudioFlowLayout

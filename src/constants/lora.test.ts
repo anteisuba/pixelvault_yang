@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { isHuggingFaceSocialThumbnailCoverUrl } from './lora'
+import {
+  DEFAULT_LORA_WORKBENCH_SECTION,
+  isHuggingFaceSocialThumbnailCoverUrl,
+  LORA_WORKBENCH_SECTIONS,
+} from './lora'
+
+describe('LoRA workbench navigation', () => {
+  it('opens Generate when the URL has no explicit section', () => {
+    expect(DEFAULT_LORA_WORKBENCH_SECTION).toBe(
+      LORA_WORKBENCH_SECTIONS.GENERATE,
+    )
+  })
+})
 
 // 库侧封面渐进增强（2026-07-18 方案 B）：客户端只有最终封面 URL 字符串，
 // 用域名前缀匹配判定"这张卡落到了 Hub 社交缩略图兜底"——服务端

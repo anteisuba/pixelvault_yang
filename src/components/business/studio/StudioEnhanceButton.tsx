@@ -23,6 +23,8 @@ import {
   StudioPanelHeader,
   studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import { StudioAssistantHeaderActions } from '@/components/business/assistant/StudioAssistantHeaderActions'
+import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 
 function PanelLoadingFallback() {
   return (
@@ -76,11 +78,13 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
     setOpen,
     currentPrompt,
     modelId,
+    assistantDomain,
     llmApiKeys,
     referenceImageData,
     onUsePrompt,
     onAppendPrompt,
   } = useStudioAssistantPanelInputs()
+  const { route, researchEnabled } = useStudioAssistantControls()
 
   const isEnhancing = promptEnhance.isEnhancing
 
@@ -138,7 +142,8 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
         <StudioPanelHeader
           icon={<Sparkles className="size-3.5 text-primary" />}
         >
-          {t('enhance')}
+          <span className="mr-auto">{t('enhance')}</span>
+          <StudioAssistantHeaderActions mobile onClose={() => setOpen(false)} />
         </StudioPanelHeader>
         <ResponsiveDialogDescription className="sr-only">
           {t('enhance')}
@@ -147,11 +152,14 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           <PromptAssistantPanel
             currentPrompt={currentPrompt}
             modelId={modelId}
+            assistantDomain={assistantDomain}
             referenceImageData={referenceImageData}
             llmApiKeys={llmApiKeys}
             onUsePrompt={onUsePrompt}
             onAppendPrompt={onAppendPrompt}
             onClose={() => setOpen(false)}
+            assistantRoute={route}
+            researchEnabled={researchEnabled}
           />
         </div>
       </ResponsiveDialogContent>

@@ -3014,7 +3014,10 @@
     "contextTriggers": "Triggers ×{count}",
     "contextBase": "Base",
     "assistantStageForReview": "Add to collocation review",
-    "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying."
+    "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying.",
+    "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
+    "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
+    "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference."
   },
   "LayerDecompose": {
     "title": "Layer Decompose",
@@ -4785,7 +4788,12 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
-      "setupClaude": "Claude"
+      "setupClaude": "Claude",
+      "mediaCapabilities": {
+        "imageVideo": "Images + video",
+        "imageOnly": "Image vision",
+        "textOnly": "Text only"
+      }
     },
     "inspector": {
       "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",
@@ -4816,9 +4824,13 @@
       "openImageLibrary": "Open image library",
       "imageLibraryTitle": "Select a reference image",
       "imageLibraryDescription": "Choose an existing image to attach to this assistant turn.",
+      "openVideoLibrary": "Open video library",
+      "videoLibraryTitle": "Select a reference video",
+      "videoLibraryDescription": "Choose an existing video to attach to this assistant turn.",
       "canvasReferences": "On this canvas",
       "uploadVideo": "Upload reference video",
       "galleryImageLabel": "Gallery image",
+      "galleryVideoLabel": "Gallery video",
       "referenceUploadFailed": "Reference upload failed",
       "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps.",
       "opsMalformed": "The assistant tried to change the canvas but the instruction wasn't readable — nothing was changed."
@@ -5515,6 +5527,10 @@
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
       "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
+    },
+    "assistant": {
+      "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
+      "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference."
     },
     "provider": {
       "failed": "AI provider error. Please try again.",

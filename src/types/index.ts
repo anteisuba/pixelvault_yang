@@ -40,6 +40,8 @@ import {
   LORA_CONTENT_TYPE_VALUES,
 } from '@/constants/lora'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
@@ -2177,6 +2179,7 @@ export const PromptAssistantResponseLanguageSchema = z.enum([
   'chinese',
 ])
 export const PromptAssistantModeSchema = z.enum(['general', 'lora'])
+export const PromptAssistantDomainSchema = z.enum(['image', 'video', 'lora'])
 
 // ─── LoRA assistant context (F1 转换引擎 v2, docs/plans/lora-assistant-nl2tag-2026-07.md §2.2) ───
 //
@@ -2214,8 +2217,13 @@ export const PromptAssistantRequestSchema = z.object({
   messages: z.array(PromptAssistantMessageSchema).min(1),
   /** Current generation model (for model-aware prompt formatting) */
   modelId: z.string().optional(),
-  /** Reference image base64 or URL (for style analysis) */
-  referenceImageData: z.string().optional(),
+  /** Stable image/video references attached to the latest turn. */
+  references: z
+    .array(AssistantMediaReferenceSchema)
+    .max(ASSISTANT_MEDIA_LIMITS.maxReferences)
+    .optional(),
+  /** Studio domain whose live context should guide the conversation. */
+  assistantDomain: PromptAssistantDomainSchema.optional(),
   /** Current prompt in the textarea (for context) */
   currentPrompt: z.string().optional(),
   /** User-selected API key for LLM calls */
@@ -2246,6 +2254,7 @@ export type PromptAssistantResponseLanguage = z.infer<
   typeof PromptAssistantResponseLanguageSchema
 >
 export type PromptAssistantMode = z.infer<typeof PromptAssistantModeSchema>
+export type PromptAssistantDomain = z.infer<typeof PromptAssistantDomainSchema>
 
 /** A single normalized tag from the F1 v2 output pipeline — see
  *  `src/lib/prompt-tag-normalize.ts`. Exactly one of `canonical`/`free` is

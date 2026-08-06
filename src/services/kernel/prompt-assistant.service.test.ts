@@ -72,7 +72,7 @@ describe('chatPromptAssistant', () => {
     mockGatherWebContext.mockResolvedValue({ results: [], pages: [] })
   })
 
-  it('extracts prompt from a code block in the LLM response', async () => {
+  it('preserves a normal Markdown reply in general conversation mode', async () => {
     mockLlmCompletion.mockResolvedValue(
       'Here is your prompt:\n\n```\na cat sitting under a tree, golden hour lighting\n```',
     )
@@ -82,7 +82,7 @@ describe('chatPromptAssistant', () => {
     ])
 
     expect(result.prompt).toBe(
-      'a cat sitting under a tree, golden hour lighting',
+      'Here is your prompt:\n\n```\na cat sitting under a tree, golden hour lighting\n```',
     )
     expect(mockLlmCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -108,7 +108,7 @@ describe('chatPromptAssistant', () => {
     ]
 
     await expect(chatPromptAssistant('clerk_1', messages)).resolves.toEqual({
-      prompt: 'recovered prompt',
+      prompt: '```\nrecovered prompt\n```',
     })
 
     expect(mockLlmCompletion).toHaveBeenCalledTimes(2)
@@ -144,6 +144,40 @@ describe('chatPromptAssistant', () => {
     ])
 
     expect(result.prompt).toContain('cat')
+  })
+
+  it('forwards stable video references to a Gemini assistant route', async () => {
+    mockLlmCompletion.mockResolvedValue('I can see the camera move.')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'Analyze the movement.' }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'english',
+      'general',
+      undefined,
+      undefined,
+      undefined,
+      [
+        {
+          id: 'video-1',
+          source: 'upload',
+          kind: 'video',
+          url: 'https://cdn.example.com/reference.mp4',
+          label: 'reference.mp4',
+        },
+      ],
+      'image',
+    )
+
+    expect(mockLlmCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoData: ['https://cdn.example.com/reference.mp4'],
+      }),
+    )
   })
 
   it('passes requested response language into the system prompt', async () => {
@@ -184,7 +218,7 @@ describe('chatPromptAssistant', () => {
 
     expect(mockLlmCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
-        imageData: 'data:image/png;base64,abc',
+        imageData: ['data:image/png;base64,abc'],
         systemPrompt: expect.stringContaining('LoRA-ready positive prompt'),
         userPrompt: expect.stringContaining(
           '[Current prompt in the editor]: augusta',

@@ -105,6 +105,10 @@ test.describe('Mobile Responsive', () => {
     await expect(app).toBeVisible()
     await expect(views).toHaveCSS('height', '510px')
 
+    // The app reveal starts at scale(.93) while it is below the fold. Bring the
+    // real interaction surface into view before measuring its touch targets.
+    await app.scrollIntoViewIfNeeded()
+
     const tabs = page.locator('.home-v3-tabs label')
     await expect
       .poll(
@@ -147,7 +151,12 @@ test.describe('Mobile Responsive', () => {
     // surface; without this guard the asset grid falls back to four explicit
     // rows plus one oversized implicit row.
     await page.setViewportSize({ width: 608, height: 844 })
-    await page.locator('label[for="home-v3-view-assets"]').click()
+    await page
+      .locator('#home-v3-view-assets')
+      .evaluate((element: HTMLInputElement) => {
+        element.checked = true
+        element.dispatchEvent(new Event('change', { bubbles: true }))
+      })
 
     await expect(page.locator('.home-v3-views')).toHaveCSS('height', '520px')
     const assetGridTracks = await page

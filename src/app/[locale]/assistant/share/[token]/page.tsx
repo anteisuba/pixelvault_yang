@@ -100,6 +100,33 @@ export default function AssistantSharePage({
                 <p className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {message.role === 'user' ? copy.user : copy.assistant}
                 </p>
+                {message.mediaReferences?.length ? (
+                  <div className="mb-2 flex gap-2 overflow-x-auto">
+                    {message.mediaReferences.map((reference) => (
+                      <a
+                        key={reference.id}
+                        href={reference.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={reference.label}
+                        className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
+                      >
+                        {reference.thumbnailUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- persisted remote shared media
+                          <img
+                            src={reference.thumbnailUrl}
+                            alt={reference.label}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex size-full items-center justify-center px-1 text-center text-2xs text-muted-foreground">
+                            {reference.kind === 'video' ? 'Video' : 'Image'}
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
                 <p className="whitespace-pre-wrap leading-6">
                   {message.content}
                 </p>

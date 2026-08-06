@@ -18,6 +18,8 @@ type CapturedPickerProps = {
   onChange: (option: StudioModelOption) => void
   onRequestSetup?: (option: StudioModelOption) => void
   triggerEmptyLabel?: string
+  popoverSide?: 'top' | 'bottom'
+  detailForOption?: (option: StudioModelOption) => string | undefined
 }
 let pickerProps: CapturedPickerProps | null = null
 
@@ -70,7 +72,10 @@ describe('CanvasAssistantRouteSelector', () => {
   it('drives the two-step llm_assist picker scoped to the assistant capability', () => {
     render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={vi.fn()}
       />,
     )
@@ -78,10 +83,27 @@ describe('CanvasAssistantRouteSelector', () => {
     expect(pickerProps?.llmCapability).toBe('assistant')
   })
 
+  it('opens the header model picker below its trigger', () => {
+    render(
+      <CanvasAssistantRouteSelector
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(pickerProps?.popoverSide).toBe('bottom')
+  })
+
   it('passes value=null when no key is selected, and the key route otherwise', () => {
     const { rerender } = render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={vi.fn()}
       />,
     )
@@ -89,7 +111,11 @@ describe('CanvasAssistantRouteSelector', () => {
 
     rerender(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'x', apiKeyId: 'k1' }}
+        value={{
+          optionId: 'x',
+          apiKeyId: 'k1',
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+        }}
         onChange={vi.fn()}
       />,
     )
@@ -99,18 +125,24 @@ describe('CanvasAssistantRouteSelector', () => {
   it('shows the real gateway model when no BYOK route is selected', () => {
     render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={vi.fn()}
       />,
     )
-    expect(pickerProps?.triggerEmptyLabel).toBe('OpenAI GPT-5.5')
+    expect(pickerProps?.triggerEmptyLabel).toBe('OpenAI GPT-5.6 Sol')
   })
 
   it('maps a picked saved key to the NodeAssistantRouteSelection contract', () => {
     const onChange = vi.fn()
     render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={onChange}
       />,
     )
@@ -118,6 +150,7 @@ describe('CanvasAssistantRouteSelector', () => {
     expect(onChange).toHaveBeenCalledWith({
       optionId: 'node-studio-assistant:key:key-123',
       apiKeyId: 'key-123',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
     })
   })
 
@@ -125,7 +158,10 @@ describe('CanvasAssistantRouteSelector', () => {
     const onChange = vi.fn()
     render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={onChange}
       />,
     )
@@ -136,7 +172,10 @@ describe('CanvasAssistantRouteSelector', () => {
   it('opens QuickSetup for a needs-key provider with the adapter-matched label', () => {
     render(
       <CanvasAssistantRouteSelector
-        value={{ optionId: 'node-studio-assistant:auto' }}
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
         onChange={vi.fn()}
       />,
     )
@@ -145,17 +184,42 @@ describe('CanvasAssistantRouteSelector', () => {
     act(() => {
       pickerProps?.onRequestSetup?.(
         makeOption({
-          adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-          optionId: 'llm-route:assistant:setup:qwen3-max',
-          modelId: 'qwen3-max',
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          optionId: 'llm-route:assistant:setup:claude-sonnet-4-5',
+          modelId: 'claude-sonnet-4-5',
         }),
       )
     })
     expect(quickSetupProps?.open).toBe(true)
-    expect(quickSetupProps?.adapterType).toBe(AI_ADAPTER_TYPES.DASHSCOPE)
-    // Adapter → setup label key (getSetupLabelKey maps DashScope → setupQwen).
+    expect(quickSetupProps?.adapterType).toBe(AI_ADAPTER_TYPES.ANTHROPIC)
     expect(quickSetupProps?.modelLabel).toBe(
-      'StudioNode.assistantRoute.setupQwen',
+      'StudioNode.assistantRoute.setupClaude',
     )
+  })
+
+  it('labels the media capability of every supported assistant route', () => {
+    render(
+      <CanvasAssistantRouteSelector
+        value={{
+          optionId: 'node-studio-assistant:auto',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
+        onChange={vi.fn()}
+      />,
+    )
+
+    const detail = pickerProps?.detailForOption
+    expect(detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.OPENAI }))).toBe(
+      'StudioNode.assistantRoute.mediaCapabilities.imageOnly',
+    )
+    expect(detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.GEMINI }))).toBe(
+      'StudioNode.assistantRoute.mediaCapabilities.imageVideo',
+    )
+    expect(
+      detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.DEEPSEEK })),
+    ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')
+    expect(
+      detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.ANTHROPIC })),
+    ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')
   })
 })

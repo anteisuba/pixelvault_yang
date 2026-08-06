@@ -47,6 +47,18 @@ export function CanvasAssistantReferencePicker({
     })
   }
 
+  const addVideoAsset = (generation: GenerationRecord) => {
+    if (generation.outputType !== 'VIDEO') return false
+    onAddReference({
+      id: `gallery-video:${generation.id}`,
+      source: 'gallery',
+      kind: 'video',
+      url: generation.url,
+      thumbnailUrl: generation.thumbnailUrl ?? undefined,
+      label: generation.prompt?.trim() || t('galleryVideoLabel'),
+    })
+  }
+
   const uploadImage = async (file: File) => {
     const result = await imageUpload.uploadFile(
       file,
@@ -118,11 +130,15 @@ export function CanvasAssistantReferencePicker({
         openLibrary: t('openImageLibrary'),
         libraryTitle: t('imageLibraryTitle'),
         libraryDescription: t('imageLibraryDescription'),
+        openVideoLibrary: t('openVideoLibrary'),
+        videoLibraryTitle: t('videoLibraryTitle'),
+        videoLibraryDescription: t('videoLibraryDescription'),
         existingReferences: t('canvasReferences'),
         uploadVideo: t('uploadVideo'),
       }}
       onPickImageFile={uploadImage}
       onPickImageAsset={addImageAsset}
+      onPickVideoAsset={addVideoAsset}
       onPickVideoFile={uploadVideo}
       onPickExisting={addExisting}
       triggerClassName="text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"

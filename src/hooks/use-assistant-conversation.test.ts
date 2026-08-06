@@ -206,6 +206,49 @@ describe('useAssistantConversation', () => {
     )
   })
 
+  it('stores media on its user turn and reuses stable URLs in later turns', async () => {
+    mockStreamNodeAssistantAPI
+      .mockResolvedValueOnce({
+        success: true,
+        stream: createStream(['first answer']),
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        stream: createStream(['follow-up answer']),
+      })
+    const mediaReference = {
+      id: 'gallery-video:video-1',
+      source: 'gallery' as const,
+      kind: 'video' as const,
+      url: 'https://cdn.example.com/reference.mp4',
+      thumbnailUrl: 'https://cdn.example.com/reference.jpg',
+      label: 'Camera reference',
+    }
+
+    const { result } = renderHook(() =>
+      useAssistantConversation({ persist: false }),
+    )
+
+    await act(async () => {
+      await result.current.send('Analyze this movement', {
+        ...CONTEXT,
+        references: [mediaReference],
+      })
+    })
+    expect(result.current.messages[0]).toMatchObject({
+      role: 'user',
+      mediaReferences: [mediaReference],
+    })
+
+    await act(async () => {
+      await result.current.send('How should I adapt it?', CONTEXT)
+    })
+
+    expect(mockStreamNodeAssistantAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ references: [mediaReference] }),
+    )
+  })
+
   it('retries the last user message without duplicating it', async () => {
     mockStreamNodeAssistantAPI
       .mockResolvedValueOnce({

@@ -49,6 +49,8 @@
 
 ## Design Status
 
+- 2026-08-05 LoRA 域已按 owner 真机反馈统一为系统白色浅色工作台；无 `section` 的
+  `/studio/lora` 默认入口改为 Generate，Library / Mine / Train 显式深链保持不变。
 - 2026-08-05 后续反馈已完成：首页图片案例改为“左侧文案内含交互 / 右侧纯图片”；视频生成、
   参考视频、视频合成共享白色浅色初始空态；添加菜单只保留一个直接创建的「收集」入口。
 - Round 2 共同要求：主体媒体显著放大；镜头图/关键帧重做；删除独立「视频素材/文生模式/空闲」摘要条；
@@ -68,9 +70,27 @@
 
 ## Validation
 
+- 2026-08-05 统一 AI 对话助手实现切片：Image / Video Studio、LoRA 与节点画布共用 `360px`
+  overlay 浮卡头部、同一模型注册表、历史/分享/研究与最多 8 个图片/视频附件契约；助手默认
+  OpenAI 路由升级为 `OpenAI GPT-5.6 Sol`，Gemini 接收真实视频输入，其他不兼容路由在发送前阻断。
+  附件现按用户消息持久化、历史恢复与分享回显，后续轮次继续引用稳定 URL；素材库支持图片与视频，
+  菜单明确标记视觉能力，Qwen 从共享助手路由源头排除。安装与本地命令统一使用 npm；
+  `npm run typecheck`、目标 ESLint、相关 Vitest 10 files / 110 tests 通过，追加模型注册表回归命令
+  3 files / 30 tests 通过；全量
+  `npm run lint` 为 0 error / 5 条既有 warning，全量 Vitest 在 424 秒超时且未产出最终汇总。
+  3000 端口仍由既有 Node dev 进程监听，但本轮浏览器显示“无法访问此站点”且 HTTP 冒烟请求超时；
+  按规则未重启或另起第二实例。四域桌面、375px、弹层与附件交互仍待 owner 手动刷新或后续重启 dev
+  后完成视觉验收；任务包继续保留为 active。
 - 2026-08-05 发布闸门：`npm run preflight` 全绿（TypeScript、ESLint 0 error / 5 warning、
-  Vitest 465 files / 4160 tests）；移动端 Playwright 单 worker 30/30 通过。现有 3000 dev
+  Vitest 465 files / 4161 tests）；移动端 Playwright 单 worker 30/30 通过。现有 3000 dev
   实例运行中，按仓库规则未并行执行本地 production build，构建交由 Vercel Production 验证。
+- 2026-08-05 模型选择器真机回归：Canvas 助手头部模型菜单按宿主显式向下展开，Image Studio
+  通用图片模型源排除仅供 LoRA 工作台使用的 PixelVault Runner；LoRA 独立 Runner 路径不变。
+  Studio 助手无已保存 Key 时仍展示默认助手模型与三条 Enhance 模型路由，并改为覆盖
+  主工作区的固定右侧浮卡（桌面 top / right / bottom 均留 16px，四边圆角）。当前
+  `npm run typecheck`、目标 ESLint、相关 Vitest 44/44 通过；浏览器
+  实测 Canvas 菜单 `data-side=bottom` 且完整可见，Image Studio 的 Runner 条目为 0、其余 5 个厂商
+  入口正常；Studio 助手开/关前后主工作区同为 1232px，Quick Setup 可进入。
 
 - **上一轮全量闸门：2026-07-31（包 5 交付时）**——全量 `tsc` exit 0 零输出；
   全量 vitest **4046 passed**，仅 `LoraWorkbench` 满负载超时（已登记的假失败，

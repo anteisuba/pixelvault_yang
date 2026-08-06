@@ -77,6 +77,7 @@ export interface BaseModelPickerPanelProps {
   emptySearchText?: string
   enableSearch?: boolean
   size?: 'compact' | 'default'
+  popoverSide?: 'top' | 'bottom'
   className?: string
   disabled?: boolean
   savedOptionLabelMode?: SavedOptionLabelMode
@@ -88,6 +89,8 @@ export interface BaseModelPickerPanelProps {
    * label to show in the trigger and list items.
    */
   labelForOption?: (option: StudioModelOption) => string
+  /** Optional secondary metadata shown on provider and model rows. */
+  detailForOption?: (option: StudioModelOption) => string | undefined
 }
 
 /**
@@ -107,10 +110,12 @@ export function BaseModelPickerPanel({
   emptySearchText,
   enableSearch = true,
   size = 'default',
+  popoverSide = 'top',
   className,
   disabled,
   savedOptionLabelMode = 'model',
   labelForOption,
+  detailForOption,
 }: BaseModelPickerPanelProps) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'providers' | 'models'>('providers')
@@ -227,6 +232,7 @@ export function BaseModelPickerPanel({
           getProviderLabel(opt.providerConfig),
           opt.maskedKey,
           opt.modelId,
+          detailForOption?.(opt),
         ]
           .filter((v): v is string => Boolean(v))
           .join(' ')
@@ -238,7 +244,7 @@ export function BaseModelPickerPanel({
       return displayOptions.filter((opt) => opt.adapterType === activeAdapter)
     }
     return []
-    // labelForOption/tModels are stable enough for this membership filter
+    // labelForOption/detailForOption/tModels are stable enough for this filter
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOptions, searching, searchLower, view, activeAdapter])
 
@@ -283,6 +289,7 @@ export function BaseModelPickerPanel({
     opts: StudioModelOption[]
   }) => {
     const label = getProviderLabel(opts[0].providerConfig)
+    const detail = detailForOption?.(opts[0])
     // An explicit key row is the best evidence; provider-level coverage counts
     // too — the adapter has a key, it just isn't bound to any model listed here.
     const savedOpt =
@@ -309,6 +316,7 @@ export function BaseModelPickerPanel({
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
             {tCommon('modelCount', { count: opts.length })}
+            {detail ? ` · ${detail}` : ''}
           </span>
         </span>
         {/* 台账 D7 发现 #8（2026-08-02）：编码强度原先是**反的** —— 五个用
@@ -351,13 +359,17 @@ export function BaseModelPickerPanel({
     const optionLabel = resolveLabel(option)
     const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
-    const optionMeta = option.keyLabel
+    const capabilityDetail = detailForOption?.(option)
+    const routeMeta = option.keyLabel
       ? savedOptionLabelMode === 'model'
         ? `${option.keyLabel} · ${providerLabel}`
         : `${optionModelLabel} · ${providerLabel}`
       : option.freeTier && option.sourceType === 'workspace'
         ? `${providerLabel} · ${tSetup('platformQuota')}`
         : providerLabel
+    const optionMeta = capabilityDetail
+      ? `${routeMeta} · ${capabilityDetail}`
+      : routeMeta
     const searchValue = [
       option.optionId,
       optionLabel,
@@ -365,6 +377,7 @@ export function BaseModelPickerPanel({
       option.keyLabel,
       providerLabel,
       option.maskedKey,
+      capabilityDetail,
     ]
       .filter((v): v is string => Boolean(v))
       .join(' ')
@@ -404,7 +417,13 @@ export function BaseModelPickerPanel({
   const renderLockedOption = (option: StudioModelOption) => {
     const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
-    const searchValue = [option.optionId, optionModelLabel, providerLabel]
+    const capabilityDetail = detailForOption?.(option)
+    const searchValue = [
+      option.optionId,
+      optionModelLabel,
+      providerLabel,
+      capabilityDetail,
+    ]
       .filter(Boolean)
       .join(' ')
 
@@ -424,6 +443,7 @@ export function BaseModelPickerPanel({
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
             {providerLabel}
+            {capabilityDetail ? ` · ${capabilityDetail}` : ''}
           </span>
         </span>
       </CommandItem>
@@ -497,7 +517,7 @@ export function BaseModelPickerPanel({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        side="top"
+        side={popoverSide}
         sideOffset={10}
         collisionPadding={12}
         // 台账 D7 发现 #9（2026-08-02）：面板自然高最多 384px，上方空间不够时
@@ -513,7 +533,12 @@ export function BaseModelPickerPanel({
         // it open on focus-out; real outside clicks still close via
         // onPointerDownOutside.
         onFocusOutside={(event) => event.preventDefault()}
-        className="studio-scrollbar origin-bottom max-h-[min(24rem,calc(var(--radix-popover-content-available-height)-0.5rem))] w-96 max-w-[calc(100vw-2rem)] touch-pan-y overflow-y-auto overscroll-y-contain rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] data-[side=top]:slide-in-from-bottom-2"
+        className={cn(
+          'studio-scrollbar max-h-[min(24rem,calc(var(--radix-popover-content-available-height)-0.5rem))] w-96 max-w-[calc(100vw-2rem)] touch-pan-y overflow-y-auto overscroll-y-contain rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]',
+          popoverSide === 'top'
+            ? 'origin-bottom data-[side=top]:slide-in-from-bottom-2'
+            : 'origin-top data-[side=bottom]:slide-in-from-top-2',
+        )}
       >
         <Command
           shouldFilter={false}

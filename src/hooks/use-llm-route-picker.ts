@@ -71,36 +71,42 @@ export function useLLMRoutePicker(
   const savedRoutes = useMemo<LLMRouteOption[]>(() => {
     return keys
       .filter((k) => k.isActive && adapterHasCapability(k.adapterType, scope))
-      .map((k) => {
+      .flatMap((k) => {
         const registry = getRegistryEntry(scope, k.adapterType)
-        return {
-          optionId: `llm-route:${scope}:key:${k.id}`,
-          apiKeyId: k.id,
-          adapterType: k.adapterType,
-          modelId: registry?.modelId,
-          label: registry?.label ?? k.adapterType,
-          providerLabel: getProviderLabel(k.providerConfig),
-          maskedKey: k.maskedKey,
-          keyLabel: k.label,
-          isSaved: true,
-        }
+        if (!registry) return []
+        return [
+          {
+            optionId: `llm-route:${scope}:key:${k.id}`,
+            apiKeyId: k.id,
+            adapterType: k.adapterType,
+            modelId: registry.modelId,
+            label: registry.label,
+            providerLabel: getProviderLabel(k.providerConfig),
+            maskedKey: k.maskedKey,
+            keyLabel: k.label,
+            isSaved: true,
+          },
+        ]
       })
   }, [keys, scope])
 
   const lockedRoutes = useMemo<LLMRouteOption[]>(() => {
-    return getLLMCapabilityScope(scope).map((adapterType) => {
+    return getLLMCapabilityScope(scope).flatMap((adapterType) => {
       const registry = getRegistryEntry(scope, adapterType)
-      return {
-        optionId: registry
-          ? `llm-route:${scope}:setup:${registry.modelId}`
-          : `llm-route:${scope}:setup-adapter:${adapterType}`,
-        apiKeyId: null,
-        adapterType,
-        modelId: registry?.modelId,
-        label: registry?.label ?? adapterType,
-        providerLabel: getProviderLabel(getDefaultProviderConfig(adapterType)),
-        isSaved: false,
-      }
+      if (!registry) return []
+      return [
+        {
+          optionId: `llm-route:${scope}:setup:${registry.modelId}`,
+          apiKeyId: null,
+          adapterType,
+          modelId: registry.modelId,
+          label: registry.label,
+          providerLabel: getProviderLabel(
+            getDefaultProviderConfig(adapterType),
+          ),
+          isSaved: false,
+        },
+      ]
     })
   }, [scope])
 

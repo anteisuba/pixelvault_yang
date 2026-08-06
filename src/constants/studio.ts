@@ -51,12 +51,12 @@ export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
  * uses a fixed rail, so this preference remains Studio-only.
  */
 export const STUDIO_ASSISTANT_DOCK_RESIZE = {
-  defaultWidthPx: 448,
+  defaultWidthPx: 360,
   minWidthPx: 320,
   maxWidthPx: 720,
   widthStepPx: 20,
   handleThicknessPx: 6,
-  storageKey: 'pixelvault.studio.assistantDock.layout.v1',
+  storageKey: 'pixelvault.studio.assistantDock.layout.v2',
 } as const
 
 /** Pragmatic DnD payload type for prompt-area reference strip thumbnails.

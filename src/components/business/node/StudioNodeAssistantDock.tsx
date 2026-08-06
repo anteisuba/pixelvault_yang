@@ -18,6 +18,8 @@ import {
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
 } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { assistantAdapterSupportsMedia } from '@/constants/assistant'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
@@ -194,6 +196,7 @@ export function StudioNodeAssistantDock({
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
     })
   const [researchEnabled, setResearchEnabled] = useState(false)
   const [lastReferences, setLastReferences] = useState<
@@ -604,6 +607,12 @@ export function StudioNodeAssistantDock({
                 emptyHint={opener}
                 starters={dockStarters}
                 referenceOptions={referenceOptions}
+                canUseReference={(reference) =>
+                  assistantAdapterSupportsMedia(
+                    assistantRoute.adapterType,
+                    reference.kind,
+                  )
+                }
                 onRunCapability={handleRunCapability}
                 planAssistantOps={planAssistantOps}
                 onApplyAssistantOps={handleApplyAssistantOps}
@@ -631,6 +640,12 @@ export function StudioNodeAssistantDock({
               emptyHint={opener}
               starters={dockStarters}
               referenceOptions={referenceOptions}
+              canUseReference={(reference) =>
+                assistantAdapterSupportsMedia(
+                  assistantRoute.adapterType,
+                  reference.kind,
+                )
+              }
               onRunCapability={handleRunCapability}
               planAssistantOps={planAssistantOps}
               onApplyAssistantOps={handleApplyAssistantOps}

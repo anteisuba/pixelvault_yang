@@ -40,6 +40,9 @@ interface AssistantReferencePickerLabels {
   openLibrary: string
   libraryTitle: string
   libraryDescription: string
+  openVideoLibrary?: string
+  videoLibraryTitle?: string
+  videoLibraryDescription?: string
   existingReferences?: string
   uploadVideo?: string
 }
@@ -53,6 +56,9 @@ interface AssistantReferencePickerProps {
   allowVideoUpload?: boolean
   onPickImageFile(file: File): boolean | void | Promise<boolean | void>
   onPickImageAsset(
+    generation: GenerationRecord,
+  ): boolean | void | Promise<boolean | void>
+  onPickVideoAsset?(
     generation: GenerationRecord,
   ): boolean | void | Promise<boolean | void>
   onPickVideoFile?(file: File): boolean | void | Promise<boolean | void>
@@ -78,6 +84,7 @@ export function AssistantReferencePicker({
   allowVideoUpload = false,
   onPickImageFile,
   onPickImageAsset,
+  onPickVideoAsset,
   onPickVideoFile,
   onPickExisting,
   triggerClassName,
@@ -87,6 +94,9 @@ export function AssistantReferencePicker({
   const videoInputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const [assetMediaType, setAssetMediaType] = useState<'image' | 'video'>(
+    'image',
+  )
   const [isWorking, setIsWorking] = useState(false)
 
   const runAndClose = async (
@@ -161,18 +171,37 @@ export function AssistantReferencePicker({
 
   const videoSlot =
     allowVideoUpload && onPickVideoFile && labels.uploadVideo ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={isWorking}
-        onClick={() => videoInputRef.current?.click()}
-        className="h-9 w-full gap-1.5 rounded-lg text-xs"
-      >
-        {isWorking ? <Spinner size="sm" /> : <Upload className="size-3.5" />}
-        <Video className="size-3.5" />
-        {labels.uploadVideo}
-      </Button>
+      <div className="grid gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isWorking}
+          onClick={() => videoInputRef.current?.click()}
+          className="h-9 w-full gap-1.5 rounded-lg text-xs"
+        >
+          {isWorking ? <Spinner size="sm" /> : <Upload className="size-3.5" />}
+          <Video className="size-3.5" />
+          {labels.uploadVideo}
+        </Button>
+        {onPickVideoAsset && labels.openVideoLibrary ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isWorking}
+            onClick={() => {
+              setOpen(false)
+              setAssetMediaType('video')
+              setAssetDialogOpen(true)
+            }}
+            className="h-9 w-full gap-1.5 rounded-lg text-xs"
+          >
+            <Video className="size-3.5" />
+            {labels.openVideoLibrary}
+          </Button>
+        ) : null}
+      </div>
     ) : undefined
 
   return (
@@ -238,6 +267,7 @@ export function AssistantReferencePicker({
             }}
             onOpenLibrary={() => {
               setOpen(false)
+              setAssetMediaType('image')
               setAssetDialogOpen(true)
             }}
             headerSlot={existingSlot}
@@ -250,12 +280,24 @@ export function AssistantReferencePicker({
         open={assetDialogOpen}
         onOpenChange={setAssetDialogOpen}
         onSelect={(generation) => {
-          void runAndClose(() => onPickImageAsset(generation))
+          void runAndClose(() =>
+            assetMediaType === 'video' && onPickVideoAsset
+              ? onPickVideoAsset(generation)
+              : onPickImageAsset(generation),
+          )
           setAssetDialogOpen(false)
         }}
-        title={labels.libraryTitle}
-        description={labels.libraryDescription}
-        mediaType="image"
+        title={
+          assetMediaType === 'video'
+            ? (labels.videoLibraryTitle ?? labels.libraryTitle)
+            : labels.libraryTitle
+        }
+        description={
+          assetMediaType === 'video'
+            ? (labels.videoLibraryDescription ?? labels.libraryDescription)
+            : labels.libraryDescription
+        }
+        mediaType={assetMediaType}
       />
     </>
   )

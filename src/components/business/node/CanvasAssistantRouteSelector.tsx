@@ -11,10 +11,12 @@ import {
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
 } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getAssistantMediaCapabilityLabel } from '@/constants/assistant'
 
 export interface NodeAssistantRouteSelection {
   optionId: string
   apiKeyId?: string
+  adapterType: AI_ADAPTER_TYPES
 }
 
 interface CanvasAssistantRouteSelectorProps {
@@ -28,19 +30,12 @@ export function getAssistantRouteKeyOptionId(keyId: string): string {
 
 function getSetupLabelKey(
   adapterType: AI_ADAPTER_TYPES,
-):
-  | 'setupChatGpt'
-  | 'setupDeepSeek'
-  | 'setupGemini'
-  | 'setupQwen'
-  | 'setupClaude' {
+): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' | 'setupClaude' {
   switch (adapterType) {
     case AI_ADAPTER_TYPES.OPENAI:
       return 'setupChatGpt'
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return 'setupDeepSeek'
-    case AI_ADAPTER_TYPES.DASHSCOPE:
-      return 'setupQwen'
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return 'setupClaude'
     default:
@@ -95,6 +90,7 @@ export function CanvasAssistantRouteSelector({
       onChange({
         optionId: getAssistantRouteKeyOptionId(option.keyId),
         apiKeyId: option.keyId,
+        adapterType: option.adapterType,
       })
     },
     [onChange],
@@ -122,9 +118,18 @@ export function CanvasAssistantRouteSelector({
       onChange({
         optionId: getAssistantRouteKeyOptionId(keyId),
         apiKeyId: keyId,
+        adapterType: quickSetup.adapterType,
       })
     },
-    [onChange],
+    [onChange, quickSetup.adapterType],
+  )
+
+  const detailForOption = useCallback(
+    (option: StudioModelOption) =>
+      t(
+        `mediaCapabilities.${getAssistantMediaCapabilityLabel(option.adapterType)}`,
+      ),
+    [t],
   )
 
   return (
@@ -141,6 +146,8 @@ export function CanvasAssistantRouteSelector({
         // 默认路由，而不是只写一个看不出模型的字段名。
         triggerEmptyLabel={NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].label}
         size="compact"
+        popoverSide="bottom"
+        detailForOption={detailForOption}
       />
 
       <QuickSetupDialog

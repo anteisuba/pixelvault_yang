@@ -31,8 +31,10 @@ interface CommonProps {
   emptySearchText?: string
   enableSearch?: boolean
   size?: 'compact' | 'default'
+  popoverSide?: 'top' | 'bottom'
   className?: string
   disabled?: boolean
+  detailForOption?: (option: StudioModelOption) => string | undefined
 }
 
 export type MainModelPickerProps = CommonProps &

@@ -11,34 +11,25 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import {
-  Bot,
-  GripVertical,
-  ImageDown,
-  PanelRightClose,
-  Share2,
-} from 'lucide-react'
+import { Bot, GripVertical, ImageDown } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import {
   STUDIO_ASSISTANT_DOCK_RESIZE,
   STUDIO_REFERENCE_DRAG_TYPE,
 } from '@/constants/studio'
-import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
-import { readImageFileAsBase64 } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
 import {
   AssistantShell,
   AssistantShellHeader,
 } from '@/components/business/assistant/AssistantShell'
-import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
-
-const ASSISTANT_DOCK_FILE_MAX_BYTES = 10 * 1024 * 1024
+import { StudioAssistantHeaderActions } from '@/components/business/assistant/StudioAssistantHeaderActions'
+import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 
 function PanelLoadingFallback() {
   return (
@@ -247,9 +238,10 @@ export function useDockLayout() {
 
 /**
  * StudioAssistantDock — desktop (≥lg) host for PromptAssistantPanel as a
- * persistent right-side dock, mounted as a horizontal flex sibling of
- * StudioFlowLayout in StudioWorkspaceUI. Mobile keeps the drawer host in
- * StudioEnhanceButton; both share `panels.enhance` as the open state.
+ * persistent right-side overlay, mounted as a DOM sibling of StudioFlowLayout
+ * in StudioWorkspaceUI without participating in its flex sizing. Mobile keeps
+ * the drawer host in StudioEnhanceButton; both share `panels.enhance` as the
+ * open state.
  *
  * The whole dock is a drop zone: canvas results ('studio-generation'),
  * prompt-strip thumbnails (STUDIO_REFERENCE_DRAG_TYPE), and OS image files
@@ -259,27 +251,26 @@ export function useDockLayout() {
  */
 export function StudioAssistantDock() {
   const t = useTranslations('PromptAssistant')
-  const tHistory = useTranslations('StudioNode.history')
   const isMobile = useIsMobile()
   const {
     open,
     setOpen,
     currentPrompt,
     modelId,
+    assistantDomain,
     llmApiKeys,
     referenceImageData,
     onUsePrompt,
     onAppendPrompt,
   } = useStudioAssistantPanelInputs()
   const { layout, isResizing, resetWidth, widthHandlers } = useDockLayout()
+  const { route, researchEnabled } = useStudioAssistantControls()
+  const referenceUpload = useNodeReferenceUpload()
 
   const [injectedReference, setInjectedReference] = useState<
     { url: string; token: number } | undefined
   >(undefined)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [assistantSessionId, setAssistantSessionId] = useState<string | null>(
-    null,
-  )
   const dockRef = useRef<HTMLElement>(null)
 
   // Keep the panel's dynamic chunk lazy (loads on first open, or earlier if
@@ -345,34 +336,14 @@ export function StudioAssistantDock() {
         entry.type.startsWith('image/'),
       )
       if (!file) return
-      void readImageFileAsBase64(file, {
-        maxFileSize: ASSISTANT_DOCK_FILE_MAX_BYTES,
-      }).then((result) => {
-        if (result.ok) injectReference(result.base64)
-      })
+      void referenceUpload
+        .uploadFile(file, 'Studio assistant reference')
+        .then((result) => {
+          if (result.success && result.url) injectReference(result.url)
+        })
     },
-    [injectReference],
+    [injectReference, referenceUpload],
   )
-
-  const handleShareAssistant = useCallback(async () => {
-    if (!assistantSessionId) {
-      toast.error(tHistory('shareFailed'))
-      return
-    }
-    const result = await createAssistantConversationShareAPI(assistantSessionId)
-    if (!result.success) {
-      toast.error(tHistory('shareFailed'))
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(
-        `${window.location.origin}/${window.location.pathname.split('/')[1] || 'en'}/assistant/share/${result.data.token}`,
-      )
-      toast.success(tHistory('shareCopied'))
-    } catch {
-      toast.error(tHistory('shareFailed'))
-    }
-  }, [assistantSessionId, tHistory])
 
   if (isMobile) return null
 
@@ -389,8 +360,8 @@ export function StudioAssistantDock() {
       onDragLeave={handleNativeDragLeave}
       onDrop={handleNativeDrop}
       className={cn(
-        'node-canvas-panel-motion relative hidden shrink-0 overflow-hidden bg-background lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col',
-        open && 'border-l border-border/60',
+        'node-canvas-panel-motion fixed bottom-4 right-4 top-4 z-40 hidden overflow-hidden rounded-xl bg-background lg:flex lg:flex-col',
+        open && 'border border-border/60 shadow-sm',
       )}
     >
       <div
@@ -415,29 +386,7 @@ export function StudioAssistantDock() {
         title={t('dockTitle')}
         leading={<Bot className="size-4 shrink-0 text-primary" />}
         actions={
-          <>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={tHistory('share')}
-              title={tHistory('share')}
-              onClick={() => void handleShareAssistant()}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <Share2 className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={t('dockCollapse')}
-              onClick={() => setOpen(false)}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <PanelRightClose className="size-4" />
-            </Button>
-          </>
+          <StudioAssistantHeaderActions onClose={() => setOpen(false)} />
         }
       />
 
@@ -449,12 +398,14 @@ export function StudioAssistantDock() {
           <PromptAssistantPanel
             currentPrompt={currentPrompt}
             modelId={modelId}
+            assistantDomain={assistantDomain}
             referenceImageData={referenceImageData}
             llmApiKeys={llmApiKeys}
             onUsePrompt={onUsePrompt}
             onAppendPrompt={onAppendPrompt}
-            onSessionIdChange={setAssistantSessionId}
             injectedReference={injectedReference}
+            assistantRoute={route}
+            researchEnabled={researchEnabled}
           />
         )}
       </div>

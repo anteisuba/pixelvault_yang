@@ -7,6 +7,7 @@ import {
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
 } from '@/constants/config'
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
@@ -49,6 +50,8 @@ export interface LlmTextInput {
    *    value is forwarded as-is.
    */
   imageData?: string | string[]
+  /** Native video inputs. Currently supported only by the Gemini branch. */
+  videoData?: string | string[]
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
@@ -80,6 +83,22 @@ const GeminiTextResponseSchema = z.object({
       }),
     )
     .optional(),
+})
+
+const GeminiFileUploadResponseSchema = z.object({
+  file: z.object({
+    name: z.string(),
+    uri: z.string(),
+    mimeType: z.string().optional(),
+    state: z.string().optional(),
+  }),
+})
+
+const GeminiFileStatusSchema = z.object({
+  name: z.string(),
+  uri: z.string().optional(),
+  mimeType: z.string().optional(),
+  state: z.string().optional(),
 })
 
 const OpenAiChatTextPartSchema = z.object({
@@ -593,6 +612,147 @@ async function toGeminiInlinePart(
   }
 }
 
+interface GeminiVideoPartResult {
+  part: Record<string, unknown>
+  uploadedFileName?: string
+}
+
+function waitForGeminiFilePoll(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ASSISTANT_MEDIA_LIMITS.geminiFilePollIntervalMs)
+  })
+}
+
+async function uploadGeminiVideoFile(
+  buffer: Buffer,
+  mimeType: string,
+  apiKey: string,
+): Promise<{ name: string; uri: string; mimeType: string }> {
+  const startResponse = await fetch(AI_PROVIDER_ENDPOINTS.GEMINI_FILES_UPLOAD, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': apiKey,
+      'X-Goog-Upload-Protocol': 'resumable',
+      'X-Goog-Upload-Command': 'start',
+      'X-Goog-Upload-Header-Content-Length': String(buffer.byteLength),
+      'X-Goog-Upload-Header-Content-Type': mimeType,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ file: { display_name: 'assistant-reference' } }),
+  })
+  if (!startResponse.ok) {
+    const detail = await startResponse.text().catch(() => '')
+    throw new Error(
+      `Gemini video upload could not start (${startResponse.status}): ${detail.slice(0, 200)}`,
+    )
+  }
+
+  const uploadUrl = startResponse.headers.get('x-goog-upload-url')
+  if (!uploadUrl) {
+    throw new Error('Gemini video upload did not return an upload URL.')
+  }
+
+  const uploadBody = new Uint8Array(buffer.byteLength)
+  uploadBody.set(buffer)
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Length': String(buffer.byteLength),
+      'X-Goog-Upload-Offset': '0',
+      'X-Goog-Upload-Command': 'upload, finalize',
+    },
+    body: uploadBody,
+  })
+  if (!uploadResponse.ok) {
+    const detail = await uploadResponse.text().catch(() => '')
+    throw new Error(
+      `Gemini video upload failed (${uploadResponse.status}): ${detail.slice(0, 200)}`,
+    )
+  }
+
+  const uploaded = GeminiFileUploadResponseSchema.parse(
+    await uploadResponse.json(),
+  ).file
+  const deadline = Date.now() + ASSISTANT_MEDIA_LIMITS.geminiFilePollTimeoutMs
+  let current: z.infer<typeof GeminiFileStatusSchema> = uploaded
+
+  while (current.state === 'PROCESSING') {
+    if (Date.now() >= deadline) {
+      throw new Error('Gemini video processing timed out.')
+    }
+    await waitForGeminiFilePoll()
+    const fileId = current.name.replace(/^files\//, '')
+    const statusResponse = await fetch(
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/${fileId}`,
+      { headers: { 'x-goog-api-key': apiKey } },
+    )
+    if (!statusResponse.ok) {
+      throw new Error(
+        `Gemini video processing status failed (${statusResponse.status}).`,
+      )
+    }
+    current = GeminiFileStatusSchema.parse(await statusResponse.json())
+  }
+
+  if (current.state === 'FAILED' || !current.uri) {
+    throw new Error('Gemini could not process the attached video.')
+  }
+
+  return {
+    name: current.name,
+    uri: current.uri,
+    mimeType: current.mimeType ?? mimeType,
+  }
+}
+
+async function toGeminiVideoPart(
+  videoUrl: string,
+  apiKey: string,
+): Promise<GeminiVideoPartResult> {
+  const { buffer, mimeType } = await fetchAsBuffer(videoUrl, {
+    maxBytes: ASSISTANT_MEDIA_LIMITS.maxVideoBytes,
+  })
+  if (!mimeType.startsWith('video/')) {
+    throw new Error('Assistant video reference did not resolve to a video.')
+  }
+
+  if (buffer.byteLength < ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes) {
+    return {
+      part: {
+        inlineData: { mimeType, data: buffer.toString('base64') },
+      },
+    }
+  }
+
+  const uploaded = await uploadGeminiVideoFile(buffer, mimeType, apiKey)
+  return {
+    part: {
+      fileData: {
+        mimeType: uploaded.mimeType,
+        fileUri: uploaded.uri,
+      },
+    },
+    uploadedFileName: uploaded.name,
+  }
+}
+
+async function deleteGeminiUploadedFile(
+  name: string,
+  apiKey: string,
+): Promise<void> {
+  const fileId = name.replace(/^files\//, '')
+  const response = await fetch(
+    `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/${fileId}`,
+    { method: 'DELETE', headers: { 'x-goog-api-key': apiKey } },
+  )
+  if (!response.ok) {
+    logger.warn('Gemini assistant video cleanup failed', {
+      fileId,
+      status: response.status,
+    })
+  }
+}
+
 async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
@@ -608,31 +768,56 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     parts.push(...imageParts)
   }
 
+  const uploadedVideoNames: string[] = []
+  if (input.videoData) {
+    const videos = Array.isArray(input.videoData)
+      ? input.videoData
+      : [input.videoData]
+    const videoParts = await Promise.all(
+      videos.map((video) => toGeminiVideoPart(video, input.apiKey)),
+    )
+    parts.push(...videoParts.map((entry) => entry.part))
+    uploadedVideoNames.push(
+      ...videoParts.flatMap((entry) =>
+        entry.uploadedFileName ? [entry.uploadedFileName] : [],
+      ),
+    )
+  }
+
   parts.push({ text: input.userPrompt })
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'x-goog-api-key': input.apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: input.systemPrompt }],
+  let response: Response
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': input.apiKey,
+        'Content-Type': 'application/json',
       },
-      contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ['TEXT'],
-        ...(!input.providerManagedOutput && input.maxTokens
-          ? { maxOutputTokens: input.maxTokens }
-          : {}),
-        ...(input.responseFormat === 'json_object'
-          ? { responseMimeType: 'application/json' }
-          : {}),
-      },
-      ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
-    }),
-  })
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: input.systemPrompt }],
+        },
+        contents: [{ parts }],
+        generationConfig: {
+          responseModalities: ['TEXT'],
+          ...(!input.providerManagedOutput && input.maxTokens
+            ? { maxOutputTokens: input.maxTokens }
+            : {}),
+          ...(input.responseFormat === 'json_object'
+            ? { responseMimeType: 'application/json' }
+            : {}),
+        },
+        ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
+      }),
+    })
+  } finally {
+    await Promise.allSettled(
+      uploadedVideoNames.map((name) =>
+        deleteGeminiUploadedFile(name, input.apiKey),
+      ),
+    )
+  }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -653,6 +838,9 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.videoData) {
+    throw new Error('OpenAI assistant route does not support video input.')
+  }
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
   const requestModelId = input.useGrounding
     ? LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API
@@ -722,6 +910,9 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
   if (input.imageData) {
     throw new Error('DeepSeek text completion does not support image input.')
   }
+  if (input.videoData) {
+    throw new Error('DeepSeek text completion does not support video input.')
+  }
 
   if (input.useGrounding) {
     throw new Error('DeepSeek text completion does not support grounding.')
@@ -783,6 +974,9 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  *  3. No grounding / web_search support (compatible-mode has no such tool).
  */
 async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.videoData) {
+    throw new Error('Qwen text completion does not support video input.')
+  }
   if (input.useGrounding) {
     throw new Error(
       'Qwen (DashScope) text completion does not support grounding.',
@@ -899,6 +1093,9 @@ const AnthropicTextResponseSchema = z.object({
 async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
   if (input.imageData) {
     throw new Error('Claude text completion does not support image input.')
+  }
+  if (input.videoData) {
+    throw new Error('Claude text completion does not support video input.')
   }
 
   if (input.useGrounding) {

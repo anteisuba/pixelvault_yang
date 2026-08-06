@@ -1,57 +1,53 @@
-/* lora.css — LoRA 域皮肤「近炭暖灰」（方向 B 装配台）
+/* lora.css — LoRA 域浅色皮肤（方向 B 装配台）
  * S1 token 层。作用域 = .domain-lora（挂在 LoraWorkbench 根）。
- * 四轴：基调=近炭暖灰（深灰·微暖·贴近外壳，owner 2026-07-24 逐档选定）/
- *       浮起纸面 / 石墨中性 / 柔顺连续。
- * 基调历程（git 有值）：深炭黑✗ → 冷瓷浅✗ → 深靛✗ → 中性灰试 → 近炭暖灰(定)。
+ * 基调：与系统浅色语义槽一致的白色工作台 / 轻灰凹面 / 石墨中性 / 柔顺连续。
  *
- * 机制：app 硬编码 <html class="dark">（layout.tsx:33）。.domain-lora 在本作用域
- * 覆盖语义槽（更近祖先胜 <html.dark>，同 canvas.css .node-card-paper）；
- * color-scheme:dark 与 app 一致。近炭深灰跟深色外壳融、不"浅区块"，微暖调
- * （hue≈68）区分于中性外壳、更柔和。石墨中性：深底翻成高对比浅暖出图键；
+ * 机制：在 .domain-lora 内重映射语义槽，确保 LoRA 页面及其弹层不再覆盖成
+ * 深炭色；显式 color-scheme: light 让原生表单与滚动条也跟随系统浅色外观。
  * 彩色只留功能语义（兼容绿/琥珀），效果图是唯一饱和色源。
  * 红线：严格 .domain-lora 作用域，不改全局 @theme / 脊柱。
  * 现有 .lora-* 行为类仍在 globals.css，本片不动。满屏三栏 + 组件重宿主见 S2。 */
 
 .domain-lora {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* 1 · 表面梯度（well 最沉 < page < panel 抬升 < overlay 浮层）·投影 */
-  --lora-page: oklch(0.185 0.01 68);
-  --lora-well: oklch(0.155 0.008 68);
-  --lora-panel: oklch(0.23 0.012 68);
-  --lora-overlay: oklch(0.265 0.013 68);
-  --lora-scrim: oklch(0.09 0.008 68 / 0.62);
+  /* 1 · 表面梯度（白色 page / panel / overlay + 轻灰 well）·投影 */
+  --lora-page: oklch(1 0 0);
+  --lora-well: oklch(0.97 0 0);
+  --lora-panel: oklch(1 0 0);
+  --lora-overlay: oklch(1 0 0);
+  --lora-scrim: oklch(0.145 0 0 / 0.38);
   --lora-shadow-panel:
-    0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.5);
-  --lora-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.45);
+    0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.06);
+  --lora-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.08);
   --lora-shadow-modal:
-    0 2px 8px rgba(0, 0, 0, 0.45), 0 16px 48px rgba(0, 0, 0, 0.6);
+    0 2px 8px rgba(0, 0, 0, 0.08), 0 16px 48px rgba(0, 0, 0, 0.16);
 
-  /* 2 · 发丝线（深底·暖白半透） */
-  --lora-hairline: oklch(0.9 0.02 70 / 0.12);
-  --lora-hairline-strong: oklch(0.9 0.02 70 / 0.22);
+  /* 2 · 发丝线（与系统浅色 border 同档） */
+  --lora-hairline: oklch(0.922 0 0);
+  --lora-hairline-strong: oklch(0.84 0 0);
 
   /* 3 · 文本与数值（数值走 Geist Mono，见组件层） */
-  --lora-ink: oklch(0.96 0.006 70);
-  --lora-ink-2: oklch(0.82 0.008 70);
-  --lora-muted: oklch(0.68 0.01 70);
-  --lora-faint: oklch(0.55 0.01 70);
+  --lora-ink: oklch(0.145 0 0);
+  --lora-ink-2: oklch(0.4 0 0);
+  --lora-muted: oklch(0.556 0 0);
+  --lora-faint: oklch(0.708 0 0);
 
-  /* 4 · 功能语义色（仅两组·深底提亮档·无彩强调，效果图是唯一饱和色源） */
-  --lora-ok: oklch(0.74 0.14 158);
-  --lora-ok-tint: oklch(0.3 0.05 158);
-  --lora-warn: oklch(0.78 0.13 78);
-  --lora-warn-ink: oklch(0.83 0.12 80);
-  --lora-warn-tint: oklch(0.32 0.06 78);
-  --lora-warn-line: oklch(0.5 0.09 78);
+  /* 4 · 功能语义色（仅两组·浅底可读档，效果图是唯一饱和色源） */
+  --lora-ok: oklch(0.62 0.095 158);
+  --lora-ok-tint: oklch(0.965 0.02 155);
+  --lora-warn: oklch(0.68 0.115 75);
+  --lora-warn-ink: oklch(0.5 0.1 70);
+  --lora-warn-tint: oklch(0.972 0.025 85);
+  --lora-warn-line: oklch(0.88 0.055 82);
 
-  /* 5 · 主动作与交互态（石墨中性·深底翻成高对比浅暖出图键） */
-  --lora-primary: oklch(0.95 0.008 75);
-  --lora-primary-hi: oklch(1 0 0);
-  --lora-primary-fg: oklch(0.2 0.01 65);
-  --lora-ring: oklch(0.72 0.02 75 / 0.5);
+  /* 5 · 主动作与交互态（与系统一致的黑底白字） */
+  --lora-primary: oklch(0 0 0);
+  --lora-primary-hi: oklch(0.2 0 0);
+  --lora-primary-fg: oklch(1 0 0);
+  --lora-ring: oklch(0.708 0 0);
 
-  /* ── 语义脊柱映射（提槽不提皮·覆盖 .dark 在本作用域内的值）── */
+  /* ── 语义脊柱映射（提槽不提皮·仅在 LoRA 域内覆盖）── */
   --background: var(--lora-page);
   --foreground: var(--lora-ink);
   --card: var(--lora-panel);
@@ -60,11 +56,11 @@
   --popover-foreground: var(--lora-ink);
   --primary: var(--lora-primary);
   --primary-foreground: var(--lora-primary-fg);
-  --secondary: oklch(0.27 0.011 68);
+  --secondary: oklch(0.97 0 0);
   --secondary-foreground: var(--lora-ink);
-  --muted: oklch(0.24 0.01 68);
+  --muted: var(--lora-well);
   --muted-foreground: var(--lora-muted);
-  --accent: oklch(0.29 0.012 68);
+  --accent: oklch(0.97 0 0);
   --accent-foreground: var(--lora-ink);
   /* 错误走琥珀，不引入红 */
   --destructive: var(--lora-warn);
@@ -77,7 +73,7 @@
   --lora-motion: 240ms;
   --lora-motion-ease: var(--ease-standard);
 
-  /* 域根表面：整个装配台区域是近炭暖灰（满屏三栏布局在 S2 重构，此处先立底） */
+  /* 域根表面：整个 LoRA 工作台统一为系统白底。 */
   background: var(--lora-page);
   color: var(--lora-ink);
 }

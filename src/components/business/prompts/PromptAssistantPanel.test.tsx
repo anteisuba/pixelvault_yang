@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { PromptAssistantMessage } from '@/types'
 
 // ─── Mocks ───────────────────────────────────────────────────────
@@ -35,9 +36,6 @@ vi.mock('@/hooks/kernel/use-prompt-assistant', () => ({
   }),
 }))
 
-vi.mock('@/components/business/studio-shared/pickers', () => ({
-  MainModelPicker: () => null,
-}))
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))
@@ -57,6 +55,24 @@ beforeEach(() => {
 })
 
 describe('PromptAssistantPanel', () => {
+  it('uses the model route controlled by the shared assistant header', () => {
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        onUsePrompt={vi.fn()}
+        assistantRoute={{
+          optionId: 'gemini-key',
+          apiKeyId: 'key-1',
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('starterA'))
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(sendMock.mock.calls[0][1]).toMatchObject({ apiKeyId: 'key-1' })
+  })
+
   it('keeps action presets and drops the style presets (decision 5②)', () => {
     render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
 
@@ -73,7 +89,7 @@ describe('PromptAssistantPanel', () => {
     }
   })
 
-  it('renders starter examples in the empty state and sends on click', () => {
+  it('renders starter examples and prefills before sending', () => {
     render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
 
     expect(screen.getByText('starterA')).toBeInTheDocument()
@@ -81,8 +97,10 @@ describe('PromptAssistantPanel', () => {
     expect(screen.getByText('starterC')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('starterA'))
-    expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][0]).toBe('starterA')
+    expect(sendMock).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText('placeholder')).toHaveValue('starterA')
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(sendMock).toHaveBeenCalledWith('starterA', expect.any(Object))
   })
 
   it('shows translated target model label instead of raw model id', () => {
@@ -142,24 +160,24 @@ describe('PromptAssistantPanel', () => {
 
   // ── D5/D4 composer 收敛（2026-07-07 dock 重设计）────────────────
 
-  it('exposes the research toggle and drops the inspiration toggle', () => {
+  it('keeps research in the shared header instead of duplicating it in the composer', () => {
     render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
 
-    const researchToggle = screen.getByRole('button', { name: 'research' })
-    expect(researchToggle).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(researchToggle)
-    expect(researchToggle).toHaveAttribute('aria-pressed', 'true')
-
     expect(
-      screen.queryByRole('button', { name: 'useInspirationContext' }),
+      screen.queryByRole('button', { name: 'research' }),
     ).not.toBeInTheDocument()
   })
 
   it('sends the research flag with the message when enabled', () => {
-    render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'research' }))
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        onUsePrompt={vi.fn()}
+        researchEnabled
+      />,
+    )
     fireEvent.click(screen.getByText('starterA'))
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
 
     expect(sendMock).toHaveBeenCalledTimes(1)
     expect(sendMock.mock.calls[0][1]).toMatchObject({ research: true })
@@ -169,7 +187,7 @@ describe('PromptAssistantPanel', () => {
     render(<PromptAssistantPanel currentPrompt="" onUsePrompt={vi.fn()} />)
 
     expect(
-      screen.getByRole('button', { name: 'imageButton' }),
+      screen.getByRole('button', { name: 'addReference' }),
     ).toBeInTheDocument()
     // 旧的独立「选素材」按钮不再存在（selectAsset 只剩 Dialog 标题用途）
     expect(

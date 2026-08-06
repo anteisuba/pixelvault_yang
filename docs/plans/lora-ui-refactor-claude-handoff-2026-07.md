@@ -1,11 +1,11 @@
 # Task Packet: LoRA Library + Generate UI 重构交接
 
-> 状态：**可交 Claude 执行桌面实现（2026-07-19）**。owner 已确认 Library 与 Generate 的桌面方向和关键切片；本任务包把已确认内容压缩为施工边界。它不授权重做 Train、不授权补造移动端设计，也不授权改变业务/API/provider 契约。
+> 状态：**桌面实现契约有效；默认入口与浅色基调于 2026-08-05 更新**。owner 已确认 Library 与 Generate 的桌面方向和关键切片；本任务包把已确认内容压缩为施工边界。它不授权重做 Train、不授权补造移动端设计，也不授权改变业务/API/provider 契约。
 
 ## Goal
 
 - 在 `/studio/lora` 保留全部真实业务能力和 URL/挂载/生成/持久化契约的前提下，按已确认页面文档重构 **Library、Generate 与共享来源配方 modal 的桌面 UI**。
-- 交付应让 Library 成为高频默认入口，用户从效果证据判断 LoRA，点击明确主动作后直接挂载并进入 Generate；Generate 形成稳定的“当前装配 → 输入 → 出图 → 结果”并排工作台。
+- 交付应让 Generate 成为无参数默认入口，并形成稳定的“当前装配 → 输入 → 出图 → 结果”并排工作台；Library 保持高频发现入口，用户从效果证据判断 LoRA 后通过明确主动作直接挂载并进入 Generate。
 
 ## Non-goals
 
@@ -51,10 +51,10 @@
 ### A. 整域与导航
 
 - LoRA 是独立业务域，不是 Image Studio 的高级参数抽屉。
-- 工作模式保持 Generate / Library / Train；无 `section` 时沿用 `community`，因此 **Library 是默认入口**。
+- 工作模式保持 Generate / Library / Train；无 `section` 时进入 **Generate**，`community` / `mine` / `train` 显式深链保持各自入口语义。
 - Generate 是执行核心；Library 是高频发现与管理入口；Train 是资源生产入口。
 - 删除 LoRA 内容上方只显示“工作台”的冗余顶栏与重复账号入口；保留应用左侧 shell。
-- 三个空间共享克制的中性深色域级气质，但可以有不同骨架。当前只实现 Library 与 Generate 的已确认骨架。
+- 三个空间共享与系统统一的白色浅色域级气质，但可以有不同骨架。当前只实现 Library 与 Generate 的已确认骨架。
 
 ### B. Library — 聚焦浏览
 
@@ -218,7 +218,7 @@
 
 ### 已确认假设
 
-- 默认 `community` 即 Library，保持现有 query 契约。
+- 无 `section` 时默认 Generate；显式 section 与其它 Library query 契约保持不变。
 - Library “使用此 LoRA”沿用现有挂载规则并跳 Generate，不新增确认框。
 - Generate 普通结果已经自动持久化；结果列不需要“入库”。
 - 会话历史只存在内存，刷新清空，容量仍由现有 `LORA_RESULT_HISTORY_MAX` 决定。
@@ -282,8 +282,8 @@ git diff --check
 
 ### 浏览器与截图
 
-- Library：默认入口、Public/Mine、Civitai/HF、搜索、类型、底模、排序、安全、刷新、分页、展开/关闭、收藏、来源、使用并跳 Generate。
-- Generate：上述五状态，以及参考图 0/1/多张、Prompt 长文本、Negative/参数展开、生成中/失败/成功/多结果历史。
+- Library：通过 `section=community` 进入后验证 Public/Mine、Civitai/HF、搜索、类型、底模、排序、安全、刷新、分页、展开/关闭、收藏、来源、使用并跳 Generate。
+- Generate：无 `section` 的默认入口与显式 `section=generate` 都应选中生成页；覆盖上述五状态，以及参考图 0/1/多张、Prompt 长文本、Negative/参数展开、生成中/失败/成功/多结果历史。
 - 助手：1440px 停靠、约 1189px 覆盖、Esc/关闭/focus return、主台状态与滚动恢复。
 - modal：Library 与 Generate 两处打开，左右滚动、复制、做同款、已有输入搭配提醒、遮罩/Esc/关闭。
 - 输出同视口 before/after 截图，与三张确认图并列核对；不得用截图替代行为断言。

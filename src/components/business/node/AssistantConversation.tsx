@@ -53,6 +53,7 @@ interface AssistantConversationProps {
   starters?: { id: string; label: string; prompt: string }[]
   /** Image/video nodes available as references for the next assistant turn. */
   referenceOptions?: NodeAssistantMediaReference[]
+  canUseReference?(reference: NodeAssistantMediaReference): boolean
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
   /**
    * 包 5：把一份提案排成「哪些能做、哪些不能以及为什么」。由 dock 提供 —— 只有
@@ -129,11 +130,13 @@ export function AssistantConversation({
   emptyHint,
   starters,
   referenceOptions = [],
+  canUseReference = () => true,
   onRunCapability,
   planAssistantOps,
   onApplyAssistantOps,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
+  const tAssistant = useTranslations('PromptAssistant')
   const [draft, setDraft] = useState('')
   const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(
     () => new Set(),
@@ -141,6 +144,9 @@ export function AssistantConversation({
   const [selectedReferences, setSelectedReferences] = useState<
     NodeAssistantMediaReference[]
   >([])
+  const unsupportedReference = selectedReferences.find(
+    (reference) => !canUseReference(reference),
+  )
 
   const addReference = useCallback((reference: NodeAssistantMediaReference) => {
     setSelectedReferences((current) =>
@@ -174,7 +180,7 @@ export function AssistantConversation({
       const nextDraft =
         draft.trim() ||
         (selectedReferences.length > 0 ? t('referenceOnlyPrompt') : '')
-      if (!nextDraft || isLoading) {
+      if (!nextDraft || isLoading || unsupportedReference) {
         return
       }
 
@@ -186,7 +192,7 @@ export function AssistantConversation({
       }
       setSelectedReferences([])
     },
-    [draft, isLoading, onSend, selectedReferences, t],
+    [draft, isLoading, onSend, selectedReferences, t, unsupportedReference],
   )
 
   return (
@@ -241,6 +247,38 @@ export function AssistantConversation({
                       : 'border border-node-panel-inner bg-node-panel-soft text-node-foreground',
                   )}
                 >
+                  {message.role === 'user' &&
+                  message.mediaReferences?.length ? (
+                    <div className="mb-2 flex justify-end gap-1.5 overflow-x-auto">
+                      {message.mediaReferences.map((reference) => {
+                        const Icon =
+                          reference.kind === 'video' ? Video : ImageIcon
+                        return (
+                          <span
+                            key={reference.id}
+                            className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-node-panel-inner bg-node-canvas/60"
+                            title={reference.label}
+                          >
+                            {reference.thumbnailUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- persisted remote user media
+                              <img
+                                src={reference.thumbnailUrl}
+                                alt={reference.label}
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <span className="flex size-full items-center justify-center">
+                                <Icon className="size-4" />
+                              </span>
+                            )}
+                            <span className="absolute bottom-0.5 left-0.5 rounded bg-node-panel/85 p-0.5">
+                              <Icon className="size-2.5" />
+                            </span>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  ) : null}
                   {message.content ? (
                     // 台账 G3（2026-08-02）：助手回复此前是纯文本 <p>，`###`
                     // `**` 原样打在屏幕上。展开态走 Markdown 原语 + 画布域
@@ -398,6 +436,13 @@ export function AssistantConversation({
               })}
             </div>
           ) : null}
+          {unsupportedReference ? (
+            <p className="px-2 pb-1 text-xs text-destructive" role="alert">
+              {unsupportedReference.kind === 'video'
+                ? tAssistant('videoUnsupported')
+                : tAssistant('imageUnsupported')}
+            </p>
+          ) : null}
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -420,7 +465,9 @@ export function AssistantConversation({
               type="submit"
               size="icon"
               disabled={
-                (!draft.trim() && selectedReferences.length === 0) || isLoading
+                (!draft.trim() && selectedReferences.length === 0) ||
+                isLoading ||
+                Boolean(unsupportedReference)
               }
               aria-label={t('send')}
               className="size-10 shrink-0 rounded-full bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"

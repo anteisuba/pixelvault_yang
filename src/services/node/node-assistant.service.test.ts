@@ -190,7 +190,7 @@ describe('createNodeAssistantStream', () => {
     await expect(readStream(stream)).resolves.toBe('Gateway answer')
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'openai/gpt-5.5',
+        model: 'openai/gpt-5.6-sol',
         prompt: expect.stringContaining('[[node:node-1]]'),
       }),
     )

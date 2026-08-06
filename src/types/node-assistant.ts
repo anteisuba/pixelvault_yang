@@ -8,6 +8,7 @@ import {
   NodeStatusSchema,
   NodeWorkflowNodeTypeSchema,
 } from '@/types/node-workflow'
+import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
 import { LOCALES } from '@/i18n/routing'
 
 export const NodeAssistantMessageRoleSchema = z.enum(
@@ -45,16 +46,7 @@ export const NodeAssistantNodeContextSchema = z.object({
  * data URLs, so the assistant request stays bounded and share/history rows do
  * not accidentally contain binary payloads.
  */
-export const NodeAssistantMediaReferenceSchema = z.object({
-  id: z.string().trim().min(1).max(160),
-  /** Present for references selected from an existing canvas node. */
-  nodeId: z.string().trim().min(1).max(160).optional(),
-  source: z.enum(['canvas', 'upload', 'gallery']).optional(),
-  kind: z.enum(['image', 'video']),
-  url: z.string().trim().url().max(4000),
-  thumbnailUrl: z.string().trim().url().max(4000).optional(),
-  label: z.string().trim().min(1).max(160),
-})
+export const NodeAssistantMediaReferenceSchema = AssistantMediaReferenceSchema
 
 export const NodeAssistantRequestSchema = z.object({
   messages: z
@@ -91,6 +83,6 @@ export type NodeAssistantNodeContext = z.infer<
   typeof NodeAssistantNodeContextSchema
 >
 export type NodeAssistantMediaReference = z.infer<
-  typeof NodeAssistantMediaReferenceSchema
+  typeof AssistantMediaReferenceSchema
 >
 export type NodeAssistantRequest = z.infer<typeof NodeAssistantRequestSchema>

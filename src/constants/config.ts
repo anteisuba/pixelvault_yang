@@ -418,6 +418,9 @@ export const AI_PROVIDER_ENDPOINTS = {
     'https://generativelanguage.googleapis.com/v1beta/interactions',
   /** Files API — where `delivery: 'uri'` video output lands. */
   GEMINI_FILES: 'https://generativelanguage.googleapis.com/v1beta/files',
+  /** Resumable upload entry used by Gemini video understanding. */
+  GEMINI_FILES_UPLOAD:
+    'https://generativelanguage.googleapis.com/upload/v1beta/files',
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
   DEEPSEEK: 'https://api.deepseek.com',
@@ -455,6 +458,7 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
   GEMINI_3_5_FLASH: 'gemini-3.5-flash',
   OPENAI_GPT_5_5: 'gpt-5.5',
+  OPENAI_GPT_5_6_SOL: 'gpt-5.6-sol',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +

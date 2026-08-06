@@ -10,6 +10,7 @@ const mockCaptureVideoThumbnail = vi.fn()
 let pickerProps: {
   onPickImageFile(file: File): unknown
   onPickImageAsset(generation: GenerationRecord): unknown
+  onPickVideoAsset(generation: GenerationRecord): unknown
   onPickExisting(reference: AssistantReferenceOption): unknown
 }
 
@@ -109,5 +110,33 @@ describe('CanvasAssistantReferencePicker', () => {
 
     pickerProps.onPickExisting(reference)
     expect(onAddReference).toHaveBeenCalledWith(reference)
+  })
+
+  it('adds a gallery video as the full stable video URL, not its poster', () => {
+    const onAddReference = vi.fn()
+    render(
+      <CanvasAssistantReferencePicker
+        references={[]}
+        selectedReferences={[]}
+        onAddReference={onAddReference}
+      />,
+    )
+
+    pickerProps.onPickVideoAsset({
+      id: 'video-1',
+      outputType: 'VIDEO',
+      url: 'https://cdn.example.com/reference.mp4',
+      thumbnailUrl: 'https://cdn.example.com/reference.jpg',
+      prompt: 'Camera movement reference',
+    } as GenerationRecord)
+
+    expect(onAddReference).toHaveBeenCalledWith({
+      id: 'gallery-video:video-1',
+      source: 'gallery',
+      kind: 'video',
+      url: 'https://cdn.example.com/reference.mp4',
+      thumbnailUrl: 'https://cdn.example.com/reference.jpg',
+      label: 'Camera movement reference',
+    })
   })
 })

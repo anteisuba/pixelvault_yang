@@ -14,7 +14,7 @@ export const POST = createApiRoute({
       clerkId,
       data.messages,
       data.modelId,
-      data.referenceImageData,
+      undefined,
       data.currentPrompt,
       data.apiKeyId,
       data.responseLanguage,
@@ -22,6 +22,8 @@ export const POST = createApiRoute({
       data.useInspirationContext,
       data.research,
       data.loraContext,
+      data.references,
+      data.assistantDomain,
     )
   },
 })

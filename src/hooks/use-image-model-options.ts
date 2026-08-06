@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 
 import { getAvailableImageModels } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
@@ -28,7 +29,13 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
   const { state } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
 
-  const imageModels = useMemo(() => getAvailableImageModels(), [])
+  const imageModels = useMemo(
+    () =>
+      getAvailableImageModels().filter(
+        (model) => model.adapterType !== AI_ADAPTER_TYPES.RUNNER,
+      ),
+    [],
+  )
 
   const modelOptions = useMemo<StudioModelOption[]>(() => {
     const builtIn: StudioModelOption[] = imageModels.map((model) => ({

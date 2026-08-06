@@ -1,13 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { Bot, GripVertical, PanelRightClose, Share2, X } from 'lucide-react'
+import { useState } from 'react'
+import { Bot, GripVertical } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import { STUDIO_ASSISTANT_DOCK_RESIZE } from '@/constants/studio'
-import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Spinner } from '@/components/ui/spinner'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -17,7 +15,8 @@ import {
   AssistantShellHeader,
 } from '@/components/business/assistant/AssistantShell'
 import { useDockLayout } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
-import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
+import { StudioAssistantHeaderActions } from '@/components/business/assistant/StudioAssistantHeaderActions'
+import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import type {
   PromptAssistantLoraPersona,
   PromptAssistantPanelProps,
@@ -82,46 +81,25 @@ export function LoraAssistantDock({
   persona,
 }: LoraAssistantDockProps) {
   const t = useTranslations('PromptAssistant')
-  const tHistory = useTranslations('StudioNode.history')
   const isMobile = useIsMobile()
   const { layout, isResizing, resetWidth, widthHandlers } = useDockLayout()
-  const [assistantSessionId, setAssistantSessionId] = useState<string | null>(
-    null,
-  )
+  const { route, researchEnabled } = useStudioAssistantControls()
   const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
   if (open && !hasOpenedOnce) {
     setHasOpenedOnce(true)
   }
 
-  const handleShareAssistant = useCallback(async () => {
-    if (!assistantSessionId) {
-      toast.error(tHistory('shareFailed'))
-      return
-    }
-    const result = await createAssistantConversationShareAPI(assistantSessionId)
-    if (!result.success) {
-      toast.error(tHistory('shareFailed'))
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(
-        `${window.location.origin}/${window.location.pathname.split('/')[1] || 'en'}/assistant/share/${result.data.token}`,
-      )
-      toast.success(tHistory('shareCopied'))
-    } catch {
-      toast.error(tHistory('shareFailed'))
-    }
-  }, [assistantSessionId, tHistory])
-
   const panelProps: PromptAssistantPanelProps = {
     currentPrompt,
+    assistantDomain: 'lora',
     modelId,
     referenceImageData,
     llmApiKeys,
     onUsePrompt,
     onAppendPrompt,
-    onSessionIdChange: setAssistantSessionId,
     loraPersona: persona,
+    assistantRoute: route,
+    researchEnabled,
   }
 
   // CD 助手 dock：正文上方一行「助手看得见什么」上下文 chips——挂载 ×N /
@@ -168,27 +146,10 @@ export function LoraAssistantDock({
             <DrawerTitle className="flex-1 text-sm font-medium">
               {t('dockTitle')}
             </DrawerTitle>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={tHistory('share')}
-              title={tHistory('share')}
-              onClick={() => void handleShareAssistant()}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <Share2 className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={t('dockCollapse')}
-              onClick={() => onOpenChange(false)}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-4" />
-            </Button>
+            <StudioAssistantHeaderActions
+              mobile
+              onClose={() => onOpenChange(false)}
+            />
           </div>
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
             {contextChips}
@@ -211,7 +172,7 @@ export function LoraAssistantDock({
         // CD 装配台：助手是一张与三栏面板对齐的浮起圆角卡（上下右留页面留白·
         // 四边圆角+浮起投影），不是贴视口边的通高板。top-20 = py-5(20) + 模块
         // tab h-11(44) + gap-4(16)；右侧留白跟随页面 px-4/6/8。
-        'node-canvas-panel-motion fixed bottom-5 right-4 top-20 z-40 hidden overflow-hidden rounded-xl bg-card sm:right-6 lg:flex lg:flex-col lg:right-8',
+        'node-canvas-panel-motion fixed bottom-4 right-4 top-4 z-40 hidden overflow-hidden rounded-xl bg-card lg:flex lg:flex-col',
         open && 'border border-border shadow-[var(--lora-shadow-modal)]',
       )}
     >
@@ -237,29 +198,7 @@ export function LoraAssistantDock({
         title={t('dockTitle')}
         leading={<Bot className="size-4 shrink-0 text-primary" />}
         actions={
-          <>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={tHistory('share')}
-              title={tHistory('share')}
-              onClick={() => void handleShareAssistant()}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <Share2 className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={t('dockCollapse')}
-              onClick={() => onOpenChange(false)}
-              className="rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <PanelRightClose className="size-4" />
-            </Button>
-          </>
+          <StudioAssistantHeaderActions onClose={() => onOpenChange(false)} />
         }
       />
 

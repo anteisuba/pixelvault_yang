@@ -18,6 +18,23 @@
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
 - 契约 `types.ts`：`ProviderGenerationInput/Result`（图）、`ProviderVideoInput/Result`（视频，`fetchHeaders` 支持需鉴权下载的 provider 如 Sora）、`ProviderQueueSubmitInput`（队列型，duration 支持 `'auto'`）；`civitaiToken` 全链穿透（Civitai 下载 401 需鉴权）。
 
+### Assistant LLM 媒体契约（2026-08-05）
+
+- 助手 LLM 是同步 text/vision 会话路径，不属于媒体生成 adapter，也不改 worker-only 的媒体生成边界。
+- 默认 OpenAI 助手模型为原生 `gpt-5.6-sol`；无媒体引用时画布可走 AI Gateway 的
+  `openai/gpt-5.6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
+  [OpenAI GPT-5.6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-5.6-sol) 一致。
+- Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
+  resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
+  [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
+  [Files API](https://ai.google.dev/api/files)。
+- DeepSeek 当前 Chat Completion 的用户内容契约是字符串，因此共享助手按文本路由处理；见
+  [DeepSeek Chat Completion](https://api-docs.deepseek.com/api/create-chat-completion)。Claude 厂商 API
+  本身支持图片输入（见 [Claude vision](https://platform.claude.com/docs/en/build-with-claude/vision)），但当前
+  PixelVault Claude 助手调用尚未接入该图片内容块，所以菜单如实标为“仅文本”。Qwen 不进入共享助手模型注册表。
+  能力不匹配时服务端和客户端都必须拒绝，不得丢弃附件、传 URL 文本或以视频封面静默降级。
+- 交互、模型清单和最多 8 个稳定 URL 附件契约见 [`pages/assistant-shell.md`](pages/assistant-shell.md)。
+
 ## BYOK 路由（`resolveGenerationRoute()`，六步顺序）
 
 1. 显式 `apiKeyId` → 服务端读该用户 active BYOK key。

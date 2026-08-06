@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_STUDIO_ID_PREFIXES } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_STUDIO_ID_PREFIXES,
+} from '@/constants/node-studio'
 import {
   getAssistantConversationAPI,
   listAssistantConversationsAPI,
@@ -38,6 +41,8 @@ export interface AssistantConversationMessage {
   content: string
   references: AssistantNodeReference[]
   capabilities: AssistantCapabilityReference[]
+  /** Stable image/video URLs attached to this user turn. */
+  mediaReferences?: NodeAssistantMediaReference[]
   /**
    * 包 5 画布改动提案。流式写到一半时为 null —— 载荷没闭合就不算提案。
    *
@@ -183,8 +188,32 @@ function toStoredMessages(messages: AssistantConversationMessage[]) {
       id: message.id,
       role: message.role,
       content: message.content,
+      ...(message.mediaReferences?.length
+        ? { mediaReferences: message.mediaReferences }
+        : {}),
       createdAt: new Date().toISOString(),
     }))
+}
+
+function collectConversationMediaReferences(
+  messages: AssistantConversationMessage[],
+  current: NodeAssistantMediaReference[],
+): NodeAssistantMediaReference[] {
+  const unique = new Map<string, NodeAssistantMediaReference>()
+  const candidates = [
+    ...current,
+    ...messages
+      .slice()
+      .reverse()
+      .flatMap((message) => message.mediaReferences ?? []),
+  ]
+
+  for (const reference of candidates) {
+    if (!unique.has(reference.url)) unique.set(reference.url, reference)
+    if (unique.size >= NODE_STUDIO_ASSISTANT_LIMITS.maxReferences) break
+  }
+
+  return [...unique.values()]
 }
 
 async function readTextStream(
@@ -288,6 +317,7 @@ export function useAssistantConversation(
             id: message.id ?? createConversationMessageId(message.role),
             role: message.role,
             content: message.content,
+            mediaReferences: message.mediaReferences ?? [],
             references:
               message.role === 'assistant'
                 ? extractNodeReferences(message.content)
@@ -348,6 +378,10 @@ export function useAssistantConversation(
         content: trimmedContent,
         references: [],
         capabilities: [],
+        mediaReferences: (context.references ?? []).slice(
+          0,
+          NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
+        ),
       }
       const assistantMessageId = createConversationMessageId('assistant')
       const priorMessages = messagesRef.current
@@ -370,7 +404,10 @@ export function useAssistantConversation(
         messages: nextMessages.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
-        references: context.references ?? [],
+        references: collectConversationMediaReferences(
+          nextMessages,
+          context.references ?? [],
+        ),
         locale: context.locale,
         apiKeyId: context.apiKeyId,
         research: context.research,
@@ -481,7 +518,10 @@ export function useAssistantConversation(
         messages: withoutTrailingAssistant.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
-        references: context.references ?? [],
+        references: collectConversationMediaReferences(
+          withoutTrailingAssistant,
+          context.references ?? [],
+        ),
         locale: context.locale,
         apiKeyId: context.apiKeyId,
         research: context.research,
@@ -591,6 +631,7 @@ export function useAssistantConversation(
           id: message.id ?? createConversationMessageId(message.role),
           role: message.role,
           content: message.content,
+          mediaReferences: message.mediaReferences ?? [],
           references:
             message.role === 'assistant'
               ? extractNodeReferences(message.content)

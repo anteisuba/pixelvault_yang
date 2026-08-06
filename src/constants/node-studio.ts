@@ -1,6 +1,7 @@
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import type { NodeImageRole } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
 /** Default on-canvas size for role-less pure images (px). NodeResizer grows from here. */
 export const NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE = 320
@@ -213,12 +214,12 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   maxNodeLabelLength: 160,
   maxNodeSummaryLength: 900,
   maxSelectedNodes: 12,
-  maxReferences: 8,
+  maxReferences: ASSISTANT_MEDIA_LIMITS.maxReferences,
   contextCompactionTargetLength: 32_000,
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {
-  gatewayModelId: 'openai/gpt-5.5',
+  gatewayModelId: 'openai/gpt-5.6-sol',
   fallbackModelLabel: 'Workspace BYOK route',
 } as const
 
@@ -236,8 +237,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
-    label: 'OpenAI GPT-5.5',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
+    label: 'OpenAI GPT-5.6 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,

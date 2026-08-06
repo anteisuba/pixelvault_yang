@@ -1,10 +1,10 @@
 'use client'
-/* eslint-disable @next/next/no-img-element -- assistant reference previews can be data URLs */
 
 import {
   useCallback,
-  useRef,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
 } from 'react'
@@ -15,7 +15,7 @@ import {
   Check,
   ChevronDown,
   Copy,
-  Globe,
+  Image as ImageIcon,
   ImagePlus,
   Languages,
   Plus,
@@ -23,40 +23,43 @@ import {
   Sparkles,
   Tag,
   TriangleAlert,
+  Video,
   WandSparkles,
   X,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { LORA_ASSISTANT_ERROR_CODES } from '@/constants/lora-assistant'
-import { AssistantReferencePicker } from '@/components/business/assistant/AssistantReferencePicker'
+import { CanvasAssistantReferencePicker } from '@/components/business/node/CanvasAssistantReferencePicker'
+import type { NodeAssistantRouteSelection } from '@/components/business/node/CanvasAssistantRouteSelector'
 import { PromptAssistantLoraResultCard } from '@/components/business/prompts/PromptAssistantLoraResultCard'
 import { Button } from '@/components/ui/button'
-import { Message, MessageContent } from '@/components/ui/message'
-import { Spinner } from '@/components/ui/spinner'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MainModelPicker } from '@/components/business/studio-shared/pickers'
+import { Message, MessageContent } from '@/components/ui/message'
+import { Spinner } from '@/components/ui/spinner'
 import {
-  usePromptAssistant,
+  assistantAdapterSupportsMedia,
+  ASSISTANT_MEDIA_LIMITS,
+} from '@/constants/assistant'
+import { LORA_ASSISTANT_ERROR_CODES } from '@/constants/lora-assistant'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
   STYLE_SHORTCUTS,
+  usePromptAssistant,
   type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
-import { readImageFileAsBase64 } from '@/lib/image-input'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
-  GenerationRecord,
   LoraAssistantMount,
+  PromptAssistantDomain,
   PromptAssistantResponseLanguage,
 } from '@/types'
-
-const ASSISTANT_REFERENCE_MAX_BYTES = 10 * 1024 * 1024
-const IMAGE_STYLE_SHORTCUT = STYLE_SHORTCUTS.imageStyle
+import type { AssistantMediaReference } from '@/types/assistant-media'
 
 const RESPONSE_LANGUAGE_OPTIONS: {
   value: PromptAssistantResponseLanguage
@@ -66,18 +69,6 @@ const RESPONSE_LANGUAGE_OPTIONS: {
   { value: 'english', labelKey: 'responseLanguageEnglish' },
   { value: 'japanese', labelKey: 'responseLanguageJapanese' },
 ]
-
-function getDefaultResponseLanguage(
-  locale: string,
-): PromptAssistantResponseLanguage {
-  if (locale === 'zh') return 'chinese'
-  if (locale === 'ja') return 'japanese'
-  return 'english'
-}
-
-// ─── Action presets config ──────────────────────────────────────
-// 决议 5②：助手只保留"对文字做什么"的动作类预设；风格类
-// （artistic / photorealistic / anime）已并入卡片→画风（内置风格）。
 
 const ACTION_PRESETS: {
   key: keyof typeof STYLE_SHORTCUTS
@@ -90,93 +81,69 @@ const ACTION_PRESETS: {
   { key: 'tags', icon: Tag, labelKey: 'presetTags' },
 ]
 
-/** 空态起手势示例（i18n 键，点击后直接交给 LLM 扩写）。 */
 const STARTER_KEYS = ['starterA', 'starterB', 'starterC'] as const
-
-/** F2 LoRA 人格空态示例（点击填入输入框，不自动发送——与通用人格的
- *  STARTER_KEYS 自动发送行为不同，见 §1.2 空态段落）。 */
 const LORA_STARTER_KEYS = ['assistantStarterA', 'assistantStarterB'] as const
-
-/** F2「继续调」快捷 chips——同样是填入不自动发送。 */
 const LORA_REFINE_KEYS = [
   'assistantRefineComposition',
   'assistantRefineLighting',
   'assistantRefineStyle',
 ] as const
 
-interface AssistantReferenceImage {
-  data: string
-  previewUrl: string
+function getDefaultResponseLanguage(
+  locale: string,
+): PromptAssistantResponseLanguage {
+  if (locale === 'zh') return 'chinese'
+  if (locale === 'ja') return 'japanese'
+  return 'english'
 }
 
-// ─── Component ──────────────────────────────────────────────────
-
-/**
- * F2 LoRA 人格（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）：LoRA
- * 生成页把这个对象传进来即默认激活——每次发送都会强制 `mode:'lora'` 并带上
- * 一份用调用时刻的实时值现组的 `loraContext`（mounts/baseFamily/trayTags 由
- * 调用方每次渲染重算，currentPrompt 复用 panel 自己的 `currentPrompt` prop，
- * 天然保证"每次发送取实时值"，不需要额外的失效/刷新机制）。
- */
 export interface PromptAssistantLoraPersona {
   mounts: LoraAssistantMount[]
   baseFamily?: string
   trayTags: string[]
-  /** 结果卡「填入正文」「追加到正文」的负向对应动作（拍板③：负向落负向框，
-   *  不进 tray）。 */
   onUseNegativePrompt: (text: string) => void
   onAppendNegativePrompt: (text: string) => void
-  /** §6「输出验证失败」逃生口——切到自己搭配 tab。 */
   onEscapeToSelfBuild: () => void
-  /** CD①：把建议送进搭配提醒待审阅（而不是直接落输入框）。宿主没有搭配提醒
-   *  时不传，结果卡也就不出这个按钮。 */
   onStageForReview?: (payload: { positive: string; negative: string }) => void
 }
 
 export interface PromptAssistantPanelProps {
-  /** Current prompt in the editor */
   currentPrompt: string
-  /** Currently selected model ID */
   modelId?: string
-  /** Reference image data URL (if uploaded) */
   referenceImageData?: string
-  /** Available LLM-capable API keys for selection */
+  assistantDomain?: PromptAssistantDomain
   llmApiKeys?: { id: string; label: string }[]
-  /** Called when user clicks [填入] on an assistant response */
   onUsePrompt: (prompt: string) => void
-  /** Called when user clicks [追加] — append to the current prompt */
   onAppendPrompt?: (prompt: string) => void
-  /** Called when panel is closed */
   onClose?: () => void
-  /** Exposes the persisted Studio conversation to the shared shell. */
   onSessionIdChange?: (sessionId: string | null) => void
-  /**
-   * External reference injection (assistant dock drop zone). Each drop bumps
-   * `token`, and the panel replaces its single reference slot with `url`
-   * (data URL or remote URL). Images only ever land in the composer — they
-   * never trigger generation.
-   */
   injectedReference?: { url: string; token: number }
-  /** F2: supplying this activates the LoRA persona (see
-   *  `PromptAssistantLoraPersona`). Omitted everywhere else — zero
-   *  regression for the generic Studio dock. */
   loraPersona?: PromptAssistantLoraPersona
+  assistantRoute?: NodeAssistantRouteSelection
+  researchEnabled?: boolean
+}
+
+function createReferenceId(prefix: string): string {
+  return `${prefix}:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`
 }
 
 export function PromptAssistantPanel({
   currentPrompt,
   modelId,
   referenceImageData,
-  llmApiKeys,
+  assistantDomain,
   onUsePrompt,
   onAppendPrompt,
   onSessionIdChange,
   injectedReference,
   loraPersona,
+  assistantRoute,
+  researchEnabled = false,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
   const locale = useLocale()
+  const effectiveDomain = assistantDomain ?? (loraPersona ? 'lora' : 'image')
   const {
     messages,
     sessionId,
@@ -189,68 +156,69 @@ export function PromptAssistantPanel({
     clear,
   } = usePromptAssistant()
 
-  useEffect(() => {
-    onSessionIdChange?.(sessionId)
-  }, [onSessionIdChange, sessionId])
-
   const [inputValue, setInputValue] = useState('')
   const [responseLanguage, setResponseLanguage] =
     useState<PromptAssistantResponseLanguage>(() =>
       getDefaultResponseLanguage(locale),
     )
-  const [selectedApiKeyId, setSelectedApiKeyId] = useState<string | undefined>(
-    llmApiKeys?.[0]?.id,
+  const [references, setReferences] = useState<AssistantMediaReference[]>(() =>
+    referenceImageData?.startsWith('http')
+      ? [
+          {
+            id: createReferenceId('studio-reference'),
+            source: 'upload',
+            kind: 'image',
+            url: referenceImageData,
+            thumbnailUrl: referenceImageData,
+            label: 'Studio reference',
+          },
+        ]
+      : [],
   )
-  const [researchEnabled, setResearchEnabled] = useState(false)
-  const [referenceImage, setReferenceImage] =
-    useState<AssistantReferenceImage | null>(
-      referenceImageData
-        ? { data: referenceImageData, previewUrl: referenceImageData }
-        : null,
-    )
-  const [referenceError, setReferenceError] = useState<string | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Dock drop zone → single reference slot (replace semantics). Derived
-  // state from props via a render-phase update (React's recommended
-  // alternative to setState-in-effect).
   const [lastInjectedToken, setLastInjectedToken] = useState<
     number | undefined
-  >(undefined)
-  if (injectedReference && injectedReference.token !== lastInjectedToken) {
-    setLastInjectedToken(injectedReference.token)
-    setReferenceImage({
-      data: injectedReference.url,
-      previewUrl: injectedReference.url,
-    })
-    setReferenceError(null)
-  }
+  >()
+  const [isComposing, setIsComposing] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    onSessionIdChange?.(sessionId)
+  }, [onSessionIdChange, sessionId])
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, isLoading])
 
-  const effectiveReferenceImageData = referenceImage?.data
+  if (injectedReference && injectedReference.token !== lastInjectedToken) {
+    setLastInjectedToken(injectedReference.token)
+    setReferences((current) => {
+      if (
+        current.some((reference) => reference.url === injectedReference.url)
+      ) {
+        return current
+      }
+      return [
+        ...current,
+        {
+          id: `studio-reference:${injectedReference.token}`,
+          source: 'canvas',
+          kind: 'image',
+          url: injectedReference.url,
+          thumbnailUrl: injectedReference.url,
+          label: t('referenceImageAlt'),
+        } satisfies AssistantMediaReference,
+      ].slice(0, ASSISTANT_MEDIA_LIMITS.maxReferences)
+    })
+  }
+
   const targetModelLabel = modelId
     ? getTranslatedModelLabel(tModels, modelId)
     : null
-
-  // F2: the LoRA persona forces every turn onto the v2 structured engine and
-  // assembles `loraContext` fresh from the caller's live props/state on each
-  // call (never memoized past this closure) — "每次发送时取实时值" (§1.2).
-  const sendOpts = useCallback(
-    () => ({
-      modelId,
-      referenceImageData: effectiveReferenceImageData,
-      currentPrompt,
-      apiKeyId: selectedApiKeyId,
-      responseLanguage,
-      research: researchEnabled,
-      mode: loraPersona ? ('lora' as const) : undefined,
-      loraContext: loraPersona
+  const loraContext = useMemo(
+    () =>
+      loraPersona
         ? {
             mounts: loraPersona.mounts,
             baseFamily: loraPersona.baseFamily,
@@ -258,167 +226,154 @@ export function PromptAssistantPanel({
             currentPrompt,
           }
         : undefined,
+    [currentPrompt, loraPersona],
+  )
+  const selectedApiKeyId = assistantRoute?.apiKeyId
+  const selectedAdapterType =
+    assistantRoute?.adapterType ?? AI_ADAPTER_TYPES.OPENAI
+
+  const sendOptions = useCallback(
+    () => ({
+      modelId,
+      currentPrompt,
+      references,
+      assistantDomain: effectiveDomain,
+      apiKeyId: selectedApiKeyId,
+      responseLanguage,
+      research: researchEnabled,
+      loraContext,
     }),
     [
-      modelId,
-      effectiveReferenceImageData,
       currentPrompt,
-      selectedApiKeyId,
-      responseLanguage,
+      effectiveDomain,
+      loraContext,
+      modelId,
+      references,
       researchEnabled,
-      loraPersona,
+      responseLanguage,
+      selectedApiKeyId,
     ],
   )
 
+  const unsupportedReference = references.find(
+    (reference) =>
+      !assistantAdapterSupportsMedia(selectedAdapterType, reference.kind),
+  )
+  const canSubmit = Boolean(
+    (inputValue.trim() || references.length > 0) &&
+    !unsupportedReference &&
+    !isLoading,
+  )
+
   const handleSend = useCallback(() => {
-    const text = inputValue.trim()
-    const promptText =
-      text || effectiveReferenceImageData ? text || IMAGE_STYLE_SHORTCUT : ''
-    if (!promptText || isLoading) return
-    void send(promptText, sendOpts())
+    if (!canSubmit) return
+    const content = inputValue.trim() || t('referenceOnlyPrompt')
+    const options = sendOptions()
     setInputValue('')
-  }, [effectiveReferenceImageData, inputValue, isLoading, send, sendOpts])
+    setReferences([])
+    void send(content, options)
+  }, [canSubmit, inputValue, send, sendOptions, t])
 
   const handlePreset = useCallback(
     (style: keyof typeof STYLE_SHORTCUTS) => {
-      if (isLoading) return
-      if (style === 'imageStyle' && !effectiveReferenceImageData) return
-      applyPreset(style, sendOpts())
-    },
-    [effectiveReferenceImageData, isLoading, applyPreset, sendOpts],
-  )
-
-  const handleRetry = useCallback(() => {
-    if (isLoading) return
-    void retry(sendOpts())
-  }, [isLoading, retry, sendOpts])
-
-  const handleRefineFill = useCallback((text: string) => {
-    setInputValue(text)
-  }, [])
-
-  const handleReferenceFile = useCallback(
-    async (file: File) => {
-      const result = await readImageFileAsBase64(file, {
-        maxFileSize: ASSISTANT_REFERENCE_MAX_BYTES,
-      })
-      if (!result.ok) {
-        setReferenceError(t('imageError'))
+      if (isLoading || (style === 'imageStyle' && references.length === 0)) {
         return
       }
-
-      setReferenceImage({ data: result.base64, previewUrl: result.base64 })
-      setReferenceError(null)
+      applyPreset(style, {
+        ...sendOptions(),
+        ...(style === 'lora' && loraPersona ? { mode: 'lora' as const } : {}),
+      })
     },
-    [t],
+    [applyPreset, isLoading, loraPersona, references.length, sendOptions],
   )
 
-  const handleReferenceAsset = useCallback((generation: GenerationRecord) => {
-    if (generation.outputType !== 'IMAGE') return
-    setReferenceImage({ data: generation.url, previewUrl: generation.url })
-    setReferenceError(null)
+  const addReference = useCallback((reference: AssistantMediaReference) => {
+    setReferences((current) =>
+      current.some((item) => item.id === reference.id)
+        ? current
+        : [...current, reference].slice(
+            0,
+            ASSISTANT_MEDIA_LIMITS.maxReferences,
+          ),
+    )
   }, [])
 
-  const handleRemoveReferenceImage = useCallback(() => {
-    setReferenceImage(null)
-    setReferenceError(null)
+  const removeReference = useCallback((referenceId: string) => {
+    setReferences((current) =>
+      current.filter((reference) => reference.id !== referenceId),
+    )
   }, [])
 
-  const canSubmit = Boolean(inputValue.trim() || effectiveReferenceImageData)
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey) return
+    if (isComposing || event.nativeEvent.isComposing || !canSubmit) return
+    event.preventDefault()
+    handleSend()
+  }
+
+  const responseLanguageText =
+    RESPONSE_LANGUAGE_OPTIONS.find(
+      (option) => option.value === responseLanguage,
+    )?.labelKey ?? 'responseLanguage'
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5 sm:gap-3">
-      {/* ── Header: style presets + API key selector ── */}
-      <div className="shrink-0 space-y-2 rounded-2xl border border-border/45 bg-muted/20 p-2.5 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="shrink-0 space-y-2">
         <div className="flex flex-wrap gap-1.5">
-          {/* F2: LoRA 人格下整个面板已经是 LoRA 转换器，"presetLora" 一次性
-              预设按钮跟常驻的人格重复，隐藏它避免双重入口。 */}
-          {(loraPersona
-            ? ACTION_PRESETS.filter((preset) => preset.key !== 'lora')
-            : ACTION_PRESETS
-          ).map(({ key, icon: Icon, labelKey }) => {
-            const presetDisabled =
-              isLoading ||
-              (key === 'imageStyle' && !effectiveReferenceImageData)
-
-            return (
-              <button
-                key={key}
-                type="button"
-                disabled={presetDisabled}
-                onClick={() => handlePreset(key)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-xs font-medium transition-colors',
-                  'text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground',
-                  'disabled:pointer-events-none disabled:opacity-50',
-                )}
-              >
-                <Icon className="size-3" />
-                {t(labelKey)}
-              </button>
-            )
-          })}
+          {ACTION_PRESETS.map(({ key, icon: Icon, labelKey }) => (
+            <button
+              key={key}
+              type="button"
+              disabled={
+                isLoading || (key === 'imageStyle' && references.length === 0)
+              }
+              onClick={() => handlePreset(key)}
+              className="flex items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Icon className="size-3" />
+              {t(labelKey)}
+            </button>
+          ))}
         </div>
-
-        {/* ── Model badge ── */}
-        {targetModelLabel && (
+        {targetModelLabel ? (
           <p className="text-2xs text-muted-foreground">
             {t('targetModel')}:{' '}
             <span className="font-medium text-foreground">
               {targetModelLabel}
             </span>
           </p>
-        )}
+        ) : null}
       </div>
 
-      {/* ── Messages ── */}
-      <div
-        className="min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2"
-        ref={scrollRef}
-      >
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
         <div className="space-y-3 pb-2">
-          {messages.length === 0 && !isLoading && (
-            <div className="space-y-3 py-3 sm:py-6">
-              <p className="text-center text-sm text-muted-foreground">
+          {messages.length === 0 && !isLoading ? (
+            <div className="space-y-3 py-4">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {loraPersona ? t('assistantEmptyHint') : t('emptyHint')}
               </p>
-              {/* 空态起手势：LoRA 人格点示例只填入输入框（不自动发送，用户
-                  可先改再发）；通用人格保留原有"点即发送"行为（决议 5②）。 */}
-              <div className="mx-auto flex w-full max-w-md flex-col gap-2">
-                {loraPersona
-                  ? LORA_STARTER_KEYS.map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => handleRefineFill(t(key))}
-                        className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        {t(key)}
-                      </button>
-                    ))
-                  : STARTER_KEYS.map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => void send(t(key), sendOpts())}
-                        className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        {t(key)}
-                      </button>
-                    ))}
+              <div className="flex flex-col gap-2">
+                {(loraPersona ? LORA_STARTER_KEYS : STARTER_KEYS).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setInputValue(t(key))}
+                    className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm leading-relaxed text-foreground/85 transition-colors hover:border-primary/30 hover:bg-muted/50"
+                  >
+                    {t(key)}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {messages.map((msg: PromptAssistantDisplayMessage, i: number) =>
-            loraPersona && msg.role === 'assistant' && msg.lora ? (
+          {messages.map((message, index) =>
+            loraPersona && message.role === 'assistant' && message.lora ? (
               <PromptAssistantLoraResultCard
-                key={i}
-                positive={msg.lora.positive}
-                negative={msg.lora.negative}
-                note={msg.lora.note}
+                key={index}
+                positive={message.lora.positive}
+                negative={message.lora.negative}
+                note={message.lora.note}
                 hasMounts={loraPersona.mounts.length > 0}
                 onFillPrompt={onUsePrompt}
                 onAppendPrompt={onAppendPrompt ?? (() => {})}
@@ -428,8 +383,8 @@ export function PromptAssistantPanel({
               />
             ) : (
               <MessageBubble
-                key={i}
-                message={msg}
+                key={index}
+                message={message}
                 onUsePrompt={onUsePrompt}
                 onAppendPrompt={onAppendPrompt}
                 useLabel={t('usePrompt')}
@@ -440,54 +395,59 @@ export function PromptAssistantPanel({
             ),
           )}
 
-          {isLoading && (
+          {isLoading ? (
             <Message className="justify-start">
-              <div className="flex items-center gap-2 rounded-lg bg-secondary p-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 rounded-xl bg-secondary p-2 text-sm text-muted-foreground">
                 <Spinner size="sm" />
                 {t('loading')}
               </div>
             </Message>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* ── Error ── */}
-      {/* §6 状态规范：LoRA 人格下引擎失败/输出验证失败一律琥珀（守 v1"琥珀
-          仅警示"约定），带重试文字链；输出验证失败（结构化 JSON 校验重试
-          后仍非法）额外给"切到自己搭配"逃生口。通用人格保留原有 destructive
-          红色文字，零回归。 */}
-      {error && loraPersona ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-amber-700 dark:text-amber-400">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      {error ? (
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-2 text-xs',
+            loraPersona
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-destructive',
+          )}
+          role="alert"
+        >
+          <TriangleAlert className="size-3.5 shrink-0" />
           <span>{error}</span>
           <button
             type="button"
-            onClick={handleRetry}
             disabled={isLoading}
-            className="inline-flex items-center gap-1 font-medium underline underline-offset-2 hover:no-underline disabled:pointer-events-none disabled:opacity-50"
+            onClick={() => void retry(sendOptions())}
+            className="inline-flex items-center gap-1 font-medium underline underline-offset-2"
           >
-            <RefreshCw className="size-3" aria-hidden />
+            <RefreshCw className="size-3" />
             {t('assistantRetry')}
           </button>
-          {errorCode === LORA_ASSISTANT_ERROR_CODES.invalidStructuredOutput ? (
+          {loraPersona &&
+          errorCode === LORA_ASSISTANT_ERROR_CODES.invalidStructuredOutput ? (
             <button
               type="button"
               onClick={loraPersona.onEscapeToSelfBuild}
-              className="font-medium underline underline-offset-2 hover:no-underline"
+              className="font-medium underline underline-offset-2"
             >
               {t('assistantEscapeToSelfBuild')}
             </button>
           ) : null}
         </div>
-      ) : error ? (
-        <p className="text-xs text-destructive">{error}</p>
       ) : null}
-      {referenceError && (
-        <p className="text-xs text-destructive">{referenceError}</p>
-      )}
 
-      {/* ── F2「继续调」快捷 chips（§1.2）：挂在输入框上方，点击只填入不
-          自动发送——用户可先看一眼再决定发不发。 */}
+      {unsupportedReference ? (
+        <p className="text-xs text-destructive" role="alert">
+          {unsupportedReference.kind === 'video'
+            ? t('videoUnsupported')
+            : t('imageUnsupported')}
+        </p>
+      ) : null}
+
       {loraPersona ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-2xs uppercase tracking-wide text-muted-foreground/70">
@@ -498,8 +458,8 @@ export function PromptAssistantPanel({
               key={key}
               type="button"
               disabled={isLoading}
-              onClick={() => handleRefineFill(t(key))}
-              className="rounded-full border border-border/60 px-2.5 py-1 text-2xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+              onClick={() => setInputValue(t(key))}
+              className="rounded-full border border-border/60 px-2.5 py-1 text-2xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
             >
               {t(key)}
             </button>
@@ -507,320 +467,133 @@ export function PromptAssistantPanel({
         </div>
       ) : null}
 
-      <AssistantAnimatedInput
-        value={inputValue}
-        onValueChange={setInputValue}
-        onSubmit={handleSend}
-        disabled={isLoading}
-        canSubmit={canSubmit}
-        hasReferenceImage={Boolean(referenceImage)}
-        placeholder={t('placeholder')}
-        sendLabel={t('send')}
-        attachLabel={referenceImage ? t('replaceImage') : t('addImage')}
-        clearLabel={t('clear')}
-        showClear={messages.length > 0}
-        referencePreviewUrl={referenceImage?.previewUrl}
-        referenceImageAlt={t('referenceImageAlt')}
-        removeReferenceLabel={t('removeImage')}
-        assetDialogTitle={t('selectAsset')}
-        assetDialogDescription={t('referenceDescription')}
-        responseLanguage={responseLanguage}
-        responseLanguageLabel={t('responseLanguage')}
-        responseLanguageOptions={RESPONSE_LANGUAGE_OPTIONS.map((option) => ({
-          value: option.value,
-          label: t(option.labelKey),
-        }))}
-        onResponseLanguageChange={setResponseLanguage}
-        llmApiKeys={llmApiKeys ?? []}
-        selectedApiKeyId={selectedApiKeyId}
-        selectApiKeyLabel={t('selectApiKey')}
-        onSelectApiKey={setSelectedApiKeyId}
-        researchEnabled={researchEnabled}
-        onToggleResearch={() => setResearchEnabled((prev) => !prev)}
-        researchLabel={t('research')}
-        researchHint={t('researchHint')}
-        imageButtonLabel={t('imageButton')}
-        imageDropHint={t('imageDropHint')}
-        recentAssetsLabel={t('recentAssets')}
-        recentAssetsEmptyLabel={t('recentAssetsEmpty')}
-        openLibraryLabel={t('openLibrary')}
-        onClear={clear}
-        onReferenceFile={handleReferenceFile}
-        onReferenceAsset={handleReferenceAsset}
-        onRemoveReference={handleRemoveReferenceImage}
-      />
-    </div>
-  )
-}
-
-interface AssistantAnimatedInputProps {
-  attachLabel: string
-  canSubmit: boolean
-  clearLabel: string
-  disabled?: boolean
-  hasReferenceImage: boolean
-  llmApiKeys: { id: string; label: string }[]
-  onClear: () => void
-  onReferenceAsset: (generation: GenerationRecord) => void | Promise<void>
-  onReferenceFile: (file: File) => void | Promise<void>
-  onRemoveReference: () => void
-  onResponseLanguageChange: (language: PromptAssistantResponseLanguage) => void
-  onSelectApiKey: (id: string | undefined) => void
-  onSubmit: () => void
-  onValueChange: (value: string) => void
-  placeholder: string
-  referenceImageAlt: string
-  referencePreviewUrl?: string
-  responseLanguage: PromptAssistantResponseLanguage
-  responseLanguageLabel: string
-  responseLanguageOptions: {
-    value: PromptAssistantResponseLanguage
-    label: string
-  }[]
-  removeReferenceLabel: string
-  selectedApiKeyId?: string
-  selectApiKeyLabel: string
-  assetDialogDescription: string
-  assetDialogTitle: string
-  sendLabel: string
-  showClear: boolean
-  value: string
-  researchEnabled: boolean
-  onToggleResearch: () => void
-  researchLabel: string
-  researchHint: string
-  imageButtonLabel: string
-  imageDropHint: string
-  recentAssetsLabel: string
-  recentAssetsEmptyLabel: string
-  openLibraryLabel: string
-}
-
-function AssistantAnimatedInput({
-  attachLabel,
-  canSubmit,
-  clearLabel,
-  disabled,
-  hasReferenceImage,
-  llmApiKeys,
-  onClear,
-  onReferenceAsset,
-  onReferenceFile,
-  onRemoveReference,
-  onResponseLanguageChange,
-  onSelectApiKey,
-  onSubmit,
-  onToggleResearch,
-  onValueChange,
-  placeholder,
-  referenceImageAlt,
-  referencePreviewUrl,
-  responseLanguage,
-  responseLanguageLabel,
-  responseLanguageOptions,
-  removeReferenceLabel,
-  selectedApiKeyId,
-  selectApiKeyLabel,
-  assetDialogDescription,
-  assetDialogTitle,
-  sendLabel,
-  showClear,
-  value,
-  researchEnabled,
-  researchLabel,
-  researchHint,
-  imageButtonLabel,
-  imageDropHint,
-  recentAssetsLabel,
-  recentAssetsEmptyLabel,
-  openLibraryLabel,
-}: AssistantAnimatedInputProps) {
-  const tForm = useTranslations('StudioForm')
-  const [isComposing, setIsComposing] = useState(false)
-  const responseLanguageOption = responseLanguageOptions.find(
-    (option) => option.value === responseLanguage,
-  )
-  const responseLanguageText =
-    responseLanguageOption?.label ?? responseLanguageLabel
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== 'Enter' || event.shiftKey) return
-    if (isComposing || event.nativeEvent.isComposing) return
-    if (!canSubmit || disabled) return
-    event.preventDefault()
-    onSubmit()
-  }
-
-  // Pasting an image into the composer fills the reference slot — mirrors
-  // the studio prompt textarea's paste behavior.
-  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const file = Array.from(event.clipboardData?.files ?? []).find((entry) =>
-      entry.type.startsWith('image/'),
-    )
-    if (!file) return
-    event.preventDefault()
-    void onReferenceFile(file)
-  }
-
-  return (
-    <div className="shrink-0 rounded-2xl border border-border/60 bg-muted/45 p-1.5">
-      <div className="relative flex flex-col overflow-hidden rounded-xl bg-background/90">
-        {referencePreviewUrl && (
-          <div className="border-b border-border/50 bg-muted/35 px-3 py-2">
-            <div className="relative h-24 overflow-hidden rounded-lg border border-border/60 bg-background/70">
-              <img
-                src={referencePreviewUrl}
-                alt={referenceImageAlt}
-                className="h-full w-full object-contain"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label={removeReferenceLabel}
-                onClick={onRemoveReference}
-                disabled={disabled}
-                className="absolute right-2 top-2 size-7 rounded-full p-0 shadow-sm"
-              >
-                <X className="size-3.5" />
-              </Button>
+      <div className="shrink-0 rounded-2xl border border-border/60 bg-muted/45 p-1.5">
+        <div className="overflow-hidden rounded-xl bg-background/90">
+          {references.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto border-b border-border/50 p-2">
+              {references.map((reference) => {
+                const Icon = reference.kind === 'video' ? Video : ImageIcon
+                return (
+                  <div
+                    key={reference.id}
+                    className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
+                    title={reference.label}
+                  >
+                    {reference.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- remote user media preview
+                      <img
+                        src={reference.thumbnailUrl}
+                        alt={reference.label}
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-full items-center justify-center text-muted-foreground">
+                        <Icon className="size-5" />
+                      </span>
+                    )}
+                    <span className="absolute bottom-1 left-1 rounded bg-background/85 p-1 text-muted-foreground">
+                      <Icon className="size-3" />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeReference(reference.id)}
+                      aria-label={t('removeImage')}
+                      className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        )}
-        <TextareaAutosize
-          value={value}
-          minRows={2}
-          maxRows={6}
-          placeholder={placeholder}
-          disabled={disabled}
-          onChange={(event) => onValueChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onCompositionStart={() => setIsComposing(true)}
-          onCompositionEnd={() => setIsComposing(false)}
-          className="min-h-20 w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
-        />
+          ) : null}
 
-        <div className="flex min-h-14 items-center gap-2 border-t border-border/50 bg-muted/45 px-3 py-2 sm:h-14 sm:gap-0 sm:py-0">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:gap-2">
-            {llmApiKeys.length > 0 && (
-              <MainModelPicker
-                modality="llm_assist"
-                llmCapability="enhance"
-                size="compact"
-                disabled={disabled}
-                value={
-                  selectedApiKeyId
-                    ? `llm-route:enhance:key:${selectedApiKeyId}`
-                    : null
+          <TextareaAutosize
+            value={inputValue}
+            minRows={2}
+            maxRows={6}
+            placeholder={t('placeholder')}
+            disabled={isLoading}
+            onChange={(event) => setInputValue(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            className="min-h-20 w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+          />
+
+          <div className="flex min-h-14 items-center gap-2 border-t border-border/50 bg-muted/45 px-3 py-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t('responseLanguage')}
+                    title={t(responseLanguageText)}
+                  >
+                    <Languages className="size-4" />
+                    <ChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {RESPONSE_LANGUAGE_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onSelect={() => setResponseLanguage(option.value)}
+                      className="justify-between gap-3"
+                    >
+                      {t(option.labelKey)}
+                      {responseLanguage === option.value ? (
+                        <Check className="size-4 text-primary" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <CanvasAssistantReferencePicker
+                disabled={
+                  isLoading ||
+                  references.length >= ASSISTANT_MEDIA_LIMITS.maxReferences
                 }
-                onChange={(option) => {
-                  if (option.keyId) onSelectApiKey(option.keyId)
-                }}
-                triggerEmptyLabel={selectApiKeyLabel}
-                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                emptySearchText={tForm('modelSelector.emptySearch')}
+                references={[]}
+                selectedReferences={references}
+                onAddReference={addReference}
               />
-            )}
 
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
+              {messages.length > 0 ? (
                 <Button
                   type="button"
                   variant="ghost"
-                  disabled={disabled}
-                  aria-label={responseLanguageLabel}
-                  className="h-8 max-w-24 gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
+                  size="sm"
+                  onClick={clear}
+                  className="h-8 px-2 text-xs text-muted-foreground"
                 >
-                  <Languages className="size-3.5 shrink-0" />
-                  <span className="truncate">{responseLanguageText}</span>
-                  <ChevronDown className="size-3 shrink-0 opacity-60" />
+                  {t('clear')}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-32">
-                {responseLanguageOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onSelect={() => onResponseLanguageChange(option.value)}
-                    className="justify-between gap-3"
-                  >
-                    <span className="truncate">{option.label}</span>
-                    {responseLanguage === option.value && (
-                      <Check className="size-4 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              ) : null}
+            </div>
 
-            {/* 联网研究 toggle — icon-only + tooltip（同 node dock 语义） */}
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={researchLabel}
-              aria-pressed={researchEnabled}
-              title={researchHint}
-              disabled={disabled}
-              onClick={onToggleResearch}
-              className={cn(
-                'size-8 rounded-lg p-0 text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                researchEnabled && 'bg-primary/10 text-primary',
-              )}
+              size="icon-sm"
+              aria-label={t('send')}
+              onClick={handleSend}
+              disabled={!canSubmit}
             >
-              <Globe className="size-4" />
+              {isLoading ? (
+                <Spinner size="sm" />
+              ) : (
+                <ArrowRight className="size-4" />
+              )}
             </Button>
-
-            <AssistantReferencePicker
-              disabled={disabled}
-              hasSelection={hasReferenceImage}
-              labels={{
-                trigger: imageButtonLabel,
-                triggerTitle: attachLabel,
-                title: imageButtonLabel,
-                imageDropHint,
-                recentImages: recentAssetsLabel,
-                recentImagesEmpty: recentAssetsEmptyLabel,
-                openLibrary: openLibraryLabel,
-                libraryTitle: assetDialogTitle,
-                libraryDescription: assetDialogDescription,
-              }}
-              onPickImageFile={onReferenceFile}
-              onPickImageAsset={onReferenceAsset}
-              triggerClassName="size-8 rounded-lg p-0 hover:bg-background/70"
-            />
-
-            {showClear && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onClear}
-                disabled={disabled}
-                className="h-8 rounded-lg px-2 text-xs text-muted-foreground hover:bg-background/70 hover:text-foreground"
-              >
-                {clearLabel}
-              </Button>
-            )}
           </div>
-
-          <Button
-            type="button"
-            size="sm"
-            aria-label={sendLabel}
-            onClick={onSubmit}
-            disabled={!canSubmit || disabled}
-            className="size-8 rounded-lg p-0"
-          >
-            <ArrowRight className="size-4" />
-          </Button>
         </div>
       </div>
     </div>
   )
 }
-
-// ─── Message bubble sub-component ───────────────────────────────
 
 function MessageBubble({
   message,
@@ -844,9 +617,41 @@ function MessageBubble({
   if (message.role === 'user') {
     return (
       <Message className="justify-end">
-        <MessageContent className="max-w-[85%] bg-primary/10 text-foreground text-sm">
-          {message.content}
-        </MessageContent>
+        <div className="max-w-[85%] space-y-1.5">
+          {message.mediaReferences?.length ? (
+            <div className="flex justify-end gap-1.5 overflow-x-auto">
+              {message.mediaReferences.map((reference) => {
+                const Icon = reference.kind === 'video' ? Video : ImageIcon
+                return (
+                  <span
+                    key={reference.id}
+                    className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
+                    title={reference.label}
+                  >
+                    {reference.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- persisted remote user media
+                      <img
+                        src={reference.thumbnailUrl}
+                        alt={reference.label}
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-full items-center justify-center text-muted-foreground">
+                        <Icon className="size-4" />
+                      </span>
+                    )}
+                    <span className="absolute bottom-0.5 left-0.5 rounded bg-background/85 p-0.5 text-muted-foreground">
+                      <Icon className="size-2.5" />
+                    </span>
+                  </span>
+                )
+              })}
+            </div>
+          ) : null}
+          <MessageContent className="bg-primary/10 text-sm text-foreground">
+            {message.content}
+          </MessageContent>
+        </div>
       </Message>
     )
   }
@@ -858,14 +663,15 @@ function MessageBubble({
     })
   }
 
-  // Assistant message — 产出三动作：填入 / 追加 / 复制（决议 5 契约，
-  // 与未来反推/提取风格的产出动作共用同一套语法）。
   return (
     <Message className="justify-start">
       <div className="max-w-[95%] space-y-2">
         <div className="flex items-start gap-2">
-          <Bot className="mt-0.5 size-4 shrink-0 text-primary" />
-          <MessageContent className="bg-secondary/60 text-sm font-mono leading-relaxed">
+          <Bot className="mt-1 size-4 shrink-0 text-primary" />
+          <MessageContent
+            markdown
+            className="bg-secondary/60 text-sm leading-6"
+          >
             {message.content}
           </MessageContent>
         </div>
@@ -880,7 +686,7 @@ function MessageBubble({
             <Check className="size-3" />
             {useLabel}
           </Button>
-          {onAppendPrompt && (
+          {onAppendPrompt ? (
             <Button
               type="button"
               variant="outline"
@@ -891,7 +697,7 @@ function MessageBubble({
               <Plus className="size-3" />
               {appendLabel}
             </Button>
-          )}
+          ) : null}
           <Button
             type="button"
             variant="outline"

@@ -237,6 +237,59 @@ describe('llmTextCompletion - Gemini', () => {
     })
   })
 
+  it('sends a stable video URL to Gemini as native inline video input', async () => {
+    const videoBytes = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(videoBytes, {
+          status: 200,
+          headers: {
+            'content-type': 'video/mp4',
+            'content-length': String(videoBytes.byteLength),
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: 'video analyzed' }] } }],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Analyze this video.',
+      videoData: 'https://cdn.example.com/reference.mp4',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock, 1) as {
+      contents: Array<{
+        parts: Array<{
+          inlineData?: { mimeType: string; data: string }
+          text?: string
+        }>
+      }>
+    }
+    expect(result).toBe('video analyzed')
+    expect(payload.contents[0]?.parts[0]?.inlineData).toEqual({
+      mimeType: 'video/mp4',
+      data: Buffer.from(videoBytes).toString('base64'),
+    })
+    expect(payload.contents[0]?.parts[1]).toEqual({
+      text: 'Analyze this video.',
+    })
+  })
+
   it('throws a structured transient provider error on 503 response', async () => {
     vi.stubGlobal(
       'fetch',

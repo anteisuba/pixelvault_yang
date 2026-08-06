@@ -19,6 +19,7 @@ interface CompleteAssistantTextOptions {
   contextCompactionTargetLength: number
   modelId?: string
   imageData?: LlmTextInput['imageData']
+  videoData?: LlmTextInput['videoData']
   useGrounding?: boolean
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
@@ -119,6 +120,7 @@ export async function completeAssistantTextWithContextRetry({
   contextCompactionTargetLength,
   modelId,
   imageData,
+  videoData,
   useGrounding,
   responseFormat,
 }: CompleteAssistantTextOptions): Promise<string> {
@@ -128,6 +130,7 @@ export async function completeAssistantTextWithContextRetry({
       userPrompt,
       modelId,
       imageData,
+      videoData,
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,

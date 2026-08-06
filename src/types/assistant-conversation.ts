@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
+
 export const ASSISTANT_SURFACES = ['STUDIO', 'NODE_CANVAS'] as const
 export type AssistantSurfaceId = (typeof ASSISTANT_SURFACES)[number]
 
@@ -27,6 +30,10 @@ export const AssistantConversationMessageSchema = z.object({
     .min(1)
     .max(ASSISTANT_CONVERSATION_LIMITS.maxContentLength),
   createdAt: z.string().datetime().optional(),
+  mediaReferences: z
+    .array(AssistantMediaReferenceSchema)
+    .max(ASSISTANT_MEDIA_LIMITS.maxReferences)
+    .optional(),
 })
 
 export type AssistantConversationMessageStored = z.infer<

@@ -123,16 +123,20 @@ describe('useLLMRoutePicker', () => {
   })
 
   describe('assistant scope', () => {
-    it('returns saved routes for assistant-capable text keys (OPENAI/GEMINI)', () => {
+    it('returns only saved routes present in the four-model assistant registry', () => {
       mockApiKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.OPENAI }),
-        makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.FAL }),
+        makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.DASHSCOPE }),
+        makeKey({ id: 'k4', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
+        makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
+        'k4',
+        'k5',
       ])
     })
 
@@ -141,6 +145,19 @@ describe('useLLMRoutePicker', () => {
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
       expect(result.current.savedRoutes[0].label).toBe('Gemini 3.5 Flash')
+    })
+
+    it('offers OpenAI, Gemini, DeepSeek, and Claude setup rows without Qwen', () => {
+      mockApiKeys([])
+      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+      expect(
+        result.current.lockedRoutes.map((route) => route.adapterType),
+      ).toEqual([
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.GEMINI,
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        AI_ADAPTER_TYPES.ANTHROPIC,
+      ])
     })
   })
 

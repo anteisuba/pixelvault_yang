@@ -3014,7 +3014,10 @@
     "contextTriggers": "トリガー ×{count}",
     "contextBase": "ベース",
     "assistantStageForReview": "組み合わせの確認に追加",
-    "assistantStageHint": "すぐ生成せず、組み合わせバーで変更を確認してから適用することをおすすめします。"
+    "assistantStageHint": "すぐ生成せず、組み合わせバーで変更を確認してから適用することをおすすめします。",
+    "referenceOnlyPrompt": "添付した参考素材を分析し、アイデアを発展させてください。",
+    "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
+    "imageUnsupported": "このモデルは画像を分析できません。OpenAIまたはGeminiを選ぶか、画像の参考素材を削除してください。"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",
@@ -4785,7 +4788,12 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
-      "setupClaude": "Claude"
+      "setupClaude": "Claude",
+      "mediaCapabilities": {
+        "imageVideo": "画像＋動画",
+        "imageOnly": "画像ビジョン",
+        "textOnly": "テキストのみ"
+      }
     },
     "inspector": {
       "multiTitle": "{count} 件のノードを選択中",
@@ -4816,9 +4824,13 @@
       "openImageLibrary": "画像ライブラリを開く",
       "imageLibraryTitle": "参照画像を選択",
       "imageLibraryDescription": "既存の画像を選び、このアシスタントのターンに添付します。",
+      "openVideoLibrary": "動画ライブラリを開く",
+      "videoLibraryTitle": "参照動画を選択",
+      "videoLibraryDescription": "既存の動画を選び、このアシスタントのターンに添付します。",
       "canvasReferences": "現在のキャンバス",
       "uploadVideo": "参照動画をアップロード",
       "galleryImageLabel": "ギャラリー画像",
+      "galleryVideoLabel": "ギャラリー動画",
       "referenceUploadFailed": "参照素材のアップロードに失敗しました",
       "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。",
       "opsMalformed": "アシスタントがキャンバスを変更しようとしましたが、指示を読み取れませんでした——変更は行われていません。"
@@ -5515,6 +5527,10 @@
     "common": {
       "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",
       "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。"
+    },
+    "assistant": {
+      "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
+      "imageUnsupported": "このモデルは画像を分析できません。OpenAIまたはGeminiを選ぶか、画像の参考素材を削除してください。"
     },
     "provider": {
       "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",

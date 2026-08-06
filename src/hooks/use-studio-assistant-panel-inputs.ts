@@ -76,6 +76,8 @@ export function useStudioAssistantPanelInputs() {
     setOpen,
     currentPrompt: state.prompt,
     modelId,
+    assistantDomain:
+      state.outputType === 'video' ? ('video' as const) : ('image' as const),
     llmApiKeys,
     referenceImageData: imageUpload.referenceImages[0],
     onUsePrompt,

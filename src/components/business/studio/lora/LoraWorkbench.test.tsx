@@ -865,6 +865,8 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     ).not.toBeInTheDocument()
   })
 
+  // Full-suite load can push this Workbench + Radix Select path past the
+  // default 15s (isolated ~5–6s). Keep the case strict, just give it room.
   it('sends manually edited Runner controls and 4x-AnimeSharp in the real request', () => {
     render(<LoraWorkbench />)
 
@@ -917,7 +919,7 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
       runnerHeight: 1024,
       runnerUpscaler: '4x-AnimeSharp',
     })
-  })
+  }, 30_000)
 
   it('blocks generation when only one exact dimension is entered', () => {
     render(<LoraWorkbench />)

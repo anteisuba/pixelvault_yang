@@ -29,10 +29,7 @@ import {
   extractActivationSegment,
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
-import {
-  buildCivitaiLoraNameSearchQueries,
-  toCivitaiModelSearchQuery,
-} from '@/lib/civitai-lora-reference'
+import { buildCivitaiLoraNameSearchQueries } from '@/lib/civitai-lora-reference'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import { civitaiDescriptionToText } from '@/lib/civitai-description-parse'

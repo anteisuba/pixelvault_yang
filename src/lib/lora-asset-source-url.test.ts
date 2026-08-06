@@ -65,4 +65,14 @@ describe('getLoraAssetSourceUrl', () => {
       ),
     ).toBeNull()
   })
+
+  it('tolerates missing provider / loraUrl without throwing (partial stack assets)', () => {
+    expect(
+      getLoraAssetSourceUrl({
+        source: 'imported',
+        loraUrl: undefined as unknown as string,
+        provider: undefined as unknown as string,
+      }),
+    ).toBeNull()
+  })
 })

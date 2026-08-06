@@ -35,6 +35,7 @@ import {
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   CIVITAI_MODEL_SEARCH_URL,
@@ -124,6 +125,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
+import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import {
   applyRecipePlanToAdvancedParams,
@@ -137,6 +139,7 @@ import {
   mountRecipeExtraLoras,
   type ExtraMountStatus,
   type OftenMountedExtra,
+  type RecipeExtraMountResult,
 } from '@/lib/lora-recipe-extra-mount'
 import {
   isLoraBaseModelMountCompatible,
@@ -572,6 +575,8 @@ function GenerateBranch({
 }: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
+  // 做同款 / 补挂额外 LoRA 的结果 toast（文案与旧 inline 配方面板共用）。
+  const tExtra = useTranslations('LoraPromptControl.generate')
   // 移动端底部条的助手键复用 studio 各页同一套文案。
   const tStudioV2 = useTranslations('StudioV2')
   const stack = useActiveLoraStack()
@@ -1098,17 +1103,36 @@ function GenerateBranch({
   }, [replaySearchParams])
 
   // 一键补挂配方里叠加的其他 LoRA：解析（本地库→Civitai）→ push 进挂载栈，
-  // 状态（loading/mounted/failed）回写驱动 LoraSourceRecipeStrip 的行内反馈。
+  // 状态（loading/mounted/failed）回写驱动「常与它同挂」行内反馈 + toast。
   // 「做同款」与行内「补挂」按钮共用这一份（owner 2026-07-20：做同款要把额外
   // LoRA 一起挂上，才是真还原）。baseModelFamily 用当前主 LoRA 的家族做解析
   // 提示，挑对底模变体；架构不兼容的额外 LoRA 会被兼容闸拦下不挂。
   const [extraMountStatusByKey, setExtraMountStatusByKey] = useState<
     Record<string, ExtraMountStatus>
   >({})
+  const reportExtraMountResult = useCallback(
+    (result: RecipeExtraMountResult) => {
+      if (result.newlyMounted > 0) {
+        toast.success(
+          tExtra('recipeExtraAutoMounted', { count: result.newlyMounted }),
+        )
+      }
+      const unresolved = result.missing + result.incompatible
+      if (unresolved > 0) {
+        toast.warning(
+          tExtra('recipeExtraApplyLimited', { count: unresolved }),
+          result.incompatible > 0
+            ? { description: tExtra('recipeExtraIncompatible') }
+            : undefined,
+        )
+      }
+    },
+    [tExtra],
+  )
   const mountExtras = useCallback(
-    (extras: readonly CivitaiRecipeExtraLora[]) => {
+    async (extras: readonly CivitaiRecipeExtraLora[]) => {
       if (extras.length === 0) return
-      void mountRecipeExtraLoras({
+      const result = await mountRecipeExtraLoras({
         extras,
         stackItems: stack.items,
         maxStack: LORA_STACK_MAX,
@@ -1122,8 +1146,9 @@ function GenerateBranch({
           ? (fam) => isLoraBaseModelMountCompatible(fam, selectedBase.family)
           : undefined,
       })
+      reportExtraMountResult(result)
     },
-    [stack, loraFamily, selectedBase],
+    [stack, loraFamily, selectedBase, reportExtraMountResult],
   )
 
   // CD③ 搭配审阅：做同款把值直接写进主台（不改），但标成「待审阅」并自动摊开
@@ -1222,8 +1247,9 @@ function GenerateBranch({
         })
       }
       // owner 2026-07-20：做同款 = 真还原——除了 prompt/参数/底模引用，还把配方
-      // 里叠加的其他 LoRA 一起挂上（受容量与架构兼容闸约束）。
-      mountExtras(plan.extraLoras)
+      // 里叠加的其他 LoRA 一起挂上（受容量与架构兼容闸约束）。结果 toast 异步
+      // 回报成功/失败数，避免静默失败。
+      void mountExtras(plan.extraLoras)
       // CD③：落台即进「待审阅」，并把变更卡摊开——用户得先看见改了什么。
       if (recipeGroupAsset) {
         setCollocationPending(true)
@@ -1375,10 +1401,10 @@ function GenerateBranch({
     t,
   ])
 
-  // 行内「补挂」单个额外 LoRA——与做同款共用 mountExtras。
+  // 行内「补挂」单个额外 LoRA——与做同款共用 mountExtras（含 toast）。
   const handleMountExtraLora = useCallback(
     (extra: CivitaiRecipeExtraLora) => {
-      mountExtras([extra])
+      void mountExtras([extra])
     },
     [mountExtras],
   )
@@ -2247,7 +2273,11 @@ function GenerateBranch({
                         baseModelFamily={
                           recipeGroupAsset?.baseModelFamily ?? ''
                         }
-                        sourceUrl={recipeGroupAsset?.loraUrl ?? ''}
+                        sourceUrl={
+                          recipeGroupAsset
+                            ? (getLoraAssetSourceUrl(recipeGroupAsset) ?? '')
+                            : ''
+                        }
                         recipes={mined.recipes}
                         onApplyRecipe={handleApplyRecipe}
                       />

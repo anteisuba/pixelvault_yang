@@ -13,7 +13,14 @@ import {
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { CIVITAI_MODEL_SEARCH_URL } from '@/constants/lora'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
+import {
+  extraLoraKey,
+  extraLoraLabel,
+  isRecipeExtraResolvable,
+} from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,7 +29,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { CivitaiImageRecipe } from '@/types'
+import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 // R2 共享来源配方 modal（docs/references/pages/lora-generate.md §4 +
 // lora-library.md §3）：Library 样例图与 Generate 来源图共用同一个 dialog——
@@ -83,7 +90,20 @@ function buildRecipeClipboardText(recipe: CivitaiImageRecipe): string {
   if (size) params.push(`Size: ${size}`)
   if (recipe.checkpoint) params.push(`Model: ${recipe.checkpoint}`)
   if (params.length > 0) lines.push(params.join(', '))
+  if (recipe.extraLoras && recipe.extraLoras.length > 0) {
+    const extras = recipe.extraLoras
+      .map((extra) => {
+        const label = extraLoraLabel(extra)
+        return extra.weight !== undefined ? `${label}:${extra.weight}` : label
+      })
+      .join(', ')
+    lines.push(`Extra LoRAs: ${extras}`)
+  }
   return lines.join('\n')
+}
+
+function hasStrongLocator(extra: CivitaiRecipeExtraLora): boolean {
+  return extra.hash !== undefined || extra.modelVersionId !== undefined
 }
 
 export function LoraSourceRecipeModal({
@@ -142,6 +162,12 @@ export function LoraSourceRecipeModal({
         .filter(Boolean)
         .join(' · ') || null
     : null
+  // 该图叠加的其它 LoRA——做同款前必须可见（Library 详情与 Generate 共用）。
+  const extraLoras = recipe?.extraLoras ?? []
+  const hasExtraLoras = extraLoras.length > 0
+  const hasNameOnlyExtras = extraLoras.some(
+    (extra) => isRecipeExtraResolvable(extra) && !hasStrongLocator(extra),
+  )
 
   const handleCopy = useCallback(
     async (text: string, successKey: string) => {
@@ -230,8 +256,23 @@ export function LoraSourceRecipeModal({
                         </dt>
                         <dd className="min-w-0 flex-1 truncate text-foreground">
                           {assetName}
+                          {recipe.loraWeight !== undefined
+                            ? ` · ${recipe.loraWeight}`
+                            : null}
                         </dd>
                       </div>
+                      {hasExtraLoras ? (
+                        <div className="flex gap-2">
+                          <dt className="w-12 shrink-0 text-muted-foreground">
+                            {t('sourceRecipeExtraLorasLabel')}
+                          </dt>
+                          <dd className="min-w-0 flex-1 text-foreground">
+                            {t('sourceRecipeExtraLorasSummary', {
+                              count: extraLoras.length,
+                            })}
+                          </dd>
+                        </div>
+                      ) : null}
                       <div className="flex gap-2">
                         <dt className="w-12 shrink-0 text-muted-foreground">
                           {t('sourceRecipeBaseModel')}
@@ -341,6 +382,65 @@ export function LoraSourceRecipeModal({
                     ) : null}
                   </dl>
                 </div>
+
+                {/* 详情页核心：点「做同款」前先看清这张图叠了哪些额外 LoRA。
+                    Library / Generate 共用 modal，两边都展示（不限做同款）。 */}
+                {hasExtraLoras ? (
+                  <div className="space-y-1.5">
+                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t('sourceRecipeExtraLorasSection', {
+                        count: extraLoras.length,
+                      })}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {extraLoras.map((extra) => {
+                        const label = extraLoraLabel(extra)
+                        const strong = hasStrongLocator(extra)
+                        return (
+                          <li
+                            key={extraLoraKey(extra)}
+                            className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="min-w-0 break-all font-mono text-2xs leading-snug text-foreground">
+                                {label}
+                              </span>
+                              {extra.weight !== undefined ? (
+                                <span className="shrink-0 font-mono text-2xs text-muted-foreground">
+                                  {extra.weight}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
+                              <span>
+                                {strong
+                                  ? t('sourceRecipeExtraLoraLocateStrong')
+                                  : t('sourceRecipeExtraLoraLocateNameOnly')}
+                              </span>
+                              {!strong && isRecipeExtraResolvable(extra) ? (
+                                <a
+                                  href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
+                                    toCivitaiModelSearchQuery(label),
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline underline-offset-2 hover:text-foreground"
+                                >
+                                  {t('sourceRecipeExtraLoraSearchLink')}
+                                </a>
+                              ) : null}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    {hasNameOnlyExtras ? (
+                      <p className="text-2xs leading-relaxed text-muted-foreground">
+                        {t('sourceRecipeExtraLoraNameOnlyHint')}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {tags && tags.length > 0 ? (
                   <div className="space-y-1.5">

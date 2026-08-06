@@ -139,10 +139,8 @@ describe('user.service', () => {
         email: 'new.creator@example.com',
         username: 'newcreator',
       }
-      mockUserFindUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
+      // ensureUser: find by clerkId → null; then provision uses upsert (local/prod).
+      mockUserFindUnique.mockResolvedValueOnce(null)
       mockClerkGetUser.mockResolvedValue({
         username: 'New.Creator',
         fullName: 'New Creator',
@@ -157,13 +155,15 @@ describe('user.service', () => {
           },
         ],
       })
-      mockUserCreate.mockResolvedValue(createdUser)
+      mockUserUpsert.mockResolvedValue(createdUser)
 
       const result = await ensureUser('clerk-created')
 
       expect(result).toBe(createdUser)
-      expect(mockUserCreate).toHaveBeenCalledWith({
-        data: {
+      expect(mockUserUpsert).toHaveBeenCalledWith({
+        where: { email: 'new.creator@example.com' },
+        update: { clerkId: 'clerk-created' },
+        create: {
           clerkId: 'clerk-created',
           email: 'new.creator@example.com',
           displayName: 'New Creator',
@@ -305,22 +305,50 @@ describe('user.service', () => {
           email: 'artist@example.com',
           emailVerificationStatus: 'verified',
         }),
-      ).rejects.toThrow('only allowed in Production')
+      ).rejects.toThrow(/only allowed in Production/)
 
       expect(mockUserUpdate).not.toHaveBeenCalled()
       expect(mockUserUpsert).not.toHaveBeenCalled()
       expect(mockUserCreate).not.toHaveBeenCalled()
     })
 
-    it('creates a new local user when the verified email is not already mapped', async () => {
+    it('lets local dev (no VERCEL_ENV) relink a verified email to a new Clerk id', async () => {
+      // beforeEach already clears VERCEL_ENV — Clerk development keys re-issue IDs.
+      delete process.env.VERCEL_ENV
+      const relinkedUser = {
+        ...BASE_USER,
+        clerkId: 'clerk-local-dev',
+      }
+      mockUserFindUnique.mockResolvedValue(null)
+      mockUserUpsert.mockResolvedValue(relinkedUser)
+
+      const result = await provisionVerifiedClerkUser({
+        clerkId: 'clerk-local-dev',
+        email: 'artist@example.com',
+        emailVerificationStatus: 'verified',
+      })
+
+      expect(result.clerkId).toBe('clerk-local-dev')
+      expect(mockUserUpsert).toHaveBeenCalledWith({
+        where: { email: 'artist@example.com' },
+        update: { clerkId: 'clerk-local-dev' },
+        create: {
+          clerkId: 'clerk-local-dev',
+          email: 'artist@example.com',
+        },
+      })
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('upserts a new local user when the verified email is not already mapped', async () => {
       const createdUser = {
         ...BASE_USER,
         id: 'user-new',
         clerkId: 'clerk-new',
         email: 'new@example.com',
       }
-      mockUserFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
-      mockUserCreate.mockResolvedValue(createdUser)
+      mockUserFindUnique.mockResolvedValueOnce(null)
+      mockUserUpsert.mockResolvedValue(createdUser)
 
       const result = await provisionVerifiedClerkUser({
         clerkId: 'clerk-new',
@@ -329,8 +357,10 @@ describe('user.service', () => {
       })
 
       expect(result).toBe(createdUser)
-      expect(mockUserCreate).toHaveBeenCalledWith({
-        data: {
+      expect(mockUserUpsert).toHaveBeenCalledWith({
+        where: { email: 'new@example.com' },
+        update: { clerkId: 'clerk-new' },
+        create: {
           clerkId: 'clerk-new',
           email: 'new@example.com',
         },

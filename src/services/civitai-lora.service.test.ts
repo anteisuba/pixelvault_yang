@@ -31,7 +31,9 @@ import {
 const mockFetch = vi.fn<typeof fetch>()
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // mockReset clears queued mockResolvedValueOnce answers — clearAllMocks alone
+  // leaves leftovers that pollute later tests once name-resolve fans out.
+  mockFetch.mockReset()
   vi.stubGlobal('fetch', mockFetch)
 })
 
@@ -2621,6 +2623,58 @@ describe('mineCivitaiUserPrompts', () => {
     ])
   })
 
+  it('soft-matches WebUI instance suffix so the primary LoRA is not listed as an extra', async () => {
+    // Live Stabilizer shape: published file stem ...v1.198 but gallery tags
+    // use ...v1.198_1 (A1111 multi-copy suffix). Without soft match the
+    // primary becomes an "extra" and loraWeight is lost.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2055853,
+        name: 'v1.198',
+        files: [
+          {
+            type: 'Model',
+            primary: true,
+            name: 'illustriousXLv01_stabilizer_v1.198.safetensors',
+          },
+        ],
+        images: [
+          {
+            url: 'https://image.civitai.com/stabilizer-multi.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                '<lora:illustriousXLv01_stabilizer_v1.198_1:0.6><lora:illus01_style_collection_elpe_v0.22:0.2>1girl',
+              resources: [
+                {
+                  name: 'illustriousXLv01_stabilizer_v1.198_1',
+                  type: 'lora',
+                  weight: 0.6,
+                },
+                {
+                  name: 'illus01_style_collection_elpe_v0.22',
+                  type: 'lora',
+                  weight: 0.2,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 971952,
+      modelVersionId: 2055853,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]?.loraWeight).toBe(0.6)
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      { name: 'illus01_style_collection_elpe_v0.22', weight: 0.2 },
+    ])
+  })
+
   it('recovers lora weight from civitaiResources by modelVersionId (onsite generations)', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
@@ -3115,32 +3169,35 @@ describe('resolveCivitaiLoraByReference', () => {
   })
 
   it('does not fuzzy-accept name search results without a stem match', async () => {
-    mockFetch
-      .mockResolvedValueOnce(
-        jsonResponse({
-          items: [
-            {
-              id: 1,
-              name: 'Close But No Match',
-              type: 'LORA',
-              modelVersions: [
-                {
-                  id: 2,
-                  name: 'v1',
-                  files: [
-                    {
-                      type: 'Model',
-                      name: 'close-but-no.safetensors',
-                      downloadUrl: 'https://civitai.com/api/download/models/2',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ results: [{ hits: [] }] }))
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({ results: [{ hits: [] }] })
+      }
+      // REST name search: near-miss files only — never an exact stem match.
+      return jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Close But No Match',
+            type: 'LORA',
+            modelVersions: [
+              {
+                id: 2,
+                name: 'v1',
+                files: [
+                  {
+                    type: 'Model',
+                    name: 'close-but-no.safetensors',
+                    downloadUrl: 'https://civitai.com/api/download/models/2',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
 
     expect(
       await resolveCivitaiLoraByReference({
@@ -3150,10 +3207,12 @@ describe('resolveCivitaiLoraByReference', () => {
   })
 
   it('falls back to Civitai web search when the public models API misses an exact version file stem', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ items: [] }))
-      .mockResolvedValueOnce(
-        jsonResponse({
+    // URL-routed mock: progressive REST always empty; multi-search returns
+    // candidates; version fetch confirms the Illustrious file stem.
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({
           results: [
             {
               hits: [
@@ -3189,10 +3248,10 @@ describe('resolveCivitaiLoraByReference', () => {
               ],
             },
           ],
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
+        })
+      }
+      if (url.includes('/api/v1/model-versions/2212079')) {
+        return jsonResponse({
           id: 2212079,
           modelId: 200255,
           name: 'Hands Illu v1.1',
@@ -3212,16 +3271,22 @@ describe('resolveCivitaiLoraByReference', () => {
               hashes: { AutoV3: '6D97C71F80C8' },
             },
           ],
-        }),
-      )
+        })
+      }
+      // Progressive REST name queries
+      return jsonResponse({ items: [] })
+    })
 
     const item = await resolveCivitaiLoraByReference({
       name: 'detailed hand focus style illustriousXL v1.1',
       baseModelFamily: 'Illustrious',
     })
 
-    const searchUrl = new URL(String(mockFetch.mock.calls[1]?.[0]))
-    const searchInit = mockFetch.mock.calls[1]?.[1] as RequestInit | undefined
+    const webSearchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    expect(webSearchCall).toBeDefined()
+    const searchInit = webSearchCall?.[1] as RequestInit | undefined
     const searchBody = JSON.parse(String(searchInit?.body)) as {
       queries: Array<{
         indexUid: string
@@ -3230,9 +3295,11 @@ describe('resolveCivitaiLoraByReference', () => {
         filter: string[]
       }>
     }
-    const versionUrl = new URL(String(mockFetch.mock.calls[2]?.[0]))
+    const versionCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('/api/v1/model-versions/2212079'),
+    )
 
-    expect(searchUrl.origin).toBe('https://search-new.civitai.com')
+    expect(searchBody.queries.length).toBeGreaterThanOrEqual(1)
     expect(searchBody.queries[0]).toMatchObject({
       indexUid: 'models_v9',
       q: 'detailed hand focus style illustrious XL v1.1',
@@ -3242,7 +3309,7 @@ describe('resolveCivitaiLoraByReference', () => {
         'versions.baseModel IN ["Illustrious", "NoobAI"]',
       ],
     })
-    expect(versionUrl.pathname).toBe('/api/v1/model-versions/2212079')
+    expect(versionCall).toBeDefined()
     expect(item).toMatchObject({
       id: 'civitai:200255:2212079',
       name: 'Hands XL + SD 1.5 + F1D + Pony + Illustrious + zit + ZIB',
@@ -3251,11 +3318,65 @@ describe('resolveCivitaiLoraByReference', () => {
     })
   })
 
+  it('resolves local file stems via progressive name search (REST)', async () => {
+    // Full stem query misses; stripped "style collection elpe" hits the
+    // published Style Collection model with exact file match.
+    mockFetch.mockImplementation(async (input) => {
+      const url = new URL(String(input))
+      const q = url.searchParams.get('query') ?? ''
+      if (q === 'style collection elpe') {
+        return jsonResponse({
+          items: [
+            {
+              id: 1777579,
+              name: 'Style Collection [IL]',
+              type: 'LORA',
+              modelVersions: [
+                {
+                  id: 2060407,
+                  name: 'elpe v0.22',
+                  baseModel: 'Illustrious',
+                  downloadUrl:
+                    'https://civitai.com/api/download/models/2060407',
+                  files: [
+                    {
+                      type: 'Model',
+                      primary: true,
+                      name: 'illus01_style_collection_elpe_v0.22.safetensors',
+                      downloadUrl:
+                        'https://civitai.com/api/download/models/2060407',
+                      hashes: { AutoV3: 'AABBCCDDEE01' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        })
+      }
+      if (url.pathname.startsWith('/api/v1/models')) {
+        return jsonResponse({ items: [] })
+      }
+      return jsonResponse({ results: [{ hits: [] }] })
+    })
+
+    const item = await resolveCivitaiLoraByReference({
+      name: 'illus01_style_collection_elpe_v0.22',
+      baseModelFamily: 'Illustrious',
+    })
+
+    expect(item).toMatchObject({
+      id: 'civitai:1777579:2060407',
+      name: 'Style Collection [IL]',
+      baseModelFamily: 'Illustrious',
+    })
+  })
+
   it('does not accept web search matches from a different base model family', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ items: [] }))
-      .mockResolvedValueOnce(
-        jsonResponse({
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({
           results: [
             {
               hits: [
@@ -3279,8 +3400,10 @@ describe('resolveCivitaiLoraByReference', () => {
               ],
             },
           ],
-        }),
-      )
+        })
+      }
+      return jsonResponse({ items: [] })
+    })
 
     expect(
       await resolveCivitaiLoraByReference({
@@ -3288,7 +3411,11 @@ describe('resolveCivitaiLoraByReference', () => {
         baseModelFamily: 'Illustrious',
       }),
     ).toBeNull()
-    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(
+      mockFetch.mock.calls.some((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      ),
+    ).toBe(true)
   })
 })
 

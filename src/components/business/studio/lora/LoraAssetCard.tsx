@@ -15,7 +15,6 @@ import {
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { API_ENDPOINTS } from '@/constants/config'
 import {
   LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
@@ -24,6 +23,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
+import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import {
   AlertDialog,
@@ -61,32 +61,11 @@ interface LoraAssetCardProps {
 // 7 天阈值用于「刚训练好」标签。只有 source === 'trained' 的资产会显示，
 // curated（系统种子）和 imported（收藏）不算「训练」。
 const RECENTLY_TRAINED_MS = 7 * 24 * 60 * 60 * 1000
-const CIVITAI_DOWNLOAD_MODEL_RE =
-  /https:\/\/civitai\.com\/api\/download\/models\/(\d+)/i
 
 function isRecentlyTrained(asset: LoraAssetRecord): boolean {
   if (asset.source !== 'trained') return false
   const age = Date.now() - new Date(asset.createdAt).getTime()
   return age >= 0 && age < RECENTLY_TRAINED_MS
-}
-
-function getAssetSourceUrl(asset: LoraAssetRecord): string | null {
-  if (asset.source === 'trained') return null
-
-  const civitaiDownload = asset.loraUrl.match(CIVITAI_DOWNLOAD_MODEL_RE)
-  if (civitaiDownload?.[1]) {
-    return `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_SOURCE}?modelVersionId=${civitaiDownload[1]}`
-  }
-
-  if (asset.loraUrl.startsWith('https://civitai.com/models/')) {
-    return asset.loraUrl
-  }
-
-  if (asset.provider.toLowerCase() !== 'civitai') {
-    return asset.loraUrl
-  }
-
-  return null
 }
 
 export function LoraAssetCard({
@@ -114,7 +93,7 @@ export function LoraAssetCard({
     (entry) => entry.asset.id === asset.id,
   )
   const recentlyTrained = isRecentlyTrained(asset)
-  const sourceUrl = getAssetSourceUrl(asset)
+  const sourceUrl = getLoraAssetSourceUrl(asset)
 
   const handleUse = useCallback(() => {
     if (!alreadyInStack) {

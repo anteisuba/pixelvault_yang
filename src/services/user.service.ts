@@ -164,11 +164,25 @@ interface ProvisionVerifiedClerkUserParams {
 }
 
 /**
+ * Whether this runtime may remap `User.clerkId` for an existing verified email.
+ *
+ * - Production Vercel: yes — Clerk instance migrations keep the internal User.id.
+ * - Local (no VERCEL_ENV): yes — Clerk *development* keys re-issue IDs and must
+ *   attach to the existing local/shared DB row, otherwise every ensureUser API
+ *   hard-500s with "relinking only allowed in Production".
+ * - Vercel Preview / Vercel Development: no — must not steal production rows.
+ */
+export function allowsVerifiedEmailRelink(): boolean {
+  const vercelEnv = process.env.VERCEL_ENV
+  return vercelEnv === 'production' || vercelEnv == null || vercelEnv === ''
+}
+
+/**
  * Provision a Clerk user from a verified primary email.
  *
- * Production may atomically relink an existing email to a new Clerk instance
- * ID while preserving the internal User.id and every relation attached to it.
- * Non-production environments must never take that mapping back.
+ * When relinking is allowed, an existing email is atomically remapped to the
+ * new Clerk instance ID while preserving the internal User.id and every
+ * relation attached to it. Preview deploys never take that mapping path.
  */
 export async function provisionVerifiedClerkUser(
   params: ProvisionVerifiedClerkUserParams,
@@ -216,7 +230,7 @@ export async function provisionVerifiedClerkUser(
     ...(params.avatarUrl !== undefined && { avatarUrl: params.avatarUrl }),
   }
 
-  if (process.env.VERCEL_ENV === 'production') {
+  if (allowsVerifiedEmailRelink()) {
     return db.user.upsert({
       where: { email },
       // This is the migration: update only the external identity pointer.
@@ -228,7 +242,9 @@ export async function provisionVerifiedClerkUser(
 
   const existingByEmail = await db.user.findUnique({ where: { email } })
   if (existingByEmail) {
-    throw new Error('Verified email relinking is only allowed in Production')
+    throw new Error(
+      'Verified email relinking is only allowed in Production (and local dev); blocked on Vercel Preview',
+    )
   }
 
   return db.user.create({ data: createData })

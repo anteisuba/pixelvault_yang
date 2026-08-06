@@ -150,18 +150,27 @@ const withVercelToolbar =
     ? createWithVercelToolbar()
     : (config: NextConfig) => config
 
-export default withSentryConfig(
-  withBundleAnalyzer(withNextIntl(withVercelToolbar(nextConfig))),
-  {
-    // Suppress source map upload logs in CI
-    silent: !process.env.CI,
-
-    // Upload source maps for better stack traces
-    widenClientFileUpload: true,
-
-    // Hide source maps from browser devtools in production
-    sourcemaps: {
-      deleteSourcemapsAfterUpload: true,
-    },
-  },
+const composedConfig = withBundleAnalyzer(
+  withNextIntl(withVercelToolbar(nextConfig)),
 )
+
+// Skip Sentry's Next plugin during `next dev`. withSentryConfig injects Edge
+// instrumentation that pulls `@sentry/nextjs` into the Turbopack Edge graph and
+// routinely hangs at "Compiling instrumentation Edge ..." on local Windows.
+// Production / `next build` still get full Sentry wrapping + source maps.
+const sentryOptions = {
+  // Suppress source map upload logs in CI
+  silent: !process.env.CI,
+
+  // Upload source maps for better stack traces
+  widenClientFileUpload: true,
+
+  // Hide source maps from browser devtools in production
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+} as const
+
+export default process.env.NODE_ENV === 'development'
+  ? composedConfig
+  : withSentryConfig(composedConfig, sentryOptions)

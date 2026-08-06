@@ -101,4 +101,51 @@ describe('LoraSourceRecipeStrip', () => {
       includeSeed: true,
     })
   })
+
+  it('lists stacked extra LoRAs in the recipe detail before 做同款', () => {
+    const recipe: CivitaiImageRecipe = {
+      ...SOURCE_RECIPE,
+      loraWeight: 0.6,
+      extraLoras: [
+        {
+          name: 'illus01_style_collection_elpe_v0.22',
+          weight: 0.2,
+        },
+        {
+          modelVersionId: 777,
+          weight: 0.3,
+        },
+      ],
+    }
+
+    render(
+      <LoraSourceRecipeStrip
+        assetName="Stabilizer"
+        baseModelFamily="Illustrious"
+        sourceUrl="https://example.com/lora"
+        recipes={[recipe]}
+        onApplyRecipe={vi.fn()}
+      />,
+    )
+
+    const dialog = openSourceRecipeDialog()
+    // 摘要卡：做同款前就看见「还会尝试挂载 N 个」
+    expect(
+      within(dialog).getByText('sourceRecipeExtraLorasSummary:{"count":2}'),
+    ).toBeInTheDocument()
+    // 详情列表：名称 + 定位强弱
+    expect(
+      within(dialog).getByText('illus01_style_collection_elpe_v0.22'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('#777')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('sourceRecipeExtraLoraLocateNameOnly'),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('sourceRecipeExtraLoraLocateStrong'),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('sourceRecipeExtraLoraNameOnlyHint'),
+    ).toBeInTheDocument()
+  })
 })

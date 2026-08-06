@@ -29,7 +29,10 @@ import {
   extractActivationSegment,
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
-import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
+import {
+  buildCivitaiLoraNameSearchQueries,
+  toCivitaiModelSearchQuery,
+} from '@/lib/civitai-lora-reference'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import { civitaiDescriptionToText } from '@/lib/civitai-description-parse'
@@ -422,7 +425,7 @@ async function resolveCivitaiLoraByLocator(
   }
   if (
     options.exactNameKey &&
-    !searchVersionHasExactFileStem(version, options.exactNameKey)
+    !searchVersionHasMatchingFileStem(version, options.exactNameKey)
   ) {
     return null
   }
@@ -437,19 +440,45 @@ async function resolveCivitaiLoraByLocator(
 }
 
 /**
- * Civitai 搜索不拆 camelCase：query=EnchantingEyesIllustrious 命中 0，
- * query=Enchanting Eyes Illustrious 命中（实测 2026-06-11）。搜索词按
- * camel 边界和 -_ 分隔符拆词；点号保留（v1.1 拆开反而伤命中）。
- */
-/**
- * 词干比对键：小写 + 去空格/横线/下划线/点。仍是全长严格相等 — 只是
- * 容忍 meta 名与文件名之间的分隔符差异，不做前缀/包含式模糊匹配。
+ * 词干比对键：小写 + 去空格/横线/下划线/点。
  * （导出给本地库匹配复用 — 同一把尺子量本地行和 Civitai 文件名。）
  */
 export function normalizeLoraNameKey(value: string): string {
   return repairUtf8Mojibake(value)
     .toLowerCase()
     .replace(/[\s\-_.]+/g, '')
+}
+
+/**
+ * Soft LoRA name match for meta ↔ file stems.
+ *
+ * Exact after normalize, or one side is the other plus a short numeric
+ * WebUI instance suffix (`...v1.198` vs `...v1.198_1` → keys differ by a
+ * trailing `1`). Rejects short keys to avoid accidental collapses.
+ */
+export function loraNameKeysMatch(a: string, b: string): boolean {
+  const na = normalizeLoraNameKey(a)
+  const nb = normalizeLoraNameKey(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na]
+  if (shorter.length < 10) return false
+  if (!longer.startsWith(shorter)) return false
+  const rest = longer.slice(shorter.length)
+  return rest === '' || /^\d{1,3}$/.test(rest)
+}
+
+function isKnownTargetLoraName(
+  name: string | null | undefined,
+  knownTargetNames: ReadonlySet<string>,
+): boolean {
+  if (!name) return false
+  const key = name.toLowerCase()
+  if (knownTargetNames.has(key)) return true
+  for (const known of knownTargetNames) {
+    if (loraNameKeysMatch(key, known)) return true
+  }
+  return false
 }
 
 type CivitaiKnownBaseModelFamily =
@@ -596,15 +625,14 @@ function baseModelMatchesCandidate(
 // 只按文件名比对，跟调用方是 REST 版本对象还是 meilisearch 版本对象无关——
 // 参数类型故意收窄到实际用到的形状，别绑死某一份 schema（两处调用方各用
 // 各的 schema，字段集合并不完全相同）。
-function searchVersionHasExactFileStem(
+function searchVersionHasMatchingFileStem(
   version: { files?: { name?: string }[] },
   targetNameKey: string,
 ): boolean {
   return (
     version.files?.some(
       (file) =>
-        file.name &&
-        normalizeLoraNameKey(fileNameStem(file.name)) === targetNameKey,
+        file.name && loraNameKeysMatch(fileNameStem(file.name), targetNameKey),
     ) ?? false
   )
 }
@@ -627,6 +655,8 @@ async function resolveFirstExactCivitaiVersionCandidate(
     const resolved = await Promise.all(
       batch.map((candidate) =>
         resolveCivitaiLoraByLocator(undefined, candidate.versionId, {
+          // Soft match is applied after fetch via searchVersionHasMatchingFileStem
+          // on the live files list (exactNameKey still uses soft match below).
           exactNameKey: targetNameKey,
           baseModelFamily,
         }),
@@ -640,11 +670,33 @@ async function resolveFirstExactCivitaiVersionCandidate(
   return null
 }
 
+function matchLibraryItemByFileStem(
+  items: readonly z.infer<typeof CivitaiModelSchema>[],
+  targetNameKey: string,
+): CivitaiLoraLibraryItem | null {
+  for (const model of items) {
+    for (const version of model.modelVersions ?? []) {
+      const matched = version.files?.some(
+        (file) =>
+          file.name &&
+          loraNameKeysMatch(fileNameStem(file.name), targetNameKey),
+      )
+      if (matched) {
+        return toLibraryItem({ ...model, modelVersions: [version] })
+      }
+    }
+  }
+  return null
+}
+
 /**
  * 名字搜索兜底。实测依据（2026-06-11）：图 meta 的 resources hash 常是
  * 作者本地文件（剪枝/转码副本）的 hash，by-hash 对不上 Civitai 索引；
  * 但 meta 名字 ≈ 上架文件的词干（如 "EnchantingEyesIllustrious" ↔
- * EnchantingEyesIllustrious.safetensors），词干精确匹配即可确定性定位。
+ * EnchantingEyesIllustrious.safetensors），词干匹配即可确定性定位。
+ *
+ * 2026-08：本地 stem 全名常搜不到（`illus01_style_collection_elpe_v0.22`），
+ * 按 buildCivitaiLoraNameSearchQueries 多路降噪后再精确/软匹配文件词干。
  */
 async function resolveCivitaiLoraByNameStem(
   name: string,
@@ -652,41 +704,37 @@ async function resolveCivitaiLoraByNameStem(
   const trimmed = name.trim()
   if (!trimmed) return null
 
-  const url = new URL(CIVITAI_MODELS_API)
-  url.searchParams.set('types', 'LORA')
-  url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
-  url.searchParams.set('query', toCivitaiModelSearchQuery(trimmed))
-
-  let payload: unknown
-  try {
-    payload = await withRetry(() => fetchCivitaiPayload(url), {
-      maxAttempts: 2,
-      baseDelayMs: 400,
-      maxDelayMs: 1500,
-      label: 'civitai.resolveLoraByName',
-    })
-  } catch (error) {
-    logger.warn('Civitai LoRA name search failed', {
-      name: trimmed,
-      error: error instanceof Error ? error.message : 'Unknown',
-    })
-    return null
-  }
-
-  const parsed = CivitaiModelsResponseSchema.safeParse(payload)
-  if (!parsed.success) return null
-
   const target = normalizeLoraNameKey(trimmed)
-  for (const model of parsed.data.items) {
-    for (const version of model.modelVersions ?? []) {
-      const matched = version.files?.some(
-        (file) =>
-          file.name && normalizeLoraNameKey(fileNameStem(file.name)) === target,
-      )
-      if (matched) {
-        return toLibraryItem({ ...model, modelVersions: [version] })
-      }
+  const queries = buildCivitaiLoraNameSearchQueries(trimmed)
+
+  for (const query of queries) {
+    const url = new URL(CIVITAI_MODELS_API)
+    url.searchParams.set('types', 'LORA')
+    url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
+    url.searchParams.set('query', query)
+
+    let payload: unknown
+    try {
+      payload = await withRetry(() => fetchCivitaiPayload(url), {
+        maxAttempts: 2,
+        baseDelayMs: 400,
+        maxDelayMs: 1500,
+        label: 'civitai.resolveLoraByName',
+      })
+    } catch (error) {
+      logger.warn('Civitai LoRA name search failed', {
+        name: trimmed,
+        query,
+        error: error instanceof Error ? error.message : 'Unknown',
+      })
+      continue
     }
+
+    const parsed = CivitaiModelsResponseSchema.safeParse(payload)
+    if (!parsed.success) continue
+
+    const hit = matchLibraryItemByFileStem(parsed.data.items, target)
+    if (hit) return hit
   }
   return null
 }
@@ -698,17 +746,17 @@ async function resolveCivitaiLoraByWebSearchNameStem(
   const trimmed = name.trim()
   if (!trimmed) return null
 
+  const queries = buildCivitaiLoraNameSearchQueries(trimmed)
   const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const filter = buildCivitaiSearchFilters(baseModelFamily)
   const body = {
-    queries: [
-      {
-        indexUid: CIVITAI_MODEL_SEARCH_INDEX,
-        q: toCivitaiModelSearchQuery(trimmed),
-        limit: CIVITAI_WEB_RESOLVE_SEARCH_LIMIT,
-        offset: 0,
-        filter: buildCivitaiSearchFilters(baseModelFamily),
-      },
-    ],
+    queries: queries.map((q) => ({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q,
+      limit: CIVITAI_WEB_RESOLVE_SEARCH_LIMIT,
+      offset: 0,
+      filter,
+    })),
   }
 
   let payload: unknown
@@ -755,7 +803,7 @@ async function resolveCivitaiLoraByWebSearchNameStem(
         const hasSearchFileNames = (version.files?.length ?? 0) > 0
         if (
           hasSearchFileNames &&
-          !searchVersionHasExactFileStem(version, target)
+          !searchVersionHasMatchingFileStem(version, target)
         ) {
           continue
         }
@@ -2523,6 +2571,10 @@ const CivitaiImageItemSchema = z
     type: z.string().optional(),
     width: CivitaiImageDimensionSchema,
     height: CivitaiImageDimensionSchema,
+    // Top-level version ids referenced by this image (checkpoint + LoRAs).
+    // Present on /api/v1/images even when meta.civitaiResources is empty —
+    // used to attach strong locators to name-only extras (P2).
+    modelVersionIds: z.array(z.number().int().positive()).optional(),
     meta: z
       .object({
         prompt: z.string().optional(),
@@ -2710,6 +2762,12 @@ interface RecipeLoraSignalInput {
   targetModelVersionId: number | null
   /** Lower-cased name hints for the target LoRA's in-prompt tag (file stems). */
   targetNameHints: readonly string[]
+  /**
+   * P2: top-level image `modelVersionIds` from /api/v1/images (when present).
+   * Used to attach strong locators to name-only extras when civitaiResources
+   * is empty (common for A1111 offline uploads).
+   */
+  imageModelVersionIds?: readonly number[]
 }
 
 /**
@@ -2732,6 +2790,7 @@ function resolveRecipeLoraSignals({
   targetHashLower,
   targetModelVersionId,
   targetNameHints,
+  imageModelVersionIds,
 }: RecipeLoraSignalInput): RecipeLoraResources {
   const matchedResource = targetHashLower
     ? resources?.find((r) => r.hash?.toLowerCase() === targetHashLower)
@@ -2746,12 +2805,14 @@ function resolveRecipeLoraSignals({
       : undefined
 
   const promptTags = parsePromptLoraTags(rawPrompt)
-  const knownTargetNames = new Set<string>(targetNameHints)
+  const knownTargetNames = new Set<string>(
+    targetNameHints.map((hint) => hint.toLowerCase()),
+  )
   if (matchedResource?.name) {
     knownTargetNames.add(repairUtf8Mojibake(matchedResource.name).toLowerCase())
   }
   let targetTag = promptTags.find((tag) =>
-    knownTargetNames.has(tag.name.toLowerCase()),
+    isKnownTargetLoraName(tag.name, knownTargetNames),
   )
   // A model version's own gallery image with exactly one LoRA tag is, in
   // practice, that LoRA — accept it when nothing identified the tag by name.
@@ -2763,7 +2824,7 @@ function resolveRecipeLoraSignals({
   // Extras carry their locator (hash / modelVersionId) whenever the meta
   // had one — that is what powers "一键补挂": hash → by-hash endpoint,
   // modelVersionId → /:id. Prompt-tag extras only have a name (cannot be
-  // auto-located).
+  // auto-located without name search).
   const extras: CivitaiRecipeExtraLora[] = []
   const seenNames = new Set<string>()
   const seenVersionIds = new Set<number>()
@@ -2774,7 +2835,9 @@ function resolveRecipeLoraSignals({
     const repairedName = r.name ? repairUtf8Mojibake(r.name) : undefined
     const key = repairedName?.toLowerCase()
     if (key) {
-      if (seenNames.has(key) || knownTargetNames.has(key)) continue
+      if (seenNames.has(key) || isKnownTargetLoraName(key, knownTargetNames)) {
+        continue
+      }
       seenNames.add(key)
     }
     extras.push({
@@ -2800,9 +2863,43 @@ function resolveRecipeLoraSignals({
   for (const tag of promptTags) {
     if (tag === targetTag) continue
     const key = tag.name.toLowerCase()
-    if (seenNames.has(key) || knownTargetNames.has(key)) continue
+    if (seenNames.has(key) || isKnownTargetLoraName(key, knownTargetNames)) {
+      continue
+    }
     seenNames.add(key)
     extras.push({ name: tag.name, weight: tag.weight })
+  }
+
+  // P2: community images often expose top-level modelVersionIds even when
+  // civitaiResources is empty. Only bind when the mapping is unambiguous
+  // (exactly one leftover version id ↔ exactly one name-only extra) so we
+  // never attach the wrong version to a name.
+  if (imageModelVersionIds && imageModelVersionIds.length > 0) {
+    const leftoverIds = imageModelVersionIds.filter(
+      (id) =>
+        id !== targetModelVersionId &&
+        !seenVersionIds.has(id) &&
+        Number.isSafeInteger(id) &&
+        id > 0,
+    )
+    const nameOnlyIndexes = extras
+      .map((extra, index) =>
+        extra.modelVersionId === undefined &&
+        extra.hash === undefined &&
+        extra.name
+          ? index
+          : -1,
+      )
+      .filter((index) => index >= 0)
+    if (leftoverIds.length === 1 && nameOnlyIndexes.length === 1) {
+      const extraIndex = nameOnlyIndexes[0]!
+      const versionId = leftoverIds[0]!
+      extras[extraIndex] = {
+        ...extras[extraIndex]!,
+        modelVersionId: versionId,
+      }
+      seenVersionIds.add(versionId)
+    }
   }
 
   return {
@@ -3112,6 +3209,7 @@ export async function mineCivitaiUserPrompts({
           targetHashLower: targetHash,
           targetModelVersionId: modelVersionId ?? null,
           targetNameHints: [],
+          imageModelVersionIds: item.modelVersionIds,
         }),
       })
     }

@@ -61,7 +61,8 @@ export function getGenerationThumbnailUrl(
 /**
  * Best source for a *full-size* view (detail sheet, gallery detail, modal).
  *
- * `thumbnailUrl` is a 384px grid tile — it must never win here. User uploads
+ * `thumbnailUrl` is a grid tile, long-edge capped by
+ * `IMAGE_PREVIEW_VARIANTS.thumbnail` — it must never win here. User uploads
  * deliberately derive only a thumbnail (see `createImageThumbnailAsset`,
  * "a stored upload serves its full original in the detail view"), so for an
  * IMAGE a missing `previewUrl` means *the original is the preview*. Falling

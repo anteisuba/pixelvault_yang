@@ -17,7 +17,7 @@
 | G     | 首页 UI                   | 🔶 待设计    | 字体从「等拍板」改为**「有更好的就再设计」**                        | 铺三个字体方向做对照给 owner       |
 | ~~H~~ | ~~LoRA 做同款多挂载失效~~ | **Bug**      | ✅ **已完成合入 main**（`eb295d23` + `6c3add69`）                   | —                                  |
 | I     | 侧边栏 UI 升级            | 新做（UI）   | 🆕 2026-08-07 追加                                                  | ⚠ 全局共享件，**前置 = J1 补基线** |
-| J     | UI 基础设施补强           | 工程         | 🆕 2026-08-07 实查发现，三个子项                                    | J1 补视觉基线（I 的前置）          |
+| J     | 基础设施补强 + 常量普查   | 工程         | 🆕 四个子项；**J4 已扫出 2 个高度疑似**（待实测）                   | J1 补视觉基线（I 的前置）          |
 
 ⚠ **七条已变十条，且不是全集** —— owner 原话「我后面还有其他需求」。新条目按字母续编并入本表，不要另起文档。
 
@@ -353,6 +353,42 @@ owner 三条：
 ### J3 · 修悬空引用
 
 `src/app/globals.css:162` 的注释写着「docs/design/direction.md §动效 canon」，但 **`docs/design/` 目录整个不存在**（旧文档体系已迁进 `docs/archive/`）。改成实际存在的路径，或直接指向 `src/constants/motion.ts`。→ 可以并进 E 一起做。
+
+### J4 · 无依据常量普查（owner 2026-08-07 拍板「顺带扫一遍」）
+
+**起因**：本周唯二两个实修 bug（H、C4）根因结构完全相同——**写死的数字对齐了一个不再有效、或从来不存在的依据**。两次两中，故普查同类。
+
+**判据**：对每个上限/尺寸类常量问两句——**①这个数字的依据是什么？②那个依据现在还成立吗？** 注释里答不出①的就是候选。
+
+#### 已扫范围与结果（`src/constants/` 的 47 个 MAX/LIMIT/CAP 常量）
+
+**⚠ 高度疑似（结构与 H/C4 同型，需实测确认后再动）**
+
+| #   | 位置                         | 现象                                                                 | 为何疑似                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ---------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `ArenaForm.tsx:231`          | `getMaxReferenceImages(a)` **只传 adapter 不传 modelId**             | `resolveConfig` 的 `if (!modelId) return base` 会回落到 adapter 级。OPENAI adapter 级 `maxReferenceImages: 1`、模型级 `OPENAI_GPT_IMAGE_2` 是 16 → 竞技场里 OpenAI 从 16 掉到 **1**；且 `Math.min` 会把混选的 Gemini(14)/火山(14) 一起拖到 1。⚠ 注释写「across all selected **models**」而代码取的是 adapters，**注释与实现不一致**。`arenaMaxRefImages` 同时驱动上传闸与「超限」提示，**确实做闸**（已排除 H 那种只显示不做闸的可能） |
+| 2   | `TTS_MAX_TEXT_LENGTH = 5000` | 一个数字**一刀切卡两个 TTS provider**（`fish_audio` + `elevenlabs`） | 与 H 完全同型：一个写死上限管多个后端，而各后端限制不同。且它不止是 UI 闸——`types/index.ts:563` 的 Zod schema 也用它，服务端一起卡。注释仅一句同义反复的「TTS text input constraints」，**没写 5000 的来源**                                                                                                                                                                                                                           |
+
+**⚠ 无依据但影响面较小（裸数字，注释答不出「依据是什么」）**
+
+`AUDIO_SPEAKER_VOICE_IDS_MAX = 8` · `VOICE_TRAIN_MAX_FILES = 8` · `VOICE_TRAIN_MAX_FILE_BYTES = 10MB`（Fish Audio 训练限制？）· `HUGGINGFACE_LORA_MAX_LIMIT = 40`（HF API 分页上限？）· `OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16` 与 OPENAI adapter 级的 `1`（**两个数字都没有来源注释**）
+
+**✅ 已确认有依据（注释写了完整推理，不用动）**
+
+- `REFERENCE_VIDEO_MAX_DURATION_SECONDS = 15` —— 合并时长 ≤15s 的预算分配，且服务端二次校验合并时长
+- `HUGGINGFACE_LORA_MAX_FILE_BYTES = 2GB` —— Anima 完整 UNET ~4.18GB vs rank-512 提取 adapter <2GiB 的分界，超过即属 base-model 而非 LoRA
+- `CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT = 480` —— 兜底 `page=99999` 类篡改，并明写了「触顶后深页可能提前 hasNextPage=false」这个已知取舍
+
+> ⭐ 这三条正是**好注释的样板**：写清依据来源 + 推理 + 已知取舍。新写上限常量照这个写。
+
+#### 尚未扫（本轮只覆盖了 `src/constants/` 的独立常量）
+
+- **220 处 `.slice(0, n)` 截断**（其中 95 处用变量）—— C4 的服务端截断就藏在这类里，优先级最高。
+- `config.ts` 的 `MAX_DURATION_CONFIGS` / `LLM_TEXT_DEFAULT_MAX_TOKENS` / `RATE_LIMIT_CONFIGS` / `RUNNER_MONTHLY_LIMIT`。
+- 各 `*_LIMITS` 对象（`ASSISTANT_MEDIA_LIMITS` · `NODE_ASSISTANT_OP_LIMITS` · `SCRIPT_DOC_LIMITS` · `SCRIPT_BREAKDOWN_LIMITS` · `SEEDANCE_PROMPT_PLAN_LIMITS` · `NODE_STUDIO_ASSISTANT_LIMITS`）。
+- `workers/` 下的同类常量。
+
+⚠ **本段全部为代码阅读所得，属候选不属定论**（见通用闸门「锚点 ≠ 根因」）。动任何一条前先取运行时证据：#1 真机在竞技场选 OpenAI 数一下能传几张；#2 查 fish_audio 与 elevenlabs 官方文档的实际字符上限。
 
 ### 待评估（不列为任务）
 

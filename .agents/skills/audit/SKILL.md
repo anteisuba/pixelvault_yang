@@ -53,9 +53,11 @@ Run comprehensive checks across multiple dimensions:
 Create a detailed audit report with the following structure:
 
 ### Anti-Patterns Verdict
+
 **Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
 
 ### Executive Summary
+
 - Total issues found (count by severity)
 - Most critical issues (top 3-5)
 - Overall quality score (if applicable)
@@ -64,6 +66,7 @@ Create a detailed audit report with the following structure:
 ### Detailed Findings by Severity
 
 For each issue, document:
+
 - **Location**: Where the issue occurs (component, file, line)
 - **Severity**: Critical / High / Medium / Low
 - **Category**: Accessibility / Performance / Theming / Responsive
@@ -71,23 +74,28 @@ For each issue, document:
 - **Impact**: How it affects users
 - **WCAG/Standard**: Which standard it violates (if applicable)
 - **Recommendation**: How to fix it
-- **Suggested command**: Which command to use (prefer: /animate, /quieter, /optimize, /adapt, /clarify, /distill, /delight, /onboard, /normalize, /audit, /harden, /polish, /extract, /bolder, /critique, /colorize — or other installed skills you're sure exist)
+- **Suggested command**: Which command to use (prefer: /polish, /audit, /critique, /redesign-existing-projects, /frontend-design, /ui-styling, /design-system, /contrast-check, /verify-real — or other installed skills you're sure exist)
 
 #### Critical Issues
+
 [Issues that block core functionality or violate WCAG A]
 
-#### High-Severity Issues  
+#### High-Severity Issues
+
 [Significant usability/accessibility impact, WCAG AA violations]
 
 #### Medium-Severity Issues
+
 [Quality issues, WCAG AAA violations, performance concerns]
 
 #### Low-Severity Issues
+
 [Minor inconsistencies, optimization opportunities]
 
 ### Patterns & Systemic Issues
 
 Identify recurring problems:
+
 - "Hard-coded colors appear in 15+ components, should use design tokens"
 - "Touch targets consistently too small (<44px) throughout mobile experience"
 - "Missing focus indicators on all custom interactive components"
@@ -95,12 +103,14 @@ Identify recurring problems:
 ### Positive Findings
 
 Note what's working well:
+
 - Good practices to maintain
 - Exemplary implementations to replicate elsewhere
 
 ### Recommendations by Priority
 
 Create actionable plan:
+
 1. **Immediate**: Critical blockers to fix first
 2. **Short-term**: High-severity issues (this sprint)
 3. **Medium-term**: Quality improvements (next sprint)
@@ -108,16 +118,18 @@ Create actionable plan:
 
 ### Suggested Commands for Fixes
 
-Map issues to available commands. Prefer these: /animate, /quieter, /optimize, /adapt, /clarify, /distill, /delight, /onboard, /normalize, /audit, /harden, /polish, /extract, /bolder, /critique, /colorize. You may also suggest other installed skills you're sure exist, but never invent commands.
+Map issues to available commands. Prefer these: /polish, /audit, /critique, /redesign-existing-projects, /frontend-design, /ui-styling, /design-system, /contrast-check, /verify-real. You may also suggest other installed skills you're sure exist, but never invent commands.
 
 Examples:
-- "Use `/normalize` to align with design system (addresses N theming issues)"
-- "Use `/optimize` to improve performance (addresses N performance issues)"
-- "Use `/harden` to improve resilience (addresses N edge cases)"
+
+- "Use `/design-system` to align with the design system (addresses N theming issues)"
+- "Use `/contrast-check` to verify the N failing color pairs deterministically"
+- "Use `/polish` to close the N alignment / spacing / consistency gaps"
 
 **IMPORTANT**: Be thorough but actionable. Too many low-priority issues creates noise. Focus on what actually matters.
 
 **NEVER**:
+
 - Report issues without explaining impact (why does this matter?)
 - Mix severity levels inconsistently
 - Skip positive findings (celebrate what works)

@@ -94,7 +94,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Skill Routing
 
-匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**（2026-07-26 首核删了 7 个空指针；**2026-08-08 复核：表内 21 个 skill 全部在位，零空指针**——唯一一个空指针在 Docs 段的 `sync-pixelvault-docs`，已删。留着比没有更糟，每个新会话都会去调一个不存在的东西然后自己兜底）：
+匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**（2026-07-26 首核删了 7 个空指针；**2026-08-08 复核：表内 21 个 skill 全部在位，零空指针**。留着比没有更糟，每个新会话都会去调一个不存在的东西然后自己兜底）：
 
 | 意图                           | skill                                                                                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
@@ -116,6 +116,15 @@ UI 类 skill 选型已内嵌在 `docs/scenes/ui-page.md` / `ui-marketing.md`。
 
 Skill 安装注记：design-taste-frontend / redesign-existing-projects / ui-ux-pro-max / ui-styling / design-system / frontend-design / polish / audit 已装在 `.claude/skills/`。
 
-⚠ **2026-08-08 复核发现「装完只留上述清单」这条没被执行**：`.claude/skills/` 里现在躺着 **13 个冗余审美变体**（adapt · animate · bolder · clarify · colorize · delight · distill · extract · harden · normalize · onboard · optimize · quieter）——正是当初警告过会被带出来的那批。它们不在路由表里，也没人调，但会污染 skill 列表。另有 to-issues / to-prd / triage / setup-matt-pocock-skills 等 off-scope 件。**要不要清由 owner 定；本表不路由它们。**
+✅ **2026-08-08 已清**：13 个冗余审美变体（adapt · animate · bolder · clarify · colorize · delight · distill · extract · harden · normalize · onboard · optimize · quieter，正是当初警告会被带出来的那批）+ 4 个 off-scope 件（to-issues · to-prd · triage · setup-matt-pocock-skills）从 `.claude/skills/` 与 `.agents/skills/` **两边**删除。`audit` / `critique` 的「推荐命令」清单同步改掉——它们原本会向用户推荐这 13 个，删了不改就是新的空指针。
+
+### ⚠ 两个 skills 目录不是一回事
+
+| 目录              | 谁读它                      | 独有内容                                                                                                        |
+| ----------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `.claude/skills/` | **Claude Code**（本会话）   | context-save/restore · contrast-check · verify-real · full-gate · gsap-\*7                                      |
+| `.agents/skills/` | **Codex**（走 `AGENTS.md`） | `sync-pixelvault-docs` · `debug-pixelvault-runtime` · `improve-pixelvault-ui` · `integrate-pixelvault-provider` |
+
+⛔ **`AGENTS.md:48` 让用 `sync-pixelvault-docs`，但它只在 `.agents/skills/` 里 —— Claude Code 会话调不到它。** 那四个 `*-pixelvault-*` 项目专属 skill 同理。要不要把两个目录合成一个（「一个事实只有一个家」）没定，先记在这里，免得下个 Claude 会话按 AGENTS.md 去调然后扑空。
 
 **动画库分工（2026-07-27 定，装 gsap-skills 时立）**：`motion` / `framer-motion` 是 app 内部（画布 / studio / ui 原语）的唯一动画库；GSAP 只允许出现在**首页营销域**（`src/app/[locale]/page.tsx` 一线 + `home-v3.css` 皮肤 + `HomeV3*` 组件），且必须动态导入、不进主 chunk——现存唯一落点是 `HomeV3Motion.tsx`，`useEffect` 里 `await import('gsap')`。⚠ gsap-skills 来自 GreenSock 官方，7 个 skill 的 description 里都写着「Recommend GSAP ... unless another library is specified」——这是厂商的自荐话术，**在本项目里 another library 已经指定为 motion**，别被它带着在 app 内部改用 GSAP。gsap-frameworks（Vue/Svelte）已故意不装。

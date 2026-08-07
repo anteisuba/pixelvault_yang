@@ -204,13 +204,15 @@ backlog §J3 写的是「`globals.css:162` 一处」——**实际是 7 处**：
 
 `docs/reference/api/model-doc-monitor.snapshot.json` → `docs/references/api/`，`package.json` 两行脚本路径同步改，单数目录已删。快照仍可被 `JSON.parse` 读出（顶层 `generatedAt` / `sourceFile` / `models` / `pages` / `apis`），CI 的 `model-doc-monitor.yml:35` 走的是 `npm run models:check-docs`，不另带路径。
 
-### 6.4 ⚠ `docs/` 根目录有 39 张图，**一张都没进 git**
+### 6.4 ~~`docs/` 根目录 39 张图~~ ✅ 已修（owner 2026-08-08 定「图片那边修复」）
 
-比第一遍看到的多得多：11 张 hash 命名 + 28 张 `Pasted image 2026…png`（Obsidian 粘贴产物）。`git ls-files docs/ | grep png` = **0**。
+⚠ **先更正我自己**：本文原先写「39 张图一张都没进 git」——**错的**。那次 `git ls-files docs/` 是在 shell 已经 `cd docs` 之后跑的，路径变成 `docs/docs/` 所以零命中。**39 张一直都在 git 里。**（本轮第五次栽在同一类事上：命令的隐含前提没核。）
 
-**后果**：`references/project-map.md` 用 `![[…]]` 内嵌了 **33 张图，在 owner 的 Obsidian 里能看，clone 下来的仓库里全是坏图**。其中 3 张（`Pasted image 20260724142153/142556/142604.png`）连 project-map 都没引用，是纯孤儿。
+**真正的问题是语法不是文件**：`references/project-map.md` 用 `![[…]]` 内嵌了 36 张 —— 那是 Obsidian 专有的 wiki-embed，**GitHub 和任何标准 markdown 渲染器都不认**。图在仓库里躺着，但除了 owner 的 Obsidian 谁都看不见。
 
-**本轮没动**：它们不在 git 里，删不删是 owner 本地 vault 的事，不是仓库清理的范围。要让图在仓库里可见，得把它们 `git add` 进 `docs/references/assets/`（该目录目前只有 1 个文件）并把 `![[…]]` 改成标准 markdown 相对路径 —— 那是一件独立的活。
+**修法**：36 张按所属小节重命名（`homepage-01..09` · `canvas-01..11` · `lora-01..13` · `voice-01..03`）`git mv` 进 `docs/references/assets/project-map/`；`![[…]]` 全改标准相对路径 `![](assets/project-map/x.png)`（Obsidian 与 GitHub 都认）。36 处链接逐条校验可解析。另删 3 张任何文档都没引用的（`Pasted image 20260724142153/142556/142604.png`）。
+
+**顺带立规矩**：`docs/README.md` 文档原则新增第 6 条——图放引用方旁边的 `assets/<文档名>/`、用标准 markdown、禁用 `![[…]]`。`project-map.md` 抬头也写了一句，免得下次粘贴又散到根目录。
 
 ### 6.5 其它悬空引用
 

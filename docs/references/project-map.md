@@ -5,6 +5,8 @@
 > **改 Mermaid 三招**：加节点 `父 --> ID["名字"]`／改名字改引号里的字／换方向 `TD`(上下)↔`LR`(左右)。
 >
 > **进度记号**：✅ 基本成熟　🔧 有主体待升级　⬜ 待做／想法阶段
+>
+> ⚠ **贴图请放 `assets/project-map/` 并用 `![](assets/project-map/<名字>.png)`**（2026-08-08 改）。原先 36 张用的是 Obsidian 的 `![[…]]` 内嵌语法、文件散在 `docs/` 根目录 —— 文件本身在 git 里，但**这个语法只有 Obsidian 认，GitHub 和任何标准 markdown 渲染器都显示不出来**。现已按域重命名、归到本文旁边，并换成标准相对路径。
 
 ---
 
@@ -46,14 +48,14 @@ flowchart LR
 - 📍 现状：首页「白厅画廊」已成型——整页米白 + 头尾暗书挡（hero/footer）+ 6 个真功能两栏交替（图/视频/音频/画布/LoRA/图生3D）+ 深窗 Step1–4 流程。组件 `HomepageCapabilityMatrix` / `HomepageMenu` / `HomepageRevealMotion` / `CapabilityForm`；登录 `AuthPageShell`。
 - 💡 衔接：haivis-landing 你已标注（2026-07-13）——**登录改 modal 窗**、元素拆分/前后对比/文字图层/魔法擦除的**动效语法 = 喜欢**；纯黑大衬线 + 超大留白 = 仅参考。施工落点已指向 `docs/references/pages/home.md`。"展示公开资源"可复用 Gallery 公开 feed 的作品做证据。
 - 登录状态
-- ![[Pasted image 20260724142256.png]]
-- ![[Pasted image 20260724142312.png]]
-- ![[Pasted image 20260724142331.png]]
-- ![[Pasted image 20260724142429.png]]![[Pasted image 20260724142438.png]]
-- ![[Pasted image 20260724142451.png]]我喜欢这种左侧放入矢量动画，css，svg动画的设计。
-  ![[Pasted image 20260724142524.png]]
-- ![[Pasted image 20260724142613.png]]
-- ![[Pasted image 20260724142633.png]]
+- ![](assets/project-map/homepage-01.png)
+- ![](assets/project-map/homepage-02.png)
+- ![](assets/project-map/homepage-03.png)
+- ![](assets/project-map/homepage-04.png)![](assets/project-map/homepage-05.png)
+- ![](assets/project-map/homepage-06.png)我喜欢这种左侧放入矢量动画，css，svg动画的设计。
+  ![](assets/project-map/homepage-07.png)
+- ![](assets/project-map/homepage-08.png)
+- ![](assets/project-map/homepage-09.png)
 -
 
 ### 🎬 画布　🔧
@@ -61,16 +63,16 @@ flowchart LR
 - 🎯 你想做：学习 haivis 画布工作区；整理初始状态；功能明确分化——助手、编辑图片、生成视频、管理资源（卡片收集一个角色的图片/声音）。
 - 📍 现状：节点按模态收敛为 5 类；助手=剧本脑→ScriptDoc→autospawn 投影节点；两阶段脚本流（大纲→镜头）引擎已落、**UI 两道门待做**；cast v2（缩略图/特写/自动编号/视频引用）已交付；视频汇点用 Seedance reference。services `node-workflow`/`script-breakdown`/`story`；核心状态 `studio-context.tsx`（47 files 高风险）。
 - 💡 衔接：haivis-canvas 你已确认整套 CSS/助手布局作为**画布重构对标**（大画布 + 可收起固定右助手 / 选中对象近场工具条 / 附件·模态·模型·思考独立披露）。落点 `docs/references/pages/node-canvas.md`。你说的三件事分别落到：**编辑图片**→图片域迁移/编辑能力接进画布；**生成视频**→视频汇点(已有)；**管理资源(卡片)**→卡片×资产融合（见下）。
-- 图片可以直接粘贴。![[b040a6ad1199dd41747ffca5e952d163.png]] -点击图片后上面出现编辑框 ![[810fe5cc85d3e07a8d2cbac09d095a00.png]]
-- ![[4b56c6c2677d814e88686eb020ca99f3.png]]
-- 整体风格![[4622cfcd3c9032ae48c2a7b965ed8beb.png]]
-- 左侧工具栏以及玻璃透明质感![[edf595f5a69e571cfd86e13c528f0440.png]]
-- ![[06cf417b5fc2debd16492b392b320d4b.png]]
-- 助手框![[dae57aa4d5ae302572f6357d8d7f4798.png]]
-- ![[d18c7d160cda3923fe5d5b0b7c0a0ddb.png]]
-- ![[f7e90dd05d0cb322205d2e7cf17ef44b.png]]
-- ![[e7eb0cb5756a470676b4eb22c326a618.png]]
-- ![[442a042ef0ec4cc4fe76e3de77fd6e06.png]]
+- 图片可以直接粘贴。![](assets/project-map/canvas-01.png) -点击图片后上面出现编辑框 ![](assets/project-map/canvas-02.png)
+- ![](assets/project-map/canvas-03.png)
+- 整体风格![](assets/project-map/canvas-04.png)
+- 左侧工具栏以及玻璃透明质感![](assets/project-map/canvas-05.png)
+- ![](assets/project-map/canvas-06.png)
+- 助手框![](assets/project-map/canvas-07.png)
+- ![](assets/project-map/canvas-08.png)
+- ![](assets/project-map/canvas-09.png)
+- ![](assets/project-map/canvas-10.png)
+- ![](assets/project-map/canvas-11.png)
 -
 
 ### 🧬 LoRA　🔧
@@ -78,19 +80,19 @@ flowchart LR
 - 🎯 你想做：参考 novelai 升级生成页；检索功能（人物 lora / 衣服 lora / 表情 lora …）；生成时自由搭配组合 lora。
 - 📍 现状：已拆独立域（/studio/lora：生成/训练/库[公开|我的]）；recipe-first（还原 + 定制）；**多 LoRA 混挂 + 配方面板是现状已有**（别重造）；danbooru 词库 + prompt-tag 引擎；runner（RunPod ComfyUI）已上线、底模按需下载；搜索走 multi-search。
 - 💡 衔接：你要的"自由搭配组合"——多挂已有基础，**缺的是按类型（人物/衣服/表情）检索的分类标签 + 组合 UI**。NovelAI 方向明确。当前业务收口施工图见 `docs/references/pages/lora-workbench.md`；旧评审 LoRA 域 UI review v1（已随 archive 清理删除，见 git 历史） 仅作历史依据，未来视觉需重新走域级确认。
-  ![[Pasted image 20260724141631.png]]
-- ![[Pasted image 20260724141650.png]]
-- ![[Pasted image 20260724141706.png]]
-- ![[Pasted image 20260724141718.png]]
-- ![[Pasted image 20260724141731.png]]
-- ![[Pasted image 20260724141740.png]]
-- ![[Pasted image 20260724141748.png]]
-- ![[Pasted image 20260724141757.png]]
-- ![[Pasted image 20260724141823.png]]
-- ![[Pasted image 20260724141841.png]]
-- ![[Pasted image 20260724142926.png]]
-  ![[Pasted image 20260724142939.png]]
-  ![[Pasted image 20260724142953.png]]
+  ![](assets/project-map/lora-01.png)
+- ![](assets/project-map/lora-02.png)
+- ![](assets/project-map/lora-03.png)
+- ![](assets/project-map/lora-04.png)
+- ![](assets/project-map/lora-05.png)
+- ![](assets/project-map/lora-06.png)
+- ![](assets/project-map/lora-07.png)
+- ![](assets/project-map/lora-08.png)
+- ![](assets/project-map/lora-09.png)
+- ![](assets/project-map/lora-10.png)
+- ![](assets/project-map/lora-11.png)
+  ![](assets/project-map/lora-12.png)
+  ![](assets/project-map/lora-13.png)
 
 ### 🖼 图片　🔧（后端比你以为的多）
 
@@ -103,8 +105,8 @@ flowchart LR
 - 🎯 你想做：最需要升级情感表达；UI 特定化升级。
 - 📍 现状：VoiceCard 角色声音库（可绑 CharacterCard）；services `audio-reference` / `fish-audio-voice`；`AudioTranscribeDialog` / `StudioAudioFeedback`。
 - 💡 衔接：**情感表达已有施工基准** `docs/plans/audio-domain-design-2026-07.md`（audioKind 属性 / 情绪默认有意图→Creative 无→Natural；**Phase A 情绪见效最先**）。你这条和已拍板方向完全一致，可直接进 Phase A。
-  ![[Pasted image 20260724141930.png]]![[Pasted image 20260724141937.png]]
-  ![[Pasted image 20260724141951.png]]
+  ![](assets/project-map/voice-01.png)![](assets/project-map/voice-02.png)
+  ![](assets/project-map/voice-03.png)
 
 ### 💡 提示词　🔧（产品边界已重定，待 UI 试点）
 
@@ -141,9 +143,10 @@ flowchart LR
 
 ## 变更记录
 
-| 日期       | 变更                                                                                                        | 谁            |
-| ---------- | ----------------------------------------------------------------------------------------------------------- | ------------- |
-| 2026-07-16 | 建立协作骨架                                                                                                | Claude        |
-| 2026-07-16 | owner 填 6 域想法                                                                                           | owner         |
-| 2026-07-16 | 补 提示词/卡片 分支 + 各域现状核实扩充（读 haivis 双文档 + 核实 image-transform 等代码）                    | Claude        |
-| 2026-07-19 | Prompts 收敛为个人配方工作区；共享提示词发现并入 Gallery，独立共享库与 `InspirationPrompt` 链路列入后续删除 | owner + Codex |
+| 日期       | 变更                                                                                                                | 谁            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 2026-07-16 | 建立协作骨架                                                                                                        | Claude        |
+| 2026-07-16 | owner 填 6 域想法                                                                                                   | owner         |
+| 2026-07-16 | 补 提示词/卡片 分支 + 各域现状核实扩充（读 haivis 双文档 + 核实 image-transform 等代码）                            | Claude        |
+| 2026-07-19 | Prompts 收敛为个人配方工作区；共享提示词发现并入 Gallery，独立共享库与 `InspirationPrompt` 链路列入后续删除         | owner + Codex |
+| 2026-08-08 | 36 张内嵌图从 `docs/` 根移进 `assets/project-map/`，按域重命名；`![[…]]` 全改标准相对路径（原写法只有 Obsidian 认） | Claude        |

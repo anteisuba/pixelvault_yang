@@ -3,15 +3,15 @@
 > 日期：2026-06-15
 > 状态：**当前业务收口的 legacy 执行基线，不是未来视觉规范（2026-07-19）**。本文只用于解释 `/studio/node` 已实现结构、当前回归目标和未完成业务；Canvas 业务收口后，视觉改版必须重新按 `docs/scenes/ui-page.md` 走域定义、三方向和关键切片确认。
 > 设计权力限定：下文所有关于深色暗房、无彩、反相 CTA、统一圆角、纸卡、固定动效或“必须继承”的表述，**均不再拥有未来视觉约束力**。它们只能描述当前代码与本轮回归，禁止传播为全站或下一版 Canvas 的默认答案。
-> 历史依据：旧 `docs/archive/design/direction.md` + 2026-06-15 owner 对当时画布的审查；现行设计治理见 `docs/brand-dna.md`。
+> 历史依据：旧 direction.md（已删，见 git 历史） + 2026-06-15 owner 对当时画布的审查；现行设计治理见 `docs/brand-dna.md`。
 > 范围：**面向目标导演台（Shot Board 主视图 + Node Graph 高级视图），但先落到今天能跑的 Node Graph**。Board 的视觉规范随 `ScriptDoc` 地基跟上后补（§8 占位）。
 > 配套阅读：[`references/pages/node-canvas.md`](../references/pages/node-canvas.md)（当前业务施工与回归）、[`references/frontend.md`](../references/frontend.md)（token 与共享行为现状）。
 
 > **🟢 新 chat 从这开始（续接入口）**
 >
 > 1. 读本文件全文（决策 §1、模型切换器/作用域/契约 §5.1、元素视觉+听觉 §5、状态 §6、草稿清单 §13、进度+续接 §14）。
-> 2. 历史视觉稿：[`archive/canvas-drafts/README.md`](../archive/canvas-drafts/README.md)（只作当前回归证据，不得生成未来方向）。
-> 3. 历史引擎路线：[`archive/plans/execution-roadmap-2026-06.md`](../archive/plans/execution-roadmap-2026-06.md)。
+> 2. 历史视觉稿：archive/canvas-drafts/ 的 SVG mockup（已随 archive 清理删除，见 git 历史）。
+> 3. 历史引擎路线：execution-roadmap-2026-06.md（已删，见 git 历史）。
 > 4. 现状：**草稿阶段已闭环**。下一步 = Step 3 视觉快照基准（需 dev server）**或** 按草稿落地（起点建议:去黄 token + 中键平移,走 UI 契约 §14）。
 > 5. 分工(`feedback-ui-on-claude`):UI 走 Claude;引擎(ScriptDoc/Planner/契约/lineage)= Codex,清单见 §14。
 
@@ -19,7 +19,7 @@
 
 ## 0. 历史继承声明（仅解释当前实现，不再约束未来设计）
 
-下列内容记录旧 `direction.md`「双面模式」如何形成当前画布实现。自 2026-07-19 起，它们不得用于生成下一版 Canvas 视觉方向：
+下列内容记录旧 direction.md（已删，见 git 历史）「双面模式」如何形成当前画布实现。自 2026-07-19 起，它们不得用于生成下一版 Canvas 视觉方向：
 
 - **无彩中性**：UI 只用中性灰阶；彩色只留给状态语义与用户作品。
 - **反相 CTA**：最高优先级控件用黑/白反相丸。**例外见 §1**。
@@ -28,7 +28,7 @@
   - **画布动效标准（实现落地 · 2026-06-19）**：尺寸/位置形变**复用全站动效 canon**，不自造数值——缓动 `var(--ease-standard)`，时长 `var(--duration-*)`（token 在 `globals.css @theme`，常量在 `src/constants/motion.ts`；**面板展开折叠用 `slow` / 320ms**）。画布面板的尺寸形变统一挂工具类 **`.node-canvas-panel-motion`**（`globals.css`，只过渡 `width`）；**连续拖拽**（如 dock 宽度把手、分栏把手）时置 `data-resizing="true"` 关闭过渡，让面板/把手 1:1 贴住光标——拖拽要瞬时、切换才动画。`transform`/`opacity` 形变改用 Tailwind `duration-slow ease-standard` 工具类（v4 由 `@theme` 自动生成，勿用 `transition-[...]` 任意值）。reduced-motion 由 `globals.css` 全局 `@media (prefers-reduced-motion)` 兜底，无需逐组件处理。**首落地** = 助手 dock 展开⤢↔dock 宽度形变（修「切大小很僵硬」）。**待补**（同标准逐步推）：dock open/close（需 `AnimatePresence` 出入场）、顶栏展开/收起、加节点菜单 open/close、minimap、节点 hover/选中。
 - **圆角阶梯**：面板 `rounded-2xl` · 卡片 `rounded-xl` · 控件 `rounded-lg` · chip `rounded-full`。
 
-画布参考集（`direction.md` 已锁定）：**ComfyUI**（端口/连线语义）· **Figma**（交互金标准）· **Flora**（节点卡）。本基准新增 **updream** 作为「信息密度 + 右栏 IA」的对照样例。
+画布参考集（direction.md（已删，见 git 历史） 已锁定）：**ComfyUI**（端口/连线语义）· **Figma**（交互金标准）· **Flora**（节点卡）。本基准新增 **updream** 作为「信息密度 + 右栏 IA」的对照样例。
 
 ---
 
@@ -64,7 +64,7 @@
 
 ### 2.2 基准调整
 
-1. **中性化暖灰（推荐，需 owner 确认）**：当前灰阶带暖/棕调，叠加锈橙后整体「不耐看」。建议把 `panel / panel-inner / panel-soft / foreground / muted / subtle` 调到**真中性**（对齐 `direction.md` 的 Vercel Geist 灰阶纪律），近黑画布不变。这是一次可见的整体降温，列为 §10 待确认项。
+1. **中性化暖灰（推荐，需 owner 确认）**：当前灰阶带暖/棕调，叠加锈橙后整体「不耐看」。建议把 `panel / panel-inner / panel-soft / foreground / muted / subtle` 调到**真中性**（对齐 direction.md（已删，见 git 历史） 的 Vercel Geist 灰阶纪律），近黑画布不变。这是一次可见的整体降温，列为 §10 待确认项。
 2. **删除 `--node-amber` / `--node-danger`**：全仓 grep 替换（含 32 处 `focus-visible:border-node-amber`）。
 3. **新增中性语义 token**（替代被删的彩色）：
    - `--node-edge`：连线默认色 = `--node-subtle`（中性灰），不再用 amber。
@@ -75,7 +75,7 @@
 
 ### 2.3 连线 / 端口语义（去色后怎么表达「类型」）
 
-端口类型靠 **图标 + 极低饱和类型色调**（功能性 · 连接配对，**无彩的功能性例外**，参照 `direction.md` 画布参考集里的 ComfyUI 端口语义；同绿生成键的例外性质）：角色/背景/声音/视频 各一档**淡到近灰**的类型色 + 各自图标；**输出=实心 ● · 输入=描边 ○**；同类型才连，不匹配 → 拒绝/标灰。连线**统一中性灰**，default/hover/选中靠**明度**而非色相；进行中=**中性脉冲动效**（删除原 `lime-300`）；非法连接=红（保留，语义）。节点状态去黄见 §6。
+端口类型靠 **图标 + 极低饱和类型色调**（功能性 · 连接配对，**无彩的功能性例外**，参照 direction.md（已删，见 git 历史） 画布参考集里的 ComfyUI 端口语义；同绿生成键的例外性质）：角色/背景/声音/视频 各一档**淡到近灰**的类型色 + 各自图标；**输出=实心 ● · 输入=描边 ○**；同类型才连，不匹配 → 拒绝/标灰。连线**统一中性灰**，default/hover/选中靠**明度**而非色相；进行中=**中性脉冲动效**（删除原 `lime-300`）；非法连接=红（保留，语义）。节点状态去黄见 §6。
 
 > 待 owner 选:端口色 =「极低饱和类型色 + 图标」(已采·推荐) vs「纯无彩·只图标」。
 
@@ -136,7 +136,7 @@
 
 **基准（updream 模式）：**
 
-1. **参数上节点**：每个生成节点底部挂一个自带 composer（生成模式 / 模型 / 比例·时长 / 积分 / 生成按钮），重参数（如音频音色/情绪）点 ⤢ 展开全屏。**复用 Studio 的 composer / `tool-surface` 契约**（`direction.md` 决议 5），不新发明一套。
+1. **参数上节点**：每个生成节点底部挂一个自带 composer（生成模式 / 模型 / 比例·时长 / 积分 / 生成按钮），重参数（如音频音色/情绪）点 ⤢ 展开全屏。**复用 Studio 的 composer / `tool-surface` 契约**（direction.md（已删，见 git 历史） 决议 5），不新发明一套。
 2. **右栏固定 = 纯助手**：只放对话 / 建议 chips / 输入。**参数永不进右栏** → 「粘在一起」从根上消失。**默认安静**(1 句起手 + 3 短 chips + 精简输入 `/`技能 · `@`素材);**反问澄清卡 = 对话中按需浮现、不常驻**(出题跳选项 → 填 ScriptDoc;产出走 `llm-output-validator` 校验);头部 = 多 LLM **自动路由** + 新建 / 对话管理。
 3. **助手三态:折叠 `»` / 默认窄 dock / 展开 `⤢`**。展开 = **左对话 + 右剧本/大纲(ScriptDoc)工作区**并排,边聊边看剧本成形,确认 → 触发自动生成节点;折叠后画布全宽。移动端 = 底部抽屉(ResponsiveOverlay)。与节点「轻在卡 / 重进 ⤢」同一种克制。
 4. **当前重构方向**：保留现有纯 `AssistantConversation` 与 ScriptDoc 能力；默认窄态改稳定 grid 列，收起后画布真实扩宽。820px ScriptDoc 只进扩展 workspace/大面板，不直接成为窄视口 grid 列。
@@ -184,7 +184,7 @@
 
 ## 7. Board ↔ Graph 视觉对应（占位）
 
-Board 主视图依赖 `ScriptDoc` 地基（历史路线见 `docs/archive/plans/execution-roadmap-2026-06.md` 的 VID-UI-1/2）。地基落地后补：Board 行卡 与 Graph 节点的视觉对应（同 `Shot.id`）、审阅循环（approve/retry/regenerate）的状态色与按钮层级。本基准先记录 Graph 当前实现，Board 未来视觉另走现行确认流程。
+Board 主视图依赖 `ScriptDoc` 地基（历史路线见 execution-roadmap-2026-06.md（已删，见 git 历史） 的 VID-UI-1/2）。地基落地后补：Board 行卡 与 Graph 节点的视觉对应（同 `Shot.id`）、审阅循环（approve/retry/regenerate）的状态色与按钮层级。本基准先记录 Graph 当前实现，Board 未来视觉另走现行确认流程。
 
 ---
 
@@ -225,7 +225,7 @@ Board 主视图依赖 `ScriptDoc` 地基（历史路线见 `docs/archive/plans/e
 
 ## 11. 来源（Source of Truth）
 
-- 历史方向：[`archive/design/direction.md`](../archive/design/direction.md)（不得施工）；当前事实：[`references/frontend.md`](../references/frontend.md)、[`references/pages/node-canvas.md`](../references/pages/node-canvas.md)
+- 历史方向：direction.md（已删，见 git 历史）（不得施工）；当前事实：[`references/frontend.md`](../references/frontend.md)、[`references/pages/node-canvas.md`](../references/pages/node-canvas.md)
 - 代码（2026-06-15 审查；助手现状由 2026-07-13 复核覆盖）：`src/app/globals.css`（node tokens）、`src/constants/node-studio.ts`（edge/canvas/dock）、`src/constants/node-tokens.ts`（accents/status/edge colors）、`src/components/business/node/StudioNodeWorkbench.tsx`（ReactFlow/布局）、`src/components/business/node/nodes/NodeShell.tsx`（卡 anatomy/尺寸）、`src/components/business/node/CanvasBottomDock.tsx`、`src/components/business/node/CanvasMiniMap.tsx`、`src/components/business/node/StudioNodeAssistantDock.tsx`（纯助手浮层 + ScriptDoc 扩展）、`src/components/business/node/inspector/SeedanceInspector.tsx`。
 
 ## 12. Last Verified
@@ -238,7 +238,7 @@ Board 主视图依赖 `ScriptDoc` 地基（历史路线见 `docs/archive/plans/e
 
 ## 13. 草稿清单（视觉稿速查 · 文字规格）
 
-> 这些是历史会话逐张确认过的 SVG mockup，已归档到 [`archive/canvas-drafts/`](../archive/canvas-drafts/README.md)。它们只用于核对当前代码来源，不能据此重画下一版 Canvas。下表状态只表示当时确认记录。
+> 这些是历史会话逐张确认过的 SVG mockup，已归档到 `archive/canvas-drafts/`（已删，见 git 历史）。它们只用于核对当前代码来源，不能据此重画下一版 Canvas。下表状态只表示当时确认记录。
 
 - **A1 · 整体布局** ✅：近黑去暖 + 点阵网格；左轨 = 全站共享 app 侧栏（现状，瘦身属 app-shell 决定，超画布范围）；顶栏 = 项目名 + **默认模型 chip** + 添加节点；中区 = 节点 + 自带 composer + 中性连线；右栏 = 固定纯助手；底部工具条（中键平移）；左下 minimap 放大。
 - **A2 · 空画布引导** ✅：空态不留死白 = 一句引导 +「🗨 跟助手聊大纲」**反相白丸**（主）+「＋ 手动加节点」（次）；助手 dock 默认开、起手「看了你的画布，还空着。先聊大纲?」呼应。默认走助手（剧本脑）。
@@ -258,12 +258,12 @@ Board 主视图依赖 `ScriptDoc` 地基（历史路线见 `docs/archive/plans/e
 
 ## 14. 进度 · 下一步 · 续接指南
 
-**历史进度**：Step 1 代码层审查 ✅ · Step 2 基准文档 + 28 张视觉草稿 ✅（已入 `docs/archive/canvas-drafts/`）。未完成业务以当前 active Canvas 任务包为准；旧 Step 3 与“据稿继续落地”不再自动生效。
+**历史进度**：Step 1 代码层审查 ✅ · Step 2 基准文档 + 28 张视觉草稿 ✅（已随 archive 清理删除，见 git 历史）。未完成业务以当前 active Canvas 任务包为准；旧 Step 3 与“据稿继续落地”不再自动生效。
 
 **续接（换一个 chat 继续）——读这三处即可接上**：
 
 1. **本文档 `docs/plans/canvas-baseline.md`** —— legacy 决策 + 草稿清单（§13）+ 当前收口待办（本节）。
-2. `docs/archive/plans/execution-roadmap-2026-06.md` —— 历史视频收敛路线（只作背景）。
+2. execution-roadmap-2026-06.md（已删，见 git 历史） —— 历史视频收敛路线（只作背景）。
 3. memory：`project-canvas-ui-baseline`、`project-video-systems-convergence`、`feedback-ui-on-claude`、`feedback-prefer-direct-api`。
 
 **引擎待办（交 Codex/roadmap，不挡 UI 实现）**：Kling `extend-video` 删 · Seedance（duration 传字符串 / 标准档 1080p 先验 / audio 需配图视频 / seed 接线）· Veo 补 Fast/Lite + 时长×分辨率约束 + 首尾帧模式 · 能力契约 + 类型化绑定重映射 · 自动生成投影 `scriptDocToGraph` · ScriptDoc 地基（VID-UI-1 / DIR-DATA-01）· Vidu Q2 新 builder（`reference_image_urls`）。

@@ -1,7 +1,7 @@
 /**
  * Public API for Node module components (L3 Orchestrator).
  *
- * See docs/spark/2026-05-28-spec-5a-node-directorialization.md.
+ * See docs/references/domains/canvas.md.
  */
 export * from './AssistantConversation'
 export * from './CanvasAddMenu'

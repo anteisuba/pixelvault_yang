@@ -246,16 +246,16 @@ S3 实测暴露 **6 条数据边只渲染 5 条**，根因两道闸串着：折�
 
 ### 分册索引
 
-| 文档                                                                                 | 内容                                                                     |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `canvas-implementation-stages-2026-07-26.md`                                         | 分段施工计划（含北极星、S0–S12）                                         |
-| `canvas-assistant-pipeline-2026-07-26.md`                                            | 助手管道任务包 + 卡匣注册表设计 + 节点四条修订                           |
-| `canvas-assembly-console-info-design-2026-07-26.md`                                  | 组装台信息设计 + 任务模式 tab + 三形态状态机                             |
-| `canvas-skin-spec-2026-07-26.md`                                                     | 皮肤数值 v0.2（真机取样，对比度脚本复核）                                |
-| `canvas-node-family-capability-design-2026-07-26.md`                                 | 六族节点能力 + 视频模型三形态                                            |
-| `canvas-assistant-anthropic-route-2026-07-26.md`                                     | **助手模型换装**（接 Claude Sonnet 5 / Qwen 退出助手）—— 2026-07-26 在飞 |
-| `canvas-visual-redesign-2026-07-25.md`                                               | 结构条款 §7.1（已确认，不重开）                                          |
-| `canvas-cd-driving-protocol-2026-07-25.md` · `canvas-cd-round2-prompt-2026-07-26.md` | CD 喂法与产出审计                                                        |
+| 文档                                                                                                                       | 内容                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `canvas-implementation-stages-2026-07-26.md`                                                                               | 分段施工计划（含北极星、S0–S12）                                         |
+| `canvas-assistant-pipeline-2026-07-26.md`                                                                                  | 助手管道任务包 + 卡匣注册表设计 + 节点四条修订                           |
+| `canvas-assembly-console-info-design-2026-07-26.md`                                                                        | 组装台信息设计 + 任务模式 tab + 三形态状态机                             |
+| `canvas-skin-spec-2026-07-26.md`                                                                                           | 皮肤数值 v0.2（真机取样，对比度脚本复核）                                |
+| `canvas-node-family-capability-design-2026-07-26.md`                                                                       | 六族节点能力 + 视频模型三形态                                            |
+| canvas-assistant-anthropic-route-2026-07-26.md（已删，见 git 历史）                                                        | **助手模型换装**（接 Claude Sonnet 5 / Qwen 退出助手）—— 2026-07-26 在飞 |
+| `canvas-visual-redesign-2026-07-25.md`                                                                                     | 结构条款 §7.1（已确认，不重开）                                          |
+| canvas-cd-driving-protocol-2026-07-25.md（已删，见 git 历史） · canvas-cd-round2-prompt-2026-07-26.md（已删，见 git 历史） | CD 喂法与产出审计                                                        |
 
 ## Last Verified
 

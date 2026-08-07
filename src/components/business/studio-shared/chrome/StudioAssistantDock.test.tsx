@@ -74,7 +74,7 @@ describe('StudioAssistantDock', () => {
     // longer unmounts outright. `inert` removes it from accessibility
     // queries entirely (even with `hidden: true`), so this asserts on the
     // raw DOM instead of screen.getByRole. See
-    // docs/plans/assistant-ux-batch-2026-07.md Slice B.
+    // docs/references/pages/assistant-shell.md.
     const dock = container.querySelector('aside[aria-label="dockLabel"]')
     expect(dock).toHaveStyle({ width: '0px' })
     expect(dock).toHaveAttribute('inert')

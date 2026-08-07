@@ -1,7 +1,7 @@
 # 画布域视觉重设计 — 域定义 + 三方向（2026-07-25，第一轮）
 
 > **权力级别**：active plan（结构决策账本）。本文**不具备实现授权** —— 按 `brand-dna.md`《域级设计确认流程》，owner 选向 + 关键切片确认后才写 `references/pages/`，再实现。
-> **地基**：`docs/plans/canvas-redesign-current-state-2026-07-25.md`（现状事实）· `references/domains/canvas.md`（业务契约）· `brand-dna.md`（治理）。
+> **地基**：canvas-redesign-current-state-2026-07-25.md（已删，见 git 历史）（现状事实）· `references/domains/canvas.md`（业务契约）· `brand-dna.md`（治理）。
 > **已降级的旧答案**：`pages/canvas-workbench.md`（方向 A 冷石墨/帧即卡/成分坞）与 `pages/node-canvas.md`（暗炭/纸卡/石绿）= **可推翻的参考证据**，本文不继承其造型。关系呈现范式（吞噬/连线）完全开放。
 > **lane**：`src/app/canvas.css` + `src/components/business/node/**`；脊柱（`globals.css` / `@theme` / `layout.tsx` / `ui` 原语）不动。
 > **本轮产出边界**：域定义 + 工作流重设计 + 三个结构方向。**零代码**。owner 选向后交 Claude Design 出高保真（阶段 5–6）。
@@ -255,7 +255,7 @@ owner 本轮的测试链路：**一个想法 → 助手生成剧本 → GPT Imag
 
 ## 5 · 交 Claude Design 之前必须补齐的输入
 
-✅ **已产出**：[`canvas-redesign-cd-brief-2026-07-25.md`](canvas-redesign-cd-brief-2026-07-25.md)（关键切片 = 视频组装台）。清单原文如下，供后续切片复用：
+✅ **已产出**：canvas-redesign-cd-brief-2026-07-25.md（已删，见 git 历史）（关键切片 = 视频组装台）。清单原文如下，供后续切片复用：
 
 owner 选向后，brief 需要带：① 本文 §1 域定义与禁区 ② §2.3 六条工作流原则 ③ §3 状态矩阵全格 ④ 选定方向的空间说明 ⑤ **真实内容**（一个真剧本 + 真角色名 + 真镜头数，不用 Lorem）⑥ owner 另发的"想要状态"截图（作为方法证据，不作皮肤继承）⑦ 红线：web capture 不继承皮肤、设计系统只吃脊柱、原型≠可合入代码。
 
@@ -272,7 +272,7 @@ owner 选向后，brief 需要带：① 本文 §1 域定义与禁区 ② §2.3 
 | Q3  | 本轮是否允许新建能力    | **owner 选：画布级粘贴 + 批量推进（真实队列）**。未选：剧本投影补静帧站、显式审核（采用/重来）→ **本轮不做**，留作下一轮候选。⚠ 后果：P1 链路里"静帧先审再喂"仍需用户手搭静帧节点，设计不得假装它自动                             | ✅ 已答                                         |
 | Q4  | 域性格锚点是否采用 §1.6 | 采用（owner 未否，默认生效；如否请说）                                                                                                                                                                                            | 🟡 默认采用                                     |
 | Q5  | 深浅基调开放给方向自证  | 开放（不预设深色）                                                                                                                                                                                                                | 🟡 默认采用                                     |
-| Q6  | 关键切片先做哪一个      | **owner：视频组装台。** 交接简报已出 → [`canvas-redesign-cd-brief-2026-07-25.md`](canvas-redesign-cd-brief-2026-07-25.md)                                                                                                         | ✅ 已答                                         |
+| Q6  | 关键切片先做哪一个      | **owner：视频组装台。** 交接简报已出 → canvas-redesign-cd-brief-2026-07-25.md（已删，见 git 历史）                                                                                                                                | ✅ 已答                                         |
 | Q7  | 关系呈现                | **owner：连线一等 + 分区治乱。** 连线常显 + 类型色 handle；治乱靠分区/成组/便签，不靠总开关隐藏；组装台槽轨只表达"袋型合同装了什么"；**吞噬正式退役**（含吸入三拍、快投、磁吸），拖到槽轨 = 建边                                  | ✅ 已答                                         |
 | Q8  | 序列/长片住哪           | **owner：第二视图（序列模式）。** 画布只留"加入成片"入口与暂存；排序/预演/合成进独立序列视图（左 rail 切模式）。方向 B 的分镜表形态**退到这个视图里**作为候选                                                                     | ✅ 已答                                         |
 
@@ -299,7 +299,7 @@ owner 选向后，brief 需要带：① 本文 §1 域定义与禁区 ② §2.3 
 | **S3 视频**       | 组装台（信息设计 9 格已定，只补框架内的位置与展开策略）                                                                  | 展开遮挡             |
 | **S4 关系与序列** | 常显连线的读法 · 「加入成片」入口 · 序列视图                                                                             | 序列视图形态         |
 
-每段的做法固定为：**先文字定结构 → 再套 [皮肤数值规格](canvas-skin-spec-2026-07-26.md) → 再落码真机调**。不再先出高保真原型（Claude Design 三轮的结论：原型磨"感觉"性价比低，见 [操作手册 §0.1](canvas-cd-driving-protocol-2026-07-25.md)）。
+每段的做法固定为：**先文字定结构 → 再套 [皮肤数值规格](canvas-skin-spec-2026-07-26.md) → 再落码真机调**。不再先出高保真原型（Claude Design 三轮的结论：原型磨"感觉"性价比低，见 操作手册 §0.1（已删，见 git 历史））。
 
 ### S0 待拍板的五个数
 
@@ -311,7 +311,7 @@ owner 选向后，brief 需要带：① 本文 §1 域定义与禁区 ② §2.3 
 
 ## 8 · 事实源
 
-- 现状：`docs/plans/canvas-redesign-current-state-2026-07-25.md`
+- 现状：canvas-redesign-current-state-2026-07-25.md（已删，见 git 历史）
 - 域契约：`docs/references/domains/canvas.md`
 - 治理：`docs/brand-dna.md`《域级设计确认流程》· `docs/scenes/ui-page.md` 阶段 0–8 与「设计工具与产出载体」
 - 降级参考：`docs/references/pages/canvas-workbench.md` · `docs/references/pages/node-canvas.md`

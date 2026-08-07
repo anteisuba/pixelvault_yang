@@ -35,7 +35,7 @@ const ANIMA_DEFAULT_CFG = 4
 const ANIMA_OVERRIDE_SAMPLER = 'er_sde'
 const ANIMA_OVERRIDE_SCHEDULER = 'simple'
 
-// v2（docs/plans/comfy-runner-v2-runtime-lora.md）：LoRA 文件名由 app 侧
+// v2（docs/plans/comfy-runner-HANDOFF-2026-07.md）：LoRA 文件名由 app 侧
 // `prepareRunnerLoras` 预先派生（`civitai-<versionId>.safetensors`），并连同 R2
 // 预签名下载链一起下发。Worker 不再按 allowlist 解析/拒绝——fork worker 会先把
 // `filename` 从 R2 拉到 models/loras/ 再挂（下载规格另见 index.ts 的 loras_to_fetch）。

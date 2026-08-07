@@ -1,7 +1,7 @@
 # 画布重设计 · 分段施工计划（2026-07-26）
 
 > **状态**：owner 2026-07-26 拍板 —— **停止 Claude Design 迭代**，剩余设计在主会话完成，实现分段推进：**先整个框架，再逐个功能**。
-> **上游（全部已拍板，实现期不再重开）**：[信息设计](canvas-assembly-console-info-design-2026-07-26.md) · [皮肤数值 v0.2](canvas-skin-spec-2026-07-26.md) · [布局与节点族](canvas-node-family-capability-design-2026-07-26.md) · [CD 第二轮产出审计](canvas-cd-round2-prompt-2026-07-26.md)
+> **上游（全部已拍板，实现期不再重开）**：[信息设计](canvas-assembly-console-info-design-2026-07-26.md) · [皮肤数值 v0.2](canvas-skin-spec-2026-07-26.md) · [布局与节点族](canvas-node-family-capability-design-2026-07-26.md) · CD 第二轮产出审计（已删，见 git 历史）
 > **CD 产出的用法**：`05c6d4b5-96fd-4d8a-bdbc-537a16bfed54` 的三个文件是**行为与动效的参考实现**，不是可合入代码（`ui-page.md` 红线）。Sonnet 按本文与规格手工翻译成 shadcn + domain token，**不 import 原型代码**。
 > **lane**：`src/app/canvas.css` + `src/components/business/node/**`；吞噬退役另有 4 处在 lane 外（`use-cast-ingest.ts` · `node-studio.ts` 的 `NODE_STUDIO_INGEST_*` · `globals.css` 的 `--ease-ingest` · `motion.ts` 的 `EASE_INGEST_CSS`/`INGEST_MOTION`）。
 
@@ -192,4 +192,4 @@ card 档保持三行（模型名 / 容量条 / 参数 chip），**不放主动�
 
 ## Last Verified
 
-- 2026-07-26 · opus 5。分段依据：`canvas-redesign-current-state-2026-07-25.md` 的组件版图与风险点（`StudioNodeWorkbench` 3348 行 / `CastDock` 576 / `CanvasBottomDock` 252 / `NodeShell` 363）· 皮肤 v0.2 全部数值 · 信息设计与状态机 · CD 第二轮产出的 18 项闸门审计（数值零改动，三条编造事实已记录）。未修改任何产品代码。
+- 2026-07-26 · opus 5。分段依据：canvas-redesign-current-state-2026-07-25.md（已删，见 git 历史） 的组件版图与风险点（`StudioNodeWorkbench` 3348 行 / `CastDock` 576 / `CanvasBottomDock` 252 / `NodeShell` 363）· 皮肤 v0.2 全部数值 · 信息设计与状态机 · CD 第二轮产出的 18 项闸门审计（数值零改动，三条编造事实已记录）。未修改任何产品代码。

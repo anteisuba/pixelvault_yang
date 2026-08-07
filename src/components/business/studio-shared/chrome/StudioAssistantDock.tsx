@@ -247,7 +247,7 @@ export function useDockLayout() {
  * prompt-strip thumbnails (STUDIO_REFERENCE_DRAG_TYPE), and OS image files
  * all land in the panel's single reference slot — never in generation.
  *
- * 施工基准：docs/design/reviews/2026-07-07-studio-assistant-dock-redesign.md
+ * 施工基准：docs/references/pages/assistant-shell.md
  */
 export function StudioAssistantDock() {
   const t = useTranslations('PromptAssistant')
@@ -279,7 +279,7 @@ export function StudioAssistantDock() {
   // transition below animates instead of popping in at full size on every
   // open. Derived state from `open` via a render-phase update (React's
   // recommended alternative to setState-in-effect — same pattern as
-  // injectedReference below). 施工基准：docs/plans/assistant-ux-batch-2026-07.md
+  // injectedReference below). 施工基准：docs/references/pages/assistant-shell.md
   // Slice B.
   const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
   if (open && !hasOpenedOnce) {

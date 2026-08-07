@@ -93,7 +93,7 @@ export function StudioChipBadge({
 /**
  * StudioToolSurface / StudioToolSurfaceTrigger — 工具栏 chip 的统一披露根与
  * 触发器：桌面 = 锚定 Popover，移动端 = 底部 Drawer
- * （docs/design/direction.md §Studio 工具栏规则）。
+ * （docs/references/frontend.md §覆层行为矩阵）。
  *
  * 新 chip 一律用这对原语，不要直接用 Popover —— 锚定 popover 在手机窄视口
  * 会被裁切。仍用裸 `Popover` 作根的旧宿主不受影响：`StudioToolPopoverContent`

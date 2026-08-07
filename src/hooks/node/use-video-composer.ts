@@ -535,7 +535,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     return tokens
   }, [edges, nodes, nodeId, tc])
 
-  // V-3a 管理素材面板（docs/plans/node-video-reference-seedance-design.md §4 /
+  // V-3a 管理素材面板（docs/references/pages/canvas-video-card.md
   // §10 V-3 起点）: "已引用" = a token whose `@name` (the SAME name space
   // MentionInput renders chips for — `token` stripped of its leading `@`, not
   // `label`; voice/video tokens are positional like `@Audio1`/`@视频1`, not

@@ -1,6 +1,6 @@
 # 画布 · 图片卡（施工基准）
 
-> **这是实现基准**，不是过程账。设计推理与被否掉的选项在 [`docs/plans/canvas-image-card-design-2026-07-27.md`](../../plans/canvas-image-card-design-2026-07-27.md)。
+> **这是实现基准**，不是过程账。设计推理与被否掉的选项在 canvas-image-card-design-2026-07-27.md（已删，见 git 历史）。
 > 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。本文不新造任何色值。
 > 关键切片 owner 已确认（2026-07-27）。
 > ⚠ 同目录的 `node-canvas.md`（暖炭纸卡石绿）**已降为历史证据，不得作为造型依据**。

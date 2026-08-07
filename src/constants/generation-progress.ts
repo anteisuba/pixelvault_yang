@@ -3,8 +3,7 @@
  * constants shared by every single-shot generation surface (image / video /
  * audio) in Studio.
  *
- * Spec: docs/plans/generating-progress-2026-07.md (algorithm skeleton) +
- *       docs/plans/loading-language-2026-07.md §2-§3 (visual + landing list).
+ * Spec: docs/references/loading.md (algorithm skeleton + visual).
  *
  * NOT used by `StudioSceneProgress` (multi-shot / training real-progress —
  * out of scope, stays on shadcn `Progress`).

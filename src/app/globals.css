@@ -159,7 +159,7 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  /* Motion canon — docs/design/direction.md §动效 canon（与 src/constants/motion.ts 同步） */
+  /* Motion canon — 唯一来源见 src/constants/motion.ts，两处必须同步改 */
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -338,7 +338,7 @@
   );
   --page-border: color-mix(in oklab, var(--border) 85%, transparent);
 
-  /* Composer（Studio 输入条）— 象牙工作台，主题不变量（direction.md B4 决议：方案 B）。
+  /* Composer（Studio 输入条）— 象牙工作台，主题不变量（docs/references/domains/studio.md：方案 B）。
      暗房工作台上唯一的"亮纸"，与陈列面米白同源；CTA 在其上用黑丸。 */
   --surface-composer: oklch(96% 0.008 95);
   --surface-composer-foreground: oklch(20% 0 0);
@@ -857,7 +857,7 @@ html:lang(zh) {
     }
   }
 
-  /* Composer 壳体 — 象牙工作台（direction.md 决议 4）。
+  /* Composer 壳体 — 象牙工作台（docs/references/domains/studio.md）。
      用语义类而非 @theme 生成的工具类：跑着的 dev server 对新增
      theme key 不重启不生成工具类，语义类热更新立即生效。
      文字色靠继承（preflight 已让 textarea/button color: inherit）。 */
@@ -1403,7 +1403,7 @@ html:lang(zh) {
 }
 
 /* ── Studio generating — "裱框显影" progress frame ─────────────────
-   docs/plans/loading-language-2026-07.md §2. Shared by GenerationPreview's
+   docs/references/loading.md. Shared by GenerationPreview's
    placeholder + image/video/audio regenerate overlays via
    StudioGeneratingProgress. rx/ry read a per-instance custom property so
    the frame can hug either rounded-xl or rounded-2xl art boxes. */

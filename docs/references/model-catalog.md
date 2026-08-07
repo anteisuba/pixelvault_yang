@@ -118,7 +118,7 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 | 模型                  | 状态                                                                                                                                                                                                                                                                                  |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Seedance 2.5          | **仍未 GA（2026-07-31 复核，见下节 ⑨）**。fal 模型页 `bytedance/seedance-2.5/text-to-video` 存在但挂 early access 白名单，terms 写死 **B2B only**（须校验终端用户为企业、非个人消费者）——PixelVault 是个人消费者产品，**不符合准入**。火山方舟 / BytePlus 两条直连线均无 2.5 model id |
+| Seedance 2.5          | **已 GA（2026-08-07 火山上线 API，见下节 ⑬）**——唯一剩余阻塞是带日期 model id 未证实。以下为 07-31 复核时的 fal 侧结论，仍然成立：fal 模型页 `bytedance/seedance-2.5/text-to-video` 存在但挂 early access 白名单，terms 写死 **B2B only**（须校验终端用户为企业、非个人消费者）——PixelVault 是个人消费者产品，**不符合准入**。火山方舟 / BytePlus 两条直连线均无 2.5 model id |
 | ~~Gemini Omni Flash~~ | **已于 2026-07-26 接入**，见下节 ⑦                                                                                                                                                                                                                                                    |
 | Seedream 5.0 edit     | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                                                                                                   |
 
@@ -163,7 +163,7 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 起因：owner 看到即梦官方号发「Seedance 2.5 全球首发」，问能否升级。**结论：接不了，且不是「还没排期」而是「上游没开门」。**
 
-> 本节只管**通道**。2.5 的**能力事实**（参数上限 / 四种模式 / 提示词公式）与它对画布节点、助手 ScriptDoc 的设计输入，见 [`seedance-25-capability.md`](seedance-25-capability.md)——那篇也记着 GA 当天的改动清单与一处待裁决的参数冲突。
+> 本节只管**通道**。2.5 的**能力事实**（参数上限 / 四种模式 / 提示词公式）与它对画布节点、助手 ScriptDoc 的设计输入，见 seedance-25-capability.md（已删，见 git 历史）——那篇也记着 GA 当天的改动清单与一处待裁决的参数冲突。
 
 | 通道                      | 当前最新可用 model id                                                      | 2.5 状态                                                                      |
 | ------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -290,7 +290,9 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 **顺带补了一条目录状态**：`available: false` 原本只有两种合法理由（RETIRED 已退役 / RUNNER 特性开关），`models.test.ts` 有个不变量钉着这点。「预留」是第三种，所以新增了 `RESERVED_MODEL_IDS` + `isReservedModelId`（`constants/models.ts`），与 `RETIRED_MODEL_IDS` 并列。**三者互斥**，测试同时钉住「不能既退役又预留」。往里加 id = 承诺有人会回来收尾，模型一上线或计划一死就删掉那行。
 
-⚠ 还有第二道闸：即便火山开了 API，**Seedance 2.5 仍跑不了** —— VolcEngine 至今没有 execution worker 分支（见 §⑩ 的更正）。要让它真能出片，得照 MiniMax 这次的做法给火山加 worker 分支 + 两处白名单。测试里 `execution` 断言为 `execution-not-migrated` 就是钉住这个事实。
+~~⚠ 还有第二道闸：即便火山开了 API，**Seedance 2.5 仍跑不了** —— VolcEngine 至今没有 execution worker 分支（见 §⑩ 的更正）。要让它真能出片，得照 MiniMax 这次的做法给火山加 worker 分支 + 两处白名单。测试里 `execution` 断言为 `execution-not-migrated` 就是钉住这个事实。~~
+
+> **↑ 这条已作废（2026-08-01 被 `b4ecf638` 推翻，2026-08-08 复核时发现文档没跟上）。** 该 commit「接 MiniMax H3 原生双线 + 火山 Seedance 迁进 worker」把 VolcEngine 加进了 `generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS`，`workers/execution/src/models/volcengine/video-request-builder.ts` 一并落地；同日 `seedance-25-reservation.test.ts` 的断言从 `execution-not-migrated` 翻成 `execution: 'ready'`。**第二道闸已经不存在，2.5 现在只剩 model id 一道闸。** 详见 §⑬。
 
 已知的 2.5 计费与规格（火山口径）：
 
@@ -303,6 +305,24 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 | 输入视频时长            | **2~30 秒**                              | 2.0 为 2~15 秒             |
 
 复查节奏：模型列表页「视频生成能力」段出现 `doubao-seedance-2-5-*` 即为可调用。fal 侧仍用 §⑨ 那条 curl。
+
+### ⑬ Seedance 2.5 已 GA（2026-08-08 月审复核，修正 §⑫）
+
+**火山引擎 2026-08-07 正式上线 Seedance 2.5 API 服务**（多家媒体同日通稿）。§⑫ 那句「在线体验与 API 调用即将上线」的官方原话已被这次上线取代；文档站导航现已出现「Doubao Seedance 2.5 教程 / 提示词指南」章节，与 2.0 系列并列。⚠ 火山文档站是 SPA，`curl` 只抓得到侧边栏，**正文必须真浏览器打开**——这也是本次没能直接取到 model id 的原因。
+
+官方通稿口径的能力：单次原生直出 **30 秒**（无需分段）、最多 **50 个全模态素材参考**、更精准稳定的视频编辑、支持十余种语言。与 §⑫ 表里的计费/规格不冲突。
+
+**闸的现状：三道剩一道。**
+
+| 闸 | 状态 |
+| --- | --- |
+| 上游 API 是否开放 | ✅ 08-07 已开 |
+| execution worker 分支 | ✅ 08-01 已通（§⑫ 那条作废说明） |
+| **可调用的带日期 model id** | 🔶 **未证实，是唯一阻塞** |
+
+**model id 候选：`doubao-seedance-2-5-260628`** —— ⚠ **证据强度弱**，单一第三方来源（开源项目 `KimigaiiWuyi/RH_ComfyUI` 的 `models/video/defs.py`，写 `backend_models={"ark": "doubao-seedance-2-5-260628"}`），**无火山官方文档佐证**。唯一旁证是命名格式与项目在用的 `doubao-seedance-2-0-260128`、公开可见的 `doubao-seedance-2-0-mini-260615` 一致。**格式对不等于值对，猜错就是线上 400** —— 正是 `seedance-25-reservation.test.ts` 那道绊线要拦的事故形态。落码前必须走 §⑫ 的复查节奏（方舟控制台模型列表页）或官方 API 文档确认。
+
+**接入任务包**：`docs/plans/seedance-25-ga-integration-2026-08.md`（触点、冲突 A 的处置、要跟着改的 tripwire 测试都在里面）。⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 现共用一个分支）和 tripwire 测试自身的改写，任务包 §3.3/§3.4 补上了。
 
 ## 接入执行规范（指针）
 
@@ -318,6 +338,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 ## Last Audited
 
+- Date: 2026-08-08 · 范围：**2026-08 月审（owner 口头交办四问）**——① Seedance 2.5 状态复核 → **已 GA**（08-07 火山上线 API），写入新 §⑬ 并作废 §⑫ 那条「第二道闸」（`b4ecf638` 08-01 已把火山 Seedance 迁进 execution worker，文档没跟上）；② Krea 2 权重可下载性复核（HF 官方 Raw/Turbo + `Comfy-Org/Krea-2` 单文件档，许可 <$1M 且 <50 席位免费商用），③ Civitai 确认 `Krea 2` 是一级 baseModel 枚举 + 独立生态页；④ **Krea2 vs Anima 热度实测推翻「Krea2 全面更好」的说法**（LoRA 月榜 52/35 Krea2 领先，但周榜 35/47、checkpoint 24/38 均 Anima 领先，社区口碑是分工不是高下）；⑤ worker-comfyui 仍无新 tag，但 **upstream main 已于 07-30 把 ComfyUI 钉到 0.29.0**，Krea2 的版本闸从「时间不可控」变成「只差发版」。owner 拍板优先级 **Seedance 2.5 > r4a LRU 转正 > Krea2(r4b)**。产出任务包 `docs/plans/seedance-25-ga-integration-2026-08.md`，runner 侧结论回写 `docs/plans/runner-r4-krea2-multiref-2026-07.md` §2.5。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**MiniMax H3 调查（§⑩）+ fal 与原生逐模型比价（§⑪）+ Seedance 2.5 状态修正（§⑫）**。三条结论：H3 三通道全开且原生比 fal 便宜一半，owner 拍板先 fal 验质量再上原生；fal 加价按厂商分化（字节系 1.6~2.2× / FLUX·HappyHorse 持平），「全部迁原生」不成立；火山已给 2.5 定价但未放 model id。另查实 MiniMax 国内外站账号与 key **不通用**（推翻三方说法）。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**Seedance 2.5 通道核查**——四条通道逐条实测，结论「上游未开门」写入 §⑨ 并修正 §⑥ 那行（fal 页面确实存在，卡点是 early access 白名单 + B2B only 条款，PixelVault 作为个人消费者产品不符合准入）。附带登记 2.0 三项欠账（mini 档 / 4K / 延长编辑），owner 拍板等 2.5 一并做。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**回写补登**——把 2026-07-30 业界升级审计的**已实现**结果登记为 §⑧（Fish s2.1-pro / Kling O3 Pro / EL Music v2 / FLUX.2 Pro Edit 四项已落地，Gemini Omni GA 被上游卡住）。同日复核 `models/audio.ts` 确认 `s2.1-pro`、`music_v2`、`eleven_v3: available:false`。**未改模型代码。**

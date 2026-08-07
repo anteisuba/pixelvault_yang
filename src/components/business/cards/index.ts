@@ -2,7 +2,7 @@
  * Public API for the Cards module components (L1 Content domain).
  *
  * External modules MUST import from this index. See
- * docs/spark/2026-05-28-spec-3-cards-module.md.
+ * docs/references/backend.md（分层契约）.
  *
  * Note: ImageCard, MediaCardTile, and the image-card/ subfolder live in
  * the flat business/ directory because they are generation-result

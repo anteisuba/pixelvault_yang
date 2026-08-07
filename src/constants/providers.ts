@@ -33,7 +33,7 @@ export enum AI_ADAPTER_TYPES {
    * model on this route (owner 2026-07-26 decree — no Opus): structural
    * reasoning (multi-scene continuity, character arcs, shot planning) for
    * the canvas assistant. See
-   * docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.
+   * docs/references/pages/assistant-shell.md.
    */
   ANTHROPIC = 'anthropic',
   /**

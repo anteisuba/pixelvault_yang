@@ -33,7 +33,7 @@ describe('getLLMCapabilityScope', () => {
   it('returns assistant-capable adapters matching NODE_STUDIO_ASSISTANT_ROUTE_MODELS adapter set', () => {
     // 2026-07-26: Qwen (DASHSCOPE) exits the assistant route; Claude
     // (ANTHROPIC) takes its slot — see
-    // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.
+    // docs/references/pages/assistant-shell.md.
     expect(getLLMCapabilityScope('assistant').sort()).toEqual(
       [
         AI_ADAPTER_TYPES.ANTHROPIC,

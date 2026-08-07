@@ -595,7 +595,7 @@ function GenerateBranch({
     }
   }
   const showGeneratingOverlay = isGenerating || isCompletingGeneration
-  // 「自己搭配」词库（docs/design/pages/lora-domain-wireframes.md §3）读写的就是
+  // 「自己搭配」词库（docs/references/domains/lora.md）读写的就是
   // 这份共享的 prompt-tag stack——引擎（compiler/search/stack）本来就是
   // 全域共享的，只是此前唯一的宿主 UI（TagLibrary）被删了，这里是词库导入后
   // 第一个真正接上的消费端。

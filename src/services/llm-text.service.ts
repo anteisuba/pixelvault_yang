@@ -143,7 +143,7 @@ const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.DASHSCOPE,
   // Appended last: lowest priority in the no-apiKeyId auto-fallback loop
   // below, and the newest/narrowest-scope BYOK route (see
-  // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md). Still
+  // docs/references/pages/assistant-shell.md). Still
   // required here — the node-assistant's explicit-apiKeyId path resolves
   // through `isLlmTextAdapter`, so a saved Claude key can't complete without
   // this membership.
@@ -1056,7 +1056,7 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
  * OpenAI-compatible drop-in. Four deliberate differences from the branches
- * above (docs/plans/canvas-assistant-anthropic-route-2026-07-26.md §3.5):
+ * above (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
  *     can't mean "omit the field" the way it does for OpenAI/DeepSeek/Qwen,
  *     so it maps to a wide managed ceiling instead.

@@ -23,7 +23,7 @@ interface StudioToolbarProps {
  * (see StudioResolutionPopover).
  *
  * LoRA is no longer an Image Studio concern — it lives in its own domain
- * (/studio/lora). See docs/plans/lora-domain-split-2026-06.md.
+ * (/studio/lora). See docs/references/domains/lora.md.
  */
 export function StudioToolbar({ disabled, compact }: StudioToolbarProps) {
   const t = useTranslations('StudioV2')

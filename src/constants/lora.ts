@@ -61,7 +61,7 @@ export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
   )
 }
 
-// ── 挂载可见性（M2a，docs/plans/lora-recipe-workflow.md）──────────────
+// ── 挂载可见性（M2a，配方还原主线，见 docs/references/domains/lora.md）──
 // Studio chip 卡片 48px 缩略图请求宽度，96 覆盖 2x 屏。
 export const LORA_CHIP_THUMBNAIL_WIDTH = 96
 // 详细卡片来源图横滚条：图块 48×64，192 宽留出 2x + 裁切余量。

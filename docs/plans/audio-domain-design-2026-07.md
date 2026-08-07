@@ -1,7 +1,7 @@
 # 音频域设计基准（2026-07-05）
 
 > **本文是音频域的最新施工基准**，合并了方向调研与情绪控制专题（背景与来源见
-> [`audio-domain-direction-2026-07.md`](audio-domain-direction-2026-07.md)）。
+> audio-domain-direction-2026-07.md（已删，见 git 历史））。
 > 改音频相关的模型 / 服务 / UI 前先读本文。
 > 视觉权力限定（2026-07-19）：本文保留音频业务、模型、数据和功能信息架构决策；下文基于旧双面模式的外观描述已经废止。未来 Audio 视觉需独立完成域定义、三个结构方向与关键切片确认，不能继承 Studio Image、Canvas 或旧暗面工作台皮肤。
 >
@@ -69,7 +69,7 @@
 本节只保留 audio kind、字段、状态和工作流等功能需求。segmented、chip、popover、卡片等形态是旧方案记录，不是未来视觉答案；进入视觉改版时以 `docs/brand-dna.md`、`docs/scenes/ui-page.md` 与新的 Audio 域/page 文档为准。
 
 > ⚠ **kind 切换与音效参数的落地细则已被
-> [`../design/reviews/2026-07-06-audio-kind-ui-redesign.md`](../design/reviews/2026-07-06-audio-kind-ui-redesign.md)
+> 2026-07-06 audio-kind UI review（已删，见 git 历史）
 > 取代**（B3 首版全宽切换条被 owner 否决；新细则=切换器进工具栏行首紧凑 segmented、音效设置改锚定 popover）。
 
 ### 4.1 kind 切换（surface 不裂开）

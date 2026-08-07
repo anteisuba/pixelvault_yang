@@ -45,7 +45,7 @@ export const STUDIO_EMPTY_RECENT_COUNT = 6
 /** 空态示例 prompt chips 的 i18n 键位（每个模态各一组）。 */
 export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
 
-// ── 助手右侧 dock（施工基准 docs/design/reviews/2026-07-07-studio-assistant-dock-redesign.md）──
+// ── 助手右侧 dock（施工基准 docs/references/pages/assistant-shell.md）──
 /**
  * The Studio composer keeps a user-resizable assistant. Canvas intentionally
  * uses a fixed rail, so this preference remains Studio-only.

@@ -21,7 +21,7 @@
 - `docs/references/pages/canvas-video-card.md`
 - `docs/references/pages/canvas-node-locator.md`
 - `docs/references/pages/canvas-node-detail.md`
-- `docs/plans/canvas-node-detail-redesign-2026-07.md`
+- canvas-node-detail-redesign-2026-07.md（已删，见 git 历史）
 
 ## Source of Truth
 

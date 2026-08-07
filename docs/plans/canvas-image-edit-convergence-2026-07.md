@@ -17,7 +17,7 @@
 
 - `/studio/edit` 当前是“先选源图 → 再进任务子页”的工具目录，操作完成后与画布编排、素材引用、视频链路脱节。
 - 画布已经支持散图上传、素材选择、节点详情、生成结果和持久化，具备承接图片编辑的对象与空间基础。
-- `docs/references/ui-inspiration/haivis-canvas-2026-07.md` 提供了适合本项目的交互证据：对象选中态、近场工具条、快捷编辑 prompt、右侧助手引用当前对象。
+- Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史） 提供了适合本项目的交互证据：对象选中态、近场工具条、快捷编辑 prompt、右侧助手引用当前对象。
 
 ## Non-goals
 
@@ -42,7 +42,7 @@
 - `docs/references/frontend.md`
 - `docs/references/pages/node-canvas.md`
 - `docs/plans/canvas-baseline.md`
-- `docs/references/ui-inspiration/haivis-canvas-2026-07.md`
+- Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）
 - `docs/checklists/ui.md`
 
 ## Current Product Facts
@@ -103,7 +103,7 @@ L4 重任务：局部重绘、扩图、图层分解，进入 NodeDetailPanel 的
 
 ### 4. Haivis 对齐基线（owner 已确认）
 
-详细实测证据见 `docs/references/ui-inspiration/haivis-canvas-2026-07.md`。施工图必须体现：
+详细实测证据见 Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）。施工图必须体现：
 
 - **空间**：桌面默认是画布 `minmax(0,1fr)` + 助手固定列；助手收起时列宽动画到 0，画布同步获得空间。默认态不再用浮动 overlay 压住节点。
 - **助手 chrome**：全高、单分隔线、无 backdrop blur、无重投影；PixelVault 用纸笺材质翻译，不复制纯白。
@@ -294,7 +294,7 @@ owner 授权“做最优选择”后锁定：
 
 ## Source of Truth
 
-- 参考方法：`docs/references/ui-inspiration/haivis-canvas-2026-07.md`
+- 参考方法：Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）
 - 画布契约：`docs/references/pages/node-canvas.md`、`docs/plans/canvas-baseline.md`
 - 当前 UI：`src/components/business/node/StudioNodeWorkbench.tsx`、`StudioNodeAssistantDock.tsx`、`AssistantConversation.tsx`、`src/components/business/studio-shared/chrome/StudioAssistantDock.tsx`、`src/components/business/prompts/PromptAssistantPanel.tsx`、`src/components/business/studio/edit/**`
 - 当前能力：`src/constants/edit-tasks.ts`、`src/app/api/image/**`

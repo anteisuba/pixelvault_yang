@@ -131,7 +131,7 @@ interface StoredEnvelope {
  * 解析）。
  *
  * ⚠️ 2026-07-02：原消费方 LoraPromptControlButton 已删除（Image Studio
- * LoRA 清理，见 docs/plans/lora-domain-split-2026-06.md §7），当前没有
+ * LoRA 清理，见 docs/references/domains/lora.md），当前没有
  * 组件读取 mountEvent/acknowledgeMountEvent —— 这条一次性反馈通路已是
  * 死状态，只是没删（删 mountEvent 字段需要单独评估，不在本次清理范围内）。
  * Provider 现在只包 /studio/lora（见 studio/lora/layout.tsx），不再跨

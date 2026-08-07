@@ -3,8 +3,8 @@
  *
  * External modules MUST import from this index, not from individual
  * service files. See:
- *   docs/spark/2026-05-28-architecture-contract-design.md
- *   docs/spark/2026-05-28-spec-3-cards-module.md
+ *   docs/references/backend.md（分层契约）
+ *   docs/references/backend.md（分层契约）
  *
  * Note: card-recipe-compiler (compiles cards → prompt) lives in
  * src/services/kernel/ — it is a prompt-engineering capability and

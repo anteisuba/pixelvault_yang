@@ -6,9 +6,9 @@
 >
 > **关联文档（细节在这些里，本文是总纲 + 串线）**：
 >
-> - `docs/plans/comfy-runner-recipe-clone.md` — 原始任务包（契约/manifest/错误模型/安全/代码触点/**§1.5 后端分工拍板**）
-> - `docs/plans/comfy-runner-deployment-research-2026-07.md` — 本地 vs 云部署形态调研（路线拍板 RunPod-first）
-> - `docs/plans/comfy-runner-runpod-deploy-2026-07.md` — RunPod 逐步部署手册（Volume/Pod/端点/API）
+> - comfy-runner-recipe-clone.md（已删，见 git 历史） — 原始任务包（契约/manifest/错误模型/安全/代码触点/**§1.5 后端分工拍板**）
+> - comfy-runner-deployment-research-2026-07.md（已删，见 git 历史） — 本地 vs 云部署形态调研（路线拍板 RunPod-first）
+> - comfy-runner-runpod-deploy-2026-07.md（已删，见 git 历史） — RunPod 逐步部署手册（Volume/Pod/端点/API）
 > - memory: `project-comfy-runner`、`reference-local-comfyui`
 
 ---
@@ -236,7 +236,7 @@ RunPod Serverless Endpoint (runpod/worker-comfyui:base)
 
 ## 7. 详细执行方案（第一版，只做 WAI）
 
-> 完整逐步版见 `comfy-runner-runpod-deploy-2026-07.md`。这里是精炼可执行版。
+> 完整逐步版见 comfy-runner-runpod-deploy-2026-07.md（已删，见 git 历史）。这里是精炼可执行版。
 > 分工：**网页操作 = 用户手动**（账号/支付/建资源，agent 无法代点）；**job 提交/取图 = agent 用 REST API 代劳**（有 RUNPOD_KEY）。
 
 ### 阶段 A — 临时 Pod 下模型到 Volume
@@ -357,7 +357,7 @@ VAEEncode`，KSampler `denoise = 1 − referenceStrength`，参考图经 RunPod
 
 ## 8. PixelVault 代码触点（接进产品，按 feature dev order）
 
-> 完整版见任务包 `comfy-runner-recipe-clone.md` §8。摘要 + §1.5/§4.3 新增：
+> 完整版见任务包 comfy-runner-recipe-clone.md（已删，见 git 历史） §8。摘要 + §1.5/§4.3 新增：
 
 | 层        | 文件                                                | 改动                                                                                                                                        |
 | --------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -51,7 +51,7 @@ interface AssetSelectorDialogProps {
  * bottom Drawer through ResponsiveDialog. The inner wrapper keeps the `dark`
  * className to
  * flip --sidebar / --background / --foreground tokens to their dark
- * variants (see docs/design/direction.md and docs/design/system/components.md);
+ * variants (see docs/references/frontend.md §Token 与组件治理);
  * the editorial canvas behind the dimmed overlay stays warm off-white so the
  * user keeps their bearings inside the studio.
  *

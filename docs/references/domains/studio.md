@@ -22,9 +22,9 @@
 
 - dock 六位工具栏：模型 / 模板 / 助手 / 图像 / 卡片 / 1:1；chip 三态（空/已设值/不支持不渲染）。
 - composer = 暗面上唯一「亮纸」（`--surface-composer` 象牙 + 黑丸 CTA，B4 已实装）。
-- 空态起手势：eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口（施工报告在 `archive/reviews/2026-07-05-studio-empty-state.md`）。
-- 助手宿主 = 右侧 dock（施工基准 `archive/reviews/2026-07-07-studio-assistant-dock-redesign.md`）。
-- 工具面板当前行为与实现见 `references/frontend.md` 及对应代码；旧 `archive/design/direction.md` 仅作历史证据，不再提供视觉契约。
+- 空态起手势：eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口。
+- 助手宿主 = 右侧 dock（契约见 `references/pages/assistant-shell.md`）。
+- 工具面板当前行为与实现见 `references/frontend.md` 及对应代码。
 
 ## 不能破坏
 

@@ -13,23 +13,25 @@ docs/
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release
 ├── scenes/          任务类型场景：专属工作流 + 专属 5 问（批 3 填充）
-├── references/      规则知识库：frontend · backend · database · cicd · testing 等（批 2 填充）
+├── references/      规则知识库：frontend · backend · database · cicd · testing · loading 等
+│   └── api/         CI 用的模型文档快照（`npm run models:check-docs` 读它，别手改）
 ├── templates/       任务起点：task-packet 与代码骨架
-├── plans/           在飞任务包（完成即删/归档/沉淀）
-│   └── research/    调研/可行性结论（非实现授权；中文文件名；2026-07-31 起按模块分子目录，每模块一份「模块整理」；约定见 plans/research/说明.md）
-└── archive/         拍板决策与历史证据，不进默认阅读路径
+└── plans/           在飞任务包（**完成即删** —— 2026-08-07 已按此清理一轮，见 plans/docs-cleanup-2026-08-07.md）
+    └── research/    调研/可行性结论（非实现授权；中文文件名；2026-07-31 起按模块分子目录，每模块一份「模块整理」；约定见 plans/research/说明.md）
 ```
 
 ## 怎么进入
 
 任何任务从 [`WORKFLOW.md`](WORKFLOW.md) 开始：判断任务类型 → 进对应 scene → 按路由矩阵读最小文档集。**不要通读整个 docs/。**
 
-UI 设计文档按职责读取：`brand-dna.md` 管全局不变量与设计权力边界，`references/frontend.md` 管实现事实与共享行为，`references/domains/` 管业务域责任，`references/pages/` 只保存 owner 已确认的页面方向与施工契约。`archive/` 和 `references/ui-inspiration/` 只作证据，不得成为新页面的造型规范。
+UI 设计文档按职责读取：`brand-dna.md` 管全局不变量与设计权力边界，`references/frontend.md` 管实现事实与共享行为，`references/domains/` 管业务域责任，`references/pages/` 只保存 owner 已确认的页面方向与施工契约。
+
+⚠ `archive/` 与 `references/ui-inspiration/` 已于 2026-08-07 删除（owner 拍板「删，不是归档」）。历史证据一律从 git 历史取，不再有常驻目录。
 
 ## 文档原则
 
 1. 代码是实现事实源；文档只记录代码读不出的契约、决策、验证路径。
 2. 长期文档要短、明确、指向代码事实源（带 Source of Truth + Last Verified 区块）。
-3. plans/ 完成即删、归档或沉淀；过期进度不留在默认阅读路径。
+3. plans/ **完成即删**（不归档）；结论先沉淀进 `references/`，再删任务包。删之前必须 grep 全仓（含 `src/` 注释）改掉所有指向它的引用 —— 2026-08-07 那轮清理就是被这一步卡住最久的。
 4. 能更新现有文档就不新建；一个事实只有一个家。
 5. 新文档默认中文；代码标识符和路径保留英文。

@@ -310,7 +310,7 @@ const CivitaiModelVersionDetailSchema = z
   })
   .passthrough()
 
-// ── 收藏自愈回填（解法一，docs/plans/lora-recipe-workflow.md）──────────
+// ── 收藏自愈回填（解法一，配方还原主线）──────────────────────────────
 //
 // 旧收藏行缺 civitaiModelId / civitaiFileHashAutoV3 / 封面（字段后加），
 // 导致来源图挖掘 no-op。versionId 可从 loraUrl 恢复，其余标识由本函数
@@ -840,7 +840,7 @@ export interface CivitaiCheckpointResolution {
  * resolver); public checkpoints resolve fine. TODO(v3): pass the system Civitai
  * token so gated-but-downloadable checkpoints resolve as T1 instead of T2.
  *
- * See docs/plans/comfy-runner-v3-checkpoint-ondemand.md §2/§6.
+ * See docs/plans/comfy-runner-HANDOFF-2026-07.md.
  */
 export async function resolveCivitaiCheckpointByReference(
   modelVersionId: number,
@@ -2502,8 +2502,8 @@ export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmRes
 
 // ─── Phase 2: recover source prompts + per-image recipes ───────────────
 //
-// Source confidence order (verified live 2026-06-11, see
-// docs/plans/lora-recipe-workflow.md):
+// Source confidence order (verified live 2026-06-11 against the Civitai API;
+// re-verify against the endpoints named below, not against a doc):
 //   1. /api/v1/model-versions/:id images[].meta — the LoRA page source/
 //      reference images; ≥96 % carry a full recipe (prompt, negativePrompt,
 //      seed, steps, cfgScale, Size, resources) in sampled top LoRAs.

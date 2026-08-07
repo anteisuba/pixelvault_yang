@@ -9,7 +9,7 @@
  * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。
  *
  * ⚠⚠（2026-07-27，owner 拍板方向 B 第二轮修订，施工基准
- * docs/plans/canvas-node-token-inversion-2026-07-27.md §4.6）：下面这批
+ * docs/plans/canvas-skin-spec-2026-07-26.md）：下面这批
  * --node-panel/-foreground/-muted/-subtle/-canvas/-focus-ring/-shadow/
  * -status-failed(-fg)/-status-done(-fg) 的**默认值已从旧深皮反转成 v0.2 浅色**。
  * 第一版把反转挂在 .domain-canvas 上，真机暴露系统性缺口：Radix
@@ -3436,7 +3436,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    Radix 传送门（Popover/Dialog/DropdownMenu/Select 内容渲染进
    document.body）够不到这个作用域的系统性缺口，第二轮改挂 :root（本文件
    顶部 :root 块直接反转默认值），详见该处的 ⚠⚠ 说明与
-   docs/plans/canvas-node-token-inversion-2026-07-27.md §4.6。这里不再重复
+   docs/plans/canvas-skin-spec-2026-07-26.md。这里不再重复
    一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
    故整块移除，不留空选择器。 */
 
@@ -3494,7 +3494,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 
 /* ══════════════════════════════════════════════════════════════════════════
    S11 · 画布助手浮动卡（2026-07-27）
-   施工基准：docs/references/pages/assistant-shell.md §1（「⛔ 下面这节已被
+   施工基准：docs/references/pages/assistant-shell.md（「⛔ 下面这节已被
    owner 推翻」节 + 紧随其后的几何表）。S8 已经把画布助手表面从近黑改白
    （背景/字色/边色）；这里改的是外框——从贴边挤压侧栏改浮动卡片。桌面档
    定位/宽高在 CanvasWorkspaceLayout.tsx 的 Tailwind className 与其

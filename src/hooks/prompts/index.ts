@@ -2,7 +2,7 @@
  * Public API for the Prompts module hooks (L1 Content domain).
  *
  * External modules MUST import from this index, not from individual
- * hook files. See docs/spark/2026-05-28-architecture-contract-design.md.
+ * hook files. See docs/references/backend.md（分层契约）.
  */
 export * from './use-inspirations'
 export * from './use-prompt-feedback'

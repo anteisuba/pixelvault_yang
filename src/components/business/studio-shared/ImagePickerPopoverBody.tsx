@@ -32,7 +32,7 @@ interface ImagePickerPopoverBodyProps {
  * ImagePickerPopoverBody — shared image-source popover: drag/paste/click
  * dropzone + recent-assets grid + "open library" fallback. Originally the
  * assistant dock's picker body (2026-07-07 D4); promoted to studio-shared
- * so every image-input chip converges on one UI (docs/plans/assistant-ux-batch-2026-07.md
+ * so every image-input chip converges on one UI (docs/references/pages/assistant-shell.md
  * Slice C). All paths only ever call back into the host — this component
  * never triggers generation itself.
  */

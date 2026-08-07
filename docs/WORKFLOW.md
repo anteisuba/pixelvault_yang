@@ -2,7 +2,7 @@
 
 > 核心逻辑：**用流程和品质底线保证质量，不用统一视觉答案限制业务域**。三层控制：**流程**（本文件 + scenes/）→ **规范**（forbidden.md / references/ / 当前 active plan）→ **起点**（templates/）。Agent 先问、再读业务与工程约束、复用成熟行为、按 checklist 自检、交付带证据的报告；视觉方向按业务域确认。
 
-> **UI 现行治理（2026-07-19）**：`brand-dna.md` 只定义薄品牌脊柱、设计权力分层与品质底线，不提供全站皮肤。新 UI 不得从旧 `direction.md`、archive、当前页面或既有组件外观中选择造型答案；视觉方向必须按业务域完成三方向与关键切片并经 owner 确认。历史迁移记录已归档，不进入默认阅读链。
+> **UI 现行治理（2026-07-19）**：`brand-dna.md` 只定义薄品牌脊柱、设计权力分层与品质底线，不提供全站皮肤。新 UI 不得从旧 direction.md（已删，见 git 历史）、archive、当前页面或既有组件外观中选择造型答案；视觉方向必须按业务域完成三方向与关键切片并经 owner 确认。历史迁移记录已归档，不进入默认阅读链。
 
 ## 七步总骨架（所有场景共享的不变量）
 
@@ -55,7 +55,7 @@
 | 画布 node-workflow                                               | 当前业务收口读 plans/canvas-baseline.md；未来视觉改版重走 ui-page scene                                 |
 | LoRA                                                             | 先读 references/domains/lora.md；当前业务收口再读 references/pages/lora-workbench.md 与对应 active plan |
 | 音频                                                             | 业务与功能事实读 plans/audio-domain-design-2026-07.md；未来视觉方向独立确认                             |
-| Comfy runner                                                     | plans/comfy-runner-HANDOFF-2026-07.md + deployment-research                                             |
+| Comfy runner                                                     | plans/comfy-runner-HANDOFF-2026-07.md                                                                   |
 
 **在飞任务包（plans/）的优先级高于长期文档，但只在自身已授权任务范围内生效。** 功能收口任务包不能覆盖现行 UI 治理，也不能把历史视觉描述恢复为下一版页面规范。
 

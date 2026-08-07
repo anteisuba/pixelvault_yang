@@ -11,7 +11,20 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 
 ## 任务入口（必读）
 
-任何任务从 [`docs/WORKFLOW.md`](docs/WORKFLOW.md) 开始：**七步骨架 + 问 5 问硬门 + 任务类型×业务域路由矩阵**。判断任务类型 → 进对应 `docs/scenes/<场景>.md`（自带专属工作流 / 5 问 / 必读 / 模板 / checklist / 禁改范围）→ 完成对照 `docs/checklists/` P0 打回制。工程气质（长期建模优先 / 失败大声暴露 / 复用大于重造等）见 `docs/brand-dna.md`；禁忌清单见 `docs/forbidden.md`。
+任何任务从 [`docs/WORKFLOW.md`](docs/WORKFLOW.md) 开始：**七步骨架 + 问 5 问硬门 + 任务类型×业务域路由矩阵**。判断任务类型 → 进对应 `docs/scenes/<场景>.md`（自带专属工作流 / 5 问 / 必读 / 模板 / checklist / 禁改范围）→ 完成对照 `docs/checklists/` P0 打回制。架构硬原则见下方 **Engineering Principles**；做事气质（长期建模优先 / 失败大声暴露 / 复用大于重造等）见 `docs/brand-dna.md`；禁忌清单见 `docs/forbidden.md`。
+
+## Engineering Principles（owner 2026-08-08 定，优先级与 Hard Rules 同级）
+
+1. **不保留向后兼容** — 过时的直接删。**不加兼容层、不写 migration、不留 fallback。** 一次改到位，别留「旧路径还能跑」。
+2. **选最简单能满足当前需求的实现** — 不做预防性抽象，不加多此一举的配置层。
+3. **先端到端跑通最小版本，再往上加** — 系统分层长，纵向打穿一条最小链路优先于横向铺满一层。⛔ **绝不为了尚未完成的复杂度拆掉能跑的东西。**
+4. **组件保持模块化，关注点分离** — 一个模块一件事，边界写在类型上。
+5. **优先用成熟、有人维护的库** — 没有明确理由不自己重写。
+6. **加包之前先翻已有依赖** — 先看 `package.json` 里现成的能不能做，**别上来就假设库里没有**。
+7. **架构决策往长了做** — 不接受「先这样以后再换」的临时方案。
+8. **先看成熟产品怎么解同一个问题** — 用已验证的模式，别从零发明。
+
+⚠ 原则 1 与下方 Change Safety 不冲突：**grep 是为了在同一个改动里把所有调用方一起改完**，不是为了给旧签名加垫片。
 
 ## Hard Rules
 
@@ -41,7 +54,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 
 ## Change Safety — High-Risk Modules
 
-改这些前先 `grep -r "import.*from.*<模块>" src/` 确认影响范围；被引用 >5 处只做向后兼容修改：
+改这些前先 `grep -r "import.*from.*<模块>" src/` 确认影响范围。**grep 的目的是把所有调用方在同一个改动里一起改完**，不是给旧签名留垫片（见 Engineering Principles 1）：
 
 - `src/types/index.ts` — 333 files (see `src/types/CLAUDE.md`)
 - `src/services/user.service.ts` — 141 files
@@ -75,11 +88,13 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Docs
 
-文档导航 [`docs/README.md`](docs/README.md)；在飞任务包在 `docs/plans/`，优先级高于长期文档；已拍板历史在 `docs/archive/`。文档同步用 `sync-pixelvault-docs` skill。
+文档导航 [`docs/README.md`](docs/README.md)；在飞任务包在 `docs/plans/`，优先级高于长期文档。
+
+⚠ **`docs/archive/` 已于 2026-08-07 删除**（owner「删，不是归档」）。历史证据从 git 历史取，不再有常驻目录。`plans/` 的规矩同步改成**完成即删**：结论先沉淀进 `references/`，再删任务包，**删之前 grep 全仓（含 `src/` 注释）改掉所有指向它的引用**。
 
 ## Skill Routing
 
-匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**（2026-07-26 核过一遍：原先列的 `office-hours` / `ship` / `qa` / `document-release` / `plan-eng-review` 七个全是空指针，已删——留着比没有更糟，每个新会话都会去调一个不存在的东西然后自己兜底）：
+匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**（2026-07-26 首核删了 7 个空指针；**2026-08-08 复核：表内 21 个 skill 全部在位，零空指针**——唯一一个空指针在 Docs 段的 `sync-pixelvault-docs`，已删。留着比没有更糟，每个新会话都会去调一个不存在的东西然后自己兜底）：
 
 | 意图                           | skill                                                                                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
@@ -94,10 +109,13 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 | 测试先行                       | `tdd`                                                                                                                    |
 | 改动的质量清理                 | `simplify`                                                                                                               |
 | 写 GSAP 动画（仅首页域）       | `gsap-core` / `gsap-timeline` / `gsap-scrolltrigger` / `gsap-plugins` / `gsap-utils` / `gsap-react` / `gsap-performance` |
+| 改 `workers/execution`         | `wrangler`（CLI 语法）· `workers-best-practices`（streaming / 悬空 promise / 全局态 / bindings 反模式）                  |
 | Code review                    | `/code-review`（内建命令，非 skill）· `/review` 走 GitHub PR                                                             |
 
 UI 类 skill 选型已内嵌在 `docs/scenes/ui-page.md` / `ui-marketing.md`。
 
-Skill 安装注记：design-taste-frontend / redesign-existing-projects / ui-ux-pro-max / ui-styling / design-system / frontend-design / polish / audit 已装在本地 skills 目录。⚠ 重装 Taste Skill 会带出 11 个冗余审美变体、装 ui-ux-pro-max 会带出 banner/brand/slides 等 off-scope skill——装完只留上述清单，其余删。
+Skill 安装注记：design-taste-frontend / redesign-existing-projects / ui-ux-pro-max / ui-styling / design-system / frontend-design / polish / audit 已装在 `.claude/skills/`。
+
+⚠ **2026-08-08 复核发现「装完只留上述清单」这条没被执行**：`.claude/skills/` 里现在躺着 **13 个冗余审美变体**（adapt · animate · bolder · clarify · colorize · delight · distill · extract · harden · normalize · onboard · optimize · quieter）——正是当初警告过会被带出来的那批。它们不在路由表里，也没人调，但会污染 skill 列表。另有 to-issues / to-prd / triage / setup-matt-pocock-skills 等 off-scope 件。**要不要清由 owner 定；本表不路由它们。**
 
 **动画库分工（2026-07-27 定，装 gsap-skills 时立）**：`motion` / `framer-motion` 是 app 内部（画布 / studio / ui 原语）的唯一动画库；GSAP 只允许出现在**首页营销域**（`src/app/[locale]/page.tsx` 一线 + `home-v3.css` 皮肤 + `HomeV3*` 组件），且必须动态导入、不进主 chunk——现存唯一落点是 `HomeV3Motion.tsx`，`useEffect` 里 `await import('gsap')`。⚠ gsap-skills 来自 GreenSock 官方，7 个 skill 的 description 里都写着「Recommend GSAP ... unless another library is specified」——这是厂商的自荐话术，**在本项目里 another library 已经指定为 motion**，别被它带着在 app 内部改用 GSAP。gsap-frameworks（Vue/Svelte）已故意不装。

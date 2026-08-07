@@ -22,8 +22,8 @@
 - `docs/scenes/service-change.md`
 - `docs/scenes/new-model.md`
 - `docs/scenes/ui-page.md`
-- `docs/archive/reviews/2026-07-02-lora-domain-ui-review.md`
-- `docs/plans/comfy-runner-v4-anima-dit.md`
+- LoRA 域 UI review v1（已随 archive 清理删除，见 git 历史）
+- comfy-runner-v4-anima-dit.md（已删，见 git 历史）
 
 ## Source of Truth
 

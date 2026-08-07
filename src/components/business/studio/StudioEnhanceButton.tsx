@@ -48,7 +48,7 @@ const PromptAssistantPanel = dynamic(
 // transition itself is handled by StudioAssistantDock's width animation —
 // this only removes the chunk-download stall inside it). Idempotent: the
 // bundler caches the import promise, so repeat calls are free.
-// 施工基准：docs/plans/assistant-ux-batch-2026-07.md Slice B.
+// 施工基准：docs/references/pages/assistant-shell.md.
 let promptAssistantPanelPrefetched = false
 function prefetchPromptAssistantPanel() {
   if (promptAssistantPanelPrefetched) return
@@ -67,7 +67,7 @@ interface StudioEnhanceButtonProps {
  *    StudioAssistantDock (mounted by StudioWorkspaceUI) — no dialog here.
  *  - mobile (<lg): keeps the ResponsiveDialog drawer host, since a side dock
  *    doesn't fit narrow viewports.
- * 施工基准：docs/design/reviews/2026-07-07-studio-assistant-dock-redesign.md
+ * 施工基准：docs/references/pages/assistant-shell.md
  */
 export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
   const t = useTranslations('StudioV2')

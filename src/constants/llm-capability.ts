@@ -39,7 +39,7 @@ const ADAPTER_CAPABILITIES: Record<
   // scene continuity, character arcs, shot planning — the assistant's own
   // job). No enhance (that line isn't short on adapters, don't expand it),
   // no planner (SCRIPT_PLANNER_MODELS intentionally stays untouched — see
-  // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md §3.4 note).
+  // docs/references/pages/assistant-shell.md note).
   [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
   // MiniMax has text models, but this route is video-only here — H3 is the

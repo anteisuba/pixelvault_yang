@@ -10,7 +10,7 @@ import type { RunnerCheckpointSpec } from '@/types'
  *
  * checkpoint 下载走 **fork GPU 侧**（不像 LoRA 走 R2）：app 只解析出 Civitai 下载
  * URL + 目标文件名，fork 用它的 CIVITAI_KEY 直下到 Volume。设计：
- * docs/plans/comfy-runner-v3-checkpoint-ondemand.md §1/§6。
+ * docs/plans/comfy-runner-HANDOFF-2026-07.md。
  */
 
 export class RunnerCheckpointError extends Error {

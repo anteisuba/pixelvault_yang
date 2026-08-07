@@ -202,7 +202,7 @@ export function getNodeMediaUrl(
 }
 
 /**
- * V-2 主图（docs/plans/node-video-v2v3-master-panel.md）: the ONE image a
+ * V-2 主图（docs/references/pages/canvas-video-card.md）: the ONE image a
  * card (character/background identity node) contributes to a downstream
  * harvest (video reference / shot image-to-image). A card can collect
  * several `referenceAssets` for organizing/swapping (S5c 视觉身份区), but

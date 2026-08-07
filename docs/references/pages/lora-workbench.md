@@ -392,7 +392,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 ## Source of Truth
 
 - 代码现状：`LoraWorkbench.tsx`（4268 行，锚点见 §9）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*` · `prompt-tags/PromptTagTray.tsx`
-- 上游决策：`docs/plans/lora-search-redesign-2026-07.md`（调查简报）· `docs/archive/reviews/2026-07-02-lora-domain-ui-review.md`（v1 施工基准，D1–D9/B1–B11）· `docs/plans/lora-search-image-audit-2026-07.md`（S0 工程前置）
+- 上游决策：`docs/plans/lora-search-redesign-2026-07.md`（调查简报）· LoRA 域 UI review v1（已随 archive 清理删除，见 git 历史）（v1 施工基准，D1–D9/B1–B11）· `docs/plans/lora-search-image-audit-2026-07.md`（S0 工程前置）
 - 规矩：当前功能施工读本文；未来视觉改版同时读 `lora-library.md` / `lora-generate.md`、`docs/brand-dna.md`、`docs/scenes/ui-page.md`、`docs/checklists/ui.md` 与 `docs/references/frontend.md`，不得从本文现有皮肤反推新方向。
 
 ## Last Verified

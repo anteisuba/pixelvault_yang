@@ -9,8 +9,7 @@ import { cn } from '@/lib/utils'
 /**
  * Unified loading spinner — collapses 60+ ad-hoc `<Loader2 className="animate-spin
  * size-N" />` call sites onto one component/size ledger.
- * Spec: docs/plans/loading-language-2026-07.md §1 (visual) +
- *       docs/plans/spinner-unify-2026-07.md (engineering skeleton).
+ * Spec: docs/references/loading.md (visual + engineering skeleton).
  *
  * Sizing is the token surface here — three fixed steps, no arbitrary values:
  *   sm  14px — dense inline (chips, tree rows, card badges, compact buttons)

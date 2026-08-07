@@ -1,6 +1,6 @@
 # Assets 域 — 私有素材库（现状事实）
 
-> 职责：私有作品浏览 / 上传 / 文件夹归类 / 批量操作 / 单资产详情与复用入口。**不负责**：生成执行、公开展示（归 Gallery）、credit。⚠ 本域首次有独立域文档（旧体系没有）；**改素材页先读 `archive/reviews/2026-07-05-assets-optimization-directions.md`（方向调研已成文，别重调研）**。
+> 职责：私有作品浏览 / 上传 / 文件夹归类 / 批量操作 / 单资产详情与复用入口。**不负责**：生成执行、公开展示（归 Gallery）、credit。⚠ 本域首次有独立域文档（旧体系没有）；**改素材页先读 素材优化方向调研（已删，见 git 历史）（方向调研已成文，别重调研）**。
 
 ## 现状结构（2026-07-05 调研口径）
 
@@ -25,7 +25,7 @@
 
 ## Source of Truth
 
-`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `AssetFolderTree.tsx` · `src/hooks/use-gallery.ts`；方向调研 `archive/reviews/2026-07-05-assets-optimization-directions.md`（含 P0–P2 路线图）。
+`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `AssetFolderTree.tsx` · `src/hooks/use-gallery.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
 
 ## Last Verified
 

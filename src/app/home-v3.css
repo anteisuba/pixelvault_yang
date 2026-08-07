@@ -1512,7 +1512,7 @@
 /* The running state sits on top of both, so the reader watches the same frame
    throughout instead of the panel changing shape under them. */
 /* The shared `Spinner` at its block size, with a line of text under it —
-   docs/plans/loading-language-2026-07.md §1.2: page/block level is lg (24px)
+   docs/references/loading.md: page/block level is lg (24px)
    plus a caption, never a bigger spinner. Colour is the domain's dim token
    rather than the global muted one, which §0 allows so long as the state
    semantics and the reduced-motion contract are untouched — both live in the

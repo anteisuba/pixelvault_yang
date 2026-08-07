@@ -157,7 +157,7 @@ export const NodeWorkflowReferenceAssetSchema = z.object({
    */
   customLabel: z.string().trim().min(1).max(80).optional(),
   /**
-   * V-2 主图（docs/plans/node-video-v2v3-master-panel.md）: marks this entry
+   * V-2 主图（docs/references/pages/canvas-video-card.md）: marks this entry
    * as the ONE image a character/background card sends to a downstream
    * Seedance video reference (or a shot's own image-to-image harvest) — the
    * card can collect several referenceAssets for organizing/swapping, but

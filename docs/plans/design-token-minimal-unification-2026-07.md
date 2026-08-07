@@ -117,7 +117,7 @@ owner（2026-07-24）：项目被 token 定得太死；只想保持**最小限�
 
 三域**都**走 `brand-dna.md §域级设计确认流程`（域定义 → 三方向 → 切片 → owner 确认 → 写 `references/pages/` → 才实现），**都**受 §5.1 脊柱约束，视觉方向各 chat 自己出。
 
-- **LoRA**：视觉真值走已定 Claude Design brief（`plans/lora-generate-claude-design-brief-2026-07.md`）；不重开 `project-lora-visual-redesign` 已实现到 R4 的决策，本轮机制 = 给它 `lora.css` 容器 + 把现有值搬进作用域。
+- **LoRA**：视觉真值走已定 Claude Design brief（lora-generate-claude-design-brief-2026-07.md（已删，见 git 历史））；不重开 `project-lora-visual-redesign` 已实现到 R4 的决策，本轮机制 = 给它 `lora.css` 容器 + 把现有值搬进作用域。
 - **画布**：先做 §5.4 平移；视觉迭代基于 `node-canvas.md` 现基准（吞噬 vs 连线决策见 memory `project-canvas-ingest-vs-edges-decision`，别无脑推吞噬）。
 - **首页**：`homepage.css` 已成型（白厅画廊已进 main），本轮是**孤品页级**推进（登录改 modal + 左侧矢量/CSS/SVG 动画等 owner 已标注方向），不受"域内多页连贯"约束。
 
@@ -213,7 +213,7 @@ owner（2026-07-24）：项目被 token 定得太死；只想保持**最小限�
 ### 9.A LoRA chat
 
 - **lane**：`src/app/lora.css`（清场已建，空 `.domain-lora`）+ `components/business/studio/lora/**`。
-- **开放**：LoRA 全部视觉语言。references = NovelAI + owner 贴的 LoRA 截图（`project-map.md` §LoRA）+ `plans/lora-generate-claude-design-brief-2026-07.md`——**输入非答案**；已实现的 R4 深炭工作台是现状证据，**可推翻**。
+- **开放**：LoRA 全部视觉语言。references = NovelAI + owner 贴的 LoRA 截图（`project-map.md` §LoRA）+ lora-generate-claude-design-brief-2026-07.md（已删，见 git 历史）——**输入非答案**；已实现的 R4 深炭工作台是现状证据，**可推翻**。
 - **想学清单（project-map.md §LoRA · owner 标注）**：
   - _要求（功能，不管视觉方向都得服务）_：按类型检索的分类标签（人物 / 衣服 / 表情 …）；生成时自由搭配组合多 LoRA 的**组合 UI**；检索性能（图片加载速度 + 精确度 + 缩短耗时）；Civitai / HF 两边 UI 对齐。
   - _参考（视觉，可重解释别照抄）_：NovelAI 生成页 + owner 贴的 LoRA 截图。
@@ -241,7 +241,7 @@ owner（2026-07-24）：项目被 token 定得太死；只想保持**最小限�
 - **想学清单（project-map.md §首页 · owner 标注）**：
   - _要求（结构）_：登录改 **modal 窗**；每个介绍面板升级 + 整体布局升级；展示公开资源（可复用 Gallery 公开 feed）。
   - _参考（视觉/动效，可重解释）_：haivis-landing 的**动效语法**（元素拆分 / 前后对比 / 文字图层 / 魔法擦除）= 喜欢；**左侧矢量 / CSS / SVG 动画** = 喜欢；⚠ 纯黑大衬线 + 超大留白 = **仅参考，别整套照搬**。
-- **先读**：memory `project-home-hero-darkroom-window`（现状）· `references/pages/home.md` · `ui-inspiration/haivis-landing-2026-07.md`。
+- **先读**：memory `project-home-hero-darkroom-window`（现状）· `references/pages/home.md` · Haivis 官网拆解（已删，见 git 历史）。
 - **第一步产出**：三个方向（单页可直接三方向）→ owner。
 
 ### 9.D front-door（本 chat）留守

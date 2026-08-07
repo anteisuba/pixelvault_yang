@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { ROUTES, type Route } from '../src/constants/routes'
 
 const LOCALE = 'en'
-// 820 守住平板区间（768–1023 现在走移动 chrome，direction.md C4 决议）。
+// 820 守住平板区间（768–1023 现在走移动 chrome，docs/references/frontend.md §布局壳 C4 决议）。
 const MOBILE_WIDTHS = [375, 390, 430, 600, 820] as const
 
 interface ResponsivePage {

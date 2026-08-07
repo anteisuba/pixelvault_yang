@@ -19,7 +19,7 @@ import {
 /**
  * ResponsivePopover — Popover on desktop, vaul Drawer (bottom sheet) on mobile.
  *
- * 统一披露原语（docs/design/direction.md §Studio 工具栏规则）：工具栏 chip 与
+ * 统一披露原语（docs/references/frontend.md §覆层行为矩阵）：工具栏 chip 与
  * 快速配置面板一律用它——不要手写 Popover/Drawer 分支，也不要在手机上裸用
  * Popover（窄视口会裁切）。表单、多步流程、可浏览的库用 ResponsiveDialog。
  *

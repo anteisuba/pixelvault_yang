@@ -5,7 +5,7 @@
 > 状态：**逐项拍板中**（owner 要求一步一步定，不一次全定）。已拍板（2026-07-17 选择框）：①**绑定手势 = 吞噬 ✅**（判据 = "一组素材放进去→提示词→Seedance 出片哪边顺"；依据 = Seedance 2.0 Reference 袋型合同：1 prompt + image_urls/audio_urls/video_urls 全汇入视频节点一个请求，素材间无流动 → 星型汇聚与吞噬语义同构，整卡大目标手势更顺）；②**关系显示层 = 两级墨线 ✅**（§2：骨干常显中性墨线 + 成分选中显石绿细线）；③**关系开关 = 加，双态 ✅**（§2.5：默认档 ↔ 全显档，不设全隐档）；④**端口 = 锚点化退场 ✅**（§2.4：视觉隐藏、isConnectable=false、类型色停止渲染 token 保留、墨点只在有可见边处）。⑤**素材长条族（音色/参考视频省略态）✅**（§3.0）；⑥**收集器 = 身份包定位 + 出场组机制 ✅**（§3.0a，名字+出场图组+音色三件套一起进请求，一卡多镜=一致性复用；音色链路已实现）；⑦**片盒 = 保留节点 + 入盒标准 ✅**（§3.0b，✓视频成片/参考视频段/别盒长片 ✗图片/音色/收集器，判据=占时间线的画面段；入盒=拖节点+多选一键成盒）。⑧**v4 回顾三拍 ✅**（§3.0c：双栏保留·单列 SVG 作废 / v4 继续作基准+两处新对齐 / 捞回超限⚠+图例预览、C5 OSD、C1 场记条）；⑨**工具条统一 ✅**（§3.2，参考视频无特有键——播放/替换在卡面）；⑩**双击开详情 ✅**（全局关双击缩放）；⑪**披露三档 ✅**（§3.3）；⑫**覆盖层阶梯 ✅**（§4）。
 > **全部拍板完毕（2026-07-17）→ 本文转为施工任务包**，§6.2 取代条目已回写 node-canvas.md / catalog / modular-redesign。切片 R3-1~R3-8 见 §7，交 Sonnet 依序执行。
 > **施工完成（2026-07-18）**：R3-1/2/3/4/5/6a/6b/7/8 + A1/A1b/A2/A3/A4/A5/A6 全部落地（R3-6 拆 a 引擎/b 透明层两段），全量 vitest 3706 通过（本线相关全绿），tsc src 零错误，未提交。遗留待 owner：真机总验证 / 视觉基线 --update-snapshots / 提交切分 / A1c（手感仍不满意才做）/ #15 片盒顺序跟进 / .next 污染重启 / 「AI拟人剧场」节点数与布局两次插曲核对。
-> 任务书：`canvas-node-interaction-map-2026-07.md` §7；决策背景：memory `project-canvas-ingest-vs-edges-decision`（三选项 A 连线做好 / B 深补救吞噬 / 融合）。
+> 任务书：canvas-node-interaction-map-2026-07.md（已删，见 git 历史） §7；决策背景：memory `project-canvas-ingest-vs-edges-decision`（三选项 A 连线做好 / B 深补救吞噬 / 融合）。
 > 当前回归识别：本轮实现仍是「暗炭制片桌」，用于核对未提交改动是否回归；它不再是未来身份约束。现行全局治理见 `brand-dna.md` 与 `scenes/ui-page.md`。
 
 ---
@@ -42,7 +42,7 @@
 2. **差异化不必靠"没有线"**。`brand-dna.md` 画布房间的专属组件草案本来就写着「场记卡节点 · **墨线连线** · 剧本笺助手 dock · 蓝图 minimap」——墨线本就是这间房的手艺，回归连线不是回归 ComfyUI。
 3. **两级是谱系上的正确点**。全显示（A）把 S5a–S5f 建成的卡匣/收集器/成分栏/三拍动画整体贬值，且散图杂讯回桌；全隐藏（现状）把制片叙事一并抹掉。画布的图天然浅（素材→镜头→视频→片盒，深度 ≤3），骨干边数量少、方向一致（左→右），不会意大利面。
 4. **工程上近乎免费**。数据层边从未删除（[StudioNodeWorkbench.tsx:1666](../../src/components/business/node/StudioNodeWorkbench.tsx) 无条件 `hidden: true` 是唯一开关）；边组件 `NodeWorkflowStatusEdge` 四态视觉、合法性矩阵 `node-connection-rules.ts`、`--node-edge` token 全部健在。
-5. **业界证据（2026-07-17 补充调研，全文见 `references/ui-inspiration/node-canvas-edge-paradigms-2026-07.md`）**：九个主流工具（Krea Nodes / ComfyUI / Fal / Invoke / Figma Weave / Flora / Houdini / UE / FigJam）**零先例默认全隐连线**；同时没有工具靠全量裸显取胜（Fal 因裸露被批乱），收敛答案是"分层"——**Houdini 与 v3 逐条同构**：wires（生产主流）常显且永不可隐，dependency links（参考关系）分"不显示/仅选中/全部"三档，方向纪律入左出右。UE Hide Unrelated（4.23 起）验证"选中驱动的关系聚焦"是一线专业功能。
+5. **业界证据（2026-07-17 补充调研，全文见 业界边范式调研（已删，见 git 历史））**：九个主流工具（Krea Nodes / ComfyUI / Fal / Invoke / Figma Weave / Flora / Houdini / UE / FigJam）**零先例默认全隐连线**；同时没有工具靠全量裸显取胜（Fal 因裸露被批乱），收敛答案是"分层"——**Houdini 与 v3 逐条同构**：wires（生产主流）常显且永不可隐，dependency links（参考关系）分"不显示/仅选中/全部"三档，方向纪律入左出右。UE Hide Unrelated（4.23 起）验证"选中驱动的关系聚焦"是一线专业功能。
 
 **判读锚（owner 拍板用）**：R3-1 落地后打开一个含 镜头→视频→片盒 的项目——若"直观"回来了，范式成立继续 R3-2+；若仍别扭，说明痛在范式本身，回退成本 = 渲染条件一行（回全隐藏）或走 A（回全显示），数据无损。
 
@@ -99,7 +99,7 @@
 - Handle 数据层保留（ReactFlow 边定位依赖），**视觉全部退场**（CSS 透明），边直接落在卡缘 + 墨点端标收尾。
 - `isConnectable=false` 全局：**不恢复端口拖线**，绑定只走吞噬/快投——两套绑定手势并存必然混乱。
 - 端口类型色 5 支（含 `-on-paper` 变体）**停止渲染**，token 保留不删（iconPlate 等卡面用途不受影响）。类型身份由卡片头图标表达，不由端口表达。
-- **证据**（详见 `references/ui-inspiration/node-canvas-edge-paradigms-2026-07.md` §2③）：保留类型色端口的工具（Krea/ComfyUI/Fal/Invoke/UE）保留它只因**拖线是它们的绑定手势**；绑定不走端口的白板系（FigJam）一致选择无常驻端口、按意图显现。残余信号的精确先例 = ComfyUI Hidden 模式"只有已连接端点保留彩点"——即本案"墨点只出现在有可见边处"。类型合法性反馈由拖拽张口/摇头承担（已实现，比色配对更强）。
+- **证据**（详见 业界边范式调研（已删，见 git 历史） §2③）：保留类型色端口的工具（Krea/ComfyUI/Fal/Invoke/UE）保留它只因**拖线是它们的绑定手势**；绑定不走端口的白板系（FigJam）一致选择无常驻端口、按意图显现。残余信号的精确先例 = ComfyUI Hidden 模式"只有已连接端点保留彩点"——即本案"墨点只出现在有可见边处"。类型合法性反馈由拖拽张口/摇头承担（已实现，比色配对更强）。
 
 ### 2.5 「关系」总开关（调研后荐案：**保留，双态**）
 
@@ -172,7 +172,7 @@
 
 #### 3.0c 视频展开态（v4 回顾已完成，2026-07-17 三拍 ✅）
 
-owner 重看 v4（`docs/archive/reviews/2026-07-04-node-video-detail-v4.md`）后拍板：
+owner 重看 v4（视频详情 v4 review（已删，见 git 历史））后拍板：
 
 1. **骨架悬案了结：双栏工作台保留，权威 SVG 单列全宽流作废归档**（理由：重调参场景 prompt+参数同屏 / 档2 定位 / Haivis 密度纪律 / 已建成零成本；沉浸看片未来由 S5 全屏编辑=档3 承接）。v4 §14.4 该行悬案就此关闭。
 2. **v4 继续作为视频展开态基准**：监视器 C4 / token 六态 / 封面工程章节有效；§7 部门条分组已被 cast 五卡取代（引擎复用）不回退。叠加两处新对齐：**出场组"每镜覆写"UI 落 cast 角色卡行内**（展开图集勾选）；**本面板归披露档2、S5 全屏编辑归档3**（§3.3 规矩套用）。
@@ -393,9 +393,9 @@ owner 实测后八条反馈，全部采纳，映射为 A 系切片（排在 R3-2
 
 ## 9. Source of Truth
 
-- 决策背景：memory `project-canvas-ingest-vs-edges-decision`；任务书 `canvas-node-interaction-map-2026-07.md` §7（含 §1–§5 现状与 ❓A–E）。
-- 业界调研证据：`references/ui-inspiration/node-canvas-edge-paradigms-2026-07.md`（Houdini 双层/ComfyUI Hidden/UE Hide Unrelated/Krea/FigJam 等九工具，2026-07-17）。
-- 视觉基准：`references/pages/node-canvas.md`（拍板后按 §6.2 回写）；对标证据 `references/ui-inspiration/haivis-canvas-2026-07.md`。
+- 决策背景：memory `project-canvas-ingest-vs-edges-decision`；任务书 canvas-node-interaction-map-2026-07.md（已删，见 git 历史） §7（含 §1–§5 现状与 ❓A–E）。
+- 业界调研证据：业界边范式调研（已删，见 git 历史）（Houdini 双层/ComfyUI Hidden/UE Hide Unrelated/Krea/FigJam 等九工具，2026-07-17）。
+- 视觉基准：`references/pages/node-canvas.md`（拍板后按 §6.2 回写）；对标证据 haivis-canvas-2026-07.md（已删，见 git 历史）。
 - 总计划与功能 ID：`canvas-modular-redesign-2026-07.md` · `canvas-module-function-catalog-2026-07.md`。
 - 代码现状：`StudioNodeWorkbench.tsx`（renderedEdges L1659–1668）· `edges/NodeWorkflowStatusEdge.tsx` · `node-workflow-edge-visual.ts` · `node-connection-rules.ts` · `CanvasImageSelectionToolbar.tsx`（NodeSelectionToolbarChrome L325）· `nodes/NodeShell.tsx`（Handle L156–187）· `CanvasBottomDock.tsx` · `globals.css`（--node-edge L350）。
 

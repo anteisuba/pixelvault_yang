@@ -6,7 +6,7 @@ import type {
 } from './node-workflow-graph'
 
 /**
- * V-3b 只送已引用（docs/plans/node-video-reference-seedance-design.md §3 决策1）：
+ * V-3b 只送已引用（docs/references/pages/canvas-video-card.md）：
  * result of narrowing `referenceImages` down to the subset the prompt actually
  * `@`-mentions. `filtered=false` means the migration guard kept the ORIGINAL
  * (unfiltered) set — see `filterReferencedImages` below for when that fires.
@@ -23,11 +23,11 @@ export interface ReferencedImageFilterResult {
 }
 
 /**
- * V-1 发送翻译层（docs/plans/node-video-v1-token-translation.md §改动清单 1）：
+ * V-1 发送翻译层（docs/references/pages/canvas-video-card.md改动清单 1）：
  * 把每个具名参考图映射到它在 `referenceImages`（= 发给 fal 的 `image_urls`）里
  * 的最终 1-based 位置。Seedance reference-to-video 只认位置 token
  * `@Image1`/`@Image2`…，不认自定义名字（已核验，见
- * docs/plans/node-video-reference-seedance-design.md §0）——这张映射表是
+ * docs/references/pages/canvas-video-card.md）——这张映射表是
  * 「创作层名字（用户打的 @弗洛洛 / MentionInput 渲染的 chip）」与「传输层位置
  * （Seedance 实际读的槽位）」之间的桥。
  *
@@ -110,7 +110,7 @@ export function translatePromptTokensToPositional(
 }
 
 /**
- * V-3b 只送已引用（docs/plans/node-video-reference-seedance-design.md §3 决策1 /
+ * V-3b 只送已引用（docs/references/pages/canvas-video-card.md
  * §10 V-3 起点）: narrow `referenceImages` down to only the ones the prompt
  * actually `@`-mentions, so a connected-but-unreferenced image never rides
  * image_urls. **迁移红线**: if the prompt mentions NONE of the known image

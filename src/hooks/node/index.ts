@@ -1,7 +1,7 @@
 /**
  * Public API for Node module hooks (L3 Orchestrator).
  *
- * See docs/spark/2026-05-28-spec-5a-node-directorialization.md.
+ * See docs/references/domains/canvas.md.
  *
  * use-node-workflow.ts is still a single 1,695-LOC file containing the
  * graph state, layout, and execution logic together. Splitting it into

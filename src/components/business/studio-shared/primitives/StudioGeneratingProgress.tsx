@@ -37,7 +37,7 @@ export interface StudioGeneratingProgressProps {
  * (SVG rect, pathLength=100, stroke-dashoffset driven) + center digits +
  * stage word + optional params row.
  *
- * Spec: docs/plans/loading-language-2026-07.md §2.
+ * Spec: docs/references/loading.md.
  * Shared by every single-shot generation surface — GenerationPreview's
  * initial placeholder AND its image/video/audio regenerate overlays — so
  * the estimate/real-progress algorithm and the closing animation only

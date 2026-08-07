@@ -4,7 +4,7 @@
 `input.loras_to_fetch` 里每把 LoRA 从 **R2 预签名 URL** 拉到 Volume 的
 `/runpod-volume/models/loras/`（缺则下、有则跳＝缓存），再交给官方 handler 跑。
 
-设计全文：`docs/plans/comfy-runner-v2-runtime-lora.md`。
+设计全文：`docs/plans/comfy-runner-HANDOFF-2026-07.md`。
 
 ## 它怎么接进官方镜像（已按 worker-comfyui 5.8.6 核对）
 

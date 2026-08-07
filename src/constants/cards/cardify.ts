@@ -9,7 +9,7 @@ export const CARDIFY = {
 
   /**
    * Cardify prompt — neutral dark gray studio backdrop, isolated subject,
-   * preserves character identity. See docs/product/roadmap.md → Cardify.
+   * preserves character identity. See docs/references/product.md → Cardify.
    */
   PROMPT: [
     'Render this character as a costume display card.',

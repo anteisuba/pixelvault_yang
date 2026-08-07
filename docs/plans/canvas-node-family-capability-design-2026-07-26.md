@@ -1,7 +1,7 @@
 # 画布节点族能力设计（2026-07-26）
 
 > **权力级别**：active plan（能力决策账本）。**不含实现授权**，也**不是视觉答案** —— 视觉走 `canvas-skin-spec-2026-07-26.md` + Claude Design。
-> **上游**：[`canvas-visual-redesign-2026-07-25.md`](canvas-visual-redesign-2026-07-25.md) §7.1 结构条款（已确认，不重开）· [`canvas-redesign-cd-brief-2026-07-25.md`](canvas-redesign-cd-brief-2026-07-25.md)「下一轮范围扩张」节。
+> **上游**：[`canvas-visual-redesign-2026-07-25.md`](canvas-visual-redesign-2026-07-25.md) §7.1 结构条款（已确认，不重开）· canvas-redesign-cd-brief-2026-07-25.md（已删，见 git 历史）「下一轮范围扩张」节。
 > **本文解决的问题**：owner 2026-07-26 提出一份 14 项的能力清单（粘贴/图编/图生/音频/音乐/台词/参考音频/视频/参考视频/提示词编辑/工作流/视频拆分/助手写剧本分镜/最后出视频）。本文把这份清单**落到对象与动作两层**，并逐条标注真实状态。
 > **lane**：`src/app/canvas.css` + `src/components/business/node/**`；脊柱不动。
 
@@ -202,7 +202,7 @@ owner 要的：写剧本 → 写分镜 → 根据图片写剧本分镜 → 根�
 
 ## 9 · 交给 Claude Design 的喂法
 
-按 [`canvas-cd-driving-protocol-2026-07-25.md`](canvas-cd-driving-protocol-2026-07-25.md)：
+按 canvas-cd-driving-protocol-2026-07-25.md（已删，见 git 历史）：
 
 - **只喂 §7 的第 1、2 步**（外壳语言 + 组装台三形态）。第 3–4 步的能力先在本文定死行为，等壳确认了再补图。
 - **一次喂全部会得到一张万能面板** —— 明确禁区（域定义 §1.8）。

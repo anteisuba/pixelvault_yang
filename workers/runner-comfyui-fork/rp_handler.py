@@ -1,8 +1,7 @@
 """
 PixelVault Runner — worker-comfyui fork handler (runtime LoRA + checkpoint download).
 
-设计：docs/plans/comfy-runner-v2-runtime-lora.md（②a，LoRA）
-     + docs/plans/comfy-runner-v3-checkpoint-ondemand.md（v3，底模）。
+设计：docs/plans/comfy-runner-HANDOFF-2026-07.md（v2 运行时 LoRA + v3 底模按需下载）。
 
 官方 runpod/worker-comfyui:5.8.6-base 的 /start.sh 先后台起 ComfyUI，再跑
 `python -u /handler.py`（handler 通过 127.0.0.1:8188 和 ComfyUI 通信）。本 fork

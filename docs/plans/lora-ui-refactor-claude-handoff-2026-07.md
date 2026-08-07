@@ -41,8 +41,8 @@
 
 以下文件只作历史或比较材料，**不得作为实现输入**：
 
-- `docs/archive/design/lora-generate-bench-redesign-2026-07.md`（已退役）
-- `docs/archive/design/lora-generate-claude-draft-2026-07.md`（未确认草稿）
+- LoRA 工作台 IA 旧稿（已删，见 git 历史）（已退役）
+- LoRA Generate CD 草稿（已删，见 git 历史）（未确认草稿）
 - `docs/plans/assets/lora-generate-direction-a-*.png`（低保真方向比较，不是最终关键切片）
 - `docs/archive/` 中旧 LoRA 视觉评审
 

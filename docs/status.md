@@ -1,11 +1,20 @@
 # 项目状态
 
-最后更新：2026-08-05
+最后更新：2026-08-07
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
 ## Current Focus
 
+- **本周十条待办**（owner 2026-08-07 口述），索引 =
+  [`docs/plans/week-2026-08-07-backlog.md`](plans/week-2026-08-07-backlog.md)，交接 = 同目录
+  `week-backlog-session-handoff-2026-08-07.md`。
+  已完成：**H** LoRA 挂载不设上限（`eb295d23` + `6c3add69`）· **C4** 上传图画质（`84487a71`）·
+  **J4** 无依据常量普查（`f9522e44`）· **K** LoRA 库重构（`a77901db`）· **L** TTS 上限按 provider
+  拆分（`1cf1fe2a`）· **M** 角色图 LoRA 加号闸退役（`dafa2898`）· **E** 文档清理 + **J3** 悬空引用
+  （本轮，见 `plans/docs-cleanup-2026-08-07.md`）。
+  未开工：A 助手分域回复 · B 画布助手→节点 · C+F 素材页与选择器 UI · D 图像优化 ·
+  G 首页 UI · I 侧边栏 UI（前置 = J1 补视觉基线）· J1/J2。
 - **调研落地路线图主链 7 / 10 已交付**，入口 =
   [`docs/plans/research-landing-plan-2026-07-30.md`](plans/research-landing-plan-2026-07-30.md) §6。
   已完成：包 1 文档止血 · 包 2 现状实测校准 · 包 2.5 剧本长度悬崖 ·
@@ -17,8 +26,8 @@
   `1120px` 收窄到 `960px`，避免 1092px 画布误进上下布局。方向 E 只保留为历史基线。
 - 图片族详情来源已收口：右栏只保留「参考图 + 添加参考图」，其浮层统一上传 / 素材库 / 粘贴；
   主图上传/素材库替换迁到左侧媒体上的「替换图片」，Studio 与未完成 LoRA 不再占用详情 UI。
-- 本地另有未提交改动（MiniMax adapter、Seedance 2.5 预留、VolcEngine video builder
-  等），属另一条在飞的模型接入任务，不在本路线图主链内。
+- ⚠ 上一版这里写着「本地另有未提交改动（MiniMax adapter / Seedance 2.5 预留 / VolcEngine
+  video builder）」—— 2026-08-07 核对 `git status` 时那批改动已不在工作区，本条作废。
 
 ## Completed / Stable Enough to Build On
 

@@ -207,7 +207,7 @@ export async function submitImageGeneration(
   // Vercel timeout / prepareRunnerLoras failure leaves a permanent RUNNING row
   // (seen with multi-GB files mis-attached as LoRAs).
   try {
-    // v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md V2-2c）：RUNNER 路径把每把
+    // v2 runner（docs/plans/comfy-runner-HANDOFF-2026-07.md）：RUNNER 路径把每把
     // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
     // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
     // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
@@ -229,7 +229,7 @@ export async function submitImageGeneration(
           )
         }
       }
-      // v3（docs/plans/comfy-runner-v3-checkpoint-ondemand.md V3-2c）：配方带底模引用时
+      // v3（docs/plans/comfy-runner-HANDOFF-2026-07.md）：配方带底模引用时
       // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
       // 无引用（非配方生成）则维持现状，用选中的预烤底模。
       const adv = runnerAdvancedParams

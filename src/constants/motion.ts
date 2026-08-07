@@ -1,5 +1,6 @@
 /**
- * Motion canon — 全站动效常量（docs/design/direction.md §动效 canon）。
+ * Motion canon — 全站动效常量。本文件即 canon 的唯一来源，
+ * CSS 侧的同名变量在 src/app/globals.css 的 @theme 里，两处必须同步改。
  *
  * 规则：
  * - 缓动全站统一 EASE_STANDARD 一条曲线；退出动画用更短时长，不换曲线。

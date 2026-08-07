@@ -12,7 +12,7 @@
  *   EmptyLatentImage (or img2img LoadImage→ImageScale→VAEEncode) ─LATENT─▶ KSampler
  *
  * Node graph + exact params mirror circlestone-labs/Anima's `anima_comparison.json`
- * ComfyUI workflow. Design: docs/plans/comfy-runner-v4-anima-dit.md §4.
+ * ComfyUI workflow. Design: docs/plans/comfy-runner-HANDOFF-2026-07.md.
  */
 
 import type { ComfyWorkflow } from './workflow-builder'

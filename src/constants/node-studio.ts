@@ -615,7 +615,7 @@ export const NODE_STUDIO_SHOT_REFERENCE_LEGEND = {
  * name or the SAME auto-name the composer's token uses (passed in from i18n so
  * `@特写1` in the prompt matches `特写1` in the legend byte-for-byte).
  *
- * V-1 (docs/plans/node-video-v1-token-translation.md): `imagePrefix` is
+ * V-1 (docs/references/pages/canvas-video-card.md): `imagePrefix` is
  * literal `@Image` — Seedance only resolves the positional `@Image1`/`@Image2`
  * token, not a Chinese label, and `node-video-prompt-translation.ts` now
  * rewrites the SAME `@ImageN` into the prompt body inline. This legend line

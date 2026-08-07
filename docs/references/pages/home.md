@@ -146,7 +146,7 @@
 # B · 旧方向（2026-07-13 Haivis）— 已被 A 推翻，保留追溯
 
 > 状态：**方向拍板（2026-07-13）** · **登录 modal 实现已回退**（恢复 path `/sign-in` `/sign-up`）· 首页动态演示（P1+）仍待讨论。  
-> 房间：营销首页 `/` · 参考：`docs/references/ui-inspiration/haivis-landing-2026-07.md`  
+> 房间：营销首页 `/` · 参考：Haivis 官网拆解（已删，见 git 历史）  
 > 边界：作品优先 / 证据式能力；登录 modal 仅作产品意向，代码未采用。
 
 ## 0. 拍板记录（本会话）
@@ -156,7 +156,7 @@
 | 登录         | **一律 modal**（用户主动登录/注册不整页跳转）；OAuth/邮件深链可保留 `/sign-in` `/sign-up` 作 Clerk 回调与兜底 |
 | 首页能力演示 | **只要项目 `ready` 的真能力**；效果语法学 Haivis（图上叠交互证据），不是换皮肤                                |
 | 不进首页演示 | `object-replace` / `style-transfer` / `text-render`（`availability: hidden`）                                 |
-| 与画布关系   | 首页 = 预告与证据；画布 = 兑现。画布对标仍见 `haivis-canvas-2026-07.md` + `node-canvas.md`                    |
+| 与画布关系   | 首页 = 预告与证据；画布 = 兑现。画布对标仍见 Haivis 画布拆解（已删） + `node-canvas.md`                       |
 
 ## 1. 产品意图（一句话）
 
@@ -294,7 +294,7 @@ public/homepage/demos/
 
 ## Source of Truth
 
-- 灵感：`docs/references/ui-inspiration/haivis-landing-2026-07.md`
+- 灵感：Haivis 官网拆解（已删，见 git 历史）
 - 能力：`src/constants/canvas-image-edit-capabilities.ts`
 - 画布兑现：`docs/references/pages/node-canvas.md` · `docs/plans/canvas-image-edit-convergence-2026-07.md`
 - 场景流：`docs/scenes/ui-marketing.md`（本拍板后：**允许**为 modal 登录改 Clerk **前端呈现**，仍不改密钥与策略）

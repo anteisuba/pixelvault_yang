@@ -167,7 +167,7 @@ export const LoraSchema = z.object({
   scale: z.number().min(0.1).max(2).optional(),
 })
 
-// v2 runner（docs/plans/comfy-runner-v2-runtime-lora.md）：app 侧 `prepareRunnerLoras`
+// v2 runner（docs/plans/comfy-runner-HANDOFF-2026-07.md）：app 侧 `prepareRunnerLoras`
 // 把每把 LoRA 确保进 R2 后产出的规格——文件名 + R2 预签名下载链 + 权重。经
 // advancedParams 透传给 Cloudflare Worker → RunPod fork（fork 据 downloadUrl 拉、
 // 据 filename 挂）。
@@ -4044,7 +4044,7 @@ export type CivitaiRecipeExtraLora = z.infer<
 >
 
 // Civitai 单图完整配方 — 图↔生成参数一一配对的逐图记录，支撑 M2"来源图
-// 网格 → 一键同款"（docs/plans/lora-recipe-workflow.md）。与 outfits 并存：
+// 网格 → 一键同款"（配方还原主线，见 docs/references/domains/lora.md）。与 outfits 并存：
 // outfits 是按 prompt 去重的文本视图（旧消费方继续用），recipes 是按图配
 // 对的参数视图。字段均来自 image.meta（uploader 提供才有，故大量 optional；
 // prompt 是配方存在的前提，必填）。

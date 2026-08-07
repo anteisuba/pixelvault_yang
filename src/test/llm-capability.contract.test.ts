@@ -2,7 +2,7 @@
  * IRON RULE contract test — LLM route list consistency across entry points.
  *
  * Spec reference:
- *   docs/spark/2026-05-28-api-key-selector-unification-design.md
+ *   docs/references/providers.md
  *   §7.2 (IRON RULE) — "prevent the historical drift where 3 hardcoded
  *   sets diverged. SCRIPT_PLANNER_MODELS and
  *   NODE_STUDIO_ASSISTANT_ROUTE_MODELS stay (Zod / service-layer

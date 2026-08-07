@@ -6,7 +6,7 @@
  * `studio/lora/layout.tsx`, because both are LoRA-domain concerns that
  * Image Studio must not read:
  *   - LoraStackProvider — the active LoRA stack
- *     (see docs/plans/lora-domain-split-2026-06.md §7).
+ *     (LoRA 独立成域，见 docs/references/domains/lora.md).
  *   - PromptTagProvider — the tavern-style prompt-tag stack. Its only
  *     add-UI is the LoRA workbench; keeping it at this level leaked the
  *     selected tags (display + prompt injection) into the Image Studio

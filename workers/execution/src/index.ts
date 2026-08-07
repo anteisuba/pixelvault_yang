@@ -4535,7 +4535,7 @@ interface RunnerCheckpointSpecInput {
   targetDir?: 'checkpoints' | 'diffusion_models'
 }
 
-// v3 runner（docs/plans/comfy-runner-v3-checkpoint-ondemand.md）：app 侧
+// v3 runner（docs/plans/comfy-runner-HANDOFF-2026-07.md）：app 侧
 // `prepareRunnerCheckpoint`（T1 忠实）把源图配方的精确底模解析成 {filename,
 // downloadUrl}，放在 advancedParams.runnerCheckpoint。Worker 据此覆盖 workflow 的
 // ckpt_name + 发 checkpoint_to_fetch 给 fork（fork GPU 侧从 Civitai 直下到

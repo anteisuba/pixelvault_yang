@@ -4,7 +4,7 @@ import { AI_MODELS, getModelById } from '@/constants/models'
  * LoRA 域底模目录（surface 层组织视图，不重复造模型定义）。
  *
  * 「底模是 LoRA 的插槽属性」：一个 LoRA 自带它要求的家族，底模选择器被该家族
- * 约束（见 docs/plans/lora-domain-split-2026-06.md §2.2/§3）。每个 `底模×后端`
+ * 约束（见 docs/references/domains/lora.md）。每个 `底模×后端`
  * 组合是一个扁平可选条目，带 family · backend(hosted 快/runner 忠实) · available。
  *
  * - hosted 条目复用既有 `AI_MODELS`（available 跟随模型自身开关，不另维护）。

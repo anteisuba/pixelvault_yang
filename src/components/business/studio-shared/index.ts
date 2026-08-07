@@ -4,8 +4,8 @@
  * Studio Shared hosts UI / hooks that are consumed by 2+ Studio tools
  * (Image, Video, Audio, 3D, Edit, LoRA, Node) and carry no
  * tool-specific business logic. See:
- *   docs/spark/2026-05-28-architecture-contract-design.md
- *   docs/spark/2026-05-28-spec-2-studio-shared-layer.md
+ *   docs/references/backend.md（分层契约）
+ *   docs/references/frontend.md
  *
  * External modules MUST import from this index, not from individual
  * files inside chrome/ setup/ workflow/ primitives/.

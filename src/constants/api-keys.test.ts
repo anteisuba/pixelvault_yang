@@ -36,7 +36,7 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.MINIMAX_CN,
       // Claude (Anthropic) joined 2026-07-26 as the canvas assistant's
       // structural-reasoning route (assistant capability) — see
-      // docs/plans/canvas-assistant-anthropic-route-2026-07-26.md.
+      // docs/references/pages/assistant-shell.md.
       AI_ADAPTER_TYPES.ANTHROPIC,
     ])
 

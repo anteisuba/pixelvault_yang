@@ -45,7 +45,7 @@
 - `docs/brand-dna.md`
 - `docs/forbidden.md`
 - `docs/references/pages/node-canvas.md`
-- `docs/references/ui-inspiration/haivis-canvas-2026-07.md`
+- Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）
 - `docs/plans/canvas-image-edit-convergence-2026-07.md`
 - `docs/plans/audio-domain-design-2026-07.md`
 - `docs/checklists/ui.md`
@@ -62,7 +62,7 @@
 - 所有 edge 被渲染为 hidden；数据关系继续供成分 chip、Cast 与投影逻辑使用。底部仍暴露选择、手型、连接、剪线、撤销、重做，其中连接/剪线与隐藏关系表达不一致，缩放文案也未跟随真实 zoom。
 - React Flow 背景类仍带 `light`，外层画布却是 dark scope；表面 token `--node-canvas` 还被端口、媒体进度与遮罩复用，不能直接只改背景色。
 
-详细 Haivis 实测证据见 `docs/references/ui-inspiration/haivis-canvas-2026-07.md`；本页只记录 PixelVault 的对齐基线。
+详细 Haivis 实测证据见 Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）；本页只记录 PixelVault 的对齐基线。
 
 ## Target Architecture
 
@@ -362,7 +362,7 @@ owner 先目验空间、密度与信息优先级；未通过前不进入 W0 产�
 - 当前代码：`src/components/business/node/StudioNodeWorkbench.tsx`、`src/hooks/use-node-workflow.ts`、`src/components/business/node/**`、`src/types/node-workflow.ts`、`src/constants/node-*`。
 - 画布长期契约：`docs/references/pages/node-canvas.md`。
 - 模块/功能选项表：`docs/plans/canvas-module-function-catalog-2026-07.md`。
-- Haivis 调查证据：`docs/references/ui-inspiration/haivis-canvas-2026-07.md`。
+- Haivis 调查证据：Haivis 画布拆解（已随 ui-inspiration 清理删除，见 git 历史）。
 - 图片子计划：`docs/plans/canvas-image-edit-convergence-2026-07.md`。
 - 音频域事实源：`docs/plans/audio-domain-design-2026-07.md`。
 

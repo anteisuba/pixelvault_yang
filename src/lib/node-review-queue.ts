@@ -1,5 +1,5 @@
 /**
- * 待审队列（包 6 片 2 / `canvas-review-grid-2026-08-01.md` §④）。
+ * 待审队列（包 6 片 2；契约见 docs/references/pages/canvas-review-view.md）。
  *
  * 纯函数、无 React，可单测。审阅模式的一切推进都从这里取顺序 —— UI 只负责显示
  * 「第几张 / 还剩几张」和飞相机。

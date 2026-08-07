@@ -1,6 +1,6 @@
 # 画布详情面板 · 结构决策账本（阶段 3）
 
-> 2026-08-03 · 上游 = [`canvas-detail-panel-redesign-brief-2026-08-03.md`](canvas-detail-panel-redesign-brief-2026-08-03.md)（阶段 0–1 交接书）
+> 2026-08-03 · 上游 = canvas-detail-panel-redesign-brief-2026-08-03.md（已删，见 git 历史）（阶段 0–1 交接书）
 > **权力级别**：账本。记录待确认项、推荐答案与 owner 结论；**不是**设计授权，**不是**实现授权。
 > 授权边界继承交接书：仅设计、不改 `src/**`（冻结 `node-detail/**` · `inspector/**` · `composer/VideoComposer.tsx`）。
 

@@ -3,7 +3,7 @@
 > **性质**：顶层调查产出（Opus 4.8 调查段）。**交接**：设计线 → Fable 出施工图；工程线 → Sonnet 直接执行（不必过设计）。
 > **范围**：`/studio/lora` 的检索（库）+ 生成页 LoRA 组合 + civitai/HF 双源对齐。
 > **owner 需求来源**：`docs/references/project-map.md` LoRA 分支。
-> **相邻文档**：`lora-search-image-audit-2026-07.md`（3 个搜索 bug，未执行，见 §2）；`2026-07-02-lora-domain-ui-review.md`（LoRA 域 UI 施工图，别重审）。
+> **相邻文档**：`lora-search-image-audit-2026-07.md`（3 个搜索 bug，未执行，见 §2）；LoRA 域 UI review v1（已删，见 git 历史）（LoRA 域 UI 施工图，别重审）。
 
 ---
 
@@ -103,7 +103,7 @@
 
 ### 设计线 → 交 Fable（产出施工图）
 
-1. **统一库外壳（G2）**：一套库 UI = 顶部搜索 + 两组筛选维度（① 内容类型 ② 底模家族）+ 源切换（civitai/HF 作为一个 filter，不是两套页）+ 统一卡片 + 统一分页。参考 `2026-07-02-lora-domain-ui-review.md` 的布局 B。
+1. **统一库外壳（G2）**：一套库 UI = 顶部搜索 + 两组筛选维度（① 内容类型 ② 底模家族）+ 源切换（civitai/HF 作为一个 filter，不是两套页）+ 统一卡片 + 统一分页。参考 LoRA 域 UI review v1（已删，见 git 历史） 的布局 B。
 2. **按类型检索 UI（G1）**：内容类型作为一等筛选 chip 行（人物/服装/表情/姿势/风格/概念）。设计要处理"tag 不规范→结果稀疏"的空态与兜底提示。
 3. **LoRA 组合区（G3+G4）**：生成页参考 NovelAI——LoRA stack 可视化（每个 LoRA 显兼容度圆点 + 权重滑杆 + trigger 词）+ danbooru tag 补全 + 推荐搭配。这是"自由组合"的体验落点。
 4. **双源卡片语言统一**：civitai/HF 卡片同一套元数据边（名称/底模/类型/来源角标/NSFW 态），源差异只在角标。
@@ -128,7 +128,7 @@
 
 - 代码：`constants/lora.ts` · `LoraWorkbench.tsx` · `HuggingFaceLoraLibrary.tsx` · `useCivitaiLoraLibrary` / `use-huggingface-lora-library` / `use-active-lora-stack` · `civitai-lora.service.ts` / `huggingface-lora.service.ts`。
 - 外部：Civitai developer API + meilisearch `search-new.civitai.com/multi-search`（内容分类/tag filter）；NovelAI 图像生成文档（tag 补全/熟悉度/权重语法）。
-- 相邻文档：`lora-search-image-audit-2026-07.md` · `2026-07-02-lora-domain-ui-review.md`。
+- 相邻文档：`lora-search-image-audit-2026-07.md` · LoRA 域 UI review v1（已删，见 git 历史）。
 
 ## Last Verified
 

@@ -11,7 +11,6 @@ debugging, QA, and documentation tasks. Keep the packet short enough to execute.
 - `CLAUDE.md`
 - `docs/README.md`
 - `docs/status.md`
-- `docs/engineering/agent-loops.md`
 
 ## Last Verified
 

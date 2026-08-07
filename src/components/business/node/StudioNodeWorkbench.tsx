@@ -1449,7 +1449,7 @@ function StudioNodeCanvas() {
         closeup: t('videoComposer.autoName.closeup'),
         video: t('videoComposer.autoName.video'),
       }
-      // V-3b 只送已引用（docs/plans/node-video-reference-seedance-design.md §3
+      // V-3b 只送已引用（docs/references/pages/canvas-video-card.md
       // 决策1）: narrow the sent image_urls down to only what `mergedPrompt`
       // actually `@`-mentions. 迁移红线 lives inside `filterReferencedImages`
       // itself — a project with connections but no matching @-mention keeps
@@ -1498,7 +1498,7 @@ function StudioNodeCanvas() {
               },
             })
           : ''
-      // V-1 发送翻译层（docs/plans/node-video-v1-token-translation.md）: Seedance
+      // V-1 发送翻译层（docs/references/pages/canvas-video-card.md）: Seedance
       // only resolves the POSITIONAL @Image1/@Image2… token (verified against
       // fal's reference-to-video contract), never a custom name — so the
       // @弗洛洛 mention MentionInput serialized into `mergedPrompt` has to be

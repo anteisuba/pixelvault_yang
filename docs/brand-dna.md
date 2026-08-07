@@ -122,14 +122,11 @@ PixelVault 的一致性来自“这是同一个产品、拥有同一套可靠行
 5. **确定性交给代码，判断交给模型**：路由、状态、重试和转换写成可测试代码。
 6. **完成必须可核对**：报告改动、验证、手动步骤和未验证边界。
 
+⚠ 上面六条是**做事的态度**。**架构层面的八条硬原则**（不留向后兼容 / 最简实现 / 先端到端跑通 / 模块化 / 优先成熟库 / 先翻已有依赖 / 决策往长了做 / 先看成熟产品怎么解）在 `CLAUDE.md` 的 **Engineering Principles**，与 Hard Rules 同级，冲突时以那份为准。
+
 ## 历史方向
 
-旧 v1 双面模式、“工坊宅邸”、“工作手记”、暖纸炭墨、颜料纪律、手写字体地基和统一圆角/pill 均已废止为视觉规则。历史证据保存在：
-
-- `archive/design/direction.md`
-- `archive/design/design-direction-worknotes-2026-07.md`
-- `archive/design/font-handwriting-foundation-2026-07.md`
-- `archive/design/ui-design-governance-reset-2026-07.md`（本轮治理迁移记录）
+旧 v1 双面模式、“工坊宅邸”、“工作手记”、暖纸炭墨、颜料纪律、手写字体地基和统一圆角/pill 均已废止为视觉规则。原始证据文档（`archive/design/` 四份）已于 2026-08-07 文档清理时删除，需要时从 git 历史取回保存在：
 
 它们不得作为新 UI 的生成或验收依据，也不要求对当前运行代码立即返工。
 

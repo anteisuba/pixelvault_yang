@@ -559,7 +559,7 @@ owner 配好 key（图片 Gemini）并 `wrangler login` 后，我起了本地 ex
 
 `(无)` 意味着 `resolveMediaReviewState` 解出的是 `approved` —— 也就是**这张图根本没有 `mediaReview` 记录**，`markMediaAwaitingReview` 在这条路径上没跑。
 
-**这与 [`canvas-review-grid-2026-08-01.md`](canvas-review-grid-2026-08-01.md) §3 ①-bis 的描述冲突**，那里写的是「❌ 不区分触发来源。`markMediaAwaitingReview` 在 `StudioNodeWorkbench` 的 **4 处生成成功路径**上无条件调用（1068 / 1615 / 1884 / 2872）」，并据此把「来源区分」定为包 6 的**前置片 1**。
+**这与包 6 账本（已删，见 git 历史）里「①-bis」那段的描述冲突**，那里写的是「❌ 不区分触发来源。`markMediaAwaitingReview` 在 `StudioNodeWorkbench` 的 **4 处生成成功路径**上无条件调用（1068 / 1615 / 1884 / 2872）」，并据此把「来源区分」定为包 6 的**前置片 1**。
 
 ⚠ 我这次只走了**一条**路径（空图片卡 → 生成框打提示词 → 发送，即 `handleRunGenerateComposer`），所以准确的说法是：**至少生成框主路径没有标待审**。包 6 片 1 开工前值得先把四个调用点逐个验一遍 —— 如果主路径本来就不标，片 1 的范围和必要性都要重估。验法就是上面这个：夹具里生成一次，读 `data-status`。
 

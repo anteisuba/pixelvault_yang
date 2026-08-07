@@ -31,7 +31,7 @@ interface ReferenceImageChipProps {
  *   tap chip       → popover: drag/paste/upload dropzone + recent assets +
  *                     asset library (shared ImagePickerPopoverBody — same UI
  *                     as the prompt assistant's image entry, docs/plans/
- *                     assistant-ux-batch-2026-07.md Slice C)
+ *                     docs/references/pages/assistant-shell.md)
  *   tap Upload     → native file picker, base64 → addReferenceImage
  *   tap Select     → close popover, open full-screen AssetSelectorDialog
  *                     (Krea-style sidebar + grid). Picking a tile fetches

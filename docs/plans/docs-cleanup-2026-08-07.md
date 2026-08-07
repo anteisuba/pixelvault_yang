@@ -1,7 +1,7 @@
 # E · 文档清理 —— 执行记录（2026-08-07）
 
 > **状态：✅ 已执行。** owner 已就四条边界拍板（见 §9），本文上半部分是执行前的清单与判定，下面是**实际做了什么**。
-> ⚠ 全部改动仍在工作区**未提交**，`git checkout` 可整体回退。
+> ✅ **已合入 main：`c2729530`**（291 files / +744 / −23916）。
 
 ## ⓪ 实际结果
 
@@ -379,4 +379,5 @@ CLAUDE.md 与 memory 都写着「每月初审」，它是**活的流程产物**�
 - 全量 `npx tsc --noEmit` → **exit 0，零输出**。
 - 全量 `npx vitest run` → **466 files / 4196 tests passed，exit 0**。⚠ owner 的 dev server 当时在 3000 上跑着，按 [[project-known-vitest-failures-2026-07-31]] 本该出 `LoraWorkbench` 满负载假超时，**本轮没有复现**。
 - **未跑**：production build（dev 在跑，按仓库规则不并行）· Playwright 视觉基线（本轮零 UI 改动，全部是注释与文档）。
-- **未提交**：全部改动留在工作区，等 owner 点头。
+- **已提交**：`c2729530`。pre-commit 钩子通过（prettier 顺带重排了 `loading.md` 的表格）。
+- ⚠ **三个文件故意没并进这次提交**：`plans/runner-r4-krea2-multiref-2026-07.md` 与新增的 `plans/seedance-25-ga-integration-2026-08.md` 来自**并行会话**（2026-08 模型月审）；`references/model-pricing.md` 是本会话开始前就在工作区的表格对齐改动。

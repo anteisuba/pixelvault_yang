@@ -19,6 +19,8 @@
 | I     | 侧边栏 UI 升级            | 新做（UI）   | 🆕 2026-08-07 追加                                                       | ⚠ 全局共享件，**前置 = J1 补基线** |
 | J     | 基础设施补强 + 常量普查   | 工程         | 🆕 四个子项；**J4 已完成**（2 条候选验完 + 续扫，见 §J4）；J1/J2/J3 未动 | J1 补视觉基线（I 的前置）          |
 | ~~K~~ | ~~LoRA 库界面重构~~       | 重构 + Bug   | ✅ **已完成合入 main**（`a77901db`）——非本周清单内，owner 另行交办       | —                                  |
+| L     | TTS 上限按 provider 拆分  | 工程 + 产品  | 🆕 owner 2026-08-07 拍板「开放」；J4 已查证两家实际上限                  | ⚠ 先读 audio-domain §2.2 的耦合    |
+| M     | 角色图 LoRA 加号闸退役    | 工程         | 🆕 owner 2026-08-07 拍板「退役」                                         | 定位 toast 的三语 i18n 键          |
 
 ⚠ **七条已变十条，且不是全集** —— owner 原话「我后面还有其他需求」。新条目按字母续编并入本表，不要另起文档。
 
@@ -264,6 +266,43 @@ owner 三条：
 现状规模：`docs/plans/` 60+ 文件（canvas- 前缀 20+，lora- 前缀 10+），`docs/references/pages/` 18 个，`docs/scenes/` 11 个。
 
 → **执行方式（防误删）**：先出一份「文件 → 判定（已实现 / 在飞 / 规则）→ 依据（对应 commit）」的清单给 owner 过目，**批准后再删**。「已实现」是我的判断，判错就删掉了正在用的东西。
+
+---
+
+## L. TTS 上限按 provider 拆分（owner 2026-08-07 拍板）
+
+> owner 原话：「**开放TTS上下**，加号闸退役。」→ 我按「开放 TTS **上限**」理解。⚠ 若理解有误请纠正。
+
+**这不是把 5000 调大，是拆成两个数。** `src/constants/audio-options.ts:37` 的注释（J4 补的）已经指了方向：`Split it per provider before relying on it as a real capability ceiling`。
+
+**J4 已查证的事实（可直接用，不必重查）**：
+
+- **ElevenLabs v3** —— 每请求上限**恰好 5000**，这个数有依据，是它的。
+- **Fish Audio** —— [API reference](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech) 对 `text` **根本没写上限**。目前被套着别家的天花板。
+
+⛔ **动手前必须先读 [`audio-domain-design-2026-07.md`](audio-domain-design-2026-07.md) §2.2「播客 / 长音频（成品化管线）」**——那条管线的**触发条件正是「超过这个值」**。放开上限会连带改变它何时触发，两者要一起想清楚，不能只改常量。
+
+**从这里开始查**（是链路起点，不是结论）：
+
+- 常量：`src/constants/audio-options.ts:37`
+- UI 闸与提示：`StudioPromptArea.tsx`（143 判超长 / 178·184·849 显示 max）
+- **服务端校验**：`types/index.ts:563`（Zod `.max()`）、`:635`、`:1558`（`referenceText`）
+- ⚠ Fish Audio 没写上限 ≠ 无限。真放开前建议实测一次超长文本，看它返回什么错误。
+
+---
+
+## M. 角色图 LoRA 加号闸退役（owner 2026-08-07 拍板）
+
+**背景**：J4 把画布两条 generate 路径的 `.slice(0, maxLoras)` 退役了，但留了这一处。当时留它的理由是**性质不同**——它弹 toast 明示用户，属「拦住并告知」而非静默截断。owner 现拍板：一并退役。
+
+**从这里开始查**：
+
+- `src/components/business/node/CharacterImageLoraControls.tsx:61` 与 `:65-67` —— 上限计算，两条路径都被 `NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems` 封顶，且第 66 行还与 `config.maxLoras` 取 `Math.min`。
+- `NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems`（零注释裸数字，值为 5）。
+
+⚠ **toast 的三语 i18n 键需自行定位** —— 我 grep `loraLimit|maxLora|loraMax` **未命中**（只找到 `sourceCounts` 那条计数显示，不是 toast）。J4 提到存在，但我没找到键名，**不猜**。退役后记得三语同步删，且 ⚠ 禁止用正则改 `src/messages/*.json`。
+
+**参照判例**：H（`eb295d23` + `6c3add69`）与 J4（`f9522e44`）的退役方式——不是把 5 调大，是整条闸删掉，真吃不下时由 provider 报错（大声失败好过静默丢弃）。
 
 ---
 

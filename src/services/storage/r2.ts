@@ -336,8 +336,28 @@ export async function getR2ObjectBuffer(params: {
 
 // ─── Image Preview Derivatives ──────────────────────────────────
 
+// Why these exist at all: `unoptimized: true` in next.config turned off
+// on-demand `/_next/image` optimization (it made the Next server re-fetch
+// large remote files and 500 during Studio browsing), so this pipeline
+// pre-derives the variants on R2 instead. Both landed the same day.
+// Keep that split in mind before touching sizes: raising a variant costs one
+// sharp encode at upload time, and the bytes are then served by R2/CDN —
+// nothing here ever routes back through Vercel's optimizer.
+//
+// `maxSize` caps the LONG edge, but grid tiles are square + `object-cover`,
+// so what has to cover the tile is the SHORT edge. The old 384 had no live
+// basis — it matched the largest entry in `images.imageSizes`, which the same
+// `unoptimized: true` had already made inert.
+//
+// Live basis instead: the widest thumbnail consumer is the assets grid at
+// `comfortable` density, measured at 336px per tile (1366px grid, 4 columns,
+// 1920 viewport). At 768 a 16:9 source keeps a 432px short edge, so it still
+// downscales into that tile instead of blowing up 1.56x like 384 did — and it
+// stays cheaper than the 1280 preview this same function already encodes.
+// Retina at `comfortable` remains slightly upscaled; going further would
+// start to defeat the point of a thumbnail on a grid of hundreds of tiles.
 const IMAGE_PREVIEW_VARIANTS = {
-  thumbnail: { maxSize: 384, quality: 78 },
+  thumbnail: { maxSize: 768, quality: 78 },
   preview: { maxSize: 1280, quality: 82 },
 } as const
 

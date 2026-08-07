@@ -56,6 +56,7 @@ vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test.com')
 import {
   generateStorageKey,
   createImagePreviewAssets,
+  createImageThumbnailAsset,
   createVideoPosterAsset,
   fetchAsBuffer,
   uploadToR2,
@@ -277,6 +278,60 @@ describe('createImagePreviewAssets', () => {
         }),
       }),
     )
+  })
+})
+
+describe('createImageThumbnailAsset', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend.mockResolvedValue({})
+  })
+
+  it('derives a thumbnail whose short edge still covers a square grid tile', async () => {
+    // 16:9 is the worst case for the assets grid: tiles are square and
+    // `object-cover`, so the SHORT edge is what has to fill them. Measured
+    // tile at `comfortable` density is 336px — the old 384px long-edge cap
+    // left only a 216px short edge and upscaled every wide upload 1.56x.
+    const sourceBuffer = await sharp({
+      create: { width: 2752, height: 1548, channels: 3, background: '#3366cc' },
+    })
+      .png()
+      .toBuffer()
+
+    await createImageThumbnailAsset({
+      sourceBuffer,
+      sourceStorageKey: 'generations/user-1/image/source.png',
+    })
+
+    const put = mockSend.mock.calls
+      .map(([command]) => command)
+      .find((command) => command.params.Key.endsWith('.thumbnail.webp'))
+    const meta = await sharp(put.params.Body).metadata()
+
+    expect(meta.format).toBe('webp')
+    expect(meta.width).toBe(768)
+    expect(meta.height).toBeGreaterThanOrEqual(336)
+  })
+
+  it('never enlarges a source that is already smaller than the cap', async () => {
+    const sourceBuffer = await sharp({
+      create: { width: 200, height: 150, channels: 3, background: '#3366cc' },
+    })
+      .png()
+      .toBuffer()
+
+    await createImageThumbnailAsset({
+      sourceBuffer,
+      sourceStorageKey: 'generations/user-1/image/small.png',
+    })
+
+    const put = mockSend.mock.calls
+      .map(([command]) => command)
+      .find((command) => command.params.Key.endsWith('.thumbnail.webp'))
+    const meta = await sharp(put.params.Body).metadata()
+
+    expect(meta.width).toBe(200)
+    expect(meta.height).toBe(150)
   })
 })
 

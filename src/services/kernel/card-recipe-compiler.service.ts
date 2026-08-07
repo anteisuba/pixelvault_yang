@@ -439,7 +439,7 @@ export async function compileRecipe(
   }
 
   // Merge LoRAs from all card types (character → style → background)
-  // Deduplicate by URL, trim to provider maxLoras limit
+  // Deduplicate by URL — no count cap, see below
   type Lora = z.infer<typeof LoraSchema>
   const baseAdvancedParams =
     (styleCard?.advancedParams as AdvancedParams) ?? null
@@ -461,18 +461,26 @@ export async function compileRecipe(
       mergedLoras.push(lora)
     }
   }
-  // Trim to provider max (FAL: 5, Replicate: 1)
-  const maxLoras = adapterType === AI_ADAPTER_TYPES.REPLICATE ? 1 : 5
-  const trimmedLoras = mergedLoras.slice(0, maxLoras)
+  // 这里**不设**挂载上限（owner 2026-08-07）——合并去重后有几个就送几个。
+  //
+  // ⚠ 2026-08-07 之前这里写死 `maxLoras = Replicate ? 1 : 5` 再 slice：装配台让
+  // 用户挂满 3 个，编译进生成请求时被砍到 1 个——「做同款」的多挂载在服务端悄悄
+  // 失效，UI 上看不出任何异常。修法不是把这个数改对、也不是改读能力位表的
+  // maxLoras，而是整条截断退役：三个后端本来都不限（fal 文档「any number of
+  // LoRAs」· Replicate `delta-lock/noobai-xl` 的 `loras` 是不限长度的列表 ·
+  // runner 是自家 ComfyUI，一个 LoRA 串一个 LoraLoader），上限从来只是界面上
+  // 「清爽」拍的数。同批退役的还有 use-active-lora-stack 的 MAX_STACK。
+  //
+  // 真吃不下时由 provider 报错——大声失败好过服务端静默丢弃用户挂的东西。
 
   // Inject Civitai token into LoRA URLs that need it
-  let lorasWithToken = trimmedLoras
-  if (trimmedLoras.some((l) => l.url.includes('civitai.com'))) {
+  let lorasWithToken = mergedLoras
+  if (mergedLoras.some((l) => l.url.includes('civitai.com'))) {
     const civitaiToken = await getCivitaiTokenByInternalUserId(userId).catch(
       () => null,
     )
     if (civitaiToken) {
-      lorasWithToken = trimmedLoras.map((l) => ({
+      lorasWithToken = mergedLoras.map((l) => ({
         ...l,
         url: injectCivitaiToken(l.url, civitaiToken),
       }))
